@@ -1,0 +1,401 @@
+.center-header {
+  background: var(--silo-content-tab-tray-bg);
+}
+
+.center-body {
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Page-centered empty state shown when no workspace is open. */
+.center-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.center-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 360px;
+}
+
+.center-empty-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 16px;
+  border-radius: var(--silo-radius-md);
+  color: var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 12%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--silo-color-accent) 22%, transparent);
+}
+
+.center-empty-title {
+  margin: 0;
+  font-size: calc(var(--silo-font-size-base) + 5px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--silo-color-text-hi);
+}
+
+.center-empty-sub {
+  margin: 7px 0 0;
+  font-size: var(--silo-font-size-base);
+  line-height: 1.55;
+  color: var(--silo-color-text-lo);
+}
+
+.center-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 20px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--silo-radius-sm);
+  color: #fff;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.04s ease;
+  /* fill + dimmer hover come from the global `.silo-button-primary` */
+}
+.center-empty-cta:active {
+  transform: translateY(0.5px);
+}
+
+.center-body {
+  position: relative;
+}
+
+/* All workspace docks live stacked at the same absolute position. The active
+ * one is visible, the others are kept rendered (so they retain their layout
+ * and xterm canvases) but hidden via visibility + pointer-events.
+ * Crucially we DO NOT use `display: none`, which would collapse the dock to
+ * 0×0 and force a re-layout + xterm refit on every switch back. */
+.dock-host {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.dock-host[data-active="true"] {
+  visibility: visible;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+.editor-dock {
+  --dv-background-color: var(--silo-content-tab-bg);
+  --dv-paneview-active-outline-color: var(--silo-color-accent);
+  --dv-group-view-background-color: var(--silo-content-tab-bg);
+  /* Tab strip background; active tab chip uses --silo-content-tab-bg so it melds into content. */
+  --dv-tabs-and-actions-container-background-color: var(
+    --silo-content-tab-tray-bg
+  );
+  --dv-activegroup-visiblepanel-tab-background-color: var(
+    --silo-content-tab-bg
+  );
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(
+    --silo-content-tab-bg
+  );
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-tab-divider-color: transparent;
+  /* Separator border is drawn by the sash element (1px) — don't also draw
+   * dockview's per-view ::before line or we get a double border. */
+  --dv-separator-border: transparent;
+  /* Map our semantic tab text vars to the actual dockview color vars */
+  --dv-activegroup-visiblepanel-tab-color: var(--silo-content-tab-text-active);
+  --dv-activegroup-hiddenpanel-tab-color: var(--silo-content-tab-text-inactive);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--silo-content-tab-text);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(
+    --silo-content-tab-text-inactive
+  );
+  --dv-icon-hover-background-color: transparent;
+  --dv-tabs-and-actions-container-font-size: calc(
+    var(--silo-font-size-base) + 1px
+  );
+
+  /* Drop-zone indicator (the thing that lights up while dragging a tab to a panel edge). */
+  --dv-drag-over-background-color: rgba(122, 162, 247, 0.32);
+  --dv-drag-over-border-color: transparent;
+  --dv-drag-over-border: none;
+
+  /* Sashes (resize dividers between split panels). The sash element itself
+   * is 4px wide by default (hit area). We collapse that to a 1px visible
+   * line while keeping a wider invisible hit zone via ::before. */
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: transparent;
+
+  height: 100%;
+  width: 100%;
+}
+
+.editor-dock
+  .dv-split-view-container.dv-horizontal
+  > .dv-sash-container
+  > .dv-sash {
+  width: 1px;
+  background-color: var(--silo-color-border);
+}
+.editor-dock
+  .dv-split-view-container.dv-horizontal
+  > .dv-sash-container
+  > .dv-sash::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  right: -3px;
+  cursor: ew-resize;
+}
+.editor-dock
+  .dv-split-view-container.dv-vertical
+  > .dv-sash-container
+  > .dv-sash {
+  height: 1px;
+  background-color: var(--silo-color-border);
+  /* Dockview positions the sash element at `boundary - sashWidth/2` (sashWidth
+   * is hardcoded to 4px). Our 1px line would otherwise sit 2px above the true
+   * seam, leaving a 1px gap of the upper panel showing through. Nudge it down
+   * to land on the upper panel's last row — flush at the seam, but NOT on the
+   * lower panel's first row, which is where the focused tab's 2px accent border
+   * lives. (+2px would sit on the seam itself and clip that accent to 1px on
+   * themes with a visible border color; +1px keeps the full bar.) */
+  margin-top: 1px;
+}
+.editor-dock
+  .dv-split-view-container.dv-vertical
+  > .dv-sash-container
+  > .dv-sash::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  bottom: -3px;
+  cursor: ns-resize;
+}
+/* Drop dockview's per-view separator pseudo-element entirely — the sash above
+ * is our only divider, so this avoids any chance of a doubled line. */
+.editor-dock
+  .dv-split-view-container.dv-vertical
+  > .dv-view-container
+  > .dv-view:not(:first-child)::before {
+  display: none;
+}
+.editor-dock .dv-split-view-container .dv-sash-container > .dv-sash:hover,
+.editor-dock .dv-split-view-container .dv-sash-container > .dv-sash:active {
+  background-color: var(--silo-color-accent);
+}
+
+/* Inactive tabs: transparent bg + a single outline border so they read as
+ * "chips" against the panel background. Active tabs have no border — they
+ * blend into the panel content below them. */
+.editor-dock .dv-tab {
+  border: 1px solid transparent;
+  border-top-width: 2px; /* reserve space for the active accent bar */
+  border-bottom: none;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+.editor-dock .dv-tab.dv-inactive-tab {
+  border-color: transparent;
+  color: var(--silo-content-tab-text-inactive);
+}
+.editor-dock .dv-tab.dv-inactive-tab:hover {
+  background-color: var(--silo-content-tab-tray-bg);
+  color: var(--silo-content-tab-text);
+}
+.editor-dock .dv-tab.dv-active-tab {
+  color: var(--silo-content-tab-text-active);
+  /* Square the top corners so the active tab reads as a flat-topped tab
+   * connected to the content below (not a floating chip). Applies to EVERY
+   * group's active tab — in a split, each panel's open tab gets the flat top;
+   * only the focused panel additionally gets the accent bar (below). Not gated
+   * on focus, so the tab shape stays stable as focus moves. */
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+/* When the dock holds focus, light up the active group's active-tab top edge
+ * with the accent color — a clear "this panel + tab has focus" cue. Gated on
+ * `:focus-within` so the bar drops when focus moves to a side panel or the
+ * status bar (dockview keeps `dv-active-group` for the text color regardless).
+ * The 2px space is reserved by `.dv-tab`'s `border-top-width`; the vertical
+ * sash is nudged 1px (see the `.dv-vertical .dv-sash` rule above) so it never
+ * clips this bar on the lower panel of a split. */
+.editor-dock:focus-within .dv-groupview.dv-active-group .dv-tab.dv-active-tab {
+  border-top-color: var(--silo-color-accent);
+}
+
+/* Preview tab title shown in italic, matching VS Code's "preview" indicator. */
+.preview-title {
+  font-style: italic;
+}
+
+.group-add-menu {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding-left: 8px;
+  padding-right: 6px;
+}
+.group-add-btn {
+  background: transparent;
+  border: none;
+  color: var(--silo-content-tab-tray-text);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--silo-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.group-add-btn:hover {
+  background: transparent;
+  color: var(--silo-color-text-hi);
+}
+
+.dock-watermark {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  padding: 24px;
+}
+.dock-watermark-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--silo-color-text);
+  width: 280px;
+  padding: 0 4px;
+  margin-bottom: 16px;
+}
+.dock-watermark-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 280px;
+}
+.dock-watermark-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 5px 4px;
+  color: var(--silo-color-accent);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+  text-align: left;
+}
+.dock-watermark-action-label {
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+.dock-watermark-action:hover .dock-watermark-action-label {
+  text-decoration: underline;
+}
+.dock-watermark-keys {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.dock-watermark-action kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 2px 5px;
+  background: var(--silo-color-bg-hover);
+  border: 1px solid var(--silo-color-border);
+  border-radius: 3px;
+  font-family: var(--silo-font-ui);
+  font-size: calc(var(--silo-font-size-sm) - 1px);
+  color: var(--silo-color-text);
+  line-height: 1.4;
+}
+.dock-watermark-action:hover {
+  background: transparent;
+  color: var(--silo-color-accent);
+}
+.dock-watermark-action:hover kbd {
+  color: var(--silo-color-text);
+  border-color: var(--silo-color-border);
+}
+
+/* Dirty-indicator ● — smaller, blue accent, vertically centered */
+.dv-default-tab-content .dvi-dirty-indicator {
+  display: inline-block;
+  font-size: 8px;
+  line-height: 1;
+  margin-right: 4px;
+  vertical-align: middle;
+  color: var(--silo-color-accent);
+}
+
+/* Tab close button: subtle background on hover, click feedback.
+ * We include .dockview-theme-* classes to match the library's specificity
+ * and avoid the need for !important. */
+.editor-dock.dockview-theme-dark .dv-tab .dv-default-tab-action,
+.editor-dock.dockview-theme-light .dv-tab .dv-default-tab-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--silo-radius-sm);
+  margin-left: 6px;
+  margin-right: -2px;
+  cursor: pointer;
+  color: var(--silo-content-tab-text-inactive);
+  transition: all 0.1s ease;
+}
+
+.editor-dock.dockview-theme-dark .dv-tab .dv-default-tab-action svg,
+.editor-dock.dockview-theme-light .dv-tab .dv-default-tab-action svg {
+  fill: currentColor;
+}
+
+.editor-dock.dockview-theme-dark .dv-tab .dv-default-tab-action:hover,
+.editor-dock.dockview-theme-light .dv-tab .dv-default-tab-action:hover {
+  background-color: var(--silo-color-bg-hover);
+  color: var(--silo-content-tab-text-active);
+}
+
+.editor-dock.dockview-theme-dark .dv-tab .dv-default-tab-action:active,
+.editor-dock.dockview-theme-light .dv-tab .dv-default-tab-action:active {
+  background-color: var(--silo-color-bg-active);
+  transform: scale(0.9);
+}
+
+.editor-dock.dockview-theme-dark .dv-tab.dv-active-tab .dv-default-tab-action,
+.editor-dock.dockview-theme-light .dv-tab.dv-active-tab .dv-default-tab-action {
+  color: var(--silo-content-tab-text-active);
+}

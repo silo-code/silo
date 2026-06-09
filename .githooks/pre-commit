@@ -1,0 +1,31 @@
+#!/bin/sh
+# Pre-commit gate: enforce the extension boundary (and any other lint rules)
+# before a commit can land. Set up automatically via the package.json "prepare"
+# script (git config core.hooksPath .githooks).
+#
+# In a genuine pinch you can bypass with:  git commit --no-verify
+
+fail() {
+  echo ""
+  echo "✖ Commit blocked: $1"
+  echo "  Fix it, or bypass with 'git commit --no-verify' if you must."
+  exit 1
+}
+
+echo "→ Running boundary lint…"
+# Root lint covers the whole workspace: eslint (platform/leaf boundaries) +
+# stylelint (design-token-only extension CSS). The primary import boundary is
+# enforced by each package's dependency graph. See MONOREPO-MIGRATION.md step 6.
+pnpm --silent lint || fail "lint failed (see errors above)"
+
+echo "→ Formatting staged files…"
+# Auto-format staged files with Prettier and re-stage them. lint-staged stashes
+# unstaged changes first, so partial `git add -p` hunks stay out of the commit.
+npx --no-install lint-staged || fail "formatting failed (see errors above)"
+
+echo "→ Running unit tests…"
+# Unit projects across all packages, deterministic and app-free (turbo caches
+# unchanged packages). The integration layer (*.it.test.ts) drives a live dev
+# app over the RPC, so it's unsuitable for a commit gate — run it explicitly via
+# `pnpm --filter silo test:it`. See docs/AUTOMATION.md.
+pnpm --silent test 2>/dev/null || fail "tests failed (see errors above)"

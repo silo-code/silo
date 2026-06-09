@@ -1,0 +1,29 @@
+{
+  "name": "@silo-code/extensions-silo",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@silo-code/sdk": "workspace:*",
+    "react": "^19.1.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@types/node": "^25",
+    "@types/react": "^19.1.8",
+    "@vitejs/plugin-react": "^4.6.0",
+    "jsdom": "^29.1.1",
+    "typescript": "~5.8.3",
+    "vitest": "^4.1.7"
+  }
+}

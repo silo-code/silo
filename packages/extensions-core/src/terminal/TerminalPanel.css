@@ -1,0 +1,103 @@
+.terminal-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  /* Painted by TerminalPanel.tsx to match the xterm canvas background so
+   * the 6px padding around the canvas blends in seamlessly. Falls back to
+   * --bg-0 before the terminal mounts. */
+  background: var(--silo-content-terminal-bg);
+}
+
+/* Holds the xterm host + overlays below the breadcrumb; the absolutely
+ * positioned host fills this box. */
+.terminal-panel__body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.terminal-host {
+  position: absolute;
+  inset: 0;
+  padding: 6px 0 0 6px;
+  user-select: text;
+  -webkit-user-select: text;
+  background: var(--silo-content-terminal-bg);
+  /* Block pointer events when the terminal isn't ready (e.g. stale overlay
+     is shown). When "ready", the --active class re-enables them. */
+  pointer-events: none;
+  z-index: 0;
+}
+.terminal-host.terminal-host--active {
+  pointer-events: auto;
+}
+
+.terminal-host .xterm,
+.terminal-host .xterm-viewport,
+.terminal-host .xterm-screen {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* xterm.css ships with a hard-coded `background: #000` on the viewport.
+ * Inherit our terminal-bg (synced to the xterm theme) so the sub-row gap
+ * at the bottom of the cell grid blends in. */
+.terminal-host .xterm .xterm-viewport {
+  background-color: var(--silo-content-terminal-bg) !important;
+}
+
+/* xterm v6 renders a VS Code-style overlay scrollbar (.xterm-scrollable-element).
+ * Match Monaco: keep it hidden until the pointer is over the terminal, then fade
+ * it in (and back out on leave). xterm adds the `fade` class only when the buffer
+ * overflows (the no-overflow hidden state has no `fade`), so this only shows when
+ * there's actually something to scroll. The slider color comes from the xterm
+ * theme (scrollbarSlider*Background). */
+.terminal-host .xterm .xterm-scrollable-element > .scrollbar.invisible.fade {
+  /* Fade-out speed (active once the pointer leaves) — slow, like Monaco. */
+  transition: opacity 800ms linear !important;
+}
+.terminal-host:hover
+  .xterm
+  .xterm-scrollable-element
+  > .scrollbar.invisible.fade {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  /* Fade-in speed (mouse enter) — quick, like Monaco. */
+  transition: opacity 100ms linear !important;
+}
+
+/* Transparent track with a thin divider on its left edge (theme --silo-color-border). The
+ * slider (thumb) color is driven by the xterm theme's scrollbarSlider*Background
+ * (set to match Monaco — see xtermThemeFor), so hover/active swap automatically
+ * and we must NOT hard-code a slider background here. */
+.terminal-host .xterm .xterm-scrollable-element > .scrollbar.vertical {
+  background: transparent;
+  border-left: 1px solid var(--silo-color-border);
+  width: 15px !important;
+}
+.terminal-host .xterm .xterm-scrollable-element > .scrollbar > .slider {
+  width: 11px !important;
+  border-radius: 0;
+}
+
+.terminal-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 17, 21, 0.85);
+  color: var(--silo-content-text);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.terminal-overlay.interactive {
+  pointer-events: auto;
+}
+.terminal-overlay .hint {
+  color: #6b6b6b;
+  font-size: 12px;
+}

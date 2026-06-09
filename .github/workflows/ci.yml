@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      # Typecheck the app program, which pulls in every workspace package's
+      # source through the import graph (host, sdk, extensions-*).
+      - run: pnpm --filter silo exec tsc --noEmit
+      - run: pnpm test
+
+  rust:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./apps/desktop/src-tauri -> target"
+      - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+      # Informational for now — pre-existing warnings are cleaned in the
+      # module-decomposition pass. Not `-D warnings` yet.
+      - run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets
+
+  pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      # Squash-merge uses the PR title as the commit subject, so it must be a
+      # valid Conventional Commit.
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

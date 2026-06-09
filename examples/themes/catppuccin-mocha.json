@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "name": "Catppuccin Mocha",
+  "base": "dark",
+  "colorScheme": "dark",
+  "vars": {
+    "--silo-color-bg-hover": "#313244",
+    "--silo-color-button-bg": "#45475a",
+    "--silo-color-bg-active": "#7287fd",
+    "--silo-content-terminal-bg": "#11111b",
+    "--silo-content-editor-bg": "#1e1e2e",
+    "--silo-statusbar-bg": "#11111b",
+    "--silo-statusbar-text": "#cba6f7",
+    "--silo-color-bg": "#181825",
+    "--silo-color-text-hi": "#bac2de",
+    "--silo-color-text-lo": "#6c7086",
+    "--silo-content-tab-tray-bg": "#181825",
+    "--silo-content-tab-bg": "#1e1e2e",
+    "--silo-content-tab-tray-text": "#bac2de",
+    "--silo-tab-text": "#bac2de",
+    "--silo-tab-text-active": "#cdd6f4",
+    "--silo-color-border": "transparent",
+    "--silo-color-border-strong": "#45475a",
+    "--silo-content-text": "#cdd6f4",
+    "--silo-content-editor-text-dim": "#bac2de",
+    "--silo-content-editor-text-faint": "#6c7086",
+    "--silo-color-accent": "#cba6f7",
+    "--silo-color-accent-2": "#f5c2e7",
+    "--silo-color-ok": "#a6e3a1",
+    "--silo-color-warn": "#fab387",
+    "--silo-color-err": "#f38ba8"
+  }
+}

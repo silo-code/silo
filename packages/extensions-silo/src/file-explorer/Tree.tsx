@@ -1,0 +1,550 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  DND_MIME,
+  useFocusGroup,
+  type ExtensionContext,
+  type MenuEntry,
+} from "@silo-code/sdk";
+import {
+  dirOf,
+  type Listing,
+  type NewItem,
+  type RowFocusProps,
+} from "./tree-types";
+import { flattenVisible, treeArrowNav } from "./tree-nav";
+import { DirNode } from "./TreeNodes";
+
+// Module-level file clipboard (cut/copy) — reserved for future Paste implementation
+const fileCb = { current: null as { path: string; op: "cut" | "copy" } | null };
+
+export function Tree({
+  ctx,
+  workspaceId,
+  root,
+  rootLabel,
+  initialExpanded,
+  persistExpanded,
+}: {
+  ctx: ExtensionContext;
+  workspaceId: string;
+  root: string;
+  rootLabel: string;
+  initialExpanded?: Record<string, boolean>;
+  /** Persist the expanded-paths map (merged into the panel's stored state). */
+  persistExpanded: (expanded: Record<string, boolean>) => void;
+}) {
+  // The public primitives this tree drives — read through ctx, never the host
+  // getters. (Stable per extension, so safe to bind once per render.)
+  const editors = ctx.editors;
+  const files = ctx.files;
+  const [listings, setListings] = useState<Record<string, Listing>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => ({
+    ...(initialExpanded ?? { [root]: true }),
+  }));
+  // Mirror of `expanded` for the fs-watch callback, which closes over state but
+  // must not re-subscribe the OS watcher on every expand/collapse. Kept current
+  // each render so change events reload only the folders that are open now.
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
+  const loadingRef = useRef<Set<string>>(new Set());
+  const fileTreeRef = useRef<HTMLDivElement>(null);
+  const [newItem, setNewItem] = useState<NewItem | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  // The visible rows in document order — the index space useFocusGroup roves
+  // over. Built from listings/expanded so it tracks expand/collapse, and ordered
+  // exactly as TreeNodes renders so arrow movement lands on the adjacent row.
+  const flat = useMemo(
+    () => flattenVisible(root, listings, expanded),
+    [root, listings, expanded],
+  );
+  const indexOfPath = useMemo(() => {
+    const m = new Map<string, number>();
+    flat.forEach((n, i) => m.set(n.path, i));
+    return m;
+  }, [flat]);
+  const selectedIndex = selected ? (indexOfPath.get(selected) ?? 0) : 0;
+
+  // Roving keyboard focus, the WebKit-safe ring, and the single Tab stop are
+  // owned by useFocusGroup (same as the Workspaces panel): the tree is one Tab
+  // stop, ↑/↓/Home/End move between rows, and the ContextMenu key / Shift+F10
+  // opens the row's menu. Entry parks on the selected row (`start`), so the
+  // host's "first tabbable" lands there on click / region cycle. The tree-only
+  // axis (←/→ expand/collapse, Enter rename, ⌘↩ open, …) is handled in
+  // handleRowKey, which runs before the group's own key handling.
+  const group = useFocusGroup({
+    count: flat.length,
+    start: selectedIndex,
+    orientation: "vertical",
+    onMenu: (i, anchor) => {
+      const n = flat[i];
+      if (n) openFileMenu(n.path, n.isDir, { anchor });
+    },
+  });
+
+  // The tree-specific keys, run before useFocusGroup sees the event. Returns
+  // true when it owns the key (the group then skips it); false to defer to the
+  // group (↑/↓/Home/End movement, the ContextMenu key).
+  function handleRowKey(e: React.KeyboardEvent, path: string, isDir: boolean) {
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      e.preventDefault();
+      const action = treeArrowNav({ key: e.key, path, isDir, expanded, root });
+      if (action?.kind === "expand") {
+        setExpanded((prev) => {
+          const next = { ...prev, [path]: true };
+          persistExpanded(next);
+          return next;
+        });
+        if (!listings[path]) load(path);
+      } else if (action?.kind === "collapse") {
+        setExpanded((prev) => {
+          const next = { ...prev, [path]: false };
+          persistExpanded(next);
+          return next;
+        });
+      } else if (action?.kind === "focusParent") {
+        const parentIdx = indexOfPath.get(action.path);
+        if (parentIdx !== undefined) group.focusItem(parentIdx);
+      }
+      return true;
+    }
+    const name = path.split("/").pop() ?? path;
+    if (e.key === "Enter" && e.metaKey) {
+      e.preventDefault();
+      if (!isDir) editors.open(path, { workspaceId });
+      return true;
+    }
+    if (e.key === "Enter" && !e.metaKey && !e.shiftKey) {
+      e.preventDefault();
+      setRenaming(path);
+      return true;
+    }
+    if (e.key === "Backspace" && e.metaKey) {
+      e.preventDefault();
+      void ctxDelete(path, name);
+      return true;
+    }
+    if (e.key === "r" && e.altKey && e.metaKey) {
+      e.preventDefault();
+      void ctxReveal(path);
+      return true;
+    }
+    if (e.key === "x" && e.metaKey) {
+      e.preventDefault();
+      ctxCut(path);
+      return true;
+    }
+    if (e.key === "c" && e.metaKey && !e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      ctxCopy(path);
+      return true;
+    }
+    if (e.key === "c" && e.metaKey && e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      ctxCopyPath(path);
+      return true;
+    }
+    if (e.key === "c" && e.metaKey && e.altKey && e.shiftKey) {
+      e.preventDefault();
+      ctxCopyRelPath(path);
+      return true;
+    }
+    return false;
+  }
+
+  // Focus-group props for a row, composing the group's handlers with the tree's:
+  // selection follows keyboard focus (onFocus → setSelected), and handleRowKey
+  // gets first crack at every keydown. Returns `{}` for rows that aren't focus
+  // items (the root header, or a path not in the visible list).
+  function getRowProps(path: string, isDir: boolean): RowFocusProps {
+    const idx = indexOfPath.get(path);
+    if (idx === undefined) return {};
+    const gp = group.getItemProps(idx);
+    return {
+      ...gp,
+      onFocus: () => {
+        gp.onFocus();
+        setSelected(path);
+      },
+      onKeyDown: (e) => {
+        if (handleRowKey(e, path, isDir)) return;
+        gp.onKeyDown(e);
+      },
+    };
+  }
+
+  async function load(path: string) {
+    if (loadingRef.current.has(path)) return;
+    loadingRef.current.add(path);
+    try {
+      const entries = await files.readDir(path);
+      setListings((prev) => ({ ...prev, [path]: { entries } }));
+    } catch (err) {
+      setListings((prev) => ({
+        ...prev,
+        [path]: { entries: [], error: String(err) },
+      }));
+    } finally {
+      loadingRef.current.delete(path);
+    }
+  }
+
+  useEffect(() => {
+    load(root);
+    for (const [path, isExpanded] of Object.entries(expanded)) {
+      if (isExpanded && path !== root) load(path);
+    }
+  }, [root]);
+
+  useEffect(() => {
+    const sub = files.watch(root, (evt) => {
+      const dirs = new Set<string>();
+      for (const p of evt.paths) dirs.add(dirOf(p));
+      setListings((prev) => {
+        const next = { ...prev };
+        for (const d of dirs) {
+          if (next[d]) delete next[d];
+        }
+        return next;
+      });
+      dirs.forEach((d) => {
+        if (expandedRef.current[d] ?? d === root) load(d);
+      });
+    });
+    return () => {
+      sub.dispose();
+    };
+  }, [workspaceId, root]);
+
+  function refreshAll() {
+    setListings({});
+    load(root);
+    for (const [path, isExpanded] of Object.entries(expanded)) {
+      if (isExpanded) load(path);
+    }
+  }
+
+  function collapseAll() {
+    const next = { [root]: true };
+    setExpanded(next);
+    persistExpanded(next);
+  }
+
+  async function commitNewItem(name: string) {
+    const n = name.trim();
+    const dir = newItem?.dir;
+    setNewItem(null);
+    if (!n || !dir) return;
+    const targetPath = dir + "/" + n;
+    if (newItem!.type === "file") {
+      await files
+        .writeText(targetPath, "")
+        .catch((e) => console.warn("create file failed", e));
+    } else {
+      await files
+        .createDir(targetPath)
+        .catch((e) => console.warn("create dir failed", e));
+    }
+    // ensure dir is expanded and force-reload its listing
+    setExpanded((prev) => {
+      const next = { ...prev, [dir]: true };
+      persistExpanded(next);
+      return next;
+    });
+    setListings((prev) => {
+      const next = { ...prev };
+      delete next[dir];
+      return next;
+    });
+    load(dir);
+  }
+
+  function toggle(path: string, isDir: boolean) {
+    setSelected(path);
+    if (!isDir) {
+      editors.open(path, { workspaceId, preview: true });
+      return;
+    }
+    setExpanded((prev) => {
+      const next = { ...prev, [path]: !prev[path] };
+      persistExpanded(next);
+      return next;
+    });
+    if (!listings[path]) load(path);
+  }
+
+  function togglePermanent(path: string) {
+    setSelected(path);
+    editors.open(path, { workspaceId });
+  }
+
+  function handleContextMenu(
+    e: React.MouseEvent,
+    path: string,
+    isDir: boolean,
+    rootArea = false,
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    openFileMenu(path, isDir, { at: { x: e.clientX, y: e.clientY } }, rootArea);
+  }
+
+  /**
+   * Open a row's context menu — at the cursor for a right-click, or anchored to
+   * the row when invoked from the keyboard (the ContextMenu key / Shift+F10).
+   * `toggle: false` so a stray duplicate event re-opens rather than toggling it
+   * shut (mirrors the Workspaces panel).
+   */
+  function openFileMenu(
+    path: string,
+    isDir: boolean,
+    placement: { at?: { x: number; y: number }; anchor?: HTMLElement | null },
+    rootArea = false,
+  ) {
+    setSelected(path);
+    void ctx.ui.showMenu({
+      items: menuItemsFor(path, isDir, rootArea),
+      toggle: false,
+      ...placement,
+    });
+  }
+
+  function menuItemsFor(
+    path: string,
+    isDir: boolean,
+    rootArea: boolean,
+  ): MenuEntry[] {
+    const name = path.split("/").pop() ?? "";
+    const items: MenuEntry[] = [];
+    if (!isDir) {
+      items.push({
+        label: "Open",
+        accelerator: "⌘↩",
+        run: () => ctxOpenToSide(path),
+      });
+      // "Open With" — only when the file has more than one matching view
+      // (e.g. a Markdown file can open as Text or Preview).
+      const views = ctx.editors.editorsFor(path);
+      if (views.length > 1) {
+        items.push({
+          label: "Open With",
+          submenu: views.map((v) => ({
+            label: v.isDefault ? `${v.label}  (default)` : v.label,
+            run: () => editors.open(path, { workspaceId, viewType: v.id }),
+          })),
+        });
+      }
+    }
+    if (isDir) {
+      items.push({ label: "New File…", run: () => ctxNewFile(path) });
+      items.push({ label: "New Folder…", run: () => ctxNewFolder(path) });
+      items.push({
+        label: "New Terminal Here",
+        run: () => {
+          ctx.terminals.create({ cwd: path });
+        },
+      });
+    }
+    items.push({
+      label: "Reveal in Finder",
+      accelerator: "⌥⌘R",
+      run: () => ctxReveal(path),
+    });
+    if (!rootArea) {
+      items.push({ type: "separator" });
+      items.push({ label: "Cut", accelerator: "⌘X", run: () => ctxCut(path) });
+      items.push({
+        label: "Copy",
+        accelerator: "⌘C",
+        run: () => ctxCopy(path),
+      });
+    }
+    items.push({ type: "separator" });
+    items.push({
+      label: "Copy Path",
+      accelerator: "⌥⌘C",
+      run: () => ctxCopyPath(path),
+    });
+    items.push({
+      label: "Copy Relative Path",
+      accelerator: "⌥⇧⌘C",
+      run: () => ctxCopyRelPath(path),
+    });
+    if (!rootArea) {
+      items.push({ type: "separator" });
+      items.push({
+        label: "Rename…",
+        accelerator: "↵",
+        run: () => ctxRename(path),
+      });
+      items.push({
+        label: "Delete",
+        accelerator: "⌘⌫",
+        danger: true,
+        run: () => ctxDelete(path, name),
+      });
+    }
+    return items;
+  }
+
+  function ctxOpenToSide(path: string) {
+    editors.open(path, { workspaceId });
+  }
+
+  function ctxNewFile(dir: string) {
+    setExpanded((prev) => {
+      const next = { ...prev, [dir]: true };
+      persistExpanded(next);
+      return next;
+    });
+    if (!listings[dir]) load(dir);
+    setNewItem({ dir, type: "file" });
+  }
+
+  function ctxNewFolder(dir: string) {
+    setExpanded((prev) => {
+      const next = { ...prev, [dir]: true };
+      persistExpanded(next);
+      return next;
+    });
+    if (!listings[dir]) load(dir);
+    setNewItem({ dir, type: "folder" });
+  }
+
+  async function ctxReveal(path: string) {
+    await files.reveal(path).catch((e) => console.warn("reveal failed", e));
+  }
+
+  function ctxCut(path: string) {
+    fileCb.current = { path, op: "cut" };
+  }
+
+  function ctxCopy(path: string) {
+    fileCb.current = { path, op: "copy" };
+  }
+
+  function ctxCopyPath(path: string) {
+    navigator.clipboard.writeText(path);
+  }
+
+  function ctxCopyRelPath(path: string) {
+    const rel = path.startsWith(root + "/")
+      ? path.slice(root.length + 1)
+      : path;
+    navigator.clipboard.writeText(rel);
+  }
+
+  function ctxRename(path: string) {
+    setRenaming(path);
+  }
+
+  async function ctxDelete(path: string, name: string) {
+    const ok = await ctx.ui.confirm({
+      title: `Delete "${name}"?`,
+      body: "This action cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (ok)
+      await files.delete(path).catch((e) => console.warn("delete failed", e));
+  }
+
+  async function commitRename(oldPath: string, newName: string) {
+    setRenaming(null);
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const dir = dirOf(oldPath);
+    const newPath = dir + "/" + trimmed;
+    if (newPath === oldPath) return;
+    await files
+      .rename(oldPath, newPath)
+      .catch((e) => console.warn("rename failed", e));
+  }
+
+  async function handleDrop(draggedPath: string, targetDir: string) {
+    // Prevent dropping onto self or own descendant
+    if (draggedPath === targetDir) return;
+    if (targetDir.startsWith(draggedPath + "/")) return;
+    const name = draggedPath.split("/").pop()!;
+    const newPath = targetDir + "/" + name;
+    if (newPath === draggedPath) return;
+    await files
+      .rename(draggedPath, newPath)
+      .catch((e) => console.warn("move failed", e));
+    // Refresh old parent and new target dir
+    const oldParent = dirOf(draggedPath);
+    setListings((prev) => {
+      const next = { ...prev };
+      delete next[oldParent];
+      delete next[targetDir];
+      return next;
+    });
+    load(oldParent);
+    load(targetDir);
+  }
+
+  // Empty-space drops on the tree container move the file to the root. Row
+  // targets call stopPropagation (onDrop returns true), so this only fires for
+  // drops that don't land on a row.
+  const handleDropRef = useRef(handleDrop);
+  handleDropRef.current = handleDrop;
+  useEffect(() => {
+    const el = fileTreeRef.current;
+    if (!el) return;
+    const reg = ctx.dnd.registerDropTarget(el, {
+      accepts: [DND_MIME.filePath],
+      onDragOver: () => "move",
+      onDrop: ({ items }) => {
+        const dragged = items.find((i) => i.mime === DND_MIME.filePath)?.value;
+        if (dragged) handleDropRef.current(dragged, root);
+        return true;
+      },
+    });
+    return () => reg.dispose();
+  }, [ctx, root]);
+
+  return (
+    <>
+      <div
+        ref={fileTreeRef}
+        className="file-tree"
+        role="tree"
+        aria-label={rootLabel}
+        // onBlur (from containerProps) clears the keyboard ring when focus
+        // leaves the tree — e.g. Tab handing off to the status bar.
+        {...group.containerProps}
+        onContextMenu={(e) => handleContextMenu(e, root, true, true)}
+      >
+        <DirNode
+          dnd={ctx.dnd}
+          getRowProps={getRowProps}
+          path={root}
+          name={rootLabel}
+          isRoot
+          depth={0}
+          expanded={expanded}
+          listings={listings}
+          onToggle={toggle}
+          onOpenPermanent={togglePermanent}
+          onContextMenu={handleContextMenu}
+          renaming={renaming}
+          onRenameCommit={commitRename}
+          onRenameCancel={() => setRenaming(null)}
+          newItem={newItem}
+          onNewItem={setNewItem}
+          onNewItemCommit={commitNewItem}
+          onNewItemCancel={() => setNewItem(null)}
+          selected={selected}
+          onDrop={handleDrop}
+          rootActions={{
+            onNewFile: () => setNewItem({ dir: root, type: "file" }),
+            onNewFolder: () => setNewItem({ dir: root, type: "folder" }),
+            onRefresh: refreshAll,
+            onCollapseAll: collapseAll,
+          }}
+        />
+      </div>
+    </>
+  );
+}

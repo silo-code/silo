@@ -1,0 +1,18 @@
+.settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  color: var(--silo-color-text-lo);
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+.settings-button:hover {
+  color: var(--silo-color-text-hi);
+}

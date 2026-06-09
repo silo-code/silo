@@ -1,0 +1,140 @@
+/* The preview is a guest in the editor dock — like the image viewer, it sits
+   transparently on the content surface the dock already paints (the editor's
+   `--silo-content-*` background is the editor's to own, not ours). We style only
+   with public design tokens. */
+.markdown-preview {
+  height: 100%;
+  width: 100%;
+  overflow: auto;
+  /* Sit on the editor frame's content surface: transparent background shows the
+     frame's --silo-content-editor-bg, and the text inherits its
+     --silo-content-text. We're a guest in the editor dock, so we consume those
+     content tokens by inheritance rather than naming them (they're the editor's
+     to own — see the theming contract). */
+  background: transparent;
+  color: inherit;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  box-sizing: border-box;
+}
+/* The preview is keyboard-focusable (tabIndex=0) so entering the center lands on
+   it for arrow-scrolling + Tab through its links — like the editor/terminal, the
+   focus indicator is the content itself, so no outline on the whole pane. */
+.markdown-preview:focus {
+  outline: none;
+}
+
+.markdown-preview .placeholder {
+  padding: 16px;
+  color: var(--silo-color-text-lo);
+}
+
+.markdown-preview .placeholder.error {
+  color: var(--silo-color-err);
+}
+
+.markdown-preview__body {
+  padding: 24px 32px;
+  /* Opt back into selection — the app shell sets user-select:none on chrome,
+     but this is readable content the user can select and copy. */
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: auto;
+  /* A touch larger than chrome text for comfortable reading; scaled off the
+     base token so it still tracks the user's uiFontSize. */
+  font-size: calc(var(--silo-font-size-base) * 1.2);
+  line-height: 1.6;
+}
+
+.markdown-preview__body :first-child {
+  margin-top: 0;
+}
+
+.markdown-preview__body h1,
+.markdown-preview__body h2,
+.markdown-preview__body h3,
+.markdown-preview__body h4,
+.markdown-preview__body h5,
+.markdown-preview__body h6 {
+  /* Inherit the frame's --silo-content-text (like the body), not chrome text. */
+  color: inherit;
+  line-height: 1.25;
+  margin: 1.5em 0 0.5em;
+}
+
+.markdown-preview__body h1,
+.markdown-preview__body h2 {
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.markdown-preview__body a {
+  color: var(--silo-color-accent);
+  text-decoration: none;
+}
+
+.markdown-preview__body a:hover {
+  text-decoration: underline;
+}
+
+.markdown-preview__body code {
+  font-family: var(--silo-font-mono);
+  font-size: 0.9em;
+  /* Inset surface derived from the editor content background (set on the editor
+     frame, inherited here), so code blocks blend with the editor's theme. */
+  background: var(--editor-code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: var(--silo-radius-sm);
+}
+
+.markdown-preview__body pre {
+  background: var(--editor-code-bg);
+  padding: 12px 16px;
+  border-radius: var(--silo-radius-md);
+  overflow: auto;
+}
+
+.markdown-preview__body pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.9em;
+}
+
+.markdown-preview__body blockquote {
+  margin: 1em 0;
+  padding: 0 1em;
+  color: var(--silo-color-text-lo);
+  border-left: 3px solid var(--silo-color-border);
+}
+
+.markdown-preview__body hr {
+  height: 1px;
+  border: none;
+  background: var(--silo-color-border);
+  margin: 1.5em 0;
+}
+
+.markdown-preview__body table {
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.markdown-preview__body th,
+.markdown-preview__body td {
+  border: 1px solid var(--silo-color-border);
+  padding: 6px 12px;
+}
+
+.markdown-preview__body th {
+  /* Inherit the frame's --silo-content-text, like headings and body. */
+  color: inherit;
+}
+
+.markdown-preview__body img {
+  max-width: 100%;
+}
+
+.markdown-preview__body ul,
+.markdown-preview__body ol {
+  padding-left: 1.5em;
+}

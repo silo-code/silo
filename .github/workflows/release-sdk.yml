@@ -1,0 +1,56 @@
+name: release-sdk
+
+# Publish @silo-code/sdk to npm via changesets.
+#
+# MANUALLY GATED: runs only on workflow_dispatch and defaults to a DRY-RUN.
+# Nothing is published until someone dispatches it with `publish: true`. The
+# build + dry-run path is safe to run any time to verify the publishable artifact.
+#
+# Auth is OIDC TRUSTED PUBLISHING — there is no NPM_TOKEN secret. One-time setup
+# on npm: npmjs.com/package/@silo-code/sdk/access → add a GitHub Actions trusted
+# publisher for owner `silo-code`, repo `silo`, workflow `release-sdk.yml`. The
+# job mints a short-lived OIDC credential (id-token: write) at publish time and
+# npm verifies it against that config; provenance is attached automatically.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Actually publish to npm (leave unchecked for a dry-run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for trusted publishing (also drives provenance)
+
+jobs:
+  release-sdk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing (OIDC) needs npm >= 11.5.1; pnpm shells out to the
+      # system npm for the credential exchange, so upgrade it.
+      - run: npm install -g npm@latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @silo-code/sdk build
+
+      # Default path: prove the artifact without going live.
+      - name: Publish (dry-run)
+        if: ${{ !inputs.publish }}
+        run: pnpm publish --filter @silo-code/sdk --dry-run --no-git-checks
+
+      # Gated path: real publish via OIDC trusted publishing (no token in env).
+      # `changeset publish` ships only non-private, ahead-of-registry packages
+      # (just @silo-code/sdk) and tags the release. If a scoped-package OIDC E404
+      # ever appears here, the fallback is `pnpm publish --filter @silo-code/sdk
+      # --no-git-checks` (npm/cli #8976).
+      - name: Publish to npm
+        if: ${{ inputs.publish }}
+        run: pnpm changeset publish

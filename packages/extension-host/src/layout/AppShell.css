@@ -1,0 +1,83 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: var(--silo-content-tab-bg);
+  position: relative;
+}
+
+/* macOS uses `titleBarStyle: Overlay`, so the webview extends under the
+ * traffic lights. This strip reclaims the top 28px as a Tauri drag region
+ * so the user can reposition the window from any column. The traffic
+ * lights are drawn by AppKit above the webview and remain clickable. */
+.titlebar-drag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  z-index: 5;
+}
+
+.app-shell > [data-panel-group] {
+  flex: 1;
+  min-height: 0;
+}
+
+.app-col {
+  background: var(--silo-color-bg);
+  color: var(--silo-color-text-hi);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding-top: 28px;
+  overflow: hidden;
+}
+
+.app-col > * {
+  flex: 1;
+  min-height: 0;
+}
+
+.app-col.center {
+  background: var(--silo-content-tab-bg);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 10px;
+  font-size: var(--silo-font-size-chrome);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--silo-color-text-hi);
+  background: var(--silo-color-bg);
+  user-select: none;
+}
+
+.panel-header:not(.tabs) {
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.panel-header .title {
+  font-weight: 600;
+}
+.panel-header .spacer {
+  flex: 1;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.placeholder {
+  padding: 16px;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  line-height: 1.5;
+}

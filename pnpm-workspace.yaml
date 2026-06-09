@@ -1,0 +1,4 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "examples/extensions/*" # the example extensions are nested one level deeper

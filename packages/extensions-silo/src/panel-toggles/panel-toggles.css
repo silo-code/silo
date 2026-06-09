@@ -1,0 +1,28 @@
+.panel-toggles {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  opacity: 0.5;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
+}
+
+.panel-toggle.active {
+  opacity: 1;
+}
+
+.panel-toggle:hover {
+  opacity: 1;
+}

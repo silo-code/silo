@@ -1,0 +1,38 @@
+.editor-panel-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--silo-content-editor-bg);
+  /* The content-surface foreground, inherited by editor-area guests that don't
+     paint their own text (e.g. the Markdown preview). Monaco/diff paint their
+     own colors and the breadcrumb sets its own, so this only reaches plain
+     content. */
+  color: var(--silo-content-text);
+  /* A subtle inset surface for content guests rendering code blocks (the
+     Markdown preview), derived from the editor background so it tracks the
+     theme — nudged toward the foreground so it reads on light and dark alike.
+     Exposed as a plain (non-token) inherited var so a guest can consume it
+     without naming the editor's component tokens. */
+  --editor-code-bg: color-mix(
+    in srgb,
+    var(--silo-content-editor-bg) 91%,
+    var(--silo-content-text) 9%
+  );
+}
+
+.editor-panel-frame__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+
+.editor-panel {
+  height: 100%;
+  width: 100%;
+  background: var(--silo-content-editor-bg);
+}
+
+.editor-panel .placeholder.error {
+  color: var(--silo-color-err);
+}

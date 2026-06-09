@@ -1,0 +1,129 @@
+/* The Settings card. The host <Modal bare> owns the backdrop, stacking, and
+   focus trap; this is the full-bleed two-pane card it centers. `bare` skips the
+   `.silo-modal` class (Settings has its own rail+pane layout, not the standard
+   padded card), but the card chrome still reads the --silo-modal-* component
+   tokens so Settings stays visually consistent with every other modal and picks
+   up modal theming (--silo-modal-bg / -border). */
+.settings-dialog {
+  position: relative;
+  display: flex;
+  width: min(860px, 86vw);
+  height: min(620px, 82vh);
+  background: var(--silo-modal-bg);
+  border: 1px solid var(--silo-modal-border);
+  border-radius: var(--silo-modal-radius);
+  box-shadow: var(--silo-modal-shadow);
+  overflow: hidden;
+  /* The modal's reading size, tunable in one place. Children inherit it, and
+     pages (incl. contributed ones) can derive from --settings-font so secondary
+     text scales with it. */
+  --settings-font: calc(var(--silo-font-size-base) + 2px);
+  font-size: var(--settings-font);
+  /* Shared min-height for a settings page's title row. Sized to a header that
+     contains an action button (e.g. Shortcuts' "Edit keybindings.json") so a
+     bare-title page lines up with one that has a button. Font-relative so it
+     scales with --silo-font-size-base (which tracks the UI font size). */
+  --settings-header-height: calc(var(--settings-font) + 14px);
+  /* The settings pane's left/content inset. Exposed so a page's list rows can
+     bleed to the pane's left edge (negative margin by this) while keeping their
+     text aligned with the page title. */
+  --settings-pane-pad: 24px;
+}
+
+.settings-rail {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 8px;
+  /* Part of the modal card — share its surface so the rail and pane read as one
+     themed panel (separated only by the border). Tracks --silo-modal-bg like the
+     rest of the card; the rail-item hover/active states still use the generics. */
+  background: var(--silo-modal-bg);
+  border-right: 1px solid var(--silo-color-border);
+  overflow-y: auto;
+}
+
+.settings-rail-title {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 8px 8px;
+}
+
+.settings-rail-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text);
+  padding: 6px 8px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  font: inherit;
+}
+.settings-rail-item:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+.settings-rail-item.active {
+  background: var(--silo-color-bg-active);
+  color: var(--silo-color-text-hi);
+}
+.settings-rail-item.group-start {
+  margin-top: 9px;
+  position: relative;
+}
+/* A divider line marks each group boundary, centered in the gap above the
+   group's first item. */
+.settings-rail-item.group-start::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -5px;
+  /* A softer shade of the modal border — dimmed against the rail surface so the
+     divider reads as subtle rather than a hard card edge. */
+  border-top: 1px solid var(--silo-modal-border);
+  opacity: 0.5;
+}
+/* …except the very first group, which sits directly under the rail title. */
+.settings-rail-item.group-start:first-of-type::before {
+  content: none;
+}
+
+.settings-pane {
+  flex: 1 1 auto;
+  overflow: auto;
+  /* Extra right padding reserves the top-right gutter for the close button so
+     page content (e.g. a header action) never sits under it. */
+  padding: 20px 40px 20px var(--settings-pane-pad);
+  color: var(--silo-color-text);
+}
+
+.settings-empty {
+  color: var(--silo-color-text-lo);
+  font-size: calc(var(--settings-font) - 1px);
+}
+
+.settings-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-lo);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.settings-close:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}

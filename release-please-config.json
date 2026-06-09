@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "include-component-in-tag": true,
+  "tag-separator": "-",
+  "packages": {
+    "apps/desktop": {
+      "release-type": "node",
+      "package-name": "silo",
+      "component": "silo",
+      "changelog-path": "CHANGELOG.md",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "src-tauri/tauri.conf.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "generic",
+          "path": "src-tauri/Cargo.toml"
+        }
+      ]
+    }
+  }
+}

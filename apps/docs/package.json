@@ -1,0 +1,32 @@
+{
+  "name": "@silo-code/docs",
+  "private": true,
+  "version": "0.5.0",
+  "type": "module",
+  "scripts": {
+    "docs:api": "typedoc",
+    "dev": "pnpm docs:api && vitepress dev",
+    "build": "pnpm docs:api && vitepress build",
+    "preview": "vitepress preview"
+  },
+  "dependencies": {
+    "@silo-code/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@braintree/sanitize-url": "^7.1.1",
+    "@types/react": "^19.1.8",
+    "cytoscape": "^3.33.1",
+    "cytoscape-cose-bilkent": "^4.1.0",
+    "dayjs": "^1.11.19",
+    "debug": "^4.4.3",
+    "dockview": "~6.3.0",
+    "mermaid": "^11.15.0",
+    "react": "^19.1.0",
+    "typedoc": "^0.28.19",
+    "typedoc-plugin-markdown": "^4.11.0",
+    "typedoc-vitepress-theme": "^1.1.2",
+    "typescript": "~5.8.3",
+    "vitepress": "^1.6.4",
+    "vitepress-plugin-mermaid": "^2.0.17"
+  }
+}

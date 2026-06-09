@@ -1,0 +1,44 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-focus",
+    "fs:default",
+    "fs:allow-read-text-file",
+    "fs:allow-write-text-file",
+    "fs:allow-read-dir",
+    "fs:allow-mkdir",
+    "fs:allow-remove",
+    "fs:allow-exists",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        {
+          "path": "$APPCONFIG/**"
+        },
+        {
+          "path": "$HOME/**"
+        },
+        {
+          "path": "$DESKTOP/**"
+        },
+        {
+          "path": "$DOCUMENT/**"
+        },
+        {
+          "path": "$DOWNLOAD/**"
+        }
+      ]
+    },
+    "dialog:default",
+    "shell:default",
+    "store:default",
+    "window-state:default",
+    "updater:default",
+    "process:allow-restart"
+  ]
+}

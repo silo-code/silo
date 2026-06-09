@@ -1,0 +1,22 @@
+# Build output
+dist/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# Generated API reference (TypeDoc owns these)
+apps/docs/api/types/
+
+# Generated changelog (release-please owns this)
+CHANGELOG.md
+
+# VitePress build cache + output
+apps/docs/.vitepress/cache/
+apps/docs/.vitepress/dist/
+
+# Lockfiles / vendored
+pnpm-lock.yaml
+apps/desktop/src-tauri/Cargo.lock
+
+# Icons / binary assets
+apps/desktop/src-tauri/icons/
+apps/desktop/src-tauri/icons-dev/

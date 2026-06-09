@@ -1,0 +1,3 @@
+# VitePress build artifacts (the generated API markdown under api/ IS committed)
+.vitepress/cache/
+.vitepress/dist/

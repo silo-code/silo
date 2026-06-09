@@ -1,0 +1,36 @@
+.status-bar {
+  height: var(--silo-internal-statusbar-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px;
+  background: var(--silo-statusbar-bg);
+  border-top: 1px solid var(--silo-color-border);
+  font-size: calc(var(--silo-font-size-base) + 1px);
+  color: var(--silo-statusbar-text);
+}
+
+/* Status items are contributed as bare buttons; give them the bar's text color
+   (not the global form-button fill) so each item needn't restate it. The theme
+   picker's popover guards its own color with higher specificity. */
+.status-bar button {
+  color: var(--silo-statusbar-text);
+}
+/* Hover uses the bar-derived surface (theme-overridable). :not(:disabled) lifts
+   this above the global button:hover; the theme picker's popover guards its own
+   option hover with higher specificity so this doesn't reach inside it. */
+.status-bar button:hover:not(:disabled) {
+  background: var(--silo-statusbar-bg-hover);
+}
+/* The keyboard focus ring is the app-wide one: the StatusBar focus controller
+   marks the focused item with data-focus-item / data-focus-visible (keyboard
+   only), and the host's shared [data-focus-item][data-focus-visible] rule
+   (theme.css) draws it — same mechanism as useFocusGroup. */
+
+.status-bar .spacer {
+  flex: 1;
+}
+.status-bar .hint {
+  color: var(--silo-statusbar-text);
+  opacity: 0.6;
+}

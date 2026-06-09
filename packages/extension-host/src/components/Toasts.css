@@ -1,0 +1,109 @@
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--silo-internal-statusbar-h) + 16px);
+  /* Above the modal stack (--silo-z-modal-base, 2000+) so notifications stay
+     visible over an open dialog; just below floating menus (9999). */
+  z-index: 9998;
+  display: flex;
+  flex-direction: column-reverse; /* newest nearest the bottom */
+  gap: 10px;
+  pointer-events: none; /* container is transparent to clicks; toasts re-enable */
+}
+
+.toast {
+  pointer-events: auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  column-gap: 10px;
+  min-width: 580px;
+  max-width: 650px;
+  padding: 14px 16px;
+  text-align: left;
+  font-family: var(--silo-font-ui);
+  /* A touch larger than chrome text so notifications read clearly. Stays
+     relative to the base token, so it still tracks UI font-scaling. Everything
+     inside scales from here: title/message inherit, the icon + close glyph are
+     sized in `em`, and action buttons use `font: inherit`. */
+  font-size: calc(var(--silo-font-size-base) + 2px);
+  line-height: 1.4;
+  /* Explicit, per-theme notify palette (the --silo-notify-* component tokens in
+     theme.css) — an elevated card so alerts don't blend into the app. */
+  color: var(--silo-notify-text);
+  background: var(--silo-notify-bg);
+  border: 1px solid var(--silo-notify-border);
+  border-radius: var(--silo-radius-md);
+  box-shadow: var(--silo-notify-shadow);
+  animation: toast-in 120ms ease-out;
+}
+
+/* Leading status icon — the severity cue (color per level, set below). */
+.toast-icon {
+  flex: none;
+  width: 1.25em;
+  height: 1.25em;
+  margin-top: 0.05em;
+}
+
+.toast-content {
+  min-width: 0; /* let long words wrap instead of stretching the grid */
+}
+
+.toast-title {
+  font-weight: 600;
+  color: var(--silo-notify-text-hi);
+}
+
+.toast-message {
+  color: var(--silo-notify-text);
+  overflow-wrap: anywhere;
+}
+
+.toast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.toast-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  margin: -2px -4px 0 0;
+  background: none;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-notify-text-hi);
+  cursor: pointer;
+  line-height: 0;
+}
+.toast-close:hover {
+  color: var(--silo-notify-text-hi);
+  background: var(--silo-color-bg-hover);
+}
+
+/* Severity → icon color. */
+.toast-info .toast-icon {
+  color: var(--silo-color-accent);
+}
+.toast-warn .toast-icon {
+  color: var(--silo-color-warn);
+}
+.toast-error .toast-icon {
+  color: var(--silo-color-err);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

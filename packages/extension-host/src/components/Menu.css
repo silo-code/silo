@@ -1,0 +1,127 @@
+/* The single floating-menu treatment — context menus and button dropdowns
+ * alike (src/components/Menu.tsx). The four themeable `--silo-menu-*` component
+ * tokens (surface / text / highlight / border) drive the look; dim text and
+ * danger track design tokens, and the radius/shadow are fixed here. A theme re-skins
+ * every menu at once. */
+
+.silo-menu {
+  position: fixed;
+  z-index: 9999;
+  min-width: 180px;
+  padding: 4px 0;
+  background: var(--silo-menu-bg);
+  border: 1px solid var(--silo-menu-border);
+  border-radius: var(--silo-radius-md);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  color: var(--silo-menu-text);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.silo-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  cursor: pointer;
+  color: var(--silo-menu-text);
+}
+
+.silo-menu-item:hover:not(.disabled),
+/* Keep the parent row highlighted while its cascaded submenu is open. */
+.silo-menu-item.open:not(.disabled),
+/* The keyboard-focused row (roving focus); the highlight is its only indicator. */
+.silo-menu-item.active:not(.disabled) {
+  background: var(--silo-menu-item-hover-bg);
+}
+
+/* Roving focus moves real DOM focus between rows; the row highlight (`.active`)
+   is the indicator, so suppress the default focus outline. */
+.silo-menu-item:focus {
+  outline: none;
+}
+
+.silo-menu-item.danger {
+  color: var(--silo-color-err);
+}
+
+.silo-menu-item.disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Fixed-width gutter so labels line up whether or not a row is checked. */
+.silo-menu-check {
+  flex: none;
+  width: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.silo-menu-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+}
+
+.silo-menu-label {
+  flex: 1;
+}
+
+.silo-menu-accel {
+  margin-left: 24px;
+  color: var(--silo-color-text-lo);
+}
+
+/* Trailing caret marking a row that cascades a submenu. */
+.silo-menu-caret {
+  flex: none;
+  margin-left: 16px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--silo-color-text-lo);
+}
+
+.silo-menu-item.open .silo-menu-caret {
+  color: var(--silo-menu-text);
+}
+
+/* Trailing per-row control (e.g. delete). Reset the global button treatment. */
+.silo-menu-trailing {
+  flex: none;
+  margin-left: 8px;
+  padding: 2px;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-lo);
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.silo-menu-trailing:hover {
+  color: var(--silo-menu-text);
+  background: var(--silo-menu-item-hover-bg);
+}
+
+.silo-menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--silo-menu-border);
+}
+
+/* Left padding aligns the header text with menu item labels:
+ * 12px row padding + 14px check gutter + 8px gap = 34px. */
+.silo-menu-header {
+  padding: 6px 12px 3px 34px;
+  font-size: calc(var(--silo-font-size-sm) - 1px);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--silo-color-text-lo);
+}

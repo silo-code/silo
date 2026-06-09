@@ -1,0 +1,123 @@
+/* Mirrors the Editor / Keyboard Shortcuts pages so contributed settings pages
+   read as one family: same page gap, header height, title size, and flat
+   border-bottom rows. */
+.ext-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+}
+
+.ext-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--settings-header-height);
+}
+.ext-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--silo-color-text-hi);
+}
+
+/* Matches .kb-search / .es-search so the filter box is consistent across pages. */
+.ext-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-input-text);
+  padding: 7px 10px;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+}
+.ext-search:focus {
+  outline: none;
+  border-color: var(--silo-color-accent);
+}
+
+.ext-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  /* Bleed rows to the pane's left edge so the separators run full-width. */
+  margin-left: calc(var(--settings-pane-pad) * -1);
+}
+
+.ext-empty {
+  color: var(--silo-color-text-lo);
+  padding: 12px 8px;
+}
+
+.ext-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  /* Left inset = pane pad so row text lines up with the page title; the row
+     itself (and its separator) reaches the pane's left edge via the list bleed. */
+  padding: 7px 8px 7px var(--settings-pane-pad);
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.ext-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ext-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--silo-color-text-hi);
+}
+.ext-version {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-mono, monospace);
+}
+.ext-badge {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  padding: 0 5px;
+}
+.ext-hint {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  line-height: 1.35;
+}
+
+.ext-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+}
+
+/* Buttons mirror .kb-edit-btn. */
+.ext-btn {
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-text-hi);
+  padding: 5px 10px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(var(--settings-font) - 1px);
+}
+.ext-btn:hover {
+  background: var(--silo-color-bg-hover);
+}
+.ext-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ext-btn-danger:hover {
+  background: var(--silo-color-err);
+  border-color: var(--silo-color-err);
+  color: var(--silo-button-danger-text, #fff);
+}

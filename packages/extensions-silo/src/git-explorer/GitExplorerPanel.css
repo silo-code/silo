@@ -1,0 +1,425 @@
+.git-explorer-scroll {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.git-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 4px 12px;
+  font-family: var(--silo-font-ui);
+}
+
+.git-panel + .git-panel {
+  border-top: 1px solid var(--silo-color-border);
+  padding-top: 4px;
+  margin-top: 0;
+}
+
+.git-root-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 2px 4px;
+  background: transparent;
+  border: none;
+  font-family: var(--silo-font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-align: left;
+}
+.git-root-label:hover {
+  color: var(--silo-color-text-hi);
+}
+
+.git-root-chev {
+  display: inline-flex;
+  align-items: center;
+  color: var(--silo-color-text-hi);
+  flex-shrink: 0;
+}
+
+.git-root-name {
+  flex-shrink: 0;
+}
+
+.git-root-branch {
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--silo-color-text);
+  letter-spacing: 0;
+  flex-shrink: 0;
+}
+
+.git-root-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.git-branch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text);
+}
+.git-branch .branch-name {
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+}
+.git-branch .branch-tracking {
+  color: var(--silo-color-text-lo);
+}
+.git-branch .spacer {
+  flex: 1;
+}
+.branch-action {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text-lo);
+  width: 30px;
+  height: 30px;
+  border-radius: var(--silo-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.branch-action:hover:not(.working):not(.disabled) {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+.branch-action.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.branch-action.working {
+  color: var(--silo-color-accent);
+  pointer-events: none;
+}
+
+.refresh-btn.working {
+  -webkit-animation: branch-spin 0.8s linear infinite;
+  animation: branch-spin 0.8s linear infinite;
+}
+.push-btn.working {
+  -webkit-animation: branch-push 0.7s ease-in-out infinite;
+  animation: branch-push 0.7s ease-in-out infinite;
+}
+
+@-webkit-keyframes branch-spin {
+  to {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@keyframes branch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@-webkit-keyframes branch-push {
+  0% {
+    -webkit-transform: translateY(0);
+    transform: translateY(0);
+    opacity: 1;
+  }
+  40% {
+    -webkit-transform: translateY(-5px);
+    transform: translateY(-5px);
+    opacity: 0;
+  }
+  41% {
+    -webkit-transform: translateY(5px);
+    transform: translateY(5px);
+    opacity: 0;
+  }
+  100% {
+    -webkit-transform: translateY(0);
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes branch-push {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 0;
+  }
+  41% {
+    transform: translateY(5px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Full git error output, shown in the "View details" modal (ctx.ui.showModal). */
+.git-error-detail {
+  max-height: 50vh;
+  overflow: auto;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Commit area */
+.commit-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 6px 6px;
+}
+.commit-area textarea {
+  resize: vertical;
+  min-height: 56px;
+  font-family: var(--silo-font-ui);
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 6px 8px;
+}
+.commit-area textarea::placeholder {
+  color: color-mix(in srgb, var(--silo-color-input-text) 40%, transparent);
+}
+.commit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: var(--silo-radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  /* fill + dimmer hover come from the global `.silo-button-primary` */
+}
+.commit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.commit-btn .commit-count {
+  background: rgba(255, 255, 255, 0.22);
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: var(--silo-font-size-chrome);
+}
+
+/* Sections */
+.git-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: var(--silo-font-size-chrome);
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0;
+}
+.section-head:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+.section-head .section-add {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--silo-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-right: -6px;
+  opacity: 0;
+  transition: opacity 80ms ease-out;
+}
+.section-head:hover .section-add {
+  opacity: 1;
+}
+.section-add:hover {
+  background: transparent;
+  color: var(--silo-color-text-hi);
+}
+.section-chev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  color: var(--silo-color-text-lo);
+}
+.section-title {
+  flex: 0;
+  white-space: nowrap;
+}
+.section-count {
+  margin-left: auto;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--silo-color-button-bg);
+  color: var(--silo-color-text);
+  border-radius: 999px;
+  font-size: calc(var(--silo-font-size-chrome) - 1px);
+  font-weight: 600;
+}
+.section-body {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0;
+}
+
+.section-body .empty {
+  color: var(--silo-color-text-lo);
+  font-style: italic;
+  padding: 4px 12px;
+}
+
+/* File rows */
+.git-file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 2px 8px 3px 8px;
+  min-height: calc(1.85em - 4px);
+  cursor: pointer;
+  position: relative;
+}
+.git-file-row:hover {
+  background: var(--silo-color-bg-hover);
+}
+.git-file-row .ico.file {
+  color: var(--silo-color-text-lo);
+  flex: 0 0 1.25em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.git-file-row .file-name {
+  font-family: var(--silo-font-ui);
+  color: var(--silo-color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.git-file-row .file-dir {
+  font-family: var(--silo-font-ui);
+  color: var(--silo-color-text-lo);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 100ms ease-out;
+}
+.git-file-row:hover .row-actions {
+  opacity: 1;
+}
+
+.row-action {
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--silo-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+.row-action:hover {
+  background: transparent;
+  color: var(--silo-color-text-hi);
+}
+
+.status-glyph {
+  display: inline-block;
+  min-width: 14px;
+  text-align: right;
+  font-family: var(--silo-font-mono);
+  font-size: calc(1em - 1px);
+  font-weight: 700;
+  margin-left: 4px;
+}
+.status-glyph.status-M {
+  color: var(--silo-color-warn);
+}
+.status-glyph.status-A {
+  color: var(--silo-color-ok);
+}
+.status-glyph.status-D {
+  color: var(--silo-color-err);
+}
+.status-glyph.status-R {
+  color: var(--silo-color-accent);
+}
+.status-glyph.status-U {
+  color: var(--silo-color-ok);
+}
+
+/* When row hover is active, hide the trailing status glyph because the
+ * actions take the space. This matches VS Code where the status letter
+ * disappears under the action cluster on hover. */
+.git-file-row:hover .status-glyph {
+  display: none;
+}

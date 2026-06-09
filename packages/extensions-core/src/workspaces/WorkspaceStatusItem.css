@@ -1,0 +1,25 @@
+/* Active-workspace name in the bottom-left status bar. A ghost button (matches
+   the theme selector on the right): transparent, with text color + hover surface
+   provided by the host `.status-bar button` rules. */
+button.ws-status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 240px;
+  padding: 2px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+  cursor: pointer;
+}
+.ws-status-icon {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.ws-status-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

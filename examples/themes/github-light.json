@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "name": "GitHub Light",
+  "base": "light",
+  "colorScheme": "light",
+  "vars": {
+    "--silo-color-bg-hover": "#eaeef2",
+    "--silo-color-button-bg": "#d0d7de",
+    "--silo-color-bg-active": "#dbeafe",
+    "--silo-content-terminal-bg": "#f6f8fa",
+    "--silo-content-editor-bg": "#ffffff",
+    "--silo-statusbar-bg": "#eaeef2",
+    "--silo-statusbar-text": "#636c76",
+    "--silo-color-bg": "#f6f8fa",
+    "--silo-color-text-hi": "#636c76",
+    "--silo-color-text-lo": "#8c959f",
+    "--silo-content-tab-tray-bg": "#f6f8fa",
+    "--silo-content-tab-bg": "#ffffff",
+    "--silo-content-tab-tray-text": "#636c76",
+    "--silo-tab-text": "#636c76",
+    "--silo-tab-text-active": "#1f2328",
+    "--silo-color-border": "#d0d7de",
+    "--silo-color-border-strong": "#8c959f",
+    "--silo-content-text": "#1f2328",
+    "--silo-content-editor-text-dim": "#636c76",
+    "--silo-content-editor-text-faint": "#8c959f",
+    "--silo-color-accent": "#0969da",
+    "--silo-color-accent-2": "#8250df",
+    "--silo-color-ok": "#1a7f37",
+    "--silo-color-warn": "#9a6700",
+    "--silo-color-err": "#cf222e"
+  }
+}

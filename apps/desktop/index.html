@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("app-theme");
+          if (!t) return;
+          t = JSON.parse(t);
+          document.documentElement.setAttribute("data-theme", t.base || "dark");
+          var v = t.vars;
+          if (v && Object.keys(v).length) {
+            var s = document.createElement("style");
+            s.id = "theme-pre";
+            s.textContent =
+              ":root{" +
+              Object.entries(v)
+                .map(function (e) {
+                  return e[0] + ":" + e[1];
+                })
+                .join(";") +
+              "}";
+            document.head.appendChild(s);
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Silo</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

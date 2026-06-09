@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "name": "Light Extended",
+  "base": "light",
+  "colorScheme": "light",
+  "vars": {}
+}

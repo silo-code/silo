@@ -1,0 +1,59 @@
+/* Drag affordance owned by the host (ctx.dnd / file-drag-ghost.ts): the floating
+ * chip that follows the cursor and the full-panel paste overlay. Imported by
+ * file-drag-ghost.ts so it loads unconditionally — the chip is shown for any
+ * ctx.dnd drag (file tree, editor tabs, third-party panels), not just when the
+ * file explorer is mounted. */
+
+.file-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10000;
+  pointer-events: none;
+  padding: 5px 9px 6px;
+  background: var(--silo-color-button-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+  font-family: var(--silo-font-ui);
+  color: var(--silo-color-text-hi);
+  white-space: nowrap;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  will-change: transform;
+}
+.file-drag-ghost .g-name {
+  font-size: var(--silo-font-size-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-drag-ghost .g-action {
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text);
+}
+.file-drag-ghost[data-mode="new-pane"] .g-action {
+  color: var(--silo-color-accent);
+}
+.file-drag-ghost[data-mode="paste"] .g-action {
+  color: var(--silo-color-accent-2);
+}
+
+/* Full-panel paste highlight, drawn while ALT is held. Mirrors the look of
+ * dockview's drop selection but covers the whole content area so the user
+ * sees "paste anywhere on this panel" instead of split zones. */
+.paste-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: rgba(187, 154, 247, 0.18);
+  box-sizing: border-box;
+  will-change: transform;
+}
+[data-theme="light"] .paste-overlay {
+  background: rgba(187, 154, 247, 0.22);
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["../../packages/sdk/src/index.ts"],
+  "gitRevision": "main",
+  "tsconfig": "tsconfig.json",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-vitepress-theme"],
+  "out": "api/types",
+  "excludeInternal": true,
+  "readme": "none",
+  "hideGenerator": true,
+  "githubPages": false,
+  "sort": ["source-order"],
+  "categorizeByGroup": false,
+  "categoryOrder": [
+    "Extension Contract",
+    "Registration",
+    "Consumer Services",
+    "Core Types",
+    "*"
+  ],
+  "outputFileStrategy": "members",
+  "entryFileName": "index.md",
+  "hidePageHeader": true,
+  "hideBreadcrumbs": true,
+  "useCodeBlocks": true,
+  "docsRoot": "."
+}

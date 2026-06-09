@@ -1,0 +1,24 @@
+{
+  "name": "clock-extension",
+  "displayName": "Clock",
+  "version": "0.1.0",
+  "description": "A status-bar clock with a 12/24-hour toggle command and a settings page.",
+  "private": true,
+  "type": "module",
+  "silo": {
+    "id": "acme.clock",
+    "engine": "^0.1",
+    "main": "dist/index.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@silo-code/sdk": "workspace:*",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.24.0",
+    "react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}

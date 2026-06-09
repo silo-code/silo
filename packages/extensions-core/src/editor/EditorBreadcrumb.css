@@ -1,0 +1,11 @@
+.editor-breadcrumb {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+/* The path crumbs take the remaining width; the switcher pins to the far right. */
+.editor-breadcrumb .breadcrumb {
+  flex: 1 1 auto;
+  min-width: 0;
+}

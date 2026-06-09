@@ -1,0 +1,20 @@
+{
+  // TypeDoc-only tsconfig: it resolves the SDK source (the documented public
+  // surface) and its type dependencies (React, dockview) so `docs:api` can emit
+  // the type reference into api/types/. The docs app has no compiled output of
+  // its own — VitePress has its own toolchain — so this is not a build config.
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "strict": true
+  },
+  "include": ["../../packages/sdk/src"]
+}

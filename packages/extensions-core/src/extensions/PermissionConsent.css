@@ -1,0 +1,104 @@
+/* The install-time consent dialog. Lives inside the host modal card (which
+   supplies the backdrop, 20px padding, and width preset), so this styles only
+   the content — design tokens + em units throughout so it themes and scales. */
+
+.perm-consent {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Header: shield badge + title block. */
+.perm-consent-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.perm-consent-shield {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg-active);
+  color: var(--silo-color-accent);
+}
+.perm-consent-shield svg {
+  width: 24px;
+  height: 24px;
+}
+.perm-consent-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.perm-consent-title {
+  font-size: 1.3em;
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+}
+.perm-consent-sub {
+  font-size: 1.05em;
+  color: var(--silo-color-text-lo);
+}
+
+/* The capability list — one card per requested permission. */
+.perm-consent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.perm-consent-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg);
+  border: 1px solid var(--silo-color-border);
+}
+.perm-consent-item-icon {
+  flex: 0 0 auto;
+  display: flex;
+  color: var(--silo-color-text-lo);
+}
+.perm-consent-item-icon svg {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+.perm-consent-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.perm-consent-item-label {
+  font-size: 1.1em;
+  color: var(--silo-color-text-hi);
+}
+.perm-consent-item-detail {
+  font-size: 1em;
+  line-height: 1.4;
+  color: var(--silo-color-text-lo);
+}
+
+/* Trust caveat — quiet, but present. */
+.perm-consent-note {
+  margin: 0;
+  font-size: 1em;
+  line-height: 1.5;
+  color: var(--silo-color-text-lo);
+}
+
+.perm-consent-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

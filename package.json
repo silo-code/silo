@@ -1,0 +1,47 @@
+{
+  "name": "silo-monorepo",
+  "private": true,
+  "version": "0.5.0",
+  "type": "module",
+  "packageManager": "pnpm@10.30.1",
+  "scripts": {
+    "dev": "pnpm --filter silo app:dev",
+    "build": "turbo run build",
+    "lint": "eslint . && pnpm run lint:css",
+    "lint:css": "stylelint \"packages/extensions-*/src/**/*.css\"",
+    "test": "turbo run test",
+    "docs:api": "pnpm --filter @silo-code/docs docs:api",
+    "docs:dev": "pnpm --filter @silo-code/docs dev",
+    "docs:build": "pnpm --filter @silo-code/docs build",
+    "docs:preview": "pnpm --filter @silo-code/docs preview",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release:sdk": "pnpm --filter @silo-code/sdk build && changeset publish",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "git config core.hooksPath .githooks"
+  },
+  "lint-staged": {
+    "*": "prettier --ignore-unknown --write"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ],
+    "overrides": {
+      "dockview-core": "6.3.0"
+    }
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.0",
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "@typescript-eslint/parser": "^8.60.0",
+    "eslint": "^10.4.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "lint-staged": "^17.0.7",
+    "prettier": "^3.8.3",
+    "stylelint": "^17.12.0",
+    "turbo": "^2"
+  }
+}

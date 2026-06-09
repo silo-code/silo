@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "name": "Nord",
+  "base": "dark",
+  "colorScheme": "dark",
+  "vars": {
+    "--silo-color-bg-hover": "#3b4252",
+    "--silo-color-button-bg": "#434c5e",
+    "--silo-color-bg-active": "#5e81ac",
+    "--silo-content-terminal-bg": "#272c36",
+    "--silo-content-editor-bg": "#2e3440",
+    "--silo-statusbar-bg": "#1e2430",
+    "--silo-statusbar-text": "#88c0d0",
+    "--silo-color-bg": "#242933",
+    "--silo-color-text-hi": "#d8dee9",
+    "--silo-color-text-lo": "#4c566a",
+    "--silo-content-tab-tray-bg": "#242933",
+    "--silo-content-tab-bg": "#2e3440",
+    "--silo-content-tab-tray-text": "#d8dee9",
+    "--silo-tab-text": "#d8dee9",
+    "--silo-tab-text-active": "#eceff4",
+    "--silo-color-border": "transparent",
+    "--silo-color-border-strong": "#4c566a",
+    "--silo-content-text": "#eceff4",
+    "--silo-content-editor-text-dim": "#d8dee9",
+    "--silo-content-editor-text-faint": "#4c566a",
+    "--silo-color-accent": "#88c0d0",
+    "--silo-color-accent-2": "#b48ead",
+    "--silo-color-ok": "#a3be8c",
+    "--silo-color-warn": "#ebcb8b",
+    "--silo-color-err": "#bf616a"
+  }
+}

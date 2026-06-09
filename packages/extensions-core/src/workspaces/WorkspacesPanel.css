@@ -1,0 +1,313 @@
+.workspaces-body {
+  padding: 0;
+}
+
+.workspaces-body .placeholder.empty {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ws-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 8px 10px;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px dashed var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-ui);
+  cursor: pointer;
+}
+.ws-add-btn:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+  border-color: transparent;
+}
+
+.ws-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+
+.ws-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 3px;
+  align-items: center;
+  padding: 8px 10px;
+  margin: 0 4px 2px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+.ws-item:hover {
+  background: var(--silo-color-bg-hover);
+}
+/* Roving keyboard focus (one Tab stop, arrow movement, the keyboard-only ring)
+   is owned by useFocusGroup: it marks rows with data-focus-item / data-focus-
+   visible and the host ships the ring CSS keyed on those — so there's no
+   panel-level focus styling here. */
+.ws-item.dragging {
+  opacity: 0.4;
+}
+.ws-item.drop-before::before,
+.ws-item.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: var(--silo-color-accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.ws-item.drop-before::before {
+  top: -1px;
+}
+.ws-item.drop-after::after {
+  bottom: -1px;
+}
+.ws-item.active {
+  background: var(--silo-color-bg-active);
+}
+
+.ws-item .ws-icon {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  color: var(--silo-color-text);
+  align-self: start;
+  /* Nudge so the icon's optical center sits on the first row's text baseline. */
+  margin-top: 1px;
+}
+.ws-item.active .ws-icon {
+  color: var(--silo-color-accent);
+}
+
+.ws-item .ws-name-row {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  padding-right: 22px;
+}
+
+.ws-item .ws-name {
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.ws-item .ws-uptime {
+  font-family: var(--silo-font-ui);
+  font-size: calc(1em - 1.5px);
+  color: var(--silo-color-text-lo);
+  flex-shrink: 0;
+}
+
+.ws-item .ws-folder {
+  grid-column: 2;
+  grid-row: 2;
+  font-family: var(--silo-font-ui);
+  font-size: calc(1em - 1px);
+  color: var(--silo-color-text-lo);
+  overflow: hidden;
+  white-space: nowrap;
+  margin-top: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ws-item .ws-folder-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ws-item .ws-folder-extra-count {
+  flex-shrink: 0;
+  font-size: calc(1em - 2px);
+  color: var(--silo-color-text-lo);
+  background: var(--silo-color-button-bg);
+  border-radius: 10px;
+  padding: 0 5px;
+  line-height: 1.5;
+}
+
+.ws-item .ws-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  border: none;
+  background: transparent;
+  color: var(--silo-color-text-lo);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 6px;
+  opacity: 0;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+.ws-item:hover .ws-close {
+  opacity: 1;
+}
+.ws-item .ws-close:hover {
+  color: var(--silo-color-text-hi);
+  background: var(--silo-color-button-bg);
+}
+
+.ws-add-wrap {
+  position: relative;
+}
+
+.ws-rename-input {
+  background: var(--silo-color-button-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-hi);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  padding: 6px 8px;
+  outline: none;
+}
+.ws-rename-input:focus {
+  border-color: var(--silo-color-accent);
+}
+
+/* Combined workspace properties dialog — content layout inside the host
+   <Modal> card (which owns the backdrop/card chrome + width). */
+.ws-props-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: ws-props-in 140ms ease-out;
+}
+
+@keyframes ws-props-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.ws-prop-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ws-prop-label {
+  font-family: var(--silo-font-ui);
+  font-size: calc(var(--silo-font-size-sm) - 1px);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--silo-color-text-lo);
+}
+
+.ws-prop-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.ws-prop-count {
+  font-size: calc(var(--silo-font-size-sm) - 2px);
+  color: var(--silo-color-text-lo);
+  background: var(--silo-color-button-bg);
+  border-radius: 10px;
+  padding: 0 7px;
+  line-height: 1.6;
+}
+
+.ws-prop-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px dashed var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+}
+.ws-prop-add:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+  border-color: transparent;
+}
+
+.ws-folders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.ws-folder-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--silo-color-button-bg);
+  border-radius: var(--silo-radius-sm);
+}
+
+.ws-folder-list-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  direction: rtl;
+  text-align: left;
+}
+
+.ws-folder-primary-badge {
+  flex-shrink: 0;
+  font-size: calc(var(--silo-font-size-sm) - 1px);
+  color: var(--silo-color-text-lo);
+  background: var(--silo-color-bg-hover);
+  border: 1px solid var(--silo-color-border);
+  border-radius: 10px;
+  padding: 1px 6px;
+}
+
+.ws-folder-list-remove {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--silo-color-text-lo);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+.ws-folder-list-remove:hover {
+  color: var(--silo-color-err);
+  background: var(--silo-color-bg-hover);
+}

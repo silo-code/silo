@@ -1,0 +1,46 @@
+/* The Cmd+`-cycle popup (WorkspaceSwitcher.tsx): a floating menu-style list
+   above the status-bar workspace name. Styled from design tokens only so it
+   re-skins with the theme and scales with uiFontSize. */
+.ws-switcher {
+  position: fixed;
+  z-index: 9999;
+  min-width: 200px;
+  max-width: 320px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--silo-color-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-md);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ws-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  white-space: nowrap;
+}
+
+.ws-switcher-item.selected {
+  background: var(--silo-color-accent);
+  color: var(--silo-button-primary-text);
+}
+
+.ws-switcher-icon {
+  flex: none;
+  opacity: 0.85;
+}
+
+.ws-switcher-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

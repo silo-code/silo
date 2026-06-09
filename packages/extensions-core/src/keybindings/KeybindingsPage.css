@@ -1,0 +1,103 @@
+.kb-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+}
+
+.kb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--settings-header-height);
+}
+.kb-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--silo-color-text-hi);
+}
+
+.kb-edit-btn {
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-text-hi);
+  padding: 5px 10px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(var(--settings-font) - 1px);
+}
+.kb-edit-btn:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.kb-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-input-text);
+  padding: 7px 10px;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+}
+.kb-search:focus {
+  outline: none;
+  border-color: var(--silo-color-accent);
+}
+
+.kb-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  /* Bleed rows to the pane's left edge so the separators run full-width. */
+  margin-left: calc(var(--settings-pane-pad) * -1);
+}
+
+.kb-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* Left inset = pane pad so row text lines up with the page title. */
+  padding: 7px 8px 7px var(--settings-pane-pad);
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.kb-cmd {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.kb-label {
+  color: var(--silo-color-text-hi);
+}
+.kb-id {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-mono, monospace);
+}
+
+.kb-key {
+  flex: 0 0 auto;
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  padding: 2px 7px;
+  font-family: var(--silo-font-mono, monospace);
+  font-size: calc(var(--settings-font) - 1px);
+  color: var(--silo-color-text-hi);
+  white-space: nowrap;
+}
+.kb-unbound {
+  flex: 0 0 auto;
+  color: var(--silo-color-text-lo);
+}
+
+.kb-empty {
+  color: var(--silo-color-text-lo);
+  padding: 12px var(--settings-pane-pad);
+}

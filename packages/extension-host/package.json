@@ -1,0 +1,41 @@
+{
+  "name": "@silo-code/extension-host",
+  "version": "0.5.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./internal": "./src/extension-host/sdk-internal.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@silo-code/sdk": "workspace:*",
+    "@monaco-editor/react": "^4.7.0",
+    "@phosphor-icons/react": "^2.1.10",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-shell": "^2.3.5",
+    "@tauri-apps/plugin-store": "^2.4.3",
+    "@tauri-apps/plugin-updater": "^2.10.1",
+    "dockview": "~6.3.0",
+    "monaco-editor": "^0.55.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-resizable-panels": "^2.1.9",
+    "valtio": "^2.3.2"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@types/node": "^25",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "jsdom": "^29.1.1",
+    "typescript": "~5.8.3",
+    "vitest": "^4.1.7"
+  }
+}

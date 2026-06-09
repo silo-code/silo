@@ -1,0 +1,254 @@
+.theme-editor-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-hi);
+}
+
+.theme-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--silo-color-border-strong);
+  background: var(--silo-color-bg);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.theme-panel-title {
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+}
+
+.theme-panel-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Theme-panel toolbar buttons use the global `.silo-button*` system
+   (.silo-button / .silo-button-primary / .silo-button-danger + .silo-button-sm). */
+
+.theme-empty {
+  padding: 16px 12px;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-chrome);
+  line-height: 1.5;
+}
+
+.theme-list {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--silo-color-border-strong);
+}
+
+.theme-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text);
+  padding: 5px 12px;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--silo-font-size-sm);
+  text-align: left;
+  border-radius: 0;
+}
+.theme-list-item:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+.theme-list-item.selected {
+  background: var(--silo-color-bg-active);
+  color: var(--silo-color-text-hi);
+}
+.theme-list-item.active-theme .theme-list-name::after {
+  content: " ●";
+  color: var(--silo-color-accent);
+  font-size: 8px;
+  vertical-align: middle;
+}
+
+.theme-list-base {
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text-lo);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.theme-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.theme-editor-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--silo-color-border);
+  flex-shrink: 0;
+}
+
+.theme-editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.theme-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-editor-row > label {
+  width: 48px;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-chrome);
+  flex-shrink: 0;
+}
+
+.theme-editor-input {
+  flex: 1;
+  padding: 3px 7px;
+  font-size: var(--silo-font-size-chrome);
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  color: var(--silo-color-input-text);
+  border-radius: var(--silo-radius-sm);
+}
+.theme-editor-input::placeholder {
+  color: color-mix(in srgb, var(--silo-color-input-text) 40%, transparent);
+}
+
+.theme-base-radio {
+  display: flex;
+  gap: 12px;
+}
+
+.theme-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text);
+}
+
+.theme-var-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.theme-var-group-label {
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text-lo);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 0 2px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.theme-var-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.theme-var-name {
+  flex: 1;
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.theme-hex-input {
+  width: 90px;
+  flex: none;
+  font-family: var(--silo-font-mono);
+}
+
+.theme-color-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.theme-color-swatch {
+  width: 32px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  display: block;
+}
+.theme-color-swatch:hover {
+  border-color: var(--silo-color-accent);
+}
+
+.theme-color-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 100;
+  background: var(--silo-color-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  padding: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.theme-eyedropper-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-text);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.theme-eyedropper-btn:hover {
+  background: transparent;
+  color: var(--silo-color-text-hi);
+}
+
+.theme-editor-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--silo-color-border);
+}
+
+.theme-error {
+  margin: 8px;
+  padding: 8px 10px;
+  background: var(--silo-color-err);
+  color: white;
+  border-radius: var(--silo-radius-sm);
+  font-size: var(--silo-font-size-sm);
+  word-break: break-word;
+}

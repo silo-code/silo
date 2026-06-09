@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "name": "Dracula",
+  "base": "dark",
+  "colorScheme": "dark",
+  "vars": {
+    "--silo-color-bg-hover": "#343746",
+    "--silo-color-button-bg": "#3d4051",
+    "--silo-color-bg-active": "#6272a4",
+    "--silo-content-terminal-bg": "#21222c",
+    "--silo-content-editor-bg": "#282a36",
+    "--silo-statusbar-bg": "#191a21",
+    "--silo-statusbar-text": "#bd93f9",
+    "--silo-color-bg": "#1e1f29",
+    "--silo-color-text-hi": "#cdd6f4",
+    "--silo-color-text-lo": "#6272a4",
+    "--silo-content-tab-tray-bg": "#1e1f29",
+    "--silo-content-tab-bg": "#282a36",
+    "--silo-content-tab-tray-text": "#cdd6f4",
+    "--silo-tab-text": "#cdd6f4",
+    "--silo-tab-text-active": "#f8f8f2",
+    "--silo-color-border": "transparent",
+    "--silo-color-border-strong": "#6272a4",
+    "--silo-content-text": "#f8f8f2",
+    "--silo-content-editor-text-dim": "#cdd6f4",
+    "--silo-content-editor-text-faint": "#6272a4",
+    "--silo-color-accent": "#bd93f9",
+    "--silo-color-accent-2": "#ff79c6",
+    "--silo-color-ok": "#50fa7b",
+    "--silo-color-warn": "#ffb86c",
+    "--silo-color-err": "#ff5555"
+  }
+}

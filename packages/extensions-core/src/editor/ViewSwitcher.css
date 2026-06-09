@@ -1,0 +1,87 @@
+.view-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-bottom: 1px solid var(--silo-color-border);
+  background: var(--silo-breadcrumb-bg);
+  color: var(--silo-breadcrumb-text);
+  font-size: var(--silo-font-size-base);
+  font-family: var(--silo-font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Stay flat on hover/active — the host's global `button:hover` paints a
+   background, and its specificity (0,2,1) outranks a plain `.view-switcher:hover`
+   (0,2,0), so we match its shape (`:not(:disabled)`) to win and pin the
+   background back to the bar. Only the text brightens as the hover affordance. */
+.view-switcher:hover:not(:disabled),
+.view-switcher:active:not(:disabled) {
+  background: var(--silo-breadcrumb-bg);
+  color: var(--silo-breadcrumb-text-active);
+}
+
+.view-switcher__caret {
+  color: var(--silo-breadcrumb-icon);
+  flex: 0 0 auto;
+}
+
+/* Segmented toggle (exactly two views) — both labels visible, one click to
+   switch. No fill; the active view reads via brighter, heavier text, with a
+   subtle pipe divider between the segments. */
+.view-switcher-seg {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--silo-breadcrumb-bg);
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.view-switcher-seg__btn {
+  /* Reset the host's global button chrome (padding/border/bg) — these are flat
+     bar segments, not standalone buttons. The class (0,1,0) out-specifies the
+     global `button` (0,0,1); the `:not(:disabled)` rules below out-rank the
+     global `button:hover`/`:active` (0,2,1). */
+  position: relative;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: var(--silo-breadcrumb-text);
+  font-size: var(--silo-font-size-base);
+  font-family: var(--silo-font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+/* Subtle pipe divider between segments — a fixed-height rule centered on the
+   seam, rather than a full-height border that reads faint. */
+.view-switcher-seg__btn + .view-switcher-seg__btn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 14px;
+  background: var(--silo-breadcrumb-icon);
+}
+
+.view-switcher-seg__btn:hover:not(:disabled),
+.view-switcher-seg__btn:active:not(:disabled) {
+  background: transparent;
+  color: var(--silo-breadcrumb-text-active);
+}
+
+/* Active segment — no fill, just brighter/heavier text. */
+.view-switcher-seg__btn[aria-pressed="true"],
+.view-switcher-seg__btn[aria-pressed="true"]:hover:not(:disabled) {
+  background: transparent;
+  color: var(--silo-breadcrumb-text-active);
+  font-weight: 600;
+}

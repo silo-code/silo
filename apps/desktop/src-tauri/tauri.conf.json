@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Silo",
+  "version": "0.6.0",
+  "identifier": "com.silo.desktop",
+  "build": {
+    "beforeDevCommand": "pnpm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "dragDropEnabled": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ4QTQ5RTc5MUQwNUY1NzQKUldSMDlRVWRlWjZrMk1EQjRNS0VCQ3c2OGFhVG40WXEwQTFnM3dlWEp4UUtXcWwvL2xtSU03SjEK",
+      "endpoints": [
+        "https://github.com/silo-code/silo/releases/latest/download/latest.json"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "publisher": "Dave Weaver",
+    "copyright": "Copyright © 2026 Dave Weaver",
+    "category": "DeveloperTool",
+    "homepage": "https://github.com/silo-code/silo",
+    "license": "MIT",
+    "shortDescription": "A local-first, extensible code editor.",
+    "longDescription": "Silo is a local-first, extensible code editor — a small stable core, a public extension SDK, and first-party features built as extensions.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
+  }
+}

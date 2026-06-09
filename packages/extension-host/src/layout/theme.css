@@ -1,0 +1,546 @@
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* ── Design tokens · generic colors (theming-contract.md › The public
+   * design-token surface). Semantic, themeable, and extension-consumable — these
+   * are the `ThemeVars` generic-color keys. Never a literal/`--silo-color-blue`. */
+  --silo-color-bg: #161922;
+  --silo-color-bg-hover: #1c2030;
+  --silo-color-bg-active: #1e222b;
+  --silo-color-button-bg: #232839;
+  --silo-color-button-text: #939bb1;
+  --silo-color-text-hi: #666666;
+  --silo-color-text: #5a5959; /*#7a8099;*/
+  --silo-color-text-lo: #3c3c3c;
+  --silo-color-input-bg: #1c2030;
+  --silo-color-input-text: #b7bccc;
+  --silo-color-border: transparent;
+  --silo-color-border-strong: #2b3148;
+  --silo-color-accent: #a0a0a0;
+  --silo-color-accent-2: #bb9af7;
+  --silo-color-ok: #9ece6a;
+  --silo-color-warn: #e0af68;
+  --silo-color-err: #f7768e;
+
+  /* Design-token button treatment (theming-contract.md › Themeable treatments). Lets
+   * a theme restyle buttons without moving the global accent/err primitive — the
+   * same split the `--silo-list-*` group makes for list rows. Defaults derive
+   * from the generic colors above; the global button classes consume these. */
+  /* The button surface, distinct from --silo-color-bg-hover (which also backs
+     modal cards / hover rows) so a normal button reads as a control on those
+     surfaces rather than blending in. */
+  --silo-button-bg: var(--silo-color-button-bg);
+  --silo-button-text: var(--silo-color-text-hi);
+  /* Transparent so the fill runs edge-to-edge like the primary/danger variants
+     (otherwise a panel-colored border makes the normal button look 1px smaller).
+     The normal button is distinguished by its background, not a border. */
+  --silo-button-border: transparent;
+  --silo-button-primary-bg: var(--silo-color-accent);
+  --silo-button-primary-text: #fff;
+  --silo-button-danger-bg: var(--silo-color-err);
+  --silo-button-danger-text: #fff;
+
+  /* ── Component tokens · colors (theming-contract.md › The component-token
+   * surface). Host-chrome treatments — `ThemeVars` keys (theme-overridable) but
+   * NOT for extensions to consume; they don't own these components. */
+  --silo-content-text: #b7bccc;
+  --silo-content-editor-text-dim: #939bb1;
+  --silo-content-editor-text-faint: #6d7593;
+
+  --silo-content-tab-bg: #0f1115;
+  --silo-content-tab-tray-bg: #161922;
+  --silo-content-tab-tray-text: #585858;
+  --silo-content-tab-text-inactive: #585858;
+  --silo-content-tab-text: #585858;
+  --silo-content-tab-text-active: #969696;
+
+  --silo-content-terminal-bg: #0f1115;
+  --silo-content-editor-bg: #0f1115;
+  /* Selection highlight, shared by the Monaco editor and the terminal. Seeded
+   * to the former bg-active / button-bg values so selections look unchanged
+   * until a theme overrides them. */
+  --silo-content-editor-selection: #3f648c;
+  --silo-content-editor-selection-inactive: #24384e;
+  --silo-breadcrumb-bg: #0f1115;
+  --silo-breadcrumb-text: #7a7a7a;
+  --silo-breadcrumb-text-active: #c0c0c0;
+  --silo-breadcrumb-icon: #636363;
+  --silo-statusbar-bg: #14161f;
+  --silo-statusbar-text: #939bb1;
+  /* Status-item hover surface. Derived from the bar's own background by
+     lightening (dark themes) — see the light-theme block for the darken — so it
+     always relates to the bar AND stays visible regardless of how close the bar
+     and its text colors are (mixing toward the text fails when they're near-
+     identical, e.g. a pink-on-pink theme). The var() re-resolves per active
+     theme, incl. custom ones (which carry data-theme=base); a theme may override
+     this key directly. */
+  --silo-statusbar-bg-hover: color-mix(
+    in srgb,
+    var(--silo-statusbar-bg) 88%,
+    #fff
+  );
+
+  --silo-tab-text-active: #969696;
+  --silo-tab-text: #585858;
+  --silo-tab-bg-hover: #1c2030;
+  --silo-tab-border-active: #636363;
+
+  /* Component tokens · menu/dropdown colors. The single treatment behind every
+   * floating menu — right-click context menus AND button-anchored dropdowns
+   * (see src/components/Menu.tsx). Host chrome; theme-overridable `ThemeVars`
+   * keys, but NOT extension-consumable (extensions get menus via
+   * `ctx.ui.showMenu`, never by styling them). Deliberately the minimal set: the
+   * surface + foreground + highlight (a mutual-contrast trio that can't derive
+   * from the generics) plus the border (doubles as the row separator). Dim text
+   * (accelerators, headers) reads `--silo-color-text-lo`, danger reads
+   * `--silo-color-err`, and the radius/shadow are fixed in Menu.css — all of
+   * which track a design token rather than earning their own menu knob. Each
+   * defaults from a design token, so the var() re-resolves per active theme incl.
+   * light/custom; a theme may override any key directly. */
+  --silo-menu-bg: var(--silo-color-bg-hover);
+  --silo-menu-text: var(--silo-color-text-hi);
+  --silo-menu-item-hover-bg: var(--silo-color-button-bg);
+  --silo-menu-border: var(--silo-color-border-strong);
+
+  /* Component tokens · modal. The host dialog shell behind ctx.ui.confirm/prompt
+   * and the SDK <Modal> (extension-host/Modal.tsx), replacing the three divergent
+   * hand-rolled copies (ws-modal / confirm / settings) with one set. Classed with
+   * --silo-menu-* (host chrome): theme-overridable but NOT extension-consumable —
+   * an extension shows a modal via ctx.ui/`<Modal>`, never styles the shell. Only
+   * the surface + border are `ThemeVars` keys; --silo-modal-bg/-border default
+   * from generics so they re-resolve per active theme. The backdrop scrim, shadow,
+   * and radius stay fixed. `--silo-z-modal-base` is host plumbing (not a color):
+   * the modal manager (modal-service.ts) assigns each open modal a z-index of
+   * base + index×10 inline, so z-order is arbitrated centrally rather than by
+   * hand-picked numbers — above Settings (former 1000), below floating menus
+   * (9999) so a dropdown opened inside a modal still clears it. */
+  --silo-modal-bg: var(--silo-color-bg);
+  --silo-modal-border: var(--silo-color-border-strong);
+  --silo-modal-radius: var(--silo-radius-md);
+  --silo-modal-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --silo-modal-backdrop: rgba(0, 0, 0, 0.5);
+  --silo-z-modal-base: 2000;
+
+  /* Component tokens · notify. The notification (toast) surface
+   * (`ctx.ui.notify`, components/Toasts.css) — an *elevated* card that must lift
+   * off the app background, unlike the modal (which leans on a backdrop). Same
+   * contract as the --silo-menu and --silo-modal groups: host chrome,
+   * theme-overridable, NOT extension-consumable. Explicit (not derived) so the
+   * toast palette is
+   * tuned per theme: --silo-notify-bg is the card surface, --silo-notify-text
+   * the body copy, --silo-notify-text-hi the title + close button. The light
+   * block overrides these. */
+  --silo-notify-bg: #2f3750;
+  --silo-notify-text: #aeb4c4;
+  --silo-notify-text-hi: #f0f2f7;
+  --silo-notify-border: var(--silo-color-border-strong);
+  --silo-notify-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+
+  /* ── Design tokens · font families + size scale + radius scale. Extension-consumable.
+   * Font families are themeable; font-size (uiFontSize-driven) and the radius
+   * scale are consumable-only, not theme-overridable (the deliberate asymmetry
+   * in the contract's overridable-vs-consumable axes). */
+  --silo-font-ui:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui,
+    sans-serif;
+  --silo-font-mono:
+    "SF Mono", Menlo, Monaco, "JetBrains Mono", Consolas, monospace;
+
+  /* Single source of truth for font sizes. Cmd/Ctrl + / - / 0 mutate the
+   * base size at runtime (via ThemeInjector) and every panel scales with it. */
+  --silo-font-size-base: 13px;
+  --silo-font-size-sm: calc(var(--silo-font-size-base) - 1px);
+  --silo-font-size-chrome: calc(var(--silo-font-size-base) - 2px);
+
+  --silo-radius-sm: 4px;
+  --silo-radius-md: 6px;
+
+  /* ── Internal tokens (theming-contract.md › Internal tokens). Host plumbing,
+   * never a contract — lint-blocked for extensions. The panel-derived sizes are
+   * applied to the panel slot wrapper; extension content inherits them (see the
+   * sizing rule) and never names them. */
+  /* Right/left panel content (file tree, git status rows) — intentionally a bit
+   * larger than terminal/editor base for legibility. */
+  --silo-internal-font-size-right-panel: calc(var(--silo-font-size-base) + 2px);
+  --silo-internal-font-size-left-panel: calc(var(--silo-font-size-base) + 1px);
+  --silo-internal-titlebar-h: 36px;
+  --silo-internal-statusbar-h: 36px;
+}
+
+/* Light theme */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --silo-color-bg: #e5e5e5;
+  --silo-color-bg-hover: #ececec;
+  --silo-color-bg-active: #cce4ff;
+  --silo-color-button-bg: #e0e0e0;
+  --silo-color-button-text: #6b6b6b;
+  --silo-color-text-hi: #6b6b6b;
+  --silo-color-text: #808080;
+  --silo-color-text-lo: #aaaaaa;
+  --silo-color-input-bg: #ececec;
+  --silo-color-input-text: #4a4a4a;
+  --silo-color-border: #e5e5e5;
+  --silo-color-border-strong: #c8c8c8;
+  --silo-color-accent: #0078d4;
+  --silo-color-accent-2: #6f42c1;
+
+  /* Notify (toast) palette — a white card (like tabs/terminal/editor on the
+     #e5e5e5 panel) with dark text for clear contrast. */
+  --silo-notify-bg: #ffffff;
+  --silo-notify-text: #5a5a5a;
+  --silo-notify-text-hi: #1f2329;
+
+  /* Light mode only: rest the normal button clearly darker than the panel
+     (#e5e5e5) so it reads as a control rather than flat surface (dark keeps the
+     --silo-color-bg-hover default). Hover darkens further via the color-mix in the button
+     rules. */
+  --silo-button-bg: #d4d4d4;
+
+  --silo-content-text: #4a4a4a;
+  --silo-content-editor-text-dim: #6b6b6b;
+  --silo-content-editor-text-faint: #9a9a9a;
+
+  --silo-color-ok: #2da44e;
+  --silo-color-warn: #b08800;
+  --silo-color-err: #cf222e;
+
+  --silo-content-tab-bg: #ffffff;
+  --silo-content-tab-tray-bg: #e5e5e5;
+  --silo-content-tab-tray-text: #6b6b6b;
+  --silo-content-tab-text-inactive: #6b6b6b;
+  --silo-content-tab-text: #6b6b6b;
+  --silo-content-tab-text-active: #4a4a4a;
+
+  --silo-content-terminal-bg: #ffffff;
+  --silo-content-editor-bg: #ffffff;
+  --silo-content-editor-selection: #cce4ff;
+  --silo-content-editor-selection-inactive: #e0e0e0;
+  --silo-breadcrumb-bg: #ffffff;
+  --silo-breadcrumb-text: #6b6b6b;
+  --silo-breadcrumb-text-active: #4a4a4a;
+  --silo-breadcrumb-icon: #9a9a9a;
+
+  --silo-tab-text-active: #4a4a4a;
+  --silo-tab-text: #6b6b6b;
+  --silo-tab-bg-hover: #ececec;
+  --silo-tab-border-active: #9a9a9a;
+
+  --silo-statusbar-bg: #dcdcdc;
+  --silo-statusbar-text: #6b6b6b;
+  /* Light themes darken on hover (the dark block lightens) — direction-correct
+     and always visible regardless of the bar/text contrast. */
+  --silo-statusbar-bg-hover: color-mix(
+    in srgb,
+    var(--silo-statusbar-bg) 88%,
+    #000
+  );
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  background: var(--silo-content-tab-bg);
+  color: var(--silo-color-text-hi);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ── Global button system ───────────────────────────────────────────────────
+ * Three variants, one class each, all styled from the `--silo-button-*`
+ * treatment tokens (defined in :root above; see theming-contract.md):
+ *   • normal  — the bare <button> default, or `.silo-button` to be explicit
+ *   • primary — `.silo-button-primary` (primary action): primary fill, dimmer on hover
+ *   • danger  — `.silo-button-danger`  (destructive action): danger fill, dimmer on hover
+ * `.silo-button-sm` is a compact size modifier, composable with any variant.
+ * Class names are `silo-`-prefixed for the same collision-firewall reason the
+ * custom properties are (theming-contract.md › Decision 1) — these globals ride
+ * on every button in extension DOM too.
+ * Every variant hovers the same way: a slightly darker shade of its own fill
+ * (color-mix toward black), with no border change. The variant :hover/:active
+ * selectors carry a class, so they outspecify the generic ones below. */
+button {
+  background: var(--silo-button-bg);
+  color: var(--silo-button-text);
+  border: 1px solid var(--silo-button-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 7px 16px;
+  font: inherit;
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+}
+button:active:not(:disabled) {
+  background: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* normal — explicit alias of the default treatment, for symmetry. */
+button.silo-button {
+  background: var(--silo-button-bg);
+  color: var(--silo-button-text);
+  border-color: var(--silo-button-border);
+}
+button.silo-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+}
+button.silo-button:active:not(:disabled) {
+  background: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+}
+
+/* primary — primary action. */
+button.silo-button-primary {
+  background: var(--silo-button-primary-bg);
+  color: var(--silo-button-primary-text);
+  border-color: transparent;
+}
+button.silo-button-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--silo-button-primary-bg) 85%, #000);
+  border-color: transparent;
+}
+button.silo-button-primary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--silo-button-primary-bg) 75%, #000);
+  border-color: transparent;
+  filter: none;
+}
+
+/* danger — destructive action. */
+button.silo-button-danger {
+  background: var(--silo-button-danger-bg);
+  color: var(--silo-button-danger-text);
+  border-color: transparent;
+}
+button.silo-button-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--silo-button-danger-bg) 85%, #000);
+  border-color: transparent;
+}
+button.silo-button-danger:active:not(:disabled) {
+  background: color-mix(in srgb, var(--silo-button-danger-bg) 75%, #000);
+  border-color: transparent;
+  filter: none;
+}
+
+/* compact size modifier — composable with any variant above. */
+button.silo-button-sm {
+  padding: 3px 10px;
+  font-size: var(--silo-font-size-chrome);
+}
+
+/* ── Modal system ────────────────────────────────────────────────────────────
+ * The host-owned dialog shell behind ctx.ui.confirm/prompt and the SDK <Modal>
+ * (extension-host/Modal.tsx). Backdrop + card + title/body/actions, styled from
+ * the --silo-modal-* component tokens. The z-index is assigned inline per stack
+ * position by the modal manager (modal-service.ts), so stacking is centrally
+ * arbitrated — the backdrop deliberately sets none here. Like the button/menu
+ * treatments: one set of classes, every modal (host + extension) rides them. */
+.silo-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--silo-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* z-index set inline (var(--silo-z-modal-base) + stack index) */
+}
+.silo-modal {
+  background: var(--silo-modal-bg);
+  border: 1px solid var(--silo-modal-border);
+  border-radius: var(--silo-modal-radius);
+  box-shadow: var(--silo-modal-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  font-family: var(--silo-font-ui);
+}
+.silo-modal-sm {
+  width: 300px;
+}
+.silo-modal-md {
+  width: 400px;
+}
+.silo-modal-lg {
+  width: 560px;
+}
+/* Bare: children supply their own card chrome (e.g. Settings' rail+pane). The
+   host still owns the backdrop + focus trap; this wrapper just sizes to fit. */
+.silo-modal-bare {
+  display: flex;
+}
+.silo-modal-title {
+  font-weight: 600;
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+.silo-modal-body {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  line-height: 1.5;
+}
+.silo-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.silo-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.silo-modal-label {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+}
+.silo-modal-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input,
+textarea {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 4px 8px;
+  font: inherit;
+}
+
+a {
+  color: var(--silo-color-accent);
+  text-decoration: none;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--silo-color-button-bg);
+  border-radius: 5px;
+  border: 2px solid var(--silo-content-tab-bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: transparent;
+}
+
+/* react-resizable-panels outer separators.
+ *
+ * The handle div itself is 0px wide so no gap exists between panels and the
+ * app-shell background never bleeds through. The visible 1px line is drawn
+ * via ::before (absolute, so it doesn't affect flex layout). The wider
+ * invisible hit area comes from ::after. When --silo-color-border is transparent both
+ * ::before background and ::after background are transparent → no line. */
+[data-panel-resize-handle-enabled="true"] {
+  background: transparent;
+  position: relative;
+  overflow: visible;
+  z-index: 1;
+}
+
+/* Horizontal handles (vertical dividing line between columns) */
+[data-panel-resize-handle-enabled="true"][data-panel-group-direction="horizontal"] {
+  flex: 0 0 0;
+  width: 0;
+  cursor: col-resize;
+}
+[data-panel-resize-handle-enabled="true"][data-panel-group-direction="horizontal"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: var(--silo-color-border);
+  pointer-events: none;
+}
+[data-panel-resize-handle-enabled="true"][data-panel-group-direction="horizontal"]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  right: -3px;
+  cursor: col-resize;
+}
+
+/* Vertical handles (horizontal dividing line between rows) */
+[data-panel-resize-handle-enabled="true"][data-panel-group-direction="vertical"] {
+  flex: 0 0 0;
+  height: 0;
+  cursor: row-resize;
+}
+[data-panel-resize-handle-enabled="true"][data-panel-group-direction="vertical"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--silo-color-border);
+  pointer-events: none;
+}
+[data-panel-resize-handle-enabled="true"][data-panel-group-direction="vertical"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  bottom: -3px;
+  cursor: row-resize;
+}
+
+/* Disable pointer events on all content during active resize drag so that
+   canvas-based elements (terminals, Monaco editors) can't steal pointer
+   capture and interrupt the resize. The class is toggled via onDragging. */
+body.panel-resizing * {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* Active (dragging) only: render the handle itself as the visible line */
+[data-panel-resize-handle-enabled="true"][data-panel-group-direction="horizontal"][data-resize-handle-active] {
+  flex-basis: 2px;
+  background: var(--silo-color-accent);
+  left: -1px;
+}
+[data-panel-resize-handle-enabled="true"][data-resize-handle-active]::before {
+  display: none;
+}
+
+/* ── Keyboard focus ring (RFC 0012). The one ring for every keyboard-navigable
+   surface: the public `useFocusGroup` hook marks each group item with
+   `data-focus-item` and flags the active one with `data-focus-visible` while
+   focus is keyboard-driven; the status bar's focus controller sets the same
+   markers on its focused item. The host owns the ring so every list / menu /
+   toolbar / status item looks identical and theme-correct — authors never style
+   it. It's keyed on the attribute, not `:focus`, because WebKit won't repaint
+   `:focus` for the programmatic focus the region cycle / click-to-enter perform.
+   The reset suppresses the native outline (which WebKit paints inconsistently)
+   so only the state-driven ring shows. */
+[data-focus-item] {
+  outline: none;
+}
+[data-focus-item][data-focus-visible] {
+  outline: 1.5px solid var(--silo-color-accent);
+  outline-offset: -1.5px;
+}

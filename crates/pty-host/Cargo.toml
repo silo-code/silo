@@ -1,0 +1,22 @@
+[package]
+name = "pty-host"
+version = "0.1.0"
+edition = "2021"
+description = "Self-owned PTY session host for Silo (RFC 0010) — daemon + wire protocol."
+license = "MIT"
+publish = false
+
+# Library: the daemon, wire protocol, and foreground reporting. Linked by the
+# Silo app (which self-forks into `run_session_host`) and by the test bin.
+[lib]
+name = "pty_host"
+path = "src/lib.rs"
+
+# Standalone bin for manual testing / dogfooding outside the app
+# (`pty-host new|attach|fg|list|kill`), mirroring the original spike.
+[[bin]]
+name = "pty-host"
+path = "src/main.rs"
+
+[dependencies]
+libc = "0.2"

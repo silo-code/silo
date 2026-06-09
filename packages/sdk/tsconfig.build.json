@@ -1,0 +1,31 @@
+{
+  // Emitting config for the published artifact. Day-to-day workspace dev and the
+  // app's typecheck resolve `@silo-code/sdk` to raw source via the package's
+  // top-level `exports` (./src/index.ts); this config is used only by the
+  // `build` script to produce the `dist/` shipped to npm (JS + .d.ts). The
+  // published `exports` are overridden to point at `dist/` via `publishConfig`.
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "skipLibCheck": true,
+
+    /* Emit */
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  // Tests are not part of the published artifact.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.spec.ts"]
+}

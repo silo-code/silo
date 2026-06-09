@@ -1,0 +1,202 @@
+.file-explorer-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.file-explorer-scroll {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-tree {
+  font-family: var(--silo-font-ui);
+  padding: 4px 0 0;
+  user-select: none;
+  line-height: 1.4;
+}
+
+/* Let the last tree grow into the remaining panel space so right-clicks in
+   the empty area below the trees still hit a .file-tree container and open
+   its root context menu. */
+.file-tree:last-child {
+  flex: 1 0 auto;
+}
+
+.file-tree + .file-tree {
+  border-top: 1px solid var(--silo-color-border);
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.tree-root-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: auto;
+  padding-right: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+.file-explorer-panel:hover .tree-root-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tree-hdr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--silo-color-text-hi);
+  padding: 3px 4px;
+  border-radius: var(--silo-radius-sm);
+  line-height: 1;
+  font-size: 1.2em;
+  opacity: 0.7;
+  transition:
+    opacity 0.1s,
+    background 0.1s;
+}
+.tree-hdr-btn:hover {
+  opacity: 1;
+  background: var(--silo-color-bg-hover);
+}
+
+.tree-row.new-item-row {
+  opacity: 1;
+}
+
+.new-item-input {
+  flex: 1;
+  min-width: 0;
+  margin-left: calc(0.4em - 4px);
+  margin-right: 8px;
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-accent);
+  border-radius: 2px;
+  color: var(--silo-color-text-hi);
+  font-family: var(--silo-font-ui);
+  font-size: inherit;
+  padding: 1px 4px;
+  outline: none;
+  box-shadow: 0 0 0 1px var(--silo-color-accent);
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 2px 8px 3px 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--silo-color-text);
+  min-height: calc(1.85em - 4px);
+  border-radius: 3px;
+}
+.tree-row:hover {
+  background: var(--silo-color-bg-hover);
+}
+/* Persistent selection highlight. The keyboard focus ring is separate and
+   host-owned: useFocusGroup marks the focused row with
+   data-focus-item / data-focus-visible (keyboard-only), and the host ships the
+   `[data-focus-item][data-focus-visible]` outline — so there's no panel-level
+   focus-ring styling here (matches the Workspaces panel). */
+.tree-row.selected {
+  background: var(--silo-color-bg-active);
+}
+.tree-row.selected:hover {
+  background: var(--silo-color-bg-active);
+}
+.tree-row.drag-over {
+  outline: 1px solid var(--silo-color-accent);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--silo-color-accent) 20%, transparent);
+  margin: 0 3px;
+  border-radius: 3px;
+}
+.tree-row.root {
+  font-size: calc(1em - 2px);
+  letter-spacing: 0.04em;
+  color: var(--silo-color-text-hi);
+  font-weight: 700;
+}
+
+.tree-row .chev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2em;
+  flex: 0 0 1.2em;
+  color: var(--silo-color-text-lo);
+}
+.tree-row.file .chev {
+  visibility: hidden;
+}
+
+.tree-row .ico {
+  flex: 0 0 1.25em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--silo-color-text);
+}
+
+.tree-row .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  margin-left: calc(0.4em - 4px);
+}
+
+.tree-row.hidden-entry {
+  color: var(--silo-color-text-lo);
+}
+.tree-row.hidden-entry .ico {
+  color: var(--silo-color-text-lo);
+}
+.tree-row.error {
+  color: var(--silo-color-err);
+  padding: 4px 8px;
+}
+
+.children {
+  position: relative;
+}
+
+.indent-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--silo-color-border);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.tree-row .rename-input {
+  flex: 1;
+  margin-left: calc(0.4em - 4px);
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-accent);
+  border-radius: 2px;
+  color: var(--silo-color-input-text);
+  font-family: var(--silo-font-ui);
+  font-size: inherit;
+  padding: 0 3px;
+  outline: none;
+  min-width: 0;
+}
+
+/* The drag chip + paste overlay styles moved to
+ * src/extension-host/file-drag-ghost.css (host-owned, loaded with the ctx.dnd
+ * affordance) — the chip is no longer scoped to the file explorer panel. */
