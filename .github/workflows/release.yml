@@ -100,3 +100,25 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # tauri-action notarizes + staples the .app but ships an UN-notarized .dmg,
+      # so a freshly-downloaded dmg trips Gatekeeper on mount. Notarize + staple
+      # the dmg itself (same API key), then replace the release asset with the
+      # stapled copy. The .app inside is already notarized; this tickets the dmg.
+      - name: Notarize + staple the DMG
+        if: matrix.platform == 'macos-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          DMG=$(find apps/desktop/src-tauri/target -name "Silo_*.dmg" | head -1)
+          echo "dmg: $DMG"
+          xcrun notarytool submit "$DMG" \
+            --key "${{ runner.temp }}/apple_api_key.p8" \
+            --key-id "${{ secrets.APPLE_API_KEY }}" \
+            --issuer "${{ secrets.APPLE_API_ISSUER }}" \
+            --wait
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+          TAG="silo-v$(node -p "require('./apps/desktop/package.json').version")"
+          gh release upload "$TAG" "$DMG" --clobber -R silo-code/silo
