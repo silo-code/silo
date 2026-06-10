@@ -20,10 +20,10 @@ jobs:
         include:
           - platform: macos-latest # Apple Silicon
             args: "--target aarch64-apple-darwin"
-          # Temporarily building only aarch64 Apple Silicon to limit CI minutes.
-          # Re-enable these to restore full cross-platform releases.
-          # - platform: macos-latest # Intel
-          #   args: "--target x86_64-apple-darwin"
+          - platform: macos-latest # Intel
+            args: "--target x86_64-apple-darwin"
+          # Linux + Windows held off until they can be tested; re-enable to
+          # restore full cross-platform releases.
           # - platform: ubuntu-22.04
           #   args: ""
           # - platform: windows-latest
@@ -68,6 +68,21 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > "${{ runner.temp }}/apple_api_key.p8"
 
+      # Release notes = the latest CHANGELOG section (header line stripped) plus a
+      # short install footer, so the GitHub release shows real notes instead of a
+      # placeholder. Works for both manual-tag and release-please-driven runs.
+      - name: Build release notes from CHANGELOG
+        id: notes
+        run: |
+          {
+            echo "body<<SILO_EOF"
+            awk 'f && /^## /{exit} /^## /{f=1} f' apps/desktop/CHANGELOG.md | sed '1d'
+            echo ""
+            echo "---"
+            echo "Download the \`.dmg\` for your Mac below, open it, and drag **Silo** to Applications. macOS builds are signed and notarized — they open with no Gatekeeper warning."
+            echo "SILO_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,7 +111,7 @@ jobs:
           projectPath: apps/desktop
           tagName: silo-v__VERSION__
           releaseName: "Silo v__VERSION__"
-          releaseBody: "See the assets below to download and install this version."
+          releaseBody: ${{ steps.notes.outputs.body }}
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

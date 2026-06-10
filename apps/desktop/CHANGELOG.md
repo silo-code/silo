@@ -11,5 +11,3 @@ and TypeScript around a small stable core and a public extension SDK
 ([`@silo-code/sdk`](https://www.npmjs.com/package/@silo-code/sdk)); first-party
 features (editor, terminal, git, themes, file explorer) ship as extensions on the
 same primitives third-party extensions use.
-
-Subsequent releases are generated from Conventional Commits by release-please.
