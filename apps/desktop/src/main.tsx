@@ -2,6 +2,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import {
   hydrate,
+  userConfigDir,
   getExtensionManager,
   initUserKeybindings,
   checkForUpdatesOnLaunch,
@@ -26,7 +27,9 @@ mgr
       .catch((err) => console.error("loadInstalled failed", err));
   });
 
-hydrate().catch((err) => console.error("hydrate failed", err));
+userConfigDir()
+  .then(hydrate)
+  .catch((err) => console.error("hydrate failed", err));
 
 // Load keybindings.json overrides and live-reload on save. Runs after
 // activateBuiltins so menu defaults are recorded first; loading overrides

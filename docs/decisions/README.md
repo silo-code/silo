@@ -33,26 +33,27 @@ A small, obvious choice needs neither.
 
 ## Index
 
-| ADR                                                     | Title                                               | Date       | Status   |
-| ------------------------------------------------------- | --------------------------------------------------- | ---------- | -------- |
-| [0001](./0001-in-process-extension-architecture.md)     | In-process, registry-based extension architecture   | 2026-05-23 | accepted |
-| [0002](./0002-imperative-registration-no-manifest.md)   | Imperative registration; no static manifest (v1)    | 2026-05-23 | accepted |
-| [0003](./0003-monorepo-pnpm.md)                         | Monorepo with pnpm workspaces                       | 2026-05-29 | accepted |
-| [0004](./0004-sdk-types-first.md)                       | Public `@silo-code/sdk` is types-first              | 2026-05-29 | accepted |
-| [0005](./0005-ui-library-internal.md)                   | Component library (`@silo-code/ui`) stays internal  | 2026-05-29 | accepted |
-| [0006](./0006-open-platform-licensing.md)               | Open-platform MIT licensing                         | 2026-05-30 | accepted |
-| [0007](./0007-core-primitive-vs-extension-test.md)      | Core-primitive vs extension-feature test            | 2026-05-31 | accepted |
-| [0008](./0008-extension-decomposition-provider-view.md) | Extension decomposition; provider/view split        | 2026-05-31 | accepted |
-| [0009](./0009-extension-communication-and-events.md)    | Extension communication: typed APIs + domain events | 2026-05-31 | accepted |
-| [0010](./0010-persistent-process-sessions.md)           | Persistent process sessions as a core primitive     | 2026-05-31 | accepted |
-| [0011](./0011-editor-and-terminal-are-core.md)          | Editor and terminal are core surfaces               | 2026-05-31 | accepted |
-| [0012](./0012-dev-automation-rpc.md)                    | Dev-only automation RPC                             | 2026-06-01 | accepted |
-| [0013](./0013-trust-tiers-two-barrel-sdk.md)            | Extension trust tiers + two-barrel SDK              | 2026-06-02 | accepted |
-| [0014](./0014-per-extension-enablement.md)              | Per-extension enablement config (Obsidian-style)    | 2026-06-02 | accepted |
-| [0015](./0015-phased-security-model.md)                 | Phased security model for privileged primitives     | 2026-06-02 | accepted |
-| [0016](./0016-ctx-dnd-primitive.md)                     | First-class drag-and-drop primitive (`ctx.dnd`)     | 2026-06-02 | accepted |
-| [0017](./0017-css-theming-contract.md)                  | CSS theming contract (`--silo-*` token tiers)       | 2026-06-02 | accepted |
-| [0018](./0018-host-owned-chrome.md)                     | Host-owned UI chrome: modals + unified menu         | 2026-06-03 | accepted |
-| [0019](./0019-runtime-extension-loading.md)             | Runtime extension loading + manifest validation     | 2026-06-04 | accepted |
-| [0020](./0020-silo-extensions-bundled.md)               | Ship `silo.*` bundled, surfaced as disable-able     | 2026-06-04 | accepted |
-| [0021](./0021-keyboard-navigation-architecture.md)      | Keyboard nav: headless focus-group + region model   | 2026-06-08 | accepted |
+| ADR                                                     | Title                                                | Date       | Status   |
+| ------------------------------------------------------- | ---------------------------------------------------- | ---------- | -------- |
+| [0001](./0001-in-process-extension-architecture.md)     | In-process, registry-based extension architecture    | 2026-05-23 | accepted |
+| [0002](./0002-imperative-registration-no-manifest.md)   | Imperative registration; no static manifest (v1)     | 2026-05-23 | accepted |
+| [0003](./0003-monorepo-pnpm.md)                         | Monorepo with pnpm workspaces                        | 2026-05-29 | accepted |
+| [0004](./0004-sdk-types-first.md)                       | Public `@silo-code/sdk` is types-first               | 2026-05-29 | accepted |
+| [0005](./0005-ui-library-internal.md)                   | Component library (`@silo-code/ui`) stays internal   | 2026-05-29 | accepted |
+| [0006](./0006-open-platform-licensing.md)               | Open-platform MIT licensing                          | 2026-05-30 | accepted |
+| [0007](./0007-core-primitive-vs-extension-test.md)      | Core-primitive vs extension-feature test             | 2026-05-31 | accepted |
+| [0008](./0008-extension-decomposition-provider-view.md) | Extension decomposition; provider/view split         | 2026-05-31 | accepted |
+| [0009](./0009-extension-communication-and-events.md)    | Extension communication: typed APIs + domain events  | 2026-05-31 | accepted |
+| [0010](./0010-persistent-process-sessions.md)           | Persistent process sessions as a core primitive      | 2026-05-31 | accepted |
+| [0011](./0011-editor-and-terminal-are-core.md)          | Editor and terminal are core surfaces                | 2026-05-31 | accepted |
+| [0012](./0012-dev-automation-rpc.md)                    | Dev-only automation RPC                              | 2026-06-01 | accepted |
+| [0013](./0013-trust-tiers-two-barrel-sdk.md)            | Extension trust tiers + two-barrel SDK               | 2026-06-02 | accepted |
+| [0014](./0014-per-extension-enablement.md)              | Per-extension enablement config (Obsidian-style)     | 2026-06-02 | accepted |
+| [0015](./0015-phased-security-model.md)                 | Phased security model for privileged primitives      | 2026-06-02 | accepted |
+| [0016](./0016-ctx-dnd-primitive.md)                     | First-class drag-and-drop primitive (`ctx.dnd`)      | 2026-06-02 | accepted |
+| [0017](./0017-css-theming-contract.md)                  | CSS theming contract (`--silo-*` token tiers)        | 2026-06-02 | accepted |
+| [0018](./0018-host-owned-chrome.md)                     | Host-owned UI chrome: modals + unified menu          | 2026-06-03 | accepted |
+| [0019](./0019-runtime-extension-loading.md)             | Runtime extension loading + manifest validation      | 2026-06-04 | accepted |
+| [0020](./0020-silo-extensions-bundled.md)               | Ship `silo.*` bundled, surfaced as disable-able      | 2026-06-04 | accepted |
+| [0021](./0021-keyboard-navigation-architecture.md)      | Keyboard nav: headless focus-group + region model    | 2026-06-08 | accepted |
+| [0022](./0022-on-disk-storage-layout.md)                | On-disk storage layout: config / app-state / runtime | 2026-06-10 | accepted |

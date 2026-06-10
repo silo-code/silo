@@ -55,22 +55,32 @@ mod tests {
     use std::path::PathBuf;
 
     // These tests bind real sockets but in a private temp dir, overriding the
-    // session dir via XDG_RUNTIME_DIR. They serialize on that env var.
+    // session dir via XDG_RUNTIME_DIR. They serialize on a guard, recovering
+    // from a poisoned lock so one failure doesn't cascade into the others. We
+    // also neutralize SILO_PTY_NS for the duration: if it's set in the ambient
+    // environment (e.g. a dev shell exports SILO_PTY_NS=prod), `sock_dir()`
+    // would append that namespace subdir and miss the sockets these tests write
+    // at the un-namespaced base.
     fn with_temp_dir<T>(tag: &str, f: impl FnOnce(&Path) -> T) -> T {
         use std::sync::Mutex;
         static GUARD: Mutex<()> = Mutex::new(());
-        let _g = GUARD.lock().unwrap();
+        let _g = GUARD.lock().unwrap_or_else(|e| e.into_inner());
         // Short base under /tmp — Unix socket paths are capped (~104 bytes on
         // macOS), so the deeper `std::env::temp_dir()` can overflow `sun_path`.
         let dir = PathBuf::from("/tmp").join(format!("ph-{}-{}", std::process::id(), tag));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("silo-pty")).unwrap();
-        let prev = std::env::var("XDG_RUNTIME_DIR").ok();
+        let prev_xdg = std::env::var("XDG_RUNTIME_DIR").ok();
+        let prev_ns = std::env::var("SILO_PTY_NS").ok();
         std::env::set_var("XDG_RUNTIME_DIR", &dir);
+        std::env::remove_var("SILO_PTY_NS");
         let out = f(&dir.join("silo-pty"));
-        match prev {
+        match prev_xdg {
             Some(v) => std::env::set_var("XDG_RUNTIME_DIR", v),
             None => std::env::remove_var("XDG_RUNTIME_DIR"),
+        }
+        if let Some(v) = prev_ns {
+            std::env::set_var("SILO_PTY_NS", v);
         }
         let _ = std::fs::remove_dir_all(&dir);
         out
