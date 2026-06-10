@@ -34,6 +34,13 @@
   min-height: 0;
   padding-top: 28px;
   overflow: hidden;
+  /* Contain each column's internal stacking. Without this the center column is
+     a static (non-isolating) box, so dockview's positioned descendants (e.g.
+     .dock-host at z-index 1, .dv-sash at z-index 99) escape into the root
+     stacking context and paint over the resize handle's 1px line — clipping the
+     left handle behind the center dock. Isolating keeps those z-indexes local
+     so the handle (z-index 1, a sibling) always wins at the seam. */
+  isolation: isolate;
 }
 
 .app-col > * {
