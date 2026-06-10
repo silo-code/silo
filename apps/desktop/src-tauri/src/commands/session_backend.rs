@@ -114,8 +114,8 @@ pub fn log_event(event: &str, detail: &str) {
         .unwrap_or(0);
     let line = format!("{} {} {}\n", ts, event, detail);
     eprint!("[terminal] {}", line);
-    if let Some(home) = dirs::home_dir() {
-        let dir = home.join(".app-editor/logs");
+    if let Some(root) = super::app_paths::data_dir() {
+        let dir = root.join("logs");
         let _ = std::fs::create_dir_all(&dir);
         if let Ok(mut f) = std::fs::OpenOptions::new()
             .create(true)

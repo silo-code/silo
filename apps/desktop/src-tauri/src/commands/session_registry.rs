@@ -18,7 +18,7 @@ fn registry_path() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("SILO_SESSION_REGISTRY") {
         return Some(PathBuf::from(p));
     }
-    dirs::home_dir().map(|h| h.join(".app-editor/terminal-sessions.json"))
+    super::app_paths::data_dir().map(|d| d.join("terminal-sessions.json"))
 }
 
 // Serializes read-modify-write so concurrent terminal commands can't clobber

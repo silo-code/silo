@@ -11,8 +11,8 @@ use std::path::PathBuf;
 // not parse or interpret the data.
 
 fn get_buffer_dir() -> Result<PathBuf, String> {
-    let home = dirs::home_dir().ok_or("No home directory")?;
-    let dir = home.join(".app-editor/terminal-buffers");
+    let root = super::app_paths::data_dir().ok_or("No data directory")?;
+    let dir = root.join("terminal-buffers");
     fs::create_dir_all(&dir).map_err(|e| format!("Failed to create buffer dir: {}", e))?;
     Ok(dir)
 }
@@ -62,4 +62,29 @@ pub fn cleanup_stale_buffers() -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn save_load_buffer_under_data_dir() {
+        let _g = super::super::app_paths::env_lock();
+        // Redirect the data root to a temp dir; buffers must land under it and
+        // round-trip, and a missing buffer reads back as empty (not an error).
+        let mut root = std::env::temp_dir();
+        root.push(format!("silo-buffer-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        std::env::set_var("SILO_DATA_DIR", &root);
+
+        assert_eq!(load_buffer("missing").as_deref(), Ok(""));
+
+        save_buffer("s1", "scrollback\x1b[0m").unwrap();
+        assert!(root.join("terminal-buffers/s1.term").exists());
+        assert_eq!(load_buffer("s1").as_deref(), Ok("scrollback\x1b[0m"));
+
+        std::env::remove_var("SILO_DATA_DIR");
+        let _ = fs::remove_dir_all(&root);
+    }
 }
