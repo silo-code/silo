@@ -58,10 +58,10 @@ exactly this surface — no more, no less.
 
 ## Docs
 
-- **Guide:** [Your first extension](https://github.com/silo-code/silo/blob/main/apps/docs/guide/getting-started.md)
-  · [Publishing an extension](https://github.com/silo-code/silo/blob/main/apps/docs/guide/publishing-an-extension.md)
+- **Guide:** [Your first extension](https://silo.dev/guide/getting-started)
+  · [Publishing an extension](https://silo.dev/guide/publishing-an-extension)
 - **API reference:** generated from this package — see the
-  [docs site](https://github.com/silo-code/silo/tree/main/apps/docs).
+  [docs site](https://silo.dev/).
 - **Examples:** [`examples/extensions`](https://github.com/silo-code/silo/tree/main/examples/extensions).
 
 ## License

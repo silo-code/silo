@@ -1,6 +1,5 @@
 <div align="center">
   <img src="apps/desktop/src-tauri/icons/128x128.png" width="96" height="96" alt="Silo" />
-  <h1>Silo</h1>
   <p><strong>Run many workspaces at once — and switch between them instantly, without losing state.</strong></p>
 </div>
 
@@ -22,7 +21,7 @@ with Tauri, React, and TypeScript.
 
 Early and moving fast. The platform is **100% open source** (MIT); the bar for
 clean boundaries, a documented public surface, and a stable extension contract
-is intentionally high. See the [Roadmap](apps/docs/roadmap.md) for what's stable
+is intentionally high. See the [Roadmap](https://silo.dev/roadmap) for what's stable
 vs. planned.
 
 ## Develop
@@ -79,7 +78,7 @@ So cutting a release is just: land `feat:`/`fix:` PRs, then merge the release PR
   resolve what it depends on) and by lint (the platform ban + design-token CSS
   rule). See [`CLAUDE.md`](CLAUDE.md) and [`docs/`](docs/).
 - The API reference is generated from source into the
-  [docs site](apps/docs/) (`pnpm docs:api`).
+  [docs site](https://silo.dev/) (`pnpm docs:api`).
 
 ## License
 
