@@ -49,6 +49,18 @@ interface LoadedEntry {
 
 const loaded = new Map<string, LoadedEntry>();
 
+// Ids that contributed a dock panel kind during load. A dock kind can't be
+// unmounted from an already-mounted dock, so disabling/uninstalling such an
+// extension needs a window reload to fully take effect — the Extensions page
+// surfaces this via `needsReload`. (Kept set across unload: the stuck panel
+// outlives the unload, which is exactly the condition the hint reports.)
+const reloadRequiredIds = new Set<string>();
+
+/** Whether disabling/removing `id` needs a window reload (it contributed a dock kind). */
+export function needsReload(id: string): boolean {
+  return reloadRequiredIds.has(id);
+}
+
 // Per-dep shim blob URLs, built once per session and shared across extensions.
 let depShimUrls: Record<string, string> | null = null;
 
@@ -163,7 +175,9 @@ export async function loadExtension(spec: LoadSpec): Promise<void> {
     if (dockAfter.some((id) => !dockBefore.has(id))) {
       // Dock panel kinds are read once at dock mount (WorkspaceDock) and don't
       // unmount cleanly on dispose. Tolerated for now (see plan "Known
-      // limitation"); the example uses a side panel instead.
+      // limitation"); the example uses a side panel instead. Recorded so the
+      // Extensions page can show a "reload to finish disabling" hint.
+      reloadRequiredIds.add(ext.id);
       console.warn(
         `[extensions] ${ext.id} registered a dock panel kind; disabling it may require a window reload`,
       );

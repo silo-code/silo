@@ -1,7 +1,7 @@
 import { defineConfig, configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 
-// Two test layers (see docs/AUTOMATION.md):
+// Two test layers (see docs/automation.md):
 //   - unit:        jsdom, Tauri boundary mocked — fast, runs everywhere.
 //   - integration: drives a live dev app (`npm run app:dev`) over the RPC. Real
 //                  WKWebView/Monaco/dockview; the only layer that can observe

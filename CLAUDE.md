@@ -14,7 +14,7 @@ Orientation docs (read when relevant):
 
 - `docs/decisions/` — ADRs: the architecture decisions of record (the durable "why").
 - `docs/proposals/` — RFCs: forward-looking designs not yet decided.
-- `docs/UI-TERMINOLOGY.md` — high-level UI component naming.
+- `docs/ui-terminology.md` — high-level UI component naming.
 
 ## Self-documentation — keep docs in sync AS YOU BUILD
 
@@ -134,10 +134,13 @@ All run from the repo root (pnpm workspace).
   `packages/extensions-silo/src/<name>/` (`silo.*`), are re-exported from that
   package's barrel (`src/index.ts`), and are wired in by the app's composition
   root (`apps/desktop/src/builtins.ts`), which hands the ordered list to the
-  host's `activateExtensions`. Model new ones on `panel-toggles` (status item,
+  host's `activateExtensions`. Model new ones on `image-viewer` (editor,
   `silo.*`) or `about` (settings page, `core.*`) — both touch the app only
   through `ctx`.
 - No legacy/internal brand names in source — the product is `Silo`.
+- Docs under `docs/` use lowercase kebab-case filenames (`automation.md`,
+  `ui-terminology.md`), not ALLCAPS. The only exception is the conventional
+  `README.md`.
 
 ## Testing — write unit tests for all new functionality
 

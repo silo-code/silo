@@ -12,6 +12,10 @@ const MarkdownPreview = lazy(async () => {
 
 export const extension: Extension = {
   id: "silo.markdown-preview",
+  manifest: {
+    name: "Markdown Preview",
+    description: "Rendered preview for Markdown files.",
+  },
   activate(ctx) {
     ctx.registerEditor({
       id: "silo.markdown-preview",

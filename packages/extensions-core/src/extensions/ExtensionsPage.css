@@ -20,6 +20,25 @@
   font-size: 1.1em;
   color: var(--silo-color-text-hi);
 }
+.ext-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* "Show built-in extensions" toggle — quiet, sits left of the install button. */
+.ext-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--silo-color-text-lo);
+  font-size: calc(var(--settings-font) - 1px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ext-toggle input {
+  cursor: pointer;
+}
 
 /* Matches .kb-search / .es-search so the filter box is consistent across pages. */
 .ext-search {
@@ -74,6 +93,13 @@
   gap: 8px;
   color: var(--silo-color-text-hi);
 }
+.ext-brand {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-accent);
+  border: 1px solid var(--silo-color-accent);
+  border-radius: var(--silo-radius-sm);
+  padding: 0 5px;
+}
 .ext-version {
   font-size: calc(var(--settings-font) - 2px);
   color: var(--silo-color-text-lo);
@@ -90,6 +116,9 @@
   font-size: calc(var(--settings-font) - 2px);
   color: var(--silo-color-text-lo);
   line-height: 1.35;
+}
+.ext-hint-warn {
+  color: var(--silo-color-warn);
 }
 
 .ext-actions {

@@ -21,6 +21,10 @@ function matchImage(path: string | null): boolean {
 
 export const extension: Extension = {
   id: "silo.image-viewer",
+  manifest: {
+    name: "Image Viewer",
+    description: "Preview images (PNG, JPG, GIF, SVG, and more).",
+  },
   activate(ctx) {
     ctx.registerEditor({
       id: "image",

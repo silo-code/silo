@@ -13,5 +13,3 @@ export { extension as fileExplorer } from "./file-explorer";
 export { extension as git } from "./git";
 export { extension as gitExplorer } from "./git-explorer";
 export { extension as themePresets } from "./theme-presets";
-export { extension as panelToggles } from "./panel-toggles";
-export { extension as settingsButton } from "./settings-button";

@@ -30,6 +30,7 @@ export type {
   SettingsPage,
   ExtensionContext,
   Extension,
+  ExtensionManifest,
   ExtensionHandle,
 } from "./types";
 

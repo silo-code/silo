@@ -9,6 +9,10 @@ import { setGitApiResolver } from "./git-runtime";
 // crash.
 export const extension: Extension = {
   id: "silo.git-explorer",
+  manifest: {
+    name: "Git Explorer",
+    description: "Git status and history in a side panel.",
+  },
   activate(ctx) {
     setGitApiResolver(() => ctx.getExtension<GitAPI>("silo.git")?.api);
     ctx.registerSidePanel({

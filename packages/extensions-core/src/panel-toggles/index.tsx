@@ -65,7 +65,7 @@ function IconRightPanel() {
 }
 
 export const extension: Extension = {
-  id: "silo.panel-toggles",
+  id: "core.panel-toggles",
   activate(ctx) {
     const { layout } = ctx;
 

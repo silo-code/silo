@@ -35,4 +35,4 @@ Compiled out of release entirely via a Cargo `automation` feature + a frontend
 
 ## References
 
-- `docs/AUTOMATION.md`.
+- `docs/automation.md`.

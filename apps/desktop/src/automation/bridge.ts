@@ -93,7 +93,7 @@ const editorUri = (ed: MonacoEditor.ICodeEditor): string => {
 };
 
 // A registry of every live code editor we've tapped. `monaco.editor.getEditors()`
-// can return `[]` even when editors exist (see AUTOMATION.md gotchas), so the
+// can return `[]` even when editors exist (see automation.md gotchas), so the
 // `editorsDetail` op reads from this set instead — it's the reliable roster.
 const tappedEditors = new Set<MonacoEditor.ICodeEditor>();
 

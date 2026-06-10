@@ -51,6 +51,7 @@ Silo reads its metadata from `package.json` under a `silo` key:
     "id": "acme.hello", // MUST equal `extension.id` in your code
     "engine": "^0.1", // Silo API version you target
     "main": "dist/index.js", // built bundle, relative to the package root
+    "publisher": "Acme", // brand shown beside the name (optional)
   },
 }
 ```
@@ -58,6 +59,10 @@ Silo reads its metadata from `package.json` under a `silo` key:
 The `silo.id` must match the `id` of the [`Extension`](/api/types/interfaces/Extension)
 object your bundle exports, or the host refuses to load it (a mismatch between
 manifest and code is always a mistake).
+
+`silo.publisher` is the brand shown beside your extension's name in the list
+(the same slot where Silo's own extensions read "Silo"). It's optional — when
+omitted, Silo falls back to your id's namespace, so `acme.hello` shows "acme".
 
 ## The build contract — externals
 
@@ -144,6 +149,14 @@ deactivate() {
 
 Enabled extensions are recorded in `~/.config/silo/extensions/installed.json` and
 **reload automatically** on the next launch; disabled ones stay dormant.
+
+Silo's own first-party (`silo.*`) extensions — Git, Markdown Preview, the file
+explorer, and so on — are hidden by default; flip the **Show built-in
+extensions** toggle to list them, branded **Silo**. These can be **disabled**
+(they tear down live, just like a third-party extension) but not uninstalled:
+they ship inside the app, so there's nothing on disk to remove. Disabled
+built-ins are persisted (in the same `installed.json`) and stay off across
+launches. The immutable shell (`core.*`) is never listed.
 
 ## Lifecycle & cleanup
 

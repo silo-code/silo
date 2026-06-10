@@ -59,7 +59,7 @@ describe.skipIf(!canFocus)("tab-switch focus handoff", () => {
   afterAll(async () => {
     // Leave no trace. deleteWorkspace removes the entry AND switches the active
     // workspace away (so deleting the folder underneath can't corrupt the dock —
-    // see docs/AUTOMATION.md "teardown must assert, not assume"). Then restore
+    // see docs/automation.md "teardown must assert, not assume"). Then restore
     // whatever was active before, and remove the sandbox folder.
     if (workspaceId) await silo.deleteWorkspace(workspaceId);
     if (priorActive) await silo.activateWorkspace(priorActive);

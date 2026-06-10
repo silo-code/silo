@@ -13,6 +13,7 @@ the published reference is exactly this surface — no more, no less.
 - [Permission](type-aliases/Permission.md)
 - [ExtensionContext](interfaces/ExtensionContext.md)
 - [ExtensionHandle](interfaces/ExtensionHandle.md)
+- [ExtensionManifest](interfaces/ExtensionManifest.md)
 - [Extension](interfaces/Extension.md)
 
 ## Registration

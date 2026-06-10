@@ -15,3 +15,5 @@ export { extension as themes } from "./themes";
 export { extension as keybindings } from "./keybindings";
 export { extension as about } from "./about";
 export { extension as extensions } from "./extensions";
+export { extension as panelToggles } from "./panel-toggles";
+export { extension as settingsButton } from "./settings-button";

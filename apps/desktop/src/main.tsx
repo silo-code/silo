@@ -8,13 +8,23 @@ import {
 } from "@silo-code/extension-host";
 import { activateBuiltins } from "./builtins";
 
+// Activate built-ins synchronously, before render — the dock needs their panel
+// kinds present when it deserializes the saved layout.
 activateBuiltins();
 
-// Load installed third-party extensions after builtins, so the registries and
-// the shared React/SDK deps are ready first. Async + fire-and-forget.
-getExtensionManager()
-  .loadInstalled()
-  .catch((err) => console.error("loadInstalled failed", err));
+// Then, asynchronously: apply the user's persisted built-in disables (tears the
+// chosen ones down live, no re-persist), and load installed third-party
+// extensions (registries + shared deps are ready first). Chained so the
+// disabled set is applied before refresh reflects the list.
+const mgr = getExtensionManager();
+mgr
+  .applyDisabledBuiltins()
+  .catch((err) => console.error("applyDisabledBuiltins failed", err))
+  .finally(() => {
+    void mgr
+      .loadInstalled()
+      .catch((err) => console.error("loadInstalled failed", err));
+  });
 
 hydrate().catch((err) => console.error("hydrate failed", err));
 

@@ -1,4 +1,4 @@
-// Typed client for the dev-only automation RPC (see `docs/AUTOMATION.md` and the
+// Typed client for the dev-only automation RPC (see `docs/automation.md` and the
 // webview half in `./bridge.ts`). This is the driver layer for integration
 // tests and external scripts — it turns the raw `POST / {op,args}` protocol into
 // typed methods so tests read like ordinary code instead of hand-written curl.

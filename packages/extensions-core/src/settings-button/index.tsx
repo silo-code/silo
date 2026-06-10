@@ -9,7 +9,7 @@ import { Sliders } from "@phosphor-icons/react";
 import "./settings-button.css";
 
 export const extension: Extension = {
-  id: "silo.settings-button",
+  id: "core.settings-button",
   activate(ctx) {
     // The component closes over `ctx`; identity is stable (activate runs once).
     function SettingsButton() {

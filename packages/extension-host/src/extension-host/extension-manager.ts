@@ -18,7 +18,18 @@ import {
   fsDelete,
   fsPathExists,
 } from "../services/tauri-fs";
-import { loadExtension, unloadExtension, isLoaded } from "./extension-loader";
+import {
+  loadExtension,
+  unloadExtension,
+  isLoaded,
+  needsReload,
+} from "./extension-loader";
+import {
+  isBuiltin,
+  enableBuiltin,
+  disableBuiltin,
+  builtinRows,
+} from "./builtins-registry";
 import type { Disposable, Permission } from "@silo-code/sdk";
 import type { ReactiveService } from "@silo-code/sdk";
 
@@ -69,10 +80,27 @@ export interface InstalledExtension {
   version: string;
   /** Optional one-line description. */
   description?: string;
+  /**
+   * Publisher/brand shown beside the name. `"Silo"` for built-ins; for
+   * third-party extensions the `silo.publisher` manifest key, falling back to
+   * the id's namespace (e.g. `"acme"` for `"acme.hello"`).
+   */
+  publisher: string;
   /** Whether the extension is enabled (loads on startup / is loaded now). */
   enabled: boolean;
   /** Whether it's currently loaded into the running host. */
   loaded: boolean;
+  /**
+   * A first-party built-in (`silo.*`). Built-ins can be disabled but never
+   * uninstalled (no files on disk), so the UI hides the Uninstall action.
+   */
+  builtin: boolean;
+  /**
+   * The extension contributed a dock panel kind, which can't be unmounted from
+   * an already-mounted dock — so disabling it needs a window reload to fully
+   * take effect. The UI shows a hint when this is set.
+   */
+  reloadRequired?: boolean;
   /** Capabilities the user granted at install (from the manifest). */
   permissions: readonly Permission[];
 }
@@ -84,14 +112,23 @@ export interface ExtensionManagerState {
 export interface ExtensionManager extends ReactiveService<ExtensionManagerState> {
   /** Install from a source folder (copied into the extensions dir), then load. */
   installFromFolder(srcDir: string): Promise<void>;
-  /** Unload (if loaded), delete the folder, and drop the record. */
+  /** Unload (if loaded), delete the folder, and drop the record. Rejects for built-ins. */
   uninstall(id: string): Promise<void>;
-  /** Enable + load. */
+  /** Enable: load a third-party extension, or hot-enable a built-in. */
   enable(id: string): Promise<void>;
-  /** Disable + unload. */
+  /** Disable: unload a third-party extension, or hot-disable a built-in. */
   disable(id: string): Promise<void>;
   /** Load every enabled extension. Called once at startup after builtins. */
   loadInstalled(): Promise<void>;
+  /**
+   * Apply the persisted disabled-built-in set: hot-disable each one **without**
+   * re-persisting (the choice is already on disk). Built-ins must be activated
+   * synchronously before the first render, so the disable pass runs just after,
+   * asynchronously. Called once at startup.
+   */
+  applyDisabledBuiltins(): Promise<void>;
+  /** The set of built-in ids the user has disabled, persisted in `installed.json`. */
+  readDisabledBuiltins(): Promise<ReadonlySet<string>>;
   /**
    * Read a source folder's manifest **without installing** — so the UI can show
    * the requested permissions and get consent before committing the install.
@@ -112,6 +149,8 @@ interface ExtensionManifest {
   name: string;
   version: string;
   description?: string;
+  /** Publisher/brand (from the `silo.publisher` key); falls back to the id namespace. */
+  publisher?: string;
   main: string;
   permissions: Permission[];
 }
@@ -131,6 +170,16 @@ interface InstalledRecord {
 interface InstalledFile {
   version: number;
   extensions: InstalledRecord[];
+  /** Built-in ids the user has disabled (built-ins have no `extensions` record). */
+  disabledBuiltins?: string[];
+}
+
+/** Brand for a third-party row: the declared publisher, else the id's namespace. */
+function publisherFor(id: string, declared?: string): string {
+  const trimmed = declared?.trim();
+  if (trimmed) return trimmed;
+  const ns = id.split(".")[0];
+  return ns || id;
 }
 
 const REGISTRY_VERSION = 1;
@@ -183,11 +232,13 @@ function parseManifest(
   const version = typeof pkg.version === "string" ? pkg.version : "0.0.0";
   const description =
     typeof pkg.description === "string" ? pkg.description : undefined;
+  const publisher =
+    typeof silo.publisher === "string" ? silo.publisher : undefined;
   const permissions = validateManifestPermissions(
     silo.permissions,
     sourceLabel,
   );
-  return { id, name, version, description, main, permissions };
+  return { id, name, version, description, publisher, main, permissions };
 }
 
 async function readManifest(dir: string): Promise<ExtensionManifest> {
@@ -243,8 +294,11 @@ async function refresh(): Promise<void> {
         name: m.name,
         version: m.version,
         description: m.description,
+        publisher: publisherFor(rec.id, m.publisher),
         enabled: rec.enabled,
         loaded: isLoaded(rec.id),
+        builtin: false,
+        reloadRequired: needsReload(rec.id) || undefined,
         permissions: rec.permissions ?? [],
       });
     } catch {
@@ -253,11 +307,31 @@ async function refresh(): Promise<void> {
         name: rec.id,
         version: "—",
         description: "⚠ manifest unreadable",
+        publisher: publisherFor(rec.id),
         enabled: rec.enabled,
         loaded: isLoaded(rec.id),
+        builtin: false,
+        reloadRequired: needsReload(rec.id) || undefined,
         permissions: rec.permissions ?? [],
       });
     }
+  }
+  // Merge the first-party built-in rows (silo.* only; core.* is excluded at the
+  // source). Built-ins have no on-disk record or permissions; `loaded` mirrors
+  // `enabled` (no disk/memory split).
+  for (const b of builtinRows()) {
+    rows.push({
+      id: b.id,
+      name: b.name,
+      version: b.version,
+      description: b.description,
+      publisher: b.publisher,
+      enabled: b.enabled,
+      loaded: b.enabled,
+      builtin: true,
+      reloadRequired: b.reloadRequired || undefined,
+      permissions: [],
+    });
   }
   rows.sort((a, b) => a.name.localeCompare(b.name));
   cached = Object.freeze({ extensions: rows });
@@ -271,6 +345,19 @@ async function upsertRecord(
   mutate(file);
   file.version = REGISTRY_VERSION;
   await writeInstalledFile(file);
+}
+
+/** Add/remove a built-in id from the persisted `disabledBuiltins` set. */
+async function setBuiltinDisabled(
+  id: string,
+  disabled: boolean,
+): Promise<void> {
+  await upsertRecord((file) => {
+    const set = new Set(file.disabledBuiltins ?? []);
+    if (disabled) set.add(id);
+    else set.delete(id);
+    file.disabledBuiltins = [...set];
+  });
 }
 
 let service: ExtensionManager | null = null;
@@ -327,6 +414,13 @@ export function getExtensionManager(): ExtensionManager {
     },
 
     async uninstall(id) {
+      // Built-ins live in the app bundle, not on disk — there's nothing to
+      // remove, so the UI offers only disable. Guard the API too.
+      if (isBuiltin(id)) {
+        throw new Error(
+          "Built-in extensions can't be uninstalled — disable it instead.",
+        );
+      }
       if (isLoaded(id)) unloadExtension(id);
       const root = await extensionsRoot();
       const destDir = `${root}/${id}`;
@@ -338,6 +432,12 @@ export function getExtensionManager(): ExtensionManager {
     },
 
     async enable(id) {
+      if (isBuiltin(id)) {
+        enableBuiltin(id);
+        await setBuiltinDisabled(id, false);
+        await refresh();
+        return;
+      }
       const root = await extensionsRoot();
       const destDir = `${root}/${id}`;
       const manifest = await readManifest(destDir);
@@ -360,12 +460,30 @@ export function getExtensionManager(): ExtensionManager {
     },
 
     async disable(id) {
+      if (isBuiltin(id)) {
+        disableBuiltin(id);
+        await setBuiltinDisabled(id, true);
+        await refresh();
+        return;
+      }
       if (isLoaded(id)) unloadExtension(id);
       await upsertRecord((file) => {
         const rec = file.extensions.find((e) => e.id === id);
         if (rec) rec.enabled = false;
       });
       await refresh();
+    },
+
+    async applyDisabledBuiltins() {
+      const file = await readInstalledFile();
+      // Tear down the chosen built-ins (no re-persist — already recorded).
+      for (const id of file.disabledBuiltins ?? []) disableBuiltin(id);
+      await refresh();
+    },
+
+    async readDisabledBuiltins() {
+      const file = await readInstalledFile();
+      return new Set(file.disabledBuiltins ?? []);
     },
 
     async loadInstalled() {

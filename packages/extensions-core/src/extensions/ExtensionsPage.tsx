@@ -6,6 +6,11 @@ import {
   type InstalledExtension,
 } from "@silo-code/extension-host/internal";
 import { PermissionConsent } from "./PermissionConsent";
+import {
+  filterExtensions,
+  hasBuiltins,
+  showsReloadHint,
+} from "./extensions-list-model";
 import "./ExtensionsPage.css";
 
 const mgr = getExtensionManager();
@@ -20,16 +25,10 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
     const { extensions } = useServiceState(mgr);
     const [busy, setBusy] = useState<string | null>(null);
     const [query, setQuery] = useState("");
+    const [showBuiltins, setShowBuiltins] = useState(false);
 
-    const q = query.trim().toLowerCase();
-    const visible = q
-      ? extensions.filter(
-          (e) =>
-            e.name.toLowerCase().includes(q) ||
-            e.id.toLowerCase().includes(q) ||
-            (e.description?.toLowerCase().includes(q) ?? false),
-        )
-      : extensions;
+    const visible = filterExtensions(extensions, { query, showBuiltins });
+    const builtinsPresent = hasBuiltins(extensions);
 
     async function run(key: string, fn: () => Promise<void>) {
       setBusy(key);
@@ -106,13 +105,25 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       <div className="ext-page">
         <div className="ext-header">
           <h2>Extensions</h2>
-          <button
-            className="ext-btn"
-            onClick={install}
-            disabled={busy === "install"}
-          >
-            Install from folder…
-          </button>
+          <div className="ext-header-actions">
+            {builtinsPresent && (
+              <label className="ext-toggle">
+                <input
+                  type="checkbox"
+                  checked={showBuiltins}
+                  onChange={(e) => setShowBuiltins(e.target.checked)}
+                />
+                Show built-in extensions
+              </label>
+            )}
+            <button
+              className="ext-btn"
+              onClick={install}
+              disabled={busy === "install"}
+            >
+              Install from folder…
+            </button>
+          </div>
         </div>
 
         {extensions.length > 0 && (
@@ -139,12 +150,18 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                 <div className="ext-row-text">
                   <span className="ext-label">
                     {ext.name}
+                    <span className="ext-brand">{ext.publisher}</span>
                     <span className="ext-version">v{ext.version}</span>
                     {!ext.enabled && (
                       <span className="ext-badge">disabled</span>
                     )}
                   </span>
                   <span className="ext-hint">{ext.description ?? ext.id}</span>
+                  {showsReloadHint(ext) && (
+                    <span className="ext-hint ext-hint-warn">
+                      Reload the window to finish disabling this extension.
+                    </span>
+                  )}
                 </div>
                 <div className="ext-actions">
                   <button
@@ -154,13 +171,15 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                   >
                     {ext.enabled ? "Disable" : "Enable"}
                   </button>
-                  <button
-                    className="ext-btn ext-btn-danger"
-                    onClick={() => uninstall(ext)}
-                    disabled={busy === ext.id}
-                  >
-                    Uninstall
-                  </button>
+                  {!ext.builtin && (
+                    <button
+                      className="ext-btn ext-btn-danger"
+                      onClick={() => uninstall(ext)}
+                      disabled={busy === ext.id}
+                    >
+                      Uninstall
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

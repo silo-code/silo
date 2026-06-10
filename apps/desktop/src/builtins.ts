@@ -9,6 +9,8 @@ import {
   keybindings,
   about,
   extensions,
+  panelToggles,
+  settingsButton,
 } from "@silo-code/extensions-core";
 import {
   imageViewer,
@@ -17,8 +19,6 @@ import {
   git,
   gitExplorer,
   themePresets,
-  panelToggles,
-  settingsButton,
 } from "@silo-code/extensions-silo";
 
 /**
@@ -55,6 +55,14 @@ const builtins: Extension[] = [
   extensions,
 ];
 
+/**
+ * Activate the built-in set **synchronously**, before the first render — the
+ * dock deserializes its saved layout at mount and needs the editor/terminal
+ * panel kinds (registered by `core.editor`/`core.terminal`) already present, so
+ * this must not be deferred behind a disk read. The user's persisted
+ * disabled-built-in choices are applied just after, asynchronously, via
+ * {@link ExtensionManager.applyDisabledBuiltins}.
+ */
 export function activateBuiltins(): void {
   activateExtensions(builtins);
 }

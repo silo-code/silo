@@ -62,17 +62,18 @@ primitives above — so a third party could build the same.
 How a third-party extension gets from a package into the running app. See
 [Publishing an extension](/guide/publishing-an-extension).
 
-| Capability                               | Status                               |                                                                     |
-| ---------------------------------------- | ------------------------------------ | ------------------------------------------------------------------- |
-| Author against `@silo-code/sdk` from npm | <Badge type="info" text="planned" /> | [docs](/guide/publishing-an-extension#the-build-contract-externals) |
-| Install from local folder                | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
-| Enable / disable / uninstall (runtime)   | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
-| Load on launch + persisted registry      | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
-| Install from URL (git / release tgz)     | <Badge type="info" text="planned" /> | —                                                                   |
-| Install from npm registry                | <Badge type="info" text="planned" /> | —                                                                   |
-| `npx` install/uninstall CLI              | <Badge type="info" text="planned" /> | —                                                                   |
-| Update checking + apply                  | <Badge type="info" text="planned" /> | —                                                                   |
-| Permissions / capability model           | <Badge type="tip" text="stable" />   | [docs](/guide/permissions)                                          |
+| Capability                                           | Status                               |                                                                     |
+| ---------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------- |
+| Author against `@silo-code/sdk` from npm             | <Badge type="info" text="planned" /> | [docs](/guide/publishing-an-extension#the-build-contract-externals) |
+| Install from local folder                            | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
+| Enable / disable / uninstall (runtime)               | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
+| First-party built-ins listed (disable-only, branded) | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#install-enable-uninstall)     |
+| Load on launch + persisted registry                  | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
+| Install from URL (git / release tgz)                 | <Badge type="info" text="planned" /> | —                                                                   |
+| Install from npm registry                            | <Badge type="info" text="planned" /> | —                                                                   |
+| `npx` install/uninstall CLI                          | <Badge type="info" text="planned" /> | —                                                                   |
+| Update checking + apply                              | <Badge type="info" text="planned" /> | —                                                                   |
+| Permissions / capability model                       | <Badge type="tip" text="stable" />   | [docs](/guide/permissions)                                          |
 
 ## Extension model & safety
 
@@ -120,7 +121,7 @@ Not part of the extension SDK — host-side developer/test surfaces.
 
 | Surface              | Status                                       |                                                                          |
 | -------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
-| Automation RPC (dev) | <Badge type="warning" text="experimental" /> | [design](https://github.com/silo-code/silo/blob/main/docs/AUTOMATION.md) |
+| Automation RPC (dev) | <Badge type="warning" text="experimental" /> | [design](https://github.com/silo-code/silo/blob/main/docs/automation.md) |
 
 ### Automation RPC <Badge type="warning" text="experimental" />
 
@@ -131,4 +132,4 @@ guard); in dev it's always on but every request must carry an
 `X-Silo-Automation` header and a loopback `Host`, so a web page you visit can't
 drive it. Ops include `ping`, `exec` (run a registered command), `activeElement`
 / `editorsDetail` (focus introspection), workspace/file test-driver ops,
-`contextKeys`, and `eval`. See [`docs/AUTOMATION.md`](https://github.com/silo-code/silo/blob/main/docs/AUTOMATION.md).
+`contextKeys`, and `eval`. See [`docs/automation.md`](https://github.com/silo-code/silo/blob/main/docs/automation.md).

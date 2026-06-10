@@ -134,6 +134,10 @@ const PRESETS: ThemePreset[] = [
 
 export const extension: Extension = {
   id: "silo.theme-presets",
+  manifest: {
+    name: "Theme Presets",
+    description: "Built-in color themes for the workbench.",
+  },
   activate(ctx) {
     for (const preset of PRESETS) ctx.registerThemePreset(preset);
   },

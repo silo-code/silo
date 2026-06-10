@@ -3,6 +3,10 @@ import { FileExplorerPanel } from "./FileExplorerPanel";
 
 export const extension: Extension = {
   id: "silo.file-explorer",
+  manifest: {
+    name: "File Explorer",
+    description: "Browse the workspace file tree in a side panel.",
+  },
   activate(ctx) {
     ctx.registerSidePanel({
       id: "file-explorer",

@@ -1,6 +1,5 @@
-import { createContext } from "./context";
 import { syncMenu } from "./menu-items";
-import { recordExtension, activateExtensionRecord } from "./extension-registry";
+import { registerBuiltins } from "./builtins-registry";
 import { installExtensionDeps } from "./extension-deps";
 import type { Extension } from "@silo-code/sdk";
 
@@ -13,27 +12,25 @@ let activated = false;
  * packages (`@silo-code/extensions-{core,silo}`) and the package graph acyclic.
  * The caller is responsible for ordering (e.g. register providers before the
  * views that consume them).
+ *
+ * Each built-in's context is retained by the {@link ./builtins-registry | builtin
+ * registry} so it can later be hot-disabled from the Extensions page; any id in
+ * `disabledBuiltins` (the user's persisted choices) is recorded but not
+ * activated, so a disabled built-in never contributes to the first frame.
  */
-export function activateExtensions(builtins: Extension[]): void {
+export function activateExtensions(
+  builtins: Extension[],
+  disabledBuiltins: ReadonlySet<string> = new Set(),
+): void {
   if (activated) return;
   activated = true;
   // Publish the host's React + SDK instances for runtime-loaded extensions to
   // share (before any such extension can load). See extension-deps.ts.
   installExtensionDeps();
-  // Pre-record all ids so an extension can resolve a handle to one that
-  // activates later (getExtension tolerates not-yet-active providers).
-  for (const ext of builtins) recordExtension(ext.id);
-  for (const ext of builtins) {
-    try {
-      // Builtins are first-party — trusted, so `files`/`process` are unscoped.
-      const ctx = createContext(ext.id, { trusted: true });
-      // An extension may return an API object to publish for others to consume.
-      const api = ext.activate(ctx);
-      activateExtensionRecord(ext.id, api);
-    } catch (err) {
-      console.error(`[extensions] activate failed: ${ext.id}`, err);
-    }
-  }
+  // The builtin registry pre-records every id (so handles resolve regardless of
+  // order or disabled state), then activates each one not disabled, retaining
+  // its context for hot enable/disable.
+  registerBuiltins(builtins, disabledBuiltins);
   void syncMenu().catch((err) => {
     console.error("[extensions] syncMenu failed", err);
   });

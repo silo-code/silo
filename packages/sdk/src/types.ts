@@ -482,6 +482,35 @@ export interface ExtensionHandle<API = unknown> {
 }
 
 /**
+ * Display metadata for an extension, surfaced in the **Extensions** settings
+ * page (name, one-line description, version, and {@link ExtensionManifest.publisher
+ * | publisher} brand). For built-in extensions this is declared in-code on the
+ * {@link Extension}; for runtime-loaded third-party extensions the host reads
+ * the equivalent fields from the package manifest (`displayName`/`description`/
+ * `version` and the `silo.publisher` key) instead. Every field is optional — the
+ * host falls back to the extension {@link Extension.id | id} (and the id's
+ * namespace for the publisher) when one is absent.
+ *
+ * @category Extension Contract
+ * @public
+ */
+export interface ExtensionManifest {
+  /** Human-friendly name shown in the Extensions list (falls back to the id). */
+  readonly name?: string;
+  /** One-line description shown beneath the name. */
+  readonly description?: string;
+  /** Version string shown next to the name. */
+  readonly version?: string;
+  /**
+   * The publisher/brand shown beside the name (e.g. `"Silo"`). Built-in
+   * extensions are always branded `"Silo"` by the host regardless of this field;
+   * third-party extensions set it via the `silo.publisher` manifest key and fall
+   * back to their id's namespace (e.g. `"acme"` for `"acme.foo"`).
+   */
+  readonly publisher?: string;
+}
+
+/**
  * The shape of a Silo extension: a stable id plus an
  * {@link Extension.activate | activate} function the host calls once, passing
  * the {@link ExtensionContext}. This is the unit the host loads — built-ins
@@ -501,6 +530,13 @@ export interface Extension<API = unknown> {
    * third parties (e.g. `"core.editor"`, `"silo.git"`, `"acme.foo"`).
    */
   id: string;
+  /**
+   * Optional display metadata for the **Extensions** settings page. Built-in
+   * extensions declare it here so they can be listed (and disabled) with a name
+   * and description; third-party extensions supply the equivalent through their
+   * package manifest instead. See {@link ExtensionManifest}.
+   */
+  manifest?: ExtensionManifest;
   /**
    * Called once by the host; register contributions against `ctx` here.
    * **Optionally return an API object** to publish it for other extensions to
