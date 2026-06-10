@@ -81,6 +81,9 @@ export default withMermaid(
     title: "Silo",
     description:
       "A local-first, extensible code editor — extension API & guides.",
+    // Served from the GitHub Pages project URL https://silo-code.github.io/silo/,
+    // so every asset/link is resolved under this base path.
+    base: "/silo/",
     cleanUrls: true,
     lastUpdated: true,
     // api-intro.md is TypeDoc's readme source (merged into /api/index.md); it is
