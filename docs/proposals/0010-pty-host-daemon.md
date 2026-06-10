@@ -60,7 +60,9 @@ them separate when reasoning about the replacement:
 2. **Screen/scrollback persistence (ours, backend-agnostic).** The frontend
    serializes the xterm.js buffer (SerializeAddon) to a self-contained string;
    `terminal_buffer.rs` stores it as an opaque keyed blob
-   (`~/.app-editor/terminal-buffers/<sessionId>.term`); on reattach the frontend
+   (`<app-data>/terminal-buffers/<sessionId>.term`, where `<app-data>` is the OS
+   app-data dir keyed by bundle identifier — see `commands/app_paths.rs`); on
+   reattach the frontend
    writes it back into a fresh same-size terminal. This is VS Code-style "process
    revive" and **does not depend on abduco** — it stays as-is.
 
@@ -81,7 +83,7 @@ struct Connection { master, reader, writer, child }       // a live attached PTY
 Supporting pieces, all backend-agnostic and **kept**:
 
 - `session_registry.rs` — persists `sessionId → handle` to
-  `~/.app-editor/terminal-sessions.json` so reattach never re-derives a handle.
+  `<app-data>/terminal-sessions.json` so reattach never re-derives a handle.
   Stores opaque strings; survives the swap untouched.
 - `terminal_io.rs` `run_reader_loop` — reads PTY bytes, UTF-8 decodes (carrying
   partial codepoints), emits `terminal_output:<sessionId>` Tauri events.
@@ -156,7 +158,7 @@ to.
   client disconnect (P1) and the daemon survives app exit (P2). On macOS/Linux:
   double-fork + `setsid`, reparented to init.
 - **Transport.** A Unix domain socket per host (e.g.
-  `~/.app-editor/host.sock`), framed protocol with two channels:
+  `<runtime-dir>/host.sock`), framed protocol with two channels:
   - **control** — `create/attach/resize/kill/exists/list/foreground` requests.
   - **data** — raw PTY bytes in/out, multiplexed by handle (or one socket per
     attached session — TBD, see open questions).

@@ -24,6 +24,19 @@ pub fn run() {
         std::env::set_var("SILO_PTY_NS", ns);
     }
 
+    // Root for Silo's per-user runtime state (terminal session registry,
+    // scrollback buffers, backend logs), keyed by *app identity* under the OS
+    // app-data dir so dev and prod never share state — same isolation principle
+    // as SILO_PTY_NS above. Exported via env so the self-forked PTY-host daemon
+    // (`main.rs`), which has no Tauri AppHandle, inherits the same root. Read
+    // through `commands::app_paths::data_dir`.
+    if let Some(data_dir) = dirs::data_dir() {
+        std::env::set_var(
+            "SILO_DATA_DIR",
+            data_dir.join(&context.config().identifier),
+        );
+    }
+
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
