@@ -137,3 +137,39 @@ jobs:
           xcrun stapler validate "$DMG"
           TAG="silo-v$(node -p "require('./apps/desktop/package.json').version")"
           gh release upload "$TAG" "$DMG" --clobber -R silo-code/silo
+
+  # Each matrix leg uploads a latest.json containing only its own platform, so
+  # they clobber each other and the updater manifest ends up single-arch. After
+  # all legs finish, rebuild latest.json with an entry per arch — derived from
+  # each uploaded *.app.tar.gz.sig — and replace it on the release.
+  updater-manifest:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Merge updater manifest across arches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          VERSION=$(node -p "require('./apps/desktop/package.json').version")
+          TAG="silo-v$VERSION"
+          BASE="https://github.com/${{ github.repository }}/releases/download/$TAG"
+          gh release download "$TAG" -R "${{ github.repository }}" -p "*.app.tar.gz.sig" -D sigs --clobber
+          platforms='{}'
+          for f in sigs/*.app.tar.gz.sig; do
+            base=$(basename "$f" .sig)            # e.g. Silo_aarch64.app.tar.gz
+            case "$base" in
+              *aarch64*) key="darwin-aarch64" ;;
+              *x64*|*x86_64*) key="darwin-x86_64" ;;
+              *) echo "skip unknown arch: $base"; continue ;;
+            esac
+            platforms=$(printf '%s' "$platforms" \
+              | jq --arg k "$key" --arg s "$(cat "$f")" --arg u "$BASE/$base" \
+                   '. + {($k): {signature: $s, url: $u}}')
+          done
+          printf '%s' "$platforms" \
+            | jq --arg v "$VERSION" --arg d "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                 '{version: $v, pub_date: $d, platforms: .}' > latest.json
+          echo "--- merged latest.json ---"; cat latest.json
+          gh release upload "$TAG" latest.json --clobber -R "${{ github.repository }}"
