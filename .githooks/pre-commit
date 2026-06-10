@@ -5,6 +5,26 @@
 #
 # In a genuine pinch you can bypass with:  git commit --no-verify
 
+# Robustly find pnpm (especially for GUI git clients on macOS)
+if ! command -v pnpm >/dev/null 2>&1; then
+  export PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
+  # Try to load common version manager paths if still not found
+  [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
+  [ -s "$HOME/.asdf/asdf.sh" ] && . "$HOME/.asdf/asdf.sh"
+fi
+
+# Fallback to npx if pnpm is still missing
+PNPM="pnpm"
+if ! command -v pnpm >/dev/null 2>&1; then
+  if command -v npx >/dev/null 2>&1; then
+    PNPM="npx --no-install pnpm"
+  else
+    echo "✖ Commit blocked: 'pnpm' command not found."
+    echo "  Please ensure pnpm is in your PATH."
+    exit 1
+  fi
+fi
+
 fail() {
   echo ""
   echo "✖ Commit blocked: $1"
@@ -16,7 +36,7 @@ echo "→ Running boundary lint…"
 # Root lint covers the whole workspace: eslint (platform/leaf boundaries) +
 # stylelint (design-token-only extension CSS). The primary import boundary is
 # enforced by each package's dependency graph. See MONOREPO-MIGRATION.md step 6.
-pnpm --silent lint || fail "lint failed (see errors above)"
+$PNPM --silent lint || fail "lint failed (see errors above)"
 
 echo "→ Formatting staged files…"
 # Auto-format staged files with Prettier and re-stage them. lint-staged stashes
@@ -28,4 +48,4 @@ echo "→ Running unit tests…"
 # unchanged packages). The integration layer (*.it.test.ts) drives a live dev
 # app over the RPC, so it's unsuitable for a commit gate — run it explicitly via
 # `pnpm --filter silo test:it`. See docs/AUTOMATION.md.
-pnpm --silent test 2>/dev/null || fail "tests failed (see errors above)"
+$PNPM --silent test 2>/dev/null || fail "tests failed (see errors above)"
