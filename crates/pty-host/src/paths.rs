@@ -11,18 +11,32 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
 /// The un-namespaced base for session sockets. These are **ephemeral runtime
-/// state, not editable config**, so prefer the OS runtime dir
-/// (`$XDG_RUNTIME_DIR/silo-pty` — a 0700 tmpfs auto-cleared on logout on Linux);
-/// otherwise fall back to a dedicated `pty/` subdir of Silo's config root
-/// (`~/.config/silo/pty`) so everything stays under one tree on macOS.
+/// state, not editable config** (ADR 0022, tier 3), so they live in the OS
+/// runtime/temp dir — never under `~/.config/silo`. Prefer `$XDG_RUNTIME_DIR`
+/// (Linux — a 0700 tmpfs auto-cleared on logout); otherwise the per-user temp
+/// dir `$TMPDIR` (the macOS analog, `/var/folders/…/T`), which is auto-cleaned
+/// and short enough to keep socket paths under `sockaddr_un`'s ~104-byte
+/// `sun_path` limit; failing both, `/tmp`.
 fn base_dir() -> PathBuf {
-    if let Ok(x) = std::env::var("XDG_RUNTIME_DIR") {
+    resolve_base(
+        std::env::var("XDG_RUNTIME_DIR").ok(),
+        std::env::var("TMPDIR").ok(),
+    )
+}
+
+/// Pick the runtime base from env values. Pure, for testing.
+fn resolve_base(xdg_runtime_dir: Option<String>, tmpdir: Option<String>) -> PathBuf {
+    if let Some(x) = xdg_runtime_dir {
         if !x.is_empty() {
             return PathBuf::from(x).join("silo-pty");
         }
     }
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    PathBuf::from(home).join(".config/silo/pty")
+    if let Some(t) = tmpdir {
+        if !t.is_empty() {
+            return PathBuf::from(t).join("silo-pty");
+        }
+    }
+    PathBuf::from("/tmp").join("silo-pty")
 }
 
 /// Apply an optional namespace as a subdir of the base. Pure, for testing.
@@ -75,5 +89,30 @@ mod tests {
         let base = PathBuf::from("/run/silo-pty");
         assert_eq!(namespaced(base.clone(), None), base.clone());
         assert_eq!(namespaced(base.clone(), Some(String::new())), base);
+    }
+
+    #[test]
+    fn base_prefers_xdg_then_tmpdir_then_tmp() {
+        // XDG_RUNTIME_DIR wins (Linux).
+        assert_eq!(
+            resolve_base(Some("/run/user/1000".into()), Some("/var/T".into())),
+            PathBuf::from("/run/user/1000/silo-pty")
+        );
+        // No XDG → TMPDIR (macOS).
+        assert_eq!(
+            resolve_base(None, Some("/var/folders/ab/cd/T".into())),
+            PathBuf::from("/var/folders/ab/cd/T/silo-pty")
+        );
+        // Empty values are treated as unset.
+        assert_eq!(
+            resolve_base(Some(String::new()), Some("/var/T".into())),
+            PathBuf::from("/var/T/silo-pty")
+        );
+        // Neither set → /tmp.
+        assert_eq!(resolve_base(None, None), PathBuf::from("/tmp/silo-pty"));
+        assert_eq!(
+            resolve_base(None, Some(String::new())),
+            PathBuf::from("/tmp/silo-pty")
+        );
     }
 }

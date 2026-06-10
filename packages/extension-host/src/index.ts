@@ -29,6 +29,7 @@ export { Menus } from "./components/Menus";
 
 // --- Boot sequence (main.tsx) -----------------------------------------------
 export { hydrate } from "./state/persistence";
+export { userConfigDir } from "./services/user-config";
 export { activateExtensions } from "./extension-host/host";
 export { getExtensionManager } from "./extension-host/extension-manager";
 export { initUserKeybindings } from "./extension-host/keymap";
