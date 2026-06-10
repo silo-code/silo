@@ -35,6 +35,11 @@ describe("toTauriAccelerator", () => {
     expect(toTauriAccelerator("cmd+b")).toBe("CmdOrCtrl+B");
     expect(toTauriAccelerator("f5")).toBe("F5");
   });
+
+  it("passes punctuation keys through verbatim (panel-toggle brackets)", () => {
+    expect(toTauriAccelerator("cmd+alt+[")).toBe("CmdOrCtrl+Alt+[");
+    expect(toTauriAccelerator("cmd+alt+]")).toBe("CmdOrCtrl+Alt+]");
+  });
 });
 
 describe("user bindings → effective key", () => {

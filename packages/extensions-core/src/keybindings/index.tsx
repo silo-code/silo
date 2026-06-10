@@ -13,7 +13,7 @@ import "./KeybindingsPage.css";
 const STARTER = `// Keyboard shortcuts — your overrides win over the defaults.
 // Examples:
 //   { "key": "cmd+j", "command": "view.toggleLeftPanel" }
-//   { "key": "cmd+alt+b", "command": "-view.toggleRightPanel" }  // unbind a default
+//   { "key": "cmd+alt+]", "command": "-view.toggleRightPanel" }  // unbind a default
 []
 `;
 

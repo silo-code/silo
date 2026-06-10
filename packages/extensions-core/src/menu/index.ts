@@ -188,8 +188,8 @@ export const extension: Extension = {
       label: "Close Settings",
       run: () => closeSettings(),
     });
-    // Hotkeys ride on the View-menu accelerators below (CmdOrCtrl+B /
-    // CmdOrCtrl+Alt+B) — same mechanism as the zoom items. We deliberately do
+    // Hotkeys ride on the View-menu accelerators below (CmdOrCtrl+Alt+[ /
+    // CmdOrCtrl+Alt+]) — same mechanism as the zoom items. We deliberately do
     // NOT also registerKeybinding for these keys: the native menu accelerator
     // and the JS keybinding dispatcher would both fire, toggling twice.
 
@@ -248,7 +248,7 @@ export const extension: Extension = {
       id: "view.toggleLeftPanel.menu",
       menu: "view",
       command: "view.toggleLeftPanel",
-      accelerator: "CmdOrCtrl+B",
+      accelerator: "CmdOrCtrl+Alt+[",
       group: "1_layout",
       order: 1,
     });
@@ -256,7 +256,7 @@ export const extension: Extension = {
       id: "view.toggleRightPanel.menu",
       menu: "view",
       command: "view.toggleRightPanel",
-      accelerator: "CmdOrCtrl+Alt+B",
+      accelerator: "CmdOrCtrl+Alt+]",
       group: "1_layout",
       order: 2,
     });
