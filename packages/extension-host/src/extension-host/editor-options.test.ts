@@ -9,7 +9,9 @@ import {
   languageFromPath,
   toTextEditorOptions,
   toDiffEditorOptions,
+  foldUnbindRules,
 } from "./editor-options";
+import type { KeyMod, KeyCode } from "monaco-editor";
 import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from "../state/types";
 
 describe("languageFromPath", () => {
@@ -88,5 +90,28 @@ describe("text vs diff editor options (one core, two modes)", () => {
       renderLineHighlight: "gutter",
       fontSize: 12.5,
     });
+  });
+});
+
+describe("foldUnbindRules (free Cmd+Alt+[/] for the side-dock toggles)", () => {
+  // Stub the runtime enums with bit values shaped like Monaco's real ones so we
+  // can assert the bitwise composition without loading the Monaco runtime.
+  const keyMod = { CtrlCmd: 2048, Alt: 512 } as unknown as typeof KeyMod;
+  const keyCode = {
+    BracketLeft: 87,
+    BracketRight: 88,
+  } as unknown as typeof KeyCode;
+
+  it("unbinds exactly the two bracket combos with command: null", () => {
+    const rules = foldUnbindRules(keyMod, keyCode);
+    expect(rules).toHaveLength(2);
+    for (const r of rules) expect(r.command).toBeNull();
+  });
+
+  it("composes CtrlCmd|Alt with the bracket key codes", () => {
+    const [left, right] = foldUnbindRules(keyMod, keyCode);
+    // 2048 | 512 | 87  and  2048 | 512 | 88
+    expect(left.keybinding).toBe(2048 | 512 | 87);
+    expect(right.keybinding).toBe(2048 | 512 | 88);
   });
 });

@@ -1,4 +1,4 @@
-import type { editor as MonacoEditor } from "monaco-editor";
+import type { editor as MonacoEditor, KeyMod, KeyCode } from "monaco-editor";
 import { toMonacoOptions } from "../state/editor-settings";
 import type { EditorSettings } from "../state/types";
 
@@ -17,6 +17,35 @@ export const EDITOR_FONT_FAMILY =
  * diff alike) — the editor renders a touch larger than chrome.
  */
 const EDITOR_FONT_BOOST = 0.5;
+
+/**
+ * Monaco's default fold (`Cmd+Alt+[`) and unfold (`Cmd+Alt+]`) keybindings
+ * collide with Silo's global side-dock toggles, which fire via native menu
+ * accelerators on the same keys. When focus is in Monaco it consumes the
+ * keystroke for folding (calling preventDefault) and the accelerator never
+ * fires. Silo exposes no folding affordance, so we unbind both — passing
+ * `command: null` to Monaco's `addKeybindingRules` removes a default — letting
+ * the keystroke fall through to the native menu in every focus context. Bound
+ * with `CtrlCmd|Alt` to match the `CmdOrCtrl+Alt` menu accelerator (so on
+ * non-macOS platforms, where Monaco binds nothing to these combos, it's a
+ * harmless no-op). Takes the runtime `KeyMod`/`KeyCode` enums as arguments so
+ * the rule construction stays pure and unit-testable.
+ */
+export function foldUnbindRules(
+  keyMod: typeof KeyMod,
+  keyCode: typeof KeyCode,
+): MonacoEditor.IKeybindingRule[] {
+  return [
+    {
+      keybinding: keyMod.CtrlCmd | keyMod.Alt | keyCode.BracketLeft,
+      command: null,
+    },
+    {
+      keybinding: keyMod.CtrlCmd | keyMod.Alt | keyCode.BracketRight,
+      command: null,
+    },
+  ];
+}
 
 /**
  * Map a file path to a Monaco language id. Deduplicated from the two
