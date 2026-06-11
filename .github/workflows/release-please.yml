@@ -12,9 +12,13 @@ name: release-please
 # The same GITHUB_TOKEN rule blocks the release PR itself: a PR opened with the
 # default token does NOT fire `pull_request`, so ci.yml never runs on it and its
 # required checks (frontend/rust/pr-title) stay absent — leaving the PR forever
-# BLOCKED by branch protection. We pass a dedicated RELEASE_PLEASE_TOKEN (a PAT
-# or GitHub App token) so the PR is authored by a non-GITHUB_TOKEN identity and
-# CI runs on it normally.
+# BLOCKED by branch protection. We mint a GitHub App installation token and hand
+# it to release-please so the PR is authored by a non-GITHUB_TOKEN identity (the
+# app's bot user), which lets `pull_request` fire and CI run on it normally.
+#
+# Setup (one-time): a GitHub App installed on this repo with Contents:write and
+# Pull requests:write. Its App ID is stored as the `RELEASE_PLEASE_APP_ID` repo
+# variable and its private key as the `RELEASE_PLEASE_APP_PRIVATE_KEY` secret.
 on:
   push:
     branches: [main]
@@ -28,10 +32,16 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
