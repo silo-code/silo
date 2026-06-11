@@ -8,6 +8,13 @@ name: release-please
 # made by GITHUB_TOKEN do NOT trigger other workflows — so release.yml's
 # `on: push: tags` would never fire on its own. We bridge it explicitly below
 # with a workflow_dispatch, which IS allowed to run from GITHUB_TOKEN.
+#
+# The same GITHUB_TOKEN rule blocks the release PR itself: a PR opened with the
+# default token does NOT fire `pull_request`, so ci.yml never runs on it and its
+# required checks (frontend/rust/pr-title) stay absent — leaving the PR forever
+# BLOCKED by branch protection. We pass a dedicated RELEASE_PLEASE_TOKEN (a PAT
+# or GitHub App token) so the PR is authored by a non-GITHUB_TOKEN identity and
+# CI runs on it normally.
 on:
   push:
     branches: [main]
@@ -24,6 +31,7 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
