@@ -18,9 +18,49 @@ import "./AppShell.css";
 // Overlay` (Tauri issue #9503 / #4316) — clicks while the window isn't
 // already focused frequently don't initiate a drag. Calling
 // `startDragging()` from a mousedown handler works around it.
+// Calling `startDragging()` on mousedown enters AppKit's modal window-drag
+// loop, which swallows every following pointer event — including the second
+// mousedown of a double-click. So we defer it: arm mousemove/mouseup listeners
+// on mousedown and only start dragging once the pointer travels past a small
+// threshold. A pure click never enters the drag loop, leaving the native
+// `dblclick` (-> zoom) free to fire.
+const DRAG_THRESHOLD_PX = 4;
+
 function onTitlebarMouseDown(e: React.MouseEvent<HTMLDivElement>) {
   if (e.button !== 0) return;
-  void getCurrentWebviewWindow().startDragging();
+  const startX = e.screenX;
+  const startY = e.screenY;
+
+  const cleanup = () => {
+    window.removeEventListener("mousemove", onMove);
+    window.removeEventListener("mouseup", cleanup);
+  };
+  const onMove = (ev: MouseEvent) => {
+    if (
+      Math.abs(ev.screenX - startX) > DRAG_THRESHOLD_PX ||
+      Math.abs(ev.screenY - startY) > DRAG_THRESHOLD_PX
+    ) {
+      cleanup();
+      void getCurrentWebviewWindow().startDragging();
+    }
+  };
+
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", cleanup);
+}
+
+// Double-clicking the title bar zooms the window to fill the screen, matching
+// the native macOS green-button / title-bar behavior. `toggleMaximize` maps to
+// AppKit's zoom, not true fullscreen.
+function onTitlebarDoubleClick(e: React.MouseEvent<HTMLDivElement>) {
+  if (e.button !== 0) return;
+  getCurrentWebviewWindow()
+    .toggleMaximize()
+    .catch((err: unknown) => {
+      // A rejection here is almost always a missing Tauri capability
+      // (`core:window:allow-toggle-maximize`) — surface it rather than swallow.
+      console.error("titlebar double-click: toggleMaximize failed", err);
+    });
 }
 
 function onPanelDragging(isDragging: boolean) {
@@ -74,7 +114,11 @@ export function AppShell() {
 
   return (
     <div className="app-shell">
-      <div className="titlebar-drag" onMouseDown={onTitlebarMouseDown} />
+      <div
+        className="titlebar-drag"
+        onMouseDown={onTitlebarMouseDown}
+        onDoubleClick={onTitlebarDoubleClick}
+      />
       <PanelGroup direction="horizontal" autoSaveId="app:main-cols">
         <Panel
           ref={leftRef}
