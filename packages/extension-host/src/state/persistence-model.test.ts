@@ -31,8 +31,6 @@ const PANEL: PanelState = {
   activeSidePanelTabs: { left: "explorer" },
   sidePanelScrollPositions: { explorer: 12 },
   extensionState: { "silo.explorer": { expanded: ["/a"] } },
-  leftPanelCollapsed: false,
-  rightPanelCollapsed: true,
 };
 
 describe("splitPersistedState", () => {
@@ -114,8 +112,6 @@ describe("withActivePanelState", () => {
     expect(merged.extensionState).toEqual({
       "silo.explorer": { expanded: ["/a"] },
     });
-    expect(merged.leftPanelCollapsed).toBe(false);
-    expect(merged.rightPanelCollapsed).toBe(true);
   });
 
   it("does not mutate the source workspace and isolates the extension-state bag", () => {
@@ -244,5 +240,18 @@ describe("buildIndex", () => {
     expect(index.editorSettings).toBeUndefined();
     expect(index.terminalSettings).toBeUndefined();
     expect(index.uiFontSize).toBeUndefined();
+    expect(index.leftPanelCollapsed).toBeUndefined();
+    expect(index.rightPanelCollapsed).toBeUndefined();
+  });
+
+  it("carries the global side-dock visibility flags through", () => {
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      leftPanelCollapsed: true,
+      rightPanelCollapsed: false,
+    });
+    expect(index.leftPanelCollapsed).toBe(true);
+    expect(index.rightPanelCollapsed).toBe(false);
   });
 });
