@@ -8,6 +8,7 @@ import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
 import htmlWorker from "monaco-editor/esm/vs/language/html/html.worker?worker";
 import tsWorker from "monaco-editor/esm/vs/language/typescript/ts.worker?worker";
 import type { ThemeBase } from "../state/types";
+import { foldUnbindRules } from "../extension-host/editor-options";
 
 type MonacoLike = typeof monaco;
 
@@ -206,6 +207,12 @@ export function ensureMonaco(): MonacoLike {
     // language-service defaults now live on the top-level `typescript` namespace.
     monaco.typescript.typescriptDefaults.setDiagnosticsOptions(diagnostics);
     monaco.typescript.javascriptDefaults.setDiagnosticsOptions(diagnostics);
+    // Drop Monaco's default fold/unfold keybindings on Cmd+Alt+[ / Cmd+Alt+] so
+    // those keystrokes fall through to Silo's native menu accelerators that
+    // toggle the side docks (see foldUnbindRules).
+    monaco.editor.addKeybindingRules(
+      foldUnbindRules(monaco.KeyMod, monaco.KeyCode),
+    );
     defineMonacoThemes(monaco);
     loader.config({ monaco });
     initialized = true;
