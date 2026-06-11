@@ -14,6 +14,10 @@ import {
   setEditorFilePath,
   setEditorScrollPosition,
   getEditorScrollPosition,
+  setEditorBackup,
+  clearEditorBackup,
+  readEditorBackup,
+  resolveRestoredBuffer,
   getEditorSettings,
   monacoThemeName,
   languageFromPath,
@@ -127,32 +131,62 @@ export function TextViewer({
         dockApi.setTitle(path.split("/").pop() ?? path);
       }
       setDirty(false);
+      void clearEditorBackup(editorId);
     } catch (err) {
       setError(String(err));
     }
   }
 
+  // Apply the hot-exit restore decision (shared by the untitled and file load
+  // paths so the rule lives in one place): show the backup when it diverges from
+  // disk (dirty), else the disk text (clean), dropping a stale backup that matched.
+  function applyRestoredBuffer(
+    diskText: string | null,
+    backupContent: string | null,
+  ): void {
+    const { content: restored, dirty: isDirty } = resolveRestoredBuffer({
+      diskText,
+      backup: backupContent,
+    });
+    setContent(restored);
+    setDirty(isDirty);
+    if (!isDirty && backupContent !== null) void clearEditorBackup(editorId);
+  }
+
   useEffect(() => {
     if (!isUntitled) return;
     if (loadedPathRef.current !== null) return;
+    // Mark loaded synchronously so a re-render can't re-enter this effect while
+    // the backup read is in flight. An untitled buffer has no disk content, so
+    // its "saved" baseline is the empty string.
     savedContentRef.current = "";
     loadedPathRef.current = "";
-    setContent("");
-    setDirty(false);
+    let cancelled = false;
+    readEditorBackup(editorId)
+      .then((backup) => {
+        if (!cancelled) applyRestoredBuffer(null, backup?.content ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) applyRestoredBuffer(null, null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [isUntitled]);
 
   useEffect(() => {
     if (!filePath) return;
     if (loadedPathRef.current === filePath) return;
     let cancelled = false;
-    files
-      .readText(filePath)
-      .then((text) => {
+    // Read the file and any hot-exit backup together. If a backup differs from
+    // disk, it's the user's unsaved work — restore it and mark the tab dirty;
+    // otherwise show the disk content (and drop a stale backup that matched).
+    Promise.all([files.readText(filePath), readEditorBackup(editorId)])
+      .then(([text, backup]) => {
         if (cancelled) return;
         savedContentRef.current = text;
         loadedPathRef.current = filePath;
-        setContent(text);
-        setDirty(false);
+        applyRestoredBuffer(text, backup?.content ?? null);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -217,6 +251,7 @@ export function TextViewer({
       setEditorFilePath(ws, editorId, picked);
       dockApi.setTitle(picked.split("/").pop() ?? picked);
       setDirty(false);
+      void clearEditorBackup(editorId);
     } catch (err) {
       setError(String(err));
     }
@@ -366,7 +401,13 @@ export function TextViewer({
         onChange={(v) => {
           const next = v ?? "";
           setContent(next);
-          setDirty(next !== savedContentRef.current);
+          const nextDirty = next !== savedContentRef.current;
+          setDirty(nextDirty);
+          // Mirror the buffer into the hot-exit backup so it survives a restart;
+          // drop it on the dirty→clean transition only (not on every keystroke
+          // that stays clean, which would be an fs_delete per keystroke).
+          if (nextDirty) setEditorBackup(editorId, filePathRef.current, next);
+          else if (dirtyRef.current) void clearEditorBackup(editorId);
         }}
         onMount={onMount}
         // The shared core's text-mode options: global editor settings (minimap,

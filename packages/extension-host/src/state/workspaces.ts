@@ -1,6 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { basename } from "@tauri-apps/api/path";
 import { store } from "./store";
+import { clearEditorBackup } from "./editor-backups";
 import type {
   EditorRecord,
   TerminalKind,
@@ -386,6 +387,8 @@ export function removeEditor(
   const idx = ws.editors.findIndex((e) => e.id === editorId);
   if (idx === -1) return null;
   const [rec] = ws.editors.splice(idx, 1);
+  // Closing the tab discards any unsaved-edit backup it left behind.
+  void clearEditorBackup(editorId);
   return rec;
 }
 
