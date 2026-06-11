@@ -75,14 +75,7 @@ export function AppShell() {
   return (
     <div className="app-shell">
       <div className="titlebar-drag" onMouseDown={onTitlebarMouseDown} />
-      <PanelGroup
-        direction="horizontal"
-        autoSaveId={
-          snap.activeWorkspaceId
-            ? `app:main-cols:${snap.activeWorkspaceId}`
-            : "app:main-cols"
-        }
-      >
+      <PanelGroup direction="horizontal" autoSaveId="app:main-cols">
         <Panel
           ref={leftRef}
           defaultSize={18}

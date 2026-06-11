@@ -182,32 +182,12 @@ Defined in: [packages/sdk/src/domain-types.ts:135](https://github.com/silo-code/
 
 ***
 
-### leftPanelCollapsed?
-
-```ts
-optional leftPanelCollapsed?: boolean;
-```
-
-Defined in: [packages/sdk/src/domain-types.ts:136](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L136)
-
-***
-
-### rightPanelCollapsed?
-
-```ts
-optional rightPanelCollapsed?: boolean;
-```
-
-Defined in: [packages/sdk/src/domain-types.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L137)
-
-***
-
 ### previewEditorId?
 
 ```ts
 optional previewEditorId?: string | null;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:139](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L139)
+Defined in: [packages/sdk/src/domain-types.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L137)
 
 ID of the current preview (temporary) editor, if any.

@@ -57,8 +57,6 @@ export function savePanelStateToWorkspace(wsId: string): void {
   for (const k of Object.keys(store.extensionState))
     ext[k] = { ...store.extensionState[k] };
   ws.extensionState = ext;
-  ws.leftPanelCollapsed = store.leftPanelCollapsed;
-  ws.rightPanelCollapsed = store.rightPanelCollapsed;
 }
 
 /** Restore the global panel state from a workspace object. */
@@ -71,8 +69,6 @@ export function loadPanelStateFromWorkspace(ws: Workspace): void {
   for (const k of Object.keys(ws.extensionState ?? {}))
     ext[k] = { ...ws.extensionState![k] };
   store.extensionState = ext;
-  store.leftPanelCollapsed = ws.leftPanelCollapsed ?? false;
-  store.rightPanelCollapsed = ws.rightPanelCollapsed ?? false;
 }
 
 export function activateWorkspace(id: string): void {

@@ -176,6 +176,19 @@ export async function hydrate(configDir: string): Promise<void> {
     : null;
   if (activeWs) loadPanelStateFromWorkspace(activeWs);
 
+  // Side-dock visibility is global, so it comes from the index. Pre-this-change
+  // installs stored it per-workspace; the field is gone from the Workspace type,
+  // so read it off the raw active record as a one-time fallback — the user's
+  // current collapse state carries over instead of resetting on first launch.
+  const legacyWs = activeWs as {
+    leftPanelCollapsed?: boolean;
+    rightPanelCollapsed?: boolean;
+  } | null;
+  store.leftPanelCollapsed =
+    index?.leftPanelCollapsed ?? legacyWs?.leftPanelCollapsed ?? false;
+  store.rightPanelCollapsed =
+    index?.rightPanelCollapsed ?? legacyWs?.rightPanelCollapsed ?? false;
+
   store.hydrated = true;
   subscribe(store, schedulePersist);
 }
@@ -187,8 +200,6 @@ function snapshotPanelState(): PanelState {
     activeSidePanelTabs: { ...store.activeSidePanelTabs },
     sidePanelScrollPositions: { ...store.sidePanelScrollPositions },
     extensionState: cloneExtensionState(store.extensionState),
-    leftPanelCollapsed: store.leftPanelCollapsed,
-    rightPanelCollapsed: store.rightPanelCollapsed,
   };
 }
 
@@ -243,6 +254,8 @@ async function doPersist(): Promise<void> {
       activeThemeId: store.activeThemeId,
       editorSettings: { ...store.editorSettings },
       terminalSettings: { ...store.terminalSettings },
+      leftPanelCollapsed: store.leftPanelCollapsed,
+      rightPanelCollapsed: store.rightPanelCollapsed,
     }),
   );
   await indexStore.save();

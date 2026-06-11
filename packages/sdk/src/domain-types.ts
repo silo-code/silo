@@ -133,8 +133,6 @@ export interface Workspace {
   activeSidePanelTabs?: Record<string, string>;
   sidePanelScrollPositions?: Record<string, number>;
   extensionState?: Record<string, Record<string, unknown>>;
-  leftPanelCollapsed?: boolean;
-  rightPanelCollapsed?: boolean;
   /** ID of the current preview (temporary) editor, if any. */
   previewEditorId?: string | null;
 }
