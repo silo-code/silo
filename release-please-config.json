@@ -3,20 +3,25 @@
   "include-component-in-tag": true,
   "tag-separator": "-",
   "packages": {
-    "apps/desktop": {
-      "release-type": "node",
+    ".": {
+      "release-type": "simple",
       "package-name": "silo",
       "component": "silo",
-      "changelog-path": "CHANGELOG.md",
+      "changelog-path": "apps/desktop/CHANGELOG.md",
       "extra-files": [
         {
           "type": "json",
-          "path": "src-tauri/tauri.conf.json",
+          "path": "apps/desktop/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "apps/desktop/src-tauri/tauri.conf.json",
           "jsonpath": "$.version"
         },
         {
           "type": "generic",
-          "path": "src-tauri/Cargo.toml"
+          "path": "apps/desktop/src-tauri/Cargo.toml"
         }
       ]
     }
