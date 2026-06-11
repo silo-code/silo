@@ -6,6 +6,12 @@ import {
   setEditorScrollPosition,
   getEditorScrollPosition,
 } from "../state/workspaces";
+import {
+  setEditorBackup,
+  clearEditorBackup,
+  readEditorBackup,
+  resolveRestoredBuffer,
+} from "../state/editor-backups";
 import { getEditorSettings, setEditorSetting } from "../state/editor-settings";
 import type {
   EditorSettings,
@@ -51,6 +57,11 @@ export {
   setEditorFilePath,
   setEditorScrollPosition,
   getEditorScrollPosition,
+  // Hot-exit backups: the text editor stashes/restores/clears unsaved buffers.
+  setEditorBackup,
+  clearEditorBackup,
+  readEditorBackup,
+  resolveRestoredBuffer,
   getEditorSettings,
   setEditorSetting,
   getDndService,

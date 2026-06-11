@@ -118,24 +118,67 @@ in the same block is cheaper than a picture: `document.querySelectorAll('.xterm'
 
 `exec` runs a registered command (the real `ctx` path); `eval` runs JS in the
 webview global scope (note: app modules like `store` are **not** in scope — use
-the dedicated ops for state).
+the dedicated ops for state). The full, authoritative list is the `switch (op)`
+in `apps/desktop/src/automation/bridge.ts` — **read it when in doubt**; this table
+mirrors it. `eval` is the escape hatch, but for Monaco state prefer the dedicated
+editor ops below — `monaco` is not a page global, so `eval` can't reach it.
 
-| Op                              | Args                 | Use                                                                               |
-| ------------------------------- | -------------------- | --------------------------------------------------------------------------------- |
-| `ping`                          | —                    | liveness (`pong`)                                                                 |
-| `exec`                          | `command`            | run a command id — e.g. `core.newTerminal`, `core.newFile` (the real `ctx` paths) |
-| `eval`                          | `expr`               | DOM queries / observations (returns the value; awaits promises)                   |
-| `screenshot`                    | —                    | host-side window capture → `{png_base64,width,height}`                            |
-| `listWorkspaces`                | —                    | `{active, workspaces[]}`                                                          |
-| `openWorkspace`                 | `folder,name`        | create a workspace (use a temp dir)                                               |
-| `activateWorkspace`             | `id`                 | switch active workspace                                                           |
-| `deleteWorkspace`               | `id`                 | remove a workspace (sandbox only!)                                                |
-| `openTerminal`                  | `cwd?`               | add a terminal to the active workspace → `{terminalId,panelId}`                   |
-| `openFile` / `openDiff`         | `path` / `path,mode` | open editor / diff tabs                                                           |
-| `activatePanel`                 | `panelId`            | focus a dock panel                                                                |
-| `showSidePanel`                 | `id`                 | expand + activate a side panel (e.g. `git-explorer`)                              |
-| `contextKeys` / `activeElement` | —                    | introspection                                                                     |
-| `themeState`                    | —                    | active theme + presets                                                            |
+**Core / liveness**
+
+| Op           | Args      | Returns / use                                          |
+| ------------ | --------- | ------------------------------------------------------ |
+| `ping`       | —         | `pong` — liveness                                      |
+| `exec`       | `command` | run a command id (menu/keybinding dispatch) → `{ran}`  |
+| `eval`       | `expr`    | evaluate JS in the page; awaits a returned promise     |
+| `screenshot` | —         | host-side window capture → `{png_base64,width,height}` |
+
+**Workspaces / panels** (sandbox only — never point at real workspaces)
+
+| Op                  | Args                         | Returns / use                                   |
+| ------------------- | ---------------------------- | ----------------------------------------------- |
+| `listWorkspaces`    | —                            | `{active, workspaces[{id,name,folder}]}`        |
+| `openWorkspace`     | `folder,name`                | create + activate (use a temp dir) → `{id}`     |
+| `activateWorkspace` | `id`                         | switch active → `{active}`                      |
+| `deleteWorkspace`   | `id`                         | reap terminals + remove → `{deleted,active}`    |
+| `splitActivePanel`  | `position?` (l/r/top/bottom) | split center group → `{groups}`                 |
+| `activatePanel`     | `panelId`                    | focus a dock panel → `{activated}`              |
+| `showSidePanel`     | `id`                         | expand slot + activate its tab → `{shown,slot}` |
+
+**Editors / terminals**
+
+| Op              | Args                                    | Returns / use                                                               |
+| --------------- | --------------------------------------- | --------------------------------------------------------------------------- |
+| `openFile`      | `path`                                  | open an editor tab → `{editorId,panelId}`                                   |
+| `openDiff`      | `path,providerId,args?,title?,preview?` | open a diff tab via a content provider → `{diffId,panelId}`                 |
+| `listEditors`   | `workspaceId?`                          | `{previewEditorId, editors[{id,filePath,title,isPreview,mode,providerId}]}` |
+| `openTerminal`  | `cwd?`                                  | `ctx.terminals.create` → `{terminalId,panelId}`                             |
+| `listTerminals` | `workspaceId?`                          | `{terminals[{id,title,sessionId,kind}]}`                                    |
+
+**Monaco introspection / drive** (authoritative — straight from Monaco's registry; `uri` matches by substring of the model URI)
+
+| Op               | Args        | Returns / use                                                                                                                          |
+| ---------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `monacoEditors`  | —           | live editors `[{uri,hasTextFocus,valueLength,valueTail}]`                                                                              |
+| `editorsDetail`  | —           | per-editor focus + container-visibility ground truth (focus-handoff debugging)                                                         |
+| `focusLog`       | `clear?`    | Monaco focus-event timeline (`{clear:true}` resets it)                                                                                 |
+| `editorContent`  | `uri`       | read a model's current text → `{uri,value}` \| `null`                                                                                  |
+| `editorOptions`  | `uri`       | resolved Monaco config (font/tab/wrap/minimap/readOnly/…) for that editor                                                              |
+| `setEditorValue` | `uri,value` | `model.setValue` → fires `onChange`, i.e. the **real edit→dirty→save/backup path**, no OS focus needed → `{uri,valueLength}` \| `null` |
+
+**Theme / process / introspection**
+
+| Op              | Args                 | Returns / use                                                    |
+| --------------- | -------------------- | ---------------------------------------------------------------- |
+| `themeState`    | —                    | `{activeId, presets[], customThemes[]}`                          |
+| `setTheme`      | `id`                 | switch active theme → `{activeId}`                               |
+| `processExec`   | `command,args?,cwd?` | one-shot `ctx.process.exec` → `{stdout,stderr,code}`             |
+| `contextKeys`   | —                    | host context-keys snapshot (`activeEditorId`/`activeViewerId`/…) |
+| `activeElement` | —                    | describe what holds DOM focus                                    |
+
+To **dirty an editor without keyboard focus** (e.g. verifying save / dirty
+indicator / hot-exit backups): `openFile`, then `setEditorValue` with the file's
+basename as `uri` and new `value` — this drives the real `onChange`. Read it back
+with `editorContent`, or screenshot for the dirty dot.
 
 The typed client `src/automation/client.ts` (`SiloAutomation`) wraps these if you
 prefer TS over curl.

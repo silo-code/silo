@@ -9,6 +9,7 @@ import {
 } from "./types";
 import type { Workspace } from "./types";
 import { loadPanelStateFromWorkspace } from "./workspaces";
+import { setBackupDir, sweepEditorBackups } from "./editor-backups";
 import {
   buildIndex,
   cloneExtensionState,
@@ -105,6 +106,7 @@ async function migrateLegacyBlob(indexStore: Store): Promise<void> {
 /** @param configDir the identity-keyed user-config root (see `userConfigDir`). */
 export async function hydrate(configDir: string): Promise<void> {
   wsDir = `${configDir}/workspaces`;
+  setBackupDir(configDir);
   const indexPath = `${configDir}/${LEGACY_STORE_FILE}`;
 
   // Index: global prefs + order/active. A new/absent index reads as null — that's
@@ -156,6 +158,13 @@ export async function hydrate(configDir: string): Promise<void> {
       }),
   );
   store.workspaces = workspaces;
+
+  // Drop hot-exit backups for editors that no longer exist (tabs closed in a
+  // prior session, or crash-orphans). Fire-and-forget so it never delays boot.
+  const liveEditorIds = new Set<string>();
+  for (const ws of Object.values(workspaces))
+    for (const ed of ws.editors) liveEditorIds.add(ed.id);
+  void sweepEditorBackups(liveEditorIds);
 
   // Order/active come from the index, but any workspace file on disk that the
   // index omits is appended (self-healing) so a lost/partial index can't hide
