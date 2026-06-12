@@ -36,3 +36,16 @@
 .editor-panel .placeholder.error {
   color: var(--silo-color-err);
 }
+
+/* Monaco shows UI-control tooltips (the find widget's Close / Match Case / …
+ * buttons) via its hover *service*, rendered as `.monaco-hover.workbench-hover`
+ * inside a `.context-view` overlay. Near the editor's right edge the box is
+ * width-constrained, so "Close (Escape)" wraps to a second line that drops down
+ * over the ✕ — covering the button and triggering a show/hide flicker loop.
+ * Suppress these service tooltips. Editor content/symbol hovers use a plain
+ * `.monaco-hover` WITHOUT `.workbench-hover` (in the content-widget layer), so
+ * they're unaffected. The two-class selector out-specifies Monaco's base
+ * `.monaco-hover` rule, so it wins without `!important`. */
+.monaco-hover.workbench-hover {
+  display: none;
+}
