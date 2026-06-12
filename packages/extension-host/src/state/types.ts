@@ -60,6 +60,11 @@ export interface AppState {
   extensionState: Record<string, Record<string, unknown>>;
   leftPanelCollapsed: boolean;
   rightPanelCollapsed: boolean;
+  /**
+   * Global side-panel visibility, keyed by panel id. Shared across workspaces.
+   * Absent = visible (default); only an explicit `false` (hidden) is stored.
+   */
+  sidePanelVisibility: Record<string, boolean>;
 }
 
 export const DEFAULT_UI_FONT_SIZE = 13;

@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSnapshot } from "valtio";
 import { sidePanelRegistry } from "../extension-host/side-panels";
-import type { SidePanel } from "@silo-code/sdk";
+import type { MenuEntry, SidePanel } from "@silo-code/sdk";
 import type { SidePanelSlot } from "../state/types";
-import { store } from "../state/store";
+import {
+  store,
+  isSidePanelVisible,
+  toggleSidePanelVisibility,
+} from "../state/store";
 import { sideTabDrag } from "./drag-state";
 
 // ─── slot helpers ──────────────────────────────────────────────────────────
@@ -90,6 +94,7 @@ export function usePanelsForSlot(slot: SidePanelSlot): SidePanel[] {
     const order = snap.sidePanelOrder;
     const isBottom = slot === "left-bottom" || slot === "right-bottom";
     const filtered = sidePanelRegistry.list().filter((p) => {
+      if (snap.sidePanelVisibility[p.id] === false) return false;
       const effective = overrides[p.id] ?? p.location;
       if (isBottom) {
         return overrides[p.id] === slot;
@@ -101,9 +106,37 @@ export function usePanelsForSlot(slot: SidePanelSlot): SidePanel[] {
     );
     return filtered;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slot, tick, snap.sidePanelLocations, snap.sidePanelOrder]);
+  }, [
+    slot,
+    tick,
+    snap.sidePanelLocations,
+    snap.sidePanelOrder,
+    snap.sidePanelVisibility,
+  ]);
 }
 
 export function useSideTabDrag() {
   return useSyncExternalStore(sideTabDrag.subscribe, sideTabDrag.get);
+}
+
+// ─── side-panel visibility menu ───────────────────────────────────────────────
+
+/**
+ * Menu entries (a "Side Panels" header + one checkable row per registered panel,
+ * sorted by title) for toggling each side panel's visibility. Shared by the tab
+ * bar and the empty-column context menus so a fully-hidden dock can still be
+ * re-populated. Read at open time, so checkmarks reflect the live state.
+ */
+export function sidePanelVisibilityItems(): MenuEntry[] {
+  const items: MenuEntry[] = [{ type: "header", label: "Side Panels" }];
+  for (const sp of [...sidePanelRegistry.list()].sort((a, b) =>
+    a.title.localeCompare(b.title),
+  )) {
+    items.push({
+      label: sp.title,
+      checked: isSidePanelVisible(sp.id),
+      run: () => toggleSidePanelVisibility(sp.id),
+    });
+  }
+  return items;
 }

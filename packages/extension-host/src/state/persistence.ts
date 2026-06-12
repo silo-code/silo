@@ -198,6 +198,9 @@ export async function hydrate(configDir: string): Promise<void> {
   store.rightPanelCollapsed =
     index?.rightPanelCollapsed ?? legacyWs?.rightPanelCollapsed ?? false;
 
+  // Side-panel visibility is global; absent in older indexes → all visible.
+  store.sidePanelVisibility = index?.sidePanelVisibility ?? {};
+
   store.hydrated = true;
   subscribe(store, schedulePersist);
 }
@@ -265,6 +268,7 @@ async function doPersist(): Promise<void> {
       terminalSettings: { ...store.terminalSettings },
       leftPanelCollapsed: store.leftPanelCollapsed,
       rightPanelCollapsed: store.rightPanelCollapsed,
+      sidePanelVisibility: { ...store.sidePanelVisibility },
     }),
   );
   await indexStore.save();
