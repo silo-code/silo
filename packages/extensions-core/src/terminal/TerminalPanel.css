@@ -4,7 +4,7 @@
   height: 100%;
   width: 100%;
   /* Painted by TerminalPanel.tsx to match the xterm canvas background so
-   * the 6px padding around the canvas blends in seamlessly. Falls back to
+   * the padding around the canvas blends in seamlessly. Falls back to
    * --bg-0 before the terminal mounts. */
   background: var(--silo-content-terminal-bg);
 }
@@ -20,7 +20,7 @@
 .terminal-host {
   position: absolute;
   inset: 0;
-  padding: 6px 0 0 6px;
+  padding: 3px 0 0 6px;
   user-select: text;
   -webkit-user-select: text;
   background: var(--silo-content-terminal-bg);
