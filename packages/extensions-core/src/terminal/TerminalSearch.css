@@ -1,0 +1,142 @@
+/* Find overlay styled after Monaco's editor find widget: a flat elevated bar
+ * pinned to the top-right of the terminal body, with inline Aa / ab / .* match-
+ * mode toggles, a muted result count, and thin prev/next/close glyph buttons.
+ * Design tokens only — no hard-coded colors/sizes — so it tracks the active
+ * theme and uiFontSize. (Monaco's widget reads editorWidget.background, an
+ * editor-owned token the terminal can't consume, so we approximate it with the
+ * panel background + a strong border + soft shadow.) */
+.terminal-search {
+  position: absolute;
+  top: 0;
+  right: 15px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 4px;
+  background: var(--silo-color-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-top: none;
+  border-radius: 0 0 var(--silo-radius-sm) var(--silo-radius-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+}
+
+/* The input wraps the match-mode toggles on its right, like Monaco's find box. */
+.terminal-search__field {
+  display: flex;
+  align-items: center;
+  /* Light themes: a white card (matching the editor's white find input) via the
+   * terminal surface token (#fff in light). Dark themes override below. */
+  background: var(--silo-content-terminal-bg);
+  /* A visible outline (not the near-invisible --silo-color-border) so the field
+   * reads as a distinct input box against the bar, like Monaco's. */
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  padding-right: 3px;
+}
+/* Dark themes: match Monaco's dark find input exactly — a #3c3c3c surface with
+ * #ccc foreground on the input + adornments (Monaco's vs-dark input colors).
+ * Literals are intentional here: these mirror Monaco's fixed find-widget colors,
+ * which aren't part of our token palette. */
+[data-theme="dark"] .terminal-search__field {
+  background: #3c3c3c;
+}
+[data-theme="dark"] .terminal-search__input,
+[data-theme="dark"] .terminal-search__count,
+[data-theme="dark"] .terminal-search__toggle,
+[data-theme="dark"] .terminal-search__btn {
+  color: #cccccc;
+}
+[data-theme="dark"] .terminal-search__toggle:hover,
+[data-theme="dark"] .terminal-search__btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+[data-theme="dark"] .terminal-search__toggle.is-on {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+/* Accent focus ring (a single 1px border), matching Monaco's focusBorder. */
+.terminal-search__field:focus-within {
+  border-color: var(--silo-color-accent);
+}
+.terminal-search__field--nomatch,
+.terminal-search__field--nomatch:focus-within {
+  border-color: var(--silo-color-err);
+}
+
+.terminal-search__input {
+  width: 200px;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-input-text);
+  padding: 4px 8px;
+  font: inherit;
+}
+.terminal-search__input:focus {
+  outline: none;
+}
+
+.terminal-search__toggles {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.terminal-search__count {
+  min-width: 50px;
+  padding: 0 2px 0 6px;
+  text-align: center;
+  color: var(--silo-color-text);
+  font-size: var(--silo-font-size-sm);
+  white-space: nowrap;
+}
+
+/* Match-mode toggles (inside the field) and the prev/next/close buttons share
+ * the same flat, hover-lit treatment Monaco uses. */
+.terminal-search__toggle,
+.terminal-search__btn {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  /* Match Monaco's icon contrast — the darkest text token, not washed-out gray. */
+  color: var(--silo-color-text-hi);
+  border-radius: var(--silo-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font: inherit;
+}
+.terminal-search__toggle {
+  min-width: 23px;
+  height: 23px;
+  padding: 0 4px;
+  font-size: var(--silo-font-size-sm);
+  line-height: 1;
+}
+.terminal-search__toggle--word {
+  text-decoration: underline;
+}
+.terminal-search__btn {
+  width: 27px;
+  height: 27px;
+  padding: 0;
+}
+.terminal-search__toggle:hover,
+.terminal-search__btn:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-input-text);
+}
+/* Active toggle: accent-tinted box with an accent outline, matching Monaco's
+ * inputOption.activeBackground/activeBorder. */
+.terminal-search__toggle.is-on {
+  background: var(--silo-color-bg-active);
+  border-color: var(--silo-color-accent);
+  color: var(--silo-color-text-hi);
+}

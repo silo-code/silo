@@ -8,6 +8,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { SerializeAddon } from "@xterm/addon-serialize";
+import { SearchAddon } from "@xterm/addon-search";
 import type { IDockviewPanelProps } from "dockview";
 import {
   DND_MIME,
@@ -27,6 +28,7 @@ import {
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
 import { findFileLinks, getHomeDir } from "./terminal-links";
+import { TerminalSearch } from "./TerminalSearch";
 import { Breadcrumb } from "../editor/Breadcrumb";
 import "@xterm/xterm/css/xterm.css";
 import "./TerminalPanel.css";
@@ -50,6 +52,7 @@ type Lifecycle =
 interface LiveRefs {
   term: XTerm;
   fit: FitAddon;
+  search: SearchAddon;
   session: ProcessSession;
   sessionId: string;
 }
@@ -101,6 +104,14 @@ export function TerminalPanel(
   const [lifecycle, setLifecycle] = useState<Lifecycle>({ kind: "loading" });
   // Bumping this re-runs the attach effect (used by the Recreate button).
   const [version, setVersion] = useState(0);
+  // Find overlay (Cmd+F). `seed` carries the terminal's current selection into
+  // the search box at open time; bumping `nonce` re-focuses the box if Cmd+F is
+  // pressed while it's already open.
+  const [search, setSearch] = useState<{
+    open: boolean;
+    seed: string;
+    nonce: number;
+  }>({ open: false, seed: "", nonce: 0 });
 
   const recreate = useCallback(() => {
     // Read activeWorkspaceId at click time to avoid stale closure.
@@ -176,6 +187,10 @@ export function TerminalPanel(
     // Code uses for terminal "process revive".
     const serializeAddon = new SerializeAddon();
     term.loadAddon(serializeAddon);
+    // Find-in-terminal (Cmd+F). The overlay (TerminalSearch) drives it; the
+    // addon does the matching/highlighting over the scrollback buffer.
+    const searchAddon = new SearchAddon();
+    term.loadAddon(searchAddon);
     term.open(containerRef.current);
     fit.fit();
 
@@ -332,7 +347,13 @@ export function TerminalPanel(
         }
         if (needsCreate) tRec.sessionId = sessionId;
 
-        liveRef.current = { term, fit, session, sessionId };
+        liveRef.current = {
+          term,
+          fit,
+          search: searchAddon,
+          session,
+          sessionId,
+        };
 
         // Persist the serialized buffer (screen + scrollback) on a throttle so a
         // restart can restore it. A timer-driven flush (rather than persisting
@@ -400,10 +421,29 @@ export function TerminalPanel(
         };
         window.addEventListener("pagehide", onPageHide);
 
-        // Make Shift+Enter send ESC+newline like Alt+Enter does for Claude Code
         term.attachCustomKeyEventHandler((event) => {
+          if (event.type !== "keydown") return true;
+          // Cmd+F (Ctrl+F on Windows/Linux) opens the find overlay. This only
+          // fires while the terminal textarea has focus, so it never competes
+          // with Monaco's own Cmd+F or any global keybinding.
           if (
-            event.type === "keydown" &&
+            (isMac
+              ? event.metaKey && !event.ctrlKey
+              : event.ctrlKey && !event.metaKey) &&
+            !event.altKey &&
+            !event.shiftKey &&
+            (event.key === "f" || event.key === "F")
+          ) {
+            event.preventDefault();
+            setSearch((s) => ({
+              open: true,
+              seed: term.getSelection() || s.seed,
+              nonce: s.nonce + 1,
+            }));
+            return false; // don't forward Cmd+F to the PTY
+          }
+          // Make Shift+Enter send ESC+newline like Alt+Enter does for Claude Code
+          if (
             event.key === "Enter" &&
             event.shiftKey &&
             !event.ctrlKey &&
@@ -819,6 +859,16 @@ export function TerminalPanel(
           ref={containerRef}
           className={`terminal-host${lifecycle.kind === "ready" ? " terminal-host--active" : ""}`}
         />
+        {search.open && lifecycle.kind === "ready" && liveRef.current && (
+          <TerminalSearch
+            key={search.nonce}
+            addon={liveRef.current.search}
+            host={containerRef.current}
+            initialQuery={search.seed}
+            onClose={() => setSearch((s) => ({ ...s, open: false }))}
+            onFocusTerminal={() => liveRef.current?.term.focus()}
+          />
+        )}
         {lifecycle.kind === "stale" && (
           <div className="terminal-overlay interactive">
             <div>{lifecycle.message}</div>
