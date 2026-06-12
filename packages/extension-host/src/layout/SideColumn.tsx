@@ -4,7 +4,9 @@ import {
   bottomSlot,
   usePanelsForSlot,
   useSideTabDrag,
+  sidePanelVisibilityItems,
 } from "./side-column-helpers";
+import { openMenu } from "../extension-host/menu-controller";
 import { PanelPane } from "./PanelPane";
 import "./SideColumn.css";
 
@@ -22,6 +24,15 @@ function EmptyColumn({ location }: { location: "left" | "right" }) {
     <div
       className={`side-empty-column${over ? " over" : ""}`}
       data-slot={topSlot(location)}
+      onContextMenu={(e) => {
+        // The only entry point back when every panel is hidden — the tab bar
+        // that normally hosts this menu isn't rendered for an empty column.
+        e.preventDefault();
+        void openMenu({
+          items: sidePanelVisibilityItems(),
+          at: { x: e.clientX, y: e.clientY },
+        });
+      }}
     />
   );
 }

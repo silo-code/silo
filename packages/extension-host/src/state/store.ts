@@ -25,6 +25,7 @@ export const store = proxy<AppState>({
   extensionState: {},
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,
+  sidePanelVisibility: {},
 });
 
 export function setSidePanelSlot(panelId: string, slot: SidePanelSlot | null) {
@@ -59,6 +60,21 @@ export function toggleLeftPanel() {
 
 export function toggleRightPanel() {
   store.rightPanelCollapsed = !store.rightPanelCollapsed;
+}
+
+/** Whether a side panel is shown in the dock. Absent = visible (default). */
+export function isSidePanelVisible(panelId: string): boolean {
+  return store.sidePanelVisibility[panelId] !== false;
+}
+
+/** Flip a side panel between shown and hidden. Hiding stores an explicit
+ * `false`; showing deletes the key, returning it to the default-visible state. */
+export function toggleSidePanelVisibility(panelId: string) {
+  if (store.sidePanelVisibility[panelId] === false) {
+    delete store.sidePanelVisibility[panelId];
+  } else {
+    store.sidePanelVisibility[panelId] = false;
+  }
 }
 
 export function setTheme(id: string) {

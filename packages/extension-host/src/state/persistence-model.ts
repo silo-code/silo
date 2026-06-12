@@ -29,6 +29,9 @@ export interface PersistedIndex {
   // indexes, hydrated with a per-workspace fallback (see persistence.ts).
   leftPanelCollapsed?: boolean;
   rightPanelCollapsed?: boolean;
+  // Side-panel visibility is global too; absent in pre-this-change indexes, in
+  // which case every panel hydrates as visible (the default).
+  sidePanelVisibility?: Record<string, boolean>;
 }
 
 /** The legacy monolithic blob (one `"state"` key in the app-data store) we
@@ -130,6 +133,9 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
       : undefined,
     leftPanelCollapsed: snapshot.leftPanelCollapsed,
     rightPanelCollapsed: snapshot.rightPanelCollapsed,
+    sidePanelVisibility: snapshot.sidePanelVisibility
+      ? { ...snapshot.sidePanelVisibility }
+      : undefined,
   };
 }
 

@@ -17,6 +17,7 @@ import {
   moveGhost,
   removeGhost,
   useSideTabDrag,
+  sidePanelVisibilityItems,
 } from "./side-column-helpers";
 
 interface TabBarProps {
@@ -205,29 +206,45 @@ export function TabBar({
     return result;
   }, [panels, activeDrag, isSameSlot, insertIdx]);
 
-  function showContextMenu(panel: SidePanel, x: number, y: number) {
-    const oppositeColumn: "left" | "right" =
-      location === "left" ? "right" : "left";
-    const isTop = isTopSlot(slot, location);
-    const items: MenuEntry[] = [
-      {
+  function showContextMenu(panel: SidePanel | null, x: number, y: number) {
+    const items: MenuEntry[] = [];
+    // Move actions apply to a specific tab; absent when the bar's empty area
+    // (spacer) is right-clicked — only the visibility list shows then.
+    if (panel) {
+      const oppositeColumn: "left" | "right" =
+        location === "left" ? "right" : "left";
+      const isTop = isTopSlot(slot, location);
+      items.push({
         label: `Move to ${oppositeColumn === "left" ? "Left" : "Right"} Panel`,
         run: () => setSidePanelSlot(panel.id, topSlot(oppositeColumn)),
-      },
-    ];
-    if (isTop && panels.length > 1) {
-      items.push({
-        label: "Move to Bottom Pane",
-        run: () => setSidePanelSlot(panel.id, bottomSlot(location)),
       });
+      if (isTop && panels.length > 1) {
+        items.push({
+          label: "Move to Bottom Pane",
+          run: () => setSidePanelSlot(panel.id, bottomSlot(location)),
+        });
+      }
+      if (!isTop) {
+        items.push({
+          label: "Move to Top Pane",
+          run: () => setSidePanelSlot(panel.id, topSlot(location)),
+        });
+      }
+      items.push({ type: "separator" });
     }
-    if (!isTop) {
-      items.push({
-        label: "Move to Top Pane",
-        run: () => setSidePanelSlot(panel.id, topSlot(location)),
-      });
-    }
+    items.push(...sidePanelVisibilityItems());
     void openMenu({ items, at: { x, y } });
+  }
+
+  function onBarContextMenu(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const button = (e.target as HTMLElement).closest<HTMLButtonElement>(
+      "button.tab",
+    );
+    const panel = button?.dataset.panelId
+      ? (panels.find((p) => p.id === button.dataset.panelId) ?? null)
+      : null;
+    showContextMenu(panel, e.clientX, e.clientY);
   }
 
   return (
@@ -238,6 +255,7 @@ export function TabBar({
       onPointerMove={onBarPointerMove}
       onPointerUp={onBarPointerUp}
       onPointerCancel={onBarPointerCancel}
+      onContextMenu={onBarContextMenu}
     >
       {displayPanels.map((p) => (
         <button
@@ -251,10 +269,6 @@ export function TabBar({
           ]
             .filter(Boolean)
             .join(" ")}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            showContextMenu(p, e.clientX, e.clientY);
-          }}
         >
           {p.title}
         </button>

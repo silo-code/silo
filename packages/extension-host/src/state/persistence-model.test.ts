@@ -229,10 +229,18 @@ describe("buildIndex", () => {
       activeWorkspaceId: "a",
       editorSettings,
     });
+    const sidePanelVisibility = { explorer: false };
+    const index2 = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      sidePanelVisibility,
+    });
     order.push("c");
     editorSettings.tabSize = 8;
+    sidePanelVisibility.explorer = true;
     expect(index.workspaceOrder).toEqual(["a", "b"]);
     expect(index.editorSettings).toEqual({ tabSize: 2 });
+    expect(index2.sidePanelVisibility).toEqual({ explorer: false });
   });
 
   it("preserves undefined optional fields", () => {
@@ -242,6 +250,7 @@ describe("buildIndex", () => {
     expect(index.uiFontSize).toBeUndefined();
     expect(index.leftPanelCollapsed).toBeUndefined();
     expect(index.rightPanelCollapsed).toBeUndefined();
+    expect(index.sidePanelVisibility).toBeUndefined();
   });
 
   it("carries the global side-dock visibility flags through", () => {
@@ -250,8 +259,10 @@ describe("buildIndex", () => {
       activeWorkspaceId: null,
       leftPanelCollapsed: true,
       rightPanelCollapsed: false,
+      sidePanelVisibility: { themes: false },
     });
     expect(index.leftPanelCollapsed).toBe(true);
     expect(index.rightPanelCollapsed).toBe(false);
+    expect(index.sidePanelVisibility).toEqual({ themes: false });
   });
 });
