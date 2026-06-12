@@ -113,7 +113,7 @@ export function GroupAddMenu(props: IDockviewHeaderActionsProps) {
         run: pickFile,
       },
     ];
-    void openMenu({ items, anchor: btnRef.current, align: "end" });
+    void openMenu({ items, anchor: btnRef.current });
   }
 
   return (
