@@ -45,6 +45,45 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+      # release-please bumps the version in Cargo.toml (the `generic` extra-file
+      # updater) but never regenerates Cargo.lock, so the lock's own `silo` entry
+      # drifts a version behind on every release. Nothing builds with --locked, so
+      # this doesn't break CI — but it leaves a dirty Cargo.lock in the tree the
+      # moment anyone builds locally, which then rides into unrelated PRs.
+      #
+      # When a release PR is open, sync the lock on its branch and push the fix
+      # back onto the PR so the merged release commit is self-consistent. This
+      # runs in the same job right after release-please, so even though
+      # release-please force-pushes (and re-bumps) that branch on every reconcile,
+      # the branch always ends each run with the lock in sync. Pushing to the
+      # release branch (not main) re-runs the PR's CI but does NOT re-trigger this
+      # workflow, so there's no loop. `cargo update -p silo` touches only the silo
+      # lock entry — no dependency churn.
+      - uses: actions/checkout@v6
+        if: ${{ steps.release.outputs.pr }}
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: dtolnay/rust-toolchain@stable
+        if: ${{ steps.release.outputs.pr }}
+      - name: sync Cargo.lock on the release PR
+        if: ${{ steps.release.outputs.pr }}
+        env:
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$BRANCH"
+          git checkout "$BRANCH"
+          cargo update --manifest-path apps/desktop/src-tauri/Cargo.toml -p silo
+          if git diff --quiet -- apps/desktop/src-tauri/Cargo.lock; then
+            echo "Cargo.lock already in sync"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps/desktop/src-tauri/Cargo.lock
+          git commit -m "chore: sync Cargo.lock to released version"
+          git push origin "$BRANCH"
+
       # When a release was just created, kick off the installer build. main HEAD
       # is the release commit (version already bumped), so release.yml reads the
       # correct version from tauri.conf.json.
