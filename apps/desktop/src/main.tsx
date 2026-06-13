@@ -7,7 +7,6 @@ import {
   userConfigDir,
   getExtensionManager,
   initUserKeybindings,
-  checkForUpdatesOnLaunch,
 } from "@silo-code/extension-host";
 import { activateBuiltins } from "./builtins";
 
@@ -55,12 +54,6 @@ document.addEventListener("visibilitychange", () => {
 // triggers a menu re-sync via onKeymapChange.
 initUserKeybindings().catch((err) =>
   console.error("initUserKeybindings failed", err),
-);
-
-// Stable app only: quietly check for a new release on launch (no-ops in dev
-// and in the "Silo Dev" build).
-checkForUpdatesOnLaunch().catch((err) =>
-  console.error("update check failed", err),
 );
 
 // Dev-only automation bridge (paired with the Cargo `automation` feature on the

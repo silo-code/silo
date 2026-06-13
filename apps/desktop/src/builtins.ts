@@ -11,6 +11,7 @@ import {
   extensions,
   panelToggles,
   settingsButton,
+  updates,
 } from "@silo-code/extensions-core";
 import {
   imageViewer,
@@ -50,6 +51,7 @@ const builtins: Extension[] = [
   themes,
   panelToggles,
   settingsButton,
+  updates,
   keybindings,
   about,
   extensions,

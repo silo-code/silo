@@ -1,0 +1,64 @@
+/* Always-on link look: accent color + underline at rest. The hover surface is
+   the host's shared `.status-bar button:hover` background — the only thing hover
+   changes. The nested selector outweighs `.status-bar button { color }` so the
+   accent color wins (the host otherwise forces the muted status-bar text color). */
+/* Pre-install prompt content (rendered inside the host modal card via
+   ctx.ui.showModal). Own classes for layout/text + the host `silo-button*`
+   classes for the buttons, mirroring PermissionConsent. */
+.update-prompt {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.update-prompt-title {
+  font-weight: 600;
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+.update-prompt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  line-height: 1.55;
+}
+.update-prompt-body p {
+  margin: 0;
+}
+.update-prompt-warn {
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+}
+.update-prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.update-status .update-link {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  padding: 0 6px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Actionable "Update Silo": accent link look. The nested selector out-specifies
+   the host's `.status-bar button { color }` so the accent color wins. */
+.update-status .update-link:not(:disabled) {
+  color: var(--silo-color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* In-flight install ("Installing…"): non-interactive, and deliberately styles no
+   color/decoration so it falls through to the host's normal status-bar text
+   color — matching the other status-bar items. */
+.update-status .update-link:disabled {
+  cursor: default;
+}
