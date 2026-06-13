@@ -68,7 +68,11 @@ jobs:
       - name: sync Cargo.lock on the release PR
         if: ${{ steps.release.outputs.pr }}
         env:
-          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          # Short-circuit: GitHub evaluates this `env` expression eagerly (even
+          # though the step's `if` is false when there's no open release PR), and
+          # `fromJSON("")` hard-errors ("Error reading JToken ... Path ''"). The
+          # `&&` skips fromJSON entirely when `pr` is empty.
+          BRANCH: ${{ steps.release.outputs.pr && fromJSON(steps.release.outputs.pr).headBranchName }}
         run: |
           set -euo pipefail
           git fetch origin "$BRANCH"
