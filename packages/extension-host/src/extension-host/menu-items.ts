@@ -15,7 +15,7 @@ import {
   toTauriAccelerator,
 } from "./keymap";
 import type { Disposable, MenuId, MenuItemContribution } from "@silo-code/sdk";
-import { checkForUpdatesInteractive } from "../services/updater";
+import { checkForUpdatesInteractive } from "./update-service";
 
 export const menuItemRegistry = new Registry<MenuItemContribution>();
 

@@ -46,6 +46,13 @@ export type { ModalProps } from "./Modal";
 export type { AppService } from "./app-service";
 export { getAppService } from "./app-service";
 
+// Reactive auto-update state — privileged because self-updating the installed
+// app (download + install a binary, relaunch) is a host/platform capability only
+// `core.updates` (and the app's "Check for Updates…" menu item) needs; not a
+// public-surface capability. See update-service.ts for the rationale.
+export type { UpdateService, UpdateState, UpdatePhase } from "./update-service";
+export { getUpdateService } from "./update-service";
+
 // The extension manager — install / uninstall / enable / disable / load runtime
 // extensions. Core-only **by design**: loading and unloading other extensions is
 // a privileged host capability that silo.*/third-party extensions must not have.
