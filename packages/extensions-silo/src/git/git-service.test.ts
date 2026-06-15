@@ -306,4 +306,73 @@ describe("GitService (against a temp repo)", () => {
       rmSync(remote, { recursive: true, force: true });
     }
   });
+
+  it("pulls (fast-forward) commits added upstream", async () => {
+    await seedCommit();
+    const base = (await git.branches(repo)).find((b) => b.current)!.name;
+    const remote = mkdtempSync(join(tmpdir(), "silo-gitremote-"));
+    const other = mkdtempSync(join(tmpdir(), "silo-gitclone-"));
+    try {
+      await realExec("git", ["init", "--bare", "-q"], { cwd: remote });
+      await realExec("git", ["remote", "add", "origin", remote], { cwd: repo });
+      // Publish base and set tracking, so pull knows its upstream.
+      await git.push(repo, { setUpstream: true });
+
+      // A second clone advances the branch on the remote.
+      await realExec("git", ["clone", "-q", remote, other], {});
+      await realExec("git", ["config", "user.email", "t@t"], { cwd: other });
+      await realExec("git", ["config", "user.name", "t"], { cwd: other });
+      writeFileSync(join(other, "upstream.txt"), "from elsewhere\n");
+      await realExec("git", ["add", "."], { cwd: other });
+      await realExec("git", ["commit", "-q", "-m", "remote commit"], {
+        cwd: other,
+      });
+      await realExec("git", ["push", "-q", "origin", base], { cwd: other });
+
+      // repo is now behind; a fast-forward pull brings the commit in.
+      await git.pull(repo);
+      expect(existsSync(join(repo, "upstream.txt"))).toBe(true);
+      const { stdout } = await realExec("git", ["log", "--oneline"], {
+        cwd: repo,
+      });
+      expect(stdout).toContain("remote commit");
+    } finally {
+      rmSync(remote, { recursive: true, force: true });
+      rmSync(other, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a fast-forward pull when the branch has diverged", async () => {
+    await seedCommit();
+    const base = (await git.branches(repo)).find((b) => b.current)!.name;
+    const remote = mkdtempSync(join(tmpdir(), "silo-gitremote-"));
+    const other = mkdtempSync(join(tmpdir(), "silo-gitclone-"));
+    try {
+      await realExec("git", ["init", "--bare", "-q"], { cwd: remote });
+      await realExec("git", ["remote", "add", "origin", remote], { cwd: repo });
+      await git.push(repo, { setUpstream: true });
+
+      // The remote advances…
+      await realExec("git", ["clone", "-q", remote, other], {});
+      await realExec("git", ["config", "user.email", "t@t"], { cwd: other });
+      await realExec("git", ["config", "user.name", "t"], { cwd: other });
+      writeFileSync(join(other, "remote.txt"), "remote side\n");
+      await realExec("git", ["add", "."], { cwd: other });
+      await realExec("git", ["commit", "-q", "-m", "remote commit"], {
+        cwd: other,
+      });
+      await realExec("git", ["push", "-q", "origin", base], { cwd: other });
+
+      // …while repo makes its own commit — now the histories have diverged.
+      writeFileSync(join(repo, "local.txt"), "local side\n");
+      await git.stage(repo, ["local.txt"]);
+      await git.commit(repo, "local commit");
+
+      // --ff-only can't reconcile a divergence, so it must reject (no merge).
+      await expect(git.pull(repo)).rejects.toThrow();
+    } finally {
+      rmSync(remote, { recursive: true, force: true });
+      rmSync(other, { recursive: true, force: true });
+    }
+  });
 });

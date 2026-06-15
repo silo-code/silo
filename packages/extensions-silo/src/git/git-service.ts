@@ -160,6 +160,13 @@ export function createGitService(exec: ExecFn): GitAPI {
       return run(cwd, ["fetch", ...(prune ? ["--prune"] : [])]);
     },
 
+    pull(cwd) {
+      // Fast-forward only: never auto-create a merge commit or leave a
+      // half-finished merge the panel can't resolve. A diverged branch makes
+      // this fail, which the caller turns into a "resolve manually" toast.
+      return run(cwd, ["pull", "--ff-only"]);
+    },
+
     switchBranch(cwd, name) {
       return run(cwd, ["switch", name]);
     },
