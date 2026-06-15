@@ -1,5 +1,6 @@
 import type { GitAPI, GitLogEntry } from "./git-api";
 import { parseGitStatus } from "./parse-status";
+import { parseBranches } from "./parse-branches";
 
 // The GitAPI implementation, built on a generic one-shot `exec` (ctx.process.exec
 // in the app; a real-git wrapper in the contract test). This is the whole point
@@ -35,7 +36,14 @@ function parseLog(raw: string): GitLogEntry[] {
 
 /** Build a {@link GitAPI} backed by the given one-shot `exec`. */
 export function createGitService(exec: ExecFn): GitAPI {
-  const git = (cwd: string, args: string[]) => exec("git", args, { cwd });
+  // `--no-optional-locks` keeps background reads (status/log/diff/branches),
+  // which the panel polls on a file-watch, from taking git's *optional* index
+  // lock — so a poll mid-commit can't collide with the lock the commit (and its
+  // pre-commit hooks) hold and fail with "Unable to create index.lock". It's a
+  // top-level flag, harmless on the mutating commands (they use required locks),
+  // so it's applied to every invocation.
+  const git = (cwd: string, args: string[]) =>
+    exec("git", ["--no-optional-locks", ...args], { cwd });
 
   // Mutating commands: succeed silently, throw the stderr on failure (the old
   // run_git rejected on non-zero, and the view surfaces the message).
@@ -121,8 +129,78 @@ export function createGitService(exec: ExecFn): GitAPI {
       ]);
     },
 
-    push(cwd) {
-      return run(cwd, ["push"]);
+    clean(cwd, paths) {
+      return run(cwd, ["clean", "-f", "--", ...paths]);
+    },
+
+    push(cwd, options) {
+      // No options → push the current branch to its configured upstream.
+      if (!options?.branch && !options?.remote && !options?.setUpstream) {
+        return run(cwd, ["push"]);
+      }
+      const args = ["push"];
+      if (options.setUpstream) args.push("--set-upstream");
+      args.push(options.remote ?? "origin", options.branch ?? "HEAD");
+      return run(cwd, args);
+    },
+
+    async branches(cwd) {
+      const { stdout, code } = await git(cwd, [
+        "for-each-ref",
+        "--format=%(refname)%09%(HEAD)%09%(upstream:short)",
+        "refs/heads",
+        "refs/remotes",
+      ]);
+      // Any error (e.g. an empty repo with no refs yet) → no branches.
+      if (code !== 0) return [];
+      return parseBranches(stdout);
+    },
+
+    fetch(cwd, prune) {
+      return run(cwd, ["fetch", ...(prune ? ["--prune"] : [])]);
+    },
+
+    switchBranch(cwd, name) {
+      return run(cwd, ["switch", name]);
+    },
+
+    createBranch(cwd, name, startPoint) {
+      return run(cwd, [
+        "switch",
+        "-c",
+        name,
+        ...(startPoint ? [startPoint] : []),
+      ]);
+    },
+
+    deleteBranch(cwd, name, force) {
+      return run(cwd, ["branch", force ? "-D" : "-d", name]);
+    },
+
+    renameBranch(cwd, oldName, newName) {
+      return run(cwd, ["branch", "-m", oldName, newName]);
+    },
+
+    async unmergedCommits(cwd, branch, upstream) {
+      // `<target>..<branch>` lists commits reachable from branch but not target;
+      // empty ⇔ branch is fully merged into target ⇔ `git branch -d` would
+      // succeed. Mirror git's delete-safety check: prefer the upstream, but if
+      // that ref can't be resolved (a pruned/renamed remote-tracking branch
+      // whose `branch.*.merge` config lingers) fall back to HEAD — otherwise
+      // we'd report "nothing at risk", pick `-d`, and hit git's raw "not fully
+      // merged" error instead of offering a force-delete.
+      const ranges = upstream
+        ? [`${upstream}..${branch}`, `HEAD..${branch}`]
+        : [`HEAD..${branch}`];
+      for (const range of ranges) {
+        const { stdout, code } = await git(cwd, [
+          "log",
+          "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%s",
+          range,
+        ]);
+        if (code === 0) return parseLog(stdout);
+      }
+      return [];
     },
   };
 }
