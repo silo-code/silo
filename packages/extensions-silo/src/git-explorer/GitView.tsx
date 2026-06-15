@@ -5,10 +5,16 @@ import {
   CaretRight,
   CloudArrowUp,
 } from "@phosphor-icons/react";
-import type { ExtensionContext, NotifyOptions } from "@silo-code/sdk";
+import {
+  useFocusGroup,
+  type ExtensionContext,
+  type FocusGroupItemProps,
+  type NotifyOptions,
+} from "@silo-code/sdk";
 import type { GitFileStatus, GitStatus } from "../git/git-api";
 import { getGitApi } from "./git-runtime";
 import { Section, FileRow } from "./git-rows";
+import { buildGitNavItems, navItemKey } from "./git-nav";
 import {
   ICON_CHECK,
   ICON_PUSH,
@@ -195,6 +201,49 @@ export function GitView({
     () => status?.files.filter((f) => f.isModified && !f.isStaged) ?? [],
     [status],
   );
+
+  // The flat, in-render-order list of keyboard-navigable items (section headers
+  // + file rows) and a key→index map, so each header/row can claim its focus-
+  // group slot. Mirrors the file Tree's flat/indexOfPath pattern.
+  const navItems = useMemo(
+    () =>
+      buildGitNavItems({ stagedFiles, changedFiles, stagedOpen, changesOpen }),
+    [stagedFiles, changedFiles, stagedOpen, changesOpen],
+  );
+  const navIndex = useMemo(() => {
+    const m = new Map<string, number>();
+    navItems.forEach((it, i) => m.set(navItemKey(it), i));
+    return m;
+  }, [navItems]);
+
+  // Roving keyboard focus, the WebKit-safe ring, and the single Tab stop are
+  // owned by useFocusGroup (same as the file Tree): the headers + file rows are
+  // one Tab stop, ↑/↓/Home/End move between them, and Enter/Space toggles a
+  // header or opens a row's diff.
+  const group = useFocusGroup({
+    count: navItems.length,
+    orientation: "vertical",
+    onActivate: (i) => {
+      const it = navItems[i];
+      if (!it) return;
+      if (it.kind === "header") {
+        if (it.section === "staged") setStagedOpen((v) => !v);
+        else setChangesOpen((v) => !v);
+      } else {
+        openFileDiff(
+          it.file,
+          it.section === "staged" ? "staged" : "workingTree",
+        );
+      }
+    },
+  });
+
+  // Focus-group props for the header/row identified by `key`, or undefined when
+  // it isn't a current nav item (e.g. a collapsed section's rows aren't rendered).
+  function focusPropsFor(key: string): FocusGroupItemProps | undefined {
+    const idx = navIndex.get(key);
+    return idx === undefined ? undefined : group.getItemProps(idx);
+  }
 
   // The live git provider, or a thrown error the handlers' catch turns into an
   // error toast — keeps "provider absent" from crashing an action.
@@ -517,6 +566,7 @@ export function GitView({
           <div
             className={`git-sections${committing ? " busy" : ""}`}
             aria-busy={committing}
+            {...group.containerProps}
           >
             {stagedFiles.length > 0 && (
               <Section
@@ -524,6 +574,7 @@ export function GitView({
                 count={stagedFiles.length}
                 open={stagedOpen}
                 onToggle={() => setStagedOpen((v) => !v)}
+                focusProps={focusPropsFor("h:staged")}
                 actions={[
                   {
                     icon: ICON_MINUS,
@@ -541,6 +592,7 @@ export function GitView({
                     onRowClick={() => openFileDiff(f, "staged")}
                     onOpen={() => openFile(f)}
                     onUnstage={() => unstage(f)}
+                    focusProps={focusPropsFor(`r:staged:${f.path}`)}
                   />
                 ))}
               </Section>
@@ -551,6 +603,7 @@ export function GitView({
               count={changedFiles.length}
               open={changesOpen}
               onToggle={() => setChangesOpen((v) => !v)}
+              focusProps={focusPropsFor("h:changes")}
               actions={
                 changedFiles.length > 0
                   ? [
@@ -581,6 +634,7 @@ export function GitView({
                   onOpen={() => openFile(f)}
                   onStage={() => stage(f)}
                   onRevert={() => revert(f)}
+                  focusProps={focusPropsFor(`r:changes:${f.path}`)}
                 />
               ))}
             </Section>

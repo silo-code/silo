@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { File as FileIcon } from "@phosphor-icons/react";
+import type { FocusGroupItemProps } from "@silo-code/sdk";
 import type { GitFileStatus } from "../git/git-api";
 import {
   ICON_CHEV_DOWN,
@@ -23,6 +24,7 @@ export function Section({
   open,
   onToggle,
   actions,
+  focusProps,
   children,
 }: {
   title: string;
@@ -30,6 +32,13 @@ export function Section({
   open: boolean;
   onToggle: () => void;
   actions?: SectionAction[];
+  /**
+   * Roving-focus props from the panel's `useFocusGroup` — the single-tab-stop
+   * `tabIndex`, the arrow/Enter key handler (Enter toggles the section via the
+   * group's `onActivate`), and the keyboard-ring markers. The header keeps its
+   * own `onClick` for mouse toggling.
+   */
+  focusProps?: FocusGroupItemProps;
   children: React.ReactNode;
 }) {
   return (
@@ -39,14 +48,8 @@ export function Section({
       <div
         className="section-head"
         role="button"
-        tabIndex={0}
         onClick={onToggle}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            onToggle();
-          }
-        }}
+        {...focusProps}
       >
         <span className="section-chev">
           {open ? ICON_CHEV_DOWN : ICON_CHEV_RIGHT}
@@ -62,6 +65,7 @@ export function Section({
                 key={a.title}
                 className="section-add"
                 title={a.title}
+                tabIndex={-1}
                 onClick={(e) => {
                   e.stopPropagation();
                   a.onClick();
@@ -112,6 +116,7 @@ export function FileRow({
   onStage,
   onUnstage,
   onRevert,
+  focusProps,
 }: {
   file: GitFileStatus;
   folder: string;
@@ -121,24 +126,42 @@ export function FileRow({
   onStage?: () => void;
   onUnstage?: () => void;
   onRevert?: () => void;
+  /**
+   * Roving-focus props from the panel's `useFocusGroup` — the single-tab-stop
+   * `tabIndex`, the arrow/Enter key handler (Enter opens the diff via the group's
+   * `onActivate`), and the keyboard-ring markers. The row keeps its own `onClick`
+   * for mouse activation; the hover action buttons stay out of the Tab order.
+   */
+  focusProps?: FocusGroupItemProps;
 }) {
   const { name, dir } = splitNameAndDir(file.path);
   const glyph = statusGlyph(file);
   return (
-    <div className="git-file-row" onClick={onRowClick} title={file.path}>
+    <div
+      className="git-file-row"
+      onClick={onRowClick}
+      title={file.path}
+      {...focusProps}
+    >
       <span className="ico file">
         <FileIcon size="1.3em" weight="regular" aria-hidden="true" />
       </span>
       <span className="file-name">{name}</span>
       {dir && <span className="file-dir">{dir}</span>}
       <span className="row-actions" onClick={(e) => e.stopPropagation()}>
-        <button className="row-action" title="Open file" onClick={onOpen}>
+        <button
+          className="row-action"
+          title="Open file"
+          tabIndex={-1}
+          onClick={onOpen}
+        >
           {ICON_OPEN}
         </button>
         {kind === "changes" && onRevert && (
           <button
             className="row-action"
             title="Discard changes"
+            tabIndex={-1}
             onClick={onRevert}
           >
             {ICON_UNDO}
@@ -148,6 +171,7 @@ export function FileRow({
           <button
             className="row-action"
             title="Stage changes"
+            tabIndex={-1}
             onClick={onStage}
           >
             {ICON_PLUS}
@@ -157,6 +181,7 @@ export function FileRow({
           <button
             className="row-action"
             title="Unstage changes"
+            tabIndex={-1}
             onClick={onUnstage}
           >
             {ICON_MINUS}
