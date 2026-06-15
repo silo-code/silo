@@ -109,6 +109,14 @@ export interface GitAPI {
    * that still shows long-deleted remote branches.
    */
   fetch(cwd: string, prune?: boolean): Promise<void>;
+  /**
+   * Fast-forward the current branch from its upstream (`git pull --ff-only`):
+   * fetches, then advances the branch **only if** it can be fast-forwarded.
+   * Rejects (non-zero) when the branch has diverged — there's no in-panel
+   * conflict resolution, so the caller surfaces the failure as a toast rather
+   * than leaving a half-finished merge. Requires a tracking branch.
+   */
+  pull(cwd: string): Promise<void>;
   /** Switch to an existing branch (`git switch <name>`). */
   switchBranch(cwd: string, name: string): Promise<void>;
   /**

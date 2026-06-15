@@ -18,6 +18,7 @@ import { buildGitNavItems, navItemKey } from "./git-nav";
 import {
   ICON_CHECK,
   ICON_PUSH,
+  ICON_PULL,
   ICON_PLUS,
   ICON_MINUS,
   ICON_UNDO,
@@ -26,6 +27,9 @@ import { summarizeGitError } from "./notify-error";
 import { BranchManager } from "./BranchManager";
 
 const REFRESH_DEBOUNCE_MS = 400;
+// How often the panel fetches in the background so ↑ahead/↓behind stay roughly
+// accurate without the user acting (matches VS Code's git.autofetchPeriod).
+const AUTOFETCH_INTERVAL_MS = 180_000;
 const statusCache = new Map<string, GitStatus>();
 const messageCache = new Map<string, string>();
 
@@ -55,6 +59,7 @@ export function GitView({
   );
   const [busy, setBusy] = useState(false);
   const [pushing, setPushing] = useState(false);
+  const [pulling, setPulling] = useState(false);
   const [committing, setCommitting] = useState(false);
   // Mirror `committing` into a ref so the file-watch callback (a stable closure)
   // can skip refreshes while a commit runs — commit() does the final refresh.
@@ -64,6 +69,7 @@ export function GitView({
   }, [committing]);
   const [pendingRefresh, setPendingRefresh] = useState(false);
   const [pendingPush, setPendingPush] = useState(false);
+  const [pendingPull, setPendingPull] = useState(false);
   const [stagedOpen, setStagedOpen] = useState(true);
   const [changesOpen, setChangesOpen] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
@@ -178,6 +184,40 @@ export function GitView({
   }, [pendingPush, folder, notifyError, status?.upstream]);
 
   useEffect(() => {
+    if (!pendingPull) return;
+    setPendingPull(false);
+    const min = new Promise<void>((r) => setTimeout(r, 600));
+    setTimeout(() => {
+      const api = getGitApi();
+      if (!api) {
+        notifyError("Pull failed", "Git provider (silo.git) unavailable.");
+        min.then(() => setPulling(false));
+        return;
+      }
+      api
+        .pull(folder)
+        .then(() => {
+          setBusy(true);
+          setPendingRefresh(true);
+        })
+        .catch((err) => {
+          // --ff-only aborts when the branch has diverged; there's no in-panel
+          // conflict resolution, so point the user at a terminal rather than
+          // surfacing git's raw "Not possible to fast-forward".
+          if (/fast-forward|diverged|non-fast-forward/i.test(String(err))) {
+            notifyError(
+              "Pull failed — branch has diverged",
+              "Your branch and its upstream have diverged. Reconcile them in a terminal (e.g. `git pull --rebase`), then refresh.",
+            );
+          } else {
+            notifyError("Pull failed", err);
+          }
+        })
+        .finally(() => min.then(() => setPulling(false)));
+    }, 50);
+  }, [pendingPull, folder, notifyError]);
+
+  useEffect(() => {
     if (paused) return;
     let timer: number | null = null;
     const sub = files.watch(folder, () => {
@@ -192,6 +232,29 @@ export function GitView({
       sub.dispose();
     };
   }, [folder, refresh, paused]);
+
+  // Background autofetch: periodically `git fetch` so ↑ahead/↓behind trend
+  // toward accurate without the user acting. Fetch is read-only on the working
+  // tree (it only updates remote-tracking refs), so it's safe to run unattended;
+  // re-read status quietly (no spinner) so the counts update in place. Failures
+  // (offline, no remote) are swallowed — autofetch must stay silent.
+  useEffect(() => {
+    if (paused) return;
+    const id = window.setInterval(() => {
+      if (committingRef.current) return;
+      const api = getGitApi();
+      if (!api) return;
+      api
+        .fetch(folder)
+        .then(() => api.status(folder))
+        .then((s) => {
+          statusCache.set(cacheKey, s);
+          setStatus(s);
+        })
+        .catch((err) => console.warn("git autofetch failed", err));
+    }, AUTOFETCH_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [folder, cacheKey, paused]);
 
   const stagedFiles = useMemo(
     () => status?.files.filter((f) => f.isStaged) ?? [],
@@ -369,6 +432,11 @@ export function GitView({
     setPendingPush(true);
   }
 
+  function pull() {
+    setPulling(true);
+    setPendingPull(true);
+  }
+
   // Open the branch manager modal. The host owns the chrome; refresh() re-reads
   // status after a switch/create so the header reflects the new branch.
   function openBranchManager() {
@@ -420,6 +488,13 @@ export function GitView({
   // branch with no upstream yet, where the first push publishes it.
   const canPush = !!status?.branch;
   const pushTitle = status?.upstream ? "Push" : "Publish branch";
+  // Pull needs a tracking branch to pull from; disabled (not hidden) otherwise.
+  const canPull = !!status?.upstream;
+  const pullTitle = canPull
+    ? status && status.behind > 0
+      ? `Pull (${status.behind} behind)`
+      : "Pull"
+    : "Pull (no upstream)";
   // A cloud-up glyph marks "publish" (first push, no upstream); the plain
   // up-arrow is a normal push to an existing remote branch.
   const pushIcon = status?.upstream ? ICON_PUSH : <CloudArrowUp size={16} />;
@@ -484,6 +559,13 @@ export function GitView({
               <ArrowsClockwise size={14} />
             </button>
             <button
+              className={`branch-action pull-btn${pulling ? " working" : ""}${!pulling && !canPull ? " disabled" : ""}`}
+              title={pullTitle}
+              onClick={pulling || !canPull ? undefined : pull}
+            >
+              {ICON_PULL}
+            </button>
+            <button
               className={`branch-action push-btn${pushing ? " working" : ""}${!pushing && !canPush ? " disabled" : ""}`}
               title={pushTitle}
               onClick={pushing || !canPush ? undefined : push}
@@ -519,6 +601,13 @@ export function GitView({
             onClick={busy ? undefined : refresh}
           >
             <ArrowsClockwise size={16} />
+          </button>
+          <button
+            className={`branch-action pull-btn${pulling ? " working" : ""}${!pulling && !canPull ? " disabled" : ""}`}
+            title={pullTitle}
+            onClick={pulling || !canPull ? undefined : pull}
+          >
+            {ICON_PULL}
           </button>
           <button
             className={`branch-action push-btn${pushing ? " working" : ""}${!pushing && !canPush ? " disabled" : ""}`}
