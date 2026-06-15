@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { File as FileIcon } from "@phosphor-icons/react";
 import type { GitFileStatus } from "../git/git-api";
 import {
@@ -9,24 +10,31 @@ import {
   ICON_MINUS,
 } from "./git-icons";
 
+/** A bulk action shown in a section header (e.g. "Stage all", "Unstage all"). */
+export type SectionAction = {
+  icon: ReactNode;
+  title: string;
+  onClick: () => void;
+};
+
 export function Section({
   title,
   count,
   open,
   onToggle,
-  onAdd,
+  actions,
   children,
 }: {
   title: string;
   count: number;
   open: boolean;
   onToggle: () => void;
-  onAdd?: () => void;
+  actions?: SectionAction[];
   children: React.ReactNode;
 }) {
   return (
     <div className="git-section">
-      {/* Not a <button>: it contains the "stage all" button, and a button
+      {/* Not a <button>: it contains the header action buttons, and a button
           cannot nest a button. Use a div with button semantics instead. */}
       <div
         className="section-head"
@@ -44,17 +52,25 @@ export function Section({
           {open ? ICON_CHEV_DOWN : ICON_CHEV_RIGHT}
         </span>
         <span className="section-title">{title}</span>
-        {onAdd && (
-          <button
-            className="section-add"
-            title="Stage all changes"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAdd();
-            }}
+        {actions && actions.length > 0 && (
+          <span
+            className="section-actions"
+            onClick={(e) => e.stopPropagation()}
           >
-            {ICON_PLUS}
-          </button>
+            {actions.map((a) => (
+              <button
+                key={a.title}
+                className="section-add"
+                title={a.title}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  a.onClick();
+                }}
+              >
+                {a.icon}
+              </button>
+            ))}
+          </span>
         )}
         <span className="section-count">{count}</span>
       </div>
