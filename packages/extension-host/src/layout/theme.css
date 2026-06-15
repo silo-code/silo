@@ -558,3 +558,21 @@ body.panel-resizing .side-resize-handle {
   outline: 1.5px solid var(--silo-color-accent);
   outline-offset: -1.5px;
 }
+
+/* Fallback ring for standalone interactive controls that aren't part of a focus
+   group (panel header buttons, etc.). Ordinary Tab focus *does* light
+   `:focus-visible` in WebKit — the attribute path above is only needed for the
+   programmatic focus inside roving groups — so keyboard focus on a lone control
+   gets the same accent ring instead of the inconsistent native one. Scoped to
+   interactive elements, and `:not([data-focus-item])` so a group item never
+   double-rings. */
+button:focus-visible:not([data-focus-item]),
+[role="button"]:focus-visible:not([data-focus-item]),
+a:focus-visible:not([data-focus-item]),
+input:focus-visible:not([data-focus-item]),
+select:focus-visible:not([data-focus-item]),
+textarea:focus-visible:not([data-focus-item]),
+[tabindex]:focus-visible:not([data-focus-item]) {
+  outline: 1.5px solid var(--silo-color-accent);
+  outline-offset: -1.5px;
+}
