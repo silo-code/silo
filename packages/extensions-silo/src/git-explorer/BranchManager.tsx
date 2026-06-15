@@ -8,7 +8,7 @@ import {
   Plus,
   Trash,
 } from "@phosphor-icons/react";
-import type { ExtensionContext } from "@silo-code/sdk";
+import { useFocusGroup, type ExtensionContext } from "@silo-code/sdk";
 import type { GitBranch, GitLogEntry } from "../git/git-api";
 import { getGitApi } from "./git-runtime";
 import {
@@ -83,6 +83,20 @@ export function BranchManager({
     () => remoteBranchNames(branches ?? []),
     [branches],
   );
+
+  // Roving keyboard nav over the list (same as the side panels): the list is a
+  // single Tab stop, ↑/↓/Home/End move between rows, and Enter switches. Entry
+  // parks on the current branch. ArrowDown from the filter box drops into it.
+  const currentIndex = visible.findIndex((b) => b.current);
+  const list = useFocusGroup({
+    count: visible.length,
+    start: currentIndex >= 0 ? currentIndex : 0,
+    orientation: "vertical",
+    onActivate: (i) => {
+      const b = visible[i];
+      if (b) void switchTo(b);
+    },
+  });
 
   // The live provider, or a notify + null so handlers can bail gracefully.
   function api() {
@@ -289,13 +303,19 @@ export function BranchManager({
         placeholder="Filter branches…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            list.focusItem(currentIndex >= 0 ? currentIndex : 0);
+          }
+        }}
         autoCapitalize="off"
         autoCorrect="off"
         autoComplete="off"
         spellCheck={false}
       />
 
-      <div className="git-branch-list">
+      <div className="git-branch-list" {...list.containerProps}>
         {branches === null && (
           <div className="git-branch-loader">
             <ArrowsClockwise size={22} className="git-branch-spin" />
@@ -306,20 +326,14 @@ export function BranchManager({
           <div className="git-branch-empty">No matching branches.</div>
         )}
         {(branches ?? []).length > 0 &&
-          visible.map((b) => (
+          visible.map((b, i) => (
             <div
               key={(b.remote ? "r:" : "l:") + b.name}
               className={`git-branch-row${b.current ? " current" : ""}`}
               role="button"
-              tabIndex={0}
               title={b.current ? "Current branch" : `Switch to ${b.name}`}
               onClick={() => void switchTo(b)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  void switchTo(b);
-                }
-              }}
+              {...list.getItemProps(i)}
             >
               <span className="git-branch-glyph">
                 {b.remote ? <Cloud size={15} /> : <GitBranchIcon size={15} />}
@@ -339,6 +353,7 @@ export function BranchManager({
                         ? `Push ${b.name}`
                         : `Publish ${b.name}`
                     }
+                    tabIndex={-1}
                     disabled={pushing === b.name}
                     onClick={() => void pushBranch(b)}
                   >
@@ -354,6 +369,7 @@ export function BranchManager({
                         type="button"
                         className="git-branch-action"
                         title="Rename branch"
+                        tabIndex={-1}
                         onClick={() => void rename(b)}
                       >
                         <PencilSimple size={14} />
@@ -362,6 +378,7 @@ export function BranchManager({
                         type="button"
                         className="git-branch-action danger"
                         title="Delete branch"
+                        tabIndex={-1}
                         onClick={() => void del(b)}
                       >
                         <Trash size={14} />
