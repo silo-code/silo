@@ -78,6 +78,32 @@
   font-weight: 600;
   color: var(--silo-color-text-hi);
 }
+/* The clickable branch name (single-root) — a button styled like the text. */
+.git-branch .branch-name-button {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 1px 5px;
+  margin-left: -5px;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.git-branch .branch-name-button:hover {
+  background: var(--silo-color-bg-hover);
+}
+/* The clickable branch name (multi-root). */
+.git-root-branch.clickable {
+  cursor: pointer;
+  padding: 1px 5px;
+  border-radius: var(--silo-radius-sm);
+}
+.git-root-branch.clickable:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
 .git-branch .branch-tracking {
   color: var(--silo-color-text-lo);
 }
@@ -210,6 +236,10 @@
 .commit-area textarea::placeholder {
   color: color-mix(in srgb, var(--silo-color-input-text) 40%, transparent);
 }
+.commit-area textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .commit-btn {
   display: inline-flex;
   align-items: center;
@@ -240,6 +270,13 @@
   flex-direction: column;
 }
 
+/* While a commit (with its pre-commit hooks) is in flight, dim and disable the
+   file lists so an interaction can't race the locked index. */
+.git-sections.busy {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .section-head {
   display: flex;
   align-items: center;
@@ -260,12 +297,26 @@
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
+/* Bulk-action cluster (stage/unstage/discard all), sitting next to the title
+ * and revealed on hover; the count badge stays pinned to the right edge. */
+.section-actions {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 80ms ease-out;
+}
+.section-head:hover .section-actions {
+  opacity: 1;
+}
 .section-head .section-add {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   border: none;
   color: var(--silo-color-text);
+  /* The header text is chrome-sized; bump the em-based icons back up to the
+     base UI size so they don't read as undersized next to the row actions. */
+  font-size: var(--silo-font-size-base);
   width: 24px;
   height: 24px;
   border-radius: var(--silo-radius-sm);
@@ -275,12 +326,6 @@
   padding: 0;
   cursor: pointer;
   flex-shrink: 0;
-  margin-right: -6px;
-  opacity: 0;
-  transition: opacity 80ms ease-out;
-}
-.section-head:hover .section-add {
-  opacity: 1;
 }
 .section-add:hover {
   background: transparent;
@@ -362,16 +407,25 @@
   min-width: 0;
 }
 
+/* Actions are taken out of the flex flow and overlaid on the right edge so the
+ * file name / path can use the full row width. They fade in over the text on
+ * hover, masked by the row's hover background. */
 .row-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   gap: 0;
-  margin-left: auto;
   opacity: 0;
+  pointer-events: none;
+  background: var(--silo-color-bg-hover);
   transition: opacity 100ms ease-out;
 }
 .git-file-row:hover .row-actions {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .row-action {
@@ -422,4 +476,198 @@
  * disappears under the action cluster on hover. */
 .git-file-row:hover .status-glyph {
   display: none;
+}
+
+/* Branch manager modal (ctx.ui.showModal content). */
+.git-branch-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--silo-font-ui);
+}
+.git-branch-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 6px 8px;
+  font: inherit;
+}
+.git-branch-search::placeholder {
+  color: color-mix(in srgb, var(--silo-color-input-text) 40%, transparent);
+}
+.git-branch-list {
+  display: flex;
+  flex-direction: column;
+  /* Fixed height so the modal doesn't resize as branches load or filter. */
+  height: 340px;
+  overflow-y: auto;
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+}
+.git-branch-empty {
+  color: var(--silo-color-text-lo);
+  font-style: italic;
+  padding: 10px 12px;
+}
+.git-branch-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  color: var(--silo-color-text-lo);
+}
+.git-branch-spin {
+  -webkit-animation: branch-spin 0.8s linear infinite;
+  animation: branch-spin 0.8s linear infinite;
+}
+.git-branch-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.git-branch-footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.git-branch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  color: var(--silo-color-text);
+}
+.git-branch-row + .git-branch-row {
+  border-top: 1px solid var(--silo-color-border);
+}
+.git-branch-row:hover {
+  background: var(--silo-color-bg-hover);
+}
+.git-branch-row.current {
+  cursor: default;
+}
+.git-branch-glyph {
+  display: inline-flex;
+  align-items: center;
+  color: var(--silo-color-text-lo);
+  flex-shrink: 0;
+}
+.git-branch-row.current .git-branch-glyph {
+  color: var(--silo-color-accent);
+}
+.git-branch-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.git-branch-row.current .git-branch-name {
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+}
+.git-branch-badge {
+  flex-shrink: 0;
+  font-size: var(--silo-font-size-chrome);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 16%, transparent);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.git-branch-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 100ms ease-out;
+}
+.git-branch-row:hover .git-branch-actions {
+  opacity: 1;
+}
+.git-branch-action {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text-lo);
+  width: 26px;
+  height: 26px;
+  border-radius: var(--silo-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+}
+.git-branch-action:hover {
+  background: var(--silo-color-bg-active);
+  color: var(--silo-color-text-hi);
+}
+.git-branch-action.danger:hover {
+  color: var(--silo-color-err);
+}
+.git-branch-action:disabled {
+  cursor: default;
+}
+.git-branch-action.working {
+  color: var(--silo-color-accent);
+  -webkit-animation: branch-push 0.7s ease-in-out infinite;
+  animation: branch-push 0.7s ease-in-out infinite;
+}
+
+/* Force-delete confirmation (ctx.ui.showModal content) — lists the unmerged
+ * commits as proper rows instead of one crunched line of confirm-body text. */
+.git-force-delete {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--silo-font-ui);
+}
+.git-force-delete-lead {
+  margin: 0;
+  font-size: var(--silo-font-size-sm);
+  line-height: 1.5;
+  color: var(--silo-color-text);
+}
+.git-force-delete-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 40vh;
+  overflow-y: auto;
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+}
+.git-force-delete-commit {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 10px;
+}
+.git-force-delete-commit + .git-force-delete-commit {
+  border-top: 1px solid var(--silo-color-border);
+}
+.git-force-delete-hash {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  flex-shrink: 0;
+}
+.git-force-delete-subject {
+  min-width: 0;
+  /* Wrap full commit subjects instead of truncating, so nothing is hidden. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--silo-color-text);
 }

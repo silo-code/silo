@@ -10,13 +10,38 @@ describe("summarizeGitError", () => {
     expect(detail).toBe("fatal: nothing to commit");
   });
 
-  it("uses the first line as the summary and flags the rest as more detail", () => {
+  it("prefers a native git fatal:/error: line over surrounding lines", () => {
     const { summary, hasMore } = summarizeGitError(
-      "pre-commit: lint failed\n  src/foo.ts:1:1 error\ncommit aborted",
+      "→ Running boundary lint…\nfatal: not a git repository\nmore noise",
+      "Status failed",
+    );
+    expect(summary).toBe("fatal: not a git repository");
+    expect(hasMore).toBe(true);
+  });
+
+  it("surfaces the conclusive failure line from hook output, not the first progress line", () => {
+    const detail = [
+      "→ Running boundary lint…",
+      "→ Formatting staged files…",
+      "→ Running unit tests…",
+      "✖   subject may not be empty [subject-empty]",
+      "✖   found 2 problems, 0 warnings",
+      "✖ Commit blocked: message must follow Conventional Commits",
+      "  e.g. 'feat(terminal): add split pane'",
+    ].join("\n");
+    const { summary, hasMore } = summarizeGitError(detail, "Commit failed");
+    expect(summary).toBe(
+      "✖ Commit blocked: message must follow Conventional Commits",
+    );
+    expect(hasMore).toBe(true);
+  });
+
+  it("falls back to the last line when nothing looks like an error marker", () => {
+    const { summary } = summarizeGitError(
+      "step one\nstep two\nstep three",
       "Commit failed",
     );
-    expect(summary).toBe("pre-commit: lint failed");
-    expect(hasMore).toBe(true);
+    expect(summary).toBe("step three");
   });
 
   it("reports no extra detail for a single-line error", () => {

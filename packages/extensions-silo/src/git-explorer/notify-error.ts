@@ -8,10 +8,34 @@
 export interface GitErrorSummary {
   /** Full error text — git's stderr, with a leading `Error:` and whitespace trimmed. */
   detail: string;
-  /** First line of {@link GitErrorSummary.detail}, or `fallback` when it's empty. */
+  /** The most relevant line of {@link GitErrorSummary.detail}, or `fallback` when it's empty. */
   summary: string;
   /** True when `detail` has more than the `summary` line — i.e. a details modal is worth showing. */
   hasMore: boolean;
+}
+
+/** A line that reads like a conclusive failure (commitlint/lint/test output). */
+const ERROR_MARKER = /(✖|✗|\b(?:failed|blocked|error|fatal)\b)/i;
+
+/**
+ * Pick the line that best explains the failure. Plain git errors put the reason
+ * on a `fatal:`/`error:` line, so prefer that. Hook output (lint, commitlint,
+ * tests) buries the reason under progress lines like "→ Running boundary lint…",
+ * so fall back to the *last* line that reads like a failure, then to the last
+ * line overall.
+ */
+function pickSummaryLine(detail: string): string | undefined {
+  const lines = detail
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return undefined;
+  const native = lines.find((l) => /^(?:fatal|error):/i.test(l));
+  if (native) return native;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (ERROR_MARKER.test(lines[i])) return lines[i];
+  }
+  return lines[lines.length - 1];
 }
 
 /**
@@ -25,7 +49,7 @@ export function summarizeGitError(
   const detail = String(err)
     .replace(/^Error:\s*/, "")
     .trim();
-  const summary = detail.split("\n")[0] || fallback;
+  const summary = pickSummaryLine(detail) ?? fallback;
   const hasMore = detail.length > summary.length;
   return { detail, summary, hasMore };
 }
