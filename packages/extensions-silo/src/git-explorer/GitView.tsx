@@ -4,25 +4,20 @@ import {
   CaretDown,
   CaretRight,
   CloudArrowUp,
+  DotsThreeVertical,
 } from "@phosphor-icons/react";
 import {
   useFocusGroup,
   type ExtensionContext,
   type FocusGroupItemProps,
+  type MenuEntry,
   type NotifyOptions,
 } from "@silo-code/sdk";
 import type { GitFileStatus, GitStatus } from "../git/git-api";
 import { getGitApi } from "./git-runtime";
 import { Section, FileRow } from "./git-rows";
 import { buildGitNavItems, navItemKey } from "./git-nav";
-import {
-  ICON_CHECK,
-  ICON_PUSH,
-  ICON_PULL,
-  ICON_PLUS,
-  ICON_MINUS,
-  ICON_UNDO,
-} from "./git-icons";
+import { ICON_CHECK, ICON_PLUS, ICON_MINUS, ICON_UNDO } from "./git-icons";
 import { summarizeGitError } from "./notify-error";
 import { BranchManager } from "./BranchManager";
 
@@ -60,6 +55,7 @@ export function GitView({
   const [busy, setBusy] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [pulling, setPulling] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [committing, setCommitting] = useState(false);
   // Mirror `committing` into a ref so the file-watch callback (a stable closure)
   // can skip refreshes while a commit runs — commit() does the final refresh.
@@ -437,6 +433,58 @@ export function GitView({
     setPendingPull(true);
   }
 
+  // Sync = bring remote work in, then send ours. Pull is fast-forward only, so a
+  // diverged branch fails here and we never push onto a stale base or strand a
+  // half-finished merge — same posture as the standalone Pull/Push.
+  async function sync() {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const api = requireGit();
+      await api.pull(folder);
+      await api.push(folder);
+      refresh();
+    } catch (err) {
+      if (/fast-forward|diverged|non-fast-forward/i.test(String(err))) {
+        notifyError(
+          "Sync failed — branch has diverged",
+          "Your branch and its upstream have diverged. Reconcile them in a terminal (e.g. `git pull --rebase`), then sync.",
+        );
+      } else {
+        notifyError("Sync failed", err);
+      }
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  // Update remote-tracking refs (and thus ↑/↓) without touching the branch.
+  async function fetchRemote() {
+    try {
+      await requireGit().fetch(folder);
+      refresh();
+    } catch (err) {
+      notifyError("Fetch failed", err);
+    }
+  }
+
+  // The "⋯" dropdown: the explicit Push/Pull (folded off the bar), plus Fetch
+  // and a way into the branch manager.
+  function gitMenuItems(): MenuEntry[] {
+    return [
+      { label: pushTitle, disabled: !canPush || pushing, run: push },
+      { label: "Pull", disabled: !canPull || pulling, run: pull },
+      { type: "separator" },
+      { label: "Fetch", run: fetchRemote },
+      { type: "separator" },
+      { label: "Manage branches…", run: openBranchManager },
+    ];
+  }
+
+  function openGitMenu(anchor: HTMLElement) {
+    void ctx.ui.showMenu({ items: gitMenuItems(), anchor, align: "end" });
+  }
+
   // Open the branch manager modal. The host owns the chrome; refresh() re-reads
   // status after a switch/create so the header reflects the new branch.
   function openBranchManager() {
@@ -488,16 +536,9 @@ export function GitView({
   // branch with no upstream yet, where the first push publishes it.
   const canPush = !!status?.branch;
   const pushTitle = status?.upstream ? "Push" : "Publish branch";
-  // Pull needs a tracking branch to pull from; disabled (not hidden) otherwise.
+  // Pull needs a tracking branch to pull from; the menu item is disabled
+  // (not hidden) otherwise.
   const canPull = !!status?.upstream;
-  const pullTitle = canPull
-    ? status && status.behind > 0
-      ? `Pull (${status.behind} behind)`
-      : "Pull"
-    : "Pull (no upstream)";
-  // A cloud-up glyph marks "publish" (first push, no upstream); the plain
-  // up-arrow is a normal push to an existing remote branch.
-  const pushIcon = status?.upstream ? ICON_PUSH : <CloudArrowUp size={16} />;
 
   return (
     <div className="git-panel">
@@ -540,12 +581,31 @@ export function GitView({
             }
           >
             {status ? (status.branch ?? "(detached)") : ""}
-            {status?.upstream && (
-              <span className="branch-tracking">
-                {" "}
+          </span>
+          <span
+            className="git-root-remote"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {status?.upstream ? (
+              <button
+                className={`branch-tracking branch-sync${syncing ? " working" : ""}`}
+                title="Sync (pull, then push)"
+                onClick={syncing ? undefined : sync}
+              >
+                {syncing && (
+                  <ArrowsClockwise className="git-branch-spin" size={12} />
+                )}
                 ↑{status.ahead} ↓{status.behind}
-              </span>
-            )}
+              </button>
+            ) : status?.inRepo && status.branch ? (
+              <button
+                className={`branch-action branch-publish push-btn${pushing ? " working" : ""}`}
+                title="Publish branch"
+                onClick={pushing ? undefined : push}
+              >
+                <CloudArrowUp size={16} />
+              </button>
+            ) : null}
           </span>
           <span
             className="git-root-actions"
@@ -558,20 +618,15 @@ export function GitView({
             >
               <ArrowsClockwise size={14} />
             </button>
-            <button
-              className={`branch-action pull-btn${pulling ? " working" : ""}${!pulling && !canPull ? " disabled" : ""}`}
-              title={pullTitle}
-              onClick={pulling || !canPull ? undefined : pull}
-            >
-              {ICON_PULL}
-            </button>
-            <button
-              className={`branch-action push-btn${pushing ? " working" : ""}${!pushing && !canPush ? " disabled" : ""}`}
-              title={pushTitle}
-              onClick={pushing || !canPush ? undefined : push}
-            >
-              {pushIcon}
-            </button>
+            {status?.inRepo && (
+              <button
+                className="branch-action git-menu-btn"
+                title="More actions"
+                onClick={(e) => openGitMenu(e.currentTarget)}
+              >
+                <DotsThreeVertical size={18} weight="bold" />
+              </button>
+            )}
           </span>
         </button>
       ) : (
@@ -589,11 +644,28 @@ export function GitView({
               {status ? (status.branch ?? "(detached)") : "Loading…"}
             </span>
           )}
-          {status?.upstream && (
-            <span className="branch-tracking">
+          {/* Where the remote state lives: published → the ↑/↓ counts double as
+              a Sync button; not yet published → a Publish-branch button. */}
+          {status?.upstream ? (
+            <button
+              className={`branch-tracking branch-sync${syncing ? " working" : ""}`}
+              title="Sync (pull, then push)"
+              onClick={syncing ? undefined : sync}
+            >
+              {syncing && (
+                <ArrowsClockwise className="git-branch-spin" size={12} />
+              )}
               ↑{status.ahead} ↓{status.behind}
-            </span>
-          )}
+            </button>
+          ) : status?.inRepo && status.branch ? (
+            <button
+              className={`branch-action branch-publish push-btn${pushing ? " working" : ""}`}
+              title="Publish branch"
+              onClick={pushing ? undefined : push}
+            >
+              <CloudArrowUp size={16} />
+            </button>
+          ) : null}
           <span className="spacer" />
           <button
             className={`branch-action refresh-btn${busy ? " working" : ""}`}
@@ -602,20 +674,15 @@ export function GitView({
           >
             <ArrowsClockwise size={16} />
           </button>
-          <button
-            className={`branch-action pull-btn${pulling ? " working" : ""}${!pulling && !canPull ? " disabled" : ""}`}
-            title={pullTitle}
-            onClick={pulling || !canPull ? undefined : pull}
-          >
-            {ICON_PULL}
-          </button>
-          <button
-            className={`branch-action push-btn${pushing ? " working" : ""}${!pushing && !canPush ? " disabled" : ""}`}
-            title={pushTitle}
-            onClick={pushing || !canPush ? undefined : push}
-          >
-            {pushIcon}
-          </button>
+          {status?.inRepo && (
+            <button
+              className="branch-action git-menu-btn"
+              title="More actions"
+              onClick={(e) => openGitMenu(e.currentTarget)}
+            >
+              <DotsThreeVertical size={18} weight="bold" />
+            </button>
+          )}
         </div>
       )}
       {!collapsed && (
