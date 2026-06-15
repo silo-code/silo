@@ -169,6 +169,27 @@ export function Modal({
       >
         {title != null && <div className="silo-modal-title">{title}</div>}
         {children}
+        {/* Close affordance for dismissible modals — last in the DOM so it
+            never steals the initial focus from the modal's real first control,
+            but visually pinned to the top-right corner. Bare modals own their
+            own chrome, so they opt out. */}
+        {dismissible && !bare && (
+          <button
+            type="button"
+            className="silo-modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                d="M4 4l8 8M12 4l-8 8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )}
       </div>
     </div>,
     document.body,

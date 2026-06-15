@@ -358,6 +358,7 @@ button.silo-button-sm {
   /* z-index set inline (var(--silo-z-modal-base) + stack index) */
 }
 .silo-modal {
+  position: relative;
   background: var(--silo-modal-bg);
   border: 1px solid var(--silo-modal-border);
   border-radius: var(--silo-modal-radius);
@@ -367,6 +368,29 @@ button.silo-button-sm {
   gap: 12px;
   padding: 20px;
   font-family: var(--silo-font-ui);
+}
+/* Corner close button (dismissible modals). Scoped under .silo-modal so the
+   hover beats the global `button:hover:not(:disabled)` and paints the themed
+   --silo-color-bg-hover rather than the dark button mix. */
+.silo-modal .silo-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+}
+.silo-modal .silo-modal-close:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
 }
 .silo-modal-sm {
   width: 300px;
@@ -386,6 +410,8 @@ button.silo-button-sm {
   font-weight: 600;
   font-size: var(--silo-font-size-base);
   color: var(--silo-color-text-hi);
+  /* Leave room for the corner close button so a long title never runs under it. */
+  padding-right: 24px;
 }
 .silo-modal-body {
   font-size: var(--silo-font-size-sm);
