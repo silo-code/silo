@@ -84,8 +84,13 @@
   appearance: none;
   background: transparent;
   border: none;
-  padding: 1px 5px;
-  margin-left: -5px;
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 4px;
+  /* Cancel the padding so the text still sits flush with the panel edge while
+     the hover rect matches the sibling buttons' height + padding. */
+  margin-left: -4px;
   border-radius: var(--silo-radius-sm);
   font: inherit;
   font-weight: 600;
@@ -110,14 +115,56 @@
 .git-branch .spacer {
   flex: 1;
 }
+
+/* Multi-root: wrapper holding the sync/publish control next to the branch. */
+.git-root-remote {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* The ↑/↓ counts double as a Sync (pull, then push) button. Matches the height
+   of the row's icon buttons (.branch-action) so its hover highlight reads the
+   same instead of a thin sliver around the text. */
+.branch-sync {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: var(--silo-color-text-lo);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+/* Scoped (0,3,0) so it beats the host's global `button:hover:not(:disabled)`
+   (0,2,1), which would otherwise paint the dark `--silo-button-bg` mix here —
+   the same reason .branch-name-button scopes its hover under .git-branch. */
+.git-branch .branch-sync:hover,
+.git-root-remote .branch-sync:hover {
+  background: var(--silo-color-bg-hover);
+}
+.branch-sync.working {
+  color: var(--silo-color-accent);
+  pointer-events: none;
+}
+
+/* The inline "publish branch" button shown when the branch has no upstream. */
+.branch-publish {
+  color: var(--silo-color-accent);
+}
 .branch-action {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   border: none;
   color: var(--silo-color-text-lo);
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--silo-radius-sm);
   display: inline-flex;
   align-items: center;
@@ -146,10 +193,6 @@
 .push-btn.working {
   -webkit-animation: branch-push 0.7s ease-in-out infinite;
   animation: branch-push 0.7s ease-in-out infinite;
-}
-.pull-btn.working {
-  -webkit-animation: branch-pull 0.7s ease-in-out infinite;
-  animation: branch-pull 0.7s ease-in-out infinite;
 }
 
 @-webkit-keyframes branch-spin {
@@ -196,46 +239,6 @@
   }
   41% {
     transform: translateY(5px);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-@-webkit-keyframes branch-pull {
-  0% {
-    -webkit-transform: translateY(0);
-    transform: translateY(0);
-    opacity: 1;
-  }
-  40% {
-    -webkit-transform: translateY(5px);
-    transform: translateY(5px);
-    opacity: 0;
-  }
-  41% {
-    -webkit-transform: translateY(-5px);
-    transform: translateY(-5px);
-    opacity: 0;
-  }
-  100% {
-    -webkit-transform: translateY(0);
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-@keyframes branch-pull {
-  0% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-  40% {
-    transform: translateY(5px);
-    opacity: 0;
-  }
-  41% {
-    transform: translateY(-5px);
     opacity: 0;
   }
   100% {
