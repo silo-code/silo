@@ -55,7 +55,36 @@ host, inverting the graph); a standalone `@silo-code/sdk-internal` pass-through 
 was rejected (thin re-export, misleading name). It is consumed only by bundled
 `core.*` and is never published.
 
+## Amendment (2026-06-16, the core-vs-silo placement test)
+
+The original framing leaned on the **capability boundary** to also imply
+_placement_ — "`silo.*` is `@silo-code/sdk`-only" reads as "SDK-only ⇒ `silo.*`."
+In practice that's too strong: some identity-defining first-party chrome is
+SDK-only yet must stay bundled and **not** user-disableable (the theme picker
+`core.themes`; the status-bar chrome `core.panel-toggles` / `core.settings-button`).
+Filing those as `silo.*` would expose a "disable" affordance on chrome a user
+can't sensibly turn off (per [0020](./0020-silo-extensions-bundled.md), `silo.*`
+are surfaced as enable/disable-able).
+
+So the **placement test** (which bundled tier a first-party extension lives in)
+is explicit, mirroring [0007](./0007-core-primitive-vs-extension-test.md):
+
+An extension is **`core.*`** iff **either**:
+
+1. **Privilege** — it imports `@silo-code/extension-host/internal`, **or**
+2. **Identity-defining chrome** — it is always-on UI that defines the app and must
+   not be user-disableable, _even if it is SDK-only_.
+
+Otherwise — **SDK-only _and_ an optional, disable-able feature** — it is `silo.*`.
+
+Consequence: **SDK-only no longer implies `silo.*`.** The "truest public-surface
+measuring stick" is therefore the **SDK-only `silo.*`** set specifically (git,
+markdown-preview, file-explorer, image-viewer, theme-presets) — read the
+internal-barrel health metric with that carve-out in mind. The capability
+boundary itself is unchanged: `core.*` _may_ use the privileged barrel, `silo.*`
+physically cannot.
+
 ## References
 
-- Related: [0004](./0004-sdk-types-first.md), [0020](./0020-silo-extensions-bundled.md).
-- Decided 2026-06-02, during the boundary burn-down; amended 2026-06-04.
+- Related: [0004](./0004-sdk-types-first.md), [0007](./0007-core-primitive-vs-extension-test.md), [0020](./0020-silo-extensions-bundled.md).
+- Decided 2026-06-02, during the boundary burn-down; amended 2026-06-04 and 2026-06-16.
