@@ -9,6 +9,7 @@ import {
   initUserKeybindings,
 } from "@silo-code/extension-host";
 import { activateBuiltins } from "./builtins";
+import { initCliOpenHandler } from "./cli";
 
 // Activate built-ins synchronously, before render — the dock needs their panel
 // kinds present when it deserializes the saved layout.
@@ -30,7 +31,10 @@ mgr
 
 userConfigDir()
   .then(hydrate)
-  .catch((err) => console.error("hydrate failed", err));
+  // After hydration so a `silo <dir>` open matches an existing workspace
+  // instead of creating a duplicate (warm re-launches also funnel through here).
+  .then(() => initCliOpenHandler())
+  .catch((err) => console.error("hydrate / cli handler failed", err));
 
 // Best-effort flush of unsaved-edit backups + workspace/layout state when the
 // window is being hidden or torn down. We deliberately do NOT intercept the close

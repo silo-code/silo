@@ -127,7 +127,17 @@ Not part of the extension SDK — host-side developer/test surfaces.
 
 | Surface              | Status                                       |                                                                          |
 | -------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| `silo <path>` CLI    | <Badge type="tip" text="stable" />           | [docs](/guide/cli)                                                       |
 | Automation RPC (dev) | <Badge type="warning" text="experimental" /> | [design](https://github.com/silo-code/silo/blob/main/docs/automation.md) |
+
+### `silo <path>` CLI <Badge type="tip" text="stable" />
+
+A terminal entry point: `silo <dir>` foregrounds (or launches) Silo and
+opens/activates a workspace for that folder; `silo <file>` opens the file in the
+active workspace. Built on `tauri-plugin-single-instance` — a second launch is
+forwarded to the running instance rather than opening a new window. Install the
+command from **File → Install `silo` Command in PATH**. See
+[the `silo` command](/guide/cli).
 
 ### Automation RPC <Badge type="warning" text="experimental" />
 

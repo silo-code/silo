@@ -101,6 +101,10 @@ export default withMermaid(
       sidebar: {
         "/guide/": [
           {
+            text: "Using Silo",
+            items: [{ text: "The `silo` command", link: "/guide/cli" }],
+          },
+          {
             text: "Building Extensions",
             items: [
               { text: "What is an extension?", link: "/guide/" },
