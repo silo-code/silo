@@ -579,6 +579,11 @@ body.panel-resizing .side-resize-handle {
    so only the state-driven ring shows. */
 [data-focus-item] {
   outline: none;
+  /* The focus ring is an `outline`, which has no radius of its own — it inherits
+     the element's border-radius. Give every focus-group item the controls' small
+     radius so the ring (and the hover/selection highlight it shares a box with)
+     is rounded to match, rather than square on list rows that declare none. */
+  border-radius: var(--silo-radius-sm);
 }
 [data-focus-item][data-focus-visible] {
   outline: 1.5px solid var(--silo-color-accent);

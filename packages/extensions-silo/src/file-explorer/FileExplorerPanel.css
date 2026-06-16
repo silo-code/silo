@@ -14,7 +14,9 @@
 
 .file-tree {
   font-family: var(--silo-font-ui);
-  padding: 4px 0 0;
+  /* Small horizontal inset so a row's rounded focus ring / selection floats off
+     the panel edges instead of being clipped flush against them. */
+  padding: 4px 4px 0;
   user-select: none;
   line-height: 1.4;
 }

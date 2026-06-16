@@ -338,7 +338,9 @@
   font-size: var(--silo-font-size-chrome);
   font-weight: 600;
   cursor: pointer;
-  border-radius: 0;
+  /* Match the file rows' rounded keyboard focus ring (the focus group's shared
+     [data-focus-item] radius) instead of forcing square corners here. */
+  border-radius: var(--silo-radius-sm);
 }
 .section-head:hover {
   background: var(--silo-color-bg-hover);
