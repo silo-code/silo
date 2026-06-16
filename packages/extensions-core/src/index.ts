@@ -1,11 +1,14 @@
 /**
  * `@silo-code/extensions-core` — the bundled **core** feature set (`core.*`).
  *
- * Core extensions are the privileged tier: they may import the host's
- * privileged surface (`@silo-code/extension-host/internal`) in addition to the
- * public `@silo-code/sdk`. The app's composition root imports these and hands
- * them to {@link activateExtensions}; the package itself knows nothing about
- * activation order (the app owns that).
+ * Core extensions are the **identity-defining** tier: always-on, bundled, and not
+ * user-disableable. An extension belongs here if it needs the host's privileged
+ * surface (`@silo-code/extension-host/internal`) **or** is identity-defining chrome
+ * that must not be disable-able — see ADR 0013's placement test. Privilege is a
+ * capability core *may* use, not the defining trait: some core extensions (e.g. the
+ * theme picker and the status-bar chrome) are `@silo-code/sdk`-only. The app's
+ * composition root imports these and hands them to {@link activateExtensions}; the
+ * package itself knows nothing about activation order (the app owns that).
  */
 export { extension as menu } from "./menu";
 export { extension as terminal } from "./terminal";
