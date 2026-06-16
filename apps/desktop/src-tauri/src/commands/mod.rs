@@ -1,6 +1,7 @@
 pub mod app_paths;
 #[cfg(feature = "automation")]
 pub mod automation;
+pub mod cli;
 pub mod devtools;
 pub mod fs;
 pub mod process;

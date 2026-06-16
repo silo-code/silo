@@ -2,8 +2,7 @@ mod commands;
 #[cfg(target_os = "macos")]
 mod mac_keys;
 
-#[cfg(target_os = "macos")]
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -37,7 +36,22 @@ pub fn run() {
         );
     }
 
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // Single-instance must be the FIRST plugin (per its docs). A second `silo
+    // <path>` launch is forwarded here instead of opening a new window: we focus
+    // the running window and emit `cli:open` for the webview to act on. Desktop
+    // only — there is no second-launch model on mobile. The instance lock keys
+    // off the bundle identifier, so "Silo Dev" and "Silo" stay independent.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
+        commands::cli::focus_main_window(app);
+        if let Some(req) = commands::cli::resolve_cli_arg(&argv, &cwd) {
+            let _ = app.emit("cli:open", req);
+        }
+    }));
+
+    let builder = builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
@@ -52,8 +66,26 @@ pub fn run() {
 
     builder
         .manage(commands::terminal::TerminalState::new())
+        .manage(commands::cli::PendingLaunchArg::default())
         .setup(|app| {
             commands::watch::register(app.handle());
+
+            // Cold start: stash the `silo <path>` arg from *this* process's argv
+            // so the webview can drain it once it's listening (warm launches go
+            // through the single-instance `cli:open` emit instead).
+            {
+                let argv: Vec<String> = std::env::args().collect();
+                let cwd = std::env::current_dir()
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .unwrap_or_default();
+                if let Some(req) = commands::cli::resolve_cli_arg(&argv, &cwd) {
+                    if let Ok(mut guard) =
+                        app.state::<commands::cli::PendingLaunchArg>().0.lock()
+                    {
+                        *guard = Some(req);
+                    }
+                }
+            }
 
             // Dev-only automation RPC (Cargo feature `automation` + the
             // SILO_AUTOMATION env var both required). Excluded from release.
@@ -86,6 +118,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::cli::cli_consume_launch_args,
+            commands::cli::cli_install_shim,
             commands::devtools::open_devtools,
             commands::fs::fs_read_text,
             commands::fs::fs_read_bytes,

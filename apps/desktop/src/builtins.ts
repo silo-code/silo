@@ -8,6 +8,7 @@ import {
   themes,
   keybindings,
   about,
+  cliInstall,
   extensions,
   panelToggles,
   settingsButton,
@@ -56,6 +57,7 @@ const builtins: Extension[] = [
   updates,
   keybindings,
   about,
+  cliInstall,
   extensions,
 ];
 

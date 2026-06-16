@@ -46,6 +46,12 @@ export type { ModalProps } from "./Modal";
 export type { AppService } from "./app-service";
 export { getAppService } from "./app-service";
 
+// Install the `silo` shell command — privileged because it writes an executable
+// onto the user's PATH that points at the host binary; only the core
+// "Install `silo` command" action (`core.cli-install`) needs it, never a
+// silo.*/third-party extension. See services/tauri-cli.ts.
+export { installCliShim } from "../services/tauri-cli";
+
 // Reactive auto-update state — privileged because self-updating the installed
 // app (download + install a binary, relaunch) is a host/platform capability only
 // `core.updates` (and the app's "Check for Updates…" menu item) needs; not a
