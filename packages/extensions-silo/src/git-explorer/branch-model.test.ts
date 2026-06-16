@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { GitBranch } from "../git/git-api";
 import {
+  branchActions,
   filterBranches,
   isPublished,
   localNameFor,
@@ -104,5 +105,31 @@ describe("isPublished / remoteBranchNames", () => {
     );
     // never pushed → unpublished
     expect(isPublished(localWith("scratch", null), names)).toBe(false);
+  });
+});
+
+describe("branchActions", () => {
+  it("offers only checkout for a remote-tracking branch", () => {
+    expect(branchActions(remote("origin/feature"), false)).toEqual(["switch"]);
+  });
+
+  it("gives a non-current local the full set, push vs publish by published", () => {
+    expect(branchActions(local("feature"), true)).toEqual([
+      "switch",
+      "push",
+      "rename",
+      "delete",
+    ]);
+    expect(branchActions(local("feature"), false)).toEqual([
+      "switch",
+      "publish",
+      "rename",
+      "delete",
+    ]);
+  });
+
+  it("limits the current branch to push/publish (no switch/rename/delete)", () => {
+    expect(branchActions(local("main", true), true)).toEqual(["push"]);
+    expect(branchActions(local("main", true), false)).toEqual(["publish"]);
   });
 });

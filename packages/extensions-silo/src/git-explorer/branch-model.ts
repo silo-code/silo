@@ -55,3 +55,25 @@ export function isPublished(
 ): boolean {
   return branch.upstream != null && remoteNames.has(branch.upstream);
 }
+
+/** A row action offered for a branch (drives the row context menu). */
+export type BranchAction = "switch" | "push" | "publish" | "rename" | "delete";
+
+/**
+ * The actions that apply to a branch, in display order. A **remote-tracking**
+ * branch only offers `switch` (check it out as a local branch). The **current**
+ * branch can't switch/rename/delete — only push/publish. Any other **local**
+ * branch gets the full set. `published` (see {@link isPublished}) picks `push`
+ * vs `publish`.
+ */
+export function branchActions(
+  branch: GitBranch,
+  published: boolean,
+): BranchAction[] {
+  if (branch.remote) return ["switch"];
+  const actions: BranchAction[] = [];
+  if (!branch.current) actions.push("switch");
+  actions.push(published ? "push" : "publish");
+  if (!branch.current) actions.push("rename", "delete");
+  return actions;
+}

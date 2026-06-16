@@ -8,10 +8,15 @@ import {
   Plus,
   Trash,
 } from "@phosphor-icons/react";
-import type { ExtensionContext } from "@silo-code/sdk";
+import {
+  useFocusGroup,
+  type ExtensionContext,
+  type MenuEntry,
+} from "@silo-code/sdk";
 import type { GitBranch, GitLogEntry } from "../git/git-api";
 import { getGitApi } from "./git-runtime";
 import {
+  branchActions,
   filterBranches,
   isPublished,
   localNameFor,
@@ -83,6 +88,25 @@ export function BranchManager({
     () => remoteBranchNames(branches ?? []),
     [branches],
   );
+
+  // Roving keyboard nav over the list (same as the side panels): the list is a
+  // single Tab stop, ↑/↓/Home/End move between rows, and Enter switches. Entry
+  // parks on the current branch. ArrowDown from the filter box drops into it.
+  const currentIndex = visible.findIndex((b) => b.current);
+  const list = useFocusGroup({
+    count: visible.length,
+    start: currentIndex >= 0 ? currentIndex : 0,
+    orientation: "vertical",
+    onActivate: (i) => {
+      const b = visible[i];
+      if (b) void switchTo(b);
+    },
+    // ContextMenu key / Shift+F10 → the row's action menu, anchored to the row.
+    onMenu: (i, anchor) => {
+      const b = visible[i];
+      if (b) openBranchMenu(b, { anchor });
+    },
+  });
 
   // The live provider, or a notify + null so handlers can bail gracefully.
   function api() {
@@ -281,6 +305,47 @@ export function BranchManager({
     }
   }
 
+  // The row context menu — the keyboard path to the row actions (ContextMenu
+  // key / Shift+F10 via the focus group, or right-click), mirroring the hover
+  // buttons so keyboard users aren't locked out of push/rename/delete.
+  function branchMenuItems(b: GitBranch): MenuEntry[] {
+    const acts = branchActions(b, isPublished(b, remoteNames));
+    const items: MenuEntry[] = [];
+    if (acts.includes("switch")) {
+      items.push({
+        label: b.remote ? "Check out as local branch" : "Switch to branch",
+        run: () => void switchTo(b),
+      });
+    }
+    if (acts.includes("push")) {
+      items.push({ label: "Push", run: () => void pushBranch(b) });
+    }
+    if (acts.includes("publish")) {
+      items.push({ label: "Publish", run: () => void pushBranch(b) });
+    }
+    if (acts.includes("rename") || acts.includes("delete")) {
+      items.push({ type: "separator" });
+      if (acts.includes("rename")) {
+        items.push({ label: "Rename…", run: () => void rename(b) });
+      }
+      if (acts.includes("delete")) {
+        items.push({ label: "Delete", danger: true, run: () => void del(b) });
+      }
+    }
+    return items;
+  }
+
+  // Open a row's menu — at the cursor for a right-click, anchored to the row for
+  // a keyboard invocation (`toggle: false` so a stray duplicate event re-opens).
+  function openBranchMenu(
+    b: GitBranch,
+    placement: { at?: { x: number; y: number }; anchor?: HTMLElement | null },
+  ) {
+    const items = branchMenuItems(b);
+    if (items.length === 0) return;
+    void ctx.ui.showMenu({ items, toggle: false, ...placement });
+  }
+
   return (
     <div className="git-branch-modal">
       <input
@@ -289,13 +354,19 @@ export function BranchManager({
         placeholder="Filter branches…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            list.focusItem(currentIndex >= 0 ? currentIndex : 0);
+          }
+        }}
         autoCapitalize="off"
         autoCorrect="off"
         autoComplete="off"
         spellCheck={false}
       />
 
-      <div className="git-branch-list">
+      <div className="git-branch-list" {...list.containerProps}>
         {branches === null && (
           <div className="git-branch-loader">
             <ArrowsClockwise size={22} className="git-branch-spin" />
@@ -306,20 +377,24 @@ export function BranchManager({
           <div className="git-branch-empty">No matching branches.</div>
         )}
         {(branches ?? []).length > 0 &&
-          visible.map((b) => (
+          visible.map((b, i) => (
             <div
               key={(b.remote ? "r:" : "l:") + b.name}
               className={`git-branch-row${b.current ? " current" : ""}`}
               role="button"
-              tabIndex={0}
               title={b.current ? "Current branch" : `Switch to ${b.name}`}
               onClick={() => void switchTo(b)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  void switchTo(b);
+              onContextMenu={(e) => {
+                e.preventDefault();
+                // Right-click opens at the cursor; a keyboard-invoked
+                // contextmenu (button !== 2) anchors to the row instead.
+                if (e.button === 2) {
+                  openBranchMenu(b, { at: { x: e.clientX, y: e.clientY } });
+                } else {
+                  openBranchMenu(b, { anchor: e.currentTarget });
                 }
               }}
+              {...list.getItemProps(i)}
             >
               <span className="git-branch-glyph">
                 {b.remote ? <Cloud size={15} /> : <GitBranchIcon size={15} />}
@@ -339,6 +414,7 @@ export function BranchManager({
                         ? `Push ${b.name}`
                         : `Publish ${b.name}`
                     }
+                    tabIndex={-1}
                     disabled={pushing === b.name}
                     onClick={() => void pushBranch(b)}
                   >
@@ -354,6 +430,7 @@ export function BranchManager({
                         type="button"
                         className="git-branch-action"
                         title="Rename branch"
+                        tabIndex={-1}
                         onClick={() => void rename(b)}
                       >
                         <PencilSimple size={14} />
@@ -362,6 +439,7 @@ export function BranchManager({
                         type="button"
                         className="git-branch-action danger"
                         title="Delete branch"
+                        tabIndex={-1}
                         onClick={() => void del(b)}
                       >
                         <Trash size={14} />

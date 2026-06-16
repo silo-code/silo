@@ -14,6 +14,7 @@ import {
   pushModal,
   removeModal,
 } from "./modal-service";
+import { getMenu } from "./menu-controller";
 import { TABBABLE } from "./focus-dom";
 
 // The SDK `<Modal>` — host-owned dialog chrome for arbitrary custom content,
@@ -120,6 +121,11 @@ export function Modal({
     if (!isTop) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape" && dismissible) {
+        // A menu open on top of the modal owns Escape — let it close first, and
+        // the modal closes on the next Escape. Both listen on document/capture
+        // and the modal's listener was registered first, so without this the
+        // modal would close out from under the open menu.
+        if (getMenu()) return;
         e.preventDefault();
         onClose();
         return;
@@ -169,6 +175,27 @@ export function Modal({
       >
         {title != null && <div className="silo-modal-title">{title}</div>}
         {children}
+        {/* Close affordance for dismissible modals — last in the DOM so it
+            never steals the initial focus from the modal's real first control,
+            but visually pinned to the top-right corner. Bare modals own their
+            own chrome, so they opt out. */}
+        {dismissible && !bare && (
+          <button
+            type="button"
+            className="silo-modal-close"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path
+                d="M4 4l8 8M12 4l-8 8"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        )}
       </div>
     </div>,
     document.body,
