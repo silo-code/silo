@@ -48,16 +48,19 @@ designed. As a primitive ships, its badge flips from
 Features that ship built-in but are implemented as **extensions** on the
 primitives above — so a third party could build the same.
 
-| Feature                | Status                               | Built on                            | Publishes     |
-| ---------------------- | ------------------------------------ | ----------------------------------- | ------------- |
-| Git                    | <Badge type="tip" text="stable" />   | `process.exec` + `files`            | `GitAPI`      |
-| Markdown Preview       | <Badge type="tip" text="stable" />   | `registerEditor` + `files`          | —             |
-| Terminal               | <Badge type="info" text="planned" /> | `process` sessions + panel          | `TerminalAPI` |
-| Theme management       | <Badge type="info" text="planned" /> | `theme`-read + `files` + `settings` | `ThemeAPI`    |
-| Search (find-in-files) | <Badge type="tip" text="stable" />   | `search` + `editors`                | —             |
+| Feature                | Status                             | Built on                        | Publishes |
+| ---------------------- | ---------------------------------- | ------------------------------- | --------- |
+| Git                    | <Badge type="tip" text="stable" /> | `process.exec` + `files`        | `GitAPI`  |
+| Markdown Preview       | <Badge type="tip" text="stable" /> | `registerEditor` + `files`      | —         |
+| Terminal               | <Badge type="tip" text="stable" /> | `process` sessions + dock panel | —         |
+| Theme management       | <Badge type="tip" text="stable" /> | `theme` + `files` + `ui`        | —         |
+| Search (find-in-files) | <Badge type="tip" text="stable" /> | `search` + `editors`            | —         |
 
-> Today these still live partly inside the host; the work to move them out is
-> tracked in the repo. The decisions behind the model are recorded as ADRs in
+> Each ships as a real extension package (`core.*` / `silo.*`) that touches the
+> app only through `ctx` — the same surface a third party gets. The core
+> primitives they lean on (the terminal's `process` sessions, the theme domain
+> service) still live in the host; that split is by design. The decisions behind
+> the model are recorded as ADRs in
 > [`docs/decisions/`](https://github.com/silo-code/silo/tree/main/docs/decisions).
 
 ## Extension distribution <a id="extension-distribution"></a>
@@ -67,7 +70,7 @@ How a third-party extension gets from a package into the running app. See
 
 | Capability                                           | Status                               |                                                                     |
 | ---------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------- |
-| Author against `@silo-code/sdk` from npm             | <Badge type="info" text="planned" /> | [docs](/guide/publishing-an-extension#the-build-contract-externals) |
+| Author against `@silo-code/sdk` from npm             | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#the-build-contract-externals) |
 | Install from local folder                            | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
 | Enable / disable / uninstall (runtime)               | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
 | First-party built-ins listed (disable-only, branded) | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#install-enable-uninstall)     |
