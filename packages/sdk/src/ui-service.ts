@@ -484,4 +484,19 @@ export interface UiService {
    * ```
    */
   openExternal(url: string): Promise<void>;
+  /**
+   * The text currently selected in the **focused surface** — the active editor
+   * or a focused terminal — or `null` when nothing is selected. Reads the
+   * most-recently-focused of the two, so a command (e.g. "Find in Files") can
+   * seed itself with whatever the user has highlighted regardless of which
+   * surface has focus. Returns `null` (never throws) when no surface is focused
+   * or the selection is empty.
+   *
+   * @example
+   * ```ts
+   * const seed = ctx.ui.getActiveSelectionText();
+   * if (seed) runSearch(seed);
+   * ```
+   */
+  getActiveSelectionText(): string | null;
 }

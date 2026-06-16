@@ -415,3 +415,31 @@ try {
   ctx.ui.notify("warn", "That link can't be opened.");
 }
 ```
+
+***
+
+### getActiveSelectionText()
+
+```ts
+getActiveSelectionText(): string | null;
+```
+
+Defined in: [packages/sdk/src/ui-service.ts:501](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L501)
+
+The text currently selected in the **focused surface** — the active editor
+or a focused terminal — or `null` when nothing is selected. Reads the
+most-recently-focused of the two, so a command (e.g. "Find in Files") can
+seed itself with whatever the user has highlighted regardless of which
+surface has focus. Returns `null` (never throws) when no surface is focused
+or the selection is empty.
+
+#### Returns
+
+`string` \| `null`
+
+#### Example
+
+```ts
+const seed = ctx.ui.getActiveSelectionText();
+if (seed) runSearch(seed);
+```

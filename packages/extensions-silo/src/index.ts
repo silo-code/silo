@@ -10,6 +10,7 @@
 export { extension as imageViewer } from "./image-viewer";
 export { extension as markdownPreview } from "./markdown-preview";
 export { extension as fileExplorer } from "./file-explorer";
+export { extension as fileSearch } from "./file-search";
 export { extension as git } from "./git";
 export { extension as gitExplorer } from "./git-explorer";
 export { extension as themePresets } from "./theme-presets";

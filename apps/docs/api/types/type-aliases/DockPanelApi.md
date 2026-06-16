@@ -4,7 +4,7 @@
 type DockPanelApi = IDockviewPanelProps["api"];
 ```
 
-Defined in: [packages/sdk/src/types.ts:56](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L56)
+Defined in: [packages/sdk/src/types.ts:57](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L57)
 
 The dockview panel API handed to a [DockPanelKind](../interfaces/DockPanelKind.md) component — used to
 drive the panel's own tab (title, close, focus). Re-exported from `dockview`

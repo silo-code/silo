@@ -64,3 +64,17 @@ export function focusSidePaneActiveTab(slot: string): boolean {
   const id = controllers.get(slot)?.activeId();
   return id ? focusTab(slot, id) : false;
 }
+
+/**
+ * Make `panelId` the active tab in `slot` if that pane is currently mounted —
+ * the same path a tab click takes. Returns false when the slot has no live
+ * controller yet (e.g. the panel was just made visible this tick); callers
+ * should also persist `store.activeSidePanelTabs[slot]` so the pane selects it
+ * once it mounts.
+ */
+export function activateSidePaneTab(slot: string, panelId: string): boolean {
+  const ctrl = controllers.get(slot);
+  if (!ctrl) return false;
+  ctrl.activate(panelId);
+  return true;
+}

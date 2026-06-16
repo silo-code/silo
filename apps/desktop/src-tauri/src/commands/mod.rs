@@ -4,6 +4,7 @@ pub mod automation;
 pub mod devtools;
 pub mod fs;
 pub mod process;
+pub mod search;
 pub mod watch;
 pub mod session_backend;
 // Self-owned PTY session host backend (RFC 0010). Unix-only; opt-in at runtime

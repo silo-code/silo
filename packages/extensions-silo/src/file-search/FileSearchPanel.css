@@ -1,0 +1,217 @@
+.fsearch-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--silo-font-ui);
+  /* Inherit the host's side-panel font size (it sets the right-panel size on the
+     column body) — don't pin it, or the panel renders smaller than its siblings.
+     Secondary text below scales down with `em` so it tracks that size. */
+  color: var(--silo-color-text);
+}
+
+.fsearch-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── controls ─────────────────────────────────────────────────────────────── */
+
+.fsearch-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+}
+
+.fsearch-input-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fsearch-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  /* Match the git panel's commit textarea so side-panel inputs are consistent. */
+  padding: 6px 8px;
+  font-family: var(--silo-font-ui);
+  font-size: inherit;
+  outline: none;
+}
+
+.fsearch-input:focus {
+  border-color: var(--silo-color-accent);
+}
+
+.fsearch-input::placeholder {
+  color: var(--silo-color-text-lo);
+}
+
+/* Reserve room on the right for the toggle buttons overlaid in the query box. */
+.fsearch-input-row .fsearch-input {
+  padding-right: 78px;
+}
+
+.fsearch-toggles {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+}
+
+.fsearch-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-mono);
+  font-size: calc(1em - 2px);
+  cursor: pointer;
+}
+
+.fsearch-toggle:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text);
+}
+
+.fsearch-toggle.on {
+  color: var(--silo-color-accent);
+  border-color: var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 16%, transparent);
+}
+
+.fsearch-field-label {
+  margin-top: 2px;
+  color: var(--silo-color-text);
+  font-size: calc(1em - 2px);
+}
+
+.fsearch-glob {
+  font-family: var(--silo-font-mono);
+  font-size: calc(1em - 1px);
+}
+
+/* ── status line ──────────────────────────────────────────────────────────── */
+
+.fsearch-status {
+  padding: 2px 10px 6px;
+  margin-bottom: 8px;
+  color: var(--silo-color-text-hi);
+  font-size: calc(1em - 1px);
+}
+
+.fsearch-error {
+  color: var(--silo-color-err);
+  white-space: pre-wrap;
+}
+
+/* ── results ──────────────────────────────────────────────────────────────── */
+
+.fsearch-results {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  /* Breathing room between file groups, and a horizontal inset so a focused
+     row's ring floats off the panel edges instead of being clipped by the
+     scroll container (mirrors the file-explorer tree). */
+  gap: 10px;
+  padding: 2px 6px 6px;
+}
+
+.fsearch-file-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 3px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-ui);
+  font-size: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.fsearch-file-head:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.fsearch-chev,
+.fsearch-file-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--silo-color-text-hi);
+  flex-shrink: 0;
+}
+
+.fsearch-file-name {
+  color: var(--silo-color-text-hi);
+  flex-shrink: 0;
+}
+
+.fsearch-file-dir {
+  color: var(--silo-color-text);
+  font-size: calc(1em - 1px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fsearch-file-count {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: var(--silo-radius-sm);
+  background: var(--silo-color-button-bg);
+  color: var(--silo-color-text-lo);
+  font-size: calc(1em - 2px);
+  text-align: center;
+}
+
+.fsearch-match {
+  display: block;
+  width: 100%;
+  padding: 2px 8px 2px 24px;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-mono);
+  font-size: calc(1em - 1px);
+  cursor: pointer;
+  text-align: left;
+}
+
+.fsearch-match:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.fsearch-match-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fsearch-hit {
+  background: color-mix(in srgb, var(--silo-color-warn) 38%, transparent);
+  color: var(--silo-color-text-hi);
+  border-radius: 2px;
+}

@@ -12,6 +12,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import type { IDockviewPanelProps } from "dockview";
 import {
   DND_MIME,
+  type Disposable,
   type EditorService,
   type ExtensionContext,
   type MenuEntry,
@@ -25,6 +26,7 @@ import {
   retryFocus,
   useFocusOnActive,
   onTerminalForeground,
+  registerSelectionSource,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
 import { findFileLinks, getHomeDir } from "./terminal-links";
@@ -93,6 +95,8 @@ export function TerminalPanel(
   const { ctx } = props;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const liveRef = useRef<LiveRefs | null>(null);
+  // Active disposer for this terminal's selection source (registered while focused).
+  const selSourceRef = useRef<Disposable | null>(null);
   // Live working directory of the terminal's foreground process (RFC 0010 N2),
   // updated from foreground events. The ref feeds "New Terminal Here" (sync,
   // no re-render needed); the state drives the breadcrumb bar.
@@ -354,6 +358,28 @@ export function TerminalPanel(
           session,
           sessionId,
         };
+
+        // Publish the terminal's selection to the active-selection registry
+        // while it has focus, so `ctx.ui.getActiveSelectionText()` (e.g. the
+        // Search panel's Cmd+Shift+F) can read it. Cleared on blur / teardown.
+        const onTermFocus = () => {
+          selSourceRef.current?.dispose();
+          selSourceRef.current = registerSelectionSource(
+            () => liveRef.current?.term.getSelection() || null,
+          );
+        };
+        const onTermBlur = () => {
+          selSourceRef.current?.dispose();
+          selSourceRef.current = null;
+        };
+        term.textarea?.addEventListener("focus", onTermFocus);
+        term.textarea?.addEventListener("blur", onTermBlur);
+        disposers.push(() => {
+          term.textarea?.removeEventListener("focus", onTermFocus);
+          term.textarea?.removeEventListener("blur", onTermBlur);
+          selSourceRef.current?.dispose();
+          selSourceRef.current = null;
+        });
 
         // Persist the serialized buffer (screen + scrollback) on a throttle so a
         // restart can restore it. A timer-driven flush (rather than persisting

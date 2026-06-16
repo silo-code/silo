@@ -46,4 +46,11 @@ export interface LayoutService {
   toggleSidePanel(location: SideLocation): void;
   /** Set a side column's collapsed state explicitly. */
   setSidePanelCollapsed(location: SideLocation, collapsed: boolean): void;
+  /**
+   * Reveal a registered side panel by its {@link SidePanel.id}: make it the
+   * active panel in its column and expand that column if collapsed. Use to bring
+   * a panel to the foreground from a command or keybinding (e.g. "Find in Files"
+   * focusing the Search panel). No-op if no panel with that id is registered.
+   */
+  revealSidePanel(id: string): void;
 }

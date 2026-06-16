@@ -26,6 +26,24 @@ export interface OpenFileOptions {
    * used and any existing tab's view is left unchanged.
    */
   viewType?: string;
+  /**
+   * Reveal and select a range when the editor opens — used to jump to a search
+   * match or a definition. Applied whether the tab is newly opened or already
+   * open (re-jumps an existing tab). All positions are **1-indexed**; `column`
+   * defaults to 1, and an omitted `endLine`/`endColumn` collapses the selection
+   * to a caret (just scrolls the line into view). Best-effort: editor views that
+   * can't honor a selection ignore it.
+   */
+  selection?: {
+    /** 1-indexed start line. */
+    line: number;
+    /** 1-indexed start column. Defaults to 1. */
+    column?: number;
+    /** 1-indexed end line. Defaults to `line`. */
+    endLine?: number;
+    /** 1-indexed end column. Defaults to `column`. */
+    endColumn?: number;
+  };
 }
 
 /**

@@ -10,6 +10,7 @@ import {
   prompt as promptDialog,
   showModal as showModalImpl,
 } from "./modal-service";
+import { getActiveSelectionText } from "./active-selection";
 import type { NotifyAction, NotifyOptions, UiService } from "@silo-code/sdk";
 
 // `ctx.ui` — the user-interaction domain. The host renders the chrome;
@@ -189,6 +190,9 @@ export function getUiService(): UiService {
         throw new Error(`openExternal: refusing to open URL: ${url}`);
       }
       await openExternalUrl(url);
+    },
+    getActiveSelectionText() {
+      return getActiveSelectionText();
     },
   };
   return service;

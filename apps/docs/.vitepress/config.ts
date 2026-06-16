@@ -40,6 +40,7 @@ const apiSidebar = [
       { text: "ctx.layout", link: "/api/state/layout" },
       { text: "ctx.files", link: "/api/files/" },
       { text: "ctx.process", link: "/api/process/" },
+      { text: "ctx.search", link: "/api/search/" },
       { text: "ctx.theme", link: "/api/theme/" },
       { text: "ctx.dnd", link: "/api/dnd/" },
       { text: "ctx.ui", link: "/api/ui/" },

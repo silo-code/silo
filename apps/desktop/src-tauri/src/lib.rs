@@ -100,6 +100,7 @@ pub fn run() {
             commands::watch::start_watch,
             commands::watch::stop_watch,
             commands::process::process_exec,
+            commands::search::search_files,
             commands::terminal::terminal_create,
             commands::terminal::terminal_write,
             commands::terminal::terminal_resize,

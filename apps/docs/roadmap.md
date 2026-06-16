@@ -35,6 +35,9 @@ designed. As a primitive ships, its badge flips from
 | `ctx.ui` (confirm / prompt)                    | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |
 | `ctx.ui.showModal` (custom modal content)      | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |
 | `ctx.ui.openExternal` (open a URL out)         | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |
+| `ctx.ui.getActiveSelectionText`                | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |
+| `ctx.search` (cross-file content search)       | <Badge type="tip" text="stable" />   | [docs](/api/search/)                 |
+| `ctx.search` (replace-in-files)                | <Badge type="info" text="planned" /> | [design](/api/search/#replace)       |
 | `ctx.ui` (quickPick / progress)                | <Badge type="info" text="planned" /> | [design](#ctx-ui)                    |
 | `ctx` events (typed `Event<T>`)                | <Badge type="info" text="planned" /> | [design](#ctx-events)                |
 | `ctx.settings` / configuration                 | <Badge type="info" text="planned" /> | —                                    |
@@ -51,7 +54,7 @@ primitives above — so a third party could build the same.
 | Markdown Preview       | <Badge type="tip" text="stable" />   | `registerEditor` + `files`          | —             |
 | Terminal               | <Badge type="info" text="planned" /> | `process` sessions + panel          | `TerminalAPI` |
 | Theme management       | <Badge type="info" text="planned" /> | `theme`-read + `files` + `settings` | `ThemeAPI`    |
-| Search (find-in-files) | <Badge type="info" text="planned" /> | `files`                             | `SearchAPI`   |
+| Search (find-in-files) | <Badge type="tip" text="stable" />   | `search` + `editors`                | —             |
 
 > Today these still live partly inside the host; the work to move them out is
 > tracked in the repo. The decisions behind the model are recorded as ADRs in

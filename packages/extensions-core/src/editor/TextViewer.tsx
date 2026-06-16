@@ -5,6 +5,7 @@ import type { editor as MonacoEditor } from "monaco-editor";
 import {
   DND_MIME,
   useServiceState,
+  type Disposable,
   type EditorProps,
   type ExtensionContext,
 } from "@silo-code/sdk";
@@ -27,8 +28,32 @@ import {
   useFocusOnActive,
   blurTextareaWithin,
   isTextareaFocusedWithin,
+  takePendingReveal,
+  peekPendingReveal,
+  onRevealRequest,
+  registerSelectionSource,
+  type RevealSelection,
 } from "@silo-code/extension-host/internal";
 import "./EditorPanel.css";
+
+/** Reveal + select a 1-indexed range, then focus — used to jump to a match. */
+function applyReveal(
+  editor: MonacoEditor.IStandaloneCodeEditor,
+  sel: RevealSelection,
+): void {
+  const line = Math.max(1, sel.line);
+  const column = Math.max(1, sel.column ?? 1);
+  const endLine = Math.max(line, sel.endLine ?? line);
+  const endColumn = Math.max(1, sel.endColumn ?? column);
+  editor.setSelection({
+    startLineNumber: line,
+    startColumn: column,
+    endLineNumber: endLine,
+    endColumn,
+  });
+  editor.revealLineInCenter(line);
+  editor.focus();
+}
 
 export function TextViewer({
   editorId,
@@ -65,6 +90,8 @@ export function TextViewer({
   // re-reading from disk when an untitled buffer is "save-as"d — we just
   // wrote the file ourselves so disk == in-memory.
   const loadedPathRef = useRef<string | null>(null);
+  // Active disposer for this editor's selection source (registered while focused).
+  const selSourceRef = useRef<Disposable | null>(null);
 
   filePathRef.current = filePath;
   wsIdRef.current = wsId;
@@ -279,8 +306,46 @@ export function TextViewer({
           ed.getScrollLeft(),
         );
       }
+      // Drop any lingering selection-source registration for this editor.
+      selSourceRef.current?.dispose();
+      selSourceRef.current = null;
     };
   }, [editorId]);
+
+  // Apply a pending reveal (a clicked search result) — but only once Monaco
+  // holds the TARGET file's content. Gated on loadedPathRef so we never jump
+  // using a previous file's still-loaded model: a click can land before the
+  // content reload (opening a not-yet-open file, or reusing the preview tab).
+  function maybeApplyReveal(): void {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const p = peekPendingReveal(editorId);
+    if (!p || loadedPathRef.current !== p.path) return;
+    takePendingReveal(editorId);
+    // Next frame so Monaco's layout (and any just-applied model value) is settled.
+    requestAnimationFrame(() => {
+      if (editorRef.current) applyReveal(editorRef.current, p.selection);
+    });
+  }
+
+  // Live re-check on a reveal request — applies now if this file is already
+  // open (content present), else defers to the content-load effect below.
+  useEffect(() => {
+    const sub = onRevealRequest((id) => {
+      if (id === editorId) maybeApplyReveal();
+    });
+    return () => sub.dispose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorId]);
+
+  // Once the target file's content lands in the model — initial load, or a
+  // preview-tab reuse that swapped the file — apply any pending reveal. React
+  // runs the child <Editor>'s value→model effect before this parent effect, so
+  // the model already holds the new content here.
+  useEffect(() => {
+    maybeApplyReveal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content]);
 
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -289,9 +354,16 @@ export function TextViewer({
     // so both stay in lockstep.
     setupMonacoEditor(monaco, editor);
 
-    // Restore persisted scroll position
+    // A pending reveal (opened via `ctx.editors.open(path, { selection })` — e.g.
+    // a clicked search result) wins over scroll restore: jump to and select the
+    // match instead of restoring scroll. maybeApplyReveal gates on the content
+    // being loaded; at mount the content is already present for this file.
+    const hasReveal = peekPendingReveal(editorId) !== undefined;
+
     const wsId = wsIdRef.current;
-    if (wsId) {
+    if (hasReveal) {
+      maybeApplyReveal();
+    } else if (wsId) {
       const pos = getEditorScrollPosition(wsId, editorId);
       if (pos) {
         requestAnimationFrame(() => {
@@ -300,6 +372,23 @@ export function TextViewer({
         });
       }
     }
+
+    // Publish this editor's selection to the active-selection registry while it
+    // has text focus, so `ctx.ui.getActiveSelectionText()` (e.g. the Search
+    // panel's Cmd+Shift+F) can read it. Cleared on blur / unmount.
+    editor.onDidFocusEditorText(() => {
+      selSourceRef.current?.dispose();
+      selSourceRef.current = registerSelectionSource(() => {
+        const ed = editorRef.current;
+        const s = ed?.getSelection();
+        if (!ed || !s) return null;
+        return ed.getModel()?.getValueInRange(s) ?? null;
+      });
+    });
+    editor.onDidBlurEditorText(() => {
+      selSourceRef.current?.dispose();
+      selSourceRef.current = null;
+    });
 
     // Persist scroll position on change (debounced)
     let scrollTimer: number | null = null;

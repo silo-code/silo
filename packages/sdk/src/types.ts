@@ -26,6 +26,7 @@ import type { LayoutService } from "./layout-service";
 import type { ProcessService } from "./process-service";
 import type { TerminalService } from "./terminal-service";
 import type { FileService } from "./file-service";
+import type { SearchService } from "./search-service";
 import type { ThemeService, ThemePreset } from "./theme-service";
 import type { DndService } from "./dnd-service";
 import type { UiService } from "./ui-service";
@@ -426,6 +427,13 @@ export interface ExtensionContext {
    * for the filesystem; watcher lifecycle is host-owned (see {@link FileService}).
    */
   readonly files: FileService;
+  /**
+   * Cross-file content search over the workspace — the core primitive under the
+   * Search panel (and future quick-open / find-references). Runs a native search
+   * engine in the host (off the UI thread), honoring `.gitignore`, and resolves
+   * with matches grouped by file. See {@link SearchService}.
+   */
+  readonly search: SearchService;
   /**
    * Consumer API for the theme domain — read the merged preset set + active
    * theme, switch themes, and manage custom themes. Read via getState /
