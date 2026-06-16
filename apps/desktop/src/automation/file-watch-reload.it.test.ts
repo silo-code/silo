@@ -5,6 +5,10 @@
 // watch-ownership move (file-explorer-owned watch -> host-owned, ref-counted)
 // must NOT regress — written against current behavior so it pins it.
 //
+// Also covers the deleted-file tab treatment: when the watched file is removed
+// from disk, the tab gets the `deleted-title` class (VS Code's strikethrough
+// tab) and clears it once the file reappears — see TextViewer/DockTab.
+//
 // Requires the dev app running (`npm run app:dev`). When none is reachable the
 // suite skips, so `npm test` stays green without it; `npm run test:it` expects
 // a live app.
@@ -42,6 +46,21 @@ async function waitFor<T>(
     last = await fn();
   }
   return last;
+}
+
+// The tab's class list, for the editor whose title contains `name` — ground
+// truth for the deleted-file strikethrough (`deleted-title`, see CenterDock.css).
+// Null if no matching tab is mounted.
+function tabClassName(name: string): Promise<string | null> {
+  return silo.eval<string | null>(
+    `(() => {
+      const spans = [...document.querySelectorAll(
+        '[data-testid="dockview-dv-default-tab"] .dv-default-tab-content'
+      )];
+      const span = spans.find((s) => s.textContent.includes(${JSON.stringify(name)}));
+      return span ? span.className : null;
+    })()`,
+  );
 }
 
 describe.skipIf(!available)("file-watch -> editor reload", () => {
@@ -88,5 +107,36 @@ describe.skipIf(!available)("file-watch -> editor reload", () => {
     );
     expect(model?.value).toContain("changed-on-disk");
     expect(model?.value).not.toContain("original");
+  });
+
+  it("marks the tab deleted when the file is removed from disk", async () => {
+    await rm(filePath);
+
+    const className = await waitFor(
+      () => tabClassName(fileName),
+      (c) => !!c?.includes("deleted-title"),
+    );
+    expect(className).toContain("deleted-title");
+
+    // The buffer itself is untouched — still shows the last-known content,
+    // not cleared out just because the file vanished.
+    const model = await silo.editorContent(fileName);
+    expect(model?.value).toContain("changed-on-disk");
+  });
+
+  it("clears the deleted mark once the file reappears on disk", async () => {
+    await writeFile(filePath, "recreated\n");
+
+    const className = await waitFor(
+      () => tabClassName(fileName),
+      (c) => !!c && !c.includes("deleted-title"),
+    );
+    expect(className).not.toContain("deleted-title");
+
+    const model = await waitFor(
+      () => silo.editorContent(fileName),
+      (m) => !!m && m.value.includes("recreated"),
+    );
+    expect(model?.value).toContain("recreated");
   });
 });
