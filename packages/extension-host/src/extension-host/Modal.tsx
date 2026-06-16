@@ -14,6 +14,7 @@ import {
   pushModal,
   removeModal,
 } from "./modal-service";
+import { getMenu } from "./menu-controller";
 import { TABBABLE } from "./focus-dom";
 
 // The SDK `<Modal>` — host-owned dialog chrome for arbitrary custom content,
@@ -120,6 +121,11 @@ export function Modal({
     if (!isTop) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape" && dismissible) {
+        // A menu open on top of the modal owns Escape — let it close first, and
+        // the modal closes on the next Escape. Both listen on document/capture
+        // and the modal's listener was registered first, so without this the
+        // modal would close out from under the open menu.
+        if (getMenu()) return;
         e.preventDefault();
         onClose();
         return;
