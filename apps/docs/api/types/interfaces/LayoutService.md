@@ -90,3 +90,28 @@ Set a side column's collapsed state explicitly.
 #### Returns
 
 `void`
+
+***
+
+### revealSidePanel()
+
+```ts
+revealSidePanel(id): void;
+```
+
+Defined in: [packages/sdk/src/layout-service.ts:55](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L55)
+
+Reveal a registered side panel by its [SidePanel.id](SidePanel.md#id): make it the
+active panel in its column and expand that column if collapsed. Use to bring
+a panel to the foreground from a command or keybinding (e.g. "Find in Files"
+focusing the Search panel). No-op if no panel with that id is registered.
+
+#### Parameters
+
+##### id
+
+`string`
+
+#### Returns
+
+`void`

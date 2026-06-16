@@ -17,6 +17,11 @@ ctx.editors.open("/path/to/file.ts");
 // open it as a (single-click) preview tab
 ctx.editors.open("/path/to/file.ts", { preview: true });
 
+// jump to and select a match (e.g. from a search result) — 1-indexed
+ctx.editors.open("/path/to/file.ts", {
+  selection: { line: 42, column: 8, endLine: 42, endColumn: 13 },
+});
+
 // a command that saves the focused editor
 ctx.registerCommand({
   id: "acme.save",
@@ -41,7 +46,11 @@ ctx.registerCommand({
 | [`registerSaveHandler(editorId, handlers)`](/api/types/interfaces/EditorService#registersavehandler)           | Register an editor's `save`/`saveAs` so the active-editor commands dispatch to it. Returns a [`Disposable`](/api/types/interfaces/Disposable).                                |
 
 `open` / `openUntitled` take [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions)
-(`workspaceId`, `preview`, `viewType`).
+(`workspaceId`, `preview`, `viewType`, `selection`). Pass `selection` (1-indexed
+`line`/`column`, optional `endLine`/`endColumn`) to reveal and select a range on
+open — the editor jumps to it whether the tab is newly opened or already open
+(a re-jump). This is how a clicked [search result](/api/search/) lands on its
+exact match.
 
 ## A file can have more than one view
 

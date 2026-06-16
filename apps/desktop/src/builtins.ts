@@ -17,6 +17,7 @@ import {
   imageViewer,
   markdownPreview,
   fileExplorer,
+  fileSearch,
   git,
   gitExplorer,
   themePresets,
@@ -42,6 +43,7 @@ const builtins: Extension[] = [
   markdownPreview,
   workspaces,
   fileExplorer,
+  fileSearch,
   // The git provider must register before the view (and the diff editor) that
   // consume its published GitAPI.
   git,

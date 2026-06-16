@@ -37,6 +37,10 @@ tauri-plugin-process = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 notify = "8"
+# Content search backend for `ctx.search` — ripgrep's engine (matcher + searcher)
+# and its `.gitignore`-aware directory walker.
+grep = "0.3"
+ignore = "0.4"
 portable-pty = "0.8"
 uuid = { version = "1", features = ["v4", "serde"] }
 dashmap = "5"

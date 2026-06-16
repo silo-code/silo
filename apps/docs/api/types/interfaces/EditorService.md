@@ -1,6 +1,6 @@
 # Interface: EditorService
 
-Defined in: [packages/sdk/src/editor-service.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L137)
+Defined in: [packages/sdk/src/editor-service.ts:155](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L155)
 
 The editor & document domain, exposed as [ExtensionContext.editors](ExtensionContext.md#editors).
 Open files into editor tabs, drive the active editor (save / close), and let
@@ -15,7 +15,7 @@ editors — prefer it over reaching into workspace/editor state.
 open(path, opts?): void;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:142](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L142)
+Defined in: [packages/sdk/src/editor-service.ts:160](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L160)
 
 Open a file in an editor tab. Promotes an existing preview, focuses an
 already-open tab, or opens a new one.
@@ -42,7 +42,7 @@ already-open tab, or opens a new one.
 openUntitled(opts?): void;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:144](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L144)
+Defined in: [packages/sdk/src/editor-service.ts:162](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L162)
 
 Open a fresh untitled editor.
 
@@ -64,7 +64,7 @@ Open a fresh untitled editor.
 openDiff(spec, opts?): void;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:149](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L149)
+Defined in: [packages/sdk/src/editor-service.ts:167](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L167)
 
 Open a diff view. The content is supplied by the [provider](OpenDiffSpec.md#providerid)
 named in `spec` — the editor itself is content-agnostic.
@@ -91,7 +91,7 @@ named in `spec` — the editor itself is content-agnostic.
 save(): boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:151](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L151)
+Defined in: [packages/sdk/src/editor-service.ts:169](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L169)
 
 Save the active editor. Returns false if there's no active saveable editor.
 
@@ -107,7 +107,7 @@ Save the active editor. Returns false if there's no active saveable editor.
 saveAs(): boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:153](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L153)
+Defined in: [packages/sdk/src/editor-service.ts:171](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L171)
 
 Save-as the active editor. Returns false if unavailable.
 
@@ -123,7 +123,7 @@ Save-as the active editor. Returns false if unavailable.
 closeActive(): boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:155](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L155)
+Defined in: [packages/sdk/src/editor-service.ts:173](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L173)
 
 Close the active dock panel. Returns false if there's nothing to close.
 
@@ -139,7 +139,7 @@ Close the active dock panel. Returns false if there's nothing to close.
 editorsFor(path): EditorViewInfo[];
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L164)
+Defined in: [packages/sdk/src/editor-service.ts:182](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L182)
 
 List the editor views that match `path` (or `null` for an untitled buffer),
 highest-priority first, each flagged whether it's the one the host resolves
@@ -169,7 +169,7 @@ setViewType(
    opts?): void;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:173](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L173)
+Defined in: [packages/sdk/src/editor-service.ts:191](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L191)
 
 Switch an already-open editor tab to a different view in place — without
 closing and reopening it — and persist the choice on the tab. No-op if the
@@ -206,7 +206,7 @@ presenter.
 registerSaveHandler(editorId, handlers): Disposable;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:183](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L183)
+Defined in: [packages/sdk/src/editor-service.ts:201](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L201)
 
 Register save handlers for an editor instance (by its `editorId`), so the
 active-editor `save` / `saveAs` dispatch to it while it's focused. Dispose
@@ -234,7 +234,7 @@ to unregister (do this when the editor unmounts).
 registerDiffContentProvider(providerId, provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:192](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L192)
+Defined in: [packages/sdk/src/editor-service.ts:210](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L210)
 
 Register a [DiffContentProvider](../type-aliases/DiffContentProvider.md) under `providerId`. A diff opened
 with that `providerId` (see [OpenDiffSpec](OpenDiffSpec.md)) resolves its two sides

@@ -27,12 +27,13 @@ function MyWidget() {
 On [`ctx.layout`](/api/types/interfaces/LayoutService). Method names link to the
 full signature.
 
-| Method                                                                                                    | What it does                                                                 |
-| --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| [`getState()`](/api/types/interfaces/LayoutService#getstate)                                              | Current frozen [`LayoutState`](/api/types/interfaces/LayoutState).           |
-| [`subscribe(listener)`](/api/types/interfaces/LayoutService#subscribe)                                    | Observe changes; returns a [`Disposable`](/api/types/interfaces/Disposable). |
-| [`toggleSidePanel(location)`](/api/types/interfaces/LayoutService#togglesidepanel)                        | Toggle a side column collapsed/expanded.                                     |
-| [`setSidePanelCollapsed(location, collapsed)`](/api/types/interfaces/LayoutService#setsidepanelcollapsed) | Set a column's collapsed state explicitly.                                   |
+| Method                                                                                                    | What it does                                                                                                               |
+| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [`getState()`](/api/types/interfaces/LayoutService#getstate)                                              | Current frozen [`LayoutState`](/api/types/interfaces/LayoutState).                                                         |
+| [`subscribe(listener)`](/api/types/interfaces/LayoutService#subscribe)                                    | Observe changes; returns a [`Disposable`](/api/types/interfaces/Disposable).                                               |
+| [`toggleSidePanel(location)`](/api/types/interfaces/LayoutService#togglesidepanel)                        | Toggle a side column collapsed/expanded.                                                                                   |
+| [`setSidePanelCollapsed(location, collapsed)`](/api/types/interfaces/LayoutService#setsidepanelcollapsed) | Set a column's collapsed state explicitly.                                                                                 |
+| [`revealSidePanel(id)`](/api/types/interfaces/LayoutService#revealsidepanel)                              | Bring a registered panel to the foreground — make it active in its column and expand that column. No-op for an unknown id. |
 
 ## State
 

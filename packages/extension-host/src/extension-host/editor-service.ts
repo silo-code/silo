@@ -11,6 +11,7 @@ import { contextKeys } from "./context-keys";
 import { closeActivePanel } from "../docked/dock-api-registry";
 import { registerDiffContentProvider as registerDiffContentProviderImpl } from "./diff-content-providers";
 import { editorRegistry, resolveEditor } from "./editor-registry";
+import { requestReveal } from "./editor-reveal";
 import type { EditorService } from "@silo-code/sdk";
 
 // `ctx.editors` — the editor & document domain. The public contract lives in
@@ -32,8 +33,14 @@ export function getEditorService(): EditorService {
     open(path, opts) {
       const id = opts?.workspaceId ?? store.activeWorkspaceId;
       if (!id) return;
-      if (opts?.preview) openPreviewEditor(id, path, opts?.viewType);
-      else openEditor(id, path, opts?.viewType);
+      const rec = opts?.preview
+        ? openPreviewEditor(id, path, opts?.viewType)
+        : openEditor(id, path, opts?.viewType);
+      // Jump to the requested match once the view has the TARGET file's content
+      // (a click can precede the content load when a not-yet-open file opens or
+      // reuses the preview tab). Keyed by editor id + the file's resolved path.
+      if (opts?.selection)
+        requestReveal(rec.id, rec.filePath ?? path, opts.selection);
     },
     openUntitled(opts) {
       const id = opts?.workspaceId ?? store.activeWorkspaceId;

@@ -1,6 +1,6 @@
 # Interface: ExtensionManifest
 
-Defined in: [packages/sdk/src/types.ts:497](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L497)
+Defined in: [packages/sdk/src/types.ts:505](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L505)
 
 Display metadata for an extension, surfaced in the **Extensions** settings
 page (name, one-line description, version, and [\* \| publisher](#publisher) brand). For built-in extensions this is declared in-code on the
@@ -18,7 +18,7 @@ namespace for the publisher) when one is absent.
 readonly optional name?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:499](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L499)
+Defined in: [packages/sdk/src/types.ts:507](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L507)
 
 Human-friendly name shown in the Extensions list (falls back to the id).
 
@@ -30,7 +30,7 @@ Human-friendly name shown in the Extensions list (falls back to the id).
 readonly optional description?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:501](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L501)
+Defined in: [packages/sdk/src/types.ts:509](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L509)
 
 One-line description shown beneath the name.
 
@@ -42,7 +42,7 @@ One-line description shown beneath the name.
 readonly optional version?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:503](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L503)
+Defined in: [packages/sdk/src/types.ts:511](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L511)
 
 Version string shown next to the name.
 
@@ -54,7 +54,7 @@ Version string shown next to the name.
 readonly optional publisher?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:510](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L510)
+Defined in: [packages/sdk/src/types.ts:518](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L518)
 
 The publisher/brand shown beside the name (e.g. `"Silo"`). Built-in
 extensions are always branded `"Silo"` by the host regardless of this field;

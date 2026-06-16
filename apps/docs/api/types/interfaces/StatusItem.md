@@ -1,6 +1,6 @@
 # Interface: StatusItem
 
-Defined in: [packages/sdk/src/types.ts:315](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L315)
+Defined in: [packages/sdk/src/types.ts:316](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L316)
 
 A widget in the status bar (the strip along the bottom of the window).
 
@@ -12,7 +12,7 @@ A widget in the status bar (the strip along the bottom of the window).
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:317](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L317)
+Defined in: [packages/sdk/src/types.ts:318](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L318)
 
 Unique id for this status item.
 
@@ -24,7 +24,7 @@ Unique id for this status item.
 alignment: "left" | "right";
 ```
 
-Defined in: [packages/sdk/src/types.ts:319](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L319)
+Defined in: [packages/sdk/src/types.ts:320](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L320)
 
 Which end of the status bar this item sits at.
 
@@ -36,7 +36,7 @@ Which end of the status bar this item sits at.
 optional priority?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:321](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L321)
+Defined in: [packages/sdk/src/types.ts:322](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L322)
 
 Sort order within its alignment group. Lower sorts first. Defaults to 0.
 
@@ -48,6 +48,6 @@ Sort order within its alignment group. Lower sorts first. Defaults to 0.
 component: ComponentType;
 ```
 
-Defined in: [packages/sdk/src/types.ts:323](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L323)
+Defined in: [packages/sdk/src/types.ts:324](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L324)
 
 The React component (renders its own content; no props).

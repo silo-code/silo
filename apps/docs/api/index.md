@@ -53,6 +53,7 @@ importing the store or touching the platform directly. Opening files lives on
 | [`ctx.layout`](/api/state/layout)         | side-panel collapse state ([`LayoutService`](/api/types/interfaces/LayoutService))                                                             |
 | [`ctx.files`](/api/files/)                | read / write / list / watch the filesystem, host-mediated ([`FileService`](/api/types/interfaces/FileService))                                 |
 | [`ctx.process`](/api/process/)            | persistent process / PTY sessions that survive restarts ([`ProcessService`](/api/types/interfaces/ProcessService))                             |
+| [`ctx.search`](/api/search/)              | cross-file content search over the workspace ([`SearchService`](/api/types/interfaces/SearchService))                                          |
 | [`ctx.theme`](/api/theme/)                | presets + active theme + custom themes ([`ThemeService`](/api/types/interfaces/ThemeService))                                                  |
 | [`ctx.dnd`](/api/dnd/)                    | drag sources + drop targets with typed payloads ([`DndService`](/api/types/interfaces/DndService))                                             |
 | [`ctx.ui`](/api/ui/)                      | native pickers + toasts + menus + modals (`confirm` / `prompt` / `showModal`) ([`UiService`](/api/types/interfaces/UiService))                 |

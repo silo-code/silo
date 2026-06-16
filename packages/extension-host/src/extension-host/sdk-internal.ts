@@ -114,6 +114,19 @@ export type {
 // Resolve which registered editor presents a given record (the editor panel's
 // dispatch). Host-bound to the editor registry.
 export { resolveEditorForRecord } from "./editor-registry";
+// Editor "jump to selection" channel — `ctx.editors.open(path, { selection })`
+// publishes here; the core editor view consumes it to reveal+select the match.
+// Host-bound (operates on the live Monaco instance), so core-only.
+export {
+  takePendingReveal,
+  peekPendingReveal,
+  onRevealRequest,
+} from "./editor-reveal";
+export type { RevealSelection, PendingReveal } from "./editor-reveal";
+// Active-selection registry behind `ctx.ui.getActiveSelectionText()` — the
+// focused editor/terminal registers its selection getter here on focus. The
+// *read* side is public (`ctx.ui`); this *register* side is host-bound, core-only.
+export { registerSelectionSource } from "./active-selection";
 // Terminal host-plumbing — the terminal's shared seam (mirrors editor-core), for
 // the `core.terminal` DockKind view. NOTE what is deliberately *absent*: PTY
 // sessions route through public `ctx.process`, opening a file through

@@ -5,7 +5,8 @@ renders the chrome; your extension just asks. Five kinds of interaction ship
 today: native OS dialogs (folder / open-file / save pickers), transient toast
 notifications, menus (context menus and button dropdowns), modal dialogs
 (`confirm` / `prompt`, plus `showModal` for your own custom content), and
-`openExternal` to send a URL out to the browser / mail client. Mirrors VS
+`openExternal` to send a URL out to the browser / mail client, and
+`getActiveSelectionText` to read the user's current selection. Mirrors VS
 Code's `window.show*`.
 
 ```ts
@@ -114,23 +115,28 @@ if (changes) apply(changes);
 
 // open a link out in the browser / mail client (scheme-guarded to http(s)/mailto)
 await ctx.ui.openExternal("https://silo.dev/docs");
+
+// read whatever the user has selected in the focused editor or terminal
+const selected = ctx.ui.getActiveSelectionText();
+if (selected) runSearch(selected);
 ```
 
 ## Methods
 
 **`UiService`** (`ctx.ui`):
 
-| Method                                                                    | What it does                                                                                                                                                                                         |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`pickFolder(opts?)`](/api/types/interfaces/UiService#pickfolder)         | Show the native folder picker. Resolves to an absolute path, or `null` if cancelled.                                                                                                                 |
-| [`pickFile(opts?)`](/api/types/interfaces/UiService#pickfile)             | Show the native open-file picker (single selection), optionally filtered. Resolves to an absolute path, or `null` if cancelled.                                                                      |
-| [`savePath(opts?)`](/api/types/interfaces/UiService#savepath)             | Show the native save dialog, optionally filtered. Resolves to the chosen absolute path, or `null` if cancelled.                                                                                      |
-| [`notify(level, message, opts?)`](/api/types/interfaces/UiService#notify) | Show a transient toast (`"info"` / `"warn"` / `"error"`). Fire-and-forget; `info`/`warn` auto-dismiss. Pass [`NotifyOptions`](/api/types/interfaces/NotifyOptions) for a `title` and action buttons. |
-| [`showMenu(opts)`](/api/types/interfaces/UiService#showmenu)              | Pop a menu — the same themed primitive behind every context menu and dropdown in Silo. Resolves when an item runs or it's dismissed.                                                                 |
-| [`confirm(opts)`](/api/types/interfaces/UiService#confirm)                | Pop a host-rendered confirm dialog. Resolves `true` (confirm) / `false` (cancel). Always dismissible; set `danger` for destructive actions.                                                          |
-| [`prompt(opts)`](/api/types/interfaces/UiService#prompt)                  | Pop a single-line input dialog. Resolves the entered string, or `null` if cancelled.                                                                                                                 |
-| [`showModal(render, opts?)`](/api/types/interfaces/UiService#showmodal)   | Pop a modal around your own custom content (a form / bespoke layout). Resolves the value your content passes to `close`, or `undefined`. Not dismissible by default.                                 |
-| [`openExternal(url)`](/api/types/interfaces/UiService#openexternal)       | Hand a URL to the OS — `http(s)` opens the browser, `mailto:` the mail client. Scheme-guarded: any other scheme (`file:`, `javascript:`, …) rejects, so untrusted URLs are safe to pass straight in. |
+| Method                                                                               | What it does                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`pickFolder(opts?)`](/api/types/interfaces/UiService#pickfolder)                    | Show the native folder picker. Resolves to an absolute path, or `null` if cancelled.                                                                                                                      |
+| [`pickFile(opts?)`](/api/types/interfaces/UiService#pickfile)                        | Show the native open-file picker (single selection), optionally filtered. Resolves to an absolute path, or `null` if cancelled.                                                                           |
+| [`savePath(opts?)`](/api/types/interfaces/UiService#savepath)                        | Show the native save dialog, optionally filtered. Resolves to the chosen absolute path, or `null` if cancelled.                                                                                           |
+| [`notify(level, message, opts?)`](/api/types/interfaces/UiService#notify)            | Show a transient toast (`"info"` / `"warn"` / `"error"`). Fire-and-forget; `info`/`warn` auto-dismiss. Pass [`NotifyOptions`](/api/types/interfaces/NotifyOptions) for a `title` and action buttons.      |
+| [`showMenu(opts)`](/api/types/interfaces/UiService#showmenu)                         | Pop a menu — the same themed primitive behind every context menu and dropdown in Silo. Resolves when an item runs or it's dismissed.                                                                      |
+| [`confirm(opts)`](/api/types/interfaces/UiService#confirm)                           | Pop a host-rendered confirm dialog. Resolves `true` (confirm) / `false` (cancel). Always dismissible; set `danger` for destructive actions.                                                               |
+| [`prompt(opts)`](/api/types/interfaces/UiService#prompt)                             | Pop a single-line input dialog. Resolves the entered string, or `null` if cancelled.                                                                                                                      |
+| [`showModal(render, opts?)`](/api/types/interfaces/UiService#showmodal)              | Pop a modal around your own custom content (a form / bespoke layout). Resolves the value your content passes to `close`, or `undefined`. Not dismissible by default.                                      |
+| [`openExternal(url)`](/api/types/interfaces/UiService#openexternal)                  | Hand a URL to the OS — `http(s)` opens the browser, `mailto:` the mail client. Scheme-guarded: any other scheme (`file:`, `javascript:`, …) rejects, so untrusted URLs are safe to pass straight in.      |
+| [`getActiveSelectionText()`](/api/types/interfaces/UiService#getactiveselectiontext) | The text selected in the focused surface — the active editor **or** a focused terminal — or `null` when nothing is selected. Lets a command (e.g. "Find in Files") seed itself from the user's selection. |
 
 Each picker accepts an options object: `defaultPath` seeds the dialog's
 location (and, for `savePath`, the suggested filename); `filters` is a list of
@@ -207,6 +213,13 @@ through, catching the rejection to warn the user about an unopenable link.
 [`ModalOptions`](/api/types/interfaces/ModalOptions) ·
 [`NotifyOptions`](/api/types/interfaces/NotifyOptions) ·
 [`NotifyAction`](/api/types/interfaces/NotifyAction).
+
+`getActiveSelectionText()` reads the **most-recently-focused** surface's
+selection — the active editor or a focused terminal — so a command works
+regardless of which one has focus. It returns `null` (never throws) when nothing
+is focused or selected. Pairs naturally with [`ctx.search`](/api/search/) and
+[`ctx.editors.open`](/api/editors/)'s `selection` to build a "search for the
+selected text, then jump to a hit" flow.
 
 ## Notes
 

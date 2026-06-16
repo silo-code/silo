@@ -1,5 +1,7 @@
 import { subscribe, snapshot } from "valtio";
 import { store, toggleLeftPanel, toggleRightPanel } from "../state/store";
+import { sidePanelRegistry } from "./side-panels";
+import { activateSidePaneTab } from "../layout/side-pane-registry";
 import type { LayoutState, LayoutService } from "@silo-code/sdk";
 
 // `ctx.layout` — side-column collapse state. The public contract lives in
@@ -44,6 +46,26 @@ export function getLayoutService(): LayoutService {
     setSidePanelCollapsed(location, collapsed) {
       if (location === "left") store.leftPanelCollapsed = collapsed;
       else store.rightPanelCollapsed = collapsed;
+    },
+    revealSidePanel(id) {
+      const panel = sidePanelRegistry.get(id);
+      if (!panel) return;
+      // The panel's effective slot — a user may have dragged it to another
+      // column/segment; fall back to its registered location.
+      const slot = store.sidePanelLocations[id] ?? panel.location;
+      const location = slot.startsWith("left") ? "left" : "right";
+      // Un-hide it (visibility defaults to visible; `false` means hidden).
+      if (store.sidePanelVisibility[id] === false) {
+        delete store.sidePanelVisibility[id];
+      }
+      // Select it as the active tab in its slot. Persisting this is what makes a
+      // freshly-shown pane pick it on mount; activateSidePaneTab switches it
+      // immediately when the pane is already live.
+      store.activeSidePanelTabs[slot] = id;
+      activateSidePaneTab(slot, id);
+      // Expand the column so it's actually on screen.
+      if (location === "left") store.leftPanelCollapsed = false;
+      else store.rightPanelCollapsed = false;
     },
   };
   return service;

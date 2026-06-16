@@ -30,6 +30,7 @@ import { getLayoutService } from "./layout-service";
 import { getScopedProcessService } from "./process-service";
 import { getTerminalService } from "./terminal-service";
 import { getScopedFileService } from "./file-service";
+import { getScopedSearchService } from "./search-service";
 import { getThemeService } from "./theme-service";
 import type { ThemePreset } from "@silo-code/sdk";
 import { getDndService } from "./dnd-service";
@@ -123,6 +124,7 @@ export function createContext(
     process: getScopedProcessService(scope),
     terminals: getTerminalService(),
     files: getScopedFileService(scope),
+    search: getScopedSearchService(scope),
     theme: getThemeService(),
     dnd: getDndService(),
     ui: getUiService(),

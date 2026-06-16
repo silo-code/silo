@@ -1,6 +1,6 @@
 # Interface: DiffContent
 
-Defined in: [packages/sdk/src/editor-service.ts:91](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L91)
+Defined in: [packages/sdk/src/editor-service.ts:109](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L109)
 
 The two sides of a diff, resolved by a [DiffContentProvider](../type-aliases/DiffContentProvider.md).
 
@@ -12,7 +12,7 @@ The two sides of a diff, resolved by a [DiffContentProvider](../type-aliases/Dif
 original: string;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:93](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L93)
+Defined in: [packages/sdk/src/editor-service.ts:111](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L111)
 
 Left/original side.
 
@@ -24,6 +24,6 @@ Left/original side.
 modified: string;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L95)
+Defined in: [packages/sdk/src/editor-service.ts:113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L113)
 
 Right/modified side.

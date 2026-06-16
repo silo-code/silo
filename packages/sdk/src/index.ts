@@ -80,6 +80,14 @@ export type {
   TerminalRecord,
 } from "./terminal-service";
 export type { FileService, FileMeta, FileChangeEvent } from "./file-service";
+// Cross-file content search exposed on the ExtensionContext as `ctx.search`.
+export type {
+  SearchService,
+  SearchOptions,
+  SearchMatch,
+  SearchFileResult,
+  SearchResponse,
+} from "./search-service";
 // The permission surface: the capability vocabulary an extension declares, and
 // the error the host throws when an extension reaches outside the workspace
 // without the matching grant. `PathDeniedError` is a class (a runtime value).
