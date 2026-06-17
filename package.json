@@ -17,6 +17,7 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release:sdk": "pnpm --filter @silo-code/sdk build && changeset publish",
+    "release:create": "pnpm --filter create-silo-extension build && changeset publish",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "git config core.hooksPath .githooks"

@@ -35,17 +35,9 @@ export interface LoadSpec {
   main: string;
   /**
    * Capabilities the user granted this extension at install (from its manifest's
-   * `silo.permissions`). Runtime-loaded extensions are never trusted, so absent
-   * this they're confined to the workspace.
+   * `silo.permissions`). Absent this they're confined to the workspace.
    */
   permissions?: readonly Permission[];
-  /**
-   * If true, `ctx.files` and `ctx.process` are unscoped (same as bundled
-   * extensions). Set only for extensions the user explicitly placed in their
-   * personal config directory — e.g. the live-extensions watch folder.
-   * Never set for extensions installed from npm/URL (use `permissions` instead).
-   */
-  trusted?: boolean;
 }
 
 interface LoadedEntry {
@@ -170,7 +162,7 @@ export async function loadExtension(spec: LoadSpec): Promise<void> {
 
     recordExtension(ext.id);
     ctx = createContext(ext.id, {
-      trusted: spec.trusted ?? false,
+      trusted: false,
       permissions: spec.permissions,
     });
     const api = ext.activate(ctx);

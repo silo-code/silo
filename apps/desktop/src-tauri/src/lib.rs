@@ -46,7 +46,7 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, argv, cwd| {
         commands::cli::focus_main_window(app);
-        if let Some(req) = commands::cli::resolve_cli_arg(&argv, &cwd) {
+        if let Some(req) = commands::cli::resolve_cli_request(&argv, &cwd) {
             let _ = app.emit("cli:open", req);
         }
     }));
@@ -78,7 +78,7 @@ pub fn run() {
                 let cwd = std::env::current_dir()
                     .map(|p| p.to_string_lossy().into_owned())
                     .unwrap_or_default();
-                if let Some(req) = commands::cli::resolve_cli_arg(&argv, &cwd) {
+                if let Some(req) = commands::cli::resolve_cli_request(&argv, &cwd) {
                     if let Ok(mut guard) =
                         app.state::<commands::cli::PendingLaunchArg>().0.lock()
                     {

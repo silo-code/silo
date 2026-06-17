@@ -305,6 +305,18 @@ importers:
         specifier: ^5.6.0
         version: 5.8.3
 
+  packages/create-silo-extension:
+    devDependencies:
+      '@types/node':
+        specifier: ^25
+        version: 25.9.1
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.8(@types/node@25.9.1)(jsdom@29.1.1)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+
   packages/extension-host:
     dependencies:
       '@monaco-editor/react':

@@ -112,6 +112,7 @@ export default withMermaid(
             items: [
               { text: "What is an extension?", link: "/guide/" },
               { text: "Your first extension", link: "/guide/getting-started" },
+              { text: "Build with Claude Code", link: "/guide/claude-skill" },
               { text: "Styling your extension", link: "/guide/styling" },
               {
                 text: "Keyboard navigation",

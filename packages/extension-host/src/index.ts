@@ -46,10 +46,6 @@ export { ensureMonaco } from "./docked/monaco-setup";
 // Test-driver only (the dev automation bridge uses it to set up a center split).
 export { splitActivePanel } from "./docked/dock-api-registry";
 
-// Live-extension watch-folder service (Phase 2 of the extension distribution
-// feature). Monitors {userConfigDir}/live-extensions/ and hot-loads/unloads any
-// .js bundle dropped there — no install wizard, no installed.json entry.
-export { initLiveExtensions } from "./extension-host/live-extension-service";
 export { store } from "./state/store";
 export {
   createWorkspace,

@@ -4,6 +4,7 @@ import {
   createWorkspace,
   activateWorkspace,
   openEditor,
+  getExtensionManager,
 } from "@silo-code/extension-host";
 
 /**
@@ -88,4 +89,14 @@ export function applyCliOpen(req: CliOpenRequest): void {
     activateWorkspace(workspaceId);
   }
   openEditor(workspaceId, req.path);
+}
+
+/** Install an extension from a local folder path (same as "Install from folder" in the UI). */
+export async function applyCliInstall(path: string): Promise<void> {
+  await getExtensionManager().installFromFolder(path);
+}
+
+/** Uninstall an extension by its id (e.g. `"dave.clock"`). */
+export async function applyCliUninstall(id: string): Promise<void> {
+  await getExtensionManager().uninstall(id);
 }

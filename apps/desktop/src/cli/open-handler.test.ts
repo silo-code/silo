@@ -1,13 +1,32 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { Workspace } from "@silo-code/sdk";
 import { store } from "@silo-code/extension-host";
 import {
   applyCliOpen,
+  applyCliInstall,
+  applyCliUninstall,
   findWorkspaceByFolder,
   normalizeFolder,
   dirname,
   basename,
 } from "./open-handler";
+
+// ---- extension manager mock -------------------------------------------------
+
+const installFromFolderMock = vi.fn(async () => {});
+const uninstallMock = vi.fn(async () => {});
+
+vi.mock("@silo-code/extension-host", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@silo-code/extension-host")>();
+  return {
+    ...actual,
+    getExtensionManager: () => ({
+      installFromFolder: installFromFolderMock,
+      uninstall: uninstallMock,
+    }),
+  };
+});
 
 // Drives the CLI open logic against the real (in-memory) workspace store —
 // the unit layer (jsdom, Tauri boundary mocked), same style as the host's
@@ -36,6 +55,8 @@ beforeEach(() => {
   store.workspaces = {};
   store.workspaceOrder = [];
   store.activeWorkspaceId = null;
+  installFromFolderMock.mockClear();
+  uninstallMock.mockClear();
 });
 
 describe("path helpers", () => {
@@ -127,5 +148,33 @@ describe("applyCliOpen — missing", () => {
     applyCliOpen({ path: "/no/such/thing", kind: "missing" });
     expect(Object.keys(store.workspaces)).toHaveLength(0);
     expect(store.activeWorkspaceId).toBeNull();
+  });
+});
+
+describe("applyCliInstall", () => {
+  it("delegates to getExtensionManager().installFromFolder", async () => {
+    await applyCliInstall("/tmp/silo-ext/dave.clock");
+    expect(installFromFolderMock).toHaveBeenCalledOnce();
+    expect(installFromFolderMock).toHaveBeenCalledWith(
+      "/tmp/silo-ext/dave.clock",
+    );
+  });
+
+  it("propagates errors from installFromFolder", async () => {
+    installFromFolderMock.mockRejectedValueOnce(new Error("bad manifest"));
+    await expect(applyCliInstall("/bad/path")).rejects.toThrow("bad manifest");
+  });
+});
+
+describe("applyCliUninstall", () => {
+  it("delegates to getExtensionManager().uninstall", async () => {
+    await applyCliUninstall("dave.clock");
+    expect(uninstallMock).toHaveBeenCalledOnce();
+    expect(uninstallMock).toHaveBeenCalledWith("dave.clock");
+  });
+
+  it("propagates errors from uninstall", async () => {
+    uninstallMock.mockRejectedValueOnce(new Error("not found"));
+    await expect(applyCliUninstall("no.such.ext")).rejects.toThrow("not found");
   });
 });
