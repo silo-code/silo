@@ -136,4 +136,15 @@ jobs:
           xcrun stapler staple "$DMG"
           xcrun stapler validate "$DMG"
           TAG="silo-v$(node -p "require('./apps/desktop/package.json').version")"
-          gh release upload "$TAG" "$DMG" --clobber -R silo-code/silo
+          # Retry up to 3 times — parallel matrix jobs uploading to the same
+          # draft release can hit transient 404s on GitHub's uploads endpoint.
+          for attempt in 1 2 3; do
+            gh release upload "$TAG" "$DMG" --clobber -R silo-code/silo && break
+            if [ "$attempt" -lt 3 ]; then
+              echo "Upload attempt $attempt failed, retrying in 15s..."
+              sleep 15
+            else
+              echo "Upload failed after 3 attempts"
+              exit 1
+            fi
+          done
