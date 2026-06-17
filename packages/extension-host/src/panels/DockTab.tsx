@@ -63,14 +63,36 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
     (event: React.MouseEvent) => {
       event.preventDefault();
       event.stopPropagation();
+
+      // When closing from inside the overflow popup, stopPropagation prevents
+      // dockview's wrapper click-handler from running (which normally closes the
+      // popup). We handle it here instead: remove the row or close the popup.
+      const closeBtn = event.currentTarget as HTMLElement;
+      const overflowContainer = closeBtn.closest(".dv-tabs-overflow-container");
+
       if (editorId && isDirty) {
         window.dispatchEvent(
           new CustomEvent("app:confirm-close-editor", {
             detail: { panelId, title },
           }),
         );
+        // Close the popup so the confirm modal isn't obscured.
+        if (overflowContainer) {
+          document.body.dispatchEvent(
+            new PointerEvent("pointerdown", { bubbles: true }),
+          );
+        }
       } else {
         api.close();
+        if (overflowContainer) {
+          // Remove this tab's row from the list; close the popup if it's now empty.
+          closeBtn.closest(".dv-tab")?.remove();
+          if (!overflowContainer.querySelector(".dv-tab")) {
+            document.body.dispatchEvent(
+              new PointerEvent("pointerdown", { bubbles: true }),
+            );
+          }
+        }
       }
     },
     [api, editorId, panelId, title, isDirty],
