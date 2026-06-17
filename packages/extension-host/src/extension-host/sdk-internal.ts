@@ -200,3 +200,8 @@ export {
 // the built-in terminal for tab titles. Core-only; not public SDK surface.
 export { onTerminalForeground } from "./terminal-foreground";
 export type { TerminalForeground } from "./terminal-foreground";
+
+// Custom tooltip widget — a styled hover popup that replaces native `title`
+// attributes in host chrome (status bar items, etc.). Core-only: extensions get
+// tooltips via the `title` field on StatusItem/MenuItem, never this component.
+export { Tooltip } from "../components/Tooltip";

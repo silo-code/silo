@@ -33,6 +33,7 @@ export const extension: Extension = {
       id: "theme-selector",
       alignment: "right",
       priority: -10,
+      tooltip: "Change theme",
       component: () => <ThemeStatusItem theme={theme} ui={ctx.ui} />,
     });
   },
