@@ -25,6 +25,11 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
   const [isDirty, setIsDirty] = useState(
     () => !!api.getParameters<{ dirty?: boolean }>().dirty,
   );
+  // True when the viewer's backing file no longer exists on disk (deleted
+  // externally). Same params channel as `dirty` — see TextViewer.
+  const [isDeleted, setIsDeleted] = useState(
+    () => !!api.getParameters<{ deleted?: boolean }>().deleted,
+  );
   const snap = useSnapshot(store);
 
   useEffect(() => {
@@ -36,8 +41,14 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
   // Re-read getParameters() on each change rather than trusting the event
   // payload, which only carries the keys that changed in that update.
   useEffect(() => {
-    const read = () =>
-      setIsDirty(!!api.getParameters<{ dirty?: boolean }>().dirty);
+    const read = () => {
+      const params = api.getParameters<{
+        dirty?: boolean;
+        deleted?: boolean;
+      }>();
+      setIsDirty(!!params.dirty);
+      setIsDeleted(!!params.deleted);
+    };
     read();
     const sub = api.onDidParametersChange(read);
     return () => sub.dispose();
@@ -126,7 +137,7 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
       onContextMenu={onTabContextMenu}
     >
       <span
-        className={`dv-default-tab-content${isPreview ? " preview-title" : ""}`}
+        className={`dv-default-tab-content${isPreview ? " preview-title" : ""}${isDeleted ? " deleted-title" : ""}`}
       >
         {isDirty && <span className="dvi-dirty-indicator">●</span>}
         {title}

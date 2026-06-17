@@ -77,6 +77,11 @@ export function TextViewer({
   // steals keyboard focus back to the previously-active editor.
   const [content, setContent] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
+  // True when the backing file no longer exists on disk (deleted externally,
+  // e.g. `rm`, a git checkout, or another tool). The buffer stays editable —
+  // we just stop treating disk as the source of truth and flag the tab (VS
+  // Code's strikethrough-tab behavior).
+  const [deleted, setDeleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -158,6 +163,7 @@ export function TextViewer({
         dockApi.setTitle(path.split("/").pop() ?? path);
       }
       setDirty(false);
+      setDeleted(false); // the write just (re)created the file
       void clearEditorBackup(editorId);
     } catch (err) {
       setError(String(err));
@@ -205,16 +211,28 @@ export function TextViewer({
     if (!filePath) return;
     if (loadedPathRef.current === filePath) return;
     let cancelled = false;
-    // Read the file and any hot-exit backup together. If a backup differs from
-    // disk, it's the user's unsaved work — restore it and mark the tab dirty;
-    // otherwise show the disk content (and drop a stale backup that matched).
-    Promise.all([files.readText(filePath), readEditorBackup(editorId)])
-      .then(([text, backup]) => {
-        if (cancelled) return;
-        savedContentRef.current = text;
-        loadedPathRef.current = filePath;
-        applyRestoredBuffer(text, backup?.content ?? null);
-      })
+    // Check existence first so a file deleted between session-restore and
+    // mount falls back to its hot-exit backup (or an empty buffer) instead of
+    // a hard error — same "missing on disk" treatment as the live-watch path
+    // below, just evaluated once up front.
+    files
+      .pathExists(filePath)
+      .then((exists) =>
+        // Read the file and any hot-exit backup together. If a backup differs
+        // from disk, it's the user's unsaved work — restore it and mark the
+        // tab dirty; otherwise show the disk content (and drop a stale backup
+        // that matched).
+        Promise.all([
+          exists ? files.readText(filePath) : Promise.resolve(null),
+          readEditorBackup(editorId),
+        ]).then(([text, backup]) => {
+          if (cancelled) return;
+          savedContentRef.current = text ?? "";
+          loadedPathRef.current = filePath;
+          setDeleted(!exists);
+          applyRestoredBuffer(text, backup?.content ?? null);
+        }),
+      )
       .catch((err) => {
         if (cancelled) return;
         setError(String(err));
@@ -229,21 +247,32 @@ export function TextViewer({
   // we don't want to silently clobber the user's work. Echoes of our own
   // save are filtered by the disk-vs-savedContentRef equality check. The watch
   // is scoped to this file, so we don't re-check the changed path ourselves.
+  //
+  // A change event fires for deletes too (the backend's `Remove` kind), so we
+  // re-check existence on every event rather than trust `kind` — it's the
+  // OS-level Debug string, not a stable contract. Once gone, leave the buffer
+  // exactly as it was (still editable) and just flag the tab; don't reload
+  // until the path exists again.
   useEffect(() => {
     if (!filePath) return;
     let cancelled = false;
     const sub = files.watch(filePath, () => {
       if (cancelled) return;
       files
-        .readText(filePath)
-        .then((text) => {
+        .pathExists(filePath)
+        .then((exists) => {
           if (cancelled) return;
-          if (text === savedContentRef.current) return;
-          if (dirtyRef.current) return;
-          savedContentRef.current = text;
-          loadedPathRef.current = filePath;
-          setContent(text);
-          setDirty(false);
+          setDeleted(!exists);
+          if (!exists) return;
+          return files.readText(filePath).then((text) => {
+            if (cancelled) return;
+            if (text === savedContentRef.current) return;
+            if (dirtyRef.current) return;
+            savedContentRef.current = text;
+            loadedPathRef.current = filePath;
+            setContent(text);
+            setDirty(false);
+          });
         })
         .catch(() => {});
     });
@@ -253,13 +282,13 @@ export function TextViewer({
     };
   }, [filePath]);
 
-  // Surface dirty state to the tab via dockview panel params; DockTab renders
-  // the indicator. Reset on unmount so a recycled panel id never shows stale
-  // dirt. (Merges with existing params, so editorId is preserved.)
+  // Surface dirty/deleted state to the tab via dockview panel params; DockTab
+  // renders the indicator. Reset on unmount so a recycled panel id never shows
+  // stale state. (Merges with existing params, so editorId is preserved.)
   useEffect(() => {
-    dockApi.updateParameters({ dirty });
-    return () => dockApi.updateParameters({ dirty: false });
-  }, [dirty, dockApi]);
+    dockApi.updateParameters({ dirty, deleted });
+    return () => dockApi.updateParameters({ dirty: false, deleted: false });
+  }, [dirty, deleted, dockApi]);
 
   async function saveAs() {
     const ed = editorRef.current;
@@ -278,6 +307,7 @@ export function TextViewer({
       setEditorFilePath(ws, editorId, picked);
       dockApi.setTitle(picked.split("/").pop() ?? picked);
       setDirty(false);
+      setDeleted(false);
       void clearEditorBackup(editorId);
     } catch (err) {
       setError(String(err));

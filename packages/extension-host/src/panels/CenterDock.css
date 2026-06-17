@@ -360,6 +360,13 @@
   color: var(--silo-color-accent);
 }
 
+/* Deleted-on-disk tab title — strikethrough + error color, mirroring VS
+ * Code's treatment of a file removed out from under an open editor. */
+.dv-default-tab-content.deleted-title {
+  color: var(--silo-color-err);
+  text-decoration: line-through;
+}
+
 /* Tab close button: subtle background on hover, click feedback.
  * We include .dockview-theme-* classes to match the library's specificity
  * and avoid the need for !important. */
