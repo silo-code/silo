@@ -52,7 +52,7 @@ export function SearchResults({
   onOpenMatch: (file: SearchFileResult, match: SearchMatch) => void;
 }) {
   return (
-    <div className="fsearch-results">
+    <>
       {files.map((file) => {
         const { name, dir } = splitPath(file.path);
         const isCollapsed = collapsed.has(file.path);
@@ -86,6 +86,6 @@ export function SearchResults({
           </div>
         );
       })}
-    </div>
+    </>
   );
 }
