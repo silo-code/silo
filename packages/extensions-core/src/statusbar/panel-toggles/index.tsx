@@ -1,15 +1,6 @@
-// Single-file built-in extension contributing the two side-panel toggle
-// buttons to the status bar. Authored exactly as a future external (npm /
-// github / local-folder) extension would be: it imports nothing from the app
-// except public SDK *types*, and touches the running app only through `ctx`.
-// (React is a shared host dependency, not an app internal.)
-//
-// These two glyphs are bespoke SVG on purpose — the project standardizes on
-// @phosphor-icons/react elsewhere, but the rounded-rect-with-side-strip mark
-// reads clearer here than any Phosphor sidebar icon.
-
 import type { Extension } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
+import { Tooltip } from "@silo-code/extension-host/internal";
 import "./panel-toggles.css";
 
 function IconLeftPanel() {
@@ -76,22 +67,30 @@ export const extension: Extension = {
       const snap = useServiceState(layout);
       return (
         <div className="panel-toggles">
-          <button
-            className={`panel-toggle${snap.left.collapsed ? "" : " active"}`}
-            title={snap.left.collapsed ? "Show left panel" : "Hide left panel"}
-            onClick={() => ctx.executeCommand("view.toggleLeftPanel")}
+          <Tooltip
+            content={
+              snap.left.collapsed ? "Show left panel" : "Hide left panel"
+            }
           >
-            <IconLeftPanel />
-          </button>
-          <button
-            className={`panel-toggle${snap.right.collapsed ? "" : " active"}`}
-            title={
+            <button
+              className={`panel-toggle${snap.left.collapsed ? "" : " active"}`}
+              onClick={() => ctx.executeCommand("view.toggleLeftPanel")}
+            >
+              <IconLeftPanel />
+            </button>
+          </Tooltip>
+          <Tooltip
+            content={
               snap.right.collapsed ? "Show right panel" : "Hide right panel"
             }
-            onClick={() => ctx.executeCommand("view.toggleRightPanel")}
           >
-            <IconRightPanel />
-          </button>
+            <button
+              className={`panel-toggle${snap.right.collapsed ? "" : " active"}`}
+              onClick={() => ctx.executeCommand("view.toggleRightPanel")}
+            >
+              <IconRightPanel />
+            </button>
+          </Tooltip>
         </div>
       );
     }

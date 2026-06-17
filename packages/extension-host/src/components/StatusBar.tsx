@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { statusItemRegistry } from "../extension-host/status-items";
 import { enterRegionOnPointer } from "../extension-host/focus-regions";
 import type { StatusItem } from "@silo-code/sdk";
+import { Tooltip } from "./Tooltip";
 import "./StatusBar.css";
 
 function useStatusItems(): StatusItem[] {
@@ -94,6 +95,16 @@ function useStatusBarFocus(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 }
 
+function renderItem(item: StatusItem) {
+  return item.tooltip ? (
+    <Tooltip key={item.id} content={item.tooltip}>
+      <item.component />
+    </Tooltip>
+  ) : (
+    <item.component key={item.id} />
+  );
+}
+
 export function StatusBar() {
   const items = useStatusItems();
   const ref = useRef<HTMLDivElement>(null);
@@ -103,13 +114,9 @@ export function StatusBar() {
 
   return (
     <div className="status-bar" ref={ref}>
-      {left.map((item) => (
-        <item.component key={item.id} />
-      ))}
+      {left.map((item) => renderItem(item))}
       <span className="spacer" />
-      {right.map((item) => (
-        <item.component key={item.id} />
-      ))}
+      {right.map((item) => renderItem(item))}
     </div>
   );
 }

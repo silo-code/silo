@@ -107,7 +107,6 @@ export function ThemeStatusItem({
         ref={buttonRef}
         className="theme-selector-btn"
         onClick={openPicker}
-        title="Change theme"
       >
         <ThemeSwatch
           vars={resolved.vars as Record<string, string>}

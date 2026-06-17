@@ -1,0 +1,22 @@
+/* Tooltip host — inline-flex so the trigger keeps its original layout role as a
+ * flex child (e.g. the status bar), while the span still captures mouseenter/
+ * mouseleave for the hover delay. */
+.silo-tooltip-host {
+  display: inline-flex;
+  align-items: center;
+}
+
+.silo-tooltip {
+  position: fixed;
+  z-index: 10000;
+  padding: 4px 8px;
+  background: var(--silo-color-button-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: var(--silo-color-input-text);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  white-space: nowrap;
+  pointer-events: none;
+}

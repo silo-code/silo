@@ -320,6 +320,14 @@ export interface StatusItem {
   alignment: "left" | "right";
   /** Sort order within its alignment group. Lower sorts first. Defaults to 0. */
   priority?: number;
+  /**
+   * Tooltip shown on hover over the entire status item. The host renders a
+   * custom-styled popup (not the browser's native `title` tooltip). For items
+   * that need per-button or reactive tooltips, omit this and manage tooltips
+   * inside the component instead (core extensions use `<Tooltip>` from the
+   * internal barrel; external extensions may use the native `title` attribute).
+   */
+  tooltip?: string;
   /** The React component (renders its own content; no props). */
   component: React.ComponentType;
 }

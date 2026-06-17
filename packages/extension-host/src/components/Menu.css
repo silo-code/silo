@@ -75,7 +75,20 @@
 
 .silo-menu-accel {
   margin-left: 24px;
-  color: var(--silo-color-text-lo);
+  padding: 1px 5px;
+  font-size: calc(var(--silo-font-size-sm) - 1px);
+  line-height: 1.4;
+  color: var(--silo-menu-text);
+  background: var(--silo-color-button-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+}
+
+/* When the row is highlighted, invert the badge surface so it stays legible. */
+.silo-menu-item.active .silo-menu-accel,
+.silo-menu-item:hover:not(.disabled) .silo-menu-accel,
+.silo-menu-item.open .silo-menu-accel {
+  background: var(--silo-menu-bg);
 }
 
 /* Trailing caret marking a row that cascades a submenu. */

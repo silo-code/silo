@@ -16,7 +16,6 @@ export const extension: Extension = {
       return (
         <button
           className="settings-button"
-          title="Settings"
           aria-label="Settings"
           onClick={() => ctx.executeCommand("settings.open")}
         >
@@ -30,6 +29,7 @@ export const extension: Extension = {
       alignment: "right",
       // Between the theme picker (-10) and the panel toggles (0).
       priority: -5,
+      tooltip: "Settings",
       component: SettingsButton,
     });
   },

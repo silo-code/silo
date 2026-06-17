@@ -5,7 +5,7 @@ import {
   type ExtensionContext,
   type MenuEntry,
 } from "@silo-code/sdk";
-import { homeDir } from "@silo-code/extension-host/internal";
+import { homeDir, Tooltip } from "@silo-code/extension-host/internal";
 import { useFolderExistence } from "./workspace-helpers";
 import { buildAddWorkspaceItems } from "./workspace-add-menu";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
@@ -62,9 +62,21 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
         run: () => service.activate(ws.id),
       });
     }
-    // 2. ── divider ──
+    // 2. Cycle shortcuts (keyboard hint).
     items.push({ type: "separator" });
-    // 3. Open — cascades to the panel's add menu.
+    items.push({
+      label: "Cycle to Next Workspace",
+      accelerator: "⌘`",
+      run: () => ctx.executeCommand("workspace.cycleForward"),
+    });
+    items.push({
+      label: "Cycle to Previous Workspace",
+      accelerator: "⌘~",
+      run: () => ctx.executeCommand("workspace.cycleBackward"),
+    });
+    // 3. ── divider ──
+    items.push({ type: "separator" });
+    // 4. Open — cascades to the panel's add menu.
     items.push({
       label: "Open",
       submenu: buildAddWorkspaceItems({
@@ -74,9 +86,9 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
         onNew,
       }),
     });
-    // 4. ── divider ──
+    // 5. ── divider ──
     items.push({ type: "separator" });
-    // 5 & 6. Properties / Close, acting on the active workspace.
+    // 6 & 7. Properties / Close, acting on the active workspace.
     items.push({
       label: "Properties…",
       run: () => {
@@ -91,19 +103,16 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
   return (
     <>
       {active && (
-        <button
-          ref={buttonRef}
-          className="ws-status-item"
-          title="Workspaces"
-          onClick={openMenu}
-        >
-          <SquaresFour
-            size="1.15em"
-            weight="duotone"
-            className="ws-status-icon"
-          />
-          <span className="ws-status-name">{active.name}</span>
-        </button>
+        <Tooltip content="Workspaces — ⌘` to cycle">
+          <button ref={buttonRef} className="ws-status-item" onClick={openMenu}>
+            <SquaresFour
+              size="1.15em"
+              weight="duotone"
+              className="ws-status-icon"
+            />
+            <span className="ws-status-name">{active.name}</span>
+          </button>
+        </Tooltip>
       )}
       <WorkspaceSwitcher anchorRef={buttonRef} />
     </>

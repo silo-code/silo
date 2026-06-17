@@ -12,7 +12,7 @@
 
 import type { Extension } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
-import { getUpdateService } from "@silo-code/extension-host/internal";
+import { getUpdateService, Tooltip } from "@silo-code/extension-host/internal";
 import { updateLinkLabel, isUpdateActionable } from "./model";
 import { UpdatePrompt } from "./UpdatePrompt";
 import "./updates.css";
@@ -64,18 +64,21 @@ export const extension: Extension = {
       // — together with the service's re-entry guard — prevents a double install.
       return (
         <span className="update-status">
-          <button
-            className="update-link"
-            title={
+          <Tooltip
+            content={
               actionable
                 ? "A new version of Silo is available"
                 : "Installing the update…"
             }
-            disabled={!actionable}
-            onClick={() => void promptAndInstall()}
           >
-            {label}
-          </button>
+            <button
+              className="update-link"
+              disabled={!actionable}
+              onClick={() => void promptAndInstall()}
+            >
+              {label}
+            </button>
+          </Tooltip>
         </span>
       );
     }
