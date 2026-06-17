@@ -121,20 +121,33 @@ echo "Deployed $ID — Silo will load it within ~200ms"
 
 ## Step 6 — Verify
 
-Wait ~200ms after deploy, then screenshot:
+Wait ~200ms for Silo to detect the file, then check whether the dev automation
+bridge is reachable. It is only present when running `pnpm dev`; production Silo
+has no bridge.
 
 ```bash
 sleep 0.3
-curl -s http://127.0.0.1:7878/ \
-  -H 'X-Silo-Automation: 1' \
-  -H 'Content-Type: application/json' \
-  -d '{"op":"screenshot"}' \
-  | python3 -c "import sys,json,base64; r=json.load(sys.stdin)['result']; open('/tmp/silo-live.png','wb').write(base64.b64decode(r['png_base64'])); print('screenshot saved')"
+if curl -sf --max-time 1 http://127.0.0.1:7878/ \
+     -H 'X-Silo-Automation: 1' \
+     -H 'Content-Type: application/json' \
+     -d '{"op":"screenshot"}' \
+     -o /tmp/silo-bridge-raw.json 2>/dev/null; then
+  python3 -c "
+import sys, json, base64
+r = json.load(open('/tmp/silo-bridge-raw.json'))['result']
+open('/tmp/silo-live.png','wb').write(base64.b64decode(r['png_base64']))
+print('screenshot saved to /tmp/silo-live.png')
+"
+  # Then: Read /tmp/silo-live.png to confirm the extension is visible.
+else
+  echo "Dev bridge not available (production Silo or bridge not started)."
+  echo "Verify manually: the extension should now be visible in Silo."
+  echo "Check the status bar / open the side panel / look for the registered contribution."
+fi
 ```
 
-Then `Read /tmp/silo-live.png` to confirm the extension is visible.
-
-**Note:** The automation bridge (`7878`) is only available when running `pnpm dev`. In production Silo, verify visually (open the panel, check the status bar, etc.).
+If the screenshot path runs, follow it with `Read /tmp/silo-live.png` to confirm.
+If the manual path runs, tell the user what to look for and where.
 
 ## Iteration
 
