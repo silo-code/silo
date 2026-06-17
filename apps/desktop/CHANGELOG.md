@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0](https://github.com/silo-code/silo/compare/silo-v0.4.0...silo-v0.5.0) (2026-06-17)
+
+
+### Features
+
+* **editor:** show strikethrough tab when an open file is deleted ([#33](https://github.com/silo-code/silo/issues/33)) ([ff83468](https://github.com/silo-code/silo/commit/ff83468a27ae6a2c8b8e19b0ef9f116067b2aa35))
+* **file-search:** focus without selection, per-workspace state, badge contrast ([#36](https://github.com/silo-code/silo/issues/36)) ([a7f5beb](https://github.com/silo-code/silo/commit/a7f5beb680eebab210357b7865f569bf6db4c4ae))
+* **statusbar:** custom tooltips on all status bar items + kbd-badge accelerators ([#37](https://github.com/silo-code/silo/issues/37)) ([bef147b](https://github.com/silo-code/silo/commit/bef147b6f77516f449aef3b28d2746bed56294b4))
+* **tabs:** restyle overflow menu to match Silo context menus ([#35](https://github.com/silo-code/silo/issues/35)) ([5b47e78](https://github.com/silo-code/silo/commit/5b47e780d849755d8274b2ad739ea2c0c9c872e9))
+
 ## [0.4.0](https://github.com/silo-code/silo/compare/silo-v0.3.0...silo-v0.4.0) (2026-06-16)
 
 

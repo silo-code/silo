@@ -1,6 +1,6 @@
 [package]
 name = "silo"
-version = "0.4.0" # x-release-please-version
+version = "0.5.0" # x-release-please-version
 description = "Silo — a local-first, extensible code editor."
 authors = ["Dave Weaver"]
 license = "MIT"
