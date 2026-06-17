@@ -12,11 +12,11 @@ import {
   summarize,
   EMPTY_UI_STATE,
   type SearchUiState,
+  type WorkspaceViewCache,
 } from "./search-model";
 import { SearchResults } from "./SearchResults";
 import { onSearchRequest, takePendingSearch } from "./search-bus";
 
-const UI_STATE_KEY = "ui";
 const DEBOUNCE_MS = 250;
 
 /** Toggle button for a search modifier (case / word / regex). */
@@ -49,37 +49,89 @@ export function FileSearchView({
   workspace,
   storage,
   paused,
+  savedState,
+  onSaveState,
 }: {
   ctx: ExtensionContext;
   workspace: Workspace;
   storage: ExtensionStorage;
   paused: boolean;
+  savedState: WorkspaceViewCache | null;
+  onSaveState: (state: WorkspaceViewCache) => void;
 }) {
+  // ui (query + toggles) is persisted per workspace so each workspace remembers
+  // its own search independently across sessions.
+  const uiKey = `ui.${workspace.id}`;
   const [ui, setUi] = useState<SearchUiState>(() =>
-    storage.get<SearchUiState>(UI_STATE_KEY, EMPTY_UI_STATE),
+    storage.get<SearchUiState>(uiKey, EMPTY_UI_STATE),
   );
-  const [response, setResponse] = useState<SearchResponse | null>(null);
+  const [response, setResponse] = useState<SearchResponse | null>(
+    () => savedState?.response ?? null,
+  );
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
+    () => savedState?.collapsed ?? new Set(),
+  );
 
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const resultsRef = useRef<HTMLDivElement | null>(null);
   // Monotonic token so a slow earlier search can't overwrite a newer result.
   const runIdRef = useRef(0);
+  // Skip the very first search run when we're restoring saved results so the
+  // workspace switch doesn't wipe and re-fetch what was already there.
+  const skipInitialRef = useRef(savedState?.response != null);
+  // Always-current snapshot used by the unmount cleanup (avoids stale closure).
+  const snapshotRef = useRef<WorkspaceViewCache>({
+    response: savedState?.response ?? null,
+    collapsed: savedState?.collapsed ?? new Set(),
+    scrollTop: savedState?.scrollTop ?? 0,
+  });
+  snapshotRef.current = {
+    response,
+    collapsed,
+    scrollTop: resultsRef.current?.scrollTop ?? snapshotRef.current.scrollTop,
+  };
 
   const patch = (next: Partial<SearchUiState>) =>
     setUi((prev) => {
       const merged = { ...prev, ...next };
-      storage.set(UI_STATE_KEY, merged);
+      storage.set(uiKey, merged);
       return merged;
     });
 
   const folder = workspace.folder;
 
+  // Save state when unmounting (workspace switch) so it can be restored next time.
+  useEffect(
+    () => () => {
+      onSaveState({
+        ...snapshotRef.current,
+        scrollTop:
+          resultsRef.current?.scrollTop ?? snapshotRef.current.scrollTop,
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  // Restore scroll position after the saved results paint on mount.
+  useEffect(() => {
+    if (savedState?.scrollTop && resultsRef.current) {
+      resultsRef.current.scrollTop = savedState.scrollTop;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Debounced search whenever the query/options change (and the panel is shown).
   useEffect(() => {
     const query = ui.query;
     if (paused) return;
+    // First run after mount with saved results: show them as-is, don't re-fetch.
+    if (skipInitialRef.current) {
+      skipInitialRef.current = false;
+      return;
+    }
     if (query.trim() === "") {
       setResponse(null);
       setError(null);
@@ -124,11 +176,15 @@ export function FileSearchView({
   useEffect(() => {
     const apply = (req: { query?: string }) => {
       if (req.query != null && req.query !== "") patch({ query: req.query });
-      const el = inputRef.current;
-      if (el) {
-        el.focus();
-        el.select();
-      }
+      // Defer focus so revealSidePanel's state update has been committed and the
+      // panel is visible before the browser processes the focus request.
+      requestAnimationFrame(() => {
+        const el = inputRef.current;
+        if (el) {
+          el.focus();
+          el.select();
+        }
+      });
     };
     const pendingReq = takePendingSearch();
     if (pendingReq) apply(pendingReq);
@@ -227,12 +283,14 @@ export function FileSearchView({
           <div className="fsearch-status">
             {summarize(response.totalMatches, files.length, response.truncated)}
           </div>
-          <SearchResults
-            files={files}
-            collapsed={collapsed}
-            onToggleFile={toggleFile}
-            onOpenMatch={openMatch}
-          />
+          <div className="fsearch-results" ref={resultsRef}>
+            <SearchResults
+              files={files}
+              collapsed={collapsed}
+              onToggleFile={toggleFile}
+              onOpenMatch={openMatch}
+            />
+          </div>
         </>
       ) : null}
     </div>

@@ -1,8 +1,19 @@
-import type { SearchOptions } from "@silo-code/sdk";
+import type { SearchOptions, SearchResponse } from "@silo-code/sdk";
 
 // Pure, UI-free helpers for the file-search panel — extracted so the search
 // rules (option building, glob parsing, preview highlighting, the summary line)
 // are unit-testable without rendering React.
+
+/**
+ * In-session state cached per workspace so switching back doesn't re-run the
+ * search or lose the collapse and scroll position. Not persisted to disk —
+ * lives in a Map ref in FileSearchPanel for the lifetime of the panel instance.
+ */
+export interface WorkspaceViewCache {
+  response: SearchResponse | null;
+  collapsed: ReadonlySet<string>;
+  scrollTop: number;
+}
 
 /** The panel's query controls, persisted across reloads. */
 export interface SearchUiState {
