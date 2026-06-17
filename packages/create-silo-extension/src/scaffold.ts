@@ -63,6 +63,12 @@ export function renderPackageJson(input: ScaffoldInput): string {
           main: "dist/index.js",
           publisher: input.publisher,
         },
+        devDependencies: {
+          "@silo-code/sdk": "latest",
+          esbuild: "latest",
+          react: "latest",
+          "@types/react": "latest",
+        },
       },
       null,
       2,

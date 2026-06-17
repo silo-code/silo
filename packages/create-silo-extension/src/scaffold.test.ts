@@ -102,6 +102,14 @@ describe("renderPackageJson", () => {
     expect(pkg.scripts.dev).toContain("--watch");
   });
 
+  it("includes esbuild and sdk as devDependencies", () => {
+    const pkg = JSON.parse(renderPackageJson(input));
+    expect(pkg.devDependencies["esbuild"]).toBeDefined();
+    expect(pkg.devDependencies["@silo-code/sdk"]).toBeDefined();
+    expect(pkg.devDependencies["react"]).toBeDefined();
+    expect(pkg.devDependencies["@types/react"]).toBeDefined();
+  });
+
   it("ends with a newline", () => {
     expect(renderPackageJson(input)).toMatch(/\n$/);
   });
