@@ -50,3 +50,23 @@ For a dev build, the binary lives under the **Silo Dev** app
 instance. Because the command works by launching the real binary (which is then
 forwarded to the running instance), pointing `open -a Silo` at the app won't
 pass the path — use the binary path or the installed shim.
+
+## Extension commands
+
+```sh
+silo install /path/to/my-extension   # install an extension from a local folder
+silo uninstall acme.clock            # uninstall an extension by id
+```
+
+`silo install <path>` is the CLI equivalent of **Settings → Extensions →
+Install from folder…**: Silo copies the package into
+`~/.config/silo/extensions/<id>/` and loads it immediately. The path resolves
+against your shell's working directory, so relative paths work.
+
+`silo uninstall <id>` removes the extension's copied files from disk and
+unloads it from the running app. The `id` is the `silo.id` value from the
+extension's `package.json`.
+
+Both commands follow the same warm/cold model as `silo <path>`: if Silo is
+already running the command is forwarded to the live instance; if not, it is
+applied on the next launch.
