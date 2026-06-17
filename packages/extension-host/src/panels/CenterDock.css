@@ -350,6 +350,99 @@
   border-color: var(--silo-color-border);
 }
 
+/* Overflow tab list: restyle dockview's raw dropdown to match Silo context menus.
+ * The popup is rendered inside .dv-popover-anchor which dockview places outside
+ * .editor-dock, so we scope to .dv-popover-anchor instead. */
+.dv-popover-anchor .dv-tabs-overflow-container {
+  background: var(--silo-menu-bg);
+  border: 1px solid var(--silo-menu-border);
+  border-radius: var(--silo-radius-md);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  color: var(--silo-menu-text);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  padding: 4px 0;
+  min-width: 180px;
+}
+
+/* Reset tab-strip chrome (borders, radii, colors) that don't belong in a menu */
+.dv-popover-anchor .dv-tabs-overflow-container .dv-tab,
+.dv-popover-anchor .dv-tabs-overflow-container .dv-tab.dv-active-tab,
+.dv-popover-anchor .dv-tabs-overflow-container .dv-tab.dv-inactive-tab {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--silo-menu-text);
+  padding: 0;
+  margin: 0;
+}
+
+.dv-popover-anchor .dv-tabs-overflow-container .dv-tab:not(:last-child) {
+  border-bottom: none;
+}
+
+.dv-popover-anchor .dv-tabs-overflow-container .dv-tab:hover,
+.dv-popover-anchor .dv-tabs-overflow-container .dv-tab.dv-inactive-tab:hover {
+  background: var(--silo-menu-item-hover-bg);
+  color: var(--silo-menu-text);
+}
+
+/* The DockTab component renders .dv-default-tab — give it menu-item layout */
+.dv-popover-anchor .dv-tabs-overflow-container .dv-default-tab {
+  display: flex;
+  align-items: center;
+  padding: 5px 12px;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 8px;
+}
+
+.dv-popover-anchor .dv-tabs-overflow-container .dv-default-tab-content {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Active tab: brighter text so it reads as the currently open file */
+.dv-popover-anchor
+  .dv-tabs-overflow-container
+  .dv-active-tab
+  .dv-default-tab-content {
+  color: var(--silo-color-text-hi);
+}
+
+/* Close button: dim by default, visible on row hover — matches tab-bar treatment */
+.dv-popover-anchor .dv-tabs-overflow-container .dv-default-tab-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--silo-radius-sm);
+  margin-left: 6px;
+  cursor: pointer;
+  color: transparent;
+  transition:
+    color 0.1s ease,
+    background-color 0.1s ease;
+}
+.dv-popover-anchor
+  .dv-tabs-overflow-container
+  .dv-tab:hover
+  .dv-default-tab-action {
+  color: var(--silo-menu-text);
+}
+.dv-popover-anchor .dv-tabs-overflow-container .dv-default-tab-action:hover {
+  background-color: var(--silo-color-bg-hover);
+}
+.dv-popover-anchor .dv-tabs-overflow-container .dv-default-tab-action svg {
+  fill: currentColor;
+  width: 11px;
+  height: 11px;
+}
+
 /* Dirty-indicator ● — smaller, blue accent, vertically centered */
 .dv-default-tab-content .dvi-dirty-indicator {
   display: inline-block;
