@@ -81,10 +81,9 @@ export default withMermaid(
   defineConfig({
     title: "Silo",
     description:
-      "A local-first, extensible code editor — extension API & guides.",
-    // Served from the GitHub Pages project URL https://silo-code.github.io/silo/,
-    // so every asset/link is resolved under this base path.
-    base: "/silo/",
+      "Terminal-first workspace manager built for the multi-agent workflow. Switch between projects like browser tabs — each tab is a full workspace with live terminals and preserved state.",
+    // Served from the custom domain https://getsilo.dev/ (root).
+    base: "/",
     cleanUrls: true,
     lastUpdated: true,
     // api-intro.md is TypeDoc's readme source (merged into /api/index.md); it is
@@ -93,6 +92,10 @@ export default withMermaid(
 
     themeConfig: {
       nav: [
+        {
+          text: "Download",
+          link: "https://github.com/silo-code/silo/releases/latest",
+        },
         { text: "Guide", link: "/guide/" },
         { text: "API Reference", link: "/api/" },
         { text: "Roadmap", link: "/roadmap" },

@@ -2,36 +2,81 @@
 layout: home
 
 hero:
-  name: Silo
-  text: Run many workspaces at once — switch instantly, without losing state
-  tagline: Build on it. Everything from the terminal to the file explorer is an extension talking to the same public API you get.
+  name: "Silo"
+  text: "Terminal-first workspace manager"
+  tagline: "Switch between your projects like browser tabs — except each tab is a full workspace with live terminals, running agents, and preserved layout."
   actions:
     - theme: brand
-      text: Build your first extension
-      link: /guide/getting-started
+      text: Download for macOS →
+      link: https://github.com/silo-code/silo/releases/latest
     - theme: alt
-      text: API Reference
-      link: /api/
+      text: View on GitHub
+      link: https://github.com/silo-code/silo
 
 features:
-  - title: One small, stable API
-    details: Extensions touch the running app through a single injected ExtensionContext (ctx) — register what you add, run commands, read and drive state through typed services. Nothing reaches into app internals.
-  - title: Register, don't patch
-    details: Viewers, side panels, status items, commands, keybindings, menus, settings pages. Register what you add; the host wires it in and hands you a Disposable to remove it.
-  - title: First-party = third-party
-    details: Silo's own features (terminal, editor, git, themes) are built as extensions against the exact same SDK you use. If a built-in can do it, so can you.
+  - icon: 🗂️
+    title: Workspace tabs
+    details: Each project gets its own persistent tab. Switch instantly — terminals, layout, and editor state all stay exactly as you left them. Nothing reloads.
+  - icon: ⚡
+    title: Live backgrounds
+    details: Terminals keep running and agents keep working when you switch away. Come back and everything is exactly where you left it.
+  - icon: ">_"
+    title: Terminal-first
+    details: Shells and AI coding agents are the primary surface. File editing is secondary — the inverse of VS Code's model.
+  - icon: 🔒
+    title: Local-first
+    details: Everything runs on your machine. No cloud sync, no telemetry, no account required.
+  - icon: 🧩
+    title: Extension SDK
+    details: A small stable core with a public API. First-party features — terminal, editor, git, themes — ship as extensions against the same SDK you get.
+  - icon: "📄"
+    title: MIT licensed
+    details: 100% open source. Build on it, fork it, contribute to it.
 ---
 
-## What this site is
+<div class="demo-gif">
+  <img src="/demo.gif" alt="Switching between three live workspaces in Silo" />
+</div>
 
-Two things, from one source of truth:
+## Built for the multi-agent era
 
-- **[Guides](/guide/)** — hand-written, start with [What is an extension?](/guide/)
-- **[API Reference](/api/)** — generated directly from the SDK's type
-  definitions, so it never drifts from the code. It documents exactly the
-  public surface and nothing host-internal.
+VS Code and Cursor are file-first editors built around a single active workspace. That made sense when _you_ were writing the code.
 
-The SDK is **types-first**: you compile against `@silo-code/sdk` types, and the
-host injects the implementation at activation time. The types live in the
-`@silo-code/sdk` package (`packages/sdk/src/index.ts`) — the single public
-surface an extension imports.
+Now you're coordinating multiple AI coding agents simultaneously across different projects. Every time you switch context in a traditional editor, you lose your terminal state. Your agents get interrupted. You spend more time rebuilding context than doing actual work.
+
+**Silo is built around the opposite model.** Open as many project workspaces as you need and tab between them instantly. Each workspace keeps its terminals running, its layout intact, and its agents working — exactly as you left it.
+
+## Download
+
+**macOS** (v0.4.0) — Windows and Linux coming soon.
+
+| Build                    | Link                                                                        |
+| ------------------------ | --------------------------------------------------------------------------- |
+| Apple Silicon (M1/M2/M3) | [Silo_0.4.0_aarch64.dmg](https://github.com/silo-code/silo/releases/latest) |
+| Intel Mac                | [Silo_0.4.0_x64.dmg](https://github.com/silo-code/silo/releases/latest)     |
+
+Or build from source — see the [GitHub repo](https://github.com/silo-code/silo).
+
+---
+
+## Building extensions
+
+Silo has a public extension SDK (`@silo-code/sdk`), modeled on VS Code and Obsidian. Every first-party feature — terminal, file explorer, git, themes — is built as an extension against the same API you get. If a built-in can do it, so can you.
+
+- **[What is an extension?](/guide/)** — start here
+- **[Your first extension](/guide/getting-started)** — 5-minute walkthrough
+- **[API Reference](/api/)** — the full `ctx` surface
+- **[Roadmap](/roadmap)** — what's stable, what's planned
+
+<style>
+.demo-gif {
+  max-width: 900px;
+  margin: 100px 0 2rem 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.demo-gif img {
+  width: 100%;
+  display: block;
+}
+</style>
