@@ -7,6 +7,7 @@ import {
   userConfigDir,
   getExtensionManager,
   initUserKeybindings,
+  initLiveExtensions,
 } from "@silo-code/extension-host";
 import { activateBuiltins } from "./builtins";
 import { initCliOpenHandler } from "./cli";
@@ -58,6 +59,12 @@ document.addEventListener("visibilitychange", () => {
 // triggers a menu re-sync via onKeymapChange.
 initUserKeybindings().catch((err) =>
   console.error("initUserKeybindings failed", err),
+);
+
+// Start the live-extension watch-folder service. Loads any .js bundles already
+// in {userConfigDir}/live-extensions/ and watches for future changes.
+initLiveExtensions().catch((err) =>
+  console.error("initLiveExtensions failed", err),
 );
 
 // Dev-only automation bridge (paired with the Cargo `automation` feature on the

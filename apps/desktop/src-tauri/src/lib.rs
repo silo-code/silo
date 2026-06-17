@@ -131,6 +131,7 @@ pub fn run() {
             commands::fs::fs_reveal,
             commands::fs::fs_create_dir,
             commands::fs::fs_copy_dir,
+            commands::install::download_extract,
             commands::watch::start_watch,
             commands::watch::stop_watch,
             commands::process::process_exec,

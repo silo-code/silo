@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { ExtensionContext } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
 import {
   getExtensionManager,
   type InstalledExtension,
+  type ManifestPreview,
 } from "@silo-code/extension-host/internal";
 import { PermissionConsent } from "./PermissionConsent";
 import {
@@ -29,6 +30,8 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
 
     const visible = filterExtensions(extensions, { query, showBuiltins });
     const builtinsPresent = hasBuiltins(extensions);
+    const [installInput, setInstallInput] = useState("");
+    const installInputRef = useRef<HTMLInputElement>(null);
 
     async function run(key: string, fn: () => Promise<void>) {
       setBusy(key);
@@ -44,21 +47,10 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       }
     }
 
-    async function install() {
-      const folder = await ctx.ui.pickFolder();
-      if (!folder) return;
-      // Peek at the manifest first: if it requests capabilities beyond the
-      // workspace, get explicit consent before anything is copied or loaded.
-      const preview = await mgr.previewInstall(folder).catch((err) => {
-        ctx.ui.notify(
-          "error",
-          err instanceof Error ? err.message : String(err),
-        );
-        return null;
-      });
-      if (!preview) return;
-      if (preview.permissions.length > 0) {
-        const granted = await ctx.ui.showModal<boolean>(
+    async function requestConsent(preview: ManifestPreview): Promise<boolean> {
+      if (preview.permissions.length === 0) return true;
+      return (
+        (await ctx.ui.showModal<boolean>(
           (close) => (
             <PermissionConsent
               name={preview.name}
@@ -72,9 +64,37 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
             dismissible: true,
             ariaLabel: `${preview.name} is requesting access`,
           },
+        )) ?? false
+      );
+    }
+
+    async function installFromRemote() {
+      const value = installInput.trim();
+      if (!value) return;
+      setInstallInput("");
+      const isUrl = value.startsWith("http://") || value.startsWith("https://");
+      await run("install", async () => {
+        if (isUrl) {
+          await mgr.installFromUrl(value, requestConsent);
+        } else {
+          await mgr.installFromNpm(value, requestConsent);
+        }
+        ctx.ui.notify("info", "Extension installed");
+      });
+    }
+
+    async function install() {
+      const folder = await ctx.ui.pickFolder();
+      if (!folder) return;
+      const preview = await mgr.previewInstall(folder).catch((err) => {
+        ctx.ui.notify(
+          "error",
+          err instanceof Error ? err.message : String(err),
         );
-        if (!granted) return;
-      }
+        return null;
+      });
+      if (!preview) return;
+      if (!(await requestConsent(preview))) return;
       await run("install", async () => {
         await mgr.installFromFolder(folder);
         ctx.ui.notify("info", "Extension installed");
@@ -126,6 +146,28 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
           </div>
         </div>
 
+        <div className="ext-install-remote">
+          <input
+            ref={installInputRef}
+            className="ext-install-input"
+            type="text"
+            placeholder="npm package name or tarball URL…"
+            value={installInput}
+            onChange={(e) => setInstallInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void installFromRemote();
+            }}
+            disabled={busy === "install"}
+          />
+          <button
+            className="ext-btn"
+            onClick={() => void installFromRemote()}
+            disabled={busy === "install" || !installInput.trim()}
+          >
+            Install
+          </button>
+        </div>
+
         {extensions.length > 0 && (
           <input
             className="ext-search"
@@ -133,7 +175,6 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
             placeholder="Search extensions…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            autoFocus
           />
         )}
 

@@ -40,6 +40,30 @@
   cursor: pointer;
 }
 
+/* npm / URL install row — sits between the header and the search filter. */
+.ext-install-remote {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.ext-install-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-input-text);
+  padding: 7px 10px;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+}
+.ext-install-input:focus {
+  outline: none;
+  border-color: var(--silo-color-accent);
+}
+.ext-install-input:disabled {
+  opacity: 0.5;
+}
+
 /* Matches .kb-search / .es-search so the filter box is consistent across pages. */
 .ext-search {
   width: 100%;

@@ -39,6 +39,13 @@ export interface LoadSpec {
    * this they're confined to the workspace.
    */
   permissions?: readonly Permission[];
+  /**
+   * If true, `ctx.files` and `ctx.process` are unscoped (same as bundled
+   * extensions). Set only for extensions the user explicitly placed in their
+   * personal config directory — e.g. the live-extensions watch folder.
+   * Never set for extensions installed from npm/URL (use `permissions` instead).
+   */
+  trusted?: boolean;
 }
 
 interface LoadedEntry {
@@ -162,10 +169,8 @@ export async function loadExtension(spec: LoadSpec): Promise<void> {
     const dockBefore = new Set(dockPanelKindRegistry.list().map((k) => k.id));
 
     recordExtension(ext.id);
-    // Runtime-loaded extensions are untrusted: workspace-scoped `files`/`process`
-    // lifted only by the capabilities the user granted at install.
     ctx = createContext(ext.id, {
-      trusted: false,
+      trusted: spec.trusted ?? false,
       permissions: spec.permissions,
     });
     const api = ext.activate(ctx);

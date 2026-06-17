@@ -10,6 +10,8 @@
  *
  * @internal
  */
+import { tempDir } from "@tauri-apps/api/path";
+import { invoke } from "@tauri-apps/api/core";
 import { userConfigDir } from "../services/user-config";
 import {
   fsReadText,
@@ -17,6 +19,7 @@ import {
   fsCopyDir,
   fsDelete,
   fsPathExists,
+  fsCreateDir,
 } from "../services/tauri-fs";
 import {
   loadExtension,
@@ -134,6 +137,31 @@ export interface ExtensionManager extends ReactiveService<ExtensionManagerState>
    * the requested permissions and get consent before committing the install.
    */
   previewInstall(srcDir: string): Promise<ManifestPreview>;
+  /**
+   * Download a package from the npm registry by name (`"acme-tool"` or
+   * `"@acme/silo-tool@1.2.0"`), extract it to a staging dir, show the
+   * permissions consent dialog via `requestConsent`, and install if granted.
+   *
+   * The tarball is downloaded from the npm registry CDN. `requestConsent` is
+   * called even when `permissions` is empty so the caller can show a summary
+   * before committing — return `true` to proceed, `false` to abort.
+   */
+  installFromNpm(
+    packageName: string,
+    requestConsent: (preview: ManifestPreview) => Promise<boolean>,
+  ): Promise<void>;
+  /**
+   * Download a `.tgz` tarball from any URL, extract it, show the permissions
+   * consent dialog via `requestConsent`, and install if granted. Covers GitHub
+   * release assets and any direct tarball URL.
+   *
+   * The tarball must contain a `package.json` with a `silo.*` manifest at its
+   * root or under a `package/` prefix (the npm standard layout).
+   */
+  installFromUrl(
+    url: string,
+    requestConsent: (preview: ManifestPreview) => Promise<boolean>,
+  ): Promise<void>;
 }
 
 /** A peek at an extension about to be installed, for the consent prompt. */
@@ -360,6 +388,68 @@ async function setBuiltinDisabled(
   });
 }
 
+// ---- npm / URL install helpers -----------------------------------------------
+
+/** Parse `"name"`, `"name@ver"`, or `"@scope/name@ver"` into a fetch URL and resolved tarball URL. */
+async function resolveNpmTarball(packageName: string): Promise<string> {
+  // Split off optional @version suffix — careful not to split the leading @ of
+  // a scoped package name. "@scope/pkg@1.0.0" → name="@scope/pkg", tag="1.0.0".
+  let name = packageName;
+  let tag: string | undefined;
+  const atIdx = packageName.lastIndexOf("@");
+  if (atIdx > 0) {
+    name = packageName.slice(0, atIdx);
+    tag = packageName.slice(atIdx + 1) || undefined;
+  }
+
+  const registryUrl = `https://registry.npmjs.org/${encodeURIComponent(name).replace(/%2F/g, "/")}`;
+  const resp = await fetch(registryUrl);
+  if (!resp.ok) {
+    throw new Error(`npm registry error for "${name}": HTTP ${resp.status}`);
+  }
+  const meta = (await resp.json()) as {
+    "dist-tags"?: Record<string, string>;
+    versions?: Record<string, { dist: { tarball: string } }>;
+  };
+
+  const version = tag ?? meta["dist-tags"]?.["latest"];
+  if (!version) throw new Error(`No version found for "${name}"`);
+
+  const versionData = meta.versions?.[version];
+  if (!versionData)
+    throw new Error(`Version "${version}" not found for "${name}"`);
+
+  return versionData.dist.tarball;
+}
+
+/** Extract the tarball from `url` into a unique temp dir, return the staging dir path. */
+async function stageFromUrl(url: string): Promise<string> {
+  const tmp = await tempDir();
+  const stagingDir = `${tmp}silo-install-${Date.now()}`;
+  await fsCreateDir(stagingDir);
+  await invoke("download_extract", { url, destDir: stagingDir });
+  return stagingDir;
+}
+
+/**
+ * Find the package root inside a staging dir. npm tarballs put files under
+ * `package/`; other tarballs may put them directly at the root or in a single
+ * named subdirectory. Returns the path that contains `package.json`.
+ */
+async function findPackageRoot(stagingDir: string): Promise<string> {
+  // 1. Standard npm layout: package/package.json
+  const npmRoot = `${stagingDir}/package`;
+  if (await fsPathExists(`${npmRoot}/package.json`)) return npmRoot;
+
+  // 2. Flat layout: package.json at root
+  if (await fsPathExists(`${stagingDir}/package.json`)) return stagingDir;
+
+  throw new Error(
+    `Could not find package.json in the downloaded archive — ` +
+      `expected it at the root or under a "package/" subfolder.`,
+  );
+}
+
 let service: ExtensionManager | null = null;
 
 /** @internal — host singleton; the `core.extensions` UI consumes this. */
@@ -514,6 +604,24 @@ export function getExtensionManager(): ExtensionManager {
         name: manifest.name,
         permissions: manifest.permissions,
       };
+    },
+
+    async installFromNpm(packageName, requestConsent) {
+      const tarballUrl = await resolveNpmTarball(packageName);
+      await service!.installFromUrl(tarballUrl, requestConsent);
+    },
+
+    async installFromUrl(url, requestConsent) {
+      const stagingDir = await stageFromUrl(url);
+      try {
+        const pkgRoot = await findPackageRoot(stagingDir);
+        const preview = await service!.previewInstall(pkgRoot);
+        const granted = await requestConsent(preview);
+        if (!granted) return;
+        await service!.installFromFolder(pkgRoot);
+      } finally {
+        await fsDelete(stagingDir).catch(() => {});
+      }
     },
   };
   return service;
