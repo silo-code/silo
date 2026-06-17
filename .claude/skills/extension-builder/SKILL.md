@@ -1,42 +1,38 @@
 ---
-name: live-extension
-description: Write, compile, and hot-load a Silo extension into the running app
-  without restart or install wizard. The extension uses the same format as any
-  publishable Silo extension and can be packaged for npm/sharing later. Requires
-  Silo to be running (the live-extensions watch folder is always active).
+name: extension-builder
+description: Help the user design, write, and run a Silo extension from a
+  natural-language description. The extension follows the same format as any
+  publishable Silo extension and can be shared via npm or a tarball URL when
+  ready. Deploying it into Silo's live-extensions folder is how you test it
+  immediately — not the end goal.
 tools: Bash, Read, Write
 ---
 
-# Live Extension Loader
+# Extension Builder
 
-Generate a Silo extension from a natural-language description, compile it to a
-single ESM bundle, and drop it in the watched `live-extensions/` directory. Silo
-detects the file and loads it within ~200ms — no restart, no install flow.
+Turn a natural-language description into a working Silo extension. The extension
+is real, publishable TypeScript — not a prototype or a hack. Deploying it to the
+watched `live-extensions/` folder lets Silo load it within ~200ms so the user
+can see it immediately, without a restart or an install wizard.
 
 ## Workflow (always in this order)
 
 1. **Plan** — identify which `ctx.*` APIs the extension needs (see API Reference below)
-2. **Write** source to `/tmp/silo-live-ext/<id>/src/index.tsx`
-3. **Write** manifest to `/tmp/silo-live-ext/<id>/package.json`
+2. **Write** source to `/tmp/silo-ext/<id>/src/index.tsx`
+3. **Write** manifest to `/tmp/silo-ext/<id>/package.json`
 4. **Compile** with esbuild
 5. **Deploy** the bundle to the watch folder
-6. **Verify** by running a screenshot
+6. **Tell the user** what to look for in Silo
 
-All five steps belong in a single Bash tool call. Do not split across turns.
+## Step 1 — Choose an extension id
 
-## Step 1 — Determine the config dir
+Pick a namespaced id that reflects what the extension does: `dave.clock`,
+`dave.tasks`, `dave.git-branch`, etc. The user's name or handle makes a natural
+namespace. The bundle filename **must match** the id: `dave.clock.js` ↔ `id: "dave.clock"`.
 
-The watch folder is `{userConfigDir}/live-extensions/`. Config dir depends on which Silo build is running:
+## Step 2 — Determine the config dir
 
-```bash
-# Production Silo
-LIVE_DIR="$HOME/.config/silo/live-extensions"
-
-# Dev build (pnpm dev)
-LIVE_DIR="$HOME/.config/silo-dev/live-extensions"
-```
-
-Check which is running by probing (prefer the dir that exists):
+The watch folder is `{userConfigDir}/live-extensions/`. Check which build is running:
 
 ```bash
 if [ -d "$HOME/.config/silo-dev" ]; then
@@ -47,21 +43,16 @@ fi
 mkdir -p "$LIVE_DIR"
 ```
 
-## Step 2 — Extension ID convention
-
-Live extensions use the `live.*` namespace: `live.tasks`, `live.git-branch`, etc.
-The bundle filename **must match** the extension id: `live.tasks.js` ↔ `id: "live.tasks"`.
-
 ## Step 3 — Source file shape
 
 ```tsx
-// /tmp/silo-live-ext/<id>/src/index.tsx
+// /tmp/silo-ext/<id>/src/index.tsx
 import React, { useState, useEffect } from "react";
 import type { Extension, SidePanelProps } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
 
 export const extension: Extension = {
-  id: "live.<slug>",
+  id: "dave.<slug>",
   manifest: {
     name: "My Extension",
     description: "What it does.",
@@ -73,17 +64,17 @@ export const extension: Extension = {
 };
 ```
 
-## Step 4 — package.json (needed for publishability)
+## Step 4 — package.json
 
 ```json
 {
-  "name": "silo-live-<slug>",
+  "name": "silo-<slug>",
   "version": "0.1.0",
   "description": "...",
   "silo": {
-    "id": "live.<slug>",
+    "id": "dave.<slug>",
     "main": "dist/index.js",
-    "publisher": "live"
+    "publisher": "Dave"
   }
 }
 ```
@@ -91,7 +82,6 @@ export const extension: Extension = {
 ## Step 5 — Compile + Deploy (single Bash call)
 
 ```bash
-# Resolve live-extensions dir
 if [ -d "$HOME/.config/silo-dev" ]; then
   LIVE_DIR="$HOME/.config/silo-dev/live-extensions"
 else
@@ -99,10 +89,8 @@ else
 fi
 mkdir -p "$LIVE_DIR"
 
-ID="live.<slug>"
-SRC="/tmp/silo-live-ext/$ID"
-
-# Write source (already done in previous Write calls, or inline here)
+ID="dave.<slug>"
+SRC="/tmp/silo-ext/$ID"
 
 # Compile — externalize the three shared deps; the host injects them at load time
 pnpm exec esbuild "$SRC/src/index.tsx" \
@@ -116,15 +104,13 @@ pnpm exec esbuild "$SRC/src/index.tsx" \
   --external:@silo-code/sdk \
   --outfile="$LIVE_DIR/$ID.js"
 
-echo "Deployed $ID — Silo will load it within ~200ms"
+echo "Deployed $ID"
 ```
 
-## Step 6 — Verify
+## Step 6 — Tell the user what to look for
 
-Tell the user what appeared and where to look. There is no programmatic
-verification — Silo is a production desktop app with no automation bridge.
-
-Example (tailor to what was actually registered):
+There is no programmatic verification — Silo is a production desktop app.
+Describe what appeared and where:
 
 - **Status bar item**: "A clock now appears on the left side of the status bar."
 - **Side panel**: "Open the left sidebar and click the Tasks icon to see the panel."
@@ -132,22 +118,17 @@ Example (tailor to what was actually registered):
 
 ## Iteration
 
-To **update** an extension: re-run the compile step. The old instance tears down and the new one loads within ~200ms.
+To **update**: re-run the compile step. Silo hot-replaces within ~200ms.
 
-To **unload** an extension: delete the file.
-
-```bash
-rm "$LIVE_DIR/live.<slug>.js"
-```
+To **remove**: delete the file — `rm "$LIVE_DIR/dave.<slug>.js"`
 
 ## Publishing
 
-Once the extension is working, it can be published for others to install:
+When the extension is ready to share:
 
 1. Move source to a proper project directory
-2. Add `dist/index.js` (the compiled bundle) to the package
-3. Publish to npm: `npm publish`
-4. Others install via the Extensions settings page input: `your-package-name`
+2. `npm publish`
+3. Others install it from Silo's Extensions settings page by typing the package name
 
 ---
 
@@ -158,14 +139,14 @@ Once the extension is working, it can be published for others to install:
 **Commands** — named, invokable actions:
 
 ```typescript
-ctx.registerCommand({ id: "live.foo.bar", label: "Foo: Do Bar", run: () => { ... } });
+ctx.registerCommand({ id: "dave.foo.bar", label: "Foo: Do Bar", run: () => { ... } });
 ```
 
 **Status bar items** — widgets in the strip at the bottom:
 
 ```typescript
 ctx.registerStatusItem({
-  id: "live.foo.status",
+  id: "dave.foo.status",
   alignment: "left" | "right",
   priority: 0, // lower = further left/right
   tooltip: "optional hover text",
@@ -177,7 +158,7 @@ ctx.registerStatusItem({
 
 ```typescript
 ctx.registerSidePanel({
-  id: "live.foo.panel",
+  id: "dave.foo.panel",
   location: "left" | "right",
   title: "My Panel",
   component: MyPanel, // receives SidePanelProps
@@ -191,7 +172,7 @@ ctx.registerSidePanel({
 
 ```typescript
 ctx.registerSettingsPage({
-  id: "live.foo.settings",
+  id: "dave.foo.settings",
   title: "My Settings",
   component: MySettings,
 });
@@ -201,11 +182,11 @@ ctx.registerSettingsPage({
 
 ```typescript
 ctx.registerMenuItem({
-  id: "live.foo.item",
+  id: "dave.foo.item",
   menu: "file",
-  command: "live.foo.bar",
+  command: "dave.foo.bar",
   label: "...",
-  group: "9_live",
+  group: "9_custom",
 });
 ```
 
@@ -213,9 +194,9 @@ ctx.registerMenuItem({
 
 ```typescript
 ctx.registerKeybinding({
-  id: "live.foo.key",
+  id: "dave.foo.key",
   key: "cmd+shift+l",
-  command: "live.foo.bar",
+  command: "dave.foo.bar",
 });
 ```
 
@@ -305,28 +286,26 @@ border-radius: var(--silo-radius-sm);
 
 ## Example Prompts
 
-These trigger the full write → compile → deploy → verify loop:
-
 **Git branch status bar:**
 
-> `/live-extension` Create a status bar item on the left side that shows the current git branch for the active workspace, with a dot when there are uncommitted changes. Update when the active workspace switches.
+> `/extension-builder` Create a status bar item on the left that shows the current git branch for the active workspace, with a dot when there are uncommitted changes. Update when the active workspace switches.
 
 **Workspace task list:**
 
-> `/live-extension` Create a right-side panel called "Tasks" with a persistent to-do list. Items have a checkbox and a delete button. Persist tasks so they survive app restarts.
+> `/extension-builder` Create a right-side panel called "Tasks" with a persistent to-do list. Items have a checkbox and a delete button. Persist tasks so they survive app restarts.
 
 **GitHub issues panel:**
 
-> `/live-extension` Create a right-side panel called "Issues" that fetches open GitHub issues for the active workspace's repo using `gh issue list --json number,title,url`. Show a refresh button and make each issue a clickable link. Load lazily on first open.
+> `/extension-builder` Create a right-side panel called "Issues" that fetches open GitHub issues for the active workspace's repo using `gh issue list --json number,title,url`. Show a refresh button and make each issue a clickable link. Load lazily on first open.
 
 **Open PRs panel:**
 
-> `/live-extension` Same as the Issues panel but for pull requests — call it "Pull Requests", use `gh pr list --json number,title,isDraft,url`, and dim draft PRs.
+> `/extension-builder` Same as the Issues panel but for pull requests — call it "Pull Requests", use `gh pr list --json number,title,isDraft,url`, and dim draft PRs.
 
 **Scratch pad:**
 
-> `/live-extension` A right-side panel called "Scratch Pad" with a full-height textarea, persisted via storage so notes survive restarts. Use Silo's theme tokens for colors and the monospace font.
+> `/extension-builder` A right-side panel called "Scratch Pad" with a full-height textarea, persisted via storage so notes survive restarts. Use Silo's theme tokens for colors and the monospace font.
 
 **Word count status bar:**
 
-> `/live-extension` A right-aligned status bar item showing the word count of the currently active editor. Update when the active editor changes.
+> `/extension-builder` A right-aligned status bar item showing the word count of the currently active editor. Update when the active editor changes.
