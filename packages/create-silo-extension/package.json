@@ -1,6 +1,6 @@
 {
   "name": "create-silo-extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Scaffold a new Silo extension",
   "license": "MIT",
   "author": "Dave Weaver",
