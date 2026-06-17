@@ -391,7 +391,7 @@ async function setBuiltinDisabled(
 // ---- npm / URL install helpers -----------------------------------------------
 
 /** Parse `"name"`, `"name@ver"`, or `"@scope/name@ver"` into a fetch URL and resolved tarball URL. */
-async function resolveNpmTarball(packageName: string): Promise<string> {
+export async function resolveNpmTarball(packageName: string): Promise<string> {
   // Split off optional @version suffix — careful not to split the leading @ of
   // a scoped package name. "@scope/pkg@1.0.0" → name="@scope/pkg", tag="1.0.0".
   let name = packageName;
@@ -436,7 +436,7 @@ async function stageFromUrl(url: string): Promise<string> {
  * `package/`; other tarballs may put them directly at the root or in a single
  * named subdirectory. Returns the path that contains `package.json`.
  */
-async function findPackageRoot(stagingDir: string): Promise<string> {
+export async function findPackageRoot(stagingDir: string): Promise<string> {
   // 1. Standard npm layout: package/package.json
   const npmRoot = `${stagingDir}/package`;
   if (await fsPathExists(`${npmRoot}/package.json`)) return npmRoot;

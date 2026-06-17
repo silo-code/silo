@@ -5,15 +5,22 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const { fsMap, loaderMock } = vi.hoisted(() => ({
-  fsMap: new Map<string, string>(),
-  loaderMock: {
-    loadExtension: vi.fn(async () => {}),
-    unloadExtension: vi.fn(),
-    isLoaded: vi.fn(() => false),
-    needsReload: vi.fn(() => false),
-  },
-}));
+const { fsMap, loaderMock, invokeMock, fsDeleteSpy } = vi.hoisted(() => {
+  const fsMap = new Map<string, string>();
+  return {
+    fsMap,
+    loaderMock: {
+      loadExtension: vi.fn(async () => {}),
+      unloadExtension: vi.fn(),
+      isLoaded: vi.fn(() => false),
+      needsReload: vi.fn(() => false),
+    },
+    invokeMock: vi.fn(async () => {}),
+    fsDeleteSpy: vi.fn(async (p: string) => {
+      fsMap.delete(p);
+    }),
+  };
+});
 
 vi.mock("../services/user-config", () => ({
   userConfigDir: async () => "/cfg",
@@ -27,7 +34,7 @@ vi.mock("../services/tauri-fs", () => ({
   },
   fsWriteText: async (p: string, c: string) => void fsMap.set(p, c),
   fsCopyDir: async () => {},
-  fsDelete: async (p: string) => void fsMap.delete(p),
+  fsDelete: fsDeleteSpy,
   fsPathExists: async (p: string) => fsMap.has(p),
   // Remaining surface the scoped file service binds when a built-in activates
   // (createContext → getScopedFileService). Not exercised by these tests.
@@ -48,10 +55,18 @@ vi.mock("./menu-items", async (orig) => ({
   ...(await orig<typeof import("./menu-items")>()),
   syncMenu: vi.fn(async () => {}),
 }));
+vi.mock("@tauri-apps/api/path", () => ({
+  tempDir: async () => "/tmp/",
+}));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: invokeMock,
+}));
 
 import {
   getExtensionManager,
   validateManifestPermissions,
+  resolveNpmTarball,
+  findPackageRoot,
 } from "./extension-manager";
 import { registerBuiltins } from "./builtins-registry";
 import type { Extension } from "@silo-code/sdk";
@@ -78,6 +93,8 @@ beforeEach(() => {
   loaderMock.unloadExtension.mockClear();
   loaderMock.isLoaded.mockReturnValue(false);
   loaderMock.needsReload.mockReturnValue(false);
+  invokeMock.mockClear().mockResolvedValue(undefined);
+  fsDeleteSpy.mockClear();
   // Reset the built-in registry so merged rows / dispatch start clean.
   registerBuiltins([], new Set());
 });
@@ -286,6 +303,198 @@ describe("built-in dispatch + persistence", () => {
     );
     expect(await mgr.readDisabledBuiltins()).toEqual(
       new Set(["silo.a", "silo.b"]),
+    );
+  });
+});
+
+// ---- npm / URL install --------------------------------------------------
+
+function npmMeta(
+  version = "1.0.0",
+  tarball = `https://registry.npmjs.org/pkg/-/pkg-${version}.tgz`,
+) {
+  return {
+    "dist-tags": { latest: version },
+    versions: { [version]: { dist: { tarball } } },
+  };
+}
+
+function okFetch(body: unknown): ReturnType<typeof vi.fn> {
+  return vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => body,
+  });
+}
+
+describe("resolveNpmTarball", () => {
+  it("fetches the registry URL for a plain package name", async () => {
+    global.fetch = okFetch(npmMeta());
+    await resolveNpmTarball("my-pkg");
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://registry.npmjs.org/my-pkg",
+    );
+  });
+
+  it("returns the latest tarball URL", async () => {
+    const tarball = "https://registry.npmjs.org/pkg/-/pkg-3.0.0.tgz";
+    global.fetch = okFetch(npmMeta("3.0.0", tarball));
+    expect(await resolveNpmTarball("pkg")).toBe(tarball);
+  });
+
+  it("uses an explicit version tag from pkg@2.0.0", async () => {
+    const tarball = "https://registry.npmjs.org/pkg/-/pkg-2.0.0.tgz";
+    global.fetch = okFetch({
+      "dist-tags": { latest: "1.0.0" },
+      versions: {
+        "1.0.0": { dist: { tarball: "https://example.com/1.tgz" } },
+        "2.0.0": { dist: { tarball } },
+      },
+    });
+    expect(await resolveNpmTarball("pkg@2.0.0")).toBe(tarball);
+  });
+
+  it("handles scoped @scope/pkg — splits at the last @ only", async () => {
+    const tarball = "https://registry.npmjs.org/@scope/pkg/-/pkg-1.0.0.tgz";
+    global.fetch = okFetch(npmMeta("1.0.0", tarball));
+    const result = await resolveNpmTarball("@scope/pkg");
+    // URL encodes @ → %40 then re-exposes /
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://registry.npmjs.org/%40scope/pkg",
+    );
+    expect(result).toBe(tarball);
+  });
+
+  it("handles @scope/pkg@1.2.0 — extracts version while preserving scope", async () => {
+    const tarball = "https://registry.npmjs.org/@scope/pkg/-/pkg-1.2.0.tgz";
+    global.fetch = okFetch({
+      "dist-tags": { latest: "2.0.0" },
+      versions: {
+        "2.0.0": { dist: { tarball: "https://example.com/2.tgz" } },
+        "1.2.0": { dist: { tarball } },
+      },
+    });
+    const result = await resolveNpmTarball("@scope/pkg@1.2.0");
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://registry.npmjs.org/%40scope/pkg",
+    );
+    expect(result).toBe(tarball);
+  });
+
+  it("throws when the registry returns a non-2xx status", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    await expect(resolveNpmTarball("no-such-pkg")).rejects.toThrow("HTTP 404");
+  });
+
+  it("throws when the requested version is absent", async () => {
+    global.fetch = okFetch({
+      "dist-tags": { latest: "1.0.0" },
+      versions: { "1.0.0": { dist: { tarball: "https://x.com/1.tgz" } } },
+    });
+    await expect(resolveNpmTarball("pkg@9.9.9")).rejects.toThrow(
+      /not found for/,
+    );
+  });
+});
+
+describe("findPackageRoot", () => {
+  it("prefers the npm layout (package/package.json)", async () => {
+    fsMap.set("/staging/package/package.json", "{}");
+    fsMap.set("/staging/package.json", "{}");
+    expect(await findPackageRoot("/staging")).toBe("/staging/package");
+  });
+
+  it("falls back to flat layout when no package/ subdir", async () => {
+    fsMap.set("/staging/package.json", "{}");
+    expect(await findPackageRoot("/staging")).toBe("/staging");
+  });
+
+  it("throws when neither layout is present", async () => {
+    await expect(findPackageRoot("/staging")).rejects.toThrow(
+      /Could not find package\.json/,
+    );
+  });
+});
+
+describe("installFromUrl (integration)", () => {
+  function populateStaging(
+    destDir: string,
+    layout: "npm" | "flat" = "npm",
+  ): void {
+    const pkgJson = manifest(["fs:read"]);
+    if (layout === "npm") {
+      fsMap.set(`${destDir}/package/package.json`, pkgJson);
+    } else {
+      fsMap.set(`${destDir}/package.json`, pkgJson);
+    }
+    // refresh() reads from the installed destination after fsCopyDir (which is
+    // a no-op mock), so pre-seed the extension's final location too.
+    fsMap.set("/cfg/extensions/acme.x/package.json", manifest(["fs:read"]));
+  }
+
+  it("installs when consent is granted", async () => {
+    invokeMock.mockImplementation(
+      async (_cmd: string, args: { destDir?: string }) => {
+        if (args.destDir) populateStaging(args.destDir);
+      },
+    );
+
+    await mgr.installFromUrl("https://example.com/ext.tgz", async () => true);
+
+    expect(loaderMock.loadExtension).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "acme.x" }),
+    );
+  });
+
+  it("skips install when consent is denied but still cleans up", async () => {
+    let stagingDir = "";
+    invokeMock.mockImplementation(
+      async (_cmd: string, args: { destDir?: string }) => {
+        if (args.destDir) {
+          stagingDir = args.destDir;
+          populateStaging(args.destDir);
+        }
+      },
+    );
+
+    await mgr.installFromUrl("https://example.com/ext.tgz", async () => false);
+
+    expect(loaderMock.loadExtension).not.toHaveBeenCalled();
+    expect(fsDeleteSpy).toHaveBeenCalledWith(stagingDir);
+  });
+
+  it("cleans up staging dir even when previewInstall throws", async () => {
+    let stagingDir = "";
+    invokeMock.mockImplementation(
+      async (_cmd: string, args: { destDir?: string }) => {
+        if (args.destDir) {
+          stagingDir = args.destDir;
+          // Bad permission → validateManifestPermissions throws inside previewInstall
+          fsMap.set(`${args.destDir}/package/package.json`, manifest(["bad"]));
+        }
+      },
+    );
+
+    await expect(
+      mgr.installFromUrl("https://example.com/ext.tgz", async () => true),
+    ).rejects.toThrow(/unknown permission/);
+
+    expect(fsDeleteSpy).toHaveBeenCalledWith(stagingDir);
+  });
+
+  it("passes the resolved tarball URL to download_extract", async () => {
+    const tarball = "https://registry.npmjs.org/pkg/-/pkg-1.0.0.tgz";
+    global.fetch = okFetch(npmMeta("1.0.0", tarball));
+    invokeMock.mockImplementation(
+      async (_cmd: string, args: { destDir?: string }) => {
+        if (args.destDir) populateStaging(args.destDir);
+      },
+    );
+
+    await mgr.installFromNpm("pkg", async () => true);
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      "download_extract",
+      expect.objectContaining({ url: tarball }),
     );
   });
 });
