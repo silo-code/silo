@@ -1,0 +1,41 @@
+{
+  "name": "create-silo-extension",
+  "version": "0.2.1",
+  "description": "Scaffold a new Silo extension",
+  "license": "MIT",
+  "author": "Dave Weaver",
+  "keywords": [
+    "silo",
+    "silo-code",
+    "extension",
+    "scaffold",
+    "create"
+  ],
+  "homepage": "https://github.com/silo-code/silo/tree/main/packages/create-silo-extension",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silo-code/silo.git",
+    "directory": "packages/create-silo-extension"
+  },
+  "type": "module",
+  "bin": {
+    "create-silo-extension": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --banner:js='#!/usr/bin/env node' --outfile=dist/index.js",
+    "prepack": "pnpm run build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "^25",
+    "typescript": "~5.8.3",
+    "vitest": "^4.1.7"
+  }
+}

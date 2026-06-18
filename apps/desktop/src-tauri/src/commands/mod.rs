@@ -2,6 +2,7 @@ pub mod app_paths;
 #[cfg(feature = "automation")]
 pub mod automation;
 pub mod cli;
+pub mod install;
 pub mod devtools;
 pub mod fs;
 pub mod process;

@@ -1,9 +1,40 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { applyCliOpen, type CliOpenRequest } from "./open-handler";
+import {
+  applyCliOpen,
+  applyCliInstall,
+  applyCliUninstall,
+  type CliOpenRequest,
+} from "./open-handler";
 
 /**
- * Wire the `silo <path>` CLI entry point into the running webview.
+ * A resolved CLI request from `src-tauri/src/commands/cli.rs`.
+ *
+ * - `open` — open a path (dir, file, or missing)
+ * - `install` — install an extension from a local folder
+ * - `uninstall` — uninstall an extension by id
+ */
+type CliRequest =
+  | ({ action: "open" } & CliOpenRequest)
+  | { action: "install"; path: string }
+  | { action: "uninstall"; id: string };
+
+function dispatch(req: CliRequest): void {
+  if (req.action === "open") {
+    applyCliOpen(req);
+  } else if (req.action === "install") {
+    applyCliInstall(req.path).catch((err) =>
+      console.error("[silo cli] install failed:", err),
+    );
+  } else if (req.action === "uninstall") {
+    applyCliUninstall(req.id).catch((err) =>
+      console.error("[silo cli] uninstall failed:", err),
+    );
+  }
+}
+
+/**
+ * Wire the `silo` CLI entry point into the running webview.
  *
  * Two delivery paths (see `src-tauri/src/commands/cli.rs`):
  * - **warm** — a second launch is forwarded by `tauri-plugin-single-instance`,
@@ -15,12 +46,10 @@ import { applyCliOpen, type CliOpenRequest } from "./open-handler";
  * workspace instead of creating a duplicate (see the boot chain in `main.tsx`).
  */
 export async function initCliOpenHandler(): Promise<void> {
-  await listen<CliOpenRequest>("cli:open", (event) => {
-    if (event.payload) applyCliOpen(event.payload);
+  await listen<CliRequest>("cli:open", (event) => {
+    if (event.payload) dispatch(event.payload);
   });
 
-  const pending = await invoke<CliOpenRequest | null>(
-    "cli_consume_launch_args",
-  );
-  if (pending) applyCliOpen(pending);
+  const pending = await invoke<CliRequest | null>("cli_consume_launch_args");
+  if (pending) dispatch(pending);
 }

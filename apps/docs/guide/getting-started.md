@@ -8,22 +8,40 @@ lines.
 ::: tip What you're building
 An extension is a **standalone package** — your own folder, with its own
 `package.json`, that you build against [`@silo-code/sdk`](/api/) (installed from
-npm as a devDependency) and install into Silo **from a folder**. You don't need
-Silo's source to build one. This page writes the code; [Publishing an
-extension](/guide/publishing-an-extension) covers the packaging contract in full.
-Installing from a URL / npm registry is on the
-[roadmap](/roadmap#extension-distribution).
+npm as a devDependency) and install into Silo via the CLI or the Extensions
+settings page. You don't need Silo's source to build one. This page writes the
+code; [Publishing an extension](/guide/publishing-an-extension) covers the
+packaging contract in full.
 :::
 
 ## 1. Scaffold
 
-Make a folder for your extension, install the SDK and React as devDependencies,
-and add `src/index.tsx`:
+The fastest way to get started is the `create-silo-extension` scaffolding tool.
+Run it from any directory and answer the prompts:
 
 ```sh
-mkdir clock-extension && cd clock-extension
-npm i -D @silo-code/sdk react @types/react
+npx create-silo-extension
 ```
+
+It will ask for an extension id, display name, description, publisher, and
+output path, then create the project:
+
+```
+acme.clock/
+  src/index.tsx    ← extension source (edit this)
+  package.json     ← manifest with silo.id, silo.main, build scripts
+  dist/            ← compiled output (populated by npm run build)
+```
+
+You can also pass flags to skip the prompts:
+
+```sh
+npx create-silo-extension --id acme.clock --name "Clock" --path ~/my-extensions/acme.clock
+```
+
+The scaffolded `src/index.tsx` starts from this shell — a complete
+[`Extension`](/api/types/interfaces/Extension) object whose `activate` is where
+all registrations go:
 
 ```tsx
 // src/index.tsx
@@ -38,8 +56,7 @@ export const extension: Extension = {
 };
 ```
 
-An extension is just an [`Extension`](/api/types/interfaces/Extension) object. `activate` runs
-once; `ctx` is your [`ExtensionContext`](/api/).
+`activate` runs once on load; `ctx` is your [`ExtensionContext`](/api/).
 
 ## 2. Add a command
 
@@ -114,48 +131,56 @@ Defining `Clock` _inside_ `activate` lets it close over `ctx` and `use24h`.
 
 ## 5. Build & install
 
-Add a `silo` key to your `package.json` so the host knows your extension's id and
-where its built bundle lives — the `id` **must** match `extension.id` from step 1:
+The scaffolded `package.json` already has the `silo` manifest key and build
+scripts set up. The `silo.id` **must** match `extension.id` in your code (the
+scaffold ensures this):
 
 ```jsonc
 {
-  "name": "clock-extension",
-  "displayName": "Clock",
+  "name": "silo-acme-clock",
   "version": "0.1.0",
   "type": "module",
-  "scripts": { "build": "node build.mjs" },
+  "scripts": {
+    "build": "esbuild src/index.tsx --bundle ...",
+    "dev": "esbuild src/index.tsx --bundle ... --watch",
+  },
   "silo": {
     "id": "acme.clock", // must equal extension.id
     "engine": "^0.1",
     "main": "dist/index.js",
+    "publisher": "Acme",
   },
 }
 ```
 
-Bundle to a single ESM file, leaving `react`, `react/jsx-runtime`, and
-`@silo-code/sdk` as **externals** — the host supplies its own instances at load
-time (see [the build contract](/guide/publishing-an-extension#the-build-contract-externals)
-for why):
+Build the extension (the scaffold uses esbuild, leaving `react`,
+`react/jsx-runtime`, and `@silo-code/sdk` as **externals** — see [the build
+contract](/guide/publishing-an-extension#the-build-contract-externals)):
 
-```js
-// build.mjs
-import { build } from "esbuild";
-
-await build({
-  entryPoints: ["src/index.tsx"],
-  outfile: "dist/index.js",
-  bundle: true,
-  format: "esm",
-  jsx: "automatic",
-  external: ["react", "react/jsx-runtime", "@silo-code/sdk"],
-});
+```sh
+cd acme.clock
+npm run build        # one-shot compile
+npm run dev          # watch mode — recompiles on every save
 ```
 
-Then `npm run build` and, in Silo, open **Settings → Extensions → Install from
-folder…** and pick your `clock-extension` folder. The clock appears at the right
-of the status bar; click it or press <kbd>⌘⇧K</kbd> to toggle the format. Edits
-reload with **Disable / Enable** — no app restart. See [Publishing an
-extension](/guide/publishing-an-extension) for the full packaging reference.
+Then install it into Silo:
+
+```sh
+silo install .       # install from the current folder
+```
+
+Or open **Settings → Extensions → Install from folder…** and pick the folder.
+
+The clock appears at the right of the status bar; click it or press
+<kbd>⌘⇧K</kbd> to toggle the format. To uninstall:
+
+```sh
+silo uninstall acme.clock
+```
+
+Edits reload with **Disable / Enable** in the Extensions settings — no app
+restart needed. See [Publishing an extension](/guide/publishing-an-extension)
+for the full packaging reference.
 
 ## Going further
 

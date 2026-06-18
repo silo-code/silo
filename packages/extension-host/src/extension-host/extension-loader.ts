@@ -35,8 +35,7 @@ export interface LoadSpec {
   main: string;
   /**
    * Capabilities the user granted this extension at install (from its manifest's
-   * `silo.permissions`). Runtime-loaded extensions are never trusted, so absent
-   * this they're confined to the workspace.
+   * `silo.permissions`). Absent this they're confined to the workspace.
    */
   permissions?: readonly Permission[];
 }
@@ -162,8 +161,6 @@ export async function loadExtension(spec: LoadSpec): Promise<void> {
     const dockBefore = new Set(dockPanelKindRegistry.list().map((k) => k.id));
 
     recordExtension(ext.id);
-    // Runtime-loaded extensions are untrusted: workspace-scoped `files`/`process`
-    // lifted only by the capabilities the user granted at install.
     ctx = createContext(ext.id, {
       trusted: false,
       permissions: spec.permissions,

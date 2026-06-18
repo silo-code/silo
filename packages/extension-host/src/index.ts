@@ -45,6 +45,7 @@ export { sidePanelRegistry } from "./extension-host/side-panels";
 export { ensureMonaco } from "./docked/monaco-setup";
 // Test-driver only (the dev automation bridge uses it to set up a center split).
 export { splitActivePanel } from "./docked/dock-api-registry";
+
 export { store } from "./state/store";
 export {
   createWorkspace,

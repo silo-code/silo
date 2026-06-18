@@ -1,0 +1,48 @@
+name: release-create
+
+# Publish create-silo-extension to npm via changesets.
+#
+# MANUALLY GATED: runs only on workflow_dispatch and defaults to a DRY-RUN.
+# Nothing is published until someone dispatches it with `publish: true`.
+#
+# Auth is OIDC TRUSTED PUBLISHING — there is no NPM_TOKEN secret. One-time setup
+# on npm: npmjs.com/package/create-silo-extension/access → add a GitHub Actions
+# trusted publisher for owner `silo-code`, repo `silo`, workflow
+# `release-create.yml`. The job mints a short-lived OIDC credential at publish
+# time and npm verifies it against that config; provenance is attached
+# automatically.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Actually publish to npm (leave unchecked for a dry-run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for trusted publishing (also drives provenance)
+
+jobs:
+  release-create:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter create-silo-extension build
+
+      - name: Publish (dry-run)
+        if: ${{ !inputs.publish }}
+        run: pnpm publish --filter create-silo-extension --dry-run --no-git-checks
+
+      - name: Publish to npm
+        if: ${{ inputs.publish }}
+        run: pnpm changeset publish

@@ -75,9 +75,10 @@ How a third-party extension gets from a package into the running app. See
 | Enable / disable / uninstall (runtime)               | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
 | First-party built-ins listed (disable-only, branded) | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#install-enable-uninstall)     |
 | Load on launch + persisted registry                  | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
-| Install from URL (git / release tgz)                 | <Badge type="info" text="planned" /> | —                                                                   |
-| Install from npm registry                            | <Badge type="info" text="planned" /> | —                                                                   |
-| `npx` install/uninstall CLI                          | <Badge type="info" text="planned" /> | —                                                                   |
+| `silo install` / `silo uninstall` CLI                | <Badge type="tip" text="stable" />   | [docs](/guide/cli#extension-commands)                               |
+| `npx create-silo-extension` scaffold                 | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#scaffold-a-new-extension)     |
+| Install from URL (tarball / GitHub release)          | <Badge type="tip" text="stable" />   | [docs](/guide/sharing-extensions#share-a-packed-tarball)            |
+| Install from npm registry                            | <Badge type="tip" text="stable" />   | [docs](/guide/sharing-extensions#publish-to-npm)                    |
 | Update checking + apply                              | <Badge type="info" text="planned" /> | —                                                                   |
 | Permissions / capability model                       | <Badge type="tip" text="stable" />   | [docs](/guide/permissions)                                          |
 

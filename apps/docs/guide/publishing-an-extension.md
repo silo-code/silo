@@ -6,10 +6,31 @@ extension](/guide/getting-started) you've already written one; this page is the
 full packaging contract: the manifest, the build, and how the host loads it.
 
 ::: tip Status
-Installing from a **local folder** is available now. Installing from a **URL /
-git / npm registry**, an **`npx` CLI**, and **update checking** are on the
+Installing from a **local folder** (via UI or `silo install <path>`) is
+available now. Scaffolding via `npx create-silo-extension` is available now.
+Installing from a **URL / git / npm registry** and **update checking** are on the
 [roadmap](/roadmap#extension-distribution).
 :::
+
+## Scaffold a new extension
+
+The `create-silo-extension` tool generates the correct package structure and
+wires up the build scripts in one step:
+
+```sh
+npx create-silo-extension
+```
+
+It prompts for an extension id, display name, description, publisher, and output
+path. You can also pass flags to skip prompts:
+
+```sh
+npx create-silo-extension --id acme.hello --name "Hello" --publisher Acme --path ~/my-extensions/acme.hello
+```
+
+The generated project has everything described in this page — the right
+`package.json` shape, `npm run build` and `npm run dev` scripts, and an
+`src/index.tsx` starter — so you can go straight to editing code.
 
 ## The shape of a package
 
@@ -75,7 +96,8 @@ npm i -D @silo-code/sdk react @types/react
 
 Your extension must **not** bundle its own copy of React or the SDK. Build a
 single ESM file that leaves `react`, `react/jsx-runtime`, and `@silo-code/sdk` as
-**externals**:
+**externals**. If you used `npx create-silo-extension` this is already wired up
+in `npm run build`. Otherwise, a minimal esbuild invocation:
 
 ```js
 // build.mjs
@@ -90,6 +112,8 @@ await build({
   external: ["react", "react/jsx-runtime", "@silo-code/sdk"],
 });
 ```
+
+The scaffold also adds `npm run dev` (esbuild `--watch`) for iterating locally.
 
 At load time the host resolves those bare imports to **its own instances**, so:
 
@@ -139,13 +163,28 @@ deactivate() {
 
 ## Install, enable, uninstall
 
-1. `npm install && npm run build` in your package to produce `dist/index.js`.
-2. In Silo, open **Settings → Extensions → Install from folder…** and choose the
-   package folder. The host copies it into `~/.config/silo/extensions/<id>/`
+1. `npm run build` in your package to produce `dist/index.js`.
+2. Install it into Silo — pick either approach:
+
+   **CLI (recommended):**
+
+   ```sh
+   silo install /path/to/my-extension
+   ```
+
+   **UI:** open **Settings → Extensions → Install from folder…** and choose the
+   package folder.
+
+   Either way, Silo copies the package into `~/.config/silo/extensions/<id>/`
    (skipping `node_modules` and `.git`) and loads it immediately.
+
 3. The extension appears in the list with its display name and version. Use
-   **Disable / Enable** to unload/reload it without restarting, and **Uninstall**
-   to remove it from disk.
+   **Disable / Enable** to unload/reload it without restarting.
+4. To uninstall from the CLI:
+   ```sh
+   silo uninstall acme.hello
+   ```
+   Or click **Uninstall** in the Extensions settings page.
 
 Enabled extensions are recorded in `~/.config/silo/extensions/installed.json` and
 **reload automatically** on the next launch; disabled ones stay dormant.
