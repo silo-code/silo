@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Silo",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "identifier": "com.silo.desktop",
   "build": {
     "beforeDevCommand": "pnpm run dev",

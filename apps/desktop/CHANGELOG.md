@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.2](https://github.com/silo-code/silo/compare/silo-v0.6.1...silo-v0.6.2) (2026-06-18)
+
+
+### Bug Fixes
+
+* **icon:** refine prod icon — edge-to-edge squircle with balanced text padding ([a8fd60e](https://github.com/silo-code/silo/commit/a8fd60ee13f218e249fb826c04384f949f2ccd18))
+
 ## [0.6.1](https://github.com/silo-code/silo/compare/silo-v0.6.0...silo-v0.6.1) (2026-06-18)
 
 
