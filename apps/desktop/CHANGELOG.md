@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/silo-code/silo/compare/silo-v0.6.2...silo-v0.6.3) (2026-06-18)
+
+
+### Bug Fixes
+
+* **icon:** use fully opaque icon source, let macOS apply squircle mask ([90d0c53](https://github.com/silo-code/silo/commit/90d0c5340b48cbc462f29b95fa2d4b6c1a3ec271))
+
 ## [0.6.2](https://github.com/silo-code/silo/compare/silo-v0.6.1...silo-v0.6.2) (2026-06-18)
 
 
