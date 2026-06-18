@@ -47,6 +47,43 @@ Open as many project workspaces as you need and tab between them instantly. Each
 - **Extension SDK** — a small stable core with a public API; first-party features ship as extensions (modeled on VS Code / Obsidian)
 - **Local-first** — everything runs on your machine; no cloud required
 
+## Build extensions with Claude Code
+
+Silo ships a Claude Code skill that turns a plain-English description into a working extension — scaffolded, written, compiled, and installed in one session.
+
+**Install the skill once:**
+
+```bash
+mkdir -p ~/.claude/skills/silo-extension-builder && \
+  curl -fsSL -o ~/.claude/skills/silo-extension-builder/SKILL.md \
+  https://raw.githubusercontent.com/silo-code/silo/main/skills/silo-extension-builder/SKILL.md
+```
+
+**Then describe what you want:**
+
+```
+/silo-extension-builder Create a status bar item that shows the current git branch
+and a dot when there are uncommitted changes.
+```
+
+Claude scaffolds the project, writes the TypeScript, compiles it, and asks if you want it installed — all without leaving your terminal. The result is a real extension you own: edit the source, rebuild with `npm run build`, reinstall with `silo install`.
+
+Some things people have built this way in a single session:
+
+- **Git branch status bar** — branch name + dirty indicator, updates on workspace switch
+- **GitHub Issues panel** — lists open issues for the active repo via `gh`, with a refresh button
+- **Scratch pad** — persisted notes panel that survives restarts
+- **Word count** — right-aligned status bar item that tracks the active editor
+
+Extensions install and uninstall live — no restart needed:
+
+```bash
+silo install ~/my-extensions/dave.git-branch
+silo uninstall dave.git-branch
+```
+
+→ [Full guide](https://getsilo.dev/guide/claude-skill) · [Extension API](https://getsilo.dev/api/)
+
 ## Who it's for
 
 - You run Claude Code, Aider, or other AI coding agents and want to keep several going at once
