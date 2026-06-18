@@ -102,6 +102,17 @@ describe("renderPackageJson", () => {
     expect(pkg.scripts.dev).toContain("--watch");
   });
 
+  it("has a pack script that builds then runs npm pack", () => {
+    const pkg = JSON.parse(renderPackageJson(input));
+    expect(pkg.scripts.pack).toBe("npm run build && npm pack");
+  });
+
+  it("includes files array with dist and package.json", () => {
+    const pkg = JSON.parse(renderPackageJson(input));
+    expect(pkg.files).toContain("dist");
+    expect(pkg.files).toContain("package.json");
+  });
+
   it("includes esbuild and sdk as devDependencies", () => {
     const pkg = JSON.parse(renderPackageJson(input));
     expect(pkg.devDependencies["esbuild"]).toBeDefined();

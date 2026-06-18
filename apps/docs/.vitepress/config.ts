@@ -123,6 +123,10 @@ export default withMermaid(
                 text: "Publishing an extension",
                 link: "/guide/publishing-an-extension",
               },
+              {
+                text: "Sharing extensions",
+                link: "/guide/sharing-extensions",
+              },
               { text: "Permissions & access", link: "/guide/permissions" },
             ],
           },

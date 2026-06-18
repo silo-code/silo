@@ -54,9 +54,11 @@ export function renderPackageJson(input: ScaffoldInput): string {
         name: inferNpmName(input.id),
         version: "0.1.0",
         description: input.description,
+        files: ["dist", "package.json"],
         scripts: {
           build: `esbuild src/index.tsx ${ESBUILD_FLAGS}`,
           dev: `esbuild src/index.tsx ${ESBUILD_FLAGS} --watch`,
+          pack: "npm run build && npm pack",
         },
         silo: {
           id: input.id,

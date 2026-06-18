@@ -52,6 +52,8 @@ async function main(): Promise<void> {
   console.log(`  cd ${path} && npm run dev`);
   console.log(`\nTo install:`);
   console.log(`  silo install ${path}`);
+  console.log(`\nTo pack for sharing (builds + produces a .tgz):`);
+  console.log(`  cd ${path} && npm run pack`);
   console.log(`\nTo uninstall:`);
   console.log(`  silo uninstall ${id}`);
 }
