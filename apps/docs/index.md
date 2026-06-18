@@ -28,7 +28,10 @@ features:
     details: Everything runs on your machine. No cloud sync, no telemetry, no account required.
   - icon: 🧩
     title: Extension SDK
-    details: A small stable core with a public API. First-party features — terminal, editor, git, themes — ship as extensions against the same SDK you get.
+    details: A small stable core with a public API. First-party features — terminal, file explorer, git, themes — ship as extensions against the same SDK you get.
+  - icon: 🤖
+    title: Build with Claude
+    details: The silo-extension-builder Claude Code skill scaffolds, writes, and installs a working extension from a plain-English description. From prompt to installed extension in one session.
   - icon: "📄"
     title: MIT licensed
     details: 100% open source. Build on it, fork it, contribute to it.
@@ -48,14 +51,34 @@ Now you're coordinating multiple AI coding agents simultaneously across differen
 
 ## Download
 
-**macOS** (v0.4.0) — Windows and Linux coming soon.
+**macOS** — Windows and Linux coming soon.
 
-| Build                    | Link                                                                        |
-| ------------------------ | --------------------------------------------------------------------------- |
-| Apple Silicon (M1/M2/M3) | [Silo_0.4.0_aarch64.dmg](https://github.com/silo-code/silo/releases/latest) |
-| Intel Mac                | [Silo_0.4.0_x64.dmg](https://github.com/silo-code/silo/releases/latest)     |
+| Build                    | Link                                                                       |
+| ------------------------ | -------------------------------------------------------------------------- |
+| Apple Silicon (M1/M2/M3) | [Download .dmg](https://github.com/silo-code/silo/releases/latest)         |
+| Intel Mac                | [Download .dmg (Intel)](https://github.com/silo-code/silo/releases/latest) |
 
 Or build from source — see the [GitHub repo](https://github.com/silo-code/silo).
+
+---
+
+## Build extensions with AI
+
+The `silo-extension-builder` Claude Code skill turns a plain-English description
+into a working Silo extension — it scaffolds the project, writes the source,
+compiles it, and installs it into Silo in one session. You don't need to know
+the SDK to build your first extension.
+
+Open Claude Code in any directory and run:
+
+```
+/silo-extension-builder Create a status bar item that shows the current git branch.
+```
+
+The skill handles the scaffold, implementation, compile step, and `silo install`
+for you. From description to installed extension in minutes.
+
+**[Install the skill and get started →](/guide/claude-skill)**
 
 ---
 
@@ -63,8 +86,9 @@ Or build from source — see the [GitHub repo](https://github.com/silo-code/silo
 
 Silo has a public extension SDK (`@silo-code/sdk`), modeled on VS Code and Obsidian. Every first-party feature — terminal, file explorer, git, themes — is built as an extension against the same API you get. If a built-in can do it, so can you.
 
-- **[What is an extension?](/guide/)** — start here
+- **[What is an extension?](/guide/what-is-an-extension)** — start here
 - **[Your first extension](/guide/getting-started)** — 5-minute walkthrough
+- **[Build with Claude Code](/guide/claude-skill)** — scaffold and install via AI
 - **[API Reference](/api/)** — the full `ctx` surface
 - **[Roadmap](/roadmap)** — what's stable, what's planned
 
