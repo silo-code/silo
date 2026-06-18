@@ -73,7 +73,7 @@ Some things people have built this way in a single session:
 - **Git branch status bar** — branch name + dirty indicator, updates on workspace switch
 - **GitHub Issues panel** — lists open issues for the active repo via `gh`, with a refresh button
 - **Scratch pad** — persisted notes panel that survives restarts
-- **Word count** — right-aligned status bar item that tracks the active editor
+- **Todo manager** — side panel that reads/writes `TODO.md` in the active workspace, with checkboxes and inline add
 
 Extensions install and uninstall live — no restart needed:
 
