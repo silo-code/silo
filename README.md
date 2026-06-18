@@ -1,31 +1,17 @@
-<div align="center">
-  <img src="apps/desktop/src-tauri/icons/128x128.png" width="96" height="96" alt="Silo" />
+<img src="apps/desktop/src-tauri/icons/128x128.png" width="96" height="96" alt="Silo" />
 
-  <h3>Terminal-first workspace manager — built for the multi-agent workflow</h3>
+### Terminal-first workspace manager — built for the multi-agent workflow
 
-  <p>
-    Switch between your projects like browser tabs —<br/>
-    except each tab is a full workspace with live terminals, running agents, and preserved layout.
-  </p>
+Switch between your projects like browser tabs —
+except each tab is a full workspace with live terminals, running agents, and preserved layout.
 
-  <p>
-    <a href="https://github.com/silo-code/silo/releases/latest"><strong>Download for macOS →</strong></a>
-    &nbsp;·&nbsp;
-    <a href="https://getsilo.dev">Docs</a>
-    &nbsp;·&nbsp;
-    <a href="https://getsilo.dev/roadmap">Roadmap</a>
-  </p>
+[**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap)
 
-  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue" />
-  <img alt="Platform: macOS" src="https://img.shields.io/badge/platform-macOS-lightgrey" />
-  <img alt="Status: Early" src="https://img.shields.io/badge/status-early%20access-orange" />
-</div>
+![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey) ![Status: Early](https://img.shields.io/badge/status-early%20access-orange)
 
 ---
 
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/6c73421d-247a-436b-acbb-17e1a286a841" alt="Switching between three live workspaces in Silo" width="800" />
-</div>
+![Switching between three live workspaces in Silo](https://github.com/user-attachments/assets/6c73421d-247a-436b-acbb-17e1a286a841)
 
 ---
 
