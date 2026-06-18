@@ -10,6 +10,14 @@
       "icons-dev/128x128@2x.png",
       "icons-dev/icon.icns",
       "icons-dev/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "infoPlistValues": {
+        "CFBundleIconName": "AppIcon-dev"
+      },
+      "files": {
+        "Resources/Assets.car": "resources-dev/Assets.car"
+      }
+    }
   }
 }
