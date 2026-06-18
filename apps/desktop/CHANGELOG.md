@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0](https://github.com/silo-code/silo/compare/silo-v0.5.0...silo-v0.6.0) (2026-06-18)
+
+
+### Features
+
+* **extensions:** silo install/uninstall CLI, npx scaffold, npm/URL install, sharing guide ([#45](https://github.com/silo-code/silo/issues/45)) ([ce00181](https://github.com/silo-code/silo/commit/ce00181cfff08a5db56596d89c096ecbaf4d8bf5))
+
+
+### Bug Fixes
+
+* **ci:** retry DMG upload on 404 to handle parallel-job race condition ([692b3e5](https://github.com/silo-code/silo/commit/692b3e559b817e545b04909f76bd4b03c9879ae3))
+
 ## [0.5.0](https://github.com/silo-code/silo/compare/silo-v0.4.0...silo-v0.5.0) (2026-06-17)
 
 
