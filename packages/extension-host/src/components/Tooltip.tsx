@@ -50,6 +50,7 @@ export function Tooltip({
       className="silo-tooltip-host"
       onMouseEnter={show}
       onMouseLeave={hide}
+      onPointerDown={hide}
     >
       {children}
       {anchor &&
