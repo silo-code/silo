@@ -12,9 +12,6 @@
       "icons-dev/icon.ico"
     ],
     "macOS": {
-      "infoPlistValues": {
-        "CFBundleIconName": "AppIcon-dev"
-      },
       "files": {
         "Resources/Assets.car": "resources-dev/Assets.car"
       }
