@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/silo-code/silo/compare/silo-v0.6.4...silo-v0.7.0) (2026-06-18)
+
+
+### Features
+
+* **icon:** add Liquid Glass .icon + Assets.car for macOS Tahoe squircle jail fix ([bde52a5](https://github.com/silo-code/silo/commit/bde52a5f2a8f29c6a17f073e4c52281137a67b95))
+* **icon:** add Liquid Glass Assets.car for dev build (squircle jail fix) ([8a4be34](https://github.com/silo-code/silo/commit/8a4be34ce0abd348b5c53b1a3ce74361bc8f1362))
+
+
+### Bug Fixes
+
+* **icon:** remove infoPlistValues (not in Tauri v2 schema), recompile dev Assets.car as AppIcon ([57d709b](https://github.com/silo-code/silo/commit/57d709b5a550a2e19a459b66078724f9097f97cc))
+* **icon:** restore dev badge on dev icon source with squircle format ([a36d906](https://github.com/silo-code/silo/commit/a36d906e96f9214b44352207656e47a32acbd1d2))
+
 ## [0.6.4](https://github.com/silo-code/silo/compare/silo-v0.6.3...silo-v0.6.4) (2026-06-18)
 
 
