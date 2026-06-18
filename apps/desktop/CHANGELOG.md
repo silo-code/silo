@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.4](https://github.com/silo-code/silo/compare/silo-v0.6.3...silo-v0.6.4) (2026-06-18)
+
+
+### Bug Fixes
+
+* **icon:** use squircle-masked source with transparent corners for correct dock size ([aaae589](https://github.com/silo-code/silo/commit/aaae5899dc8868e08da63c8a7e6e3a44081b46a6))
+
 ## [0.6.3](https://github.com/silo-code/silo/compare/silo-v0.6.2...silo-v0.6.3) (2026-06-18)
 
 
