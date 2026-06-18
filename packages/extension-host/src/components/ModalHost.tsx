@@ -90,6 +90,9 @@ function PromptDialog({
           value={value}
           placeholder={opts.placeholder}
           onChange={(e) => setValue(e.target.value)}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
         />
         <ModalActions>
           {opts.resetLabel && (
