@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.1](https://github.com/silo-code/silo/compare/silo-v0.6.0...silo-v0.6.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* **icon:** fix prod icon transparency, sizing, and corner radius ([2599832](https://github.com/silo-code/silo/commit/2599832cdfe0a4704968bad81197ffa4939de796))
+* **tooltip:** dismiss tooltip on pointer down ([#48](https://github.com/silo-code/silo/issues/48)) ([66812bd](https://github.com/silo-code/silo/commit/66812bd0937df76357f79c27edef721baf30d204))
+
 ## [0.6.0](https://github.com/silo-code/silo/compare/silo-v0.5.0...silo-v0.6.0) (2026-06-18)
 
 
