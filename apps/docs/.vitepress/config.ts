@@ -96,21 +96,28 @@ export default withMermaid(
           text: "Download",
           link: "https://github.com/silo-code/silo/releases/latest",
         },
-        { text: "Guide", link: "/guide/" },
+        { text: "Guides", link: "/guide/" },
         { text: "API Reference", link: "/api/" },
         { text: "Roadmap", link: "/roadmap" },
       ],
 
       sidebar: {
         "/guide/": [
+          { text: "Getting Started", link: "/guide/" },
           {
             text: "Using Silo",
-            items: [{ text: "The `silo` command", link: "/guide/cli" }],
+            items: [
+              { text: "Workspaces", link: "/guide/workspaces" },
+              { text: "The `silo` command", link: "/guide/cli" },
+            ],
           },
           {
             text: "Building Extensions",
             items: [
-              { text: "What is an extension?", link: "/guide/" },
+              {
+                text: "What is an extension?",
+                link: "/guide/what-is-an-extension",
+              },
               { text: "Your first extension", link: "/guide/getting-started" },
               { text: "Build with Claude Code", link: "/guide/claude-skill" },
               { text: "Styling your extension", link: "/guide/styling" },
