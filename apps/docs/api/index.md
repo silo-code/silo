@@ -60,15 +60,16 @@ importing the store or touching the platform directly. Opening files lives on
 
 ## Other
 
-| Member                                                     | Purpose                                                                                                       |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| [`ctx.executeCommand`](/api/other/execute-command)         | invoke any registered command by id                                                                           |
-| [`ctx.getExtension`](/api/other/get-extension)             | consume another extension's published API ([`ExtensionHandle`](/api/types/interfaces/ExtensionHandle))        |
-| `ctx.extensionId`                                          | this extension's id (read-only)                                                                               |
-| `ctx.subscriptions`                                        | the [`Disposable`](/api/types/interfaces/Disposable)s the host tears down on unload                           |
-| [`useServiceState`](/api/other/use-service-state)          | React hook to read any service's reactive state ([`ReactiveService`](/api/types/interfaces/ReactiveService))  |
-| [`useFocusGroup`](/api/other/use-focus-group)              | React hook for keyboard nav of a focus group — list / menu / toolbar: one tab stop, arrows, the keyboard ring |
-| [`focusGroupNextIndex`](/api/other/focus-group-next-index) | the pure roving-index helper `useFocusGroup` runs — for widgets that can't use the hook (e.g. menus)          |
+| Member                                                     | Purpose                                                                                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`ctx.executeCommand`](/api/other/execute-command)         | invoke any registered command by id                                                                                |
+| [`ctx.getExtension`](/api/other/get-extension)             | consume another extension's published API ([`ExtensionHandle`](/api/types/interfaces/ExtensionHandle))             |
+| `ctx.extensionId`                                          | this extension's id (read-only)                                                                                    |
+| `ctx.subscriptions`                                        | the [`Disposable`](/api/types/interfaces/Disposable)s the host tears down on unload                                |
+| [`useServiceState`](/api/other/use-service-state)          | React hook to read any service's reactive state ([`ReactiveService`](/api/types/interfaces/ReactiveService))       |
+| [`useFocusGroup`](/api/other/use-focus-group)              | React hook for keyboard nav of a focus group — list / menu / toolbar: one tab stop, arrows, the keyboard ring      |
+| [`focusGroupNextIndex`](/api/other/focus-group-next-index) | the pure roving-index helper `useFocusGroup` runs — for widgets that can't use the hook (e.g. menus)               |
+| [`Tooltip`](/api/other/tooltip)                            | styled hover popup matching the host's status-bar tooltip — wrap any button or icon, 600 ms delay, portal-rendered |
 
 ---
 
