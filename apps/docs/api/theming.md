@@ -14,11 +14,11 @@ this token in its own styles?** Tokens fall into three groups by the answer.
 > extension-consumable subset. See [Building a theme](/guide/theming) for the
 > complete overridable surface.
 
-| Group                | Pattern                                                                                          | Consume in your extension?        |
-| -------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------- |
-| **Design tokens**    | `--silo-color-*`, `--silo-font*`, `--silo-radius-*`, `--silo-button-*`                           | ✅ Yes — this page                |
-| **Component tokens** | `--silo-content-*`, `--silo-statusbar-*`, `--silo-breadcrumb-*`, `--silo-tab-*`, `--silo-menu-*` | ❌ No — host chrome you don't own |
-| **Internal tokens**  | `--silo-internal-*`                                                                              | ❌ No — host plumbing, may change |
+| Group                | Pattern                                                                   | Consume in your extension?        |
+| -------------------- | ------------------------------------------------------------------------- | --------------------------------- |
+| **Design tokens**    | `--silo-color-*`, `--silo-font*`, `--silo-radius-*`, `--silo-button-*`    | ✅ Yes — this page                |
+| **Component tokens** | `--silo-content-*`, `--silo-statusbar-*`, `--silo-tab-*`, `--silo-menu-*` | ❌ No — host chrome you don't own |
+| **Internal tokens**  | `--silo-internal-*`                                                       | ❌ No — host plumbing, may change |
 
 Consuming a component or internal token from an extension package
 (`packages/extensions-*/src/**`) is a lint error
@@ -33,25 +33,31 @@ instead of going through `ctx`. The reasoning is recorded in
 Semantic, never literal (there is no `--silo-color-blue`). Every one is also a
 [`ThemeVars`](/api/types/interfaces/ThemeVars) key, so a theme can recolor it.
 
-| Token                        | Role                                    |
-| ---------------------------- | --------------------------------------- |
-| `--silo-color-bg`            | App / panel background                  |
-| `--silo-color-bg-hover`      | Hover surface (rows, menu items, cards) |
-| `--silo-color-bg-active`     | Active/pressed surface                  |
-| `--silo-color-text`          | Body text                               |
-| `--silo-color-text-hi`       | High-emphasis text (headings, active)   |
-| `--silo-color-text-lo`       | Low-emphasis text (hints, disabled)     |
-| `--silo-color-accent`        | Accent (links, focus, selection)        |
-| `--silo-color-accent-2`      | Secondary accent                        |
-| `--silo-color-border`        | Default border (often transparent)      |
-| `--silo-color-border-strong` | Visible divider / outline               |
-| `--silo-color-ok`            | Success                                 |
-| `--silo-color-warn`          | Warning                                 |
-| `--silo-color-err`           | Error / destructive                     |
-| `--silo-color-input-bg`      | Form-field background                   |
-| `--silo-color-input-text`    | Form-field text                         |
-| `--silo-color-button-bg`     | Neutral control surface                 |
-| `--silo-color-button-text`   | Neutral control text                    |
+| Token                                | Role                                                          |
+| ------------------------------------ | ------------------------------------------------------------- |
+| `--silo-color-bg`                    | App / panel background                                        |
+| `--silo-color-bg-hover`              | Hover surface (rows, menu items, cards)                       |
+| `--silo-color-bg-active`             | Active/pressed surface                                        |
+| `--silo-color-text`                  | Body text                                                     |
+| `--silo-color-text-hi`               | High-emphasis text (headings, active)                         |
+| `--silo-color-text-lo`               | Low-emphasis text (hints, disabled)                           |
+| `--silo-color-accent`                | Accent (links, focus, selection)                              |
+| `--silo-color-accent-2`              | Secondary accent                                              |
+| `--silo-color-border`                | Default border (often transparent)                            |
+| `--silo-color-border-strong`         | Visible divider / outline                                     |
+| `--silo-color-ok`                    | Success                                                       |
+| `--silo-color-warn`                  | Warning                                                       |
+| `--silo-color-err`                   | Error / destructive                                           |
+| `--silo-color-input-bg`              | Form-field background                                         |
+| `--silo-color-input-text`            | Form-field text                                               |
+| `--silo-color-button-bg`             | Neutral control surface                                       |
+| `--silo-color-button-text`           | Neutral control text                                          |
+| `--silo-color-toolbar-bg`            | Panel header bar background (breadcrumb, toolbar)             |
+| `--silo-color-toolbar-text`          | Toolbar text and enabled icons                                |
+| `--silo-color-toolbar-text-disabled` | Toolbar muted / disabled text                                 |
+| `--silo-color-toolbar-input-bg`      | Embedded input background and border                          |
+| `--silo-color-content-bg`            | Content viewport background (editor, terminal, viewer panels) |
+| `--silo-color-content-text`          | Content viewport foreground text                              |
 
 ### Fonts
 

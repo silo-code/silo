@@ -22,6 +22,22 @@
   --silo-color-ok: #9ece6a;
   --silo-color-warn: #e0af68;
   --silo-color-err: #f7768e;
+  /* Toolbar surface — the shared chrome tier for panel header bars (editor
+   * breadcrumb / view-switcher, web viewer address bar, and any extension
+   * toolbar). Extension-consumable so silo.* extensions can build their own
+   * toolbar-style bars that sit flush with the built-in ones. */
+  --silo-color-toolbar-bg: #0f1115;
+  --silo-color-toolbar-text: #c0c0c0;
+  --silo-color-toolbar-text-disabled: #7a7a7a;
+  --silo-color-toolbar-input-bg: #1c2030;
+  /* Content surface — the shared background/foreground for content viewports
+   * (editor, terminal, web viewer, image viewer, etc.). Extension-consumable so
+   * silo.* viewer extensions can match the content area without reaching into
+   * component tokens. Component tokens default to these via var() so a theme can
+   * either set one token to unify all content surfaces, or override each
+   * component token individually. */
+  --silo-color-content-bg: #0f1115;
+  --silo-color-content-text: #b7bccc;
 
   /* Design-token button treatment (theming-contract.md › Themeable treatments). Lets
    * a theme restyle buttons without moving the global accent/err primitive — the
@@ -44,7 +60,7 @@
   /* ── Component tokens · colors (theming-contract.md › The component-token
    * surface). Host-chrome treatments — `ThemeVars` keys (theme-overridable) but
    * NOT for extensions to consume; they don't own these components. */
-  --silo-content-text: #b7bccc;
+  --silo-content-text: var(--silo-color-content-text);
   --silo-content-editor-text-dim: #939bb1;
   --silo-content-editor-text-faint: #6d7593;
 
@@ -55,17 +71,13 @@
   --silo-content-tab-text: #585858;
   --silo-content-tab-text-active: #969696;
 
-  --silo-content-terminal-bg: #0f1115;
-  --silo-content-editor-bg: #0f1115;
+  --silo-content-terminal-bg: var(--silo-color-content-bg);
+  --silo-content-editor-bg: var(--silo-color-content-bg);
   /* Selection highlight, shared by the Monaco editor and the terminal. Seeded
    * to the former bg-active / button-bg values so selections look unchanged
    * until a theme overrides them. */
   --silo-content-editor-selection: #3f648c;
   --silo-content-editor-selection-inactive: #24384e;
-  --silo-breadcrumb-bg: #0f1115;
-  --silo-breadcrumb-text: #7a7a7a;
-  --silo-breadcrumb-text-active: #c0c0c0;
-  --silo-breadcrumb-icon: #636363;
   --silo-statusbar-bg: #14161f;
   --silo-statusbar-text: #939bb1;
   /* Status-item hover surface. Derived from the bar's own background by
@@ -199,13 +211,19 @@
      rules. */
   --silo-button-bg: #d4d4d4;
 
-  --silo-content-text: #4a4a4a;
+  --silo-content-text: var(--silo-color-content-text);
   --silo-content-editor-text-dim: #6b6b6b;
   --silo-content-editor-text-faint: #9a9a9a;
 
   --silo-color-ok: #2da44e;
   --silo-color-warn: #b08800;
   --silo-color-err: #cf222e;
+  --silo-color-toolbar-bg: #ffffff;
+  --silo-color-toolbar-text: #4a4a4a;
+  --silo-color-toolbar-text-disabled: #6b6b6b;
+  --silo-color-toolbar-input-bg: #f0f0f0;
+  --silo-color-content-bg: #ffffff;
+  --silo-color-content-text: #4a4a4a;
 
   --silo-content-tab-bg: #ffffff;
   --silo-content-tab-tray-bg: #e5e5e5;
@@ -214,15 +232,10 @@
   --silo-content-tab-text: #6b6b6b;
   --silo-content-tab-text-active: #4a4a4a;
 
-  --silo-content-terminal-bg: #ffffff;
-  --silo-content-editor-bg: #ffffff;
+  --silo-content-terminal-bg: var(--silo-color-content-bg);
+  --silo-content-editor-bg: var(--silo-color-content-bg);
   --silo-content-editor-selection: #cce4ff;
   --silo-content-editor-selection-inactive: #e0e0e0;
-  --silo-breadcrumb-bg: #ffffff;
-  --silo-breadcrumb-text: #6b6b6b;
-  --silo-breadcrumb-text-active: #4a4a4a;
-  --silo-breadcrumb-icon: #9a9a9a;
-
   --silo-tab-text-active: #4a4a4a;
   --silo-tab-text: #6b6b6b;
   --silo-tab-bg-hover: #ececec;

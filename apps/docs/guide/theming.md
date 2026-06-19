@@ -150,14 +150,25 @@ backdrop scrim, shadow, and radius stay fixed — only the card is themeable.
 | `--silo-modal-bg`     | Dialog card surface |
 | `--silo-modal-border` | Dialog card border  |
 
-### Breadcrumb
+### Toolbar
 
-| Token                           | Role                      |
-| ------------------------------- | ------------------------- |
-| `--silo-breadcrumb-bg`          | Breadcrumb bar background |
-| `--silo-breadcrumb-text`        | Breadcrumb segment text   |
-| `--silo-breadcrumb-text-active` | Active / leaf segment     |
-| `--silo-breadcrumb-icon`        | Chevrons / icons          |
+The shared chrome tier for panel header bars — the editor breadcrumb / view-switcher row, the web viewer address bar, and any extension toolbar.
+
+| Token                                | Role                                 |
+| ------------------------------------ | ------------------------------------ |
+| `--silo-color-toolbar-bg`            | Toolbar bar background               |
+| `--silo-color-toolbar-text`          | Text and enabled icons               |
+| `--silo-color-toolbar-text-disabled` | Muted text and disabled icons        |
+| `--silo-color-toolbar-input-bg`      | Embedded input background and border |
+
+### Content viewport
+
+The background and foreground for content panels — editor, terminal, web viewer, image viewer, and any extension that renders a viewport. The specific component tokens (`--silo-content-editor-bg`, `--silo-content-terminal-bg`, `--silo-content-text`) default to these and can be overridden individually.
+
+| Token                       | Role                                          |
+| --------------------------- | --------------------------------------------- |
+| `--silo-color-content-bg`   | Viewport background (all content panels)      |
+| `--silo-color-content-text` | Viewport foreground text (all content panels) |
 
 ### Content
 

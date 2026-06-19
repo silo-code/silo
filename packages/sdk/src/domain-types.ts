@@ -176,6 +176,14 @@ export interface ThemeVars {
   "--silo-color-input-text": string;
   "--silo-color-button-bg": string;
   "--silo-color-button-text": string;
+  // ── Design tokens — toolbar surface (panel header bars) ──
+  "--silo-color-toolbar-bg": string;
+  "--silo-color-toolbar-text": string;
+  "--silo-color-toolbar-text-disabled": string;
+  "--silo-color-toolbar-input-bg": string;
+  // ── Design tokens — content viewport surface (editor, terminal, viewer panels) ──
+  "--silo-color-content-bg": string;
+  "--silo-color-content-text": string;
   // ── Design tokens — font families ──
   "--silo-font-ui"?: string;
   "--silo-font-mono"?: string;
@@ -193,11 +201,6 @@ export interface ThemeVars {
   "--silo-content-tab-text": string;
   "--silo-content-tab-text-inactive": string;
   "--silo-content-tab-text-active": string;
-  // ── Component tokens — breadcrumb colors ──
-  "--silo-breadcrumb-bg": string;
-  "--silo-breadcrumb-text": string;
-  "--silo-breadcrumb-text-active": string;
-  "--silo-breadcrumb-icon": string;
   // ── Component tokens — status bar colors ──
   "--silo-statusbar-bg": string;
   "--silo-statusbar-text": string;

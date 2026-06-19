@@ -5,28 +5,39 @@
   overflow: hidden;
 }
 
+/* Shares the toolbar surface so this bar reads as the same chrome tier as the
+   editor breadcrumb / view-switcher row above content panels. */
 .web-viewer-bar {
   display: flex;
   align-items: center;
   gap: 2px;
   padding: 4px 6px;
-  background: var(--silo-color-bg);
+  background: var(--silo-color-toolbar-bg);
   border-bottom: 1px solid var(--silo-color-border);
   flex-shrink: 0;
 }
 
+/* Icon-only nav buttons (back / forward / refresh / open-external).
+   Resting color matches the toolbar icon treatment; hover brightens to
+   text-active (same token ViewSwitcher uses on hover). A subtle bg pill is
+   added on hover because individual icon buttons need a distinct hover
+   affordance that a full-width text button (ViewSwitcher) does not. */
 .web-viewer-nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 26px;
   height: 26px;
+  padding: 0;
   flex-shrink: 0;
   border: none;
   background: transparent;
-  color: var(--silo-color-text-hi);
+  color: var(--silo-color-toolbar-text);
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
+  /* Counteract the global button:disabled { opacity: 0.5 } — toolbar icon
+     buttons express disabled state via color alone, not opacity. */
+  opacity: 1;
 }
 
 .web-viewer-nav-btn:hover:not(:disabled) {
@@ -34,7 +45,7 @@
 }
 
 .web-viewer-nav-btn:disabled {
-  opacity: 0.35;
+  color: var(--silo-color-toolbar-text-disabled);
   cursor: default;
 }
 
@@ -45,9 +56,9 @@
   padding: 0 8px;
   font-size: var(--silo-font-size-sm);
   font-family: var(--silo-font-ui);
-  background: var(--silo-color-input-bg);
-  color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  background: var(--silo-color-toolbar-input-bg);
+  color: var(--silo-color-toolbar-text);
+  border: 1px solid var(--silo-color-toolbar-input-bg);
   border-radius: var(--silo-radius-sm);
   outline: none;
 }
@@ -71,7 +82,10 @@
   width: 100%;
   height: 100%;
   border: none;
-  background: #fff;
+  background: var(--silo-color-content-bg);
+  /* Propagates the host's dark/light color-scheme into the iframe so
+     browser-native scrollbars inside it match the app theme. */
+  color-scheme: inherit;
 }
 
 .web-viewer-empty {
@@ -80,13 +94,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--silo-color-text-lo);
+  background: var(--silo-color-content-bg);
+  color: var(--silo-color-content-text);
   font-size: var(--silo-font-size-sm);
   font-family: var(--silo-font-ui);
 }
 
-/* Blocked overlay — sits on top of the (blank) iframe so the user gets
-   a clear message instead of a white void. */
 .web-viewer-blocked {
   position: absolute;
   inset: 0;
@@ -95,8 +108,8 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: var(--silo-color-bg);
-  color: var(--silo-color-text-lo);
+  background: var(--silo-color-content-bg);
+  color: var(--silo-color-content-text);
   font-size: var(--silo-font-size-sm);
   font-family: var(--silo-font-ui);
 }
@@ -114,10 +127,10 @@
   align-items: center;
   gap: 5px;
   padding: 5px 12px;
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-border-strong);
   border-radius: var(--silo-radius-sm);
   background: transparent;
-  color: var(--silo-color-text-hi);
+  color: var(--silo-color-toolbar-text);
   font-size: var(--silo-font-size-sm);
   font-family: var(--silo-font-ui);
   cursor: pointer;

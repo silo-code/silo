@@ -7,8 +7,8 @@
   padding: 0 10px;
   border: none;
   border-bottom: 1px solid var(--silo-color-border);
-  background: var(--silo-breadcrumb-bg);
-  color: var(--silo-breadcrumb-text);
+  background: var(--silo-color-toolbar-bg);
+  color: var(--silo-color-toolbar-text-disabled);
   font-size: var(--silo-font-size-base);
   font-family: var(--silo-font-ui);
   white-space: nowrap;
@@ -21,12 +21,12 @@
    background back to the bar. Only the text brightens as the hover affordance. */
 .view-switcher:hover:not(:disabled),
 .view-switcher:active:not(:disabled) {
-  background: var(--silo-breadcrumb-bg);
-  color: var(--silo-breadcrumb-text-active);
+  background: var(--silo-color-toolbar-bg);
+  color: var(--silo-color-toolbar-text);
 }
 
 .view-switcher__caret {
-  color: var(--silo-breadcrumb-icon);
+  color: var(--silo-color-toolbar-text-disabled);
   flex: 0 0 auto;
 }
 
@@ -39,7 +39,7 @@
   flex: 0 0 auto;
   height: 30px;
   padding: 0 10px;
-  background: var(--silo-breadcrumb-bg);
+  background: var(--silo-color-toolbar-bg);
   border-bottom: 1px solid var(--silo-color-border);
 }
 
@@ -52,7 +52,7 @@
   padding: 0 10px;
   border: none;
   background: transparent;
-  color: var(--silo-breadcrumb-text);
+  color: var(--silo-color-toolbar-text-disabled);
   font-size: var(--silo-font-size-base);
   font-family: var(--silo-font-ui);
   white-space: nowrap;
@@ -69,19 +69,19 @@
   transform: translateY(-50%);
   width: 1px;
   height: 14px;
-  background: var(--silo-breadcrumb-icon);
+  background: var(--silo-color-toolbar-text-disabled);
 }
 
 .view-switcher-seg__btn:hover:not(:disabled),
 .view-switcher-seg__btn:active:not(:disabled) {
   background: transparent;
-  color: var(--silo-breadcrumb-text-active);
+  color: var(--silo-color-toolbar-text);
 }
 
 /* Active segment — no fill, just brighter/heavier text. */
 .view-switcher-seg__btn[aria-pressed="true"],
 .view-switcher-seg__btn[aria-pressed="true"]:hover:not(:disabled) {
   background: transparent;
-  color: var(--silo-breadcrumb-text-active);
+  color: var(--silo-color-toolbar-text);
   font-weight: 600;
 }
