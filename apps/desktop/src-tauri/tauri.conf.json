@@ -55,7 +55,6 @@
     "macOS": {
       "minimumSystemVersion": "10.15",
       "files": {
-        "Resources/Assets.car": "resources/Assets.car",
         "Resources/AppIcon.icns": "resources/AppIcon.icns"
       }
     }

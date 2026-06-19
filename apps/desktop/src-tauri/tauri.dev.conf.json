@@ -13,7 +13,6 @@
     ],
     "macOS": {
       "files": {
-        "Resources/Assets.car": "resources-dev/Assets.car",
         "Resources/AppIcon.icns": "resources-dev/AppIcon.icns"
       }
     }
