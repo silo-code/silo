@@ -14,6 +14,7 @@
 export type {
   Disposable,
   DockPanelApi,
+  DockPanelProps,
   EditorProps,
   EditorCapabilities,
   Editor,

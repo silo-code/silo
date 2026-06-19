@@ -2,6 +2,7 @@ import { subscribe, snapshot } from "valtio";
 import { store, toggleLeftPanel, toggleRightPanel } from "../state/store";
 import { sidePanelRegistry } from "./side-panels";
 import { activateSidePaneTab } from "../layout/side-pane-registry";
+import { getActiveDockApi } from "../docked/dock-api-registry";
 import type { LayoutState, LayoutService } from "@silo-code/sdk";
 
 // `ctx.layout` — side-column collapse state. The public contract lives in
@@ -46,6 +47,14 @@ export function getLayoutService(): LayoutService {
     setSidePanelCollapsed(location, collapsed) {
       if (location === "left") store.leftPanelCollapsed = collapsed;
       else store.rightPanelCollapsed = collapsed;
+    },
+    openPanel(kindId, params) {
+      const api = getActiveDockApi();
+      if (!api) return;
+      const id = `${kindId}:${crypto.randomUUID()}`;
+      const title = (params?.title as string | undefined) ?? kindId;
+      const panel = api.addPanel({ id, component: kindId, title, params });
+      panel.api.setActive();
     },
     revealSidePanel(id) {
       const panel = sidePanelRegistry.get(id);

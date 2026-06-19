@@ -10,6 +10,7 @@
  * for the public surface. The app's composition root imports these and hands them
  * to `activateExtensions`.
  */
+export { extension as webViewer } from "./web-viewer";
 export { extension as imageViewer } from "./image-viewer";
 export { extension as markdownPreview } from "./markdown-preview";
 export { extension as fileExplorer } from "./file-explorer";

@@ -1,0 +1,128 @@
+.web-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.web-viewer-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  background: var(--silo-color-bg);
+  border-bottom: 1px solid var(--silo-color-border);
+  flex-shrink: 0;
+}
+
+.web-viewer-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--silo-color-text-hi);
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+
+.web-viewer-nav-btn:hover:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+}
+
+.web-viewer-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.web-viewer-url-input {
+  flex: 1;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  font-size: var(--silo-font-size-sm);
+  font-family: var(--silo-font-ui);
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  outline: none;
+}
+
+.web-viewer-url-input:focus {
+  border-color: var(--silo-color-accent);
+}
+
+/* Mirrors the terminal panel body pattern: a flex child that collapses to
+   zero minimum height so the parent flex layout controls its size, then the
+   iframe fills it via absolute positioning. */
+.web-viewer-content {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.web-viewer-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+}
+
+.web-viewer-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  font-family: var(--silo-font-ui);
+}
+
+/* Blocked overlay — sits on top of the (blank) iframe so the user gets
+   a clear message instead of a white void. */
+.web-viewer-blocked {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--silo-color-bg);
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  font-family: var(--silo-font-ui);
+}
+
+.web-viewer-blocked svg {
+  opacity: 0.4;
+}
+
+.web-viewer-blocked p {
+  margin: 0;
+}
+
+.web-viewer-open-external {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  background: transparent;
+  color: var(--silo-color-text-hi);
+  font-size: var(--silo-font-size-sm);
+  font-family: var(--silo-font-ui);
+  cursor: pointer;
+}
+
+.web-viewer-open-external:hover {
+  background: var(--silo-color-bg-hover);
+}

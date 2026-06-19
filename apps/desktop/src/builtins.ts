@@ -15,6 +15,7 @@ import {
   updates,
 } from "@silo-code/extensions-core";
 import {
+  webViewer,
   imageViewer,
   markdownPreview,
   fileExplorer,
@@ -36,6 +37,9 @@ const builtins: Extension[] = [
   // kinds runs (CenterDock's first render). core.editor registers both the
   // editor and diff kinds (text + diff + settings are its modules).
   terminal,
+  // web-viewer registers its DockPanelKind early, before layout restore, so
+  // saved web-viewer tabs can be deserialized from ws.dockLayout on mount.
+  webViewer,
   // The text editor registers before markdown-preview so that, with both at
   // priority 0, a plain .md open ties to Text (the default view); Preview is
   // opt-in via "Open With" / the breadcrumb switcher.

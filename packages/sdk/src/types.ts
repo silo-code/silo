@@ -57,6 +57,18 @@ export interface Disposable {
 export type DockPanelApi = IDockviewPanelProps["api"];
 
 /**
+ * Props handed to a {@link DockPanelKind} component. Use this type to annotate
+ * your component instead of importing `IDockviewPanelProps` from `dockview`
+ * directly — the SDK wraps it so extensions remain insulated from dockview
+ * version changes. The optional generic `T` narrows the shape of `params`.
+ *
+ * @category Core Types
+ * @public
+ */
+export type DockPanelProps<T extends object = Record<string, unknown>> =
+  IDockviewPanelProps<T>;
+
+/**
  * Props passed to an {@link Editor} component. An editor renders the contents of
  * one editor tab (a presenter for a file type — distinct from
  * {@link ExtensionContext.editors}, which is the document model).
@@ -305,6 +317,21 @@ export interface DockPanelKind {
   id: string;
   /** The React component; receives the raw dockview panel props. */
   component: React.ComponentType<IDockviewPanelProps>;
+  /**
+   * When set, this kind appears as an entry in the center dock's **+** add
+   * menu (the per-group header button). Omit to keep the kind internal.
+   */
+  addMenuItem?: {
+    /** Label shown in the menu, e.g. `"New Web Viewer"`. */
+    label: string;
+    /** Optional icon rendered to the left of the label. */
+    icon?: React.ReactNode;
+    /**
+     * Params forwarded to the new panel instance. Merged with a generated
+     * panel id — include `title` here to control the tab label.
+     */
+    params?: Record<string, unknown>;
+  };
 }
 
 /**

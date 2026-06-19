@@ -17,6 +17,7 @@ import {
 } from "../state/workspaces";
 import { pickWorkspaceFolder } from "../extension-host/pick-folder";
 import { listCreatableFileTypes } from "../extension-host/file-types";
+import { dockPanelKindRegistry } from "../extension-host/dock-panel-kinds";
 import { openMenu } from "../extension-host/menu-controller";
 import type { MenuEntry } from "@silo-code/sdk";
 import type { TerminalKind } from "../state/types";
@@ -88,12 +89,38 @@ export function GroupAddMenu(props: IDockviewHeaderActionsProps) {
 
   function openAddMenu(e: React.MouseEvent) {
     e.stopPropagation();
+    const group = props.group as DockviewGroupPanel;
+
+    const extensionKindItems: MenuEntry[] = dockPanelKindRegistry
+      .list()
+      .filter((k) => k.addMenuItem != null)
+      .map(
+        (k): MenuEntry => ({
+          label: k.addMenuItem!.label,
+          icon: k.addMenuItem!.icon,
+          run: () => {
+            const params = k.addMenuItem!.params ?? {};
+            const id = `${k.id}:${crypto.randomUUID()}`;
+            const title = (params.title as string | undefined) ?? k.id;
+            const panel = props.containerApi.addPanel({
+              id,
+              component: k.id,
+              title,
+              params,
+              position: { referenceGroup: group },
+            });
+            panel.api.setActive();
+          },
+        }),
+      );
+
     const items: MenuEntry[] = [
       {
         label: "New Terminal",
         icon: <TerminalIcon size={14} weight="regular" />,
         run: () => spawnTerminal("shell"),
       },
+      ...extensionKindItems,
       { type: "separator" },
       {
         label: "New file…",

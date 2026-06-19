@@ -16,6 +16,10 @@ export function setActiveDockApi(api: DockviewApi | null) {
   activeApi = api;
 }
 
+export function getActiveDockApi(): DockviewApi | null {
+  return activeApi;
+}
+
 export function closeActivePanel(): boolean {
   const panel = activeApi?.activePanel;
   if (!panel) return false;
