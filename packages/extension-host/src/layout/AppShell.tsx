@@ -6,6 +6,7 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { CenterDock } from "../panels/CenterDock";
 import { SideColumn } from "./SideColumn";
 import { StatusBar } from "../components/StatusBar";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { store } from "../state/store";
 import {
   restoreRegionFocus,
@@ -135,11 +136,15 @@ export function AppShell() {
           }}
           className="app-col"
         >
-          <SideColumn location="left" />
+          <ErrorBoundary name="side-left">
+            <SideColumn location="left" />
+          </ErrorBoundary>
         </Panel>
         <PanelResizeHandle onDragging={onPanelDragging} tabIndex={-1} />
         <Panel defaultSize={58} minSize={30} className="app-col">
-          <CenterDock />
+          <ErrorBoundary name="center-dock">
+            <CenterDock />
+          </ErrorBoundary>
         </Panel>
         <PanelResizeHandle onDragging={onPanelDragging} tabIndex={-1} />
         <Panel
@@ -157,7 +162,9 @@ export function AppShell() {
           }}
           className="app-col"
         >
-          <SideColumn location="right" />
+          <ErrorBoundary name="side-right">
+            <SideColumn location="right" />
+          </ErrorBoundary>
         </Panel>
       </PanelGroup>
       <StatusBar />

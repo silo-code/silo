@@ -65,6 +65,25 @@ describe("toast store", () => {
     expect(a.id).not.toBe(b.id);
   });
 
+  it("deduplicates: a second push with the same dedupKey is a no-op while the first toast is alive", () => {
+    pushToast("error", "boom", { dedupKey: "eb:panel-a" });
+    pushToast("error", "boom", { dedupKey: "eb:panel-a" });
+    expect(toastStore.toasts).toHaveLength(1);
+  });
+
+  it("allows a new toast after the original dedup-keyed toast is dismissed", () => {
+    pushToast("error", "boom", { dedupKey: "eb:panel-a" });
+    dismissToast(toastStore.toasts[0].id);
+    pushToast("error", "boom", { dedupKey: "eb:panel-a" });
+    expect(toastStore.toasts).toHaveLength(1);
+  });
+
+  it("different dedup keys don't block each other", () => {
+    pushToast("error", "boom", { dedupKey: "eb:panel-a" });
+    pushToast("error", "boom", { dedupKey: "eb:panel-b" });
+    expect(toastStore.toasts).toHaveLength(2);
+  });
+
   it("stores a title and serializable action metadata, not the run callback", () => {
     const run = vi.fn();
     getUiService().notify("info", "msg", {

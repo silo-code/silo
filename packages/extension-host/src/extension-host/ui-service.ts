@@ -42,6 +42,14 @@ export interface Toast {
    * {@link runToastAction}.
    */
   actions?: { label: string; keepOpen?: boolean }[];
+  /** Dedup key — if set, a second push with the same key is a no-op while this toast is alive. */
+  dedupKey?: string;
+}
+
+/** Internal options for {@link pushToast} — extends the public {@link NotifyOptions} with host-only fields. */
+interface PushToastOptions extends NotifyOptions {
+  /** If set, skip pushing if an active toast with this key already exists. */
+  dedupKey?: string;
 }
 
 /**
@@ -70,11 +78,17 @@ const toastActions = new Map<number, NotifyAction[]>();
 export function pushToast(
   level: "info" | "warn" | "error",
   message: string,
-  options?: NotifyOptions,
+  options?: PushToastOptions,
 ): void {
+  if (
+    options?.dedupKey &&
+    toastStore.toasts.some((t) => t.dedupKey === options.dedupKey)
+  )
+    return;
   const id = nextToastId++;
   const actions = options?.actions;
   const toast: Toast = { id, level, message };
+  if (options?.dedupKey) toast.dedupKey = options.dedupKey;
   if (options?.title) toast.title = options.title;
   if (actions?.length) {
     toast.actions = actions.map((a) => ({

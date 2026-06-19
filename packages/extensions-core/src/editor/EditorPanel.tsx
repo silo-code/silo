@@ -5,6 +5,7 @@ import {
   store,
   resolveEditorForRecord,
 } from "@silo-code/extension-host/internal";
+import { ErrorBoundary } from "@silo-code/extension-host";
 import { EditorBreadcrumb } from "./EditorBreadcrumb";
 import { DiffPanelLazy } from "./DiffPanelLazy";
 import type { DockPanelApi, ExtensionContext } from "@silo-code/sdk";
@@ -49,17 +50,23 @@ export function EditorPanel(
           key={viewerKey}
           fallback={<div className="editor-panel placeholder">Loading…</div>}
         >
-          {isDiff ? (
-            <DiffPanelLazy editorId={editorId} ctx={ctx} dockApi={props.api} />
-          ) : (
-            <ViewerContent
-              filePath={currentPath}
-              title={currentTitle}
-              viewType={currentViewType}
-              editorId={editorId}
-              dockApi={props.api}
-            />
-          )}
+          <ErrorBoundary name={`editor:${editorId}`}>
+            {isDiff ? (
+              <DiffPanelLazy
+                editorId={editorId}
+                ctx={ctx}
+                dockApi={props.api}
+              />
+            ) : (
+              <ViewerContent
+                filePath={currentPath}
+                title={currentTitle}
+                viewType={currentViewType}
+                editorId={editorId}
+                dockApi={props.api}
+              />
+            )}
+          </ErrorBoundary>
         </Suspense>
       </div>
     </div>

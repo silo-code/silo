@@ -7,6 +7,7 @@ import {
   Toasts,
   Menus,
   ThemeInjector,
+  ErrorBoundary,
   reloadCustomThemes,
 } from "@silo-code/extension-host";
 
@@ -16,7 +17,7 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <ErrorBoundary name="app">
       <ThemeInjector />
       <Shortcuts />
       <AppShell />
@@ -24,6 +25,6 @@ export default function App() {
       <ModalHost />
       <Toasts />
       <Menus />
-    </>
+    </ErrorBoundary>
   );
 }

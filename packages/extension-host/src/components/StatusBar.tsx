@@ -3,6 +3,7 @@ import { statusItemRegistry } from "../extension-host/status-items";
 import { enterRegionOnPointer } from "../extension-host/focus-regions";
 import type { StatusItem } from "@silo-code/sdk";
 import { Tooltip } from "./Tooltip";
+import { ErrorBoundary } from "./ErrorBoundary";
 import "./StatusBar.css";
 
 function useStatusItems(): StatusItem[] {
@@ -96,12 +97,17 @@ function useStatusBarFocus(ref: React.RefObject<HTMLDivElement | null>) {
 }
 
 function renderItem(item: StatusItem) {
-  return item.tooltip ? (
-    <Tooltip key={item.id} content={item.tooltip}>
+  const inner = item.tooltip ? (
+    <Tooltip content={item.tooltip}>
       <item.component />
     </Tooltip>
   ) : (
-    <item.component key={item.id} />
+    <item.component />
+  );
+  return (
+    <ErrorBoundary key={item.id} name={`status:${item.id}`} fallback={null}>
+      {inner}
+    </ErrorBoundary>
   );
 }
 

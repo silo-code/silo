@@ -18,6 +18,7 @@ import {
 } from "../state/workspaces";
 import { tauriTerminalClient } from "../services/tauri-terminal-client";
 import { getDockComponents } from "../extension-host/dock-panel-kinds";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { setActiveDockApi } from "../docked/dock-api-registry";
 import { getDndService, resolveDndMode } from "../extension-host/dnd-service";
 import { DND_MIME } from "@silo-code/sdk";
@@ -443,7 +444,7 @@ export function WorkspaceDock({
       ? "dockview-theme-light"
       : "dockview-theme-dark";
   return (
-    <>
+    <ErrorBoundary name={`workspace-dock:${workspaceId}`}>
       <DockviewReact
         className={`${themeClass} editor-dock`}
         components={dockComponents}
@@ -454,6 +455,6 @@ export function WorkspaceDock({
         leftHeaderActionsComponent={GroupAddMenu}
         watermarkComponent={EmptyWatermark}
       />
-    </>
+    </ErrorBoundary>
   );
 }

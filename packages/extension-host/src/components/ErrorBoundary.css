@@ -1,0 +1,60 @@
+.error-boundary-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  height: 100%;
+  box-sizing: border-box;
+  color: var(--silo-color-err);
+  font-size: var(--silo-font-size-sm, 12px);
+  overflow: auto;
+}
+
+.error-boundary-fallback__icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.error-boundary-fallback__message {
+  margin: 0;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.error-boundary-fallback__name {
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.error-boundary-fallback__details {
+  width: 100%;
+}
+
+.error-boundary-fallback__details summary {
+  cursor: pointer;
+  opacity: 0.7;
+  font-size: var(--silo-font-size-xs, 11px);
+}
+
+.error-boundary-fallback__stack {
+  margin: 6px 0 0;
+  font-size: var(--silo-font-size-xs, 11px);
+  white-space: pre-wrap;
+  word-break: break-all;
+  opacity: 0.8;
+}
+
+.error-boundary-fallback__retry {
+  padding: 3px 10px;
+  font-size: var(--silo-font-size-sm, 12px);
+  background: var(--silo-button-bg);
+  color: var(--silo-button-fg);
+  border: 1px solid var(--silo-button-border, transparent);
+  border-radius: var(--silo-radius-sm, 4px);
+  cursor: pointer;
+}
+
+.error-boundary-fallback__retry:hover {
+  background: var(--silo-button-hover-bg);
+}
