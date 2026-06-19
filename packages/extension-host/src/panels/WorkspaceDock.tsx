@@ -81,6 +81,14 @@ export function WorkspaceDock({
     ws.editors.forEach((e) => desired.add(`editor:${e.id}`));
 
     for (const panelId of [...mountedPanelIds.current]) {
+      // Only reconcile panels owned by the workspace terminal/editor lists.
+      // Custom DockPanelKind panels (web-viewer, image-viewer, etc.) are not
+      // tracked in ws.terminals/ws.editors — they persist via ws.dockLayout and
+      // are restored by fromJSON. Removing them here would cull them on every
+      // workspace switch or terminal/editor change.
+      const isManaged =
+        panelId.startsWith("terminal:") || panelId.startsWith("editor:");
+      if (!isManaged) continue;
       if (!desired.has(panelId)) {
         const panel = api.getPanel(panelId);
         if (panel) api.removePanel(panel);
