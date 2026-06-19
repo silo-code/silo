@@ -152,7 +152,7 @@ Defined in: [packages/sdk/src/workspace-service.ts:63](https://github.com/silo-c
 
 ##### position
 
-`"before"` \| `"after"`
+`"after"` \| `"before"`
 
 #### Returns
 

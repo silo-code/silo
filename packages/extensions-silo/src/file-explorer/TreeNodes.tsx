@@ -7,7 +7,7 @@ import {
   ArrowClockwise,
   ArrowsIn,
 } from "@phosphor-icons/react";
-import { DND_MIME } from "@silo-code/sdk";
+import { DND_MIME, Tooltip } from "@silo-code/sdk";
 import {
   rowIndent,
   ROW_INDENT_PX,
@@ -163,38 +163,42 @@ export function DirNode({
             className="tree-root-actions"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              className="tree-hdr-btn"
-              tabIndex={-1}
-              title="New File"
-              onClick={rootActions.onNewFile}
-            >
-              <FilePlus size="1.2em" weight="regular" />
-            </button>
-            <button
-              className="tree-hdr-btn"
-              tabIndex={-1}
-              title="New Folder"
-              onClick={rootActions.onNewFolder}
-            >
-              <FolderPlus size="1.2em" weight="regular" />
-            </button>
-            <button
-              className="tree-hdr-btn"
-              tabIndex={-1}
-              title="Refresh"
-              onClick={rootActions.onRefresh}
-            >
-              <ArrowClockwise size="1.2em" weight="regular" />
-            </button>
-            <button
-              className="tree-hdr-btn"
-              tabIndex={-1}
-              title="Collapse All"
-              onClick={rootActions.onCollapseAll}
-            >
-              <ArrowsIn size="1.2em" weight="regular" />
-            </button>
+            <Tooltip content="New File">
+              <button
+                className="tree-hdr-btn"
+                tabIndex={-1}
+                onClick={rootActions.onNewFile}
+              >
+                <FilePlus size="1.2em" weight="regular" />
+              </button>
+            </Tooltip>
+            <Tooltip content="New Folder">
+              <button
+                className="tree-hdr-btn"
+                tabIndex={-1}
+                onClick={rootActions.onNewFolder}
+              >
+                <FolderPlus size="1.2em" weight="regular" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Refresh">
+              <button
+                className="tree-hdr-btn"
+                tabIndex={-1}
+                onClick={rootActions.onRefresh}
+              >
+                <ArrowClockwise size="1.2em" weight="regular" />
+              </button>
+            </Tooltip>
+            <Tooltip content="Collapse All">
+              <button
+                className="tree-hdr-btn"
+                tabIndex={-1}
+                onClick={rootActions.onCollapseAll}
+              >
+                <ArrowsIn size="1.2em" weight="regular" />
+              </button>
+            </Tooltip>
           </span>
         )}
       </div>

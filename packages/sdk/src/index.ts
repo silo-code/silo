@@ -141,6 +141,10 @@ export type {
 // Context keys referenced by `when` predicates on menu items / keybindings.
 export type { ContextKeys } from "./context-keys";
 
+// Tooltip — the same styled hover popup the host uses in the status bar.
+// Extensions use this instead of native `title` attributes to match host chrome.
+export { Tooltip } from "./Tooltip";
+
 // Runtime helpers. The one blessed way for an extension to read a `ctx`
 // service's reactive state in React — replaces hand-rolled useSyncExternalStore.
 export { useServiceState } from "./use-service-state";

@@ -31,6 +31,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.dnd` (drag-and-drop)                      | <Badge type="tip" text="stable" />   | [docs](/api/dnd/)                    |
 | `useServiceState` (reactive reads)             | <Badge type="tip" text="stable" />   | [docs](/api/other/use-service-state) |
 | `useFocusGroup` (keyboard nav for a group)     | <Badge type="tip" text="stable" />   | [docs](/api/other/use-focus-group)   |
+| `Tooltip` (styled hover popup)                 | <Badge type="tip" text="stable" />   | [docs](/api/other/tooltip)           |
 | `ctx.ui` (pickers + notify w/ actions + menus) | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |
 | `ctx.ui` (confirm / prompt)                    | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |
 | `ctx.ui.showModal` (custom modal content)      | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |

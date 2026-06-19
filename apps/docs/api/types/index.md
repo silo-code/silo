@@ -83,6 +83,7 @@ the published reference is exactly this surface — no more, no less.
 
 ## Core Types
 
+- [Tooltip](functions/Tooltip.md)
 - [ContextKeys](interfaces/ContextKeys.md)
 - [DND\_MIME](variables/DND_MIME.md)
 - [DndMime](type-aliases/DndMime.md)

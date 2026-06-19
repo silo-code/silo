@@ -201,7 +201,7 @@ export {
 export { onTerminalForeground } from "./terminal-foreground";
 export type { TerminalForeground } from "./terminal-foreground";
 
-// Custom tooltip widget — a styled hover popup that replaces native `title`
-// attributes in host chrome (status bar items, etc.). Core-only: extensions get
-// tooltips via the `title` field on StatusItem/MenuItem, never this component.
+// Tooltip — re-exported here so core.* extensions can still import it from the
+// internal barrel. The component itself is now public (@silo-code/sdk); the
+// host component file re-exports from SDK and owns the CSS load.
 export { Tooltip } from "../components/Tooltip";

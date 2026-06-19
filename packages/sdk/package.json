@@ -1,6 +1,6 @@
 {
   "name": "@silo-code/sdk",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "The public, types-first SDK for building Silo extensions — the only surface third-party extensions import.",
   "license": "MIT",
   "author": "Dave Weaver",
@@ -45,13 +45,15 @@
     "types": "./dist/index.d.ts"
   },
   "peerDependencies": {
-    "react": "^19.1.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "dependencies": {
     "dockview": "~6.3.0"
   },
   "devDependencies": {
     "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.0",
     "typescript": "~5.8.3",
     "vitest": "^4.1.7"
   }
