@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/silo-code/silo/compare/silo-v0.7.1...silo-v0.8.0) (2026-06-19)
+
+
+### Features
+
+* **error-handling:** error boundaries to prevent blank screen on render errors ([#55](https://github.com/silo-code/silo/issues/55)) ([198f8c0](https://github.com/silo-code/silo/commit/198f8c0219ad18ef1549c39a4a2f7d01772799cd))
+* **sdk:** promote Tooltip to public SDK surface (0.7.0) ([#58](https://github.com/silo-code/silo/issues/58)) ([042dedc](https://github.com/silo-code/silo/commit/042dedc2ff2fe1912c8cc26c6608b1191804f9a5))
+
 ## [0.7.1](https://github.com/silo-code/silo/compare/silo-v0.7.0...silo-v0.7.1) (2026-06-19)
 
 
