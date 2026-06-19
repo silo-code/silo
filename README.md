@@ -1,6 +1,5 @@
-<img src="apps/desktop/src-tauri/icons/128x128.png" width="96" height="96" alt="Silo" />
-
-### Terminal-first workspace manager — built for the multi-agent workflow
+<img src="assets/readme-icon.png" width="96" height="96" alt="Silo" align="left" />
+<h3>Terminal-first workspace manager —<br>built for the multi-agent workflow</h3>
 
 Switch between your projects like browser tabs —
 except each tab is a full workspace with live terminals, running agents, and preserved layout.
