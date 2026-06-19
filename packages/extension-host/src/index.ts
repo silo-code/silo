@@ -18,6 +18,7 @@
 import "./layout/theme.css";
 
 // --- App shell + chrome (rendered by App.tsx) -------------------------------
+export { ErrorBoundary } from "./components/ErrorBoundary";
 export { AppShell } from "./layout/AppShell";
 export { ThemeInjector } from "./layout/ThemeInjector";
 export { reloadCustomThemes } from "./layout/ThemeLoader";

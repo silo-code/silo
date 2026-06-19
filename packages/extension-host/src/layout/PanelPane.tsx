@@ -8,6 +8,7 @@ import { useSideTabDrag } from "./side-column-helpers";
 import { registerSidePane } from "./side-pane-registry";
 import { enterRegionOnPointer } from "../extension-host/focus-regions";
 import { TabBar } from "./TabBar";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 interface PanelPaneProps {
   panels: SidePanel[];
@@ -261,11 +262,13 @@ export function PanelPane({
               data-active={isActive ? "true" : "false"}
             >
               {shouldMount ? (
-                <Comp
-                  active={isActive}
-                  storage={getExtensionStorage(p.id)}
-                  hydrated={snap.hydrated}
-                />
+                <ErrorBoundary name={p.id}>
+                  <Comp
+                    active={isActive}
+                    storage={getExtensionStorage(p.id)}
+                    hydrated={snap.hydrated}
+                  />
+                </ErrorBoundary>
               ) : null}
             </div>
           );
