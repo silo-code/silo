@@ -41,6 +41,42 @@ export function isLocalUrl(url: string): boolean {
 }
 
 /**
+ * Derive a tab title from a URL for use when the page title is unavailable
+ * (cross-origin load) or empty. Returns the hostname for http/https, the
+ * path for file://, or the full URL as a last resort.
+ */
+export function tabTitleFromUrl(url: string): string {
+  try {
+    const { protocol, hostname, pathname } = new URL(url);
+    if (protocol === "file:") return pathname.split("/").pop() || pathname;
+    return hostname;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Fetch the HTML at `url` and parse its `<title>` element. Returns `null` if
+ * the request fails (CORS block, network error, non-HTML response, timeout).
+ * Used to get real page titles for cross-origin frames where `contentDocument`
+ * is inaccessible — local dev servers (Vite, etc.) allow CORS so it succeeds
+ * there; external sites typically do not, and the caller falls back to hostname.
+ */
+export async function fetchPageTitle(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return null;
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.includes("text/html")) return null;
+    const html = await res.text();
+    const match = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    return match?.[1]?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Append `url` to the history stack, trimming any forward entries beyond
  * `index`. Returns a new `{ history, index }` — does not mutate the inputs.
  */

@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { normalizeUrl, isLocalUrl, pushHistory } from "./web-viewer-model";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import {
+  normalizeUrl,
+  isLocalUrl,
+  pushHistory,
+  tabTitleFromUrl,
+  fetchPageTitle,
+} from "./web-viewer-model";
 
 describe("normalizeUrl", () => {
   it("returns null for empty/whitespace strings", () => {
@@ -53,6 +59,92 @@ describe("isLocalUrl", () => {
 
   it("returns false for unparseable strings", () => {
     expect(isLocalUrl("not-a-url")).toBe(false);
+  });
+});
+
+describe("tabTitleFromUrl", () => {
+  it("returns the hostname for https URLs", () => {
+    expect(tabTitleFromUrl("https://github.com/silo-code/silo")).toBe(
+      "github.com",
+    );
+  });
+
+  it("returns the hostname for localhost URLs", () => {
+    expect(tabTitleFromUrl("http://localhost:5173/app")).toBe("localhost");
+  });
+
+  it("returns the filename for file:// URLs", () => {
+    expect(tabTitleFromUrl("file:///Users/dev/report.html")).toBe(
+      "report.html",
+    );
+  });
+
+  it("returns the path when file:// has no filename segment", () => {
+    expect(tabTitleFromUrl("file:///")).toBe("/");
+  });
+
+  it("returns the raw string for unparseable input", () => {
+    expect(tabTitleFromUrl("not-a-url")).toBe("not-a-url");
+  });
+});
+
+describe("fetchPageTitle", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("returns the <title> text on a successful HTML response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: { get: () => "text/html; charset=utf-8" },
+        text: async () => "<html><head><title>Silo Docs</title></head></html>",
+      }),
+    );
+    expect(await fetchPageTitle("http://localhost:5173")).toBe("Silo Docs");
+  });
+
+  it("returns null when the response is not HTML", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: { get: () => "application/json" },
+        text: async () => "{}",
+      }),
+    );
+    expect(await fetchPageTitle("http://localhost:3000/api")).toBeNull();
+  });
+
+  it("returns null when the response is not ok", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        headers: { get: () => "text/html" },
+        text: async () => "Not found",
+      }),
+    );
+    expect(await fetchPageTitle("http://localhost:5173/404")).toBeNull();
+  });
+
+  it("returns null when fetch throws (CORS block, network error, timeout)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+    );
+    expect(await fetchPageTitle("https://github.com")).toBeNull();
+  });
+
+  it("returns null when the HTML has no <title>", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: { get: () => "text/html" },
+        text: async () => "<html><head></head><body></body></html>",
+      }),
+    );
+    expect(await fetchPageTitle("http://localhost:5173")).toBeNull();
   });
 });
 

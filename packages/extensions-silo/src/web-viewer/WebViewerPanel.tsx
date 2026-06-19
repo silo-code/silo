@@ -7,7 +7,12 @@ import {
   ArrowSquareOut,
   ProhibitInset,
 } from "@phosphor-icons/react";
-import { normalizeUrl, pushHistory } from "./web-viewer-model";
+import {
+  normalizeUrl,
+  pushHistory,
+  tabTitleFromUrl,
+  fetchPageTitle,
+} from "./web-viewer-model";
 import "./WebViewerPanel.css";
 
 interface WebViewerParams {
@@ -119,15 +124,33 @@ export function WebViewerPanel({ api, params, ctx }: Props) {
         // Same-origin access to about:blank means the frame was rejected by
         // X-Frame-Options / CSP (WebKit replaces the content with about:blank).
         setBlocked(true);
-      } else if (href !== url) {
+        return;
+      }
+      // Same-origin: we can read the page title directly.
+      const pageTitle = frame.contentDocument?.title;
+      const title = pageTitle || tabTitleFromUrl(href);
+      api.setTitle(title);
+      if (href !== url) {
         // Same-origin redirect; keep address bar in sync.
         setAddressBar(href);
         setUrl(href);
-        api.updateParameters({ url: href });
+        api.updateParameters({ url: href, title });
+      } else {
+        api.updateParameters({ url: href, title });
       }
-      // href === url → same-origin page loaded correctly.
     } catch {
-      // SecurityError: cross-origin content loaded successfully.
+      // SecurityError: cross-origin page — set hostname immediately, then try
+      // fetching the HTML to parse the real <title>. Local dev servers allow
+      // CORS so the fetch succeeds; external sites typically block it and the
+      // hostname fallback stands.
+      const fallback = tabTitleFromUrl(url);
+      api.setTitle(fallback);
+      api.updateParameters({ url, title: fallback });
+      void fetchPageTitle(url).then((fetched) => {
+        if (!fetched) return;
+        api.setTitle(fetched);
+        api.updateParameters({ url, title: fetched });
+      });
     }
   }
 
