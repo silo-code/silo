@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.1](https://github.com/silo-code/silo/compare/silo-v0.7.0...silo-v0.7.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* **icon:** align CFBundleIconFile with AppIcon naming to match macOS 26 convention ([7386484](https://github.com/silo-code/silo/commit/73864841dd89e684cf4a8a3e8b4449e08f8eca3f))
+* **icon:** white background with black text for dock visibility ([9c80ca7](https://github.com/silo-code/silo/commit/9c80ca75c41c72d6889ba8b43fd79b1c2e8c08ed))
+* **modal:** disable auto-capitalize/correct/spellcheck on prompt input ([14bc1d9](https://github.com/silo-code/silo/commit/14bc1d99db448b43ba4893eea1ba99dcbffef3b2))
+
 ## [0.7.0](https://github.com/silo-code/silo/compare/silo-v0.6.4...silo-v0.7.0) (2026-06-18)
 
 
