@@ -33,11 +33,11 @@ Open as many project workspaces as you need and tab between them instantly. Each
 - **Extension SDK** — a small stable core with a public API; first-party features ship as extensions (modeled on VS Code / Obsidian)
 - **Local-first** — everything runs on your machine; no cloud required
 
-## Build extensions with Claude Code
+## Extend Silo with Claude Code
 
-Silo ships a Claude Code skill that turns a plain-English description into a working extension — scaffolded, written, compiled, and installed in one session.
+Silo ships a Claude Code skill that turns a plain-English description into a working extension — scaffolded from scratch, written in TypeScript, compiled, and hot-installed into the running app. No SDK knowledge required. Just describe what you want.
 
-**Install the skill once:**
+**Step 1 — install the skill once:**
 
 ```bash
 mkdir -p ~/.claude/skills/silo-extension-builder && \
@@ -45,21 +45,21 @@ mkdir -p ~/.claude/skills/silo-extension-builder && \
   https://raw.githubusercontent.com/silo-code/silo/main/skills/silo-extension-builder/SKILL.md
 ```
 
-**Then describe what you want:**
+**Step 2 — describe what you want:**
 
 ```
 /silo-extension-builder Create a status bar item that shows the current git branch
 and a dot when there are uncommitted changes.
 ```
 
-Claude scaffolds the project, writes the TypeScript, compiles it, and asks if you want it installed — all without leaving your terminal. The result is a real extension you own: edit the source, rebuild with `npm run build`, reinstall with `silo install`.
+Claude scaffolds the project, writes the TypeScript, compiles it, and installs it — all without leaving your terminal. The result is a real extension you own: edit the source, rebuild with `npm run build`, reinstall with `silo install`.
 
-Some things people have built this way in a single session:
+**Things people have built this way in a single session:**
 
 - **Git branch status bar** — branch name + dirty indicator, updates on workspace switch
 - **GitHub Issues panel** — lists open issues for the active repo via `gh`, with a refresh button
 - **Scratch pad** — persisted notes panel that survives restarts
-- **Todo manager** — side panel that reads/writes `TODO.md` in the active workspace, with checkboxes and inline add
+- **Todo manager** — reads and writes `TODO.md` in the active workspace, with checkboxes and inline add
 
 Extensions install and uninstall live — no restart needed:
 

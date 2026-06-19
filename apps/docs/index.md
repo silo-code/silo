@@ -30,8 +30,8 @@ features:
     title: Extension SDK
     details: A small stable core with a public API. First-party features — terminal, file explorer, git, themes — ship as extensions against the same SDK you get.
   - icon: 🤖
-    title: Build with Claude
-    details: The silo-extension-builder Claude Code skill scaffolds, writes, and installs a working extension from a plain-English description. From prompt to installed extension in one session.
+    title: Extend Silo with Claude Code
+    details: Describe what you want in plain English. Claude scaffolds, writes, compiles, and installs a real working extension — no SDK knowledge needed. From idea to installed in one session.
   - icon: "📄"
     title: MIT licensed
     details: 100% open source. Build on it, fork it, contribute to it.
@@ -62,23 +62,22 @@ Or build from source — see the [GitHub repo](https://github.com/silo-code/silo
 
 ---
 
-## Build extensions with AI
+## Extend Silo with Claude Code
 
-The `silo-extension-builder` Claude Code skill turns a plain-English description
-into a working Silo extension — it scaffolds the project, writes the source,
-compiles it, and installs it into Silo in one session. You don't need to know
-the SDK to build your first extension.
+Describe what you want. Claude builds it.
 
-Open Claude Code in any directory and run:
+The `silo-extension-builder` skill takes a plain-English description and returns a working Silo extension — scaffolded from scratch, written in TypeScript against the real SDK, compiled, and hot-installed into the running app. No SDK knowledge required. No config files to wire up. No boilerplate to wrestle with. You describe what you want, and it's there.
 
-```
-/silo-extension-builder Create a status bar item that shows the current git branch.
-```
+Some things people have shipped this way in a single session:
 
-The skill handles the scaffold, implementation, compile step, and `silo install`
-for you. From description to installed extension in minutes.
+- **Git branch status bar** — branch name + dirty indicator, updates on workspace switch
+- **GitHub Issues panel** — lists open issues for the active repo via `gh`, with a refresh button
+- **Scratch pad** — a persisted notes panel that survives restarts
+- **Todo manager** — reads and writes `TODO.md` in the active workspace, with checkboxes and inline add
 
-**[Install the skill and get started →](/guide/claude-skill)**
+The result is a first-class extension. It installs and uninstalls live — no restart needed. And because it's built on the same SDK Silo's own built-ins use, there's no ceiling on what you can make.
+
+**[Build your first extension →](/guide/claude-skill)**
 
 ---
 
