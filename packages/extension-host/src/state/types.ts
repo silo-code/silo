@@ -65,6 +65,13 @@ export interface AppState {
    * Absent = visible (default); only an explicit `false` (hidden) is stored.
    */
   sidePanelVisibility: Record<string, boolean>;
+  /**
+   * Set to `true` after `ExtensionManager.loadInstalled()` resolves. The dock
+   * gates `fromJSON` layout restore behind this flag so external extensions
+   * (which activate during loadInstalled) have time to register their
+   * `DockPanelKind`s before saved panel types are deserialized.
+   */
+  extensionsReady: boolean;
 }
 
 export const DEFAULT_UI_FONT_SIZE = 13;

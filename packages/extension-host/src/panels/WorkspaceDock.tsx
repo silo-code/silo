@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useSnapshot } from "valtio";
 import {
   DockviewReact,
@@ -17,7 +24,10 @@ import {
   findEditor,
 } from "../state/workspaces";
 import { tauriTerminalClient } from "../services/tauri-terminal-client";
-import { getDockComponents } from "../extension-host/dock-panel-kinds";
+import {
+  dockPanelKindRegistry,
+  getDockComponents,
+} from "../extension-host/dock-panel-kinds";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { setActiveDockApi } from "../docked/dock-api-registry";
 import { getDndService, resolveDndMode } from "../extension-host/dnd-service";
@@ -46,7 +56,13 @@ export function WorkspaceDock({
 }) {
   const snap = useSnapshot(store);
   const ws = snap.workspaces[workspaceId];
-  const dockComponents = useMemo(getDockComponents, []);
+  const kinds = useSyncExternalStore(
+    (cb) => dockPanelKindRegistry.onChange(cb).dispose,
+    () => dockPanelKindRegistry.list(),
+  );
+  // Recompute the dockview components map whenever a new DockPanelKind is
+  // registered (including external extensions that activate after mount).
+  const dockComponents = useMemo(getDockComponents, [kinds]);
   const [api, setApi] = useState<DockviewApi | null>(null);
   const mountedPanelIds = useRef<Set<string>>(new Set());
   const layoutRestoredRef = useRef(false);
@@ -59,7 +75,11 @@ export function WorkspaceDock({
   }
 
   useEffect(() => {
-    if (!api || !ws || layoutRestoredRef.current) return;
+    // Wait for installed extensions to finish activating before restoring layout:
+    // external extensions register their DockPanelKinds during loadInstalled(),
+    // so fromJSON must not run until they're all present in dockComponents.
+    if (!api || !ws || !snap.extensionsReady || layoutRestoredRef.current)
+      return;
     const saved = ws.dockLayout as
       | Parameters<DockviewApi["fromJSON"]>[0]
       | null;
@@ -72,7 +92,7 @@ export function WorkspaceDock({
       }
     }
     layoutRestoredRef.current = true;
-  }, [api, ws]);
+  }, [api, ws, snap.extensionsReady]);
 
   useEffect(() => {
     if (!api || !ws || !layoutRestoredRef.current) return;

@@ -13,6 +13,7 @@ export const store = proxy<AppState>({
   workspaceOrder: [],
   activeWorkspaceId: null,
   hydrated: false,
+  extensionsReady: false,
   uiFontSize: DEFAULT_UI_FONT_SIZE,
   activeThemeId: "dark",
   editorSettings: { ...DEFAULT_EDITOR_SETTINGS },
@@ -83,6 +84,11 @@ export function setTheme(id: string) {
 
 export function toggleTheme() {
   store.activeThemeId = store.activeThemeId === "dark" ? "light" : "dark";
+}
+
+/** Called by main.tsx after loadInstalled() resolves so the dock can proceed with fromJSON. */
+export function setExtensionsReady() {
+  store.extensionsReady = true;
 }
 
 export function setUiFontSize(size: number) {
