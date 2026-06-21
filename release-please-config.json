@@ -3,6 +3,11 @@
   "include-component-in-tag": true,
   "tag-separator": "-",
   "packages": {
+    "packages/sdk": {
+      "release-type": "node",
+      "package-name": "@silo-code/sdk",
+      "component": "sdk"
+    },
     ".": {
       "release-type": "simple",
       "package-name": "silo",

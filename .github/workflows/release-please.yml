@@ -101,3 +101,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run release.yml --ref main -R ${{ github.repository }}
+
+      - name: publish SDK to npm
+        if: ${{ steps.release.outputs['packages/sdk--release_created'] }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run release-sdk.yml --ref main -R ${{ github.repository }} -f publish=true
