@@ -97,7 +97,7 @@ jobs:
       # `release_created`, which is only set in legacy single-package mode and is
       # always empty here (the per-path output is `apps/desktop--release_created`).
       - name: trigger installer build
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs['.--release_created'] }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run release.yml --ref main -R ${{ github.repository }}
