@@ -57,6 +57,7 @@ importing the store or touching the platform directly. Opening files lives on
 | [`ctx.theme`](/api/theme/)                | presets + active theme + custom themes ([`ThemeService`](/api/types/interfaces/ThemeService))                                                  |
 | [`ctx.dnd`](/api/dnd/)                    | drag sources + drop targets with typed payloads ([`DndService`](/api/types/interfaces/DndService))                                             |
 | [`ctx.ui`](/api/ui/)                      | native pickers + toasts + menus + modals (`confirm` / `prompt` / `showModal`) ([`UiService`](/api/types/interfaces/UiService))                 |
+| [`ctx.net`](/api/net/)                    | server-side HTTP client — bypasses browser CORS, reads any response header ([`NetworkService`](/api/types/interfaces/NetworkService))          |
 
 ## Other
 

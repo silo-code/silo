@@ -30,6 +30,7 @@ import type { SearchService } from "./search-service";
 import type { ThemeService, ThemePreset } from "./theme-service";
 import type { DndService } from "./dnd-service";
 import type { UiService } from "./ui-service";
+import type { NetworkService } from "./network-service";
 import type { ExtensionStorage } from "./extension-storage";
 
 /**
@@ -490,6 +491,14 @@ export interface ExtensionContext {
    * notifications ({@link UiService.notify}). Mirrors VS Code's `window.show*`.
    */
   readonly ui: UiService;
+  /**
+   * Server-side HTTP client — makes requests from the Rust backend, bypassing
+   * the browser's CORS policy. Use when browser `fetch` is insufficient:
+   * reading response headers from cross-origin requests, probing localhost
+   * services without CORS headers, or checking iframe embeddability before
+   * loading a URL. See {@link NetworkService} for the full API.
+   */
+  readonly net: NetworkService;
   /**
    * Resolve a handle to another extension in order to consume the API it
    * published (the value its {@link Extension.activate} returned). This is how

@@ -1,4 +1,5 @@
 pub mod app_paths;
+pub mod network;
 #[cfg(feature = "automation")]
 pub mod automation;
 pub mod cli;

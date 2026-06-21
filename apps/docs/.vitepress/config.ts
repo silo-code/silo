@@ -44,6 +44,7 @@ const apiSidebar = [
       { text: "ctx.theme", link: "/api/theme/" },
       { text: "ctx.dnd", link: "/api/dnd/" },
       { text: "ctx.ui", link: "/api/ui/" },
+      { text: "ctx.net", link: "/api/net/" },
     ],
   },
   {

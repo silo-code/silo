@@ -115,3 +115,38 @@ focusing the Search panel). No-op if no panel with that id is registered.
 #### Returns
 
 `void`
+
+***
+
+### openPanel()
+
+```ts
+openPanel(kindId, params?): void;
+```
+
+Defined in: [packages/sdk/src/layout-service.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L67)
+
+Open a new tab in the center dock for the given registered
+[DockPanelKind](DockPanelKind.md). Use this to programmatically open a custom panel
+kind from a command (e.g. a "Web Viewer: Open" command that creates a new
+web-viewer tab). No-op when the center dock has no active workspace.
+
+#### Parameters
+
+##### kindId
+
+`string`
+
+The [DockPanelKind.id](DockPanelKind.md#id) to instantiate.
+
+##### params?
+
+`Record`\<`string`, `unknown`\>
+
+Arbitrary params forwarded to the panel's
+  `IDockviewPanelProps`. Serialized into `ws.dockLayout` so URL/state
+  survives workspace close/reopen.
+
+#### Returns
+
+`void`

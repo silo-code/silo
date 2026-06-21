@@ -86,6 +86,10 @@ export function WorkspaceDock({
     if (saved && typeof saved === "object") {
       try {
         api.fromJSON(saved);
+        // Remove any groups that were saved empty (they'd show the EmptyWatermark).
+        for (const group of api.groups) {
+          if (group.panels.length === 0) api.removeGroup(group);
+        }
         api.panels.forEach((p) => mountedPanelIds.current.add(p.id));
       } catch (err) {
         console.warn("fromJSON failed, ignoring saved layout", err);
