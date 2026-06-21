@@ -5,7 +5,27 @@ import remarkGfm from "remark-gfm";
 import type { EditorProps, ExtensionContext } from "@silo-code/sdk";
 import { buildPreviewMenuItems } from "./menu";
 import { classifyMarkdownLink } from "./links";
+import { parseFrontmatter, formatFrontmatterValue } from "./frontmatter";
 import "./MarkdownPreview.css";
+
+function FrontmatterBlock({ fields }: { fields: Record<string, unknown> }) {
+  const entries = Object.entries(fields);
+  if (entries.length === 0) return null;
+  return (
+    <table className="markdown-preview__frontmatter">
+      <tbody>
+        {entries.map(([key, value]) => (
+          <tr key={key}>
+            <td className="markdown-preview__frontmatter-key">{key}</td>
+            <td className="markdown-preview__frontmatter-value">
+              {formatFrontmatterValue(value)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
 
 /**
  * Read-only rendered-Markdown view of a `.md` file. Reads the file's text
@@ -120,7 +140,18 @@ export function MarkdownPreview({
         <div className="placeholder">Loading…</div>
       ) : (
         <article className="markdown-preview__body" ref={bodyRef}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          {(() => {
+            const parsed = parseFrontmatter(content);
+            const body = parsed ? parsed.body : content;
+            return (
+              <>
+                {parsed && <FrontmatterBlock fields={parsed.fields} />}
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {body}
+                </ReactMarkdown>
+              </>
+            );
+          })()}
         </article>
       )}
     </div>

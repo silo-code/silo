@@ -50,6 +50,45 @@
   margin-top: 0;
 }
 
+/* Frontmatter metadata block — rendered above the body when YAML frontmatter
+   is present. A compact two-column key/value table on a subtly tinted surface,
+   visually separated from the body. Design tokens only. */
+.markdown-preview__frontmatter {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5em;
+  font-size: 0.85em;
+  background: var(--silo-color-bg-hover);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-md);
+  overflow: hidden;
+}
+
+.markdown-preview__frontmatter-key {
+  font-family: var(--silo-font-mono);
+  color: var(--silo-color-text-lo);
+  white-space: nowrap;
+  padding: 4px 12px 4px 12px;
+  border-bottom: 1px solid var(--silo-color-border-strong);
+  vertical-align: top;
+  width: 1%;
+}
+
+.markdown-preview__frontmatter-value {
+  color: var(--silo-color-text-hi);
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--silo-color-border-strong);
+  vertical-align: top;
+  word-break: break-word;
+}
+
+.markdown-preview__frontmatter tr:last-child .markdown-preview__frontmatter-key,
+.markdown-preview__frontmatter
+  tr:last-child
+  .markdown-preview__frontmatter-value {
+  border-bottom: none;
+}
+
 .markdown-preview__body h1,
 .markdown-preview__body h2,
 .markdown-preview__body h3,
