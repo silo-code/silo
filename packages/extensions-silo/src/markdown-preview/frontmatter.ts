@@ -29,11 +29,7 @@ export function parseFrontmatter(content: string): FrontmatterResult | null {
     return null;
   }
 
-  if (
-    !parsed ||
-    typeof parsed !== "object" ||
-    Array.isArray(parsed)
-  ) {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
     return null;
   }
 

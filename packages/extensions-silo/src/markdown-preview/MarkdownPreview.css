@@ -83,7 +83,9 @@
 }
 
 .markdown-preview__frontmatter tr:last-child .markdown-preview__frontmatter-key,
-.markdown-preview__frontmatter tr:last-child .markdown-preview__frontmatter-value {
+.markdown-preview__frontmatter
+  tr:last-child
+  .markdown-preview__frontmatter-value {
   border-bottom: none;
 }
 

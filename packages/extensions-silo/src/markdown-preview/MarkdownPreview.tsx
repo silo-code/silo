@@ -8,11 +8,7 @@ import { classifyMarkdownLink } from "./links";
 import { parseFrontmatter, formatFrontmatterValue } from "./frontmatter";
 import "./MarkdownPreview.css";
 
-function FrontmatterBlock({
-  fields,
-}: {
-  fields: Record<string, unknown>;
-}) {
+function FrontmatterBlock({ fields }: { fields: Record<string, unknown> }) {
   const entries = Object.entries(fields);
   if (entries.length === 0) return null;
   return (
@@ -150,7 +146,9 @@ export function MarkdownPreview({
             return (
               <>
                 {parsed && <FrontmatterBlock fields={parsed.fields} />}
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {body}
+                </ReactMarkdown>
               </>
             );
           })()}
