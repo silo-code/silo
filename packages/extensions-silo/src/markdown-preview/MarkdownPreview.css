@@ -65,7 +65,7 @@
 .markdown-preview__body h1,
 .markdown-preview__body h2 {
   padding-bottom: 0.3em;
-  border-bottom: 1px solid var(--silo-color-border);
+  border-bottom: 1px solid var(--silo-color-border-strong);
 }
 
 .markdown-preview__body a {
@@ -104,13 +104,13 @@
   margin: 1em 0;
   padding: 0 1em;
   color: var(--silo-color-text-lo);
-  border-left: 3px solid var(--silo-color-border);
+  border-left: 3px solid var(--silo-color-border-strong);
 }
 
 .markdown-preview__body hr {
   height: 1px;
   border: none;
-  background: var(--silo-color-border);
+  background: var(--silo-color-border-strong);
   margin: 1.5em 0;
 }
 
@@ -121,7 +121,7 @@
 
 .markdown-preview__body th,
 .markdown-preview__body td {
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-border-strong);
   padding: 6px 12px;
 }
 
