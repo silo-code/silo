@@ -143,6 +143,8 @@ pub fn run() {
             commands::terminal::terminal_attach,
             commands::terminal::terminal_get_buffer,
             commands::terminal::terminal_save_buffer,
+            commands::network::net_fetch,
+            commands::network::net_fetch_headers,
         ])
         .run(context)
         .expect("error while running tauri application");

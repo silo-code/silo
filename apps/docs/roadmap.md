@@ -37,12 +37,14 @@ designed. As a primitive ships, its badge flips from
 | `ctx.ui.showModal` (custom modal content)      | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |
 | `ctx.ui.openExternal` (open a URL out)         | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |
 | `ctx.ui.getActiveSelectionText`                | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                     |
+| `ctx.net` (server-side HTTP, bypasses CORS)    | <Badge type="tip" text="stable" />   | [docs](/api/net/)                    |
 | `ctx.search` (cross-file content search)       | <Badge type="tip" text="stable" />   | [docs](/api/search/)                 |
 | `ctx.search` (replace-in-files)                | <Badge type="info" text="planned" /> | [design](/api/search/#replace)       |
 | `ctx.ui` (quickPick / progress)                | <Badge type="info" text="planned" /> | [design](#ctx-ui)                    |
 | `ctx` events (typed `Event<T>`)                | <Badge type="info" text="planned" /> | [design](#ctx-events)                |
 | `ctx.settings` / configuration                 | <Badge type="info" text="planned" /> | —                                    |
 | `ctx.storage` (global / workspace / secret)    | <Badge type="info" text="planned" /> | —                                    |
+| `ctx.webview` (iframe navigation events)       | <Badge type="info" text="planned" /> | [design](#ctx-webview)               |
 
 ## Extension-owned features
 
@@ -120,6 +122,7 @@ The shape of each planned surface is now designed in an **RFC** under
 | Package format + remote install (GitHub / npm)                                      | [RFC 0008](https://github.com/silo-code/silo/blob/main/docs/proposals/0008-extension-package-format-remote-install.md) |
 | Language intelligence (TS/JS via `tsserver`)                                        | [RFC 0009](https://github.com/silo-code/silo/blob/main/docs/proposals/0009-language-intelligence-lsp.md)               |
 | Self-owned PTY host daemon                                                          | [RFC 0010](https://github.com/silo-code/silo/blob/main/docs/proposals/0010-pty-host-daemon.md)                         |
+| <a id="ctx-webview"></a>`ctx.webview` — iframe navigation events via init script    | [RFC 0011](https://github.com/silo-code/silo/blob/main/docs/proposals/0011-iframe-navigation-events.md)                |
 
 ---
 

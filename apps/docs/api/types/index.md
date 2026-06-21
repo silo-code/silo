@@ -107,6 +107,7 @@ the published reference is exactly this surface — no more, no less.
 - [PathDeniedError](classes/PathDeniedError.md)
 - [Disposable](interfaces/Disposable.md)
 - [DockPanelApi](type-aliases/DockPanelApi.md)
+- [DockPanelProps](type-aliases/DockPanelProps.md)
 - [FileFilter](interfaces/FileFilter.md)
 - [ConfirmOptions](interfaces/ConfirmOptions.md)
 - [PromptOptions](interfaces/PromptOptions.md)

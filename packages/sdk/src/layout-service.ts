@@ -53,4 +53,16 @@ export interface LayoutService {
    * focusing the Search panel). No-op if no panel with that id is registered.
    */
   revealSidePanel(id: string): void;
+  /**
+   * Open a new tab in the center dock for the given registered
+   * {@link DockPanelKind}. Use this to programmatically open a custom panel
+   * kind from a command (e.g. a "Web Viewer: Open" command that creates a new
+   * web-viewer tab). No-op when the center dock has no active workspace.
+   *
+   * @param kindId - The {@link DockPanelKind.id} to instantiate.
+   * @param params - Arbitrary params forwarded to the panel's
+   *   `IDockviewPanelProps`. Serialized into `ws.dockLayout` so URL/state
+   *   survives workspace close/reopen.
+   */
+  openPanel(kindId: string, params?: Record<string, unknown>): void;
 }

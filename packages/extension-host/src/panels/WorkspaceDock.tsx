@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useSnapshot } from "valtio";
 import {
   DockviewReact,
@@ -17,7 +24,10 @@ import {
   findEditor,
 } from "../state/workspaces";
 import { tauriTerminalClient } from "../services/tauri-terminal-client";
-import { getDockComponents } from "../extension-host/dock-panel-kinds";
+import {
+  dockPanelKindRegistry,
+  getDockComponents,
+} from "../extension-host/dock-panel-kinds";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { setActiveDockApi } from "../docked/dock-api-registry";
 import { getDndService, resolveDndMode } from "../extension-host/dnd-service";
@@ -46,7 +56,13 @@ export function WorkspaceDock({
 }) {
   const snap = useSnapshot(store);
   const ws = snap.workspaces[workspaceId];
-  const dockComponents = useMemo(getDockComponents, []);
+  const kinds = useSyncExternalStore(
+    (cb) => dockPanelKindRegistry.onChange(cb).dispose,
+    () => dockPanelKindRegistry.list(),
+  );
+  // Recompute the dockview components map whenever a new DockPanelKind is
+  // registered (including external extensions that activate after mount).
+  const dockComponents = useMemo(getDockComponents, [kinds]);
   const [api, setApi] = useState<DockviewApi | null>(null);
   const mountedPanelIds = useRef<Set<string>>(new Set());
   const layoutRestoredRef = useRef(false);
@@ -59,20 +75,28 @@ export function WorkspaceDock({
   }
 
   useEffect(() => {
-    if (!api || !ws || layoutRestoredRef.current) return;
+    // Wait for installed extensions to finish activating before restoring layout:
+    // external extensions register their DockPanelKinds during loadInstalled(),
+    // so fromJSON must not run until they're all present in dockComponents.
+    if (!api || !ws || !snap.extensionsReady || layoutRestoredRef.current)
+      return;
     const saved = ws.dockLayout as
       | Parameters<DockviewApi["fromJSON"]>[0]
       | null;
     if (saved && typeof saved === "object") {
       try {
         api.fromJSON(saved);
+        // Remove any groups that were saved empty (they'd show the EmptyWatermark).
+        for (const group of api.groups) {
+          if (group.panels.length === 0) api.removeGroup(group);
+        }
         api.panels.forEach((p) => mountedPanelIds.current.add(p.id));
       } catch (err) {
         console.warn("fromJSON failed, ignoring saved layout", err);
       }
     }
     layoutRestoredRef.current = true;
-  }, [api, ws]);
+  }, [api, ws, snap.extensionsReady]);
 
   useEffect(() => {
     if (!api || !ws || !layoutRestoredRef.current) return;
@@ -81,6 +105,14 @@ export function WorkspaceDock({
     ws.editors.forEach((e) => desired.add(`editor:${e.id}`));
 
     for (const panelId of [...mountedPanelIds.current]) {
+      // Only reconcile panels owned by the workspace terminal/editor lists.
+      // Custom DockPanelKind panels (web-viewer, image-viewer, etc.) are not
+      // tracked in ws.terminals/ws.editors — they persist via ws.dockLayout and
+      // are restored by fromJSON. Removing them here would cull them on every
+      // workspace switch or terminal/editor change.
+      const isManaged =
+        panelId.startsWith("terminal:") || panelId.startsWith("editor:");
+      if (!isManaged) continue;
       if (!desired.has(panelId)) {
         const panel = api.getPanel(panelId);
         if (panel) api.removePanel(panel);

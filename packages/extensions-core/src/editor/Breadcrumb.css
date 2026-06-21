@@ -6,9 +6,9 @@
   flex: 0 0 auto;
   height: 30px;
   padding: 0 12px;
-  background: var(--silo-breadcrumb-bg);
+  background: var(--silo-color-toolbar-bg);
   border-bottom: 1px solid var(--silo-color-border);
-  color: var(--silo-breadcrumb-text);
+  color: var(--silo-color-toolbar-text-disabled);
   font-size: var(--silo-font-size-base);
   font-family: var(--silo-font-ui);
   user-select: none;
@@ -23,17 +23,17 @@
 }
 
 .breadcrumb__crumb:last-child {
-  color: var(--silo-breadcrumb-text-active);
+  color: var(--silo-color-toolbar-text);
 }
 
 .breadcrumb__sep {
-  color: var(--silo-breadcrumb-icon);
+  color: var(--silo-color-toolbar-text-disabled);
   margin: 0 2px;
   flex: 0 0 auto;
 }
 
 .breadcrumb__icon {
-  color: var(--silo-breadcrumb-icon);
+  color: var(--silo-color-toolbar-text);
   flex: 0 0 auto;
 }
 

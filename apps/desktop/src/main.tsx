@@ -7,6 +7,7 @@ import {
   userConfigDir,
   getExtensionManager,
   initUserKeybindings,
+  setExtensionsReady,
 } from "@silo-code/extension-host";
 import { activateBuiltins } from "./builtins";
 import { initCliOpenHandler } from "./cli";
@@ -26,7 +27,8 @@ mgr
   .finally(() => {
     void mgr
       .loadInstalled()
-      .catch((err) => console.error("loadInstalled failed", err));
+      .catch((err) => console.error("loadInstalled failed", err))
+      .finally(() => setExtensionsReady());
   });
 
 userConfigDir()

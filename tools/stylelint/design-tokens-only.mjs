@@ -53,6 +53,14 @@ export const DESIGN_TOKENS = new Set([
   "--silo-color-input-text",
   "--silo-color-button-bg",
   "--silo-color-button-text",
+  // toolbar surface — panel header bars (breadcrumb, view-switcher, web viewer, etc.)
+  "--silo-color-toolbar-bg",
+  "--silo-color-toolbar-text",
+  "--silo-color-toolbar-text-disabled",
+  "--silo-color-toolbar-input-bg",
+  // content surface — shared viewport background/foreground for viewer extensions
+  "--silo-color-content-bg",
+  "--silo-color-content-text",
   // font families + size scale + radius scale
   "--silo-font-ui",
   "--silo-font-mono",
@@ -90,11 +98,7 @@ const OWNERSHIP = [
     // the terminal's foreground — read by monaco-setup / xterm-theme), distinct
     // from the chrome's `--silo-color-text`; both content components own it.
     dir: "/extensions-core/src/editor/",
-    families: [
-      "--silo-content-editor-",
-      "--silo-breadcrumb-",
-      "--silo-content-text",
-    ],
+    families: ["--silo-content-editor-", "--silo-content-text"],
   },
   {
     dir: "/extensions-core/src/terminal/",

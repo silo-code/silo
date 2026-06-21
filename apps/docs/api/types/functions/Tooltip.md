@@ -4,7 +4,7 @@
 function Tooltip(__namedParameters): Element;
 ```
 
-Defined in: packages/sdk/src/Tooltip.tsx:31
+Defined in: [packages/sdk/src/Tooltip.tsx:31](https://github.com/silo-code/silo/blob/main/packages/sdk/src/Tooltip.tsx#L31)
 
 Lightweight tooltip — wraps any trigger element and shows a styled popup
 above it after a 600 ms hover delay. Renders via a portal so `overflow:

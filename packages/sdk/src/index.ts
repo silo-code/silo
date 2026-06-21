@@ -14,6 +14,7 @@
 export type {
   Disposable,
   DockPanelApi,
+  DockPanelProps,
   EditorProps,
   EditorCapabilities,
   Editor,
@@ -137,6 +138,13 @@ export type {
   NotifyAction,
   NotifyOptions,
 } from "./ui-service";
+
+// Server-side HTTP client — bypasses CORS, readable response headers.
+export type {
+  NetworkService,
+  NetworkRequestOptions,
+  NetworkResponse,
+} from "./network-service";
 
 // Context keys referenced by `when` predicates on menu items / keybindings.
 export type { ContextKeys } from "./context-keys";

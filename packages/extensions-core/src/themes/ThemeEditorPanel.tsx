@@ -23,6 +23,7 @@ declare class EyeDropper {
 const hasEyeDropper = typeof window !== "undefined" && "EyeDropper" in window;
 
 const VAR_GROUPS: { label: string; keys: (keyof ThemeVars)[] }[] = [
+  // ── Design tokens (--silo-color-*) ──────────────────────────────────────
   {
     label: "General",
     keys: [
@@ -42,6 +43,24 @@ const VAR_GROUPS: { label: string; keys: (keyof ThemeVars)[] }[] = [
       "--silo-color-accent-2",
     ],
   },
+  {
+    label: "Status",
+    keys: ["--silo-color-ok", "--silo-color-warn", "--silo-color-err"],
+  },
+  {
+    label: "Toolbar",
+    keys: [
+      "--silo-color-toolbar-bg",
+      "--silo-color-toolbar-text",
+      "--silo-color-toolbar-text-disabled",
+      "--silo-color-toolbar-input-bg",
+    ],
+  },
+  {
+    label: "Content",
+    keys: ["--silo-color-content-bg", "--silo-color-content-text"],
+  },
+  // ── Component tokens (surface-specific overrides) ────────────────────────
   {
     label: "Status Bar",
     keys: [
@@ -77,16 +96,7 @@ const VAR_GROUPS: { label: string; keys: (keyof ThemeVars)[] }[] = [
     keys: ["--silo-notify-bg", "--silo-notify-text", "--silo-notify-text-hi"],
   },
   {
-    label: "Breadcrumb",
-    keys: [
-      "--silo-breadcrumb-bg",
-      "--silo-breadcrumb-text",
-      "--silo-breadcrumb-text-active",
-      "--silo-breadcrumb-icon",
-    ],
-  },
-  {
-    label: "Content",
+    label: "Editor & Terminal",
     keys: [
       "--silo-content-terminal-bg",
       "--silo-content-editor-bg",
@@ -107,10 +117,6 @@ const VAR_GROUPS: { label: string; keys: (keyof ThemeVars)[] }[] = [
       "--silo-content-tab-text",
       "--silo-content-tab-text-active",
     ],
-  },
-  {
-    label: "Status",
-    keys: ["--silo-color-ok", "--silo-color-warn", "--silo-color-err"],
   },
 ];
 

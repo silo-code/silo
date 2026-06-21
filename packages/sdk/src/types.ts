@@ -30,6 +30,7 @@ import type { SearchService } from "./search-service";
 import type { ThemeService, ThemePreset } from "./theme-service";
 import type { DndService } from "./dnd-service";
 import type { UiService } from "./ui-service";
+import type { NetworkService } from "./network-service";
 import type { ExtensionStorage } from "./extension-storage";
 
 /**
@@ -55,6 +56,18 @@ export interface Disposable {
  * @public
  */
 export type DockPanelApi = IDockviewPanelProps["api"];
+
+/**
+ * Props handed to a {@link DockPanelKind} component. Use this type to annotate
+ * your component instead of importing `IDockviewPanelProps` from `dockview`
+ * directly — the SDK wraps it so extensions remain insulated from dockview
+ * version changes. The optional generic `T` narrows the shape of `params`.
+ *
+ * @category Core Types
+ * @public
+ */
+export type DockPanelProps<T extends object = Record<string, unknown>> =
+  IDockviewPanelProps<T>;
 
 /**
  * Props passed to an {@link Editor} component. An editor renders the contents of
@@ -305,6 +318,21 @@ export interface DockPanelKind {
   id: string;
   /** The React component; receives the raw dockview panel props. */
   component: React.ComponentType<IDockviewPanelProps>;
+  /**
+   * When set, this kind appears as an entry in the center dock's **+** add
+   * menu (the per-group header button). Omit to keep the kind internal.
+   */
+  addMenuItem?: {
+    /** Label shown in the menu, e.g. `"New Web Viewer"`. */
+    label: string;
+    /** Optional icon rendered to the left of the label. */
+    icon?: React.ReactNode;
+    /**
+     * Params forwarded to the new panel instance. Merged with a generated
+     * panel id — include `title` here to control the tab label.
+     */
+    params?: Record<string, unknown>;
+  };
 }
 
 /**
@@ -463,6 +491,14 @@ export interface ExtensionContext {
    * notifications ({@link UiService.notify}). Mirrors VS Code's `window.show*`.
    */
   readonly ui: UiService;
+  /**
+   * Server-side HTTP client — makes requests from the Rust backend, bypassing
+   * the browser's CORS policy. Use when browser `fetch` is insufficient:
+   * reading response headers from cross-origin requests, probing localhost
+   * services without CORS headers, or checking iframe embeddability before
+   * loading a URL. See {@link NetworkService} for the full API.
+   */
+  readonly net: NetworkService;
   /**
    * Resolve a handle to another extension in order to consume the API it
    * published (the value its {@link Extension.activate} returned). This is how
