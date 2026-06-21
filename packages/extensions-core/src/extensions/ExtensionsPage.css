@@ -129,6 +129,13 @@
   color: var(--silo-color-text-lo);
   font-family: var(--silo-font-mono, monospace);
 }
+.ext-badge-builtin {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-ok);
+  border: 1px solid var(--silo-color-ok);
+  border-radius: var(--silo-radius-sm);
+  padding: 0 5px;
+}
 .ext-badge {
   font-size: calc(var(--settings-font) - 2px);
   color: var(--silo-color-text-lo);
