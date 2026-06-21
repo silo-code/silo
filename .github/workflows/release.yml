@@ -22,12 +22,12 @@ jobs:
             args: "--target aarch64-apple-darwin"
           - platform: macos-latest # Intel
             args: "--target x86_64-apple-darwin"
-          # Linux + Windows held off until they can be tested; re-enable to
-          # restore full cross-platform releases.
-          # - platform: ubuntu-22.04
-          #   args: ""
-          # - platform: windows-latest
-          #   args: ""
+          # Linux + Windows builds are enabled for testing but may not be fully
+          # functional yet — treat them as experimental/pre-release.
+          - platform: ubuntu-22.04
+            args: ""
+          - platform: windows-latest
+            args: ""
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -73,13 +73,16 @@ jobs:
       # placeholder. Works for both manual-tag and release-please-driven runs.
       - name: Build release notes from CHANGELOG
         id: notes
+        shell: bash
         run: |
           {
             echo "body<<SILO_EOF"
             awk 'f && /^## /{exit} /^## /{f=1} f' apps/desktop/CHANGELOG.md | sed '1d'
             echo ""
             echo "---"
-            echo "Download the \`.dmg\` for your Mac below, open it, and drag **Silo** to Applications. macOS builds are signed and notarized — they open with no Gatekeeper warning."
+            echo "**macOS:** Download the \`.dmg\` below, open it, and drag **Silo** to Applications. macOS builds are signed and notarized — they open with no Gatekeeper warning."
+            echo ""
+            echo "> **Linux and Windows builds are experimental.** They are provided for testing and may not work correctly. Please report issues on GitHub."
             echo "SILO_EOF"
           } >> "$GITHUB_OUTPUT"
 

@@ -6,7 +6,7 @@ except each tab is a full workspace with live terminals, running agents, and pre
 
 [**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap)
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey) ![Status: Early](https://img.shields.io/badge/status-early%20access-orange)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey) ![Platform: Linux (experimental)](<https://img.shields.io/badge/platform-Linux%20(experimental)-yellow>) ![Platform: Windows (experimental)](<https://img.shields.io/badge/platform-Windows%20(experimental)-yellow>) ![Status: Early](https://img.shields.io/badge/status-early%20access-orange)
 
 ---
 
@@ -95,7 +95,7 @@ silo uninstall dave.git-branch
 | Apple Silicon (M1/M2/M3) | [Silo_0.4.0_aarch64.dmg](https://github.com/silo-code/silo/releases/latest) |
 | Intel Mac                | [Silo_0.4.0_x64.dmg](https://github.com/silo-code/silo/releases/latest)     |
 
-Windows and Linux builds are in progress — watch [Releases](https://github.com/silo-code/silo/releases) or star the repo to get notified.
+**Linux and Windows** — experimental builds are now produced on every release and attached to [GitHub Releases](https://github.com/silo-code/silo/releases). They may not work correctly. If you try them, please [open an issue](https://github.com/silo-code/silo/issues) with what you find.
 
 ---
 
