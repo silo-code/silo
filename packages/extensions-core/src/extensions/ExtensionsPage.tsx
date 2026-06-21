@@ -192,6 +192,9 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                   <span className="ext-label">
                     {ext.name}
                     <span className="ext-brand">{ext.publisher}</span>
+                    {ext.builtin && (
+                      <span className="ext-badge-builtin">Built-in</span>
+                    )}
                     <span className="ext-version">v{ext.version}</span>
                     {!ext.enabled && (
                       <span className="ext-badge">disabled</span>
