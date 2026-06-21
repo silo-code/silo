@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.9.0](https://github.com/silo-code/silo/compare/silo-v0.8.0...silo-v0.9.0) (2026-06-21)
+
+
+### Features
+
+* **extensions:** add Built-in badge to extension list items ([#63](https://github.com/silo-code/silo/issues/63)) ([36ffb6a](https://github.com/silo-code/silo/commit/36ffb6aa7f33a3d0f955db6792ddc1f5273e0486))
+* **web-viewer:** local web viewer extension + ctx.net HTTP client ([#61](https://github.com/silo-code/silo/issues/61)) ([319a31c](https://github.com/silo-code/silo/commit/319a31c051b0220c7543c29cc56162f9e04e8495))
+
+
+### Bug Fixes
+
+* **markdown-preview:** use border-strong token so dividers are visible in dark theme ([#64](https://github.com/silo-code/silo/issues/64)) ([6abcf12](https://github.com/silo-code/silo/commit/6abcf12466da3ea45d66e83e5876d81b7f43f305)), closes [#59](https://github.com/silo-code/silo/issues/59)
+
 ## [0.8.0](https://github.com/silo-code/silo/compare/silo-v0.7.1...silo-v0.8.0) (2026-06-19)
 
 
