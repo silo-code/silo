@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { ArrowsClockwise } from "@phosphor-icons/react";
 import type { ExtensionContext } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
 import {
@@ -105,6 +106,13 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       void run(ext.id, () =>
         ext.enabled ? mgr.disable(ext.id) : mgr.enable(ext.id),
       );
+    }
+
+    function reload(ext: InstalledExtension) {
+      void run(ext.id, async () => {
+        await mgr.disable(ext.id);
+        await mgr.enable(ext.id);
+      });
     }
 
     async function uninstall(ext: InstalledExtension) {
@@ -215,6 +223,16 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                   >
                     {ext.enabled ? "Disable" : "Enable"}
                   </button>
+                  {import.meta.env.DEV && !ext.builtin && ext.enabled && (
+                    <button
+                      className="ext-btn ext-btn-icon"
+                      onClick={() => reload(ext)}
+                      disabled={busy === ext.id}
+                      title="Reload extension"
+                    >
+                      <ArrowsClockwise size={14} />
+                    </button>
+                  )}
                   {!ext.builtin && (
                     <button
                       className="ext-btn ext-btn-danger"
