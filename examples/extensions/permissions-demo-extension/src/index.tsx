@@ -144,7 +144,7 @@ function makeStatusButton(ctx: ExtensionContext) {
 }
 
 export const extension: Extension = {
-  id: "acme.permissions-demo",
+  id: "silo.permissions-demo",
   activate(ctx) {
     injectStyles();
 
@@ -157,7 +157,7 @@ export const extension: Extension = {
 
     // Same action from the command surface, for parity with the button.
     ctx.registerCommand({
-      id: "acme.permissions-demo.run",
+      id: "silo.permissions-demo.run",
       label: "Permissions Demo: Run scope checks",
       run: () => {
         void runScopeChecks(ctx).then((results) => {

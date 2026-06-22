@@ -61,11 +61,43 @@ from [`getState()`](/api/types/interfaces/WorkspaceService#getstate),
 | `activeId` | `string \| null`       | id of the active workspace           |
 | `hydrated` | `boolean`              | true once persisted state has loaded |
 
+## Workspace decoration
+
+Extensions can contribute status rows below each workspace's path line in the
+Workspaces panel. Rows carry a semantic dot, a label, and an optional elapsed
+timestamp — useful for surfacing running tasks, agent sessions, CI status, etc.
+
+```ts
+ctx.subscriptions.push(
+  ctx.workspaces.subscribe(() => ctx.workspaces.invalidateDecorations()),
+  ctx.workspaces.registerDecoration({
+    id: "my-ext.decoration",
+    provide(workspaceId) {
+      return getRunningTasks(workspaceId).map((t) => ({
+        id: t.id,
+        status: "busy",
+        label: t.name,
+        startedAt: t.startedAt,
+      }));
+    },
+  }),
+);
+```
+
+| Method                                                                                          | What it does                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`registerDecoration(provider)`](/api/types/interfaces/WorkspaceService#registerdecoration)     | Register a provider that returns status rows per workspace. Returns a [`Disposable`](/api/types/interfaces/Disposable). Multiple providers are concatenated in registration order. |
+| [`getDecorations(workspaceId)`](/api/types/interfaces/WorkspaceService#getdecorations)          | Concatenate all registered providers' rows for one workspace (called during panel render).                                                                                         |
+| [`invalidateDecorations()`](/api/types/interfaces/WorkspaceService#invalidatedecorations)       | Signal that decoration data changed — triggers a panel re-render.                                                                                                                  |
+| [`subscribeDecorations(listener)`](/api/types/interfaces/WorkspaceService#subscribedecorations) | Subscribe to decoration invalidations. Returns a [`Disposable`](/api/types/interfaces/Disposable).                                                                                 |
+
+Each row is a [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow).
+
 ## Types
 
 Pass [`WorkspaceService`](/api/types/interfaces/WorkspaceService).
 
-Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
+Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow) · [`WorkspaceDecorationProvider`](/api/types/interfaces/WorkspaceDecorationProvider) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
 
 ## See also
 

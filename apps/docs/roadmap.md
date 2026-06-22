@@ -26,6 +26,9 @@ designed. As a primitive ships, its badge flips from
 | Extension-API mechanism (`getExtension`)       | <Badge type="tip" text="stable" />   | [docs](/api/other/get-extension)     |
 | `ctx.editors` (documents)                      | <Badge type="tip" text="stable" />   | [docs](/api/editors/)                |
 | `ctx.terminals` (terminal tabs)                | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)         |
+| `ctx.terminals.registerTabDecoration`          | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)         |
+| `ctx.terminals.focus`                          | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)         |
+| `ctx.workspaces.registerDecoration`            | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces)        |
 | `ctx.files`                                    | <Badge type="tip" text="stable" />   | [docs](/api/files/)                  |
 | `ctx.theme` + `registerThemePreset`            | <Badge type="tip" text="stable" />   | [docs](/api/theme/)                  |
 | `ctx.dnd` (drag-and-drop)                      | <Badge type="tip" text="stable" />   | [docs](/api/dnd/)                    |

@@ -50,6 +50,8 @@ export type {
   WorkspaceService,
   WorkspaceState,
   CreateWorkspaceInput,
+  WorkspaceStatusRow,
+  WorkspaceDecorationProvider,
 } from "./workspace-service";
 export type {
   EditorService,
@@ -79,6 +81,8 @@ export type {
   CreateTerminalInput,
   TerminalKind,
   TerminalRecord,
+  TerminalTabDecoration,
+  TerminalTabDecorationProvider,
 } from "./terminal-service";
 export type { FileService, FileMeta, FileChangeEvent } from "./file-service";
 // Cross-file content search exposed on the ExtensionContext as `ctx.search`.

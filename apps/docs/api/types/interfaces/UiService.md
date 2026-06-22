@@ -144,7 +144,7 @@ auto-dismisses after ~4s.
 
 ##### level
 
-`"info"` \| `"warn"` \| `"error"`
+`"warn"` \| `"error"` \| `"info"`
 
 ##### message
 

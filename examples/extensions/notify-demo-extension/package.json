@@ -6,7 +6,7 @@
   "private": true,
   "type": "module",
   "silo": {
-    "id": "acme.notify-demo",
+    "id": "silo.notify-demo",
     "engine": "^0.1",
     "main": "dist/index.js"
   },

@@ -5,6 +5,7 @@ import {
   useServiceState,
   type ExtensionContext,
   type MenuEntry,
+  type WorkspaceStatusRow,
 } from "@silo-code/sdk";
 import { homeDir } from "@silo-code/extension-host/internal";
 import {
@@ -22,10 +23,39 @@ import "./WorkspacesPanel.css";
 
 const WorkspaceIcon = SquaresFour;
 
+function WorkspaceStatusRows({ rows }: { rows: WorkspaceStatusRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <>
+      {rows.map((row) => (
+        <div key={row.id} className="ws-status-row">
+          <span
+            className="ws-status-dot"
+            data-status={row.status ?? "none"}
+            aria-hidden="true"
+          />
+          <span className="ws-status-label">{row.label}</span>
+          {row.startedAt && (
+            <span className="ws-status-elapsed">
+              {formatElapsed(row.startedAt)}
+            </span>
+          )}
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   const service = ctx.workspaces;
   const snap = useServiceState(service);
   const [home, setHome] = useState("");
+  // Re-render when decoration providers invalidate their data.
+  const [, setDecorationTick] = useState(0);
+  useEffect(() => {
+    return service.subscribeDecorations(() => setDecorationTick((t) => t + 1))
+      .dispose;
+  }, [service]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const addWrapRef = useRef<HTMLDivElement | null>(null);
@@ -220,6 +250,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                       </span>
                     )}
                   </div>
+                  <WorkspaceStatusRows rows={service.getDecorations(ws.id)} />
                   <button
                     className="ws-close"
                     title="Close workspace"

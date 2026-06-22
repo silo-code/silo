@@ -613,18 +613,23 @@ export function TerminalPanel(
     }
 
     function read() {
-      const wsId = store.activeWorkspaceId;
+      // Find this terminal's workspace directly so background-workspace terminals
+      // (whose wsId ≠ activeWorkspaceId) still have rec.title updated.
+      const wsId = Object.keys(store.workspaces).find((id) =>
+        store.workspaces[id]?.terminals.some((t) => t.id === terminalId),
+      );
       const ws = wsId ? store.workspaces[wsId] : null;
       const rec = ws?.terminals.find((t) => t.id === terminalId) ?? null;
 
-      // 1. A user-assigned name wins over any auto-derived title. Re-assert it
-      // (the rename handler also sets it eagerly) and skip auto-derivation
-      // until it's cleared.
+      // 1. A user-assigned name wins over any auto-derived title for the tab
+      // display. We still persist the live OSC title to rec.title so extensions
+      // can observe actual activity in custom-named terminals.
       if (rec?.customName) {
         if (rec.customName !== lastTitle) {
           lastTitle = rec.customName;
           props.api.setTitle(rec.customName);
         }
+        if (oscTitle && rec.title !== oscTitle) rec.title = oscTitle;
         return;
       }
 
