@@ -181,3 +181,8 @@
   border-color: var(--silo-color-err);
   color: var(--silo-button-danger-text, #fff);
 }
+.ext-btn-icon {
+  padding: 5px 7px;
+  display: flex;
+  align-items: center;
+}
