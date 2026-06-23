@@ -1,17 +1,15 @@
 {
-  "name": "permissions-demo-extension",
-  "displayName": "Permissions Demo",
+  "name": "terminal-monitor",
+  "displayName": "Terminal Monitor",
   "version": "0.1.0",
-  "description": "Demonstrates workspace path-scoping and the fs:read capability — installing it shows the consent prompt.",
+  "description": "Surfaces all terminal sessions in a dedicated side panel and workspace rows, with per-terminal status badges on tabs.",
   "private": true,
   "type": "module",
   "silo": {
-    "id": "silo.permissions-demo",
-    "engine": "^0.1",
+    "id": "silo.terminal-monitor",
+    "engine": "^0.9",
     "main": "dist/index.js",
-    "permissions": [
-      "fs:read"
-    ]
+    "permissions": []
   },
   "scripts": {
     "build": "node build.mjs",

@@ -14,7 +14,7 @@ import type { Extension, MenuEntry } from "@silo-code/sdk";
 /* scales with uiFontSize.                                                       */
 /* -------------------------------------------------------------------------- */
 
-const STYLE_ID = "acme-notify-demo-styles";
+const STYLE_ID = "silo-notify-demo-styles";
 const STYLES = `
 /* Full detail body shown in the "View details" modal (ctx.ui.showModal). */
 .notify-demo-detail {
@@ -95,7 +95,7 @@ function DemoForm({
 }
 
 export const extension: Extension = {
-  id: "acme.notify-demo",
+  id: "silo.notify-demo",
   activate(ctx) {
     injectStyles();
     const ui = ctx.ui;
@@ -249,19 +249,19 @@ export const extension: Extension = {
     // keybinding. (There's no command palette yet, so a command needs a
     // trigger to be usable.)
     ctx.registerCommand({
-      id: "acme.notify-demo.open",
+      id: "silo.notify-demo.open",
       label: "Notification Playground",
       run: openPlayground,
     });
     ctx.registerMenuItem({
       id: "notify-demo.view",
       menu: "view",
-      command: "acme.notify-demo.open",
+      command: "silo.notify-demo.open",
     });
     ctx.registerKeybinding({
       id: "notify-demo.open",
       key: "cmd+shift+m",
-      command: "acme.notify-demo.open",
+      command: "silo.notify-demo.open",
     });
   },
   deactivate() {

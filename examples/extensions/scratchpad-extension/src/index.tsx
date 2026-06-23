@@ -8,7 +8,7 @@ import type { Extension, SidePanelProps } from "@silo-code/sdk";
 /* correctly and scales with uiFontSize.                                        */
 /* -------------------------------------------------------------------------- */
 
-const STYLE_ID = "acme-scratchpad-styles";
+const STYLE_ID = "silo-scratchpad-styles";
 const STYLES = `
 .scratchpad { height: 100%; padding: 8px; box-sizing: border-box; }
 .scratchpad-area {
@@ -65,7 +65,7 @@ function Scratchpad({ storage, hydrated }: SidePanelProps) {
 }
 
 export const extension: Extension = {
-  id: "acme.scratchpad",
+  id: "silo.scratchpad",
   activate(ctx) {
     injectStyles();
     ctx.registerSidePanel({

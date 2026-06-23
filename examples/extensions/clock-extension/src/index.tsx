@@ -10,7 +10,7 @@ import { useServiceState } from "@silo-code/sdk";
 /* themes correctly and scales with uiFontSize.                                 */
 /* -------------------------------------------------------------------------- */
 
-const STYLE_ID = "acme-clock-styles";
+const STYLE_ID = "silo-clock-styles";
 const STYLES = `
 .clock-status { font-variant-numeric: tabular-nums; }
 
@@ -176,7 +176,7 @@ function ClockSettingsPage() {
 }
 
 export const extension: Extension = {
-  id: "acme.clock",
+  id: "silo.clock",
   activate(ctx) {
     injectStyles();
 
@@ -188,7 +188,7 @@ export const extension: Extension = {
     });
 
     ctx.registerCommand({
-      id: "acme.clock.toggle24h",
+      id: "silo.clock.toggle24h",
       label: "Clock: Toggle 24-hour clock",
       run: () =>
         settingsService.set({ use24h: !settingsService.getState().use24h }),

@@ -39,7 +39,7 @@
   position: relative;
   display: grid;
   grid-template-columns: 22px 1fr;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto auto auto;
   column-gap: 3px;
   align-items: center;
   padding: 8px 10px;
@@ -80,7 +80,7 @@
 
 .ws-item .ws-icon {
   grid-column: 1;
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
   color: var(--silo-color-text);
   align-self: start;
   /* Nudge so the icon's optical center sits on the first row's text baseline. */
@@ -310,4 +310,71 @@
 .ws-folder-list-remove:hover {
   color: var(--silo-color-err);
   background: var(--silo-color-bg-hover);
+}
+
+/* Workspace decoration status rows — appear below the folder path line */
+.ws-status-row {
+  grid-column: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 2px;
+  font-family: var(--silo-font-ui);
+  font-size: calc(1em - 1.5px);
+  color: var(--silo-color-text-lo);
+  min-width: 0;
+}
+
+.ws-status-dot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  align-self: center;
+  color: var(--silo-color-text-lo);
+}
+.ws-status-dot[data-status="ok"] {
+  color: var(--silo-color-ok);
+}
+.ws-status-dot[data-status="warn"] {
+  color: var(--silo-color-warn);
+}
+.ws-status-dot[data-status="error"] {
+  color: var(--silo-color-err);
+}
+.ws-status-dot[data-status="busy"] {
+  color: var(--silo-color-accent);
+  animation: ws-status-pulse 1.4s ease-in-out infinite;
+}
+.ws-status-dot[data-status="none"] {
+  color: var(--silo-color-text);
+}
+
+@keyframes ws-status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.ws-status-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--silo-color-text-hi);
+}
+
+.ws-folder + .ws-status-row {
+  margin-top: 6px;
+}
+
+.ws-status-elapsed {
+  flex-shrink: 0;
+  color: var(--silo-color-text-lo);
 }

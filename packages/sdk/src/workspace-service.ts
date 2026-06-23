@@ -5,6 +5,46 @@ import type { Workspace } from "./domain-types";
 export type { Workspace, TerminalRecord } from "./domain-types";
 
 /**
+ * A single status row contributed by a {@link WorkspaceDecorationProvider}.
+ * Rows appear below the path line in the Workspaces side panel.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface WorkspaceStatusRow {
+  /** Stable key unique within this provider's results; used for reconciliation. */
+  id: string;
+  /** Semantic status dot shown to the left of the label. */
+  status?: "ok" | "warn" | "busy" | "error";
+  /** Short label — the host truncates with an ellipsis when space is tight. */
+  label: string;
+  /**
+   * ISO timestamp for when this row started. The host renders it as elapsed
+   * time using the same `formatElapsed` helper as workspace uptime ("6h", "2d",
+   * "just now").
+   */
+  startedAt?: string;
+}
+
+/**
+ * A decoration provider that contributes {@link WorkspaceStatusRow}s to
+ * workspace rows in the Workspaces side panel. Register via
+ * {@link WorkspaceService.registerDecoration}.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface WorkspaceDecorationProvider {
+  /** Unique id for this provider — conventionally `"<extension-id>.decoration"`. */
+  id: string;
+  /**
+   * Called synchronously for each workspace during render. Return an empty
+   * array to contribute nothing for this workspace.
+   */
+  provide(workspaceId: string): WorkspaceStatusRow[];
+}
+
+/**
  * An immutable, frozen view of workspace state, returned by
  * {@link WorkspaceService.getState} and delivered to subscribers — read
  * access without a Valtio dependency.
@@ -73,4 +113,52 @@ export interface WorkspaceService {
   removeFolder(id: string, folder: string): void;
   /** Hard delete — permanent removal. */
   delete(id: string): void;
+
+  /**
+   * Register a decoration provider that contributes status rows to workspace
+   * rows in the Workspaces side panel. Multiple providers may be registered;
+   * their rows are concatenated in registration order. Returns a
+   * {@link Disposable} that unregisters the provider.
+   *
+   * @example
+   * ```ts
+   * ctx.subscriptions.push(
+   *   ctx.workspaces.registerDecoration({
+   *     id: "my-ext.decoration",
+   *     provide(workspaceId) {
+   *       const running = getRunningTasks(workspaceId);
+   *       return running.map(t => ({ id: t.id, status: "busy", label: t.name, startedAt: t.startedAt }));
+   *     },
+   *   }),
+   *   ctx.workspaces.subscribeDecorations(() => ctx.workspaces.invalidateDecorations()),
+   * );
+   * ```
+   */
+  registerDecoration(provider: WorkspaceDecorationProvider): Disposable;
+
+  /**
+   * Concatenate all registered providers' rows for one workspace (in
+   * registration order). Called synchronously during panel render — providers
+   * must be fast and side-effect-free.
+   */
+  getDecorations(workspaceId: string): WorkspaceStatusRow[];
+
+  /**
+   * Signal that decoration data has changed. Fires all listeners registered
+   * via {@link WorkspaceService.subscribeDecorations}, causing the Workspaces
+   * panel to re-query providers and re-render the status rows.
+   *
+   * Call this after any mutation to the state your `provide` function reads.
+   */
+  invalidateDecorations(): void;
+
+  /**
+   * Subscribe to decoration invalidations. The listener is called whenever
+   * {@link WorkspaceService.invalidateDecorations} is invoked. Returns a
+   * {@link Disposable} that cancels the subscription.
+   *
+   * The Workspaces panel subscribes internally; extensions may also subscribe
+   * to observe invalidations.
+   */
+  subscribeDecorations(listener: () => void): Disposable;
 }

@@ -9,16 +9,16 @@ import type { Extension } from "@silo-code/sdk";
  * `permissions-demo` example for how requesting capabilities works.
  */
 
-const STYLE_ID = "acme-hello-styles";
+const STYLE_ID = "silo-hello-styles";
 
 export const extension: Extension = {
-  id: "acme.hello",
+  id: "silo.hello",
   activate(ctx) {
     // A command: invocable from code (`ctx.executeCommand`), a keybinding, or a
     // menu. Returns a Disposable, which the host tracks on `ctx.subscriptions`
     // and tears down for you on unload.
     ctx.registerCommand({
-      id: "acme.hello.greet",
+      id: "silo.hello.greet",
       label: "Hello: Say hello",
       run: () => ctx.ui.notify("info", "👋 Hello from your extension!"),
     });
@@ -33,7 +33,7 @@ export const extension: Extension = {
       component: () => (
         <button
           className="hello-status"
-          onClick={() => ctx.executeCommand("acme.hello.greet")}
+          onClick={() => ctx.executeCommand("silo.hello.greet")}
         >
           👋 Hello
         </button>

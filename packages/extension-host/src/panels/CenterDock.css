@@ -453,6 +453,32 @@
   color: var(--silo-color-accent);
 }
 
+/* Terminal tab decoration — icon + semantic color, contributed by extensions
+ * via ctx.terminals.registerTabDecoration(). */
+.dvi-tab-decoration {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  color: var(--silo-color-text-lo);
+}
+.dvi-tab-decoration[data-color="accent"] {
+  color: var(--silo-color-accent);
+}
+.dvi-tab-decoration[data-color="warn"] {
+  color: var(--silo-color-warn);
+}
+.dvi-tab-decoration[data-color="ok"] {
+  color: var(--silo-color-ok);
+}
+.dvi-tab-decoration[data-color="error"] {
+  color: var(--silo-color-err);
+}
+
 /* Deleted-on-disk tab title — strikethrough + error color, mirroring VS
  * Code's treatment of a file removed out from under an open editor. */
 .dv-default-tab-content.deleted-title {

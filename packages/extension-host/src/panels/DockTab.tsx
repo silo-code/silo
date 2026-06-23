@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSnapshot } from "valtio";
 import type { IDockviewPanelHeaderProps } from "dockview";
+import type { TerminalTabDecoration } from "@silo-code/sdk";
 import { store } from "../state/store";
 import {
   findTerminal,
@@ -8,6 +9,7 @@ import {
   renameTerminal,
 } from "../state/workspaces";
 import { prompt } from "../extension-host/modal-service";
+import { terminalTabDecorationRegistry } from "../extension-host/terminal-tab-decoration-registry";
 
 // Custom tab: mirrors dockview's default tab DOM, but renders the dirty marker
 // as its own styled span so we can size/color it independently. (DockviewDefaultTab
@@ -31,6 +33,23 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
     () => !!api.getParameters<{ deleted?: boolean }>().deleted,
   );
   const snap = useSnapshot(store);
+  const [tabDecoration, setTabDecoration] =
+    useState<TerminalTabDecoration | null>(() =>
+      terminalId
+        ? terminalTabDecorationRegistry.getTabDecoration(terminalId)
+        : null,
+    );
+
+  useEffect(() => {
+    if (!terminalId) return;
+    const refresh = () =>
+      setTabDecoration(
+        terminalTabDecorationRegistry.getTabDecoration(terminalId),
+      );
+    const sub = terminalTabDecorationRegistry.subscribe(refresh);
+    refresh();
+    return sub.dispose;
+  }, [terminalId]);
 
   useEffect(() => {
     const sub = api.onDidTitleChange((e) => setTitle(e.title ?? ""));
@@ -164,6 +183,16 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
         {isDirty && <span className="dvi-dirty-indicator">●</span>}
         {title}
       </span>
+      {tabDecoration && (
+        <span
+          className="dvi-tab-decoration"
+          data-color={tabDecoration.color ?? "muted"}
+          title={tabDecoration.tooltip}
+          aria-label={tabDecoration.tooltip}
+        >
+          {tabDecoration.icon}
+        </span>
+      )}
       <div
         className="dv-default-tab-action"
         onPointerDown={onBtnPointerDown}
