@@ -15,6 +15,13 @@ import {
 import { installRegionTabHandoff } from "../extension-host/focus-regions";
 import "./AppShell.css";
 
+// On macOS, `titleBarStyle: "Overlay"` causes the webview to extend under the
+// native traffic lights, so we need a reserved drag strip at the top. On
+// Linux/Windows the OS title bar sits above the webview — no reservation needed.
+const isMac =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad/.test(navigator.platform);
+
 // `data-tauri-drag-region` is unreliable on macOS with `titleBarStyle:
 // Overlay` (Tauri issue #9503 / #4316) — clicks while the window isn't
 // already focused frequently don't initiate a drag. Calling
@@ -114,7 +121,7 @@ export function AppShell() {
   // same-value assignments, so this won't fight the effects above.
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isMac ? " mac" : ""}`}>
       <div
         className="titlebar-drag"
         onMouseDown={onTitlebarMouseDown}

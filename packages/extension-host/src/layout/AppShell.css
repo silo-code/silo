@@ -7,18 +7,28 @@
   position: relative;
 }
 
-/* macOS uses `titleBarStyle: Overlay`, so the webview extends under the
+/* On macOS, `titleBarStyle: Overlay` causes the webview to extend under the
  * traffic lights. This strip reclaims the top 36px as a Tauri drag region
  * so the user can reposition the window from any column. The traffic
  * lights are drawn by AppKit above the webview and remain clickable. The
- * extra height past the lights themselves keeps the tabs from crowding them. */
+ * extra height past the lights themselves keeps the tabs from crowding them.
+ * On Linux/Windows the OS title bar sits above the webview, so no strip is
+ * needed — height defaults to 0 and is only activated by the `.mac` class. */
 .titlebar-drag {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 36px;
+  height: 0;
   z-index: 5;
+}
+
+.app-shell.mac .titlebar-drag {
+  height: 36px;
+}
+
+.app-shell.mac .app-col {
+  padding-top: 36px;
 }
 
 .app-shell > [data-panel-group] {
@@ -33,7 +43,7 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding-top: 36px;
+  padding-top: 0;
   overflow: hidden;
   /* Contain each column's internal stacking. Without this the center column is
      a static (non-isolating) box, so dockview's positioned descendants (e.g.
