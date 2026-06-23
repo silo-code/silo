@@ -55,6 +55,33 @@ describe("dnd-service", () => {
     expect(startFileDragGhost).toHaveBeenCalledWith("b.txt", expect.anything());
   });
 
+  it("beginDrag sets text/uri-list for Finder interop (spaces encoded)", () => {
+    const dt = fakeDataTransfer();
+    getDndService().beginDrag({ dataTransfer: dt } as unknown as DragEvent, {
+      items: [{ mime: DND_MIME.filePath, value: "/a/my file.txt" }],
+      label: "my file.txt",
+    });
+    expect(dt.setData).toHaveBeenCalledWith(
+      "text/uri-list",
+      "file:///a/my%20file.txt",
+    );
+  });
+
+  it("beginDrag joins multiple file paths with CRLF in text/uri-list", () => {
+    const dt = fakeDataTransfer();
+    getDndService().beginDrag({ dataTransfer: dt } as unknown as DragEvent, {
+      items: [
+        { mime: DND_MIME.filePath, value: "/a/b.txt" },
+        { mime: DND_MIME.filePath, value: "/c/d.png" },
+      ],
+      label: "2 files",
+    });
+    expect(dt.setData).toHaveBeenCalledWith(
+      "text/uri-list",
+      "file:///a/b.txt\r\nfile:///c/d.png",
+    );
+  });
+
   it("registerDropTarget reads items, resolves copy mode, and handles", () => {
     const el = document.createElement("div");
     const onDrop = vi.fn((_ctx: DropContext) => true);

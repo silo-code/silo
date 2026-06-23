@@ -227,6 +227,14 @@ export function getDndService(): DndService {
       const dt = event.dataTransfer;
       if (!dt) return;
       for (const { mime, value } of init.items) dt.setData(mime, value);
+      // Expose file paths as text/uri-list so native apps (Finder, shell
+      // windows, etc.) can receive the drag. WKWebView converts file:// URIs
+      // in text/uri-list into native NSURL pasteboard items when the drag
+      // session starts, which is what Finder reads.
+      const filePaths = init.items
+        .filter((i) => i.mime === DND_MIME.filePath)
+        .map((i) => encodeURI("file://" + i.value));
+      if (filePaths.length) dt.setData("text/uri-list", filePaths.join("\r\n"));
       dt.effectAllowed = init.effect ?? "copyMove";
       // The ghost hides the native preview (setDragImage) and renders the chip
       // + paste overlay; it polls the modifier so the overlay flips live.
