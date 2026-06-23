@@ -55,6 +55,7 @@ mod macos {
     static ORIG_ENTERED: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static ORIG_EXITED: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
     static ORIG_CONCLUDE: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+    static ORIG_BEGIN_DRAG: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
 
     // Raw ObjC runtime — not all exposed cleanly through objc2::ffi in 0.6.
     extern "C" {
@@ -122,6 +123,135 @@ mod macos {
                 std::mem::transmute(orig);
             f(this, cmd, sender);
         }
+    }
+
+    // ── outgoing drag: inject NSFilenamesPboardType ──────────────────────────
+
+    // Swizzle beginDraggingSessionWithItems:event:source: so we can add
+    // NSFilenamesPboardType to the drag pasteboard after WebKit sets it up.
+    // Finder requires NSFilenamesPboardType to accept a file-drop; WebKit
+    // does not write it even when the DataTransfer carries text/uri-list.
+    unsafe extern "C" fn hooked_begin_dragging_session(
+        this: *mut AnyObject,
+        cmd: Sel,
+        items: *mut AnyObject,   // NSArray<NSDraggingItem *>
+        event: *mut AnyObject,   // NSEvent *
+        source: *mut AnyObject,  // id<NSDraggingSource>
+    ) -> *mut AnyObject /* NSDraggingSession * */ {
+        let orig = ORIG_BEGIN_DRAG.load(Ordering::Acquire);
+        let f: unsafe extern "C" fn(
+            *mut AnyObject, Sel,
+            *mut AnyObject, *mut AnyObject, *mut AnyObject,
+        ) -> *mut AnyObject = std::mem::transmute(orig);
+        let session = f(this, cmd, items, event, source);
+
+        if !session.is_null() {
+            autoreleasepool(|_| {
+                let pb: *mut AnyObject = msg_send![session, draggingPasteboard];
+                if !pb.is_null() {
+                    inject_filenames_if_needed(pb);
+                }
+            });
+        }
+        session
+    }
+
+    // Read the drag pasteboard and, if it contains file URLs in any
+    // WebKit-written type, also write NSFilenamesPboardType so Finder can
+    // accept the drop. Logs all types for diagnostics.
+    unsafe fn inject_filenames_if_needed(pb: *mut AnyObject) {
+        let types: *mut AnyObject = msg_send![pb, types];
+        if types.is_null() { return; }
+        let count: usize = msg_send![types, count];
+        eprintln!("[finder_drop] outgoing drag: {} pasteboard type(s)", count);
+
+        let mut file_paths: Vec<String> = Vec::new();
+
+        for i in 0..count {
+            let t: *mut AnyObject = msg_send![types, objectAtIndex: i];
+            if t.is_null() { continue; }
+            let utf8: *const c_char = msg_send![t, UTF8String];
+            if utf8.is_null() { continue; }
+            let type_name = CStr::from_ptr(utf8).to_str().unwrap_or("?");
+            eprintln!("[finder_drop]   type[{}]: {}", i, type_name);
+
+            // Collect file paths from likely URL types WebKit may write.
+            // (public.url, public.file-url, NSURLPboardType are all candidates)
+            let is_url_type = matches!(type_name,
+                "public.url" | "public.file-url" | "Apple URL pasteboard type"
+            );
+            if is_url_type {
+                let val: *mut AnyObject = msg_send![pb, stringForType: t];
+                if val.is_null() { continue; }
+                let vutf8: *const c_char = msg_send![val, UTF8String];
+                if vutf8.is_null() { continue; }
+                let url_str = CStr::from_ptr(vutf8).to_str().unwrap_or("");
+                eprintln!("[finder_drop]     value: {}", url_str);
+                // Grab each line (text/uri-list is CRLF-separated)
+                for line in url_str.split(['\r', '\n']) {
+                    let line = line.trim();
+                    if line.starts_with("file://") {
+                        let path = percent_decode_path(line.trim_start_matches("file://"));
+                        if !path.is_empty() && !file_paths.contains(&path) {
+                            file_paths.push(path);
+                        }
+                    }
+                }
+            }
+        }
+
+        if file_paths.is_empty() {
+            eprintln!("[finder_drop] outgoing drag: no file URLs found");
+            return;
+        }
+        eprintln!("[finder_drop] outgoing drag: injecting {} path(s): {:?}", file_paths.len(), file_paths);
+
+        // Build NSArray<NSString> of POSIX paths.
+        let path_ptrs: Vec<*mut AnyObject> = file_paths.iter().map(|p| {
+            let cs = CString::new(p.as_str()).unwrap_or_default();
+            let s: *mut AnyObject = msg_send![class!(NSString), stringWithUTF8String: cs.as_ptr()];
+            s
+        }).filter(|p| !p.is_null()).collect();
+
+        if path_ptrs.is_empty() { return; }
+
+        let arr: *mut AnyObject = msg_send![
+            class!(NSArray),
+            arrayWithObjects: path_ptrs.as_ptr(),
+            count: path_ptrs.len()
+        ];
+
+        let fnames_type: *mut AnyObject = msg_send![
+            class!(NSString),
+            stringWithUTF8String: b"NSFilenamesPboardType\0".as_ptr() as *const c_char
+        ];
+        let type_arr: *mut AnyObject = msg_send![class!(NSArray), arrayWithObject: fnames_type];
+
+        // Add the type to the drag pasteboard (owner:nil = we don't need callbacks).
+        let _: bool = msg_send![pb, addTypes: type_arr, owner: ptr::null::<AnyObject>()];
+        let _: bool = msg_send![pb, setPropertyList: arr, forType: fnames_type];
+        eprintln!("[finder_drop] outgoing drag: NSFilenamesPboardType written");
+    }
+
+    // Minimal percent-decode for file paths (%20 → space, etc.).
+    fn percent_decode_path(s: &str) -> String {
+        // Remove the leading extra slash if the URL is file:///path
+        let s = s.strip_prefix('/').unwrap_or(s);
+        let s = format!("/{}", s); // restore the leading /
+        let mut out = String::with_capacity(s.len());
+        let mut bytes = s.bytes();
+        while let Some(b) = bytes.next() {
+            if b == b'%' {
+                let h1 = bytes.next().and_then(|b| (b as char).to_digit(16));
+                let h2 = bytes.next().and_then(|b| (b as char).to_digit(16));
+                if let (Some(h1), Some(h2)) = (h1, h2) {
+                    out.push(((h1 * 16 + h2) as u8) as char);
+                }
+            } else {
+                out.push(b as char);
+            }
+        }
+        out
     }
 
     // ── read paths from NSDraggingInfo ───────────────────────────────────────
@@ -264,6 +394,12 @@ mod macos {
             sel!(concludeDragOperation:),
             hooked_conclude_drag as *const c_void,
             &ORIG_CONCLUDE,
+        );
+        swizzle_method(
+            target_cls,
+            sel!(beginDraggingSessionWithItems:event:source:),
+            hooked_begin_dragging_session as *const c_void,
+            &ORIG_BEGIN_DRAG,
         );
     }
 }
