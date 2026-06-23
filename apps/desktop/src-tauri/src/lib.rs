@@ -105,6 +105,14 @@ pub fn run() {
                 });
             }
 
+            // macOS: swizzle WKWebView dragging methods so that Finder
+            // file-drop paths are captured via NSDraggingInfo (the
+            // authoritative pasteboard) before WebKit processes the drag.
+            // Called here — after windows are created — so WryWebView is
+            // already registered as an ObjC class and can be targeted.
+            #[cfg(target_os = "macos")]
+            commands::finder_drop::install_drag_swizzle();
+
             // Cleanup stale terminal buffers on startup
             std::thread::spawn(|| {
                 let _ = commands::terminal_buffer::cleanup_stale_buffers();
@@ -145,6 +153,7 @@ pub fn run() {
             commands::terminal::terminal_save_buffer,
             commands::network::net_fetch,
             commands::network::net_fetch_headers,
+            commands::finder_drop::dnd_get_finder_paths,
         ])
         .run(context)
         .expect("error while running tauri application");

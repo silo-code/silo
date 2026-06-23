@@ -4556,6 +4556,7 @@ dependencies = [
  "grep",
  "ignore",
  "notify",
+ "objc2",
  "parking_lot",
  "portable-pty",
  "pty-host",
