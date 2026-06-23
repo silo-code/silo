@@ -48,8 +48,8 @@ export const extension: Extension = {
       id: "editor",
       title: "Editor",
       group: "1_general",
-      // Before Keyboard Shortcuts (order 1) within the general group.
-      order: 0,
+      // After Keyboard Shortcuts (order 0) within the general group.
+      order: 1,
       component: EditorSettingsPage,
     });
   },

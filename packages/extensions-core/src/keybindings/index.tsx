@@ -106,7 +106,7 @@ export const extension: Extension = {
       id: "keybindings",
       title: "Keyboard Shortcuts",
       group: "1_general",
-      order: 1,
+      order: 0,
       component: makePage(ctx),
     });
   },

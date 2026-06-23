@@ -19,7 +19,7 @@ export const extension: Extension = {
       id: "terminal",
       title: "Terminal",
       group: "1_general",
-      // After Editor (0) and Keyboard Shortcuts (1) within the general group.
+      // After Keyboard Shortcuts (0) and Editor (1) within the general group.
       order: 2,
       component: TerminalSettingsPage,
     });
