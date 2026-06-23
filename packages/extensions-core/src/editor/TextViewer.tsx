@@ -476,14 +476,16 @@ export function TextViewer({
       capture: true,
       onDrop({ mode, items }) {
         if (mode !== "paste") return; // copy mode → let dockview open a pane
-        const path = items.find((i) => i.mime === DND_MIME.filePath)?.value;
-        if (!path) return;
+        const paths = items
+          .filter((i) => i.mime === DND_MIME.filePath)
+          .map((i) => i.value);
+        if (!paths.length) return;
         const ed = editorRef.current;
         if (!ed) return;
         const selection = ed.getSelection();
         if (!selection) return;
         ed.executeEdits("paste-path", [
-          { range: selection, text: path, forceMoveMarkers: true },
+          { range: selection, text: paths.join(" "), forceMoveMarkers: true },
         ]);
         ed.focus();
         return true; // handled — host preventDefault + stopPropagation

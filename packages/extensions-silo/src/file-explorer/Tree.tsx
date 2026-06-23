@@ -496,8 +496,9 @@ export function Tree({
       accepts: [DND_MIME.filePath],
       onDragOver: () => "move",
       onDrop: ({ items }) => {
-        const dragged = items.find((i) => i.mime === DND_MIME.filePath)?.value;
-        if (dragged) handleDropRef.current(dragged, root);
+        for (const item of items.filter((i) => i.mime === DND_MIME.filePath)) {
+          handleDropRef.current(item.value, root);
+        }
         return true;
       },
     });

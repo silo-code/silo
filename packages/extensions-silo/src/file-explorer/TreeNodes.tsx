@@ -103,8 +103,9 @@ export function DirNode({
       },
       onDrop: ({ items }) => {
         setIsDragOver(false);
-        const dragged = items.find((i) => i.mime === DND_MIME.filePath)?.value;
-        if (dragged) onDropRef.current(dragged, path);
+        for (const item of items.filter((i) => i.mime === DND_MIME.filePath)) {
+          onDropRef.current(item.value, path);
+        }
         return true; // handled — don't fall through to the tree container
       },
     });
@@ -327,10 +328,9 @@ export function FileLeaf({
       accepts: [DND_MIME.filePath],
       onDragOver: () => "move",
       onDrop: ({ items }) => {
-        const dragged = items.find((i) => i.mime === DND_MIME.filePath)?.value;
-        if (dragged) {
-          const parentDir = path.substring(0, path.lastIndexOf("/"));
-          onDropRef.current(dragged, parentDir);
+        const parentDir = path.substring(0, path.lastIndexOf("/"));
+        for (const item of items.filter((i) => i.mime === DND_MIME.filePath)) {
+          onDropRef.current(item.value, parentDir);
         }
         return true;
       },

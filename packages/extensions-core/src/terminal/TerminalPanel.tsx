@@ -29,6 +29,7 @@ import {
   registerSelectionSource,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
+import { buildTerminalPaste } from "./terminal-path-paste";
 import { findFileLinks, getHomeDir } from "./terminal-links";
 import { TerminalSearch } from "./TerminalSearch";
 import { Breadcrumb } from "../editor/Breadcrumb";
@@ -711,9 +712,9 @@ export function TerminalPanel(
     };
   }, [props.api, forceRefit]);
 
-  // Shift-held file drops paste the path into the shell. Plain (copy-mode)
-  // drops fall through to dockview, which opens the file as a new pane next
-  // to the terminal — same as dragging a tab. Capture phase intercepts before
+  // File drops paste the path(s) into the shell. Shift-held (paste mode) or
+  // native Finder drops always paste; plain copy-mode internal drops fall
+  // through to dockview (opens a new pane). Capture phase intercepts before
   // dockview's bubble-phase drop handler.
   useEffect(() => {
     const host = containerRef.current;
@@ -723,14 +724,13 @@ export function TerminalPanel(
       capture: true,
       onDrop({ mode, items }) {
         if (mode !== "paste") return; // copy mode → let dockview open a pane
-        const path = items.find((i) => i.mime === DND_MIME.filePath)?.value;
-        if (!path) return;
+        const paths = items
+          .filter((i) => i.mime === DND_MIME.filePath)
+          .map((i) => i.value);
+        if (!paths.length) return;
         const live = liveRef.current;
         if (!live) return;
-        // POSIX-safe single-quote wrapping: inner ' → '\'' so embedded quotes
-        // close, escape, and reopen the quoted run.
-        const escaped = path.replace(/'/g, "'\\''");
-        live.term.paste(`'${escaped}'`);
+        live.term.paste(buildTerminalPaste(paths));
         live.term.focus();
         return true; // handled — host preventDefault + stopPropagation
       },
