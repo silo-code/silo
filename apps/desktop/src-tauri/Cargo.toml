@@ -64,8 +64,11 @@ pty-host = { path = "../../../crates/pty-host" }
 # silent during an HTML5 drag (the webview's drag session captures the
 # event flow), so we poll CoreGraphics' HID-level modifier state on a
 # background thread instead. CG queries don't depend on event delivery.
+# objc2: method-swizzle WKWebView to capture Finder drag-drop file paths
+# (NSDraggingInfo.draggingPasteboard) — only accessible via the delegate.
 [target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = "0.25"
+objc2 = "0.6"
 
 # Auto-updater + single-instance — desktop only (no mobile update channel; no
 # second-launch model on mobile). Single-instance powers the `silo <path>` CLI:
