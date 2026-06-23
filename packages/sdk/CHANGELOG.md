@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.10.1](https://github.com/silo-code/silo/compare/sdk-v0.10.0...sdk-v0.10.1) (2026-06-23)
+
+
+### Bug Fixes
+
+* **layout:** remove 36px titlebar gap on Linux and Windows ([#72](https://github.com/silo-code/silo/issues/72)) ([00f51ed](https://github.com/silo-code/silo/commit/00f51ed442c0eb49ffa4ceabf00ba016cc4f7d40))
+
 ## [0.10.0](https://github.com/silo-code/silo/compare/sdk-v0.9.0...sdk-v0.10.0) (2026-06-23)
 
 
