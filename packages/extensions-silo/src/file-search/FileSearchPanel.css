@@ -146,26 +146,26 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
+  gap: 4px;
+  width: 100%;
+  padding: 7px 8px;
   font-size: calc(1em - 2px);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--silo-color-text-hi);
   background: var(--silo-color-bg-hover);
+  border: none;
   border-bottom: 1px solid var(--silo-color-border);
+  font-family: var(--silo-font-ui);
+  text-align: left;
+  cursor: pointer;
 }
 
-.fsearch-folder-header::before {
-  content: "";
-  display: inline-block;
-  width: 12px;
-  height: 1px;
-  background: var(--silo-color-border);
-  flex-shrink: 0;
+.fsearch-folder-header:hover {
+  background: var(--silo-color-bg-active);
 }
 
-.fsearch-folder-header > span {
+.fsearch-folder-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

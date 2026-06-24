@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { SearchFileResult, SearchMatch } from "@silo-code/sdk";
 import { clampPreviewStart, highlightSegments } from "./search-model";
 import { ICON_CHEV_DOWN, ICON_CHEV_RIGHT, ICON_FILE } from "./search-icons";
@@ -59,6 +60,17 @@ export function SearchResults({
   onToggleFile: (key: string) => void;
   onOpenMatch: (file: SearchFileResult, match: SearchMatch) => void;
 }) {
+  const [collapsedRoots, setCollapsedRoots] = useState(() => new Set<string>());
+
+  function toggleRoot(root: string) {
+    setCollapsedRoots((prev) => {
+      const next = new Set(prev);
+      if (next.has(root)) next.delete(root);
+      else next.add(root);
+      return next;
+    });
+  }
+
   // Group consecutive files by root so we can render a folder header between
   // groups when the workspace has more than one root folder.
   const groups: Array<{ root: string | undefined; files: SearchFileResult[] }> =
@@ -74,51 +86,65 @@ export function SearchResults({
 
   return (
     <>
-      {groups.map(({ root, files: groupFiles }, gi) => (
-        <div key={root ?? gi} className="fsearch-group">
-          {isMultiFolder && root && (
-            <div className="fsearch-folder-header" title={root}>
-              <span>{(root.split("/").pop() ?? root).toUpperCase()}</span>
-            </div>
-          )}
-          {groupFiles.map((file) => {
-            const key = fileKey(file);
-            const { name, dir } = splitPath(file.path);
-            const isCollapsed = collapsed.has(key);
-            return (
-              <div key={key} className="fsearch-file">
-                <button
-                  type="button"
-                  className="fsearch-file-head"
-                  onClick={() => onToggleFile(key)}
-                  title={file.path}
-                >
-                  <span className="fsearch-chev">
-                    {isCollapsed ? ICON_CHEV_RIGHT : ICON_CHEV_DOWN}
-                  </span>
-                  <span className="fsearch-file-icon">{ICON_FILE}</span>
-                  <span className="fsearch-file-name">{name}</span>
-                  {dir && <span className="fsearch-file-dir">{dir}</span>}
-                  <span className="fsearch-file-count">
-                    {file.matches.length}
-                  </span>
-                </button>
-                {!isCollapsed && (
-                  <div className="fsearch-match-list">
-                    {file.matches.map((match, i) => (
-                      <MatchRow
-                        key={`${match.line}:${i}`}
-                        match={match}
-                        onOpen={(m) => onOpenMatch(file, m)}
-                      />
-                    ))}
+      {groups.map(({ root, files: groupFiles }, gi) => {
+        const rootCollapsed = !!root && collapsedRoots.has(root);
+        return (
+          <div key={root ?? gi} className="fsearch-group">
+            {isMultiFolder && root && (
+              <button
+                type="button"
+                className="fsearch-folder-header"
+                title={root}
+                onClick={() => toggleRoot(root)}
+              >
+                <span className="fsearch-chev">
+                  {rootCollapsed ? ICON_CHEV_RIGHT : ICON_CHEV_DOWN}
+                </span>
+                <span className="fsearch-folder-name">
+                  {(root.split("/").pop() ?? root).toUpperCase()}
+                </span>
+              </button>
+            )}
+            {!rootCollapsed &&
+              groupFiles.map((file) => {
+                const key = fileKey(file);
+                const { name, dir } = splitPath(file.path);
+                const isCollapsed = collapsed.has(key);
+                return (
+                  <div key={key} className="fsearch-file">
+                    <button
+                      type="button"
+                      className="fsearch-file-head"
+                      onClick={() => onToggleFile(key)}
+                      title={file.path}
+                    >
+                      <span className="fsearch-chev">
+                        {isCollapsed ? ICON_CHEV_RIGHT : ICON_CHEV_DOWN}
+                      </span>
+                      <span className="fsearch-file-icon">{ICON_FILE}</span>
+                      <span className="fsearch-file-name">{name}</span>
+                      {dir && <span className="fsearch-file-dir">{dir}</span>}
+                      <span className="fsearch-file-count">
+                        {file.matches.length}
+                      </span>
+                    </button>
+                    {!isCollapsed && (
+                      <div className="fsearch-match-list">
+                        {file.matches.map((match, i) => (
+                          <MatchRow
+                            key={`${match.line}:${i}`}
+                            match={match}
+                            onOpen={(m) => onOpenMatch(file, m)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ))}
+                );
+              })}
+          </div>
+        );
+      })}
     </>
   );
 }
