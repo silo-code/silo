@@ -7,8 +7,7 @@
     "packages/sdk": {
       "release-type": "node",
       "package-name": "@silo-code/sdk",
-      "component": "sdk",
-      "skip-github-release": true
+      "component": "sdk"
     },
     ".": {
       "release-type": "simple",
