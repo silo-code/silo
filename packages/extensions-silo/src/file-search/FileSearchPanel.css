@@ -321,8 +321,13 @@
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
+  width: 100%;
   font-size: calc(1em - 1px);
+  font-family: var(--silo-font-ui);
   color: var(--silo-color-text);
+  background: transparent;
+  border: none;
+  text-align: left;
   cursor: pointer;
   user-select: none;
 }
@@ -331,13 +336,17 @@
   background: var(--silo-color-bg-hover);
 }
 
-.fsearch-folder-item input[type="checkbox"] {
-  margin: 0;
-  cursor: pointer;
+.fsearch-folder-check {
   flex-shrink: 0;
+  display: inline-flex;
+  color: var(--silo-color-text-lo);
 }
 
-.fsearch-folder-item span {
+.fsearch-folder-item[aria-selected="true"] .fsearch-folder-check {
+  color: var(--silo-color-accent);
+}
+
+.fsearch-folder-item span:last-child {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

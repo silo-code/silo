@@ -58,3 +58,41 @@ export const ICON_FILE: ReactNode = (
     />
   </svg>
 );
+
+export const ICON_CHECKBOX_OFF: ReactNode = (
+  <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true">
+    <rect
+      x="2.5"
+      y="2.5"
+      width="11"
+      height="11"
+      rx="2"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    />
+  </svg>
+);
+
+export const ICON_CHECKBOX_ON: ReactNode = (
+  <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true">
+    <rect
+      x="2.5"
+      y="2.5"
+      width="11"
+      height="11"
+      rx="2"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    />
+    <path
+      d="M5 8.5l2.5 2.5 4-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);

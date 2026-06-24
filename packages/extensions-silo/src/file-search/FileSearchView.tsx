@@ -16,7 +16,12 @@ import {
   type WorkspaceViewCache,
 } from "./search-model";
 import { SearchResults } from "./SearchResults";
-import { ICON_CHEV_DOWN, ICON_CHEV_UP } from "./search-icons";
+import {
+  ICON_CHEV_DOWN,
+  ICON_CHEV_UP,
+  ICON_CHECKBOX_OFF,
+  ICON_CHECKBOX_ON,
+} from "./search-icons";
 import { onSearchRequest, takePendingSearch } from "./search-bus";
 
 const DEBOUNCE_MS = 250;
@@ -341,19 +346,18 @@ export function FileSearchView({
                       ui.enabledFolders.includes(f);
                     return (
                       <Tooltip key={f} content={f}>
-                        <label
-                          key={f}
+                        <button
+                          type="button"
                           className="fsearch-folder-item"
                           role="option"
                           aria-selected={enabled}
+                          onClick={() => toggleFolder(f)}
                         >
-                          <input
-                            type="checkbox"
-                            checked={enabled}
-                            onChange={() => toggleFolder(f)}
-                          />
+                          <span className="fsearch-folder-check">
+                            {enabled ? ICON_CHECKBOX_ON : ICON_CHECKBOX_OFF}
+                          </span>
                           <span>{name}</span>
-                        </label>
+                        </button>
                       </Tooltip>
                     );
                   })}
