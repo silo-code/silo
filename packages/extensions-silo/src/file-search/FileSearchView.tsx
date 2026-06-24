@@ -7,6 +7,7 @@ import type {
   SearchResponse,
   Workspace,
 } from "@silo-code/sdk";
+import { Tooltip } from "@silo-code/sdk";
 import {
   buildSearchOptions,
   summarize,
@@ -315,21 +316,22 @@ export function FileSearchView({
               ref={folderMenuRef}
               className={`fsearch-folder-dropdown${folderMenuOpen ? " open" : ""}`}
             >
-              <button
-                type="button"
-                className={`fsearch-folder-trigger${ui.enabledFolders != null ? " filtered" : ""}`}
-                onClick={() => setFolderMenuOpen((o) => !o)}
-                aria-haspopup="listbox"
-                aria-expanded={folderMenuOpen}
-                title={folderTriggerText}
-              >
-                <span className="fsearch-folder-trigger-label">
-                  {folderTriggerText}
-                </span>
-                <span className="fsearch-folder-chevron" aria-hidden>
-                  {folderMenuOpen ? ICON_CHEV_UP : ICON_CHEV_DOWN}
-                </span>
-              </button>
+              <Tooltip content={folderTriggerText}>
+                <button
+                  type="button"
+                  className={`fsearch-folder-trigger${ui.enabledFolders != null ? " filtered" : ""}`}
+                  onClick={() => setFolderMenuOpen((o) => !o)}
+                  aria-haspopup="listbox"
+                  aria-expanded={folderMenuOpen}
+                >
+                  <span className="fsearch-folder-trigger-label">
+                    {folderTriggerText}
+                  </span>
+                  <span className="fsearch-folder-chevron" aria-hidden>
+                    {folderMenuOpen ? ICON_CHEV_UP : ICON_CHEV_DOWN}
+                  </span>
+                </button>
+              </Tooltip>
               {folderMenuOpen && (
                 <div className="fsearch-folder-menu" role="listbox">
                   {allFolders.map((f) => {
@@ -338,20 +340,21 @@ export function FileSearchView({
                       ui.enabledFolders == null ||
                       ui.enabledFolders.includes(f);
                     return (
-                      <label
-                        key={f}
-                        className="fsearch-folder-item"
-                        title={f}
-                        role="option"
-                        aria-selected={enabled}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={enabled}
-                          onChange={() => toggleFolder(f)}
-                        />
-                        <span>{name}</span>
-                      </label>
+                      <Tooltip key={f} content={f}>
+                        <label
+                          key={f}
+                          className="fsearch-folder-item"
+                          role="option"
+                          aria-selected={enabled}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={enabled}
+                            onChange={() => toggleFolder(f)}
+                          />
+                          <span>{name}</span>
+                        </label>
+                      </Tooltip>
                     );
                   })}
                 </div>
