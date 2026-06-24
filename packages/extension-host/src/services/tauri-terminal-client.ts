@@ -28,21 +28,20 @@ export class TauriTerminalClient {
     const cols = opts.cols ?? 120;
     const rows = opts.rows ?? 40;
 
-    try {
-      const sessionId = await invoke<string>("terminal_create", {
-        cwd,
-        cols,
-        rows,
-        command: opts.command,
-      });
+    const sessionId = await invoke<string>("terminal_create", {
+      cwd,
+      cols,
+      rows,
+      command: opts.command,
+    });
 
-      // Set up event listeners for this session
-      await this.setupSessionListeners(sessionId);
+    // Register listeners before unblocking the reader thread. On Windows the
+    // reader is deferred until this call so cmd.exe's banner can't race ahead
+    // of the listen(). On other platforms terminal_start_stream is a no-op.
+    await this.setupSessionListeners(sessionId);
+    await invoke("terminal_start_stream", { sessionId }).catch(() => {});
 
-      return { sessionId };
-    } catch (err) {
-      throw err;
-    }
+    return { sessionId };
   }
 
   async attachTerminal(
@@ -59,8 +58,8 @@ export class TauriTerminalClient {
         rows,
       });
 
-      // Set up event listeners for this session
       await this.setupSessionListeners(sessionId);
+      await invoke("terminal_start_stream", { sessionId }).catch(() => {});
 
       return { sessionId };
     } catch (err) {

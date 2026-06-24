@@ -40,6 +40,7 @@ import "./TerminalPanel.css";
 const TERMINAL_FONT_SIZE_OFFSET = 0.5;
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
+const isWindows = navigator.platform.toUpperCase().startsWith("WIN");
 const cmdKey = isMac ? "⌘" : "Ctrl";
 
 interface Params {
@@ -208,19 +209,20 @@ export function TerminalPanel(
     });
 
     // WebGL renderer fixes italic (SGR 3) and dim (SGR 2) — the DOM renderer
-    // in @xterm/xterm v6 mis-styles both on macOS, drawing italic as a
-    // colored background block instead of slanted glyphs. Load after open()
-    // so the canvas/GL context can attach.
-    try {
-      const webgl = new WebglAddon();
-      webgl.onContextLoss(() => webgl.dispose());
-      term.loadAddon(webgl);
-      console.info("[terminal] WebGL renderer attached");
-    } catch (err) {
-      console.warn(
-        "[terminal] WebGL renderer unavailable, falling back to DOM",
-        err,
-      );
+    // in @xterm/xterm v6 mis-styles both on macOS. Skipped on Windows because
+    // the WebGL addon can hang or crash in Webview2 environments.
+    if (!isWindows) {
+      try {
+        const webgl = new WebglAddon();
+        webgl.onContextLoss(() => webgl.dispose());
+        term.loadAddon(webgl);
+        console.info("[terminal] WebGL renderer attached");
+      } catch (err) {
+        console.warn(
+          "[terminal] WebGL renderer unavailable, falling back to DOM",
+          err,
+        );
+      }
     }
 
     term.registerLinkProvider({

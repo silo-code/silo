@@ -2,6 +2,7 @@ use dashmap::DashMap;
 use parking_lot::Mutex;
 use portable_pty::PtySize;
 use std::io::{Read, Write};
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::thread;
 use uuid::Uuid;
@@ -24,6 +25,12 @@ struct PtySession {
     reader: Arc<Mutex<Box<dyn Read + Send>>>,
     writer: Arc<Mutex<Box<dyn Write + Send>>>,
     child: Option<Arc<Mutex<Box<dyn SessionChild>>>>,
+    // On Windows, reader thread is deferred until terminal_start_stream to avoid
+    // the blank-canvas race (cmd.exe emits its banner in ~5 ms, before JS
+    // listen() completes). The bool is set to true exactly once when the thread
+    // is actually spawned; terminal_start_stream is idempotent.
+    #[cfg(windows)]
+    streaming: Arc<AtomicBool>,
 }
 
 #[derive(Clone)]
@@ -49,6 +56,8 @@ fn build_session(handle: &str, conn: Connection) -> Arc<PtySession> {
         reader: Arc::new(Mutex::new(conn.reader)),
         writer: Arc::new(Mutex::new(conn.writer)),
         child: Some(Arc::new(Mutex::new(conn.child))),
+        #[cfg(windows)]
+        streaming: Arc::new(AtomicBool::new(false)),
     })
 }
 
@@ -83,14 +92,19 @@ pub fn terminal_create(
     let session = build_session(&handle, conn);
     state.0.insert(session_id.clone(), session.clone());
 
-    // Spawn reader thread
-    let reader = session.reader.clone();
-    let handle_clone = handle.clone();
-    let session_id_clone = session_id.clone();
-    let app_clone = app.clone();
-    thread::spawn(move || {
-        run_reader_loop(reader, handle_clone, app_clone, session_id_clone);
-    });
+    // On Unix, start the reader thread immediately. On Windows it is deferred to
+    // terminal_start_stream so that JS listen() has time to register before the
+    // first bytes (cmd.exe banner) arrive.
+    #[cfg(unix)]
+    {
+        let reader = session.reader.clone();
+        let handle_clone = handle.clone();
+        let session_id_clone = session_id.clone();
+        let app_clone = app.clone();
+        thread::spawn(move || {
+            run_reader_loop(reader, handle_clone, app_clone, session_id_clone);
+        });
+    }
 
     // Forward foreground-process updates (RFC 0010 N1) to the frontend.
     if let Some(sub) = backend.subscribe_foreground(&handle) {
@@ -226,14 +240,16 @@ pub fn terminal_attach(
     let session = build_session(&handle, conn);
     state.0.insert(sessionId.clone(), session.clone());
 
-    // Spawn reader thread
-    let reader = session.reader.clone();
-    let handle_clone = handle.clone();
-    let session_id_clone = sessionId.clone();
-    let app_clone = app.clone();
-    thread::spawn(move || {
-        run_reader_loop(reader, handle_clone, app_clone, session_id_clone);
-    });
+    #[cfg(unix)]
+    {
+        let reader = session.reader.clone();
+        let handle_clone = handle.clone();
+        let session_id_clone = sessionId.clone();
+        let app_clone = app.clone();
+        thread::spawn(move || {
+            run_reader_loop(reader, handle_clone, app_clone, session_id_clone);
+        });
+    }
 
     // Forward foreground-process updates (RFC 0010 N1) to the frontend.
     if let Some(sub) = backend.subscribe_foreground(&handle) {
@@ -243,6 +259,41 @@ pub fn terminal_attach(
     }
 
     Ok(())
+}
+
+/// Signal the backend to start forwarding terminal output to the frontend.
+///
+/// On Windows, the reader thread is intentionally not started during
+/// `terminal_create` / `terminal_attach` so that JS has time to register its
+/// `listen()` handler before the first bytes arrive (cmd.exe emits its banner
+/// in ~5 ms). Call this once immediately after `setupSessionListeners` resolves.
+/// On all other platforms this is a no-op.
+#[tauri::command]
+pub fn terminal_start_stream(
+    app: tauri::AppHandle,
+    state: tauri::State<TerminalState>,
+    sessionId: String,
+) -> Result<(), String> {
+    #[cfg(not(windows))]
+    {
+        let _ = (app, state, sessionId);
+        return Ok(());
+    }
+    #[cfg(windows)]
+    {
+        use std::sync::atomic::Ordering;
+        let session = state.0.get(&sessionId).ok_or("Session not found")?;
+        // Idempotent — only the first caller starts the thread.
+        if session.streaming.swap(true, Ordering::AcqRel) {
+            return Ok(());
+        }
+        let reader = session.reader.clone();
+        let handle = session.handle.clone();
+        thread::spawn(move || {
+            run_reader_loop(reader, handle, app, sessionId);
+        });
+        Ok(())
+    }
 }
 
 /// Persist the frontend's serialized terminal buffer (xterm.js SerializeAddon
