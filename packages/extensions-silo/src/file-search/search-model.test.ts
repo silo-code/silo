@@ -18,7 +18,7 @@ describe("parseGlobs", () => {
 });
 
 describe("buildSearchOptions", () => {
-  it("maps UI controls + globs into the SDK payload", () => {
+  it("maps UI controls + globs into the SDK payload for a single folder", () => {
     const opts = buildSearchOptions(
       {
         ...EMPTY_UI_STATE,
@@ -29,16 +29,41 @@ describe("buildSearchOptions", () => {
         includes: "*.ts",
         excludes: "dist/**, *.min.js",
       },
-      "/repo",
+      ["/repo"],
     );
     expect(opts).toEqual({
-      cwd: "/repo",
+      cwds: ["/repo"],
       regex: true,
       caseSensitive: true,
       wholeWord: true,
       includeGlobs: ["*.ts"],
       excludeGlobs: ["dist/**", "*.min.js"],
     });
+  });
+
+  it("passes all folders as cwds when enabledFolders is null", () => {
+    const opts = buildSearchOptions(
+      { ...EMPTY_UI_STATE, enabledFolders: null },
+      ["/repo/a", "/repo/b", "/repo/c"],
+    );
+    expect(opts.cwds).toEqual(["/repo/a", "/repo/b", "/repo/c"]);
+  });
+
+  it("filters cwds to only enabled folders", () => {
+    const opts = buildSearchOptions(
+      { ...EMPTY_UI_STATE, enabledFolders: ["/repo/a", "/repo/c"] },
+      ["/repo/a", "/repo/b", "/repo/c"],
+    );
+    expect(opts.cwds).toEqual(["/repo/a", "/repo/c"]);
+  });
+
+  it("falls back to all folders when enabledFolders filters to empty", () => {
+    // This guards against a user somehow ending up with no folders selected.
+    const opts = buildSearchOptions(
+      { ...EMPTY_UI_STATE, enabledFolders: ["/repo/x"] },
+      ["/repo/a", "/repo/b"],
+    );
+    expect(opts.cwds).toEqual(["/repo/a", "/repo/b"]);
   });
 });
 

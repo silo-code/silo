@@ -40,6 +40,33 @@ impl Default for SearchOptions {
     }
 }
 
+/// Thin newtype so the Tauri command can accept either one root (`cwd`) or many
+/// (`cwds`). The frontend always sends `cwds`; the single-`cwd` path is kept for
+/// backwards-compat with any caller that hasn't migrated yet.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchRoots {
+    /// Legacy single-root path. Ignored when `cwds` is non-empty.
+    #[serde(default)]
+    cwd: Option<String>,
+    /// Ordered list of absolute roots to search. When non-empty, `cwd` is unused.
+    #[serde(default)]
+    cwds: Vec<String>,
+}
+
+impl SearchRoots {
+    /// Resolve to the concrete list of roots to walk.
+    fn roots(self) -> Vec<String> {
+        if !self.cwds.is_empty() {
+            self.cwds
+        } else if let Some(c) = self.cwd {
+            vec![c]
+        } else {
+            vec![]
+        }
+    }
+}
+
 /// One matching line within a file.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -57,7 +84,9 @@ pub struct SearchMatch {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileResult {
-    /// Path relative to the search `cwd`.
+    /// Absolute path of the search root this file lives under.
+    root: String,
+    /// Path relative to `root`.
     path: String,
     matches: Vec<SearchMatch>,
 }
@@ -71,24 +100,28 @@ pub struct SearchResponse {
     truncated: bool,
 }
 
-/// Search file contents under `cwd` — the native backend for `ctx.search`.
-/// Uses ripgrep's matcher/searcher plus the `ignore` crate's `.gitignore`-aware
-/// walker, so results match what `rg` would find without depending on `rg` being
-/// installed. Runs on a `spawn_blocking` worker (mirrors `process_exec`) so a
-/// large tree never stutters the UI thread. `cwd` is pre-validated by the host
-/// scope guard, so it is trusted as an absolute directory here.
+/// Search file contents under one or more roots — the native backend for
+/// `ctx.search`. Uses ripgrep's matcher/searcher plus the `ignore` crate's
+/// `.gitignore`-aware walker, so results match what `rg` would find without
+/// depending on `rg` being installed. Runs on a `spawn_blocking` worker so a
+/// large tree never stutters the UI thread. Roots are pre-validated by the host
+/// scope guard, so they are trusted as absolute directories here.
 #[tauri::command]
 pub async fn search_files(
     query: String,
-    cwd: String,
+    roots: SearchRoots,
     options: SearchOptions,
 ) -> Result<SearchResponse, String> {
-    tauri::async_runtime::spawn_blocking(move || run_search(&query, &cwd, &options))
+    tauri::async_runtime::spawn_blocking(move || run_search(&query, &roots.roots(), &options))
         .await
         .map_err(|e| format!("search task panicked: {}", e))?
 }
 
-fn run_search(query: &str, cwd: &str, options: &SearchOptions) -> Result<SearchResponse, String> {
+fn run_search(
+    query: &str,
+    roots: &[String],
+    options: &SearchOptions,
+) -> Result<SearchResponse, String> {
     if query.is_empty() {
         return Ok(SearchResponse {
             files: Vec::new(),
@@ -108,77 +141,79 @@ fn run_search(query: &str, cwd: &str, options: &SearchOptions) -> Result<SearchR
         .build(&pattern)
         .map_err(|e| format!("invalid search pattern: {}", e))?;
 
-    let root = Path::new(cwd);
-    let mut overrides = OverrideBuilder::new(root);
-    for glob in &options.include_globs {
-        overrides
-            .add(glob)
-            .map_err(|e| format!("invalid include glob '{}': {}", glob, e))?;
-    }
-    for glob in &options.exclude_globs {
-        overrides
-            .add(&format!("!{}", glob))
-            .map_err(|e| format!("invalid exclude glob '{}': {}", glob, e))?;
-    }
-    let overrides = overrides
-        .build()
-        .map_err(|e| format!("failed to build globs: {}", e))?;
-
-    let mut walk = WalkBuilder::new(root);
-    walk.overrides(overrides);
-    if let Some(max) = options.max_file_size {
-        walk.max_filesize(Some(max));
-    }
-
     let max_results = if options.max_results == 0 {
         DEFAULT_MAX_RESULTS
     } else {
         options.max_results
     };
 
-    let mut searcher = SearcherBuilder::new()
-        .line_number(true)
-        .binary_detection(BinaryDetection::quit(0))
-        .build();
-
     let mut files: Vec<FileResult> = Vec::new();
     let mut total: usize = 0;
     let mut truncated = false;
 
-    for entry in walk.build() {
-        if total >= max_results {
-            truncated = true;
-            break;
+    'outer: for cwd in roots {
+        let root = Path::new(cwd);
+        let mut overrides = OverrideBuilder::new(root);
+        for glob in &options.include_globs {
+            overrides
+                .add(glob)
+                .map_err(|e| format!("invalid include glob '{}': {}", glob, e))?;
         }
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        if !entry.file_type().map_or(false, |ft| ft.is_file()) {
-            continue;
+        for glob in &options.exclude_globs {
+            overrides
+                .add(&format!("!{}", glob))
+                .map_err(|e| format!("invalid exclude glob '{}': {}", glob, e))?;
+        }
+        let overrides = overrides
+            .build()
+            .map_err(|e| format!("failed to build globs: {}", e))?;
+
+        let mut walk = WalkBuilder::new(root);
+        walk.overrides(overrides);
+        if let Some(max) = options.max_file_size {
+            walk.max_filesize(Some(max));
         }
 
-        let mut matches: Vec<SearchMatch> = Vec::new();
-        let mut sink = MatchSink {
-            matcher: &matcher,
-            matches: &mut matches,
-            limit: max_results - total,
-        };
-        // A read/UTF-8 error on a single file shouldn't abort the whole search.
-        let _ = searcher.search_path(&matcher, entry.path(), &mut sink);
+        let mut searcher = SearcherBuilder::new()
+            .line_number(true)
+            .binary_detection(BinaryDetection::quit(0))
+            .build();
 
-        if !matches.is_empty() {
-            total += matches.len();
-            let rel = entry
-                .path()
-                .strip_prefix(root)
-                .unwrap_or(entry.path())
-                .to_string_lossy()
-                .to_string();
-            files.push(FileResult {
-                path: rel,
-                matches,
-            });
+        for entry in walk.build() {
+            if total >= max_results {
+                truncated = true;
+                break 'outer;
+            }
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+            if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+                continue;
+            }
+
+            let mut matches: Vec<SearchMatch> = Vec::new();
+            let mut sink = MatchSink {
+                matcher: &matcher,
+                matches: &mut matches,
+                limit: max_results - total,
+            };
+            // A read/UTF-8 error on a single file shouldn't abort the whole search.
+            let _ = searcher.search_path(&matcher, entry.path(), &mut sink);
+
+            if !matches.is_empty() {
+                total += matches.len();
+                files.push(FileResult {
+                    root: cwd.clone(),
+                    path: entry
+                        .path()
+                        .strip_prefix(root)
+                        .unwrap_or(entry.path())
+                        .to_string_lossy()
+                        .to_string(),
+                    matches,
+                });
+            }
         }
     }
 

@@ -215,3 +215,41 @@
   color: var(--silo-color-text-hi);
   border-radius: 2px;
 }
+
+/* Folder scope filter — only shown when a workspace has multiple root folders */
+.fsearch-folder-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.fsearch-folder-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--silo-radius-sm);
+  font-size: calc(1em - 1px);
+  color: var(--silo-color-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.fsearch-folder-toggle:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text);
+}
+
+.fsearch-folder-toggle input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.fsearch-folder-toggle span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}

@@ -25,6 +25,11 @@ export interface SearchUiState {
   includes: string;
   /** Raw comma-separated "files to exclude" globs. */
   excludes: string;
+  /**
+   * Folders the user has toggled on for search. `null` means "all folders"
+   * (the default). Only meaningful when the workspace has more than one folder.
+   */
+  enabledFolders: string[] | null;
 }
 
 export const EMPTY_UI_STATE: SearchUiState = {
@@ -34,6 +39,7 @@ export const EMPTY_UI_STATE: SearchUiState = {
   regex: false,
   includes: "",
   excludes: "",
+  enabledFolders: null,
 };
 
 /** Split a comma-separated glob field into trimmed, non-empty patterns. */
@@ -47,10 +53,18 @@ export function parseGlobs(csv: string): string[] {
 /** Translate the UI controls into the SDK {@link SearchOptions} payload. */
 export function buildSearchOptions(
   ui: SearchUiState,
-  cwd?: string,
+  allFolders: string[],
 ): SearchOptions {
+  // Resolve which folders are active: null enabledFolders means all folders.
+  const activeFolders =
+    ui.enabledFolders === null
+      ? allFolders
+      : allFolders.filter((f) => ui.enabledFolders!.includes(f));
+
+  const cwds = activeFolders.length > 0 ? activeFolders : allFolders;
+
   return {
-    cwd,
+    cwds,
     regex: ui.regex,
     caseSensitive: ui.caseSensitive,
     wholeWord: ui.wholeWord,

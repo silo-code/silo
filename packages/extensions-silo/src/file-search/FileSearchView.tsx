@@ -74,6 +74,9 @@ export function FileSearchView({
     () => savedState?.collapsed ?? new Set(),
   );
 
+  const allFolders = [workspace.folder, ...(workspace.extraFolders ?? [])];
+  const isMultiFolder = allFolders.length > 1;
+
   const inputRef = useRef<HTMLInputElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
   // Monotonic token so a slow earlier search can't overwrite a newer result.
@@ -100,7 +103,14 @@ export function FileSearchView({
       return merged;
     });
 
-  const folder = workspace.folder;
+  function toggleFolder(folder: string) {
+    const current = ui.enabledFolders ?? allFolders;
+    const next = current.includes(folder)
+      ? current.filter((f) => f !== folder)
+      : [...current, folder];
+    // If all folders are enabled, normalize back to null (meaning "all").
+    patch({ enabledFolders: next.length === allFolders.length ? null : next });
+  }
 
   // Save state when unmounting (workspace switch) so it can be restored next time.
   useEffect(
@@ -142,7 +152,7 @@ export function FileSearchView({
     setSearching(true);
     const timer = setTimeout(() => {
       ctx.search
-        .search(query, buildSearchOptions(ui, folder))
+        .search(query, buildSearchOptions(ui, allFolders))
         .then((res) => {
           if (runId !== runIdRef.current) return;
           setResponse(res);
@@ -166,7 +176,9 @@ export function FileSearchView({
     ui.regex,
     ui.includes,
     ui.excludes,
-    folder,
+    ui.enabledFolders,
+    // Use join so the effect fires when folder list identity changes.
+    allFolders.join("\0"),
     paused,
   ]);
 
@@ -206,7 +218,8 @@ export function FileSearchView({
     const range = match.ranges[0];
     const column = range ? range[0] + 1 : 1;
     const endColumn = range ? range[1] + 1 : undefined;
-    ctx.editors.open(`${folder}/${file.path}`, {
+    const root = file.root ?? workspace.folder;
+    ctx.editors.open(`${root}/${file.path}`, {
       workspaceId: workspace.id,
       preview: true,
       selection: {
@@ -280,6 +293,25 @@ export function FileSearchView({
         <div className="fsearch-status">Searching…</div>
       ) : response ? (
         <>
+          {isMultiFolder && (
+            <div className="fsearch-folder-filter">
+              {allFolders.map((f) => {
+                const name = f.split("/").pop() ?? f;
+                const enabled =
+                  ui.enabledFolders === null || ui.enabledFolders.includes(f);
+                return (
+                  <label key={f} className="fsearch-folder-toggle" title={f}>
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      onChange={() => toggleFolder(f)}
+                    />
+                    <span>{name}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
           <div className="fsearch-status">
             {summarize(response.totalMatches, files.length, response.truncated)}
           </div>
