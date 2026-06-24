@@ -43,13 +43,6 @@
   padding: 6px 8px;
   font-family: var(--silo-font-ui);
   font-size: inherit;
-  outline: none;
-}
-
-.fsearch-input:focus,
-.fsearch-input:focus-visible {
-  outline: none;
-  border-color: var(--silo-color-accent);
 }
 
 .fsearch-input::placeholder {
