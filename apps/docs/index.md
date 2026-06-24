@@ -9,6 +9,9 @@ hero:
     - theme: brand
       text: Download for macOS →
       link: https://github.com/silo-code/silo/releases/latest
+    - theme: brand
+      text: Download for Linux →
+      link: https://github.com/silo-code/silo/releases/latest
     - theme: alt
       text: View on GitHub
       link: https://github.com/silo-code/silo
@@ -58,7 +61,14 @@ Now you're coordinating multiple AI coding agents simultaneously across differen
 | Apple Silicon (M1/M2/M3) | [Download .dmg](https://github.com/silo-code/silo/releases/latest)         |
 | Intel Mac                | [Download .dmg (Intel)](https://github.com/silo-code/silo/releases/latest) |
 
-**Linux and Windows:** Experimental builds are attached to every [GitHub Release](https://github.com/silo-code/silo/releases) — they may not work correctly yet.
+**Linux:**
+
+| Build         | Link                                                                    |
+| ------------- | ----------------------------------------------------------------------- |
+| AppImage      | [Download .AppImage](https://github.com/silo-code/silo/releases/latest) |
+| Debian/Ubuntu | [Download .deb](https://github.com/silo-code/silo/releases/latest)      |
+
+**Windows:** Experimental builds are attached to every [GitHub Release](https://github.com/silo-code/silo/releases) — they may not work correctly yet.
 
 Or build from source — see the [GitHub repo](https://github.com/silo-code/silo).
 
