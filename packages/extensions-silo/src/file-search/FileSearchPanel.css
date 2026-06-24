@@ -139,15 +139,17 @@
 }
 
 /* Folder name header — separates result groups by root in multi-folder
-   workspaces. Styled as a small, subdued label so it reads as metadata
-   rather than a clickable item. */
+   workspaces. */
 .fsearch-folder-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px 2px;
-  font-size: calc(1em - 2px);
-  color: var(--silo-color-text-lo);
+  padding: 6px 8px 4px;
+  margin-top: 4px;
+  font-size: calc(1em - 1px);
+  font-weight: 600;
+  color: var(--silo-color-text);
+  border-bottom: 1px solid var(--silo-color-border);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -156,10 +158,9 @@
 .fsearch-folder-header::before {
   content: "";
   display: inline-block;
-  width: 10px;
+  width: 12px;
   height: 1px;
-  background: currentColor;
-  opacity: 0.4;
+  background: var(--silo-color-border);
   flex-shrink: 0;
 }
 
