@@ -261,6 +261,10 @@
   position: relative;
 }
 
+.fsearch-folder-dropdown > .silo-tooltip-host {
+  display: contents;
+}
+
 .fsearch-folder-trigger {
   display: flex;
   align-items: center;
