@@ -148,11 +148,12 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  /* Left edge aligned with the controls above (padding: 8px = 6px results
-     padding + 2px margin). Right side extends to cover the right gutter. */
-  width: calc(100% + 4px);
+  /* Left edge aligned with controls (6px padding + 2px = 8px from panel edge).
+     width: 100% ends at the content area right edge, leaving a natural ~4px
+     gap before the panel border — no need to extend into the right gutter. */
+  width: 100%;
   margin-left: 2px;
-  padding: 7px 14px 7px 8px;
+  padding: 7px 8px;
   font-size: calc(1em - 2px);
   font-weight: 700;
   letter-spacing: 0.04em;
