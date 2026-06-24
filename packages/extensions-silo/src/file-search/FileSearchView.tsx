@@ -79,6 +79,8 @@ export function FileSearchView({
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const folderMenuRef = useRef<HTMLDivElement | null>(null);
+  const [folderMenuOpen, setFolderMenuOpen] = useState(false);
   // Monotonic token so a slow earlier search can't overwrite a newer result.
   const runIdRef = useRef(0);
   // Skip the very first search run when we're restoring saved results so the
@@ -124,6 +126,18 @@ export function FileSearchView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+
+  // Close the folder dropdown when clicking outside it.
+  useEffect(() => {
+    if (!folderMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (!folderMenuRef.current?.contains(e.target as Node)) {
+        setFolderMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [folderMenuOpen]);
 
   // Restore scroll position after the saved results paint on mount.
   useEffect(() => {
@@ -233,6 +247,15 @@ export function FileSearchView({
 
   const files = response?.files ?? [];
 
+  const enabledCount =
+    ui.enabledFolders == null
+      ? allFolders.length
+      : ui.enabledFolders.filter((f) => allFolders.includes(f)).length;
+  const folderLabel =
+    enabledCount === allFolders.length
+      ? "All folders"
+      : `${enabledCount} of ${allFolders.length} folders`;
+
   return (
     <div className="fsearch-view">
       <div className="fsearch-controls">
@@ -285,6 +308,50 @@ export function FileSearchView({
           spellCheck={false}
           onChange={(e) => patch({ excludes: e.target.value })}
         />
+        {isMultiFolder && (
+          <div
+            ref={folderMenuRef}
+            className={`fsearch-folder-dropdown${folderMenuOpen ? " open" : ""}`}
+          >
+            <button
+              type="button"
+              className={`fsearch-folder-trigger${enabledCount < allFolders.length ? " filtered" : ""}`}
+              onClick={() => setFolderMenuOpen((o) => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={folderMenuOpen}
+            >
+              <span>{folderLabel}</span>
+              <span className="fsearch-folder-chevron" aria-hidden>
+                {folderMenuOpen ? "▴" : "▾"}
+              </span>
+            </button>
+            {folderMenuOpen && (
+              <div className="fsearch-folder-menu" role="listbox">
+                {allFolders.map((f) => {
+                  const name = f.split("/").pop() ?? f;
+                  const enabled =
+                    ui.enabledFolders == null || ui.enabledFolders.includes(f);
+                  return (
+                    <label
+                      key={f}
+                      className="fsearch-folder-item"
+                      title={f}
+                      role="option"
+                      aria-selected={enabled}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={enabled}
+                        onChange={() => toggleFolder(f)}
+                      />
+                      <span>{name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {error ? (
@@ -293,25 +360,6 @@ export function FileSearchView({
         <div className="fsearch-status">Searching…</div>
       ) : response ? (
         <>
-          {isMultiFolder && (
-            <div className="fsearch-folder-filter">
-              {allFolders.map((f) => {
-                const name = f.split("/").pop() ?? f;
-                const enabled =
-                  ui.enabledFolders === null || ui.enabledFolders.includes(f);
-                return (
-                  <label key={f} className="fsearch-folder-toggle" title={f}>
-                    <input
-                      type="checkbox"
-                      checked={enabled}
-                      onChange={() => toggleFolder(f)}
-                    />
-                    <span>{name}</span>
-                  </label>
-                );
-              })}
-            </div>
-          )}
           <div className="fsearch-status">
             {summarize(response.totalMatches, files.length, response.truncated)}
           </div>

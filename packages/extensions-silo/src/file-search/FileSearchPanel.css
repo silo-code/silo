@@ -216,40 +216,78 @@
   border-radius: 2px;
 }
 
-/* Folder scope filter — only shown when a workspace has multiple root folders */
-.fsearch-folder-filter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--silo-color-border);
+/* Folder scope dropdown — always visible when workspace has multiple folders */
+.fsearch-folder-dropdown {
+  position: relative;
 }
 
-.fsearch-folder-toggle {
+.fsearch-folder-trigger {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
+  justify-content: space-between;
+  width: 100%;
+  padding: 3px 6px;
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-text);
+  border: 1px solid var(--silo-color-border);
   border-radius: var(--silo-radius-sm);
+  font-family: var(--silo-font-ui);
+  font-size: calc(1em - 1px);
+  cursor: pointer;
+  text-align: left;
+  gap: 4px;
+}
+
+.fsearch-folder-trigger:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.fsearch-folder-trigger.filtered {
+  border-color: var(--silo-color-accent, var(--silo-color-border));
+}
+
+.fsearch-folder-chevron {
+  font-size: 0.65em;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.fsearch-folder-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 4px 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.fsearch-folder-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
   font-size: calc(1em - 1px);
   color: var(--silo-color-text);
   cursor: pointer;
   user-select: none;
 }
 
-.fsearch-folder-toggle:hover {
+.fsearch-folder-item:hover {
   background: var(--silo-color-bg-hover);
-  color: var(--silo-color-text);
 }
 
-.fsearch-folder-toggle input[type="checkbox"] {
+.fsearch-folder-item input[type="checkbox"] {
   margin: 0;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
-.fsearch-folder-toggle span {
+.fsearch-folder-item span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 120px;
 }
