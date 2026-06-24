@@ -146,13 +146,10 @@
   gap: 6px;
   padding: 6px 8px 4px;
   margin-top: 4px;
-  font-size: calc(1em - 1px);
+  font-size: 1em;
   font-weight: 600;
   color: var(--silo-color-text);
   border-bottom: 1px solid var(--silo-color-border);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .fsearch-folder-header::before {
@@ -162,6 +159,13 @@
   height: 1px;
   background: var(--silo-color-border);
   flex-shrink: 0;
+}
+
+.fsearch-folder-header > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .fsearch-file-head {
