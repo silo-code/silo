@@ -60,7 +60,7 @@ export const ICON_FILE: ReactNode = (
 );
 
 export const ICON_CHECKBOX_OFF: ReactNode = (
-  <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true">
+  <svg viewBox="0 0 16 16" width="1.2em" height="1.2em" aria-hidden="true">
     <rect
       x="2.5"
       y="2.5"
@@ -75,7 +75,7 @@ export const ICON_CHECKBOX_OFF: ReactNode = (
 );
 
 export const ICON_CHECKBOX_ON: ReactNode = (
-  <svg viewBox="0 0 16 16" width="1em" height="1em" aria-hidden="true">
+  <svg viewBox="0 0 16 16" width="1.2em" height="1.2em" aria-hidden="true">
     <rect
       x="2.5"
       y="2.5"
