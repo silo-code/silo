@@ -141,14 +141,18 @@
 /* Folder name header — separates result groups by root in multi-folder
    workspaces. */
 .fsearch-folder-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px 4px;
-  margin-top: 4px;
-  font-size: 1em;
-  font-weight: 600;
-  color: var(--silo-color-text);
+  padding: 4px 8px;
+  font-size: calc(1em - 2px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--silo-color-text-hi);
+  background: var(--silo-color-bg-hover);
   border-bottom: 1px solid var(--silo-color-border);
 }
 
