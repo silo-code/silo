@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.10.0](https://github.com/silo-code/silo/compare/silo-v0.9.0...silo-v0.10.0) (2026-06-24)
+
+
+### Features
+
+* **ci:** enable Linux and Windows release builds; mark as experimental ([a4d73dc](https://github.com/silo-code/silo/commit/a4d73dcafb6da36bc83d686b955ad3ae773409c5))
+* **dnd:** handle multi-file drops in terminal, editor, and file tree ([#77](https://github.com/silo-code/silo/issues/77)) ([79994af](https://github.com/silo-code/silo/commit/79994afcaa2a233f2b8e5a6ff098b8b675e59d68))
+* **dnd:** native Finder file drag-and-drop via WKWebView swizzle ([#76](https://github.com/silo-code/silo/issues/76)) ([1fe952e](https://github.com/silo-code/silo/commit/1fe952e84c723d715e27fad38df00ecf95310fbc))
+* **extensions:** add dev-only reload button for installed extensions ([#69](https://github.com/silo-code/silo/issues/69)) ([a08953f](https://github.com/silo-code/silo/commit/a08953fdf3047d1d824f4c354da143a03c17caee))
+* **sdk:** workspace & terminal decoration APIs + terminal-monitor example ([#70](https://github.com/silo-code/silo/issues/70)) ([910e8a4](https://github.com/silo-code/silo/commit/910e8a40d68551eef7c2595e37d8cdc49d76aeb3))
+* **search:** multi-folder workspace search ([#80](https://github.com/silo-code/silo/issues/80)) ([8d5c588](https://github.com/silo-code/silo/commit/8d5c588cc5cc3c523008085c1467bd4724421c9b))
+* **settings:** move Keyboard Shortcuts to first in settings rail ([#71](https://github.com/silo-code/silo/issues/71)) ([bd6cd62](https://github.com/silo-code/silo/commit/bd6cd6204d16afc9cdccfc8e9dea7caad198e72c))
+
+
+### Bug Fixes
+
+* **layout:** remove 36px titlebar gap on Linux and Windows ([#72](https://github.com/silo-code/silo/issues/72)) ([00f51ed](https://github.com/silo-code/silo/commit/00f51ed442c0eb49ffa4ceabf00ba016cc4f7d40))
+
 ## [0.9.0](https://github.com/silo-code/silo/compare/silo-v0.8.0...silo-v0.9.0) (2026-06-21)
 
 
