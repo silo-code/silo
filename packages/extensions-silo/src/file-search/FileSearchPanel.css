@@ -129,7 +129,7 @@
      row's ring floats off the panel edges instead of being clipped by the
      scroll container (mirrors the file-explorer tree). */
   gap: 10px;
-  padding: 2px 6px 6px;
+  padding: 0 6px 6px;
 }
 
 /* Wrapper rendered per-root when isMultiFolder; collapses to nothing in
@@ -147,8 +147,12 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  width: 100%;
-  padding: 7px 8px;
+  /* Stretch beyond the container's 6px horizontal padding so the background
+     covers the full width of the scroll container — prevents rows from
+     bleeding through the side gutters when scrolling. */
+  width: calc(100% + 12px);
+  margin-left: -6px;
+  padding: 7px 14px;
   font-size: calc(1em - 2px);
   font-weight: 700;
   letter-spacing: 0.04em;
