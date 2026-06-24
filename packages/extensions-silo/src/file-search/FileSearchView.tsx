@@ -247,14 +247,13 @@ export function FileSearchView({
 
   const files = response?.files ?? [];
 
-  const enabledCount =
+  const folderTriggerText =
     ui.enabledFolders == null
-      ? allFolders.length
-      : ui.enabledFolders.filter((f) => allFolders.includes(f)).length;
-  const folderLabel =
-    enabledCount === allFolders.length
       ? "All folders"
-      : `${enabledCount} of ${allFolders.length} folders`;
+      : ui.enabledFolders
+          .filter((f) => allFolders.includes(f))
+          .map((f) => f.split("/").pop() ?? f)
+          .join(", ") || "All folders";
 
   return (
     <div className="fsearch-view">
@@ -309,48 +308,55 @@ export function FileSearchView({
           onChange={(e) => patch({ excludes: e.target.value })}
         />
         {isMultiFolder && (
-          <div
-            ref={folderMenuRef}
-            className={`fsearch-folder-dropdown${folderMenuOpen ? " open" : ""}`}
-          >
-            <button
-              type="button"
-              className={`fsearch-folder-trigger${enabledCount < allFolders.length ? " filtered" : ""}`}
-              onClick={() => setFolderMenuOpen((o) => !o)}
-              aria-haspopup="listbox"
-              aria-expanded={folderMenuOpen}
+          <>
+            <label className="fsearch-field-label">folders to search</label>
+            <div
+              ref={folderMenuRef}
+              className={`fsearch-folder-dropdown${folderMenuOpen ? " open" : ""}`}
             >
-              <span>{folderLabel}</span>
-              <span className="fsearch-folder-chevron" aria-hidden>
-                {folderMenuOpen ? "▴" : "▾"}
-              </span>
-            </button>
-            {folderMenuOpen && (
-              <div className="fsearch-folder-menu" role="listbox">
-                {allFolders.map((f) => {
-                  const name = f.split("/").pop() ?? f;
-                  const enabled =
-                    ui.enabledFolders == null || ui.enabledFolders.includes(f);
-                  return (
-                    <label
-                      key={f}
-                      className="fsearch-folder-item"
-                      title={f}
-                      role="option"
-                      aria-selected={enabled}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        onChange={() => toggleFolder(f)}
-                      />
-                      <span>{name}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+              <button
+                type="button"
+                className={`fsearch-folder-trigger${ui.enabledFolders != null ? " filtered" : ""}`}
+                onClick={() => setFolderMenuOpen((o) => !o)}
+                aria-haspopup="listbox"
+                aria-expanded={folderMenuOpen}
+                title={folderTriggerText}
+              >
+                <span className="fsearch-folder-trigger-label">
+                  {folderTriggerText}
+                </span>
+                <span className="fsearch-folder-chevron" aria-hidden>
+                  {folderMenuOpen ? "▴" : "▾"}
+                </span>
+              </button>
+              {folderMenuOpen && (
+                <div className="fsearch-folder-menu" role="listbox">
+                  {allFolders.map((f) => {
+                    const name = f.split("/").pop() ?? f;
+                    const enabled =
+                      ui.enabledFolders == null ||
+                      ui.enabledFolders.includes(f);
+                    return (
+                      <label
+                        key={f}
+                        className="fsearch-folder-item"
+                        title={f}
+                        role="option"
+                        aria-selected={enabled}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={enabled}
+                          onChange={() => toggleFolder(f)}
+                        />
+                        <span>{name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 

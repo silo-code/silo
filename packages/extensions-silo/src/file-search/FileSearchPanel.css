@@ -225,30 +225,36 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 4px;
   width: 100%;
-  padding: 3px 6px;
+  box-sizing: border-box;
   background: var(--silo-color-input-bg);
-  color: var(--silo-color-text);
+  color: var(--silo-color-input-text);
   border: 1px solid var(--silo-color-border);
   border-radius: var(--silo-radius-sm);
+  padding: 6px 8px;
   font-family: var(--silo-font-ui);
-  font-size: calc(1em - 1px);
+  font-size: inherit;
   cursor: pointer;
   text-align: left;
-  gap: 4px;
 }
 
-.fsearch-folder-trigger:hover {
-  background: var(--silo-color-bg-hover);
+.fsearch-folder-trigger:hover,
+.fsearch-folder-dropdown.open .fsearch-folder-trigger {
+  border-color: var(--silo-color-accent);
 }
 
-.fsearch-folder-trigger.filtered {
-  border-color: var(--silo-color-accent, var(--silo-color-border));
+.fsearch-folder-trigger-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .fsearch-folder-chevron {
   font-size: 0.65em;
-  opacity: 0.7;
+  opacity: 0.6;
   flex-shrink: 0;
 }
 
