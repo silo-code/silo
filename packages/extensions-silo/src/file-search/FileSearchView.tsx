@@ -15,6 +15,7 @@ import {
   type WorkspaceViewCache,
 } from "./search-model";
 import { SearchResults } from "./SearchResults";
+import { ICON_CHEV_DOWN, ICON_CHEV_UP } from "./search-icons";
 import { onSearchRequest, takePendingSearch } from "./search-bus";
 
 const DEBOUNCE_MS = 250;
@@ -326,7 +327,7 @@ export function FileSearchView({
                   {folderTriggerText}
                 </span>
                 <span className="fsearch-folder-chevron" aria-hidden>
-                  {folderMenuOpen ? "▴" : "▾"}
+                  {folderMenuOpen ? ICON_CHEV_UP : ICON_CHEV_DOWN}
                 </span>
               </button>
               {folderMenuOpen && (

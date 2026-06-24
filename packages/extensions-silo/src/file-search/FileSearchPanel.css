@@ -297,9 +297,10 @@
 }
 
 .fsearch-folder-chevron {
-  font-size: 0.65em;
-  opacity: 0.6;
+  display: inline-flex;
+  align-items: center;
   flex-shrink: 0;
+  color: var(--silo-color-text-lo);
 }
 
 .fsearch-folder-menu {
