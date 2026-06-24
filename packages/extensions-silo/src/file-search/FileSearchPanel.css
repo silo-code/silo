@@ -147,12 +147,13 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  /* Stretch beyond the container's 6px horizontal padding so the background
-     covers the full width of the scroll container — prevents rows from
-     bleeding through the side gutters when scrolling. */
-  width: calc(100% + 12px);
-  margin-left: -6px;
-  padding: 7px 14px;
+  /* Stretch beyond the container's right padding so the background covers
+     the full right edge — prevents rows bleeding through that gutter.
+     On the left we only cancel 2px (leaving a 4px visual gap from the edge)
+     to avoid the header looking flush against the panel border. */
+  width: calc(100% + 8px);
+  margin-left: -2px;
+  padding: 7px 14px 7px 10px;
   font-size: calc(1em - 2px);
   font-weight: 700;
   letter-spacing: 0.04em;
