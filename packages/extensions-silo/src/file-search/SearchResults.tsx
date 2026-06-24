@@ -78,7 +78,7 @@ export function SearchResults({
         <div key={root ?? gi} className="fsearch-group">
           {isMultiFolder && root && (
             <div className="fsearch-folder-header" title={root}>
-              <span>{root.split("/").pop() ?? root}</span>
+              <span>{(root.split("/").pop() ?? root).toUpperCase()}</span>
             </div>
           )}
           {groupFiles.map((file) => {
