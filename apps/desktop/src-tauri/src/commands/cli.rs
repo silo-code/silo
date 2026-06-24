@@ -52,7 +52,7 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
             let resolved = resolve_path(raw, cwd);
             Some(CliRequest {
                 action: "install".to_string(),
-                path: Some(resolved.to_string_lossy().into_owned()),
+                path: Some(super::fs::normalize_path(&resolved)),
                 kind: None,
                 id: None,
             })
@@ -75,7 +75,7 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
             };
             Some(CliRequest {
                 action: "open".to_string(),
-                path: Some(resolved.to_string_lossy().into_owned()),
+                path: Some(super::fs::normalize_path(&resolved)),
                 kind: Some(kind.to_string()),
                 id: None,
             })

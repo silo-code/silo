@@ -16,9 +16,15 @@ export interface CliOpenRequest {
   kind: "dir" | "file" | "missing";
 }
 
+/** Normalize path separators to forward slashes (Windows-safe). */
+function toForwardSlash(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
 /** Strip trailing separators so `/a/b` and `/a/b/` compare equal (keeps root). */
 export function normalizeFolder(p: string): string {
-  return p.length > 1 ? p.replace(/\/+$/, "") : p;
+  const fwd = toForwardSlash(p);
+  return fwd.length > 1 ? fwd.replace(/\/+$/, "") : fwd;
 }
 
 /** POSIX dirname of an absolute path (the host always hands us absolute paths). */
