@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.11.0](https://github.com/silo-code/silo/compare/sdk-v0.10.1...sdk-v0.11.0) (2026-06-24)
+
+
+### Features
+
+* **search:** multi-folder workspace search ([#80](https://github.com/silo-code/silo/issues/80)) ([8d5c588](https://github.com/silo-code/silo/commit/8d5c588cc5cc3c523008085c1467bd4724421c9b))
+
 ## [0.10.1](https://github.com/silo-code/silo/compare/sdk-v0.10.0...sdk-v0.10.1) (2026-06-23)
 
 
