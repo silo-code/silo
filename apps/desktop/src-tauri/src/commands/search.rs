@@ -203,14 +203,10 @@ fn run_search(
 
             if !matches.is_empty() {
                 total += matches.len();
+                let rel = entry.path().strip_prefix(root).unwrap_or(entry.path());
                 files.push(FileResult {
                     root: cwd.clone(),
-                    path: entry
-                        .path()
-                        .strip_prefix(root)
-                        .unwrap_or(entry.path())
-                        .to_string_lossy()
-                        .to_string(),
+                    path: super::fs::normalize_path(rel),
                     matches,
                 });
             }

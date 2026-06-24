@@ -4,6 +4,18 @@ use std::time::UNIX_EPOCH;
 use serde::Serialize;
 use tauri::ipc::Response;
 
+/// Normalize path separators to forward slashes for the JS frontend.
+/// On Unix/macOS this is a no-op; on Windows it converts `\` → `/` so the
+/// entire TypeScript layer can assume POSIX-style paths regardless of platform.
+pub(super) fn normalize_path(path: &Path) -> String {
+    let s = path.to_string_lossy();
+    if cfg!(windows) {
+        s.replace('\\', "/")
+    } else {
+        s.into_owned()
+    }
+}
+
 #[derive(Serialize)]
 pub struct FileMeta {
     pub name: String,
@@ -58,7 +70,7 @@ pub fn fs_read_dir(path: String) -> Result<Vec<FileMeta>, String> {
         let name = entry.file_name().to_string_lossy().to_string();
         out.push(FileMeta {
             name,
-            path: path_buf.to_string_lossy().to_string(),
+            path: normalize_path(&path_buf),
             is_dir: metadata.is_dir(),
             size: metadata.len(),
             modified_ms,

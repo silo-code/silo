@@ -21,6 +21,8 @@ pub struct FileChangeEvent {
 fn should_skip(path: &str) -> bool {
     // Skip events from noisy / heavy directories. Keep this list short and
     // conservative — anything matched here will not surface to the frontend.
+    // Paths are already forward-slash–normalized at this point (see below), so
+    // the separators in these needles always match on every platform.
     const NEEDLES: &[&str] = &[
         "/node_modules/",
         "/.git/",
@@ -57,10 +59,13 @@ pub fn start_watch<R: Runtime>(
                 ) {
                     return;
                 }
+                // Normalize to forward slashes before filtering and emitting so
+                // `should_skip`'s NEEDLES and the TypeScript layer both see `/`
+                // on every platform (Windows uses `\` natively).
                 let paths: Vec<String> = event
                     .paths
                     .iter()
-                    .map(|p| p.to_string_lossy().to_string())
+                    .map(|p| super::fs::normalize_path(p))
                     .filter(|p| !should_skip(p))
                     .collect();
                 if paths.is_empty() {

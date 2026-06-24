@@ -19,8 +19,13 @@ function uuid(): string {
 export async function pickFolderAndCreateWorkspace(): Promise<Workspace | null> {
   const picked = await open({ directory: true, multiple: false });
   if (!picked || typeof picked !== "string") return null;
-  const name = await basename(picked);
-  return createWorkspace({ folder: picked, name });
+  // Normalize to forward slashes so the whole TypeScript layer (path splits,
+  // breadcrumbs, file-tree, etc.) can assume POSIX-style separators on every
+  // platform.  Windows APIs accept forward slashes, so round-tripping the
+  // normalized path back to Tauri commands works without conversion.
+  const folder = picked.replace(/\\/g, "/");
+  const name = await basename(folder);
+  return createWorkspace({ folder, name });
 }
 
 export function createWorkspace(input: {
