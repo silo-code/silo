@@ -372,6 +372,7 @@ export function FileSearchView({
           <div className="fsearch-results" ref={resultsRef}>
             <SearchResults
               files={files}
+              isMultiFolder={isMultiFolder}
               collapsed={collapsed}
               onToggleFile={toggleFile}
               onOpenMatch={openMatch}

@@ -132,6 +132,37 @@
   padding: 2px 6px 6px;
 }
 
+/* Wrapper rendered per-root when isMultiFolder; collapses to nothing in
+   single-folder workspaces where there are no headers. */
+.fsearch-group {
+  display: contents;
+}
+
+/* Folder name header — separates result groups by root in multi-folder
+   workspaces. Styled as a small, subdued label so it reads as metadata
+   rather than a clickable item. */
+.fsearch-folder-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 2px;
+  font-size: calc(1em - 2px);
+  color: var(--silo-color-text-lo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fsearch-folder-header::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
 .fsearch-file-head {
   display: flex;
   align-items: center;

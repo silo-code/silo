@@ -9,6 +9,12 @@ function splitPath(path: string): { name: string; dir: string } {
   return { name, dir: parts.join("/") };
 }
 
+/** Stable key for a file result — includes root so same-relative-path files
+ *  from different roots don't collide in the collapsed set or React keys. */
+function fileKey(file: SearchFileResult): string {
+  return file.root ? `${file.root}:${file.path}` : file.path;
+}
+
 function MatchRow({
   match,
   onOpen,
@@ -42,50 +48,77 @@ function MatchRow({
 
 export function SearchResults({
   files,
+  isMultiFolder,
   collapsed,
   onToggleFile,
   onOpenMatch,
 }: {
   files: SearchFileResult[];
+  isMultiFolder: boolean;
   collapsed: ReadonlySet<string>;
-  onToggleFile: (path: string) => void;
+  onToggleFile: (key: string) => void;
   onOpenMatch: (file: SearchFileResult, match: SearchMatch) => void;
 }) {
+  // Group consecutive files by root so we can render a folder header between
+  // groups when the workspace has more than one root folder.
+  const groups: Array<{ root: string | undefined; files: SearchFileResult[] }> =
+    [];
+  for (const file of files) {
+    const last = groups[groups.length - 1];
+    if (last && last.root === file.root) {
+      last.files.push(file);
+    } else {
+      groups.push({ root: file.root, files: [file] });
+    }
+  }
+
   return (
     <>
-      {files.map((file) => {
-        const { name, dir } = splitPath(file.path);
-        const isCollapsed = collapsed.has(file.path);
-        return (
-          <div key={file.path} className="fsearch-file">
-            <button
-              type="button"
-              className="fsearch-file-head"
-              onClick={() => onToggleFile(file.path)}
-              title={file.path}
-            >
-              <span className="fsearch-chev">
-                {isCollapsed ? ICON_CHEV_RIGHT : ICON_CHEV_DOWN}
-              </span>
-              <span className="fsearch-file-icon">{ICON_FILE}</span>
-              <span className="fsearch-file-name">{name}</span>
-              {dir && <span className="fsearch-file-dir">{dir}</span>}
-              <span className="fsearch-file-count">{file.matches.length}</span>
-            </button>
-            {!isCollapsed && (
-              <div className="fsearch-match-list">
-                {file.matches.map((match, i) => (
-                  <MatchRow
-                    key={`${match.line}:${i}`}
-                    match={match}
-                    onOpen={(m) => onOpenMatch(file, m)}
-                  />
-                ))}
+      {groups.map(({ root, files: groupFiles }, gi) => (
+        <div key={root ?? gi} className="fsearch-group">
+          {isMultiFolder && root && (
+            <div className="fsearch-folder-header" title={root}>
+              {root.split("/").pop() ?? root}
+            </div>
+          )}
+          {groupFiles.map((file) => {
+            const key = fileKey(file);
+            const { name, dir } = splitPath(file.path);
+            const isCollapsed = collapsed.has(key);
+            return (
+              <div key={key} className="fsearch-file">
+                <button
+                  type="button"
+                  className="fsearch-file-head"
+                  onClick={() => onToggleFile(key)}
+                  title={file.path}
+                >
+                  <span className="fsearch-chev">
+                    {isCollapsed ? ICON_CHEV_RIGHT : ICON_CHEV_DOWN}
+                  </span>
+                  <span className="fsearch-file-icon">{ICON_FILE}</span>
+                  <span className="fsearch-file-name">{name}</span>
+                  {dir && <span className="fsearch-file-dir">{dir}</span>}
+                  <span className="fsearch-file-count">
+                    {file.matches.length}
+                  </span>
+                </button>
+                {!isCollapsed && (
+                  <div className="fsearch-match-list">
+                    {file.matches.map((match, i) => (
+                      <MatchRow
+                        key={`${match.line}:${i}`}
+                        match={match}
+                        onOpen={(m) => onOpenMatch(file, m)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      ))}
     </>
   );
 }
