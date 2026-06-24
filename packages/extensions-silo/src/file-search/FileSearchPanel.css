@@ -261,7 +261,8 @@
   position: relative;
 }
 
-.fsearch-folder-dropdown > .silo-tooltip-host {
+.fsearch-folder-dropdown > .silo-tooltip-host,
+.fsearch-folder-menu > .silo-tooltip-host {
   display: contents;
 }
 
@@ -311,6 +312,8 @@
   width: max-content;
   max-width: calc(100vw - 16px);
   z-index: 100;
+  display: flex;
+  flex-direction: column;
   background: var(--silo-color-input-bg);
   border: 1px solid var(--silo-color-border);
   border-radius: var(--silo-radius-sm);
