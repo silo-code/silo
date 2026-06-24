@@ -151,7 +151,7 @@
   /* Left edge aligned with controls (6px padding + 2px = 8px from panel edge).
      width: 100% ends at the content area right edge, leaving a natural ~4px
      gap before the panel border — no need to extend into the right gutter. */
-  width: 100%;
+  width: calc(100% - 1px);
   margin-left: 2px;
   padding: 7px 8px;
   font-size: calc(1em - 2px);
