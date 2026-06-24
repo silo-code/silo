@@ -55,9 +55,12 @@ export function buildSearchOptions(
   ui: SearchUiState,
   allFolders: string[],
 ): SearchOptions {
-  // Resolve which folders are active: null enabledFolders means all folders.
+  // Resolve which folders are active: null/undefined enabledFolders means all
+  // folders (null is the canonical value; undefined can appear when loading a
+  // stored SearchUiState written before this field was added).
+  // eslint-disable-next-line eqeqeq
   const activeFolders =
-    ui.enabledFolders === null
+    ui.enabledFolders == null
       ? allFolders
       : allFolders.filter((f) => ui.enabledFolders!.includes(f));
 

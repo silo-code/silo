@@ -65,6 +65,15 @@ describe("buildSearchOptions", () => {
     );
     expect(opts.cwds).toEqual(["/repo/a", "/repo/b"]);
   });
+
+  it("treats undefined enabledFolders (migrating from pre-field stored state) as all folders", () => {
+    const opts = buildSearchOptions(
+      // Cast to simulate a stored state written before enabledFolders existed.
+      { ...EMPTY_UI_STATE, enabledFolders: undefined as unknown as null },
+      ["/repo/a", "/repo/b"],
+    );
+    expect(opts.cwds).toEqual(["/repo/a", "/repo/b"]);
+  });
 });
 
 describe("highlightSegments", () => {
