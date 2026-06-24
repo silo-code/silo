@@ -35,11 +35,7 @@ export class TauriTerminalClient {
       command: opts.command,
     });
 
-    // Register listeners before unblocking the reader thread. On Windows the
-    // reader is deferred until this call so cmd.exe's banner can't race ahead
-    // of the listen(). On other platforms terminal_start_stream is a no-op.
     await this.setupSessionListeners(sessionId);
-    await invoke("terminal_start_stream", { sessionId }).catch(() => {});
 
     return { sessionId };
   }
@@ -59,7 +55,6 @@ export class TauriTerminalClient {
       });
 
       await this.setupSessionListeners(sessionId);
-      await invoke("terminal_start_stream", { sessionId }).catch(() => {});
 
       return { sessionId };
     } catch (err) {
@@ -172,6 +167,11 @@ export class TauriTerminalClient {
   onOutput(sessionId: string, cb: OutputListener): () => void {
     let set = this.outputListeners.get(sessionId);
     if (!set) {
+      // First listener for this session. Start the backend reader thread now,
+      // so that the first output bytes can't arrive before this callback is
+      // in place. On non-Windows the command is a no-op. Fire-and-forget —
+      // the Rust side is idempotent (AtomicBool swap) so double calls are safe.
+      invoke("terminal_start_stream", { sessionId }).catch(() => {});
       set = new Set();
       this.outputListeners.set(sessionId, set);
     }

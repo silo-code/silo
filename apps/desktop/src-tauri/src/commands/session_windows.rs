@@ -270,6 +270,11 @@ impl SessionWindowsBackend {
         std::process::Command::new(exe)
             .args(&args)
             .creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW)
+            // Detach stdio so daemon log output doesn't bleed into the parent
+            // process's terminal (daemon inherits handles otherwise).
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .spawn()
             .map_err(|e| format!("spawn daemon: {e}"))?;
         Ok(())
