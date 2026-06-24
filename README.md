@@ -4,9 +4,9 @@
 Switch between your projects like browser tabs —
 except each tab is a full workspace with live terminals, running agents, and preserved layout.
 
-[**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap)
+[**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [**Download for Linux →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap)
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey) ![Platform: Linux (experimental)](<https://img.shields.io/badge/platform-Linux%20(experimental)-yellow>) ![Platform: Windows (experimental)](<https://img.shields.io/badge/platform-Windows%20(experimental)-yellow>) ![Status: Early](https://img.shields.io/badge/status-early%20access-orange)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey) ![Platform: Linux](https://img.shields.io/badge/platform-Linux-lightgrey) ![Platform: Windows (experimental)](<https://img.shields.io/badge/platform-Windows%20(experimental)-yellow>) ![Status: Early](https://img.shields.io/badge/status-early%20access-orange)
 
 ---
 
@@ -95,7 +95,14 @@ silo uninstall dave.git-branch
 | Apple Silicon (M1/M2/M3) | [Silo_0.4.0_aarch64.dmg](https://github.com/silo-code/silo/releases/latest) |
 | Intel Mac                | [Silo_0.4.0_x64.dmg](https://github.com/silo-code/silo/releases/latest)     |
 
-**Linux and Windows** — experimental builds are now produced on every release and attached to [GitHub Releases](https://github.com/silo-code/silo/releases). They may not work correctly. If you try them, please [open an issue](https://github.com/silo-code/silo/issues) with what you find.
+**Linux** (v0.4.0):
+
+| Build         | Link                                                                    |
+| ------------- | ----------------------------------------------------------------------- |
+| AppImage      | [Download .AppImage](https://github.com/silo-code/silo/releases/latest) |
+| Debian/Ubuntu | [Download .deb](https://github.com/silo-code/silo/releases/latest)      |
+
+**Windows** — experimental builds are attached to every [GitHub Release](https://github.com/silo-code/silo/releases) and may not work correctly. If you try it, please [open an issue](https://github.com/silo-code/silo/issues) with what you find.
 
 ---
 
