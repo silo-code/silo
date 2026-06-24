@@ -123,6 +123,7 @@
 .fsearch-results {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   /* Breathing room between file groups, and a horizontal inset so a focused
