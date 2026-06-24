@@ -23,13 +23,15 @@ export function getSearchService(): SearchService {
   if (service) return service;
   service = {
     search(query, options) {
+      const cwds = options?.cwds ?? [];
       const cwd = options?.cwd ?? activeWorkspaceFolder();
-      if (cwd === undefined) {
+      // Tauri command receives roots as a SearchRoots struct: cwds takes priority.
+      if (cwds.length === 0 && cwd === undefined) {
         return Promise.reject(new PathDeniedError("", "No workspace is open"));
       }
       return invoke<SearchResponse>("search_files", {
         query,
-        cwd,
+        roots: { cwds, cwd: cwds.length === 0 ? cwd : undefined },
         options: {
           regex: options?.regex ?? false,
           caseSensitive: options?.caseSensitive ?? false,
@@ -78,8 +80,21 @@ export function scopeSearchService(
 ): SearchService {
   if (scope.trusted) return base;
   return {
-    search: async (query, options) =>
-      base.search(query, { ...options, cwd: guardCwd(scope, options?.cwd) }),
+    search: async (query, options) => {
+      const cwds = options?.cwds ?? [];
+      if (cwds.length > 0) {
+        const guardedCwds = cwds.map((c) => guardCwd(scope, c));
+        return base.search(query, {
+          ...options,
+          cwds: guardedCwds,
+          cwd: undefined,
+        });
+      }
+      return base.search(query, {
+        ...options,
+        cwd: guardCwd(scope, options?.cwd),
+      });
+    },
   };
 }
 

@@ -16,8 +16,15 @@ export interface SearchOptions {
    * Search root. Defaults to the open **workspace folder** when omitted. A `cwd`
    * outside the workspace throws {@link PathDeniedError} unless the extension
    * declared the `process` {@link Permission}; first-party extensions are unscoped.
+   * Ignored when {@link SearchOptions.cwds} is non-empty.
    */
   cwd?: string;
+  /**
+   * Multiple search roots. When provided, all listed folders are searched and
+   * results are merged. Each root is subject to the same scope guard as `cwd`.
+   * Takes precedence over `cwd` when non-empty.
+   */
+  cwds?: string[];
   /** Treat `query` as a regular expression instead of a literal string. */
   regex?: boolean;
   /** Match case exactly. When false (default), the search is case-insensitive. */
@@ -66,7 +73,13 @@ export interface SearchMatch {
  * @public
  */
 export interface SearchFileResult {
-  /** File path **relative to** the search `cwd` (the workspace folder by default). */
+  /**
+   * Absolute path of the search root this file lives under. Present when
+   * searching multiple roots (via {@link SearchOptions.cwds}); omitted for
+   * single-root searches where the caller already knows the root.
+   */
+  root?: string;
+  /** File path **relative to** `root` (or the search `cwd` for single-root searches). */
   path: string;
   /** The matching lines within this file, in file order. */
   matches: SearchMatch[];

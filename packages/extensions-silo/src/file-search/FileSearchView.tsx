@@ -7,6 +7,7 @@ import type {
   SearchResponse,
   Workspace,
 } from "@silo-code/sdk";
+import { Tooltip } from "@silo-code/sdk";
 import {
   buildSearchOptions,
   summarize,
@@ -15,6 +16,12 @@ import {
   type WorkspaceViewCache,
 } from "./search-model";
 import { SearchResults } from "./SearchResults";
+import {
+  ICON_CHEV_DOWN,
+  ICON_CHEV_UP,
+  ICON_CHECKBOX_OFF,
+  ICON_CHECKBOX_ON,
+} from "./search-icons";
 import { onSearchRequest, takePendingSearch } from "./search-bus";
 
 const DEBOUNCE_MS = 250;
@@ -74,8 +81,13 @@ export function FileSearchView({
     () => savedState?.collapsed ?? new Set(),
   );
 
+  const allFolders = [workspace.folder, ...(workspace.extraFolders ?? [])];
+  const isMultiFolder = allFolders.length > 1;
+
   const inputRef = useRef<HTMLInputElement | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
+  const folderMenuRef = useRef<HTMLDivElement | null>(null);
+  const [folderMenuOpen, setFolderMenuOpen] = useState(false);
   // Monotonic token so a slow earlier search can't overwrite a newer result.
   const runIdRef = useRef(0);
   // Skip the very first search run when we're restoring saved results so the
@@ -100,7 +112,14 @@ export function FileSearchView({
       return merged;
     });
 
-  const folder = workspace.folder;
+  function toggleFolder(folder: string) {
+    const current = ui.enabledFolders ?? allFolders;
+    const next = current.includes(folder)
+      ? current.filter((f) => f !== folder)
+      : [...current, folder];
+    // If all folders are enabled, normalize back to null (meaning "all").
+    patch({ enabledFolders: next.length === allFolders.length ? null : next });
+  }
 
   // Save state when unmounting (workspace switch) so it can be restored next time.
   useEffect(
@@ -114,6 +133,18 @@ export function FileSearchView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+
+  // Close the folder dropdown when clicking outside it.
+  useEffect(() => {
+    if (!folderMenuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (!folderMenuRef.current?.contains(e.target as Node)) {
+        setFolderMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [folderMenuOpen]);
 
   // Restore scroll position after the saved results paint on mount.
   useEffect(() => {
@@ -142,7 +173,7 @@ export function FileSearchView({
     setSearching(true);
     const timer = setTimeout(() => {
       ctx.search
-        .search(query, buildSearchOptions(ui, folder))
+        .search(query, buildSearchOptions(ui, allFolders))
         .then((res) => {
           if (runId !== runIdRef.current) return;
           setResponse(res);
@@ -166,7 +197,9 @@ export function FileSearchView({
     ui.regex,
     ui.includes,
     ui.excludes,
-    folder,
+    ui.enabledFolders,
+    // Use join so the effect fires when folder list identity changes.
+    allFolders.join("\0"),
     paused,
   ]);
 
@@ -206,7 +239,8 @@ export function FileSearchView({
     const range = match.ranges[0];
     const column = range ? range[0] + 1 : 1;
     const endColumn = range ? range[1] + 1 : undefined;
-    ctx.editors.open(`${folder}/${file.path}`, {
+    const root = file.root ?? workspace.folder;
+    ctx.editors.open(`${root}/${file.path}`, {
       workspaceId: workspace.id,
       preview: true,
       selection: {
@@ -219,6 +253,14 @@ export function FileSearchView({
   }
 
   const files = response?.files ?? [];
+
+  const folderTriggerText =
+    ui.enabledFolders == null
+      ? "All folders"
+      : ui.enabledFolders
+          .filter((f) => allFolders.includes(f))
+          .map((f) => f.split("/").pop() ?? f)
+          .join(", ") || "All folders";
 
   return (
     <div className="fsearch-view">
@@ -272,6 +314,58 @@ export function FileSearchView({
           spellCheck={false}
           onChange={(e) => patch({ excludes: e.target.value })}
         />
+        {isMultiFolder && (
+          <>
+            <label className="fsearch-field-label">folders to search</label>
+            <div
+              ref={folderMenuRef}
+              className={`fsearch-folder-dropdown${folderMenuOpen ? " open" : ""}`}
+            >
+              <Tooltip content={folderTriggerText}>
+                <button
+                  type="button"
+                  className={`fsearch-folder-trigger${ui.enabledFolders != null ? " filtered" : ""}`}
+                  onClick={() => setFolderMenuOpen((o) => !o)}
+                  aria-haspopup="listbox"
+                  aria-expanded={folderMenuOpen}
+                >
+                  <span className="fsearch-folder-trigger-label">
+                    {folderTriggerText}
+                  </span>
+                  <span className="fsearch-folder-chevron" aria-hidden>
+                    {folderMenuOpen ? ICON_CHEV_UP : ICON_CHEV_DOWN}
+                  </span>
+                </button>
+              </Tooltip>
+              {folderMenuOpen && (
+                <div className="fsearch-folder-menu" role="listbox">
+                  {allFolders.map((f) => {
+                    const name = f.split("/").pop() ?? f;
+                    const enabled =
+                      ui.enabledFolders == null ||
+                      ui.enabledFolders.includes(f);
+                    return (
+                      <Tooltip key={f} content={f}>
+                        <button
+                          type="button"
+                          className="fsearch-folder-item"
+                          role="option"
+                          aria-selected={enabled}
+                          onClick={() => toggleFolder(f)}
+                        >
+                          <span className="fsearch-folder-check">
+                            {enabled ? ICON_CHECKBOX_ON : ICON_CHECKBOX_OFF}
+                          </span>
+                          <span>{name}</span>
+                        </button>
+                      </Tooltip>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {error ? (
@@ -286,6 +380,7 @@ export function FileSearchView({
           <div className="fsearch-results" ref={resultsRef}>
             <SearchResults
               files={files}
+              isMultiFolder={isMultiFolder}
               collapsed={collapsed}
               onToggleFile={toggleFile}
               onOpenMatch={openMatch}
