@@ -147,13 +147,11 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  /* Stretch beyond the container's right padding so the background covers
-     the full right edge — prevents rows bleeding through that gutter.
-     On the left we only cancel 2px (leaving a 4px visual gap from the edge)
-     to avoid the header looking flush against the panel border. */
-  width: calc(100% + 8px);
-  margin-left: -2px;
-  padding: 7px 14px 7px 10px;
+  /* Left edge aligned with the controls above (padding: 8px = 6px results
+     padding + 2px margin). Right side extends to cover the right gutter. */
+  width: calc(100% + 4px);
+  margin-left: 2px;
+  padding: 7px 14px 7px 8px;
   font-size: calc(1em - 2px);
   font-weight: 700;
   letter-spacing: 0.04em;
