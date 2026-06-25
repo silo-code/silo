@@ -274,6 +274,12 @@
   border-radius: var(--silo-radius-sm);
 }
 
+/* The Tooltip host wraps ws-folder-list-path and must inherit flex growth. */
+.ws-folder-list-item > .silo-tooltip-host {
+  flex: 1;
+  min-width: 0;
+}
+
 .ws-folder-list-path {
   flex: 1;
   min-width: 0;

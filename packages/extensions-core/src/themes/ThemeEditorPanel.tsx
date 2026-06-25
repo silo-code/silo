@@ -6,6 +6,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { HexColorPicker } from "react-colorful";
+import { Tooltip } from "@silo-code/sdk";
 import type {
   CustomTheme,
   ThemeVars,
@@ -158,12 +159,13 @@ function ColorVarRow({
     <div className="theme-var-row">
       <label className="theme-var-name">{varKey.replace(/^--/, "")}</label>
       <div className="theme-color-wrap" ref={popRef}>
-        <button
-          className="theme-color-swatch"
-          style={{ background: hex }}
-          onClick={() => setOpen((o) => !o)}
-          title="Open color picker"
-        />
+        <Tooltip content="Open color picker">
+          <button
+            className="theme-color-swatch"
+            style={{ background: hex }}
+            onClick={() => setOpen((o) => !o)}
+          />
+        </Tooltip>
         {open && (
           <div className="theme-color-popover">
             <HexColorPicker color={hex} onChange={(c) => onChange(varKey, c)} />
@@ -177,21 +179,22 @@ function ColorVarRow({
         spellCheck={false}
       />
       {hasEyeDropper && (
-        <button
-          className="theme-eyedropper-btn"
-          title="Pick color from screen"
-          onClick={async () => {
-            try {
-              const dropper = new EyeDropper();
-              const result = await dropper.open();
-              onChange(varKey, result.sRGBHex);
-            } catch {
-              /* cancelled */
-            }
-          }}
-        >
-          ⌖
-        </button>
+        <Tooltip content="Pick color from screen">
+          <button
+            className="theme-eyedropper-btn"
+            onClick={async () => {
+              try {
+                const dropper = new EyeDropper();
+                const result = await dropper.open();
+                onChange(varKey, result.sRGBHex);
+              } catch {
+                /* cancelled */
+              }
+            }}
+          >
+            ⌖
+          </button>
+        </Tooltip>
       )}
     </div>
   );
@@ -507,13 +510,14 @@ export function ThemeEditorPanel({
       <div className="theme-panel-header">
         <span className="theme-panel-title">Themes</span>
         <div className="theme-panel-header-actions">
-          <button
-            className="silo-button silo-button-sm"
-            onClick={handleImport}
-            title="Import theme JSON"
-          >
-            Import
-          </button>
+          <Tooltip content="Import theme JSON">
+            <button
+              className="silo-button silo-button-sm"
+              onClick={handleImport}
+            >
+              Import
+            </button>
+          </Tooltip>
           <button
             className="silo-button-primary silo-button-sm"
             onClick={handleNewTheme}
