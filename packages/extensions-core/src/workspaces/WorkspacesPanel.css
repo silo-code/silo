@@ -130,6 +130,13 @@
   gap: 4px;
 }
 
+/* The Tooltip host wraps ws-folder-path and must inherit flex growth so the
+   inner span's ResizeObserver still measures the correct constrained width. */
+.ws-item .ws-folder > .silo-tooltip-host {
+  flex: 1;
+  min-width: 0;
+}
+
 .ws-item .ws-folder-path {
   flex: 1;
   min-width: 0;
@@ -272,6 +279,12 @@
   padding: 6px 8px;
   background: var(--silo-color-button-bg);
   border-radius: var(--silo-radius-sm);
+}
+
+/* The Tooltip host wraps ws-folder-list-path and must inherit flex growth. */
+.ws-folder-list-item > .silo-tooltip-host {
+  flex: 1;
+  min-width: 0;
 }
 
 .ws-folder-list-path {

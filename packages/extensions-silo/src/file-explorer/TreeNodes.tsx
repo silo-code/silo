@@ -127,7 +127,6 @@ export function DirNode({
         onContextMenu={(e) => onContextMenu(e, path, true)}
         draggable={!isRoot && !isRenaming}
         onDragStart={onDragStart}
-        title={path}
       >
         <span className="chev">{isExpanded ? CHEV_DOWN : CHEV_RIGHT}</span>
         {!isRoot && (isExpanded ? ICON_FOLDER_OPEN : ICON_FOLDER_CLOSED)}
@@ -157,7 +156,9 @@ export function DirNode({
             onClick={(e) => e.stopPropagation()}
           />
         ) : (
-          <span className="name">{isRoot ? name.toUpperCase() : name}</span>
+          <Tooltip content={path}>
+            <span className="name">{isRoot ? name.toUpperCase() : name}</span>
+          </Tooltip>
         )}
         {isRoot && rootActions && (
           <span
@@ -352,7 +353,6 @@ export function FileLeaf({
       onContextMenu={(e) => onContextMenu(e, path, false)}
       draggable={!isRenaming}
       onDragStart={onDragStart}
-      title={path}
     >
       <span className="chev" />
       {ICON_FILE}
@@ -382,7 +382,9 @@ export function FileLeaf({
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <span className="name">{name}</span>
+        <Tooltip content={path}>
+          <span className="name">{name}</span>
+        </Tooltip>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, SquaresFour } from "@phosphor-icons/react";
 import {
+  Tooltip,
   useFocusGroup,
   useServiceState,
   type ExtensionContext,
@@ -226,7 +227,6 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                     e.stopPropagation();
                     void openWorkspaceProperties(ctx, home, ws);
                   }}
-                  title="Right-click for menu · Double-click for properties"
                 >
                   <WorkspaceIcon
                     className="ws-icon"
@@ -234,12 +234,14 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                     weight="duotone"
                   />
                   <div className="ws-name-row">
-                    <span className="ws-name">{ws.name}</span>
+                    <Tooltip content="Right-click for menu · Double-click for properties">
+                      <span className="ws-name">{ws.name}</span>
+                    </Tooltip>
                     <span className="ws-uptime">
                       {formatElapsed(ws.createdAt)}
                     </span>
                   </div>
-                  <div className="ws-folder" title={ws.folder}>
+                  <div className="ws-folder">
                     <FrontTruncatedPath
                       className="ws-folder-path"
                       text={fullPath(ws.folder, home)}
@@ -251,17 +253,18 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                     )}
                   </div>
                   <WorkspaceStatusRows rows={service.getDecorations(ws.id)} />
-                  <button
-                    className="ws-close"
-                    title="Close workspace"
-                    tabIndex={-1}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      service.close(ws.id);
-                    }}
-                  >
-                    ×
-                  </button>
+                  <Tooltip content="Close workspace">
+                    <button
+                      className="ws-close"
+                      tabIndex={-1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        service.close(ws.id);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </Tooltip>
                 </li>
               );
             })}
@@ -269,15 +272,16 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
         )}
         {snap.hydrated && (
           <div className="ws-add-wrap" ref={addWrapRef}>
-            <button
-              className="ws-add-btn"
-              type="button"
-              onClick={openClosedMenu}
-              title="Add workspace"
-              aria-label="Add workspace"
-            >
-              <Plus weight="bold" size={14} />
-            </button>
+            <Tooltip content="Add workspace">
+              <button
+                className="ws-add-btn"
+                type="button"
+                onClick={openClosedMenu}
+                aria-label="Add workspace"
+              >
+                <Plus weight="bold" size={14} />
+              </button>
+            </Tooltip>
           </div>
         )}
       </div>

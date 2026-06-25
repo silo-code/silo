@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { File as FileIcon } from "@phosphor-icons/react";
-import type { FocusGroupItemProps } from "@silo-code/sdk";
+import { Tooltip, type FocusGroupItemProps } from "@silo-code/sdk";
 import type { GitFileStatus } from "../git/git-api";
 import {
   ICON_CHEV_DOWN,
@@ -61,18 +61,18 @@ export function Section({
             onClick={(e) => e.stopPropagation()}
           >
             {actions.map((a) => (
-              <button
-                key={a.title}
-                className="section-add"
-                title={a.title}
-                tabIndex={-1}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  a.onClick();
-                }}
-              >
-                {a.icon}
-              </button>
+              <Tooltip key={a.title} content={a.title}>
+                <button
+                  className="section-add"
+                  tabIndex={-1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    a.onClick();
+                  }}
+                >
+                  {a.icon}
+                </button>
+              </Tooltip>
             ))}
           </span>
         )}
@@ -137,55 +137,40 @@ export function FileRow({
   const { name, dir } = splitNameAndDir(file.path);
   const glyph = statusGlyph(file);
   return (
-    <div
-      className="git-file-row"
-      onClick={onRowClick}
-      title={file.path}
-      {...focusProps}
-    >
+    <div className="git-file-row" onClick={onRowClick} {...focusProps}>
       <span className="ico file">
         <FileIcon size="1.3em" weight="regular" aria-hidden="true" />
       </span>
-      <span className="file-name">{name}</span>
+      <Tooltip content={file.path}>
+        <span className="file-name">{name}</span>
+      </Tooltip>
       {dir && <span className="file-dir">{dir}</span>}
       <span className="row-actions" onClick={(e) => e.stopPropagation()}>
-        <button
-          className="row-action"
-          title="Open file"
-          tabIndex={-1}
-          onClick={onOpen}
-        >
-          {ICON_OPEN}
-        </button>
-        {kind === "changes" && onRevert && (
-          <button
-            className="row-action"
-            title="Discard changes"
-            tabIndex={-1}
-            onClick={onRevert}
-          >
-            {ICON_UNDO}
+        <Tooltip content="Open file">
+          <button className="row-action" tabIndex={-1} onClick={onOpen}>
+            {ICON_OPEN}
           </button>
+        </Tooltip>
+        {kind === "changes" && onRevert && (
+          <Tooltip content="Discard changes">
+            <button className="row-action" tabIndex={-1} onClick={onRevert}>
+              {ICON_UNDO}
+            </button>
+          </Tooltip>
         )}
         {kind === "changes" && onStage && (
-          <button
-            className="row-action"
-            title="Stage changes"
-            tabIndex={-1}
-            onClick={onStage}
-          >
-            {ICON_PLUS}
-          </button>
+          <Tooltip content="Stage changes">
+            <button className="row-action" tabIndex={-1} onClick={onStage}>
+              {ICON_PLUS}
+            </button>
+          </Tooltip>
         )}
         {kind === "staged" && onUnstage && (
-          <button
-            className="row-action"
-            title="Unstage changes"
-            tabIndex={-1}
-            onClick={onUnstage}
-          >
-            {ICON_MINUS}
-          </button>
+          <Tooltip content="Unstage changes">
+            <button className="row-action" tabIndex={-1} onClick={onUnstage}>
+              {ICON_MINUS}
+            </button>
+          </Tooltip>
         )}
       </span>
       <span className={`status-glyph status-${glyph}`}>{glyph}</span>

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { FolderPlus } from "@phosphor-icons/react";
 import { ModalActions } from "@silo-code/extension-host/internal";
+import { Tooltip } from "@silo-code/sdk";
 import {
   fullPath,
   type Workspace,
@@ -97,20 +98,23 @@ export function WorkspacePropertiesContent({
         <div className="ws-folders-list">
           {allFolders.map((folder, i) => (
             <div key={folder} className="ws-folder-list-item">
-              <span className="ws-folder-list-path" dir="ltr" title={folder}>
-                {fullPath(folder, home)}
-              </span>
+              <Tooltip content={folder}>
+                <span className="ws-folder-list-path" dir="ltr">
+                  {fullPath(folder, home)}
+                </span>
+              </Tooltip>
               {i === 0 ? (
                 <span className="ws-folder-primary-badge">primary</span>
               ) : (
-                <button
-                  type="button"
-                  className="ws-folder-list-remove"
-                  title="Remove folder"
-                  onClick={() => removeFolder(folder)}
-                >
-                  ×
-                </button>
+                <Tooltip content="Remove folder">
+                  <button
+                    type="button"
+                    className="ws-folder-list-remove"
+                    onClick={() => removeFolder(folder)}
+                  >
+                    ×
+                  </button>
+                </Tooltip>
               )}
             </div>
           ))}

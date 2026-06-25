@@ -9,6 +9,7 @@ import {
   Trash,
 } from "@phosphor-icons/react";
 import {
+  Tooltip,
   useFocusGroup,
   type ExtensionContext,
   type MenuEntry,
@@ -382,7 +383,6 @@ export function BranchManager({
               key={(b.remote ? "r:" : "l:") + b.name}
               className={`git-branch-row${b.current ? " current" : ""}`}
               role="button"
-              title={b.current ? "Current branch" : `Switch to ${b.name}`}
               onClick={() => void switchTo(b)}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -399,51 +399,60 @@ export function BranchManager({
               <span className="git-branch-glyph">
                 {b.remote ? <Cloud size={15} /> : <GitBranchIcon size={15} />}
               </span>
-              <span className="git-branch-name">{b.name}</span>
+              <Tooltip
+                content={b.current ? "Current branch" : `Switch to ${b.name}`}
+              >
+                <span className="git-branch-name">{b.name}</span>
+              </Tooltip>
               {b.current && <span className="git-branch-badge">current</span>}
               {!b.remote && (
                 <span
                   className="git-branch-actions"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <button
-                    type="button"
-                    className={`git-branch-action${pushing === b.name ? " working" : ""}`}
-                    title={
+                  <Tooltip
+                    content={
                       isPublished(b, remoteNames)
                         ? `Push ${b.name}`
                         : `Publish ${b.name}`
                     }
-                    tabIndex={-1}
-                    disabled={pushing === b.name}
-                    onClick={() => void pushBranch(b)}
                   >
-                    {isPublished(b, remoteNames) ? (
-                      ICON_PUSH
-                    ) : (
-                      <CloudArrowUp size={16} />
-                    )}
-                  </button>
+                    <button
+                      type="button"
+                      className={`git-branch-action${pushing === b.name ? " working" : ""}`}
+                      tabIndex={-1}
+                      disabled={pushing === b.name}
+                      onClick={() => void pushBranch(b)}
+                    >
+                      {isPublished(b, remoteNames) ? (
+                        ICON_PUSH
+                      ) : (
+                        <CloudArrowUp size={16} />
+                      )}
+                    </button>
+                  </Tooltip>
                   {!b.current && (
                     <>
-                      <button
-                        type="button"
-                        className="git-branch-action"
-                        title="Rename branch"
-                        tabIndex={-1}
-                        onClick={() => void rename(b)}
-                      >
-                        <PencilSimple size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="git-branch-action danger"
-                        title="Delete branch"
-                        tabIndex={-1}
-                        onClick={() => void del(b)}
-                      >
-                        <Trash size={14} />
-                      </button>
+                      <Tooltip content="Rename branch">
+                        <button
+                          type="button"
+                          className="git-branch-action"
+                          tabIndex={-1}
+                          onClick={() => void rename(b)}
+                        >
+                          <PencilSimple size={14} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Delete branch">
+                        <button
+                          type="button"
+                          className="git-branch-action danger"
+                          tabIndex={-1}
+                          onClick={() => void del(b)}
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </Tooltip>
                     </>
                   )}
                 </span>
