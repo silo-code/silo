@@ -548,90 +548,96 @@ export function GitView({
           className="git-root-label"
           onClick={() => setCollapsed((v) => !v)}
         >
-          <span className="git-root-chev">
-            {collapsed ? (
-              <CaretRight size="0.85em" weight="bold" />
-            ) : (
-              <CaretDown size="0.85em" weight="bold" />
-            )}
+          <span className="git-root-top">
+            <span className="git-root-chev">
+              {collapsed ? (
+                <CaretRight size="0.85em" weight="bold" />
+              ) : (
+                <CaretDown size="0.85em" weight="bold" />
+              )}
+            </span>
+            <span className="git-root-name">{rootLabel.toUpperCase()}</span>
           </span>
-          <span className="git-root-name">{rootLabel.toUpperCase()}</span>
-          {status?.inRepo ? (
-            <Tooltip content="Manage branches">
-              <span
-                className="git-root-branch clickable"
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openBranchManager();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    openBranchManager();
-                  }
-                }}
-              >
-                {status ? (status.branch ?? "(detached)") : ""}
+          {status?.inRepo && (
+            <span
+              className="git-root-bottom"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="git-root-branch-wrap">
+                <Tooltip content="Manage branches">
+                  <span
+                    className="git-root-branch clickable"
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openBranchManager();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openBranchManager();
+                      }
+                    }}
+                  >
+                    {status.branch ?? "(detached)"}
+                  </span>
+                </Tooltip>
               </span>
-            </Tooltip>
-          ) : (
-            <span className="git-root-branch">
-              {status ? (status.branch ?? "(detached)") : ""}
+              <span
+                className="git-root-remote"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {status?.upstream ? (
+                  <Tooltip content="Sync (pull, then push)">
+                    <button
+                      className={`branch-tracking branch-sync${syncing ? " working" : ""}`}
+                      onClick={syncing ? undefined : sync}
+                    >
+                      {syncing && (
+                        <ArrowsClockwise
+                          className="git-branch-spin"
+                          size={12}
+                        />
+                      )}
+                      ↑{status.ahead} ↓{status.behind}
+                    </button>
+                  </Tooltip>
+                ) : status.branch ? (
+                  <Tooltip content="Publish branch">
+                    <button
+                      className={`branch-action branch-publish push-btn${pushing ? " working" : ""}`}
+                      onClick={pushing ? undefined : push}
+                    >
+                      <CloudArrowUp size={16} />
+                    </button>
+                  </Tooltip>
+                ) : null}
+              </span>
+              <span
+                className="git-root-actions"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Tooltip content="Refresh">
+                  <button
+                    className={`branch-action refresh-btn${busy ? " working" : ""}`}
+                    onClick={busy ? undefined : refresh}
+                  >
+                    <ArrowsClockwise size={14} />
+                  </button>
+                </Tooltip>
+                <Tooltip content="More actions">
+                  <button
+                    className="branch-action git-menu-btn"
+                    onClick={(e) => openGitMenu(e.currentTarget)}
+                  >
+                    <DotsThreeVertical size={18} weight="bold" />
+                  </button>
+                </Tooltip>
+              </span>
             </span>
           )}
-          <span
-            className="git-root-remote"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {status?.upstream ? (
-              <Tooltip content="Sync (pull, then push)">
-                <button
-                  className={`branch-tracking branch-sync${syncing ? " working" : ""}`}
-                  onClick={syncing ? undefined : sync}
-                >
-                  {syncing && (
-                    <ArrowsClockwise className="git-branch-spin" size={12} />
-                  )}
-                  ↑{status.ahead} ↓{status.behind}
-                </button>
-              </Tooltip>
-            ) : status?.inRepo && status.branch ? (
-              <Tooltip content="Publish branch">
-                <button
-                  className={`branch-action branch-publish push-btn${pushing ? " working" : ""}`}
-                  onClick={pushing ? undefined : push}
-                >
-                  <CloudArrowUp size={16} />
-                </button>
-              </Tooltip>
-            ) : null}
-          </span>
-          <span
-            className="git-root-actions"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Tooltip content="Refresh">
-              <button
-                className={`branch-action refresh-btn${busy ? " working" : ""}`}
-                onClick={busy ? undefined : refresh}
-              >
-                <ArrowsClockwise size={14} />
-              </button>
-            </Tooltip>
-            {status?.inRepo && (
-              <Tooltip content="More actions">
-                <button
-                  className="branch-action git-menu-btn"
-                  onClick={(e) => openGitMenu(e.currentTarget)}
-                >
-                  <DotsThreeVertical size={18} weight="bold" />
-                </button>
-              </Tooltip>
-            )}
-          </span>
         </button>
       ) : (
         <div className="git-branch">
