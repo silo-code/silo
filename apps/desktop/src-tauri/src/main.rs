@@ -47,7 +47,9 @@ fn main() {
                 Some(pos) if pos + 1 < args.len() => args[pos + 1..].to_vec(),
                 _ => vec![default_shell],
             };
-            let _ = silo_lib::run_win_session_host(&handle, cmd, &cwd, cols, rows);
+            if let Err(e) = silo_lib::run_win_session_host(&handle, cmd, &cwd, cols, rows) {
+                eprintln!("[daemon] fatal: {e}");
+            }
             std::process::exit(0);
         }
     }

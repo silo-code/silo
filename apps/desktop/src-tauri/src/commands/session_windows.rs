@@ -103,10 +103,12 @@ pub fn run_daemon(
     }
     builder.cwd(cwd);
 
+    log_event("daemon_spawning_cmd", &format!("handle={handle} cmd={}", &cmd[0]));
     let child = pty_pair
         .slave
         .spawn_command(builder)
         .map_err(|e| format!("spawn: {e}"))?;
+    log_event("daemon_cmd_ok", &format!("handle={handle} pid={}", child.process_id().unwrap_or(0)));
     drop(pty_pair.slave);
 
     let child_pid = Arc::new(AtomicU32::new(child.process_id().unwrap_or(0)));
@@ -114,10 +116,12 @@ pub fn run_daemon(
         .master
         .take_writer()
         .map_err(|e| format!("take_writer: {e}"))?;
+    log_event("daemon_writer_ok", &format!("handle={handle}"));
     let pty_reader = pty_pair
         .master
         .try_clone_reader()
         .map_err(|e| format!("clone_reader: {e}"))?;
+    log_event("daemon_reader_ok", &format!("handle={handle}"));
     let master = Arc::new(Mutex::new(pty_pair.master));
     let pty_writer = Arc::new(Mutex::new(pty_writer));
 
@@ -153,18 +157,21 @@ pub fn run_daemon(
         });
     }
 
+    log_event("daemon_binding_tcp", &format!("handle={handle}"));
     let listener =
         TcpListener::bind("127.0.0.1:0").map_err(|e| format!("bind: {e}"))?;
     let port = listener
         .local_addr()
         .map_err(|e| format!("local_addr: {e}"))?
         .port();
+    log_event("daemon_tcp_ok", &format!("handle={handle} port={port}"));
 
     let ppath = port_path(handle).ok_or("SILO_DATA_DIR not set")?;
     if let Some(dir) = ppath.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("mkdir: {e}"))?;
     }
     std::fs::write(&ppath, port.to_string()).map_err(|e| format!("write port: {e}"))?;
+    log_event("daemon_port_written", &format!("handle={handle} port={port}"));
 
     for incoming in listener.incoming() {
         let Ok(stream) = incoming else { continue };
