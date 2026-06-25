@@ -82,6 +82,14 @@ export { EXTENSIONS_SETTINGS_GROUP } from "./settings-pages";
 // platform.ts.
 export { homeDir } from "./platform";
 
+// Workspace section registry — exposed here (rather than on the public
+// WorkspaceService type) because reading back the full provider list, including
+// React component references, is a core-extension-only concern. The *write* side
+// (registerSection / subscribeSection) is public via ctx.workspaces; only the
+// WorkspacesPanel needs to enumerate providers to render them. See
+// workspace-section-registry.ts.
+export { workspaceSectionRegistry } from "./workspace-section-registry";
+
 // Editor host-plumbing — the raw Monaco/editor host access that `core.editor`
 // needs but that is wrong to hand to silo.*/third-party (Tier 3 "raw Monaco
 // setup"; see ctx-domains.md → "The editor surface"). NOTE what is deliberately

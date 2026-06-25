@@ -52,6 +52,8 @@ export type {
   CreateWorkspaceInput,
   WorkspaceStatusRow,
   WorkspaceDecorationProvider,
+  WorkspaceSectionProps,
+  WorkspaceSectionProvider,
 } from "./workspace-service";
 export type {
   EditorService,

@@ -1,6 +1,6 @@
 # Interface: WorkspaceDecorationProvider
 
-Defined in: [packages/sdk/src/workspace-service.ts:37](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L37)
+Defined in: [packages/sdk/src/workspace-service.ts:70](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L70)
 
 A decoration provider that contributes [WorkspaceStatusRow](WorkspaceStatusRow.md)s to
 workspace rows in the Workspaces side panel. Register via
@@ -14,7 +14,7 @@ workspace rows in the Workspaces side panel. Register via
 id: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:39](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L39)
+Defined in: [packages/sdk/src/workspace-service.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L72)
 
 Unique id for this provider — conventionally `"<extension-id>.decoration"`.
 
@@ -26,7 +26,7 @@ Unique id for this provider — conventionally `"<extension-id>.decoration"`.
 provide(workspaceId): WorkspaceStatusRow[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:44](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L44)
+Defined in: [packages/sdk/src/workspace-service.ts:77](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L77)
 
 Called synchronously for each workspace during render. Return an empty
 array to contribute nothing for this workspace.

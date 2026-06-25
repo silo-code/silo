@@ -391,3 +391,14 @@
   flex-shrink: 0;
   color: var(--silo-color-text-lo);
 }
+
+/* Workspace section providers — arbitrary React components mounted below the
+   decoration rows. display:contents collapses the wrapper so each section's
+   root element participates directly in the ws-item grid. grid-column:2 on
+   direct children pins them to the content column (right of the icon). */
+.ws-sections {
+  display: contents;
+}
+.ws-sections > * {
+  grid-column: 2;
+}

@@ -93,11 +93,45 @@ ctx.subscriptions.push(
 
 Each row is a [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow).
 
+## Workspace sections
+
+Extensions can mount an arbitrary React component inside each workspace row —
+below the path line and any decoration rows. Sections are useful for richer
+surfaces: interactive cards, agent-status summaries, call indicators, etc.
+
+Return `null` from your component for workspaces where the section should not
+appear. This produces no DOM node and no visual gap.
+
+```tsx
+ctx.subscriptions.push(
+  ctx.workspaces.registerSection({
+    id: "my-ext.section",
+    component: ({ workspaceId }) => {
+      const ws = ctx.workspaces.get(workspaceId);
+      if (!ws?.terminals.length) return null;
+      return <MyCard terminals={ws.terminals} />;
+    },
+    order: 0, // lower = higher in the stack, default 0
+  }),
+);
+```
+
+Multiple providers from different extensions stack vertically in ascending
+`order`. Each component is responsible for its own top margin/padding and must
+use only `--silo-*` design tokens.
+
+| Method                                                                                  | What it does                                                                                                       |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`registerSection(provider)`](/api/types/interfaces/WorkspaceService#registersection)   | Register a React component to mount in workspace rows. Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+| [`subscribeSection(listener)`](/api/types/interfaces/WorkspaceService#subscribesection) | Subscribe to provider registration changes. Returns a [`Disposable`](/api/types/interfaces/Disposable).            |
+
+The provider shape is [`WorkspaceSectionProvider`](/api/types/interfaces/WorkspaceSectionProvider); component props are [`WorkspaceSectionProps`](/api/types/interfaces/WorkspaceSectionProps).
+
 ## Types
 
 Pass [`WorkspaceService`](/api/types/interfaces/WorkspaceService).
 
-Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow) · [`WorkspaceDecorationProvider`](/api/types/interfaces/WorkspaceDecorationProvider) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
+Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow) · [`WorkspaceDecorationProvider`](/api/types/interfaces/WorkspaceDecorationProvider) · [`WorkspaceSectionProvider`](/api/types/interfaces/WorkspaceSectionProvider) · [`WorkspaceSectionProps`](/api/types/interfaces/WorkspaceSectionProps) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
 
 ## See also
 
