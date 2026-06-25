@@ -1,0 +1,101 @@
+.tm-panel {
+  padding: 8px 0;
+}
+.tm-panel-empty {
+  padding: 24px 16px;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+.tm-terminal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+.tm-terminal-info {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--silo-radius-sm);
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+.tm-terminal-info--clickable {
+  cursor: pointer;
+}
+.tm-terminal-info--clickable:hover {
+  background: var(--silo-color-bg-hover);
+}
+.tm-terminal-info--clickable:focus-visible {
+  outline: 2px solid var(--silo-color-accent);
+  outline-offset: 1px;
+}
+.tm-terminal-title {
+  display: block;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-hi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tm-terminal-osc {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--silo-font-ui);
+  font-size: calc(var(--silo-font-size-sm) - 1px);
+  color: var(--silo-color-text-lo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tm-terminal-workspace {
+  display: block;
+  margin-top: 1px;
+  font-family: var(--silo-font-ui);
+  font-size: calc(var(--silo-font-size-sm) - 1px);
+  color: var(--silo-color-text-lo);
+}
+.tm-icon-select {
+  flex-shrink: 0;
+  appearance: none;
+  background: var(--silo-color-bg-2);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-hi);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.tm-icon-select:hover {
+  border-color: var(--silo-color-border-hi);
+}
+
+/* Tab decoration icons */
+.tm-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: tm-spin 0.7s linear infinite;
+}
+@keyframes tm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.tm-waiting-icon {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.tm-waiting-icon span {
+  display: block;
+  width: 2.5px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 1px;
+}
