@@ -60,6 +60,9 @@ base64 = { version = "0.22", optional = true }
 [target.'cfg(unix)'.dependencies]
 pty-host = { path = "../../../crates/pty-host" }
 
+[target.'cfg(windows)'.dependencies]
+raw-window-handle = "0.6"
+
 # macOS-only: Shift-state monitor. AppKit's NSEvent local monitor goes
 # silent during an HTML5 drag (the webview's drag session captures the
 # event flow), so we poll CoreGraphics' HID-level modifier state on a
