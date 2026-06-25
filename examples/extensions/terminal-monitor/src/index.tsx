@@ -22,6 +22,16 @@ const IDLE_CHAR = "\u2733"; // ✳
 // we treat states 1/2/3 as working and 0/4 as waiting.
 const OSC9_PROGRESS_PREFIX = "4;";
 
+// OSC 9 desktop notifications emitted by Codex CLI when TERM_PROGRAM=iTerm.app.
+// These are the only non-progress OSC 9 payloads we treat as status signals —
+// matching on known strings prevents random OSC 9 from other programs (fish
+// shell notifications, scripts, vim plugins) from stomping an active status.
+const CODEX_DONE_PAYLOADS = [
+  "Agent turn complete",
+  "Approval requested",
+  "Codex wants to edit",
+];
+
 // OSC 133 shell integration protocol (FTCS / iTerm2 / zsh/bash with shell integration):
 // A=prompt start, B=command entered, C=command output start, D[;exit]=command done
 // C → working, A/D → waiting (at prompt)
@@ -161,11 +171,13 @@ function activate(ctx: ExtensionContext) {
         } else if (state === 0 || state === 4) {
           setAutoStatus(terminalId, "waiting");
         }
-      } else if (code === 9 && !payload.startsWith(OSC9_PROGRESS_PREFIX)) {
+      } else if (
+        code === 9 &&
+        CODEX_DONE_PAYLOADS.some((p) => payload.startsWith(p))
+      ) {
         // Codex CLI OSC 9 desktop notifications (iTerm2/Ghostty style).
-        // Emitted when TERM_PROGRAM=iTerm.app: "Agent turn complete",
-        // "Approval requested: …", "Codex wants to edit …".
-        // All of these mean Codex has stopped working and needs attention.
+        // Only match known Codex payload prefixes to avoid stomping an active
+        // Copilot "working" state on unrelated OSC 9 from other programs.
         clearShellIdleTimer(terminalId);
         setAutoStatus(terminalId, "waiting");
       } else if (code === 133) {
@@ -187,7 +199,10 @@ function activate(ctx: ExtensionContext) {
       }
     });
     oscSubs.set(terminalId, sub);
-    ctx.subscriptions.push(sub);
+    // Note: do NOT push into ctx.subscriptions — oscSubs manages the lifecycle
+    // of these per-terminal subscriptions (disposed in syncOscSubscriptions).
+    // Pushing them would cause the array to grow unboundedly as terminals open
+    // and close, and stale entries would be double-disposed at deactivation.
   }
 
   function syncOscSubscriptions() {
