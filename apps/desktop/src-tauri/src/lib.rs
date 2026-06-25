@@ -2,6 +2,9 @@ mod commands;
 #[cfg(target_os = "macos")]
 mod mac_keys;
 
+#[cfg(windows)]
+pub use commands::session_windows::run_daemon as run_win_session_host;
+
 use tauri::{Emitter, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -149,6 +152,7 @@ pub fn run() {
             commands::terminal::terminal_resize,
             commands::terminal::terminal_kill,
             commands::terminal::terminal_attach,
+            commands::terminal::terminal_start_stream,
             commands::terminal::terminal_get_buffer,
             commands::terminal::terminal_save_buffer,
             commands::network::net_fetch,

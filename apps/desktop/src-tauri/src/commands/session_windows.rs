@@ -1,0 +1,471 @@
+// Windows terminal session backend: ConPTY daemon + TCP loopback client.
+//
+// Architecture mirrors the Unix pty-host (RFC 0010) but self-contained:
+// no external crate. The daemon is self-re-exec'd with `--win-session-host`
+// (handled in main.rs), binds a random TCP port, writes the port to a file,
+// then serves client connections. The client side reads the port file and
+// connects. Wire protocol: [tag:u8][len:u32 BE][payload] — T_DATA=0,
+// T_RESIZE=1, T_KILL=2.
+
+use std::collections::VecDeque;
+use std::io::{self, Read, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
+use std::thread;
+use std::time::{Duration, Instant};
+
+use parking_lot::Mutex;
+use portable_pty::PtySize;
+
+use super::session_backend::{
+    log_event, Connection, ForegroundSub, SessionBackend, SessionChild, SessionMaster,
+};
+
+// ── Protocol ─────────────────────────────────────────────────────────────────
+
+const T_DATA: u8 = 0;
+const T_RESIZE: u8 = 1;
+const T_KILL: u8 = 2;
+
+const RING_CAPACITY: usize = 256 * 1024;
+const CONNECT_TIMEOUT: Duration = Duration::from_millis(3000);
+const NAME_PREFIX: &str = "silo";
+
+fn write_frame<W: Write>(w: &mut W, tag: u8, payload: &[u8]) -> io::Result<()> {
+    w.write_all(&[tag])?;
+    w.write_all(&(payload.len() as u32).to_be_bytes())?;
+    w.write_all(payload)?;
+    w.flush()
+}
+
+fn read_frame<R: Read>(r: &mut R) -> io::Result<(u8, Vec<u8>)> {
+    let mut hdr = [0u8; 5];
+    r.read_exact(&mut hdr)?;
+    let tag = hdr[0];
+    let len = u32::from_be_bytes([hdr[1], hdr[2], hdr[3], hdr[4]]) as usize;
+    let mut payload = vec![0u8; len];
+    if len > 0 {
+        r.read_exact(&mut payload)?;
+    }
+    Ok((tag, payload))
+}
+
+// ── Paths ─────────────────────────────────────────────────────────────────────
+
+fn sessions_dir() -> Option<std::path::PathBuf> {
+    std::env::var("SILO_DATA_DIR")
+        .ok()
+        .map(|d| std::path::PathBuf::from(d).join("sessions"))
+}
+
+fn port_path(handle: &str) -> Option<std::path::PathBuf> {
+    sessions_dir().map(|d| d.join(format!("{}.port", handle)))
+}
+
+// ── Daemon (run_daemon is called from main.rs via silo_lib::run_win_session_host) ──
+
+fn kill_child(pid: u32) {
+    extern "system" {
+        fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut std::ffi::c_void;
+        fn TerminateProcess(handle: *mut std::ffi::c_void, exit_code: u32) -> i32;
+        fn CloseHandle(handle: *mut std::ffi::c_void) -> i32;
+    }
+    const PROCESS_TERMINATE: u32 = 0x0001;
+    unsafe {
+        let h = OpenProcess(PROCESS_TERMINATE, 0, pid);
+        if !h.is_null() {
+            TerminateProcess(h, 1);
+            CloseHandle(h);
+        }
+    }
+}
+
+pub fn run_daemon(
+    handle: &str,
+    cmd: Vec<String>,
+    cwd: &str,
+    cols: u16,
+    rows: u16,
+) -> Result<(), String> {
+    use portable_pty::{native_pty_system, CommandBuilder};
+
+    log_event("daemon_start", &format!("handle={handle} cwd={cwd}"));
+    let pty_system = native_pty_system();
+    let size = PtySize { rows, cols, pixel_width: 0, pixel_height: 0 };
+    let pty_pair = pty_system.openpty(size).map_err(|e| format!("openpty: {e}"))?;
+
+    let mut builder = CommandBuilder::new(&cmd[0]);
+    for arg in cmd.iter().skip(1) {
+        builder.arg(arg);
+    }
+    builder.cwd(cwd);
+
+    let child = pty_pair
+        .slave
+        .spawn_command(builder)
+        .map_err(|e| format!("spawn: {e}"))?;
+    drop(pty_pair.slave);
+
+    let child_pid = Arc::new(AtomicU32::new(child.process_id().unwrap_or(0)));
+    let pty_writer = pty_pair
+        .master
+        .take_writer()
+        .map_err(|e| format!("take_writer: {e}"))?;
+    let pty_reader = pty_pair
+        .master
+        .try_clone_reader()
+        .map_err(|e| format!("clone_reader: {e}"))?;
+    let master = Arc::new(Mutex::new(pty_pair.master));
+    let pty_writer = Arc::new(Mutex::new(pty_writer));
+
+    let ring: Arc<Mutex<VecDeque<u8>>> =
+        Arc::new(Mutex::new(VecDeque::with_capacity(RING_CAPACITY)));
+    let clients: Arc<Mutex<Vec<std::sync::mpsc::Sender<Vec<u8>>>>> =
+        Arc::new(Mutex::new(Vec::new()));
+
+    // PTY reader → ring + broadcast to all connected clients.
+    {
+        let ring = ring.clone();
+        let clients = clients.clone();
+        thread::spawn(move || {
+            let mut buf = [0u8; 4096];
+            let mut reader = pty_reader;
+            loop {
+                match reader.read(&mut buf) {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        let chunk = buf[..n].to_vec();
+                        {
+                            let mut r = ring.lock();
+                            r.extend(&chunk);
+                            while r.len() > RING_CAPACITY {
+                                r.pop_front();
+                            }
+                        }
+                        let mut senders = clients.lock();
+                        senders.retain(|tx| tx.send(chunk.clone()).is_ok());
+                    }
+                }
+            }
+        });
+    }
+
+    let listener =
+        TcpListener::bind("127.0.0.1:0").map_err(|e| format!("bind: {e}"))?;
+    let port = listener
+        .local_addr()
+        .map_err(|e| format!("local_addr: {e}"))?
+        .port();
+
+    let ppath = port_path(handle).ok_or("SILO_DATA_DIR not set")?;
+    if let Some(dir) = ppath.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("mkdir: {e}"))?;
+    }
+    std::fs::write(&ppath, port.to_string()).map_err(|e| format!("write port: {e}"))?;
+    log_event("daemon_port_written", &format!("handle={handle} port={port}"));
+
+    for incoming in listener.incoming() {
+        let Ok(stream) = incoming else { continue };
+        let ring = ring.clone();
+        let clients = clients.clone();
+        let pty_writer = pty_writer.clone();
+        let master = master.clone();
+        let child_pid = child_pid.clone();
+        let ppath = ppath.clone();
+
+        thread::spawn(move || {
+            let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+
+            // Register sender BEFORE ring replay so we don't miss live data.
+            clients.lock().push(tx);
+
+            // Per-client command reader.
+            if let Ok(mut cmd_stream) = stream.try_clone() {
+                let pty_writer = pty_writer.clone();
+                let master = master.clone();
+                let child_pid = child_pid.clone();
+                let ppath = ppath.clone();
+                thread::spawn(move || loop {
+                    match read_frame(&mut cmd_stream) {
+                        Ok((T_DATA, data)) => {
+                            let _ = pty_writer.lock().write_all(&data);
+                        }
+                        Ok((T_RESIZE, p)) if p.len() >= 4 => {
+                            let cols = u16::from_be_bytes([p[0], p[1]]);
+                            let rows = u16::from_be_bytes([p[2], p[3]]);
+                            let _ = master.lock().resize(PtySize {
+                                rows,
+                                cols,
+                                pixel_width: 0,
+                                pixel_height: 0,
+                            });
+                        }
+                        Ok((T_KILL, _)) => {
+                            let pid = child_pid.load(Ordering::Acquire);
+                            if pid != 0 {
+                                kill_child(pid);
+                            }
+                            let _ = std::fs::remove_file(&ppath);
+                            std::process::exit(0);
+                        }
+                        _ => break,
+                    }
+                });
+            }
+
+            // Replay ring.
+            let ring_data: Vec<u8> = ring.lock().iter().copied().collect();
+            if !ring_data.is_empty() {
+                let mut s = &stream;
+                let _ = write_frame(&mut s, T_DATA, &ring_data);
+            }
+
+            // Forward live output.
+            let mut s = stream;
+            for chunk in rx {
+                if write_frame(&mut s, T_DATA, &chunk).is_err() {
+                    break;
+                }
+            }
+        });
+    }
+
+    Ok(())
+}
+
+// ── Client-side SessionBackend ────────────────────────────────────────────────
+
+pub struct SessionWindowsBackend;
+
+impl SessionWindowsBackend {
+    fn spawn_daemon(
+        &self,
+        handle: &str,
+        cwd: &str,
+        size: PtySize,
+        command: Option<&[String]>,
+    ) -> Result<(), String> {
+        use std::os::windows::process::CommandExt;
+        const DETACHED_PROCESS: u32 = 0x0000_0008;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+        let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+        if let Some(dir) = sessions_dir() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+
+        let mut args = vec![
+            "--win-session-host".to_string(),
+            handle.to_string(),
+            cwd.to_string(),
+            size.cols.to_string(),
+            size.rows.to_string(),
+        ];
+        if let Some(argv) = command {
+            if !argv.is_empty() {
+                args.push("--".to_string());
+                args.extend_from_slice(argv);
+            }
+        }
+
+        std::process::Command::new(exe)
+            .args(&args)
+            .creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map_err(|e| format!("spawn daemon: {e}"))?;
+        Ok(())
+    }
+
+    fn connect(&self, handle: &str) -> Result<TcpStream, String> {
+        let ppath = port_path(handle).ok_or("SILO_DATA_DIR not set")?;
+        let deadline = Instant::now() + CONNECT_TIMEOUT;
+        loop {
+            if let Ok(s) = std::fs::read_to_string(&ppath) {
+                if let Ok(port) = s.trim().parse::<u16>() {
+                    match TcpStream::connect(format!("127.0.0.1:{port}")) {
+                        Ok(stream) => return Ok(stream),
+                        Err(_) if Instant::now() < deadline => {}
+                        Err(e) => return Err(format!("connect {handle}: {e}")),
+                    }
+                }
+            }
+            if Instant::now() >= deadline {
+                return Err(format!("timeout waiting for daemon {handle}"));
+            }
+            thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    fn connection_from(&self, stream: TcpStream) -> Result<Connection, String> {
+        let r = stream.try_clone().map_err(|e| e.to_string())?;
+        let w = stream.try_clone().map_err(|e| e.to_string())?;
+        let m = stream.try_clone().map_err(|e| e.to_string())?;
+        Ok(Connection {
+            reader: Box::new(TcpReader::new(r)),
+            writer: Box::new(TcpWriter(w)),
+            master: Box::new(TcpMaster(m)),
+            child: Box::new(TcpChild(stream)),
+        })
+    }
+}
+
+impl SessionBackend for SessionWindowsBackend {
+    fn handle_for(&self, session_id: &str) -> String {
+        format!(
+            "{}-{}",
+            NAME_PREFIX,
+            session_id.chars().take(8).collect::<String>()
+        )
+    }
+
+    fn create(
+        &self,
+        handle: &str,
+        cwd: &str,
+        size: PtySize,
+        command: Option<Vec<String>>,
+    ) -> Result<Connection, String> {
+        self.spawn_daemon(handle, cwd, size, command.as_deref())?;
+        log_event("win_daemon_spawned", &format!("handle={handle}"));
+        let stream = self.connect(handle)?;
+        log_event("win_create", &format!("handle={handle} cwd={cwd}"));
+        self.connection_from(stream)
+    }
+
+    fn attach(&self, handle: &str, size: PtySize) -> Result<Connection, String> {
+        let stream = self.connect(handle)?;
+        {
+            let mut s = &stream;
+            let mut p = Vec::with_capacity(4);
+            p.extend_from_slice(&size.cols.to_be_bytes());
+            p.extend_from_slice(&size.rows.to_be_bytes());
+            let _ = write_frame(&mut s, T_RESIZE, &p);
+        }
+        log_event("win_attach", &format!("handle={handle}"));
+        self.connection_from(stream)
+    }
+
+    fn exists(&self, handle: &str) -> bool {
+        let ppath = match port_path(handle) {
+            Some(p) => p,
+            None => return false,
+        };
+        if let Ok(s) = std::fs::read_to_string(&ppath) {
+            if let Ok(port) = s.trim().parse::<u16>() {
+                return TcpStream::connect(format!("127.0.0.1:{port}")).is_ok();
+            }
+        }
+        false
+    }
+
+    fn list(&self) -> Vec<String> {
+        let dir = match sessions_dir() {
+            Some(d) => d,
+            None => return vec![],
+        };
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            return vec![];
+        };
+        entries
+            .flatten()
+            .filter_map(|e| {
+                let p = e.path();
+                if p.extension()?.to_str()? != "port" {
+                    return None;
+                }
+                Some(p.file_stem()?.to_str()?.to_string())
+            })
+            .collect()
+    }
+
+    fn kill(&self, handle: &str) -> Result<(), String> {
+        if let Ok(mut stream) = self.connect(handle) {
+            let _ = write_frame(&mut stream, T_KILL, &[]);
+        }
+        if let Some(p) = port_path(handle) {
+            let _ = std::fs::remove_file(p);
+        }
+        Ok(())
+    }
+
+    fn subscribe_foreground(&self, _handle: &str) -> Option<Box<dyn ForegroundSub>> {
+        None
+    }
+}
+
+// ── TCP adapters ──────────────────────────────────────────────────────────────
+
+struct TcpReader {
+    stream: TcpStream,
+    buf: Vec<u8>,
+    pos: usize,
+}
+
+impl TcpReader {
+    fn new(stream: TcpStream) -> Self {
+        TcpReader { stream, buf: Vec::new(), pos: 0 }
+    }
+}
+
+impl Read for TcpReader {
+    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+        loop {
+            if self.pos < self.buf.len() {
+                let n = std::cmp::min(out.len(), self.buf.len() - self.pos);
+                out[..n].copy_from_slice(&self.buf[self.pos..self.pos + n]);
+                self.pos += n;
+                return Ok(n);
+            }
+            match read_frame(&mut self.stream) {
+                Ok((T_DATA, payload)) => {
+                    if payload.is_empty() {
+                        continue;
+                    }
+                    self.buf = payload;
+                    self.pos = 0;
+                }
+                Ok(_) => continue,
+                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => return Ok(0),
+                Err(e) if e.kind() == io::ErrorKind::ConnectionReset => return Ok(0),
+                Err(e) if e.kind() == io::ErrorKind::ConnectionAborted => return Ok(0),
+                Err(e) => return Err(e),
+            }
+        }
+    }
+}
+
+struct TcpWriter(TcpStream);
+
+impl Write for TcpWriter {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        write_frame(&mut self.0, T_DATA, buf)?;
+        Ok(buf.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        self.0.flush()
+    }
+}
+
+struct TcpMaster(TcpStream);
+
+impl SessionMaster for TcpMaster {
+    fn resize(&self, size: PtySize) -> Result<(), String> {
+        let mut s = &self.0;
+        let mut p = Vec::with_capacity(4);
+        p.extend_from_slice(&size.cols.to_be_bytes());
+        p.extend_from_slice(&size.rows.to_be_bytes());
+        write_frame(&mut s, T_RESIZE, &p).map_err(|e| e.to_string())
+    }
+}
+
+struct TcpChild(TcpStream);
+
+impl SessionChild for TcpChild {
+    fn kill(&mut self) -> Result<(), String> {
+        self.0.shutdown(Shutdown::Both).map_err(|e| e.to_string())
+    }
+}

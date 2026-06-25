@@ -28,21 +28,16 @@ export class TauriTerminalClient {
     const cols = opts.cols ?? 120;
     const rows = opts.rows ?? 40;
 
-    try {
-      const sessionId = await invoke<string>("terminal_create", {
-        cwd,
-        cols,
-        rows,
-        command: opts.command,
-      });
+    const sessionId = await invoke<string>("terminal_create", {
+      cwd,
+      cols,
+      rows,
+      command: opts.command,
+    });
 
-      // Set up event listeners for this session
-      await this.setupSessionListeners(sessionId);
+    await this.setupSessionListeners(sessionId);
 
-      return { sessionId };
-    } catch (err) {
-      throw err;
-    }
+    return { sessionId };
   }
 
   async attachTerminal(
@@ -59,7 +54,6 @@ export class TauriTerminalClient {
         rows,
       });
 
-      // Set up event listeners for this session
       await this.setupSessionListeners(sessionId);
 
       return { sessionId };
@@ -173,6 +167,11 @@ export class TauriTerminalClient {
   onOutput(sessionId: string, cb: OutputListener): () => void {
     let set = this.outputListeners.get(sessionId);
     if (!set) {
+      // First listener for this session. Start the backend reader thread now,
+      // so that the first output bytes can't arrive before this callback is
+      // in place. On non-Windows the command is a no-op. Fire-and-forget —
+      // the Rust side is idempotent (AtomicBool swap) so double calls are safe.
+      invoke("terminal_start_stream", { sessionId }).catch(() => {});
       set = new Set();
       this.outputListeners.set(sessionId, set);
     }

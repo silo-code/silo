@@ -32,5 +32,32 @@ fn main() {
             std::process::exit(0);
         }
     }
+    // Windows ConPTY daemon: re-exec'd with `--win-session-host <handle> <cwd> <cols> <rows> [-- <cmd...>]`
+    #[cfg(windows)]
+    {
+        let args: Vec<String> = std::env::args().collect();
+        if args.get(1).map(|s| s.as_str()) == Some("--win-session-host") {
+            let handle = args.get(2).cloned().unwrap_or_default();
+            let cwd = args.get(3).cloned().unwrap_or_else(|| "C:\\".to_string());
+            let cols = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(80u16);
+            let rows = args.get(5).and_then(|s| s.parse().ok()).unwrap_or(24u16);
+            let default_shell =
+                std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
+            let cmd = match args.iter().position(|a| a == "--") {
+                Some(pos) if pos + 1 < args.len() => {
+                    let mut c = args[pos + 1..].to_vec();
+                    if c[0].is_empty() {
+                        c[0] = default_shell.clone();
+                    }
+                    c
+                }
+                _ => vec![default_shell],
+            };
+            if let Err(e) = silo_lib::run_win_session_host(&handle, cmd, &cwd, cols, rows) {
+                eprintln!("[daemon] fatal: {e}");
+            }
+            std::process::exit(0);
+        }
+    }
     silo_lib::run()
 }

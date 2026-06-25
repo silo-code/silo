@@ -91,14 +91,16 @@ pub trait SessionBackend: Send + Sync {
     fn subscribe_foreground(&self, handle: &str) -> Option<Box<dyn ForegroundSub>>;
 }
 
-/// The active session backend: the self-owned PTY host (RFC 0010). Terminals are
-/// a Unix capability for now — Windows (ConPTY) is future work.
 pub fn active_backend() -> Box<dyn SessionBackend> {
     #[cfg(unix)]
     {
         Box::new(super::session_host::SessionHostBackend)
     }
-    #[cfg(not(unix))]
+    #[cfg(windows)]
+    {
+        Box::new(super::session_windows::SessionWindowsBackend)
+    }
+    #[cfg(not(any(unix, windows)))]
     {
         unimplemented!("no terminal session backend on this platform")
     }
