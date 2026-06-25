@@ -125,11 +125,29 @@ function activate(ctx: ExtensionContext) {
     if (oscSubs.has(terminalId)) return;
     const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
       if (code === 0) {
-        // Claude Code / OSC 0 title-based status encoding
+        // OSC 0 title-based status encoding.
+        //
+        // Claude Code: braille first char → busy; ✳ first char → idle.
+        // Codex CLI: same braille spinner frames → busy; plain project name → idle;
+        //   "[ ! ] Action Required …" → needs user approval; empty payload → exited.
+        //
+        // Braille working resets a debounce timer so Codex (which has no explicit
+        // done signal) clears to "waiting" after SHELL_IDLE_MS of title silence.
         const first = payload.charCodeAt(0);
         if (first >= BRAILLE_START && first <= BRAILLE_END) {
           setAutoStatus(terminalId, "working");
+          scheduleShellIdle(terminalId);
         } else if (payload.startsWith(IDLE_CHAR)) {
+          // Claude Code explicit idle signal.
+          clearShellIdleTimer(terminalId);
+          setAutoStatus(terminalId, "waiting");
+        } else if (
+          payload === "" ||
+          payload.startsWith("[ ! ]") ||
+          payload.startsWith("[ . ]")
+        ) {
+          // Codex: empty = exited/teardown; "[ ! ]"/"[ . ]" = action required.
+          clearShellIdleTimer(terminalId);
           setAutoStatus(terminalId, "waiting");
         }
       } else if (code === 9 && payload.startsWith(OSC9_PROGRESS_PREFIX)) {
@@ -143,6 +161,13 @@ function activate(ctx: ExtensionContext) {
         } else if (state === 0 || state === 4) {
           setAutoStatus(terminalId, "waiting");
         }
+      } else if (code === 9 && !payload.startsWith(OSC9_PROGRESS_PREFIX)) {
+        // Codex CLI OSC 9 desktop notifications (iTerm2/Ghostty style).
+        // Emitted when TERM_PROGRAM=iTerm.app: "Agent turn complete",
+        // "Approval requested: …", "Codex wants to edit …".
+        // All of these mean Codex has stopped working and needs attention.
+        clearShellIdleTimer(terminalId);
+        setAutoStatus(terminalId, "waiting");
       } else if (code === 133) {
         // OSC 133 shell integration (FTCS / iTerm2 / zsh+bash shell integration).
         // C = command output starting → working; A = prompt shown / D = done → waiting.
