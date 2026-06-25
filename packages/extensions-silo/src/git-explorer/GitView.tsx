@@ -641,20 +641,22 @@ export function GitView({
         </button>
       ) : (
         <div className="git-branch">
-          {status?.inRepo ? (
-            <Tooltip content="Manage branches">
-              <button
-                className="branch-name branch-name-button"
-                onClick={openBranchManager}
-              >
-                {status.branch ?? "(detached)"}
-              </button>
-            </Tooltip>
-          ) : (
-            <span className="branch-name">
-              {status ? (status.branch ?? "(detached)") : "Loading…"}
-            </span>
-          )}
+          <span className="git-branch-name-wrap">
+            {status?.inRepo ? (
+              <Tooltip content="Manage branches">
+                <button
+                  className="branch-name branch-name-button"
+                  onClick={openBranchManager}
+                >
+                  {status.branch ?? "(detached)"}
+                </button>
+              </Tooltip>
+            ) : (
+              <span className="branch-name">
+                {status ? (status.branch ?? "(detached)") : "Loading…"}
+              </span>
+            )}
+          </span>
           {/* Where the remote state lives: published → the ↑/↓ counts double as
               a Sync button; not yet published → a Publish-branch button. */}
           {status?.upstream ? (
@@ -679,7 +681,6 @@ export function GitView({
               </button>
             </Tooltip>
           ) : null}
-          <span className="spacer" />
           <Tooltip content="Refresh">
             <button
               className={`branch-action refresh-btn${busy ? " working" : ""}`}
