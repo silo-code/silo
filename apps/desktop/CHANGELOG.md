@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/silo-code/silo/compare/silo-v0.11.0...silo-v0.12.0) (2026-06-25)
+
+
+### Features
+
+* **terminal-monitor:** auto-detect agent status via OSC sequences ([#89](https://github.com/silo-code/silo/issues/89)) ([ec80887](https://github.com/silo-code/silo/commit/ec80887dba5a669682d7b3b67e0debd4245f59db))
+
+
+### Bug Fixes
+
+* **git:** split multi-root header into two rows with truncation ([#92](https://github.com/silo-code/silo/issues/92)) ([0e2ea33](https://github.com/silo-code/silo/commit/0e2ea3369301ebaff949d34b58217dc016c21da1))
+
 ## [0.11.0](https://github.com/silo-code/silo/compare/silo-v0.10.0...silo-v0.11.0) (2026-06-25)
 
 
