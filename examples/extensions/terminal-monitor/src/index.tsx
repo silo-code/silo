@@ -6,37 +6,9 @@ import type {
 } from "@silo-code/sdk";
 import { TerminalMonitorPanel } from "./TerminalMonitorPanel";
 import type { IconChoice } from "./types";
+import { AGENT_DETECTORS } from "./osc-detectors";
 
 const STYLE_ID = "silo-terminal-monitor-styles";
-
-// OSC 0 title encoding used by Claude Code (and compatible agent CLIs):
-// - Braille block characters (U+2800–U+28FF) as the first character → agent is busy/running
-// - ✳ (U+2733) as the first character → agent is idle, waiting for input
-const BRAILLE_START = 0x2800;
-const BRAILLE_END = 0x28ff;
-const IDLE_CHAR = "\u2733"; // ✳
-
-// OSC 9 progress protocol (ConEmu / Windows Terminal / GitHub Copilot CLI):
-// Payload format: "4;<state>" or "4;<state>;<progress>"
-// Copilot emits state=3 while running and state=0 when done;
-// we treat states 1/2/3 as working and 0/4 as waiting.
-const OSC9_PROGRESS_PREFIX = "4;";
-
-// OSC 9 desktop notifications emitted by Codex CLI when TERM_PROGRAM=iTerm.app.
-// These are the only non-progress OSC 9 payloads we treat as status signals —
-// matching on known strings prevents random OSC 9 from other programs (fish
-// shell notifications, scripts, vim plugins) from stomping an active status.
-const CODEX_DONE_PAYLOADS = [
-  "Agent turn complete",
-  "Approval requested",
-  "Codex wants to edit",
-];
-
-// OSC 133 shell integration protocol (FTCS / iTerm2 / zsh/bash with shell integration):
-// A=prompt start, B=command entered, C=command output start, D[;exit]=command done
-// C → working, A/D → waiting (at prompt)
-const OSC133_WORKING = "C"; // output started — command is running
-const OSC133_IDLE_A = "A"; // prompt mark — shell is idle
 
 function choiceToStatus(
   choice: IconChoice | undefined,
@@ -134,67 +106,13 @@ function activate(ctx: ExtensionContext) {
   function subscribeTerminalOsc(terminalId: string) {
     if (oscSubs.has(terminalId)) return;
     const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
-      if (code === 0) {
-        // OSC 0 title-based status encoding.
-        //
-        // Claude Code: braille first char → busy; ✳ first char → idle.
-        // Codex CLI: same braille spinner frames → busy; plain project name → idle;
-        //   "[ ! ] Action Required …" → needs user approval; empty payload → exited.
-        //
-        // Braille working resets a debounce timer so Codex (which has no explicit
-        // done signal) clears to "waiting" after SHELL_IDLE_MS of title silence.
-        const first = payload.charCodeAt(0);
-        if (first >= BRAILLE_START && first <= BRAILLE_END) {
-          setAutoStatus(terminalId, "working");
-          scheduleShellIdle(terminalId);
-        } else if (payload.startsWith(IDLE_CHAR)) {
-          // Claude Code explicit idle signal.
-          clearShellIdleTimer(terminalId);
-          setAutoStatus(terminalId, "waiting");
-        } else if (
-          payload === "" ||
-          payload.startsWith("[ ! ]") ||
-          payload.startsWith("[ . ]")
-        ) {
-          // Codex: empty = exited/teardown; "[ ! ]"/"[ . ]" = action required.
-          clearShellIdleTimer(terminalId);
-          setAutoStatus(terminalId, "waiting");
-        }
-      } else if (code === 9 && payload.startsWith(OSC9_PROGRESS_PREFIX)) {
-        // GitHub Copilot CLI / ConEmu OSC 9;4 progress protocol.
-        // Payload: "4;<state>;<progress%>" (progress may be absent).
-        // Copilot emits state=3 while actively running and state=0 when done,
-        // so we treat states 1/2/3 as working and 0/4 as waiting.
-        const state = parseInt(payload.slice(OSC9_PROGRESS_PREFIX.length), 10);
-        if (state === 1 || state === 2 || state === 3) {
-          setAutoStatus(terminalId, "working");
-        } else if (state === 0 || state === 4) {
-          setAutoStatus(terminalId, "waiting");
-        }
-      } else if (
-        code === 9 &&
-        CODEX_DONE_PAYLOADS.some((p) => payload.startsWith(p))
-      ) {
-        // Codex CLI OSC 9 desktop notifications (iTerm2/Ghostty style).
-        // Only match known Codex payload prefixes to avoid stomping an active
-        // Copilot "working" state on unrelated OSC 9 from other programs.
-        clearShellIdleTimer(terminalId);
-        setAutoStatus(terminalId, "waiting");
-      } else if (code === 133) {
-        // OSC 133 shell integration (FTCS / iTerm2 / zsh+bash shell integration).
-        // C = command output starting → working; A = prompt shown / D = done → waiting.
-        // A and D may carry extra params (e.g. "A;k=s" in kitty protocol), so use startsWith.
-        // Some agents (e.g. pi) never emit A/D on completion — scheduleShellIdle() clears
-        // the status after SHELL_IDLE_MS of silence following the last C.
-        if (payload === OSC133_WORKING) {
-          setAutoStatus(terminalId, "working");
-          scheduleShellIdle(terminalId);
-        } else if (
-          payload.startsWith(OSC133_IDLE_A) ||
-          payload.startsWith("D")
-        ) {
-          clearShellIdleTimer(terminalId);
-          setAutoStatus(terminalId, "waiting");
+      for (const detect of AGENT_DETECTORS) {
+        const result = detect(code, payload);
+        if (result) {
+          if (result.timer === "schedule") scheduleShellIdle(terminalId);
+          else if (result.timer === "clear") clearShellIdleTimer(terminalId);
+          setAutoStatus(terminalId, result.status);
+          break;
         }
       }
     });
