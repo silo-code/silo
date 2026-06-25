@@ -74,7 +74,18 @@
   font-size: var(--silo-font-size-base);
   color: var(--silo-color-text);
 }
+.git-branch-name-wrap {
+  flex: 1;
+  min-width: 0;
+}
+.git-branch-name-wrap .silo-tooltip-host {
+  display: block;
+}
 .git-branch .branch-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 600;
   color: var(--silo-color-text-hi);
 }
@@ -84,9 +95,13 @@
   appearance: none;
   background: transparent;
   border: none;
-  display: inline-flex;
-  align-items: center;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   height: 26px;
+  line-height: 26px;
   padding: 0 4px;
   /* Cancel the padding so the text still sits flush with the panel edge while
      the hover rect matches the sibling buttons' height + padding. */
@@ -111,9 +126,6 @@
 }
 .git-branch .branch-tracking {
   color: var(--silo-color-text-lo);
-}
-.git-branch .spacer {
-  flex: 1;
 }
 
 /* Multi-root: wrapper holding the sync/publish control next to the branch. */
