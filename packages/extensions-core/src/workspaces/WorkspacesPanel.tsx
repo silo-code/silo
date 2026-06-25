@@ -8,7 +8,10 @@ import {
   type MenuEntry,
   type WorkspaceStatusRow,
 } from "@silo-code/sdk";
-import { homeDir } from "@silo-code/extension-host/internal";
+import {
+  homeDir,
+  workspaceSectionRegistry,
+} from "@silo-code/extension-host/internal";
 import {
   fullPath,
   FrontTruncatedPath,
@@ -56,6 +59,11 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   useEffect(() => {
     return service.subscribeDecorations(() => setDecorationTick((t) => t + 1))
       .dispose;
+  }, [service]);
+  // Re-render when section providers are registered or unregistered.
+  const [, setSectionTick] = useState(0);
+  useEffect(() => {
+    return service.subscribeSection(() => setSectionTick((t) => t + 1)).dispose;
   }, [service]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
@@ -253,6 +261,12 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                     )}
                   </div>
                   <WorkspaceStatusRows rows={service.getDecorations(ws.id)} />
+                  <div className="ws-sections">
+                    {workspaceSectionRegistry.list().map((p) => {
+                      const Comp = p.component;
+                      return <Comp key={p.id} workspaceId={ws.id} />;
+                    })}
+                  </div>
                   <Tooltip content="Close workspace">
                     <button
                       className="ws-close"

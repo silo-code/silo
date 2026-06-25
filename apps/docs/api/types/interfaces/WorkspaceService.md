@@ -1,6 +1,6 @@
 # Interface: WorkspaceService
 
-Defined in: [packages/sdk/src/workspace-service.ts:90](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L90)
+Defined in: [packages/sdk/src/workspace-service.ts:123](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L123)
 
 Consumer API for workspace state, exposed as [ExtensionContext.workspaces](ExtensionContext.md#workspaces).
 Read via [getState](#getstate) /
@@ -16,7 +16,7 @@ not here.
 getState(): WorkspaceState;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:92](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L92)
+Defined in: [packages/sdk/src/workspace-service.ts:125](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L125)
 
 Current frozen view of workspace state.
 
@@ -32,7 +32,7 @@ Current frozen view of workspace state.
 subscribe(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:93](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L93)
+Defined in: [packages/sdk/src/workspace-service.ts:126](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L126)
 
 #### Parameters
 
@@ -52,7 +52,7 @@ Defined in: [packages/sdk/src/workspace-service.ts:93](https://github.com/silo-c
 get(id): Workspace | undefined;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L98)
+Defined in: [packages/sdk/src/workspace-service.ts:131](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L131)
 
 The workspace with this id, or `undefined`. A one-shot lookup for event
 handlers; for reactive reads use [useServiceState](../functions/useServiceState.md) over the state.
@@ -75,7 +75,7 @@ handlers; for reactive reads use [useServiceState](../functions/useServiceState.
 createFromFolderPicker(): Promise<Workspace | null>;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:100](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L100)
+Defined in: [packages/sdk/src/workspace-service.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L133)
 
 Show a folder picker and create a workspace from the chosen folder.
 
@@ -91,7 +91,7 @@ Show a folder picker and create a workspace from the chosen folder.
 create(input): Workspace;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:101](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L101)
+Defined in: [packages/sdk/src/workspace-service.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L134)
 
 #### Parameters
 
@@ -111,7 +111,7 @@ Defined in: [packages/sdk/src/workspace-service.ts:101](https://github.com/silo-
 rename(id, name): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L102)
+Defined in: [packages/sdk/src/workspace-service.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L135)
 
 #### Parameters
 
@@ -138,7 +138,7 @@ reorder(
    position): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:103](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L103)
+Defined in: [packages/sdk/src/workspace-service.ts:136](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L136)
 
 #### Parameters
 
@@ -166,7 +166,7 @@ Defined in: [packages/sdk/src/workspace-service.ts:103](https://github.com/silo-
 activate(id): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:105](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L105)
+Defined in: [packages/sdk/src/workspace-service.ts:138](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L138)
 
 Activate (and reopen if closed).
 
@@ -188,7 +188,7 @@ Activate (and reopen if closed).
 close(id): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:107](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L107)
+Defined in: [packages/sdk/src/workspace-service.ts:140](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L140)
 
 Soft close — workspace stays saved but is hidden from the active list.
 
@@ -210,7 +210,7 @@ Soft close — workspace stays saved but is hidden from the active list.
 reopen(id): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:109](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L109)
+Defined in: [packages/sdk/src/workspace-service.ts:142](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L142)
 
 Reverse of close.
 
@@ -232,7 +232,7 @@ Reverse of close.
 addFolder(id, folder): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:111](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L111)
+Defined in: [packages/sdk/src/workspace-service.ts:144](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L144)
 
 Add an extra folder to a workspace (no-op if already present or is the primary).
 
@@ -258,7 +258,7 @@ Add an extra folder to a workspace (no-op if already present or is the primary).
 removeFolder(id, folder): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L113)
+Defined in: [packages/sdk/src/workspace-service.ts:146](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L146)
 
 Remove an extra folder from a workspace.
 
@@ -284,7 +284,7 @@ Remove an extra folder from a workspace.
 delete(id): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:115](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L115)
+Defined in: [packages/sdk/src/workspace-service.ts:148](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L148)
 
 Hard delete — permanent removal.
 
@@ -306,7 +306,7 @@ Hard delete — permanent removal.
 registerDecoration(provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L137)
+Defined in: [packages/sdk/src/workspace-service.ts:170](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L170)
 
 Register a decoration provider that contributes status rows to workspace
 rows in the Workspaces side panel. Multiple providers may be registered;
@@ -346,7 +346,7 @@ ctx.subscriptions.push(
 getDecorations(workspaceId): WorkspaceStatusRow[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:144](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L144)
+Defined in: [packages/sdk/src/workspace-service.ts:177](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L177)
 
 Concatenate all registered providers' rows for one workspace (in
 registration order). Called synchronously during panel render — providers
@@ -370,7 +370,7 @@ must be fast and side-effect-free.
 invalidateDecorations(): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:153](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L153)
+Defined in: [packages/sdk/src/workspace-service.ts:186](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L186)
 
 Signal that decoration data has changed. Fires all listeners registered
 via [WorkspaceService.subscribeDecorations](#subscribedecorations), causing the Workspaces
@@ -390,7 +390,7 @@ Call this after any mutation to the state your `provide` function reads.
 subscribeDecorations(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:163](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L163)
+Defined in: [packages/sdk/src/workspace-service.ts:196](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L196)
 
 Subscribe to decoration invalidations. The listener is called whenever
 [WorkspaceService.invalidateDecorations](#invalidatedecorations) is invoked. Returns a
@@ -398,6 +398,75 @@ Subscribe to decoration invalidations. The listener is called whenever
 
 The Workspaces panel subscribes internally; extensions may also subscribe
 to observe invalidations.
+
+#### Parameters
+
+##### listener
+
+() => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+***
+
+### registerSection()
+
+```ts
+registerSection(provider): Disposable;
+```
+
+Defined in: [packages/sdk/src/workspace-service.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L220)
+
+Register a section provider that mounts a React component inside workspace
+rows in the Workspaces side panel. Returns a [Disposable](Disposable.md) that
+unregisters the provider and unmounts the component from all rows.
+
+Return `null` from your component for workspaces where the section should
+not appear — this produces no DOM node and no visual gap.
+
+#### Parameters
+
+##### provider
+
+[`WorkspaceSectionProvider`](WorkspaceSectionProvider.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Example
+
+```tsx
+ctx.subscriptions.push(
+  ctx.workspaces.registerSection({
+    id: "my-ext.section",
+    component: ({ workspaceId }) => {
+      const ws = ctx.workspaces.get(workspaceId);
+      if (!ws?.terminals.length) return null;
+      return <MyCard terminals={ws.terminals} />;
+    },
+  }),
+);
+```
+
+***
+
+### subscribeSection()
+
+```ts
+subscribeSection(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/workspace-service.ts:230](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L230)
+
+Subscribe to section registration changes. The listener is called whenever
+a [WorkspaceSectionProvider](WorkspaceSectionProvider.md) is registered or unregistered. Returns a
+[Disposable](Disposable.md) that cancels the subscription.
+
+The Workspaces panel subscribes internally to re-render when providers
+are added or removed.
 
 #### Parameters
 

@@ -82,6 +82,8 @@ the published reference is exactly this surface — no more, no less.
 - [ReactiveService](interfaces/ReactiveService.md)
 - [useServiceState](functions/useServiceState.md)
 - [WorkspaceStatusRow](interfaces/WorkspaceStatusRow.md)
+- [WorkspaceSectionProps](interfaces/WorkspaceSectionProps.md)
+- [WorkspaceSectionProvider](interfaces/WorkspaceSectionProvider.md)
 - [WorkspaceDecorationProvider](interfaces/WorkspaceDecorationProvider.md)
 - [WorkspaceState](interfaces/WorkspaceState.md)
 - [CreateWorkspaceInput](interfaces/CreateWorkspaceInput.md)

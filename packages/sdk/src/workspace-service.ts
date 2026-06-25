@@ -27,6 +27,39 @@ export interface WorkspaceStatusRow {
 }
 
 /**
+ * Props passed to a {@link WorkspaceSectionProvider} component for each
+ * workspace row it is mounted in.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface WorkspaceSectionProps {
+  /** The id of the workspace whose row this component is rendering inside. */
+  workspaceId: string;
+}
+
+/**
+ * A section provider that mounts a React component inside workspace rows in the
+ * Workspaces side panel. Register via {@link WorkspaceService.registerSection}.
+ *
+ * Sections appear below the path line and any status-row decorations. Multiple
+ * providers stack vertically in ascending {@link WorkspaceSectionProvider.order}
+ * order. Return `null` from your component for workspaces where the section
+ * should not appear — this produces no DOM node and no visual gap.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface WorkspaceSectionProvider {
+  /** Unique id, conventionally `"<extension-id>.section"`. */
+  id: string;
+  /** The React component mounted once per workspace row. */
+  component: React.ComponentType<WorkspaceSectionProps>;
+  /** Sort order among sections. Lower values appear first. Defaults to `0`. */
+  order?: number;
+}
+
+/**
  * A decoration provider that contributes {@link WorkspaceStatusRow}s to
  * workspace rows in the Workspaces side panel. Register via
  * {@link WorkspaceService.registerDecoration}.
@@ -161,4 +194,38 @@ export interface WorkspaceService {
    * to observe invalidations.
    */
   subscribeDecorations(listener: () => void): Disposable;
+
+  /**
+   * Register a section provider that mounts a React component inside workspace
+   * rows in the Workspaces side panel. Returns a {@link Disposable} that
+   * unregisters the provider and unmounts the component from all rows.
+   *
+   * Return `null` from your component for workspaces where the section should
+   * not appear — this produces no DOM node and no visual gap.
+   *
+   * @example
+   * ```tsx
+   * ctx.subscriptions.push(
+   *   ctx.workspaces.registerSection({
+   *     id: "my-ext.section",
+   *     component: ({ workspaceId }) => {
+   *       const ws = ctx.workspaces.get(workspaceId);
+   *       if (!ws?.terminals.length) return null;
+   *       return <MyCard terminals={ws.terminals} />;
+   *     },
+   *   }),
+   * );
+   * ```
+   */
+  registerSection(provider: WorkspaceSectionProvider): Disposable;
+
+  /**
+   * Subscribe to section registration changes. The listener is called whenever
+   * a {@link WorkspaceSectionProvider} is registered or unregistered. Returns a
+   * {@link Disposable} that cancels the subscription.
+   *
+   * The Workspaces panel subscribes internally to re-render when providers
+   * are added or removed.
+   */
+  subscribeSection(listener: () => void): Disposable;
 }

@@ -17,8 +17,10 @@ import type {
   WorkspaceState,
   WorkspaceService,
   WorkspaceDecorationProvider,
+  WorkspaceSectionProvider,
 } from "@silo-code/sdk";
 import { workspaceDecorationRegistry } from "./workspace-decoration-registry";
+import { workspaceSectionRegistry } from "./workspace-section-registry";
 
 // `ctx.workspaces` — the public contract lives in @silo-code/sdk
 // (workspace-service.ts); this is the host implementation.
@@ -100,6 +102,12 @@ export function getWorkspaceService(): WorkspaceService {
     ),
     subscribeDecorations: workspaceDecorationRegistry.subscribe.bind(
       workspaceDecorationRegistry,
+    ),
+    registerSection(provider: WorkspaceSectionProvider) {
+      return workspaceSectionRegistry.register(provider);
+    },
+    subscribeSection: workspaceSectionRegistry.subscribe.bind(
+      workspaceSectionRegistry,
     ),
   };
   return service;
