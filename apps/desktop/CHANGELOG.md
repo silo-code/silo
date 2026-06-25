@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.11.0](https://github.com/silo-code/silo/compare/silo-v0.10.0...silo-v0.11.0) (2026-06-25)
+
+
+### Features
+
+* **terminal:** add Windows ConPTY backend ([#85](https://github.com/silo-code/silo/issues/85)) ([1751a3f](https://github.com/silo-code/silo/commit/1751a3f7153c54b6d18180ce907859217109c9bb))
+* **windows:** sync caption bar and title-bar theme with app colors ([#86](https://github.com/silo-code/silo/issues/86)) ([28a6db7](https://github.com/silo-code/silo/commit/28a6db7f7604f0dcdb7ba48d9e4bfd5f138eadc8))
+
+
+### Bug Fixes
+
+* **windows:** normalize path separators to forward slashes throughout ([#83](https://github.com/silo-code/silo/issues/83)) ([8ad0860](https://github.com/silo-code/silo/commit/8ad08605b0b1737852759478eb499f34fe7a575a))
+
 ## [0.10.0](https://github.com/silo-code/silo/compare/silo-v0.9.0...silo-v0.10.0) (2026-06-24)
 
 

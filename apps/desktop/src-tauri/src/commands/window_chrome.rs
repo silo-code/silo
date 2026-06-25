@@ -25,7 +25,7 @@ const DWMWA_CAPTION_COLOR: u32 = 35;
 pub fn window_set_caption_color(window: tauri::WebviewWindow, r: u8, g: u8, b: u8) {
     #[cfg(windows)]
     {
-        use tauri::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
         let Ok(handle) = window.window_handle() else {
             return;

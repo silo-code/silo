@@ -1,6 +1,6 @@
 [package]
 name = "silo"
-version = "0.10.0" # x-release-please-version
+version = "0.11.0" # x-release-please-version
 description = "Silo — a local-first, extensible code editor."
 authors = ["Dave Weaver"]
 license = "MIT"
@@ -59,6 +59,9 @@ base64 = { version = "0.22", optional = true }
 # the app self-forks into its daemon via the hidden `--session-host` flag.
 [target.'cfg(unix)'.dependencies]
 pty-host = { path = "../../../crates/pty-host" }
+
+[target.'cfg(windows)'.dependencies]
+raw-window-handle = "0.6"
 
 # macOS-only: Shift-state monitor. AppKit's NSEvent local monitor goes
 # silent during an HTML5 drag (the webview's drag session captures the

@@ -4546,7 +4546,7 @@ dependencies = [
 
 [[package]]
 name = "silo"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "base64 0.22.1",
  "core-graphics",
@@ -4560,6 +4560,7 @@ dependencies = [
  "parking_lot",
  "portable-pty",
  "pty-host",
+ "raw-window-handle",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
