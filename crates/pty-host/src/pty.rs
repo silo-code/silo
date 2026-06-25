@@ -47,6 +47,12 @@ pub fn fork_pty(cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Result<Pty, 
         unsafe {
             set_env("TERM", "xterm-256color");
             set_env("COLORTERM", "truecolor");
+            // iTerm.app identity: Claude Code (and other agent CLIs) check
+            // TERM_PROGRAM to decide whether to emit OSC 0 spinner/idle title
+            // sequences and OSC 9 attention notifications. Without it the status
+            // signals are suppressed and background-terminal monitoring is blind.
+            set_env("TERM_PROGRAM", "iTerm.app");
+            set_env("TERM_PROGRAM_VERSION", "3.6.6");
             if let Ok(c) = CString::new(cwd) {
                 libc::chdir(c.as_ptr());
             }

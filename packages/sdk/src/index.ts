@@ -83,6 +83,7 @@ export type {
   TerminalRecord,
   TerminalTabDecoration,
   TerminalTabDecorationProvider,
+  OscEvent,
 } from "./terminal-service";
 export type { FileService, FileMeta, FileChangeEvent } from "./file-service";
 // Cross-file content search exposed on the ExtensionContext as `ctx.search`.

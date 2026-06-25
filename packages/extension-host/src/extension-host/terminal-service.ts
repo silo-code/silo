@@ -8,6 +8,7 @@ import { tauriTerminalClient } from "../services/tauri-terminal-client";
 import type {
   TerminalService,
   TerminalTabDecorationProvider,
+  OscEvent,
 } from "@silo-code/sdk";
 import { terminalTabDecorationRegistry } from "./terminal-tab-decoration-registry";
 import { focusCenterDock, getActiveDockApi } from "../docked/dock-api-registry";
@@ -72,6 +73,49 @@ export function getTerminalService(): TerminalService {
     subscribeTabDecorations: terminalTabDecorationRegistry.subscribe.bind(
       terminalTabDecorationRegistry,
     ),
+    subscribeOsc(terminalId: string, handler: (event: OscEvent) => void) {
+      // Resolve the terminal record → its live sessionId. The sessionId may
+      // change if the terminal is recreated, so we re-resolve on each event
+      // rather than capturing it at subscribe time.
+      const getSessionId = () => {
+        for (const ws of Object.values(store.workspaces)) {
+          const rec = ws?.terminals.find((t) => t.id === terminalId);
+          if (rec?.sessionId) return rec.sessionId;
+        }
+        return null;
+      };
+
+      // We need to know the sessionId upfront to start the client listener. If
+      // the terminal hasn't spawned yet (sessionId is ""), wait briefly then
+      // retry. Most callers subscribe after the terminal is open, so this is
+      // typically a no-op.
+      let unsub: (() => void) | null = null;
+
+      const attach = () => {
+        const sid = getSessionId();
+        if (!sid) return;
+        unsub = tauriTerminalClient.onOsc(sid, handler);
+      };
+
+      attach();
+
+      // If the terminal wasn't ready yet, poll until it has a sessionId.
+      // Stop after 10 s to avoid leaking if the terminal never spawns.
+      let attempts = 0;
+      const poll = unsub
+        ? null
+        : window.setInterval(() => {
+            attach();
+            if (unsub || ++attempts > 100) window.clearInterval(poll!);
+          }, 100);
+
+      return {
+        dispose() {
+          if (poll !== null) window.clearInterval(poll);
+          unsub?.();
+        },
+      };
+    },
   };
   return service;
 }

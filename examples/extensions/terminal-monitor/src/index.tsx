@@ -6,6 +6,8 @@ import type {
 } from "@silo-code/sdk";
 import { TerminalMonitorPanel } from "./TerminalMonitorPanel";
 import type { IconChoice } from "./types";
+import { AGENT_DETECTORS } from "./osc-detectors";
+import styles from "./styles.css";
 
 const STYLE_ID = "silo-terminal-monitor-styles";
 
@@ -49,8 +51,50 @@ function choiceToTabDecoration(
 
 function activate(ctx: ExtensionContext) {
   const iconChoices = new Map<string, IconChoice>();
+  // Terminals where the user has explicitly chosen a status — auto-detection
+  // will not overwrite these.
+  const manualOverrides = new Set<string>();
+  // Disposables for per-terminal OSC subscriptions, keyed by terminal id.
+  const oscSubs = new Map<string, { dispose(): void }>();
+  // Per-terminal debounce timers for OSC 133 "working" → "waiting" fallback.
+  // Some agents (e.g. pi) emit 133;C for each step but never emit 133;A/D on
+  // completion. When the stream goes silent for SHELL_IDLE_MS we clear to waiting.
+  const SHELL_IDLE_MS = 3_000;
+  const shellIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  function clearShellIdleTimer(terminalId: string) {
+    const t = shellIdleTimers.get(terminalId);
+    if (t !== undefined) {
+      clearTimeout(t);
+      shellIdleTimers.delete(terminalId);
+    }
+  }
+
+  function scheduleShellIdle(terminalId: string) {
+    clearShellIdleTimer(terminalId);
+    shellIdleTimers.set(
+      terminalId,
+      setTimeout(() => {
+        shellIdleTimers.delete(terminalId);
+        setAutoStatus(terminalId, "waiting");
+      }, SHELL_IDLE_MS),
+    );
+  }
 
   function setIconChoice(terminalId: string, choice: IconChoice) {
+    if (choice === "none") {
+      iconChoices.delete(terminalId);
+      manualOverrides.delete(terminalId);
+    } else {
+      iconChoices.set(terminalId, choice);
+      manualOverrides.add(terminalId);
+    }
+    ctx.workspaces.invalidateDecorations();
+    ctx.terminals.invalidateTabDecorations();
+  }
+
+  function setAutoStatus(terminalId: string, choice: IconChoice | "none") {
+    if (manualOverrides.has(terminalId)) return;
     if (choice === "none") {
       iconChoices.delete(terminalId);
     } else {
@@ -60,11 +104,56 @@ function activate(ctx: ExtensionContext) {
     ctx.terminals.invalidateTabDecorations();
   }
 
+  function subscribeTerminalOsc(terminalId: string) {
+    if (oscSubs.has(terminalId)) return;
+    const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
+      for (const detect of AGENT_DETECTORS) {
+        const result = detect(code, payload);
+        if (result) {
+          if (result.timer === "schedule") scheduleShellIdle(terminalId);
+          else if (result.timer === "clear") clearShellIdleTimer(terminalId);
+          setAutoStatus(terminalId, result.status);
+          break;
+        }
+      }
+    });
+    oscSubs.set(terminalId, sub);
+    // Note: do NOT push into ctx.subscriptions — oscSubs manages the lifecycle
+    // of these per-terminal subscriptions (disposed in syncOscSubscriptions).
+    // Pushing them would cause the array to grow unboundedly as terminals open
+    // and close, and stale entries would be double-disposed at deactivation.
+  }
+
+  function syncOscSubscriptions() {
+    const ws = ctx.workspaces.getState();
+    const live = new Set<string>();
+    for (const workspace of ws.all) {
+      for (const t of workspace.terminals) {
+        live.add(t.id);
+        subscribeTerminalOsc(t.id);
+      }
+    }
+    // Clean up subscriptions for terminals that no longer exist.
+    for (const [id, sub] of oscSubs) {
+      if (!live.has(id)) {
+        sub.dispose();
+        oscSubs.delete(id);
+        iconChoices.delete(id);
+        manualOverrides.delete(id);
+        clearShellIdleTimer(id);
+      }
+    }
+  }
+
   ctx.subscriptions.push(
     ctx.workspaces.subscribe(() => {
       ctx.workspaces.invalidateDecorations();
+      syncOscSubscriptions();
     }),
   );
+
+  // Subscribe to any terminals already open at activation time.
+  syncOscSubscriptions();
 
   ctx.subscriptions.push(
     ctx.workspaces.registerDecoration({
@@ -120,94 +209,7 @@ function injectStyles() {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement("style");
   style.id = STYLE_ID;
-  style.textContent = `
-    .tm-panel { padding: 8px 0; }
-    .tm-panel-empty {
-      padding: 24px 16px;
-      font-family: var(--silo-font-ui);
-      font-size: var(--silo-font-size-sm);
-      color: var(--silo-color-text-lo);
-    }
-    .tm-terminal-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      border-bottom: 1px solid var(--silo-color-border);
-    }
-    .tm-terminal-info {
-      flex: 1;
-      min-width: 0;
-      border-radius: var(--silo-radius-sm);
-      padding: 2px 4px;
-      margin: -2px -4px;
-    }
-    .tm-terminal-info--clickable {
-      cursor: pointer;
-    }
-    .tm-terminal-info--clickable:hover {
-      background: var(--silo-color-bg-hover);
-    }
-    .tm-terminal-info--clickable:focus-visible {
-      outline: 2px solid var(--silo-color-accent);
-      outline-offset: 1px;
-    }
-    .tm-terminal-title {
-      display: block;
-      font-family: var(--silo-font-ui);
-      font-size: var(--silo-font-size-sm);
-      color: var(--silo-color-text-hi);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .tm-terminal-osc {
-      display: block;
-      margin-top: 1px;
-      font-family: var(--silo-font-ui);
-      font-size: calc(var(--silo-font-size-sm) - 1px);
-      color: var(--silo-color-text-lo);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .tm-terminal-workspace {
-      display: block;
-      margin-top: 1px;
-      font-family: var(--silo-font-ui);
-      font-size: calc(var(--silo-font-size-sm) - 1px);
-      color: var(--silo-color-text-lo);
-    }
-    .tm-icon-select {
-      flex-shrink: 0;
-      appearance: none;
-      background: var(--silo-color-bg-2);
-      border: 1px solid var(--silo-color-border);
-      border-radius: var(--silo-radius-sm);
-      color: var(--silo-color-text-hi);
-      font-family: var(--silo-font-ui);
-      font-size: var(--silo-font-size-sm);
-      padding: 2px 4px;
-      cursor: pointer;
-    }
-    .tm-icon-select:hover {
-      border-color: var(--silo-color-border-hi);
-    }
-    /* Tab decoration icons */
-    .tm-spinner {
-      width: 12px; height: 12px;
-      border: 1.5px solid currentColor;
-      border-top-color: transparent;
-      border-radius: 50%;
-      animation: tm-spin 0.7s linear infinite;
-    }
-    @keyframes tm-spin { to { transform: rotate(360deg); } }
-    .tm-waiting-icon { display: flex; gap: 2px; align-items: center; }
-    .tm-waiting-icon span {
-      display: block; width: 2.5px; height: 8px;
-      background: currentColor; border-radius: 1px;
-    }
-  `;
+  style.textContent = styles;
   document.head.appendChild(style);
 }
 
