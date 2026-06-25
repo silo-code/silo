@@ -90,9 +90,12 @@ pub fn run_daemon(
 ) -> Result<(), String> {
     use portable_pty::{native_pty_system, CommandBuilder};
 
+    log_event("daemon_start", &format!("handle={handle} cwd={cwd}"));
     let pty_system = native_pty_system();
+    log_event("daemon_openpty", &format!("handle={handle}"));
     let size = PtySize { rows, cols, pixel_width: 0, pixel_height: 0 };
     let pty_pair = pty_system.openpty(size).map_err(|e| format!("openpty: {e}"))?;
+    log_event("daemon_pty_ok", &format!("handle={handle}"));
 
     let mut builder = CommandBuilder::new(&cmd[0]);
     for arg in cmd.iter().skip(1) {
@@ -270,11 +273,11 @@ impl SessionWindowsBackend {
         std::process::Command::new(exe)
             .args(&args)
             .creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW)
-            // Detach stdio so daemon log output doesn't bleed into the parent
-            // process's terminal (daemon inherits handles otherwise).
+            // stderr intentionally inherited (not null) so daemon crash output
+            // is visible during debugging. Re-add null redirects once the
+            // daemon starts reliably.
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
             .spawn()
             .map_err(|e| format!("spawn daemon: {e}"))?;
         Ok(())
@@ -330,6 +333,7 @@ impl SessionBackend for SessionWindowsBackend {
         command: Option<Vec<String>>,
     ) -> Result<Connection, String> {
         self.spawn_daemon(handle, cwd, size, command.as_deref())?;
+        log_event("win_daemon_spawned", &format!("handle={handle}"));
         let stream = self.connect(handle)?;
         log_event("win_create", &format!("handle={handle} cwd={cwd}"));
         self.connection_from(stream)
