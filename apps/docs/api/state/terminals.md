@@ -63,11 +63,51 @@ ctx.terminals.invalidateTabDecorations();
 
 Each decoration is a [`TerminalTabDecoration`](/api/types/interfaces/TerminalTabDecoration).
 
+## OSC events
+
+Subscribe to raw OSC (Operating System Command) escape sequences emitted by a
+terminal's PTY. Unlike the title that appears on the tab, this fires from the
+raw output stream regardless of whether the terminal's panel is mounted —
+making it reliable for background workspace monitoring.
+
+Common OSC codes:
+
+| Code  | Meaning                                   |
+| ----- | ----------------------------------------- |
+| `0`   | Set window/tab title                      |
+| `7`   | Working directory (`file://…`)            |
+| `9`   | iTerm2 notification (attention, progress) |
+| `133` | Shell prompt marker (semantic shell)      |
+
+```ts
+const BRAILLE_START = 0x2800;
+const BRAILLE_END = 0x28ff;
+const IDLE_CHAR = "\u2733"; // ✳ — Claude Code idle/waiting signal
+
+ctx.subscriptions.push(
+  ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
+    if (code !== 0) return;
+    const first = payload.charCodeAt(0);
+    if (first >= BRAILLE_START && first <= BRAILLE_END) {
+      setStatus(terminalId, "busy"); // agent is running
+    } else if (payload.startsWith(IDLE_CHAR)) {
+      setStatus(terminalId, "idle"); // agent is waiting for input
+    }
+  }),
+);
+```
+
+| Method                                                                                    | What it does                                                                                                                |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [`subscribeOsc(terminalId, handler)`](/api/types/interfaces/TerminalService#subscribeosc) | Subscribe to parsed OSC sequences from a terminal's PTY stream. Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+
+Each event is an [`OscEvent`](/api/types/interfaces/OscEvent).
+
 ## Types
 
 Pass [`TerminalService`](/api/types/interfaces/TerminalService).
 
-Related: [`CreateTerminalInput`](/api/types/interfaces/CreateTerminalInput) · [`TerminalRecord`](/api/types/interfaces/TerminalRecord) · [`TerminalKind`](/api/types/type-aliases/TerminalKind) · [`TerminalTabDecoration`](/api/types/interfaces/TerminalTabDecoration) · [`TerminalTabDecorationProvider`](/api/types/interfaces/TerminalTabDecorationProvider).
+Related: [`CreateTerminalInput`](/api/types/interfaces/CreateTerminalInput) · [`TerminalRecord`](/api/types/interfaces/TerminalRecord) · [`TerminalKind`](/api/types/type-aliases/TerminalKind) · [`TerminalTabDecoration`](/api/types/interfaces/TerminalTabDecoration) · [`TerminalTabDecorationProvider`](/api/types/interfaces/TerminalTabDecorationProvider) · [`OscEvent`](/api/types/interfaces/OscEvent).
 
 ## See also
 

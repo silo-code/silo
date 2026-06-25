@@ -1,6 +1,6 @@
 # Interface: SearchResponse
 
-Defined in: [packages/sdk/src/search-service.ts:82](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L82)
+Defined in: [packages/sdk/src/search-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L95)
 
 The result of a [SearchService.search](SearchService.md#search) call — matches grouped by file
 plus totals for the summary line ("N results in M files").
@@ -13,7 +13,7 @@ plus totals for the summary line ("N results in M files").
 files: SearchFileResult[];
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:84](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L84)
+Defined in: [packages/sdk/src/search-service.ts:97](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L97)
 
 Files that contained at least one match, in traversal order.
 
@@ -25,7 +25,7 @@ Files that contained at least one match, in traversal order.
 totalMatches: number;
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:86](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L86)
+Defined in: [packages/sdk/src/search-service.ts:99](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L99)
 
 Total number of matches across every file.
 
@@ -37,7 +37,7 @@ Total number of matches across every file.
 truncated: boolean;
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:91](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L91)
+Defined in: [packages/sdk/src/search-service.ts:104](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L104)
 
 True when the search stopped early at [SearchOptions.maxResults](SearchOptions.md#maxresults) — the
 results are a prefix, not the complete set.

@@ -12,6 +12,7 @@ await build({
   jsx: "automatic",
   minify: false,
   external: ["react", "react/jsx-runtime", "@silo-code/sdk"],
+  loader: { ".css": "text" },
   logLevel: "info",
 });
 
