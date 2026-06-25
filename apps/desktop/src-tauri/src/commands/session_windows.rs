@@ -92,10 +92,8 @@ pub fn run_daemon(
 
     log_event("daemon_start", &format!("handle={handle} cwd={cwd}"));
     let pty_system = native_pty_system();
-    log_event("daemon_openpty", &format!("handle={handle}"));
     let size = PtySize { rows, cols, pixel_width: 0, pixel_height: 0 };
     let pty_pair = pty_system.openpty(size).map_err(|e| format!("openpty: {e}"))?;
-    log_event("daemon_pty_ok", &format!("handle={handle}"));
 
     let mut builder = CommandBuilder::new(&cmd[0]);
     for arg in cmd.iter().skip(1) {
@@ -103,12 +101,10 @@ pub fn run_daemon(
     }
     builder.cwd(cwd);
 
-    log_event("daemon_spawning_cmd", &format!("handle={handle} cmd={}", &cmd[0]));
     let child = pty_pair
         .slave
         .spawn_command(builder)
         .map_err(|e| format!("spawn: {e}"))?;
-    log_event("daemon_cmd_ok", &format!("handle={handle} pid={}", child.process_id().unwrap_or(0)));
     drop(pty_pair.slave);
 
     let child_pid = Arc::new(AtomicU32::new(child.process_id().unwrap_or(0)));
@@ -116,12 +112,10 @@ pub fn run_daemon(
         .master
         .take_writer()
         .map_err(|e| format!("take_writer: {e}"))?;
-    log_event("daemon_writer_ok", &format!("handle={handle}"));
     let pty_reader = pty_pair
         .master
         .try_clone_reader()
         .map_err(|e| format!("clone_reader: {e}"))?;
-    log_event("daemon_reader_ok", &format!("handle={handle}"));
     let master = Arc::new(Mutex::new(pty_pair.master));
     let pty_writer = Arc::new(Mutex::new(pty_writer));
 
@@ -157,14 +151,12 @@ pub fn run_daemon(
         });
     }
 
-    log_event("daemon_binding_tcp", &format!("handle={handle}"));
     let listener =
         TcpListener::bind("127.0.0.1:0").map_err(|e| format!("bind: {e}"))?;
     let port = listener
         .local_addr()
         .map_err(|e| format!("local_addr: {e}"))?
         .port();
-    log_event("daemon_tcp_ok", &format!("handle={handle} port={port}"));
 
     let ppath = port_path(handle).ok_or("SILO_DATA_DIR not set")?;
     if let Some(dir) = ppath.parent() {
@@ -280,11 +272,9 @@ impl SessionWindowsBackend {
         std::process::Command::new(exe)
             .args(&args)
             .creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW)
-            // stderr intentionally inherited (not null) so daemon crash output
-            // is visible during debugging. Re-add null redirects once the
-            // daemon starts reliably.
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .spawn()
             .map_err(|e| format!("spawn daemon: {e}"))?;
         Ok(())
