@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.12.0](https://github.com/silo-code/silo/compare/sdk-v0.11.0...sdk-v0.12.0) (2026-06-25)
+
+
+### Features
+
+* **terminal-monitor:** auto-detect agent status via OSC sequences ([#89](https://github.com/silo-code/silo/issues/89)) ([ec80887](https://github.com/silo-code/silo/commit/ec80887dba5a669682d7b3b67e0debd4245f59db))
+
 ## [0.11.0](https://github.com/silo-code/silo/compare/sdk-v0.10.1...sdk-v0.11.0) (2026-06-24)
 
 
