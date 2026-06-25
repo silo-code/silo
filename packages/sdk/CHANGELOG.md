@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.13.0](https://github.com/silo-code/silo/compare/sdk-v0.12.0...sdk-v0.13.0) (2026-06-25)
+
+
+### Features
+
+* **workspaces:** add registerSection API for extension-contributed workspace row components ([#95](https://github.com/silo-code/silo/issues/95)) ([2c42024](https://github.com/silo-code/silo/commit/2c42024712d8c1a5506f27369393453ea5bbfb27))
+
 ## [0.12.0](https://github.com/silo-code/silo/compare/sdk-v0.11.0...sdk-v0.12.0) (2026-06-25)
 
 
