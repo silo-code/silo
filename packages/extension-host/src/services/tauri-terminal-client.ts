@@ -90,6 +90,8 @@ export class TauriTerminalClient {
         const listeners = this.outputListeners.get(sessionId);
         listeners?.forEach((cb) => cb(event.payload));
         // Parse and dispatch any OSC sequences in this chunk.
+        // Checked on every chunk so OSC listeners registered after setup
+        // (e.g. from subscribeOsc) are picked up immediately.
         const oscListeners = this.oscListeners.get(sessionId);
         if (oscListeners?.size) {
           parseOscSequences(event.payload, (osc) =>
@@ -211,12 +213,19 @@ export class TauriTerminalClient {
    * Subscribe to parsed OSC sequences from a PTY session. The callback fires
    * for every OSC sequence in the raw output stream — including when the
    * terminal's UI panel is not mounted. Returns an unsubscribe function.
+   *
+   * Calling onOsc also ensures the Tauri event bridge is established for this
+   * session, so OSC events fire even before the terminal panel mounts.
    */
   onOsc(sessionId: string, cb: OscListener): () => void {
     let set = this.oscListeners.get(sessionId);
     if (!set) {
       set = new Set();
       this.oscListeners.set(sessionId, set);
+      // Establish the terminal_output bridge for this session if it isn't
+      // already active — without this, OSC listeners registered before the
+      // terminal panel mounts would never receive events.
+      this.setupSessionListeners(sessionId).catch(() => {});
     }
     set.add(cb);
     return () => {

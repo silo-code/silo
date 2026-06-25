@@ -1,10 +1,16 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useSnapshot } from "valtio";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { invoke } from "@tauri-apps/api/core";
 import { store } from "../state/store";
 import type { CustomTheme, ThemeBase, ThemeVars } from "../state/types";
 import { CORE_PRESETS } from "./presets";
 import { themePresetRegistry } from "../extension-host/theme-presets";
 import { refreshMonacoThemes } from "../docked/monaco-setup";
+
+const isWindows =
+  typeof navigator !== "undefined" &&
+  navigator.platform.toUpperCase().startsWith("WIN");
 
 interface ResolvedTheme {
   base: "dark" | "light";
@@ -118,6 +124,24 @@ export function ThemeInjector() {
     // Defer Monaco refresh so the CSS var update lands first; readVar() in
     // monaco-setup reads computed styles synchronously.
     queueMicrotask(() => refreshMonacoThemes(resolved.base));
+
+    // Sync OS window chrome: dark/light title-bar scheme on all platforms;
+    // custom caption color on Windows 11 (older Windows ignores it silently).
+    // Both calls are fire-and-forget — failures don't affect the UI.
+    void getCurrentWebviewWindow().setTheme(resolved.base);
+    if (isWindows) {
+      const hex = getComputedStyle(document.documentElement)
+        .getPropertyValue("--silo-color-bg")
+        .trim();
+      const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+      if (m) {
+        void invoke("window_set_caption_color", {
+          r: parseInt(m[1], 16),
+          g: parseInt(m[2], 16),
+          b: parseInt(m[3], 16),
+        });
+      }
+    }
   }, [activeThemeId, customThemes, presetList]);
 
   useEffect(() => {
