@@ -21,10 +21,12 @@
 
 .git-root-label {
   display: flex;
-  align-items: center;
-  gap: 5px;
+  flex-direction: column;
+  align-items: stretch;
+  box-sizing: border-box;
   width: 100%;
   padding: 2px 4px;
+  overflow: hidden;
   background: transparent;
   border: none;
   font-family: var(--silo-font-ui);
@@ -39,6 +41,21 @@
   color: var(--silo-color-text-hi);
 }
 
+.git-root-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.git-root-bottom {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 2px;
+  min-width: 0;
+}
+
 .git-root-chev {
   display: inline-flex;
   align-items: center;
@@ -47,22 +64,37 @@
 }
 
 .git-root-name {
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-root-branch-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.git-root-branch-wrap .silo-tooltip-host {
+  display: block;
 }
 
 .git-root-branch {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 400;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--silo-color-text);
   letter-spacing: 0;
-  flex-shrink: 0;
 }
 
 .git-root-actions {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-left: auto;
   flex-shrink: 0;
 }
 
