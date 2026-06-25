@@ -44,7 +44,13 @@ fn main() {
             let default_shell =
                 std::env::var("COMSPEC").unwrap_or_else(|_| "cmd.exe".to_string());
             let cmd = match args.iter().position(|a| a == "--") {
-                Some(pos) if pos + 1 < args.len() => args[pos + 1..].to_vec(),
+                Some(pos) if pos + 1 < args.len() => {
+                    let mut c = args[pos + 1..].to_vec();
+                    if c[0].is_empty() {
+                        c[0] = default_shell.clone();
+                    }
+                    c
+                }
                 _ => vec![default_shell],
             };
             if let Err(e) = silo_lib::run_win_session_host(&handle, cmd, &cwd, cols, rows) {
