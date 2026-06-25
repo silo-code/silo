@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://github.com/silo-code/silo/compare/silo-v0.12.0...silo-v0.13.0) (2026-06-25)
+
+
+### Features
+
+* **workspaces:** add registerSection API for extension-contributed workspace row components ([#95](https://github.com/silo-code/silo/issues/95)) ([2c42024](https://github.com/silo-code/silo/commit/2c42024712d8c1a5506f27369393453ea5bbfb27))
+
+
+### Bug Fixes
+
+* **git:** truncate branch name in single-root mode ([#93](https://github.com/silo-code/silo/issues/93)) ([9eed912](https://github.com/silo-code/silo/commit/9eed912fd860016c441c77f4f9d6545ff5d266e5))
+
 ## [0.12.0](https://github.com/silo-code/silo/compare/silo-v0.11.0...silo-v0.12.0) (2026-06-25)
 
 
