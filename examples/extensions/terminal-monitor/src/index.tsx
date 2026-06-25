@@ -16,6 +16,18 @@ const BRAILLE_START = 0x2800;
 const BRAILLE_END = 0x28ff;
 const IDLE_CHAR = "\u2733"; // ✳
 
+// OSC 9 progress protocol (ConEmu / Windows Terminal / GitHub Copilot CLI):
+// Payload format: "4;<state>" or "4;<state>;<progress>"
+// Copilot emits state=3 while running and state=0 when done;
+// we treat states 1/2/3 as working and 0/4 as waiting.
+const OSC9_PROGRESS_PREFIX = "4;";
+
+// OSC 133 shell integration protocol (FTCS / iTerm2 / zsh/bash with shell integration):
+// A=prompt start, B=command entered, C=command output start, D[;exit]=command done
+// C → working, A/D → waiting (at prompt)
+const OSC133_WORKING = "C"; // output started — command is running
+const OSC133_IDLE_A = "A"; // prompt mark — shell is idle
+
 function choiceToStatus(
   choice: IconChoice | undefined,
 ): WorkspaceStatusRow["status"] {
@@ -61,6 +73,30 @@ function activate(ctx: ExtensionContext) {
   const manualOverrides = new Set<string>();
   // Disposables for per-terminal OSC subscriptions, keyed by terminal id.
   const oscSubs = new Map<string, { dispose(): void }>();
+  // Per-terminal debounce timers for OSC 133 "working" → "waiting" fallback.
+  // Some agents (e.g. pi) emit 133;C for each step but never emit 133;A/D on
+  // completion. When the stream goes silent for SHELL_IDLE_MS we clear to waiting.
+  const SHELL_IDLE_MS = 3_000;
+  const shellIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  function clearShellIdleTimer(terminalId: string) {
+    const t = shellIdleTimers.get(terminalId);
+    if (t !== undefined) {
+      clearTimeout(t);
+      shellIdleTimers.delete(terminalId);
+    }
+  }
+
+  function scheduleShellIdle(terminalId: string) {
+    clearShellIdleTimer(terminalId);
+    shellIdleTimers.set(
+      terminalId,
+      setTimeout(() => {
+        shellIdleTimers.delete(terminalId);
+        setAutoStatus(terminalId, "waiting");
+      }, SHELL_IDLE_MS),
+    );
+  }
 
   function setIconChoice(terminalId: string, choice: IconChoice) {
     if (choice === "none") {
@@ -88,12 +124,41 @@ function activate(ctx: ExtensionContext) {
   function subscribeTerminalOsc(terminalId: string) {
     if (oscSubs.has(terminalId)) return;
     const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
-      if (code !== 0) return;
-      const first = payload.charCodeAt(0);
-      if (first >= BRAILLE_START && first <= BRAILLE_END) {
-        setAutoStatus(terminalId, "working");
-      } else if (payload.startsWith(IDLE_CHAR)) {
-        setAutoStatus(terminalId, "waiting");
+      if (code === 0) {
+        // Claude Code / OSC 0 title-based status encoding
+        const first = payload.charCodeAt(0);
+        if (first >= BRAILLE_START && first <= BRAILLE_END) {
+          setAutoStatus(terminalId, "working");
+        } else if (payload.startsWith(IDLE_CHAR)) {
+          setAutoStatus(terminalId, "waiting");
+        }
+      } else if (code === 9 && payload.startsWith(OSC9_PROGRESS_PREFIX)) {
+        // GitHub Copilot CLI / ConEmu OSC 9;4 progress protocol.
+        // Payload: "4;<state>;<progress%>" (progress may be absent).
+        // Copilot emits state=3 while actively running and state=0 when done,
+        // so we treat states 1/2/3 as working and 0/4 as waiting.
+        const state = parseInt(payload.slice(OSC9_PROGRESS_PREFIX.length), 10);
+        if (state === 1 || state === 2 || state === 3) {
+          setAutoStatus(terminalId, "working");
+        } else if (state === 0 || state === 4) {
+          setAutoStatus(terminalId, "waiting");
+        }
+      } else if (code === 133) {
+        // OSC 133 shell integration (FTCS / iTerm2 / zsh+bash shell integration).
+        // C = command output starting → working; A = prompt shown / D = done → waiting.
+        // A and D may carry extra params (e.g. "A;k=s" in kitty protocol), so use startsWith.
+        // Some agents (e.g. pi) never emit A/D on completion — scheduleShellIdle() clears
+        // the status after SHELL_IDLE_MS of silence following the last C.
+        if (payload === OSC133_WORKING) {
+          setAutoStatus(terminalId, "working");
+          scheduleShellIdle(terminalId);
+        } else if (
+          payload.startsWith(OSC133_IDLE_A) ||
+          payload.startsWith("D")
+        ) {
+          clearShellIdleTimer(terminalId);
+          setAutoStatus(terminalId, "waiting");
+        }
       }
     });
     oscSubs.set(terminalId, sub);
@@ -116,6 +181,7 @@ function activate(ctx: ExtensionContext) {
         oscSubs.delete(id);
         iconChoices.delete(id);
         manualOverrides.delete(id);
+        clearShellIdleTimer(id);
       }
     }
   }
