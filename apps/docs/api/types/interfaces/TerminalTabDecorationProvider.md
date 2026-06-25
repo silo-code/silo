@@ -1,6 +1,6 @@
 # Interface: TerminalTabDecorationProvider
 
-Defined in: [packages/sdk/src/terminal-service.ts:39](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L39)
+Defined in: [packages/sdk/src/terminal-service.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L59)
 
 A decoration provider for terminal tabs. Register via
 [TerminalService.registerTabDecoration](TerminalService.md#registertabdecoration).
@@ -13,7 +13,7 @@ A decoration provider for terminal tabs. Register via
 id: string;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:41](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L41)
+Defined in: [packages/sdk/src/terminal-service.ts:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L61)
 
 Unique id — conventionally `"<extension-id>.tab-decoration"`.
 
@@ -25,7 +25,7 @@ Unique id — conventionally `"<extension-id>.tab-decoration"`.
 provide(terminalId): TerminalTabDecoration | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:47](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L47)
+Defined in: [packages/sdk/src/terminal-service.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L67)
 
 Called synchronously for each terminal tab during render. Return `null`
 to contribute nothing for this terminal. When multiple providers are

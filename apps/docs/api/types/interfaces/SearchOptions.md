@@ -14,11 +14,26 @@ active workspace, respecting `.gitignore`.
 optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:20](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L20)
+Defined in: [packages/sdk/src/search-service.ts:21](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L21)
 
 Search root. Defaults to the open **workspace folder** when omitted. A `cwd`
 outside the workspace throws [PathDeniedError](../classes/PathDeniedError.md) unless the extension
 declared the `process` [Permission](../type-aliases/Permission.md); first-party extensions are unscoped.
+Ignored when [SearchOptions.cwds](#cwds) is non-empty.
+
+***
+
+### cwds?
+
+```ts
+optional cwds?: string[];
+```
+
+Defined in: [packages/sdk/src/search-service.ts:27](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L27)
+
+Multiple search roots. When provided, all listed folders are searched and
+results are merged. Each root is subject to the same scope guard as `cwd`.
+Takes precedence over `cwd` when non-empty.
 
 ***
 
@@ -28,7 +43,7 @@ declared the `process` [Permission](../type-aliases/Permission.md); first-party 
 optional regex?: boolean;
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:22](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L22)
+Defined in: [packages/sdk/src/search-service.ts:29](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L29)
 
 Treat `query` as a regular expression instead of a literal string.
 
@@ -40,7 +55,7 @@ Treat `query` as a regular expression instead of a literal string.
 optional caseSensitive?: boolean;
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:24](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L24)
+Defined in: [packages/sdk/src/search-service.ts:31](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L31)
 
 Match case exactly. When false (default), the search is case-insensitive.
 
@@ -52,7 +67,7 @@ Match case exactly. When false (default), the search is case-insensitive.
 optional wholeWord?: boolean;
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:26](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L26)
+Defined in: [packages/sdk/src/search-service.ts:33](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L33)
 
 Match whole words only (word boundaries around the query).
 
@@ -64,7 +79,7 @@ Match whole words only (word boundaries around the query).
 optional includeGlobs?: string[];
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:31](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L31)
+Defined in: [packages/sdk/src/search-service.ts:38](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L38)
 
 Glob patterns of files to include (e.g. `["*.ts", "src/**"]`). When empty,
 all files are eligible (still subject to `.gitignore` and `excludeGlobs`).
@@ -77,7 +92,7 @@ all files are eligible (still subject to `.gitignore` and `excludeGlobs`).
 optional excludeGlobs?: string[];
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:33](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L33)
+Defined in: [packages/sdk/src/search-service.ts:40](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L40)
 
 Glob patterns of files to exclude (e.g. `["**/dist/**"]`), on top of `.gitignore`.
 
@@ -89,7 +104,7 @@ Glob patterns of files to exclude (e.g. `["**/dist/**"]`), on top of `.gitignore
 optional maxResults?: number;
 ```
 
-Defined in: [packages/sdk/src/search-service.ts:38](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L38)
+Defined in: [packages/sdk/src/search-service.ts:45](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L45)
 
 Cap on the total number of matches collected across all files. When the cap
 is hit, the search stops early and [SearchResponse.truncated](SearchResponse.md#truncated) is true.

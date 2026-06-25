@@ -9,6 +9,13 @@ import type { IconChoice } from "./types";
 
 const STYLE_ID = "silo-terminal-monitor-styles";
 
+// OSC 0 title encoding used by Claude Code (and compatible agent CLIs):
+// - Braille block characters (U+2800–U+28FF) as the first character → agent is busy/running
+// - ✳ (U+2733) as the first character → agent is idle, waiting for input
+const BRAILLE_START = 0x2800;
+const BRAILLE_END = 0x28ff;
+const IDLE_CHAR = "\u2733"; // ✳
+
 function choiceToStatus(
   choice: IconChoice | undefined,
 ): WorkspaceStatusRow["status"] {
@@ -49,8 +56,26 @@ function choiceToTabDecoration(
 
 function activate(ctx: ExtensionContext) {
   const iconChoices = new Map<string, IconChoice>();
+  // Terminals where the user has explicitly chosen a status — auto-detection
+  // will not overwrite these.
+  const manualOverrides = new Set<string>();
+  // Disposables for per-terminal OSC subscriptions, keyed by terminal id.
+  const oscSubs = new Map<string, { dispose(): void }>();
 
   function setIconChoice(terminalId: string, choice: IconChoice) {
+    if (choice === "none") {
+      iconChoices.delete(terminalId);
+      manualOverrides.delete(terminalId);
+    } else {
+      iconChoices.set(terminalId, choice);
+      manualOverrides.add(terminalId);
+    }
+    ctx.workspaces.invalidateDecorations();
+    ctx.terminals.invalidateTabDecorations();
+  }
+
+  function setAutoStatus(terminalId: string, choice: IconChoice | "none") {
+    if (manualOverrides.has(terminalId)) return;
     if (choice === "none") {
       iconChoices.delete(terminalId);
     } else {
@@ -60,11 +85,50 @@ function activate(ctx: ExtensionContext) {
     ctx.terminals.invalidateTabDecorations();
   }
 
+  function subscribeTerminalOsc(terminalId: string) {
+    if (oscSubs.has(terminalId)) return;
+    const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
+      if (code !== 0) return;
+      const first = payload.charCodeAt(0);
+      if (first >= BRAILLE_START && first <= BRAILLE_END) {
+        setAutoStatus(terminalId, "working");
+      } else if (payload.startsWith(IDLE_CHAR)) {
+        setAutoStatus(terminalId, "waiting");
+      }
+    });
+    oscSubs.set(terminalId, sub);
+    ctx.subscriptions.push(sub);
+  }
+
+  function syncOscSubscriptions() {
+    const ws = ctx.workspaces.getState();
+    const live = new Set<string>();
+    for (const workspace of ws.all) {
+      for (const t of workspace.terminals) {
+        live.add(t.id);
+        subscribeTerminalOsc(t.id);
+      }
+    }
+    // Clean up subscriptions for terminals that no longer exist.
+    for (const [id, sub] of oscSubs) {
+      if (!live.has(id)) {
+        sub.dispose();
+        oscSubs.delete(id);
+        iconChoices.delete(id);
+        manualOverrides.delete(id);
+      }
+    }
+  }
+
   ctx.subscriptions.push(
     ctx.workspaces.subscribe(() => {
       ctx.workspaces.invalidateDecorations();
+      syncOscSubscriptions();
     }),
   );
+
+  // Subscribe to any terminals already open at activation time.
+  syncOscSubscriptions();
 
   ctx.subscriptions.push(
     ctx.workspaces.registerDecoration({

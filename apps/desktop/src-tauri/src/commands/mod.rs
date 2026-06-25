@@ -21,3 +21,4 @@ pub mod session_registry;
 pub mod terminal;
 pub mod terminal_buffer;
 pub mod terminal_io;
+pub mod window_chrome;

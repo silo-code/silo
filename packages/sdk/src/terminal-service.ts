@@ -2,6 +2,26 @@ import type React from "react";
 import type { Disposable } from "./types";
 import type { TerminalKind, TerminalRecord } from "./domain-types";
 
+/**
+ * A parsed OSC (Operating System Command) escape sequence emitted by a
+ * terminal program. Delivered by {@link TerminalService.subscribeOsc}.
+ *
+ * Common codes:
+ * - `0` — set window/tab title (e.g. Claude Code encodes busy/idle state here)
+ * - `7` — working directory (`file://host/path`)
+ * - `9` — iTerm2 notifications (attention, progress)
+ * - `133` — shell prompt markers (semantic shell integration)
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface OscEvent {
+  /** The numeric OSC code (the integer before the first semicolon). */
+  code: number;
+  /** The raw payload string after the code and its separating semicolon. */
+  payload: string;
+}
+
 // Re-export the terminal domain types so consumers can name them from the SDK.
 export type { TerminalKind, TerminalRecord } from "./domain-types";
 
@@ -115,4 +135,37 @@ export interface TerminalService {
    * that cancels the subscription.
    */
   subscribeTabDecorations(listener: () => void): Disposable;
+
+  /**
+   * Subscribe to raw OSC (Operating System Command) escape sequences emitted
+   * by the terminal identified by `terminalId`. The handler is called once per
+   * parsed sequence — regardless of whether the terminal's panel is currently
+   * visible — making it suitable for background status monitoring.
+   *
+   * The subscription is keyed to the **terminal record id** (e.g.
+   * `"term_…"`), not the underlying PTY session id, so it survives terminal
+   * recreation within the same record.
+   *
+   * Returns a {@link Disposable} that cancels the subscription.
+   *
+   * @example
+   * ```ts
+   * // Detect Claude Code busy/idle state from OSC 0 title sequences.
+   * const BRAILLE_START = 0x2800;
+   * const BRAILLE_END   = 0x28FF;
+   * const IDLE_CHAR     = '\u2733'; // ✳
+   *
+   * const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
+   *   if (code !== 0) return;
+   *   const first = payload.charCodeAt(0);
+   *   if (first >= BRAILLE_START && first <= BRAILLE_END) setStatus('busy');
+   *   else if (payload.startsWith(IDLE_CHAR))              setStatus('idle');
+   * });
+   * ctx.subscriptions.push(sub);
+   * ```
+   */
+  subscribeOsc(
+    terminalId: string,
+    handler: (event: OscEvent) => void,
+  ): Disposable;
 }

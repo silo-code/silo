@@ -1,8 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import type { OscEvent } from "@silo-code/sdk";
 
 type OutputListener = (data: string) => void;
 type ExitListener = (exitCode: number) => void;
+type OscListener = (event: OscEvent) => void;
 
 interface CreateOpts {
   cwd: string;
@@ -20,6 +22,7 @@ interface AttachOpts {
 export class TauriTerminalClient {
   private outputListeners = new Map<string, Set<OutputListener>>();
   private exitListeners = new Map<string, Set<ExitListener>>();
+  private oscListeners = new Map<string, Set<OscListener>>();
   private unlisteners = new Map<string, Array<() => void>>();
 
   async createTerminal(opts: CreateOpts): Promise<{ sessionId: string }> {
@@ -86,6 +89,13 @@ export class TauriTerminalClient {
       (event) => {
         const listeners = this.outputListeners.get(sessionId);
         listeners?.forEach((cb) => cb(event.payload));
+        // Parse and dispatch any OSC sequences in this chunk.
+        const oscListeners = this.oscListeners.get(sessionId);
+        if (oscListeners?.size) {
+          parseOscSequences(event.payload, (osc) =>
+            oscListeners.forEach((cb) => cb(osc)),
+          );
+        }
       },
     );
 
@@ -197,14 +207,56 @@ export class TauriTerminalClient {
     };
   }
 
+  /**
+   * Subscribe to parsed OSC sequences from a PTY session. The callback fires
+   * for every OSC sequence in the raw output stream — including when the
+   * terminal's UI panel is not mounted. Returns an unsubscribe function.
+   */
+  onOsc(sessionId: string, cb: OscListener): () => void {
+    let set = this.oscListeners.get(sessionId);
+    if (!set) {
+      set = new Set();
+      this.oscListeners.set(sessionId, set);
+    }
+    set.add(cb);
+    return () => {
+      const s = this.oscListeners.get(sessionId);
+      s?.delete(cb);
+      if (s && s.size === 0) this.oscListeners.delete(sessionId);
+    };
+  }
+
   private cleanup(sessionId: string): void {
     this.outputListeners.delete(sessionId);
     this.exitListeners.delete(sessionId);
+    this.oscListeners.delete(sessionId);
     const unlisteners = this.unlisteners.get(sessionId);
     if (unlisteners) {
       unlisteners.forEach((fn) => fn());
       this.unlisteners.delete(sessionId);
     }
+  }
+}
+
+/**
+ * Parse OSC (Operating System Command) escape sequences from a chunk of raw
+ * terminal output and call `emit` once per sequence found.
+ *
+ * Handles both BEL-terminated (`ESC ] <code> ; <payload> BEL`) and
+ * ST-terminated (`ESC ] <code> ; <payload> ESC \`) forms.
+ *
+ * Exported for unit testing; not part of the public extension surface.
+ * @internal
+ */
+export function parseOscSequences(
+  chunk: string,
+  emit: (event: OscEvent) => void,
+): void {
+  // Match ESC ] <digits> ; <payload> (BEL | ESC \)
+  const OSC_RE = /\x1b\](\d+);([^\x07\x1b]*)(?:\x07|\x1b\\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = OSC_RE.exec(chunk)) !== null) {
+    emit({ code: Number(m[1]), payload: m[2] });
   }
 }
 

@@ -68,6 +68,7 @@ the published reference is exactly this surface — no more, no less.
 - [SearchFileResult](interfaces/SearchFileResult.md)
 - [SearchResponse](interfaces/SearchResponse.md)
 - [SearchService](interfaces/SearchService.md)
+- [OscEvent](interfaces/OscEvent.md)
 - [TerminalTabDecoration](interfaces/TerminalTabDecoration.md)
 - [TerminalTabDecorationProvider](interfaces/TerminalTabDecorationProvider.md)
 - [CreateTerminalInput](interfaces/CreateTerminalInput.md)
