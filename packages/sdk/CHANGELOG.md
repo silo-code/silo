@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.14.0](https://github.com/silo-code/silo/compare/sdk-v0.13.0...sdk-v0.14.0) (2026-06-26)
+
+
+### Features
+
+* **terminal:** auto-recover terminals after reboot with buffer replay ([#98](https://github.com/silo-code/silo/issues/98)) ([b3a25ee](https://github.com/silo-code/silo/commit/b3a25ee2ff517f8f3cc0ca14b9b07b52f0969abe))
+
 ## [0.13.0](https://github.com/silo-code/silo/compare/sdk-v0.12.0...sdk-v0.13.0) (2026-06-25)
 
 
