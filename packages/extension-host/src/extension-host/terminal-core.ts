@@ -17,3 +17,8 @@ export {
   setTerminalSetting,
 } from "../state/terminal-settings";
 export type { TerminalSettings, TerminalCursorStyle } from "../state/types";
+export {
+  MIN_TERMINAL_SCROLL_SENSITIVITY,
+  MAX_TERMINAL_SCROLL_SENSITIVITY,
+  MAX_TERMINAL_FAST_SCROLL_SENSITIVITY,
+} from "../state/types";

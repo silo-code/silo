@@ -5,6 +5,9 @@ import {
   setTerminalSetting,
   type TerminalSettings,
   type TerminalCursorStyle,
+  MIN_TERMINAL_SCROLL_SENSITIVITY,
+  MAX_TERMINAL_SCROLL_SENSITIVITY,
+  MAX_TERMINAL_FAST_SCROLL_SENSITIVITY,
 } from "@silo-code/extension-host/internal";
 // Reuse the editor settings page's layout/control styles (the es-* classes are
 // generic settings-page styling).
@@ -302,6 +305,59 @@ export function TerminalSettingsPage() {
               label="Paste on right-click"
               checked={s.pasteOnRightClick}
               onChange={toggle("pasteOnRightClick")}
+            />
+          ),
+        },
+      ],
+    },
+    {
+      title: "Scrolling",
+      rows: [
+        {
+          label: "Scroll speed",
+          hint: "Lines scrolled per mouse-wheel tick. Default: 3.",
+          control: (
+            <input
+              className="es-number"
+              type="number"
+              min={MIN_TERMINAL_SCROLL_SENSITIVITY}
+              max={MAX_TERMINAL_SCROLL_SENSITIVITY}
+              step={1}
+              value={s.scrollSensitivity}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (
+                  Number.isFinite(n) &&
+                  n >= MIN_TERMINAL_SCROLL_SENSITIVITY &&
+                  n <= MAX_TERMINAL_SCROLL_SENSITIVITY
+                ) {
+                  setTerminalSetting("scrollSensitivity", n);
+                }
+              }}
+            />
+          ),
+        },
+        {
+          label: "Fast scroll speed",
+          hint: "Lines scrolled per tick while holding Alt/Option. Default: 5.",
+          control: (
+            <input
+              className="es-number"
+              type="number"
+              min={MIN_TERMINAL_SCROLL_SENSITIVITY}
+              max={MAX_TERMINAL_FAST_SCROLL_SENSITIVITY}
+              step={1}
+              value={s.fastScrollSensitivity}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (
+                  Number.isFinite(n) &&
+                  n >= MIN_TERMINAL_SCROLL_SENSITIVITY &&
+                  n <= MAX_TERMINAL_FAST_SCROLL_SENSITIVITY
+                ) {
+                  setTerminalSetting("fastScrollSensitivity", n);
+                }
+              }}
             />
           ),
         },

@@ -155,6 +155,11 @@ export {
   setTerminalSetting,
 } from "./terminal-core";
 export type { TerminalSettings, TerminalCursorStyle } from "./terminal-core";
+export {
+  MIN_TERMINAL_SCROLL_SENSITIVITY,
+  MAX_TERMINAL_SCROLL_SENSITIVITY,
+  MAX_TERMINAL_FAST_SCROLL_SENSITIVITY,
+} from "./terminal-core";
 // Focus-retry helpers that win dockview's focus shuffle for Monaco/xterm — host
 // DOM/focus plumbing, not a public capability.
 export {
