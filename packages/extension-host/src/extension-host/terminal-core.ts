@@ -8,6 +8,7 @@
 // the public `ctx.dnd`.
 
 export { recreateTerminal } from "../state/workspaces";
+export { tauriTerminalClient } from "../services/tauri-terminal-client";
 export { getThemeBase } from "../layout/presets";
 // Global terminal preferences (the breadcrumb toggle today) — read/written by
 // the terminal panel and its settings page.

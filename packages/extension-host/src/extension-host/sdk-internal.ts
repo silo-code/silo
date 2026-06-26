@@ -149,6 +149,7 @@ export { registerSelectionSource } from "./active-selection";
 // shared `store` is the `editor-core` re-export above (same `state/store`).
 export {
   recreateTerminal,
+  tauriTerminalClient,
   getThemeBase,
   getTerminalSettings,
   setTerminalSetting,
