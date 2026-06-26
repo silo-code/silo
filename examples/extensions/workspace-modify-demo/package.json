@@ -1,12 +1,12 @@
 {
-  "name": "workspace-section-demo",
-  "displayName": "Workspace Section Demo",
+  "name": "workspace-modify-demo",
+  "displayName": "Workspace Modify Demo",
   "version": "0.1.0",
-  "description": "Demonstrates ctx.workspaces.registerSection() by showing an active-terminals summary inside workspace rows.",
+  "description": "Interactive demo panel for toggling workspace decorations, sections, and badges.",
   "private": true,
   "type": "module",
   "silo": {
-    "id": "silo.workspace-section-demo",
+    "id": "silo.workspace-modify-demo",
     "engine": "^0.1",
     "main": "dist/index.js"
   },

@@ -65,6 +65,11 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   useEffect(() => {
     return service.subscribeSection(() => setSectionTick((t) => t + 1)).dispose;
   }, [service]);
+  // Re-render when badge providers invalidate their data.
+  const [, setBadgeTick] = useState(0);
+  useEffect(() => {
+    return service.subscribeBadges(() => setBadgeTick((t) => t + 1)).dispose;
+  }, [service]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   const addWrapRef = useRef<HTMLDivElement | null>(null);
@@ -245,9 +250,19 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                     <Tooltip content="Right-click for menu · Double-click for properties">
                       <span className="ws-name">{ws.name}</span>
                     </Tooltip>
-                    <span className="ws-uptime">
-                      {formatElapsed(ws.createdAt)}
-                    </span>
+                    {service.getBadges(ws.id).map((b) => (
+                      <span
+                        key={b.id}
+                        className="ws-badge"
+                        style={
+                          b.color
+                            ? { color: b.color, borderColor: b.color }
+                            : undefined
+                        }
+                      >
+                        {b.text}
+                      </span>
+                    ))}
                   </div>
                   <div className="ws-folder">
                     <FrontTruncatedPath
