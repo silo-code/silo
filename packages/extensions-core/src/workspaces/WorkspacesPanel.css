@@ -109,11 +109,16 @@
   min-width: 0;
 }
 
-.ws-item .ws-uptime {
+.ws-item .ws-badge {
   font-family: var(--silo-font-ui);
-  font-size: calc(1em - 1.5px);
+  font-size: calc(1em - 2px);
   color: var(--silo-color-text-lo);
+  border: 1px solid var(--silo-color-text-lo);
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 1.4;
   flex-shrink: 0;
+  background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
 .ws-item .ws-folder {
