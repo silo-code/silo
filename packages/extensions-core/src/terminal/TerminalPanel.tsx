@@ -199,6 +199,9 @@ export function TerminalPanel(
       customGlyphs: false,
       allowProposedApi: true,
     });
+    // xterm v6 removed the bellStyle option; subscribe to onBell with a no-op
+    // to suppress any audio the WebView would otherwise play on BEL (0x07).
+    term.onBell(() => {});
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.loadAddon(new WebLinksAddon());
