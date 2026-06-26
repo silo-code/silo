@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.15.0](https://github.com/silo-code/silo/compare/sdk-v0.14.0...sdk-v0.15.0) (2026-06-26)
+
+
+### Features
+
+* **workspaces:** add extension badge API, replace uptime with badges ([#102](https://github.com/silo-code/silo/issues/102)) ([e8ab637](https://github.com/silo-code/silo/commit/e8ab6375240278dcc6b6f6fe169f96dde4eafcd7))
+
 ## [0.14.0](https://github.com/silo-code/silo/compare/sdk-v0.13.0...sdk-v0.14.0) (2026-06-26)
 
 
