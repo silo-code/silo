@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useSnapshot } from "valtio";
 import {
   store,
@@ -9,6 +9,7 @@ import {
 // Reuse the editor settings page's layout/control styles (the es-* classes are
 // generic settings-page styling).
 import "../editor/EditorSettingsPage.css";
+import { filterSections } from "../settings-search";
 
 const FONT_CANDIDATES = [
   "Cascadia Code",
@@ -185,189 +186,197 @@ function Toggle({
   );
 }
 
+interface RowDef {
+  label: string;
+  hint?: string;
+  control: ReactNode;
+}
+
+interface SectionDef {
+  title: string;
+  rows: RowDef[];
+}
+
 // A module of the core.terminal extension, registered from its activate as the
 // "terminal" settings page.
 export function TerminalSettingsPage() {
   const snap = useSnapshot(store);
   const s = snap.terminalSettings;
+  const [query, setQuery] = useState("");
+
   const toggle = (key: keyof TerminalSettings) => (next: boolean) =>
     setTerminalSetting(key, next as TerminalSettings[typeof key]);
+
+  // Settings described as data so the search box can filter rows and drop
+  // sections that end up empty. Controls close over the current snapshot.
+  const sections: SectionDef[] = [
+    {
+      title: "Display",
+      rows: [
+        {
+          label: "Breadcrumbs",
+          hint: "Show the working-directory bar at the top of the terminal.",
+          control: (
+            <Toggle
+              label="Breadcrumbs"
+              checked={s.breadcrumbs}
+              onChange={toggle("breadcrumbs")}
+            />
+          ),
+        },
+        {
+          label: "Cursor style",
+          control: (
+            <select
+              className="es-select"
+              value={s.cursorStyle}
+              onChange={(e) =>
+                setTerminalSetting(
+                  "cursorStyle",
+                  e.target.value as TerminalCursorStyle,
+                )
+              }
+            >
+              <option value="block">Block</option>
+              <option value="bar">Bar</option>
+              <option value="underline">Underline</option>
+            </select>
+          ),
+        },
+      ],
+    },
+    {
+      title: "Font",
+      rows: [
+        {
+          label: "Font family",
+          hint: "Monospace font for the terminal. Leave empty to use the platform default.",
+          control: (
+            <FontFamilyPicker
+              value={s.fontFamily}
+              onChange={(v) => setTerminalSetting("fontFamily", v)}
+            />
+          ),
+        },
+        {
+          label: "Font size",
+          hint: "Offset from the UI font size in px.",
+          control: (
+            <input
+              className="es-number"
+              type="number"
+              min={-4}
+              max={10}
+              step={1}
+              value={s.fontSizeOffset}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (Number.isFinite(n) && n >= -4 && n <= 10) {
+                  setTerminalSetting("fontSizeOffset", n);
+                }
+              }}
+            />
+          ),
+        },
+      ],
+    },
+    {
+      title: "Behavior",
+      rows: [
+        {
+          label: "Copy on selection",
+          hint: "Copy selected text to the clipboard automatically.",
+          control: (
+            <Toggle
+              label="Copy on selection"
+              checked={s.copyOnSelect}
+              onChange={toggle("copyOnSelect")}
+            />
+          ),
+        },
+        {
+          label: "Paste on right-click",
+          hint: "Right-click pastes the clipboard instead of opening the context menu.",
+          control: (
+            <Toggle
+              label="Paste on right-click"
+              checked={s.pasteOnRightClick}
+              onChange={toggle("pasteOnRightClick")}
+            />
+          ),
+        },
+      ],
+    },
+    {
+      title: "Shell",
+      rows: [
+        {
+          label: "Shell path",
+          hint: "Program to launch. Leave empty to use your $SHELL. Applies to new terminals.",
+          control: (
+            <input
+              className="es-text"
+              type="text"
+              placeholder="$SHELL"
+              value={s.shell}
+              spellCheck={false}
+              onChange={(e) => setTerminalSetting("shell", e.target.value)}
+            />
+          ),
+        },
+        {
+          label: "Shell arguments",
+          hint: "Whitespace-separated args (e.g. -l for a login shell). Applies to new terminals.",
+          control: (
+            <input
+              className="es-text"
+              type="text"
+              placeholder="-l"
+              value={s.shellArgs}
+              spellCheck={false}
+              onChange={(e) => setTerminalSetting("shellArgs", e.target.value)}
+            />
+          ),
+        },
+      ],
+    },
+  ];
+
+  const visible = filterSections(sections, query.trim().toLowerCase());
 
   return (
     <div className="es-page">
       <div className="es-header">
         <h2>Terminal</h2>
       </div>
+      <input
+        className="es-search"
+        type="text"
+        placeholder="Search settings…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        autoFocus
+      />
       <div className="es-scroll">
-        <section className="es-section">
-          <h3 className="es-section-title">Display</h3>
-          <div className="es-rows">
-            <div className="es-row">
-              <div className="es-row-text">
-                <span className="es-label">Breadcrumbs</span>
-                <span className="es-hint">
-                  Show the working-directory bar at the top of the terminal.
-                </span>
-              </div>
-              <div className="es-control">
-                <Toggle
-                  label="Breadcrumbs"
-                  checked={s.breadcrumbs}
-                  onChange={toggle("breadcrumbs")}
-                />
-              </div>
+        {visible.map((sec) => (
+          <section key={sec.title} className="es-section">
+            <h3 className="es-section-title">{sec.title}</h3>
+            <div className="es-rows">
+              {sec.rows.map((row) => (
+                <div key={row.label} className="es-row">
+                  <div className="es-row-text">
+                    <span className="es-label">{row.label}</span>
+                    {row.hint && <span className="es-hint">{row.hint}</span>}
+                  </div>
+                  <div className="es-control">{row.control}</div>
+                </div>
+              ))}
             </div>
-            <div className="es-row">
-              <div className="es-row-text">
-                <span className="es-label">Cursor style</span>
-              </div>
-              <div className="es-control">
-                <select
-                  className="es-select"
-                  value={s.cursorStyle}
-                  onChange={(e) =>
-                    setTerminalSetting(
-                      "cursorStyle",
-                      e.target.value as TerminalCursorStyle,
-                    )
-                  }
-                >
-                  <option value="block">Block</option>
-                  <option value="bar">Bar</option>
-                  <option value="underline">Underline</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="es-section">
-          <h3 className="es-section-title">Font</h3>
-          <div className="es-rows">
-            <div className="es-row">
-              <div className="es-row-text">
-                <span className="es-label">Font family</span>
-                <span className="es-hint">
-                  Monospace font for the terminal. Leave empty to use the
-                  platform default.
-                </span>
-              </div>
-              <div className="es-control">
-                <FontFamilyPicker
-                  value={s.fontFamily}
-                  onChange={(v) => setTerminalSetting("fontFamily", v)}
-                />
-              </div>
-            </div>
-            <div className="es-row">
-              <div className="es-row-text">
-                <span className="es-label">Font size</span>
-                <span className="es-hint">
-                  Offset from the UI font size in px.
-                </span>
-              </div>
-              <div className="es-control">
-                <input
-                  className="es-number"
-                  type="number"
-                  min={-4}
-                  max={10}
-                  step={1}
-                  value={s.fontSizeOffset}
-                  onChange={(e) => {
-                    const n = Number(e.target.value);
-                    if (Number.isFinite(n) && n >= -4 && n <= 10) {
-                      setTerminalSetting("fontSizeOffset", n);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="es-section">
-          <h3 className="es-section-title">Behavior</h3>
-          <div className="es-rows">
-            <div className="es-row">
-              <div className="es-row-text">
-                <span className="es-label">Copy on selection</span>
-                <span className="es-hint">
-                  Copy selected text to the clipboard automatically.
-                </span>
-              </div>
-              <div className="es-control">
-                <Toggle
-                  label="Copy on selection"
-                  checked={s.copyOnSelect}
-                  onChange={toggle("copyOnSelect")}
-                />
-              </div>
-            </div>
-            <div className="es-row">
-              <div className="es-row-text">
-                <span className="es-label">Paste on right-click</span>
-                <span className="es-hint">
-                  Right-click pastes the clipboard instead of opening the
-                  context menu.
-                </span>
-              </div>
-              <div className="es-control">
-                <Toggle
-                  label="Paste on right-click"
-                  checked={s.pasteOnRightClick}
-                  onChange={toggle("pasteOnRightClick")}
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="es-section">
-          <h3 className="es-section-title">Shell</h3>
-          <div className="es-rows">
-            <div className="es-row">
-              <div className="es-row-text">
-                <span className="es-label">Shell path</span>
-                <span className="es-hint">
-                  Program to launch. Leave empty to use your $SHELL. Applies to
-                  new terminals.
-                </span>
-              </div>
-              <div className="es-control">
-                <input
-                  className="es-text"
-                  type="text"
-                  placeholder="$SHELL"
-                  value={s.shell}
-                  spellCheck={false}
-                  onChange={(e) => setTerminalSetting("shell", e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="es-row">
-              <div className="es-row-text">
-                <span className="es-label">Shell arguments</span>
-                <span className="es-hint">
-                  Whitespace-separated args (e.g. <code>-l</code> for a login
-                  shell). Applies to new terminals.
-                </span>
-              </div>
-              <div className="es-control">
-                <input
-                  className="es-text"
-                  type="text"
-                  placeholder="-l"
-                  value={s.shellArgs}
-                  spellCheck={false}
-                  onChange={(e) =>
-                    setTerminalSetting("shellArgs", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-          </div>
-        </section>
+          </section>
+        ))}
+        {visible.length === 0 && (
+          <div className="es-empty">No settings match "{query}".</div>
+        )}
       </div>
     </div>
   );

@@ -57,7 +57,7 @@
   background: transparent;
   border: none;
   color: var(--silo-color-text);
-  padding: 6px 8px;
+  padding: 9px 8px;
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
   font: inherit;
