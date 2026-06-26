@@ -149,6 +149,93 @@
   border-color: var(--silo-color-accent);
 }
 
+/* Font family picker (TerminalSettingsPage) */
+.es-font-picker {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 220px;
+}
+
+.es-font-picker-input {
+  width: 100%;
+  padding-right: 30px;
+}
+.es-font-picker--has-value .es-font-picker-input {
+  padding-right: 54px;
+}
+
+.es-font-picker-clear {
+  position: absolute;
+  right: 30px;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+  padding: 0;
+  font-size: 15px;
+}
+.es-font-picker-clear:hover {
+  color: var(--silo-color-text-hi);
+}
+
+.es-font-picker-arrow {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--silo-color-border);
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+  padding: 0;
+  font-size: 20px;
+  border-radius: 0 var(--silo-radius-sm) var(--silo-radius-sm) 0;
+}
+.es-font-picker-arrow:hover {
+  color: var(--silo-color-text-hi);
+  background: var(--silo-color-bg-active);
+}
+
+.es-font-picker-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  list-style: none;
+  margin: 0;
+  padding: 3px 0;
+}
+
+.es-font-picker-item {
+  padding: 5px 10px;
+  cursor: pointer;
+  color: var(--silo-color-text-hi);
+  font-size: var(--settings-font);
+}
+.es-font-picker-item:hover,
+.es-font-picker-item--selected {
+  background: var(--silo-color-bg-active);
+}
+
 /* Toggle switch */
 .es-switch {
   position: relative;

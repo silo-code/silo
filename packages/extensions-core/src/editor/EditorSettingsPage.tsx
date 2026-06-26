@@ -8,6 +8,7 @@ import {
   type RenderWhitespace,
 } from "@silo-code/extension-host/internal";
 import "./EditorSettingsPage.css";
+import { filterSections } from "../settings-search";
 
 interface RowDef {
   label: string;
@@ -39,13 +40,6 @@ function Toggle({
       />
       <span className="es-switch-track" />
     </label>
-  );
-}
-
-function rowMatches(row: RowDef, q: string): boolean {
-  return (
-    row.label.toLowerCase().includes(q) ||
-    (row.hint?.toLowerCase().includes(q) ?? false)
   );
 }
 
@@ -228,18 +222,7 @@ export function EditorSettingsPage() {
     },
   ];
 
-  // Filter rows by query. A section whose title matches keeps all its rows;
-  // otherwise keep only rows that match. Empty sections drop out.
-  const q = query.trim().toLowerCase();
-  const visible = q
-    ? sections
-        .map((sec) =>
-          sec.title.toLowerCase().includes(q)
-            ? sec
-            : { ...sec, rows: sec.rows.filter((r) => rowMatches(r, q)) },
-        )
-        .filter((sec) => sec.rows.length > 0)
-    : sections;
+  const visible = filterSections(sections, query.trim().toLowerCase());
 
   return (
     <div className="es-page">

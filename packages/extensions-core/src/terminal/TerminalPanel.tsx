@@ -30,6 +30,7 @@ import {
   registerSelectionSource,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
+import { effectiveFontFamily } from "./terminal-font";
 import { buildTerminalPaste } from "./terminal-path-paste";
 import { findFileLinks, getHomeDir } from "./terminal-links";
 import { TerminalSearch } from "./TerminalSearch";
@@ -37,11 +38,20 @@ import { Breadcrumb } from "../editor/Breadcrumb";
 import "@xterm/xterm/css/xterm.css";
 import "./TerminalPanel.css";
 
-// Terminal fonts are rendered slightly larger than the global UI font size.
-const TERMINAL_FONT_SIZE_OFFSET = 0.5;
-
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const isWindows = navigator.platform.toUpperCase().startsWith("WIN");
+
+function resolvedFontFamily(): string {
+  return effectiveFontFamily(
+    store.terminalSettings.fontFamily,
+    isWindows,
+    isMac,
+  );
+}
+
+function effectiveFontSize(): number {
+  return store.uiFontSize + store.terminalSettings.fontSizeOffset + 0.5;
+}
 const cmdKey = isMac ? "⌘" : "Ctrl";
 
 interface Params {
@@ -172,8 +182,8 @@ export function TerminalPanel(
     if (!containerRef.current) return;
 
     const term = new XTerm({
-      fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-      fontSize: store.uiFontSize + TERMINAL_FONT_SIZE_OFFSET,
+      fontFamily: resolvedFontFamily(),
+      fontSize: effectiveFontSize(),
       lineHeight: 1.2,
       letterSpacing: 0.4,
       cursorBlink: true,
@@ -189,6 +199,9 @@ export function TerminalPanel(
       customGlyphs: false,
       allowProposedApi: true,
     });
+    // xterm v6 removed the bellStyle option; subscribe to onBell with a no-op
+    // to suppress any audio the WebView would otherwise play on BEL (0x07).
+    term.onBell(() => {});
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.loadAddon(new WebLinksAddon());
@@ -252,11 +265,18 @@ export function TerminalPanel(
     let lastThemeId: string = store.activeThemeId;
     let lastTerminalBg: string = "";
     const unsubFont = subscribe(store, () => {
-      if (
-        term.options.fontSize !==
-        store.uiFontSize + TERMINAL_FONT_SIZE_OFFSET
-      ) {
-        term.options.fontSize = store.uiFontSize + TERMINAL_FONT_SIZE_OFFSET;
+      const newSize = effectiveFontSize();
+      if (term.options.fontSize !== newSize) {
+        term.options.fontSize = newSize;
+        try {
+          fit.fit();
+        } catch {
+          /* no-op */
+        }
+      }
+      const newFamily = resolvedFontFamily();
+      if (term.options.fontFamily !== newFamily) {
+        term.options.fontFamily = newFamily;
         try {
           fit.fit();
         } catch {

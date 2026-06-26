@@ -135,6 +135,9 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
 
 export type TerminalCursorStyle = "block" | "bar" | "underline";
 
+export const MIN_TERMINAL_FONT_SIZE_OFFSET = -4;
+export const MAX_TERMINAL_FONT_SIZE_OFFSET = 10;
+
 /** User-facing terminal preferences (global tier, mirrors EditorSettings). */
 export interface TerminalSettings {
   /** Show the working-directory breadcrumb bar at the top of terminals. */
@@ -159,6 +162,15 @@ export interface TerminalSettings {
    * `fastScrollSensitivity`. Valid range: {@link MIN_TERMINAL_SCROLL_SENSITIVITY}–{@link MAX_TERMINAL_FAST_SCROLL_SENSITIVITY}.
    */
   fastScrollSensitivity: number;
+  /** Monospace font family. Empty string = platform-appropriate default stack. */
+  fontFamily: string;
+  /**
+   * Signed px offset added to (uiFontSize + 0.5). 0 = original terminal feel
+   * (the hardcoded default before this setting existed). Positive = larger,
+   * negative = smaller. Zooms with the rest of the app when the user changes
+   * the global UI font size.
+   */
+  fontSizeOffset: number;
 }
 
 export const MIN_TERMINAL_SCROLL_SENSITIVITY = 1;
@@ -176,4 +188,6 @@ export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   shellArgs: "-l",
   scrollSensitivity: DEFAULT_TERMINAL_SCROLL_SENSITIVITY,
   fastScrollSensitivity: DEFAULT_TERMINAL_FAST_SCROLL_SENSITIVITY,
+  fontFamily: "",
+  fontSizeOffset: 0,
 };
