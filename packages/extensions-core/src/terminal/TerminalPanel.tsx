@@ -22,6 +22,7 @@ import {
 import {
   store,
   recreateTerminal,
+  tauriTerminalClient,
   getThemeBase,
   retryFocus,
   useFocusOnActive,
@@ -110,6 +111,9 @@ export function TerminalPanel(
   const [lifecycle, setLifecycle] = useState<Lifecycle>({ kind: "loading" });
   // Bumping this re-runs the attach effect (used by the Recreate button).
   const [version, setVersion] = useState(0);
+  // When auto-recreating after a 404, holds the stale sessionId so the next
+  // init() run can replay its persisted buffer into the fresh session.
+  const replayFromRef = useRef<string>("");
   // Find overlay (Cmd+F). `seed` carries the terminal's current selection into
   // the search box at open time; bumping `nonce` re-focuses the box if Cmd+F is
   // pressed while it's already open.
@@ -430,6 +434,19 @@ export function TerminalPanel(
           replayed = true;
           for (const d of pendingLive) writeLive(d);
           pendingLive.length = 0;
+        } else if (replayFromRef.current) {
+          // Auto-recreated after a 404: replay the old session's persisted buffer
+          // so scrollback survives the reboot, then flush any live output.
+          const oldSessionId = replayFromRef.current;
+          replayFromRef.current = "";
+          const restored =
+            await tauriTerminalClient.getTerminalBuffer(oldSessionId);
+          if (restored.length > 0) {
+            term.write(restored);
+          }
+          replayed = true;
+          for (const d of pendingLive) writeLive(d);
+          pendingLive.length = 0;
         }
 
         const saveTimer = window.setInterval(() => {
@@ -531,11 +548,12 @@ export function TerminalPanel(
       } catch (err) {
         const e = err as Error & { status?: number };
         if (e.status === 404) {
-          setLifecycle({
-            kind: "stale",
-            sessionId: tRec.sessionId,
-            message: "Terminal session no longer exists.",
-          });
+          // PTY daemon died (e.g. reboot). Save the old sessionId so the next
+          // init() run can replay its persisted buffer after spawning a fresh shell.
+          replayFromRef.current = tRec.sessionId;
+          recreateTerminal(activeWsId!, terminalId);
+          setLifecycle({ kind: "loading" });
+          setVersion((v) => v + 1);
         } else {
           setLifecycle({
             kind: "stale",
