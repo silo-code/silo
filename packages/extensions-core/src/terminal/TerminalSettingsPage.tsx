@@ -260,7 +260,7 @@ export function TerminalSettingsPage() {
         },
         {
           label: "Font size",
-          hint: "Offset from the UI font size in px.",
+          hint: "px added to the UI font size. 0 = default terminal size.",
           control: (
             <input
               className="es-number"

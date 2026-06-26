@@ -155,9 +155,10 @@ export interface TerminalSettings {
   /** Monospace font family. Empty string = platform-appropriate default stack. */
   fontFamily: string;
   /**
-   * Signed px offset added to the global uiFontSize. 0 = same size as the UI
-   * font. Positive = larger, negative = smaller. Zooms with the rest of the app
-   * when the user changes the global UI font size.
+   * Signed px offset added to (uiFontSize + 0.5). 0 = original terminal feel
+   * (the hardcoded default before this setting existed). Positive = larger,
+   * negative = smaller. Zooms with the rest of the app when the user changes
+   * the global UI font size.
    */
   fontSizeOffset: number;
 }
@@ -170,5 +171,5 @@ export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   shell: "",
   shellArgs: "-l",
   fontFamily: "",
-  fontSizeOffset: 1,
+  fontSizeOffset: 0,
 };

@@ -50,7 +50,7 @@ function resolvedFontFamily(): string {
 }
 
 function effectiveFontSize(): number {
-  return store.uiFontSize + store.terminalSettings.fontSizeOffset;
+  return store.uiFontSize + store.terminalSettings.fontSizeOffset + 0.5;
 }
 const cmdKey = isMac ? "⌘" : "Ctrl";
 

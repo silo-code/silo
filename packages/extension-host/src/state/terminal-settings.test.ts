@@ -11,8 +11,8 @@ describe("DEFAULT_TERMINAL_SETTINGS font fields", () => {
     expect(DEFAULT_TERMINAL_SETTINGS.fontFamily).toBe("");
   });
 
-  it("fontSizeOffset defaults to 1 (terminal renders 1px larger than UI font)", () => {
-    expect(DEFAULT_TERMINAL_SETTINGS.fontSizeOffset).toBe(1);
+  it("fontSizeOffset defaults to 0 (original terminal feel: uiFontSize + 0.5)", () => {
+    expect(DEFAULT_TERMINAL_SETTINGS.fontSizeOffset).toBe(0);
   });
 });
 
@@ -31,7 +31,7 @@ describe("persistence merge backward compat", () => {
       ...persisted,
     };
     expect(merged.fontFamily).toBe("");
-    expect(merged.fontSizeOffset).toBe(1);
+    expect(merged.fontSizeOffset).toBe(0);
   });
 
   it("persisted fontFamily overrides the empty default", () => {
