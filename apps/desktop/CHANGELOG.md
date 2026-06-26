@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.13.0](https://github.com/silo-code/silo/compare/silo-v0.12.0...silo-v0.13.0) (2026-06-26)
+
+
+### Features
+
+* **terminal:** auto-recover terminals after reboot with buffer replay ([#98](https://github.com/silo-code/silo/issues/98)) ([b3a25ee](https://github.com/silo-code/silo/commit/b3a25ee2ff517f8f3cc0ca14b9b07b52f0969abe))
+* **workspaces:** add registerSection API for extension-contributed workspace row components ([#95](https://github.com/silo-code/silo/issues/95)) ([2c42024](https://github.com/silo-code/silo/commit/2c42024712d8c1a5506f27369393453ea5bbfb27))
+
+
+### Bug Fixes
+
+* **git:** truncate branch name in single-root mode ([#93](https://github.com/silo-code/silo/issues/93)) ([9eed912](https://github.com/silo-code/silo/commit/9eed912fd860016c441c77f4f9d6545ff5d266e5))
+
 ## [0.13.0](https://github.com/silo-code/silo/compare/silo-v0.12.0...silo-v0.13.0) (2026-06-25)
 
 
