@@ -54,6 +54,8 @@ export type {
   WorkspaceDecorationProvider,
   WorkspaceSectionProps,
   WorkspaceSectionProvider,
+  WorkspaceBadge,
+  WorkspaceBadgeProvider,
 } from "./workspace-service";
 export type {
   EditorService,
