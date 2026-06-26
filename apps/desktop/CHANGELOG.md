@@ -5,6 +5,24 @@
 
 ### Features
 
+* **terminal:** add configurable scroll speed settings ([#104](https://github.com/silo-code/silo/issues/104)) ([bd69f9e](https://github.com/silo-code/silo/commit/bd69f9ecedeaf5f5a75569e769cf3f107fc5cb95))
+* **terminal:** auto-recover terminals after reboot with buffer replay ([#98](https://github.com/silo-code/silo/issues/98)) ([b3a25ee](https://github.com/silo-code/silo/commit/b3a25ee2ff517f8f3cc0ca14b9b07b52f0969abe))
+* **terminal:** font family and size settings ([#101](https://github.com/silo-code/silo/issues/101)) ([3773b8f](https://github.com/silo-code/silo/commit/3773b8fc8b2a96915d80a0c02166a943331303c4))
+* **workspaces:** add extension badge API, replace uptime with badges ([#102](https://github.com/silo-code/silo/issues/102)) ([e8ab637](https://github.com/silo-code/silo/commit/e8ab6375240278dcc6b6f6fe169f96dde4eafcd7))
+* **workspaces:** add registerSection API for extension-contributed workspace row components ([#95](https://github.com/silo-code/silo/issues/95)) ([2c42024](https://github.com/silo-code/silo/commit/2c42024712d8c1a5506f27369393453ea5bbfb27))
+
+
+### Bug Fixes
+
+* **git:** left-align branch name in single-root panel ([#105](https://github.com/silo-code/silo/issues/105)) ([96f4c58](https://github.com/silo-code/silo/commit/96f4c588a99b72bb7b2158a7006c64b2b708f90a))
+* **git:** truncate branch name in single-root mode ([#93](https://github.com/silo-code/silo/issues/93)) ([9eed912](https://github.com/silo-code/silo/commit/9eed912fd860016c441c77f4f9d6545ff5d266e5))
+* **terminal:** disable bell sound on copy/BEL sequences ([#100](https://github.com/silo-code/silo/issues/100)) ([7f92102](https://github.com/silo-code/silo/commit/7f92102e9edf05f0c3bea2f55bfaae9aaaadb0da))
+
+## [0.13.0](https://github.com/silo-code/silo/compare/silo-v0.12.0...silo-v0.13.0) (2026-06-26)
+
+
+### Features
+
 * **terminal:** auto-recover terminals after reboot with buffer replay ([#98](https://github.com/silo-code/silo/issues/98)) ([b3a25ee](https://github.com/silo-code/silo/commit/b3a25ee2ff517f8f3cc0ca14b9b07b52f0969abe))
 * **workspaces:** add registerSection API for extension-contributed workspace row components ([#95](https://github.com/silo-code/silo/issues/95)) ([2c42024](https://github.com/silo-code/silo/commit/2c42024712d8c1a5506f27369393453ea5bbfb27))
 
