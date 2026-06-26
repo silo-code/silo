@@ -198,6 +198,7 @@ export function TerminalPanel(
       // glyphs from the font instead. Regular text is unaffected.
       customGlyphs: false,
       allowProposedApi: true,
+      bellStyle: "none",
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
