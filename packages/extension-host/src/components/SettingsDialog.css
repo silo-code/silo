@@ -57,7 +57,7 @@
   background: transparent;
   border: none;
   color: var(--silo-color-text);
-  padding: 6px 8px;
+  padding: 9px 8px;
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
   font: inherit;
@@ -104,6 +104,19 @@
 .settings-empty {
   color: var(--silo-color-text-lo);
   font-size: calc(var(--settings-font) - 1px);
+}
+
+/* Scoped focus ring for the entire settings modal. The global theme rule uses
+   1.5 px and can bleed outside control bounds. Inputs/selects already signal
+   focus via border-color (es-* rules), so suppress the outline there. Buttons
+   get a tight 1 px inset ring. Using :is() raises specificity to (0,3,0) which
+   beats the global (0,2,1) rule without relying on cascade order. */
+.settings-dialog :is(input, select, textarea):focus-visible {
+  outline: none;
+}
+.settings-dialog button:focus-visible {
+  outline: 1px solid var(--silo-color-accent);
+  outline-offset: -1px;
 }
 
 .settings-close {
