@@ -60,43 +60,6 @@ export interface WorkspaceSectionProvider {
 }
 
 /**
- * A badge displayed next to the workspace name in the Workspaces side panel.
- * Contributed by a {@link WorkspaceBadgeProvider}.
- *
- * @category Consumer Services
- * @public
- */
-export interface WorkspaceBadge {
-  /** Stable key unique within this provider's results; used for reconciliation. */
-  id: string;
-  /** Short text rendered inside the badge. */
-  text: string;
-  /**
-   * CSS color applied to both the badge border and text. Falls back to the
-   * muted text color (`--silo-color-text-lo`) when omitted.
-   */
-  color?: string;
-}
-
-/**
- * A badge provider that contributes {@link WorkspaceBadge}s next to the
- * workspace name in the Workspaces side panel. Register via
- * {@link WorkspaceService.registerBadge}.
- *
- * @category Consumer Services
- * @public
- */
-export interface WorkspaceBadgeProvider {
-  /** Unique id for this provider — conventionally `"<extension-id>.badges"`. */
-  id: string;
-  /**
-   * Called synchronously for each workspace during render. Return an empty
-   * array to contribute nothing for this workspace.
-   */
-  provide(workspaceId: string): WorkspaceBadge[];
-}
-
-/**
  * A decoration provider that contributes {@link WorkspaceStatusRow}s to
  * workspace rows in the Workspaces side panel. Register via
  * {@link WorkspaceService.registerDecoration}.
@@ -265,49 +228,4 @@ export interface WorkspaceService {
    * are added or removed.
    */
   subscribeSection(listener: () => void): Disposable;
-
-  /**
-   * Register a badge provider that contributes {@link WorkspaceBadge}s next to
-   * the workspace name in the Workspaces side panel. Multiple providers may be
-   * registered; their badges are concatenated in registration order. Returns a
-   * {@link Disposable} that unregisters the provider.
-   *
-   * @example
-   * ```ts
-   * ctx.subscriptions.push(
-   *   ctx.workspaces.registerBadge({
-   *     id: "my-ext.badges",
-   *     provide(workspaceId) {
-   *       const status = getStatus(workspaceId);
-   *       if (!status) return [];
-   *       return [{ id: "status", text: status.label, color: status.color }];
-   *     },
-   *   }),
-   * );
-   * ```
-   */
-  registerBadge(provider: WorkspaceBadgeProvider): Disposable;
-
-  /**
-   * Concatenate all registered providers' badges for one workspace (in
-   * registration order). Called synchronously during panel render — providers
-   * must be fast and side-effect-free.
-   */
-  getBadges(workspaceId: string): WorkspaceBadge[];
-
-  /**
-   * Signal that badge data has changed. Fires all listeners registered via
-   * {@link WorkspaceService.subscribeBadges}, causing the Workspaces panel to
-   * re-query providers and re-render the name row.
-   *
-   * Call this after any mutation to the state your `provide` function reads.
-   */
-  invalidateBadges(): void;
-
-  /**
-   * Subscribe to badge invalidations. The listener is called whenever
-   * {@link WorkspaceService.invalidateBadges} is invoked. Returns a
-   * {@link Disposable} that cancels the subscription.
-   */
-  subscribeBadges(listener: () => void): Disposable;
 }
