@@ -180,8 +180,8 @@ export function TerminalPanel(
       cursorStyle: store.terminalSettings.cursorStyle,
       theme: xtermThemeFor(getThemeBase(store.activeThemeId)),
       scrollback: 10_000,
-      scrollSensitivity: 3,
-      fastScrollSensitivity: 5,
+      scrollSensitivity: store.terminalSettings.scrollSensitivity,
+      fastScrollSensitivity: store.terminalSettings.fastScrollSensitivity,
       // xterm hand-draws box-drawing/block glyphs (U+2500 etc.) with vector
       // paths instead of the font. Its WebGL renderer mis-draws some of those
       // cells as artifacts (e.g. blobs on pi's ──── separators), so render box
@@ -265,6 +265,20 @@ export function TerminalPanel(
       }
       if (term.options.cursorStyle !== store.terminalSettings.cursorStyle) {
         term.options.cursorStyle = store.terminalSettings.cursorStyle;
+      }
+      if (
+        term.options.scrollSensitivity !==
+        store.terminalSettings.scrollSensitivity
+      ) {
+        term.options.scrollSensitivity =
+          store.terminalSettings.scrollSensitivity;
+      }
+      if (
+        term.options.fastScrollSensitivity !==
+        store.terminalSettings.fastScrollSensitivity
+      ) {
+        term.options.fastScrollSensitivity =
+          store.terminalSettings.fastScrollSensitivity;
       }
       const themeChanged = store.activeThemeId !== lastThemeId;
       // Also detect live edits to --silo-content-terminal-bg in the active custom theme

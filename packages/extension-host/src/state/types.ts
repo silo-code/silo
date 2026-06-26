@@ -149,7 +149,23 @@ export interface TerminalSettings {
   shell: string;
   /** Whitespace-separated args passed to the shell (default a login shell). */
   shellArgs: string;
+  /**
+   * Lines scrolled per mouse-wheel tick. Mirrors xterm's `scrollSensitivity`.
+   * Higher = faster. Valid range: {@link MIN_TERMINAL_SCROLL_SENSITIVITY}–{@link MAX_TERMINAL_SCROLL_SENSITIVITY}.
+   */
+  scrollSensitivity: number;
+  /**
+   * Lines scrolled per tick while holding Alt/Option. Mirrors xterm's
+   * `fastScrollSensitivity`. Valid range: {@link MIN_TERMINAL_SCROLL_SENSITIVITY}–{@link MAX_TERMINAL_FAST_SCROLL_SENSITIVITY}.
+   */
+  fastScrollSensitivity: number;
 }
+
+export const MIN_TERMINAL_SCROLL_SENSITIVITY = 1;
+export const MAX_TERMINAL_SCROLL_SENSITIVITY = 50;
+export const DEFAULT_TERMINAL_SCROLL_SENSITIVITY = 3;
+export const MAX_TERMINAL_FAST_SCROLL_SENSITIVITY = 50;
+export const DEFAULT_TERMINAL_FAST_SCROLL_SENSITIVITY = 5;
 
 export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   breadcrumbs: true,
@@ -158,4 +174,6 @@ export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   pasteOnRightClick: false,
   shell: "",
   shellArgs: "-l",
+  scrollSensitivity: DEFAULT_TERMINAL_SCROLL_SENSITIVITY,
+  fastScrollSensitivity: DEFAULT_TERMINAL_FAST_SCROLL_SENSITIVITY,
 };

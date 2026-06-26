@@ -4,6 +4,9 @@ import {
   setTerminalSetting,
   type TerminalSettings,
   type TerminalCursorStyle,
+  MIN_TERMINAL_SCROLL_SENSITIVITY,
+  MAX_TERMINAL_SCROLL_SENSITIVITY,
+  MAX_TERMINAL_FAST_SCROLL_SENSITIVITY,
 } from "@silo-code/extension-host/internal";
 // Reuse the editor settings page's layout/control styles (the es-* classes are
 // generic settings-page styling).
@@ -118,6 +121,68 @@ export function TerminalSettingsPage() {
                   label="Paste on right-click"
                   checked={s.pasteOnRightClick}
                   onChange={toggle("pasteOnRightClick")}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="es-section">
+          <h3 className="es-section-title">Scrolling</h3>
+          <div className="es-rows">
+            <div className="es-row">
+              <div className="es-row-text">
+                <span className="es-label">Scroll speed</span>
+                <span className="es-hint">
+                  Lines scrolled per mouse-wheel tick. Default: 3.
+                </span>
+              </div>
+              <div className="es-control">
+                <input
+                  className="es-number"
+                  type="number"
+                  min={MIN_TERMINAL_SCROLL_SENSITIVITY}
+                  max={MAX_TERMINAL_SCROLL_SENSITIVITY}
+                  step={1}
+                  value={s.scrollSensitivity}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    if (
+                      Number.isFinite(n) &&
+                      n >= MIN_TERMINAL_SCROLL_SENSITIVITY &&
+                      n <= MAX_TERMINAL_SCROLL_SENSITIVITY
+                    ) {
+                      setTerminalSetting("scrollSensitivity", n);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+            <div className="es-row">
+              <div className="es-row-text">
+                <span className="es-label">Fast scroll speed</span>
+                <span className="es-hint">
+                  Lines scrolled per tick while holding Alt/Option. Default: 5.
+                </span>
+              </div>
+              <div className="es-control">
+                <input
+                  className="es-number"
+                  type="number"
+                  min={MIN_TERMINAL_SCROLL_SENSITIVITY}
+                  max={MAX_TERMINAL_FAST_SCROLL_SENSITIVITY}
+                  step={1}
+                  value={s.fastScrollSensitivity}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    if (
+                      Number.isFinite(n) &&
+                      n >= MIN_TERMINAL_SCROLL_SENSITIVITY &&
+                      n <= MAX_TERMINAL_FAST_SCROLL_SENSITIVITY
+                    ) {
+                      setTerminalSetting("fastScrollSensitivity", n);
+                    }
+                  }}
                 />
               </div>
             </div>
