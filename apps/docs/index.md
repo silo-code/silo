@@ -7,11 +7,11 @@ hero:
   tagline: "Keep all your projects running simultaneously — terminals, agents, and layout intact — and switch between them in an instant."
   actions:
     - theme: brand
-      text: Download for macOS →
+      text: Download →
       link: https://github.com/silo-code/silo/releases/latest
-    - theme: brand
-      text: Download for Linux →
-      link: https://github.com/silo-code/silo/releases/latest
+    - theme: alt
+      text: Get started
+      link: /guide/
     - theme: alt
       text: View on GitHub
       link: https://github.com/silo-code/silo
