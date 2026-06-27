@@ -110,6 +110,8 @@ export default withMermaid(
             text: "Using Silo",
             items: [
               { text: "Workspaces", link: "/guide/workspaces" },
+              { text: "Side panels", link: "/guide/panels" },
+              { text: "Extensions", link: "/guide/extensions" },
               { text: "The `silo` command", link: "/guide/cli" },
             ],
           },
@@ -117,26 +119,54 @@ export default withMermaid(
             text: "Building Extensions",
             items: [
               {
-                text: "What is an extension?",
-                link: "/guide/what-is-an-extension",
+                text: "Foundations",
+                items: [
+                  {
+                    text: "What is an extension?",
+                    link: "/guide/what-is-an-extension",
+                  },
+                  {
+                    text: "Your first extension",
+                    link: "/guide/getting-started",
+                  },
+                  {
+                    text: "Build with Claude Code",
+                    link: "/guide/claude-skill",
+                  },
+                ],
               },
-              { text: "Your first extension", link: "/guide/getting-started" },
-              { text: "Build with Claude Code", link: "/guide/claude-skill" },
-              { text: "Styling your extension", link: "/guide/styling" },
               {
-                text: "Keyboard navigation",
-                link: "/guide/keyboard-navigation",
+                text: "UI & theming",
+                items: [
+                  { text: "Styling your extension", link: "/guide/styling" },
+                  {
+                    text: "Workspace decorations & badges",
+                    link: "/guide/workspace-decorations",
+                  },
+                  {
+                    text: "Keyboard navigation",
+                    link: "/guide/keyboard-navigation",
+                  },
+                  { text: "Building a theme", link: "/guide/theming" },
+                ],
               },
-              { text: "Building a theme", link: "/guide/theming" },
               {
-                text: "Publishing an extension",
-                link: "/guide/publishing-an-extension",
+                text: "Packaging & publishing",
+                items: [
+                  {
+                    text: "Permissions & access",
+                    link: "/guide/permissions",
+                  },
+                  {
+                    text: "Publishing an extension",
+                    link: "/guide/publishing-an-extension",
+                  },
+                  {
+                    text: "Sharing extensions",
+                    link: "/guide/sharing-extensions",
+                  },
+                ],
               },
-              {
-                text: "Sharing extensions",
-                link: "/guide/sharing-extensions",
-              },
-              { text: "Permissions & access", link: "/guide/permissions" },
             ],
           },
         ],
