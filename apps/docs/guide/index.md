@@ -4,6 +4,8 @@ Silo is a terminal-first workspace manager built for the multi-agent workflow.
 It keeps multiple projects open at once — each with live terminals and a
 preserved layout — and switches between them instantly.
 
+<img src="/img/guide/getting-started-app.png" alt="Silo with the file explorer panel open in the right column" width="600" />
+
 ## Using Silo
 
 **[Workspaces](/guide/workspaces)** — the core model: what a workspace is, how

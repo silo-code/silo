@@ -5,6 +5,8 @@ Panels hold workspace-level tools: file browsing, search, git, themes, and
 anything added by extensions. The center area is always the primary focus;
 the columns are secondary, collapsible surfaces.
 
+<img src="/img/guide/panels-file-explorer.png" alt="Files panel open in the right column, showing the project file tree" width="600" />
+
 ## Built-in panels
 
 **Left column**
@@ -23,6 +25,8 @@ the columns are secondary, collapsible surfaces.
 | Themes | Live theme preview and picker                    |
 
 Extensions can add panels to either column — see [Extensions](/guide/extensions).
+
+<img src="/img/guide/panels-file-explorer.png" alt="Files panel open in the right column, showing the project file tree" width="600" />
 
 ## Showing and hiding columns
 

@@ -25,6 +25,8 @@ From inside Silo, click the active workspace name in the status bar, then choose
 window. Click it to open a menu listing every open workspace; click any entry
 to switch immediately.
 
+<img src="/img/guide/workspaces-statusbar.png" alt="Status bar showing the active workspace name" width="600" />
+
 **Keyboard** — press <kbd>⌘`</kbd> to cycle forward through open workspaces, or
 <kbd>⌘~</kbd> to cycle backward. A small popup floats above the status bar while
 the modifier is held — release to land on the highlighted workspace.
@@ -32,6 +34,8 @@ the modifier is held — release to land on the highlighted workspace.
 **Workspaces panel** — click the workspace icon in the left dock to open the
 Workspaces panel. The panel lists every open workspace; click a row or press
 Enter on the focused row to activate it.
+
+<img src="/img/guide/workspaces-panel.png" alt="Workspaces panel showing several open workspaces, with the active one highlighted" width="600" />
 
 ## Closing and reopening
 
