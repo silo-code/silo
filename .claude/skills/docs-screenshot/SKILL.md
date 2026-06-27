@@ -87,6 +87,23 @@ magick "$WALL" -resize "600x400^" -gravity center -extent 600x400 /tmp/bg.png
 # ── Crop + scale ───────────────────────────────────────────────────────────
 magick "$APP" -crop ${CW}x${CH}+${CX}+${CY} +repage -resize ${OW}x${OH} /tmp/win-scaled.png
 
+# ── Mouse cursor (optional) ────────────────────────────────────────────────
+# Use when you want to indicate where the user should click.
+# IMPORTANT: Do NOT use SVG — ImageMagick renders it as a plain white square.
+# Draw the cursor natively instead. Cursor tip is at pixel (2,2) within the image.
+#
+# TIP_X=48; TIP_Y=265   # desired tip position in output-window coordinates
+# magick -size 24x28 xc:none \
+#   -fill white -stroke black -strokewidth 1.5 \
+#   -draw "polygon 2,2 2,22 7,17 11,26 14,24 10,15 18,15" \
+#   /tmp/cursor.png
+# magick /tmp/win-scaled.png /tmp/cursor.png \
+#   -geometry +$((TIP_X-2))+$((TIP_Y-2)) -composite /tmp/win-scaled.png
+#
+# Placement rule: subtract 2 from both axes (tip offset within cursor image).
+# Place the cursor AFTER crop+scale but BEFORE rounded corners so it gets
+# clipped correctly if it's near an edge.
+
 # ── Rounded corners ────────────────────────────────────────────────────────
 R=10
 case "$CORNER" in
@@ -168,12 +185,13 @@ magick identify /tmp/t.png   # merged WxH
 
 ## Common shots
 
-| Guide section       | Corner    | Source crop (2×)        | Output window | Output file              |
-| ------------------- | --------- | ----------------------- | ------------- | ------------------------ |
-| Workspaces panel    | top-left  | 900×680 from (0,0)      | 580×439       | workspaces-panel.png     |
-| Status bar + menu   | bot-left  | 1131×848 from (0,1050)  | 520×390       | workspaces-statusbar.png |
-| File explorer panel | top-right | 1324×1000 from (1700,0) | 580×438       | panels-file-explorer.png |
-| Getting started     | center    | full window (no crop)   | 480×304       | getting-started-app.png  |
+| Guide section       | Corner    | Source crop (2×)        | Output window | Output file                                           |
+| ------------------- | --------- | ----------------------- | ------------- | ----------------------------------------------------- |
+| Workspaces panel    | top-left  | 900×680 from (0,0)      | 580×439       | workspaces-panel.png                                  |
+| Workspaces + button | top-left  | 900×680 from (0,0)      | 580×439       | workspaces-open.png (cursor at + button tip≈(48,265)) |
+| Status bar + menu   | bot-left  | 1131×848 from (0,1050)  | 520×390       | workspaces-statusbar.png                              |
+| File explorer panel | top-right | 1324×1000 from (1700,0) | 580×438       | panels-file-explorer.png                              |
+| Getting started     | center    | full window (no crop)   | 480×304       | getting-started-app.png                               |
 
 ## Rules
 
@@ -181,3 +199,4 @@ magick identify /tmp/t.png   # merged WxH
 2. **Never cut the app artificially** — the window must be a real contiguous region of the app, just cropped at the canvas edge due to bleed.
 3. **Zoom into the feature** — pick a crop tight enough that the relevant UI is clearly readable.
 4. Close any menus or dialogs after capturing so the app is left in a clean state.
+5. **Always embed with `width="400"`** — the 600px image at 400 CSS pixels gives a sharp 1.5× render on retina displays without being too small. Never use `width="600"` (blurry on retina) or `width="300"` (too small).
