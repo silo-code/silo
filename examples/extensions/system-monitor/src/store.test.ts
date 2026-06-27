@@ -1,0 +1,80 @@
+import { describe, it, expect } from "vitest";
+import { mergeList, mergeSettings, DEFAULT_SETTINGS } from "./store";
+import type { PanelEntry } from "./store";
+
+describe("mergeList", () => {
+  const defaults: PanelEntry[] = [
+    { id: "cpu", enabled: true },
+    { id: "memory", enabled: true },
+  ];
+
+  it("returns cloned defaults when saved is undefined", () => {
+    const result = mergeList(undefined, defaults);
+    expect(result).toEqual(defaults);
+    expect(result).not.toBe(defaults);
+  });
+
+  it("returns cloned defaults when saved is not an array", () => {
+    // @ts-expect-error — testing runtime resilience
+    const result = mergeList("bad", defaults);
+    expect(result).toEqual(defaults);
+  });
+
+  it("preserves saved enabled state", () => {
+    const saved: PanelEntry[] = [
+      { id: "cpu", enabled: false },
+      { id: "memory", enabled: true },
+    ];
+    const result = mergeList(saved, defaults);
+    expect(result.find((p) => p.id === "cpu")?.enabled).toBe(false);
+    expect(result.find((p) => p.id === "memory")?.enabled).toBe(true);
+  });
+
+  it("preserves saved order", () => {
+    const saved: PanelEntry[] = [
+      { id: "memory", enabled: true },
+      { id: "cpu", enabled: true },
+    ];
+    const result = mergeList(saved, defaults);
+    expect(result[0].id).toBe("memory");
+    expect(result[1].id).toBe("cpu");
+  });
+
+  it("drops unknown ids from saved", () => {
+    const saved = [
+      { id: "disk" as unknown as "cpu", enabled: true },
+      { id: "cpu" as const, enabled: true },
+    ];
+    const result = mergeList(saved, defaults);
+    expect(result.find((p) => p.id === ("disk" as never))).toBeUndefined();
+    expect(result.find((p) => p.id === "cpu")).toBeDefined();
+  });
+
+  it("appends new defaults not present in saved", () => {
+    const saved: PanelEntry[] = [{ id: "cpu", enabled: false }];
+    // "memory" is in defaults but not saved — should appear at the end
+    const result = mergeList(saved, defaults);
+    expect(result.find((p) => p.id === "memory")).toBeDefined();
+  });
+});
+
+describe("mergeSettings", () => {
+  it("returns valid Settings from an empty partial", () => {
+    const result = mergeSettings({});
+    expect(result.panels).toEqual(DEFAULT_SETTINGS.panels);
+    expect(result.statusBar).toEqual(DEFAULT_SETTINGS.statusBar);
+  });
+
+  it("merges panels and statusBar independently", () => {
+    const result = mergeSettings({
+      panels: [
+        { id: "cpu", enabled: false },
+        { id: "memory", enabled: true },
+      ],
+    });
+    // panels come from saved
+    expect(result.panels.find((p) => p.id === "cpu")?.enabled).toBe(false);
+    // statusBar falls back to defaults
+    expect(result.statusBar).toEqual(DEFAULT_SETTINGS.statusBar);
+  });
+});

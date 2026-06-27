@@ -80,34 +80,34 @@ const COMMITTED = (ANON_PAGES + WIRED_PAGES + COMP_PAGES) * PAGE;
 describe("parseVmStatOutput", () => {
   it("reads total RAM from the last line", () => {
     const r = parseVmStatOutput(VM_STAT_SAMPLE);
-    expect(r?.memTotalBytes).toBe(TOTAL_RAM);
+    expect(r?.totalBytes).toBe(TOTAL_RAM);
   });
 
   it("reads anonymous pages for App segment (not Pages active)", () => {
     const r = parseVmStatOutput(VM_STAT_SAMPLE);
-    expect(r?.memActiveBytes).toBe(ANON_PAGES * PAGE);
+    expect(r?.activeBytes).toBe(ANON_PAGES * PAGE);
   });
 
   it("reads wired pages", () => {
     const r = parseVmStatOutput(VM_STAT_SAMPLE);
-    expect(r?.memWiredBytes).toBe(WIRED_PAGES * PAGE);
+    expect(r?.wiredBytes).toBe(WIRED_PAGES * PAGE);
   });
 
   it("reads physical compressor pages (Pages occupied by compressor, not stored)", () => {
     const r = parseVmStatOutput(VM_STAT_SAMPLE);
-    expect(r?.memCompBytes).toBe(COMP_PAGES * PAGE);
+    expect(r?.compBytes).toBe(COMP_PAGES * PAGE);
   });
 
   it("free is residual: total - wired - active - compressed", () => {
     const r = parseVmStatOutput(VM_STAT_SAMPLE);
-    expect(r?.memFreeBytes).toBe(TOTAL_RAM - COMMITTED);
+    expect(r?.freeBytes).toBe(TOTAL_RAM - COMMITTED);
   });
 
   it("used = wired + active + compressed (segments sum to total)", () => {
     const r = parseVmStatOutput(VM_STAT_SAMPLE);
-    expect(r?.memUsedBytes).toBe(COMMITTED);
+    expect(r?.usedBytes).toBe(COMMITTED);
     // Sanity: used + free === total
-    expect((r?.memUsedBytes ?? 0) + (r?.memFreeBytes ?? 0)).toBe(TOTAL_RAM);
+    expect((r?.usedBytes ?? 0) + (r?.freeBytes ?? 0)).toBe(TOTAL_RAM);
   });
 
   it("returns null when sysctl line is missing", () => {

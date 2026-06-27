@@ -1,5 +1,7 @@
 import type { ExtensionStorage } from "@silo-code/sdk";
-import type { CpuSample, Snapshot } from "./metrics";
+import type { CpuSample } from "./metrics";
+
+// ─── Settings types ────────────────────────────────────────────────────────────
 
 export type PanelId = "cpu" | "memory";
 
@@ -10,7 +12,7 @@ export interface PanelEntry {
 
 export interface Settings {
   panels: PanelEntry[];
-  statusBar: PanelEntry[]; // ordered list, same shape as panels
+  statusBar: PanelEntry[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,15 +26,32 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
 };
 
+// ─── Live data types ───────────────────────────────────────────────────────────
+
+export interface CpuData {
+  userPct: number;
+  sysPct: number;
+  history: CpuSample[];
+}
+
+export interface MemData {
+  totalBytes: number;
+  usedBytes: number;
+  activeBytes: number;
+  wiredBytes: number;
+  compBytes: number;
+  freeBytes: number;
+}
+
 export interface LiveData {
-  snapshot: Snapshot | null;
-  cpuHistory: CpuSample[];
+  cpu: CpuData | null;
+  memory: MemData | null;
   error: string | null;
 }
 
-type Listener = () => void;
+// ─── Settings merge helpers (exported for tests) ───────────────────────────────
 
-function mergeList(
+export function mergeList(
   saved: PanelEntry[] | undefined,
   defaults: PanelEntry[],
 ): PanelEntry[] {
@@ -45,29 +64,32 @@ function mergeList(
       knownMap.delete(sp.id);
     }
   }
+  // Append any new defaults not present in saved (forward-compatibility)
   for (const def of knownMap.values()) merged.push({ ...def });
   return merged;
 }
 
-function mergeSettings(saved: Partial<Settings>): Settings {
+export function mergeSettings(saved: Partial<Settings>): Settings {
   return {
     panels: mergeList(saved.panels, DEFAULT_SETTINGS.panels),
     statusBar: mergeList(saved.statusBar, DEFAULT_SETTINGS.statusBar),
   };
 }
 
+// ─── Store ────────────────────────────────────────────────────────────────────
+
+type Listener = () => void;
+
 class SysMonStore {
-  private _settings: Settings = {
-    panels: DEFAULT_SETTINGS.panels.map((p) => ({ ...p })),
-    statusBar: DEFAULT_SETTINGS.statusBar.map((p) => ({ ...p })),
-  };
-  private _live: LiveData = { snapshot: null, cpuHistory: [], error: null };
+  private _settings: Settings = mergeSettings({});
+  private _live: LiveData = { cpu: null, memory: null, error: null };
   private _storage: ExtensionStorage | null = null;
   private _listeners = new Set<Listener>();
 
   get settings(): Settings {
     return this._settings;
   }
+
   get live(): LiveData {
     return this._live;
   }

@@ -1,14 +1,3 @@
-export interface Snapshot {
-  cpuUserPct: number;
-  cpuSysPct: number;
-  memTotalBytes: number;
-  memUsedBytes: number; // = wired + active + compressed (for the header)
-  memActiveBytes: number; // Pages active × page_size ("App" segment)
-  memWiredBytes: number; // Pages wired down × page_size
-  memCompBytes: number; // Pages occupied by compressor × page_size (physical, not logical)
-  memFreeBytes: number; // residual: total - wired - active - compressed
-}
-
 export const POLL_MS = 2000;
 export const MAX_SAMPLES = 150; // ~5 min at 2 s
 
@@ -53,17 +42,16 @@ export function parseIostatOutput(
 // The page size is declared in the vm_stat header line.
 // ---------------------------------------------------------------------------
 
-export function parseVmStatOutput(
-  out: string,
-): Pick<
-  Snapshot,
-  | "memTotalBytes"
-  | "memUsedBytes"
-  | "memActiveBytes"
-  | "memWiredBytes"
-  | "memCompBytes"
-  | "memFreeBytes"
-> | null {
+export interface MemStats {
+  totalBytes: number;
+  usedBytes: number;
+  activeBytes: number; // Anonymous pages × page_size ("App" — matches Activity Monitor)
+  wiredBytes: number;
+  compBytes: number; // Physical pages in compressor (not logical)
+  freeBytes: number; // Residual: total - wired - active - compressed
+}
+
+export function parseVmStatOutput(out: string): MemStats | null {
   const lines = out.trim().split("\n");
   const totalRam = parseInt(lines[lines.length - 1], 10);
   if (isNaN(totalRam) || totalRam === 0) return null;
@@ -93,12 +81,12 @@ export function parseVmStatOutput(
   if (used <= 0 || free < 0) return null;
 
   return {
-    memTotalBytes: totalRam,
-    memUsedBytes: used,
-    memActiveBytes: active,
-    memWiredBytes: wired,
-    memCompBytes: comp,
-    memFreeBytes: free,
+    totalBytes: totalRam,
+    usedBytes: used,
+    activeBytes: active,
+    wiredBytes: wired,
+    compBytes: comp,
+    freeBytes: free,
   };
 }
 
