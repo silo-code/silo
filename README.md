@@ -1,8 +1,7 @@
 <img src="assets/readme-icon.png" width="96" height="96" alt="Silo" align="left" />
-<h3>Terminal-first workspace manager —<br>built for the multi-agent workflow</h3>
+<h3>Every project, always live —<br>built for the multi-agent workflow</h3>
 
-Switch between your projects like browser tabs —
-except each tab is a full workspace with live terminals, running agents, and preserved layout.
+Keep all your projects running simultaneously — terminals, agents, and layout intact — and switch between them in an instant.
 
 [**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [**Download for Linux →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap)
 
@@ -26,9 +25,10 @@ Open as many project workspaces as you need and tab between them instantly. Each
 
 ## How it works
 
-- **Workspace tabs** — each project gets its own persistent tab; switch instantly without losing anything
-- **Live backgrounds** — terminals keep running, agents keep working, layout stays put when you switch away
+- **Instant switching, zero reload** — each project gets its own persistent tab; switch instantly without losing anything
+- **Layout that sticks** — each workspace remembers its exact terminal tab arrangement; name tabs for specific jobs and they're waiting exactly where you left them
 - **Terminal-first** — shells and coding agents are the primary surface; file editing is secondary
+- **Multi-root workspaces** — one workspace can span multiple folders; the file tree, git panel, and search all surface activity across every root
 - **Extension SDK** — a small stable core with a public API; first-party features ship as extensions (modeled on VS Code / Obsidian)
 - **Local-first** — everything runs on your machine; no cloud required
 
