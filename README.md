@@ -27,10 +27,10 @@ Open as many project workspaces as you need and tab between them instantly. Each
 
 - **Instant switching, zero reload** — each project gets its own persistent tab; switch instantly without losing anything
 - **Layout that sticks** — each workspace remembers its exact terminal tab arrangement; name tabs for specific jobs and they're waiting exactly where you left them
-- **Terminal-first** — shells and coding agents are the primary surface; file editing is secondary
-- **Multi-root workspaces** — one workspace can span multiple folders; the file tree, git panel, and search all surface activity across every root
-- **Extension SDK** — a small stable core with a public API; first-party features ship as extensions (modeled on VS Code / Obsidian)
-- **Local-first** — everything runs on your machine; no cloud required
+- **Terminals and editors as equals** — a terminal tab and an editor tab are the same thing; arrange them side by side, stack them, name them; span a workspace across multiple folders for monorepos or paired projects
+- **Free and open source, forever** — MIT licensed, no subscription, no account, no enterprise tier; fork it, contribute to it, build on it
+- **Extension SDK** — every built-in feature ships as an extension against the same public API you get; no ceiling on what you can add
+- **Local-first** — everything runs on your machine; no cloud sync, no telemetry, no account required
 
 ## Extend Silo with Claude Code
 
