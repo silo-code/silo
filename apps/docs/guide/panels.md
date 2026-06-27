@@ -26,8 +26,6 @@ the columns are secondary, collapsible surfaces.
 
 Extensions can add panels to either column — see [Extensions](/guide/extensions).
 
-<img src="/img/guide/panels-file-explorer.png" alt="Files panel open in the right column, showing the project file tree" width="600" />
-
 ## Showing and hiding columns
 
 **Status bar** — the two column-toggle buttons sit at the far left of the status
