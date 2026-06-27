@@ -5,7 +5,7 @@ Panels hold workspace-level tools: file browsing, search, git, themes, and
 anything added by extensions. The center area is always the primary focus;
 the columns are secondary, collapsible surfaces.
 
-<img src="/img/guide/panels-file-explorer.png" alt="Files panel open in the right column, showing the project file tree" width="600" />
+<img src="/img/guide/panels-file-explorer.png" alt="Files panel open in the right column, showing the project file tree" width="400" />
 
 ## Built-in panels
 
@@ -25,6 +25,18 @@ the columns are secondary, collapsible surfaces.
 | Themes | Live theme preview and picker                    |
 
 Extensions can add panels to either column — see [Extensions](/guide/extensions).
+
+<img src="/img/guide/git-panel.png" alt="Git panel open in the right column, showing staged changes and commit interface" width="400" />
+
+## Organizing panels
+
+Panels can be rearranged between columns at any time by dragging their tab to
+the opposite column's tab bar. You can also stack multiple panels in the same
+column — drag a panel's tab onto another column to drop it there, and it joins
+any panels already open in that column. The column grows a tab strip so you can
+switch between stacked panels with a single click.
+
+<img src="/img/guide/panels-side-column.png" alt="Right column with the Files panel stacked above the Search panel" width="400" />
 
 ## Showing and hiding columns
 
