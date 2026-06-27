@@ -127,11 +127,44 @@ use only `--silo-*` design tokens.
 
 The provider shape is [`WorkspaceSectionProvider`](/api/types/interfaces/WorkspaceSectionProvider); component props are [`WorkspaceSectionProps`](/api/types/interfaces/WorkspaceSectionProps).
 
+## Workspace badges
+
+Extensions can contribute small inline badges that appear next to the workspace
+name in the Workspaces panel header. Each badge has a short text label and an
+optional CSS color — useful for status indicators, environment labels, agent
+state, CI state, etc.
+
+```ts
+ctx.subscriptions.push(
+  ctx.workspaces.registerBadge({
+    id: "my-ext.badges",
+    provide(workspaceId) {
+      const env = getEnv(workspaceId);
+      if (!env) return [];
+      return [{ id: "env", text: env.label, color: env.color }];
+    },
+  }),
+);
+```
+
+Call `invalidateBadges()` after any mutation to the data your `provide` function
+reads — this signals the Workspaces panel to re-query all badge providers and
+re-render the name row.
+
+| Method                                                                                | What it does                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`registerBadge(provider)`](/api/types/interfaces/WorkspaceService#registerbadge)     | Register a provider that returns badges per workspace. Returns a [`Disposable`](/api/types/interfaces/Disposable). Multiple providers are concatenated in registration order. |
+| [`getBadges(workspaceId)`](/api/types/interfaces/WorkspaceService#getbadges)          | Concatenate all registered providers' badges for one workspace (called during panel render).                                                                                  |
+| [`invalidateBadges()`](/api/types/interfaces/WorkspaceService#invalidatebadges)       | Signal that badge data changed — triggers a name-row re-render.                                                                                                               |
+| [`subscribeBadges(listener)`](/api/types/interfaces/WorkspaceService#subscribebadges) | Subscribe to badge invalidations. Returns a [`Disposable`](/api/types/interfaces/Disposable).                                                                                 |
+
+Each badge is a [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge); the provider shape is [`WorkspaceBadgeProvider`](/api/types/interfaces/WorkspaceBadgeProvider).
+
 ## Types
 
 Pass [`WorkspaceService`](/api/types/interfaces/WorkspaceService).
 
-Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow) · [`WorkspaceDecorationProvider`](/api/types/interfaces/WorkspaceDecorationProvider) · [`WorkspaceSectionProvider`](/api/types/interfaces/WorkspaceSectionProvider) · [`WorkspaceSectionProps`](/api/types/interfaces/WorkspaceSectionProps) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
+Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow) · [`WorkspaceDecorationProvider`](/api/types/interfaces/WorkspaceDecorationProvider) · [`WorkspaceSectionProvider`](/api/types/interfaces/WorkspaceSectionProvider) · [`WorkspaceSectionProps`](/api/types/interfaces/WorkspaceSectionProps) · [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge) · [`WorkspaceBadgeProvider`](/api/types/interfaces/WorkspaceBadgeProvider) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
 
 ## See also
 

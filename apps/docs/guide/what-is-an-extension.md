@@ -74,6 +74,19 @@ signatures, examples, and links to the type definitions.
 
 ## Next
 
-- **[Your first extension](/guide/getting-started)** — a complete, working
-  status-bar item, step by step.
-- **[API Reference](/api/)** — `ctx` member by member, then the generated types.
+**Build one** — [Your first extension](/guide/getting-started) walks through a
+complete, working status-bar clock step by step. Prefer to describe what you
+want and let an AI do the scaffolding? See [Build with Claude Code](/guide/claude-skill).
+
+**Polish the UI** — [Styling your extension](/guide/styling),
+[Workspace decorations & badges](/guide/workspace-decorations),
+[Keyboard navigation](/guide/keyboard-navigation), and
+[Building a theme](/guide/theming) cover the visual surface.
+
+**Ship it** — [Permissions & access](/guide/permissions),
+[Publishing an extension](/guide/publishing-an-extension), and
+[Sharing extensions](/guide/sharing-extensions) cover the packaging and
+distribution side.
+
+**Explore `ctx`** — the [API Reference](/api/) documents every member with
+signatures, examples, and generated type definitions.

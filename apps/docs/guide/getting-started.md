@@ -187,11 +187,15 @@ for the full packaging reference.
 - **Persist the format** with the storage handed to side panels
   ([`ExtensionStorage`](/api/types/interfaces/ExtensionStorage)) or your own approach, instead
   of a module-scoped flag.
-- **Open files** from a command via
-  [`ctx.workspaces.openFile`](/api/state/workspaces) — the sanctioned entry
-  point for editor tabs.
+- **Open files** from a command via [`ctx.editors`](/api/editors/) — the
+  sanctioned entry point for editor tabs.
 - **Add a settings page** with
   [`registerSettingsPage`](/api/registration/register-settings-page) (the
   [`clock-extension`](https://github.com/silo-code/silo/tree/main/examples/extensions/clock-extension)
   example adds one).
+- **Polish the UI** — [Styling your extension](/guide/styling),
+  [Workspace decorations & badges](/guide/workspace-decorations), and
+  [Keyboard navigation](/guide/keyboard-navigation).
+- **Ship it** — [Permissions & access](/guide/permissions) and
+  [Publishing an extension](/guide/publishing-an-extension).
 - Browse every type in the **[API Reference](/api/)**.
