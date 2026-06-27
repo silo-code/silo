@@ -1,3 +1,5 @@
+import { Tooltip } from "@silo-code/sdk";
+import { formatBytes } from "../../metrics";
 import type { LiveData } from "../../store";
 
 const SIZE = 16;
@@ -39,14 +41,19 @@ function PieIcon({ pct }: { pct: number }) {
 export function MemPieStatus({ live }: { live: LiveData }) {
   const data = live.memory;
   const pct = data ? (data.usedBytes / data.totalBytes) * 100 : 0;
+  const tip = data
+    ? `Memory  ${Math.round(pct)}%  ·  App ${formatBytes(data.activeBytes)}  ·  Wired ${formatBytes(data.wiredBytes)}  ·  Cache ${formatBytes(data.compBytes)}  ·  Free ${formatBytes(data.freeBytes)}`
+    : "Waiting for data…";
 
   return (
-    <div
-      className="sm-status-item"
-      aria-label={data ? `Memory ${Math.round(pct)}%` : "Memory —"}
-      role="img"
-    >
-      <PieIcon pct={pct} />
-    </div>
+    <Tooltip content={tip}>
+      <div
+        className="sm-status-item"
+        aria-label={data ? `Memory ${Math.round(pct)}%` : "Memory —"}
+        role="img"
+      >
+        <PieIcon pct={pct} />
+      </div>
+    </Tooltip>
   );
 }
