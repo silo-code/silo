@@ -49,7 +49,7 @@ export function SystemMonitorPanel({ storage, hydrated }: SidePanelProps) {
           ) : (
             visiblePanels.map((p) => {
               const descriptor = getDescriptor(p.id);
-              if (!descriptor) return null;
+              if (!descriptor?.PanelComponent) return null;
               const { PanelComponent } = descriptor;
               return <PanelComponent key={p.id} live={live} />;
             })

@@ -320,6 +320,49 @@
   margin-top: -1px;
 }
 
+/* ─── Compact panels ─────────────────────────────────────────────────────── */
+.sm-card-compact {
+  height: auto;
+}
+
+.sm-compact-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--silo-color-input-bg);
+  flex-shrink: 0;
+}
+
+.sm-compact-bar-empty {
+  background: var(--silo-color-input-bg);
+}
+
+.sm-compact-seg {
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.sm-compact-seg-idle {
+  background: var(--silo-color-input-bg);
+}
+
+/* ─── Status bar visual items ────────────────────────────────────────────── */
+.sm-sb-bar-track {
+  width: 44px;
+  height: 8px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--silo-color-text-lo) 30%, transparent);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.sm-sb-bar-fill {
+  height: 100%;
+  background: var(--silo-color-text);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
 /* ─── Status bar items ───────────────────────────────────────────────────── */
 /* font-size and font-family inherit from .status-bar — don't override. */
 .sm-status-item {

@@ -3,7 +3,13 @@ import type { CpuSample } from "./metrics";
 
 // ─── Settings types ────────────────────────────────────────────────────────────
 
-export type PanelId = "cpu" | "memory";
+export type PanelId =
+  | "cpu"
+  | "memory"
+  | "cpu-compact"
+  | "memory-compact"
+  | "cpu-bar"
+  | "memory-pie";
 
 export interface PanelEntry {
   id: PanelId;
@@ -19,10 +25,14 @@ export const DEFAULT_SETTINGS: Settings = {
   panels: [
     { id: "memory", enabled: true },
     { id: "cpu", enabled: true },
+    { id: "memory-compact", enabled: false },
+    { id: "cpu-compact", enabled: false },
   ],
   statusBar: [
     { id: "cpu", enabled: true },
     { id: "memory", enabled: true },
+    { id: "cpu-bar", enabled: false },
+    { id: "memory-pie", enabled: false },
   ],
 };
 
