@@ -9,9 +9,6 @@ import {
   MAX_TERMINAL_SCROLL_SENSITIVITY,
   MAX_TERMINAL_FAST_SCROLL_SENSITIVITY,
 } from "@silo-code/extension-host/internal";
-// Reuse the editor settings page's layout/control styles (the es-* classes are
-// generic settings-page styling).
-import "../editor/EditorSettingsPage.css";
 import { filterSections } from "../settings-search";
 
 const FONT_CANDIDATES = [

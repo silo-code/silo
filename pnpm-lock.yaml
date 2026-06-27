@@ -323,6 +323,27 @@ importers:
         specifier: ^5.6.0
         version: 5.8.3
 
+  examples/extensions/system-monitor:
+    devDependencies:
+      '@silo-code/sdk':
+        specifier: workspace:*
+        version: link:../../../packages/sdk
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.16
+      esbuild:
+        specifier: ^0.24.0
+        version: 0.24.2
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
+      typescript:
+        specifier: ^5.6.0
+        version: 5.8.3
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.8(@types/node@25.9.1)(jsdom@29.1.1)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+
   examples/extensions/terminal-monitor:
     devDependencies:
       '@silo-code/sdk':

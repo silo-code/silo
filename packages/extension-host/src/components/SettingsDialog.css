@@ -140,3 +140,286 @@
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
+
+/* ─── Settings page design system (es-*) ─────────────────────────────────────
+   Defined here so every settings page — core, third-party, and example
+   extensions — gets these primitives automatically, with no CSS import needed.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.es-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+}
+
+.es-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--settings-header-height);
+}
+.es-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--silo-color-text-hi);
+}
+
+.es-search {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-input-text);
+  padding: 7px 10px;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+}
+.es-search:focus {
+  outline: none;
+  border-color: var(--silo-color-accent);
+}
+
+.es-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-left: calc(var(--settings-pane-pad) * -1);
+}
+
+.es-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.es-section-title {
+  margin: 0;
+  padding: 0 var(--settings-pane-pad);
+  font-size: calc(var(--settings-font) - 1px);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--silo-color-text-lo);
+}
+
+.es-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.es-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 8px 7px var(--settings-pane-pad);
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.es-empty {
+  color: var(--silo-color-text-lo);
+  padding: 12px var(--settings-pane-pad);
+}
+
+.es-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.es-label {
+  color: var(--silo-color-text-hi);
+}
+.es-hint {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  line-height: 1.35;
+}
+
+.es-control {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.es-number {
+  width: 56px;
+  box-sizing: border-box;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-input-text);
+  padding: 5px 8px;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+}
+.es-number:focus {
+  outline: none;
+  border-color: var(--silo-color-accent);
+}
+
+.es-text {
+  width: 220px;
+  box-sizing: border-box;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-input-text);
+  padding: 5px 8px;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+}
+.es-text:focus {
+  outline: none;
+  border-color: var(--silo-color-accent);
+}
+
+.es-select {
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-input-text);
+  padding: 5px 8px;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+  cursor: pointer;
+}
+.es-select:focus {
+  outline: none;
+  border-color: var(--silo-color-accent);
+}
+
+/* Font family picker */
+.es-font-picker {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 220px;
+}
+
+.es-font-picker-input {
+  width: 100%;
+  padding-right: 30px;
+}
+.es-font-picker--has-value .es-font-picker-input {
+  padding-right: 54px;
+}
+
+.es-font-picker-clear {
+  position: absolute;
+  right: 30px;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+  padding: 0;
+  font-size: 15px;
+}
+.es-font-picker-clear:hover {
+  color: var(--silo-color-text-hi);
+}
+
+.es-font-picker-arrow {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--silo-color-border);
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+  padding: 0;
+  font-size: 20px;
+  border-radius: 0 var(--silo-radius-sm) var(--silo-radius-sm) 0;
+}
+.es-font-picker-arrow:hover {
+  color: var(--silo-color-text-hi);
+  background: var(--silo-color-bg-active);
+}
+
+.es-font-picker-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  list-style: none;
+  margin: 0;
+  padding: 3px 0;
+}
+
+.es-font-picker-item {
+  padding: 5px 10px;
+  cursor: pointer;
+  color: var(--silo-color-text-hi);
+  font-size: var(--settings-font);
+}
+.es-font-picker-item:hover,
+.es-font-picker-item--selected {
+  background: var(--silo-color-bg-active);
+}
+
+/* Toggle switch */
+.es-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.es-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.es-switch-track {
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border-strong);
+  transition: background 0.15s ease;
+  position: relative;
+}
+.es-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease;
+}
+.es-switch input:checked + .es-switch-track {
+  background: var(--silo-color-accent);
+  border-color: var(--silo-color-accent);
+}
+.es-switch input:checked + .es-switch-track::after {
+  transform: translateX(16px);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+.es-switch input:focus-visible + .es-switch-track {
+  outline: 2px solid var(--silo-color-accent);
+  outline-offset: 2px;
+}
