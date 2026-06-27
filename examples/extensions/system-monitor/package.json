@@ -1,0 +1,26 @@
+{
+  "name": "system-monitor",
+  "displayName": "System Monitor",
+  "version": "0.1.0",
+  "description": "Live CPU and memory charts in a side panel, powered entirely by ctx.process.exec — no new SDK surface required.",
+  "private": true,
+  "type": "module",
+  "silo": {
+    "id": "example.system-monitor",
+    "engine": "^0.14",
+    "main": "dist/index.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@silo-code/sdk": "workspace:*",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.24.0",
+    "react": "^19.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.7"
+  }
+}

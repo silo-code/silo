@@ -338,6 +338,14 @@ export interface DockPanelKind {
 /**
  * A widget in the status bar (the strip along the bottom of the window).
  *
+ * @remarks
+ * The status bar container sets `font-size` and `color` on itself, so
+ * components rendered inside it inherit the correct values automatically —
+ * **do not override `font-size` or `font-family`** in status item CSS unless
+ * you have a deliberate reason to deviate. You may override `color` using
+ * design tokens (e.g. `--silo-color-text-lo` for a label / `--silo-color-text`
+ * for a value) to create visual distinctions within an item.
+ *
  * @category Registration
  * @public
  */
