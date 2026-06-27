@@ -24,17 +24,17 @@ features:
     title: Layout that sticks
     details: Each workspace remembers its exact terminal tab arrangement. Name a tab "dev build", another "claude", a third "docs" — they're waiting exactly where you left them, every time you return.
   - icon: ">_"
-    title: Terminal-first
-    details: Shells and AI coding agents are the primary surface, not a panel bolted onto a file editor. File editing is there when you need it — just not fighting for the foreground.
-  - icon: 🌱
-    title: Multi-root workspaces
-    details: A single workspace can span multiple folders. The file tree, git panel, and search all surface activity across every root automatically.
+    title: Terminals and editors as equals
+    details: A terminal tab and an editor tab are the same thing — arrange them side by side, stack them, name them. Span a workspace across multiple folders for monorepos or paired projects, and the file tree, git panel, and search cover all roots automatically.
   - icon: 🧩
     title: Open extension SDK
     details: Every built-in feature — terminal, files, git, themes — ships as an extension against the same public API you get. No ceiling on what you can add.
+  - icon: 🌱
+    title: Free and open source, forever
+    details: MIT licensed — no subscription, no trial, no enterprise tier. Fork it, contribute to it, build on it. Every first-party feature ships as an extension against the same SDK you get, so the codebase is genuinely open, not just open-licensed.
   - icon: 🔒
-    title: Local-first, MIT licensed
-    details: Everything runs on your machine. No cloud sync, no telemetry, no account required. 100% open source.
+    title: Local-first
+    details: Everything runs on your machine. No cloud sync, no telemetry, no account required. Your workspaces, terminals, and files stay on your hardware.
 ---
 
 <div class="demo-gif">
@@ -49,7 +49,7 @@ Silo flips the model: **every workspace runs all the time.** Open your projects,
 
 **What that looks like in practice:** one workspace might have four terminal tabs — one running the dev build, one for docs, one for a plain shell, one where Claude is filing GitHub issues. Switch away for an hour, come back: all four tabs are right there, doing exactly what they were doing.
 
-That's not a setting to configure. That's just how Silo works.
+That's not a setting to configure. That's just how Silo works. And it's completely free — MIT licensed, no account, no subscription, no enterprise tier.
 
 ## Download
 
