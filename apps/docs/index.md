@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "Silo"
-  text: "Terminal-first workspace manager"
-  tagline: "Switch between your projects like browser tabs — except each tab is a full workspace with live terminals, running agents, and preserved layout."
+  text: "Every project, always live"
+  tagline: "Keep all your projects running simultaneously — terminals, agents, and layout intact — and switch between them in an instant."
   actions:
     - theme: brand
       text: Download for macOS →
@@ -17,40 +17,39 @@ hero:
       link: https://github.com/silo-code/silo
 
 features:
-  - icon: 🗂️
-    title: Workspace tabs
-    details: Each project gets its own persistent tab. Switch instantly — terminals, layout, and editor state all stay exactly as you left them. Nothing reloads.
   - icon: ⚡
-    title: Live backgrounds
-    details: Terminals keep running and agents keep working when you switch away. Come back and everything is exactly where you left it.
+    title: Instant switching, zero reload
+    details: Every workspace stays live in the background. Switch projects and land exactly where you left off — running terminals, open editors, active agents, all intact. Nothing reloads.
+  - icon: 🗂️
+    title: Layout that sticks
+    details: Each workspace remembers its exact terminal tab arrangement. Name a tab "dev build", another "claude", a third "docs" — they're waiting exactly where you left them, every time you return.
   - icon: ">_"
     title: Terminal-first
-    details: Shells and AI coding agents are the primary surface. File editing is secondary — the inverse of VS Code's model.
-  - icon: 🔒
-    title: Local-first
-    details: Everything runs on your machine. No cloud sync, no telemetry, no account required.
+    details: Shells and AI coding agents are the primary surface, not a panel bolted onto a file editor. File editing is there when you need it — just not fighting for the foreground.
+  - icon: 🌱
+    title: Multi-root workspaces
+    details: A single workspace can span multiple folders. The file tree, git panel, and search all surface activity across every root automatically.
   - icon: 🧩
-    title: Extension SDK
-    details: A small stable core with a public API. First-party features — terminal, file explorer, git, themes — ship as extensions against the same SDK you get.
-  - icon: 🤖
-    title: Extend Silo with Claude Code
-    details: Describe what you want in plain English. Claude scaffolds, writes, compiles, and installs a real working extension — no SDK knowledge needed. From idea to installed in one session.
-  - icon: "📄"
-    title: MIT licensed
-    details: 100% open source. Build on it, fork it, contribute to it.
+    title: Open extension SDK
+    details: Every built-in feature — terminal, files, git, themes — ships as an extension against the same public API you get. No ceiling on what you can add.
+  - icon: 🔒
+    title: Local-first, MIT licensed
+    details: Everything runs on your machine. No cloud sync, no telemetry, no account required. 100% open source.
 ---
 
 <div class="demo-gif">
   <img src="/demo.gif" alt="Switching between three live workspaces in Silo" />
 </div>
 
-## Built for the multi-agent era
+## Built for running multiple agents at once
 
-VS Code and Cursor are file-first editors built around a single active workspace. That made sense when _you_ were writing the code.
+You're driving a Claude session in one project while a dev build grinds in another, keeping a third open for quick fixes. Traditional editors weren't built for this. Every time you switch context, you lose your terminal state. Agents get interrupted. You spend half your time reconstructing what you had.
 
-Now you're coordinating multiple AI coding agents simultaneously across different projects. Every time you switch context in a traditional editor, you lose your terminal state. Your agents get interrupted. You spend more time rebuilding context than doing actual work.
+Silo flips the model: **every workspace runs all the time.** Open your projects, set each one up however you like, and tab between them instantly. The dev build keeps running. The agent keeps working. Your layout is exactly where you left it.
 
-**Silo is built around the opposite model.** Open as many project workspaces as you need and tab between them instantly. Each workspace keeps its terminals running, its layout intact, and its agents working — exactly as you left it.
+**What that looks like in practice:** one workspace might have four terminal tabs — one running the dev build, one for docs, one for a plain shell, one where Claude is filing GitHub issues. Switch away for an hour, come back: all four tabs are right there, doing exactly what they were doing.
+
+That's not a setting to configure. That's just how Silo works.
 
 ## Download
 
@@ -78,7 +77,7 @@ Or build from source — see the [GitHub repo](https://github.com/silo-code/silo
 
 Describe what you want. Claude builds it.
 
-The `silo-extension-builder` skill takes a plain-English description and returns a working Silo extension — scaffolded from scratch, written in TypeScript against the real SDK, compiled, and hot-installed into the running app. No SDK knowledge required. No config files to wire up. No boilerplate to wrestle with. You describe what you want, and it's there.
+The `silo-extension-builder` skill takes a plain-English description and returns a working Silo extension — scaffolded from scratch, written in TypeScript against the real SDK, compiled, and hot-installed into the running app. No SDK knowledge required. No config files to wire up. You describe what you want, and it's there.
 
 Some things people have shipped this way in a single session:
 
@@ -87,7 +86,7 @@ Some things people have shipped this way in a single session:
 - **Scratch pad** — a persisted notes panel that survives restarts
 - **Todo manager** — reads and writes `TODO.md` in the active workspace, with checkboxes and inline add
 
-The result is a first-class extension. It installs and uninstalls live — no restart needed. And because it's built on the same SDK Silo's own built-ins use, there's no ceiling on what you can make.
+The result is a first-class extension — installs and uninstalls live, no restart needed — built on the same SDK Silo's own built-ins use.
 
 **[Build your first extension →](/guide/claude-skill)**
 
