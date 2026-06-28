@@ -24,15 +24,13 @@ export interface PersistedIndex {
   activeThemeId?: string;
   editorSettings?: Partial<EditorSettings>;
   terminalSettings?: Partial<TerminalSettings>;
-  // Side-dock visibility is global (shared across workspaces), so it lives in
-  // the index rather than per-workspace. Optional: absent in pre-this-change
-  // indexes, hydrated with a per-workspace fallback (see persistence.ts).
-  leftPanelCollapsed?: boolean;
-  rightPanelCollapsed?: boolean;
   // Per-extension global storage (`ctx.storage.global`), keyed by extension id.
   // Global (not per-workspace), so it lives in the index; absent in older
   // indexes, in which case extensions start from their defaults.
   globalExtensionState?: Record<string, Record<string, unknown>>;
+  // Legacy migration fields — stored globally in old installs, now per-workspace.
+  leftPanelCollapsed?: boolean;
+  rightPanelCollapsed?: boolean;
 }
 
 /** The legacy monolithic blob (one `"state"` key in the app-data store) we
@@ -62,6 +60,8 @@ export interface PanelState {
   sidePanelScrollPositions: Record<string, number>;
   sidePanelVisibility: Record<string, boolean>;
   extensionState: Record<string, Record<string, unknown>>;
+  leftPanelCollapsed: boolean;
+  rightPanelCollapsed: boolean;
 }
 
 /** Deep-clone the two-level extension-state bag so a stored snapshot can't alias
@@ -133,8 +133,6 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
     terminalSettings: snapshot.terminalSettings
       ? { ...snapshot.terminalSettings }
       : undefined,
-    leftPanelCollapsed: snapshot.leftPanelCollapsed,
-    rightPanelCollapsed: snapshot.rightPanelCollapsed,
     globalExtensionState: snapshot.globalExtensionState
       ? cloneExtensionState(snapshot.globalExtensionState)
       : undefined,
@@ -155,6 +153,8 @@ export function withActivePanelState(
     sidePanelScrollPositions: { ...panel.sidePanelScrollPositions },
     sidePanelVisibility: { ...panel.sidePanelVisibility },
     extensionState: cloneExtensionState(panel.extensionState),
+    leftPanelCollapsed: panel.leftPanelCollapsed,
+    rightPanelCollapsed: panel.rightPanelCollapsed,
   };
 }
 
