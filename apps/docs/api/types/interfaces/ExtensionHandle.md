@@ -1,6 +1,6 @@
 # Interface: ExtensionHandle\<API\>
 
-Defined in: [packages/sdk/src/types.ts:526](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L526)
+Defined in: [packages/sdk/src/types.ts:556](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L556)
 
 A handle to another extension, obtained via
 [ExtensionContext.getExtension](ExtensionContext.md#getextension). Lets one extension consume another's
@@ -20,7 +20,7 @@ published API while tolerating its absence.
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:528](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L528)
+Defined in: [packages/sdk/src/types.ts:558](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L558)
 
 The resolved extension's id.
 
@@ -32,7 +32,7 @@ The resolved extension's id.
 readonly active: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:530](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L530)
+Defined in: [packages/sdk/src/types.ts:560](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L560)
 
 True once that extension has activated.
 
@@ -44,7 +44,7 @@ True once that extension has activated.
 readonly api: API | undefined;
 ```
 
-Defined in: [packages/sdk/src/types.ts:533](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L533)
+Defined in: [packages/sdk/src/types.ts:563](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L563)
 
 Its published API (what its `activate` returned), or `undefined` if it
 hasn't activated or published nothing.

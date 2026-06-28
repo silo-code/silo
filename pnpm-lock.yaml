@@ -362,24 +362,6 @@ importers:
         specifier: ^5.6.0
         version: 5.8.3
 
-  examples/extensions/workspace-section-demo:
-    devDependencies:
-      '@silo-code/sdk':
-        specifier: workspace:*
-        version: link:../../../packages/sdk
-      '@types/react':
-        specifier: ^19.0.0
-        version: 19.2.16
-      esbuild:
-        specifier: ^0.24.0
-        version: 0.24.2
-      react:
-        specifier: ^19.0.0
-        version: 19.2.7
-      typescript:
-        specifier: ^5.6.0
-        version: 5.8.3
-
   packages/create-silo-extension:
     devDependencies:
       '@types/node':

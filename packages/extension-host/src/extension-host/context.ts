@@ -38,6 +38,10 @@ import { getUiService } from "./ui-service";
 import { getNetworkService } from "./network-service";
 import { themePresetRegistry } from "./theme-presets";
 import { getExtensionHandle } from "./extension-registry";
+import {
+  getGlobalExtensionStorage,
+  getWorkspaceExtensionStorage,
+} from "./extension-storage";
 import { getActiveWorkspace } from "../state/store";
 import type { PathScope } from "./security/resolve-path";
 
@@ -80,6 +84,10 @@ export function createContext(
   return {
     extensionId,
     subscriptions,
+    storage: {
+      global: getGlobalExtensionStorage(extensionId),
+      workspace: getWorkspaceExtensionStorage(extensionId),
+    },
     registerEditor(editor: Editor): Disposable {
       return track(editorRegistry.register(editor));
     },

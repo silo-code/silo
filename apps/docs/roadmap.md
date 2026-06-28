@@ -15,41 +15,42 @@ designed. As a primitive ships, its badge flips from
 
 ## Core (`ctx`) primitives
 
-| Primitive                                      | Status                               |                                                  |
-| ---------------------------------------------- | ------------------------------------ | ------------------------------------------------ |
-| Registration (`register*`)                     | <Badge type="tip" text="stable" />   | [docs](/api/#registration)                       |
-| `executeCommand`                               | <Badge type="tip" text="stable" />   | [docs](/api/other/execute-command)               |
-| `ctx.workspaces`                               | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces)                    |
-| `ctx.layout`                                   | <Badge type="tip" text="stable" />   | [docs](/api/state/layout)                        |
-| `ctx.process` (persistent sessions)            | <Badge type="tip" text="stable" />   | [docs](/api/process/)                            |
-| `ctx.process.exec` (one-shot subprocess)       | <Badge type="tip" text="stable" />   | [docs](/api/process/#one-shot-exec)              |
-| Extension-API mechanism (`getExtension`)       | <Badge type="tip" text="stable" />   | [docs](/api/other/get-extension)                 |
-| `ctx.editors` (documents)                      | <Badge type="tip" text="stable" />   | [docs](/api/editors/)                            |
-| `ctx.terminals` (terminal tabs)                | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                     |
-| `ctx.terminals.registerTabDecoration`          | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                     |
-| `ctx.terminals.focus`                          | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                     |
-| `ctx.terminals.subscribeOsc`                   | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals#osc-events)          |
-| `ctx.workspaces.registerDecoration`            | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces)                    |
-| `ctx.workspaces.registerSection`               | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces#workspace-sections) |
-| `ctx.files`                                    | <Badge type="tip" text="stable" />   | [docs](/api/files/)                              |
-| `ctx.theme` + `registerThemePreset`            | <Badge type="tip" text="stable" />   | [docs](/api/theme/)                              |
-| `ctx.dnd` (drag-and-drop)                      | <Badge type="tip" text="stable" />   | [docs](/api/dnd/)                                |
-| `useServiceState` (reactive reads)             | <Badge type="tip" text="stable" />   | [docs](/api/other/use-service-state)             |
-| `useFocusGroup` (keyboard nav for a group)     | <Badge type="tip" text="stable" />   | [docs](/api/other/use-focus-group)               |
-| `Tooltip` (styled hover popup)                 | <Badge type="tip" text="stable" />   | [docs](/api/other/tooltip)                       |
-| `ctx.ui` (pickers + notify w/ actions + menus) | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                 |
-| `ctx.ui` (confirm / prompt)                    | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                 |
-| `ctx.ui.showModal` (custom modal content)      | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                 |
-| `ctx.ui.openExternal` (open a URL out)         | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                 |
-| `ctx.ui.getActiveSelectionText`                | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                 |
-| `ctx.net` (server-side HTTP, bypasses CORS)    | <Badge type="tip" text="stable" />   | [docs](/api/net/)                                |
-| `ctx.search` (cross-file content search)       | <Badge type="tip" text="stable" />   | [docs](/api/search/)                             |
-| `ctx.search` (replace-in-files)                | <Badge type="info" text="planned" /> | [design](/api/search/#replace)                   |
-| `ctx.ui` (quickPick / progress)                | <Badge type="info" text="planned" /> | [design](#ctx-ui)                                |
-| `ctx` events (typed `Event<T>`)                | <Badge type="info" text="planned" /> | [design](#ctx-events)                            |
-| `ctx.settings` / configuration                 | <Badge type="info" text="planned" /> | —                                                |
-| `ctx.storage` (global / workspace / secret)    | <Badge type="info" text="planned" /> | —                                                |
-| `ctx.webview` (iframe navigation events)       | <Badge type="info" text="planned" /> | [design](#ctx-webview)                           |
+| Primitive                                      | Status                               |                                                                                            |
+| ---------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------ |
+| Registration (`register*`)                     | <Badge type="tip" text="stable" />   | [docs](/api/#registration)                                                                 |
+| `executeCommand`                               | <Badge type="tip" text="stable" />   | [docs](/api/other/execute-command)                                                         |
+| `ctx.workspaces`                               | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces)                                                              |
+| `ctx.layout`                                   | <Badge type="tip" text="stable" />   | [docs](/api/state/layout)                                                                  |
+| `ctx.process` (persistent sessions)            | <Badge type="tip" text="stable" />   | [docs](/api/process/)                                                                      |
+| `ctx.process.exec` (one-shot subprocess)       | <Badge type="tip" text="stable" />   | [docs](/api/process/#one-shot-exec)                                                        |
+| Extension-API mechanism (`getExtension`)       | <Badge type="tip" text="stable" />   | [docs](/api/other/get-extension)                                                           |
+| `ctx.editors` (documents)                      | <Badge type="tip" text="stable" />   | [docs](/api/editors/)                                                                      |
+| `ctx.terminals` (terminal tabs)                | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                                                               |
+| `ctx.terminals.registerTabDecoration`          | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                                                               |
+| `ctx.terminals.focus`                          | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                                                               |
+| `ctx.terminals.subscribeOsc`                   | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals#osc-events)                                                    |
+| `ctx.workspaces.registerDecoration`            | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces)                                                              |
+| `ctx.workspaces.registerSection`               | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces#workspace-sections)                                           |
+| `ctx.files`                                    | <Badge type="tip" text="stable" />   | [docs](/api/files/)                                                                        |
+| `ctx.theme` + `registerThemePreset`            | <Badge type="tip" text="stable" />   | [docs](/api/theme/)                                                                        |
+| `ctx.dnd` (drag-and-drop)                      | <Badge type="tip" text="stable" />   | [docs](/api/dnd/)                                                                          |
+| `useServiceState` (reactive reads)             | <Badge type="tip" text="stable" />   | [docs](/api/other/use-service-state)                                                       |
+| `useFocusGroup` (keyboard nav for a group)     | <Badge type="tip" text="stable" />   | [docs](/api/other/use-focus-group)                                                         |
+| `Tooltip` (styled hover popup)                 | <Badge type="tip" text="stable" />   | [docs](/api/other/tooltip)                                                                 |
+| `ctx.ui` (pickers + notify w/ actions + menus) | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                                                           |
+| `ctx.ui` (confirm / prompt)                    | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                                                           |
+| `ctx.ui.showModal` (custom modal content)      | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                                                           |
+| `ctx.ui.openExternal` (open a URL out)         | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                                                           |
+| `ctx.ui.getActiveSelectionText`                | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                                                           |
+| `ctx.net` (server-side HTTP, bypasses CORS)    | <Badge type="tip" text="stable" />   | [docs](/api/net/)                                                                          |
+| `ctx.search` (cross-file content search)       | <Badge type="tip" text="stable" />   | [docs](/api/search/)                                                                       |
+| `ctx.search` (replace-in-files)                | <Badge type="info" text="planned" /> | [design](/api/search/#replace)                                                             |
+| `ctx.ui` (quickPick / progress)                | <Badge type="info" text="planned" /> | [design](#ctx-ui)                                                                          |
+| `ctx` events (typed `Event<T>`)                | <Badge type="info" text="planned" /> | [design](#ctx-events)                                                                      |
+| `ctx.settings` / configuration                 | <Badge type="info" text="planned" /> | —                                                                                          |
+| `ctx.storage` (global / workspace)             | <Badge type="tip" text="stable" />   | [docs](/api/storage/)                                                                      |
+| `ctx.secrets` (host-mediated credentials)      | <Badge type="info" text="planned" /> | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md) |
+| `ctx.webview` (iframe navigation events)       | <Badge type="info" text="planned" /> | [design](#ctx-webview)                                                                     |
 
 ## Extension-owned features
 
@@ -103,7 +104,7 @@ designed pieces are RFCs in
 | Declarative `contributes` + activation events     | <Badge type="info" text="planned" /> |
 | `engine` compatibility enforcement                | <Badge type="info" text="planned" /> |
 | Sandbox / capability gating (untrusted code)      | <Badge type="info" text="planned" /> |
-| General `ctx.storage` + cleanup on uninstall      | <Badge type="info" text="planned" /> |
+| Storage cleanup on uninstall                      | <Badge type="info" text="planned" /> |
 | Safe update (stage-validate-swap + rollback)      | <Badge type="info" text="planned" /> |
 | Failed-load error surfacing + collision reporting | <Badge type="info" text="planned" /> |
 
@@ -120,7 +121,7 @@ The shape of each planned surface is now designed in an **RFC** under
 | <a id="ctx-ui"></a>`ctx.ui` slice 2 — `quickPick` / `inputBox` / `progress`         | [RFC 0001](https://github.com/silo-code/silo/blob/main/docs/proposals/0001-ctx-ui-slice-2.md)                          |
 | <a id="ctx-events"></a>Typed `ctx` events (`Event<T>`, domain-owned, no global bus) | [RFC 0002](https://github.com/silo-code/silo/blob/main/docs/proposals/0002-ctx-events.md)                              |
 | `ctx.settings` — per-extension configuration                                        | [RFC 0003](https://github.com/silo-code/silo/blob/main/docs/proposals/0003-ctx-settings.md)                            |
-| `ctx.storage` — global / workspace / secret                                         | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md)                             |
+| `ctx.secrets` — host-mediated credentials (storage `global` / `workspace` shipped)  | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md)                             |
 | Declarative `contributes` + activation events                                       | [RFC 0005](https://github.com/silo-code/silo/blob/main/docs/proposals/0005-declarative-contributes-activation.md)      |
 | Extension permissions + sandbox                                                     | [RFC 0006](https://github.com/silo-code/silo/blob/main/docs/proposals/0006-extension-permissions-sandbox.md)           |
 | Extension authoring toolchain                                                       | [RFC 0007](https://github.com/silo-code/silo/blob/main/docs/proposals/0007-extension-authoring-toolchain.md)           |

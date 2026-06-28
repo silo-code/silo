@@ -24,6 +24,7 @@ export const store = proxy<AppState>({
   activeSidePanelTabs: {},
   sidePanelScrollPositions: {},
   extensionState: {},
+  globalExtensionState: {},
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,
   sidePanelVisibility: {},

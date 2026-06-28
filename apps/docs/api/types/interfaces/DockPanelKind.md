@@ -1,6 +1,6 @@
 # Interface: DockPanelKind
 
-Defined in: [packages/sdk/src/types.ts:316](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L316)
+Defined in: [packages/sdk/src/types.ts:322](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L322)
 
 Registers a kind of dock panel (a tab that can live in the center dock area,
 e.g. the terminal). Workspaces open panels of registered kinds by id.
@@ -13,7 +13,7 @@ e.g. the terminal). Workspaces open panels of registered kinds by id.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:318](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L318)
+Defined in: [packages/sdk/src/types.ts:324](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L324)
 
 Unique id for this panel kind.
 
@@ -25,7 +25,7 @@ Unique id for this panel kind.
 component: ComponentType<IDockviewPanelProps>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:320](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L320)
+Defined in: [packages/sdk/src/types.ts:326](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L326)
 
 The React component; receives the raw dockview panel props.
 
@@ -37,7 +37,7 @@ The React component; receives the raw dockview panel props.
 optional addMenuItem?: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:325](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L325)
+Defined in: [packages/sdk/src/types.ts:331](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L331)
 
 When set, this kind appears as an entry in the center dock's **+** add
 menu (the per-group header button). Omit to keep the kind internal.

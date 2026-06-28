@@ -1,14 +1,17 @@
 # Interface: ExtensionStorage
 
-Defined in: [packages/sdk/src/extension-storage.ts:13](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L13)
+Defined in: [packages/sdk/src/extension-storage.ts:16](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L16)
 
-Namespaced, persisted key/value storage handed to side-panel components
-via `SidePanelProps.storage`. Each panel id gets its own bag; values are
-persisted alongside the rest of the app state.
+Namespaced, persisted key/value storage handed to extensions. Two scopes are
+exposed on [ExtensionContext.storage](ExtensionContext.md#storage) ([ExtensionStorageScopes](ExtensionStorageScopes.md)):
+`global` (one bag per extension, shared across every workspace) and
+`workspace` (one bag per extension × the active workspace). Side panels also
+receive a workspace-scoped bag keyed by panel id via `SidePanelProps.storage`.
 
-The store is hydrated asynchronously after the panels mount, so consumers
-that need to wait for restored values should check `props.hydrated` or
-use `subscribe` to re-read once it flips.
+Values persist alongside the rest of the app state. The store hydrates
+asynchronously, and the workspace bag is swapped when the active workspace
+changes, so consumers that need to react to restored or switched values
+should [subscribe](#subscribe) and re-read.
 
 ## Methods
 
@@ -20,7 +23,7 @@ use `subscribe` to re-read once it flips.
 get<T>(key): T | undefined;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:15](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L15)
+Defined in: [packages/sdk/src/extension-storage.ts:18](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L18)
 
 Read a value. Returns `fallback` if the key is missing.
 
@@ -46,7 +49,7 @@ Read a value. Returns `fallback` if the key is missing.
 get<T>(key, fallback): T;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:16](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L16)
+Defined in: [packages/sdk/src/extension-storage.ts:19](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L19)
 
 ##### Type Parameters
 
@@ -76,7 +79,7 @@ Defined in: [packages/sdk/src/extension-storage.ts:16](https://github.com/silo-c
 set(key, value): void;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:18](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L18)
+Defined in: [packages/sdk/src/extension-storage.ts:21](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L21)
 
 Write a value. `undefined` deletes the key.
 
@@ -96,17 +99,34 @@ Write a value. `undefined` deletes the key.
 
 ***
 
+### keys()
+
+```ts
+keys(): string[];
+```
+
+Defined in: [packages/sdk/src/extension-storage.ts:23](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L23)
+
+The keys currently set in this namespace.
+
+#### Returns
+
+`string`[]
+
+***
+
 ### subscribe()
 
 ```ts
 subscribe(listener): () => void;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:24](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L24)
+Defined in: [packages/sdk/src/extension-storage.ts:30](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L30)
 
-Subscribe to changes in this namespace. Called on any set within this
-namespace, and also whenever the underlying app state finishes hydrating
-(so callers can re-read after persisted state loads).
+Subscribe to changes in this namespace. Called when a value in this
+namespace changes, when the underlying app state finishes hydrating, and
+(for the workspace scope) when the active workspace changes. Returns an
+unsubscribe function.
 
 #### Parameters
 

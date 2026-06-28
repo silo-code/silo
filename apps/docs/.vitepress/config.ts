@@ -38,6 +38,7 @@ const apiSidebar = [
       { text: "ctx.terminals", link: "/api/state/terminals" },
       { text: "ctx.workspaces", link: "/api/state/workspaces" },
       { text: "ctx.layout", link: "/api/state/layout" },
+      { text: "ctx.storage", link: "/api/storage/" },
       { text: "ctx.files", link: "/api/files/" },
       { text: "ctx.process", link: "/api/process/" },
       { text: "ctx.search", link: "/api/search/" },

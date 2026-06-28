@@ -31,7 +31,10 @@ import type { ThemeService, ThemePreset } from "./theme-service";
 import type { DndService } from "./dnd-service";
 import type { UiService } from "./ui-service";
 import type { NetworkService } from "./network-service";
-import type { ExtensionStorage } from "./extension-storage";
+import type {
+  ExtensionStorage,
+  ExtensionStorageScopes,
+} from "./extension-storage";
 
 /**
  * The teardown handle returned by every `register*` call on
@@ -268,9 +271,12 @@ export interface SidePanelProps {
   /** True when this side panel is currently visible / selected in its column. */
   active: boolean;
   /**
-   * Namespaced, persisted key/value storage scoped to this panel id.
-   * Use for restoring UI state (scroll positions, selections, expanded
-   * sections, etc.) across reloads.
+   * Namespaced, persisted key/value storage scoped to this panel id (the
+   * `workspace` scope of {@link ExtensionStorageScopes}, keyed by panel rather
+   * than extension). Use for **panel-local UI state** — scroll positions,
+   * selections, expanded sections, etc. — which is kept per workspace. For
+   * extension-level settings shared across surfaces and workspaces, use
+   * {@link ExtensionContext.storage}`.global` instead.
    */
   storage: ExtensionStorage;
   /**
@@ -338,6 +344,14 @@ export interface DockPanelKind {
 /**
  * A widget in the status bar (the strip along the bottom of the window).
  *
+ * @remarks
+ * The status bar container sets `font-size` and `color` on itself, so
+ * components rendered inside it inherit the correct values automatically —
+ * **do not override `font-size` or `font-family`** in status item CSS unless
+ * you have a deliberate reason to deviate. You may override `color` using
+ * design tokens (e.g. `--silo-color-text-lo` for a label / `--silo-color-text`
+ * for a value) to create visual distinctions within an item.
+ *
  * @category Registration
  * @public
  */
@@ -399,6 +413,22 @@ export interface ExtensionContext {
   readonly extensionId: string;
   /** Disposables tracked for this extension; the host disposes them on teardown. */
   readonly subscriptions: Disposable[];
+  /**
+   * Persisted, per-extension key/value storage, in two scopes
+   * ({@link ExtensionStorageScopes}): `global` (shared across all workspaces —
+   * for the extension's own settings) and `workspace` (scoped to the active
+   * workspace). Each is the extension's own bag, shared across all its surfaces
+   * — status bar, side panels, and settings page — independent of whether any
+   * panel has mounted.
+   *
+   * `.get()` / `.set()` are safe to call in {@link Extension.activate}. Note the
+   * app state hydrates asynchronously and the `workspace` bag is swapped on
+   * workspace change, so a value persisted last session may not be present at
+   * the instant `activate` runs — `subscribe` and re-read to pick up restored or
+   * switched values. (`SidePanelProps.storage` exposes the same `workspace`
+   * scope keyed by panel id, for panel-local UI state.)
+   */
+  readonly storage: ExtensionStorageScopes;
   /** Register an {@link Editor} (a presenter for a file type's editor tab). */
   registerEditor(editor: Editor): Disposable;
   /** Register a {@link FileType} (declarative file metadata). */

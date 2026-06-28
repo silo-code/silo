@@ -1,11 +1,14 @@
 /**
- * Namespaced, persisted key/value storage handed to side-panel components
- * via `SidePanelProps.storage`. Each panel id gets its own bag; values are
- * persisted alongside the rest of the app state.
+ * Namespaced, persisted key/value storage handed to extensions. Two scopes are
+ * exposed on {@link ExtensionContext.storage} ({@link ExtensionStorageScopes}):
+ * `global` (one bag per extension, shared across every workspace) and
+ * `workspace` (one bag per extension × the active workspace). Side panels also
+ * receive a workspace-scoped bag keyed by panel id via `SidePanelProps.storage`.
  *
- * The store is hydrated asynchronously after the panels mount, so consumers
- * that need to wait for restored values should check `props.hydrated` or
- * use `subscribe` to re-read once it flips.
+ * Values persist alongside the rest of the app state. The store hydrates
+ * asynchronously, and the workspace bag is swapped when the active workspace
+ * changes, so consumers that need to react to restored or switched values
+ * should {@link ExtensionStorage.subscribe | subscribe} and re-read.
  *
  * @category Consumer Services
  * @public
@@ -16,10 +19,34 @@ export interface ExtensionStorage {
   get<T>(key: string, fallback: T): T;
   /** Write a value. `undefined` deletes the key. */
   set(key: string, value: unknown): void;
+  /** The keys currently set in this namespace. */
+  keys(): string[];
   /**
-   * Subscribe to changes in this namespace. Called on any set within this
-   * namespace, and also whenever the underlying app state finishes hydrating
-   * (so callers can re-read after persisted state loads).
+   * Subscribe to changes in this namespace. Called when a value in this
+   * namespace changes, when the underlying app state finishes hydrating, and
+   * (for the workspace scope) when the active workspace changes. Returns an
+   * unsubscribe function.
    */
   subscribe(listener: () => void): () => void;
+}
+
+/**
+ * The two persisted-storage scopes available to an extension, exposed as
+ * {@link ExtensionContext.storage}.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface ExtensionStorageScopes {
+  /**
+   * Per-extension storage shared across **all** workspaces — the place for
+   * an extension's own settings (enabled features, layout choices, etc.).
+   */
+  readonly global: ExtensionStorage;
+  /**
+   * Per-extension storage scoped to the **active workspace** — the place for
+   * state that should differ per workspace (last selection, per-project
+   * toggles). The bag is swapped when the active workspace changes.
+   */
+  readonly workspace: ExtensionStorage;
 }

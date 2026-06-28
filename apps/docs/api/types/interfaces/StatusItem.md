@@ -1,8 +1,17 @@
 # Interface: StatusItem
 
-Defined in: [packages/sdk/src/types.ts:344](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L344)
+Defined in: [packages/sdk/src/types.ts:358](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L358)
 
 A widget in the status bar (the strip along the bottom of the window).
+
+## Remarks
+
+The status bar container sets `font-size` and `color` on itself, so
+components rendered inside it inherit the correct values automatically —
+**do not override `font-size` or `font-family`** in status item CSS unless
+you have a deliberate reason to deviate. You may override `color` using
+design tokens (e.g. `--silo-color-text-lo` for a label / `--silo-color-text`
+for a value) to create visual distinctions within an item.
 
 ## Properties
 
@@ -12,7 +21,7 @@ A widget in the status bar (the strip along the bottom of the window).
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:346](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L346)
+Defined in: [packages/sdk/src/types.ts:360](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L360)
 
 Unique id for this status item.
 
@@ -24,7 +33,7 @@ Unique id for this status item.
 alignment: "left" | "right";
 ```
 
-Defined in: [packages/sdk/src/types.ts:348](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L348)
+Defined in: [packages/sdk/src/types.ts:362](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L362)
 
 Which end of the status bar this item sits at.
 
@@ -36,7 +45,7 @@ Which end of the status bar this item sits at.
 optional priority?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:350](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L350)
+Defined in: [packages/sdk/src/types.ts:364](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L364)
 
 Sort order within its alignment group. Lower sorts first. Defaults to 0.
 
@@ -48,7 +57,7 @@ Sort order within its alignment group. Lower sorts first. Defaults to 0.
 optional tooltip?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:358](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L358)
+Defined in: [packages/sdk/src/types.ts:372](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L372)
 
 Tooltip shown on hover over the entire status item. The host renders a
 custom-styled popup (not the browser's native `title` tooltip). For items
@@ -64,6 +73,6 @@ internal barrel; external extensions may use the native `title` attribute).
 component: ComponentType;
 ```
 
-Defined in: [packages/sdk/src/types.ts:360](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L360)
+Defined in: [packages/sdk/src/types.ts:374](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L374)
 
 The React component (renders its own content; no props).

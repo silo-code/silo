@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSnapshot } from "valtio";
 import type { SidePanel } from "@silo-code/sdk";
 import type { SidePanelSlot } from "../state/types";
-import { getExtensionStorage } from "../extension-host/extension-storage";
+import { getWorkspaceExtensionStorage } from "../extension-host/extension-storage";
 import { store } from "../state/store";
 import { useSideTabDrag } from "./side-column-helpers";
 import { registerSidePane } from "./side-pane-registry";
@@ -265,7 +265,7 @@ export function PanelPane({
                 <ErrorBoundary name={p.id}>
                   <Comp
                     active={isActive}
-                    storage={getExtensionStorage(p.id)}
+                    storage={getWorkspaceExtensionStorage(p.id)}
                     hydrated={snap.hydrated}
                   />
                 </ErrorBoundary>
