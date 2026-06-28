@@ -1,8 +1,7 @@
 # Using `ctx` <Badge type="tip" text="stable" />
 
 > The domains below are **available now**. For what's still being designed
-> (`ctx.ui`, `ctx.settings`, `ctx.storage`, `ctx.theme`, …) see the
-> [Roadmap](/roadmap).
+> (`ctx.settings`, `ctx.secrets`, …) see the [Roadmap](/roadmap).
 
 You write an [`Extension`](/api/types/interfaces/Extension) and the host calls
 its `activate(ctx)` once, handing you an
@@ -51,6 +50,7 @@ importing the store or touching the platform directly. Opening files lives on
 | [`ctx.terminals`](/api/state/terminals)   | open / reap terminal tabs; `registerTabDecoration` to add icon+color+tooltip badges to terminal tabs ([`TerminalService`](/api/types/interfaces/TerminalService))                                                      |
 | [`ctx.workspaces`](/api/state/workspaces) | workspaces &amp; editor tabs; `registerDecoration` for status rows, `registerSection` to mount React components, `registerBadge` for inline name badges ([`WorkspaceService`](/api/types/interfaces/WorkspaceService)) |
 | [`ctx.layout`](/api/state/layout)         | side-panel collapse state ([`LayoutService`](/api/types/interfaces/LayoutService))                                                                                                                                     |
+| [`ctx.storage`](/api/storage/)            | persisted per-extension key/value storage, `global` &amp; `workspace` scopes ([`ExtensionStorageScopes`](/api/types/interfaces/ExtensionStorageScopes))                                                                |
 | [`ctx.files`](/api/files/)                | read / write / list / watch the filesystem, host-mediated ([`FileService`](/api/types/interfaces/FileService))                                                                                                         |
 | [`ctx.process`](/api/process/)            | persistent process / PTY sessions that survive restarts ([`ProcessService`](/api/types/interfaces/ProcessService))                                                                                                     |
 | [`ctx.search`](/api/search/)              | cross-file content search over the workspace ([`SearchService`](/api/types/interfaces/SearchService))                                                                                                                  |
