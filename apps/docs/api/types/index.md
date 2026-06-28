@@ -52,6 +52,7 @@ the published reference is exactly this surface — no more, no less.
 - [DiffContentProvider](type-aliases/DiffContentProvider.md)
 - [EditorService](interfaces/EditorService.md)
 - [ExtensionStorage](interfaces/ExtensionStorage.md)
+- [ExtensionStorageScopes](interfaces/ExtensionStorageScopes.md)
 - [FileService](interfaces/FileService.md)
 - [SideLocation](type-aliases/SideLocation.md)
 - [SidePanelColumnState](interfaces/SidePanelColumnState.md)
