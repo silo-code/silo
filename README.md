@@ -9,7 +9,7 @@ Keep all your projects running simultaneously — terminals, agents, and layout 
 
 ---
 
-![Switching between three live workspaces in Silo](https://github.com/user-attachments/assets/6c73421d-247a-436b-acbb-17e1a286a841)
+<video src="https://getsilo.dev/demo.mp4" autoplay loop muted playsinline></video>
 
 ---
 

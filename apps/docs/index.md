@@ -37,10 +37,6 @@ features:
     details: Everything runs on your machine. No cloud sync, no telemetry, no account required. Your workspaces, terminals, and files stay on your hardware.
 ---
 
-<div class="demo-gif">
-  <img src="/demo.gif" alt="Switching between three live workspaces in Silo" />
-</div>
-
 ## Built for running multiple agents at once
 
 You're driving a Claude session in one project while a dev build grinds in another, keeping a third open for quick fixes. Traditional editors weren't built for this. Every time you switch context, you lose your terminal state. Agents get interrupted. You spend half your time reconstructing what you had.
@@ -101,16 +97,3 @@ Silo has a public extension SDK (`@silo-code/sdk`), modeled on VS Code and Obsid
 - **[Build with Claude Code](/guide/claude-skill)** — scaffold and install via AI
 - **[API Reference](/api/)** — the full `ctx` surface
 - **[Roadmap](/roadmap)** — what's stable, what's planned
-
-<style>
-.demo-gif {
-  max-width: 900px;
-  margin: 100px 0 2rem 0;
-  border-radius: 8px;
-  overflow: hidden;
-}
-.demo-gif img {
-  width: 100%;
-  display: block;
-}
-</style>
