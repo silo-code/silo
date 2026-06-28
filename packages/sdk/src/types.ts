@@ -268,9 +268,10 @@ export interface SidePanelProps {
   /** True when this side panel is currently visible / selected in its column. */
   active: boolean;
   /**
-   * Namespaced, persisted key/value storage scoped to this panel id.
-   * Use for restoring UI state (scroll positions, selections, expanded
-   * sections, etc.) across reloads.
+   * Namespaced, persisted key/value storage scoped to this panel id. Use for
+   * **panel-local UI state** — scroll positions, selections, expanded sections,
+   * etc. — across reloads. For extension-level settings shared across surfaces,
+   * use {@link ExtensionContext.storage} instead.
    */
   storage: ExtensionStorage;
   /**
@@ -407,6 +408,16 @@ export interface ExtensionContext {
   readonly extensionId: string;
   /** Disposables tracked for this extension; the host disposes them on teardown. */
   readonly subscriptions: Disposable[];
+  /**
+   * Namespaced, persisted key/value storage scoped to this extension's id.
+   * Unlike {@link SidePanelProps.storage} (panel-local UI state), this is the
+   * extension's own bag, shared across all its surfaces — status bar, side
+   * panels, and settings page. It is global, not per-workspace, for now.
+   *
+   * Safe to call `.get()` / `.set()` immediately in {@link Extension.activate} —
+   * there is no need to wait for a panel to mount.
+   */
+  readonly storage: ExtensionStorage;
   /** Register an {@link Editor} (a presenter for a file type's editor tab). */
   registerEditor(editor: Editor): Disposable;
   /** Register a {@link FileType} (declarative file metadata). */

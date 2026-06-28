@@ -38,6 +38,7 @@ import { getUiService } from "./ui-service";
 import { getNetworkService } from "./network-service";
 import { themePresetRegistry } from "./theme-presets";
 import { getExtensionHandle } from "./extension-registry";
+import { getExtensionStorage } from "./extension-storage";
 import { getActiveWorkspace } from "../state/store";
 import type { PathScope } from "./security/resolve-path";
 
@@ -80,6 +81,7 @@ export function createContext(
   return {
     extensionId,
     subscriptions,
+    storage: getExtensionStorage(extensionId),
     registerEditor(editor: Editor): Disposable {
       return track(editorRegistry.register(editor));
     },

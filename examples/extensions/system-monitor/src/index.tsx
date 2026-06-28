@@ -1,9 +1,10 @@
-import type { Extension, SidePanelProps } from "@silo-code/sdk";
+import type { Extension } from "@silo-code/sdk";
 import STYLES from "./styles.css";
 import { startPolling } from "./poll";
 import { SystemMonitorPanel } from "./views/SystemMonitorPanel";
 import { SystemMonitorStatus } from "./views/SystemMonitorStatus";
 import { SystemMonitorSettings } from "./views/SystemMonitorSettings";
+import { sysmonStore } from "./store";
 
 const STYLE_ID = "silo-system-monitor-styles";
 
@@ -20,6 +21,11 @@ export const extension: Extension = {
     styleEl.textContent = STYLES;
     document.head.appendChild(styleEl);
 
+    // Hydrate persisted settings up front so the status bar and settings page
+    // reflect saved state immediately — the side panel is lazy-mounted and may
+    // never open.
+    sysmonStore.hydrate(ctx.storage);
+
     // Polling runs at the extension level — status bar items need live data even
     // when the side panel is hidden. The poll skips metrics not currently visible.
     const stopPolling = startPolling(ctx);
@@ -29,7 +35,7 @@ export const extension: Extension = {
       id: "system-monitor",
       location: "right",
       title: "System",
-      component: (props: SidePanelProps) => <SystemMonitorPanel {...props} />,
+      component: SystemMonitorPanel,
       order: 20,
       lazyMount: true,
     });

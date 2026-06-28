@@ -18,6 +18,20 @@ A non-panel extension (the example clock's settings) **can't persist state at
 all**, and on uninstall an extension's stored state is never cleaned up. Real
 extensions need durable, namespaced, host-managed state.
 
+The system-monitor example extension makes the gap concrete. Its settings
+(which metric panels are enabled, status-bar order) are needed by three surfaces
+— the side panel, the status-bar item, and the global settings page — but the
+only storage path goes through `SidePanelProps`. The workaround
+(`sysmonStore.hydrate(storage)` inside the panel component) produces two bugs:
+
+1. **Stale defaults until the panel opens.** With `lazyMount: true` the panel
+   never mounts until first clicked, so the status-bar items always render
+   `DEFAULT_SETTINGS` on startup regardless of what was saved last session.
+2. **Silent write loss from the settings page.** `updateSettings` calls
+   `this._storage?.set(...)`, but `_storage` is `null` until the panel mounts,
+   so any save made through the global Settings dialog before the panel is ever
+   opened is silently dropped and never persisted.
+
 ## Design
 
 Sketch: `ctx.storage.global` and `ctx.storage.workspace` (`get` / `set` / `keys` /

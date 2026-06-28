@@ -1,6 +1,12 @@
-import { describe, it, expect } from "vitest";
-import { mergeList, mergeSettings, DEFAULT_SETTINGS } from "./store";
-import type { PanelEntry } from "./store";
+import { describe, it, expect, vi } from "vitest";
+import {
+  mergeList,
+  mergeSettings,
+  DEFAULT_SETTINGS,
+  sysmonStore,
+} from "./store";
+import type { PanelEntry, Settings } from "./store";
+import type { ExtensionStorage } from "@silo-code/sdk";
 
 describe("mergeList", () => {
   const defaults: PanelEntry[] = [
@@ -76,5 +82,26 @@ describe("mergeSettings", () => {
     expect(result.panels.find((p) => p.id === "cpu")?.enabled).toBe(false);
     // statusBar falls back to defaults
     expect(result.statusBar).toEqual(DEFAULT_SETTINGS.statusBar);
+  });
+});
+
+describe("sysmonStore persistence", () => {
+  it("writes through storage when updated before any panel renders", () => {
+    const set = vi.fn();
+    const storage: ExtensionStorage = {
+      get: () => undefined,
+      set,
+      subscribe: () => () => {},
+    };
+
+    // Hydrated from activate() — no panel ever mounted.
+    sysmonStore.hydrate(storage);
+
+    const next: Settings = mergeSettings({
+      panels: [{ id: "cpu", enabled: false }],
+    });
+    sysmonStore.updateSettings(next);
+
+    expect(set).toHaveBeenCalledWith("settings", next);
   });
 });
