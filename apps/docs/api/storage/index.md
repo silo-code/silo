@@ -24,7 +24,7 @@ and re-read to pick up a value that lands after `activate`:
 
 ```ts
 export const extension: Extension = {
-  id: "example.system-monitor",
+  id: "my.extension",
   activate(ctx) {
     const store = ctx.storage.global;
 
