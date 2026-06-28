@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/silo-code/silo/compare/silo-v0.16.0...silo-v0.17.0) (2026-06-28)
+
+
+### Features
+
+* warn on engine version mismatch at install time and in extensions list ([#129](https://github.com/silo-code/silo/issues/129)) ([a0d62eb](https://github.com/silo-code/silo/commit/a0d62eb00716843303f716e885369a157d26956d))
+
 ## [0.16.0](https://github.com/silo-code/silo/compare/silo-v0.15.0...silo-v0.16.0) (2026-06-28)
 
 
