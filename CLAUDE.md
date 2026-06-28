@@ -15,6 +15,10 @@ Orientation docs (read when relevant):
 - `docs/decisions/` — ADRs: the architecture decisions of record (the durable "why").
 - `docs/proposals/` — RFCs: forward-looking designs not yet decided.
 - `docs/ui-terminology.md` — high-level UI component naming.
+- `docs/silo-extensions-repo.md` — the **external** `silo-code/silo-extensions`
+  repo (cloned at `../silo-extensions`): how its third-party extensions relate to
+  this repo — published-SDK lag, npm (not pnpm) build commands, runtime trust /
+  `silo.permissions`, and how to install a branch without merging.
 
 ## Self-documentation — keep docs in sync AS YOU BUILD
 
