@@ -47,7 +47,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.search` (replace-in-files)                | <Badge type="info" text="planned" /> | [design](/api/search/#replace)                                                             |
 | `ctx.ui` (quickPick / progress)                | <Badge type="info" text="planned" /> | [design](#ctx-ui)                                                                          |
 | `ctx` events (typed `Event<T>`)                | <Badge type="info" text="planned" /> | [design](#ctx-events)                                                                      |
-| `ctx.settings` / configuration                 | <Badge type="info" text="planned" /> | —                                                                                          |
+| per-extension settings (page + persistence)    | <Badge type="tip" text="stable" />   | [docs](/api/registration/register-settings-page)                                           |
 | `ctx.storage` (global / workspace)             | <Badge type="tip" text="stable" />   | [docs](/api/storage/)                                                                      |
 | `ctx.secrets` (host-mediated credentials)      | <Badge type="info" text="planned" /> | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md) |
 | `ctx.webview` (iframe navigation events)       | <Badge type="info" text="planned" /> | [design](#ctx-webview)                                                                     |
@@ -120,7 +120,6 @@ The shape of each planned surface is now designed in an **RFC** under
 | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | <a id="ctx-ui"></a>`ctx.ui` slice 2 — `quickPick` / `inputBox` / `progress`         | [RFC 0001](https://github.com/silo-code/silo/blob/main/docs/proposals/0001-ctx-ui-slice-2.md)                          |
 | <a id="ctx-events"></a>Typed `ctx` events (`Event<T>`, domain-owned, no global bus) | [RFC 0002](https://github.com/silo-code/silo/blob/main/docs/proposals/0002-ctx-events.md)                              |
-| `ctx.settings` — per-extension configuration                                        | [RFC 0003](https://github.com/silo-code/silo/blob/main/docs/proposals/0003-ctx-settings.md)                            |
 | `ctx.secrets` — host-mediated credentials (storage `global` / `workspace` shipped)  | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md)                             |
 | Declarative `contributes` + activation events                                       | [RFC 0005](https://github.com/silo-code/silo/blob/main/docs/proposals/0005-declarative-contributes-activation.md)      |
 | Extension permissions + sandbox                                                     | [RFC 0006](https://github.com/silo-code/silo/blob/main/docs/proposals/0006-extension-permissions-sandbox.md)           |

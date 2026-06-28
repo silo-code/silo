@@ -70,4 +70,5 @@ uninstall-time cleanup remain demand-driven follow-ups.
 ## References
 
 - [ADR 0019](../decisions/0019-runtime-extension-loading.md) (loading / uninstall),
-  [RFC 0003](./0003-ctx-settings.md) (settings).
+  [RFC 0003](./0003-ctx-settings.md) (settings — superseded; storage is the
+  persistence half of how extension settings actually work).
