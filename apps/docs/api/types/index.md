@@ -84,6 +84,8 @@ the published reference is exactly this surface — no more, no less.
 - [WorkspaceStatusRow](interfaces/WorkspaceStatusRow.md)
 - [WorkspaceSectionProps](interfaces/WorkspaceSectionProps.md)
 - [WorkspaceSectionProvider](interfaces/WorkspaceSectionProvider.md)
+- [WorkspaceBadge](interfaces/WorkspaceBadge.md)
+- [WorkspaceBadgeProvider](interfaces/WorkspaceBadgeProvider.md)
 - [WorkspaceDecorationProvider](interfaces/WorkspaceDecorationProvider.md)
 - [WorkspaceState](interfaces/WorkspaceState.md)
 - [CreateWorkspaceInput](interfaces/CreateWorkspaceInput.md)

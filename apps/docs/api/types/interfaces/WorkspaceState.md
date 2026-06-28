@@ -1,6 +1,6 @@
 # Interface: WorkspaceState
 
-Defined in: [packages/sdk/src/workspace-service.ts:88](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L88)
+Defined in: [packages/sdk/src/workspace-service.ts:125](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L125)
 
 An immutable, frozen view of workspace state, returned by
 [WorkspaceService.getState](WorkspaceService.md#getstate) and delivered to subscribers — read
@@ -14,7 +14,7 @@ access without a Valtio dependency.
 all: readonly Workspace[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:90](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L90)
+Defined in: [packages/sdk/src/workspace-service.ts:127](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L127)
 
 All workspaces, in user-defined order.
 
@@ -26,7 +26,7 @@ All workspaces, in user-defined order.
 open: readonly Workspace[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:92](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L92)
+Defined in: [packages/sdk/src/workspace-service.ts:129](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L129)
 
 Workspaces where closedAt is null/undefined, in user-defined order.
 
@@ -38,7 +38,7 @@ Workspaces where closedAt is null/undefined, in user-defined order.
 closed: readonly Workspace[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L94)
+Defined in: [packages/sdk/src/workspace-service.ts:131](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L131)
 
 Workspaces where closedAt is set, sorted by closedAt descending.
 
@@ -50,7 +50,7 @@ Workspaces where closedAt is set, sorted by closedAt descending.
 activeId: string | null;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L95)
+Defined in: [packages/sdk/src/workspace-service.ts:132](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L132)
 
 ***
 
@@ -60,6 +60,6 @@ Defined in: [packages/sdk/src/workspace-service.ts:95](https://github.com/silo-c
 hydrated: boolean;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:97](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L97)
+Defined in: [packages/sdk/src/workspace-service.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L134)
 
 True once the persisted state has been loaded into the store.

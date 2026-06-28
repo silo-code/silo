@@ -24,11 +24,12 @@ True when this side panel is currently visible / selected in its column.
 storage: ExtensionStorage;
 ```
 
-Defined in: [packages/sdk/src/types.ts:275](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L275)
+Defined in: [packages/sdk/src/types.ts:276](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L276)
 
-Namespaced, persisted key/value storage scoped to this panel id.
-Use for restoring UI state (scroll positions, selections, expanded
-sections, etc.) across reloads.
+Namespaced, persisted key/value storage scoped to this panel id. Use for
+**panel-local UI state** — scroll positions, selections, expanded sections,
+etc. — across reloads. For extension-level settings shared across surfaces,
+use [ExtensionContext.storage](ExtensionContext.md#storage) instead.
 
 ***
 
@@ -38,7 +39,7 @@ sections, etc.) across reloads.
 hydrated: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:281](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L281)
+Defined in: [packages/sdk/src/types.ts:282](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L282)
 
 True once the persisted app state has finished loading from disk.
 Panels should defer restoring values from `storage` until this is true
