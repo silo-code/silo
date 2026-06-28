@@ -30,6 +30,7 @@ const PANEL: PanelState = {
   sidePanelOrder: { explorer: 0 },
   activeSidePanelTabs: { left: "explorer" },
   sidePanelScrollPositions: { explorer: 12 },
+  sidePanelVisibility: { themes: false },
   extensionState: { "silo.explorer": { expanded: ["/a"] } },
 };
 
@@ -109,9 +110,16 @@ describe("withActivePanelState", () => {
     const merged = withActivePanelState(makeWorkspace("a"), PANEL);
     expect(merged.sidePanelLocations).toEqual({ explorer: "left" });
     expect(merged.sidePanelScrollPositions).toEqual({ explorer: 12 });
+    expect(merged.sidePanelVisibility).toEqual({ themes: false });
     expect(merged.extensionState).toEqual({
       "silo.explorer": { expanded: ["/a"] },
     });
+  });
+
+  it("isolates the visibility bag from the source panel state", () => {
+    const merged = withActivePanelState(makeWorkspace("a"), PANEL);
+    merged.sidePanelVisibility!.explorer = false;
+    expect(PANEL.sidePanelVisibility.explorer).toBeUndefined();
   });
 
   it("does not mutate the source workspace and isolates the extension-state bag", () => {
@@ -229,18 +237,10 @@ describe("buildIndex", () => {
       activeWorkspaceId: "a",
       editorSettings,
     });
-    const sidePanelVisibility = { explorer: false };
-    const index2 = buildIndex({
-      workspaceOrder: [],
-      activeWorkspaceId: null,
-      sidePanelVisibility,
-    });
     order.push("c");
     editorSettings.tabSize = 8;
-    sidePanelVisibility.explorer = true;
     expect(index.workspaceOrder).toEqual(["a", "b"]);
     expect(index.editorSettings).toEqual({ tabSize: 2 });
-    expect(index2.sidePanelVisibility).toEqual({ explorer: false });
   });
 
   it("preserves undefined optional fields", () => {
@@ -250,19 +250,16 @@ describe("buildIndex", () => {
     expect(index.uiFontSize).toBeUndefined();
     expect(index.leftPanelCollapsed).toBeUndefined();
     expect(index.rightPanelCollapsed).toBeUndefined();
-    expect(index.sidePanelVisibility).toBeUndefined();
   });
 
-  it("carries the global side-dock visibility flags through", () => {
+  it("carries the global side-dock collapse flags through", () => {
     const index = buildIndex({
       workspaceOrder: [],
       activeWorkspaceId: null,
       leftPanelCollapsed: true,
       rightPanelCollapsed: false,
-      sidePanelVisibility: { themes: false },
     });
     expect(index.leftPanelCollapsed).toBe(true);
     expect(index.rightPanelCollapsed).toBe(false);
-    expect(index.sidePanelVisibility).toEqual({ themes: false });
   });
 });

@@ -69,8 +69,10 @@ export interface AppState {
   leftPanelCollapsed: boolean;
   rightPanelCollapsed: boolean;
   /**
-   * Global side-panel visibility, keyed by panel id. Shared across workspaces.
-   * Absent = visible (default); only an explicit `false` (hidden) is stored.
+   * Side-panel visibility, keyed by panel id. Per-workspace: snapshotted into
+   * the active workspace and swapped when the active workspace changes (like
+   * the other panel-state fields). Absent = visible (default); only an explicit
+   * `false` (hidden) is stored.
    */
   sidePanelVisibility: Record<string, boolean>;
   /**

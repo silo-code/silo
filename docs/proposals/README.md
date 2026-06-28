@@ -45,8 +45,8 @@ never deleted** — "we considered X and rejected it" stops the debate recurring
 | --------------------------------------------------------- | ----------------------------------------------------------------- | ---------- | ----------- |
 | [0001](./0001-ctx-ui-slice-2.md)                          | `ctx.ui` slice 2 — quickPick / inputBox / progress                | 2026-06-04 | draft       |
 | [0002](./0002-ctx-events.md)                              | Typed `ctx` events (`Event<T>`)                                   | 2026-06-04 | draft       |
-| [0003](./0003-ctx-settings.md)                            | `ctx.settings` — per-extension configuration                      | 2026-06-04 | draft       |
-| [0004](./0004-ctx-storage.md)                             | `ctx.storage` — global / workspace / secret                       | 2026-06-04 | draft       |
+| [0003](./0003-ctx-settings.md)                            | `ctx.settings` — per-extension configuration                      | 2026-06-04 | superseded  |
+| [0004](./0004-ctx-storage.md)                             | `ctx.storage` — global / workspace / secret                       | 2026-06-04 | accepted    |
 | [0005](./0005-declarative-contributes-activation.md)      | Declarative `contributes` + activation events                     | 2026-06-04 | draft       |
 | [0006](./0006-extension-permissions-sandbox.md)           | Extension permissions + sandbox model                             | 2026-06-04 | draft       |
 | [0007](./0007-extension-authoring-toolchain.md)           | Extension authoring toolchain (build/dev, scaffolder, CSS, store) | 2026-06-04 | draft       |

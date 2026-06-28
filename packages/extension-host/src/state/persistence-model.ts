@@ -29,9 +29,6 @@ export interface PersistedIndex {
   // indexes, hydrated with a per-workspace fallback (see persistence.ts).
   leftPanelCollapsed?: boolean;
   rightPanelCollapsed?: boolean;
-  // Side-panel visibility is global too; absent in pre-this-change indexes, in
-  // which case every panel hydrates as visible (the default).
-  sidePanelVisibility?: Record<string, boolean>;
   // Per-extension global storage (`ctx.storage.global`), keyed by extension id.
   // Global (not per-workspace), so it lives in the index; absent in older
   // indexes, in which case extensions start from their defaults.
@@ -63,6 +60,7 @@ export interface PanelState {
   sidePanelOrder: Record<string, number>;
   activeSidePanelTabs: Record<string, string>;
   sidePanelScrollPositions: Record<string, number>;
+  sidePanelVisibility: Record<string, boolean>;
   extensionState: Record<string, Record<string, unknown>>;
 }
 
@@ -137,9 +135,6 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
       : undefined,
     leftPanelCollapsed: snapshot.leftPanelCollapsed,
     rightPanelCollapsed: snapshot.rightPanelCollapsed,
-    sidePanelVisibility: snapshot.sidePanelVisibility
-      ? { ...snapshot.sidePanelVisibility }
-      : undefined,
     globalExtensionState: snapshot.globalExtensionState
       ? cloneExtensionState(snapshot.globalExtensionState)
       : undefined,
@@ -158,6 +153,7 @@ export function withActivePanelState(
     sidePanelOrder: { ...panel.sidePanelOrder },
     activeSidePanelTabs: { ...panel.activeSidePanelTabs },
     sidePanelScrollPositions: { ...panel.sidePanelScrollPositions },
+    sidePanelVisibility: { ...panel.sidePanelVisibility },
     extensionState: cloneExtensionState(panel.extensionState),
   };
 }
