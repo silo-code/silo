@@ -28,6 +28,9 @@ export interface PersistedIndex {
   // Global (not per-workspace), so it lives in the index; absent in older
   // indexes, in which case extensions start from their defaults.
   globalExtensionState?: Record<string, Record<string, unknown>>;
+  // Legacy migration fields — stored globally in old installs, now per-workspace.
+  leftPanelCollapsed?: boolean;
+  rightPanelCollapsed?: boolean;
 }
 
 /** The legacy monolithic blob (one `"state"` key in the app-data store) we
