@@ -69,6 +69,7 @@ pub fn run() {
 
     builder
         .manage(commands::terminal::TerminalState::new())
+        .manage(commands::process::ProcessStatsState::new())
         .manage(commands::cli::PendingLaunchArg::default())
         .setup(|app| {
             commands::watch::register(app.handle());
@@ -146,6 +147,8 @@ pub fn run() {
             commands::watch::start_watch,
             commands::watch::stop_watch,
             commands::process::process_exec,
+            commands::process::process_kill_group,
+            commands::process::process_get_stats,
             commands::search::search_files,
             commands::terminal::terminal_create,
             commands::terminal::terminal_write,
@@ -155,6 +158,7 @@ pub fn run() {
             commands::terminal::terminal_start_stream,
             commands::terminal::terminal_get_buffer,
             commands::terminal::terminal_save_buffer,
+            commands::terminal::terminal_foreground_snapshot,
             commands::network::net_fetch,
             commands::network::net_fetch_headers,
             commands::finder_drop::dnd_get_finder_paths,

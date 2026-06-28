@@ -81,6 +81,11 @@ export type {
   ProcessExecResult,
 } from "./process-service";
 export type {
+  ProcessesService,
+  ProcessInfo,
+  ProcessStats,
+} from "./processes-service";
+export type {
   TerminalService,
   CreateTerminalInput,
   TerminalKind,

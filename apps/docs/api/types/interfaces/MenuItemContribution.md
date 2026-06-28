@@ -1,6 +1,6 @@
 # Interface: MenuItemContribution
 
-Defined in: [packages/sdk/src/types.ts:214](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L214)
+Defined in: [packages/sdk/src/types.ts:215](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L215)
 
 Places a command into one of the application menus.
 
@@ -12,7 +12,7 @@ Places a command into one of the application menus.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:216](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L216)
+Defined in: [packages/sdk/src/types.ts:217](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L217)
 
 Unique id for this menu entry.
 
@@ -24,7 +24,7 @@ Unique id for this menu entry.
 menu: MenuId;
 ```
 
-Defined in: [packages/sdk/src/types.ts:218](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L218)
+Defined in: [packages/sdk/src/types.ts:219](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L219)
 
 Which application menu to place the item in.
 
@@ -36,7 +36,7 @@ Which application menu to place the item in.
 command: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L220)
+Defined in: [packages/sdk/src/types.ts:221](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L221)
 
 Id of the [Command](Command.md) this item invokes.
 
@@ -48,7 +48,7 @@ Id of the [Command](Command.md) this item invokes.
 optional label?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:222](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L222)
+Defined in: [packages/sdk/src/types.ts:223](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L223)
 
 Override label; defaults to the command's label.
 
@@ -60,7 +60,7 @@ Override label; defaults to the command's label.
 optional accelerator?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:224](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L224)
+Defined in: [packages/sdk/src/types.ts:225](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L225)
 
 Accelerator shown next to the item (display only; bind via [Keybinding](Keybinding.md)).
 
@@ -72,7 +72,7 @@ Accelerator shown next to the item (display only; bind via [Keybinding](Keybindi
 optional group?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:231](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L231)
+Defined in: [packages/sdk/src/types.ts:232](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L232)
 
 Group key used to bucket items in the same submenu. Items in different
 groups are visually separated by a separator. Group names are sorted
@@ -87,7 +87,7 @@ Defaults to "9_default" so unspecified items land at the bottom.
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:233](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L233)
+Defined in: [packages/sdk/src/types.ts:234](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L234)
 
 Sort order within a group. Defaults to 0.
 
@@ -99,7 +99,7 @@ Sort order within a group. Defaults to 0.
 optional when?: (ctx) => boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:240](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L240)
+Defined in: [packages/sdk/src/types.ts:241](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L241)
 
 Optional predicate against current context keys. Items whose `when`
 returns false stay visible in the app menu but are disabled (macOS

@@ -41,6 +41,7 @@ const apiSidebar = [
       { text: "ctx.storage", link: "/api/storage/" },
       { text: "ctx.files", link: "/api/files/" },
       { text: "ctx.process", link: "/api/process/" },
+      { text: "ctx.processes", link: "/api/processes/" },
       { text: "ctx.search", link: "/api/search/" },
       { text: "ctx.theme", link: "/api/theme/" },
       { text: "ctx.dnd", link: "/api/dnd/" },

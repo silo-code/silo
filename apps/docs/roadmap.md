@@ -23,6 +23,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.layout`                                   | <Badge type="tip" text="stable" />   | [docs](/api/state/layout)                                                                  |
 | `ctx.process` (persistent sessions)            | <Badge type="tip" text="stable" />   | [docs](/api/process/)                                                                      |
 | `ctx.process.exec` (one-shot subprocess)       | <Badge type="tip" text="stable" />   | [docs](/api/process/#one-shot-exec)                                                        |
+| `ctx.processes` (foreground process observer)  | <Badge type="tip" text="stable" />   | [docs](/api/processes/)                                                                    |
 | Extension-API mechanism (`getExtension`)       | <Badge type="tip" text="stable" />   | [docs](/api/other/get-extension)                                                           |
 | `ctx.editors` (documents)                      | <Badge type="tip" text="stable" />   | [docs](/api/editors/)                                                                      |
 | `ctx.terminals` (terminal tabs)                | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                                                               |
