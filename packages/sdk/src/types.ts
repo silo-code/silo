@@ -24,6 +24,7 @@ import type { WorkspaceService } from "./workspace-service";
 import type { EditorService } from "./editor-service";
 import type { LayoutService } from "./layout-service";
 import type { ProcessService } from "./process-service";
+import type { ProcessesService } from "./processes-service";
 import type { TerminalService } from "./terminal-service";
 import type { FileService } from "./file-service";
 import type { SearchService } from "./search-service";
@@ -479,6 +480,14 @@ export interface ExtensionContext {
    * re-attach a session and drive it via the returned `ProcessSession`.
    */
   readonly process: ProcessService;
+  /**
+   * Workspace process observability — a live view of what is running in each
+   * terminal, with optional CPU/memory stats and a surgical kill that leaves the
+   * shell alive. Complements {@link ExtensionContext.process} (which spawns
+   * sessions); this surface is for reading and controlling what's already running.
+   * See {@link ProcessesService} for the full API.
+   */
+  readonly processes: ProcessesService;
   /**
    * Consumer API for the terminal domain — open a terminal tab in a workspace
    * (`create`) or reap a workspace's terminals (`closeWorkspace`). The terminal

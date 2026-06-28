@@ -1,9 +1,10 @@
+use dashmap::DashMap;
 use parking_lot::Mutex;
 use std::io::Read;
 use std::sync::Arc;
 use tauri::Emitter;
 
-use super::session_backend::{log_event, ForegroundSub};
+use super::session_backend::{log_event, ForegroundInfo, ForegroundSub};
 
 /// Decode PTY bytes as UTF-8, returning the valid prefix as a String and any
 /// incomplete trailing multi-byte sequence as leftover bytes to carry into the
@@ -89,15 +90,20 @@ pub fn run_reader_loop(
 }
 
 /// Forward a session's foreground-process updates (RFC 0010 N1) to the frontend
-/// as `terminal_foreground:<sessionId>` events, until the stream ends.
+/// as `terminal_foreground:<sessionId>` events, until the stream ends. Also
+/// updates `fg_cache` so callers can snapshot the last known state on demand
+/// (via the `terminal_foreground_snapshot` command) without waiting for a change.
 pub fn run_foreground_loop(
     mut sub: Box<dyn ForegroundSub>,
     app: tauri::AppHandle,
     session_id: String,
+    fg_cache: Arc<DashMap<String, ForegroundInfo>>,
 ) {
     while let Some(fg) = sub.next() {
+        fg_cache.insert(session_id.clone(), fg.clone());
         let _ = app.emit(&format!("terminal_foreground:{}", session_id), fg);
     }
+    fg_cache.remove(&session_id);
 }
 
 #[cfg(test)]

@@ -55,10 +55,17 @@ tiny_http = { version = "0.12", optional = true }
 xcap = { version = "0.9", optional = true }
 base64 = { version = "0.22", optional = true }
 
+# Process resource metrics for ctx.processes.enableStats(). Used via
+# sysinfo::System::refresh_processes_specifics — targeted (only known PIDs),
+# so cost is proportional to the number of active terminal sessions, not total
+# process count. Defaults off: only polled when an extension calls enableStats().
+sysinfo = { version = "0.32", default-features = false, features = ["system"] }
+
 # Self-owned PTY session host (RFC 0010). Unix-only (forkpty + Unix sockets);
 # the app self-forks into its daemon via the hidden `--session-host` flag.
 [target.'cfg(unix)'.dependencies]
 pty-host = { path = "../../../crates/pty-host" }
+libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 raw-window-handle = "0.6"

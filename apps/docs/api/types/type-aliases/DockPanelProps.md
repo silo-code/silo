@@ -4,7 +4,7 @@
 type DockPanelProps<T> = IDockviewPanelProps<T>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L72)
+Defined in: [packages/sdk/src/types.ts:73](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L73)
 
 Props handed to a [DockPanelKind](../interfaces/DockPanelKind.md) component. Use this type to annotate
 your component instead of importing `IDockviewPanelProps` from `dockview`

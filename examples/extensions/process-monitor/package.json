@@ -1,0 +1,27 @@
+{
+  "name": "process-monitor",
+  "displayName": "Process Monitor",
+  "version": "0.1.0",
+  "description": "Live process manager panel — shows what's running in each terminal, with optional CPU/memory stats and surgical kill. Demonstrates ctx.processes.",
+  "private": true,
+  "type": "module",
+  "silo": {
+    "id": "silo.process-monitor",
+    "engine": "^0.9",
+    "main": "dist/index.js",
+    "permissions": [
+      "process"
+    ]
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@silo-code/sdk": "workspace:*",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.24.0",
+    "react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}

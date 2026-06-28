@@ -1,6 +1,31 @@
 use std::process::Command;
 
+use parking_lot::Mutex;
 use serde::Serialize;
+use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+
+#[cfg(unix)]
+use libc;
+
+/// Tauri-managed state for process resource stats (ctx.processes.enableStats).
+/// Holds a sysinfo::System that is refreshed in-place on each `process_get_stats`
+/// call so CPU% is computed as a delta between consecutive samples.
+pub struct ProcessStatsState(pub Mutex<System>);
+
+impl ProcessStatsState {
+    pub fn new() -> Self {
+        ProcessStatsState(Mutex::new(System::new()))
+    }
+}
+
+/// Per-process resource snapshot returned by `process_get_stats`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessStats {
+    pub pid: i32,
+    pub cpu_percent: f32,
+    pub memory_mb: f64,
+}
 
 /// The captured result of a one-shot subprocess.
 #[derive(Serialize)]
@@ -45,4 +70,67 @@ pub async fn process_exec(
     })
     .await
     .map_err(|e| format!("exec task panicked: {}", e))?
+}
+
+/// Send SIGTERM to a process group by pgid, then SIGKILL after 3 s if still
+/// alive. Does NOT kill the PTY session — only the foreground process group.
+/// This is the backend for `ctx.processes.kill(pgid)`.
+#[cfg(unix)]
+#[tauri::command]
+pub async fn process_kill_group(pgid: i32) -> Result<(), String> {
+    // killpg targets a process group (negative pid to kill(2)); SIGTERM first.
+    unsafe {
+        libc::killpg(pgid, libc::SIGTERM);
+    }
+    // Schedule SIGKILL fallback on a blocking thread — don't occupy the executor.
+    tauri::async_runtime::spawn(async move {
+        tauri::async_runtime::spawn_blocking(move || {
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            unsafe {
+                libc::killpg(pgid, libc::SIGKILL);
+            }
+        })
+        .await
+        .ok();
+    });
+    Ok(())
+}
+
+/// Stub for non-Unix platforms (process groups aren't modelled the same way).
+#[cfg(not(unix))]
+#[tauri::command]
+pub async fn process_kill_group(_pgid: i32) -> Result<(), String> {
+    Err("process_kill_group is not supported on this platform".to_string())
+}
+
+/// Query CPU and memory usage for a list of PIDs. Used by the TypeScript
+/// `ctx.processes.enableStats()` polling loop (called every ~1500 ms while
+/// at least one extension has stats enabled). Only the requested PIDs are
+/// refreshed — not a full system scan.
+///
+/// CPU% is a delta between consecutive calls (first call returns 0%).
+/// Returns only the entries for PIDs that are still alive.
+#[tauri::command]
+pub async fn process_get_stats(
+    state: tauri::State<'_, ProcessStatsState>,
+    pids: Vec<i32>,
+) -> Result<Vec<ProcessStats>, String> {
+    let sys_pids: Vec<Pid> = pids.iter().map(|&p| Pid::from(p as usize)).collect();
+    let mut sys = state.0.lock();
+    sys.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&sys_pids),
+        true,
+        ProcessRefreshKind::everything(),
+    );
+    Ok(pids
+        .iter()
+        .filter_map(|&pid| {
+            let p = sys.process(Pid::from(pid as usize))?;
+            Some(ProcessStats {
+                pid,
+                cpu_percent: p.cpu_usage(),
+                memory_mb: p.memory() as f64 / 1_048_576.0,
+            })
+        })
+        .collect())
 }

@@ -1,0 +1,222 @@
+/* ---- panel shell --------------------------------------------------------- */
+.pm-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pm-empty {
+  padding: 24px 16px;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-lo);
+  line-height: 1.6;
+}
+.pm-empty p {
+  margin: 0 0 6px;
+}
+
+/* ---- toolbar ------------------------------------------------------------- */
+.pm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.pm-stats-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: var(--silo-radius-sm);
+  border: 1px solid var(--silo-color-border);
+  background: var(--silo-color-bg-2);
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  cursor: pointer;
+  transition:
+    color 0.1s,
+    border-color 0.1s;
+}
+.pm-stats-toggle:hover {
+  color: var(--silo-color-text-hi);
+  border-color: var(--silo-color-border-hi);
+}
+.pm-stats-toggle--on {
+  color: var(--silo-color-accent);
+  border-color: var(--silo-color-accent);
+}
+
+/* ---- process list -------------------------------------------------------- */
+.pm-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.pm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--silo-color-border);
+  transition: background 0.1s;
+}
+.pm-row:last-child {
+  border-bottom: none;
+}
+
+/* ---- status dot ---------------------------------------------------------- */
+.pm-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 5px;
+}
+.pm-dot--busy {
+  background: var(--silo-color-accent);
+}
+.pm-dot--idle {
+  background: var(--silo-color-text-lo);
+  opacity: 0.4;
+}
+
+/* ---- main info button (click = focus terminal) --------------------------- */
+.pm-info {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+.pm-info:hover {
+  background: var(--silo-color-bg-hover);
+}
+.pm-info:focus-visible {
+  outline: 2px solid var(--silo-color-accent);
+  outline-offset: 1px;
+}
+
+.pm-name {
+  display: block;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  font-weight: 500;
+  color: var(--silo-color-text-hi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Process name shown inline after the tab title when a process is running */
+.pm-process {
+  font-family: var(--silo-font-mono);
+  font-weight: 400;
+  color: var(--silo-color-accent);
+}
+
+/* Working directory — secondary line below the title */
+.pm-detail {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- resource stats ------------------------------------------------------ */
+.pm-stats {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+.pm-stats--loading {
+  font-style: italic;
+}
+.pm-cpu {
+  margin-right: 8px;
+}
+.pm-cpu--hot {
+  color: var(--silo-color-warn);
+}
+
+/* ---- kill button --------------------------------------------------------- */
+.pm-kill {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--silo-radius-sm);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+  margin-top: 1px;
+  transition:
+    color 0.1s,
+    background 0.1s,
+    border-color 0.1s;
+}
+.pm-kill:hover {
+  color: var(--silo-color-error);
+  background: var(--silo-color-bg-hover);
+  border-color: var(--silo-color-error);
+}
+.pm-kill:focus-visible {
+  outline: 2px solid var(--silo-color-accent);
+  outline-offset: 1px;
+}
+.pm-kill:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ---- kill-in-progress spinner -------------------------------------------- */
+.pm-spin {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: pm-spin 0.7s linear infinite;
+}
+@keyframes pm-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- status bar item ----------------------------------------------------- */
+.pm-status-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-lo);
+  cursor: default;
+}
+.pm-status-item--active {
+  color: var(--silo-color-accent);
+}
+.pm-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}

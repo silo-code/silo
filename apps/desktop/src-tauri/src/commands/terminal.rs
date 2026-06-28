@@ -8,7 +8,7 @@ use std::thread;
 use uuid::Uuid;
 
 use super::session_backend::{
-    active_backend, log_event, Connection, SessionChild, SessionMaster,
+    active_backend, log_event, Connection, ForegroundInfo, SessionChild, SessionMaster,
 };
 use super::session_registry;
 use super::terminal_io::{run_foreground_loop, run_reader_loop};
@@ -34,11 +34,20 @@ struct PtySession {
 }
 
 #[derive(Clone)]
-pub struct TerminalState(Arc<DashMap<String, Arc<PtySession>>>);
+pub struct TerminalState {
+    sessions: Arc<DashMap<String, Arc<PtySession>>>,
+    /// Last known foreground info per session — written by `run_foreground_loop`,
+    /// read by `terminal_foreground_snapshot`. Lets the extension SDK seed the
+    /// initial process state without waiting for the next change event.
+    pub fg_cache: Arc<DashMap<String, ForegroundInfo>>,
+}
 
 impl TerminalState {
     pub fn new() -> Self {
-        TerminalState(Arc::new(DashMap::new()))
+        TerminalState {
+            sessions: Arc::new(DashMap::new()),
+            fg_cache: Arc::new(DashMap::new()),
+        }
     }
 }
 
@@ -90,7 +99,7 @@ pub fn terminal_create(
     );
 
     let session = build_session(&handle, conn);
-    state.0.insert(session_id.clone(), session.clone());
+    state.sessions.insert(session_id.clone(), session.clone());
 
     // On Unix, start the reader thread immediately. On Windows it is deferred to
     // terminal_start_stream so that JS listen() has time to register before the
@@ -110,7 +119,8 @@ pub fn terminal_create(
     if let Some(sub) = backend.subscribe_foreground(&handle) {
         let app_fg = app.clone();
         let sid = session_id.clone();
-        thread::spawn(move || run_foreground_loop(sub, app_fg, sid));
+        let cache = state.fg_cache.clone();
+        thread::spawn(move || run_foreground_loop(sub, app_fg, sid, cache));
     }
 
     Ok(session_id)
@@ -122,7 +132,7 @@ pub fn terminal_write(
     sessionId: String,
     data: Vec<u8>,
 ) -> Result<(), String> {
-    let session = state.0.get(&sessionId).ok_or("Session not found")?;
+    let session = state.sessions.get(&sessionId).ok_or("Session not found")?;
 
     let mut writer = session.writer.lock();
     writer
@@ -140,7 +150,7 @@ pub fn terminal_resize(
     cols: u16,
     rows: u16,
 ) -> Result<(), String> {
-    let session = state.0.get(&sessionId).ok_or("Session not found")?;
+    let session = state.sessions.get(&sessionId).ok_or("Session not found")?;
 
     let size = PtySize {
         rows,
@@ -166,11 +176,11 @@ pub fn terminal_kill(
     // Resolve the handle: prefer the persisted mapping, then the live session's
     // recorded handle, finally derivation (legacy sessions).
     let handle = session_registry::load(&sessionId)
-        .or_else(|| state.0.get(&sessionId).map(|s| s.handle.clone()))
+        .or_else(|| state.sessions.get(&sessionId).map(|s| s.handle.clone()))
         .unwrap_or_else(|| backend.handle_for(&sessionId));
 
     // Drop our local attach client first.
-    if let Some((_, session)) = state.0.remove(&sessionId) {
+    if let Some((_, session)) = state.sessions.remove(&sessionId) {
         if let Some(child) = &session.child {
             let mut child = child.lock();
             let _ = child.kill();
@@ -204,7 +214,7 @@ pub fn terminal_attach(
     rows: u16,
 ) -> Result<(), String> {
     // Already live in memory (e.g. the app reloaded but the process didn't die).
-    if state.0.contains_key(&sessionId) {
+    if state.sessions.contains_key(&sessionId) {
         return Ok(());
     }
 
@@ -238,7 +248,7 @@ pub fn terminal_attach(
     );
 
     let session = build_session(&handle, conn);
-    state.0.insert(sessionId.clone(), session.clone());
+    state.sessions.insert(sessionId.clone(), session.clone());
 
     #[cfg(unix)]
     {
@@ -255,7 +265,8 @@ pub fn terminal_attach(
     if let Some(sub) = backend.subscribe_foreground(&handle) {
         let app_fg = app.clone();
         let sid = sessionId.clone();
-        thread::spawn(move || run_foreground_loop(sub, app_fg, sid));
+        let cache = state.fg_cache.clone();
+        thread::spawn(move || run_foreground_loop(sub, app_fg, sid, cache));
     }
 
     Ok(())
@@ -282,7 +293,7 @@ pub fn terminal_start_stream(
     #[cfg(windows)]
     {
         use std::sync::atomic::Ordering;
-        let session = state.0.get(&sessionId).ok_or("Session not found")?;
+        let session = state.sessions.get(&sessionId).ok_or("Session not found")?;
         // Idempotent — only the first caller starts the thread.
         if session.streaming.swap(true, Ordering::AcqRel) {
             return Ok(());
@@ -309,4 +320,16 @@ pub fn terminal_save_buffer(sessionId: String, data: String) -> Result<(), Strin
 #[tauri::command]
 pub fn terminal_get_buffer(sessionId: String) -> Result<String, String> {
     Ok(super::terminal_buffer::load_buffer(&sessionId).unwrap_or_default())
+}
+
+/// Return the last known foreground state for a session, or `null` if none has
+/// been received yet. Used by the `ctx.processes` service to seed the initial
+/// display without waiting for the next foreground-change event (which may never
+/// come if the terminal is idle and nothing changes after the listener registers).
+#[tauri::command]
+pub fn terminal_foreground_snapshot(
+    state: tauri::State<TerminalState>,
+    sessionId: String,
+) -> Option<ForegroundInfo> {
+    state.fg_cache.get(&sessionId).map(|r| r.value().clone())
 }
