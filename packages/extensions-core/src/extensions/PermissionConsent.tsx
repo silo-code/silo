@@ -32,22 +32,30 @@ const PERMISSION_META: Record<
 
 /**
  * The install-time consent dialog for an extension that requests capabilities
- * beyond the workspace. Rendered as the content of `ctx.ui.showModal` (the host
- * owns the card chrome); `onCancel` / `onGrant` settle it. A dedicated layout —
- * not `ctx.ui.confirm` — because a permission grant is a higher-stakes decision
- * than a yes/no prompt and reads better as an itemized list with an icon.
+ * beyond the workspace, or that declares an engine version above the running
+ * host. Rendered as the content of `ctx.ui.showModal`; `onCancel` / `onGrant`
+ * settle it.
  */
 export function PermissionConsent({
   name,
   permissions,
+  engine,
+  hostVersion,
+  engineCompatible,
   onCancel,
   onGrant,
 }: {
   name: string;
   permissions: readonly Permission[];
+  engine?: string;
+  hostVersion?: string;
+  engineCompatible?: boolean;
   onCancel: () => void;
   onGrant: () => void;
 }) {
+  const hasPerms = permissions.length > 0;
+  const incompatible = engineCompatible === false;
+
   return (
     <div className="perm-consent">
       <div className="perm-consent-head">
@@ -56,36 +64,58 @@ export function PermissionConsent({
         </span>
         <div className="perm-consent-titles">
           <span className="perm-consent-title">{name}</span>
-          <span className="perm-consent-sub">
-            wants access beyond your workspace
-          </span>
+          {hasPerms && (
+            <span className="perm-consent-sub">
+              wants access beyond your workspace
+            </span>
+          )}
         </div>
       </div>
 
-      <ul className="perm-consent-list">
-        {permissions.map((p) => {
-          const meta = PERMISSION_META[p];
-          return (
-            <li key={p} className="perm-consent-item">
-              <span className="perm-consent-item-icon">{meta.icon}</span>
-              <span className="perm-consent-item-text">
-                <span className="perm-consent-item-label">{meta.label}</span>
-                <span className="perm-consent-item-detail">{meta.detail}</span>
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+      {incompatible && (
+        <div className="perm-consent-warn">
+          <WarnIcon />
+          <span>
+            Requires Silo {engine} — you&rsquo;re on {hostVersion}. It may not
+            work until you update Silo.
+          </span>
+        </div>
+      )}
 
-      <p className="perm-consent-note">
-        Only install extensions you trust — granted capabilities run with the
-        app&rsquo;s privileges.
-      </p>
+      {hasPerms && (
+        <ul className="perm-consent-list">
+          {permissions.map((p) => {
+            const meta = PERMISSION_META[p];
+            return (
+              <li key={p} className="perm-consent-item">
+                <span className="perm-consent-item-icon">{meta.icon}</span>
+                <span className="perm-consent-item-text">
+                  <span className="perm-consent-item-label">{meta.label}</span>
+                  <span className="perm-consent-item-detail">
+                    {meta.detail}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {hasPerms && (
+        <p className="perm-consent-note">
+          Only install extensions you trust — granted capabilities run with the
+          app&rsquo;s privileges.
+        </p>
+      )}
 
       <div className="perm-consent-actions">
         <button onClick={onCancel}>Cancel</button>
         <button className="silo-button-primary" onClick={onGrant}>
-          Install &amp; grant
+          {incompatible
+            ? "Install anyway"
+            : hasPerms
+              ? "Install & grant"
+              : "Install"}
         </button>
       </div>
     </div>
@@ -93,6 +123,24 @@ export function PermissionConsent({
 }
 
 /* ── Icons (inline SVG, currentColor so they theme with the surrounding text) ── */
+
+function WarnIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
 
 function ShieldIcon() {
   return (

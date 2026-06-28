@@ -61,6 +61,10 @@ vi.mock("@tauri-apps/api/path", () => ({
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: invokeMock,
 }));
+vi.mock("../services/tauri-app", () => ({
+  appVersion: async () => "0.15.0",
+  appName: async () => "Silo",
+}));
 
 import {
   getExtensionManager,
@@ -133,6 +137,9 @@ describe("previewInstall", () => {
       id: "acme.x",
       name: "Acme",
       permissions: ["fs:read", "network"],
+      engine: undefined,
+      hostVersion: "0.15.0",
+      engineCompatible: true,
     });
     expect(fsMap.has(INSTALLED)).toBe(false);
   });

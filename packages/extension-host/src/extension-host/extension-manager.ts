@@ -33,6 +33,8 @@ import {
   disableBuiltin,
   builtinRows,
 } from "./builtins-registry";
+import { appVersion } from "../services/tauri-app";
+import { isEngineCompatible } from "./engine-compat";
 import type { Disposable, Permission } from "@silo-code/sdk";
 import type { ReactiveService } from "@silo-code/sdk";
 
@@ -106,6 +108,16 @@ export interface InstalledExtension {
   reloadRequired?: boolean;
   /** Capabilities the user granted at install (from the manifest). */
   permissions: readonly Permission[];
+  /** The `silo.engine` floor declared by the extension (e.g. `"^0.17.0"`). */
+  engine?: string;
+  /** The running Silo version at the time this row was built. */
+  hostVersion: string;
+  /**
+   * `false` when the host version is below the extension's declared `engine`
+   * floor. The extension is still installed and may partially work — this is a
+   * warning, not a hard block.
+   */
+  engineCompatible: boolean;
 }
 
 export interface ExtensionManagerState {
@@ -169,6 +181,12 @@ export interface ManifestPreview {
   id: string;
   name: string;
   permissions: readonly Permission[];
+  /** The `silo.engine` floor declared by the manifest (e.g. `"^0.17.0"`). */
+  engine?: string;
+  /** The running Silo version, for messaging in the consent dialog. */
+  hostVersion: string;
+  /** `false` when the host is below the declared engine floor. */
+  engineCompatible: boolean;
 }
 
 /** The on-disk manifest fields the host reads (a subset of package.json). */
@@ -181,6 +199,8 @@ interface ExtensionManifest {
   publisher?: string;
   main: string;
   permissions: Permission[];
+  /** Minimum host version floor declared by the extension (`silo.engine`). */
+  engine?: string;
 }
 
 /**
@@ -266,7 +286,18 @@ function parseManifest(
     silo.permissions,
     sourceLabel,
   );
-  return { id, name, version, description, publisher, main, permissions };
+  const engine =
+    typeof silo.engine === "string" && silo.engine ? silo.engine : undefined;
+  return {
+    id,
+    name,
+    version,
+    description,
+    publisher,
+    main,
+    permissions,
+    engine,
+  };
 }
 
 async function readManifest(dir: string): Promise<ExtensionManifest> {
@@ -312,6 +343,7 @@ function emit(): void {
 async function refresh(): Promise<void> {
   const file = await readInstalledFile();
   const root = await extensionsRoot();
+  const hostVersion = await appVersion().catch(() => "");
   const rows: InstalledExtension[] = [];
   for (const rec of file.extensions) {
     const dir = `${root}/${rec.dir}`;
@@ -328,6 +360,9 @@ async function refresh(): Promise<void> {
         builtin: false,
         reloadRequired: needsReload(rec.id) || undefined,
         permissions: rec.permissions ?? [],
+        engine: m.engine,
+        hostVersion,
+        engineCompatible: isEngineCompatible(m.engine, hostVersion),
       });
     } catch {
       rows.push({
@@ -341,6 +376,8 @@ async function refresh(): Promise<void> {
         builtin: false,
         reloadRequired: needsReload(rec.id) || undefined,
         permissions: rec.permissions ?? [],
+        hostVersion,
+        engineCompatible: true, // can't read manifest → no constraint to check
       });
     }
   }
@@ -359,6 +396,8 @@ async function refresh(): Promise<void> {
       builtin: true,
       reloadRequired: b.reloadRequired || undefined,
       permissions: [],
+      hostVersion,
+      engineCompatible: true, // built-ins ship with the host, always compatible
     });
   }
   rows.sort((a, b) => a.name.localeCompare(b.name));
@@ -599,10 +638,14 @@ export function getExtensionManager(): ExtensionManager {
 
     async previewInstall(srcDir) {
       const manifest = await readManifest(srcDir.replace(/\/+$/, ""));
+      const hostVersion = await appVersion().catch(() => "");
       return {
         id: manifest.id,
         name: manifest.name,
         permissions: manifest.permissions,
+        engine: manifest.engine,
+        hostVersion,
+        engineCompatible: isEngineCompatible(manifest.engine, hostVersion),
       };
     },
 
