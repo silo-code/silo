@@ -9,7 +9,7 @@ Keep all your projects running simultaneously — terminals, agents, and layout 
 
 ---
 
-<video src="https://getsilo.dev/demo.mp4" autoplay loop muted playsinline></video>
+[![Watch the demo](assets/demo-thumbnail.png)](https://getsilo.dev/demo.mp4)
 
 ---
 
