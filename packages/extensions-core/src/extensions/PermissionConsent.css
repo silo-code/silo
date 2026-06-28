@@ -45,6 +45,26 @@
   color: var(--silo-color-text-lo);
 }
 
+/* Engine-incompatibility warning banner. */
+.perm-consent-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--silo-radius-md);
+  background: color-mix(in srgb, var(--silo-color-warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--silo-color-warn) 35%, transparent);
+  color: var(--silo-color-warn);
+  font-size: 1em;
+  line-height: 1.4;
+}
+.perm-consent-warn svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
 /* The capability list — one card per requested permission. */
 .perm-consent-list {
   list-style: none;

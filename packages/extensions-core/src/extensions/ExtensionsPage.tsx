@@ -49,13 +49,17 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
     }
 
     async function requestConsent(preview: ManifestPreview): Promise<boolean> {
-      if (preview.permissions.length === 0) return true;
+      if (preview.permissions.length === 0 && preview.engineCompatible)
+        return true;
       return (
         (await ctx.ui.showModal<boolean>(
           (close) => (
             <PermissionConsent
               name={preview.name}
               permissions={preview.permissions}
+              engine={preview.engine}
+              hostVersion={preview.hostVersion}
+              engineCompatible={preview.engineCompatible}
               onCancel={() => close(false)}
               onGrant={() => close(true)}
             />
@@ -212,6 +216,12 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                   {showsReloadHint(ext) && (
                     <span className="ext-hint ext-hint-warn">
                       Reload the window to finish disabling this extension.
+                    </span>
+                  )}
+                  {!ext.engineCompatible && (
+                    <span className="ext-hint ext-hint-warn">
+                      Needs Silo {ext.engine} — you&rsquo;re on{" "}
+                      {ext.hostVersion}. Update Silo to use this extension.
                     </span>
                   )}
                 </div>
