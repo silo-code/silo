@@ -20,7 +20,13 @@ export const extension: Extension = {
     ctx.registerCommand({
       id: "silo.hello.greet",
       label: "Hello: Say hello",
-      run: () => ctx.ui.notify("info", "👋 Hello from your extension!"),
+      async run() {
+        const { os, arch, siloVersion } = await ctx.system.getInfo();
+        ctx.ui.notify(
+          "info",
+          `👋 Hello, from ${os} ${arch} with Silo v${siloVersion}`,
+        );
+      },
     });
 
     // A status-bar item. The component renders its own content — here a button
@@ -46,14 +52,15 @@ export const extension: Extension = {
     style.id = STYLE_ID;
     style.textContent = `
       .hello-status {
+        -webkit-appearance: none;
+        appearance: none;
         font: inherit;
         cursor: pointer;
         background: transparent;
-        border: 0;
-        padding: 0 4px;
-        color: inherit;
+        border: none;
+        padding: 2px 8px;
+        border-radius: var(--silo-radius-sm);
       }
-      .hello-status:hover { color: var(--silo-color-text-hi); }
     `;
     document.head.appendChild(style);
   },

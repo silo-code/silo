@@ -59,6 +59,7 @@ importing the store or touching the platform directly. Opening files lives on
 | [`ctx.dnd`](/api/dnd/)                    | drag sources + drop targets with typed payloads ([`DndService`](/api/types/interfaces/DndService))                                                                                                                     |
 | [`ctx.ui`](/api/ui/)                      | native pickers + toasts + menus + modals (`confirm` / `prompt` / `showModal`) ([`UiService`](/api/types/interfaces/UiService))                                                                                         |
 | [`ctx.net`](/api/net/)                    | server-side HTTP client — bypasses browser CORS, reads any response header ([`NetworkService`](/api/types/interfaces/NetworkService))                                                                                  |
+| [`ctx.system`](/api/system/)              | static host-platform metadata — OS, CPU arch, and Silo version ([`SystemService`](/api/types/interfaces/SystemService))                                                                                                |
 
 ## Other
 

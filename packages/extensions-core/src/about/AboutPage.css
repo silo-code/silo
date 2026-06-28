@@ -26,3 +26,10 @@
   color: var(--silo-color-text-lo);
   font-family: var(--silo-font-mono, monospace);
 }
+
+.about-platform {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-mono, monospace);
+  opacity: 0.6;
+}

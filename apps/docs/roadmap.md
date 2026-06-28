@@ -44,6 +44,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.ui.openExternal` (open a URL out)         | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                                                           |
 | `ctx.ui.getActiveSelectionText`                | <Badge type="tip" text="stable" />   | [docs](/api/ui/)                                                                           |
 | `ctx.net` (server-side HTTP, bypasses CORS)    | <Badge type="tip" text="stable" />   | [docs](/api/net/)                                                                          |
+| `ctx.system` (OS, arch, Silo version)          | <Badge type="tip" text="stable" />   | [docs](/api/system/)                                                                       |
 | `ctx.search` (cross-file content search)       | <Badge type="tip" text="stable" />   | [docs](/api/search/)                                                                       |
 | `ctx.search` (replace-in-files)                | <Badge type="info" text="planned" /> | [design](/api/search/#replace)                                                             |
 | `ctx.ui` (quickPick / progress)                | <Badge type="info" text="planned" /> | [design](#ctx-ui)                                                                          |

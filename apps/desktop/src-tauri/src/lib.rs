@@ -163,6 +163,7 @@ pub fn run() {
             commands::network::net_fetch_headers,
             commands::finder_drop::dnd_get_finder_paths,
             commands::window_chrome::window_set_caption_color,
+            commands::system::system_info,
         ])
         .run(context)
         .expect("error while running tauri application");

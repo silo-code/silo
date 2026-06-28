@@ -37,6 +37,7 @@ import type { ThemePreset } from "@silo-code/sdk";
 import { getDndService } from "./dnd-service";
 import { getUiService } from "./ui-service";
 import { getNetworkService } from "./network-service";
+import { getSystemService } from "./system-service";
 import { themePresetRegistry } from "./theme-presets";
 import { getExtensionHandle } from "./extension-registry";
 import {
@@ -140,6 +141,7 @@ export function createContext(
     dnd: getDndService(),
     ui: getUiService(),
     net: getNetworkService(),
+    system: getSystemService(),
     getExtension(id) {
       return getExtensionHandle(id);
     },
