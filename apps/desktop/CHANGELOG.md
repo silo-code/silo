@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/silo-code/silo/compare/silo-v0.14.0...silo-v0.15.0) (2026-06-28)
+
+
+### Features
+
+* add ctx.storage (global + workspace scopes) ([#118](https://github.com/silo-code/silo/issues/118)) ([7dc8122](https://github.com/silo-code/silo/commit/7dc81225b69df709d565824c1c2af826878a010c))
+
 ## [0.14.0](https://github.com/silo-code/silo/compare/silo-v0.13.0...silo-v0.14.0) (2026-06-26)
 
 
