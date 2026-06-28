@@ -7,6 +7,9 @@ use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 #[cfg(unix)]
 use libc;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 /// Tauri-managed state for process resource stats (ctx.processes.enableStats).
 /// Holds a sysinfo::System that is refreshed in-place on each `process_get_stats`
 /// call so CPU% is computed as a delta between consecutive samples.
@@ -56,6 +59,15 @@ pub async fn process_exec(
     tauri::async_runtime::spawn_blocking(move || {
         let mut cmd = Command::new(&command);
         cmd.args(&args);
+        // On Windows a GUI (windows-subsystem) app spawning a console program
+        // like `powershell` allocates a fresh console window. Extensions that
+        // poll via ctx.process.exec would flash a window on every call, so
+        // suppress it. No effect on captured stdout/stderr.
+        #[cfg(windows)]
+        {
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
         if let Some(dir) = cwd.as_ref() {
             cmd.current_dir(dir);
         }
