@@ -163,6 +163,9 @@ export type {
   NetworkResponse,
 } from "./network-service";
 
+// Static host-platform metadata: OS, CPU arch, and Silo version.
+export type { SystemService, SystemInfo } from "./system-service";
+
 // Context keys referenced by `when` predicates on menu items / keybindings.
 export type { ContextKeys } from "./context-keys";
 

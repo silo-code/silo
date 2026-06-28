@@ -32,6 +32,7 @@ import type { ThemeService, ThemePreset } from "./theme-service";
 import type { DndService } from "./dnd-service";
 import type { UiService } from "./ui-service";
 import type { NetworkService } from "./network-service";
+import type { SystemService } from "./system-service";
 import type {
   ExtensionStorage,
   ExtensionStorageScopes,
@@ -538,6 +539,14 @@ export interface ExtensionContext {
    * loading a URL. See {@link NetworkService} for the full API.
    */
   readonly net: NetworkService;
+  /**
+   * Static host-platform metadata — the OS, CPU architecture, and running Silo
+   * version. Values are baked into the binary at build time and never change
+   * during a session. Use to make platform-specific decisions at activation time
+   * (e.g. register a macOS-only command, show an arch-specific download URL).
+   * See {@link SystemService} for the full API.
+   */
+  readonly system: SystemService;
   /**
    * Resolve a handle to another extension in order to consume the API it
    * published (the value its {@link Extension.activate} returned). This is how

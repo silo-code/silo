@@ -1,20 +1,17 @@
 import { useEffect, useState } from "react";
-import type { Extension } from "@silo-code/sdk";
-import { getAppService } from "@silo-code/extension-host/internal";
+import type { Extension, SystemInfo, SystemService } from "@silo-code/sdk";
 import siloIcon from "./silo-icon.png";
 import "./AboutPage.css";
 
-const app = getAppService();
-
-function AboutPage() {
-  const [version, setVersion] = useState("");
+function AboutPage({ system }: { system: SystemService }) {
+  const [info, setInfo] = useState<SystemInfo | null>(null);
 
   useEffect(() => {
-    app
-      .getVersion()
-      .then(setVersion)
+    system
+      .getInfo()
+      .then(setInfo)
       .catch(() => {});
-  }, []);
+  }, [system]);
 
   return (
     <div className="about-page">
@@ -22,7 +19,14 @@ function AboutPage() {
       <div className="about-tagline">
         Run every workspace at once. Switch instantly, lose nothing.
       </div>
-      {version && <div className="about-version">Version {version}</div>}
+      {info && (
+        <>
+          <div className="about-version">Version {info.siloVersion}</div>
+          <div className="about-platform">
+            {info.os} · {info.arch}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -36,7 +40,7 @@ export const extension: Extension = {
       // Late group keeps it last in the rail regardless of other pages.
       group: "9_about",
       order: 1,
-      component: AboutPage,
+      component: () => <AboutPage system={ctx.system} />,
     });
   },
 };

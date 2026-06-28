@@ -1,4 +1,5 @@
 pub mod app_paths;
+pub mod system;
 pub mod finder_drop;
 pub mod network;
 #[cfg(feature = "automation")]

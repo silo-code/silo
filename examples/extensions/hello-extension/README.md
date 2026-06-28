@@ -24,7 +24,9 @@ covers the manifest and build.
 
    In Silo: **Settings → Extensions → Install from folder…** and choose this
    folder. The **👋 Hello** item appears in the status bar; click it (or run the
-   `Hello: Say hello` command).
+   `Hello: Say hello` command) to see a notification like:
+
+   > 👋 Hello, from macos aarch64 with Silo v0.15.0
 
 ## What to change next
 
@@ -33,5 +35,8 @@ covers the manifest and build.
 - **Talk to the user** — `ctx.ui` (notifications, pickers, modals).
 - **Reach the workspace** — `ctx.files` / `ctx.process` (workspace-scoped by
   default; declare `silo.permissions` to go beyond — see `permissions-demo`).
+- **React to the platform** — `ctx.system.getInfo()` (already used here) gives
+  you the OS, CPU arch, and Silo version so you can branch on platform at
+  activation time.
 
 The full surface is the [`ctx` API reference](../../../apps/docs/api/index.md).
