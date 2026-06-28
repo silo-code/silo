@@ -16,6 +16,7 @@ import {
 } from "./keymap";
 import type { Disposable, MenuId, MenuItemContribution } from "@silo-code/sdk";
 import { checkForUpdatesInteractive } from "./update-service";
+import { openSettings } from "./settings-dialog";
 
 export const menuItemRegistry = new Registry<MenuItemContribution>();
 
@@ -144,6 +145,40 @@ async function windowPredefinedGroups(): Promise<PredefinedMenuItem[][]> {
   return [[await PredefinedMenuItem.new({ item: "Minimize" })]];
 }
 
+async function buildHelpSubmenu(
+  extras: MenuItemContribution[],
+): Promise<Submenu> {
+  const items: AnyMenuItem[] = [];
+
+  if (!isMac) {
+    items.push(
+      await MenuItem.new({
+        id: "help:about",
+        text: "About Silo",
+        action: () => {
+          openSettings("about");
+        },
+      }),
+      await MenuItem.new({
+        id: "help:check-for-updates",
+        text: "Check for Updates…",
+        action: () => {
+          void checkForUpdatesInteractive();
+        },
+      }),
+    );
+  }
+
+  const groups = groupAndSort(extras);
+  for (const group of groups) {
+    if (items.length > 0)
+      items.push(await PredefinedMenuItem.new({ item: "Separator" }));
+    for (const c of group) items.push(await buildExtensionItem(c));
+  }
+
+  return Submenu.new({ text: "Help", items });
+}
+
 async function applyWhenClauses(): Promise<void> {
   for (const { native, contribution } of liveItems) {
     const enabled = contribution.when ? contribution.when(contextKeys) : true;
@@ -168,6 +203,7 @@ export async function syncMenu(): Promise<void> {
     edit: [],
     view: [],
     window: [],
+    help: [],
   };
   for (const item of menuItemRegistry.list()) {
     byMenu[item.menu].push(item);
@@ -183,6 +219,7 @@ export async function syncMenu(): Promise<void> {
   submenus.push(
     await buildSubmenu("Window", await windowPredefinedGroups(), byMenu.window),
   );
+  submenus.push(await buildHelpSubmenu(byMenu.help));
 
   const menu = await Menu.new({ items: submenus });
   await menu.setAsAppMenu();
