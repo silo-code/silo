@@ -1,5 +1,13 @@
 # @silo-code/sdk
 
+## [0.19.0](https://github.com/silo-code/silo/compare/sdk-v0.18.0...sdk-v0.19.0) (2026-06-28)
+
+
+### Features
+
+* add Help menu with About, Updates, and links on all platforms ([#132](https://github.com/silo-code/silo/issues/132)) ([5198393](https://github.com/silo-code/silo/commit/519839313a88113eccea1cbff43881e4dde73237))
+* store left/right panel collapse state per workspace ([#136](https://github.com/silo-code/silo/issues/136)) ([66b8645](https://github.com/silo-code/silo/commit/66b86457f2153b65c6bf9e401060986583ee1746))
+
 ## [0.18.0](https://github.com/silo-code/silo/compare/sdk-v0.17.0...sdk-v0.18.0) (2026-06-28)
 
 
