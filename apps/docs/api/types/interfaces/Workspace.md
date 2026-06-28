@@ -172,13 +172,26 @@ Defined in: [packages/sdk/src/domain-types.ts:134](https://github.com/silo-code/
 
 ***
 
+### sidePanelVisibility?
+
+```ts
+optional sidePanelVisibility?: Record<string, boolean>;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L137)
+
+Hidden side panels, keyed by panel id; only an explicit `false` (hidden)
+is stored, so an absent key means visible (the default).
+
+***
+
 ### extensionState?
 
 ```ts
 optional extensionState?: Record<string, Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L135)
+Defined in: [packages/sdk/src/domain-types.ts:138](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L138)
 
 ***
 
@@ -188,6 +201,6 @@ Defined in: [packages/sdk/src/domain-types.ts:135](https://github.com/silo-code/
 optional previewEditorId?: string | null;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L137)
+Defined in: [packages/sdk/src/domain-types.ts:140](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L140)
 
 ID of the current preview (temporary) editor, if any.

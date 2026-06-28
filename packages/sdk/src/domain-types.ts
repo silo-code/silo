@@ -132,6 +132,9 @@ export interface Workspace {
   sidePanelOrder?: Record<string, number>;
   activeSidePanelTabs?: Record<string, string>;
   sidePanelScrollPositions?: Record<string, number>;
+  /** Hidden side panels, keyed by panel id; only an explicit `false` (hidden)
+   * is stored, so an absent key means visible (the default). */
+  sidePanelVisibility?: Record<string, boolean>;
   extensionState?: Record<string, Record<string, unknown>>;
   /** ID of the current preview (temporary) editor, if any. */
   previewEditorId?: string | null;

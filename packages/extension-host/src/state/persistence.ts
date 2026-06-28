@@ -201,8 +201,8 @@ export async function hydrate(configDir: string): Promise<void> {
   store.rightPanelCollapsed =
     index?.rightPanelCollapsed ?? legacyWs?.rightPanelCollapsed ?? false;
 
-  // Side-panel visibility is global; absent in older indexes → all visible.
-  store.sidePanelVisibility = index?.sidePanelVisibility ?? {};
+  // Side-panel visibility is per-workspace, restored from the active workspace
+  // by loadPanelStateFromWorkspace above (defaults to all-visible when absent).
 
   store.hydrated = true;
   subscribe(store, schedulePersist);
@@ -214,6 +214,7 @@ function snapshotPanelState(): PanelState {
     sidePanelOrder: { ...store.sidePanelOrder },
     activeSidePanelTabs: { ...store.activeSidePanelTabs },
     sidePanelScrollPositions: { ...store.sidePanelScrollPositions },
+    sidePanelVisibility: { ...store.sidePanelVisibility },
     extensionState: cloneExtensionState(store.extensionState),
   };
 }
@@ -271,7 +272,6 @@ async function doPersist(): Promise<void> {
       terminalSettings: { ...store.terminalSettings },
       leftPanelCollapsed: store.leftPanelCollapsed,
       rightPanelCollapsed: store.rightPanelCollapsed,
-      sidePanelVisibility: { ...store.sidePanelVisibility },
       globalExtensionState: store.globalExtensionState,
     }),
   );
