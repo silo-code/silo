@@ -1,5 +1,5 @@
 ---
-status: draft
+status: accepted
 created: 2026-06-04
 ---
 
@@ -34,10 +34,27 @@ only storage path goes through `SidePanelProps`. The workaround
 
 ## Design
 
-Sketch: `ctx.storage.global` and `ctx.storage.workspace` (`get` / `set` / `keys` /
-`onDidChange`), namespaced per extension id; `ctx.secrets` for credentials via a
-host-mediated secret store. The host **cleans up an extension's namespace on
-uninstall** (closes the orphaned-storage gap).
+`ctx.storage` exposes two scopes ({@link ExtensionStorageScopes}), each an
+`ExtensionStorage` (`get` / `set` / `keys` / `subscribe`) namespaced per
+extension id:
+
+- **`ctx.storage.global`** — one bag per extension, shared across all
+  workspaces. Persisted in the global index (`app-state.json`), so it is not
+  swapped on workspace switch. The place for an extension's own settings.
+- **`ctx.storage.workspace`** — one bag per extension × active workspace.
+  Backed by the per-workspace `extensionState`, swapped when the active
+  workspace changes. The same backing serves `SidePanelProps.storage` (keyed by
+  panel id) for panel-local UI state.
+
+`subscribe` is namespace-scoped and also fires when the app state finishes
+hydrating and when the workspace bag is swapped — so a consumer that reads in
+`activate()` (which can run before hydration) re-reads once the persisted value
+lands. `set(key, undefined)` deletes; `keys()` enumerates (the basis for the
+uninstall-cleanup story below).
+
+**Still future (not yet implemented):** `ctx.secrets` for credentials via a
+host-mediated secret store, and host **cleanup of an extension's namespace on
+uninstall** (the orphaned-storage gap).
 
 ## Alternatives considered
 
@@ -46,7 +63,9 @@ uninstall** (closes the orphaned-storage gap).
 
 ## Decision
 
-Draft. Demand-driven.
+Accepted. `ctx.storage.global` and `ctx.storage.workspace` are implemented; the
+system-monitor example uses `global` for its settings. `ctx.secrets` and
+uninstall-time cleanup remain demand-driven follow-ups.
 
 ## References
 

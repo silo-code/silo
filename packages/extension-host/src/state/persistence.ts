@@ -133,6 +133,9 @@ export async function hydrate(configDir: string): Promise<void> {
       ...DEFAULT_TERMINAL_SETTINGS,
       ...index.terminalSettings,
     };
+    store.globalExtensionState = index.globalExtensionState
+      ? cloneExtensionState(index.globalExtensionState)
+      : {};
   }
 
   // One file per workspace. Invalid files are skipped (like the theme loader),
@@ -269,6 +272,7 @@ async function doPersist(): Promise<void> {
       leftPanelCollapsed: store.leftPanelCollapsed,
       rightPanelCollapsed: store.rightPanelCollapsed,
       sidePanelVisibility: { ...store.sidePanelVisibility },
+      globalExtensionState: store.globalExtensionState,
     }),
   );
   await indexStore.save();

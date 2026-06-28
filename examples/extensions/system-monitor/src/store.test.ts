@@ -91,6 +91,7 @@ describe("sysmonStore persistence", () => {
     const storage: ExtensionStorage = {
       get: () => undefined,
       set,
+      keys: () => [],
       subscribe: () => () => {},
     };
 
@@ -103,5 +104,33 @@ describe("sysmonStore persistence", () => {
     sysmonStore.updateSettings(next);
 
     expect(set).toHaveBeenCalledWith("settings", next);
+  });
+
+  it("re-reads settings when storage notifies after activate (hydration race)", () => {
+    let saved: Settings | undefined;
+    let notify: () => void = () => {};
+    const storage = {
+      get: (key: string, fallback?: unknown) =>
+        key === "settings" ? (saved ?? fallback) : fallback,
+      set: (key: string, value: unknown) => {
+        if (key === "settings") saved = value as Settings;
+      },
+      keys: () => (saved ? ["settings"] : []),
+      subscribe: (listener: () => void) => {
+        notify = listener;
+        return () => {};
+      },
+    } as ExtensionStorage;
+
+    // activate() runs before app state has hydrated from disk → nothing saved.
+    sysmonStore.hydrate(storage);
+
+    // Persisted settings land later and the store notifies.
+    saved = mergeSettings({ panels: [{ id: "cpu", enabled: false }] });
+    notify();
+
+    expect(
+      sysmonStore.settings.panels.find((p) => p.id === "cpu")?.enabled,
+    ).toBe(false);
   });
 });

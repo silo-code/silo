@@ -106,11 +106,18 @@ class SysMonStore {
 
   hydrate(storage: ExtensionStorage): void {
     this._storage = storage;
-    const saved = storage.get<Settings>("settings");
-    if (saved) {
-      this._settings = mergeSettings(saved);
+    // Re-read on subscribe too: activate() can run before app state finishes
+    // hydrating from disk, so the first read may see nothing. The storage
+    // notifies once hydration lands (and on any later external change), at which
+    // point we pick up the saved settings.
+    const apply = (): void => {
+      const next = mergeSettings(storage.get<Settings>("settings") ?? {});
+      if (JSON.stringify(next) === JSON.stringify(this._settings)) return;
+      this._settings = next;
       this._notify();
-    }
+    };
+    apply();
+    storage.subscribe(apply);
   }
 
   updateSettings(s: Settings): void {

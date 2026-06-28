@@ -54,10 +54,18 @@ export interface AppState {
   sidePanelScrollPositions: Record<string, number>;
   /**
    * Per-extension/side-panel namespaced state, keyed first by panel id then
-   * by key. Extensions read/write through the `storage` prop passed to side
-   * panel components; the host persists the whole bag automatically.
+   * by key. This is the **workspace** scope: it is snapshotted into the active
+   * workspace and swapped when the active workspace changes. Backs
+   * `SidePanelProps.storage` (keyed by panel id) and `ctx.storage.workspace`
+   * (keyed by extension id).
    */
   extensionState: Record<string, Record<string, unknown>>;
+  /**
+   * Per-extension namespaced state shared across **all** workspaces. This is
+   * the **global** scope (`ctx.storage.global`), keyed first by extension id
+   * then by key. Persisted in the global index, not per-workspace.
+   */
+  globalExtensionState: Record<string, Record<string, unknown>>;
   leftPanelCollapsed: boolean;
   rightPanelCollapsed: boolean;
   /**

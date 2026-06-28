@@ -116,7 +116,10 @@ export type {
   CustomTheme,
   ThemeExport,
 } from "./theme-service";
-export type { ExtensionStorage } from "./extension-storage";
+export type {
+  ExtensionStorage,
+  ExtensionStorageScopes,
+} from "./extension-storage";
 // The drag-and-drop domain: the consumer service + its payload/handler shapes.
 // DND_MIME is a value (the well-known MIME vocabulary), so it's a runtime export.
 export type {

@@ -32,6 +32,10 @@ export interface PersistedIndex {
   // Side-panel visibility is global too; absent in pre-this-change indexes, in
   // which case every panel hydrates as visible (the default).
   sidePanelVisibility?: Record<string, boolean>;
+  // Per-extension global storage (`ctx.storage.global`), keyed by extension id.
+  // Global (not per-workspace), so it lives in the index; absent in older
+  // indexes, in which case extensions start from their defaults.
+  globalExtensionState?: Record<string, Record<string, unknown>>;
 }
 
 /** The legacy monolithic blob (one `"state"` key in the app-data store) we
@@ -135,6 +139,9 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
     rightPanelCollapsed: snapshot.rightPanelCollapsed,
     sidePanelVisibility: snapshot.sidePanelVisibility
       ? { ...snapshot.sidePanelVisibility }
+      : undefined,
+    globalExtensionState: snapshot.globalExtensionState
+      ? cloneExtensionState(snapshot.globalExtensionState)
       : undefined,
   };
 }

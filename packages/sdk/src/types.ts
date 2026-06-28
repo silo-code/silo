@@ -31,7 +31,10 @@ import type { ThemeService, ThemePreset } from "./theme-service";
 import type { DndService } from "./dnd-service";
 import type { UiService } from "./ui-service";
 import type { NetworkService } from "./network-service";
-import type { ExtensionStorage } from "./extension-storage";
+import type {
+  ExtensionStorage,
+  ExtensionStorageScopes,
+} from "./extension-storage";
 
 /**
  * The teardown handle returned by every `register*` call on
@@ -268,10 +271,12 @@ export interface SidePanelProps {
   /** True when this side panel is currently visible / selected in its column. */
   active: boolean;
   /**
-   * Namespaced, persisted key/value storage scoped to this panel id. Use for
-   * **panel-local UI state** — scroll positions, selections, expanded sections,
-   * etc. — across reloads. For extension-level settings shared across surfaces,
-   * use {@link ExtensionContext.storage} instead.
+   * Namespaced, persisted key/value storage scoped to this panel id (the
+   * `workspace` scope of {@link ExtensionStorageScopes}, keyed by panel rather
+   * than extension). Use for **panel-local UI state** — scroll positions,
+   * selections, expanded sections, etc. — which is kept per workspace. For
+   * extension-level settings shared across surfaces and workspaces, use
+   * {@link ExtensionContext.storage}`.global` instead.
    */
   storage: ExtensionStorage;
   /**
@@ -409,15 +414,21 @@ export interface ExtensionContext {
   /** Disposables tracked for this extension; the host disposes them on teardown. */
   readonly subscriptions: Disposable[];
   /**
-   * Namespaced, persisted key/value storage scoped to this extension's id.
-   * Unlike {@link SidePanelProps.storage} (panel-local UI state), this is the
-   * extension's own bag, shared across all its surfaces — status bar, side
-   * panels, and settings page. It is global, not per-workspace, for now.
+   * Persisted, per-extension key/value storage, in two scopes
+   * ({@link ExtensionStorageScopes}): `global` (shared across all workspaces —
+   * for the extension's own settings) and `workspace` (scoped to the active
+   * workspace). Each is the extension's own bag, shared across all its surfaces
+   * — status bar, side panels, and settings page — independent of whether any
+   * panel has mounted.
    *
-   * Safe to call `.get()` / `.set()` immediately in {@link Extension.activate} —
-   * there is no need to wait for a panel to mount.
+   * `.get()` / `.set()` are safe to call in {@link Extension.activate}. Note the
+   * app state hydrates asynchronously and the `workspace` bag is swapped on
+   * workspace change, so a value persisted last session may not be present at
+   * the instant `activate` runs — `subscribe` and re-read to pick up restored or
+   * switched values. (`SidePanelProps.storage` exposes the same `workspace`
+   * scope keyed by panel id, for panel-local UI state.)
    */
-  readonly storage: ExtensionStorage;
+  readonly storage: ExtensionStorageScopes;
   /** Register an {@link Editor} (a presenter for a file type's editor tab). */
   registerEditor(editor: Editor): Disposable;
   /** Register a {@link FileType} (declarative file metadata). */

@@ -23,8 +23,9 @@ export const extension: Extension = {
 
     // Hydrate persisted settings up front so the status bar and settings page
     // reflect saved state immediately — the side panel is lazy-mounted and may
-    // never open.
-    sysmonStore.hydrate(ctx.storage);
+    // never open. Settings are global (not per-workspace), and hydrate()
+    // subscribes so a read that races app-state hydration is re-applied.
+    sysmonStore.hydrate(ctx.storage.global);
 
     // Polling runs at the extension level — status bar items need live data even
     // when the side panel is hidden. The poll skips metrics not currently visible.
