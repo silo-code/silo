@@ -295,6 +295,53 @@ export const extension: Extension = {
       order: 1,
     });
 
+    // Help menu — link items present on all platforms. About + Check for
+    // Updates are injected by the host on non-Mac (see menu-items.ts).
+    ctx.registerCommand({
+      id: "core.openDocumentation",
+      label: "Documentation",
+      run: () => {
+        void ctx.ui.openExternal("https://getsilo.dev/guide/");
+      },
+    });
+    ctx.registerCommand({
+      id: "core.openExtensions",
+      label: "Extensions",
+      run: () => {
+        void ctx.ui.openExternal(
+          "https://github.com/silo-code/silo-extensions",
+        );
+      },
+    });
+    ctx.registerCommand({
+      id: "core.openGitHub",
+      label: "GitHub",
+      run: () => {
+        void ctx.ui.openExternal("https://github.com/silo-code/silo");
+      },
+    });
+    ctx.registerMenuItem({
+      id: "core.help.docs",
+      menu: "help",
+      command: "core.openDocumentation",
+      group: "1_links",
+      order: 1,
+    });
+    ctx.registerMenuItem({
+      id: "core.help.extensions",
+      menu: "help",
+      command: "core.openExtensions",
+      group: "1_links",
+      order: 2,
+    });
+    ctx.registerMenuItem({
+      id: "core.help.github",
+      menu: "help",
+      command: "core.openGitHub",
+      group: "1_links",
+      order: 3,
+    });
+
     // Dev-only Window items. Silo suppresses the webview's native context menu
     // app-wide, so the Reload / Inspect Element it used to offer live here while
     // developing. Gated on the dev build — they don't ship in release.

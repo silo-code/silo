@@ -201,11 +201,13 @@ export interface Command {
 
 /**
  * The top-level application menus a {@link MenuItemContribution} can target.
+ * `"help"` is present on all platforms; `"file"`, `"edit"`, `"view"`, and
+ * `"window"` are the remaining standard menus.
  *
  * @category Registration
  * @public
  */
-export type MenuId = "file" | "edit" | "view" | "window";
+export type MenuId = "file" | "edit" | "view" | "window" | "help";
 
 /**
  * Places a command into one of the application menus.
