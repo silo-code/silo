@@ -1,5 +1,13 @@
 # @silo-code/sdk
 
+## [0.17.0](https://github.com/silo-code/silo/compare/sdk-v0.16.0...sdk-v0.17.0) (2026-06-28)
+
+
+### Features
+
+* add ctx.processes (workspace process observability) ([#124](https://github.com/silo-code/silo/issues/124)) ([0565004](https://github.com/silo-code/silo/commit/056500428ec47b2a68bbb614e082b82c6bb355f3))
+* make side-panel visibility per-workspace ([#121](https://github.com/silo-code/silo/issues/121)) ([1836be5](https://github.com/silo-code/silo/commit/1836be518052db11e40838f7b22e57b8b087b8d9))
+
 ## [0.16.0](https://github.com/silo-code/silo/compare/sdk-v0.15.0...sdk-v0.16.0) (2026-06-28)
 
 
