@@ -136,6 +136,10 @@ export interface Workspace {
    * is stored, so an absent key means visible (the default). */
   sidePanelVisibility?: Record<string, boolean>;
   extensionState?: Record<string, Record<string, unknown>>;
+  /** Whether the left side column is collapsed. Per-workspace. */
+  leftPanelCollapsed?: boolean;
+  /** Whether the right side column is collapsed. Per-workspace. */
+  rightPanelCollapsed?: boolean;
   /** ID of the current preview (temporary) editor, if any. */
   previewEditorId?: string | null;
 }

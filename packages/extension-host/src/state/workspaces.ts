@@ -60,6 +60,8 @@ export function savePanelStateToWorkspace(wsId: string): void {
   ws.activeSidePanelTabs = { ...store.activeSidePanelTabs };
   ws.sidePanelScrollPositions = { ...store.sidePanelScrollPositions };
   ws.sidePanelVisibility = { ...store.sidePanelVisibility };
+  ws.leftPanelCollapsed = store.leftPanelCollapsed;
+  ws.rightPanelCollapsed = store.rightPanelCollapsed;
   const ext: Record<string, Record<string, unknown>> = {};
   for (const k of Object.keys(store.extensionState))
     ext[k] = { ...store.extensionState[k] };
@@ -73,6 +75,8 @@ export function loadPanelStateFromWorkspace(ws: Workspace): void {
   store.activeSidePanelTabs = { ...(ws.activeSidePanelTabs ?? {}) };
   store.sidePanelScrollPositions = { ...(ws.sidePanelScrollPositions ?? {}) };
   store.sidePanelVisibility = { ...(ws.sidePanelVisibility ?? {}) };
+  store.leftPanelCollapsed = ws.leftPanelCollapsed ?? false;
+  store.rightPanelCollapsed = ws.rightPanelCollapsed ?? false;
   const ext: Record<string, Record<string, unknown>> = {};
   for (const k of Object.keys(ws.extensionState ?? {}))
     ext[k] = { ...ws.extensionState![k] };
