@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.18.0](https://github.com/silo-code/silo/compare/sdk-v0.17.0...sdk-v0.18.0) (2026-06-28)
+
+
+### Features
+
+* add ctx.system (OS, arch, Silo version) to extension context ([#127](https://github.com/silo-code/silo/issues/127)) ([9ac6e32](https://github.com/silo-code/silo/commit/9ac6e3212605237e111d88405c17d9a3460d2836))
+
 ## [0.17.0](https://github.com/silo-code/silo/compare/sdk-v0.16.0...sdk-v0.17.0) (2026-06-28)
 
 
