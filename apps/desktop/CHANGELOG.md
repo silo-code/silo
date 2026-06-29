@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.18.0](https://github.com/silo-code/silo/compare/silo-v0.17.0...silo-v0.18.0) (2026-06-29)
+
+
+### Features
+
+* add Help menu with About, Updates, and links on all platforms ([#132](https://github.com/silo-code/silo/issues/132)) ([5198393](https://github.com/silo-code/silo/commit/519839313a88113eccea1cbff43881e4dde73237))
+* **docs:** replace demo GIF with MP4 video ([3d077f7](https://github.com/silo-code/silo/commit/3d077f7201067f270c9f82b4a43049b1850fa016))
+* **readme:** add play button overlay to demo thumbnail ([9c45ac8](https://github.com/silo-code/silo/commit/9c45ac808fc1c72ed5108a25b7dc896bc20ce3e4))
+* **readme:** replace GIF with linked video thumbnail ([da3dedb](https://github.com/silo-code/silo/commit/da3dedbf4a9f47016d42d127019f3af1f0fb5a84))
+* store left/right panel collapse state per workspace ([#136](https://github.com/silo-code/silo/issues/136)) ([66b8645](https://github.com/silo-code/silo/commit/66b86457f2153b65c6bf9e401060986583ee1746))
+
+
+### Bug Fixes
+
+* **focus:** restore correct panel focus and cursor position on workspace switch ([#137](https://github.com/silo-code/silo/issues/137)) ([b33b918](https://github.com/silo-code/silo/commit/b33b9185ffa26e6eaa6570227dc887a95b30c370))
+
 ## [0.17.0](https://github.com/silo-code/silo/compare/silo-v0.16.0...silo-v0.17.0) (2026-06-28)
 
 
