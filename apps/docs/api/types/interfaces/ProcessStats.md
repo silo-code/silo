@@ -1,6 +1,6 @@
 # Interface: ProcessStats
 
-Defined in: packages/sdk/src/processes-service.ts:19
+Defined in: [packages/sdk/src/processes-service.ts:19](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L19)
 
 Resource snapshot for the foreground leader of a PTY session. Only present
 on a [ProcessInfo](ProcessInfo.md) when an extension has called
@@ -17,7 +17,7 @@ CPU% is a delta between consecutive samples (the first sample after calling
 pid: number;
 ```
 
-Defined in: packages/sdk/src/processes-service.ts:21
+Defined in: [packages/sdk/src/processes-service.ts:21](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L21)
 
 The process id of the foreground leader (same as [ProcessInfo.pgid](ProcessInfo.md#pgid) by convention).
 
@@ -29,7 +29,7 @@ The process id of the foreground leader (same as [ProcessInfo.pgid](ProcessInfo.
 cpuPercent: number;
 ```
 
-Defined in: packages/sdk/src/processes-service.ts:23
+Defined in: [packages/sdk/src/processes-service.ts:23](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L23)
 
 CPU percentage used since the previous sample, per-core (not system-wide total).
 
@@ -41,6 +41,6 @@ CPU percentage used since the previous sample, per-core (not system-wide total).
 memoryMb: number;
 ```
 
-Defined in: packages/sdk/src/processes-service.ts:25
+Defined in: [packages/sdk/src/processes-service.ts:25](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L25)
 
 Resident memory in megabytes.

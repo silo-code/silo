@@ -140,14 +140,14 @@ function DemoSection({ workspaceId }: WorkspaceSectionProps) {
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
 export function DemoPanel({ ctx }: { ctx: ExtensionContext }) {
-  const [decorationsOn, setDecorationsOn] = useState(false);
+  const [statusOn, setStatusOn] = useState(false);
   const [sectionsOn, setSectionsOn] = useState(false);
   const [badgesOn, setBadgesOn] = useState(false);
 
   useEffect(() => {
-    if (!decorationsOn) return;
-    const d = ctx.workspaces.registerDecoration({
-      id: "silo.workspace-modify-demo.decoration",
+    if (!statusOn) return;
+    const d = ctx.workspaces.registerStatus({
+      id: "silo.workspace-modify-demo.status",
       provide: () => [
         { id: "demo-ok", status: "ok", label: "Demo: everything looks good" },
         {
@@ -159,7 +159,7 @@ export function DemoPanel({ ctx }: { ctx: ExtensionContext }) {
       ],
     });
     return () => d.dispose();
-  }, [ctx, decorationsOn]);
+  }, [ctx, statusOn]);
 
   useEffect(() => {
     if (!sectionsOn) return;
@@ -197,21 +197,17 @@ export function DemoPanel({ ctx }: { ctx: ExtensionContext }) {
 
       <div className="wmd-row">
         <div className="wmd-label">
-          <span className="wmd-label-name">Decorations</span>
+          <span className="wmd-label-name">Status rows</span>
           <span className="wmd-label-desc">Status rows below the path</span>
         </div>
-        <Toggle
-          id="decorations"
-          checked={decorationsOn}
-          onChange={setDecorationsOn}
-        />
+        <Toggle id="status" checked={statusOn} onChange={setStatusOn} />
       </div>
 
       <div className="wmd-row">
         <div className="wmd-label">
           <span className="wmd-label-name">Sections</span>
           <span className="wmd-label-desc">
-            Custom content below decorations
+            Custom content below status rows
           </span>
         </div>
         <Toggle id="sections" checked={sectionsOn} onChange={setSectionsOn} />

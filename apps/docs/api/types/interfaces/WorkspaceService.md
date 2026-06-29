@@ -300,15 +300,15 @@ Hard delete — permanent removal.
 
 ***
 
-### registerDecoration()
+### registerStatus()
 
 ```ts
-registerDecoration(provider): Disposable;
+registerStatus(provider): Disposable;
 ```
 
 Defined in: [packages/sdk/src/workspace-service.ts:207](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L207)
 
-Register a decoration provider that contributes status rows to workspace
+Register a status provider that contributes status rows to workspace
 rows in the Workspaces side panel. Multiple providers may be registered;
 their rows are concatenated in registration order. Returns a
 [Disposable](Disposable.md) that unregisters the provider.
@@ -317,7 +317,7 @@ their rows are concatenated in registration order. Returns a
 
 ##### provider
 
-[`WorkspaceDecorationProvider`](WorkspaceDecorationProvider.md)
+[`WorkspaceStatusProvider`](WorkspaceStatusProvider.md)
 
 #### Returns
 
@@ -327,23 +327,23 @@ their rows are concatenated in registration order. Returns a
 
 ```ts
 ctx.subscriptions.push(
-  ctx.workspaces.registerDecoration({
-    id: "my-ext.decoration",
+  ctx.workspaces.registerStatus({
+    id: "my-ext.status",
     provide(workspaceId) {
       const running = getRunningTasks(workspaceId);
       return running.map(t => ({ id: t.id, status: "busy", label: t.name, startedAt: t.startedAt }));
     },
   }),
-  ctx.workspaces.subscribeDecorations(() => ctx.workspaces.invalidateDecorations()),
+  ctx.workspaces.subscribeStatus(() => ctx.workspaces.invalidateStatus()),
 );
 ```
 
 ***
 
-### getDecorations()
+### getStatus()
 
 ```ts
-getDecorations(workspaceId): WorkspaceStatusRow[];
+getStatus(workspaceId): WorkspaceStatusRow[];
 ```
 
 Defined in: [packages/sdk/src/workspace-service.ts:214](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L214)
@@ -364,16 +364,16 @@ must be fast and side-effect-free.
 
 ***
 
-### invalidateDecorations()
+### invalidateStatus()
 
 ```ts
-invalidateDecorations(): void;
+invalidateStatus(): void;
 ```
 
 Defined in: [packages/sdk/src/workspace-service.ts:223](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L223)
 
-Signal that decoration data has changed. Fires all listeners registered
-via [WorkspaceService.subscribeDecorations](#subscribedecorations), causing the Workspaces
+Signal that status data has changed. Fires all listeners registered
+via [WorkspaceService.subscribeStatus](#subscribestatus), causing the Workspaces
 panel to re-query providers and re-render the status rows.
 
 Call this after any mutation to the state your `provide` function reads.
@@ -384,16 +384,16 @@ Call this after any mutation to the state your `provide` function reads.
 
 ***
 
-### subscribeDecorations()
+### subscribeStatus()
 
 ```ts
-subscribeDecorations(listener): Disposable;
+subscribeStatus(listener): Disposable;
 ```
 
 Defined in: [packages/sdk/src/workspace-service.ts:233](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L233)
 
-Subscribe to decoration invalidations. The listener is called whenever
-[WorkspaceService.invalidateDecorations](#invalidatedecorations) is invoked. Returns a
+Subscribe to status invalidations. The listener is called whenever
+[WorkspaceService.invalidateStatus](#invalidatestatus) is invoked. Returns a
 [Disposable](Disposable.md) that cancels the subscription.
 
 The Workspaces panel subscribes internally; extensions may also subscribe

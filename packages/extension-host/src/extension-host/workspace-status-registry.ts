@@ -1,22 +1,22 @@
 import type {
-  WorkspaceDecorationProvider,
+  WorkspaceStatusProvider,
   WorkspaceStatusRow,
 } from "@silo-code/sdk";
 
-// Host-side registry for workspace row decoration providers.
-// Extensions register providers via ctx.workspaces.registerDecoration().
-// WorkspacesPanel subscribes via ctx.workspaces.subscribeDecorations() and
-// queries per-workspace rows via ctx.workspaces.getDecorations().
+// Host-side registry for workspace status providers.
+// Extensions register providers via ctx.workspaces.registerStatus().
+// WorkspacesPanel subscribes via ctx.workspaces.subscribeStatus() and
+// queries per-workspace rows via ctx.workspaces.getStatus().
 
-const providers: WorkspaceDecorationProvider[] = [];
+const providers: WorkspaceStatusProvider[] = [];
 const listeners = new Set<() => void>();
 
 function notify(): void {
   for (const l of listeners) l();
 }
 
-export const workspaceDecorationRegistry = {
-  register(provider: WorkspaceDecorationProvider): { dispose(): void } {
+export const workspaceStatusRegistry = {
+  register(provider: WorkspaceStatusProvider): { dispose(): void } {
     providers.push(provider);
     notify();
     return {
@@ -28,7 +28,7 @@ export const workspaceDecorationRegistry = {
     };
   },
 
-  getDecorations(workspaceId: string): WorkspaceStatusRow[] {
+  getStatus(workspaceId: string): WorkspaceStatusRow[] {
     const rows: WorkspaceStatusRow[] = [];
     for (const p of providers) {
       const result = p.provide(workspaceId);

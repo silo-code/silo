@@ -2,7 +2,7 @@
 
 Defined in: [packages/sdk/src/workspace-service.ts:14](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L14)
 
-A single status row contributed by a [WorkspaceDecorationProvider](WorkspaceDecorationProvider.md).
+A single status row contributed by a [WorkspaceStatusProvider](WorkspaceStatusProvider.md).
 Rows appear below the path line in the Workspaces side panel.
 
 ## Properties

@@ -16,11 +16,11 @@ import type {
   Workspace,
   WorkspaceState,
   WorkspaceService,
-  WorkspaceDecorationProvider,
+  WorkspaceStatusProvider,
   WorkspaceSectionProvider,
   WorkspaceBadgeProvider,
 } from "@silo-code/sdk";
-import { workspaceDecorationRegistry } from "./workspace-decoration-registry";
+import { workspaceStatusRegistry } from "./workspace-status-registry";
 import { workspaceSectionRegistry } from "./workspace-section-registry";
 import { workspaceBadgeRegistry } from "./workspace-badge-registry";
 
@@ -93,17 +93,15 @@ export function getWorkspaceService(): WorkspaceService {
     addFolder: addExtraFolder,
     removeFolder: removeExtraFolder,
     delete: deleteWorkspace,
-    registerDecoration(provider: WorkspaceDecorationProvider) {
-      return workspaceDecorationRegistry.register(provider);
+    registerStatus(provider: WorkspaceStatusProvider) {
+      return workspaceStatusRegistry.register(provider);
     },
-    getDecorations: workspaceDecorationRegistry.getDecorations.bind(
-      workspaceDecorationRegistry,
+    getStatus: workspaceStatusRegistry.getStatus.bind(workspaceStatusRegistry),
+    invalidateStatus: workspaceStatusRegistry.invalidate.bind(
+      workspaceStatusRegistry,
     ),
-    invalidateDecorations: workspaceDecorationRegistry.invalidate.bind(
-      workspaceDecorationRegistry,
-    ),
-    subscribeDecorations: workspaceDecorationRegistry.subscribe.bind(
-      workspaceDecorationRegistry,
+    subscribeStatus: workspaceStatusRegistry.subscribe.bind(
+      workspaceStatusRegistry,
     ),
     registerSection(provider: WorkspaceSectionProvider) {
       return workspaceSectionRegistry.register(provider);

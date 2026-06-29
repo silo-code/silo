@@ -1,9 +1,11 @@
 # Type Alias: MenuId
 
 ```ts
-type MenuId = "file" | "edit" | "view" | "window";
+type MenuId = "file" | "edit" | "view" | "window" | "help";
 ```
 
-Defined in: [packages/sdk/src/types.ts:207](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L207)
+Defined in: [packages/sdk/src/types.ts:210](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L210)
 
 The top-level application menus a [MenuItemContribution](../interfaces/MenuItemContribution.md) can target.
+`"help"` is present on all platforms; `"file"`, `"edit"`, `"view"`, and
+`"window"` are the remaining standard menus.

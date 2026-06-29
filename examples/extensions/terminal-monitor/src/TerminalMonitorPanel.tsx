@@ -23,8 +23,7 @@ export function TerminalMonitorPanel({
 }: Props) {
   const [, setTick] = useState(0);
   useEffect(
-    () =>
-      ctx.workspaces.subscribeDecorations(() => setTick((t) => t + 1)).dispose,
+    () => ctx.workspaces.subscribeStatus(() => setTick((t) => t + 1)).dispose,
     [ctx.workspaces],
   );
 
