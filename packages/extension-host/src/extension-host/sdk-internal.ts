@@ -194,6 +194,14 @@ export {
 } from "../docked/dock-api-registry";
 export { cycleRegionFocus } from "./focus-regions";
 
+// Output panel store — per-channel valtio state read by the core.output dock
+// panel. The write path is public (`ctx.log`, auto-channel per extension, plus
+// `ctx.ui.notify` → the silo:notifications channel). Only core.output needs to
+// read back entries; `createHostChannel` lets other host services (e.g.
+// future build/lint) add channels without going through `ctx`.
+export { outputStore, createHostChannel, clearChannel } from "./output-store";
+export type { OutputChannelState, OutputEntry } from "./output-store";
+
 // Dev-shell window actions (Reload / Inspect Element) the base menu (core.menu)
 // surfaces under the Window menu in dev builds, replacing what the now-suppressed
 // native context menu used to offer. Host/platform-bound, core-only.

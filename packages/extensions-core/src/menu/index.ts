@@ -200,7 +200,7 @@ export const extension: Extension = {
       command: "core.newFile",
       accelerator: "CmdOrCtrl+N",
       group: "1_new",
-      order: 1,
+      order: -20,
     });
     ctx.registerMenuItem({
       id: "core.menu.openFile",
@@ -208,7 +208,7 @@ export const extension: Extension = {
       command: "core.openFile",
       accelerator: "CmdOrCtrl+O",
       group: "1_new",
-      order: 2,
+      order: -10,
     });
     ctx.registerMenuItem({
       id: "core.menu.save",
@@ -216,7 +216,7 @@ export const extension: Extension = {
       command: "core.save",
       accelerator: "CmdOrCtrl+S",
       group: "2_save",
-      order: 1,
+      order: -20,
     });
     ctx.registerMenuItem({
       id: "core.menu.saveAs",
@@ -224,7 +224,7 @@ export const extension: Extension = {
       command: "core.saveAs",
       accelerator: "CmdOrCtrl+Shift+S",
       group: "2_save",
-      order: 2,
+      order: -10,
     });
     ctx.registerMenuItem({
       id: "core.menu.closeTab",
@@ -232,7 +232,7 @@ export const extension: Extension = {
       command: "core.closeTab",
       accelerator: "CmdOrCtrl+W",
       group: "3_close",
-      order: 1,
+      order: -10,
     });
 
     // View menu
@@ -242,7 +242,7 @@ export const extension: Extension = {
       command: "settings.open",
       accelerator: "CmdOrCtrl+,",
       group: "0_settings",
-      order: 1,
+      order: -10,
     });
     ctx.registerMenuItem({
       id: "view.toggleLeftPanel.menu",
@@ -250,7 +250,7 @@ export const extension: Extension = {
       command: "view.toggleLeftPanel",
       accelerator: "CmdOrCtrl+Alt+[",
       group: "1_layout",
-      order: 1,
+      order: -20,
     });
     ctx.registerMenuItem({
       id: "view.toggleRightPanel.menu",
@@ -258,7 +258,7 @@ export const extension: Extension = {
       command: "view.toggleRightPanel",
       accelerator: "CmdOrCtrl+Alt+]",
       group: "1_layout",
-      order: 2,
+      order: -10,
     });
     ctx.registerMenuItem({
       id: "core.menu.zoomIn",
@@ -266,7 +266,7 @@ export const extension: Extension = {
       command: "core.zoomIn",
       accelerator: "CmdOrCtrl+=",
       group: "1_zoom",
-      order: 1,
+      order: -30,
     });
     ctx.registerMenuItem({
       id: "core.menu.zoomOut",
@@ -274,7 +274,7 @@ export const extension: Extension = {
       command: "core.zoomOut",
       accelerator: "CmdOrCtrl+-",
       group: "1_zoom",
-      order: 2,
+      order: -20,
     });
     ctx.registerMenuItem({
       id: "core.menu.zoomReset",
@@ -282,7 +282,7 @@ export const extension: Extension = {
       command: "core.zoomReset",
       accelerator: "CmdOrCtrl+0",
       group: "1_zoom",
-      order: 3,
+      order: -10,
     });
 
     // Window menu
@@ -292,7 +292,7 @@ export const extension: Extension = {
       command: "core.newTerminal",
       accelerator: "CmdOrCtrl+T",
       group: "1_term",
-      order: 1,
+      order: -10,
     });
 
     // Help menu — link items present on all platforms. About + Check for
@@ -325,21 +325,21 @@ export const extension: Extension = {
       menu: "help",
       command: "core.openDocumentation",
       group: "1_links",
-      order: 1,
+      order: -30,
     });
     ctx.registerMenuItem({
       id: "core.help.extensions",
       menu: "help",
       command: "core.openExtensions",
       group: "1_links",
-      order: 2,
+      order: -20,
     });
     ctx.registerMenuItem({
       id: "core.help.github",
       menu: "help",
       command: "core.openGitHub",
       group: "1_links",
-      order: 3,
+      order: -10,
     });
 
     // Dev-only Window items. Silo suppresses the webview's native context menu
@@ -362,7 +362,7 @@ export const extension: Extension = {
         command: "core.reloadWindow",
         accelerator: "CmdOrCtrl+R",
         group: "9_dev",
-        order: 1,
+        order: -20,
       });
       ctx.registerMenuItem({
         id: "core.menu.toggleDevtools",
@@ -370,7 +370,7 @@ export const extension: Extension = {
         command: "core.toggleDevtools",
         accelerator: "CmdOrCtrl+Alt+I",
         group: "9_dev",
-        order: 2,
+        order: -10,
       });
     }
   },

@@ -1,0 +1,175 @@
+.output-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  color-scheme: inherit;
+}
+
+/* ── toolbar ── matches the web-viewer toolbar pattern ───────────────────── */
+
+.output-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: var(--silo-color-toolbar-bg);
+  border-bottom: 1px solid var(--silo-color-border);
+  flex-shrink: 0;
+}
+
+/* Selects and inputs: 26px height, invisible border (matches bg) until focus */
+.output-toolbar select,
+.output-toolbar input[type="search"] {
+  height: 26px;
+  padding: 0 8px;
+  font-size: var(--silo-font-size-sm);
+  font-family: var(--silo-font-ui);
+  background-color: var(--silo-color-toolbar-input-bg);
+  color: var(--silo-color-toolbar-text);
+  border: 1px solid var(--silo-color-toolbar-input-bg);
+  border-radius: var(--silo-radius-sm);
+  outline: none;
+}
+
+/* Strip native macOS chrome (single border) and add custom chevron arrow */
+.output-toolbar select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 22px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpolyline points='1,1 5,5 9,1' fill='none' stroke='%23c0c0c0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 8px 5px;
+}
+
+[data-theme="light"] .output-toolbar select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpolyline points='1,1 5,5 9,1' fill='none' stroke='%234a4a4a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+/* Suppress the global theme outline (theme.css sets outline: 1.5px on focus-visible);
+   border-color change below is the sole focus indicator, matching the settings dialog pattern. */
+.output-toolbar :is(select, input):focus-visible {
+  outline: none;
+}
+
+.output-toolbar select:focus,
+.output-toolbar input[type="search"]:focus {
+  border-color: var(--silo-color-accent);
+}
+
+.output-channel-select {
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.output-search {
+  flex: 1;
+  min-width: 60px;
+}
+
+.output-level-select {
+  width: 88px;
+}
+
+/* Icon-only toolbar buttons — matches the lwv-btn pattern */
+.output-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: var(--silo-radius-sm);
+  background: transparent;
+  color: var(--silo-color-toolbar-text);
+  cursor: pointer;
+}
+
+.output-icon-btn:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.output-icon-btn.on {
+  color: var(--silo-color-accent);
+  border-color: var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 16%, transparent);
+}
+
+/* ── log list ── content-bg matches editor + web viewer ─────────────────── */
+
+.output-list {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--silo-color-content-bg);
+  color: var(--silo-color-content-text);
+  font-family: var(--silo-font-mono);
+  font-size: calc(var(--silo-font-size-base) + 1px);
+  line-height: 1.6;
+}
+
+.output-empty {
+  padding: 12px 10px;
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+}
+
+.output-entry {
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px;
+}
+
+.output-entry-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.output-entry:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.output-ts {
+  color: var(--silo-color-text-lo);
+  min-width: 56px;
+  flex-shrink: 0;
+}
+
+.output-level {
+  min-width: 38px;
+  flex-shrink: 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8em;
+  color: var(--silo-color-text-lo);
+}
+
+.output-msg {
+  flex: 1;
+  word-break: break-word;
+}
+
+.output-data {
+  padding-left: 110px;
+  color: var(--silo-color-text-lo);
+  font-size: 0.85em;
+  word-break: break-all;
+}
+
+/* Level color overrides */
+.output-entry[data-level="debug"] {
+  color: var(--silo-color-text-lo);
+}
+
+.output-entry[data-level="warn"] .output-level {
+  color: var(--silo-color-warn);
+}
+
+.output-entry[data-level="error"] .output-level,
+.output-entry[data-level="error"] .output-msg {
+  color: var(--silo-color-err);
+}

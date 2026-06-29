@@ -86,9 +86,8 @@ export const extension: Extension = {
     ctx.registerStatusItem({
       id: "updates",
       alignment: "right",
-      // Leftmost of the right cluster (theme picker is -10) so the rare link
-      // reads as prominent.
-      priority: -20,
+      // Leftmost of the right built-in cluster (closest to extension items).
+      priority: -2,
       component: UpdateLink,
     });
 

@@ -6,6 +6,33 @@ import { registerWorkspaceCycle } from "./workspace-cycle";
 export const extension: Extension = {
   id: "core.workspaces",
   activate(ctx) {
+    // Log workspace lifecycle events to the Application output channel.
+    let prev = ctx.workspaces.getState();
+    ctx.subscriptions.push(
+      ctx.workspaces.subscribe((state) => {
+        if (state.activeId !== prev.activeId && state.activeId) {
+          const ws = state.all.find((w) => w.id === state.activeId);
+          ctx.log.info(`Workspace activated: ${ws?.name ?? state.activeId}`);
+        }
+        for (const ws of state.all) {
+          if (!prev.all.find((p) => p.id === ws.id)) {
+            ctx.log.info(`Workspace created: ${ws.name}`);
+          }
+        }
+        for (const ws of state.closed) {
+          if (prev.open.find((p) => p.id === ws.id)) {
+            ctx.log.info(`Workspace closed: ${ws.name}`);
+          }
+        }
+        for (const ws of state.open) {
+          if (prev.closed.find((p) => p.id === ws.id)) {
+            ctx.log.info(`Workspace reopened: ${ws.name}`);
+          }
+        }
+        prev = state;
+      }),
+    );
+
     ctx.registerSidePanel({
       id: "workspaces",
       location: "left",
@@ -21,7 +48,7 @@ export const extension: Extension = {
     ctx.registerStatusItem({
       id: "workspace.active",
       alignment: "left",
-      priority: 0,
+      priority: -10,
       component: () => <WorkspaceStatusItem ctx={ctx} />,
     });
 

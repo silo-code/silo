@@ -27,8 +27,9 @@ export const extension: Extension = {
     ctx.registerStatusItem({
       id: "settings-button",
       alignment: "right",
-      // Between the theme picker (-10) and the panel toggles (0).
-      priority: -5,
+      // Between theme (-5) and panel-toggles (-20). Right items sort descending
+      // so lower priority = closer to the right edge.
+      priority: -10,
       tooltip: "Settings",
       component: SettingsButton,
     });

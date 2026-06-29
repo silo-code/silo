@@ -12,6 +12,14 @@ import {
 } from "./modal-service";
 import { getActiveSelectionText } from "./active-selection";
 import type { NotifyAction, NotifyOptions, UiService } from "@silo-code/sdk";
+import { createHostChannel } from "./output-store";
+
+// All notifications are also mirrored into the Output panel's "Notifications"
+// channel so users can review them after the toast has dismissed.
+const notificationsChannel = createHostChannel(
+  "silo:notifications",
+  "Notifications",
+);
 
 // `ctx.ui` — the user-interaction domain. The host renders the chrome;
 // extensions ask. This is the single sanctioned way an extension talks to the
@@ -178,6 +186,7 @@ export function getUiService(): UiService {
     },
     notify(level, message, options) {
       pushToast(level, message, options);
+      notificationsChannel[level](message);
     },
     showMenu(opts) {
       return openMenu(opts);

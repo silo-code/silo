@@ -17,6 +17,10 @@ function byPriority(a: StatusItem, b: StatusItem): number {
   return (a.priority ?? 0) - (b.priority ?? 0);
 }
 
+function byPriorityDesc(a: StatusItem, b: StatusItem): number {
+  return (b.priority ?? 0) - (a.priority ?? 0);
+}
+
 /**
  * Status-bar focus behavior. The bar isn't a roving focus group (Tab moves
  * between its items naturally), but its keyboard ring uses the **same** mechanism
@@ -116,7 +120,9 @@ export function StatusBar() {
   const ref = useRef<HTMLDivElement>(null);
   useStatusBarFocus(ref);
   const left = items.filter((i) => i.alignment === "left").sort(byPriority);
-  const right = items.filter((i) => i.alignment === "right").sort(byPriority);
+  const right = items
+    .filter((i) => i.alignment === "right")
+    .sort(byPriorityDesc);
 
   return (
     <div className="status-bar" ref={ref}>

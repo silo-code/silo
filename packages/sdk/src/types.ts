@@ -33,6 +33,7 @@ import type { DndService } from "./dnd-service";
 import type { UiService } from "./ui-service";
 import type { NetworkService } from "./network-service";
 import type { SystemService } from "./system-service";
+import type { LogService } from "./output-service";
 import type {
   ExtensionStorage,
   ExtensionStorageScopes,
@@ -233,7 +234,13 @@ export interface MenuItemContribution {
    * Defaults to "9_default" so unspecified items land at the bottom.
    */
   group?: string;
-  /** Sort order within a group. Defaults to 0. */
+  /**
+   * Sort order within a group. Defaults to 0.
+   *
+   * **Convention:** built-in (core) items use negative values; extensions
+   * should use `0` or greater so they appear after built-in items within
+   * the same group by default.
+   */
   order?: number;
   /**
    * Optional predicate against current context keys. Items whose `when`
@@ -364,7 +371,19 @@ export interface StatusItem {
   id: string;
   /** Which end of the status bar this item sits at. */
   alignment: "left" | "right";
-  /** Sort order within its alignment group. Lower sorts first. Defaults to 0. */
+  /**
+   * Sort order within its alignment group. Defaults to 0.
+   *
+   * The sort direction mirrors the alignment so that **negative values always
+   * anchor an item toward the nearest edge**:
+   * - **Left items** sort ascending — lower priority = closer to the left edge.
+   * - **Right items** sort descending — lower priority = closer to the right edge.
+   *
+   * **Convention:** built-in (core) items use negative values so they are
+   * anchored to their respective edges. Extensions should use `0` or greater,
+   * which places them between the two built-in zones by default. An extension
+   * may still choose a negative value intentionally to interleave with built-ins.
+   */
   priority?: number;
   /**
    * Tooltip shown on hover over the entire status item. The host renders a
@@ -549,6 +568,19 @@ export interface ExtensionContext {
    * See {@link SystemService} for the full API.
    */
   readonly system: SystemService;
+  /**
+   * Write-only structured logger scoped to this extension. Entries appear in
+   * the **Output** panel under the extension's display name. A channel is
+   * created automatically at activation and removed at deactivation — no setup
+   * required.
+   *
+   * ```ts
+   * ctx.log.info("Extension activated");
+   * ctx.log.warn("Unexpected state", { detail: 42 });
+   * ctx.log.show(); // open the Output panel, select this extension's channel
+   * ```
+   */
+  readonly log: LogService;
   /**
    * Resolve a handle to another extension in order to consume the API it
    * published (the value its {@link Extension.activate} returned). This is how
