@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.20.0](https://github.com/silo-code/silo/compare/sdk-v0.19.1...sdk-v0.20.0) (2026-06-29)
+
+
+### Features
+
+* **output:** add Output panel with ctx.log API and grouped channel selector ([#142](https://github.com/silo-code/silo/issues/142)) ([52d1848](https://github.com/silo-code/silo/commit/52d184872c00b165ce8cc94297f5bedb80ada839))
+
 ## [0.19.1](https://github.com/silo-code/silo/compare/sdk-v0.19.0...sdk-v0.19.1) (2026-06-29)
 
 
