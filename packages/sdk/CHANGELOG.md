@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.19.1](https://github.com/silo-code/silo/compare/sdk-v0.19.0...sdk-v0.19.1) (2026-06-29)
+
+
+### Bug Fixes
+
+* **focus:** restore correct panel focus and cursor position on workspace switch ([#137](https://github.com/silo-code/silo/issues/137)) ([b33b918](https://github.com/silo-code/silo/commit/b33b9185ffa26e6eaa6570227dc887a95b30c370))
+
 ## [0.19.0](https://github.com/silo-code/silo/compare/sdk-v0.18.0...sdk-v0.19.0) (2026-06-28)
 
 
