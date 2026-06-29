@@ -151,6 +151,24 @@ export function getEditorScrollPosition(
   );
 }
 
+export function setEditorViewState(
+  workspaceId: string,
+  editorId: string,
+  state: unknown,
+): void {
+  const ws = store.workspaces[workspaceId];
+  if (!ws) return;
+  if (!ws.editorViewStates) ws.editorViewStates = {};
+  ws.editorViewStates[editorId] = state;
+}
+
+export function getEditorViewState(
+  workspaceId: string,
+  editorId: string,
+): unknown {
+  return store.workspaces[workspaceId]?.editorViewStates?.[editorId] ?? null;
+}
+
 export function reorderWorkspaces(
   fromId: string,
   toId: string,

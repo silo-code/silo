@@ -106,6 +106,8 @@ export {
   setEditorFilePath,
   setEditorScrollPosition,
   getEditorScrollPosition,
+  setEditorViewState,
+  getEditorViewState,
   setEditorBackup,
   clearEditorBackup,
   readEditorBackup,

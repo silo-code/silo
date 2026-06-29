@@ -34,7 +34,11 @@ import { getDndService, resolveDndMode } from "../extension-host/dnd-service";
 import { DND_MIME } from "@silo-code/sdk";
 import { setContextKey } from "../extension-host/context-keys";
 import { resolveEditorForRecord } from "../extension-host/editor-registry";
-import { retryFocus } from "../extension-host/use-focus-retry";
+import {
+  retryFocus,
+  isTextareaFocusedWithin,
+  blurTextareaWithin,
+} from "../extension-host/use-focus-retry";
 import { confirm } from "../extension-host/modal-service";
 import { getThemeBase } from "../layout/presets";
 import { DockTab } from "./DockTab";
@@ -68,6 +72,10 @@ export function WorkspaceDock({
   const layoutRestoredRef = useRef(false);
   const layoutSaveTimer = useRef<number | null>(null);
   const apiRef = useRef<DockviewApi | null>(null);
+  // Tracks the dockview panel that was active when this workspace last went
+  // inactive, so we can restore the correct panel on return rather than
+  // whatever dockview happens to remember after a force-layout pass.
+  const lastActivePanelRef = useRef<string | null>(null);
 
   function onReady(event: DockviewReadyEvent) {
     setApi(event.api);
@@ -194,24 +202,36 @@ export function WorkspaceDock({
   useEffect(() => {
     if (!active || !api) return;
     setActiveDockApi(api);
-    // When the dock becomes active (e.g. switching workspaces), focus the
-    // active panel's content. The panel itself doesn't fire onDidActiveChange
-    // here (it was already active within this dock; only the dock's visibility
-    // changed), so this is the only trigger — retry against dockview's focus
-    // shuffle just like the viewers do. Both Monaco and xterm park focus on a
-    // <textarea>, so a focused textarea inside this dock confirms the content
-    // (not merely the group wrapper) actually got it.
     const root = (api as unknown as { element?: HTMLElement }).element ?? null;
+
+    // Restore the panel that was active when this workspace was last visited.
+    // If this is the first activation there is no saved state, so we fall back
+    // to whatever dockview considers active right now.
+    const savedId = lastActivePanelRef.current;
+    const targetPanel =
+      (savedId ? api.getPanel(savedId) : null) ?? api.activePanel;
+    if (targetPanel && targetPanel !== api.activePanel) {
+      targetPanel.api.setActive();
+    }
+
+    // Retry until a textarea inside this dock holds DOM focus. Both Monaco and
+    // xterm park their keyboard input on a <textarea>, so this is the reliable
+    // signal that content (not just the group chrome) actually got it.
     retryFocus(
-      () => api.activePanel?.focus(),
-      () => {
-        const el = document.activeElement;
-        return (
-          root != null && el instanceof HTMLTextAreaElement && root.contains(el)
-        );
-      },
+      () => (targetPanel ?? api.activePanel)?.focus(),
+      () => isTextareaFocusedWithin(root),
     );
-    return () => setActiveDockApi(null);
+
+    return () => {
+      // Save which panel was active so we can restore it on the next visit.
+      lastActivePanelRef.current = api.activePanel?.id ?? null;
+      // Dispatch synthetic blur/focusout to reset Monaco's _hasFocus tracker.
+      // While the dock is invisible the real blur is often dropped, leaving
+      // Monaco believing it still owns focus; without this it re-steals via
+      // _setAndWriteTextAreaState the next time the workspace becomes visible.
+      blurTextareaWithin(root);
+      setActiveDockApi(null);
+    };
   }, [active, api]);
 
   // Push the active editor + viewer ids into the extension context-keys so
@@ -268,7 +288,14 @@ export function WorkspaceDock({
       const height = host?.clientHeight ?? 0;
       if (width > 0 && height > 0) {
         try {
+          // layout(force=true) fires onDidActiveChange and can hand active
+          // status to the wrong panel (typically Monaco's group) by re-asserting
+          // dockview's stale internal "last active group". Save the panel we
+          // actually want active and restore it immediately after so the force
+          // layout can't permanently steal the active slot.
+          const savedPanel = liveApi.activePanel;
           liveApi.layout(width, height, true);
+          savedPanel?.api.setActive();
         } catch {
           /* no-op */
         }

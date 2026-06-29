@@ -15,6 +15,8 @@ import {
   setEditorFilePath,
   setEditorScrollPosition,
   getEditorScrollPosition,
+  setEditorViewState,
+  getEditorViewState,
   setEditorBackup,
   clearEditorBackup,
   readEditorBackup,
@@ -323,7 +325,8 @@ export function TextViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorId]);
 
-  // Capture final scroll position on unmount so it survives a full reload.
+  // Capture final view state (cursor + scroll) on unmount so it survives a
+  // full reload. Also keeps scroll-only data in sync for backward compat.
   useEffect(() => {
     return () => {
       const ed = editorRef.current;
@@ -335,6 +338,7 @@ export function TextViewer({
           ed.getScrollTop(),
           ed.getScrollLeft(),
         );
+        setEditorViewState(ws, editorId, ed.saveViewState());
       }
       // Drop any lingering selection-source registration for this editor.
       selSourceRef.current?.dispose();
@@ -394,13 +398,23 @@ export function TextViewer({
     if (hasReveal) {
       maybeApplyReveal();
     } else if (wsId) {
-      const pos = getEditorScrollPosition(wsId, editorId);
-      if (pos) {
-        requestAnimationFrame(() => {
-          editor.setScrollTop(pos.top);
-          editor.setScrollLeft(pos.left);
-        });
-      }
+      // Restore the full view state (cursor + scroll + selections + folds)
+      // saved from a previous mount. Falls back to scroll-only data kept by
+      // older persisted workspaces that predate editorViewStates.
+      const viewState = getEditorViewState(wsId, editorId);
+      requestAnimationFrame(() => {
+        if (viewState) {
+          editor.restoreViewState(
+            viewState as MonacoEditor.ICodeEditorViewState,
+          );
+        } else {
+          const pos = getEditorScrollPosition(wsId, editorId);
+          if (pos) {
+            editor.setScrollTop(pos.top);
+            editor.setScrollLeft(pos.left);
+          }
+        }
+      });
     }
 
     // Publish this editor's selection to the active-selection registry while it
@@ -420,11 +434,12 @@ export function TextViewer({
       selSourceRef.current = null;
     });
 
-    // Persist scroll position on change (debounced)
-    let scrollTimer: number | null = null;
-    editor.onDidScrollChange(() => {
-      if (scrollTimer !== null) window.clearTimeout(scrollTimer);
-      scrollTimer = window.setTimeout(() => {
+    // Persist view state (cursor + scroll) on change, debounced. A single
+    // timer handles both scroll and cursor events so they don't race.
+    let saveTimer: number | null = null;
+    function scheduleStateSave() {
+      if (saveTimer !== null) window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(() => {
         const ws = wsIdRef.current;
         if (!ws) return;
         setEditorScrollPosition(
@@ -433,8 +448,11 @@ export function TextViewer({
           editor.getScrollTop(),
           editor.getScrollLeft(),
         );
+        setEditorViewState(ws, editorId, editor.saveViewState());
       }, 300);
-    });
+    }
+    editor.onDidScrollChange(scheduleStateSave);
+    editor.onDidChangeCursorPosition(scheduleStateSave);
 
     // Intentionally NOT registering Monaco's own Cmd+S keybinding. When
     // Monaco's keybinding service claims Cmd+S and preventDefaults, AppKit's

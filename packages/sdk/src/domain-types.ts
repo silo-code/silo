@@ -122,6 +122,14 @@ export interface Workspace {
   /** Scroll positions keyed by editor record ID: { top, left } in pixels. */
   editorScrollPositions?: Record<string, { top: number; left: number }>;
   /**
+   * Monaco view states keyed by editor record ID. Each value is the opaque
+   * JSON produced by `editor.saveViewState()` — captures cursor position,
+   * selection, scroll, and folded regions. Supersedes
+   * {@link Workspace.editorScrollPositions} for editors that support it;
+   * scroll-only data is kept as a fallback for older persisted workspaces.
+   */
+  editorViewStates?: Record<string, unknown>;
+  /**
    * ISO timestamp of when the workspace was soft-closed, or null/undefined
    * if the workspace is open. Closed workspaces are hidden from the main
    * list and surfaced in a "reopen" picker.
