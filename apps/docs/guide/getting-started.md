@@ -194,7 +194,7 @@ for the full packaging reference.
   [`clock-extension`](https://github.com/silo-code/silo/tree/main/examples/extensions/clock-extension)
   example adds one).
 - **Polish the UI** — [Styling your extension](/guide/styling),
-  [Workspace decorations & badges](/guide/workspace-decorations), and
+  [Workspace status, sections & badges](/guide/workspace-status), and
   [Keyboard navigation](/guide/keyboard-navigation).
 - **Ship it** — [Permissions & access](/guide/permissions) and
   [Publishing an extension](/guide/publishing-an-extension).

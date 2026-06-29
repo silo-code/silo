@@ -79,7 +79,7 @@ complete, working status-bar clock step by step. Prefer to describe what you
 want and let an AI do the scaffolding? See [Build with Claude Code](/guide/claude-skill).
 
 **Polish the UI** — [Styling your extension](/guide/styling),
-[Workspace decorations & badges](/guide/workspace-decorations),
+[Workspace status, sections & badges](/guide/workspace-status),
 [Keyboard navigation](/guide/keyboard-navigation), and
 [Building a theme](/guide/theming) cover the visual surface.
 
