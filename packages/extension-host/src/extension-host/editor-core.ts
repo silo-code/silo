@@ -5,6 +5,8 @@ import {
   setEditorFilePath,
   setEditorScrollPosition,
   getEditorScrollPosition,
+  setEditorViewState,
+  getEditorViewState,
 } from "../state/workspaces";
 import {
   setEditorBackup,
@@ -57,6 +59,8 @@ export {
   setEditorFilePath,
   setEditorScrollPosition,
   getEditorScrollPosition,
+  setEditorViewState,
+  getEditorViewState,
   // Hot-exit backups: the text editor stashes/restores/clears unsaved buffers.
   setEditorBackup,
   clearEditorBackup,
