@@ -241,9 +241,9 @@ Read and filter entries from the Output panel's log store. Useful for agents and
 external tools that need to inspect what the app (or an extension) has logged
 without scraping the UI.
 
-| op           | args                                                       | result                                                                                                   |
-| ------------ | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `outputLogs` | `{ channel?, level?, search?, limit? }` — all optional     | `{ channel, displayName, totalCount, entries:[{timestamp,level,message,data?}], channels:[{key,displayName}] }` |
+| op           | args                                                   | result                                                                                                          |
+| ------------ | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `outputLogs` | `{ channel?, level?, search?, limit? }` — all optional | `{ channel, displayName, totalCount, entries:[{timestamp,level,message,data?}], channels:[{key,displayName}] }` |
 
 - **`channel`** — channel key to read (e.g. `"silo:notifications"`,
   `"silo:application"`). Defaults to the first registered channel.

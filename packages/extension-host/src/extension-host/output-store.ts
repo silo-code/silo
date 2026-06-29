@@ -146,7 +146,13 @@ export function getOutputLogs(opts: {
   const ch = outputStore.channels[channelKey];
 
   if (!ch) {
-    return { channel: channelKey, displayName: channelKey, totalCount: 0, entries: [], channels };
+    return {
+      channel: channelKey,
+      displayName: channelKey,
+      totalCount: 0,
+      entries: [],
+      channels,
+    };
   }
 
   const lq = search.toLowerCase();

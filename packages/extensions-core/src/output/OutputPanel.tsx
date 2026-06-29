@@ -28,8 +28,8 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
     snap.order as string[],
   );
 
-  const [selectedKey, setSelectedKey] = useState<string>(
-    () => ctx.storage.workspace.get("outputChannel", "silo:notifications"),
+  const [selectedKey, setSelectedKey] = useState<string>(() =>
+    ctx.storage.workspace.get("outputChannel", "silo:notifications"),
   );
   const [filter, setFilter] = useState<OutputFilter>({
     level: "all",
@@ -75,14 +75,14 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
   function handleRowClick(e: React.MouseEvent, entryId: number) {
     e.stopPropagation();
     if (e.shiftKey && lastClickedIdRef.current !== null) {
-      const lastIdx = filtered.findIndex((x) => x.id === lastClickedIdRef.current);
+      const lastIdx = filtered.findIndex(
+        (x) => x.id === lastClickedIdRef.current,
+      );
       const thisIdx = filtered.findIndex((x) => x.id === entryId);
       if (lastIdx !== -1 && thisIdx !== -1) {
         const [lo, hi] =
           lastIdx < thisIdx ? [lastIdx, thisIdx] : [thisIdx, lastIdx];
-        setSelectedIds(
-          new Set(filtered.slice(lo, hi + 1).map((x) => x.id)),
-        );
+        setSelectedIds(new Set(filtered.slice(lo, hi + 1).map((x) => x.id)));
       }
     } else if (e.metaKey || e.ctrlKey) {
       setSelectedIds((prev) => {
@@ -131,7 +131,9 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
         {
           label: "Clear",
           disabled: !activeKey,
-          run: () => { if (activeKey) clearChannel(activeKey); },
+          run: () => {
+            if (activeKey) clearChannel(activeKey);
+          },
         },
       ],
     });

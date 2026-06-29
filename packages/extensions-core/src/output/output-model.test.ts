@@ -102,7 +102,9 @@ describe("copyEntries", () => {
   const ts = new Date("2024-01-01T10:30:00").getTime();
 
   it("formats a single info entry", () => {
-    const entries = [{ id: 1, level: "info" as const, message: "hello", timestamp: ts }];
+    const entries = [
+      { id: 1, level: "info" as const, message: "hello", timestamp: ts },
+    ];
     expect(copyEntries(entries)).toBe("10:30:00 [INFO ] hello");
   });
 
@@ -120,12 +122,28 @@ describe("copyEntries", () => {
   });
 
   it("appends string data on next line", () => {
-    const entries = [{ id: 1, level: "info" as const, message: "msg", timestamp: ts, data: "extra info" }];
+    const entries = [
+      {
+        id: 1,
+        level: "info" as const,
+        message: "msg",
+        timestamp: ts,
+        data: "extra info",
+      },
+    ];
     expect(copyEntries(entries)).toBe("10:30:00 [INFO ] msg\nextra info");
   });
 
   it("serialises object data as JSON", () => {
-    const entries = [{ id: 1, level: "info" as const, message: "msg", timestamp: ts, data: { a: 1 } }];
+    const entries = [
+      {
+        id: 1,
+        level: "info" as const,
+        message: "msg",
+        timestamp: ts,
+        data: { a: 1 },
+      },
+    ];
     const result = copyEntries(entries);
     expect(result).toContain("{\n");
     expect(result).toContain('"a": 1');

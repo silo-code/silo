@@ -640,8 +640,7 @@ async function handleOp(
         channel: args.channel !== undefined ? String(args.channel) : undefined,
         level: args.level !== undefined ? String(args.level) : undefined,
         search: args.search !== undefined ? String(args.search) : undefined,
-        limit:
-          args.limit !== undefined ? Number(args.limit) : undefined,
+        limit: args.limit !== undefined ? Number(args.limit) : undefined,
       });
 
     default:

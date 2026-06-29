@@ -167,8 +167,8 @@ editor ops below — `monaco` is not a page global, so `eval` can't reach it.
 
 **Output logs** (read what the app or extensions have logged)
 
-| Op           | Args                                        | Returns / use                                                                                               |
-| ------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Op           | Args                                        | Returns / use                                                                                           |
+| ------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `outputLogs` | `channel?,level?,search?,limit?` (all opt.) | `{channel,displayName,totalCount,entries[{timestamp,level,message,data?}],channels[{key,displayName}]}` |
 
 - `channel` defaults to the first registered channel. Discover all channels via the `channels` field in any response.
