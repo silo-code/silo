@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.19.0](https://github.com/silo-code/silo/compare/silo-v0.18.0...silo-v0.19.0) (2026-06-29)
+
+
+### Features
+
+* **output:** add Output panel with ctx.log API and grouped channel selector ([#142](https://github.com/silo-code/silo/issues/142)) ([52d1848](https://github.com/silo-code/silo/commit/52d184872c00b165ce8cc94297f5bedb80ada839))
+* **output:** row selection, copy, context menu, channel persistence, and outputLogs RPC ([#145](https://github.com/silo-code/silo/issues/145)) ([cc1272b](https://github.com/silo-code/silo/commit/cc1272b557b40637da1d9f0010393635fdf532be))
+
 ## [0.18.0](https://github.com/silo-code/silo/compare/silo-v0.17.0...silo-v0.18.0) (2026-06-29)
 
 
