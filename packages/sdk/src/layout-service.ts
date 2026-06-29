@@ -65,4 +65,16 @@ export interface LayoutService {
    *   survives workspace close/reopen.
    */
   openPanel(kindId: string, params?: Record<string, unknown>): void;
+  /**
+   * Open a **singleton** dock panel — a panel that should only ever have one
+   * instance at a time. If a panel with `kindId` already exists, focuses it;
+   * otherwise creates it. The panel's id equals `kindId` (not UUID-based, so
+   * at most one can exist). Use for utility panels like Output that don't
+   * benefit from multiple instances.
+   *
+   * @param kindId - The {@link DockPanelKind.id} to open or focus.
+   * @param params - Forwarded to the panel when creating; ignored when
+   *   focusing an existing instance.
+   */
+  openSingletonPanel(kindId: string, params?: Record<string, unknown>): void;
 }

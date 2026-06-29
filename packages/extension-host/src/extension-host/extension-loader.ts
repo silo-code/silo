@@ -23,6 +23,7 @@ import {
 import { dockPanelKindRegistry } from "./dock-panel-kinds";
 import { installExtensionDeps, SHARED_DEPS } from "./extension-deps";
 import { fsReadText } from "../services/tauri-fs";
+import { extHostLog } from "./extension-host-logger";
 import type { Extension, ExtensionContext, Permission } from "@silo-code/sdk";
 
 /** What the loader needs to load one extension. */
@@ -134,6 +135,8 @@ export async function loadExtension(spec: LoadSpec): Promise<void> {
 
   const shims = ensureDepShims();
   const bundlePath = `${spec.dir.replace(/\/+$/, "")}/${spec.main}`;
+  extHostLog.info(`Loading ${spec.id} from ${bundlePath}`);
+
   const source = await fsReadText(bundlePath);
   const rewritten = rewriteSpecifiers(source, shims);
 
@@ -164,6 +167,7 @@ export async function loadExtension(spec: LoadSpec): Promise<void> {
     ctx = createContext(ext.id, {
       trusted: false,
       permissions: spec.permissions,
+      displayName: ext.manifest?.name,
     });
     const api = ext.activate(ctx);
     activateExtensionRecord(ext.id, api);
@@ -175,16 +179,19 @@ export async function loadExtension(spec: LoadSpec): Promise<void> {
       // limitation"); the example uses a side panel instead. Recorded so the
       // Extensions page can show a "reload to finish disabling" hint.
       reloadRequiredIds.add(ext.id);
-      console.warn(
-        `[extensions] ${ext.id} registered a dock panel kind; disabling it may require a window reload`,
+      extHostLog.warn(
+        `${ext.id} registered a dock panel kind; disabling may require a window reload`,
       );
     }
 
     loaded.set(spec.id, { ctx, extension: ext, blobUrl });
+    extHostLog.info(`Loaded ${spec.id}`);
     void syncMenu();
   } catch (err) {
+    extHostLog.error(`Load failed: ${spec.id}`, err);
     // Roll back a partial activation so a failed load leaves nothing behind.
-    if (ctx) for (const d of [...ctx.subscriptions].reverse()) safeDispose(d);
+    if (ctx)
+      for (const d of [...ctx.subscriptions].reverse()) safeDispose(spec.id, d);
     clearExtensionRecord(spec.id);
     URL.revokeObjectURL(blobUrl);
     throw err;
@@ -195,18 +202,20 @@ export async function loadExtension(spec: LoadSpec): Promise<void> {
 export function unloadExtension(id: string): void {
   const entry = loaded.get(id);
   if (!entry) return;
+  extHostLog.info(`Unloading ${id}`);
   // Dispose in reverse registration order; each registry dispose removes the
   // contribution and fires onChange, so status items / settings pages / side
   // panels / commands / keybindings / menu items leave the UI reactively.
-  for (const d of [...entry.ctx.subscriptions].reverse()) safeDispose(d);
+  for (const d of [...entry.ctx.subscriptions].reverse()) safeDispose(id, d);
   try {
     entry.extension.deactivate?.();
   } catch (err) {
-    console.error(`[extensions] deactivate failed: ${id}`, err);
+    extHostLog.error(`Deactivate hook failed: ${id}`, err);
   }
   clearExtensionRecord(id);
   URL.revokeObjectURL(entry.blobUrl);
   loaded.delete(id);
+  extHostLog.info(`Unloaded ${id}`);
   // Drop any contributed native menu items.
   void syncMenu();
 }
@@ -215,10 +224,10 @@ export function isLoaded(id: string): boolean {
   return loaded.has(id);
 }
 
-function safeDispose(d: { dispose: () => void }): void {
+function safeDispose(extensionId: string, d: { dispose: () => void }): void {
   try {
     d.dispose();
   } catch (err) {
-    console.error("[extensions] dispose failed", err);
+    extHostLog.error(`Dispose failed: ${extensionId}`, err);
   }
 }

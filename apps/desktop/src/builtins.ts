@@ -3,6 +3,7 @@ import type { Extension } from "@silo-code/sdk";
 import {
   menu as coreMenu,
   terminal,
+  output,
   editor,
   workspaces,
   themes,
@@ -36,6 +37,7 @@ const builtins: Extension[] = [
   // kinds runs (CenterDock's first render). core.editor registers both the
   // editor and diff kinds (text + diff + settings are its modules).
   terminal,
+  output,
   // The text editor registers before markdown-preview so that, with both at
   // priority 0, a plain .md open ties to Text (the default view); Preview is
   // opt-in via "Open With" / the breadcrumb switcher.

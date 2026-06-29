@@ -98,7 +98,9 @@ export const extension: Extension = {
     ctx.registerStatusItem({
       id: "panel-toggles",
       alignment: "right",
-      priority: 0,
+      // Rightmost built-in item (at the right edge). Right items sort
+      // descending so the most negative priority lands at the far right.
+      priority: -20,
       component: PanelToggles,
     });
   },

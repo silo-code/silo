@@ -46,6 +46,12 @@ import {
 } from "./extension-storage";
 import { getActiveWorkspace } from "../state/store";
 import type { PathScope } from "./security/resolve-path";
+import {
+  registerChannel,
+  unregisterChannel,
+  pushEntry,
+  clearChannel,
+} from "./output-store";
 
 /**
  * Options for {@link createContext}. Trust and capabilities are supplied by the
@@ -58,6 +64,8 @@ import type { PathScope } from "./security/resolve-path";
 export interface ContextOptions {
   /** First-party (bundled) extension — unscoped `files`/`process`. */
   trusted?: boolean;
+  /** Human-readable display name for this extension's Output channel. Falls back to extensionId. */
+  displayName?: string;
   /** Capabilities granted at install (third-party only). */
   permissions?: readonly Permission[];
 }
@@ -74,6 +82,20 @@ export function createContext(
 
   // The filesystem/process scope for this extension. `roots` is a live getter so
   // it always reflects the active workspace (which switches under the extension).
+  // core.* extensions share a single "Application" channel (idempotent register);
+  // third-party extensions get their own per-extension channel, removed on teardown.
+  const isCoreExtension = extensionId.startsWith("core.");
+  const channelKey = isCoreExtension
+    ? "silo:application"
+    : `ext:${extensionId}`;
+  const channelDisplayName = isCoreExtension
+    ? "Application"
+    : (options.displayName ?? extensionId);
+  registerChannel(channelKey, channelDisplayName, options.trusted);
+  if (!isCoreExtension) {
+    subscriptions.push({ dispose: () => unregisterChannel(channelKey) });
+  }
+
   const permissions = new Set<Permission>(options.permissions ?? []);
   const scope: PathScope = {
     get roots(): readonly string[] {
@@ -142,6 +164,15 @@ export function createContext(
     ui: getUiService(),
     net: getNetworkService(),
     system: getSystemService(),
+    log: {
+      debug: (msg, data) => pushEntry(channelKey, "debug", msg, data),
+      info: (msg, data) => pushEntry(channelKey, "info", msg, data),
+      warn: (msg, data) => pushEntry(channelKey, "warn", msg, data),
+      error: (msg, data) => pushEntry(channelKey, "error", msg, data),
+      show: () =>
+        getLayoutService().openSingletonPanel("output", { title: "Output" }),
+      clear: () => clearChannel(channelKey),
+    },
     getExtension(id) {
       return getExtensionHandle(id);
     },

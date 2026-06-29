@@ -22,3 +22,4 @@ export { extension as extensions } from "./extensions";
 export { extension as panelToggles } from "./statusbar/panel-toggles";
 export { extension as settingsButton } from "./statusbar/settings-button";
 export { extension as updates } from "./statusbar/updates";
+export { extension as output } from "./output";

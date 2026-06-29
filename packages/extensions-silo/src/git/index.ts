@@ -24,9 +24,29 @@ export const extension: Extension<GitAPI> = {
     description: "Source control provider — status, diffs, and history.",
   },
   activate(ctx): GitAPI {
-    const api = createGitService((command, args, options) =>
-      ctx.process.exec(command, args, options),
-    );
+    const READ_ONLY = new Set([
+      "status",
+      "log",
+      "diff",
+      "show",
+      "for-each-ref",
+    ]);
+    const api = createGitService((command, args, options) => {
+      // Strip --no-optional-locks from the display — it's an internal safeguard.
+      const displayArgs = args.filter((a) => a !== "--no-optional-locks");
+      const subcommand = displayArgs[0] ?? "";
+      const isReadOnly = READ_ONLY.has(subcommand);
+      ctx.log[isReadOnly ? "debug" : "info"](
+        `> ${[command, ...displayArgs].join(" ")}`,
+        options?.cwd ? { cwd: options.cwd } : undefined,
+      );
+      return ctx.process.exec(command, args, options).then((result) => {
+        if (result.code !== 0 && result.stderr.trim()) {
+          ctx.log.error(result.stderr.trim());
+        }
+        return result;
+      });
+    });
     // Own the git-diff composition: core.editor's diff is generic and asks a
     // registered provider for the two sides. Lives here (the provider) so diffs
     // work even when the git-explorer panel is disabled. Tracked on

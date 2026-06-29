@@ -166,6 +166,11 @@ export type {
 // Static host-platform metadata: OS, CPU arch, and Silo version.
 export type { SystemService, SystemInfo } from "./system-service";
 
+// Structured output logging — the write-only channel extensions receive as
+// `ctx.log`. LogLevel is also used by the Output panel's built-in channels
+// (e.g. `silo:notifications`).
+export type { LogService, LogLevel } from "./output-service";
+
 // Context keys referenced by `when` predicates on menu items / keybindings.
 export type { ContextKeys } from "./context-keys";
 

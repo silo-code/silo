@@ -24,6 +24,7 @@ import {
   deactivateExtensionRecord,
 } from "./extension-registry";
 import { dockPanelKindRegistry } from "./dock-panel-kinds";
+import { extHostLog } from "./extension-host-logger";
 import type { Extension, ExtensionContext } from "@silo-code/sdk";
 
 /** Brand shown for every built-in row (built-ins are first-party Silo). */
@@ -63,41 +64,55 @@ const entries = new Map<string, BuiltinEntry>();
 
 /** Create + retain a context, activate, record the API, and detect dock kinds. */
 function activate(entry: BuiltinEntry): void {
+  const id = entry.ext.id;
+  extHostLog.info(`Activating ${id}`);
   const dockBefore = new Set(dockPanelKindRegistry.list().map((k) => k.id));
   // Builtins are first-party — trusted, so `files`/`process` are unscoped.
-  const ctx = createContext(entry.ext.id, { trusted: true });
+  const ctx = createContext(id, {
+    trusted: true,
+    displayName: entry.ext.manifest?.name,
+  });
   const api = entry.ext.activate(ctx);
-  activateExtensionRecord(entry.ext.id, api);
+  activateExtensionRecord(id, api);
   entry.ctx = ctx;
   entry.enabled = true;
   const dockAfter = dockPanelKindRegistry.list().map((k) => k.id);
-  if (dockAfter.some((id) => !dockBefore.has(id))) entry.reloadRequired = true;
+  if (dockAfter.some((k) => !dockBefore.has(k))) {
+    entry.reloadRequired = true;
+    extHostLog.warn(
+      `${id} registered a dock panel kind; disabling may require a window reload`,
+    );
+  }
+  extHostLog.info(`Activated ${id}`);
 }
 
 /** Dispose the retained context's contributions, deactivate, mark inactive. */
 function teardown(entry: BuiltinEntry): void {
+  const id = entry.ext.id;
+  extHostLog.info(`Deactivating ${id}`);
   if (entry.ctx) {
     // Reverse registration order; each registry dispose fires onChange, so
     // status items / side panels / settings pages / commands leave reactively.
-    for (const d of [...entry.ctx.subscriptions].reverse()) safeDispose(d);
+    for (const d of [...entry.ctx.subscriptions].reverse()) safeDispose(id, d);
   }
   try {
     entry.ext.deactivate?.();
   } catch (err) {
-    console.error(`[extensions] deactivate failed: ${entry.ext.id}`, err);
+    extHostLog.error(`Deactivate hook failed: ${id}`, err);
   }
   // Keep the record (builtins are never cleared) but mark it inactive so
   // getExtension(id) resolves an inactive handle rather than undefined.
-  deactivateExtensionRecord(entry.ext.id);
+  deactivateExtensionRecord(id);
   entry.ctx = undefined;
   entry.enabled = false;
+  extHostLog.info(`Deactivated ${id}`);
 }
 
-function safeDispose(d: { dispose: () => void }): void {
+function safeDispose(extensionId: string, d: { dispose: () => void }): void {
   try {
     d.dispose();
   } catch (err) {
-    console.error("[extensions] dispose failed", err);
+    extHostLog.error(`Dispose failed: ${extensionId}`, err);
   }
 }
 
@@ -115,12 +130,15 @@ export function registerBuiltins(
     entries.set(ext.id, { ext, enabled: false, reloadRequired: false });
     recordExtension(ext.id);
   }
+  extHostLog.info(
+    `Registering ${list.length} built-in extensions (${disabled.size} disabled)`,
+  );
   for (const entry of entries.values()) {
     if (disabled.has(entry.ext.id)) continue;
     try {
       activate(entry);
     } catch (err) {
-      console.error(`[extensions] activate failed: ${entry.ext.id}`, err);
+      extHostLog.error(`Activation failed: ${entry.ext.id}`, err);
     }
   }
 }
@@ -130,6 +148,7 @@ export function enableBuiltin(id: string): void {
   const entry = entries.get(id);
   if (!entry || entry.enabled) return;
   activate(entry);
+  extHostLog.info(`Enabled ${id}`);
   void syncMenu();
 }
 
@@ -138,6 +157,7 @@ export function disableBuiltin(id: string): void {
   const entry = entries.get(id);
   if (!entry || !entry.enabled) return;
   teardown(entry);
+  extHostLog.info(`Disabled ${id}`);
   void syncMenu();
 }
 

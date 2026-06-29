@@ -56,6 +56,24 @@ export function getLayoutService(): LayoutService {
       const panel = api.addPanel({ id, component: kindId, title, params });
       panel.api.setActive();
     },
+    openSingletonPanel(kindId, params) {
+      const api = getActiveDockApi();
+      if (!api) return;
+      // Use kindId as the panel id so at most one instance can exist.
+      const existing = api.getPanel(kindId);
+      if (existing) {
+        existing.api.setActive();
+        return;
+      }
+      const title = (params?.title as string | undefined) ?? kindId;
+      const panel = api.addPanel({
+        id: kindId,
+        component: kindId,
+        title,
+        params,
+      });
+      panel.api.setActive();
+    },
     revealSidePanel(id) {
       const panel = sidePanelRegistry.get(id);
       if (!panel) return;
