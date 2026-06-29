@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useSnapshot } from "valtio";
 import type { IDockviewPanelProps } from "dockview";
-import { Tooltip } from "@silo-code/sdk";
-import { X, ArrowLineDown } from "@phosphor-icons/react";
+import { Tooltip, type ExtensionContext } from "@silo-code/sdk";
+import { X, ArrowLineDown, CopySimple } from "@phosphor-icons/react";
 import {
   outputStore,
   clearChannel,
@@ -12,24 +12,35 @@ import {
   filterEntries,
   formatTimestamp,
   channelOptions,
+  copyEntries,
   type OutputFilter,
 } from "./output-model";
 import "./OutputPanel.css";
 
-export function OutputPanel(_props: IDockviewPanelProps) {
+interface OutputPanelProps extends IDockviewPanelProps {
+  ctx: ExtensionContext;
+}
+
+export function OutputPanel({ ctx }: OutputPanelProps) {
   const snap = useSnapshot(outputStore);
   const { host, builtinExtensions, extensions } = channelOptions(
     snap.channels as typeof outputStore.channels,
     snap.order as string[],
   );
 
-  const [selectedKey, setSelectedKey] = useState<string>("silo:notifications");
+  const [selectedKey, setSelectedKey] = useState<string>(() =>
+    ctx.storage.workspace.get("outputChannel", "silo:notifications"),
+  );
   const [filter, setFilter] = useState<OutputFilter>({
     level: "all",
     search: "",
   });
   const [autoScroll, setAutoScroll] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<number>>(
+    new Set(),
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
+  const lastClickedIdRef = useRef<number | null>(null);
 
   // Fall back to the first available channel if the selected one was disposed
   const activeKey = snap.channels[selectedKey]
@@ -46,13 +57,98 @@ export function OutputPanel(_props: IDockviewPanelProps) {
     }
   }, [filtered.length, autoScroll]);
 
+  // Re-read selected channel when storage hydrates or the active workspace changes
+  useEffect(() => {
+    return ctx.storage.workspace.subscribe(() => {
+      setSelectedKey(
+        ctx.storage.workspace.get("outputChannel", "silo:notifications"),
+      );
+    });
+  }, [ctx.storage.workspace]);
+
+  // Clear selection when channel or filter changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+    lastClickedIdRef.current = null;
+  }, [activeKey, filter.level, filter.search]);
+
+  function handleRowClick(e: React.MouseEvent, entryId: number) {
+    e.stopPropagation();
+    if (e.shiftKey && lastClickedIdRef.current !== null) {
+      const lastIdx = filtered.findIndex(
+        (x) => x.id === lastClickedIdRef.current,
+      );
+      const thisIdx = filtered.findIndex((x) => x.id === entryId);
+      if (lastIdx !== -1 && thisIdx !== -1) {
+        const [lo, hi] =
+          lastIdx < thisIdx ? [lastIdx, thisIdx] : [thisIdx, lastIdx];
+        setSelectedIds(new Set(filtered.slice(lo, hi + 1).map((x) => x.id)));
+      }
+    } else if (e.metaKey || e.ctrlKey) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(entryId)) next.delete(entryId);
+        else next.add(entryId);
+        return next;
+      });
+      lastClickedIdRef.current = entryId;
+    } else {
+      setSelectedIds((prev) =>
+        prev.size === 1 && prev.has(entryId) ? new Set() : new Set([entryId]),
+      );
+      lastClickedIdRef.current = entryId;
+    }
+  }
+
+  async function handleCopy() {
+    const toCopy = filtered.filter((e) => selectedIds.has(e.id));
+    if (toCopy.length === 0) return;
+    await navigator.clipboard.writeText(copyEntries(toCopy));
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "c" && selectedIds.size > 0) {
+      e.preventDefault();
+      void handleCopy();
+    }
+  }
+
+  function handleContextMenu(e: React.MouseEvent) {
+    e.preventDefault();
+    const hasCopyable = selectedIds.size > 0;
+    void ctx.ui.showMenu({
+      at: { x: e.clientX, y: e.clientY },
+      toggle: false,
+      items: [
+        {
+          label: hasCopyable
+            ? `Copy ${selectedIds.size} row${selectedIds.size === 1 ? "" : "s"}`
+            : "Copy",
+          disabled: !hasCopyable,
+          run: () => void handleCopy(),
+        },
+        { type: "separator" as const },
+        {
+          label: "Clear",
+          disabled: !activeKey,
+          run: () => {
+            if (activeKey) clearChannel(activeKey);
+          },
+        },
+      ],
+    });
+  }
+
   return (
     <div className="output-panel">
       <div className="output-toolbar">
         <select
           className="output-channel-select"
           value={activeKey}
-          onChange={(e) => setSelectedKey(e.target.value)}
+          onChange={(e) => {
+            setSelectedKey(e.target.value);
+            ctx.storage.workspace.set("outputChannel", e.target.value);
+          }}
           aria-label="Channel"
         >
           {host.map(({ key, displayName }) => (
@@ -117,6 +213,22 @@ export function OutputPanel(_props: IDockviewPanelProps) {
             <X size={14} />
           </button>
         </Tooltip>
+        <Tooltip
+          content={
+            selectedIds.size > 0
+              ? `Copy ${selectedIds.size} row${selectedIds.size === 1 ? "" : "s"}`
+              : "Copy selected rows (⌘C)"
+          }
+        >
+          <button
+            className="output-icon-btn"
+            onClick={() => void handleCopy()}
+            disabled={selectedIds.size === 0}
+            aria-label="Copy selected rows"
+          >
+            <CopySimple size={14} />
+          </button>
+        </Tooltip>
         <Tooltip content={autoScroll ? "Auto-scroll on" : "Auto-scroll off"}>
           <button
             className={`output-icon-btn${autoScroll ? " on" : ""}`}
@@ -128,15 +240,26 @@ export function OutputPanel(_props: IDockviewPanelProps) {
           </button>
         </Tooltip>
       </div>
-      <div className="output-list" ref={scrollRef}>
+      <div
+        className="output-list"
+        ref={scrollRef}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        onContextMenu={handleContextMenu}
+        onClick={() => {
+          setSelectedIds(new Set());
+          lastClickedIdRef.current = null;
+        }}
+      >
         {filtered.length === 0 ? (
           <div className="output-empty">No entries.</div>
         ) : (
           filtered.map((entry) => (
             <div
               key={entry.id}
-              className="output-entry"
+              className={`output-entry${selectedIds.has(entry.id) ? " selected" : ""}`}
               data-level={entry.level}
+              onClick={(e) => handleRowClick(e, entry.id)}
             >
               <div className="output-entry-line">
                 <span className="output-ts">

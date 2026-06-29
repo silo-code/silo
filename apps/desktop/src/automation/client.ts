@@ -53,6 +53,23 @@ export interface ActiveElement {
   inXterm: boolean;
 }
 
+/** A single serialisable log entry from the `outputLogs` op. */
+export interface OutputLogEntry {
+  timestamp: string; // ISO 8601
+  level: string;
+  message: string;
+  data?: unknown;
+}
+
+/** Result of the `outputLogs` op. */
+export interface OutputLogsResult {
+  channel: string;
+  displayName: string;
+  totalCount: number;
+  entries: OutputLogEntry[];
+  channels: { key: string; displayName: string }[];
+}
+
 /** A theme's identity, as returned by the `themeState` op. */
 export interface ThemeRef {
   id: string;
@@ -303,6 +320,21 @@ export class SiloAutomation {
     value: string,
   ): Promise<{ uri: string; valueLength: number } | null> {
     return this.call("setEditorValue", { uri, value });
+  }
+
+  /**
+   * Read entries from an output channel, with optional filters.
+   * Defaults to the first registered channel and the 200 most-recent entries.
+   * Pass `channel` (e.g. `"silo:notifications"`, `"silo:application"`) to
+   * target a specific channel. Use `level` and `search` to narrow down.
+   */
+  outputLogs(opts?: {
+    channel?: string;
+    level?: "debug" | "info" | "warn" | "error" | "all";
+    search?: string;
+    limit?: number;
+  }): Promise<OutputLogsResult> {
+    return this.call("outputLogs", opts ?? {});
   }
 
   /**

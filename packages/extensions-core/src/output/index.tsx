@@ -14,12 +14,8 @@ export const extension: Extension = {
     ctx.registerDockPanelKind({
       id: "output",
       component: ((props: IDockviewPanelProps) => (
-        <OutputPanel {...props} />
+        <OutputPanel {...props} ctx={ctx} />
       )) as React.ComponentType<IDockviewPanelProps>,
-      addMenuItem: {
-        label: "Output",
-        params: { title: "Output" },
-      },
     });
 
     ctx.registerCommand({

@@ -46,6 +46,12 @@ export { sidePanelRegistry } from "./extension-host/side-panels";
 export { ensureMonaco } from "./docked/monaco-setup";
 // Test-driver only (the dev automation bridge uses it to set up a center split).
 export { splitActivePanel } from "./docked/dock-api-registry";
+// Output log query — lets the automation bridge surface logs to external tools.
+export {
+  getOutputLogs,
+  type OutputLogsResult,
+  type OutputLogEntry,
+} from "./extension-host/output-store";
 
 export { store, setExtensionsReady } from "./state/store";
 export {

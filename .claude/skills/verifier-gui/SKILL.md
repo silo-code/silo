@@ -165,6 +165,24 @@ editor ops below — `monaco` is not a page global, so `eval` can't reach it.
 | `editorOptions`  | `uri`       | resolved Monaco config (font/tab/wrap/minimap/readOnly/…) for that editor                                                              |
 | `setEditorValue` | `uri,value` | `model.setValue` → fires `onChange`, i.e. the **real edit→dirty→save/backup path**, no OS focus needed → `{uri,valueLength}` \| `null` |
 
+**Output logs** (read what the app or extensions have logged)
+
+| Op           | Args                                        | Returns / use                                                                                           |
+| ------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `outputLogs` | `channel?,level?,search?,limit?` (all opt.) | `{channel,displayName,totalCount,entries[{timestamp,level,message,data?}],channels[{key,displayName}]}` |
+
+- `channel` defaults to the first registered channel. Discover all channels via the `channels` field in any response.
+- `level`: `"debug"` / `"info"` / `"warn"` / `"error"` / `"all"` (default `"all"`).
+- `search`: case-insensitive substring on `message`.
+- `limit`: most-recent N entries (default 200; ring buffer holds 5 000 per channel).
+
+```bash
+# All recent logs (first channel, up to 200)
+silo '{"op":"outputLogs"}'
+# Errors only from notifications channel
+silo '{"op":"outputLogs","args":{"channel":"silo:notifications","level":"error","limit":50}}'
+```
+
 **Theme / process / introspection**
 
 | Op              | Args                 | Returns / use                                                    |

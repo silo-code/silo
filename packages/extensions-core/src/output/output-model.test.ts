@@ -3,6 +3,7 @@ import {
   filterEntries,
   formatTimestamp,
   channelOptions,
+  copyEntries,
   type OutputFilter,
 } from "./output-model";
 import type { OutputEntry } from "@silo-code/extension-host/internal";
@@ -94,6 +95,73 @@ describe("formatTimestamp", () => {
   it("produces a HH:MM:SS shaped string", () => {
     const ts = Date.now();
     expect(formatTimestamp(ts)).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+  });
+});
+
+describe("copyEntries", () => {
+  const ts = new Date("2024-01-01T10:30:00").getTime();
+
+  it("formats a single info entry", () => {
+    const entries = [
+      { id: 1, level: "info" as const, message: "hello", timestamp: ts },
+    ];
+    expect(copyEntries(entries)).toBe("10:30:00 [INFO ] hello");
+  });
+
+  it("pads level to 5 chars", () => {
+    const e = (level: "debug" | "info" | "warn" | "error") => ({
+      id: 1,
+      level,
+      message: "x",
+      timestamp: ts,
+    });
+    expect(copyEntries([e("debug")])).toContain("[DEBUG]");
+    expect(copyEntries([e("info")])).toContain("[INFO ]");
+    expect(copyEntries([e("warn")])).toContain("[WARN ]");
+    expect(copyEntries([e("error")])).toContain("[ERROR]");
+  });
+
+  it("appends string data on next line", () => {
+    const entries = [
+      {
+        id: 1,
+        level: "info" as const,
+        message: "msg",
+        timestamp: ts,
+        data: "extra info",
+      },
+    ];
+    expect(copyEntries(entries)).toBe("10:30:00 [INFO ] msg\nextra info");
+  });
+
+  it("serialises object data as JSON", () => {
+    const entries = [
+      {
+        id: 1,
+        level: "info" as const,
+        message: "msg",
+        timestamp: ts,
+        data: { a: 1 },
+      },
+    ];
+    const result = copyEntries(entries);
+    expect(result).toContain("{\n");
+    expect(result).toContain('"a": 1');
+  });
+
+  it("joins multiple entries with newlines", () => {
+    const entries = [
+      { id: 1, level: "info" as const, message: "first", timestamp: ts },
+      { id: 2, level: "warn" as const, message: "second", timestamp: ts },
+    ];
+    const lines = copyEntries(entries).split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain("first");
+    expect(lines[1]).toContain("second");
+  });
+
+  it("returns empty string for empty array", () => {
+    expect(copyEntries([])).toBe("");
   });
 });
 

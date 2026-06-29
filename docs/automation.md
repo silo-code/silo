@@ -235,6 +235,42 @@ curl -s localhost:7878 -H 'X-Silo-Automation: 1' -d '{"op":"openFile","args":{"p
 curl -s localhost:7878 -H 'X-Silo-Automation: 1' -d '{"op":"activatePanel","args":{"panelId":"editor:ed_…"}}'
 ```
 
+### Output logs
+
+Read and filter entries from the Output panel's log store. Useful for agents and
+external tools that need to inspect what the app (or an extension) has logged
+without scraping the UI.
+
+| op           | args                                                   | result                                                                                                          |
+| ------------ | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `outputLogs` | `{ channel?, level?, search?, limit? }` — all optional | `{ channel, displayName, totalCount, entries:[{timestamp,level,message,data?}], channels:[{key,displayName}] }` |
+
+- **`channel`** — channel key to read (e.g. `"silo:notifications"`,
+  `"silo:application"`). Defaults to the first registered channel.
+- **`level`** — filter to `"debug"` / `"info"` / `"warn"` / `"error"` / `"all"`
+  (default `"all"`).
+- **`search`** — case-insensitive substring filter on `message`.
+- **`limit`** — max entries returned (default 200, capped from the most-recent end
+  of the ring buffer). Each channel holds at most 5,000 entries.
+- **`channels`** in the result lists every registered channel — use it to discover
+  what's available before choosing one.
+- **`totalCount`** is the unfiltered entry count in the channel (before `level` /
+  `search` / `limit` are applied), useful to detect whether the buffer has been
+  noisy.
+
+```bash
+# List all channels and the most-recent 200 entries from the first one
+curl -s localhost:7878 -H 'X-Silo-Automation: 1' -d '{"op":"outputLogs"}'
+
+# Last 50 errors from the notifications channel
+curl -s localhost:7878 -H 'X-Silo-Automation: 1' \
+  -d '{"op":"outputLogs","args":{"channel":"silo:notifications","level":"error","limit":50}}'
+
+# Search across all levels for a keyword
+curl -s localhost:7878 -H 'X-Silo-Automation: 1' \
+  -d '{"op":"outputLogs","args":{"search":"workspace","limit":100}}'
+```
+
 ### Monaco introspection (authoritative)
 
 These read **Monaco's own registry and event timeline** — the source of truth.

@@ -108,6 +108,7 @@
   font-family: var(--silo-font-mono);
   font-size: calc(var(--silo-font-size-base) + 1px);
   line-height: 1.6;
+  outline: none;
 }
 
 .output-empty {
@@ -131,6 +132,14 @@
 
 .output-entry:hover {
   background: var(--silo-color-bg-hover);
+}
+
+.output-entry.selected {
+  background: color-mix(in srgb, var(--silo-color-accent) 20%, transparent);
+}
+
+.output-entry.selected:hover {
+  background: color-mix(in srgb, var(--silo-color-accent) 28%, transparent);
 }
 
 .output-ts {
