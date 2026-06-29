@@ -214,15 +214,36 @@ export function WorkspaceDock({
       targetPanel.api.setActive();
     }
 
-    // Retry until a textarea inside this dock holds DOM focus. Both Monaco and
-    // xterm park their keyboard input on a <textarea>, so this is the reliable
-    // signal that content (not just the group chrome) actually got it.
-    retryFocus(
-      () => (targetPanel ?? api.activePanel)?.focus(),
-      () => isTextareaFocusedWithin(root),
-    );
+    // Delay the focus retry until after relayoutAndRefit (2 RAFs away) to
+    // prevent a one-frame editor flash. layout(force=true) can briefly hand
+    // active status to Monaco; firing retryFocus immediately would land in
+    // the editor, get disrupted on RAF 2, and produce a visible focus flicker.
+    // useFocusOnActive inside each panel component drives focus from
+    // relayoutAndRefit's setActive() call; this retryFocus is a fallback for
+    // the case where the active panel didn't change (no onDidActiveChange
+    // fires, so useFocusOnActive never triggers).
+    let cancelled = false;
+    let rafId = 0;
+    let frame = 0;
+    const step = () => {
+      frame++;
+      if (frame < 3) {
+        if (!cancelled) rafId = requestAnimationFrame(step);
+        return;
+      }
+      if (cancelled) return;
+      const panel = (savedId ? api.getPanel(savedId) : null) ?? api.activePanel;
+      retryFocus(
+        () => (panel ?? api.activePanel)?.focus(),
+        () => isTextareaFocusedWithin(root),
+        () => !cancelled,
+      );
+    };
+    rafId = requestAnimationFrame(step);
 
     return () => {
+      cancelled = true;
+      cancelAnimationFrame(rafId);
       // Save which panel was active so we can restore it on the next visit.
       lastActivePanelRef.current = api.activePanel?.id ?? null;
       // Dispatch synthetic blur/focusout to reset Monaco's _hasFocus tracker.
@@ -286,20 +307,21 @@ export function WorkspaceDock({
       const host = root?.parentElement;
       const width = host?.clientWidth ?? 0;
       const height = host?.clientHeight ?? 0;
+      // Snapshot active panel before layout — layout(force=true) fires
+      // onDidActiveChange and can hand active status to the wrong panel.
+      const savedPanel = liveApi.activePanel;
       if (width > 0 && height > 0) {
         try {
-          // layout(force=true) fires onDidActiveChange and can hand active
-          // status to the wrong panel (typically Monaco's group) by re-asserting
-          // dockview's stale internal "last active group". Save the panel we
-          // actually want active and restore it immediately after so the force
-          // layout can't permanently steal the active slot.
-          const savedPanel = liveApi.activePanel;
           liveApi.layout(width, height, true);
-          savedPanel?.api.setActive();
         } catch {
           /* no-op */
         }
       }
+      // Restore the correct active panel unconditionally — both to counter any
+      // active-slot change layout() made, and to trigger useFocusOnActive inside
+      // the panel so its retryFocus loop starts. This runs even when the layout
+      // call was skipped (zero dims) so focus is always driven on activation.
+      savedPanel?.api.setActive();
       window.dispatchEvent(new CustomEvent("app:refit-terminals"));
     }
     let raf2 = 0;
