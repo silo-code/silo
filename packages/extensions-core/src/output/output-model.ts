@@ -36,6 +36,25 @@ export function formatTimestamp(ts: number): string {
   return `${h}:${m}:${s}`;
 }
 
+/**
+ * Format selected entries as plain text for clipboard copy.
+ * Each entry becomes `HH:MM:SS [LEVEL] message`, with optional data on the next line.
+ */
+export function copyEntries(entries: readonly OutputEntry[]): string {
+  return entries
+    .map((e) => {
+      const level = e.level.toUpperCase().padEnd(5);
+      let line = `${formatTimestamp(e.timestamp)} [${level}] ${e.message}`;
+      if (e.data !== undefined) {
+        const data =
+          typeof e.data === "string" ? e.data : JSON.stringify(e.data, null, 2);
+        line += `\n${data}`;
+      }
+      return line;
+    })
+    .join("\n");
+}
+
 export interface ChannelOption {
   key: string;
   displayName: string;

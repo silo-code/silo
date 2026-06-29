@@ -16,6 +16,7 @@ import {
   openDiff,
   openPreviewDiff,
   splitActivePanel,
+  getOutputLogs,
 } from "@silo-code/extension-host";
 
 // --- Monaco introspection (source of truth, not DOM scraping) ---------------
@@ -631,6 +632,17 @@ async function handleOp(
       const cwd = args.cwd === undefined ? undefined : String(args.cwd);
       return getProcessService().exec(command, cmdArgs, { cwd });
     }
+
+    // Read entries from an output channel, with optional level / search / limit
+    // filters. Defaults to the first registered channel and up to 200 entries.
+    case "outputLogs":
+      return getOutputLogs({
+        channel: args.channel !== undefined ? String(args.channel) : undefined,
+        level: args.level !== undefined ? String(args.level) : undefined,
+        search: args.search !== undefined ? String(args.search) : undefined,
+        limit:
+          args.limit !== undefined ? Number(args.limit) : undefined,
+      });
 
     default:
       throw new Error(`unknown op: ${op}`);

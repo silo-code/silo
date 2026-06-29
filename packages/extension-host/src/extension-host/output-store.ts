@@ -103,6 +103,77 @@ export function clearChannel(key: string): void {
   if (ch) ch.entries.splice(0, ch.entries.length);
 }
 
+/** A single serialisable log entry returned by {@link getOutputLogs}. */
+export interface OutputLogEntry {
+  timestamp: string; // ISO 8601
+  level: string;
+  message: string;
+  data?: unknown;
+}
+
+/** Result shape returned by {@link getOutputLogs}. */
+export interface OutputLogsResult {
+  /** The channel key that was read. */
+  channel: string;
+  displayName: string;
+  /** Total entries in the channel before filtering. */
+  totalCount: number;
+  /** Filtered entries (most recent `limit` entries that match). */
+  entries: OutputLogEntry[];
+  /** All registered channels, for discovery. */
+  channels: { key: string; displayName: string }[];
+}
+
+/**
+ * Read and filter entries from the output store.
+ * Used by the automation bridge so external tools (e.g. Claude) can query logs.
+ * @internal
+ */
+export function getOutputLogs(opts: {
+  channel?: string;
+  level?: string;
+  search?: string;
+  limit?: number;
+}): OutputLogsResult {
+  const { level = "all", search = "", limit = 200 } = opts;
+
+  const channels = outputStore.order.map((key) => ({
+    key,
+    displayName: outputStore.channels[key]?.displayName ?? key,
+  }));
+
+  const channelKey = opts.channel ?? outputStore.order[0] ?? "";
+  const ch = outputStore.channels[channelKey];
+
+  if (!ch) {
+    return { channel: channelKey, displayName: channelKey, totalCount: 0, entries: [], channels };
+  }
+
+  const lq = search.toLowerCase();
+  let filtered = ch.entries.filter((e) => {
+    if (level !== "all" && e.level !== level) return false;
+    if (lq && !e.message.toLowerCase().includes(lq)) return false;
+    return true;
+  });
+
+  if (filtered.length > limit) {
+    filtered = filtered.slice(filtered.length - limit);
+  }
+
+  return {
+    channel: channelKey,
+    displayName: ch.displayName,
+    totalCount: ch.entries.length,
+    entries: filtered.map((e) => ({
+      timestamp: new Date(e.timestamp).toISOString(),
+      level: e.level,
+      message: e.message,
+      ...(e.data !== undefined ? { data: e.data } : {}),
+    })),
+    channels,
+  };
+}
+
 /**
  * Create a host-owned output channel (e.g. `silo:notifications`).
  * Exported via `sdk-internal.ts` for use by host services that need to write
