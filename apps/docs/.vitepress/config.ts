@@ -143,8 +143,8 @@ export default withMermaid(
                 items: [
                   { text: "Styling your extension", link: "/guide/styling" },
                   {
-                    text: "Workspace decorations & badges",
-                    link: "/guide/workspace-decorations",
+                    text: "Workspace status & badges",
+                    link: "/guide/workspace-status",
                   },
                   {
                     text: "Keyboard navigation",

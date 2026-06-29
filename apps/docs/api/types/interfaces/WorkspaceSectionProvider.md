@@ -5,7 +5,7 @@ Defined in: [packages/sdk/src/workspace-service.ts:53](https://github.com/silo-c
 A section provider that mounts a React component inside workspace rows in the
 Workspaces side panel. Register via [WorkspaceService.registerSection](WorkspaceService.md#registersection).
 
-Sections appear below the path line and any status-row decorations. Multiple
+Sections appear below the path line and any status rows. Multiple
 providers stack vertically in ascending [WorkspaceSectionProvider.order](#order)
 order. Return `null` from your component for workspaces where the section
 should not appear — this produces no DOM node and no visual gap.

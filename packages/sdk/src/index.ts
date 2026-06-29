@@ -51,7 +51,7 @@ export type {
   WorkspaceState,
   CreateWorkspaceInput,
   WorkspaceStatusRow,
-  WorkspaceDecorationProvider,
+  WorkspaceStatusProvider,
   WorkspaceSectionProps,
   WorkspaceSectionProvider,
   WorkspaceBadge,

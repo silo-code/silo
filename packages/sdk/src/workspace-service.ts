@@ -5,7 +5,7 @@ import type { Workspace } from "./domain-types";
 export type { Workspace, TerminalRecord } from "./domain-types";
 
 /**
- * A single status row contributed by a {@link WorkspaceDecorationProvider}.
+ * A single status row contributed by a {@link WorkspaceStatusProvider}.
  * Rows appear below the path line in the Workspaces side panel.
  *
  * @category Consumer Services
@@ -42,7 +42,7 @@ export interface WorkspaceSectionProps {
  * A section provider that mounts a React component inside workspace rows in the
  * Workspaces side panel. Register via {@link WorkspaceService.registerSection}.
  *
- * Sections appear below the path line and any status-row decorations. Multiple
+ * Sections appear below the path line and any status rows. Multiple
  * providers stack vertically in ascending {@link WorkspaceSectionProvider.order}
  * order. Return `null` from your component for workspaces where the section
  * should not appear — this produces no DOM node and no visual gap.
@@ -97,15 +97,15 @@ export interface WorkspaceBadgeProvider {
 }
 
 /**
- * A decoration provider that contributes {@link WorkspaceStatusRow}s to
+ * A status provider that contributes {@link WorkspaceStatusRow}s to
  * workspace rows in the Workspaces side panel. Register via
- * {@link WorkspaceService.registerDecoration}.
+ * {@link WorkspaceService.registerStatus}.
  *
  * @category Consumer Services
  * @public
  */
-export interface WorkspaceDecorationProvider {
-  /** Unique id for this provider — conventionally `"<extension-id>.decoration"`. */
+export interface WorkspaceStatusProvider {
+  /** Unique id for this provider — conventionally `"<extension-id>.status"`. */
   id: string;
   /**
    * Called synchronously for each workspace during render. Return an empty
@@ -185,7 +185,7 @@ export interface WorkspaceService {
   delete(id: string): void;
 
   /**
-   * Register a decoration provider that contributes status rows to workspace
+   * Register a status provider that contributes status rows to workspace
    * rows in the Workspaces side panel. Multiple providers may be registered;
    * their rows are concatenated in registration order. Returns a
    * {@link Disposable} that unregisters the provider.
@@ -193,44 +193,44 @@ export interface WorkspaceService {
    * @example
    * ```ts
    * ctx.subscriptions.push(
-   *   ctx.workspaces.registerDecoration({
-   *     id: "my-ext.decoration",
+   *   ctx.workspaces.registerStatus({
+   *     id: "my-ext.status",
    *     provide(workspaceId) {
    *       const running = getRunningTasks(workspaceId);
    *       return running.map(t => ({ id: t.id, status: "busy", label: t.name, startedAt: t.startedAt }));
    *     },
    *   }),
-   *   ctx.workspaces.subscribeDecorations(() => ctx.workspaces.invalidateDecorations()),
+   *   ctx.workspaces.subscribeStatus(() => ctx.workspaces.invalidateStatus()),
    * );
    * ```
    */
-  registerDecoration(provider: WorkspaceDecorationProvider): Disposable;
+  registerStatus(provider: WorkspaceStatusProvider): Disposable;
 
   /**
    * Concatenate all registered providers' rows for one workspace (in
    * registration order). Called synchronously during panel render — providers
    * must be fast and side-effect-free.
    */
-  getDecorations(workspaceId: string): WorkspaceStatusRow[];
+  getStatus(workspaceId: string): WorkspaceStatusRow[];
 
   /**
-   * Signal that decoration data has changed. Fires all listeners registered
-   * via {@link WorkspaceService.subscribeDecorations}, causing the Workspaces
+   * Signal that status data has changed. Fires all listeners registered
+   * via {@link WorkspaceService.subscribeStatus}, causing the Workspaces
    * panel to re-query providers and re-render the status rows.
    *
    * Call this after any mutation to the state your `provide` function reads.
    */
-  invalidateDecorations(): void;
+  invalidateStatus(): void;
 
   /**
-   * Subscribe to decoration invalidations. The listener is called whenever
-   * {@link WorkspaceService.invalidateDecorations} is invoked. Returns a
+   * Subscribe to status invalidations. The listener is called whenever
+   * {@link WorkspaceService.invalidateStatus} is invoked. Returns a
    * {@link Disposable} that cancels the subscription.
    *
    * The Workspaces panel subscribes internally; extensions may also subscribe
    * to observe invalidations.
    */
-  subscribeDecorations(listener: () => void): Disposable;
+  subscribeStatus(listener: () => void): Disposable;
 
   /**
    * Register a section provider that mounts a React component inside workspace

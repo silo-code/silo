@@ -1,10 +1,10 @@
-# Interface: WorkspaceDecorationProvider
+# Interface: WorkspaceStatusProvider
 
 Defined in: [packages/sdk/src/workspace-service.ts:107](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L107)
 
-A decoration provider that contributes [WorkspaceStatusRow](WorkspaceStatusRow.md)s to
+A status provider that contributes [WorkspaceStatusRow](WorkspaceStatusRow.md)s to
 workspace rows in the Workspaces side panel. Register via
-[WorkspaceService.registerDecoration](WorkspaceService.md#registerdecoration).
+[WorkspaceService.registerStatus](WorkspaceService.md#registerstatus).
 
 ## Properties
 
@@ -16,7 +16,7 @@ id: string;
 
 Defined in: [packages/sdk/src/workspace-service.ts:109](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L109)
 
-Unique id for this provider — conventionally `"<extension-id>.decoration"`.
+Unique id for this provider — conventionally `"<extension-id>.status"`.
 
 ## Methods
 

@@ -116,13 +116,29 @@ Scroll positions keyed by editor record ID: { top, left } in pixels.
 
 ***
 
+### editorViewStates?
+
+```ts
+optional editorViewStates?: Record<string, unknown>;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:131](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L131)
+
+Monaco view states keyed by editor record ID. Each value is the opaque
+JSON produced by `editor.saveViewState()` — captures cursor position,
+selection, scroll, and folded regions. Supersedes
+[Workspace.editorScrollPositions](#editorscrollpositions) for editors that support it;
+scroll-only data is kept as a fallback for older persisted workspaces.
+
+***
+
 ### closedAt?
 
 ```ts
 optional closedAt?: string | null;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:129](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L129)
+Defined in: [packages/sdk/src/domain-types.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L137)
 
 ISO timestamp of when the workspace was soft-closed, or null/undefined
 if the workspace is open. Closed workspaces are hidden from the main
@@ -136,7 +152,7 @@ list and surfaced in a "reopen" picker.
 optional sidePanelLocations?: Record<string, SidePanelSlot>;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:131](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L131)
+Defined in: [packages/sdk/src/domain-types.ts:139](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L139)
 
 Per-workspace side panel state — saved/restored on workspace switch.
 
@@ -148,7 +164,7 @@ Per-workspace side panel state — saved/restored on workspace switch.
 optional sidePanelOrder?: Record<string, number>;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:132](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L132)
+Defined in: [packages/sdk/src/domain-types.ts:140](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L140)
 
 ***
 
@@ -158,7 +174,7 @@ Defined in: [packages/sdk/src/domain-types.ts:132](https://github.com/silo-code/
 optional activeSidePanelTabs?: Record<string, string>;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L133)
+Defined in: [packages/sdk/src/domain-types.ts:141](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L141)
 
 ***
 
@@ -168,7 +184,7 @@ Defined in: [packages/sdk/src/domain-types.ts:133](https://github.com/silo-code/
 optional sidePanelScrollPositions?: Record<string, number>;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L134)
+Defined in: [packages/sdk/src/domain-types.ts:142](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L142)
 
 ***
 
@@ -178,7 +194,7 @@ Defined in: [packages/sdk/src/domain-types.ts:134](https://github.com/silo-code/
 optional sidePanelVisibility?: Record<string, boolean>;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L137)
+Defined in: [packages/sdk/src/domain-types.ts:145](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L145)
 
 Hidden side panels, keyed by panel id; only an explicit `false` (hidden)
 is stored, so an absent key means visible (the default).
@@ -191,7 +207,31 @@ is stored, so an absent key means visible (the default).
 optional extensionState?: Record<string, Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:138](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L138)
+Defined in: [packages/sdk/src/domain-types.ts:146](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L146)
+
+***
+
+### leftPanelCollapsed?
+
+```ts
+optional leftPanelCollapsed?: boolean;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:148](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L148)
+
+Whether the left side column is collapsed. Per-workspace.
+
+***
+
+### rightPanelCollapsed?
+
+```ts
+optional rightPanelCollapsed?: boolean;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:150](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L150)
+
+Whether the right side column is collapsed. Per-workspace.
 
 ***
 
@@ -201,6 +241,6 @@ Defined in: [packages/sdk/src/domain-types.ts:138](https://github.com/silo-code/
 optional previewEditorId?: string | null;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:140](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L140)
+Defined in: [packages/sdk/src/domain-types.ts:152](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L152)
 
 ID of the current preview (temporary) editor, if any.
