@@ -54,11 +54,10 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   const service = ctx.workspaces;
   const snap = useServiceState(service);
   const [home, setHome] = useState("");
-  // Re-render when decoration providers invalidate their data.
-  const [, setDecorationTick] = useState(0);
+  // Re-render when status providers invalidate their data.
+  const [, setStatusTick] = useState(0);
   useEffect(() => {
-    return service.subscribeDecorations(() => setDecorationTick((t) => t + 1))
-      .dispose;
+    return service.subscribeStatus(() => setStatusTick((t) => t + 1)).dispose;
   }, [service]);
   // Re-render when section providers are registered or unregistered.
   const [, setSectionTick] = useState(0);
@@ -275,7 +274,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                       </span>
                     )}
                   </div>
-                  <WorkspaceStatusRows rows={service.getDecorations(ws.id)} />
+                  <WorkspaceStatusRows rows={service.getStatus(ws.id)} />
                   <div className="ws-sections">
                     {workspaceSectionRegistry.list().map((p) => {
                       const Comp = p.component;

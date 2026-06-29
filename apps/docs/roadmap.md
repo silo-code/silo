@@ -30,7 +30,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.terminals.registerTabDecoration`          | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                                                               |
 | `ctx.terminals.focus`                          | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                                                               |
 | `ctx.terminals.subscribeOsc`                   | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals#osc-events)                                                    |
-| `ctx.workspaces.registerDecoration`            | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces)                                                              |
+| `ctx.workspaces.registerStatus`                | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces)                                                              |
 | `ctx.workspaces.registerSection`               | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces#workspace-sections)                                           |
 | `ctx.files`                                    | <Badge type="tip" text="stable" />   | [docs](/api/files/)                                                                        |
 | `ctx.theme` + `registerThemePreset`            | <Badge type="tip" text="stable" />   | [docs](/api/theme/)                                                                        |

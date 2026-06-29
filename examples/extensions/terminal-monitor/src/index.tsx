@@ -89,7 +89,7 @@ function activate(ctx: ExtensionContext) {
       iconChoices.set(terminalId, choice);
       manualOverrides.add(terminalId);
     }
-    ctx.workspaces.invalidateDecorations();
+    ctx.workspaces.invalidateStatus();
     ctx.terminals.invalidateTabDecorations();
   }
 
@@ -100,7 +100,7 @@ function activate(ctx: ExtensionContext) {
     } else {
       iconChoices.set(terminalId, choice);
     }
-    ctx.workspaces.invalidateDecorations();
+    ctx.workspaces.invalidateStatus();
     ctx.terminals.invalidateTabDecorations();
   }
 
@@ -147,7 +147,7 @@ function activate(ctx: ExtensionContext) {
 
   ctx.subscriptions.push(
     ctx.workspaces.subscribe(() => {
-      ctx.workspaces.invalidateDecorations();
+      ctx.workspaces.invalidateStatus();
       syncOscSubscriptions();
     }),
   );
@@ -156,8 +156,8 @@ function activate(ctx: ExtensionContext) {
   syncOscSubscriptions();
 
   ctx.subscriptions.push(
-    ctx.workspaces.registerDecoration({
-      id: "silo.terminal-monitor.workspace",
+    ctx.workspaces.registerStatus({
+      id: "silo.terminal-monitor.status",
       provide(workspaceId): WorkspaceStatusRow[] {
         const ws = ctx.workspaces.get(workspaceId);
         if (!ws) return [];

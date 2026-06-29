@@ -61,7 +61,7 @@ from [`getState()`](/api/types/interfaces/WorkspaceService#getstate),
 | `activeId` | `string \| null`       | id of the active workspace           |
 | `hydrated` | `boolean`              | true once persisted state has loaded |
 
-## Workspace decoration
+## Workspace status
 
 Extensions can contribute status rows below each workspace's path line in the
 Workspaces panel. Rows carry a semantic dot, a label, and an optional elapsed
@@ -69,9 +69,9 @@ timestamp — useful for surfacing running tasks, agent sessions, CI status, etc
 
 ```ts
 ctx.subscriptions.push(
-  ctx.workspaces.subscribe(() => ctx.workspaces.invalidateDecorations()),
-  ctx.workspaces.registerDecoration({
-    id: "my-ext.decoration",
+  ctx.workspaces.subscribe(() => ctx.workspaces.invalidateStatus()),
+  ctx.workspaces.registerStatus({
+    id: "my-ext.status",
     provide(workspaceId) {
       return getRunningTasks(workspaceId).map((t) => ({
         id: t.id,
@@ -84,19 +84,19 @@ ctx.subscriptions.push(
 );
 ```
 
-| Method                                                                                          | What it does                                                                                                                                                                       |
-| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`registerDecoration(provider)`](/api/types/interfaces/WorkspaceService#registerdecoration)     | Register a provider that returns status rows per workspace. Returns a [`Disposable`](/api/types/interfaces/Disposable). Multiple providers are concatenated in registration order. |
-| [`getDecorations(workspaceId)`](/api/types/interfaces/WorkspaceService#getdecorations)          | Concatenate all registered providers' rows for one workspace (called during panel render).                                                                                         |
-| [`invalidateDecorations()`](/api/types/interfaces/WorkspaceService#invalidatedecorations)       | Signal that decoration data changed — triggers a panel re-render.                                                                                                                  |
-| [`subscribeDecorations(listener)`](/api/types/interfaces/WorkspaceService#subscribedecorations) | Subscribe to decoration invalidations. Returns a [`Disposable`](/api/types/interfaces/Disposable).                                                                                 |
+| Method                                                                                | What it does                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`registerStatus(provider)`](/api/types/interfaces/WorkspaceService#registerstatus)   | Register a provider that returns status rows per workspace. Returns a [`Disposable`](/api/types/interfaces/Disposable). Multiple providers are concatenated in registration order. |
+| [`getStatus(workspaceId)`](/api/types/interfaces/WorkspaceService#getstatus)          | Concatenate all registered providers' rows for one workspace (called during panel render).                                                                                         |
+| [`invalidateStatus()`](/api/types/interfaces/WorkspaceService#invalidatestatus)       | Signal that status data changed — triggers a panel re-render.                                                                                                                      |
+| [`subscribeStatus(listener)`](/api/types/interfaces/WorkspaceService#subscribestatus) | Subscribe to status invalidations. Returns a [`Disposable`](/api/types/interfaces/Disposable).                                                                                     |
 
 Each row is a [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow).
 
 ## Workspace sections
 
 Extensions can mount an arbitrary React component inside each workspace row —
-below the path line and any decoration rows. Sections are useful for richer
+below the path line and any status rows. Sections are useful for richer
 surfaces: interactive cards, agent-status summaries, call indicators, etc.
 
 Return `null` from your component for workspaces where the section should not
@@ -164,7 +164,7 @@ Each badge is a [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge); the pr
 
 Pass [`WorkspaceService`](/api/types/interfaces/WorkspaceService).
 
-Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow) · [`WorkspaceDecorationProvider`](/api/types/interfaces/WorkspaceDecorationProvider) · [`WorkspaceSectionProvider`](/api/types/interfaces/WorkspaceSectionProvider) · [`WorkspaceSectionProps`](/api/types/interfaces/WorkspaceSectionProps) · [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge) · [`WorkspaceBadgeProvider`](/api/types/interfaces/WorkspaceBadgeProvider) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
+Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow) · [`WorkspaceStatusProvider`](/api/types/interfaces/WorkspaceStatusProvider) · [`WorkspaceSectionProvider`](/api/types/interfaces/WorkspaceSectionProvider) · [`WorkspaceSectionProps`](/api/types/interfaces/WorkspaceSectionProps) · [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge) · [`WorkspaceBadgeProvider`](/api/types/interfaces/WorkspaceBadgeProvider) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
 
 ## See also
 
