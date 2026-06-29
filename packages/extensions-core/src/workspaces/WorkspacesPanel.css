@@ -145,7 +145,7 @@
 
 /* The Tooltip host wraps ws-folder-path and must inherit flex growth so the
    inner span's ResizeObserver still measures the correct constrained width. */
-.ws-item .ws-folder>.silo-tooltip-host {
+.ws-item .ws-folder > .silo-tooltip-host {
   flex: 1;
   min-width: 0;
 }
@@ -300,7 +300,7 @@
 }
 
 /* The Tooltip host wraps ws-folder-list-path and must inherit flex growth. */
-.ws-folder-list-item>.silo-tooltip-host {
+.ws-folder-list-item > .silo-tooltip-host {
   flex: 1;
   min-width: 0;
 }
@@ -389,7 +389,6 @@
 }
 
 @keyframes ws-status-pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -409,7 +408,7 @@
   color: var(--silo-color-text-hi);
 }
 
-.ws-folder+.ws-status-row {
+.ws-folder + .ws-status-row {
   margin-top: 6px;
 }
 
@@ -426,6 +425,6 @@
   display: contents;
 }
 
-.ws-sections>* {
+.ws-sections > * {
   grid-column: 2;
 }
