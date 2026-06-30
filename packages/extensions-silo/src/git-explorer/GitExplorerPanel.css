@@ -13,7 +13,7 @@
   font-family: var(--silo-font-ui);
 }
 
-.git-panel+.git-panel {
+.git-panel + .git-panel {
   border-top: 1px solid var(--silo-color-border);
   padding-top: 4px;
   margin-top: 0;
@@ -700,7 +700,7 @@
   color: var(--silo-color-text);
 }
 
-.git-branch-row+.git-branch-row {
+.git-branch-row + .git-branch-row {
   border-top: 1px solid var(--silo-color-border);
 }
 
@@ -830,7 +830,7 @@
   padding: 6px 10px;
 }
 
-.git-force-delete-commit+.git-force-delete-commit {
+.git-force-delete-commit + .git-force-delete-commit {
   border-top: 1px solid var(--silo-color-border);
 }
 
