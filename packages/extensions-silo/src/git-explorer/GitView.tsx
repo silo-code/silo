@@ -108,7 +108,7 @@ export function GitView({
                     </div>
                   </>
                 ),
-                { title, dismissible: true, size: "lg" },
+                { title, dismissible: true, size: "md" },
               ),
           },
         ];
@@ -499,7 +499,7 @@ export function GitView({
           notifyError={notifyError}
         />
       ),
-      { title: "Switch branches", size: "lg", dismissible: true },
+      { title: "Switch branches", size: "md", dismissible: true },
     );
   }
 

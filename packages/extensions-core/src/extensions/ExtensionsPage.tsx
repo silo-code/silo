@@ -65,7 +65,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
             />
           ),
           {
-            size: "lg",
+            size: "md",
             dismissible: true,
             ariaLabel: `${preview.name} is requesting access`,
           },

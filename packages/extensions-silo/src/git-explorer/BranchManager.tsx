@@ -249,7 +249,7 @@ export function BranchManager({
             close={close}
           />
         ),
-        { title: `Force-delete "${b.name}"?`, dismissible: true, size: "lg" },
+        { title: `Force-delete "${b.name}"?`, dismissible: true, size: "md" },
       )
       .then((r) => r === true);
   }
