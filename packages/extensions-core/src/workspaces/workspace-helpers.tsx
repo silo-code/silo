@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Tooltip } from "@silo-code/sdk";
 import type {
   FileService,
@@ -60,6 +60,29 @@ export function fullPath(folder: string, home: string): string {
   return p;
 }
 
+function truncatePath(el: HTMLElement, text: string): string | null {
+  const w = el.offsetWidth;
+  if (w === 0) return null;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  const style = window.getComputedStyle(el);
+  ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  if (ctx.measureText(text).width <= w) return text;
+  const E = "…";
+  let lo = 0,
+    hi = text.length;
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (ctx.measureText(E + text.slice(mid)).width <= w) hi = mid;
+    else lo = mid + 1;
+  }
+  // Snap to the next folder boundary so we never cut mid-name
+  const slash = text.indexOf("/", lo);
+  const cut = slash !== -1 ? slash : lo;
+  return cut >= text.length ? E : E + text.slice(cut);
+}
+
 export function FrontTruncatedPath({
   text,
   className,
@@ -70,6 +93,15 @@ export function FrontTruncatedPath({
   const ref = useRef<HTMLSpanElement>(null);
   const [display, setDisplay] = useState(text);
 
+  // Synchronous before-paint measurement — prevents the flash of the full
+  // untruncated path that a post-paint useEffect alone would produce.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const result = truncatePath(el, text);
+    if (result !== null) setDisplay(result);
+  }, [text]);
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -78,29 +110,8 @@ export function FrontTruncatedPath({
     function compute() {
       raf = null;
       if (!el) return;
-      const w = el.offsetWidth;
-      if (w === 0) return;
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const style = window.getComputedStyle(el);
-      ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-      if (ctx.measureText(text).width <= w) {
-        setDisplay(text);
-        return;
-      }
-      const E = "…";
-      let lo = 0,
-        hi = text.length;
-      while (lo < hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        if (ctx.measureText(E + text.slice(mid)).width <= w) hi = mid;
-        else lo = mid + 1;
-      }
-      // Snap to the next folder boundary so we never cut mid-name
-      const slash = text.indexOf("/", lo);
-      const cut = slash !== -1 ? slash : lo;
-      setDisplay(cut >= text.length ? E : E + text.slice(cut));
+      const result = truncatePath(el, text);
+      if (result !== null) setDisplay(result);
     }
 
     const ro = new ResizeObserver(() => {
@@ -108,6 +119,7 @@ export function FrontTruncatedPath({
       raf = requestAnimationFrame(compute);
     });
     ro.observe(el);
+    // Fallback: catches the w=0 edge case if useLayoutEffect found it unsized.
     compute();
     return () => {
       ro.disconnect();

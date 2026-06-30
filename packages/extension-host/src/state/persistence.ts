@@ -176,6 +176,11 @@ export async function hydrate(configDir: string): Promise<void> {
   store.workspaceOrder = listing.workspaceOrder;
   store.activeWorkspaceId = listing.activeWorkspaceId;
 
+  // Sections — absent in older indexes; default to empty.
+  store.sections = index?.sections ?? {};
+  store.sectionOrder = index?.sectionOrder ?? [];
+  store.workspaceSections = index?.workspaceSections ?? {};
+
   // Seed lastWritten from the loaded files so the first flush only rewrites what
   // actually changes afterward.
   lastWritten = new Map(
@@ -267,6 +272,9 @@ async function doPersist(): Promise<void> {
       editorSettings: { ...store.editorSettings },
       terminalSettings: { ...store.terminalSettings },
       globalExtensionState: store.globalExtensionState,
+      sections: store.sections,
+      sectionOrder: [...store.sectionOrder],
+      workspaceSections: store.workspaceSections,
     }),
   );
   await indexStore.save();

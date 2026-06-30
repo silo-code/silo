@@ -7,6 +7,7 @@ import type {
   TerminalKind,
   TerminalRecord,
   Workspace,
+  WorkspacePanelSection,
 } from "./types";
 
 function uuid(): string {
@@ -205,11 +206,105 @@ export function removeExtraFolder(workspaceId: string, folder: string): void {
 
 export function deleteWorkspace(id: string): void {
   if (!store.workspaces[id]) return;
+  removeWorkspaceFromSection(id);
   delete store.workspaces[id];
   store.workspaceOrder = store.workspaceOrder.filter((wid) => wid !== id);
   if (store.activeWorkspaceId === id) {
     store.activeWorkspaceId = pickNextOpen(null);
   }
+}
+
+// ── Workspace panel sections ────────────────────────────────────────────────
+
+export function createSection(name: string): WorkspacePanelSection {
+  const id = `sec_${uuid()}`;
+  const section: WorkspacePanelSection = { id, name, collapsed: false, workspaceOrder: [] };
+  store.sections[id] = section;
+  store.sectionOrder.push(id);
+  return section;
+}
+
+export function renameSection(id: string, name: string): void {
+  const sec = store.sections[id];
+  if (!sec) return;
+  sec.name = name;
+}
+
+export function deleteSection(id: string): void {
+  const sec = store.sections[id];
+  if (!sec) return;
+  for (const wsId of sec.workspaceOrder) {
+    delete store.workspaceSections[wsId];
+  }
+  delete store.sections[id];
+  store.sectionOrder = store.sectionOrder.filter((sid) => sid !== id);
+}
+
+export function reorderSections(
+  fromId: string,
+  toId: string,
+  position: "before" | "after",
+): void {
+  if (fromId === toId) return;
+  const order = store.sectionOrder;
+  const fromIndex = order.indexOf(fromId);
+  if (fromIndex === -1) return;
+  order.splice(fromIndex, 1);
+  let toIndex = order.indexOf(toId);
+  if (toIndex === -1) {
+    order.splice(fromIndex, 0, fromId);
+    return;
+  }
+  if (position === "after") toIndex += 1;
+  order.splice(toIndex, 0, fromId);
+}
+
+export function moveWorkspaceToSection(wsId: string, secId: string): void {
+  const sec = store.sections[secId];
+  if (!sec) return;
+  removeWorkspaceFromSection(wsId);
+  store.workspaceSections[wsId] = secId;
+  if (!sec.workspaceOrder.includes(wsId)) {
+    sec.workspaceOrder.push(wsId);
+  }
+}
+
+export function removeWorkspaceFromSection(wsId: string): void {
+  const secId = store.workspaceSections[wsId];
+  if (!secId) return;
+  const sec = store.sections[secId];
+  if (sec) {
+    sec.workspaceOrder = sec.workspaceOrder.filter((id) => id !== wsId);
+  }
+  delete store.workspaceSections[wsId];
+}
+
+export function reorderWorkspaceInSection(
+  secId: string,
+  fromId: string,
+  toId: string,
+  position: "before" | "after",
+): void {
+  if (fromId === toId) return;
+  const sec = store.sections[secId];
+  if (!sec) return;
+  const order = sec.workspaceOrder;
+  const fromIndex = order.indexOf(fromId);
+  if (fromIndex === -1) return;
+  order.splice(fromIndex, 1);
+  let toIndex = order.indexOf(toId);
+  if (toIndex === -1) {
+    order.splice(fromIndex, 0, fromId);
+    return;
+  }
+  if (position === "after") toIndex += 1;
+  order.splice(toIndex, 0, fromId);
+}
+
+export function toggleSectionCollapsed(id: string): void {
+  const sec = store.sections[id];
+  if (!sec) return;
+  sec.collapsed = !sec.collapsed;
 }
 
 export function addTerminal(

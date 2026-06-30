@@ -96,6 +96,23 @@ export { workspaceSectionRegistry } from "./workspace-section-registry";
 // *absent*: theme-read routes through public `ctx.theme`, file I/O through
 // `ctx.files`, document/tab ops through `ctx.editors`, and drag-and-drop through
 // `ctx.dnd` — only the genuinely host-bound editor internals live here.
+// Workspace panel sections — section CRUD and reorder operations consumed
+// exclusively by WorkspacesPanel (core.*). The *read* side uses useSnapshot(store)
+// which is already exported below; these are the *write* operations. Not public
+// because sections are a panel-organizational concern, not a WorkspaceService
+// concept — no silo.*/third-party extension needs to manage panel groupings.
+export {
+  createSection,
+  renameSection,
+  deleteSection,
+  reorderSections,
+  moveWorkspaceToSection,
+  removeWorkspaceFromSection,
+  reorderWorkspaceInSection,
+  toggleSectionCollapsed,
+} from "../state/workspaces";
+export type { WorkspacePanelSection } from "../state/types";
+
 export {
   // The shared editor seam: reactive host store + the editor/diff record model,
   // scroll positions, editor settings get/set, the Monaco theme-name mapping +

@@ -18,6 +18,18 @@ import type { Workspace, SidePanelSlot, CustomTheme } from "@silo-code/sdk";
 
 // ── Host-only state types (not part of the public surface) ──
 
+/**
+ * A named, collapsible group in the Workspaces side panel. Purely
+ * organizational — sections don't affect workspace activation or the public
+ * WorkspaceService. Stored in `AppState.sections` keyed by id.
+ */
+export interface WorkspacePanelSection {
+  id: string; // "sec_<uuid>"
+  name: string;
+  collapsed: boolean;
+  workspaceOrder: string[]; // workspace IDs in this section, in user-defined order
+}
+
 export interface AppState {
   workspaces: Record<string, Workspace>;
   workspaceOrder: string[];
@@ -75,6 +87,12 @@ export interface AppState {
    * `false` (hidden) is stored.
    */
   sidePanelVisibility: Record<string, boolean>;
+  /** Named collapsible groups in the Workspaces panel, keyed by section id. */
+  sections: Record<string, WorkspacePanelSection>;
+  /** Ordered list of section ids, defining panel display order. */
+  sectionOrder: string[];
+  /** Reverse-lookup map from workspace id to its section id. */
+  workspaceSections: Record<string, string>;
   /**
    * Set to `true` after `ExtensionManager.loadInstalled()` resolves. The dock
    * gates `fromJSON` layout restore behind this flag so external extensions

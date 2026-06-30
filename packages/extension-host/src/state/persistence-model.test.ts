@@ -253,4 +253,40 @@ describe("buildIndex", () => {
     expect(index.terminalSettings).toBeUndefined();
     expect(index.uiFontSize).toBeUndefined();
   });
+
+  it("round-trips section fields when provided", () => {
+    const sections = {
+      "sec_1": { id: "sec_1", name: "Work", collapsed: false, workspaceOrder: ["ws_a"] },
+    };
+    const index = buildIndex({
+      workspaceOrder: ["ws_a"],
+      activeWorkspaceId: "ws_a",
+      sections,
+      sectionOrder: ["sec_1"],
+      workspaceSections: { "ws_a": "sec_1" },
+    });
+    expect(index.sections).toEqual(sections);
+    expect(index.sectionOrder).toEqual(["sec_1"]);
+    expect(index.workspaceSections).toEqual({ "ws_a": "sec_1" });
+    // Must be copies, not the same references
+    expect(index.sections).not.toBe(sections);
+    expect(index.sectionOrder).not.toBe(["sec_1"]);
+  });
+
+  it("deep-clones section workspaceOrder arrays", () => {
+    const workspaceOrder = ["ws_a"];
+    const sections = {
+      "sec_1": { id: "sec_1", name: "S", collapsed: false, workspaceOrder },
+    };
+    const index = buildIndex({ workspaceOrder: [], activeWorkspaceId: null, sections });
+    workspaceOrder.push("ws_b");
+    expect(index.sections!["sec_1"].workspaceOrder).toEqual(["ws_a"]);
+  });
+
+  it("omits section fields when not provided", () => {
+    const index = buildIndex({ workspaceOrder: [], activeWorkspaceId: null });
+    expect(index.sections).toBeUndefined();
+    expect(index.sectionOrder).toBeUndefined();
+    expect(index.workspaceSections).toBeUndefined();
+  });
 });

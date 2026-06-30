@@ -13,6 +13,7 @@ import type {
   SidePanelSlot,
   TerminalSettings,
   Workspace,
+  WorkspacePanelSection,
 } from "./types";
 
 /** The global index blob — everything in the old store *except* the workspaces
@@ -31,6 +32,10 @@ export interface PersistedIndex {
   // Legacy migration fields — stored globally in old installs, now per-workspace.
   leftPanelCollapsed?: boolean;
   rightPanelCollapsed?: boolean;
+  // Workspace panel sections — absent in older indexes (pre-section installs).
+  sections?: Record<string, WorkspacePanelSection>;
+  sectionOrder?: string[];
+  workspaceSections?: Record<string, string>;
 }
 
 /** The legacy monolithic blob (one `"state"` key in the app-data store) we
@@ -136,7 +141,22 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
     globalExtensionState: snapshot.globalExtensionState
       ? cloneExtensionState(snapshot.globalExtensionState)
       : undefined,
+    sections: snapshot.sections ? cloneSections(snapshot.sections) : undefined,
+    sectionOrder: snapshot.sectionOrder ? [...snapshot.sectionOrder] : undefined,
+    workspaceSections: snapshot.workspaceSections
+      ? { ...snapshot.workspaceSections }
+      : undefined,
   };
+}
+
+function cloneSections(
+  src: Record<string, WorkspacePanelSection>,
+): Record<string, WorkspacePanelSection> {
+  const out: Record<string, WorkspacePanelSection> = {};
+  for (const [id, sec] of Object.entries(src)) {
+    out[id] = { ...sec, workspaceOrder: [...sec.workspaceOrder] };
+  }
+  return out;
 }
 
 /** Return a copy of `ws` with the live panel state merged in — used for the
