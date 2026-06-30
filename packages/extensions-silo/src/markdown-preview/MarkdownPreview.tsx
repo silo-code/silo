@@ -1,12 +1,82 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import type { EditorProps, ExtensionContext } from "@silo-code/sdk";
 import { buildPreviewMenuItems } from "./menu";
 import { classifyMarkdownLink } from "./links";
 import { parseFrontmatter, formatFrontmatterValue } from "./frontmatter";
+import { GITHUB_SANITIZE_SCHEMA } from "./sanitize-schema";
+import { isExternalImageUrl, resolveLocalImagePath } from "./resolveImageSrc";
 import "./MarkdownPreview.css";
+
+const MIME_BY_EXT: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  bmp: "image/bmp",
+  avif: "image/avif",
+  ico: "image/x-icon",
+};
+
+function mimeFromPath(p: string): string {
+  return (
+    MIME_BY_EXT[p.split(".").pop()?.toLowerCase() ?? ""] ??
+    "application/octet-stream"
+  );
+}
+
+interface MarkdownImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+  ctx: ExtensionContext;
+  filePath: string | null;
+}
+
+function MarkdownImage({
+  src,
+  alt,
+  ctx,
+  filePath,
+  ...rest
+}: MarkdownImageProps) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    setBlobUrl(null);
+    if (!src || isExternalImageUrl(src)) return;
+    const absolutePath = resolveLocalImagePath(src, filePath);
+    if (!absolutePath) return;
+
+    let cancelled = false;
+    let createdUrl: string | null = null;
+
+    ctx.files
+      .readBytes(absolutePath)
+      .then((bytes) => {
+        if (cancelled) return;
+        const blob = new Blob([bytes], { type: mimeFromPath(absolutePath) });
+        createdUrl = URL.createObjectURL(blob);
+        setBlobUrl(createdUrl);
+      })
+      .catch(() => {
+        // Broken image indicator renders naturally when src is undefined.
+      });
+
+    return () => {
+      cancelled = true;
+      if (createdUrl) URL.revokeObjectURL(createdUrl);
+    };
+  }, [src, filePath, ctx]);
+
+  const effectiveSrc = isExternalImageUrl(src ?? "")
+    ? src
+    : (blobUrl ?? undefined);
+  return <img src={effectiveSrc} alt={alt} {...rest} />;
+}
 
 function FrontmatterBlock({ fields }: { fields: Record<string, unknown> }) {
   const entries = Object.entries(fields);
@@ -42,6 +112,28 @@ export function MarkdownPreview({
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bodyRef = useRef<HTMLElement>(null);
+
+  const components = useMemo(
+    () => ({
+      img({
+        node: _node,
+        src,
+        alt,
+        ...rest
+      }: React.ImgHTMLAttributes<HTMLImageElement> & { node?: unknown }) {
+        return (
+          <MarkdownImage
+            src={src}
+            alt={alt}
+            ctx={ctx}
+            filePath={filePath}
+            {...rest}
+          />
+        );
+      },
+    }),
+    [ctx, filePath],
+  );
 
   useEffect(() => {
     if (!filePath) {
@@ -146,7 +238,14 @@ export function MarkdownPreview({
             return (
               <>
                 {parsed && <FrontmatterBlock fields={parsed.fields} />}
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[
+                    rehypeRaw,
+                    [rehypeSanitize, GITHUB_SANITIZE_SCHEMA],
+                  ]}
+                  components={components}
+                >
                   {body}
                 </ReactMarkdown>
               </>
