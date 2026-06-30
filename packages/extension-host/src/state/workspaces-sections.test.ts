@@ -13,6 +13,7 @@ import type { WorkspacePanelSection } from "./types";
 import {
   createSection,
   renameSection,
+  setSectionColor,
   deleteSection,
   reorderSections,
   moveWorkspaceToSection,
@@ -57,6 +58,27 @@ describe("createSection", () => {
     const sec = createSection("Test");
     expect(sec.id).toMatch(/^sec_/);
     expect(sec.name).toBe("Test");
+  });
+});
+
+// ── setSectionColor ───────────────────────────────────────────────────────────
+
+describe("setSectionColor", () => {
+  it("sets the color on a section", () => {
+    const sec = makeSection("S");
+    setSectionColor(sec.id, "#e06c75");
+    expect(store.sections[sec.id].color).toBe("#e06c75");
+  });
+
+  it("clears the color when passed undefined", () => {
+    const sec = makeSection("S");
+    setSectionColor(sec.id, "#e06c75");
+    setSectionColor(sec.id, undefined);
+    expect(store.sections[sec.id].color).toBeUndefined();
+  });
+
+  it("no-ops for an unknown id", () => {
+    expect(() => setSectionColor("sec_unknown", "#e06c75")).not.toThrow();
   });
 });
 

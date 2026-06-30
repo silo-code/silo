@@ -105,6 +105,7 @@ export {
   createSection,
   renameSection,
   deleteSection,
+  setSectionColor,
   reorderSections,
   moveWorkspaceToSection,
   removeWorkspaceFromSection,

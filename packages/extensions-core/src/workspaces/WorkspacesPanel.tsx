@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CaretRight, Plus, SquaresFour } from "@phosphor-icons/react";
 import { useSnapshot } from "valtio";
 import {
   store,
   createSection,
-  renameSection,
   deleteSection,
   reorderSections,
   moveWorkspaceToSection,
@@ -35,6 +34,7 @@ import {
 } from "./workspace-helpers";
 import { buildAddWorkspaceItems } from "./workspace-add-menu";
 import { openWorkspaceProperties } from "./workspace-properties";
+import { openSectionProperties } from "./section-properties";
 import "./WorkspacesPanel.css";
 
 const WorkspaceIcon = SquaresFour;
@@ -170,14 +170,6 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
       });
   }
 
-  function openRenameSectionModal(secId: string, currentName: string) {
-    void ctx.ui
-      .prompt({ title: "Rename Section", label: "Name", initialValue: currentName })
-      .then((name) => {
-        if (name?.trim()) renameSection(secId, name.trim());
-      });
-  }
-
   function openClosedMenu() {
     const items = buildAddWorkspaceItems({
       ctx,
@@ -235,19 +227,18 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   }
 
   function openSectionMenu(
-    secId: string,
-    secName: string,
+    sec: { id: string; name: string; color?: string; collapsed: boolean; workspaceOrder: readonly string[] | string[] },
     placement: { at?: { x: number; y: number }; anchor?: HTMLElement | null },
   ) {
     void ctx.ui.showMenu({
       items: [
         {
-          label: "Rename…",
-          run: () => openRenameSectionModal(secId, secName),
+          label: "Properties…",
+          run: () => void openSectionProperties(ctx, sec),
         },
         {
           label: "Delete Section",
-          run: () => deleteSection(secId),
+          run: () => deleteSection(sec.id),
         },
       ],
       toggle: false,
@@ -504,8 +495,16 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                 .filter(Boolean)
                 .join(" ");
 
+              const colorStyle = sec.color
+                ? ({ "--ws-section-color": sec.color } as React.CSSProperties)
+                : undefined;
+
               return (
-                <li key={sec.id} className="ws-section">
+                <li
+                  key={sec.id}
+                  className={`ws-section${sec.color ? " ws-section--colored" : ""}`}
+                  style={colorStyle}
+                >
                   <div
                     className={headerClasses}
                     draggable
@@ -514,14 +513,18 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                     onDragOver={(e) => onSectionDragOver(e, sec.id)}
                     onDrop={(e) => onSectionDrop(e, sec.id)}
                     onDragEnd={onSectionDragEnd}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      void openSectionProperties(ctx, sec);
+                    }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       if (e.button === 2) {
-                        openSectionMenu(sec.id, sec.name, {
+                        openSectionMenu(sec, {
                           at: { x: e.clientX, y: e.clientY },
                         });
                       } else {
-                        openSectionMenu(sec.id, sec.name, {
+                        openSectionMenu(sec, {
                           anchor: e.currentTarget,
                         });
                       }

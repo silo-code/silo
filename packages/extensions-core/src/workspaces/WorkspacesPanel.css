@@ -433,6 +433,11 @@
 
 .ws-section {
   list-style: none;
+  margin-top: 12px;
+}
+
+.ws-list > .ws-section:first-child {
+  margin-top: 0;
 }
 
 .ws-section-header {
@@ -507,4 +512,100 @@
 /* Indent workspace items inside a section */
 .ws-section-body .ws-item {
   margin-left: 12px;
+}
+
+/* ── Colored section accent ──────────────────────────────────────────────── */
+
+/* The whole section becomes one bordered card */
+.ws-section--colored {
+  --ws-section-mix: 20%;
+  --ws-section-mix-hover: 30%;
+  border: 2px solid color-mix(in srgb, var(--ws-section-color) var(--ws-section-mix), transparent);
+  border-radius: var(--silo-radius-sm);
+  margin-inline: 4px;
+  margin-bottom: 4px;
+  /* margin-top intentionally omitted — controlled by .ws-section base rule */
+}
+
+[data-theme="light"] .ws-section--colored {
+  --ws-section-mix: 35%;
+  --ws-section-mix-hover: 45%;
+}
+
+/* Header fills the top of the card with a subtle tint */
+.ws-section--colored .ws-section-header {
+  background: color-mix(in srgb, var(--ws-section-color) var(--ws-section-mix), transparent);
+  margin: 0;
+  border-radius: calc(var(--silo-radius-sm) - 2px) calc(var(--silo-radius-sm) - 2px) 0 0;
+}
+
+.ws-section--colored .ws-section-header:hover {
+  background: color-mix(in srgb, var(--ws-section-color) var(--ws-section-mix-hover), transparent);
+}
+
+.ws-section--colored .ws-section-name,
+.ws-section--colored .ws-section-caret {
+  color: var(--ws-section-color);
+  opacity: 1;
+}
+
+/* Body sits inside the card — no separate border needed */
+.ws-section--colored .ws-section-body {
+  margin: 0;
+  padding: 4px 0 2px;
+}
+
+/* Items inside a colored section use symmetric margins matching the right side */
+.ws-section--colored .ws-section-body .ws-item {
+  margin-left: 4px;
+}
+
+/* ── Section color swatch palette ───────────────────────────────────────── */
+
+.ws-sec-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ws-sec-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  background: var(--silo-color-button-bg);
+  outline: none;
+  transition: transform 80ms ease, border-color 80ms ease;
+}
+
+.ws-sec-swatch:hover {
+  transform: scale(1.15);
+}
+
+.ws-sec-swatch.selected {
+  border-color: var(--silo-color-text-hi);
+  box-shadow: 0 0 0 1px var(--silo-color-bg);
+}
+
+/* "None" swatch — show as a circle with a diagonal slash */
+.ws-sec-swatch:first-child {
+  background: transparent;
+  border-color: var(--silo-color-border-strong);
+  position: relative;
+}
+
+.ws-sec-swatch:first-child::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--silo-color-border-strong) calc(50% - 1px),
+    var(--silo-color-border-strong) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  border-radius: 50%;
 }

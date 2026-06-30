@@ -28,6 +28,7 @@ export interface WorkspacePanelSection {
   name: string;
   collapsed: boolean;
   workspaceOrder: string[]; // workspace IDs in this section, in user-defined order
+  color?: string; // optional accent color, e.g. "#e06c75"
 }
 
 export interface AppState {

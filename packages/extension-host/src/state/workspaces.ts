@@ -301,6 +301,16 @@ export function reorderWorkspaceInSection(
   order.splice(toIndex, 0, fromId);
 }
 
+export function setSectionColor(id: string, color: string | undefined): void {
+  const sec = store.sections[id];
+  if (!sec) return;
+  if (color) {
+    sec.color = color;
+  } else {
+    delete sec.color;
+  }
+}
+
 export function toggleSectionCollapsed(id: string): void {
   const sec = store.sections[id];
   if (!sec) return;
