@@ -8,9 +8,14 @@ import {
   getExtensionManager,
   initUserKeybindings,
   setExtensionsReady,
+  initGlobalErrorCapture,
 } from "@silo-code/extension-host";
 import { activateBuiltins } from "./builtins";
 import { initCliOpenHandler } from "./cli";
+
+// Install global error/rejection capture before anything else runs so boot
+// errors and extension errors are routed to the silo:errors Output channel.
+initGlobalErrorCapture();
 
 // Activate built-ins synchronously, before render — the dock needs their panel
 // kinds present when it deserializes the saved layout.

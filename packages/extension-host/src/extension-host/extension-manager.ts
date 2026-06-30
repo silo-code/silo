@@ -27,6 +27,7 @@ import {
   isLoaded,
   needsReload,
 } from "./extension-loader";
+import { reportError } from "./global-error-capture";
 import {
   isBuiltin,
   enableBuiltin,
@@ -631,6 +632,10 @@ export function getExtensionManager(): ExtensionManager {
           });
         } catch (err) {
           console.error(`[extensions] failed to load ${rec.id}`, err);
+          reportError(`Extension load failed: ${rec.id}`, {
+            extensionId: rec.id,
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
       await refresh();
