@@ -51,8 +51,16 @@ function makeStorage(
       // replaced on workspace switch / hydration), but only notify when this
       // namespace's content changed or the store finished hydrating — not on
       // every unrelated mutation.
-      const snapshot = (): string =>
-        JSON.stringify(getMap()[namespace] ?? null);
+      const snapshot = (): string => {
+        try {
+          return JSON.stringify(getMap()[namespace] ?? null);
+        } catch {
+          // Cyclic or unserializable value in the bag — treat as changed so
+          // the listener always fires and the error surfaces via the global
+          // capture handler rather than as an unhandled rejection here.
+          return `<unserializable:${Date.now()}>`;
+        }
+      };
       let lastSnapshot = snapshot();
       let lastHydrated = store.hydrated;
       return subscribe(store, () => {

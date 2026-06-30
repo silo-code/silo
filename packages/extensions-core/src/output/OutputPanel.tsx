@@ -17,6 +17,14 @@ import {
 } from "./output-model";
 import "./OutputPanel.css";
 
+function safeStringify(data: unknown): string {
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return "[unserializable]";
+  }
+}
+
 interface OutputPanelProps extends IDockviewPanelProps {
   ctx: ExtensionContext;
 }
@@ -272,7 +280,7 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
                 <div className="output-data">
                   {typeof entry.data === "string"
                     ? entry.data
-                    : JSON.stringify(entry.data)}
+                    : safeStringify(entry.data)}
                 </div>
               )}
             </div>

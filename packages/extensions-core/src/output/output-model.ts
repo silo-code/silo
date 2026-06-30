@@ -47,7 +47,15 @@ export function copyEntries(entries: readonly OutputEntry[]): string {
       let line = `${formatTimestamp(e.timestamp)} [${level}] ${e.message}`;
       if (e.data !== undefined) {
         const data =
-          typeof e.data === "string" ? e.data : JSON.stringify(e.data, null, 2);
+          typeof e.data === "string"
+            ? e.data
+            : (() => {
+                try {
+                  return JSON.stringify(e.data, null, 2);
+                } catch {
+                  return "[unserializable]";
+                }
+              })();
         line += `\n${data}`;
       }
       return line;

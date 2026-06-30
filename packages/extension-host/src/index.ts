@@ -35,6 +35,7 @@ export { userConfigDir } from "./services/user-config";
 export { activateExtensions } from "./extension-host/host";
 export { getExtensionManager } from "./extension-host/extension-manager";
 export { initUserKeybindings } from "./extension-host/keymap";
+export { initGlobalErrorCapture } from "./extension-host/global-error-capture";
 
 // --- Host services the automation bridge drives directly --------------------
 export { getThemeService } from "./extension-host/theme-service";
