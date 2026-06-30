@@ -88,9 +88,11 @@
      identical, e.g. a pink-on-pink theme). The var() re-resolves per active
      theme, incl. custom ones (which carry data-theme=base); a theme may override
      this key directly. */
-  --silo-statusbar-bg-hover: color-mix(in srgb,
-      var(--silo-statusbar-bg) 88%,
-      #fff);
+  --silo-statusbar-bg-hover: color-mix(
+    in srgb,
+    var(--silo-statusbar-bg) 88%,
+    #fff
+  );
 
   --silo-tab-text-active: #969696;
   --silo-tab-text: #585858;
@@ -244,9 +246,11 @@
   --silo-statusbar-text: #6b6b6b;
   /* Light themes darken on hover (the dark block lightens) — direction-correct
      and always visible regardless of the bar/text contrast. */
-  --silo-statusbar-bg-hover: color-mix(in srgb,
-      var(--silo-statusbar-bg) 88%,
-      #000);
+  --silo-statusbar-bg-hover: color-mix(
+    in srgb,
+    var(--silo-statusbar-bg) 88%,
+    #000
+  );
 }
 
 * {
