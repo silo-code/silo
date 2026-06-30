@@ -23,6 +23,7 @@
   font-family: var(--silo-font-ui);
   cursor: pointer;
 }
+
 .ws-add-btn:hover {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
@@ -47,9 +48,11 @@
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
 }
+
 .ws-item:hover {
   background: var(--silo-color-bg-hover);
 }
+
 /* Roving keyboard focus (one Tab stop, arrow movement, the keyboard-only ring)
    is owned by useFocusGroup: it marks rows with data-focus-item / data-focus-
    visible and the host ships the ring CSS keyed on those — so there's no
@@ -57,6 +60,7 @@
 .ws-item.dragging {
   opacity: 0.4;
 }
+
 .ws-item.drop-before::before,
 .ws-item.drop-after::after {
   content: "";
@@ -68,12 +72,15 @@
   border-radius: 2px;
   pointer-events: none;
 }
+
 .ws-item.drop-before::before {
   top: -1px;
 }
+
 .ws-item.drop-after::after {
   bottom: -1px;
 }
+
 .ws-item.active {
   background: var(--silo-color-bg-active);
 }
@@ -86,6 +93,7 @@
   /* Nudge so the icon's optical center sits on the first row's text baseline. */
   margin-top: 1px;
 }
+
 .ws-item.active .ws-icon {
   color: var(--silo-color-accent);
 }
@@ -116,7 +124,7 @@
   border: 1px solid var(--silo-color-text-lo);
   border-radius: 3px;
   padding: 0 4px;
-  line-height: 1.4;
+  line-height: 1.1;
   flex-shrink: 0;
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
@@ -173,9 +181,11 @@
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
 }
+
 .ws-item:hover .ws-close {
   opacity: 1;
 }
+
 .ws-item .ws-close:hover {
   color: var(--silo-color-text-hi);
   background: var(--silo-color-button-bg);
@@ -195,6 +205,7 @@
   padding: 6px 8px;
   outline: none;
 }
+
 .ws-rename-input:focus {
   border-color: var(--silo-color-accent);
 }
@@ -213,6 +224,7 @@
     opacity: 0;
     transform: translateY(4px) scale(0.985);
   }
+
   to {
     opacity: 1;
     transform: none;
@@ -263,6 +275,7 @@
   font-size: var(--silo-font-size-sm);
   cursor: pointer;
 }
+
 .ws-prop-add:hover {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
@@ -325,6 +338,7 @@
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
 }
+
 .ws-folder-list-remove:hover {
   color: var(--silo-color-err);
   background: var(--silo-color-bg-hover);
@@ -352,19 +366,24 @@
   align-self: center;
   color: var(--silo-color-text-lo);
 }
+
 .ws-status-dot[data-status="ok"] {
   color: var(--silo-color-ok);
 }
+
 .ws-status-dot[data-status="warn"] {
   color: var(--silo-color-warn);
 }
+
 .ws-status-dot[data-status="error"] {
   color: var(--silo-color-err);
 }
+
 .ws-status-dot[data-status="busy"] {
   color: var(--silo-color-accent);
   animation: ws-status-pulse 1.4s ease-in-out infinite;
 }
+
 .ws-status-dot[data-status="none"] {
   color: var(--silo-color-text);
 }
@@ -374,6 +393,7 @@
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.4;
   }
@@ -404,6 +424,7 @@
 .ws-sections {
   display: contents;
 }
+
 .ws-sections > * {
   grid-column: 2;
 }
