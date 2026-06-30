@@ -11,7 +11,8 @@
   --silo-color-button-bg: #232839;
   --silo-color-button-text: #939bb1;
   --silo-color-text-hi: #666666;
-  --silo-color-text: #5a5959; /*#7a8099;*/
+  --silo-color-text: #5a5959;
+  /*#7a8099;*/
   --silo-color-text-lo: #3c3c3c;
   --silo-color-input-bg: #1c2030;
   --silo-color-input-text: #b7bccc;
@@ -292,12 +293,15 @@ button {
   font: inherit;
   cursor: pointer;
 }
+
 button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
 }
+
 button:active:not(:disabled) {
   background: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
 }
+
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -309,9 +313,11 @@ button.silo-button {
   color: var(--silo-button-text);
   border-color: var(--silo-button-border);
 }
+
 button.silo-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
 }
+
 button.silo-button:active:not(:disabled) {
   background: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
 }
@@ -322,10 +328,12 @@ button.silo-button-primary {
   color: var(--silo-button-primary-text);
   border-color: transparent;
 }
+
 button.silo-button-primary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--silo-button-primary-bg) 85%, #000);
   border-color: transparent;
 }
+
 button.silo-button-primary:active:not(:disabled) {
   background: color-mix(in srgb, var(--silo-button-primary-bg) 75%, #000);
   border-color: transparent;
@@ -338,10 +346,12 @@ button.silo-button-danger {
   color: var(--silo-button-danger-text);
   border-color: transparent;
 }
+
 button.silo-button-danger:hover:not(:disabled) {
   background: color-mix(in srgb, var(--silo-button-danger-bg) 85%, #000);
   border-color: transparent;
 }
+
 button.silo-button-danger:active:not(:disabled) {
   background: color-mix(in srgb, var(--silo-button-danger-bg) 75%, #000);
   border-color: transparent;
@@ -370,6 +380,7 @@ button.silo-button-sm {
   justify-content: center;
   /* z-index set inline (var(--silo-z-modal-base) + stack index) */
 }
+
 .silo-modal {
   position: relative;
   background: var(--silo-modal-bg);
@@ -382,6 +393,7 @@ button.silo-button-sm {
   padding: 20px;
   font-family: var(--silo-font-ui);
 }
+
 /* Corner close button (dismissible modals). Scoped under .silo-modal so the
    hover beats the global `button:hover:not(:disabled)` and paints the themed
    --silo-color-bg-hover rather than the dark button mix. */
@@ -401,24 +413,30 @@ button.silo-button-sm {
   color: var(--silo-color-text-lo);
   cursor: pointer;
 }
+
 .silo-modal .silo-modal-close:hover {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
+
 .silo-modal-sm {
-  width: 300px;
-}
-.silo-modal-md {
   width: 400px;
 }
-.silo-modal-lg {
+
+.silo-modal-md {
   width: 560px;
 }
+
+.silo-modal-lg {
+  width: 800px;
+}
+
 /* Bare: children supply their own card chrome (e.g. Settings' rail+pane). The
    host still owns the backdrop + focus trap; this wrapper just sizes to fit. */
 .silo-modal-bare {
   display: flex;
 }
+
 .silo-modal-title {
   font-weight: 600;
   font-size: var(--silo-font-size-base);
@@ -426,26 +444,31 @@ button.silo-button-sm {
   /* Leave room for the corner close button so a long title never runs under it. */
   padding-right: 24px;
 }
+
 .silo-modal-body {
   font-size: var(--silo-font-size-sm);
   color: var(--silo-color-text);
   line-height: 1.5;
 }
+
 .silo-modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
 }
+
 .silo-modal-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
+
 .silo-modal-label {
   font-size: var(--silo-font-size-sm);
   color: var(--silo-color-text);
 }
+
 .silo-modal-input {
   width: 100%;
   box-sizing: border-box;
@@ -470,14 +493,17 @@ a {
   width: 10px;
   height: 10px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--silo-color-button-bg);
   border-radius: 5px;
   border: 2px solid var(--silo-content-tab-bg);
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: transparent;
 }
@@ -502,6 +528,7 @@ a {
   width: 0;
   cursor: ew-resize;
 }
+
 [data-panel-resize-handle-enabled="true"][data-panel-group-direction="horizontal"]::before {
   content: "";
   position: absolute;
@@ -512,6 +539,7 @@ a {
   background: var(--silo-color-border);
   pointer-events: none;
 }
+
 [data-panel-resize-handle-enabled="true"][data-panel-group-direction="horizontal"]::after {
   content: "";
   position: absolute;
@@ -528,6 +556,7 @@ a {
   height: 0;
   cursor: ns-resize;
 }
+
 [data-panel-resize-handle-enabled="true"][data-panel-group-direction="vertical"]::before {
   content: "";
   position: absolute;
@@ -538,6 +567,7 @@ a {
   background: var(--silo-color-border);
   pointer-events: none;
 }
+
 [data-panel-resize-handle-enabled="true"][data-panel-group-direction="vertical"]::after {
   content: "";
   position: absolute;
@@ -555,6 +585,7 @@ body.panel-resizing * {
   pointer-events: none !important;
   user-select: none !important;
 }
+
 /* ...but keep the resize handles themselves hit-testable. pointer-events is an
    inherited property, so the rule above would otherwise make the handle inherit
    `none` from its container even though the drag is in progress. When that
@@ -598,6 +629,7 @@ body.panel-resizing .side-resize-handle {
      is rounded to match, rather than square on list rows that declare none. */
   border-radius: var(--silo-radius-sm);
 }
+
 [data-focus-item][data-focus-visible] {
   outline: 1.5px solid var(--silo-color-accent);
   outline-offset: -1.5px;

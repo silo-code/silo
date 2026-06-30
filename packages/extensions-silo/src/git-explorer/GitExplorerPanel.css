@@ -37,8 +37,13 @@
   cursor: pointer;
   text-align: left;
 }
+
 .git-root-label:hover {
   color: var(--silo-color-text-hi);
+}
+
+.git-root-label:hover:not(:disabled) {
+  background: transparent;
 }
 
 .git-root-top {
@@ -106,13 +111,16 @@
   font-size: var(--silo-font-size-base);
   color: var(--silo-color-text);
 }
+
 .git-branch-name-wrap {
   flex: 1;
   min-width: 0;
 }
+
 .git-branch-name-wrap .silo-tooltip-host {
   display: block;
 }
+
 .git-branch .branch-name {
   display: block;
   overflow: hidden;
@@ -121,6 +129,7 @@
   font-weight: 600;
   color: var(--silo-color-text-hi);
 }
+
 /* The clickable branch name (single-root) — a button styled like the text. */
 .git-branch .branch-name-button {
   -webkit-appearance: none;
@@ -144,19 +153,23 @@
   text-align: left;
   cursor: pointer;
 }
+
 .git-branch .branch-name-button:hover {
   background: var(--silo-color-bg-hover);
 }
+
 /* The clickable branch name (multi-root). */
 .git-root-branch.clickable {
   cursor: pointer;
   padding: 1px 5px;
   border-radius: var(--silo-radius-sm);
 }
+
 .git-root-branch.clickable:hover {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
+
 .git-branch .branch-tracking {
   color: var(--silo-color-text-lo);
 }
@@ -186,6 +199,7 @@
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
 }
+
 /* Scoped (0,3,0) so it beats the host's global `button:hover:not(:disabled)`
    (0,2,1), which would otherwise paint the dark `--silo-button-bg` mix here —
    the same reason .branch-name-button scopes its hover under .git-branch. */
@@ -193,6 +207,7 @@
 .git-root-remote .branch-sync:hover {
   background: var(--silo-color-bg-hover);
 }
+
 .branch-sync.working {
   color: var(--silo-color-accent);
   pointer-events: none;
@@ -202,6 +217,7 @@
 .branch-publish {
   color: var(--silo-color-accent);
 }
+
 .branch-action {
   -webkit-appearance: none;
   appearance: none;
@@ -218,14 +234,17 @@
   cursor: pointer;
   flex-shrink: 0;
 }
+
 .branch-action:hover:not(.working):not(.disabled) {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
+
 .branch-action.disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
 .branch-action.working {
   color: var(--silo-color-accent);
   pointer-events: none;
@@ -235,6 +254,7 @@
   -webkit-animation: branch-spin 0.8s linear infinite;
   animation: branch-spin 0.8s linear infinite;
 }
+
 .push-btn.working {
   -webkit-animation: branch-push 0.7s ease-in-out infinite;
   animation: branch-push 0.7s ease-in-out infinite;
@@ -246,46 +266,55 @@
     transform: rotate(360deg);
   }
 }
+
 @keyframes branch-spin {
   to {
     transform: rotate(360deg);
   }
 }
+
 @-webkit-keyframes branch-push {
   0% {
     -webkit-transform: translateY(0);
     transform: translateY(0);
     opacity: 1;
   }
+
   40% {
     -webkit-transform: translateY(-5px);
     transform: translateY(-5px);
     opacity: 0;
   }
+
   41% {
     -webkit-transform: translateY(5px);
     transform: translateY(5px);
     opacity: 0;
   }
+
   100% {
     -webkit-transform: translateY(0);
     transform: translateY(0);
     opacity: 1;
   }
 }
+
 @keyframes branch-push {
   0% {
     transform: translateY(0);
     opacity: 1;
   }
+
   40% {
     transform: translateY(-5px);
     opacity: 0;
   }
+
   41% {
     transform: translateY(5px);
     opacity: 0;
   }
+
   100% {
     transform: translateY(0);
     opacity: 1;
@@ -315,6 +344,7 @@
   gap: 6px;
   padding: 0 6px 6px;
 }
+
 .commit-area textarea {
   resize: vertical;
   min-height: 56px;
@@ -325,13 +355,16 @@
   border-radius: var(--silo-radius-sm);
   padding: 6px 8px;
 }
+
 .commit-area textarea::placeholder {
   color: color-mix(in srgb, var(--silo-color-input-text) 40%, transparent);
 }
+
 .commit-area textarea:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
 .commit-btn {
   display: inline-flex;
   align-items: center;
@@ -345,10 +378,12 @@
   cursor: pointer;
   /* fill + dimmer hover come from the global `.silo-button-primary` */
 }
+
 .commit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
 .commit-btn .commit-count {
   background: rgba(255, 255, 255, 0.22);
   padding: 0 6px;
@@ -387,10 +422,12 @@
      [data-focus-item] radius) instead of forcing square corners here. */
   border-radius: var(--silo-radius-sm);
 }
+
 .section-head:hover {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
+
 /* Bulk-action cluster (stage/unstage/discard all), sitting next to the title
  * and revealed on hover; the count badge stays pinned to the right edge. */
 .section-actions {
@@ -399,9 +436,11 @@
   opacity: 0;
   transition: opacity 80ms ease-out;
 }
+
 .section-head:hover .section-actions {
   opacity: 1;
 }
+
 .section-head .section-add {
   -webkit-appearance: none;
   appearance: none;
@@ -421,10 +460,12 @@
   cursor: pointer;
   flex-shrink: 0;
 }
+
 .section-add:hover {
   background: transparent;
   color: var(--silo-color-text-hi);
 }
+
 .section-chev {
   display: inline-flex;
   align-items: center;
@@ -432,10 +473,12 @@
   width: 12px;
   color: var(--silo-color-text-lo);
 }
+
 .section-title {
   flex: 0;
   white-space: nowrap;
 }
+
 .section-count {
   margin-left: auto;
   min-width: 22px;
@@ -450,6 +493,7 @@
   font-size: calc(var(--silo-font-size-chrome) - 1px);
   font-weight: 600;
 }
+
 .section-body {
   display: flex;
   flex-direction: column;
@@ -472,9 +516,11 @@
   cursor: pointer;
   position: relative;
 }
+
 .git-file-row:hover {
   background: var(--silo-color-bg-hover);
 }
+
 .git-file-row .ico.file {
   color: var(--silo-color-text-lo);
   flex: 0 0 1.25em;
@@ -517,6 +563,7 @@
   background: var(--silo-color-bg-hover);
   transition: opacity 100ms ease-out;
 }
+
 .git-file-row:hover .row-actions {
   opacity: 1;
   pointer-events: auto;
@@ -535,6 +582,7 @@
   padding: 0;
   cursor: pointer;
 }
+
 .row-action:hover {
   background: transparent;
   color: var(--silo-color-text-hi);
@@ -549,18 +597,23 @@
   font-weight: 700;
   margin-left: 4px;
 }
+
 .status-glyph.status-M {
   color: var(--silo-color-warn);
 }
+
 .status-glyph.status-A {
   color: var(--silo-color-ok);
 }
+
 .status-glyph.status-D {
   color: var(--silo-color-err);
 }
+
 .status-glyph.status-R {
   color: var(--silo-color-accent);
 }
+
 .status-glyph.status-U {
   color: var(--silo-color-ok);
 }
@@ -579,6 +632,7 @@
   gap: 10px;
   font-family: var(--silo-font-ui);
 }
+
 .git-branch-search {
   width: 100%;
   box-sizing: border-box;
@@ -589,9 +643,11 @@
   padding: 6px 8px;
   font: inherit;
 }
+
 .git-branch-search::placeholder {
   color: color-mix(in srgb, var(--silo-color-input-text) 40%, transparent);
 }
+
 .git-branch-list {
   display: flex;
   flex-direction: column;
@@ -601,11 +657,13 @@
   border: 1px solid var(--silo-color-border);
   border-radius: var(--silo-radius-sm);
 }
+
 .git-branch-empty {
   color: var(--silo-color-text-lo);
   font-style: italic;
   padding: 10px 12px;
 }
+
 .git-branch-loader {
   display: flex;
   flex-direction: column;
@@ -615,20 +673,24 @@
   height: 100%;
   color: var(--silo-color-text-lo);
 }
+
 .git-branch-spin {
   -webkit-animation: branch-spin 0.8s linear infinite;
   animation: branch-spin 0.8s linear infinite;
 }
+
 .git-branch-footer {
   display: flex;
   justify-content: space-between;
   gap: 8px;
 }
+
 .git-branch-footer button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
+
 .git-branch-row {
   display: flex;
   align-items: center;
@@ -637,24 +699,30 @@
   cursor: pointer;
   color: var(--silo-color-text);
 }
+
 .git-branch-row + .git-branch-row {
   border-top: 1px solid var(--silo-color-border);
 }
+
 .git-branch-row:hover {
   background: var(--silo-color-bg-hover);
 }
+
 .git-branch-row.current {
   cursor: default;
 }
+
 .git-branch-glyph {
   display: inline-flex;
   align-items: center;
   color: var(--silo-color-text-lo);
   flex-shrink: 0;
 }
+
 .git-branch-row.current .git-branch-glyph {
   color: var(--silo-color-accent);
 }
+
 .git-branch-name {
   flex: 1;
   min-width: 0;
@@ -662,10 +730,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
 .git-branch-row.current .git-branch-name {
   font-weight: 600;
   color: var(--silo-color-text-hi);
 }
+
 .git-branch-badge {
   flex-shrink: 0;
   font-size: var(--silo-font-size-chrome);
@@ -677,6 +747,7 @@
   border-radius: 999px;
   padding: 1px 8px;
 }
+
 .git-branch-actions {
   display: inline-flex;
   align-items: center;
@@ -686,9 +757,11 @@
   opacity: 0;
   transition: opacity 100ms ease-out;
 }
+
 .git-branch-row:hover .git-branch-actions {
   opacity: 1;
 }
+
 .git-branch-action {
   -webkit-appearance: none;
   appearance: none;
@@ -704,16 +777,20 @@
   padding: 0;
   cursor: pointer;
 }
+
 .git-branch-action:hover {
   background: var(--silo-color-bg-active);
   color: var(--silo-color-text-hi);
 }
+
 .git-branch-action.danger:hover {
   color: var(--silo-color-err);
 }
+
 .git-branch-action:disabled {
   cursor: default;
 }
+
 .git-branch-action.working {
   color: var(--silo-color-accent);
   -webkit-animation: branch-push 0.7s ease-in-out infinite;
@@ -728,12 +805,14 @@
   gap: 12px;
   font-family: var(--silo-font-ui);
 }
+
 .git-force-delete-lead {
   margin: 0;
   font-size: var(--silo-font-size-sm);
   line-height: 1.5;
   color: var(--silo-color-text);
 }
+
 .git-force-delete-list {
   list-style: none;
   margin: 0;
@@ -743,21 +822,25 @@
   border: 1px solid var(--silo-color-border);
   border-radius: var(--silo-radius-sm);
 }
+
 .git-force-delete-commit {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   padding: 6px 10px;
 }
+
 .git-force-delete-commit + .git-force-delete-commit {
   border-top: 1px solid var(--silo-color-border);
 }
+
 .git-force-delete-hash {
   font-family: var(--silo-font-mono);
   font-size: var(--silo-font-size-sm);
   color: var(--silo-color-text-lo);
   flex-shrink: 0;
 }
+
 .git-force-delete-subject {
   min-width: 0;
   /* Wrap full commit subjects instead of truncating, so nothing is hidden. */
