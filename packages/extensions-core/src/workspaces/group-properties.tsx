@@ -1,13 +1,13 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { ModalActions } from "@silo-code/extension-host/internal";
 import {
-  renameSection,
-  setSectionColor,
+  renameGroup,
+  setGroupColor,
 } from "@silo-code/extension-host/internal";
 import type { ExtensionContext } from "@silo-code/sdk";
 
 // Accepts both the mutable type and valtio's readonly snapshot form.
-export interface SectionSnapshot {
+export interface GroupSnapshot {
   id: string;
   name: string;
   color?: string;
@@ -15,7 +15,7 @@ export interface SectionSnapshot {
   workspaceOrder: readonly string[] | string[];
 }
 
-interface SectionPropertiesChanges {
+interface GroupPropertiesChanges {
   name: string;
   color: string | undefined;
 }
@@ -32,17 +32,17 @@ const PALETTE: Array<{ label: string; value: string | undefined }> = [
   { label: "Pink", value: "#ff7eb6" },
 ];
 
-function SectionPropertiesContent({
-  sec,
+function GroupPropertiesContent({
+  group,
   onCancel,
   onSave,
 }: {
-  sec: SectionSnapshot;
+  group: GroupSnapshot;
   onCancel: () => void;
-  onSave: (changes: SectionPropertiesChanges) => void;
+  onSave: (changes: GroupPropertiesChanges) => void;
 }) {
-  const [name, setName] = useState(sec.name);
-  const [color, setColor] = useState<string | undefined>(sec.color);
+  const [name, setName] = useState(group.name);
+  const [color, setColor] = useState<string | undefined>(group.color);
   const nameRef = useRef<HTMLInputElement | null>(null);
 
   useLayoutEffect(() => {
@@ -51,12 +51,12 @@ function SectionPropertiesContent({
   }, []);
 
   const trimmed = name.trim();
-  const nameDirty = trimmed.length > 0 && trimmed !== sec.name;
-  const colorDirty = color !== sec.color;
+  const nameDirty = trimmed.length > 0 && trimmed !== group.name;
+  const colorDirty = color !== group.color;
   const dirty = nameDirty || colorDirty;
 
   function commit() {
-    if (dirty) onSave({ name: trimmed || sec.name, color });
+    if (dirty) onSave({ name: trimmed || group.name, color });
     else onCancel();
   }
 
@@ -69,11 +69,11 @@ function SectionPropertiesContent({
       }}
     >
       <div className="ws-prop-section">
-        <label className="ws-prop-label" htmlFor="sec-prop-name">
+        <label className="ws-prop-label" htmlFor="group-prop-name">
           Name
         </label>
         <input
-          id="sec-prop-name"
+          id="group-prop-name"
           ref={nameRef}
           className="ws-rename-input"
           value={name}
@@ -83,12 +83,12 @@ function SectionPropertiesContent({
 
       <div className="ws-prop-section">
         <span className="ws-prop-label">Color</span>
-        <div className="ws-sec-palette">
+        <div className="ws-group-palette">
           {PALETTE.map((entry) => (
             <button
               key={entry.value ?? "__none__"}
               type="button"
-              className={`ws-sec-swatch${color === entry.value ? " selected" : ""}`}
+              className={`ws-group-swatch${color === entry.value ? " selected" : ""}`}
               style={
                 entry.value
                   ? { background: entry.value }
@@ -114,22 +114,22 @@ function SectionPropertiesContent({
   );
 }
 
-export async function openSectionProperties(
+export async function openGroupProperties(
   ctx: ExtensionContext,
-  sec: SectionSnapshot,
+  group: GroupSnapshot,
 ): Promise<void> {
-  const changes = await ctx.ui.showModal<SectionPropertiesChanges>(
+  const changes = await ctx.ui.showModal<GroupPropertiesChanges>(
     (close) => (
-      <SectionPropertiesContent
-        sec={sec}
+      <GroupPropertiesContent
+        group={group}
         onCancel={() => close()}
         onSave={(c) => close(c)}
       />
     ),
-    { title: "Section Properties", size: "sm" },
+    { title: "Group Properties", size: "sm" },
   );
   if (changes) {
-    if (changes.name !== sec.name) renameSection(sec.id, changes.name);
-    if (changes.color !== sec.color) setSectionColor(sec.id, changes.color);
+    if (changes.name !== group.name) renameGroup(group.id, changes.name);
+    if (changes.color !== group.color) setGroupColor(group.id, changes.color);
   }
 }

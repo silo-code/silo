@@ -3,13 +3,12 @@ import { CaretRight, Plus, SquaresFour } from "@phosphor-icons/react";
 import { useSnapshot } from "valtio";
 import {
   store,
-  createSection,
-  deleteSection,
-  reorderSections,
-  moveWorkspaceToSection,
-  removeWorkspaceFromSection,
-  reorderWorkspaceInSection,
-  toggleSectionCollapsed,
+  createGroup,
+  deleteGroup,
+  moveWorkspaceToGroup,
+  removeWorkspaceFromGroup,
+  toggleGroupCollapsed,
+  workspaceGroupMap,
 } from "@silo-code/extension-host/internal";
 import {
   Tooltip,
@@ -30,11 +29,11 @@ import {
   useNow,
   useFolderExistence,
   type Workspace,
-  type DropTarget,
 } from "./workspace-helpers";
 import { buildAddWorkspaceItems } from "./workspace-add-menu";
 import { openWorkspaceProperties } from "./workspace-properties";
-import { openSectionProperties } from "./section-properties";
+import { openGroupProperties, type GroupSnapshot } from "./group-properties";
+import { useWorkspaceDnd } from "./use-workspace-dnd";
 import "./WorkspacesPanel.css";
 
 const WorkspaceIcon = SquaresFour;
@@ -112,40 +111,41 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     return service.subscribeBadges(() => setBadgeTick((t) => t + 1)).dispose;
   }, [service]);
 
-  // Workspace DnD state
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
-  // Section DnD state
-  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(
-    null,
-  );
-  const [sectionDropTarget, setSectionDropTarget] =
-    useState<DropTarget | null>(null);
-
   const addWrapRef = useRef<HTMLDivElement | null>(null);
   useNow();
 
-  // Partition open workspaces into unsectioned (shown at top) and the rest
-  // (shown inside their sections below).
-  const unsectioned = useMemo(
-    () => snap.open.filter((ws) => !storeSnap.workspaceSections[ws.id]),
-    [snap.open, storeSnap.workspaceSections],
+  // All drag-and-drop state + wiring (workspace rows and group headers) lives
+  // in the hook; the panel just spreads its prop getters onto the elements.
+  const dnd = useWorkspaceDnd(service);
+
+  // Reverse lookup (workspace id → group id), derived from group membership —
+  // the groups' `workspaceOrder` is the single source of truth.
+  const groupMap = useMemo(
+    () => workspaceGroupMap(storeSnap.groups, storeSnap.groupOrder),
+    [storeSnap.groups, storeSnap.groupOrder],
   );
 
-  // O(1) lookup for workspaces by id (for section body rendering).
+  // Partition open workspaces into ungrouped (shown at top) and the rest
+  // (shown inside their groups below).
+  const ungrouped = useMemo(
+    () => snap.open.filter((ws) => !groupMap.has(ws.id)),
+    [snap.open, groupMap],
+  );
+
+  // O(1) lookup for workspaces by id (for group body rendering).
   const openById = useMemo(
     () => new Map(snap.open.map((ws) => [ws.id, ws])),
     [snap.open],
   );
 
-  const activeIndex = unsectioned.findIndex((w) => w.id === snap.activeId);
+  const activeIndex = ungrouped.findIndex((w) => w.id === snap.activeId);
 
-  // Roving keyboard focus covers unsectioned workspaces only (v1).
-  const group = useFocusGroup({
-    count: unsectioned.length,
+  // Roving keyboard focus covers ungrouped workspaces only (v1).
+  const roving = useFocusGroup({
+    count: ungrouped.length,
     start: activeIndex >= 0 ? activeIndex : 0,
-    onActivate: (i) => service.activate(unsectioned[i].id),
-    onMenu: (i, anchor) => openWorkspaceMenu(unsectioned[i], { anchor }),
+    onActivate: (i) => service.activate(ungrouped[i].id),
+    onMenu: (i, anchor) => openWorkspaceMenu(ungrouped[i], { anchor }),
   });
 
   const closedFolders = useMemo(
@@ -162,11 +162,11 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     }
   }
 
-  function onNewSection() {
+  function onNewGroup() {
     void ctx.ui
-      .prompt({ title: "New Section", label: "Name" })
+      .prompt({ title: "New Group", label: "Name" })
       .then((name) => {
-        if (name?.trim()) createSection(name.trim());
+        if (name?.trim()) createGroup(name.trim());
       });
   }
 
@@ -176,7 +176,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
       closed: snap.closed,
       folderExistence,
       onNew,
-      onNewSection,
+      onNewGroup,
     });
     void ctx.ui.showMenu({ items, anchor: addWrapRef.current });
   }
@@ -189,22 +189,22 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
       },
     ];
 
-    // Section membership actions
-    const currentSecId = storeSnap.workspaceSections[ws.id];
-    if (currentSecId) {
+    // Group membership actions
+    const currentGroupId = groupMap.get(ws.id);
+    if (currentGroupId) {
       items.push({
-        label: "Remove from Section",
-        run: () => removeWorkspaceFromSection(ws.id),
+        label: "Remove from Group",
+        run: () => removeWorkspaceFromGroup(ws.id),
       });
-    } else if (storeSnap.sectionOrder.length > 0) {
+    } else if (storeSnap.groupOrder.length > 0) {
       items.push({
-        label: "Move to Section",
-        submenu: storeSnap.sectionOrder
-          .map((secId) => storeSnap.sections[secId])
+        label: "Move to Group",
+        submenu: storeSnap.groupOrder
+          .map((groupId) => storeSnap.groups[groupId])
           .filter(Boolean)
-          .map((sec) => ({
-            label: sec.name,
-            run: () => moveWorkspaceToSection(ws.id, sec.id),
+          .map((group) => ({
+            label: group.name,
+            run: () => moveWorkspaceToGroup(ws.id, group.id),
           })),
       });
     }
@@ -226,19 +226,19 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     });
   }
 
-  function openSectionMenu(
-    sec: { id: string; name: string; color?: string; collapsed: boolean; workspaceOrder: readonly string[] | string[] },
+  function openGroupMenu(
+    group: GroupSnapshot,
     placement: { at?: { x: number; y: number }; anchor?: HTMLElement | null },
   ) {
     void ctx.ui.showMenu({
       items: [
         {
           label: "Properties…",
-          run: () => void openSectionProperties(ctx, sec),
+          run: () => void openGroupProperties(ctx, group),
         },
         {
-          label: "Delete Section",
-          run: () => deleteSection(sec.id),
+          label: "Delete Group",
+          run: () => deleteGroup(group.id),
         },
       ],
       toggle: false,
@@ -246,141 +246,22 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     });
   }
 
-  // ── Workspace DnD (unsectioned list) ────────────────────────────────────
+  // ── Workspace item renderer (shared by ungrouped + group body) ───────────
 
-  function onDragStart(
-    e: React.DragEvent<HTMLLIElement>,
-    id: string,
-    sectionId?: string,
-  ) {
-    setDraggingId(id);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/x-workspace-id", id);
-    e.dataTransfer.setData("text/x-source-section", sectionId ?? "");
-  }
-
-  function onDragOver(e: React.DragEvent<HTMLLIElement>, targetId: string) {
-    if (!draggingId) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (draggingId === targetId) {
-      if (dropTarget) setDropTarget(null);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const position =
-      e.clientY < rect.top + rect.height / 2 ? "before" : "after";
-    if (dropTarget?.id !== targetId || dropTarget.position !== position) {
-      setDropTarget({ id: targetId, position });
-    }
-  }
-
-  function onDrop(
-    e: React.DragEvent<HTMLLIElement>,
-    targetId: string,
-    targetSectionId?: string,
-  ) {
-    e.preventDefault();
-    if (draggingId && dropTarget && draggingId !== targetId) {
-      const sourceSection = e.dataTransfer.getData("text/x-source-section");
-      if (targetSectionId && sourceSection === targetSectionId) {
-        // Reorder within same section
-        reorderWorkspaceInSection(
-          targetSectionId,
-          draggingId,
-          dropTarget.id,
-          dropTarget.position,
-        );
-      } else {
-        service.reorder(draggingId, dropTarget.id, dropTarget.position);
-      }
-    }
-    setDraggingId(null);
-    setDropTarget(null);
-  }
-
-  function onDragEnd() {
-    setDraggingId(null);
-    setDropTarget(null);
-  }
-
-  // ── Section DnD ─────────────────────────────────────────────────────────
-
-  function onSectionDragStart(e: React.DragEvent<HTMLDivElement>, secId: string) {
-    setDraggingSectionId(secId);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/x-section-id", secId);
-    // Stop the event from propagating to any workspace drag handlers
-    e.stopPropagation();
-  }
-
-  function onSectionDragOver(
-    e: React.DragEvent<HTMLDivElement>,
-    targetSecId: string,
-  ) {
-    if (!draggingSectionId) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    if (draggingSectionId === targetSecId) {
-      if (sectionDropTarget) setSectionDropTarget(null);
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const position =
-      e.clientY < rect.top + rect.height / 2 ? "before" : "after";
-    if (
-      sectionDropTarget?.id !== targetSecId ||
-      sectionDropTarget.position !== position
-    ) {
-      setSectionDropTarget({ id: targetSecId, position });
-    }
-  }
-
-  function onSectionDrop(
-    e: React.DragEvent<HTMLDivElement>,
-    targetSecId: string,
-  ) {
-    e.preventDefault();
-    if (
-      draggingSectionId &&
-      sectionDropTarget &&
-      draggingSectionId !== targetSecId
-    ) {
-      reorderSections(
-        draggingSectionId,
-        sectionDropTarget.id,
-        sectionDropTarget.position,
-      );
-    }
-    setDraggingSectionId(null);
-    setSectionDropTarget(null);
-  }
-
-  function onSectionDragEnd() {
-    setDraggingSectionId(null);
-    setSectionDropTarget(null);
-  }
-
-  // ── Workspace item renderer (shared by unsectioned + section body) ───────
-
-  function renderWorkspaceItem(ws: Workspace, i: number, sectionId?: string) {
-    const isDragging = draggingId === ws.id;
-    const isDropBefore =
-      dropTarget?.id === ws.id && dropTarget.position === "before";
-    const isDropAfter =
-      dropTarget?.id === ws.id && dropTarget.position === "after";
+  function renderWorkspaceItem(ws: Workspace, i: number, groupId?: string) {
+    const edge = dnd.dropEdge(ws.id);
     const classes = [
       "ws-item",
       snap.activeId === ws.id ? "active" : "",
-      isDragging ? "dragging" : "",
-      isDropBefore ? "drop-before" : "",
-      isDropAfter ? "drop-after" : "",
+      dnd.isDragging(ws.id) ? "dragging" : "",
+      edge === "before" ? "drop-before" : "",
+      edge === "after" ? "drop-after" : "",
     ]
       .filter(Boolean)
       .join(" ");
 
-    // useFocusGroup props only apply to unsectioned items
-    const focusProps = sectionId === undefined ? group.getItemProps(i) : {};
+    // useFocusGroup props only apply to ungrouped items
+    const focusProps = groupId === undefined ? roving.getItemProps(i) : {};
 
     return (
       <li
@@ -389,11 +270,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
         role="option"
         aria-selected={snap.activeId === ws.id}
         {...focusProps}
-        draggable
-        onDragStart={(e) => onDragStart(e, ws.id, sectionId)}
-        onDragOver={(e) => onDragOver(e, ws.id)}
-        onDrop={(e) => onDrop(e, ws.id, sectionId)}
-        onDragEnd={onDragEnd}
+        {...dnd.workspaceProps(ws.id, groupId)}
         onClick={() => service.activate(ws.id)}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -463,86 +340,75 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     <>
       <div className="panel-body workspaces-body">
         {!snap.hydrated && <div className="placeholder">Loading…</div>}
-        {snap.hydrated && (snap.open.length > 0 || storeSnap.sectionOrder.length > 0) && (
+        {snap.hydrated && (snap.open.length > 0 || storeSnap.groupOrder.length > 0) && (
           <ul
             className="ws-list"
             role="listbox"
             aria-label="Open workspaces"
-            {...group.containerProps}
+            {...roving.containerProps}
           >
-            {/* Unsectioned open workspaces */}
-            {unsectioned.map((ws, i) => renderWorkspaceItem(ws, i))}
+            {/* Ungrouped open workspaces */}
+            {ungrouped.map((ws, i) => renderWorkspaceItem(ws, i))}
 
-            {/* Sections */}
-            {storeSnap.sectionOrder.map((secId) => {
-              const sec = storeSnap.sections[secId];
-              if (!sec) return null;
+            {/* Groups */}
+            {storeSnap.groupOrder.map((groupId) => {
+              const group = storeSnap.groups[groupId];
+              if (!group) return null;
 
-              const isSectionDragging = draggingSectionId === sec.id;
-              const isSectionDropBefore =
-                sectionDropTarget?.id === sec.id &&
-                sectionDropTarget.position === "before";
-              const isSectionDropAfter =
-                sectionDropTarget?.id === sec.id &&
-                sectionDropTarget.position === "after";
-
+              const groupEdge = dnd.groupDropEdge(group.id);
               const headerClasses = [
-                "ws-section-header",
-                isSectionDragging ? "dragging" : "",
-                isSectionDropBefore ? "drop-before" : "",
-                isSectionDropAfter ? "drop-after" : "",
+                "ws-group-header",
+                dnd.isGroupDragging(group.id) ? "dragging" : "",
+                groupEdge === "before" ? "drop-before" : "",
+                groupEdge === "after" ? "drop-after" : "",
               ]
                 .filter(Boolean)
                 .join(" ");
 
-              const colorStyle = sec.color
-                ? ({ "--ws-section-color": sec.color } as React.CSSProperties)
+              const colorStyle = group.color
+                ? ({ "--ws-group-color": group.color } as React.CSSProperties)
                 : undefined;
 
               return (
                 <li
-                  key={sec.id}
-                  className={`ws-section${sec.color ? " ws-section--colored" : ""}`}
+                  key={group.id}
+                  className={`ws-group${group.color ? " ws-group--colored" : ""}`}
                   style={colorStyle}
                 >
                   <div
                     className={headerClasses}
-                    draggable
-                    onClick={() => toggleSectionCollapsed(sec.id)}
-                    onDragStart={(e) => onSectionDragStart(e, sec.id)}
-                    onDragOver={(e) => onSectionDragOver(e, sec.id)}
-                    onDrop={(e) => onSectionDrop(e, sec.id)}
-                    onDragEnd={onSectionDragEnd}
+                    {...dnd.groupProps(group.id)}
+                    onClick={() => toggleGroupCollapsed(group.id)}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
-                      void openSectionProperties(ctx, sec);
+                      void openGroupProperties(ctx, group);
                     }}
                     onContextMenu={(e) => {
                       e.preventDefault();
                       if (e.button === 2) {
-                        openSectionMenu(sec, {
+                        openGroupMenu(group, {
                           at: { x: e.clientX, y: e.clientY },
                         });
                       } else {
-                        openSectionMenu(sec, {
+                        openGroupMenu(group, {
                           anchor: e.currentTarget,
                         });
                       }
                     }}
                   >
                     <CaretRight
-                      className={`ws-section-caret${sec.collapsed ? "" : " expanded"}`}
+                      className={`ws-group-caret${group.collapsed ? "" : " expanded"}`}
                       size={12}
                       weight="bold"
                     />
-                    <span className="ws-section-name">{sec.name}</span>
+                    <span className="ws-group-name">{group.name}</span>
                   </div>
-                  {!sec.collapsed && (
-                    <ul className="ws-section-body">
-                      {sec.workspaceOrder.map((wsId) => {
+                  {!group.collapsed && (
+                    <ul className="ws-group-body">
+                      {group.workspaceOrder.map((wsId) => {
                         const ws = openById.get(wsId);
                         if (!ws) return null;
-                        return renderWorkspaceItem(ws, 0, sec.id);
+                        return renderWorkspaceItem(ws, 0, group.id);
                       })}
                     </ul>
                   )}

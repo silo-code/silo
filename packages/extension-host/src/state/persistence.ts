@@ -176,10 +176,10 @@ export async function hydrate(configDir: string): Promise<void> {
   store.workspaceOrder = listing.workspaceOrder;
   store.activeWorkspaceId = listing.activeWorkspaceId;
 
-  // Sections — absent in older indexes; default to empty.
-  store.sections = index?.sections ?? {};
-  store.sectionOrder = index?.sectionOrder ?? [];
-  store.workspaceSections = index?.workspaceSections ?? {};
+  // Groups — absent in older indexes; default to empty. The workspace→group
+  // reverse map is derived at runtime, so nothing to restore here.
+  store.groups = index?.groups ?? {};
+  store.groupOrder = index?.groupOrder ?? [];
 
   // Seed lastWritten from the loaded files so the first flush only rewrites what
   // actually changes afterward.
@@ -272,9 +272,8 @@ async function doPersist(): Promise<void> {
       editorSettings: { ...store.editorSettings },
       terminalSettings: { ...store.terminalSettings },
       globalExtensionState: store.globalExtensionState,
-      sections: store.sections,
-      sectionOrder: [...store.sectionOrder],
-      workspaceSections: store.workspaceSections,
+      groups: store.groups,
+      groupOrder: [...store.groupOrder],
     }),
   );
   await indexStore.save();

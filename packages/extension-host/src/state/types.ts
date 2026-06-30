@@ -20,14 +20,18 @@ import type { Workspace, SidePanelSlot, CustomTheme } from "@silo-code/sdk";
 
 /**
  * A named, collapsible group in the Workspaces side panel. Purely
- * organizational — sections don't affect workspace activation or the public
- * WorkspaceService. Stored in `AppState.sections` keyed by id.
+ * organizational — groups don't affect workspace activation or the public
+ * WorkspaceService. Stored in `AppState.groups` keyed by id.
+ *
+ * Not to be confused with the SDK's `WorkspaceSectionProvider`: a *section* is
+ * an extension-contributed component mounted inside a workspace row, whereas a
+ * *group* is a user-created collapsible grouping of rows.
  */
-export interface WorkspacePanelSection {
-  id: string; // "sec_<uuid>"
+export interface WorkspaceGroup {
+  id: string; // "grp_<uuid>"
   name: string;
   collapsed: boolean;
-  workspaceOrder: string[]; // workspace IDs in this section, in user-defined order
+  workspaceOrder: string[]; // workspace IDs in this group, in user-defined order
   color?: string; // optional accent color, e.g. "#e06c75"
 }
 
@@ -88,12 +92,17 @@ export interface AppState {
    * `false` (hidden) is stored.
    */
   sidePanelVisibility: Record<string, boolean>;
-  /** Named collapsible groups in the Workspaces panel, keyed by section id. */
-  sections: Record<string, WorkspacePanelSection>;
-  /** Ordered list of section ids, defining panel display order. */
-  sectionOrder: string[];
-  /** Reverse-lookup map from workspace id to its section id. */
-  workspaceSections: Record<string, string>;
+  /**
+   * Named collapsible groups in the Workspaces panel, keyed by group id. A
+   * group's `workspaceOrder` is the single source of truth for membership — a
+   * workspace belongs to the group whose `workspaceOrder` contains it. The
+   * reverse lookup (workspace id → group id) is *derived* from this, never
+   * stored, so the two can't drift; see `groupIdForWorkspace` /
+   * `workspaceGroupMap` in `workspaces.ts`.
+   */
+  groups: Record<string, WorkspaceGroup>;
+  /** Ordered list of group ids, defining panel display order. */
+  groupOrder: string[];
   /**
    * Set to `true` after `ExtensionManager.loadInstalled()` resolves. The dock
    * gates `fromJSON` layout restore behind this flag so external extensions

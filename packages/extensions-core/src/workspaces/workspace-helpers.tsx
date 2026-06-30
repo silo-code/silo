@@ -14,11 +14,6 @@ import type {
  */
 export type Workspace = WorkspaceState["all"][number];
 
-export interface DropTarget {
-  id: string;
-  position: "before" | "after";
-}
-
 /** The staged edits the Workspace Properties form hands back on save. */
 export interface WorkspacePropertiesChanges {
   name: string;

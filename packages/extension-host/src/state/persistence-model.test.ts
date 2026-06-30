@@ -254,39 +254,36 @@ describe("buildIndex", () => {
     expect(index.uiFontSize).toBeUndefined();
   });
 
-  it("round-trips section fields when provided", () => {
-    const sections = {
-      "sec_1": { id: "sec_1", name: "Work", collapsed: false, workspaceOrder: ["ws_a"] },
+  it("round-trips group fields when provided", () => {
+    const groups = {
+      "grp_1": { id: "grp_1", name: "Work", collapsed: false, workspaceOrder: ["ws_a"] },
     };
     const index = buildIndex({
       workspaceOrder: ["ws_a"],
       activeWorkspaceId: "ws_a",
-      sections,
-      sectionOrder: ["sec_1"],
-      workspaceSections: { "ws_a": "sec_1" },
+      groups,
+      groupOrder: ["grp_1"],
     });
-    expect(index.sections).toEqual(sections);
-    expect(index.sectionOrder).toEqual(["sec_1"]);
-    expect(index.workspaceSections).toEqual({ "ws_a": "sec_1" });
+    expect(index.groups).toEqual(groups);
+    expect(index.groupOrder).toEqual(["grp_1"]);
     // Must be copies, not the same references
-    expect(index.sections).not.toBe(sections);
-    expect(index.sectionOrder).not.toBe(["sec_1"]);
+    expect(index.groups).not.toBe(groups);
+    expect(index.groupOrder).not.toBe(["grp_1"]);
   });
 
-  it("deep-clones section workspaceOrder arrays", () => {
+  it("deep-clones group workspaceOrder arrays", () => {
     const workspaceOrder = ["ws_a"];
-    const sections = {
-      "sec_1": { id: "sec_1", name: "S", collapsed: false, workspaceOrder },
+    const groups = {
+      "grp_1": { id: "grp_1", name: "G", collapsed: false, workspaceOrder },
     };
-    const index = buildIndex({ workspaceOrder: [], activeWorkspaceId: null, sections });
+    const index = buildIndex({ workspaceOrder: [], activeWorkspaceId: null, groups });
     workspaceOrder.push("ws_b");
-    expect(index.sections!["sec_1"].workspaceOrder).toEqual(["ws_a"]);
+    expect(index.groups!["grp_1"].workspaceOrder).toEqual(["ws_a"]);
   });
 
-  it("omits section fields when not provided", () => {
+  it("omits group fields when not provided", () => {
     const index = buildIndex({ workspaceOrder: [], activeWorkspaceId: null });
-    expect(index.sections).toBeUndefined();
-    expect(index.sectionOrder).toBeUndefined();
-    expect(index.workspaceSections).toBeUndefined();
+    expect(index.groups).toBeUndefined();
+    expect(index.groupOrder).toBeUndefined();
   });
 });

@@ -429,18 +429,18 @@
   grid-column: 2;
 }
 
-/* ── Workspace panel sections ───────────────────────────────────────────── */
+/* ── Workspace panel groups ─────────────────────────────────────────────── */
 
-.ws-section {
+.ws-group {
   list-style: none;
   margin-top: 12px;
 }
 
-.ws-list > .ws-section:first-child {
+.ws-list > .ws-group:first-child {
   margin-top: 0;
 }
 
-.ws-section-header {
+.ws-group-header {
   position: relative;
   display: flex;
   align-items: center;
@@ -456,17 +456,17 @@
   border-radius: var(--silo-radius-sm);
 }
 
-.ws-section-header:hover {
+.ws-group-header:hover {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text);
 }
 
-.ws-section-header.dragging {
+.ws-group-header.dragging {
   opacity: 0.4;
 }
 
-.ws-section-header.drop-before::before,
-.ws-section-header.drop-after::after {
+.ws-group-header.drop-before::before,
+.ws-group-header.drop-after::after {
   content: "";
   position: absolute;
   left: 4px;
@@ -477,25 +477,25 @@
   pointer-events: none;
 }
 
-.ws-section-header.drop-before::before {
+.ws-group-header.drop-before::before {
   top: -1px;
 }
 
-.ws-section-header.drop-after::after {
+.ws-group-header.drop-after::after {
   bottom: -1px;
 }
 
-.ws-section-caret {
+.ws-group-caret {
   flex-shrink: 0;
   transition: transform 150ms ease;
   color: var(--silo-color-text-lo);
 }
 
-.ws-section-caret.expanded {
+.ws-group-caret.expanded {
   transform: rotate(90deg);
 }
 
-.ws-section-name {
+.ws-group-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -503,72 +503,72 @@
   white-space: nowrap;
 }
 
-.ws-section-body {
+.ws-group-body {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-/* Indent workspace items inside a section */
-.ws-section-body .ws-item {
+/* Indent workspace items inside a group */
+.ws-group-body .ws-item {
   margin-left: 12px;
 }
 
-/* ── Colored section accent ──────────────────────────────────────────────── */
+/* ── Colored group accent ────────────────────────────────────────────────── */
 
-/* The whole section becomes one bordered card */
-.ws-section--colored {
-  --ws-section-mix: 20%;
-  --ws-section-mix-hover: 30%;
-  border: 2px solid color-mix(in srgb, var(--ws-section-color) var(--ws-section-mix), transparent);
+/* The whole group becomes one bordered card */
+.ws-group--colored {
+  --ws-group-mix: 20%;
+  --ws-group-mix-hover: 30%;
+  border: 2px solid color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix), transparent);
   border-radius: var(--silo-radius-sm);
   margin-inline: 4px;
   margin-bottom: 4px;
-  /* margin-top intentionally omitted — controlled by .ws-section base rule */
+  /* margin-top intentionally omitted — controlled by .ws-group base rule */
 }
 
-[data-theme="light"] .ws-section--colored {
-  --ws-section-mix: 35%;
-  --ws-section-mix-hover: 45%;
+[data-theme="light"] .ws-group--colored {
+  --ws-group-mix: 35%;
+  --ws-group-mix-hover: 45%;
 }
 
 /* Header fills the top of the card with a subtle tint */
-.ws-section--colored .ws-section-header {
-  background: color-mix(in srgb, var(--ws-section-color) var(--ws-section-mix), transparent);
+.ws-group--colored .ws-group-header {
+  background: color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix), transparent);
   margin: 0;
   border-radius: calc(var(--silo-radius-sm) - 2px) calc(var(--silo-radius-sm) - 2px) 0 0;
 }
 
-.ws-section--colored .ws-section-header:hover {
-  background: color-mix(in srgb, var(--ws-section-color) var(--ws-section-mix-hover), transparent);
+.ws-group--colored .ws-group-header:hover {
+  background: color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix-hover), transparent);
 }
 
-.ws-section--colored .ws-section-name,
-.ws-section--colored .ws-section-caret {
-  color: var(--ws-section-color);
+.ws-group--colored .ws-group-name,
+.ws-group--colored .ws-group-caret {
+  color: var(--ws-group-color);
   opacity: 1;
 }
 
 /* Body sits inside the card — no separate border needed */
-.ws-section--colored .ws-section-body {
+.ws-group--colored .ws-group-body {
   margin: 0;
   padding: 4px 0 2px;
 }
 
-/* Items inside a colored section use symmetric margins matching the right side */
-.ws-section--colored .ws-section-body .ws-item {
+/* Items inside a colored group use symmetric margins matching the right side */
+.ws-group--colored .ws-group-body .ws-item {
   margin-left: 4px;
 }
 
-/* ── Section color swatch palette ───────────────────────────────────────── */
+/* ── Group color swatch palette ─────────────────────────────────────────── */
 
-.ws-sec-palette {
+.ws-group-palette {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.ws-sec-swatch {
+.ws-group-swatch {
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -580,23 +580,23 @@
   transition: transform 80ms ease, border-color 80ms ease;
 }
 
-.ws-sec-swatch:hover {
+.ws-group-swatch:hover {
   transform: scale(1.15);
 }
 
-.ws-sec-swatch.selected {
+.ws-group-swatch.selected {
   border-color: var(--silo-color-text-hi);
   box-shadow: 0 0 0 1px var(--silo-color-bg);
 }
 
 /* "None" swatch — show as a circle with a diagonal slash */
-.ws-sec-swatch:first-child {
+.ws-group-swatch:first-child {
   background: transparent;
   border-color: var(--silo-color-border-strong);
   position: relative;
 }
 
-.ws-sec-swatch:first-child::after {
+.ws-group-swatch:first-child::after {
   content: "";
   position: absolute;
   inset: 2px;

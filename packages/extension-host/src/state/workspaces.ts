@@ -7,7 +7,7 @@ import type {
   TerminalKind,
   TerminalRecord,
   Workspace,
-  WorkspacePanelSection,
+  WorkspaceGroup,
 } from "./types";
 
 function uuid(): string {
@@ -206,7 +206,7 @@ export function removeExtraFolder(workspaceId: string, folder: string): void {
 
 export function deleteWorkspace(id: string): void {
   if (!store.workspaces[id]) return;
-  removeWorkspaceFromSection(id);
+  removeWorkspaceFromGroup(id);
   delete store.workspaces[id];
   store.workspaceOrder = store.workspaceOrder.filter((wid) => wid !== id);
   if (store.activeWorkspaceId === id) {
@@ -214,39 +214,67 @@ export function deleteWorkspace(id: string): void {
   }
 }
 
-// ── Workspace panel sections ────────────────────────────────────────────────
+// ── Workspace panel groups ──────────────────────────────────────────────────
+//
+// Membership is single-sourced: a workspace belongs to the group whose
+// `workspaceOrder` contains it. The reverse lookup is derived on demand
+// (`groupIdForWorkspace` for the store, `workspaceGroupMap` for snapshot-driven
+// UI) rather than stored, so there is no second copy to keep in sync.
 
-export function createSection(name: string): WorkspacePanelSection {
-  const id = `sec_${uuid()}`;
-  const section: WorkspacePanelSection = { id, name, collapsed: false, workspaceOrder: [] };
-  store.sections[id] = section;
-  store.sectionOrder.push(id);
-  return section;
-}
-
-export function renameSection(id: string, name: string): void {
-  const sec = store.sections[id];
-  if (!sec) return;
-  sec.name = name;
-}
-
-export function deleteSection(id: string): void {
-  const sec = store.sections[id];
-  if (!sec) return;
-  for (const wsId of sec.workspaceOrder) {
-    delete store.workspaceSections[wsId];
+/** The id of the group containing `wsId`, or `undefined` when it is ungrouped. */
+export function groupIdForWorkspace(wsId: string): string | undefined {
+  for (const groupId of store.groupOrder) {
+    if (store.groups[groupId]?.workspaceOrder.includes(wsId)) return groupId;
   }
-  delete store.sections[id];
-  store.sectionOrder = store.sectionOrder.filter((sid) => sid !== id);
+  return undefined;
 }
 
-export function reorderSections(
+/**
+ * Build the workspace-id → group-id reverse lookup from group membership. Pure
+ * over its inputs so snapshot-driven consumers (the panel) can memoize it from
+ * `groups` / `groupOrder` and stay reactive.
+ */
+export function workspaceGroupMap(
+  groups: Record<string, { workspaceOrder: readonly string[] }>,
+  groupOrder: readonly string[],
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const groupId of groupOrder) {
+    const group = groups[groupId];
+    if (!group) continue;
+    for (const wsId of group.workspaceOrder) map.set(wsId, groupId);
+  }
+  return map;
+}
+
+export function createGroup(name: string): WorkspaceGroup {
+  const id = `grp_${uuid()}`;
+  const group: WorkspaceGroup = { id, name, collapsed: false, workspaceOrder: [] };
+  store.groups[id] = group;
+  store.groupOrder.push(id);
+  return group;
+}
+
+export function renameGroup(id: string, name: string): void {
+  const group = store.groups[id];
+  if (!group) return;
+  group.name = name;
+}
+
+export function deleteGroup(id: string): void {
+  const group = store.groups[id];
+  if (!group) return;
+  delete store.groups[id];
+  store.groupOrder = store.groupOrder.filter((gid) => gid !== id);
+}
+
+export function reorderGroups(
   fromId: string,
   toId: string,
   position: "before" | "after",
 ): void {
   if (fromId === toId) return;
-  const order = store.sectionOrder;
+  const order = store.groupOrder;
   const fromIndex = order.indexOf(fromId);
   if (fromIndex === -1) return;
   order.splice(fromIndex, 1);
@@ -259,36 +287,34 @@ export function reorderSections(
   order.splice(toIndex, 0, fromId);
 }
 
-export function moveWorkspaceToSection(wsId: string, secId: string): void {
-  const sec = store.sections[secId];
-  if (!sec) return;
-  removeWorkspaceFromSection(wsId);
-  store.workspaceSections[wsId] = secId;
-  if (!sec.workspaceOrder.includes(wsId)) {
-    sec.workspaceOrder.push(wsId);
+export function moveWorkspaceToGroup(wsId: string, groupId: string): void {
+  const group = store.groups[groupId];
+  if (!group) return;
+  removeWorkspaceFromGroup(wsId);
+  if (!group.workspaceOrder.includes(wsId)) {
+    group.workspaceOrder.push(wsId);
   }
 }
 
-export function removeWorkspaceFromSection(wsId: string): void {
-  const secId = store.workspaceSections[wsId];
-  if (!secId) return;
-  const sec = store.sections[secId];
-  if (sec) {
-    sec.workspaceOrder = sec.workspaceOrder.filter((id) => id !== wsId);
+export function removeWorkspaceFromGroup(wsId: string): void {
+  const groupId = groupIdForWorkspace(wsId);
+  if (!groupId) return;
+  const group = store.groups[groupId];
+  if (group) {
+    group.workspaceOrder = group.workspaceOrder.filter((id) => id !== wsId);
   }
-  delete store.workspaceSections[wsId];
 }
 
-export function reorderWorkspaceInSection(
-  secId: string,
+export function reorderWorkspaceInGroup(
+  groupId: string,
   fromId: string,
   toId: string,
   position: "before" | "after",
 ): void {
   if (fromId === toId) return;
-  const sec = store.sections[secId];
-  if (!sec) return;
-  const order = sec.workspaceOrder;
+  const group = store.groups[groupId];
+  if (!group) return;
+  const order = group.workspaceOrder;
   const fromIndex = order.indexOf(fromId);
   if (fromIndex === -1) return;
   order.splice(fromIndex, 1);
@@ -301,20 +327,20 @@ export function reorderWorkspaceInSection(
   order.splice(toIndex, 0, fromId);
 }
 
-export function setSectionColor(id: string, color: string | undefined): void {
-  const sec = store.sections[id];
-  if (!sec) return;
+export function setGroupColor(id: string, color: string | undefined): void {
+  const group = store.groups[id];
+  if (!group) return;
   if (color) {
-    sec.color = color;
+    group.color = color;
   } else {
-    delete sec.color;
+    delete group.color;
   }
 }
 
-export function toggleSectionCollapsed(id: string): void {
-  const sec = store.sections[id];
-  if (!sec) return;
-  sec.collapsed = !sec.collapsed;
+export function toggleGroupCollapsed(id: string): void {
+  const group = store.groups[id];
+  if (!group) return;
+  group.collapsed = !group.collapsed;
 }
 
 export function addTerminal(

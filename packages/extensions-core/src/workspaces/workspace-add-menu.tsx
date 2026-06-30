@@ -37,9 +37,9 @@ export function buildAddWorkspaceItems(opts: {
   closed: readonly Workspace[];
   folderExistence: Map<string, boolean>;
   onNew: () => void;
-  onNewSection?: () => void;
+  onNewGroup?: () => void;
 }): MenuEntry[] {
-  const { ctx, closed, folderExistence, onNew, onNewSection } = opts;
+  const { ctx, closed, folderExistence, onNew, onNewGroup } = opts;
   const items: MenuEntry[] = [{ type: "header", label: "Saved" }];
   if (closed.length > 0) {
     for (const ws of closed) {
@@ -75,12 +75,12 @@ export function buildAddWorkspaceItems(opts: {
     icon: <Plus size={14} weight="bold" />,
     run: onNew,
   });
-  if (onNewSection) {
+  if (onNewGroup) {
     items.push({ type: "separator" });
     items.push({
-      label: "New Section…",
+      label: "New Group…",
       icon: <FolderSimple size={14} weight="bold" />,
-      run: onNewSection,
+      run: onNewGroup,
     });
   }
   return items;
