@@ -62,11 +62,15 @@ describe("resolveLocalImagePath", () => {
   });
 
   it("returns null for http URLs", () => {
-    expect(resolveLocalImagePath("http://example.com/img.png", file)).toBeNull();
+    expect(
+      resolveLocalImagePath("http://example.com/img.png", file),
+    ).toBeNull();
   });
 
   it("returns null for https URLs", () => {
-    expect(resolveLocalImagePath("https://example.com/img.png", file)).toBeNull();
+    expect(
+      resolveLocalImagePath("https://example.com/img.png", file),
+    ).toBeNull();
   });
 
   it("returns null for protocol-relative URLs", () => {

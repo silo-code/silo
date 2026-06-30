@@ -25,7 +25,10 @@ const MIME_BY_EXT: Record<string, string> = {
 };
 
 function mimeFromPath(p: string): string {
-  return MIME_BY_EXT[p.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
+  return (
+    MIME_BY_EXT[p.split(".").pop()?.toLowerCase() ?? ""] ??
+    "application/octet-stream"
+  );
 }
 
 interface MarkdownImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
@@ -33,7 +36,13 @@ interface MarkdownImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   filePath: string | null;
 }
 
-function MarkdownImage({ src, alt, ctx, filePath, ...rest }: MarkdownImageProps) {
+function MarkdownImage({
+  src,
+  alt,
+  ctx,
+  filePath,
+  ...rest
+}: MarkdownImageProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,7 +72,9 @@ function MarkdownImage({ src, alt, ctx, filePath, ...rest }: MarkdownImageProps)
     };
   }, [src, filePath, ctx]);
 
-  const effectiveSrc = isExternalImageUrl(src ?? "") ? src : (blobUrl ?? undefined);
+  const effectiveSrc = isExternalImageUrl(src ?? "")
+    ? src
+    : (blobUrl ?? undefined);
   return <img src={effectiveSrc} alt={alt} {...rest} />;
 }
 
@@ -110,7 +121,15 @@ export function MarkdownPreview({
         alt,
         ...rest
       }: React.ImgHTMLAttributes<HTMLImageElement> & { node?: unknown }) {
-        return <MarkdownImage src={src} alt={alt} ctx={ctx} filePath={filePath} {...rest} />;
+        return (
+          <MarkdownImage
+            src={src}
+            alt={alt}
+            ctx={ctx}
+            filePath={filePath}
+            {...rest}
+          />
+        );
       },
     }),
     [ctx, filePath],
@@ -221,7 +240,10 @@ export function MarkdownPreview({
                 {parsed && <FrontmatterBlock fields={parsed.fields} />}
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw, [rehypeSanitize, GITHUB_SANITIZE_SCHEMA]]}
+                  rehypePlugins={[
+                    rehypeRaw,
+                    [rehypeSanitize, GITHUB_SANITIZE_SCHEMA],
+                  ]}
                   components={components}
                 >
                   {body}
