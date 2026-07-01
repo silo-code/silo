@@ -57,3 +57,4 @@ A small, obvious choice needs neither.
 | [0020](./0020-silo-extensions-bundled.md)               | Ship `silo.*` bundled, surfaced as disable-able      | 2026-06-04 | accepted |
 | [0021](./0021-keyboard-navigation-architecture.md)      | Keyboard nav: headless focus-group + region model    | 2026-06-08 | accepted |
 | [0022](./0022-on-disk-storage-layout.md)                | On-disk storage layout: config / app-state / runtime | 2026-06-10 | accepted |
+| [0023](./0023-workspace-groups-host-internal.md)        | Workspace panel groups are host-internal             | 2026-06-30 | accepted |

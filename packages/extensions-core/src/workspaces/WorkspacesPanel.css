@@ -1,5 +1,11 @@
 .workspaces-body {
   padding: 0;
+  /* Fill the scrolling tab-pane so the panel's empty area (below the last
+     entry, down to the add button) is part of this element — it carries the
+     "drop at the end" drag handler, so a drop anywhere below the list still
+     lands. Without this the body is only content-tall and drops fall through
+     to the host tab-pane, which has no drop handler. */
+  min-height: 100%;
 }
 
 .workspaces-body .placeholder.empty {
@@ -33,7 +39,11 @@
 .ws-list {
   list-style: none;
   margin: 0;
-  padding: 4px 0;
+  /* Top padding gives the "drop before the first entry" line room so it isn't
+     clipped by the pane top (a group's line sits at -7px), and doubles as the
+     top catch-all zone. Bottom padding is the always-present drop-at-the-end
+     strip below the last entry. */
+  padding: 12px 0 24px;
 }
 
 .ws-item {
@@ -203,11 +213,11 @@
   font-family: var(--silo-font-ui);
   font-size: var(--silo-font-size-base);
   padding: 6px 8px;
+  /* Suppress the native ring; focus is the shared accent ring from the global
+     `input:focus-visible` rule in theme.css (higher specificity, so it still
+     wins on focus). Don't also recolor the border on focus here, or the two
+     accent rings stack into a double outline. */
   outline: none;
-}
-
-.ws-rename-input:focus {
-  border-color: var(--silo-color-accent);
 }
 
 /* Combined workspace properties dialog — content layout inside the host
@@ -427,4 +437,240 @@
 
 .ws-sections > * {
   grid-column: 2;
+}
+
+/* ── Workspace panel groups ─────────────────────────────────────────────── */
+
+.ws-group {
+  position: relative;
+  list-style: none;
+  margin-top: 12px;
+}
+
+.ws-list > .ws-group:first-child {
+  margin-top: 0;
+}
+
+/* A group followed by an ungrouped workspace needs the same breathing room
+   above the workspace as sits above a group. */
+.ws-list > .ws-group + .ws-item {
+  margin-top: 12px;
+}
+
+/* Drag-state visuals live on the whole card — it is the drop target, so the
+   dimmed source and the before/after reorder lines read against the card. */
+.ws-group.dragging {
+  opacity: 0.4;
+}
+
+.ws-group.drop-before::before,
+.ws-group.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: var(--silo-color-accent);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.ws-group.drop-before::before {
+  top: -7px;
+}
+
+.ws-group.drop-after::after {
+  bottom: -7px;
+}
+
+.ws-group-header {
+  position: relative;
+  /* Grid, not flex: on WebKit (Tauri's macOS engine) a `draggable` *flex*
+     container refuses to start a drag when you grab a child (e.g. the name
+     span) — `dragstart` never fires. The draggable workspace rows use grid and
+     drag fine, so the header matches them. Caret (auto) + name (1fr). */
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  margin: 0 4px;
+  cursor: pointer;
+  font-family: var(--silo-font-ui);
+  font-size: calc(1em - 1px);
+  font-weight: 600;
+  color: var(--silo-color-text-lo);
+  border-radius: var(--silo-radius-sm);
+  /* NOTE: do not add `user-select: none` here. On WebKit `user-select: none`
+     on a `draggable` element also suppresses `dragstart`. The rows omit it too. */
+  -webkit-user-drag: element;
+}
+
+.ws-group-header:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text);
+}
+
+.ws-group-caret {
+  flex-shrink: 0;
+  transition: transform 150ms ease;
+  color: var(--silo-color-text-lo);
+}
+
+.ws-group-caret.expanded {
+  transform: rotate(90deg);
+}
+
+.ws-group-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-group-body {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Indent workspace items inside a group */
+.ws-group-body .ws-item {
+  margin-left: 12px;
+}
+
+/* Drop-into-group affordance — shown while a dragged workspace hovers a group
+   header (or a collapsed group). Distinct from the before/after reorder lines:
+   a ring around the whole group reads as "lands inside this group". */
+.ws-group.drop-into {
+  border-radius: var(--silo-radius-sm);
+  box-shadow: inset 0 0 0 2px var(--silo-color-accent);
+}
+
+/* ── Colored group accent ────────────────────────────────────────────────── */
+
+/* Ink for the neutral (greyscale) swatches. It's a theme token so the shades
+   invert automatically; on dark themes we point at a brighter token than
+   `text-hi` (which is deliberately dim in the dark palettes) so the tints read
+   a bit lighter. Equal specificity to `:root`, so source order lets the
+   dark override win on dark themes and light falls through to the default. */
+:root {
+  --ws-group-neutral-ink: var(--silo-color-text-hi);
+}
+
+[data-theme="dark"] {
+  --ws-group-neutral-ink: var(--silo-color-input-text);
+}
+
+/* The whole group becomes one bordered card */
+.ws-group--colored {
+  --ws-group-mix: 20%;
+  --ws-group-mix-hover: 30%;
+  border: 2px solid
+    color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix), transparent);
+  border-radius: var(--silo-radius-sm);
+  margin-inline: 4px;
+  margin-bottom: 4px;
+  /* margin-top intentionally omitted — controlled by .ws-group base rule */
+}
+
+[data-theme="light"] .ws-group--colored {
+  --ws-group-mix: 35%;
+  --ws-group-mix-hover: 45%;
+}
+
+/* Header fills the top of the card with a subtle tint */
+.ws-group--colored .ws-group-header {
+  background: color-mix(
+    in srgb,
+    var(--ws-group-color) var(--ws-group-mix),
+    transparent
+  );
+  margin: 0;
+  border-radius: calc(var(--silo-radius-sm) - 2px)
+    calc(var(--silo-radius-sm) - 2px) 0 0;
+}
+
+.ws-group--colored .ws-group-header:hover {
+  background: color-mix(
+    in srgb,
+    var(--ws-group-color) var(--ws-group-mix-hover),
+    transparent
+  );
+}
+
+.ws-group--colored .ws-group-name,
+.ws-group--colored .ws-group-caret {
+  color: var(--ws-group-color);
+  opacity: 1;
+}
+
+/* Body sits inside the card — no separate border needed */
+.ws-group--colored .ws-group-body {
+  margin: 0;
+  padding: 4px 0 2px;
+}
+
+/* Items inside a colored group use symmetric margins matching the right side */
+.ws-group--colored .ws-group-body .ws-item {
+  margin-left: 4px;
+}
+
+/* ── Group color swatch palette ─────────────────────────────────────────── */
+
+.ws-group-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Indent the greyscale row one column so it sits under the first color, not
+   under the "None" swatch (one swatch width + the row gap). */
+.ws-group-palette--offset {
+  margin-left: calc(22px + 8px);
+}
+
+.ws-group-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  background: var(--silo-color-button-bg);
+  outline: none;
+  transition:
+    transform 80ms ease,
+    border-color 80ms ease;
+}
+
+.ws-group-swatch:hover {
+  transform: scale(1.15);
+}
+
+.ws-group-swatch.selected {
+  border-color: var(--silo-color-text-hi);
+  box-shadow: 0 0 0 1px var(--silo-color-bg);
+}
+
+/* "None" swatch — show as a circle with a diagonal slash */
+.ws-group-swatch--none {
+  background: transparent;
+  border-color: var(--silo-color-border-strong);
+  position: relative;
+}
+
+.ws-group-swatch--none::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 1px),
+    var(--silo-color-border-strong) calc(50% - 1px),
+    var(--silo-color-border-strong) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+  border-radius: 50%;
 }

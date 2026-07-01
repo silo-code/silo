@@ -28,6 +28,8 @@ export const store = proxy<AppState>({
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,
   sidePanelVisibility: {},
+  groups: {},
+  panelOrder: [],
 });
 
 export function setSidePanelSlot(panelId: string, slot: SidePanelSlot | null) {

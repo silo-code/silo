@@ -18,6 +18,23 @@ import type { Workspace, SidePanelSlot, CustomTheme } from "@silo-code/sdk";
 
 // ── Host-only state types (not part of the public surface) ──
 
+/**
+ * A named, collapsible group in the Workspaces side panel. Purely
+ * organizational — groups don't affect workspace activation or the public
+ * WorkspaceService. Stored in `AppState.groups` keyed by id.
+ *
+ * Not to be confused with the SDK's `WorkspaceSectionProvider`: a *section* is
+ * an extension-contributed component mounted inside a workspace row, whereas a
+ * *group* is a user-created collapsible grouping of rows.
+ */
+export interface WorkspaceGroup {
+  id: string; // "grp_<uuid>"
+  name: string;
+  collapsed: boolean;
+  workspaceOrder: string[]; // workspace IDs in this group, in user-defined order
+  color?: string; // optional accent color, e.g. "#e06c75"
+}
+
 export interface AppState {
   workspaces: Record<string, Workspace>;
   workspaceOrder: string[];
@@ -75,6 +92,24 @@ export interface AppState {
    * `false` (hidden) is stored.
    */
   sidePanelVisibility: Record<string, boolean>;
+  /**
+   * Named collapsible groups in the Workspaces panel, keyed by group id. A
+   * group's `workspaceOrder` is the single source of truth for membership — a
+   * workspace belongs to the group whose `workspaceOrder` contains it. The
+   * reverse lookup (workspace id → group id) is *derived* from this, never
+   * stored, so the two can't drift; see `groupIdForWorkspace` /
+   * `workspaceGroupMap` in `workspaces.ts`.
+   */
+  groups: Record<string, WorkspaceGroup>;
+  /**
+   * The single top-level order of the Workspaces panel: an interleaved list of
+   * **ungrouped workspace ids** and **group ids**. Grouped workspaces are *not*
+   * here (they live inside their group's `workspaceOrder`). This is what lets a
+   * group be dragged anywhere in the list, including above loose workspaces.
+   * (`workspaceOrder` above is the separate all-workspaces registry order that
+   * backs the public WorkspaceService; `panelOrder` is panel presentation.)
+   */
+  panelOrder: string[];
   /**
    * Set to `true` after `ExtensionManager.loadInstalled()` resolves. The dock
    * gates `fromJSON` layout restore behind this flag so external extensions

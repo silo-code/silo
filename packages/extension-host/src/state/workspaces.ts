@@ -7,6 +7,7 @@ import type {
   TerminalKind,
   TerminalRecord,
   Workspace,
+  WorkspaceGroup,
 } from "./types";
 
 function uuid(): string {
@@ -47,6 +48,8 @@ export function createWorkspace(input: {
   };
   store.workspaces[id] = ws;
   store.workspaceOrder.push(id);
+  // New workspaces are ungrouped, so they appear as a top-level panel entry.
+  store.panelOrder.push(id);
   store.activeWorkspaceId = id;
   return ws;
 }
@@ -169,13 +172,18 @@ export function getEditorViewState(
   return store.workspaces[workspaceId]?.editorViewStates?.[editorId] ?? null;
 }
 
-export function reorderWorkspaces(
+/**
+ * Move `fromId` to sit before/after `toId` within an ordered id array, in place.
+ * No-ops when `fromId` is absent or equal to `toId`; if `toId` is missing, the
+ * item is returned to its original slot. Shared by every reorder operation.
+ */
+function reorderInArray(
+  order: string[],
   fromId: string,
   toId: string,
   position: "before" | "after",
 ): void {
   if (fromId === toId) return;
-  const order = store.workspaceOrder;
   const fromIndex = order.indexOf(fromId);
   if (fromIndex === -1) return;
   order.splice(fromIndex, 1);
@@ -186,6 +194,14 @@ export function reorderWorkspaces(
   }
   if (position === "after") toIndex += 1;
   order.splice(toIndex, 0, fromId);
+}
+
+export function reorderWorkspaces(
+  fromId: string,
+  toId: string,
+  position: "before" | "after",
+): void {
+  reorderInArray(store.workspaceOrder, fromId, toId, position);
 }
 
 export function addExtraFolder(workspaceId: string, folder: string): void {
@@ -205,11 +221,179 @@ export function removeExtraFolder(workspaceId: string, folder: string): void {
 
 export function deleteWorkspace(id: string): void {
   if (!store.workspaces[id]) return;
+  removeWorkspaceFromGroup(id);
   delete store.workspaces[id];
   store.workspaceOrder = store.workspaceOrder.filter((wid) => wid !== id);
+  store.panelOrder = store.panelOrder.filter((pid) => pid !== id);
   if (store.activeWorkspaceId === id) {
     store.activeWorkspaceId = pickNextOpen(null);
   }
+}
+
+// ── Workspace panel groups ──────────────────────────────────────────────────
+//
+// Two orders cooperate:
+//   • `panelOrder` — the interleaved TOP-LEVEL list (ungrouped workspace ids +
+//     group ids). This is what the panel renders and what top-level drag-reorder
+//     mutates, so a group can sit anywhere, even above loose workspaces.
+//   • each group's `workspaceOrder` — the members inside that group, and the
+//     single source of truth for membership (the reverse lookup is derived).
+
+/** The id of the group containing `wsId`, or `undefined` when it is ungrouped. */
+export function groupIdForWorkspace(wsId: string): string | undefined {
+  for (const groupId of Object.keys(store.groups)) {
+    if (store.groups[groupId]?.workspaceOrder.includes(wsId)) return groupId;
+  }
+  return undefined;
+}
+
+/**
+ * Build the workspace-id → group-id reverse lookup from group membership. Pure
+ * over its input so snapshot-driven consumers (the panel) can memoize it from
+ * `groups` and stay reactive.
+ */
+export function workspaceGroupMap(
+  groups: Record<string, { workspaceOrder: readonly string[] }>,
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const groupId of Object.keys(groups)) {
+    for (const wsId of groups[groupId].workspaceOrder) map.set(wsId, groupId);
+  }
+  return map;
+}
+
+export function createGroup(name: string, color?: string): WorkspaceGroup {
+  const id = `grp_${uuid()}`;
+  const group: WorkspaceGroup = {
+    id,
+    name,
+    collapsed: false,
+    workspaceOrder: [],
+    ...(color ? { color } : {}),
+  };
+  store.groups[id] = group;
+  // A new group is a top-level entry, appended to the panel.
+  store.panelOrder.push(id);
+  return group;
+}
+
+export function renameGroup(id: string, name: string): void {
+  const group = store.groups[id];
+  if (!group) return;
+  group.name = name;
+}
+
+export function deleteGroup(id: string): void {
+  const group = store.groups[id];
+  if (!group) return;
+  // The group's members become ungrouped: splice them into the panel at the
+  // group's former slot so they stay visible where the group was. Guard against
+  // a member somehow already being present (invariant: a workspace is in
+  // panelOrder XOR a group) so we never introduce a duplicate id.
+  const idx = store.panelOrder.indexOf(id);
+  const members = group.workspaceOrder.filter(
+    (w) => !store.panelOrder.includes(w),
+  );
+  if (idx === -1) store.panelOrder.push(...members);
+  else store.panelOrder.splice(idx, 1, ...members);
+  delete store.groups[id];
+}
+
+/**
+ * Reorder a top-level panel entry (an ungrouped workspace **or** a group) to sit
+ * before/after another top-level entry. This is the single reorder for the
+ * interleaved list — it drives both workspace and group repositioning.
+ */
+export function reorderPanel(
+  fromId: string,
+  toId: string,
+  position: "before" | "after",
+): void {
+  reorderInArray(store.panelOrder, fromId, toId, position);
+}
+
+export function moveWorkspaceToGroup(
+  wsId: string,
+  groupId: string,
+  anchor?: { toId: string; position: "before" | "after" },
+): void {
+  const group = store.groups[groupId];
+  if (!group) return;
+  removeWorkspaceFromGroup(wsId);
+  // The workspace leaves the top level — it now lives inside the group.
+  store.panelOrder = store.panelOrder.filter((id) => id !== wsId);
+  if (!group.workspaceOrder.includes(wsId)) {
+    group.workspaceOrder.push(wsId);
+  }
+  // Append by default; with an anchor, position relative to that row (unless it
+  // is the workspace itself, which `reorderWorkspaceInGroup` would no-op).
+  if (anchor && anchor.toId !== wsId) {
+    reorderWorkspaceInGroup(groupId, wsId, anchor.toId, anchor.position);
+  }
+}
+
+/** Remove `wsId` from `groupId`'s membership, in place. The caller supplies the
+ * already-resolved group id so the reverse lookup runs at most once per drop. */
+function detachMember(groupId: string, wsId: string): void {
+  const group = store.groups[groupId];
+  if (group) {
+    group.workspaceOrder = group.workspaceOrder.filter((id) => id !== wsId);
+  }
+}
+
+/** Remove `wsId` from its group's membership only (does not touch `panelOrder`). */
+export function removeWorkspaceFromGroup(wsId: string): void {
+  const groupId = groupIdForWorkspace(wsId);
+  if (groupId) detachMember(groupId, wsId);
+}
+
+/**
+ * Pull a workspace out of its group and back to the top level. It is inserted
+ * into `panelOrder` just after its former group by default, or at `anchor` when
+ * the caller (drag-out) knows the exact drop position. No-op if already ungrouped.
+ */
+export function ungroupWorkspace(
+  wsId: string,
+  anchor?: { toId: string; position: "before" | "after" },
+): void {
+  const groupId = groupIdForWorkspace(wsId);
+  if (!groupId) return;
+  detachMember(groupId, wsId); // reuse the id we already resolved (one lookup)
+  if (!store.panelOrder.includes(wsId)) {
+    const idx = store.panelOrder.indexOf(groupId);
+    if (idx === -1) store.panelOrder.push(wsId);
+    else store.panelOrder.splice(idx + 1, 0, wsId);
+  }
+  if (anchor && anchor.toId !== wsId) {
+    reorderPanel(wsId, anchor.toId, anchor.position);
+  }
+}
+
+export function reorderWorkspaceInGroup(
+  groupId: string,
+  fromId: string,
+  toId: string,
+  position: "before" | "after",
+): void {
+  const group = store.groups[groupId];
+  if (!group) return;
+  reorderInArray(group.workspaceOrder, fromId, toId, position);
+}
+
+export function setGroupColor(id: string, color: string | undefined): void {
+  const group = store.groups[id];
+  if (!group) return;
+  if (color) {
+    group.color = color;
+  } else {
+    delete group.color;
+  }
+}
+
+export function toggleGroupCollapsed(id: string): void {
+  const group = store.groups[id];
+  if (!group) return;
+  group.collapsed = !group.collapsed;
 }
 
 export function addTerminal(

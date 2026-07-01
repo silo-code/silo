@@ -3,6 +3,7 @@ import type { Workspace } from "@silo-code/sdk";
 import {
   buildIndex,
   diffWorkspaceWrites,
+  reconcilePanelOrder,
   reconcileWorkspaceListing,
   splitPersistedState,
   withActivePanelState,
@@ -252,5 +253,85 @@ describe("buildIndex", () => {
     expect(index.editorSettings).toBeUndefined();
     expect(index.terminalSettings).toBeUndefined();
     expect(index.uiFontSize).toBeUndefined();
+  });
+
+  it("round-trips group fields when provided", () => {
+    const groups = {
+      grp_1: {
+        id: "grp_1",
+        name: "Work",
+        collapsed: false,
+        workspaceOrder: ["ws_a"],
+      },
+    };
+    const index = buildIndex({
+      workspaceOrder: ["ws_a"],
+      activeWorkspaceId: "ws_a",
+      groups,
+      panelOrder: ["grp_1", "ws_a"],
+    });
+    expect(index.groups).toEqual(groups);
+    expect(index.panelOrder).toEqual(["grp_1", "ws_a"]);
+    // Must be copies, not the same references
+    expect(index.groups).not.toBe(groups);
+    expect(index.panelOrder).not.toBe(["grp_1", "ws_a"]);
+  });
+
+  it("deep-clones group workspaceOrder arrays", () => {
+    const workspaceOrder = ["ws_a"];
+    const groups = {
+      grp_1: { id: "grp_1", name: "G", collapsed: false, workspaceOrder },
+    };
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      groups,
+    });
+    workspaceOrder.push("ws_b");
+    expect(index.groups!["grp_1"].workspaceOrder).toEqual(["ws_a"]);
+  });
+
+  it("omits group fields when not provided", () => {
+    const index = buildIndex({ workspaceOrder: [], activeWorkspaceId: null });
+    expect(index.groups).toBeUndefined();
+    expect(index.panelOrder).toBeUndefined();
+  });
+});
+
+describe("reconcilePanelOrder", () => {
+  const groups = { grp_1: { workspaceOrder: ["ws_b"] } };
+
+  it("reconstructs ungrouped-then-groups when no saved order (pre-panelOrder index)", () => {
+    // ws_b is grouped, so it's excluded from the top level.
+    expect(
+      reconcilePanelOrder(undefined, groups, ["ws_a", "ws_b", "ws_c"]),
+    ).toEqual(["ws_a", "ws_c", "grp_1"]);
+  });
+
+  it("keeps the saved order and excludes grouped workspaces", () => {
+    expect(
+      reconcilePanelOrder(["grp_1", "ws_a", "ws_c"], groups, [
+        "ws_a",
+        "ws_b",
+        "ws_c",
+      ]),
+    ).toEqual(["grp_1", "ws_a", "ws_c"]);
+  });
+
+  it("drops stale saved ids and appends any top-level entry the saved order missed", () => {
+    // saved references ws_gone (deleted) and omits ws_c and grp_1.
+    expect(
+      reconcilePanelOrder(["ws_gone", "ws_a"], groups, [
+        "ws_a",
+        "ws_b",
+        "ws_c",
+      ]),
+    ).toEqual(["ws_a", "ws_c", "grp_1"]);
+  });
+
+  it("never lists a grouped workspace at the top level even if saved does", () => {
+    expect(
+      reconcilePanelOrder(["ws_b", "ws_a"], groups, ["ws_a", "ws_b"]),
+    ).toEqual(["ws_a", "grp_1"]);
   });
 });

@@ -1,4 +1,10 @@
-import { Plus, SquaresFour, Trash, Warning } from "@phosphor-icons/react";
+import {
+  FolderSimple,
+  Plus,
+  SquaresFour,
+  Trash,
+  Warning,
+} from "@phosphor-icons/react";
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import type { Workspace } from "./workspace-helpers";
 
@@ -37,8 +43,9 @@ export function buildAddWorkspaceItems(opts: {
   closed: readonly Workspace[];
   folderExistence: Map<string, boolean>;
   onNew: () => void;
+  onNewGroup?: () => void;
 }): MenuEntry[] {
-  const { ctx, closed, folderExistence, onNew } = opts;
+  const { ctx, closed, folderExistence, onNew, onNewGroup } = opts;
   const items: MenuEntry[] = [{ type: "header", label: "Saved" }];
   if (closed.length > 0) {
     for (const ws of closed) {
@@ -74,5 +81,12 @@ export function buildAddWorkspaceItems(opts: {
     icon: <Plus size={14} weight="bold" />,
     run: onNew,
   });
+  if (onNewGroup) {
+    items.push({
+      label: "New Group…",
+      icon: <FolderSimple size={14} weight="bold" />,
+      run: onNewGroup,
+    });
+  }
   return items;
 }

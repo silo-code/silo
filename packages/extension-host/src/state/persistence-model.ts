@@ -13,6 +13,7 @@ import type {
   SidePanelSlot,
   TerminalSettings,
   Workspace,
+  WorkspaceGroup,
 } from "./types";
 
 /** The global index blob — everything in the old store *except* the workspaces
@@ -31,6 +32,12 @@ export interface PersistedIndex {
   // Legacy migration fields — stored globally in old installs, now per-workspace.
   leftPanelCollapsed?: boolean;
   rightPanelCollapsed?: boolean;
+  // Workspace panel groups — absent in older indexes (pre-group installs).
+  // Membership lives in each group's `workspaceOrder`; the reverse map is
+  // derived at runtime, never persisted. `panelOrder` is the interleaved
+  // top-level list (ungrouped workspace ids + group ids).
+  groups?: Record<string, WorkspaceGroup>;
+  panelOrder?: string[];
 }
 
 /** The legacy monolithic blob (one `"state"` key in the app-data store) we
@@ -136,7 +143,48 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
     globalExtensionState: snapshot.globalExtensionState
       ? cloneExtensionState(snapshot.globalExtensionState)
       : undefined,
+    groups: snapshot.groups ? cloneGroups(snapshot.groups) : undefined,
+    panelOrder: snapshot.panelOrder ? [...snapshot.panelOrder] : undefined,
   };
+}
+
+function cloneGroups(
+  src: Record<string, WorkspaceGroup>,
+): Record<string, WorkspaceGroup> {
+  const out: Record<string, WorkspaceGroup> = {};
+  for (const [id, group] of Object.entries(src)) {
+    out[id] = { ...group, workspaceOrder: [...group.workspaceOrder] };
+  }
+  return out;
+}
+
+/**
+ * Rebuild the interleaved top-level panel order defensively from a saved order:
+ * keep saved entries that still exist (in saved order), drop stale ids, and
+ * append any top-level entry the saved order missed — so a partial or
+ * pre-`panelOrder` index can never hide a workspace or group. Top-level entries
+ * are the ungrouped workspaces (in `workspaceOrder`) plus the group ids;
+ * grouped workspaces live inside their group and are not top-level.
+ */
+export function reconcilePanelOrder(
+  saved: readonly string[] | undefined,
+  groups: Record<string, { workspaceOrder: readonly string[] }>,
+  workspaceOrder: readonly string[],
+): string[] {
+  const grouped = new Set<string>();
+  for (const g of Object.values(groups))
+    for (const w of g.workspaceOrder) grouped.add(w);
+  const topLevel = [
+    ...workspaceOrder.filter((id) => !grouped.has(id)),
+    ...Object.keys(groups),
+  ];
+  const valid = new Set(topLevel);
+  const savedList = saved ?? [];
+  const savedSet = new Set(savedList);
+  return [
+    ...savedList.filter((id) => valid.has(id)),
+    ...topLevel.filter((id) => !savedSet.has(id)),
+  ];
 }
 
 /** Return a copy of `ws` with the live panel state merged in — used for the
