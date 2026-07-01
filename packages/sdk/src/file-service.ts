@@ -25,6 +25,16 @@ export interface FileMeta {
 }
 
 /**
+ * The normalized kind of a filesystem change, as delivered in
+ * {@link FileChangeEvent.kind}. Backend-specific event kinds that don't map to
+ * one of the three meaningful values are surfaced as `"other"`.
+ *
+ * @category Core Types
+ * @public
+ */
+export type FileChangeKind = "create" | "modify" | "remove" | "other";
+
+/**
  * A filesystem change event delivered to a {@link FileService.watch} listener,
  * for changes under that watch's path.
  *
@@ -34,8 +44,12 @@ export interface FileMeta {
 export interface FileChangeEvent {
   /** The paths that changed in this event. */
   paths: string[];
-  /** The backend's change kind (e.g. `"create"`, `"modify"`, `"remove"`). */
-  kind: string;
+  /**
+   * Normalized change kind. The host maps the backend's vocabulary to this
+   * closed union; backend-specific kinds that don't match arrive as `"other"`.
+   * Always compare against the union values — never against raw backend strings.
+   */
+  kind: FileChangeKind;
 }
 
 /**
