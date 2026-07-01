@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.20.0](https://github.com/silo-code/silo/compare/silo-v0.19.0...silo-v0.20.0) (2026-07-01)
+
+
+### Features
+
+* **markdown-preview:** render HTML and load local images via blob URLs ([#150](https://github.com/silo-code/silo/issues/150)) ([9d06948](https://github.com/silo-code/silo/commit/9d069484e5170877a314aaf7d054184a9a5c528b))
+* **workspaces:** groups ([#153](https://github.com/silo-code/silo/issues/153)) ([ec05f89](https://github.com/silo-code/silo/commit/ec05f892dcf308ca8ac555fc434de1a6ac752c1d))
+
+
+### Bug Fixes
+
+* **errors:** add global error capture and harden JSON serialization ([#151](https://github.com/silo-code/silo/issues/151)) ([b35870a](https://github.com/silo-code/silo/commit/b35870aa6d98f49ef889daf2059eb5e329a4dcdd))
+* **modals:** increase sm/md/lg modal widths ([#152](https://github.com/silo-code/silo/issues/152)) ([4bb5b39](https://github.com/silo-code/silo/commit/4bb5b398bb3deb946cac707b09758d7318f730ea))
+* **workspaces:** tighten ws-badge line-height ([#147](https://github.com/silo-code/silo/issues/147)) ([ec0fde3](https://github.com/silo-code/silo/commit/ec0fde32d9ee5a1298b55c1b7f973969461dfcbf))
+
 ## [0.19.0](https://github.com/silo-code/silo/compare/silo-v0.18.0...silo-v0.19.0) (2026-06-29)
 
 
