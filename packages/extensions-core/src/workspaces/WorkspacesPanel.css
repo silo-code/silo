@@ -578,6 +578,10 @@
 [data-theme="light"] .ws-group--colored {
   --ws-group-mix: 35%;
   --ws-group-mix-hover: 45%;
+  /* Darken the group color for readable text on the tinted header. On dark
+     themes this isn't set, so `var(--ws-group-text-color)` falls through to
+     `var(--ws-group-color)`, which already contrasts well against dark bg. */
+  --ws-group-text-color: color-mix(in srgb, var(--ws-group-color) 80%, black);
 }
 
 /* Header fills the top of the card with a subtle tint */
@@ -602,7 +606,7 @@
 
 .ws-group--colored .ws-group-name,
 .ws-group--colored .ws-group-caret {
-  color: var(--ws-group-color);
+  color: var(--ws-group-text-color, var(--ws-group-color));
   opacity: 1;
 }
 
