@@ -257,7 +257,12 @@ describe("buildIndex", () => {
 
   it("round-trips group fields when provided", () => {
     const groups = {
-      "grp_1": { id: "grp_1", name: "Work", collapsed: false, workspaceOrder: ["ws_a"] },
+      grp_1: {
+        id: "grp_1",
+        name: "Work",
+        collapsed: false,
+        workspaceOrder: ["ws_a"],
+      },
     };
     const index = buildIndex({
       workspaceOrder: ["ws_a"],
@@ -275,9 +280,13 @@ describe("buildIndex", () => {
   it("deep-clones group workspaceOrder arrays", () => {
     const workspaceOrder = ["ws_a"];
     const groups = {
-      "grp_1": { id: "grp_1", name: "G", collapsed: false, workspaceOrder },
+      grp_1: { id: "grp_1", name: "G", collapsed: false, workspaceOrder },
     };
-    const index = buildIndex({ workspaceOrder: [], activeWorkspaceId: null, groups });
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      groups,
+    });
     workspaceOrder.push("ws_b");
     expect(index.groups!["grp_1"].workspaceOrder).toEqual(["ws_a"]);
   });
@@ -294,23 +303,29 @@ describe("reconcilePanelOrder", () => {
 
   it("reconstructs ungrouped-then-groups when no saved order (pre-panelOrder index)", () => {
     // ws_b is grouped, so it's excluded from the top level.
-    expect(reconcilePanelOrder(undefined, groups, ["ws_a", "ws_b", "ws_c"])).toEqual([
-      "ws_a",
-      "ws_c",
-      "grp_1",
-    ]);
+    expect(
+      reconcilePanelOrder(undefined, groups, ["ws_a", "ws_b", "ws_c"]),
+    ).toEqual(["ws_a", "ws_c", "grp_1"]);
   });
 
   it("keeps the saved order and excludes grouped workspaces", () => {
     expect(
-      reconcilePanelOrder(["grp_1", "ws_a", "ws_c"], groups, ["ws_a", "ws_b", "ws_c"]),
+      reconcilePanelOrder(["grp_1", "ws_a", "ws_c"], groups, [
+        "ws_a",
+        "ws_b",
+        "ws_c",
+      ]),
     ).toEqual(["grp_1", "ws_a", "ws_c"]);
   });
 
   it("drops stale saved ids and appends any top-level entry the saved order missed", () => {
     // saved references ws_gone (deleted) and omits ws_c and grp_1.
     expect(
-      reconcilePanelOrder(["ws_gone", "ws_a"], groups, ["ws_a", "ws_b", "ws_c"]),
+      reconcilePanelOrder(["ws_gone", "ws_a"], groups, [
+        "ws_a",
+        "ws_b",
+        "ws_c",
+      ]),
     ).toEqual(["ws_a", "ws_c", "grp_1"]);
   });
 

@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Tooltip } from "@silo-code/sdk";
 import type {
   FileService,
   WorkspaceService,
@@ -123,11 +122,9 @@ export function FrontTruncatedPath({
   }, [text]);
 
   return (
-    <Tooltip content={text}>
-      <span ref={ref} className={className}>
-        {display}
-      </span>
-    </Tooltip>
+    <span ref={ref} className={className}>
+      {display}
+    </span>
   );
 }
 

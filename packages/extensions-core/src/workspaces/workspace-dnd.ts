@@ -33,7 +33,12 @@ export const WS_DND_MIME = {
  * - `ungroup` — pull a workspace out to the top level (at an anchor, or appended).
  */
 export type PanelDropIntent =
-  | { kind: "reorder-panel"; fromId: string; toId: string; position: DropPosition }
+  | {
+      kind: "reorder-panel";
+      fromId: string;
+      toId: string;
+      position: DropPosition;
+    }
   | {
       kind: "reorder-in-group";
       groupId: string;
@@ -168,16 +173,28 @@ export function resolveGroupCardDrop(args: {
   dropTarget: DropTarget | null;
   targetGroupId: string;
 }): PanelDropIntent | null {
-  const { draggingGroupId, draggingWorkspaceId, draggingSourceGroup, dropTarget, targetGroupId } = args;
+  const {
+    draggingGroupId,
+    draggingWorkspaceId,
+    draggingSourceGroup,
+    dropTarget,
+    targetGroupId,
+  } = args;
   const dragged = { draggingGroupId, draggingWorkspaceId, draggingSourceGroup };
   // A group only ever reorders before/after this card (never nests).
-  if (draggingGroupId) return dropTarget ? panelDropForEntity(dragged, dropTarget) : null;
+  if (draggingGroupId)
+    return dropTarget ? panelDropForEntity(dragged, dropTarget) : null;
   if (draggingWorkspaceId) {
     // Edge → drop adjacent to the group at the top level.
-    if (dropTarget && dropTarget.id === targetGroupId) return panelDropForEntity(dragged, dropTarget);
+    if (dropTarget && dropTarget.id === targetGroupId)
+      return panelDropForEntity(dragged, dropTarget);
     // Middle → into the group, unless it is already a member (no-op).
     if (draggingSourceGroup === targetGroupId) return null;
-    return { kind: "move-to-group", groupId: targetGroupId, fromId: draggingWorkspaceId };
+    return {
+      kind: "move-to-group",
+      groupId: targetGroupId,
+      fromId: draggingWorkspaceId,
+    };
   }
   return null;
 }
@@ -194,13 +211,30 @@ export function resolveGroupedRowDrop(args: {
   targetId: string;
   targetGroupId: string;
 }): PanelDropIntent | null {
-  const { draggingWorkspaceId, draggingSourceGroup, dropTarget, targetId, targetGroupId } = args;
-  if (!draggingWorkspaceId || !dropTarget || draggingWorkspaceId === targetId) return null;
+  const {
+    draggingWorkspaceId,
+    draggingSourceGroup,
+    dropTarget,
+    targetId,
+    targetGroupId,
+  } = args;
+  if (!draggingWorkspaceId || !dropTarget || draggingWorkspaceId === targetId)
+    return null;
   const anchor = { toId: dropTarget.id, position: dropTarget.position };
   if (draggingSourceGroup === targetGroupId) {
-    return { kind: "reorder-in-group", groupId: targetGroupId, fromId: draggingWorkspaceId, ...anchor };
+    return {
+      kind: "reorder-in-group",
+      groupId: targetGroupId,
+      fromId: draggingWorkspaceId,
+      ...anchor,
+    };
   }
-  return { kind: "move-to-group", groupId: targetGroupId, fromId: draggingWorkspaceId, ...anchor };
+  return {
+    kind: "move-to-group",
+    groupId: targetGroupId,
+    fromId: draggingWorkspaceId,
+    ...anchor,
+  };
 }
 
 /**

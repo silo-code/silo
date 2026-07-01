@@ -61,6 +61,16 @@ describe("createGroup", () => {
     expect(group.id).toMatch(/^grp_/);
     expect(group.name).toBe("Test");
   });
+
+  it("stores an optional color when one is given", () => {
+    const group = createGroup("Colored", "#e06c75");
+    expect(store.groups[group.id].color).toBe("#e06c75");
+  });
+
+  it("leaves color undefined when none is given", () => {
+    const group = createGroup("Plain");
+    expect(store.groups[group.id].color).toBeUndefined();
+  });
 });
 
 // ── setGroupColor ──────────────────────────────────────────────────────────────

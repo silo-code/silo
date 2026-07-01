@@ -115,6 +115,14 @@ extension's CSS may consume only the **design tokens** (`--silo-color-*`,
 extension package's CSS). **Don't hard-code colors/fonts/px sizes in extension
 CSS** — that breaks theming and `uiFontSize` scaling.
 
+**Don't hand-roll focus styles.** There is one shared focus ring — the global
+`:focus-visible` rule in `packages/extension-host/src/layout/theme.css` gives
+every interactive element (`button`, `input`, `[role="button"]`, …) the accent
+`outline`. Adding a per-element focus style (e.g. recoloring the border on
+`:focus`) stacks a second ring on top of it, producing a **double outline**. Rely
+on the shared ring; if you must suppress the native one on a base element use
+`outline: none` (the global rule has higher specificity and still wins on focus).
+
 ## Commands
 
 All run from the repo root (pnpm workspace).

@@ -213,11 +213,11 @@
   font-family: var(--silo-font-ui);
   font-size: var(--silo-font-size-base);
   padding: 6px 8px;
+  /* Suppress the native ring; focus is the shared accent ring from the global
+     `input:focus-visible` rule in theme.css (higher specificity, so it still
+     wins on focus). Don't also recolor the border on focus here, or the two
+     accent rings stack into a double outline. */
   outline: none;
-}
-
-.ws-rename-input:focus {
-  border-color: var(--silo-color-accent);
 }
 
 /* Combined workspace properties dialog — content layout inside the host
@@ -451,6 +451,12 @@
   margin-top: 0;
 }
 
+/* A group followed by an ungrouped workspace needs the same breathing room
+   above the workspace as sits above a group. */
+.ws-list > .ws-group + .ws-item {
+  margin-top: 12px;
+}
+
 /* Drag-state visuals live on the whole card — it is the drop target, so the
    dimmed source and the before/after reorder lines read against the card. */
 .ws-group.dragging {
@@ -544,11 +550,25 @@
 
 /* ── Colored group accent ────────────────────────────────────────────────── */
 
+/* Ink for the neutral (greyscale) swatches. It's a theme token so the shades
+   invert automatically; on dark themes we point at a brighter token than
+   `text-hi` (which is deliberately dim in the dark palettes) so the tints read
+   a bit lighter. Equal specificity to `:root`, so source order lets the
+   dark override win on dark themes and light falls through to the default. */
+:root {
+  --ws-group-neutral-ink: var(--silo-color-text-hi);
+}
+
+[data-theme="dark"] {
+  --ws-group-neutral-ink: var(--silo-color-input-text);
+}
+
 /* The whole group becomes one bordered card */
 .ws-group--colored {
   --ws-group-mix: 20%;
   --ws-group-mix-hover: 30%;
-  border: 2px solid color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix), transparent);
+  border: 2px solid
+    color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix), transparent);
   border-radius: var(--silo-radius-sm);
   margin-inline: 4px;
   margin-bottom: 4px;
@@ -562,13 +582,22 @@
 
 /* Header fills the top of the card with a subtle tint */
 .ws-group--colored .ws-group-header {
-  background: color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix), transparent);
+  background: color-mix(
+    in srgb,
+    var(--ws-group-color) var(--ws-group-mix),
+    transparent
+  );
   margin: 0;
-  border-radius: calc(var(--silo-radius-sm) - 2px) calc(var(--silo-radius-sm) - 2px) 0 0;
+  border-radius: calc(var(--silo-radius-sm) - 2px)
+    calc(var(--silo-radius-sm) - 2px) 0 0;
 }
 
 .ws-group--colored .ws-group-header:hover {
-  background: color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix-hover), transparent);
+  background: color-mix(
+    in srgb,
+    var(--ws-group-color) var(--ws-group-mix-hover),
+    transparent
+  );
 }
 
 .ws-group--colored .ws-group-name,
@@ -596,6 +625,12 @@
   gap: 8px;
 }
 
+/* Indent the greyscale row one column so it sits under the first color, not
+   under the "None" swatch (one swatch width + the row gap). */
+.ws-group-palette--offset {
+  margin-left: calc(22px + 8px);
+}
+
 .ws-group-swatch {
   width: 22px;
   height: 22px;
@@ -605,7 +640,9 @@
   padding: 0;
   background: var(--silo-color-button-bg);
   outline: none;
-  transition: transform 80ms ease, border-color 80ms ease;
+  transition:
+    transform 80ms ease,
+    border-color 80ms ease;
 }
 
 .ws-group-swatch:hover {
@@ -618,13 +655,13 @@
 }
 
 /* "None" swatch — show as a circle with a diagonal slash */
-.ws-group-swatch:first-child {
+.ws-group-swatch--none {
   background: transparent;
   border-color: var(--silo-color-border-strong);
   position: relative;
 }
 
-.ws-group-swatch:first-child::after {
+.ws-group-swatch--none::after {
   content: "";
   position: absolute;
   inset: 2px;

@@ -1,4 +1,10 @@
-import { FolderSimple, Plus, SquaresFour, Trash, Warning } from "@phosphor-icons/react";
+import {
+  FolderSimple,
+  Plus,
+  SquaresFour,
+  Trash,
+  Warning,
+} from "@phosphor-icons/react";
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import type { Workspace } from "./workspace-helpers";
 
@@ -76,7 +82,6 @@ export function buildAddWorkspaceItems(opts: {
     run: onNew,
   });
   if (onNewGroup) {
-    items.push({ type: "separator" });
     items.push({
       label: "New Group…",
       icon: <FolderSimple size={14} weight="bold" />,

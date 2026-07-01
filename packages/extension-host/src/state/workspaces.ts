@@ -262,9 +262,15 @@ export function workspaceGroupMap(
   return map;
 }
 
-export function createGroup(name: string): WorkspaceGroup {
+export function createGroup(name: string, color?: string): WorkspaceGroup {
   const id = `grp_${uuid()}`;
-  const group: WorkspaceGroup = { id, name, collapsed: false, workspaceOrder: [] };
+  const group: WorkspaceGroup = {
+    id,
+    name,
+    collapsed: false,
+    workspaceOrder: [],
+    ...(color ? { color } : {}),
+  };
   store.groups[id] = group;
   // A new group is a top-level entry, appended to the panel.
   store.panelOrder.push(id);

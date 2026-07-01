@@ -27,17 +27,29 @@ describe("computeDropPosition", () => {
 describe("dropTargetForDragOver", () => {
   it("returns null when nothing is being dragged", () => {
     expect(
-      dropTargetForDragOver({ draggingId: null, targetId: "a", position: "before" }),
+      dropTargetForDragOver({
+        draggingId: null,
+        targetId: "a",
+        position: "before",
+      }),
     ).toBeNull();
   });
   it("returns null when hovering the dragged item itself", () => {
     expect(
-      dropTargetForDragOver({ draggingId: "a", targetId: "a", position: "after" }),
+      dropTargetForDragOver({
+        draggingId: "a",
+        targetId: "a",
+        position: "after",
+      }),
     ).toBeNull();
   });
   it("returns the target and edge otherwise", () => {
     expect(
-      dropTargetForDragOver({ draggingId: "a", targetId: "b", position: "after" }),
+      dropTargetForDragOver({
+        draggingId: "a",
+        targetId: "b",
+        position: "after",
+      }),
     ).toEqual({ id: "b", position: "after" });
   });
 });
@@ -51,10 +63,16 @@ describe("sameDropTarget", () => {
   });
   it("compares id and position by value", () => {
     expect(
-      sameDropTarget({ id: "a", position: "before" }, { id: "a", position: "before" }),
+      sameDropTarget(
+        { id: "a", position: "before" },
+        { id: "a", position: "before" },
+      ),
     ).toBe(true);
     expect(
-      sameDropTarget({ id: "a", position: "before" }, { id: "a", position: "after" }),
+      sameDropTarget(
+        { id: "a", position: "before" },
+        { id: "a", position: "after" },
+      ),
     ).toBe(false);
   });
 });
@@ -82,7 +100,12 @@ describe("resolveTopLevelDrop", () => {
         draggingSourceGroup: "",
         dropTarget: dt,
       }),
-    ).toEqual({ kind: "reorder-panel", fromId: "grp_1", toId: "b", position: "after" });
+    ).toEqual({
+      kind: "reorder-panel",
+      fromId: "grp_1",
+      toId: "b",
+      position: "after",
+    });
   });
 
   it("reorders the panel for an ungrouped workspace", () => {
@@ -93,7 +116,12 @@ describe("resolveTopLevelDrop", () => {
         draggingSourceGroup: "",
         dropTarget: dt,
       }),
-    ).toEqual({ kind: "reorder-panel", fromId: "a", toId: "b", position: "after" });
+    ).toEqual({
+      kind: "reorder-panel",
+      fromId: "a",
+      toId: "b",
+      position: "after",
+    });
   });
 
   it("ungroups a grouped workspace dropped on a top-level row", () => {
@@ -142,7 +170,12 @@ describe("resolveGroupCardDrop", () => {
         dropTarget: { id: "grp_2", position: "before" },
         targetGroupId: "grp_2",
       }),
-    ).toEqual({ kind: "reorder-panel", fromId: "grp_1", toId: "grp_2", position: "before" });
+    ).toEqual({
+      kind: "reorder-panel",
+      fromId: "grp_1",
+      toId: "grp_2",
+      position: "before",
+    });
   });
 
   it("returns null when a group is dropped on itself", () => {
@@ -190,7 +223,12 @@ describe("resolveGroupCardDrop", () => {
         dropTarget: { id: "grp_2", position: "after" },
         targetGroupId: "grp_2",
       }),
-    ).toEqual({ kind: "reorder-panel", fromId: "a", toId: "grp_2", position: "after" });
+    ).toEqual({
+      kind: "reorder-panel",
+      fromId: "a",
+      toId: "grp_2",
+      position: "after",
+    });
   });
 
   it("ungroups a grouped workspace adjacent to a group on an edge", () => {
@@ -202,7 +240,12 @@ describe("resolveGroupCardDrop", () => {
         dropTarget: { id: "grp_2", position: "before" },
         targetGroupId: "grp_2",
       }),
-    ).toEqual({ kind: "ungroup", fromId: "a", toId: "grp_2", position: "before" });
+    ).toEqual({
+      kind: "ungroup",
+      fromId: "a",
+      toId: "grp_2",
+      position: "before",
+    });
   });
 });
 
@@ -216,7 +259,13 @@ describe("resolveGroupedRowDrop", () => {
         targetId: "b",
         targetGroupId: "grp_1",
       }),
-    ).toEqual({ kind: "reorder-in-group", groupId: "grp_1", fromId: "a", toId: "b", position: "after" });
+    ).toEqual({
+      kind: "reorder-in-group",
+      groupId: "grp_1",
+      fromId: "a",
+      toId: "b",
+      position: "after",
+    });
   });
 
   it("moves into the target group at the anchor when from elsewhere", () => {
@@ -228,7 +277,13 @@ describe("resolveGroupedRowDrop", () => {
         targetId: "b",
         targetGroupId: "grp_2",
       }),
-    ).toEqual({ kind: "move-to-group", groupId: "grp_2", fromId: "a", toId: "b", position: "after" });
+    ).toEqual({
+      kind: "move-to-group",
+      groupId: "grp_2",
+      fromId: "a",
+      toId: "b",
+      position: "after",
+    });
   });
 
   it("returns null on self or with no target", () => {
@@ -256,7 +311,12 @@ describe("resolveBackgroundDrop", () => {
         draggingSourceGroup: "",
         dropTarget: end,
       }),
-    ).toEqual({ kind: "reorder-panel", fromId: "a", toId: "grp_z", position: "after" });
+    ).toEqual({
+      kind: "reorder-panel",
+      fromId: "a",
+      toId: "grp_z",
+      position: "after",
+    });
   });
 
   it("reorders a group to the beginning when anchored before the first entry", () => {
@@ -267,7 +327,12 @@ describe("resolveBackgroundDrop", () => {
         draggingSourceGroup: "",
         dropTarget: start,
       }),
-    ).toEqual({ kind: "reorder-panel", fromId: "grp_1", toId: "grp_a", position: "before" });
+    ).toEqual({
+      kind: "reorder-panel",
+      fromId: "grp_1",
+      toId: "grp_a",
+      position: "before",
+    });
   });
 
   it("ungroups a grouped workspace at the chosen anchor", () => {
@@ -278,7 +343,12 @@ describe("resolveBackgroundDrop", () => {
         draggingSourceGroup: "grp_1",
         dropTarget: end,
       }),
-    ).toEqual({ kind: "ungroup", fromId: "a", toId: "grp_z", position: "after" });
+    ).toEqual({
+      kind: "ungroup",
+      fromId: "a",
+      toId: "grp_z",
+      position: "after",
+    });
   });
 
   it("is a no-op when the dragged entity is the anchor itself", () => {

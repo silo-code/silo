@@ -1,9 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { CaretRight, Plus, SquaresFour } from "@phosphor-icons/react";
 import { useSnapshot } from "valtio";
 import {
   store,
-  createGroup,
   deleteGroup,
   moveWorkspaceToGroup,
   ungroupWorkspace,
@@ -32,8 +37,13 @@ import {
 } from "./workspace-helpers";
 import { buildAddWorkspaceItems } from "./workspace-add-menu";
 import { openWorkspaceProperties } from "./workspace-properties";
-import { openGroupProperties, type GroupSnapshot } from "./group-properties";
+import {
+  openGroupProperties,
+  openNewGroup,
+  type GroupSnapshot,
+} from "./group-properties";
 import { useWorkspaceDnd } from "./use-workspace-dnd";
+import { buildNavItems } from "./workspace-nav";
 import "./WorkspacesPanel.css";
 
 const WorkspaceIcon = SquaresFour;
@@ -130,18 +140,22 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     [storeSnap.groups],
   );
 
-  // Top-level ungrouped *open* workspaces, in panel order — the set the roving
-  // keyboard focus covers (groups aren't keyboard-reorderable yet, v1).
-  const topLevelWsIds = useMemo(
+  // The flat, ordered set of keyboard-navigable rows the arrow keys rove: group
+  // headers and every *rendered* workspace (ungrouped, or grouped under an
+  // expanded group), in the same order they paint. A collapsed group's members
+  // aren't in the DOM, so they're omitted — the header stands in for them until
+  // it's expanded. Group and workspace ids share no namespace (`grp_` vs. `ws_`),
+  // so a single id→index map is unambiguous.
+  const navItems = useMemo(
     () =>
-      storeSnap.panelOrder.filter(
-        (id) => !storeSnap.groups[id] && openById.has(id),
+      buildNavItems(storeSnap.panelOrder, storeSnap.groups, (id) =>
+        openById.has(id),
       ),
     [storeSnap.panelOrder, storeSnap.groups, openById],
   );
-  const rovingIndex = useMemo(
-    () => new Map(topLevelWsIds.map((id, i) => [id, i])),
-    [topLevelWsIds],
+  const navIndex = useMemo(
+    () => new Map(navItems.map((it, i) => [it.id, i])),
+    [navItems],
   );
 
   // First / last *rendered* top-level entries — the anchors for the background
@@ -156,15 +170,27 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   const firstEntryId = renderedEntryIds[0] ?? null;
   const lastEntryId = renderedEntryIds[renderedEntryIds.length - 1] ?? null;
 
-  const activeIndex = snap.activeId ? rovingIndex.get(snap.activeId) ?? -1 : -1;
+  const activeIndex = snap.activeId ? (navIndex.get(snap.activeId) ?? -1) : -1;
 
   const roving = useFocusGroup({
-    count: topLevelWsIds.length,
+    count: navItems.length,
     start: activeIndex >= 0 ? activeIndex : 0,
-    onActivate: (i) => service.activate(topLevelWsIds[i]),
+    onActivate: (i) => {
+      const item = navItems[i];
+      if (!item) return;
+      if (item.kind === "group") toggleGroupCollapsed(item.id);
+      else service.activate(item.id);
+    },
     onMenu: (i, anchor) => {
-      const ws = openById.get(topLevelWsIds[i]);
-      if (ws) openWorkspaceMenu(ws, { anchor });
+      const item = navItems[i];
+      if (!item) return;
+      if (item.kind === "group") {
+        const group = storeSnap.groups[item.id];
+        if (group) openGroupMenu(group, { anchor });
+      } else {
+        const ws = openById.get(item.id);
+        if (ws) openWorkspaceMenu(ws, { anchor });
+      }
     },
   });
 
@@ -183,11 +209,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   }
 
   function onNewGroup() {
-    void ctx.ui
-      .prompt({ title: "New Group", label: "Name" })
-      .then((name) => {
-        if (name?.trim()) createGroup(name.trim());
-      });
+    void openNewGroup(ctx);
   }
 
   function openClosedMenu() {
@@ -267,10 +289,10 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   }
 
   // ── Workspace item renderer (shared by top-level + group body) ────────────
-  // `groupId` undefined → a top-level entry (keyboard-focusable, `i` is its
-  // roving index); otherwise a row inside that group.
+  // Every rendered workspace is keyboard-focusable; `groupId` is set for a row
+  // that lives inside a group (drives its drag wiring and styling).
 
-  function renderWorkspaceItem(ws: Workspace, i: number, groupId?: string) {
+  function renderWorkspaceItem(ws: Workspace, groupId?: string) {
     const edge = dnd.dropEdge(ws.id);
     const classes = [
       "ws-item",
@@ -282,7 +304,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
       .filter(Boolean)
       .join(" ");
 
-    const focusProps = groupId === undefined ? roving.getItemProps(i) : {};
+    const focusProps = roving.getItemProps(navIndex.get(ws.id) ?? 0);
 
     return (
       <li
@@ -308,9 +330,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
       >
         <WorkspaceIcon className="ws-icon" size={20} weight="duotone" />
         <div className="ws-name-row">
-          <Tooltip content="Right-click for menu · Double-click for properties">
-            <span className="ws-name">{ws.name}</span>
-          </Tooltip>
+          <span className="ws-name">{ws.name}</span>
           {service.getBadges(ws.id).map((b) => (
             <span
               key={b.id}
@@ -341,18 +361,17 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
             return <Comp key={p.id} workspaceId={ws.id} />;
           })}
         </div>
-        <Tooltip content="Close workspace">
-          <button
-            className="ws-close"
-            tabIndex={-1}
-            onClick={(e) => {
-              e.stopPropagation();
-              service.close(ws.id);
-            }}
-          >
-            ×
-          </button>
-        </Tooltip>
+        <button
+          className="ws-close"
+          tabIndex={-1}
+          aria-label="Close workspace"
+          onClick={(e) => {
+            e.stopPropagation();
+            service.close(ws.id);
+          }}
+        >
+          ×
+        </button>
       </li>
     );
   }
@@ -383,6 +402,10 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
       >
         <div
           className="ws-group-header"
+          role="option"
+          aria-selected={false}
+          aria-expanded={!group.collapsed}
+          {...roving.getItemProps(navIndex.get(group.id) ?? 0)}
           {...dnd.groupHandleProps(group.id)}
           onClick={() => toggleGroupCollapsed(group.id)}
           onDoubleClick={(e) => {
@@ -410,7 +433,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
             {group.workspaceOrder.map((wsId) => {
               const ws = openById.get(wsId);
               if (!ws) return null;
-              return renderWorkspaceItem(ws, 0, group.id);
+              return renderWorkspaceItem(ws, group.id);
             })}
           </ul>
         )}
@@ -438,7 +461,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
                 if (group) return renderGroupCard(group);
                 const ws = openById.get(entryId);
                 if (!ws) return null; // closed or stale ungrouped workspace
-                return renderWorkspaceItem(ws, rovingIndex.get(entryId) ?? 0);
+                return renderWorkspaceItem(ws);
               })}
             </ul>
           )}

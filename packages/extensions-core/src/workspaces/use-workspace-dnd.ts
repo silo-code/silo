@@ -100,7 +100,12 @@ export function useWorkspaceDnd(): WorkspaceDnd {
         reorderPanel(intent.fromId, intent.toId, intent.position);
         break;
       case "reorder-in-group":
-        reorderWorkspaceInGroup(intent.groupId, intent.fromId, intent.toId, intent.position);
+        reorderWorkspaceInGroup(
+          intent.groupId,
+          intent.fromId,
+          intent.toId,
+          intent.position,
+        );
         break;
       case "move-to-group":
         moveWorkspaceToGroup(
@@ -246,10 +251,7 @@ export function useWorkspaceDnd(): WorkspaceDnd {
     }
   }
 
-  function onGroupCardDrop(
-    e: React.DragEvent<HTMLLIElement>,
-    groupId: string,
-  ) {
+  function onGroupCardDrop(e: React.DragEvent<HTMLLIElement>, groupId: string) {
     if (!draggingGroupId && !draggingId) return;
     e.preventDefault();
     e.stopPropagation();
@@ -281,9 +283,13 @@ export function useWorkspaceDnd(): WorkspaceDnd {
     if (overGroupId) setOverGroupId(null);
     // A grouped workspace is never itself a top-level entry, so it can always
     // land at either end; a group / ungrouped workspace can't land on itself.
-    const draggedTopLevel = draggingGroupId ?? (draggingSourceGroup ? null : draggingId);
-    const firstEl = e.currentTarget.querySelector(".ws-list")?.firstElementChild;
-    const atTop = firstEl ? e.clientY < firstEl.getBoundingClientRect().top : false;
+    const draggedTopLevel =
+      draggingGroupId ?? (draggingSourceGroup ? null : draggingId);
+    const firstEl =
+      e.currentTarget.querySelector(".ws-list")?.firstElementChild;
+    const atTop = firstEl
+      ? e.clientY < firstEl.getBoundingClientRect().top
+      : false;
     let next: DropTarget | null = null;
     if (atTop && firstEntryId && firstEntryId !== draggedTopLevel) {
       next = { id: firstEntryId, position: "before" };

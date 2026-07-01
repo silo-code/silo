@@ -13,7 +13,7 @@ workspaces into and out of. Groups are purely organizational — they do not aff
 workspace activation, lifecycle, or any persisted workspace data beyond display
 ordering.
 
-This created a surface question. Workspace *lifecycle* operations (create, rename,
+This created a surface question. Workspace _lifecycle_ operations (create, rename,
 reorder, activate, close, delete) are part of the public `WorkspaceService`
 contract on `ctx.workspaces` in `@silo-code/sdk`, callable by any extension. The
 group CRUD/reorder operations, by contrast, are imported by the bundled
@@ -24,8 +24,8 @@ live in the same panel reach the store through different channels.
 The repo's standing rule is "if an extension needs a capability the SDK lacks,
 add it to `ctx`" (see CLAUDE.md, ADR 0004). Taken naively that argues for
 promoting groups to the public service. But ADR 0007's core-primitive test asks
-whether a capability is a *platform primitive third parties build on* or a
-*first-party feature*. Group layout is the latter: it is the `core.workspaces`
+whether a capability is a _platform primitive third parties build on_ or a
+_first-party feature_. Group layout is the latter: it is the `core.workspaces`
 panel organizing its own presentation. No third-party or `silo.*` extension has a
 reason to create or reorder another extension's panel groupings, and `core.*`
 already has legitimate access to the internal barrel (ADR 0013).
@@ -58,7 +58,7 @@ is not later mistaken for an oversight.
 - **Easier:** no public API surface to freeze, document, or version for a feature
   with exactly one (first-party) consumer; the group mutator set can evolve freely
   as the drag-and-drop work lands.
-- **Easier:** keeps `WorkspaceService` focused on workspace *lifecycle* — the thing
+- **Easier:** keeps `WorkspaceService` focused on workspace _lifecycle_ — the thing
   extensions actually integrate with — rather than panel-presentation details.
 - **Harder / accepted:** the two mutation channels in `core.workspaces` remain
   asymmetric (lifecycle via `ctx.workspaces`, layout via the internal barrel). This
