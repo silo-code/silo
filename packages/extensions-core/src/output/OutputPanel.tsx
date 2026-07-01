@@ -67,11 +67,12 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
 
   // Re-read selected channel when storage hydrates or the active workspace changes
   useEffect(() => {
-    return ctx.storage.workspace.subscribe(() => {
+    const sub = ctx.storage.workspace.subscribe(() => {
       setSelectedKey(
         ctx.storage.workspace.get("outputChannel", "silo:notifications"),
       );
     });
+    return () => sub.dispose();
   }, [ctx.storage.workspace]);
 
   // Clear selection when channel or filter changes

@@ -1,3 +1,5 @@
+import type { Disposable } from "./types";
+
 /**
  * Namespaced, persisted key/value storage handed to extensions. Two scopes are
  * exposed on {@link ExtensionContext.storage} ({@link ExtensionStorageScopes}):
@@ -24,10 +26,13 @@ export interface ExtensionStorage {
   /**
    * Subscribe to changes in this namespace. Called when a value in this
    * namespace changes, when the underlying app state finishes hydrating, and
-   * (for the workspace scope) when the active workspace changes. Returns an
-   * unsubscribe function.
+   * (for the workspace scope) when the active workspace changes.
+   *
+   * Returns a {@link Disposable} — call `.dispose()` to unsubscribe, or push
+   * it onto `ctx.subscriptions` for automatic teardown. Consistent with every
+   * other subscription in the SDK.
    */
-  subscribe(listener: () => void): () => void;
+  subscribe(listener: () => void): Disposable;
 }
 
 /**

@@ -47,7 +47,10 @@ function Scratchpad({ storage, hydrated }: SidePanelProps) {
   // Restore once persisted state has hydrated, and re-read if it flips.
   useEffect(() => {
     setText(storage.get<string>("text", ""));
-    return storage.subscribe(() => setText(storage.get<string>("text", "")));
+    const sub = storage.subscribe(() =>
+      setText(storage.get<string>("text", "")),
+    );
+    return () => sub.dispose();
   }, [storage, hydrated]);
   return (
     <div className="scratchpad">
