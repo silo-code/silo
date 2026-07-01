@@ -1,5 +1,4 @@
-import type { Extension } from "@silo-code/sdk";
-import type { IDockviewPanelProps } from "dockview";
+import type { DockPanelProps, Extension } from "@silo-code/sdk";
 import { Code } from "@phosphor-icons/react";
 import { OutputPanel } from "./OutputPanel";
 
@@ -13,9 +12,9 @@ export const extension: Extension = {
   activate(ctx) {
     ctx.registerDockPanelKind({
       id: "output",
-      component: ((props: IDockviewPanelProps) => (
+      component: ((props: DockPanelProps) => (
         <OutputPanel {...props} ctx={ctx} />
-      )) as React.ComponentType<IDockviewPanelProps>,
+      )) as React.ComponentType<DockPanelProps>,
     });
 
     ctx.registerCommand({

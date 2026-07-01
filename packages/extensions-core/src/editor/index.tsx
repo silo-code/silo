@@ -1,6 +1,5 @@
 import { lazy } from "react";
-import type { IDockviewPanelProps } from "dockview";
-import type { Extension } from "@silo-code/sdk";
+import type { DockPanelProps, Extension } from "@silo-code/sdk";
 import { EditorPanel } from "./EditorPanel";
 import { EditorSettingsPage } from "./EditorSettingsPage";
 
@@ -28,9 +27,12 @@ export const extension: Extension = {
     // the public primitive). See ctx-domains.md "The editor surface".
     ctx.registerDockPanelKind({
       id: "editor",
-      component: ((props) => (
-        <EditorPanel {...props} ctx={ctx} />
-      )) as React.ComponentType<IDockviewPanelProps>,
+      component: ((props: DockPanelProps) => (
+        <EditorPanel
+          {...(props as unknown as Parameters<typeof EditorPanel>[0])}
+          ctx={ctx}
+        />
+      )) as React.ComponentType<DockPanelProps>,
     });
     ctx.registerEditor({
       id: "text",

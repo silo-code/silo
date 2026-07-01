@@ -18,7 +18,6 @@
  * @packageDocumentation
  */
 import type React from "react";
-import type { IDockviewPanelProps } from "dockview";
 import type { ContextKeys } from "./context-keys";
 import type { WorkspaceService } from "./workspace-service";
 import type { EditorService } from "./editor-service";
@@ -54,26 +53,52 @@ export interface Disposable {
 }
 
 /**
- * The dockview panel API handed to a {@link DockPanelKind} component — used to
- * drive the panel's own tab (title, close, focus). Re-exported from `dockview`
- * so extensions don't take a direct dependency on it.
+ * The panel API handed to a {@link DockPanelKind} component. Use these methods
+ * to drive the panel's own tab (title, close, focus) and update its stored
+ * parameters. The host provides the implementation; extensions never construct
+ * this object directly.
  *
  * @category Core Types
  * @public
  */
-export type DockPanelApi = IDockviewPanelProps["api"];
+export interface DockPanelApi {
+  /** Update the title shown in the panel's tab. */
+  setTitle(title: string): void;
+  /** Programmatically close this panel. */
+  close(): void;
+  /** Bring this panel to focus (make it the active panel in its group). */
+  setActive(): void;
+  /** `true` while this panel is the active one in its dock group. */
+  readonly isActive: boolean;
+  /**
+   * Subscribe to active-state transitions. The listener is called whenever
+   * the panel gains or loses active status. Returns a {@link Disposable} that
+   * cancels the subscription when disposed.
+   */
+  onDidActiveChange(listener: (active: boolean) => void): Disposable;
+  /**
+   * Shallow-merge `params` into this panel's stored parameters. Keys absent
+   * from `params` are left unchanged. Useful for keeping tabs-serializable
+   * state (e.g. the open URL in a web-viewer panel) consistent with the UI.
+   */
+  updateParameters(params: object): void;
+}
 
 /**
  * Props handed to a {@link DockPanelKind} component. Use this type to annotate
- * your component instead of importing `IDockviewPanelProps` from `dockview`
- * directly — the SDK wraps it so extensions remain insulated from dockview
- * version changes. The optional generic `T` narrows the shape of `params`.
+ * your component instead of importing from the underlying dock framework
+ * directly — the SDK owns this surface so extensions remain insulated from
+ * host implementation details. The optional generic `T` narrows `params`.
  *
  * @category Core Types
  * @public
  */
-export type DockPanelProps<T extends object = Record<string, unknown>> =
-  IDockviewPanelProps<T>;
+export interface DockPanelProps<T extends object = Record<string, unknown>> {
+  /** The panel API — drives the tab (title, close, focus, params). */
+  api: DockPanelApi;
+  /** Serializable parameters forwarded to the panel at open time. */
+  params: T;
+}
 
 /**
  * Props passed to an {@link Editor} component. An editor renders the contents of
@@ -340,8 +365,8 @@ export interface SidePanel {
 export interface DockPanelKind {
   /** Unique id for this panel kind. */
   id: string;
-  /** The React component; receives the raw dockview panel props. */
-  component: React.ComponentType<IDockviewPanelProps>;
+  /** The React component that renders this panel; receives {@link DockPanelProps}. */
+  component: React.ComponentType<DockPanelProps>;
   /**
    * When set, this kind appears as an entry in the center dock's **+** add
    * menu (the per-group header button). Omit to keep the kind internal.

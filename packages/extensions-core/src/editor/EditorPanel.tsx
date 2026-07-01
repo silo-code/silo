@@ -1,5 +1,5 @@
 import { Suspense, useState } from "react";
-import type { IDockviewPanelProps } from "dockview";
+import type { DockPanelProps } from "@silo-code/sdk";
 import { useSnapshot } from "valtio";
 import {
   store,
@@ -16,7 +16,7 @@ interface Params {
 }
 
 export function EditorPanel(
-  props: IDockviewPanelProps<Params> & { ctx: ExtensionContext },
+  props: DockPanelProps<Params> & { ctx: ExtensionContext },
 ) {
   const { editorId } = props.params;
   const { ctx } = props;

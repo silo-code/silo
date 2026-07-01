@@ -9,9 +9,10 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import { SearchAddon } from "@xterm/addon-search";
-import type { IDockviewPanelProps } from "dockview";
+import type { DockviewPanelApi } from "dockview";
 import {
   DND_MIME,
+  type DockPanelProps,
   type Disposable,
   type EditorService,
   type ExtensionContext,
@@ -102,7 +103,7 @@ async function openFileFromTerminal(
 }
 
 export function TerminalPanel(
-  props: IDockviewPanelProps<Params> & { ctx: ExtensionContext },
+  props: DockPanelProps<Params> & { ctx: ExtensionContext },
 ) {
   const { terminalId } = props.params;
   const { ctx } = props;
@@ -750,8 +751,9 @@ export function TerminalPanel(
   }, [lifecycle.kind, props.api, terminalId]);
 
   useEffect(() => {
-    const dispose = props.api.onDidVisibilityChange(() => {
-      if (props.api.isVisible) forceRefit();
+    const extApi = props.api as unknown as DockviewPanelApi;
+    const dispose = extApi.onDidVisibilityChange(() => {
+      if (extApi.isVisible) forceRefit();
     });
 
     function onRefitSignal() {
