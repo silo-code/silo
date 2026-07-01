@@ -66,12 +66,24 @@ Examples: `feat(terminal): add split pane`, `fix: handle empty workspace path`,
 
 ## Releases
 
-Releases are automated via
+Silo has two release channels that run completely independently:
+
+**Stable** is automated via
 [release-please](https://github.com/googleapis/release-please): merged
 conventional commits feed a "release vX.Y.Z" PR that bumps versions and updates
 `CHANGELOG.md`. Merging that PR tags `silo-vX.Y.Z`, which triggers the build +
 publish of installers and the updater manifest. Maintainers don't bump versions
 by hand.
+
+**Nightly** builds from `main` automatically every day at 3am UTC via the
+`release-nightly.yml` workflow. Nightly is a separate application ("Silo
+Nightly", identifier `com.silo.desktop.nightly`) that installs side-by-side with
+stable and uses its own data directories. The version string is auto-generated:
+`0.x.y-nightly.YYYYMMDD.githash`. The nightly GitHub Release is pinned to the
+`nightly` tag and overwritten on every build — release-please is not involved.
+
+To trigger a nightly build manually, use **Actions → release-nightly →
+Run workflow** on GitHub.
 
 ## License
 

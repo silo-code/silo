@@ -18,10 +18,11 @@ pub fn run() {
     // self-forked daemon inherits it from this process's env.
     #[cfg(unix)]
     {
-        let ns = if context.config().identifier.ends_with(".dev") {
-            "dev"
-        } else {
+        let id = context.config().identifier.as_str();
+        let ns: &str = if id == "com.silo.desktop" {
             "prod"
+        } else {
+            id.strip_prefix("com.silo.desktop.").unwrap_or("other")
         };
         std::env::set_var("SILO_PTY_NS", ns);
     }
@@ -164,6 +165,7 @@ pub fn run() {
             commands::finder_drop::dnd_get_finder_paths,
             commands::window_chrome::window_set_caption_color,
             commands::system::system_info,
+            commands::app_paths::app_config_dir_override,
         ])
         .run(context)
         .expect("error while running tauri application");

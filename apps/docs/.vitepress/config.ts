@@ -116,6 +116,7 @@ export default withMermaid(
               { text: "Side panels", link: "/guide/panels" },
               { text: "Extensions", link: "/guide/extensions" },
               { text: "The `silo` command", link: "/guide/cli" },
+              { text: "Release channels", link: "/guide/release-channels" },
             ],
           },
           {

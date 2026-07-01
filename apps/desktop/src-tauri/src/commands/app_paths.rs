@@ -16,6 +16,18 @@
 
 use std::path::PathBuf;
 
+/// Returns the value of `SILO_CONFIG_DIR` if set and non-empty, otherwise
+/// `None`. Exposed as a Tauri command so the frontend can redirect the
+/// user-config root (workspaces, themes, keybindings) to a custom path —
+/// e.g. to share workspaces between the stable and nightly channels.
+/// Mirrors the `SILO_DATA_DIR` pattern used for the app-state tier.
+#[tauri::command]
+pub fn app_config_dir_override() -> Option<String> {
+    std::env::var("SILO_CONFIG_DIR")
+        .ok()
+        .filter(|s| !s.is_empty())
+}
+
 /// Root directory for Silo's per-user runtime state.
 ///
 /// Prefers `SILO_DATA_DIR` (set at startup from the bundle identifier, and

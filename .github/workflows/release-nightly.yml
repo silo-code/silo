@@ -1,0 +1,181 @@
+name: release-nightly
+
+# Build + publish nightly installers for every platform. Runs daily at 3am UTC
+# or on demand. Uses a Tauri config overlay (tauri.nightly.conf.json) to produce
+# a fully isolated "Silo Nightly" app (separate identifier, separate data dirs,
+# separate updater endpoint) that installs side-by-side with stable Silo.
+#
+# The nightly GitHub Release is pinned to the tag "nightly" and overwritten on
+# every build — there is only ever one nightly release. Stable releases are
+# completely unaffected by this workflow.
+on:
+  schedule:
+    - cron: "0 3 * * *" # 3am UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release_id: ${{ steps.release.outputs.id }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: compute nightly version
+        id: version
+        run: |
+          BASE=$(node -p "require('./apps/desktop/package.json').version")
+          DATE=$(date -u +%Y%m%d)
+          HASH=$(git rev-parse --short HEAD)
+          echo "version=${BASE}-nightly.${DATE}.${HASH}" >> "$GITHUB_OUTPUT"
+
+      - name: upsert nightly release and clear stale assets
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create the pinned nightly release if it doesn't exist yet.
+          if ! gh release view nightly --repo silo-code/silo 2>/dev/null; then
+            gh release create nightly \
+              --repo silo-code/silo \
+              --prerelease \
+              --title "Silo Nightly" \
+              --notes "Nightly builds — latest from \`main\`. May be unstable. Install alongside stable Silo; they share no data by default."
+          fi
+
+          # Clear all existing assets so this build starts clean.
+          gh api repos/silo-code/silo/releases/tags/nightly --jq '.assets[].id' \
+            | xargs -I{} gh api --method DELETE repos/silo-code/silo/releases/assets/{} \
+            || true
+
+          # Capture the release ID for the build jobs.
+          RELEASE_ID=$(gh api repos/silo-code/silo/releases/tags/nightly --jq '.id')
+          echo "id=$RELEASE_ID" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest # Apple Silicon
+            args: "--target aarch64-apple-darwin"
+          - platform: macos-latest # Intel
+            args: "--target x86_64-apple-darwin"
+          - platform: ubuntu-22.04
+            args: ""
+          - platform: windows-latest
+            args: ""
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: setup node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./apps/desktop/src-tauri -> target"
+
+      - name: install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Write App Store Connect API key
+        if: matrix.platform == 'macos-latest'
+        run: echo "${{ secrets.APPLE_API_KEY_P8_BASE64 }}" | base64 --decode > "${{ runner.temp }}/apple_api_key.p8"
+
+      # Deep-merge tauri.conf.json + tauri.nightly.conf.json and inject the
+      # nightly version string. Writing a single merged file avoids uncertainty
+      # about Tauri CLI's own --config merge depth.
+      - name: Build merged nightly config
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs');
+            function merge(base, override) {
+              const out = { ...base };
+              for (const [k, v] of Object.entries(override)) {
+                if (v && typeof v === 'object' && !Array.isArray(v) && out[k] && typeof out[k] === 'object') {
+                  out[k] = merge(out[k], v);
+                } else {
+                  out[k] = v;
+                }
+              }
+              return out;
+            }
+            const base = JSON.parse(fs.readFileSync('apps/desktop/src-tauri/tauri.conf.json', 'utf8'));
+            const night = JSON.parse(fs.readFileSync('apps/desktop/src-tauri/tauri.nightly.conf.json', 'utf8'));
+            night.version = '${{ needs.prepare.outputs.version }}';
+            const merged = merge(base, night);
+            fs.writeFileSync('/tmp/tauri-nightly-merged.json', JSON.stringify(merged, null, 2));
+            console.log('Nightly config:', merged.productName, merged.version, merged.identifier);
+          "
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ runner.temp }}/apple_api_key.p8
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          NODE_OPTIONS: --max-old-space-size=6144
+        with:
+          projectPath: apps/desktop
+          releaseId: ${{ needs.prepare.outputs.release_id }}
+          args: --config /tmp/tauri-nightly-merged.json ${{ matrix.args }}
+
+      # Re-notarize + staple the DMG (same reason as stable — tauri-action ships
+      # an un-notarized DMG). Replace the release asset with the stapled copy.
+      - name: Notarize + staple the DMG
+        if: matrix.platform == 'macos-latest'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          DMG=$(find apps/desktop/src-tauri/target -name "*.dmg" | head -1)
+          echo "dmg: $DMG"
+          xcrun notarytool submit "$DMG" \
+            --key "${{ runner.temp }}/apple_api_key.p8" \
+            --key-id "${{ secrets.APPLE_API_KEY }}" \
+            --issuer "${{ secrets.APPLE_API_ISSUER }}" \
+            --wait
+          xcrun stapler staple "$DMG"
+          xcrun stapler validate "$DMG"
+          for attempt in 1 2 3; do
+            gh release upload nightly "$DMG" --clobber -R silo-code/silo && break
+            if [ "$attempt" -lt 3 ]; then
+              echo "Upload attempt $attempt failed, retrying in 15s..."
+              sleep 15
+            else
+              echo "Upload failed after 3 attempts"
+              exit 1
+            fi
+          done

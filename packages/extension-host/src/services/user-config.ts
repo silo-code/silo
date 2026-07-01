@@ -1,5 +1,6 @@
 import { homeDir } from "@tauri-apps/api/path";
 import { getIdentifier } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { fsCreateDir } from "./tauri-fs";
 
 // The silo user-config root, home for all hand-editable / user-owned config:
@@ -32,6 +33,14 @@ let cached: string | null = null;
 
 export async function userConfigDir(): Promise<string> {
   if (cached) return cached;
+  // SILO_CONFIG_DIR lets users point the nightly channel at the stable config
+  // root to share workspaces across channels without duplication.
+  const override = await invoke<string | null>("app_config_dir_override");
+  if (override) {
+    await fsCreateDir(override);
+    cached = override;
+    return cached;
+  }
   const home = (await homeDir()).replace(/\/+$/, "");
   const dir = `${home}/.config/${configRootName(await getIdentifier())}`;
   await fsCreateDir(dir);

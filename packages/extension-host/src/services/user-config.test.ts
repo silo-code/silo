@@ -8,6 +8,7 @@ describe("configRootName", () => {
 
   it("maps a build-suffixed identity to silo-<suffix>", () => {
     expect(configRootName("com.silo.desktop.dev")).toBe("silo-dev");
+    expect(configRootName("com.silo.desktop.nightly")).toBe("silo-nightly");
   });
 
   it("falls back to silo-<identifier> for an unexpected identity", () => {
