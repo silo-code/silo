@@ -25,7 +25,6 @@ fn should_skip(path: &str) -> bool {
     // the separators in these needles always match on every platform.
     const NEEDLES: &[&str] = &[
         "/node_modules/",
-        "/.git/",
         "/target/",
         "/dist/",
         "/build/",
