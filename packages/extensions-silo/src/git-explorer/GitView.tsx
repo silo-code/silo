@@ -706,7 +706,7 @@ export function GitView({
           <div className="commit-area">
             <textarea
               value={message}
-              placeholder={`Message (⌘Enter to commit${status?.branch ? ` on "${status.branch}"` : ""})`}
+              placeholder="Commit message"
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={onCommitKeyDown}
               rows={2}
