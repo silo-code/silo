@@ -24,6 +24,8 @@ export function Tree({
   rootLabel,
   initialExpanded,
   persistExpanded,
+  initialSelected,
+  persistSelected,
 }: {
   ctx: ExtensionContext;
   workspaceId: string;
@@ -32,6 +34,8 @@ export function Tree({
   initialExpanded?: Record<string, boolean>;
   /** Persist the expanded-paths map (merged into the panel's stored state). */
   persistExpanded: (expanded: Record<string, boolean>) => void;
+  initialSelected?: string | null;
+  persistSelected?: (path: string | null) => void;
 }) {
   // The public primitives this tree drives — read through ctx, never the host
   // getters. (Stable per extension, so safe to bind once per render.)
@@ -50,7 +54,14 @@ export function Tree({
   const fileTreeRef = useRef<HTMLDivElement>(null);
   const [newItem, setNewItem] = useState<NewItem | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(
+    () => initialSelected ?? null,
+  );
+
+  function selectPath(path: string | null) {
+    setSelected(path);
+    persistSelected?.(path);
+  }
 
   // The visible rows in document order — the index space useFocusGroup roves
   // over. Built from listings/expanded so it tracks expand/collapse, and ordered
@@ -165,7 +176,7 @@ export function Tree({
       ...gp,
       onFocus: () => {
         gp.onFocus();
-        setSelected(path);
+        selectPath(path);
       },
       onKeyDown: (e) => {
         if (handleRowKey(e, path, isDir)) return;
@@ -261,7 +272,7 @@ export function Tree({
   }
 
   function toggle(path: string, isDir: boolean) {
-    setSelected(path);
+    selectPath(path);
     if (!isDir) {
       editors.open(path, { workspaceId, preview: true });
       return;
@@ -275,7 +286,7 @@ export function Tree({
   }
 
   function togglePermanent(path: string) {
-    setSelected(path);
+    selectPath(path);
     editors.open(path, { workspaceId });
   }
 
@@ -302,7 +313,7 @@ export function Tree({
     placement: { at?: { x: number; y: number }; anchor?: HTMLElement | null },
     rootArea = false,
   ) {
-    setSelected(path);
+    selectPath(path);
     void ctx.ui.showMenu({
       items: menuItemsFor(path, isDir, rootArea),
       toggle: false,
