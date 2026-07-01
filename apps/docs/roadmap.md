@@ -137,11 +137,11 @@ The shape of each planned surface is now designed in an **RFC** under
 
 Not part of the extension SDK — host-side developer/test surfaces.
 
-| Surface              | Status                                       |                                                                          |
-| -------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
-| `silo <path>` CLI    | <Badge type="tip" text="stable" />           | [docs](/guide/cli)                                                       |
-| Automation RPC (dev) | <Badge type="warning" text="experimental" /> | [design](https://github.com/silo-code/silo/blob/main/docs/automation.md) |
-| Nightly release channel | <Badge type="tip" text="stable" />        | [docs](/guide/release-channels)                                          |
+| Surface                 | Status                                       |                                                                          |
+| ----------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| `silo <path>` CLI       | <Badge type="tip" text="stable" />           | [docs](/guide/cli)                                                       |
+| Automation RPC (dev)    | <Badge type="warning" text="experimental" /> | [design](https://github.com/silo-code/silo/blob/main/docs/automation.md) |
+| Nightly release channel | <Badge type="tip" text="stable" />           | [docs](/guide/release-channels)                                          |
 
 ### `silo <path>` CLI <Badge type="tip" text="stable" />
 

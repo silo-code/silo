@@ -50,12 +50,14 @@ workspace list without having to recreate workspaces in nightly. Off by default
 ## Consequences
 
 **Easier:**
+
 - Contributors and early adopters can run nightly builds without affecting their
   stable install.
 - The nightly channel provides a real pre-release feedback loop without the
   overhead of a full release-please cycle.
 
 **Harder:**
+
 - Nightly builds accumulate on the `nightly` release tag; the CI prepare job
   clears old assets before each build so the release stays clean.
 - The orange nightly icon (distinguishing it visually in the Dock) is not yet
@@ -64,6 +66,7 @@ workspace list without having to recreate workspaces in nightly. Off by default
   design asset to be added as a follow-up.
 
 **Neutral / committed to:**
+
 - The `SILO_PTY_NS` logic in `lib.rs` was generalized from a hardcoded `.dev`
   check to a suffix-based rule (`com.silo.desktop.<ns>`) so every identity
   variant gets its own PTY socket namespace automatically.

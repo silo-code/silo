@@ -1,0 +1,10 @@
+#!/bin/sh
+# Enforce Conventional Commits on every commit message.
+# Bypass in a genuine pinch with:  git commit --no-verify
+npx --no-install commitlint --edit "$1"
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "✖ Commit blocked: message must follow Conventional Commits"
+  echo "  e.g. 'feat(terminal): add split pane' or 'fix: handle empty path'."
+  exit 1
+fi

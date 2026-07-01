@@ -33,11 +33,11 @@ The two channels are fully isolated by default. Settings, workspaces, themes,
 keybindings, and terminal sessions in stable are not visible in nightly, and
 vice versa.
 
-| Resource | Stable | Nightly |
-|---|---|---|
-| Config (workspaces, settings) | `~/.config/silo/` | `~/.config/silo-nightly/` |
+| Resource                      | Stable                                            | Nightly                                                   |
+| ----------------------------- | ------------------------------------------------- | --------------------------------------------------------- |
+| Config (workspaces, settings) | `~/.config/silo/`                                 | `~/.config/silo-nightly/`                                 |
 | App state (terminal sessions) | `~/Library/Application Support/com.silo.desktop/` | `~/Library/Application Support/com.silo.desktop.nightly/` |
-| Updates | Monthly stable releases | Daily nightly builds |
+| Updates                       | Monthly stable releases                           | Daily nightly builds                                      |
 
 ## Sharing workspaces between channels
 
