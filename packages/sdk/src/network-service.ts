@@ -1,4 +1,36 @@
 /**
+ * Thrown by {@link NetworkService.fetch} and {@link NetworkService.fetchHeaders}
+ * when a request fails (network error, DNS failure, TLS error, timeout, etc.).
+ *
+ * ```ts
+ * try {
+ *   const res = await ctx.net.fetch("https://api.example.com/data");
+ * } catch (err) {
+ *   if (err instanceof NetworkError) {
+ *     console.error(`Request to ${err.url} failed: ${err.message}`);
+ *   }
+ * }
+ * ```
+ *
+ * @category Core Types
+ * @public
+ */
+export class NetworkError extends Error {
+  /** The URL that was requested when the error occurred. */
+  readonly url: string;
+
+  constructor(url: string, message: string) {
+    super(message);
+    this.name = "NetworkError";
+    this.url = url;
+    // Restore the prototype chain so `instanceof` works across the down-leveled
+    // class output the SDK ships (and across the host↔extension boundary, where
+    // there's a single shared SDK instance).
+    Object.setPrototypeOf(this, NetworkError.prototype);
+  }
+}
+
+/**
  * Options for {@link NetworkService.fetch} and {@link NetworkService.fetchHeaders}.
  *
  * @category Core Types
@@ -62,7 +94,7 @@ export interface NetworkService {
    *
    * @param url - The URL to fetch.
    * @param options - Method, headers, body, redirect and timeout controls.
-   * @throws A string error message if the request fails (network error, DNS
+   * @throws {@link NetworkError} if the request fails (network error, DNS
    *   failure, TLS error, etc.).
    *
    * @example
@@ -83,7 +115,7 @@ export interface NetworkService {
    * @param url - The URL to probe.
    * @param options - Redirect and timeout controls (`method` and `body` are
    *   ignored — this is always a HEAD request).
-   * @throws A string error message if the request fails.
+   * @throws {@link NetworkError} if the request fails.
    *
    * @example
    * ```ts

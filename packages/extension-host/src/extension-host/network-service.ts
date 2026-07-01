@@ -4,6 +4,7 @@ import type {
   NetworkRequestOptions,
   NetworkResponse,
 } from "@silo-code/sdk";
+import { NetworkError } from "@silo-code/sdk";
 
 // `ctx.net` — server-side HTTP client. Requests run in the Rust backend via
 // reqwest, so they bypass browser CORS and can read any response header.
@@ -25,6 +26,8 @@ export function getNetworkService(): NetworkService {
         body: options?.body,
         followRedirects: options?.followRedirects,
         timeoutMs: options?.timeoutMs,
+      }).catch((err: unknown) => {
+        throw new NetworkError(url, String(err));
       });
     },
     fetchHeaders(
@@ -35,6 +38,8 @@ export function getNetworkService(): NetworkService {
         url,
         followRedirects: options?.followRedirects,
         timeoutMs: options?.timeoutMs,
+      }).catch((err: unknown) => {
+        throw new NetworkError(url, String(err));
       });
     },
   };

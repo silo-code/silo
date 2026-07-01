@@ -162,6 +162,7 @@ export type {
 } from "./ui-service";
 
 // Server-side HTTP client — bypasses CORS, readable response headers.
+export { NetworkError } from "./network-service";
 export type {
   NetworkService,
   NetworkRequestOptions,
