@@ -101,8 +101,15 @@ export interface AppState {
    * `workspaceGroupMap` in `workspaces.ts`.
    */
   groups: Record<string, WorkspaceGroup>;
-  /** Ordered list of group ids, defining panel display order. */
-  groupOrder: string[];
+  /**
+   * The single top-level order of the Workspaces panel: an interleaved list of
+   * **ungrouped workspace ids** and **group ids**. Grouped workspaces are *not*
+   * here (they live inside their group's `workspaceOrder`). This is what lets a
+   * group be dragged anywhere in the list, including above loose workspaces.
+   * (`workspaceOrder` above is the separate all-workspaces registry order that
+   * backs the public WorkspaceService; `panelOrder` is panel presentation.)
+   */
+  panelOrder: string[];
   /**
    * Set to `true` after `ExtensionManager.loadInstalled()` resolves. The dock
    * gates `fromJSON` layout restore behind this flag so external extensions

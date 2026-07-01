@@ -208,6 +208,11 @@ export function installRegionTabHandoff(): () => void {
 export function enterRegionOnPointer(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   if (target.closest(INTERACTIVE)) return false;
+  // Never treat a draggable element as background: the caller `preventDefault()`s
+  // a truthy return, and `preventDefault` on `mousedown` cancels the browser's
+  // native drag gesture (so `dragstart` never fires). Draggable rows/headers own
+  // their own pointer interaction and focus themselves via their handlers.
+  if (target.closest('[draggable="true"]')) return false;
   // A side pane: enter the SPECIFIC pane clicked (per-pane, so a bottom split
   // pane's background enters it, not the top pane).
   const pane = target.closest<HTMLElement>(".side-pane");

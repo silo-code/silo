@@ -15,9 +15,10 @@ import {
   renameGroup,
   setGroupColor,
   deleteGroup,
-  reorderGroups,
+  reorderPanel,
   moveWorkspaceToGroup,
   removeWorkspaceFromGroup,
+  ungroupWorkspace,
   reorderWorkspaceInGroup,
   toggleGroupCollapsed,
   groupIdForWorkspace,
@@ -35,7 +36,7 @@ beforeEach(() => {
   store.workspaceOrder = [];
   store.activeWorkspaceId = null;
   store.groups = {};
-  store.groupOrder = [];
+  store.panelOrder = [];
 });
 
 // ── createGroup ──────────────────────────────────────────────────────────────
@@ -49,10 +50,10 @@ describe("createGroup", () => {
     expect(store.groups[group.id].workspaceOrder).toEqual([]);
   });
 
-  it("appends the group id to groupOrder", () => {
+  it("appends the group id to panelOrder (a top-level entry)", () => {
     const a = createGroup("A");
     const b = createGroup("B");
-    expect(store.groupOrder).toEqual([a.id, b.id]);
+    expect(store.panelOrder).toEqual([a.id, b.id]);
   });
 
   it("returns the new group object", () => {
@@ -100,20 +101,22 @@ describe("renameGroup", () => {
 // ── deleteGroup ──────────────────────────────────────────────────────────────
 
 describe("deleteGroup", () => {
-  it("removes the group from groups and groupOrder", () => {
+  it("removes the group from groups and panelOrder", () => {
     const a = makeGroup("A");
     const b = makeGroup("B");
     deleteGroup(a.id);
     expect(store.groups[a.id]).toBeUndefined();
-    expect(store.groupOrder).toEqual([b.id]);
+    expect(store.panelOrder).toEqual([b.id]);
   });
 
-  it("drops membership for all member workspaces", () => {
-    const group = makeGroup("G");
-    const ws = createWorkspace({ folder: "/p", name: "p" });
-    moveWorkspaceToGroup(ws.id, group.id);
-    expect(groupIdForWorkspace(ws.id)).toBe(group.id);
+  it("splices its members back into panelOrder at the group's slot", () => {
+    const ws = createWorkspace({ folder: "/p", name: "p" }); // panelOrder: [ws]
+    const group = makeGroup("G"); // panelOrder: [ws, group]
+    moveWorkspaceToGroup(ws.id, group.id); // panelOrder: [group]; ws inside group
+    expect(store.panelOrder).toEqual([group.id]);
     deleteGroup(group.id);
+    // The member reappears at the group's former position, now ungrouped.
+    expect(store.panelOrder).toEqual([ws.id]);
     expect(groupIdForWorkspace(ws.id)).toBeUndefined();
   });
 
@@ -122,49 +125,50 @@ describe("deleteGroup", () => {
   });
 });
 
-// ── reorderGroups ──────────────────────────────────────────────────────────────
+// ── reorderPanel (interleaved top-level order) ───────────────────────────────
 
-describe("reorderGroups", () => {
-  it("moves a group before another", () => {
+describe("reorderPanel", () => {
+  it("reorders groups relative to each other", () => {
     const a = makeGroup("A");
     const b = makeGroup("B");
     const c = makeGroup("C");
-    reorderGroups(c.id, a.id, "before");
-    expect(store.groupOrder).toEqual([c.id, a.id, b.id]);
+    reorderPanel(c.id, a.id, "before");
+    expect(store.panelOrder).toEqual([c.id, a.id, b.id]);
   });
 
-  it("moves a group after another", () => {
-    const a = makeGroup("A");
-    const b = makeGroup("B");
-    const c = makeGroup("C");
-    reorderGroups(a.id, c.id, "after");
-    expect(store.groupOrder).toEqual([b.id, c.id, a.id]);
+  it("moves a group above an ungrouped workspace (full interleave)", () => {
+    const ws = createWorkspace({ folder: "/p", name: "p" }); // [ws]
+    const group = makeGroup("G"); // [ws, group]
+    reorderPanel(group.id, ws.id, "before");
+    expect(store.panelOrder).toEqual([group.id, ws.id]);
   });
 
   it("no-ops when fromId === toId", () => {
     const a = makeGroup("A");
     const b = makeGroup("B");
-    reorderGroups(a.id, a.id, "before");
-    expect(store.groupOrder).toEqual([a.id, b.id]);
+    reorderPanel(a.id, a.id, "before");
+    expect(store.panelOrder).toEqual([a.id, b.id]);
   });
 
-  it("no-ops when fromId is not in groupOrder", () => {
+  it("no-ops when fromId is not in panelOrder", () => {
     const a = makeGroup("A");
     const b = makeGroup("B");
-    reorderGroups("grp_ghost", b.id, "before");
-    expect(store.groupOrder).toEqual([a.id, b.id]);
+    reorderPanel("grp_ghost", b.id, "before");
+    expect(store.panelOrder).toEqual([a.id, b.id]);
   });
 });
 
 // ── moveWorkspaceToGroup ─────────────────────────────────────────────────────
 
 describe("moveWorkspaceToGroup", () => {
-  it("adds to the group's workspaceOrder and resolves via the derived lookup", () => {
+  it("adds to the group and removes the workspace from the top-level panel", () => {
     const group = makeGroup("G");
     const ws = createWorkspace({ folder: "/p", name: "p" });
+    expect(store.panelOrder).toContain(ws.id);
     moveWorkspaceToGroup(ws.id, group.id);
     expect(groupIdForWorkspace(ws.id)).toBe(group.id);
     expect(store.groups[group.id].workspaceOrder).toContain(ws.id);
+    expect(store.panelOrder).not.toContain(ws.id);
   });
 
   it("moves a workspace from one group to another", () => {
@@ -192,10 +196,51 @@ describe("moveWorkspaceToGroup", () => {
     const ws = createWorkspace({ folder: "/p", name: "p" });
     expect(() => moveWorkspaceToGroup(ws.id, "grp_ghost")).not.toThrow();
     expect(groupIdForWorkspace(ws.id)).toBeUndefined();
+    expect(store.panelOrder).toContain(ws.id);
+  });
+
+  it("inserts at the anchor position when one is given", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    const c = createWorkspace({ folder: "/c", name: "c" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    moveWorkspaceToGroup(c.id, group.id, { toId: a.id, position: "before" });
+    expect(store.groups[group.id].workspaceOrder).toEqual([c.id, a.id, b.id]);
   });
 });
 
-// ── removeWorkspaceFromGroup ─────────────────────────────────────────────────
+// ── ungroupWorkspace ─────────────────────────────────────────────────────────
+
+describe("ungroupWorkspace", () => {
+  it("pulls a workspace out of its group back into panelOrder after the group", () => {
+    const ws = createWorkspace({ folder: "/p", name: "p" });
+    const group = makeGroup("G"); // panelOrder: [ws, group]
+    moveWorkspaceToGroup(ws.id, group.id); // panelOrder: [group]
+    ungroupWorkspace(ws.id);
+    expect(groupIdForWorkspace(ws.id)).toBeUndefined();
+    // Reappears just after its former group.
+    expect(store.panelOrder).toEqual([group.id, ws.id]);
+  });
+
+  it("positions at the anchor when one is provided", () => {
+    const top = createWorkspace({ folder: "/top", name: "top" }); // [top]
+    const ws = createWorkspace({ folder: "/p", name: "p" }); // [top, ws]
+    const group = makeGroup("G"); // [top, ws, group]
+    moveWorkspaceToGroup(ws.id, group.id); // [top, group]
+    ungroupWorkspace(ws.id, { toId: top.id, position: "before" });
+    expect(store.panelOrder).toEqual([ws.id, top.id, group.id]);
+  });
+
+  it("no-ops when the workspace is not in any group", () => {
+    const ws = createWorkspace({ folder: "/p", name: "p" });
+    expect(() => ungroupWorkspace(ws.id)).not.toThrow();
+    expect(store.panelOrder).toEqual([ws.id]);
+  });
+});
+
+// ── removeWorkspaceFromGroup (membership-only primitive) ─────────────────────
 
 describe("removeWorkspaceFromGroup", () => {
   it("removes the workspace from the group and clears the reverse lookup", () => {
@@ -281,7 +326,7 @@ describe("toggleGroupCollapsed", () => {
   });
 });
 
-// ── deleteWorkspace cleans up group membership ───────────────────────────────
+// ── deleteWorkspace cleans up group + panel membership ───────────────────────
 
 describe("deleteWorkspace with group membership", () => {
   it("removes the workspace from its group when deleted", () => {
@@ -293,9 +338,11 @@ describe("deleteWorkspace with group membership", () => {
     expect(groupIdForWorkspace(ws.id)).toBeUndefined();
   });
 
-  it("works normally for workspaces not in any group", () => {
+  it("removes an ungrouped workspace from panelOrder", () => {
     const ws = createWorkspace({ folder: "/p", name: "p" });
-    expect(() => deleteWorkspace(ws.id)).not.toThrow();
+    expect(store.panelOrder).toContain(ws.id);
+    deleteWorkspace(ws.id);
+    expect(store.panelOrder).not.toContain(ws.id);
     expect(store.workspaces[ws.id]).toBeUndefined();
   });
 });
@@ -330,27 +377,18 @@ describe("groupIdForWorkspace", () => {
 
 describe("workspaceGroupMap", () => {
   it("returns an empty map when there are no groups", () => {
-    expect(workspaceGroupMap({}, []).size).toBe(0);
+    expect(workspaceGroupMap({}).size).toBe(0);
   });
 
-  it("maps each member workspace to its group, honoring groupOrder", () => {
+  it("maps each member workspace to its group", () => {
     const groups = {
       grp_1: { workspaceOrder: ["ws_a", "ws_b"] },
       grp_2: { workspaceOrder: ["ws_c"] },
     };
-    const map = workspaceGroupMap(groups, ["grp_1", "grp_2"]);
+    const map = workspaceGroupMap(groups);
     expect(map.get("ws_a")).toBe("grp_1");
     expect(map.get("ws_b")).toBe("grp_1");
     expect(map.get("ws_c")).toBe("grp_2");
     expect(map.has("ws_d")).toBe(false);
-  });
-
-  it("skips group ids absent from the groups record", () => {
-    const map = workspaceGroupMap(
-      { grp_1: { workspaceOrder: ["ws_a"] } },
-      ["grp_1", "grp_missing"],
-    );
-    expect(map.size).toBe(1);
-    expect(map.get("ws_a")).toBe("grp_1");
   });
 });

@@ -14,6 +14,7 @@ import {
   buildIndex,
   cloneExtensionState,
   diffWorkspaceWrites,
+  reconcilePanelOrder,
   reconcileWorkspaceListing,
   splitPersistedState,
   withActivePanelState,
@@ -179,7 +180,13 @@ export async function hydrate(configDir: string): Promise<void> {
   // Groups — absent in older indexes; default to empty. The workspace→group
   // reverse map is derived at runtime, so nothing to restore here.
   store.groups = index?.groups ?? {};
-  store.groupOrder = index?.groupOrder ?? [];
+  // panelOrder is the interleaved top-level list, rebuilt defensively so a
+  // partial or pre-panelOrder index can never hide a workspace or group.
+  store.panelOrder = reconcilePanelOrder(
+    index?.panelOrder,
+    store.groups,
+    store.workspaceOrder,
+  );
 
   // Seed lastWritten from the loaded files so the first flush only rewrites what
   // actually changes afterward.
@@ -273,7 +280,7 @@ async function doPersist(): Promise<void> {
       terminalSettings: { ...store.terminalSettings },
       globalExtensionState: store.globalExtensionState,
       groups: store.groups,
-      groupOrder: [...store.groupOrder],
+      panelOrder: [...store.panelOrder],
     }),
   );
   await indexStore.save();

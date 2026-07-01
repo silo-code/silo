@@ -6,7 +6,7 @@ import {
   createGroup,
   deleteGroup,
   moveWorkspaceToGroup,
-  removeWorkspaceFromGroup,
+  ungroupWorkspace,
   toggleGroupCollapsed,
   workspaceGroupMap,
 } from "@silo-code/extension-host/internal";
@@ -114,38 +114,58 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   const addWrapRef = useRef<HTMLDivElement | null>(null);
   useNow();
 
-  // All drag-and-drop state + wiring (workspace rows and group headers) lives
-  // in the hook; the panel just spreads its prop getters onto the elements.
-  const dnd = useWorkspaceDnd(service);
+  // All drag-and-drop state + wiring lives in the hook; the panel just spreads
+  // its prop getters onto the entries.
+  const dnd = useWorkspaceDnd();
 
-  // Reverse lookup (workspace id → group id), derived from group membership —
-  // the groups' `workspaceOrder` is the single source of truth.
-  const groupMap = useMemo(
-    () => workspaceGroupMap(storeSnap.groups, storeSnap.groupOrder),
-    [storeSnap.groups, storeSnap.groupOrder],
-  );
-
-  // Partition open workspaces into ungrouped (shown at top) and the rest
-  // (shown inside their groups below).
-  const ungrouped = useMemo(
-    () => snap.open.filter((ws) => !groupMap.has(ws.id)),
-    [snap.open, groupMap],
-  );
-
-  // O(1) lookup for workspaces by id (for group body rendering).
+  // O(1) lookup for open workspaces by id.
   const openById = useMemo(
     () => new Map(snap.open.map((ws) => [ws.id, ws])),
     [snap.open],
   );
 
-  const activeIndex = ungrouped.findIndex((w) => w.id === snap.activeId);
+  // Reverse lookup (workspace id → group id), derived from group membership.
+  const groupMap = useMemo(
+    () => workspaceGroupMap(storeSnap.groups),
+    [storeSnap.groups],
+  );
 
-  // Roving keyboard focus covers ungrouped workspaces only (v1).
+  // Top-level ungrouped *open* workspaces, in panel order — the set the roving
+  // keyboard focus covers (groups aren't keyboard-reorderable yet, v1).
+  const topLevelWsIds = useMemo(
+    () =>
+      storeSnap.panelOrder.filter(
+        (id) => !storeSnap.groups[id] && openById.has(id),
+      ),
+    [storeSnap.panelOrder, storeSnap.groups, openById],
+  );
+  const rovingIndex = useMemo(
+    () => new Map(topLevelWsIds.map((id, i) => [id, i])),
+    [topLevelWsIds],
+  );
+
+  // First / last *rendered* top-level entries — the anchors for the background
+  // catch-all zone (drop above the first → beginning, below the last → end).
+  const renderedEntryIds = useMemo(
+    () =>
+      storeSnap.panelOrder.filter(
+        (id) => storeSnap.groups[id] || openById.has(id),
+      ),
+    [storeSnap.panelOrder, storeSnap.groups, openById],
+  );
+  const firstEntryId = renderedEntryIds[0] ?? null;
+  const lastEntryId = renderedEntryIds[renderedEntryIds.length - 1] ?? null;
+
+  const activeIndex = snap.activeId ? rovingIndex.get(snap.activeId) ?? -1 : -1;
+
   const roving = useFocusGroup({
-    count: ungrouped.length,
+    count: topLevelWsIds.length,
     start: activeIndex >= 0 ? activeIndex : 0,
-    onActivate: (i) => service.activate(ungrouped[i].id),
-    onMenu: (i, anchor) => openWorkspaceMenu(ungrouped[i], { anchor }),
+    onActivate: (i) => service.activate(topLevelWsIds[i]),
+    onMenu: (i, anchor) => {
+      const ws = openById.get(topLevelWsIds[i]);
+      if (ws) openWorkspaceMenu(ws, { anchor });
+    },
   });
 
   const closedFolders = useMemo(
@@ -191,21 +211,21 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
 
     // Group membership actions
     const currentGroupId = groupMap.get(ws.id);
+    const groups = storeSnap.panelOrder
+      .map((id) => storeSnap.groups[id])
+      .filter(Boolean);
     if (currentGroupId) {
       items.push({
         label: "Remove from Group",
-        run: () => removeWorkspaceFromGroup(ws.id),
+        run: () => ungroupWorkspace(ws.id),
       });
-    } else if (storeSnap.groupOrder.length > 0) {
+    } else if (groups.length > 0) {
       items.push({
         label: "Move to Group",
-        submenu: storeSnap.groupOrder
-          .map((groupId) => storeSnap.groups[groupId])
-          .filter(Boolean)
-          .map((group) => ({
-            label: group.name,
-            run: () => moveWorkspaceToGroup(ws.id, group.id),
-          })),
+        submenu: groups.map((group) => ({
+          label: group.name,
+          run: () => moveWorkspaceToGroup(ws.id, group.id),
+        })),
       });
     }
 
@@ -246,7 +266,9 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     });
   }
 
-  // ── Workspace item renderer (shared by ungrouped + group body) ───────────
+  // ── Workspace item renderer (shared by top-level + group body) ────────────
+  // `groupId` undefined → a top-level entry (keyboard-focusable, `i` is its
+  // roving index); otherwise a row inside that group.
 
   function renderWorkspaceItem(ws: Workspace, i: number, groupId?: string) {
     const edge = dnd.dropEdge(ws.id);
@@ -260,7 +282,6 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
       .filter(Boolean)
       .join(" ");
 
-    // useFocusGroup props only apply to ungrouped items
     const focusProps = groupId === undefined ? roving.getItemProps(i) : {};
 
     return (
@@ -336,87 +357,91 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     );
   }
 
-  return (
-    <>
-      <div className="panel-body workspaces-body">
-        {!snap.hydrated && <div className="placeholder">Loading…</div>}
-        {snap.hydrated && (snap.open.length > 0 || storeSnap.groupOrder.length > 0) && (
-          <ul
-            className="ws-list"
-            role="listbox"
-            aria-label="Open workspaces"
-            {...roving.containerProps}
-          >
-            {/* Ungrouped open workspaces */}
-            {ungrouped.map((ws, i) => renderWorkspaceItem(ws, i))}
+  function renderGroupCard(group: GroupSnapshot) {
+    const edge = dnd.dropEdge(group.id);
+    const groupClasses = [
+      "ws-group",
+      group.color ? "ws-group--colored" : "",
+      dnd.isGroupDragging(group.id) ? "dragging" : "",
+      edge === "before" ? "drop-before" : "",
+      edge === "after" ? "drop-after" : "",
+      dnd.isWorkspaceOverGroup(group.id) ? "drop-into" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
 
-            {/* Groups */}
-            {storeSnap.groupOrder.map((groupId) => {
-              const group = storeSnap.groups[groupId];
-              if (!group) return null;
+    const colorStyle = group.color
+      ? ({ "--ws-group-color": group.color } as React.CSSProperties)
+      : undefined;
 
-              const groupEdge = dnd.groupDropEdge(group.id);
-              const headerClasses = [
-                "ws-group-header",
-                dnd.isGroupDragging(group.id) ? "dragging" : "",
-                groupEdge === "before" ? "drop-before" : "",
-                groupEdge === "after" ? "drop-after" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
-
-              const colorStyle = group.color
-                ? ({ "--ws-group-color": group.color } as React.CSSProperties)
-                : undefined;
-
-              return (
-                <li
-                  key={group.id}
-                  className={`ws-group${group.color ? " ws-group--colored" : ""}`}
-                  style={colorStyle}
-                >
-                  <div
-                    className={headerClasses}
-                    {...dnd.groupProps(group.id)}
-                    onClick={() => toggleGroupCollapsed(group.id)}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      void openGroupProperties(ctx, group);
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      if (e.button === 2) {
-                        openGroupMenu(group, {
-                          at: { x: e.clientX, y: e.clientY },
-                        });
-                      } else {
-                        openGroupMenu(group, {
-                          anchor: e.currentTarget,
-                        });
-                      }
-                    }}
-                  >
-                    <CaretRight
-                      className={`ws-group-caret${group.collapsed ? "" : " expanded"}`}
-                      size={12}
-                      weight="bold"
-                    />
-                    <span className="ws-group-name">{group.name}</span>
-                  </div>
-                  {!group.collapsed && (
-                    <ul className="ws-group-body">
-                      {group.workspaceOrder.map((wsId) => {
-                        const ws = openById.get(wsId);
-                        if (!ws) return null;
-                        return renderWorkspaceItem(ws, 0, group.id);
-                      })}
-                    </ul>
-                  )}
-                </li>
-              );
+    return (
+      <li
+        key={group.id}
+        className={groupClasses}
+        style={colorStyle}
+        {...dnd.groupCardProps(group.id)}
+      >
+        <div
+          className="ws-group-header"
+          {...dnd.groupHandleProps(group.id)}
+          onClick={() => toggleGroupCollapsed(group.id)}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            void openGroupProperties(ctx, group);
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            if (e.button === 2) {
+              openGroupMenu(group, { at: { x: e.clientX, y: e.clientY } });
+            } else {
+              openGroupMenu(group, { anchor: e.currentTarget });
+            }
+          }}
+        >
+          <CaretRight
+            className={`ws-group-caret${group.collapsed ? "" : " expanded"}`}
+            size={12}
+            weight="bold"
+          />
+          <span className="ws-group-name">{group.name}</span>
+        </div>
+        {!group.collapsed && (
+          <ul className="ws-group-body">
+            {group.workspaceOrder.map((wsId) => {
+              const ws = openById.get(wsId);
+              if (!ws) return null;
+              return renderWorkspaceItem(ws, 0, group.id);
             })}
           </ul>
         )}
+      </li>
+    );
+  }
+
+  return (
+    <>
+      <div
+        className="panel-body workspaces-body"
+        {...dnd.ungroupedZoneProps(firstEntryId, lastEntryId)}
+      >
+        {!snap.hydrated && <div className="placeholder">Loading…</div>}
+        {snap.hydrated &&
+          (snap.open.length > 0 || storeSnap.panelOrder.length > 0) && (
+            <ul
+              className="ws-list"
+              role="listbox"
+              aria-label="Open workspaces"
+              {...roving.containerProps}
+            >
+              {storeSnap.panelOrder.map((entryId) => {
+                const group = storeSnap.groups[entryId];
+                if (group) return renderGroupCard(group);
+                const ws = openById.get(entryId);
+                if (!ws) return null; // closed or stale ungrouped workspace
+                return renderWorkspaceItem(ws, rovingIndex.get(entryId) ?? 0);
+              })}
+            </ul>
+          )}
         {snap.hydrated && (
           <div className="ws-add-wrap" ref={addWrapRef}>
             <Tooltip content="Add workspace">

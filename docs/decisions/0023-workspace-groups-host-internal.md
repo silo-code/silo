@@ -33,16 +33,22 @@ already has legitimate access to the internal barrel (ADR 0013).
 ## Decision
 
 Workspace panel groups stay a **host-internal, `core.*`-only** concern. Group
-state (`AppState.groups` / `groupOrder`) and its mutators (`createGroup`,
-`renameGroup`, `deleteGroup`, `setGroupColor`, `reorderGroups`,
-`moveWorkspaceToGroup`, `removeWorkspaceFromGroup`, `reorderWorkspaceInGroup`,
+state (`AppState.groups` / `panelOrder`) and its mutators (`createGroup`,
+`renameGroup`, `deleteGroup`, `setGroupColor`, `reorderPanel`,
+`moveWorkspaceToGroup`, `ungroupWorkspace`, `reorderWorkspaceInGroup`,
 `toggleGroupCollapsed`) plus the derived lookups (`groupIdForWorkspace`,
 `workspaceGroupMap`) are exported from `@silo-code/extension-host/internal` and
 consumed only by `core.workspaces`. They are **not** added to the public
 `WorkspaceService` and carry no SDK docs or roadmap entry.
 
-Group membership is single-sourced on each group's `workspaceOrder`; the
-workspace→group reverse map is derived, never stored or persisted.
+Two orders back the panel. `panelOrder` is a single interleaved list of
+top-level entries — ungrouped workspace ids and group ids — so a group can be
+dragged anywhere, even above loose workspaces; it is host-internal panel
+presentation. The public `WorkspaceService` keeps its own `workspaceOrder` (the
+all-workspaces registry order behind `getState().all`); the two are allowed to
+diverge, since the panel is the only order-sensitive consumer and cycling is
+MRU-based. Group membership is single-sourced on each group's `workspaceOrder`;
+the workspace→group reverse map is derived, never stored or persisted.
 
 This is recorded as a deliberate exception to the "expose via `ctx`" default so it
 is not later mistaken for an oversight.
