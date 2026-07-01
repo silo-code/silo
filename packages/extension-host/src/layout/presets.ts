@@ -12,7 +12,12 @@ export const CORE_PRESETS: ThemePreset[] = [
     name: "Dark",
     base: "dark",
     colorScheme: "dark",
-    vars: {},
+    vars: {
+      "--silo-color-text-hi": "#818181",
+      "--silo-color-bg-active": "#282d3a",
+      "--silo-color-text-lo": "#575757",
+      "--silo-color-border": "#222222",
+    },
   },
   {
     id: "light",
