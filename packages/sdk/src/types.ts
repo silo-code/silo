@@ -196,8 +196,15 @@ export interface Command {
   id: string;
   /** Human-readable label (shown where the command surfaces in UI). */
   label: string;
-  /** The action. Runs synchronously; do async work inside if needed. */
-  run: () => void;
+  /**
+   * The action. May accept arguments passed through from
+   * {@link ExtensionContext.executeCommand} and may return a value (sync or
+   * async); `executeCommand` resolves with whatever this returns.
+   *
+   * Zero-argument, void-returning commands are still valid — `() => void`
+   * satisfies this type, so existing registrations compile unchanged.
+   */
+  run: (...args: unknown[]) => unknown | Promise<unknown>;
 }
 
 /**
@@ -476,8 +483,17 @@ export interface ExtensionContext {
    * Invoke a registered command by id — including commands contributed by
    * other extensions. The minimal "operate" primitive; pairs with the typed
    * services for read access.
+   *
+   * Optional positional `args` are forwarded to the command's
+   * {@link Command.run} function. The returned `Promise` resolves with the
+   * command's return value, or rejects if the command throws, is async and
+   * rejects, or the id is not registered. Sync commands dispatch synchronously
+   * before the promise settles, so callers that read state the command mutates
+   * immediately after `await executeCommand(…)` see the updated state.
+   *
+   * @typeParam T - Expected return type of the command (defaults to `unknown`).
    */
-  executeCommand(id: string): void;
+  executeCommand<T = unknown>(id: string, ...args: unknown[]): Promise<T>;
   /**
    * Consumer API for driving workspace state — create, rename, reorder,
    * activate, soft close/reopen, and hard delete. Subscribe to a frozen

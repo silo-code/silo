@@ -1,4 +1,4 @@
-import { commandRegistry, executeCommand } from "./commands";
+import { commandRegistry, executeCommandAsync } from "./commands";
 import { dockPanelKindRegistry } from "./dock-panel-kinds";
 import { keybindingRegistry } from "./keybindings";
 import { menuItemRegistry } from "./menu-items";
@@ -148,8 +148,8 @@ export function createContext(
     registerThemePreset(preset: ThemePreset): Disposable {
       return track(themePresetRegistry.register(preset));
     },
-    executeCommand(id: string): void {
-      executeCommand(id);
+    executeCommand<T = unknown>(id: string, ...args: unknown[]): Promise<T> {
+      return executeCommandAsync<T>(id, ...args);
     },
     workspaces: getWorkspaceService(),
     editors: getEditorService(),
