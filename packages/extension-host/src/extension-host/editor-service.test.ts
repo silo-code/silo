@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import type { Editor, Workspace } from "@silo-code/sdk";
+import type { Editor } from "@silo-code/sdk";
+import type { WorkspaceInternal } from "../state/types";
 import { store } from "../state/store";
 import { editorRegistry } from "./editor-registry";
 import { getEditorService } from "./editor-service";
@@ -15,7 +16,7 @@ function register(partial: Partial<Editor> & Pick<Editor, "id" | "match">) {
   disposers.push(handle.dispose);
 }
 
-function makeWorkspace(id: string): Workspace {
+function makeWorkspace(id: string): WorkspaceInternal {
   return {
     id,
     name: id,

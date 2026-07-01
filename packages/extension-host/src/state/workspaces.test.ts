@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { Workspace } from "@silo-code/sdk";
+import type { WorkspaceInternal } from "./types";
 
 // removeEditor fire-and-forgets a backup clear; mock the backup module so the
 // test asserts the call without touching the Tauri fs boundary.
@@ -17,7 +17,7 @@ import {
 } from "./workspaces";
 import { clearEditorBackup } from "./editor-backups";
 
-function makeWorkspace(id: string): Workspace {
+function makeWorkspace(id: string): WorkspaceInternal {
   return {
     id,
     name: id,

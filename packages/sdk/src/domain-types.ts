@@ -104,6 +104,11 @@ export type SidePanelSlot = "left" | "right" | "left-bottom" | "right-bottom";
  * A workspace — the unit Silo switches between, keeping its terminals, editors,
  * and layout alive. Read via {@link WorkspaceService}.
  *
+ * This is the public surface: it carries the fields an extension needs to read
+ * (name, folder, open tabs). Layout, scroll, and panel-state fields are
+ * host-internal (`WorkspaceInternal` in `@silo-code/extension-host`) and are
+ * intentionally absent here.
+ *
  * @category Core Types
  * @public
  */
@@ -115,41 +120,15 @@ export interface Workspace {
   extraFolders?: string[];
   createdAt: string;
   lastOpenedAt: string;
-  terminals: TerminalRecord[];
-  /** Editor tabs — text editors and diffs alike (a diff is a record with `mode: "diff"`). */
-  editors: EditorRecord[];
-  dockLayout: unknown | null;
-  /** Scroll positions keyed by editor record ID: { top, left } in pixels. */
-  editorScrollPositions?: Record<string, { top: number; left: number }>;
-  /**
-   * Monaco view states keyed by editor record ID. Each value is the opaque
-   * JSON produced by `editor.saveViewState()` — captures cursor position,
-   * selection, scroll, and folded regions. Supersedes
-   * {@link Workspace.editorScrollPositions} for editors that support it;
-   * scroll-only data is kept as a fallback for older persisted workspaces.
-   */
-  editorViewStates?: Record<string, unknown>;
   /**
    * ISO timestamp of when the workspace was soft-closed, or null/undefined
    * if the workspace is open. Closed workspaces are hidden from the main
    * list and surfaced in a "reopen" picker.
    */
   closedAt?: string | null;
-  /** Per-workspace side panel state — saved/restored on workspace switch. */
-  sidePanelLocations?: Record<string, SidePanelSlot>;
-  sidePanelOrder?: Record<string, number>;
-  activeSidePanelTabs?: Record<string, string>;
-  sidePanelScrollPositions?: Record<string, number>;
-  /** Hidden side panels, keyed by panel id; only an explicit `false` (hidden)
-   * is stored, so an absent key means visible (the default). */
-  sidePanelVisibility?: Record<string, boolean>;
-  extensionState?: Record<string, Record<string, unknown>>;
-  /** Whether the left side column is collapsed. Per-workspace. */
-  leftPanelCollapsed?: boolean;
-  /** Whether the right side column is collapsed. Per-workspace. */
-  rightPanelCollapsed?: boolean;
-  /** ID of the current preview (temporary) editor, if any. */
-  previewEditorId?: string | null;
+  terminals: readonly TerminalRecord[];
+  /** Editor tabs — text editors and diffs alike (a diff is a record with `mode: "diff"`). */
+  editors: readonly EditorRecord[];
 }
 
 /**

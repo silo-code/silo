@@ -33,12 +33,13 @@ function buildSnapshot(): WorkspaceState {
   const s = snapshot(store);
   const ordered = s.workspaceOrder
     .map((id) => s.workspaces[id])
-    .filter((ws): ws is Workspace => Boolean(ws));
+    .filter((ws): ws is NonNullable<typeof ws> => Boolean(ws))
+    .map((ws) => ws as unknown as Workspace);
   const open: Workspace[] = [];
   const closed: Workspace[] = [];
   for (const ws of ordered) {
-    if (ws.closedAt) closed.push(ws as Workspace);
-    else open.push(ws as Workspace);
+    if (ws.closedAt) closed.push(ws);
+    else open.push(ws);
   }
   closed.sort((a, b) => {
     const at = a.closedAt ?? "";
@@ -61,7 +62,7 @@ function buildSnapshot(): WorkspaceState {
   }
 
   const next = Object.freeze({
-    all: Object.freeze(ordered as Workspace[]),
+    all: Object.freeze(ordered),
     open: Object.freeze(open),
     closed: Object.freeze(closed),
     activeId: s.activeWorkspaceId,
@@ -82,7 +83,8 @@ export function getWorkspaceService(): WorkspaceService {
       const unsub = subscribe(store, () => listener(buildSnapshot()));
       return { dispose: unsub };
     },
-    get: (id) => snapshot(store).workspaces[id] as Workspace | undefined,
+    get: (id) =>
+      snapshot(store).workspaces[id] as unknown as Workspace | undefined,
     createFromFolderPicker: () => pickFolderAndCreateWorkspace(),
     create: (input) => createWorkspace(input),
     rename: renameWorkspace,

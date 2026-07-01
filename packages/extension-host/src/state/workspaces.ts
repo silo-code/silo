@@ -6,7 +6,7 @@ import type {
   EditorRecord,
   TerminalKind,
   TerminalRecord,
-  Workspace,
+  WorkspaceInternal,
   WorkspaceGroup,
 } from "./types";
 
@@ -17,7 +17,7 @@ function uuid(): string {
   );
 }
 
-export async function pickFolderAndCreateWorkspace(): Promise<Workspace | null> {
+export async function pickFolderAndCreateWorkspace(): Promise<WorkspaceInternal | null> {
   const picked = await open({ directory: true, multiple: false });
   if (!picked || typeof picked !== "string") return null;
   // Normalize to forward slashes so the whole TypeScript layer (path splits,
@@ -32,10 +32,10 @@ export async function pickFolderAndCreateWorkspace(): Promise<Workspace | null> 
 export function createWorkspace(input: {
   folder: string;
   name: string;
-}): Workspace {
+}): WorkspaceInternal {
   const now = new Date().toISOString();
   const id = `ws_${uuid()}`;
-  const ws: Workspace = {
+  const ws: WorkspaceInternal = {
     id,
     name: input.name,
     folder: input.folder,
@@ -72,7 +72,7 @@ export function savePanelStateToWorkspace(wsId: string): void {
 }
 
 /** Restore the global panel state from a workspace object. */
-export function loadPanelStateFromWorkspace(ws: Workspace): void {
+export function loadPanelStateFromWorkspace(ws: WorkspaceInternal): void {
   store.sidePanelLocations = { ...(ws.sidePanelLocations ?? {}) };
   store.sidePanelOrder = { ...(ws.sidePanelOrder ?? {}) };
   store.activeSidePanelTabs = { ...(ws.activeSidePanelTabs ?? {}) };

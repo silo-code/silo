@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { Workspace } from "@silo-code/sdk";
 import { store } from "@silo-code/extension-host";
+import type { WorkspaceInternal } from "@silo-code/extension-host/internal";
 import {
   applyCliOpen,
   applyCliInstall,
@@ -36,7 +36,7 @@ function makeWorkspace(
   id: string,
   folder: string,
   extra?: string[],
-): Workspace {
+): WorkspaceInternal {
   return {
     id,
     name: id,

@@ -114,7 +114,7 @@ export {
   groupIdForWorkspace,
   workspaceGroupMap,
 } from "../state/workspaces";
-export type { WorkspaceGroup } from "../state/types";
+export type { WorkspaceGroup, WorkspaceInternal } from "../state/types";
 
 export {
   // The shared editor seam: reactive host store + the editor/diff record model,
