@@ -11,8 +11,23 @@
  * @public
  */
 export interface ContextKeys {
-  /** id of the viewer rendered by the dock's active panel, or null. */
-  activeViewerId: string | null;
-  /** editorId of the active dock panel if it's an editor panel, or null. */
+  /**
+   * The {@link Editor.id} of the presenter currently rendering the active dock
+   * panel (e.g. `"core.text-editor"`, `"silo.markdown-preview"`), or `null`
+   * when the active panel is not an editor. Identifies the *view type*, not the
+   * tab instance — see {@link ContextKeys.activeEditorId} for the tab record id.
+   */
+  activeEditorViewId: string | null;
+  /**
+   * The `editorId` of the active editor tab record, or `null` when the active
+   * dock panel is not an editor tab. Identifies the *tab instance* — see
+   * {@link ContextKeys.activeEditorViewId} for the view-type (presenter) id.
+   */
   activeEditorId: string | null;
+  /**
+   * @deprecated Use {@link ContextKeys.activeEditorViewId} instead.
+   * Kept for one release so extensions compiled against the old SDK continue
+   * to receive the correct value at runtime without a silent break.
+   */
+  activeViewerId: string | null;
 }

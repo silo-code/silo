@@ -267,6 +267,7 @@ export function WorkspaceDock({
       const panel = api.activePanel;
       if (!panel || !panel.id.startsWith("editor:")) {
         setContextKey("activeEditorId", null);
+        setContextKey("activeEditorViewId", null);
         setContextKey("activeViewerId", null);
         return;
       }
@@ -274,6 +275,7 @@ export function WorkspaceDock({
         ?.editorId;
       if (!editorId) {
         setContextKey("activeEditorId", null);
+        setContextKey("activeEditorViewId", null);
         setContextKey("activeViewerId", null);
         return;
       }
@@ -281,10 +283,10 @@ export function WorkspaceDock({
       const record = findEditor(workspaceId, editorId);
       try {
         const editor = resolveEditorForRecord(record);
-        // Context key name kept as activeViewerId (distinct from activeEditorId,
-        // the editor *instance*); this tracks the active editor *type* id.
-        setContextKey("activeViewerId", editor.id);
+        setContextKey("activeEditorViewId", editor.id);
+        setContextKey("activeViewerId", editor.id); // deprecated alias
       } catch {
+        setContextKey("activeEditorViewId", null);
         setContextKey("activeViewerId", null);
       }
     }
@@ -295,6 +297,7 @@ export function WorkspaceDock({
       subPanel.dispose();
       subGroup.dispose();
       setContextKey("activeEditorId", null);
+      setContextKey("activeEditorViewId", null);
       setContextKey("activeViewerId", null);
     };
   }, [active, api, workspaceId]);

@@ -7,8 +7,9 @@ export type { ContextKeys } from "@silo-code/sdk";
 
 /** @internal — host-owned mutable store; extensions read keys via `when` predicates. */
 export const contextKeys: ContextKeys = {
-  activeViewerId: null,
+  activeEditorViewId: null,
   activeEditorId: null,
+  activeViewerId: null, // deprecated alias — kept in sync with activeEditorViewId
 };
 
 const listeners = new Set<() => void>();
