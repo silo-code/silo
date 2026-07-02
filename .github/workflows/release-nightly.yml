@@ -31,7 +31,18 @@ jobs:
           BASE=$(node -p "require('./apps/desktop/package.json').version")
           DATE=$(date -u +%Y%m%d)
           HASH=$(git rev-parse --short HEAD)
-          echo "version=${BASE}-nightly.${DATE}.${HASH}" >> "$GITHUB_OUTPUT"
+          # The MSI target requires the semver pre-release identifier to be
+          # numeric-only and <= 65535 (it maps to the 4th field of the Windows
+          # ProductVersion). A readable "-nightly.<date>.<hash>" tag violates
+          # both rules, so the pre-release must be a single number. Use days
+          # since the Unix epoch: numeric, monotonic (one bump per nightly),
+          # and well under 65535 until ~2149. The version string must be
+          # identical on every platform — the updater's latest.json carries a
+          # single shared version field, and a per-platform divergence would
+          # make clients mis-compare and prompt for phantom updates.
+          DAYS=$(( $(date -u +%s) / 86400 ))
+          echo "Nightly build: ${BASE}-${DAYS} (date ${DATE}, commit ${HASH})"
+          echo "version=${BASE}-${DAYS}" >> "$GITHUB_OUTPUT"
 
       - name: upsert nightly release and clear stale assets
         id: release
