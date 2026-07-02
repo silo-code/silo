@@ -115,6 +115,7 @@ jobs:
         run: |
           node -e "
             const fs = require('fs');
+            const path = require('path');
             function merge(base, override) {
               const out = { ...base };
               for (const [k, v] of Object.entries(override)) {
@@ -130,9 +131,13 @@ jobs:
             const night = JSON.parse(fs.readFileSync('apps/desktop/src-tauri/tauri.nightly.conf.json', 'utf8'));
             night.version = '${{ needs.prepare.outputs.version }}';
             const merged = merge(base, night);
-            fs.writeFileSync('/tmp/tauri-nightly-merged.json', JSON.stringify(merged, null, 2));
+            const outPath = path.join(require('os').tmpdir(), 'tauri-nightly-merged.json');
+            fs.writeFileSync(outPath, JSON.stringify(merged, null, 2));
             console.log('Nightly config:', merged.productName, merged.version, merged.identifier);
+            console.log(outPath);
           "
+          # Save the merged config path for the next step
+          echo "merged_config=$(node -e \"console.log(path.join(require('os').tmpdir(), 'tauri-nightly-merged.json'))\")" >> $GITHUB_ENV
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -150,7 +155,7 @@ jobs:
         with:
           projectPath: apps/desktop
           releaseId: ${{ needs.prepare.outputs.release_id }}
-          args: --config /tmp/tauri-nightly-merged.json ${{ matrix.args }}
+          args: --config ${{ env.merged_config }} ${{ matrix.args }}
 
       # Re-notarize + staple the DMG (same reason as stable — tauri-action ships
       # an un-notarized DMG). Replace the release asset with the stapled copy.
