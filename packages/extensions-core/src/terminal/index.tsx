@@ -1,6 +1,5 @@
-import type { IDockviewPanelProps } from "dockview";
-import type { Extension } from "@silo-code/sdk";
-import { TerminalPanel } from "./TerminalPanel";
+import type { DockPanelProps, Extension } from "@silo-code/sdk";
+import { TerminalPanel, type TerminalPanelParams } from "./TerminalPanel";
 import { TerminalSettingsPage } from "./TerminalSettingsPage";
 
 export const extension: Extension = {
@@ -11,9 +10,9 @@ export const extension: Extension = {
       // Inject ctx so the panel drives PTY sessions (ctx.process), opens files
       // (ctx.editors), and handles drops (ctx.dnd) through the public surface —
       // the editor DockKinds show the shape.
-      component: ((props) => (
+      component: (props: DockPanelProps<TerminalPanelParams>) => (
         <TerminalPanel {...props} ctx={ctx} />
-      )) as React.ComponentType<IDockviewPanelProps>,
+      ),
     });
     ctx.registerSettingsPage({
       id: "terminal",

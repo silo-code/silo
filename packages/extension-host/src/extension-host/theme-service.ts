@@ -56,10 +56,16 @@ function buildSnapshot(): ThemeState {
   return cachedSnapshot;
 }
 
-let service: ThemeService | null = null;
+// The shared service deliberately omits `registerPreset`: registration must be
+// tracked against the registering extension's subscriptions (so teardown
+// unregisters it), and `track()` is per-extension while this service is a
+// singleton. createContext() completes the ThemeService by adding the tracked
+// `registerPreset` per ctx — the Omit keeps the checker enforcing that.
+let service: Omit<ThemeService, "registerPreset"> | null = null;
 
-/** @internal — host factory; extensions receive this as `ctx.theme`. */
-export function getThemeService(): ThemeService {
+/** @internal — host factory; `createContext` adds the per-extension
+ * `registerPreset` on top and hands the result out as `ctx.theme`. */
+export function getThemeService(): Omit<ThemeService, "registerPreset"> {
   if (service) return service;
   service = {
     getState: buildSnapshot,

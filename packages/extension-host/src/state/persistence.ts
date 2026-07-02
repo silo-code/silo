@@ -7,7 +7,7 @@ import {
   DEFAULT_EDITOR_SETTINGS,
   DEFAULT_TERMINAL_SETTINGS,
 } from "./types";
-import type { Workspace } from "./types";
+import type { WorkspaceInternal } from "./types";
 import { loadPanelStateFromWorkspace } from "./workspaces";
 import { setBackupDir, sweepEditorBackups } from "./editor-backups";
 import {
@@ -141,7 +141,7 @@ export async function hydrate(configDir: string): Promise<void> {
 
   // One file per workspace. Invalid files are skipped (like the theme loader),
   // so a hand-edit that breaks JSON drops one workspace rather than failing boot.
-  const workspaces: Record<string, Workspace> = {};
+  const workspaces: Record<string, WorkspaceInternal> = {};
   const entries = await listWorkspaceFiles();
   await Promise.all(
     entries
@@ -149,7 +149,7 @@ export async function hydrate(configDir: string): Promise<void> {
       .map(async (e) => {
         try {
           const s = await load(e.path, STORE_OPTS);
-          const ws = await s.get<Workspace>(WORKSPACE_KEY);
+          const ws = await s.get<WorkspaceInternal>(WORKSPACE_KEY);
           if (ws && typeof ws.id === "string") {
             workspaces[ws.id] = ws;
             wsStores.set(ws.id, s);
@@ -234,7 +234,7 @@ async function doPersist(): Promise<void> {
   // state (it isn't mirrored onto the workspace object until save time).
   const activeId = store.activeWorkspaceId;
   const panel = snapshotPanelState();
-  const records = new Map<string, Workspace>();
+  const records = new Map<string, WorkspaceInternal>();
   const next = new Map<string, string>();
   for (const [id, ws] of Object.entries(store.workspaces)) {
     const rec = id === activeId ? withActivePanelState(ws, panel) : { ...ws };

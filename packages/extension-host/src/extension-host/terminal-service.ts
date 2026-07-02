@@ -11,6 +11,10 @@ import type {
   OscEvent,
 } from "@silo-code/sdk";
 import { terminalTabDecorationRegistry } from "./terminal-tab-decoration-registry";
+import {
+  getActiveTerminal,
+  subscribeActiveTerminal,
+} from "./active-terminal-registry";
 import { focusCenterDock, getActiveDockApi } from "../docked/dock-api-registry";
 
 // `ctx.terminals` — the public contract lives in @silo-code/sdk
@@ -61,6 +65,8 @@ export function getTerminalService(): TerminalService {
         }
       }
     },
+    getActive: getActiveTerminal,
+    subscribeActive: subscribeActiveTerminal,
     registerTabDecoration(provider: TerminalTabDecorationProvider) {
       return terminalTabDecorationRegistry.register(provider);
     },

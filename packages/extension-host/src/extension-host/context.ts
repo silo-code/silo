@@ -1,4 +1,4 @@
-import { commandRegistry, executeCommand } from "./commands";
+import { commandRegistry, executeCommandAsync } from "./commands";
 import { dockPanelKindRegistry } from "./dock-panel-kinds";
 import { keybindingRegistry } from "./keybindings";
 import { menuItemRegistry } from "./menu-items";
@@ -130,8 +130,15 @@ export function createContext(
     registerSidePanel(panel: SidePanel): Disposable {
       return track(sidePanelRegistry.register(panel));
     },
-    registerDockPanelKind(kind: DockPanelKind): Disposable {
-      return track(dockPanelKindRegistry.register(kind));
+    registerDockPanelKind<T extends object>(
+      kind: DockPanelKind<T>,
+    ): Disposable {
+      // Erase the params generic at the host boundary — the registry stores
+      // kinds over the default Record params; the panel receives its typed
+      // params back at open time.
+      return track(
+        dockPanelKindRegistry.register(kind as unknown as DockPanelKind),
+      );
     },
     registerStatusItem(item: StatusItem): Disposable {
       return track(statusItemRegistry.register(item));
@@ -148,8 +155,8 @@ export function createContext(
     registerThemePreset(preset: ThemePreset): Disposable {
       return track(themePresetRegistry.register(preset));
     },
-    executeCommand(id: string): void {
-      executeCommand(id);
+    executeCommand<T = unknown>(id: string, ...args: unknown[]): Promise<T> {
+      return executeCommandAsync<T>(id, ...args);
     },
     workspaces: getWorkspaceService(),
     editors: getEditorService(),
@@ -159,7 +166,12 @@ export function createContext(
     terminals: getTerminalService(),
     files: getScopedFileService(scope),
     search: getScopedSearchService(scope),
-    theme: getThemeService(),
+    theme: {
+      ...getThemeService(),
+      registerPreset(preset: ThemePreset): Disposable {
+        return track(themePresetRegistry.register(preset));
+      },
+    },
     dnd: getDndService(),
     ui: getUiService(),
     net: getNetworkService(),
@@ -170,7 +182,11 @@ export function createContext(
       warn: (msg, data) => pushEntry(channelKey, "warn", msg, data),
       error: (msg, data) => pushEntry(channelKey, "error", msg, data),
       show: () =>
-        getLayoutService().openSingletonPanel("output", { title: "Output" }),
+        getLayoutService().openPanel(
+          "output",
+          { title: "Output" },
+          { singleton: true },
+        ),
       clear: () => clearChannel(channelKey),
     },
     getExtension(id) {

@@ -32,6 +32,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { setActiveDockApi } from "../docked/dock-api-registry";
 import { getDndService, resolveDndMode } from "../extension-host/dnd-service";
 import { DND_MIME } from "@silo-code/sdk";
+import { setActiveTerminal } from "../extension-host/active-terminal-registry";
 import { setContextKey } from "../extension-host/context-keys";
 import { resolveEditorForRecord } from "../extension-host/editor-registry";
 import {
@@ -255,7 +256,7 @@ export function WorkspaceDock({
     };
   }, [active, api]);
 
-  // Push the active editor + viewer ids into the extension context-keys so
+  // Push the active editor + editor-view ids into the extension context-keys so
   // menu items / keybindings with `when` clauses can react, and so that
   // saveActiveEditor() can dispatch to the right editor based on dock state
   // (not Monaco's focus events, which are unreliable across workspace
@@ -265,27 +266,31 @@ export function WorkspaceDock({
     function update() {
       if (!api) return;
       const panel = api.activePanel;
+      setActiveTerminal(
+        panel?.id.startsWith("terminal:")
+          ? ((panel.params as { terminalId?: string } | undefined)
+              ?.terminalId ?? panel.id.slice("terminal:".length))
+          : null,
+      );
       if (!panel || !panel.id.startsWith("editor:")) {
         setContextKey("activeEditorId", null);
-        setContextKey("activeViewerId", null);
+        setContextKey("activeEditorViewId", null);
         return;
       }
       const editorId = (panel.params as { editorId?: string } | undefined)
         ?.editorId;
       if (!editorId) {
         setContextKey("activeEditorId", null);
-        setContextKey("activeViewerId", null);
+        setContextKey("activeEditorViewId", null);
         return;
       }
       setContextKey("activeEditorId", editorId);
       const record = findEditor(workspaceId, editorId);
       try {
         const editor = resolveEditorForRecord(record);
-        // Context key name kept as activeViewerId (distinct from activeEditorId,
-        // the editor *instance*); this tracks the active editor *type* id.
-        setContextKey("activeViewerId", editor.id);
+        setContextKey("activeEditorViewId", editor.id);
       } catch {
-        setContextKey("activeViewerId", null);
+        setContextKey("activeEditorViewId", null);
       }
     }
     update();
@@ -294,8 +299,9 @@ export function WorkspaceDock({
     return () => {
       subPanel.dispose();
       subGroup.dispose();
+      setActiveTerminal(null);
       setContextKey("activeEditorId", null);
-      setContextKey("activeViewerId", null);
+      setContextKey("activeEditorViewId", null);
     };
   }, [active, api, workspaceId]);
 

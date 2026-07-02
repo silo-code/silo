@@ -12,7 +12,19 @@ import {
 import { startWatch, stopWatch, onFileChange } from "../services/tauri-watch";
 import { resolvePath } from "./security/resolve-path";
 import type { PathScope } from "./security/resolve-path";
-import type { FileService, FileChangeEvent } from "@silo-code/sdk";
+import type {
+  FileChangeKind,
+  FileService,
+  FileChangeEvent,
+} from "@silo-code/sdk";
+
+function normalizeKind(raw: string): FileChangeKind {
+  const lo = raw.toLowerCase();
+  if (lo.startsWith("create")) return "create";
+  if (lo.startsWith("modify")) return "modify";
+  if (lo.startsWith("remove")) return "remove";
+  return "other";
+}
 
 // `ctx.files` — host-mediated filesystem access. A single chokepoint over the
 // privileged Tauri fs/watch commands. The public contract lives in
@@ -70,7 +82,7 @@ export function getFileService(): FileService {
           if (evt.watchId !== watchId) return; // scope to this path's watcher
           const fileEvent: FileChangeEvent = {
             paths: evt.paths,
-            kind: evt.kind,
+            kind: normalizeKind(evt.kind),
           };
           for (const l of created.listeners) l(fileEvent);
         }).then((fn) => {

@@ -4,7 +4,7 @@
 type MenuId = "file" | "edit" | "view" | "window" | "help";
 ```
 
-Defined in: [packages/sdk/src/types.ts:210](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L210)
+Defined in: [packages/sdk/src/types.ts:261](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L261)
 
 The top-level application menus a [MenuItemContribution](../interfaces/MenuItemContribution.md) can target.
 `"help"` is present on all platforms; `"file"`, `"edit"`, `"view"`, and

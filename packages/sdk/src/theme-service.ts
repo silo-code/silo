@@ -15,11 +15,11 @@ export type {
 } from "./domain-types";
 
 /**
- * A selectable theme contributed via
- * {@link ExtensionContext.registerThemePreset}. Built-in presets (Tokyo Night,
- * Solarized Light, Gruvbox Dark, …) are registered by the `theme-presets`
- * extension; core ships only Dark and Light. A preset's {@link ThemePreset.vars}
- * are injected as CSS custom properties when it is the active theme.
+ * A selectable theme contributed via {@link ThemeService.registerPreset}.
+ * Built-in presets (Tokyo Night, Solarized Light, Gruvbox Dark, …) are
+ * registered by the `theme-presets` extension; core ships only Dark and Light.
+ * A preset's {@link ThemePreset.vars} are injected as CSS custom properties
+ * when it is the active theme.
  *
  * @category Registration
  * @public
@@ -74,8 +74,7 @@ export interface ThemeState {
  * Read via {@link ThemeService.getState | getState} /
  * {@link ThemeService.subscribe | subscribe} (e.g. with `useSyncExternalStore`);
  * drive via {@link ThemeService.setActive | setActive} and the custom-theme
- * methods. Contributing a *new* preset is a separate concern —
- * {@link ExtensionContext.registerThemePreset}.
+ * methods. Contribute a new preset via {@link ThemeService.registerPreset}.
  *
  * @category Consumer Services
  * @public
@@ -99,4 +98,21 @@ export interface ThemeService {
   exportTheme(theme: CustomTheme): ThemeExport;
   /** Validate/parse imported JSON into a custom theme (assigns a fresh id). */
   importTheme(data: unknown): CustomTheme;
+  /**
+   * Register a {@link ThemePreset} (a selectable theme in the picker). The
+   * preset appears immediately and is removed when the returned
+   * {@link Disposable} is disposed (typically when the extension deactivates).
+   *
+   * @example
+   * ```ts
+   * ctx.theme.registerPreset({
+   *   id: "my-theme",
+   *   name: "My Theme",
+   *   base: "dark",
+   *   colorScheme: "dark",
+   *   vars: { "--silo-color-bg": "#1a1a2e" },
+   * });
+   * ```
+   */
+  registerPreset(preset: ThemePreset): Disposable;
 }

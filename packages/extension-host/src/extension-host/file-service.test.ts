@@ -125,6 +125,28 @@ describe("FileService — watch", () => {
     handle.dispose();
   });
 
+  it("normalizes raw backend kinds to the closed FileChangeKind union", async () => {
+    const seen: string[] = [];
+    const handle = files.watch("/w-kinds", (e) => seen.push(e.kind));
+    await flush();
+    const watchId = lastWatchId();
+
+    // notify-rs style debug strings, mixed case — anything the backend emits
+    // must land on the closed union, with "other" as the fallback.
+    fireChange({ watch_id: watchId, paths: ["/a"], kind: "Create(File)" });
+    fireChange({
+      watch_id: watchId,
+      paths: ["/b"],
+      kind: "MODIFY(Data(Content))",
+    });
+    fireChange({ watch_id: watchId, paths: ["/c"], kind: "remove(folder)" });
+    fireChange({ watch_id: watchId, paths: ["/d"], kind: "access" });
+    fireChange({ watch_id: watchId, paths: ["/e"], kind: "any" });
+
+    expect(seen).toEqual(["create", "modify", "remove", "other", "other"]);
+    handle.dispose();
+  });
+
   it("ignores events from other watches (scoped by watchId)", async () => {
     const seen: unknown[] = [];
     const handle = files.watch("/w-scope", (e) => seen.push(e));

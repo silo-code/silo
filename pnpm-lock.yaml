@@ -497,9 +497,6 @@ importers:
       '@xterm/xterm':
         specifier: ^6.0.0
         version: 6.0.0
-      dockview:
-        specifier: ~6.3.0
-        version: 6.3.0(react@19.2.7)
       monaco-editor:
         specifier: ^0.55.1
         version: 0.55.1
@@ -592,9 +589,6 @@ importers:
 
   packages/sdk:
     dependencies:
-      dockview:
-        specifier: ~6.3.0
-        version: 6.3.0(react@19.2.7)
       react:
         specifier: ^19.1.0
         version: 19.2.7

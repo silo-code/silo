@@ -1,6 +1,18 @@
 import { subscribe } from "valtio";
 import { store } from "../state/store";
-import type { ExtensionStorage } from "@silo-code/sdk";
+import type { Disposable, ExtensionStorage } from "@silo-code/sdk";
+
+/**
+ * Returns a Disposable that is also callable as a function — the callability
+ * shim lets extensions compiled against the old SDK (which returned `() => void`)
+ * call the result directly as a cleanup function. New code should use
+ * `.dispose()` instead. The callability alias is dropped in the next release.
+ */
+function asCallableDisposable(unsub: () => void): Disposable & (() => void) {
+  const fn = () => unsub();
+  (fn as unknown as { dispose: () => void }).dispose = unsub;
+  return fn as Disposable & (() => void);
+}
 
 // Namespaced persisted key/value storage. The public contract lives in
 // @silo-code/sdk (extension-storage.ts); this is the host impl. Two backings:
@@ -63,7 +75,7 @@ function makeStorage(
       };
       let lastSnapshot = snapshot();
       let lastHydrated = store.hydrated;
-      return subscribe(store, () => {
+      const unsub = subscribe(store, () => {
         const nextSnapshot = snapshot();
         const hydratedChanged = store.hydrated !== lastHydrated;
         if (nextSnapshot !== lastSnapshot || hydratedChanged) {
@@ -72,6 +84,7 @@ function makeStorage(
           listener();
         }
       });
+      return asCallableDisposable(unsub);
     },
   };
 }

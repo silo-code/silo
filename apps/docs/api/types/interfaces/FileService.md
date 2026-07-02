@@ -1,6 +1,6 @@
 # Interface: FileService
 
-Defined in: [packages/sdk/src/file-service.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L64)
+Defined in: [packages/sdk/src/file-service.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L78)
 
 The filesystem domain, exposed as [ExtensionContext.files](ExtensionContext.md#files). All access
 is host-mediated: extensions read, write, and watch the filesystem through
@@ -29,7 +29,7 @@ its path.
 readText(path): Promise<string>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L66)
+Defined in: [packages/sdk/src/file-service.ts:80](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L80)
 
 Read a file's contents as UTF-8 text.
 
@@ -51,7 +51,7 @@ Read a file's contents as UTF-8 text.
 readBytes(path): Promise<ArrayBuffer>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:68](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L68)
+Defined in: [packages/sdk/src/file-service.ts:82](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L82)
 
 Read a file's raw bytes.
 
@@ -73,7 +73,7 @@ Read a file's raw bytes.
 readDir(path): Promise<FileMeta[]>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:70](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L70)
+Defined in: [packages/sdk/src/file-service.ts:84](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L84)
 
 List a directory's immediate entries.
 
@@ -95,7 +95,7 @@ List a directory's immediate entries.
 pathExists(path): Promise<boolean>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L72)
+Defined in: [packages/sdk/src/file-service.ts:86](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L86)
 
 Resolve true if a file or directory exists at `path`.
 
@@ -117,7 +117,7 @@ Resolve true if a file or directory exists at `path`.
 writeText(path, content): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:74](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L74)
+Defined in: [packages/sdk/src/file-service.ts:88](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L88)
 
 Write UTF-8 text to a file, creating or overwriting it.
 
@@ -143,7 +143,7 @@ Write UTF-8 text to a file, creating or overwriting it.
 createDir(path): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:76](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L76)
+Defined in: [packages/sdk/src/file-service.ts:90](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L90)
 
 Create a directory (and any missing parents).
 
@@ -165,7 +165,7 @@ Create a directory (and any missing parents).
 rename(oldPath, newPath): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L78)
+Defined in: [packages/sdk/src/file-service.ts:92](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L92)
 
 Rename / move a file or directory.
 
@@ -191,7 +191,7 @@ Rename / move a file or directory.
 delete(path): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:80](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L80)
+Defined in: [packages/sdk/src/file-service.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L94)
 
 Delete a file or directory.
 
@@ -213,7 +213,7 @@ Delete a file or directory.
 reveal(path): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:82](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L82)
+Defined in: [packages/sdk/src/file-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L96)
 
 Reveal a path in the OS file manager (Finder / Explorer).
 
@@ -235,7 +235,7 @@ Reveal a path in the OS file manager (Finder / Explorer).
 watch(path, listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:89](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L89)
+Defined in: [packages/sdk/src/file-service.ts:103](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L103)
 
 Watch `path` recursively, invoking `listener` for each change under it.
 Returns a [Disposable](Disposable.md) that stops listening when disposed. Watcher

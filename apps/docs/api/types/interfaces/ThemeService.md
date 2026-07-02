@@ -1,13 +1,12 @@
 # Interface: ThemeService
 
-Defined in: [packages/sdk/src/theme-service.ts:83](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L83)
+Defined in: [packages/sdk/src/theme-service.ts:82](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L82)
 
 Consumer API for the theme domain, exposed as [ExtensionContext.theme](ExtensionContext.md#theme).
 Read via [getState](#getstate) /
 [subscribe](#subscribe) (e.g. with `useSyncExternalStore`);
 drive via [setActive](#setactive) and the custom-theme
-methods. Contributing a *new* preset is a separate concern —
-[ExtensionContext.registerThemePreset](ExtensionContext.md#registerthemepreset).
+methods. Contribute a new preset via [ThemeService.registerPreset](#registerpreset).
 
 ## Methods
 
@@ -17,7 +16,7 @@ methods. Contributing a *new* preset is a separate concern —
 getState(): ThemeState;
 ```
 
-Defined in: [packages/sdk/src/theme-service.ts:85](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L85)
+Defined in: [packages/sdk/src/theme-service.ts:84](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L84)
 
 Current frozen view of theme state.
 
@@ -33,7 +32,7 @@ Current frozen view of theme state.
 subscribe(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/theme-service.ts:87](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L87)
+Defined in: [packages/sdk/src/theme-service.ts:86](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L86)
 
 Subscribe to theme-state changes (active theme, custom themes, or presets).
 
@@ -55,7 +54,7 @@ Subscribe to theme-state changes (active theme, custom themes, or presets).
 setActive(id): void;
 ```
 
-Defined in: [packages/sdk/src/theme-service.ts:89](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L89)
+Defined in: [packages/sdk/src/theme-service.ts:88](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L88)
 
 Set the active theme by id (a built-in preset, registered preset, or custom).
 
@@ -77,7 +76,7 @@ Set the active theme by id (a built-in preset, registered preset, or custom).
 resolve(id): ResolvedTheme;
 ```
 
-Defined in: [packages/sdk/src/theme-service.ts:91](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L91)
+Defined in: [packages/sdk/src/theme-service.ts:90](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L90)
 
 Resolve a theme id to its base + effective vars (for previews/swatches).
 
@@ -99,7 +98,7 @@ Resolve a theme id to its base + effective vars (for previews/swatches).
 saveCustom(theme): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/theme-service.ts:93](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L93)
+Defined in: [packages/sdk/src/theme-service.ts:92](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L92)
 
 Persist a custom theme to disk and refresh the in-memory list.
 
@@ -121,7 +120,7 @@ Persist a custom theme to disk and refresh the in-memory list.
 deleteCustom(id): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/theme-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L95)
+Defined in: [packages/sdk/src/theme-service.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L94)
 
 Delete a custom theme from disk and refresh the in-memory list.
 
@@ -143,7 +142,7 @@ Delete a custom theme from disk and refresh the in-memory list.
 reloadCustom(): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/theme-service.ts:97](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L97)
+Defined in: [packages/sdk/src/theme-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L96)
 
 Reload custom themes from disk into the store.
 
@@ -159,7 +158,7 @@ Reload custom themes from disk into the store.
 exportTheme(theme): ThemeExport;
 ```
 
-Defined in: [packages/sdk/src/theme-service.ts:99](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L99)
+Defined in: [packages/sdk/src/theme-service.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L98)
 
 Strip the id from a custom theme for sharing/serialization.
 
@@ -181,7 +180,7 @@ Strip the id from a custom theme for sharing/serialization.
 importTheme(data): CustomTheme;
 ```
 
-Defined in: [packages/sdk/src/theme-service.ts:101](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L101)
+Defined in: [packages/sdk/src/theme-service.ts:100](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L100)
 
 Validate/parse imported JSON into a custom theme (assigns a fresh id).
 
@@ -194,3 +193,39 @@ Validate/parse imported JSON into a custom theme (assigns a fresh id).
 #### Returns
 
 [`CustomTheme`](CustomTheme.md)
+
+***
+
+### registerPreset()
+
+```ts
+registerPreset(preset): Disposable;
+```
+
+Defined in: [packages/sdk/src/theme-service.ts:117](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L117)
+
+Register a [ThemePreset](ThemePreset.md) (a selectable theme in the picker). The
+preset appears immediately and is removed when the returned
+[Disposable](Disposable.md) is disposed (typically when the extension deactivates).
+
+#### Parameters
+
+##### preset
+
+[`ThemePreset`](ThemePreset.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Example
+
+```ts
+ctx.theme.registerPreset({
+  id: "my-theme",
+  name: "My Theme",
+  base: "dark",
+  colorScheme: "dark",
+  vars: { "--silo-color-bg": "#1a1a2e" },
+});
+```

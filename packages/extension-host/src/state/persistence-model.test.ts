@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { Workspace } from "@silo-code/sdk";
+import type { WorkspaceInternal } from "./types";
 import {
   buildIndex,
   diffWorkspaceWrites,
@@ -12,7 +12,10 @@ import {
   type PersistedIndex,
 } from "./persistence-model";
 
-function makeWorkspace(id: string, extra: Partial<Workspace> = {}): Workspace {
+function makeWorkspace(
+  id: string,
+  extra: Partial<WorkspaceInternal> = {},
+): WorkspaceInternal {
   return {
     id,
     name: id,

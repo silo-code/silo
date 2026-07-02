@@ -12,7 +12,7 @@ import type {
   EditorSettings,
   SidePanelSlot,
   TerminalSettings,
-  Workspace,
+  WorkspaceInternal,
   WorkspaceGroup,
 } from "./types";
 
@@ -43,7 +43,7 @@ export interface PersistedIndex {
 /** The legacy monolithic blob (one `"state"` key in the app-data store) we
  * migrate *from*. Workspaces + global prefs + top-level panel state together. */
 export interface LegacyPersisted {
-  workspaces: Record<string, Workspace>;
+  workspaces: Record<string, WorkspaceInternal>;
   workspaceOrder: string[];
   activeWorkspaceId: string | null;
   uiFontSize?: number;
@@ -92,9 +92,9 @@ export function cloneExtensionState(
  */
 export function splitPersistedState(legacy: LegacyPersisted): {
   index: PersistedIndex;
-  workspaces: Record<string, Workspace>;
+  workspaces: Record<string, WorkspaceInternal>;
 } {
-  const workspaces: Record<string, Workspace> = {
+  const workspaces: Record<string, WorkspaceInternal> = {
     ...(legacy.workspaces ?? {}),
   };
   const activeId = legacy.activeWorkspaceId ?? null;
@@ -190,9 +190,9 @@ export function reconcilePanelOrder(
 /** Return a copy of `ws` with the live panel state merged in — used for the
  * active workspace at save time. Non-active workspaces are persisted as-is. */
 export function withActivePanelState(
-  ws: Workspace,
+  ws: WorkspaceInternal,
   panel: PanelState,
-): Workspace {
+): WorkspaceInternal {
   return {
     ...ws,
     sidePanelLocations: { ...panel.sidePanelLocations },

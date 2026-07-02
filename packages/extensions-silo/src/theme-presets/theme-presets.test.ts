@@ -3,21 +3,23 @@ import type { ExtensionContext, ThemePreset } from "@silo-code/sdk";
 import { extension } from "./index";
 
 // Activate the extension against a minimal fake `ctx` that only captures
-// registerThemePreset — the one method it touches — and return the presets.
+// theme.registerPreset — the one method it touches — and return the presets.
 function activateAndCollect(): ThemePreset[] {
   const presets: ThemePreset[] = [];
   const ctx = {
-    registerThemePreset: vi.fn((p: ThemePreset) => {
-      presets.push(p);
-      return { dispose: () => {} };
-    }),
+    theme: {
+      registerPreset: vi.fn((p: ThemePreset) => {
+        presets.push(p);
+        return { dispose: () => {} };
+      }),
+    },
   } as unknown as ExtensionContext;
   extension.activate(ctx);
   return presets;
 }
 
 describe("theme-presets extension", () => {
-  it("registers the bundled presets through ctx.registerThemePreset", () => {
+  it("registers the bundled presets through ctx.theme.registerPreset", () => {
     const ids = activateAndCollect().map((p) => p.id);
     expect(ids).toEqual(
       expect.arrayContaining([

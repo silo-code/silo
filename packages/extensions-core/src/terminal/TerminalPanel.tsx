@@ -9,9 +9,9 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import { SearchAddon } from "@xterm/addon-search";
-import type { IDockviewPanelProps } from "dockview";
 import {
   DND_MIME,
+  type DockPanelProps,
   type Disposable,
   type EditorService,
   type ExtensionContext,
@@ -54,7 +54,7 @@ function effectiveFontSize(): number {
 }
 const cmdKey = isMac ? "⌘" : "Ctrl";
 
-interface Params {
+export interface TerminalPanelParams {
   terminalId: string;
 }
 
@@ -102,7 +102,7 @@ async function openFileFromTerminal(
 }
 
 export function TerminalPanel(
-  props: IDockviewPanelProps<Params> & { ctx: ExtensionContext },
+  props: DockPanelProps<TerminalPanelParams> & { ctx: ExtensionContext },
 ) {
   const { terminalId } = props.params;
   const { ctx } = props;

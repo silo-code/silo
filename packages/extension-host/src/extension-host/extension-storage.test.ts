@@ -55,7 +55,7 @@ describe("extension storage scopes", () => {
   it("subscribe fires on a change within the namespace, not on unrelated mutations", async () => {
     const g = getGlobalExtensionStorage("ext.sub");
     let calls = 0;
-    const unsub = g.subscribe(() => calls++);
+    const sub = g.subscribe(() => calls++);
 
     // Unrelated change (another namespace) → no notify.
     getGlobalExtensionStorage("ext.other").set("k", 1);
@@ -67,7 +67,7 @@ describe("extension storage scopes", () => {
     await flush();
     expect(calls).toBe(1);
 
-    unsub();
+    sub.dispose();
     g.set("k", 2);
     await flush();
     expect(calls).toBe(1);

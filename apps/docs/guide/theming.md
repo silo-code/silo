@@ -12,7 +12,7 @@ There are two ways to ship a theme, same `vars` shape behind both:
   shareable by export/import. Best for personal themes and one-offs. Modelled by
   [`CustomTheme`](/api/types/interfaces/CustomTheme).
 - **A preset** — contributed by an extension through
-  [`ctx.registerThemePreset`](/api/registration/register-theme-preset) so it shows
+  [`ctx.theme.registerPreset`](/api/theme/#registerpreset) so it shows
   up in the picker for everyone. Best for distributing a theme. Modelled by
   [`ThemePreset`](/api/types/interfaces/ThemePreset). The bundled Tokyo Night,
   Solarized Light, and Gruvbox Dark are exactly this.
@@ -47,7 +47,7 @@ be just the `General` group. Component tokens like `--silo-menu-bg`,
 `var()`, so they re-resolve to your palette automatically until you override them:
 
 ```ts
-ctx.registerThemePreset({
+ctx.theme.registerPreset({
   id: "acme.midnight",
   name: "Midnight",
   base: "dark",
@@ -242,7 +242,7 @@ const preset: ThemePreset = {
 
 export default {
   activate(ctx) {
-    ctx.registerThemePreset(preset);
+    ctx.theme.registerPreset(preset);
   },
 } satisfies Extension;
 ```
@@ -254,5 +254,5 @@ host disposes it for you on deactivate.
 
 - [Design tokens](/api/theming) — the reference, scoped to the extension-consumable subset.
 - [`ctx.theme`](/api/theme/) — read presets, switch the active theme, manage custom themes.
-- [`ctx.registerThemePreset`](/api/registration/register-theme-preset) — contribute a preset.
+- [`ctx.theme.registerPreset`](/api/theme/#registerpreset) — contribute a preset.
 - [`ThemeVars`](/api/types/interfaces/ThemeVars) · [`CustomTheme`](/api/types/interfaces/CustomTheme) · [`ThemePreset`](/api/types/interfaces/ThemePreset).

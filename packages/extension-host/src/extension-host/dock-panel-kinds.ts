@@ -17,7 +17,8 @@ export function getDockComponents(): Record<
 > {
   const out: Record<string, FunctionComponent<IDockviewPanelProps>> = {};
   for (const kind of dockPanelKindRegistry.list()) {
-    out[kind.id] = kind.component as FunctionComponent<IDockviewPanelProps>;
+    out[kind.id] =
+      kind.component as unknown as FunctionComponent<IDockviewPanelProps>;
   }
   return out;
 }

@@ -18,7 +18,6 @@
  * @packageDocumentation
  */
 import type React from "react";
-import type { IDockviewPanelProps } from "dockview";
 import type { ContextKeys } from "./context-keys";
 import type { WorkspaceService } from "./workspace-service";
 import type { EditorService } from "./editor-service";
@@ -54,26 +53,70 @@ export interface Disposable {
 }
 
 /**
- * The dockview panel API handed to a {@link DockPanelKind} component — used to
- * drive the panel's own tab (title, close, focus). Re-exported from `dockview`
- * so extensions don't take a direct dependency on it.
+ * The panel API handed to a {@link DockPanelKind} component. Use these methods
+ * to drive the panel's own tab (title, close, focus) and update its stored
+ * parameters. The host provides the implementation; extensions never construct
+ * this object directly.
  *
  * @category Core Types
  * @public
  */
-export type DockPanelApi = IDockviewPanelProps["api"];
+export interface DockPanelApi {
+  /** Update the title shown in the panel's tab. */
+  setTitle(title: string): void;
+  /** Programmatically close this panel. */
+  close(): void;
+  /** Bring this panel to focus (make it the active panel in its group). */
+  setActive(): void;
+  /** `true` while this panel is the active one in its dock group. */
+  readonly isActive: boolean;
+  /**
+   * Subscribe to active-state transitions. The listener is called whenever
+   * the panel gains or loses active status, with an event carrying the new
+   * state. Returns a {@link Disposable} that cancels the subscription.
+   */
+  onDidActiveChange(
+    listener: (event: { readonly isActive: boolean }) => void,
+  ): Disposable;
+  /**
+   * `true` while this panel is visible — its tab is the selected one in its
+   * group. Distinct from {@link DockPanelApi.isActive | isActive}: with split
+   * groups, every group's selected tab is visible but only one panel in the
+   * whole dock is active.
+   */
+  readonly isVisible: boolean;
+  /**
+   * Subscribe to visibility transitions (the panel's tab being selected or
+   * deselected in its group). Use to pause expensive work while hidden, or to
+   * re-measure on reveal (e.g. the terminal refits xterm when its tab becomes
+   * visible again). Returns a {@link Disposable} that cancels the subscription.
+   */
+  onDidVisibilityChange(
+    listener: (event: { readonly isVisible: boolean }) => void,
+  ): Disposable;
+  /**
+   * Shallow-merge `params` into this panel's stored parameters. Keys absent
+   * from `params` are left unchanged. Useful for keeping tabs-serializable
+   * state (e.g. the open URL in a web-viewer panel) consistent with the UI.
+   */
+  updateParameters(params: object): void;
+}
 
 /**
  * Props handed to a {@link DockPanelKind} component. Use this type to annotate
- * your component instead of importing `IDockviewPanelProps` from `dockview`
- * directly — the SDK wraps it so extensions remain insulated from dockview
- * version changes. The optional generic `T` narrows the shape of `params`.
+ * your component instead of importing from the underlying dock framework
+ * directly — the SDK owns this surface so extensions remain insulated from
+ * host implementation details. The optional generic `T` narrows `params`.
  *
  * @category Core Types
  * @public
  */
-export type DockPanelProps<T extends object = Record<string, unknown>> =
-  IDockviewPanelProps<T>;
+export interface DockPanelProps<T extends object = Record<string, unknown>> {
+  /** The panel API — drives the tab (title, close, focus, params). */
+  api: DockPanelApi;
+  /** Serializable parameters forwarded to the panel at open time. */
+  params: T;
+}
 
 /**
  * Props passed to an {@link Editor} component. An editor renders the contents of
@@ -196,8 +239,15 @@ export interface Command {
   id: string;
   /** Human-readable label (shown where the command surfaces in UI). */
   label: string;
-  /** The action. Runs synchronously; do async work inside if needed. */
-  run: () => void;
+  /**
+   * The action. May accept arguments passed through from
+   * {@link ExtensionContext.executeCommand} and may return a value (sync or
+   * async); `executeCommand` resolves with whatever this returns.
+   *
+   * Zero-argument, void-returning commands are still valid — `() => void`
+   * satisfies this type, so existing registrations compile unchanged.
+   */
+  run: (...args: unknown[]) => unknown | Promise<unknown>;
 }
 
 /**
@@ -325,16 +375,19 @@ export interface SidePanel {
 
 /**
  * Registers a kind of dock panel (a tab that can live in the center dock area,
- * e.g. the terminal). Workspaces open panels of registered kinds by id.
+ * e.g. the terminal). Workspaces open panels of registered kinds by id. The
+ * optional generic `T` is the shape of the params this kind's panels are
+ * opened with — annotate your component with `DockPanelProps<T>` and
+ * {@link ExtensionContext.registerDockPanelKind} infers it, no casts needed.
  *
  * @category Registration
  * @public
  */
-export interface DockPanelKind {
+export interface DockPanelKind<T extends object = Record<string, unknown>> {
   /** Unique id for this panel kind. */
   id: string;
-  /** The React component; receives the raw dockview panel props. */
-  component: React.ComponentType<IDockviewPanelProps>;
+  /** The React component that renders this panel; receives {@link DockPanelProps}. */
+  component: React.ComponentType<DockPanelProps<T>>;
   /**
    * When set, this kind appears as an entry in the center dock's **+** add
    * menu (the per-group header button). Omit to keep the kind internal.
@@ -464,20 +517,39 @@ export interface ExtensionContext {
   registerKeybinding(binding: Keybinding): Disposable;
   /** Register a {@link SidePanel} (a left/right column panel). */
   registerSidePanel(panel: SidePanel): Disposable;
-  /** Register a {@link DockPanelKind} (a center-dock tab kind). */
-  registerDockPanelKind(kind: DockPanelKind): Disposable;
+  /**
+   * Register a {@link DockPanelKind} (a center-dock tab kind). The params
+   * generic `T` is inferred from the component's {@link DockPanelProps}
+   * annotation, so kinds with typed params register without casts.
+   */
+  registerDockPanelKind<T extends object = Record<string, unknown>>(
+    kind: DockPanelKind<T>,
+  ): Disposable;
   /** Register a {@link StatusItem} (a status-bar widget). */
   registerStatusItem(item: StatusItem): Disposable;
   /** Register a {@link SettingsPage} (a page in the Settings dialog). */
   registerSettingsPage(page: SettingsPage): Disposable;
-  /** Register a {@link ThemePreset} (a selectable theme in the picker). */
+  /**
+   * Register a {@link ThemePreset} (a selectable theme in the picker).
+   * @deprecated Use {@link ThemeService.registerPreset | ctx.theme.registerPreset()} instead.
+   *   This method will be removed in a future release.
+   */
   registerThemePreset(preset: ThemePreset): Disposable;
   /**
    * Invoke a registered command by id — including commands contributed by
    * other extensions. The minimal "operate" primitive; pairs with the typed
    * services for read access.
+   *
+   * Optional positional `args` are forwarded to the command's
+   * {@link Command.run} function. The returned `Promise` resolves with the
+   * command's return value, or rejects if the command throws, is async and
+   * rejects, or the id is not registered. Sync commands dispatch synchronously
+   * before the promise settles, so callers that read state the command mutates
+   * immediately after `await executeCommand(…)` see the updated state.
+   *
+   * @typeParam T - Expected return type of the command (defaults to `unknown`).
    */
-  executeCommand(id: string): void;
+  executeCommand<T = unknown>(id: string, ...args: unknown[]): Promise<T>;
   /**
    * Consumer API for driving workspace state — create, rename, reorder,
    * activate, soft close/reopen, and hard delete. Subscribe to a frozen

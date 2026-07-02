@@ -1,6 +1,6 @@
 # Interface: ExtensionStorage
 
-Defined in: [packages/sdk/src/extension-storage.ts:16](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L16)
+Defined in: [packages/sdk/src/extension-storage.ts:18](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L18)
 
 Namespaced, persisted key/value storage handed to extensions. Two scopes are
 exposed on [ExtensionContext.storage](ExtensionContext.md#storage) ([ExtensionStorageScopes](ExtensionStorageScopes.md)):
@@ -23,7 +23,7 @@ should [subscribe](#subscribe) and re-read.
 get<T>(key): T | undefined;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:18](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L18)
+Defined in: [packages/sdk/src/extension-storage.ts:20](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L20)
 
 Read a value. Returns `fallback` if the key is missing.
 
@@ -49,7 +49,7 @@ Read a value. Returns `fallback` if the key is missing.
 get<T>(key, fallback): T;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:19](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L19)
+Defined in: [packages/sdk/src/extension-storage.ts:21](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L21)
 
 ##### Type Parameters
 
@@ -79,7 +79,7 @@ Defined in: [packages/sdk/src/extension-storage.ts:19](https://github.com/silo-c
 set(key, value): void;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:21](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L21)
+Defined in: [packages/sdk/src/extension-storage.ts:23](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L23)
 
 Write a value. `undefined` deletes the key.
 
@@ -105,7 +105,7 @@ Write a value. `undefined` deletes the key.
 keys(): string[];
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:23](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L23)
+Defined in: [packages/sdk/src/extension-storage.ts:25](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L25)
 
 The keys currently set in this namespace.
 
@@ -118,15 +118,18 @@ The keys currently set in this namespace.
 ### subscribe()
 
 ```ts
-subscribe(listener): () => void;
+subscribe(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:30](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L30)
+Defined in: [packages/sdk/src/extension-storage.ts:35](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L35)
 
 Subscribe to changes in this namespace. Called when a value in this
 namespace changes, when the underlying app state finishes hydrating, and
-(for the workspace scope) when the active workspace changes. Returns an
-unsubscribe function.
+(for the workspace scope) when the active workspace changes.
+
+Returns a [Disposable](Disposable.md) — call `.dispose()` to unsubscribe, or push
+it onto `ctx.subscriptions` for automatic teardown. Consistent with every
+other subscription in the SDK.
 
 #### Parameters
 
@@ -136,4 +139,4 @@ unsubscribe function.
 
 #### Returns
 
-() => `void`
+[`Disposable`](Disposable.md)

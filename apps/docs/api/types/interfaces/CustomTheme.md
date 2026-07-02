@@ -1,6 +1,6 @@
 # Interface: CustomTheme
 
-Defined in: [packages/sdk/src/domain-types.ts:248](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L248)
+Defined in: [packages/sdk/src/domain-types.ts:227](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L227)
 
 A persisted custom theme.
 
@@ -12,7 +12,7 @@ A persisted custom theme.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:249](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L249)
+Defined in: [packages/sdk/src/domain-types.ts:228](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L228)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [packages/sdk/src/domain-types.ts:249](https://github.com/silo-code/
 version: 2;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:254](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L254)
+Defined in: [packages/sdk/src/domain-types.ts:233](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L233)
 
 `2` since the `--silo-*` token rename (theming-contract.md › Migration).
 v1 themes used the legacy bare names (`--bg`, `--text-hi`, …).
@@ -35,7 +35,7 @@ v1 themes used the legacy bare names (`--bg`, `--text-hi`, …).
 name: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:255](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L255)
+Defined in: [packages/sdk/src/domain-types.ts:234](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L234)
 
 ***
 
@@ -45,7 +45,7 @@ Defined in: [packages/sdk/src/domain-types.ts:255](https://github.com/silo-code/
 base: ThemeBase;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:256](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L256)
+Defined in: [packages/sdk/src/domain-types.ts:235](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L235)
 
 ***
 
@@ -55,7 +55,7 @@ Defined in: [packages/sdk/src/domain-types.ts:256](https://github.com/silo-code/
 colorScheme: "dark" | "light";
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:257](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L257)
+Defined in: [packages/sdk/src/domain-types.ts:236](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L236)
 
 ***
 
@@ -65,4 +65,4 @@ Defined in: [packages/sdk/src/domain-types.ts:257](https://github.com/silo-code/
 vars: Partial<ThemeVars>;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:258](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L258)
+Defined in: [packages/sdk/src/domain-types.ts:237](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L237)

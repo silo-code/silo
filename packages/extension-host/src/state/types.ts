@@ -14,7 +14,38 @@ export type {
   ThemeExport,
 } from "@silo-code/sdk";
 
-import type { Workspace, SidePanelSlot, CustomTheme } from "@silo-code/sdk";
+import type {
+  Workspace,
+  SidePanelSlot,
+  CustomTheme,
+  TerminalRecord,
+  EditorRecord,
+} from "@silo-code/sdk";
+
+/**
+ * Host-internal workspace shape. Extends the public {@link Workspace} with the
+ * layout, scroll, and panel-state fields the host reads and writes. Extensions
+ * receive only the public `Workspace` type through `WorkspaceService`.
+ *
+ * Not exported from `@silo-code/sdk` — host-only.
+ */
+export interface WorkspaceInternal extends Workspace {
+  terminals: TerminalRecord[];
+  editors: EditorRecord[];
+  dockLayout: unknown | null;
+  editorScrollPositions?: Record<string, { top: number; left: number }>;
+  editorViewStates?: Record<string, unknown>;
+  sidePanelLocations?: Record<string, SidePanelSlot>;
+  sidePanelOrder?: Record<string, number>;
+  activeSidePanelTabs?: Record<string, string>;
+  sidePanelScrollPositions?: Record<string, number>;
+  /** Absent key = visible (default); only explicit `false` is stored. */
+  sidePanelVisibility?: Record<string, boolean>;
+  extensionState?: Record<string, Record<string, unknown>>;
+  previewEditorId?: string | null;
+  leftPanelCollapsed?: boolean;
+  rightPanelCollapsed?: boolean;
+}
 
 // ── Host-only state types (not part of the public surface) ──
 
@@ -36,7 +67,7 @@ export interface WorkspaceGroup {
 }
 
 export interface AppState {
-  workspaces: Record<string, Workspace>;
+  workspaces: Record<string, WorkspaceInternal>;
   workspaceOrder: string[];
   activeWorkspaceId: string | null;
   hydrated: boolean;

@@ -1,6 +1,6 @@
 import type { Extension, ThemePreset } from "@silo-code/sdk";
 
-// Built-in theme presets, contributed through `ctx.registerThemePreset`. Core
+// Built-in theme presets, contributed through `ctx.theme.registerPreset`. Core
 // ships only Dark and Light (see layout/presets CORE_PRESETS); everything here
 // is a regular contribution — the same path a third-party extension would use.
 // These move out of core so the picker's bundled themes are independently
@@ -136,6 +136,6 @@ export const extension: Extension = {
     description: "Built-in color themes for the workbench.",
   },
   activate(ctx) {
-    for (const preset of PRESETS) ctx.registerThemePreset(preset);
+    for (const preset of PRESETS) ctx.theme.registerPreset(preset);
   },
 };

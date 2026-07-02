@@ -1,5 +1,4 @@
-import type { Extension } from "@silo-code/sdk";
-import type { IDockviewPanelProps } from "dockview";
+import type { DockPanelProps, Extension } from "@silo-code/sdk";
 import { Code } from "@phosphor-icons/react";
 import { OutputPanel } from "./OutputPanel";
 
@@ -13,15 +12,20 @@ export const extension: Extension = {
   activate(ctx) {
     ctx.registerDockPanelKind({
       id: "output",
-      component: ((props: IDockviewPanelProps) => (
+      component: (props: DockPanelProps) => (
         <OutputPanel {...props} ctx={ctx} />
-      )) as React.ComponentType<IDockviewPanelProps>,
+      ),
     });
 
     ctx.registerCommand({
       id: "core.openOutput",
       label: "Output",
-      run: () => ctx.layout.openSingletonPanel("output", { title: "Output" }),
+      run: () =>
+        ctx.layout.openPanel(
+          "output",
+          { title: "Output" },
+          { singleton: true },
+        ),
     });
 
     ctx.registerMenuItem({
@@ -38,7 +42,11 @@ export const extension: Extension = {
           className="settings-button"
           aria-label="Output"
           onClick={() =>
-            ctx.layout.openSingletonPanel("output", { title: "Output" })
+            ctx.layout.openPanel(
+              "output",
+              { title: "Output" },
+              { singleton: true },
+            )
           }
         >
           <Code size="1.3em" weight="bold" />
