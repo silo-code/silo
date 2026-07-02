@@ -49,7 +49,11 @@ export const extension: Extension = {
             )
           }
         >
-          <Code size="1.3em" weight="bold" />
+          {/* Bold glyph over Phosphor's duotone plate, at the panel-toggle
+              light-body shade (currentColor @ 0.15) for the two-tone look. */}
+          <Code size="1.3em" weight="bold">
+            <path d="M240,128l-48,40H64L16,128,64,88H192Z" opacity={0.15} />
+          </Code>
         </button>
       );
     }
