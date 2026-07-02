@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.21.0](https://github.com/silo-code/silo/compare/sdk-v0.20.0...sdk-v0.21.0) (2026-07-02)
+
+
+### Features
+
+* **sdk:** breaking-change cleanup batch + active-terminal tracking ([#161](https://github.com/silo-code/silo/issues/161)) ([421ea20](https://github.com/silo-code/silo/commit/421ea20897e551a7898a057599c4b56954fef586))
+
 ## [0.20.0](https://github.com/silo-code/silo/compare/sdk-v0.19.1...sdk-v0.20.0) (2026-06-29)
 
 
