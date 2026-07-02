@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.21.1](https://github.com/silo-code/silo/compare/silo-v0.21.0...silo-v0.21.1) (2026-07-02)
+
+
+### Bug Fixes
+
+* **ci:** use MSI-compatible numeric version for nightly builds ([ecf3f4c](https://github.com/silo-code/silo/commit/ecf3f4c15dde5280be6921bae712ce8d6839388d))
+* two-tone status bar icons (settings gear + output) to match panel toggles ([#166](https://github.com/silo-code/silo/issues/166)) ([a236455](https://github.com/silo-code/silo/commit/a236455033a9b443f731b89cb417e28ad78de1d2))
+* use RUNNER_TEMP for cross-platform nightly config path ([#164](https://github.com/silo-code/silo/issues/164)) ([c283993](https://github.com/silo-code/silo/commit/c28399388b880f3c3d9d7b1784574f958d9a9d72))
+
 ## [0.21.0](https://github.com/silo-code/silo/compare/silo-v0.20.0...silo-v0.21.0) (2026-07-02)
 
 
