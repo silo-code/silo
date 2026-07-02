@@ -60,21 +60,23 @@ export interface LayoutService {
    * web-viewer tab). No-op when the center dock has no active workspace.
    *
    * @param kindId - The {@link DockPanelKind.id} to instantiate.
-   * @param params - Arbitrary params forwarded to the panel's
-   *   `IDockviewPanelProps`. Serialized into `ws.dockLayout` so URL/state
-   *   survives workspace close/reopen.
+   * @param params - Arbitrary params forwarded to the panel component.
+   *   Serialized into `ws.dockLayout` so state survives workspace
+   *   close/reopen.
+   * @param options - `singleton: true` opens at most one instance at a time:
+   *   if a panel with `kindId` already exists, it is focused instead of
+   *   creating a new one. The panel's id equals `kindId` (not UUID-based) when
+   *   singleton is set.
    */
-  openPanel(kindId: string, params?: Record<string, unknown>): void;
+  openPanel(
+    kindId: string,
+    params?: Record<string, unknown>,
+    options?: { singleton?: boolean },
+  ): void;
   /**
-   * Open a **singleton** dock panel — a panel that should only ever have one
-   * instance at a time. If a panel with `kindId` already exists, focuses it;
-   * otherwise creates it. The panel's id equals `kindId` (not UUID-based, so
-   * at most one can exist). Use for utility panels like Output that don't
-   * benefit from multiple instances.
-   *
-   * @param kindId - The {@link DockPanelKind.id} to open or focus.
-   * @param params - Forwarded to the panel when creating; ignored when
-   *   focusing an existing instance.
+   * Open a **singleton** dock panel.
+   * @deprecated Use `openPanel(kindId, params, { singleton: true })` instead.
+   *   This method will be removed in a future release.
    */
   openSingletonPanel(kindId: string, params?: Record<string, unknown>): void;
 }

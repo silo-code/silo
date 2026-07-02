@@ -175,7 +175,11 @@ export function createContext(
       warn: (msg, data) => pushEntry(channelKey, "warn", msg, data),
       error: (msg, data) => pushEntry(channelKey, "error", msg, data),
       show: () =>
-        getLayoutService().openSingletonPanel("output", { title: "Output" }),
+        getLayoutService().openPanel(
+          "output",
+          { title: "Output" },
+          { singleton: true },
+        ),
       clear: () => clearChannel(channelKey),
     },
     getExtension(id) {

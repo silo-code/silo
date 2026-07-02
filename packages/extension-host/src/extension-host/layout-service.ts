@@ -48,31 +48,25 @@ export function getLayoutService(): LayoutService {
       if (location === "left") store.leftPanelCollapsed = collapsed;
       else store.rightPanelCollapsed = collapsed;
     },
-    openPanel(kindId, params) {
+    openPanel(kindId, params, options) {
       const api = getActiveDockApi();
       if (!api) return;
-      const id = `${kindId}:${crypto.randomUUID()}`;
+      if (options?.singleton) {
+        const existing = api.getPanel(kindId);
+        if (existing) {
+          existing.api.setActive();
+          return;
+        }
+      }
+      const id = options?.singleton
+        ? kindId
+        : `${kindId}:${crypto.randomUUID()}`;
       const title = (params?.title as string | undefined) ?? kindId;
       const panel = api.addPanel({ id, component: kindId, title, params });
       panel.api.setActive();
     },
     openSingletonPanel(kindId, params) {
-      const api = getActiveDockApi();
-      if (!api) return;
-      // Use kindId as the panel id so at most one instance can exist.
-      const existing = api.getPanel(kindId);
-      if (existing) {
-        existing.api.setActive();
-        return;
-      }
-      const title = (params?.title as string | undefined) ?? kindId;
-      const panel = api.addPanel({
-        id: kindId,
-        component: kindId,
-        title,
-        params,
-      });
-      panel.api.setActive();
+      return service!.openPanel(kindId, params, { singleton: true });
     },
     revealSidePanel(id) {
       const panel = sidePanelRegistry.get(id);
