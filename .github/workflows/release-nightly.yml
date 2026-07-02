@@ -131,13 +131,12 @@ jobs:
             const night = JSON.parse(fs.readFileSync('apps/desktop/src-tauri/tauri.nightly.conf.json', 'utf8'));
             night.version = '${{ needs.prepare.outputs.version }}';
             const merged = merge(base, night);
-            const outPath = path.join(require('os').tmpdir(), 'tauri-nightly-merged.json');
+            const outPath = path.join(process.env.RUNNER_TEMP || require('os').tmpdir(), 'tauri-nightly-merged.json');
             fs.writeFileSync(outPath, JSON.stringify(merged, null, 2));
             console.log('Nightly config:', merged.productName, merged.version, merged.identifier);
-            console.log(outPath);
           "
-          # Save the merged config path for the next step
-          echo "merged_config=$(node -e \"console.log(path.join(require('os').tmpdir(), 'tauri-nightly-merged.json'))\")" >> $GITHUB_ENV
+          # Save the merged config path for the next step (use RUNNER_TEMP so it works on Windows too)
+          echo "merged_config=${RUNNER_TEMP}/tauri-nightly-merged.json" >> $GITHUB_ENV
 
       - uses: tauri-apps/tauri-action@v0
         env:
