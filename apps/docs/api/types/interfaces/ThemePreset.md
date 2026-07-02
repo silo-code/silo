@@ -2,11 +2,11 @@
 
 Defined in: [packages/sdk/src/theme-service.ts:27](https://github.com/silo-code/silo/blob/main/packages/sdk/src/theme-service.ts#L27)
 
-A selectable theme contributed via
-[ExtensionContext.registerThemePreset](ExtensionContext.md#registerthemepreset). Built-in presets (Tokyo Night,
-Solarized Light, Gruvbox Dark, …) are registered by the `theme-presets`
-extension; core ships only Dark and Light. A preset's [ThemePreset.vars](#vars)
-are injected as CSS custom properties when it is the active theme.
+A selectable theme contributed via [ThemeService.registerPreset](ThemeService.md#registerpreset).
+Built-in presets (Tokyo Night, Solarized Light, Gruvbox Dark, …) are
+registered by the `theme-presets` extension; core ships only Dark and Light.
+A preset's [ThemePreset.vars](#vars) are injected as CSS custom properties
+when it is the active theme.
 
 ## Properties
 

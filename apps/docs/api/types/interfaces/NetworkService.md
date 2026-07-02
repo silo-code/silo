@@ -1,6 +1,6 @@
 # Interface: NetworkService
 
-Defined in: [packages/sdk/src/network-service.ts:58](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L58)
+Defined in: [packages/sdk/src/network-service.ts:90](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L90)
 
 Server-side HTTP client exposed as [ExtensionContext.net](ExtensionContext.md#net). Requests
 run in the Rust backend via `reqwest`, so they bypass the browser's CORS
@@ -21,7 +21,7 @@ Typical use-cases:
 fetch(url, options?): Promise<NetworkResponse>;
 ```
 
-Defined in: [packages/sdk/src/network-service.ts:73](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L73)
+Defined in: [packages/sdk/src/network-service.ts:105](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L105)
 
 Make an HTTP request server-side, bypassing CORS. Returns the full
 response: status, headers, body, and the final URL after any redirects.
@@ -46,7 +46,7 @@ Method, headers, body, redirect and timeout controls.
 
 #### Throws
 
-A string error message if the request fails (network error, DNS
+[NetworkError](../classes/NetworkError.md) if the request fails (network error, DNS
   failure, TLS error, etc.).
 
 #### Example
@@ -63,7 +63,7 @@ const { status, body } = await ctx.net.fetch("https://api.example.com/data");
 fetchHeaders(url, options?): Promise<Record<string, string>>;
 ```
 
-Defined in: [packages/sdk/src/network-service.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L94)
+Defined in: [packages/sdk/src/network-service.ts:126](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L126)
 
 Send a `HEAD` request and return only the response headers — no body is
 downloaded. More efficient than [NetworkService.fetch](#fetch) when you only
@@ -93,7 +93,7 @@ Redirect and timeout controls (`method` and `body` are
 
 #### Throws
 
-A string error message if the request fails.
+[NetworkError](../classes/NetworkError.md) if the request fails.
 
 #### Example
 

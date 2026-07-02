@@ -32,6 +32,7 @@ import { ErrorBoundary } from "../components/ErrorBoundary";
 import { setActiveDockApi } from "../docked/dock-api-registry";
 import { getDndService, resolveDndMode } from "../extension-host/dnd-service";
 import { DND_MIME } from "@silo-code/sdk";
+import { setActiveTerminal } from "../extension-host/active-terminal-registry";
 import { setContextKey } from "../extension-host/context-keys";
 import { resolveEditorForRecord } from "../extension-host/editor-registry";
 import {
@@ -265,6 +266,12 @@ export function WorkspaceDock({
     function update() {
       if (!api) return;
       const panel = api.activePanel;
+      setActiveTerminal(
+        panel?.id.startsWith("terminal:")
+          ? ((panel.params as { terminalId?: string } | undefined)
+              ?.terminalId ?? panel.id.slice("terminal:".length))
+          : null,
+      );
       if (!panel || !panel.id.startsWith("editor:")) {
         setContextKey("activeEditorId", null);
         setContextKey("activeEditorViewId", null);
@@ -296,6 +303,7 @@ export function WorkspaceDock({
     return () => {
       subPanel.dispose();
       subGroup.dispose();
+      setActiveTerminal(null);
       setContextKey("activeEditorId", null);
       setContextKey("activeEditorViewId", null);
       setContextKey("activeViewerId", null);

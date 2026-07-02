@@ -12,15 +12,18 @@ for. Avoid the temptation to mirror every piece of app state into here.
 
 ## Properties
 
-### activeViewerId
+### activeEditorViewId
 
 ```ts
-activeViewerId: string | null;
+activeEditorViewId: string | null;
 ```
 
-Defined in: [packages/sdk/src/context-keys.ts:15](https://github.com/silo-code/silo/blob/main/packages/sdk/src/context-keys.ts#L15)
+Defined in: [packages/sdk/src/context-keys.ts:20](https://github.com/silo-code/silo/blob/main/packages/sdk/src/context-keys.ts#L20)
 
-id of the viewer rendered by the dock's active panel, or null.
+The [Editor.id](Editor.md#id) of the presenter currently rendering the active dock
+panel (e.g. `"core.text-editor"`, `"silo.markdown-preview"`), or `null`
+when the active panel is not an editor. Identifies the *view type*, not the
+tab instance — see [ContextKeys.activeEditorId](#activeeditorid) for the tab record id.
 
 ***
 
@@ -30,6 +33,24 @@ id of the viewer rendered by the dock's active panel, or null.
 activeEditorId: string | null;
 ```
 
-Defined in: [packages/sdk/src/context-keys.ts:17](https://github.com/silo-code/silo/blob/main/packages/sdk/src/context-keys.ts#L17)
+Defined in: [packages/sdk/src/context-keys.ts:26](https://github.com/silo-code/silo/blob/main/packages/sdk/src/context-keys.ts#L26)
 
-editorId of the active dock panel if it's an editor panel, or null.
+The `editorId` of the active editor tab record, or `null` when the active
+dock panel is not an editor tab. Identifies the *tab instance* — see
+[ContextKeys.activeEditorViewId](#activeeditorviewid) for the view-type (presenter) id.
+
+***
+
+### ~~activeViewerId~~
+
+```ts
+activeViewerId: string | null;
+```
+
+Defined in: [packages/sdk/src/context-keys.ts:32](https://github.com/silo-code/silo/blob/main/packages/sdk/src/context-keys.ts#L32)
+
+#### Deprecated
+
+Use [ContextKeys.activeEditorViewId](#activeeditorviewid) instead.
+Kept for one release so extensions compiled against the old SDK continue
+to receive the correct value at runtime without a silent break.

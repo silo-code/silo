@@ -121,10 +121,13 @@ focusing the Search panel). No-op if no panel with that id is registered.
 ### openPanel()
 
 ```ts
-openPanel(kindId, params?): void;
+openPanel(
+   kindId, 
+   params?, 
+   options?): void;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L67)
+Defined in: [packages/sdk/src/layout-service.ts:71](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L71)
 
 Open a new tab in the center dock for the given registered
 [DockPanelKind](DockPanelKind.md). Use this to programmatically open a custom panel
@@ -143,10 +146,52 @@ The [DockPanelKind.id](DockPanelKind.md#id) to instantiate.
 
 `Record`\<`string`, `unknown`\>
 
-Arbitrary params forwarded to the panel's
-  `IDockviewPanelProps`. Serialized into `ws.dockLayout` so URL/state
-  survives workspace close/reopen.
+Arbitrary params forwarded to the panel component.
+  Serialized into `ws.dockLayout` so state survives workspace
+  close/reopen.
+
+##### options?
+
+`singleton: true` opens at most one instance at a time:
+  if a panel with `kindId` already exists, it is focused instead of
+  creating a new one. The panel's id equals `kindId` (not UUID-based) when
+  singleton is set.
+
+###### singleton?
+
+`boolean`
 
 #### Returns
 
 `void`
+
+***
+
+### ~~openSingletonPanel()~~
+
+```ts
+openSingletonPanel(kindId, params?): void;
+```
+
+Defined in: [packages/sdk/src/layout-service.ts:81](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L81)
+
+Open a **singleton** dock panel.
+
+#### Parameters
+
+##### kindId
+
+`string`
+
+##### params?
+
+`Record`\<`string`, `unknown`\>
+
+#### Returns
+
+`void`
+
+#### Deprecated
+
+Use `openPanel(kindId, params, { singleton: true })` instead.
+  This method will be removed in a future release.

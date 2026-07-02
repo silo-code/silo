@@ -218,3 +218,63 @@ const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
 });
 ctx.subscriptions.push(sub);
 ```
+
+***
+
+### getActive()
+
+```ts
+getActive(): string | null;
+```
+
+Defined in: [packages/sdk/src/terminal-service.ts:179](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L179)
+
+The record id of the terminal tab that is currently active in the active
+workspace's center dock, or `null` when an editor tab (or nothing) is
+active. "Active" is the dock's single active panel — the tab the user is
+looking at and typing into — so a terminal merely visible in a non-active
+split does not count.
+
+#### Returns
+
+`string` \| `null`
+
+***
+
+### subscribeActive()
+
+```ts
+subscribeActive(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/terminal-service.ts:201](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L201)
+
+Subscribe to active-terminal changes. The listener receives the terminal
+record id whenever a terminal tab becomes the active center-dock panel,
+and `null` when activation moves elsewhere (an editor tab, or no panel —
+including transiently during a workspace switch, before the incoming
+workspace's active tab is published).
+
+Fires on tab activation, group activation, and workspace switches.
+Returns a [Disposable](Disposable.md) that cancels the subscription.
+
+#### Parameters
+
+##### listener
+
+(`terminalId`) => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Example
+
+```ts
+// Clear a "needs attention" marker once the user views the terminal.
+ctx.subscriptions.push(
+  ctx.terminals.subscribeActive((terminalId) => {
+    if (terminalId) attention.delete(terminalId);
+  }),
+);
+```

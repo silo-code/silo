@@ -103,6 +103,28 @@ ctx.subscriptions.push(
 
 Each event is an [`OscEvent`](/api/types/interfaces/OscEvent).
 
+## Active terminal
+
+Track which terminal tab the user is looking at. "Active" is the center dock's
+single active panel of the active workspace — `null` when an editor tab (or
+nothing) is active, and transiently during workspace switches before the
+incoming workspace's active tab is published. A terminal that is merely visible
+in a non-active split does not count.
+
+```ts
+// clear a "needs attention" marker once the user views the terminal
+ctx.subscriptions.push(
+  ctx.terminals.subscribeActive((terminalId) => {
+    if (terminalId) attention.delete(terminalId);
+  }),
+);
+```
+
+| Method                                                                               | What it does                                                                                                                                           |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`getActive()`](/api/types/interfaces/TerminalService#getactive)                     | The record id of the active center-dock terminal tab, or `null`.                                                                                       |
+| [`subscribeActive(listener)`](/api/types/interfaces/TerminalService#subscribeactive) | Subscribe to active-terminal changes (tab activation, group activation, workspace switch). Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+
 ## Types
 
 Pass [`TerminalService`](/api/types/interfaces/TerminalService).
