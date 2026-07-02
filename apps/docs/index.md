@@ -15,6 +15,9 @@ hero:
     - theme: alt
       text: View on GitHub
       link: https://github.com/silo-code/silo
+    - theme: alt
+      text: Follow on X
+      link: https://x.com/silo_code
 
 features:
   - icon: ⚡

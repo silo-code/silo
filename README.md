@@ -3,7 +3,7 @@
 
 Keep all your projects running simultaneously — terminals, agents, and layout intact — and switch between them in an instant.
 
-[**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [**Download for Linux →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap)
+[**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [**Download for Linux →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap) &nbsp;·&nbsp; [Follow on X](https://x.com/silo_code)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey) ![Platform: Linux](https://img.shields.io/badge/platform-Linux-lightgrey) ![Platform: Windows (experimental)](<https://img.shields.io/badge/platform-Windows%20(experimental)-yellow>) ![Status: Early](https://img.shields.io/badge/status-early%20access-orange)
 
