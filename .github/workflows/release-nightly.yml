@@ -135,7 +135,7 @@ jobs:
             fs.writeFileSync(outPath, JSON.stringify(merged, null, 2));
             console.log('Nightly config:', merged.productName, merged.version, merged.identifier);
           "
-          # Save the merged config path for the next step
+          # Save the merged config path for the next step (use RUNNER_TEMP so it works on Windows too)
           echo "merged_config=${RUNNER_TEMP}/tauri-nightly-merged.json" >> $GITHUB_ENV
 
       - uses: tauri-apps/tauri-action@v0
