@@ -1,6 +1,6 @@
 # Interface: StatusItem
 
-Defined in: [packages/sdk/src/types.ts:401](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L401)
+Defined in: [packages/sdk/src/types.ts:422](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L422)
 
 A widget in the status bar (the strip along the bottom of the window).
 
@@ -21,7 +21,7 @@ for a value) to create visual distinctions within an item.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:403](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L403)
+Defined in: [packages/sdk/src/types.ts:424](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L424)
 
 Unique id for this status item.
 
@@ -33,7 +33,7 @@ Unique id for this status item.
 alignment: "left" | "right";
 ```
 
-Defined in: [packages/sdk/src/types.ts:405](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L405)
+Defined in: [packages/sdk/src/types.ts:426](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L426)
 
 Which end of the status bar this item sits at.
 
@@ -45,7 +45,7 @@ Which end of the status bar this item sits at.
 optional priority?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:419](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L419)
+Defined in: [packages/sdk/src/types.ts:440](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L440)
 
 Sort order within its alignment group. Defaults to 0.
 
@@ -67,7 +67,7 @@ may still choose a negative value intentionally to interleave with built-ins.
 optional tooltip?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:427](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L427)
+Defined in: [packages/sdk/src/types.ts:448](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L448)
 
 Tooltip shown on hover over the entire status item. The host renders a
 custom-styled popup (not the browser's native `title` tooltip). For items
@@ -83,6 +83,6 @@ internal barrel; external extensions may use the native `title` attribute).
 component: ComponentType;
 ```
 
-Defined in: [packages/sdk/src/types.ts:429](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L429)
+Defined in: [packages/sdk/src/types.ts:450](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L450)
 
 The React component (renders its own content; no props).

@@ -1,6 +1,6 @@
 # Interface: FileType
 
-Defined in: [packages/sdk/src/types.ts:200](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L200)
+Defined in: [packages/sdk/src/types.ts:218](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L218)
 
 Declarative metadata about a file extension — the open-ended counterpart to
 Viewer (which is purely a renderer). A single source of truth that "New File"
@@ -16,7 +16,7 @@ extension at dispatch time.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:202](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L202)
+Defined in: [packages/sdk/src/types.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L220)
 
 Unique id, conventionally namespaced.
 
@@ -28,7 +28,7 @@ Unique id, conventionally namespaced.
 label: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:204](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L204)
+Defined in: [packages/sdk/src/types.ts:222](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L222)
 
 Human label, e.g. "Foo File". Used to build "New {label}…" entries.
 
@@ -40,7 +40,7 @@ Human label, e.g. "Foo File". Used to build "New {label}…" entries.
 extensions: string[];
 ```
 
-Defined in: [packages/sdk/src/types.ts:206](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L206)
+Defined in: [packages/sdk/src/types.ts:224](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L224)
 
 Extensions this type owns — leading dot, lowercase. e.g. [".foo"].
 
@@ -52,6 +52,6 @@ Extensions this type owns — leading dot, lowercase. e.g. [".foo"].
 optional newFile?: NewFileTemplate;
 ```
 
-Defined in: [packages/sdk/src/types.ts:208](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L208)
+Defined in: [packages/sdk/src/types.ts:226](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L226)
 
 When present, the type can be created from "New File" surfaces.

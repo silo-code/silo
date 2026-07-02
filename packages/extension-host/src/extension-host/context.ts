@@ -130,8 +130,15 @@ export function createContext(
     registerSidePanel(panel: SidePanel): Disposable {
       return track(sidePanelRegistry.register(panel));
     },
-    registerDockPanelKind(kind: DockPanelKind): Disposable {
-      return track(dockPanelKindRegistry.register(kind));
+    registerDockPanelKind<T extends object>(
+      kind: DockPanelKind<T>,
+    ): Disposable {
+      // Erase the params generic at the host boundary — the registry stores
+      // kinds over the default Record params; the panel receives its typed
+      // params back at open time.
+      return track(
+        dockPanelKindRegistry.register(kind as unknown as DockPanelKind),
+      );
     },
     registerStatusItem(item: StatusItem): Disposable {
       return track(statusItemRegistry.register(item));

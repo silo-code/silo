@@ -32,19 +32,29 @@ export function executeCommand(id: string, ...args: unknown[]): boolean {
 /**
  * @internal — Promise-returning dispatch used by `ctx.executeCommand`. Sync
  * commands run synchronously before the promise settles; async commands are
- * awaited. Rejects for unknown ids or commands that throw/reject.
+ * awaited. Rejects for unknown ids or commands that throw/reject — but a
+ * rejection handler is always attached before returning, so the common
+ * fire-and-forget call style (`ctx.executeCommand(id)` with no `await`) never
+ * surfaces as an unhandled-rejection warning. Callers that `await` still
+ * receive the same rejection.
  */
 export function executeCommandAsync<T = unknown>(
   id: string,
   ...args: unknown[]
 ): Promise<T> {
   const cmd = commandRegistry.get(id);
+  let result: Promise<T>;
   if (!cmd) {
-    return Promise.reject(new Error(`Unknown command: ${id}`));
+    result = Promise.reject(new Error(`Unknown command: ${id}`));
+  } else {
+    try {
+      result = Promise.resolve(cmd.run(...args)) as Promise<T>;
+    } catch (err) {
+      result = Promise.reject(err);
+    }
   }
-  try {
-    return Promise.resolve(cmd.run(...args)) as Promise<T>;
-  } catch (err) {
-    return Promise.reject(err);
-  }
+  result.catch((err) =>
+    console.error(`[extensions] command failed: ${id}`, err),
+  );
+  return result;
 }

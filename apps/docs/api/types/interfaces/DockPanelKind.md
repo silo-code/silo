@@ -1,9 +1,18 @@
-# Interface: DockPanelKind
+# Interface: DockPanelKind\<T\>
 
-Defined in: [packages/sdk/src/types.ts:365](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L365)
+Defined in: [packages/sdk/src/types.ts:386](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L386)
 
 Registers a kind of dock panel (a tab that can live in the center dock area,
-e.g. the terminal). Workspaces open panels of registered kinds by id.
+e.g. the terminal). Workspaces open panels of registered kinds by id. The
+optional generic `T` is the shape of the params this kind's panels are
+opened with — annotate your component with `DockPanelProps<T>` and
+[ExtensionContext.registerDockPanelKind](ExtensionContext.md#registerdockpanelkind) infers it, no casts needed.
+
+## Type Parameters
+
+### T
+
+`T` *extends* `object` = `Record`\<`string`, `unknown`\>
 
 ## Properties
 
@@ -13,7 +22,7 @@ e.g. the terminal). Workspaces open panels of registered kinds by id.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:367](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L367)
+Defined in: [packages/sdk/src/types.ts:388](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L388)
 
 Unique id for this panel kind.
 
@@ -22,10 +31,10 @@ Unique id for this panel kind.
 ### component
 
 ```ts
-component: ComponentType<DockPanelProps<Record<string, unknown>>>;
+component: ComponentType<DockPanelProps<T>>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:369](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L369)
+Defined in: [packages/sdk/src/types.ts:390](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L390)
 
 The React component that renders this panel; receives [DockPanelProps](DockPanelProps.md).
 
@@ -37,7 +46,7 @@ The React component that renders this panel; receives [DockPanelProps](DockPanel
 optional addMenuItem?: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:374](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L374)
+Defined in: [packages/sdk/src/types.ts:395](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L395)
 
 When set, this kind appears as an entry in the center dock's **+** add
 menu (the per-group header button). Omit to keep the kind internal.

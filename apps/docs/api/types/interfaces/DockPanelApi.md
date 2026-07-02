@@ -19,6 +19,21 @@ Defined in: [packages/sdk/src/types.ts:72](https://github.com/silo-code/silo/blo
 
 `true` while this panel is the active one in its dock group.
 
+***
+
+### isVisible
+
+```ts
+readonly isVisible: boolean;
+```
+
+Defined in: [packages/sdk/src/types.ts:87](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L87)
+
+`true` while this panel is visible — its tab is the selected one in its
+group. Distinct from [isActive](#isactive): with split
+groups, every group's selected tab is visible but only one panel in the
+whole dock is active.
+
 ## Methods
 
 ### setTitle()
@@ -84,14 +99,39 @@ onDidActiveChange(listener): Disposable;
 Defined in: [packages/sdk/src/types.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L78)
 
 Subscribe to active-state transitions. The listener is called whenever
-the panel gains or loses active status. Returns a [Disposable](Disposable.md) that
-cancels the subscription when disposed.
+the panel gains or loses active status, with an event carrying the new
+state. Returns a [Disposable](Disposable.md) that cancels the subscription.
 
 #### Parameters
 
 ##### listener
 
-(`active`) => `void`
+(`event`) => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+***
+
+### onDidVisibilityChange()
+
+```ts
+onDidVisibilityChange(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/types.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L94)
+
+Subscribe to visibility transitions (the panel's tab being selected or
+deselected in its group). Use to pause expensive work while hidden, or to
+re-measure on reveal (e.g. the terminal refits xterm when its tab becomes
+visible again). Returns a [Disposable](Disposable.md) that cancels the subscription.
+
+#### Parameters
+
+##### listener
+
+(`event`) => `void`
 
 #### Returns
 
@@ -105,7 +145,7 @@ cancels the subscription when disposed.
 updateParameters(params): void;
 ```
 
-Defined in: [packages/sdk/src/types.ts:84](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L84)
+Defined in: [packages/sdk/src/types.ts:102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L102)
 
 Shallow-merge `params` into this panel's stored parameters. Keys absent
 from `params` are left unchanged. Useful for keeping tabs-serializable

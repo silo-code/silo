@@ -12,9 +12,9 @@ export const extension: Extension = {
   activate(ctx) {
     ctx.registerDockPanelKind({
       id: "output",
-      component: ((props: DockPanelProps) => (
+      component: (props: DockPanelProps) => (
         <OutputPanel {...props} ctx={ctx} />
-      )) as React.ComponentType<DockPanelProps>,
+      ),
     });
 
     ctx.registerCommand({

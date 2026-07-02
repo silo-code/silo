@@ -1,6 +1,6 @@
 # Interface: DockPanelProps\<T\>
 
-Defined in: [packages/sdk/src/types.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L96)
+Defined in: [packages/sdk/src/types.ts:114](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L114)
 
 Props handed to a [DockPanelKind](DockPanelKind.md) component. Use this type to annotate
 your component instead of importing from the underlying dock framework
@@ -21,7 +21,7 @@ host implementation details. The optional generic `T` narrows `params`.
 api: DockPanelApi;
 ```
 
-Defined in: [packages/sdk/src/types.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L98)
+Defined in: [packages/sdk/src/types.ts:116](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L116)
 
 The panel API — drives the tab (title, close, focus, params).
 
@@ -33,6 +33,6 @@ The panel API — drives the tab (title, close, focus, params).
 params: T;
 ```
 
-Defined in: [packages/sdk/src/types.ts:100](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L100)
+Defined in: [packages/sdk/src/types.ts:118](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L118)
 
 Serializable parameters forwarded to the panel at open time.

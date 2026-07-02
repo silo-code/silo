@@ -11,12 +11,12 @@ import { DiffPanelLazy } from "./DiffPanelLazy";
 import type { DockPanelApi, ExtensionContext } from "@silo-code/sdk";
 import "./EditorPanel.css";
 
-interface Params {
+export interface EditorPanelParams {
   editorId: string;
 }
 
 export function EditorPanel(
-  props: DockPanelProps<Params> & { ctx: ExtensionContext },
+  props: DockPanelProps<EditorPanelParams> & { ctx: ExtensionContext },
 ) {
   const { editorId } = props.params;
   const { ctx } = props;

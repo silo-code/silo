@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { commandRegistry, executeCommandAsync } from "./commands";
 
 // Helper: register a temp command, run the test, dispose it.
@@ -18,6 +18,16 @@ function withCmd(
 }
 
 describe("executeCommandAsync", () => {
+  // Rejections are also routed to console.error (so fire-and-forget callers
+  // never leave them unhandled) — silence that during the rejection tests.
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    errorSpy.mockRestore();
+  });
+
   it(
     "resolves with the return value of a sync command",
     withCmd(
@@ -96,4 +106,32 @@ describe("executeCommandAsync", () => {
       },
     ),
   );
+
+  it(
+    "routes rejections to console.error so fire-and-forget calls never go unhandled",
+    withCmd(
+      "cmd.fire-and-forget",
+      async () => {
+        throw new Error("late boom");
+      },
+      async () => {
+        // Deliberately no await / no catch — the common call style.
+        void executeCommandAsync("cmd.fire-and-forget");
+        await new Promise((r) => setTimeout(r, 0));
+        expect(errorSpy).toHaveBeenCalledWith(
+          "[extensions] command failed: cmd.fire-and-forget",
+          expect.objectContaining({ message: "late boom" }),
+        );
+      },
+    ),
+  );
+
+  it("logs unknown-id rejections for fire-and-forget callers too", async () => {
+    void executeCommandAsync("cmd.no.such.fire");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(errorSpy).toHaveBeenCalledWith(
+      "[extensions] command failed: cmd.no.such.fire",
+      expect.objectContaining({ message: "Unknown command: cmd.no.such.fire" }),
+    );
+  });
 });

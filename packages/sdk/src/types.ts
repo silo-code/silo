@@ -72,10 +72,28 @@ export interface DockPanelApi {
   readonly isActive: boolean;
   /**
    * Subscribe to active-state transitions. The listener is called whenever
-   * the panel gains or loses active status. Returns a {@link Disposable} that
-   * cancels the subscription when disposed.
+   * the panel gains or loses active status, with an event carrying the new
+   * state. Returns a {@link Disposable} that cancels the subscription.
    */
-  onDidActiveChange(listener: (active: boolean) => void): Disposable;
+  onDidActiveChange(
+    listener: (event: { readonly isActive: boolean }) => void,
+  ): Disposable;
+  /**
+   * `true` while this panel is visible — its tab is the selected one in its
+   * group. Distinct from {@link DockPanelApi.isActive | isActive}: with split
+   * groups, every group's selected tab is visible but only one panel in the
+   * whole dock is active.
+   */
+  readonly isVisible: boolean;
+  /**
+   * Subscribe to visibility transitions (the panel's tab being selected or
+   * deselected in its group). Use to pause expensive work while hidden, or to
+   * re-measure on reveal (e.g. the terminal refits xterm when its tab becomes
+   * visible again). Returns a {@link Disposable} that cancels the subscription.
+   */
+  onDidVisibilityChange(
+    listener: (event: { readonly isVisible: boolean }) => void,
+  ): Disposable;
   /**
    * Shallow-merge `params` into this panel's stored parameters. Keys absent
    * from `params` are left unchanged. Useful for keeping tabs-serializable
@@ -357,16 +375,19 @@ export interface SidePanel {
 
 /**
  * Registers a kind of dock panel (a tab that can live in the center dock area,
- * e.g. the terminal). Workspaces open panels of registered kinds by id.
+ * e.g. the terminal). Workspaces open panels of registered kinds by id. The
+ * optional generic `T` is the shape of the params this kind's panels are
+ * opened with — annotate your component with `DockPanelProps<T>` and
+ * {@link ExtensionContext.registerDockPanelKind} infers it, no casts needed.
  *
  * @category Registration
  * @public
  */
-export interface DockPanelKind {
+export interface DockPanelKind<T extends object = Record<string, unknown>> {
   /** Unique id for this panel kind. */
   id: string;
   /** The React component that renders this panel; receives {@link DockPanelProps}. */
-  component: React.ComponentType<DockPanelProps>;
+  component: React.ComponentType<DockPanelProps<T>>;
   /**
    * When set, this kind appears as an entry in the center dock's **+** add
    * menu (the per-group header button). Omit to keep the kind internal.
@@ -496,8 +517,14 @@ export interface ExtensionContext {
   registerKeybinding(binding: Keybinding): Disposable;
   /** Register a {@link SidePanel} (a left/right column panel). */
   registerSidePanel(panel: SidePanel): Disposable;
-  /** Register a {@link DockPanelKind} (a center-dock tab kind). */
-  registerDockPanelKind(kind: DockPanelKind): Disposable;
+  /**
+   * Register a {@link DockPanelKind} (a center-dock tab kind). The params
+   * generic `T` is inferred from the component's {@link DockPanelProps}
+   * annotation, so kinds with typed params register without casts.
+   */
+  registerDockPanelKind<T extends object = Record<string, unknown>>(
+    kind: DockPanelKind<T>,
+  ): Disposable;
   /** Register a {@link StatusItem} (a status-bar widget). */
   registerStatusItem(item: StatusItem): Disposable;
   /** Register a {@link SettingsPage} (a page in the Settings dialog). */

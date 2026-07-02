@@ -256,7 +256,7 @@ export function WorkspaceDock({
     };
   }, [active, api]);
 
-  // Push the active editor + viewer ids into the extension context-keys so
+  // Push the active editor + editor-view ids into the extension context-keys so
   // menu items / keybindings with `when` clauses can react, and so that
   // saveActiveEditor() can dispatch to the right editor based on dock state
   // (not Monaco's focus events, which are unreliable across workspace
@@ -275,7 +275,6 @@ export function WorkspaceDock({
       if (!panel || !panel.id.startsWith("editor:")) {
         setContextKey("activeEditorId", null);
         setContextKey("activeEditorViewId", null);
-        setContextKey("activeViewerId", null);
         return;
       }
       const editorId = (panel.params as { editorId?: string } | undefined)
@@ -283,7 +282,6 @@ export function WorkspaceDock({
       if (!editorId) {
         setContextKey("activeEditorId", null);
         setContextKey("activeEditorViewId", null);
-        setContextKey("activeViewerId", null);
         return;
       }
       setContextKey("activeEditorId", editorId);
@@ -291,10 +289,8 @@ export function WorkspaceDock({
       try {
         const editor = resolveEditorForRecord(record);
         setContextKey("activeEditorViewId", editor.id);
-        setContextKey("activeViewerId", editor.id); // deprecated alias
       } catch {
         setContextKey("activeEditorViewId", null);
-        setContextKey("activeViewerId", null);
       }
     }
     update();
@@ -306,7 +302,6 @@ export function WorkspaceDock({
       setActiveTerminal(null);
       setContextKey("activeEditorId", null);
       setContextKey("activeEditorViewId", null);
-      setContextKey("activeViewerId", null);
     };
   }, [active, api, workspaceId]);
 

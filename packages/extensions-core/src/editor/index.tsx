@@ -1,6 +1,6 @@
 import { lazy } from "react";
 import type { DockPanelProps, Extension } from "@silo-code/sdk";
-import { EditorPanel } from "./EditorPanel";
+import { EditorPanel, type EditorPanelParams } from "./EditorPanel";
 import { EditorSettingsPage } from "./EditorSettingsPage";
 
 // The text editor mounts lazily alongside Monaco (kept off the startup bundle).
@@ -27,12 +27,9 @@ export const extension: Extension = {
     // the public primitive). See ctx-domains.md "The editor surface".
     ctx.registerDockPanelKind({
       id: "editor",
-      component: ((props: DockPanelProps) => (
-        <EditorPanel
-          {...(props as unknown as Parameters<typeof EditorPanel>[0])}
-          ctx={ctx}
-        />
-      )) as React.ComponentType<DockPanelProps>,
+      component: (props: DockPanelProps<EditorPanelParams>) => (
+        <EditorPanel {...props} ctx={ctx} />
+      ),
     });
     ctx.registerEditor({
       id: "text",

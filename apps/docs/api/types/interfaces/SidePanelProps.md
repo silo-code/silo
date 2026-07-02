@@ -1,6 +1,6 @@
 # Interface: SidePanelProps
 
-Defined in: [packages/sdk/src/types.ts:313](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L313)
+Defined in: [packages/sdk/src/types.ts:331](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L331)
 
 Props passed to a [SidePanel](SidePanel.md) component.
 
@@ -12,7 +12,7 @@ Props passed to a [SidePanel](SidePanel.md) component.
 active: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:315](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L315)
+Defined in: [packages/sdk/src/types.ts:333](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L333)
 
 True when this side panel is currently visible / selected in its column.
 
@@ -24,7 +24,7 @@ True when this side panel is currently visible / selected in its column.
 storage: ExtensionStorage;
 ```
 
-Defined in: [packages/sdk/src/types.ts:324](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L324)
+Defined in: [packages/sdk/src/types.ts:342](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L342)
 
 Namespaced, persisted key/value storage scoped to this panel id (the
 `workspace` scope of [ExtensionStorageScopes](ExtensionStorageScopes.md), keyed by panel rather
@@ -41,7 +41,7 @@ extension-level settings shared across surfaces and workspaces, use
 hydrated: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:330](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L330)
+Defined in: [packages/sdk/src/types.ts:348](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L348)
 
 True once the persisted app state has finished loading from disk.
 Panels should defer restoring values from `storage` until this is true
