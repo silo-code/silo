@@ -120,4 +120,4 @@ const logo = base === "light" ? lightLogo : darkLogo;
 
 - [Design tokens](/api/theming) — the full token reference.
 - [Building a theme](/guide/theming) — the producer side: recolor the whole surface.
-- [`ctx.theme`](/api/theme/) · [`ctx.registerThemePreset`](/api/registration/register-theme-preset).
+- [`ctx.theme`](/api/theme/) · [`ctx.theme.registerPreset`](/api/theme/#registerpreset).

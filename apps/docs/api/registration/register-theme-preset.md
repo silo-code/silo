@@ -1,4 +1,7 @@
-# ctx.registerThemePreset
+# ctx.registerThemePreset <Badge type="warning" text="deprecated" />
+
+> **Deprecated.** Use [`ctx.theme.registerPreset()`](/api/theme/#registerpreset) instead.
+> This method works unchanged today but will be removed in a future release.
 
 Contribute a selectable theme to the picker. Core ships only **Dark** and
 **Light**; every other theme — Tokyo Night, Solarized Light, Gruvbox Dark, and
@@ -6,13 +9,17 @@ anything your extension adds — is registered this way. The preset's `vars`
 override the base palette in `theme.css` when it's the active theme.
 
 ```ts
+// Preferred — domain-consistent placement:
+ctx.theme.registerPreset(preset: ThemePreset): Disposable
+
+// Deprecated alias (same behavior, removed in a future release):
 ctx.registerThemePreset(preset: ThemePreset): Disposable
 ```
 
 ## Example
 
 ```ts
-ctx.registerThemePreset({
+ctx.theme.registerPreset({
   id: "acme.midnight",
   name: "Midnight",
   base: "dark", // Monaco/xterm base + the data-theme attribute

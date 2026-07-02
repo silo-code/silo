@@ -89,6 +89,9 @@ export function getThemeService(): ThemeService {
     reloadCustom: reloadCustomThemes,
     exportTheme,
     importTheme,
+    registerPreset(preset) {
+      return themePresetRegistry.register(preset);
+    },
   };
   return service;
 }

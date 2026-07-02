@@ -33,7 +33,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.workspaces.registerStatus`                | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces)                                                              |
 | `ctx.workspaces.registerSection`               | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces#workspace-sections)                                           |
 | `ctx.files`                                    | <Badge type="tip" text="stable" />   | [docs](/api/files/)                                                                        |
-| `ctx.theme` + `registerThemePreset`            | <Badge type="tip" text="stable" />   | [docs](/api/theme/)                                                                        |
+| `ctx.theme` + `ctx.theme.registerPreset`       | <Badge type="tip" text="stable" />   | [docs](/api/theme/)                                                                        |
 | `ctx.dnd` (drag-and-drop)                      | <Badge type="tip" text="stable" />   | [docs](/api/dnd/)                                                                          |
 | `useServiceState` (reactive reads)             | <Badge type="tip" text="stable" />   | [docs](/api/other/use-service-state)                                                       |
 | `useFocusGroup` (keyboard nav for a group)     | <Badge type="tip" text="stable" />   | [docs](/api/other/use-focus-group)                                                         |

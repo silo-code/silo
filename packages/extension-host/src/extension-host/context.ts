@@ -159,7 +159,12 @@ export function createContext(
     terminals: getTerminalService(),
     files: getScopedFileService(scope),
     search: getScopedSearchService(scope),
-    theme: getThemeService(),
+    theme: {
+      ...getThemeService(),
+      registerPreset(preset: ThemePreset): Disposable {
+        return track(themePresetRegistry.register(preset));
+      },
+    },
     dnd: getDndService(),
     ui: getUiService(),
     net: getNetworkService(),

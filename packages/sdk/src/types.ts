@@ -502,7 +502,11 @@ export interface ExtensionContext {
   registerStatusItem(item: StatusItem): Disposable;
   /** Register a {@link SettingsPage} (a page in the Settings dialog). */
   registerSettingsPage(page: SettingsPage): Disposable;
-  /** Register a {@link ThemePreset} (a selectable theme in the picker). */
+  /**
+   * Register a {@link ThemePreset} (a selectable theme in the picker).
+   * @deprecated Use {@link ThemeService.registerPreset | ctx.theme.registerPreset()} instead.
+   *   This method will be removed in a future release.
+   */
   registerThemePreset(preset: ThemePreset): Disposable;
   /**
    * Invoke a registered command by id — including commands contributed by
