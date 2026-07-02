@@ -49,3 +49,11 @@ echo "→ Running unit tests…"
 # app over the RPC, so it's unsuitable for a commit gate — run it explicitly via
 # `pnpm --filter silo test:it`. See docs/AUTOMATION.md.
 $PNPM --silent test 2>/dev/null || fail "tests failed (see errors above)"
+
+# Docs link check — only when docs or SDK source files are staged. Catches dead
+# links (like /api/types/type-aliases/ → /interfaces/) before they reach CI.
+STAGED_DOCS=$(git diff --cached --name-only | grep -E '^(apps/docs/|packages/sdk/src/)' | head -1)
+if [ -n "$STAGED_DOCS" ]; then
+  echo "→ Docs or SDK source staged — running docs build (link check)…"
+  $PNPM --filter @silo-code/docs build 2>/dev/null || fail "docs build failed — dead link or build error (see errors above)"
+fi

@@ -90,10 +90,10 @@ silo uninstall dave.git-branch
 
 **macOS** (v0.4.0):
 
-| Build                    | Link                                                                        |
-| ------------------------ | --------------------------------------------------------------------------- |
-| Apple Silicon (M1/M2/M3) | [Silo_0.4.0_aarch64.dmg](https://github.com/silo-code/silo/releases/latest) |
-| Intel Mac                | [Silo_0.4.0_x64.dmg](https://github.com/silo-code/silo/releases/latest)     |
+| Build                    | Link                                                               |
+| ------------------------ | ------------------------------------------------------------------ |
+| Apple Silicon (M1/M2/M3) | [Download .dmg](https://github.com/silo-code/silo/releases/latest) |
+| Intel Mac                | [Download .dmg](https://github.com/silo-code/silo/releases/latest) |
 
 **Linux** (v0.4.0):
 
