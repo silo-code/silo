@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.21.0](https://github.com/silo-code/silo/compare/silo-v0.20.0...silo-v0.21.0) (2026-07-02)
+
+
+### Features
+
+* add Dark preset text/border contrast overrides ([#159](https://github.com/silo-code/silo/issues/159)) ([b5d79cf](https://github.com/silo-code/silo/commit/b5d79cfe18ce5e87dad60157d79bff0eb51af3e6))
+* add nightly release channel alongside stable ([#154](https://github.com/silo-code/silo/issues/154)) ([7f7adfe](https://github.com/silo-code/silo/commit/7f7adfe46bca1b7170d8b5d5a13eb546b349c64a))
+* **file-explorer:** persist scroll position and per-root selection across workspace switches ([#158](https://github.com/silo-code/silo/issues/158)) ([5219de1](https://github.com/silo-code/silo/commit/5219de179440f6563097b7ee14b42d5109cdbb0e))
+* **sdk:** breaking-change cleanup batch + active-terminal tracking ([#161](https://github.com/silo-code/silo/issues/161)) ([421ea20](https://github.com/silo-code/silo/commit/421ea20897e551a7898a057599c4b56954fef586))
+
+
+### Bug Fixes
+
+* improve workspace group text contrast on light themes ([#156](https://github.com/silo-code/silo/issues/156)) ([5cff9d6](https://github.com/silo-code/silo/commit/5cff9d68d279a596e3f3adf63ddaace35b8bf170))
+* remove .git from file watch skip list for git panel auto-refresh ([348f1d7](https://github.com/silo-code/silo/commit/348f1d77f6b062c21cdb390410551296b4c0a372))
+* two-tone gear settings icon and simplify commit placeholder ([#160](https://github.com/silo-code/silo/issues/160)) ([762f9ab](https://github.com/silo-code/silo/commit/762f9abb67d494e9c4c24327babaccf9ee1e191b))
+* use cross-platform temp dir for nightly config merge ([#163](https://github.com/silo-code/silo/issues/163)) ([5c76202](https://github.com/silo-code/silo/commit/5c762027fc11799065a0edb5d8fcafad48117f78))
+
 ## [0.20.0](https://github.com/silo-code/silo/compare/silo-v0.19.0...silo-v0.20.0) (2026-07-01)
 
 
