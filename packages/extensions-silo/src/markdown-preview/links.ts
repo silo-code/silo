@@ -2,6 +2,8 @@
 // the React component so it's unit-testable — the component is thin glue that
 // turns these results into `ctx.editors.open` / `ctx.ui.openExternal` / a scroll.
 
+import { path } from "@silo-code/sdk";
+
 /**
  * What a clicked preview link resolves to:
  * - `anchor` — a same-document `#id` fragment; scroll the matching element into view.
@@ -54,15 +56,16 @@ export function classifyMarkdownLink(
 
   // Otherwise a relative or absolute file path. Drop any `?query`/`#fragment`
   // before resolving — the editor opens a file, not a URL.
-  const path = resolveFilePath(raw.split(/[?#]/, 1)[0], filePath);
-  return path ? { kind: "file", path } : { kind: "ignore" };
+  const resolvedPath = resolveFilePath(raw.split(/[?#]/, 1)[0], filePath);
+  return resolvedPath
+    ? { kind: "file", path: resolvedPath }
+    : { kind: "ignore" };
 }
 
 /**
- * Resolve a link path against the previewed file's directory, POSIX-style
- * (the app is macOS). Returns an absolute path, or `null` when it can't resolve
- * (no `filePath`, or an empty link). Hand-rolled rather than using `node:path`,
- * which extensions are banned from importing.
+ * Resolve a link path against the previewed file's directory. Returns an
+ * absolute path, or `null` when it can't resolve (no `filePath`, or an empty
+ * link). Uses `path` utilities from the SDK — no hand-rolled path logic.
  */
 export function resolveFilePath(
   link: string,
@@ -71,23 +74,6 @@ export function resolveFilePath(
   if (!filePath) return null;
   const rel = decode(link);
   if (!rel) return null;
-
-  const isAbsolute = rel.startsWith("/");
-  const base = isAbsolute ? "" : dirname(filePath);
-  const stack: string[] = [];
-  for (const seg of `${base}/${rel}`.split("/")) {
-    if (seg === "" || seg === ".") continue;
-    if (seg === "..") {
-      stack.pop();
-      continue;
-    }
-    stack.push(seg);
-  }
-  return `/${stack.join("/")}`;
-}
-
-/** POSIX dirname: the path up to (not including) the last `/`. */
-function dirname(p: string): string {
-  const i = p.lastIndexOf("/");
-  return i <= 0 ? "/" : p.slice(0, i);
+  if (path.isAbsolute(rel)) return path.normalize(rel);
+  return path.join(path.dirname(filePath), rel);
 }

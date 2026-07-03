@@ -1,5 +1,6 @@
 /**
- * The Silo extension API — types only.
+ * The Silo extension API — types-first contract plus a small set of blessed
+ * runtime helpers.
  *
  * Everything an extension author can see at compile time lives here (plus the
  * service interfaces in the sibling `*-service` files, which this module
@@ -7,6 +8,12 @@
  * via {@link ExtensionContext}; extensions compile *against* these types and
  * never import the host. This is the VS Code (`vscode.d.ts`) / Obsidian
  * (`obsidian-api`) model.
+ *
+ * **Runtime exports:** the SDK also ships a small set of blessed runtime
+ * helpers (`Tooltip`, `useFocusGroup`, `useServiceState`, `DND_MIME`,
+ * `PathDeniedError`, `NetworkError`) and peer-depends on React 19. Changes to
+ * these can be breaking even when the types are unchanged — treat them with
+ * the same care as the type surface.
  *
  * Start with {@link Extension} (the unit you export) and
  * {@link ExtensionContext} (the `ctx` the host hands you).
@@ -207,10 +214,10 @@ export interface NewFileTemplate {
 
 /**
  * Declarative metadata about a file extension — the open-ended counterpart to
- * Viewer (which is purely a renderer). A single source of truth that "New File"
- * surfaces (and, later, tab/explorer icons) can enumerate. Registering a
- * FileType does not register a viewer; the two are matched independently by
- * extension at dispatch time.
+ * {@link Editor} (which is purely a presenter/renderer). A single source of
+ * truth that "New File" surfaces (and, later, tab/explorer icons) can
+ * enumerate. Registering a FileType does not register an Editor; the two are
+ * matched independently by extension at dispatch time.
  *
  * @category Registration
  * @public

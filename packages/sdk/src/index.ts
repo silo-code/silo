@@ -1,10 +1,16 @@
 /**
- * The public Silo extension API surface — the single curated entry point an
- * extension author imports from. This is the seed of the future `@silo-code/sdk`
- * package: it re-exports **only** the blessed, permanently supported types.
- * Anything not re-exported here is host-internal and may change without notice.
+ * The `@silo-code/sdk` public surface — the single curated entry point an
+ * extension author imports from. Re-exports **only** the blessed, permanently
+ * supported types and runtime helpers. Anything not re-exported here is
+ * host-internal and may change without notice.
  *
- * It is also the entry point the API-reference generator (TypeDoc) reads, so
+ * **What's here:** the types-first extension contract (see `types.ts`) plus a
+ * small set of blessed runtime helpers (`Tooltip`, `useFocusGroup`,
+ * `useServiceState`, `DND_MIME`, `PathDeniedError`, `NetworkError`). The SDK
+ * peer-depends on React 19; changes to the runtime helpers can be breaking
+ * even when the types are unchanged.
+ *
+ * This is also the entry point the API-reference generator (TypeDoc) reads, so
  * the published reference is exactly this surface — no more, no less.
  *
  * @packageDocumentation
@@ -66,6 +72,9 @@ export type {
   DiffContent,
   DiffContentRequest,
   DiffContentProvider,
+  ActiveEditorInfo,
+  EditorsState,
+  EditorSaveEvent,
 } from "./editor-service";
 export type {
   LayoutService,
@@ -167,6 +176,7 @@ export type {
   NetworkService,
   NetworkRequestOptions,
   NetworkResponse,
+  NetworkBytesResponse,
 } from "./network-service";
 
 // Static host-platform metadata: OS, CPU arch, and Silo version.
@@ -179,6 +189,15 @@ export type { LogService, LogLevel } from "./output-service";
 
 // Context keys referenced by `when` predicates on menu items / keybindings.
 export type { ContextKeys } from "./context-keys";
+
+// Typed event primitive: a subscribable Event<T> that returns a Disposable.
+// The matching host-side emitter is internal to the extension-host package.
+export type { Event } from "./event";
+
+// Pure path utilities — cross-platform replacement for `node:path` (banned in
+// extensions). All outputs use forward-slash separators. Both "/" and "\" are
+// accepted as input. Exported as a namespaced `path` object.
+export { path } from "./path";
 
 // Tooltip — the same styled hover popup the host uses in the status bar.
 // Extensions use this instead of native `title` attributes to match host chrome.

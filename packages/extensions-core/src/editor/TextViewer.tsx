@@ -34,6 +34,8 @@ import {
   peekPendingReveal,
   onRevealRequest,
   registerSelectionSource,
+  registerDocumentProvider,
+  emitDidSave,
   type RevealSelection,
 } from "@silo-code/extension-host/internal";
 import "./EditorPanel.css";
@@ -167,6 +169,7 @@ export function TextViewer({
       setDirty(false);
       setDeleted(false); // the write just (re)created the file
       void clearEditorBackup(editorId);
+      emitDidSave({ editorId, filePath: path });
     } catch (err) {
       setError(String(err));
     }
@@ -311,6 +314,7 @@ export function TextViewer({
       setDirty(false);
       setDeleted(false);
       void clearEditorBackup(editorId);
+      emitDidSave({ editorId, filePath: picked });
     } catch (err) {
       setError(String(err));
     }
@@ -321,7 +325,17 @@ export function TextViewer({
       save,
       saveAs,
     });
-    return () => sub.dispose();
+    // Expose live buffer text + dirty state to `ctx.editors.getText`/`isDirty`.
+    // Reads the Monaco instance directly (falling back to mirrored `content`
+    // before first paint), so it reflects unsaved edits.
+    const docSub = registerDocumentProvider(editorId, {
+      getText: () => editorRef.current?.getValue() ?? content ?? "",
+      isDirty: () => dirtyRef.current,
+    });
+    return () => {
+      sub.dispose();
+      docSub.dispose();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorId]);
 

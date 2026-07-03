@@ -44,8 +44,12 @@ export interface NetworkRequestOptions {
   method?: "GET" | "HEAD" | "POST" | "PUT" | "DELETE" | "PATCH";
   /** Request headers to send. */
   headers?: Record<string, string>;
-  /** Request body (string). Only meaningful for methods that carry a body. */
-  body?: string;
+  /**
+   * Request body. A string is sent as-is; an `ArrayBuffer` / `Uint8Array` is
+   * sent as raw bytes (e.g. uploading a file). Only meaningful for methods that
+   * carry a body.
+   */
+  body?: string | ArrayBuffer | Uint8Array;
   /** Follow HTTP redirects. Defaults to `true`. */
   followRedirects?: boolean;
   /** Request timeout in milliseconds. Omit for the platform default (~30 s). */
@@ -68,6 +72,24 @@ export interface NetworkResponse {
   headers: Record<string, string>;
   /** Response body decoded as UTF-8 text. */
   body: string;
+  /** Final URL after redirects. */
+  finalUrl: string;
+}
+
+/**
+ * Response from {@link NetworkService.fetchBytes} — identical to
+ * {@link NetworkResponse} but with the body delivered as raw bytes.
+ *
+ * @category Core Types
+ * @public
+ */
+export interface NetworkBytesResponse {
+  /** HTTP status code. */
+  status: number;
+  /** Response headers, lowercased (multi-value joined with `", "`). */
+  headers: Record<string, string>;
+  /** Response body as raw bytes. */
+  body: ArrayBuffer;
   /** Final URL after redirects. */
   finalUrl: string;
 }
@@ -103,6 +125,33 @@ export interface NetworkService {
    * ```
    */
   fetch(url: string, options?: NetworkRequestOptions): Promise<NetworkResponse>;
+
+  /**
+   * Like {@link NetworkService.fetch}, but resolves the response body as raw
+   * bytes ({@link NetworkBytesResponse}) instead of decoding it as UTF-8 text —
+   * for downloading images, archives, or any binary payload.
+   *
+   * @param url - The URL to fetch.
+   * @param options - Method, headers, body, redirect and timeout controls. The
+   *   body may itself be binary (`ArrayBuffer` / `Uint8Array`).
+   * @throws {@link NetworkError} if the request fails.
+   *
+   * @remarks
+   * The body rides Tauri's binary IPC channel (no base64), but the whole
+   * response is still buffered in memory on both sides — suitable for typical
+   * asset downloads (up to a few tens of MB), not for streaming multi-hundred-MB
+   * files.
+   *
+   * @example
+   * ```ts
+   * const { body } = await ctx.net.fetchBytes("https://example.com/logo.png");
+   * await ctx.files.writeBytes("logo.png", body);
+   * ```
+   */
+  fetchBytes(
+    url: string,
+    options?: NetworkRequestOptions,
+  ): Promise<NetworkBytesResponse>;
 
   /**
    * Send a `HEAD` request and return only the response headers — no body is

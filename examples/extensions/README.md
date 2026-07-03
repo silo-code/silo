@@ -7,13 +7,14 @@ touches the app **only** through `ctx` and the public
 extension would. Together they form a ladder: start at the top and add one new
 surface at a time.
 
-| Example                                              | What it teaches                                                                        | How you reach it          | Requests  |
-| ---------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------- | --------- |
-| **[hello](./hello-extension)**                       | The minimal skeleton — one command + one status item. **Copy this to start your own.** | status bar                | —         |
-| **[clock](./clock-extension)**                       | Live state (a reactive store + `useServiceState`) and a **settings page**.             | status bar                | —         |
-| **[notify-demo](./notify-demo-extension)**           | The `ctx.ui` surface — toasts, `showModal`, `confirm`, `prompt`, `showMenu`.           | View menu / `cmd+shift+m` | —         |
-| **[scratchpad](./scratchpad-extension)**             | A **side panel** with persisted state.                                                 | side panel                | —         |
-| **[permissions-demo](./permissions-demo-extension)** | Workspace **path-scoping** and the capability consent flow.                            | status bar                | `fs:read` |
+| Example                                              | What it teaches                                                                                                      | How you reach it          | Requests  |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------- | --------- |
+| **[hello](./hello-extension)**                       | The minimal skeleton — one command + one status item. **Copy this to start your own.**                               | status bar                | —         |
+| **[clock](./clock-extension)**                       | Live state (a reactive store + `useServiceState`) and a **settings page**.                                           | status bar                | —         |
+| **[notify-demo](./notify-demo-extension)**           | The `ctx.ui` surface — toasts, `showModal`, `confirm`, `prompt`, `showMenu`.                                         | View menu / `cmd+shift+m` | —         |
+| **[scratchpad](./scratchpad-extension)**             | A **side panel** with persisted state.                                                                               | side panel                | —         |
+| **[permissions-demo](./permissions-demo-extension)** | Workspace **path-scoping** and the capability consent flow.                                                          | status bar                | `fs:read` |
+| **[sdk-playground](./sdk-playground-extension)**     | Live demos of the newest `ctx` APIs (editor text, terminal I/O, file bytes, exec, cancellable search, binary fetch). | side panel                | —         |
 
 ## Which one do I want?
 

@@ -53,13 +53,13 @@ export interface SystemInfo {
  *       ctx.subscriptions.push(
  *         ctx.registerCommand({
  *           id: "my.reveal-in-finder",
- *           title: "Reveal in Finder",
+ *           label: "Reveal in Finder",
  *           run() { ... },
  *         }),
  *       );
  *     }
  *
- *     ctx.ui.notify({ title: `Running Silo ${siloVersion} on ${os}/${arch}` });
+ *     ctx.ui.notify("info", `Running Silo ${siloVersion} on ${os}/${arch}`);
  *   },
  * };
  * ```

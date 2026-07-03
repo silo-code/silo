@@ -17,11 +17,15 @@ rendered by the core dock from the workspace's terminal records.
 create(input?): TerminalRecord | undefined;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L102)
+Defined in: [packages/sdk/src/terminal-service.ts:106](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L106)
 
 Open a new terminal in a workspace (defaults to the active one). Returns the
 created [TerminalRecord](TerminalRecord.md); the PTY session spawns lazily when its tab
 mounts.
+
+Returns `undefined` only when `input.workspaceId` is not given and there is
+no active workspace at the time of the call — in normal use this does not
+happen because activating any workspace happens before extensions run.
 
 #### Parameters
 
@@ -41,7 +45,7 @@ mounts.
 closeWorkspace(workspaceId): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:104](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L104)
+Defined in: [packages/sdk/src/terminal-service.ts:108](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L108)
 
 Close and kill every terminal in a workspace (e.g. on workspace delete).
 
@@ -57,13 +61,118 @@ Close and kill every terminal in a workspace (e.g. on workspace delete).
 
 ***
 
+### sendText()
+
+```ts
+sendText(
+   terminalId, 
+   text, 
+   addNewline?): void;
+```
+
+Defined in: [packages/sdk/src/terminal-service.ts:129](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L129)
+
+Write text to a terminal's PTY as if the user typed it. By default a
+carriage return is appended so the line executes; pass `addNewline: false`
+to stage text without running it.
+
+Works even if the terminal tab has never been shown: the PTY spawns lazily
+on first mount, and `sendText` force-spawns it on demand (a later mount then
+attaches to that same session). No-op for an unknown `terminalId`.
+
+#### Parameters
+
+##### terminalId
+
+`string`
+
+The [TerminalRecord.id](TerminalRecord.md#id) to write to.
+
+##### text
+
+`string`
+
+The text to send.
+
+##### addNewline?
+
+`boolean`
+
+Append a carriage return to execute. Defaults to `true`.
+
+#### Returns
+
+`void`
+
+#### Example
+
+```ts
+const term = ctx.terminals.create({ cwd: workspaceFolder });
+if (term) ctx.terminals.sendText(term.id, "npm run build");
+```
+
+***
+
+### close()
+
+```ts
+close(terminalId): void;
+```
+
+Defined in: [packages/sdk/src/terminal-service.ts:136](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L136)
+
+Close one terminal tab and kill its PTY session. No-op if the id is unknown.
+To reap every terminal in a workspace at once use
+[TerminalService.closeWorkspace](#closeworkspace).
+
+#### Parameters
+
+##### terminalId
+
+`string`
+
+#### Returns
+
+`void`
+
+***
+
+### rename()
+
+```ts
+rename(terminalId, name): void;
+```
+
+Defined in: [packages/sdk/src/terminal-service.ts:144](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L144)
+
+Set a terminal's user-facing name ([TerminalRecord.customName](TerminalRecord.md#customname)),
+shown on its tab and persisted across restarts. Passing an empty string
+clears the custom name, letting the PTY-derived title take over again.
+No-op for an unknown `terminalId`.
+
+#### Parameters
+
+##### terminalId
+
+`string`
+
+##### name
+
+`string`
+
+#### Returns
+
+`void`
+
+***
+
 ### focus()
 
 ```ts
 focus(terminalId): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:110](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L110)
+Defined in: [packages/sdk/src/terminal-service.ts:150](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L150)
 
 Switch to the workspace containing this terminal and activate its tab in
 the center dock. No-ops if the terminal id is unknown.
@@ -86,7 +195,7 @@ the center dock. No-ops if the terminal id is unknown.
 registerTabDecoration(provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:118](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L118)
+Defined in: [packages/sdk/src/terminal-service.ts:158](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L158)
 
 Register a decoration provider for terminal tabs. The first registered
 provider that returns a non-null decoration for a terminal wins; subsequent
@@ -111,7 +220,7 @@ the provider.
 getTabDecoration(terminalId): TerminalTabDecoration | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:124](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L124)
+Defined in: [packages/sdk/src/terminal-service.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L164)
 
 Get the current decoration for a terminal tab. Returns the first non-null
 result from registered providers, or `null` if none apply.
@@ -134,7 +243,7 @@ result from registered providers, or `null` if none apply.
 invalidateTabDecorations(): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:131](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L131)
+Defined in: [packages/sdk/src/terminal-service.ts:171](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L171)
 
 Signal that tab decoration data has changed. Fires all listeners registered
 via [TerminalService.subscribeTabDecorations](#subscribetabdecorations), causing terminal tabs
@@ -152,7 +261,7 @@ to re-query providers and re-render their decoration.
 subscribeTabDecorations(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L137)
+Defined in: [packages/sdk/src/terminal-service.ts:177](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L177)
 
 Subscribe to tab decoration invalidations. Returns a [Disposable](Disposable.md)
 that cancels the subscription.
@@ -175,7 +284,7 @@ that cancels the subscription.
 subscribeOsc(terminalId, handler): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:167](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L167)
+Defined in: [packages/sdk/src/terminal-service.ts:207](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L207)
 
 Subscribe to raw OSC (Operating System Command) escape sequences emitted
 by the terminal identified by `terminalId`. The handler is called once per
@@ -227,7 +336,7 @@ ctx.subscriptions.push(sub);
 getActive(): string | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:179](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L179)
+Defined in: [packages/sdk/src/terminal-service.ts:219](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L219)
 
 The record id of the terminal tab that is currently active in the active
 workspace's center dock, or `null` when an editor tab (or nothing) is
@@ -247,7 +356,7 @@ split does not count.
 subscribeActive(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:201](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L201)
+Defined in: [packages/sdk/src/terminal-service.ts:241](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L241)
 
 Subscribe to active-terminal changes. The listener receives the terminal
 record id whenever a terminal tab becomes the active center-dock panel,

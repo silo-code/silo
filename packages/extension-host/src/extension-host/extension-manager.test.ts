@@ -41,8 +41,11 @@ vi.mock("../services/tauri-fs", () => ({
   fsReadBytes: vi.fn(),
   fsReadDir: vi.fn(),
   fsCreateDir: vi.fn(),
+  fsWriteBytes: vi.fn(),
+  fsStat: vi.fn(),
   fsRename: vi.fn(),
   fsReveal: vi.fn(),
+  fsCopy: vi.fn(),
 }));
 vi.mock("../services/tauri-watch", () => ({
   startWatch: vi.fn(),

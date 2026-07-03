@@ -2,12 +2,15 @@ import {
   fsReadText,
   fsReadBytes,
   fsWriteText,
+  fsWriteBytes,
   fsCreateDir,
   fsPathExists,
+  fsStat,
   fsRename,
   fsDelete,
   fsReveal,
   fsReadDir,
+  fsCopy,
 } from "../services/tauri-fs";
 import { startWatch, stopWatch, onFileChange } from "../services/tauri-watch";
 import { resolvePath } from "./security/resolve-path";
@@ -56,8 +59,11 @@ export function getFileService(): FileService {
     readBytes: fsReadBytes,
     readDir: fsReadDir,
     pathExists: fsPathExists,
+    stat: fsStat,
     writeText: fsWriteText,
+    writeBytes: fsWriteBytes,
     createDir: fsCreateDir,
+    copy: fsCopy,
     rename: fsRename,
     delete: fsDelete,
     reveal: fsReveal,
@@ -134,8 +140,12 @@ export function scopeFileService(
     readBytes: async (p) => base.readBytes(read(p)),
     readDir: async (p) => base.readDir(read(p)),
     pathExists: async (p) => base.pathExists(read(p)),
+    stat: async (p) => base.stat(read(p)),
     writeText: async (p, content) => base.writeText(write(p), content),
+    writeBytes: async (p, data) => base.writeBytes(write(p), data),
     createDir: async (p) => base.createDir(write(p)),
+    // copy reads the source and writes the destination — check both.
+    copy: async (src, dest) => base.copy(read(src), write(dest)),
     rename: async (oldPath, newPath) =>
       base.rename(write(oldPath), write(newPath)),
     delete: async (p) => base.delete(write(p)),

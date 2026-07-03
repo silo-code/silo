@@ -1,6 +1,6 @@
 # Interface: DockPanelApi
 
-Defined in: [packages/sdk/src/types.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L64)
+Defined in: [packages/sdk/src/types.ts:71](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L71)
 
 The panel API handed to a [DockPanelKind](DockPanelKind.md) component. Use these methods
 to drive the panel's own tab (title, close, focus) and update its stored
@@ -15,7 +15,7 @@ this object directly.
 readonly isActive: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L72)
+Defined in: [packages/sdk/src/types.ts:79](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L79)
 
 `true` while this panel is the active one in its dock group.
 
@@ -27,7 +27,7 @@ Defined in: [packages/sdk/src/types.ts:72](https://github.com/silo-code/silo/blo
 readonly isVisible: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:87](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L87)
+Defined in: [packages/sdk/src/types.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L94)
 
 `true` while this panel is visible — its tab is the selected one in its
 group. Distinct from [isActive](#isactive): with split
@@ -42,7 +42,7 @@ whole dock is active.
 setTitle(title): void;
 ```
 
-Defined in: [packages/sdk/src/types.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L66)
+Defined in: [packages/sdk/src/types.ts:73](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L73)
 
 Update the title shown in the panel's tab.
 
@@ -64,7 +64,7 @@ Update the title shown in the panel's tab.
 close(): void;
 ```
 
-Defined in: [packages/sdk/src/types.ts:68](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L68)
+Defined in: [packages/sdk/src/types.ts:75](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L75)
 
 Programmatically close this panel.
 
@@ -80,7 +80,7 @@ Programmatically close this panel.
 setActive(): void;
 ```
 
-Defined in: [packages/sdk/src/types.ts:70](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L70)
+Defined in: [packages/sdk/src/types.ts:77](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L77)
 
 Bring this panel to focus (make it the active panel in its group).
 
@@ -96,7 +96,7 @@ Bring this panel to focus (make it the active panel in its group).
 onDidActiveChange(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L78)
+Defined in: [packages/sdk/src/types.ts:85](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L85)
 
 Subscribe to active-state transitions. The listener is called whenever
 the panel gains or loses active status, with an event carrying the new
@@ -120,7 +120,7 @@ state. Returns a [Disposable](Disposable.md) that cancels the subscription.
 onDidVisibilityChange(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L94)
+Defined in: [packages/sdk/src/types.ts:101](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L101)
 
 Subscribe to visibility transitions (the panel's tab being selected or
 deselected in its group). Use to pause expensive work while hidden, or to
@@ -145,7 +145,7 @@ visible again). Returns a [Disposable](Disposable.md) that cancels the subscript
 updateParameters(params): void;
 ```
 
-Defined in: [packages/sdk/src/types.ts:102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L102)
+Defined in: [packages/sdk/src/types.ts:109](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L109)
 
 Shallow-merge `params` into this panel's stored parameters. Keys absent
 from `params` are left unchanged. Useful for keeping tabs-serializable

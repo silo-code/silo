@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { store } from "../state/store";
 import { PathDeniedError } from "@silo-code/sdk";
+import { raceAbort } from "./abort";
 import { toAbsolute, withinRoots } from "./security/resolve-path";
 import type { PathScope } from "./security/resolve-path";
 import type { SearchService, SearchResponse } from "@silo-code/sdk";
@@ -29,19 +30,26 @@ export function getSearchService(): SearchService {
       if (cwds.length === 0 && cwd === undefined) {
         return Promise.reject(new PathDeniedError("", "No workspace is open"));
       }
-      return invoke<SearchResponse>("search_files", {
-        query,
-        roots: { cwds, cwd: cwds.length === 0 ? cwd : undefined },
-        options: {
-          regex: options?.regex ?? false,
-          caseSensitive: options?.caseSensitive ?? false,
-          wholeWord: options?.wholeWord ?? false,
-          includeGlobs: options?.includeGlobs ?? [],
-          excludeGlobs: options?.excludeGlobs ?? [],
-          maxResults: options?.maxResults ?? 0,
-          maxFileSize: null,
-        },
-      });
+      // The native `search_files` run (ripgrep on a blocking thread) can't be
+      // interrupted mid-flight, so cancellation is result-discard: `raceAbort`
+      // rejects the caller's promise on abort and drops the eventual result.
+      return raceAbort(
+        invoke<SearchResponse>("search_files", {
+          query,
+          roots: { cwds, cwd: cwds.length === 0 ? cwd : undefined },
+          options: {
+            regex: options?.regex ?? false,
+            caseSensitive: options?.caseSensitive ?? false,
+            wholeWord: options?.wholeWord ?? false,
+            includeGlobs: options?.includeGlobs ?? [],
+            excludeGlobs: options?.excludeGlobs ?? [],
+            maxResults: options?.maxResults ?? 0,
+            maxFileSize: null,
+          },
+        }),
+        options?.signal,
+        "The search was aborted",
+      );
     },
   };
   return service;

@@ -1,6 +1,6 @@
 # Interface: Disposable
 
-Defined in: [packages/sdk/src/types.ts:51](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L51)
+Defined in: [packages/sdk/src/types.ts:58](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L58)
 
 The teardown handle returned by every `register*` call on
 [ExtensionContext](ExtensionContext.md). Calling [dispose](#dispose)
@@ -16,7 +16,7 @@ down wholesale.
 dispose(): void;
 ```
 
-Defined in: [packages/sdk/src/types.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L52)
+Defined in: [packages/sdk/src/types.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L59)
 
 #### Returns
 

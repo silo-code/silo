@@ -1,4 +1,6 @@
-use std::process::Command;
+use std::collections::HashMap;
+use std::process::{Command, Stdio};
+use std::sync::{Mutex as StdMutex, OnceLock};
 
 use parking_lot::Mutex;
 use serde::Serialize;
@@ -7,8 +9,20 @@ use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 #[cfg(unix)]
 use libc;
 
+#[cfg(unix)]
+use std::os::unix::process::CommandExt as UnixCommandExt;
+
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
+
+/// Maps an in-flight exec's caller-supplied id → the OS pid of its spawned
+/// child (which is also its process-group id on Unix, since we spawn it as a
+/// group leader). Lets `process_exec_kill` terminate a still-running `exec` on
+/// timeout / abort. Entries are removed as soon as the child exits.
+fn exec_registry() -> &'static StdMutex<HashMap<String, u32>> {
+    static R: OnceLock<StdMutex<HashMap<String, u32>>> = OnceLock::new();
+    R.get_or_init(|| StdMutex::new(HashMap::new()))
+}
 
 /// Tauri-managed state for process resource stats (ctx.processes.enableStats).
 /// Holds a sysinfo::System that is refreshed in-place on each `process_get_stats`
@@ -55,10 +69,16 @@ pub async fn process_exec(
     command: String,
     args: Vec<String>,
     cwd: Option<String>,
+    env: Option<HashMap<String, String>>,
+    exec_id: Option<String>,
 ) -> Result<ExecResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let mut cmd = Command::new(&command);
         cmd.args(&args);
+        // Pipe so we can capture output via wait_with_output while still owning
+        // the Child (needed to read its pid for the kill registry).
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
         // On Windows a GUI (windows-subsystem) app spawning a console program
         // like `powershell` allocates a fresh console window. Extensions that
         // poll via ctx.process.exec would flash a window on every call, so
@@ -71,9 +91,30 @@ pub async fn process_exec(
         if let Some(dir) = cwd.as_ref() {
             cmd.current_dir(dir);
         }
-        let output = cmd
-            .output()
+        // Extra env is *merged over* the inherited environment (Command inherits
+        // the parent env by default; `envs` adds/overrides individual keys).
+        if let Some(vars) = env {
+            cmd.envs(vars);
+        }
+        // Put the child in its own process group so a timeout/abort can reap the
+        // whole tree (killpg), not just the direct child — otherwise a shell
+        // wrapper's grandchildren would leak as orphans.
+        #[cfg(unix)]
+        {
+            cmd.process_group(0);
+        }
+        let mut child = cmd
+            .spawn()
             .map_err(|e| format!("failed to run {}: {}", command, e))?;
+        let pid = child.id();
+        if let Some(id) = exec_id.as_ref() {
+            exec_registry().lock().unwrap().insert(id.clone(), pid);
+        }
+        let output = child.wait_with_output();
+        if let Some(id) = exec_id.as_ref() {
+            exec_registry().lock().unwrap().remove(id);
+        }
+        let output = output.map_err(|e| format!("failed to run {}: {}", command, e))?;
         Ok(ExecResult {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
@@ -82,6 +123,45 @@ pub async fn process_exec(
     })
     .await
     .map_err(|e| format!("exec task panicked: {}", e))?
+}
+
+/// Kill a still-running `process_exec` by its caller-supplied `exec_id` — the
+/// backend for `ctx.process.exec`'s `timeoutMs` / `signal` (AbortSignal). No-op
+/// if the exec already finished (its registry entry is gone). On Unix this
+/// SIGTERMs the child's process group (SIGKILL fallback after 2 s); on Windows
+/// it `taskkill /T`s the process tree.
+#[tauri::command]
+pub async fn process_exec_kill(exec_id: String) -> Result<(), String> {
+    let pid = exec_registry().lock().unwrap().get(&exec_id).copied();
+    let Some(pid) = pid else {
+        return Ok(());
+    };
+    #[cfg(unix)]
+    {
+        let pgid = pid as i32;
+        unsafe {
+            libc::killpg(pgid, libc::SIGTERM);
+        }
+        tauri::async_runtime::spawn(async move {
+            tauri::async_runtime::spawn_blocking(move || {
+                std::thread::sleep(std::time::Duration::from_secs(2));
+                unsafe {
+                    libc::killpg(pgid, libc::SIGKILL);
+                }
+            })
+            .await
+            .ok();
+        });
+    }
+    #[cfg(windows)]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        let _ = Command::new("taskkill")
+            .args(["/F", "/T", "/PID", &pid.to_string()])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+    }
+    Ok(())
 }
 
 /// Send SIGTERM to a process group by pgid, then SIGKILL after 3 s if still

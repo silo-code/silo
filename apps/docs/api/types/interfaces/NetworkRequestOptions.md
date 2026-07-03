@@ -34,12 +34,14 @@ Request headers to send.
 ### body?
 
 ```ts
-optional body?: string;
+optional body?: string | ArrayBuffer | Uint8Array<ArrayBufferLike>;
 ```
 
-Defined in: [packages/sdk/src/network-service.ts:48](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L48)
+Defined in: [packages/sdk/src/network-service.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L52)
 
-Request body (string). Only meaningful for methods that carry a body.
+Request body. A string is sent as-is; an `ArrayBuffer` / `Uint8Array` is
+sent as raw bytes (e.g. uploading a file). Only meaningful for methods that
+carry a body.
 
 ***
 
@@ -49,7 +51,7 @@ Request body (string). Only meaningful for methods that carry a body.
 optional followRedirects?: boolean;
 ```
 
-Defined in: [packages/sdk/src/network-service.ts:50](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L50)
+Defined in: [packages/sdk/src/network-service.ts:54](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L54)
 
 Follow HTTP redirects. Defaults to `true`.
 
@@ -61,6 +63,6 @@ Follow HTTP redirects. Defaults to `true`.
 optional timeoutMs?: number;
 ```
 
-Defined in: [packages/sdk/src/network-service.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L52)
+Defined in: [packages/sdk/src/network-service.ts:56](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L56)
 
 Request timeout in milliseconds. Omit for the platform default (~30 s).

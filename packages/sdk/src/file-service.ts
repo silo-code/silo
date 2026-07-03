@@ -82,15 +82,46 @@ export interface FileService {
   readBytes(path: string): Promise<ArrayBuffer>;
   /** List a directory's immediate entries. */
   readDir(path: string): Promise<FileMeta[]>;
-  /** Resolve true if a file or directory exists at `path`. */
+  /**
+   * Resolve true if a file or directory exists at `path`. Prefer
+   * {@link FileService.stat} when you also need the entry's metadata — `stat`
+   * returning non-`null` subsumes this check in one call.
+   */
   pathExists(path: string): Promise<boolean>;
+  /**
+   * Metadata for a single path, following symlinks, or `null` if nothing
+   * exists there. Resolving `null` (rather than rejecting) for an absent path
+   * is deliberate — it makes `stat` a one-call replacement for
+   * {@link FileService.pathExists} that also returns size / mtime / type.
+   * Rejects only on a real I/O error (e.g. a permission failure).
+   */
+  stat(path: string): Promise<FileMeta | null>;
   /** Write UTF-8 text to a file, creating or overwriting it. */
   writeText(path: string, content: string): Promise<void>;
+  /**
+   * Write raw bytes to a file, creating or overwriting it (and creating any
+   * missing parent directories). The byte-oriented counterpart to
+   * {@link FileService.writeText} / {@link FileService.readBytes} — use it for
+   * binary assets (images, archives) where `writeText` would corrupt the data.
+   */
+  writeBytes(path: string, data: ArrayBuffer | Uint8Array): Promise<void>;
   /** Create a directory (and any missing parents). */
   createDir(path: string): Promise<void>;
+  /**
+   * Copy a file or directory from `src` to `dest`, recursively for
+   * directories, creating any missing parent directories. Requires read access
+   * to `src` and write access to `dest` (both are workspace-scoped). Overwrites
+   * existing files at the destination.
+   */
+  copy(src: string, dest: string): Promise<void>;
   /** Rename / move a file or directory. */
   rename(oldPath: string, newPath: string): Promise<void>;
-  /** Delete a file or directory. */
+  /**
+   * **Permanently** delete a file or directory (directories are removed
+   * recursively). This does **not** move the entry to the OS trash/recycle
+   * bin — the delete is irreversible, so confirm destructive removals with the
+   * user first. Rejects if the path does not exist.
+   */
   delete(path: string): Promise<void>;
   /** Reveal a path in the OS file manager (Finder / Explorer). */
   reveal(path: string): Promise<void>;

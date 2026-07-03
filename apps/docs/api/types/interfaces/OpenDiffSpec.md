@@ -1,6 +1,6 @@
 # Interface: OpenDiffSpec
 
-Defined in: [packages/sdk/src/editor-service.ts:93](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L93)
+Defined in: [packages/sdk/src/editor-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L96)
 
 What to open in a diff view, passed to [EditorService.openDiff](EditorService.md#opendiff). The
 diff is **generic** — it renders two contents and knows nothing about where
@@ -17,7 +17,7 @@ revision/mode) and is persisted so the content can be recomputed on restart.
 filePath: string;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L95)
+Defined in: [packages/sdk/src/editor-service.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L98)
 
 The file the diff is OF — drives language detection, breadcrumb, title.
 
@@ -29,7 +29,7 @@ The file the diff is OF — drives language detection, breadcrumb, title.
 providerId: string;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:97](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L97)
+Defined in: [packages/sdk/src/editor-service.ts:100](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L100)
 
 Id of the registered content provider that resolves the two sides.
 
@@ -41,7 +41,7 @@ Id of the registered content provider that resolves the two sides.
 optional args?: Record<string, unknown>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:99](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L99)
+Defined in: [packages/sdk/src/editor-service.ts:102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L102)
 
 Serializable args handed back to the provider to (re)compute content.
 
@@ -53,6 +53,6 @@ Serializable args handed back to the provider to (re)compute content.
 optional title?: string;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:101](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L101)
+Defined in: [packages/sdk/src/editor-service.ts:104](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L104)
 
 Tab title. Defaults to the file's base name.

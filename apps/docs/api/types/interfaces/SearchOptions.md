@@ -108,3 +108,22 @@ Defined in: [packages/sdk/src/search-service.ts:45](https://github.com/silo-code
 
 Cap on the total number of matches collected across all files. When the cap
 is hit, the search stops early and [SearchResponse.truncated](SearchResponse.md#truncated) is true.
+
+***
+
+### signal?
+
+```ts
+optional signal?: AbortSignal;
+```
+
+Defined in: [packages/sdk/src/search-service.ts:56](https://github.com/silo-code/silo/blob/main/packages/sdk/src/search-service.ts#L56)
+
+Cancel the search. When the signal aborts, the promise returned by
+[SearchService.search](SearchService.md#search) rejects with an `Error` whose `name` is
+`"AbortError"` (the `fetch` convention — branch on `err.name`).
+
+Cancellation is observable immediately, but the native search may still run
+to completion in the background — its result is simply discarded. Use this
+to abandon a stale query (e.g. superseded by the next keystroke) rather than
+to reclaim native CPU the instant you abort.

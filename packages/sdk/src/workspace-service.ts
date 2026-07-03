@@ -170,6 +170,12 @@ export interface WorkspaceService {
   createFromFolderPicker(): Promise<Workspace | null>;
   create(input: CreateWorkspaceInput): Workspace;
   rename(id: string, name: string): void;
+  /**
+   * Move a workspace to a new position relative to a reference workspace.
+   * @param from - Id of the workspace being dragged / moved.
+   * @param to - Id of the reference workspace (the insertion anchor).
+   * @param position - Whether to place `from` before or after `to`.
+   */
   reorder(from: string, to: string, position: "before" | "after"): void;
   /** Activate (and reopen if closed). */
   activate(id: string): void;
@@ -263,6 +269,13 @@ export interface WorkspaceService {
    *
    * The Workspaces panel subscribes internally to re-render when providers
    * are added or removed.
+   *
+   * **No `invalidateSection` by design.** Unlike status rows and badges, a
+   * section is a live React component that re-renders on its own internal or
+   * context-driven state changes — it is not a snapshot returned from a
+   * `provide()` call, so there is nothing for the host to re-query. If a
+   * section needs to trigger a full workspace-panel refresh (rare), it should
+   * update its own state directly.
    */
   subscribeSection(listener: () => void): Disposable;
 

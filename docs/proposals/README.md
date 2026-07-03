@@ -53,3 +53,4 @@ never deleted** — "we considered X and rejected it" stops the debate recurring
 | [0008](./0008-extension-package-format-remote-install.md) | Extension package format + remote install (GitHub / npm)          | 2026-06-04 | draft       |
 | [0009](./0009-language-intelligence-lsp.md)               | Language intelligence — TS/JS via `tsserver`                      | 2026-05-29 | draft       |
 | [0010](./0010-pty-host-daemon.md)                         | Self-owned PTY host daemon (replace abduco)                       | 2026-06-04 | implemented |
+| [0013](./0013-context-menu-contributions.md)              | Context-menu contributions for built-in surfaces                  | 2026-07-02 | draft       |
