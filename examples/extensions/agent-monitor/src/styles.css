@@ -1,0 +1,27 @@
+/* Tab decoration icons — colors come from the host via `currentColor`
+   (the decoration's semantic `color` maps to --silo-color-* tokens). */
+.am-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: am-spin 0.7s linear infinite;
+}
+@keyframes am-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.am-waiting-icon {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.am-waiting-icon span {
+  display: block;
+  width: 2.5px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 1px;
+}
