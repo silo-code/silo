@@ -8,6 +8,7 @@ export type NavItem =
 interface NavGroup {
   collapsed: boolean;
   workspaceOrder: readonly string[] | string[];
+  closedAt?: string | null;
 }
 
 /**
@@ -16,7 +17,8 @@ interface NavGroup {
  * by its member workspaces (only while expanded — a collapsed group's members
  * aren't in the DOM, so they're skipped and the header stands in for them), and
  * an ungrouped entry contributes itself. `isOpen` filters out closed/stale ids
- * so the indices line up with what actually renders.
+ * so the indices line up with what actually renders. A closed group renders
+ * nothing (header or members), so it's skipped entirely.
  */
 export function buildNavItems(
   panelOrder: readonly string[],
@@ -27,6 +29,7 @@ export function buildNavItems(
   for (const entryId of panelOrder) {
     const group = groups[entryId];
     if (group) {
+      if (group.closedAt) continue;
       items.push({ kind: "group", id: entryId });
       if (!group.collapsed) {
         for (const wsId of group.workspaceOrder) {

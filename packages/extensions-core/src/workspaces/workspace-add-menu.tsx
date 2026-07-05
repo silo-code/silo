@@ -5,8 +5,10 @@ import {
   Trash,
   Warning,
 } from "@phosphor-icons/react";
+import { deleteGroup, restoreGroup } from "@silo-code/extension-host/internal";
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import type { Workspace } from "./workspace-helpers";
+import type { ClosedGroupEntry } from "./workspace-add-menu-model";
 
 // The "Add workspace" menu rows — closed workspaces to reopen, a separator, then
 // "New workspace…". Shared by the workspaces panel's add button (a standalone
@@ -33,20 +35,61 @@ export async function confirmAndDeleteWorkspace(
   ctx.workspaces.delete(id);
 }
 
+/** Confirm, then delete a closed group. Member workspaces are kept and reappear
+ * individually in Saved (deleting a group only ungroups its members). */
+export async function confirmAndDeleteGroup(
+  ctx: ExtensionContext,
+  id: string,
+  name: string,
+): Promise<void> {
+  const ok = await ctx.ui.confirm({
+    title: "Delete group?",
+    body: `${name} will be removed. Its workspaces stay saved and will appear individually.`,
+    confirmLabel: "Delete",
+    danger: true,
+  });
+  if (!ok) return;
+  deleteGroup(id);
+}
+
 /**
- * Build the "Add workspace" menu entries. `closed` is the closed-workspace list,
- * `folderExistence` the result of `useFolderExistence` over their folders (a
- * missing folder gets a warning icon), and `onNew` runs the new-workspace flow.
+ * Build the "Add workspace" menu entries. `closed` is the closed-workspace list
+ * (already filtered to exclude members of a closed group — see
+ * `partitionSavedEntries`), `closedGroups` the closed-group entries shown above
+ * them, `folderExistence` the result of `useFolderExistence` over the closed
+ * workspaces' folders (a missing folder gets a warning icon), and `onNew` runs
+ * the new-workspace flow.
  */
 export function buildAddWorkspaceItems(opts: {
   ctx: ExtensionContext;
   closed: readonly Workspace[];
+  closedGroups?: readonly ClosedGroupEntry[];
   folderExistence: Map<string, boolean>;
   onNew: () => void;
   onNewGroup?: () => void;
 }): MenuEntry[] {
-  const { ctx, closed, folderExistence, onNew, onNewGroup } = opts;
+  const {
+    ctx,
+    closed,
+    closedGroups = [],
+    folderExistence,
+    onNew,
+    onNewGroup,
+  } = opts;
   const items: MenuEntry[] = [{ type: "header", label: "Saved" }];
+  for (const group of closedGroups) {
+    items.push({
+      label: group.name,
+      icon: <FolderSimple size={16} weight="duotone" />,
+      title: `${group.memberCount} workspace${group.memberCount === 1 ? "" : "s"}`,
+      run: () => restoreGroup(group.id),
+      trailing: {
+        icon: <Trash size={14} weight="regular" />,
+        title: "Delete group permanently",
+        onClick: () => void confirmAndDeleteGroup(ctx, group.id, group.name),
+      },
+    });
+  }
   if (closed.length > 0) {
     for (const ws of closed) {
       const missing = folderExistence.get(ws.folder) === false;
@@ -68,7 +111,7 @@ export function buildAddWorkspaceItems(opts: {
         },
       });
     }
-  } else {
+  } else if (closedGroups.length === 0) {
     items.push({
       label: "No existing workspaces",
       disabled: true,

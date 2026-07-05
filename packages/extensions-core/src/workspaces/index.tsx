@@ -1,4 +1,5 @@
 import type { Extension } from "@silo-code/sdk";
+import { store, groupIdForWorkspace } from "@silo-code/extension-host/internal";
 import { WorkspacesPanel } from "./WorkspacesPanel";
 import { WorkspaceStatusItem } from "./WorkspaceStatusItem";
 import { registerWorkspaceCycle } from "./workspace-cycle";
@@ -78,8 +79,13 @@ export const extension: Extension = {
       id: "workspace.reopenLast",
       label: "Reopen Last Closed Workspace",
       run: () => {
+        // Skip workspaces hidden inside a closed group — those are only
+        // reachable by restoring the group from the Saved picker.
         const { closed } = ctx.workspaces.getState();
-        const last = closed[0];
+        const last = closed.find((ws) => {
+          const groupId = groupIdForWorkspace(ws.id);
+          return !groupId || !store.groups[groupId]?.closedAt;
+        });
         if (last) ctx.workspaces.reopen(last.id);
       },
     });

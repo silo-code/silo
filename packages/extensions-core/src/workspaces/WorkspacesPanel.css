@@ -177,9 +177,9 @@
   line-height: 1.5;
 }
 
-.ws-item .ws-close {
+.ws-item .ws-close,
+.ws-group-header .ws-close {
   position: absolute;
-  top: 4px;
   right: 4px;
   border: none;
   background: transparent;
@@ -192,11 +192,23 @@
   cursor: pointer;
 }
 
+/* The workspace row is a tall, multi-line card — pin to the top corner. The
+   group header is a single short line, so its close button centers instead. */
+.ws-item .ws-close {
+  top: 4px;
+}
+
+.ws-group-header .ws-close {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .ws-item:hover .ws-close {
   opacity: 1;
 }
 
-.ws-item .ws-close:hover {
+.ws-item .ws-close:hover,
+.ws-group-header .ws-close:hover {
   color: var(--silo-color-text-hi);
   background: var(--silo-color-button-bg);
 }
@@ -509,6 +521,10 @@
 .ws-group-header:hover {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text);
+}
+
+.ws-group-header:hover .ws-close {
+  opacity: 1;
 }
 
 .ws-group-caret {

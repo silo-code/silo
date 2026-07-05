@@ -10,6 +10,7 @@ import { useSnapshot } from "valtio";
 import {
   store,
   deleteGroup,
+  closeGroup,
   moveWorkspaceToGroup,
   ungroupWorkspace,
   toggleGroupCollapsed,
@@ -36,6 +37,7 @@ import {
   type Workspace,
 } from "./workspace-helpers";
 import { buildAddWorkspaceItems } from "./workspace-add-menu";
+import { partitionSavedEntries } from "./workspace-add-menu-model";
 import { openWorkspaceProperties } from "./workspace-properties";
 import {
   openGroupProperties,
@@ -163,7 +165,9 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   const renderedEntryIds = useMemo(
     () =>
       storeSnap.panelOrder.filter(
-        (id) => storeSnap.groups[id] || openById.has(id),
+        (id) =>
+          (storeSnap.groups[id] && !storeSnap.groups[id].closedAt) ||
+          openById.has(id),
       ),
     [storeSnap.panelOrder, storeSnap.groups, openById],
   );
@@ -194,9 +198,13 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     },
   });
 
+  const savedEntries = useMemo(
+    () => partitionSavedEntries(snap.closed, storeSnap.groups),
+    [snap.closed, storeSnap.groups],
+  );
   const closedFolders = useMemo(
-    () => snap.closed.map((ws) => ws.folder),
-    [snap.closed],
+    () => savedEntries.workspaces.map((ws) => ws.folder),
+    [savedEntries.workspaces],
   );
   const folderExistence = useFolderExistence(closedFolders, ctx.files);
 
@@ -215,7 +223,8 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   function openClosedMenu() {
     const items = buildAddWorkspaceItems({
       ctx,
-      closed: snap.closed,
+      closed: savedEntries.workspaces,
+      closedGroups: savedEntries.groupEntries,
       folderExistence,
       onNew,
       onNewGroup,
@@ -235,7 +244,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     const currentGroupId = groupMap.get(ws.id);
     const groups = storeSnap.panelOrder
       .map((id) => storeSnap.groups[id])
-      .filter(Boolean);
+      .filter((g) => g && !g.closedAt);
     if (currentGroupId) {
       items.push({
         label: "Remove from Group",
@@ -277,6 +286,10 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
         {
           label: "Properties…",
           run: () => void openGroupProperties(ctx, group),
+        },
+        {
+          label: "Close Group",
+          run: () => closeGroup(group.id),
         },
         {
           label: "Delete Group",
@@ -427,6 +440,17 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
             weight="bold"
           />
           <span className="ws-group-name">{group.name}</span>
+          <button
+            className="ws-close"
+            tabIndex={-1}
+            aria-label="Close group"
+            onClick={(e) => {
+              e.stopPropagation();
+              closeGroup(group.id);
+            }}
+          >
+            ×
+          </button>
         </div>
         {!group.collapsed && (
           <ul className="ws-group-body">
@@ -458,7 +482,8 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
             >
               {storeSnap.panelOrder.map((entryId) => {
                 const group = storeSnap.groups[entryId];
-                if (group) return renderGroupCard(group);
+                if (group)
+                  return group.closedAt ? null : renderGroupCard(group);
                 const ws = openById.get(entryId);
                 if (!ws) return null; // closed or stale ungrouped workspace
                 return renderWorkspaceItem(ws);

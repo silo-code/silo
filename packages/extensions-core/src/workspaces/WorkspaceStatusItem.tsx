@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSnapshot } from "valtio";
 import { SquaresFour } from "@phosphor-icons/react";
 import {
   useServiceState,
   type ExtensionContext,
   type MenuEntry,
 } from "@silo-code/sdk";
-import { homeDir, Tooltip } from "@silo-code/extension-host/internal";
+import { homeDir, store, Tooltip } from "@silo-code/extension-host/internal";
 import { useFolderExistence } from "./workspace-helpers";
 import { buildAddWorkspaceItems } from "./workspace-add-menu";
+import { partitionSavedEntries } from "./workspace-add-menu-model";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { openWorkspaceProperties } from "./workspace-properties";
 import "./WorkspaceStatusItem.css";
@@ -24,6 +26,7 @@ import "./WorkspaceStatusItem.css";
 export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
   const service = ctx.workspaces;
   const snap = useServiceState(service);
+  const storeSnap = useSnapshot(store);
   const [home, setHome] = useState("");
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -33,9 +36,13 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
       .catch(() => {});
   }, []);
 
+  const savedEntries = useMemo(
+    () => partitionSavedEntries(snap.closed, storeSnap.groups),
+    [snap.closed, storeSnap.groups],
+  );
   const closedFolders = useMemo(
-    () => snap.closed.map((ws) => ws.folder),
-    [snap.closed],
+    () => savedEntries.workspaces.map((ws) => ws.folder),
+    [savedEntries.workspaces],
   );
   const folderExistence = useFolderExistence(closedFolders, ctx.files);
 
@@ -81,7 +88,8 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
       label: "Open",
       submenu: buildAddWorkspaceItems({
         ctx,
-        closed: snap.closed,
+        closed: savedEntries.workspaces,
+        closedGroups: savedEntries.groupEntries,
         folderExistence,
         onNew,
       }),

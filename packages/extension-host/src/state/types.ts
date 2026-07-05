@@ -64,6 +64,14 @@ export interface WorkspaceGroup {
   collapsed: boolean;
   workspaceOrder: string[]; // workspace IDs in this group, in user-defined order
   color?: string; // optional accent color, e.g. "#e06c75"
+  /** ISO timestamp when the group was closed via `closeGroup`; absent/null = open.
+   *  Mirrors `Workspace.closedAt`. A closed group stays in `panelOrder` (position
+   *  is preserved for restore) but is filtered out of rendering/nav. */
+  closedAt?: string | null;
+  /** Member ids that were open at close time — the exact set `restoreGroup`
+   *  reopens. Present iff `closedAt` is set; a member closed before the group
+   *  was closed is excluded and stays individually closed after restore. */
+  closedMemberIds?: string[];
 }
 
 export interface AppState {

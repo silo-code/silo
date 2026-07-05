@@ -299,6 +299,59 @@ describe("buildIndex", () => {
     expect(index.groups).toBeUndefined();
     expect(index.panelOrder).toBeUndefined();
   });
+
+  it("round-trips closedAt and closedMemberIds on a closed group", () => {
+    const groups = {
+      grp_1: {
+        id: "grp_1",
+        name: "Xerro",
+        collapsed: false,
+        workspaceOrder: ["ws_a", "ws_b"],
+        closedAt: "2026-01-01T00:00:00.000Z",
+        closedMemberIds: ["ws_a"],
+      },
+    };
+    const index = buildIndex({
+      workspaceOrder: ["ws_a", "ws_b"],
+      activeWorkspaceId: null,
+      groups,
+    });
+    expect(index.groups!["grp_1"].closedAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(index.groups!["grp_1"].closedMemberIds).toEqual(["ws_a"]);
+  });
+
+  it("deep-clones closedMemberIds so mutating the source doesn't alias the snapshot", () => {
+    const closedMemberIds = ["ws_a"];
+    const groups = {
+      grp_1: {
+        id: "grp_1",
+        name: "G",
+        collapsed: false,
+        workspaceOrder: ["ws_a"],
+        closedAt: "2026-01-01T00:00:00.000Z",
+        closedMemberIds,
+      },
+    };
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      groups,
+    });
+    closedMemberIds.push("ws_b");
+    expect(index.groups!["grp_1"].closedMemberIds).toEqual(["ws_a"]);
+  });
+
+  it("omits closedMemberIds on an open group", () => {
+    const groups = {
+      grp_1: { id: "grp_1", name: "G", collapsed: false, workspaceOrder: [] },
+    };
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      groups,
+    });
+    expect(index.groups!["grp_1"].closedMemberIds).toBeUndefined();
+  });
 });
 
 describe("reconcilePanelOrder", () => {
@@ -335,6 +388,15 @@ describe("reconcilePanelOrder", () => {
   it("never lists a grouped workspace at the top level even if saved does", () => {
     expect(
       reconcilePanelOrder(["ws_b", "ws_a"], groups, ["ws_a", "ws_b"]),
+    ).toEqual(["ws_a", "grp_1"]);
+  });
+
+  it("keeps a closed group at its saved position — closedAt doesn't affect placement", () => {
+    const closedGroups = {
+      grp_1: { workspaceOrder: ["ws_b"], closedAt: "2026-01-01T00:00:00.000Z" },
+    };
+    expect(
+      reconcilePanelOrder(["ws_a", "grp_1"], closedGroups, ["ws_a", "ws_b"]),
     ).toEqual(["ws_a", "grp_1"]);
   });
 });
