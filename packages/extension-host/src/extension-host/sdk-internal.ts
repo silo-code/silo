@@ -163,6 +163,11 @@ export type { RevealSelection, PendingReveal } from "./editor-reveal";
 // focused editor/terminal registers its selection getter here on focus. The
 // *read* side is public (`ctx.ui`); this *register* side is host-bound, core-only.
 export { registerSelectionSource } from "./active-selection";
+// Editor document seam behind `ctx.editors.getText`/`isDirty`/`onDidSave`. The
+// mounted text editor registers a live text/dirty provider per editorId, and
+// fires `emitDidSave` after a confirmed write. The *read* side is public
+// (`ctx.editors`); these *register/emit* sides are host-bound, core-only.
+export { registerDocumentProvider, emitDidSave } from "./editor-service";
 // Terminal host-plumbing — the terminal's shared seam (mirrors editor-core), for
 // the `core.terminal` DockKind view. NOTE what is deliberately *absent*: PTY
 // sessions route through public `ctx.process`, opening a file through

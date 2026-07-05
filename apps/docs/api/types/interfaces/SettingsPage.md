@@ -1,6 +1,6 @@
 # Interface: SettingsPage
 
-Defined in: [packages/sdk/src/types.ts:459](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L459)
+Defined in: [packages/sdk/src/types.ts:466](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L466)
 
 A page in the Settings dialog, listed in the left rail.
 
@@ -12,7 +12,7 @@ A page in the Settings dialog, listed in the left rail.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:461](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L461)
+Defined in: [packages/sdk/src/types.ts:468](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L468)
 
 Unique id for this settings page.
 
@@ -24,7 +24,7 @@ Unique id for this settings page.
 title: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:463](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L463)
+Defined in: [packages/sdk/src/types.ts:470](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L470)
 
 Label shown in the Settings left rail.
 
@@ -36,7 +36,7 @@ Label shown in the Settings left rail.
 optional group?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:470](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L470)
+Defined in: [packages/sdk/src/types.ts:477](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L477)
 
 Optional grouping key for the left rail (groups sorted lexically, separated
 by a divider). Honored only for `core.*` pages; a page contributed by any
@@ -51,7 +51,7 @@ ignored for those.
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:472](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L472)
+Defined in: [packages/sdk/src/types.ts:479](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L479)
 
 Sort order within the group. Lower sorts first. Defaults to 0.
 
@@ -63,6 +63,6 @@ Sort order within the group. Lower sorts first. Defaults to 0.
 component: ComponentType;
 ```
 
-Defined in: [packages/sdk/src/types.ts:474](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L474)
+Defined in: [packages/sdk/src/types.ts:481](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L481)
 
 Renders the right-hand pane when this page is selected.

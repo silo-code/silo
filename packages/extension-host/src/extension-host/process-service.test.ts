@@ -43,3 +43,74 @@ describe("ProcessService.exec", () => {
     });
   });
 });
+
+describe("ProcessService.exec — env / timeout / signal (B9)", () => {
+  beforeEach(() => invokeMock.mockReset());
+
+  const execCall = () =>
+    invokeMock.mock.calls.find((c) => c[0] === "process_exec")!;
+
+  it("forwards env and does not arm cancellation (no execId)", async () => {
+    invokeMock.mockResolvedValue({ stdout: "", stderr: "", code: 0 });
+    await getProcessService().exec("git", ["log"], {
+      cwd: "/r",
+      env: { GIT_PAGER: "cat" },
+    });
+    expect(execCall()[1]).toMatchObject({
+      command: "git",
+      env: { GIT_PAGER: "cat" },
+    });
+    expect(execCall()[1].execId).toBeUndefined();
+  });
+
+  it("rejects with AbortError and kills the group on timeout", async () => {
+    invokeMock.mockImplementation((cmd: string) =>
+      cmd === "process_exec" ? new Promise(() => {}) : Promise.resolve(),
+    );
+    const p = getProcessService().exec("sleep", ["10"], { timeoutMs: 5 });
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+    const execId = execCall()[1].execId;
+    expect(typeof execId).toBe("string");
+    expect(invokeMock).toHaveBeenCalledWith("process_exec_kill", { execId });
+  });
+
+  it("rejects and kills when the signal aborts mid-run", async () => {
+    invokeMock.mockImplementation((cmd: string) =>
+      cmd === "process_exec" ? new Promise(() => {}) : Promise.resolve(),
+    );
+    const controller = new AbortController();
+    const p = getProcessService().exec("sleep", ["10"], {
+      signal: controller.signal,
+    });
+    controller.abort();
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+    expect(invokeMock).toHaveBeenCalledWith("process_exec_kill", {
+      execId: execCall()[1].execId,
+    });
+  });
+
+  it("rejects immediately without spawning when the signal is pre-aborted", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const p = getProcessService().exec("sleep", ["10"], {
+      signal: controller.signal,
+    });
+    await expect(p).rejects.toMatchObject({ name: "AbortError" });
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("resolves normally and never kills when the process finishes first", async () => {
+    const result = { stdout: "done", stderr: "", code: 0 };
+    invokeMock.mockImplementation((cmd: string) =>
+      cmd === "process_exec" ? Promise.resolve(result) : Promise.resolve(),
+    );
+    const out = await getProcessService().exec("echo", ["hi"], {
+      timeoutMs: 10_000,
+    });
+    expect(out).toEqual(result);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "process_exec_kill",
+      expect.anything(),
+    );
+  });
+});

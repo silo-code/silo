@@ -47,8 +47,77 @@ pub fn fs_write_text(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn fs_write_bytes(path: String, data: Vec<u8>) -> Result<(), String> {
+    if let Some(parent) = Path::new(&path).parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+    }
+    std::fs::write(&path, data).map_err(|e| format!("{}: {}", path, e))
+}
+
+#[tauri::command]
 pub fn fs_path_exists(path: String) -> bool {
     Path::new(&path).exists()
+}
+
+/// Metadata for a single path, or `None` if nothing exists there. Follows
+/// symlinks (reports the target). Errors only on a real I/O failure (e.g. a
+/// permission error), so a plain "absent" is `Ok(None)`, not `Err`.
+#[tauri::command]
+pub fn fs_stat(path: String) -> Result<Option<FileMeta>, String> {
+    let p = Path::new(&path);
+    match std::fs::metadata(p) {
+        Ok(metadata) => {
+            let modified_ms = metadata
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0);
+            let name = p
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            Ok(Some(FileMeta {
+                name,
+                path: normalize_path(p),
+                is_dir: metadata.is_dir(),
+                size: metadata.len(),
+                modified_ms,
+            }))
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(format!("{}: {}", path, e)),
+    }
+}
+
+/// General copy of a file or directory tree (recursive for directories),
+/// creating missing parent directories. Unlike `fs_copy_dir` (which is tuned
+/// for installing an extension folder), this copies everything verbatim with no
+/// `node_modules`/`.git` skipping — it backs the public `ctx.files.copy`.
+#[tauri::command]
+pub fn fs_copy(src: String, dst: String) -> Result<(), String> {
+    fn copy_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+        let meta = std::fs::symlink_metadata(src)?;
+        if meta.is_dir() {
+            std::fs::create_dir_all(dst)?;
+            for entry in std::fs::read_dir(src)? {
+                let entry = entry?;
+                copy_recursive(&entry.path(), &dst.join(entry.file_name()))?;
+            }
+        } else {
+            if let Some(parent) = dst.parent() {
+                if !parent.as_os_str().is_empty() {
+                    std::fs::create_dir_all(parent)?;
+                }
+            }
+            std::fs::copy(src, dst)?;
+        }
+        Ok(())
+    }
+    copy_recursive(Path::new(&src), Path::new(&dst))
+        .map_err(|e| format!("{} -> {}: {}", src, dst, e))
 }
 
 #[tauri::command]

@@ -23,7 +23,8 @@ const { invoke, listen, unlisten, fireChange } = vi.hoisted(() => {
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen }));
 
-import { getFileService } from "./file-service";
+import { PathDeniedError } from "@silo-code/sdk";
+import { getFileService, scopeFileService } from "./file-service";
 
 const files = getFileService();
 
@@ -82,6 +83,73 @@ describe("FileService — reads & writes", () => {
     await expect(files.readDir("/")).resolves.toEqual([
       { name: "f.ts", path: "/f.ts", isDir: false, size: 12, modifiedMs: 99 },
     ]);
+  });
+
+  // ── B8: writeBytes / copy / stat ──────────────────────────────────────────
+
+  it("writeBytes sends a plain number array to fs_write_bytes (Uint8Array)", async () => {
+    await files.writeBytes("/b.bin", new Uint8Array([1, 2, 255]));
+    expect(invoke).toHaveBeenCalledWith("fs_write_bytes", {
+      path: "/b.bin",
+      data: [1, 2, 255],
+    });
+  });
+
+  it("writeBytes accepts an ArrayBuffer", async () => {
+    const buf = new Uint8Array([7, 8]).buffer;
+    await files.writeBytes("/b.bin", buf);
+    expect(invoke).toHaveBeenCalledWith("fs_write_bytes", {
+      path: "/b.bin",
+      data: [7, 8],
+    });
+  });
+
+  it("copy passes src/dst to fs_copy", async () => {
+    await files.copy("/src/dir", "/dst/dir");
+    expect(invoke).toHaveBeenCalledWith("fs_copy", {
+      src: "/src/dir",
+      dst: "/dst/dir",
+    });
+  });
+
+  it("stat maps a FileMeta and returns null for an absent path", async () => {
+    invoke.mockResolvedValueOnce({
+      name: "a.ts",
+      path: "/a.ts",
+      is_dir: false,
+      size: 5,
+      modified_ms: 42,
+    });
+    await expect(files.stat("/a.ts")).resolves.toEqual({
+      name: "a.ts",
+      path: "/a.ts",
+      isDir: false,
+      size: 5,
+      modifiedMs: 42,
+    });
+    invoke.mockResolvedValueOnce(null);
+    await expect(files.stat("/missing")).resolves.toBeNull();
+  });
+});
+
+describe("FileService — scope wrapper (B8)", () => {
+  it("copy checks src as read and dest as write", async () => {
+    const scope = {
+      roots: ["/ws"],
+      trusted: false,
+      permissions: new Set<never>(),
+    };
+    const scoped = scopeFileService(files, scope);
+    // In-workspace relative paths resolve against the root; out-of-workspace
+    // writes without fs:write are denied.
+    await scoped.copy("a.txt", "b.txt");
+    expect(invoke).toHaveBeenCalledWith("fs_copy", {
+      src: "/ws/a.txt",
+      dst: "/ws/b.txt",
+    });
+    await expect(scoped.copy("a.txt", "/etc/passwd")).rejects.toBeInstanceOf(
+      PathDeniedError,
+    );
   });
 });
 

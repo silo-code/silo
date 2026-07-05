@@ -63,6 +63,8 @@ const apiSidebar = [
         text: "focusGroupNextIndex",
         link: "/api/other/focus-group-next-index",
       },
+      { text: "path (path utilities)", link: "/api/other/path" },
+      { text: "Event<T>", link: "/api/other/event" },
     ],
   },
   { text: "Design tokens", link: "/api/theming" },

@@ -19,7 +19,7 @@ sessions.
 // Notify when all agents in the workspace are idle.
 const sub = ctx.processes.subscribe((procs) => {
   const allIdle = procs.every((p) => p.atPrompt);
-  if (allIdle) ctx.ui.notify({ title: "All agents finished" });
+  if (allIdle) ctx.ui.notify("info", "All agents finished");
 });
 ctx.subscriptions.push(sub);
 

@@ -1,8 +1,11 @@
 import type { Disposable } from "./types";
+import type { Event } from "./event";
+import type { EditorMode } from "./domain-types";
 
 // `ctx.editors` — the editor & document domain (public contract). Opening files
-// into editor tabs, the active-editor save/close commands, and the diff-content
-// provider registry. The host implementation lives in the extension host.
+// into editor tabs, the active-editor save/close commands, the diff-content
+// provider registry, and reactive active-editor state. The host implementation
+// lives in the extension host.
 
 /**
  * Options for the editor open methods.
@@ -65,7 +68,7 @@ export interface EditorViewInfo {
 }
 
 /**
- * Save callbacks an editor viewer registers via
+ * Save callbacks an editor registers via
  * {@link EditorService.registerSaveHandler}, so the active-editor `save` /
  * `saveAs` commands can dispatch to whichever editor is focused.
  *
@@ -144,10 +147,77 @@ export type DiffContentProvider = (
 ) => Promise<DiffContent>;
 
 /**
+ * A point-in-time snapshot of the focused editor tab. Part of
+ * {@link EditorsState}, returned by {@link EditorService.getState} and
+ * delivered to {@link EditorService.subscribe} listeners.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface ActiveEditorInfo {
+  /** The focused editor tab's record id — matches {@link EditorRecord.id}. */
+  editorId: string;
+  /**
+   * The absolute file path of the focused tab, or `null` for an untitled
+   * buffer.
+   */
+  filePath: string | null;
+  /**
+   * The {@link Editor.id} of the presenter rendering the tab
+   * (e.g. `"core.text-editor"`, `"silo.markdown-preview"`). Empty string
+   * when the presenter could not be resolved (rare: editor registered after
+   * the tab was opened).
+   */
+  viewId: string;
+  /** Whether the tab is in text or diff mode. */
+  mode: EditorMode;
+}
+
+/**
+ * A frozen, referentially-stable snapshot of editor domain state. Returned by
+ * {@link EditorService.getState} and delivered to
+ * {@link EditorService.subscribe} listeners.
+ *
+ * Compatible with `useServiceState` — just pass `ctx.editors` directly.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface EditorsState {
+  /**
+   * The focused editor tab, or `null` when the active dock panel is not an
+   * editor tab (e.g. a terminal, a dock panel kind, or nothing at all).
+   */
+  active: ActiveEditorInfo | null;
+  /**
+   * `true` once the persisted workspace state has loaded from disk. Matches
+   * `WorkspaceState.hydrated` — guard state-restoring code on this flag.
+   */
+  hydrated: boolean;
+}
+
+/**
+ * Payload delivered to {@link EditorService.onDidSave} listeners after an
+ * editor tab's contents are written to disk.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface EditorSaveEvent {
+  /** The saved tab's editor record id — matches {@link EditorRecord.id}. */
+  editorId: string;
+  /**
+   * Absolute path the contents were written to. For a save-as (or first save
+   * of an untitled buffer) this is the newly chosen path, not the old one.
+   */
+  filePath: string;
+}
+
+/**
  * The editor & document domain, exposed as {@link ExtensionContext.editors}.
  * Open files into editor tabs, drive the active editor (save / close), and let
- * editor viewers register save handlers. The single entry point for opening
- * editors — prefer it over reaching into workspace/editor state.
+ * editors register save handlers. The single entry point for opening editors —
+ * prefer it over reaching into workspace/editor state.
  *
  * @category Consumer Services
  * @public
@@ -211,4 +281,70 @@ export interface EditorService {
     providerId: string,
     provider: DiffContentProvider,
   ): Disposable;
+  /**
+   * The current buffer text of an open editor tab, including unsaved edits.
+   *
+   * Resolves `undefined` when the tab isn't text-backed (e.g. the image
+   * viewer) or hasn't mounted yet — a lazy-mounted dock panel is **not**
+   * force-mounted to read its text. It is async precisely because the text
+   * lives in the mounted editor component, not in host state.
+   *
+   * @example
+   * ```ts
+   * const text = await ctx.editors.getText(editorId);
+   * if (text !== undefined) ctx.log.info(`${text.length} chars`);
+   * ```
+   */
+  getText(editorId: string): Promise<string | undefined>;
+  /**
+   * Whether an open editor tab has unsaved changes. Returns `false` for an
+   * unknown id or a tab that isn't mounted / text-backed.
+   */
+  isDirty(editorId: string): boolean;
+  /**
+   * Fires after an editor tab's contents are saved to disk — a formatter,
+   * linter, or build-on-save extension's entry point. See {@link Event}.
+   *
+   * @example
+   * ```ts
+   * ctx.subscriptions.push(
+   *   ctx.editors.onDidSave(({ editorId, filePath }) => {
+   *     ctx.log.info(`saved ${filePath}`);
+   *   }),
+   * );
+   * ```
+   */
+  onDidSave: Event<EditorSaveEvent>;
+  /**
+   * Current frozen snapshot of editor state. The returned object is
+   * referentially stable between renders — `getState() === getState()` when
+   * nothing has changed, which satisfies `useSyncExternalStore`'s contract and
+   * means `useServiceState(ctx.editors)` works without extra memoization.
+   *
+   * @example
+   * ```ts
+   * const { active } = ctx.editors.getState();
+   * if (active) ctx.log.info(`Active file: ${active.filePath ?? "(untitled)"}`);
+   * ```
+   */
+  getState(): EditorsState;
+  /**
+   * Subscribe to changes in the active editor. The listener is called whenever
+   * `active` changes (tab focus moves, workspace switches, editor opens or
+   * closes) or `hydrated` flips. Returns a {@link Disposable} that cancels the
+   * subscription.
+   *
+   * Use `useServiceState(ctx.editors)` in React components instead of calling
+   * `subscribe` directly — it wraps `getState` + `subscribe` for you.
+   *
+   * @example
+   * ```ts
+   * ctx.subscriptions.push(
+   *   ctx.editors.subscribe(({ active }) => {
+   *     statusItem.setTitle(active?.filePath ?? "No file");
+   *   }),
+   * );
+   * ```
+   */
+  subscribe(listener: (state: EditorsState) => void): Disposable;
 }

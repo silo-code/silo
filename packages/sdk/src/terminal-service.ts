@@ -98,10 +98,50 @@ export interface TerminalService {
    * Open a new terminal in a workspace (defaults to the active one). Returns the
    * created {@link TerminalRecord}; the PTY session spawns lazily when its tab
    * mounts.
+   *
+   * Returns `undefined` only when `input.workspaceId` is not given and there is
+   * no active workspace at the time of the call — in normal use this does not
+   * happen because activating any workspace happens before extensions run.
    */
   create(input?: CreateTerminalInput): TerminalRecord | undefined;
   /** Close and kill every terminal in a workspace (e.g. on workspace delete). */
   closeWorkspace(workspaceId: string): void;
+
+  /**
+   * Write text to a terminal's PTY as if the user typed it. By default a
+   * carriage return is appended so the line executes; pass `addNewline: false`
+   * to stage text without running it.
+   *
+   * Works even if the terminal tab has never been shown: the PTY spawns lazily
+   * on first mount, and `sendText` force-spawns it on demand (a later mount then
+   * attaches to that same session). No-op for an unknown `terminalId`.
+   *
+   * @param terminalId - The {@link TerminalRecord.id} to write to.
+   * @param text - The text to send.
+   * @param addNewline - Append a carriage return to execute. Defaults to `true`.
+   *
+   * @example
+   * ```ts
+   * const term = ctx.terminals.create({ cwd: workspaceFolder });
+   * if (term) ctx.terminals.sendText(term.id, "npm run build");
+   * ```
+   */
+  sendText(terminalId: string, text: string, addNewline?: boolean): void;
+
+  /**
+   * Close one terminal tab and kill its PTY session. No-op if the id is unknown.
+   * To reap every terminal in a workspace at once use
+   * {@link TerminalService.closeWorkspace}.
+   */
+  close(terminalId: string): void;
+
+  /**
+   * Set a terminal's user-facing name ({@link TerminalRecord.customName}),
+   * shown on its tab and persisted across restarts. Passing an empty string
+   * clears the custom name, letting the PTY-derived title take over again.
+   * No-op for an unknown `terminalId`.
+   */
+  rename(terminalId: string, name: string): void;
 
   /**
    * Switch to the workspace containing this terminal and activate its tab in

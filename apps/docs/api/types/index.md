@@ -1,11 +1,17 @@
 # @silo-code/sdk
 
-The public Silo extension API surface — the single curated entry point an
-extension author imports from. This is the seed of the future `@silo-code/sdk`
-package: it re-exports **only** the blessed, permanently supported types.
-Anything not re-exported here is host-internal and may change without notice.
+The `@silo-code/sdk` public surface — the single curated entry point an
+extension author imports from. Re-exports **only** the blessed, permanently
+supported types and runtime helpers. Anything not re-exported here is
+host-internal and may change without notice.
 
-It is also the entry point the API-reference generator (TypeDoc) reads, so
+**What's here:** the types-first extension contract (see `types.ts`) plus a
+small set of blessed runtime helpers (`Tooltip`, `useFocusGroup`,
+`useServiceState`, `DND_MIME`, `PathDeniedError`, `NetworkError`). The SDK
+peer-depends on React 19; changes to the runtime helpers can be breaking
+even when the types are unchanged.
+
+This is also the entry point the API-reference generator (TypeDoc) reads, so
 the published reference is exactly this surface — no more, no less.
 
 ## Extension Contract
@@ -50,6 +56,9 @@ the published reference is exactly this surface — no more, no less.
 - [DiffContent](interfaces/DiffContent.md)
 - [DiffContentRequest](interfaces/DiffContentRequest.md)
 - [DiffContentProvider](type-aliases/DiffContentProvider.md)
+- [ActiveEditorInfo](interfaces/ActiveEditorInfo.md)
+- [EditorsState](interfaces/EditorsState.md)
+- [EditorSaveEvent](interfaces/EditorSaveEvent.md)
 - [EditorService](interfaces/EditorService.md)
 - [ExtensionStorage](interfaces/ExtensionStorage.md)
 - [ExtensionStorageScopes](interfaces/ExtensionStorageScopes.md)
@@ -120,12 +129,15 @@ the published reference is exactly this surface — no more, no less.
 - [ThemeVars](interfaces/ThemeVars.md)
 - [CustomTheme](interfaces/CustomTheme.md)
 - [ThemeExport](type-aliases/ThemeExport.md)
+- [Event](type-aliases/Event.md)
 - [FileMeta](interfaces/FileMeta.md)
 - [FileChangeKind](type-aliases/FileChangeKind.md)
 - [FileChangeEvent](interfaces/FileChangeEvent.md)
 - [NetworkError](classes/NetworkError.md)
 - [NetworkRequestOptions](interfaces/NetworkRequestOptions.md)
 - [NetworkResponse](interfaces/NetworkResponse.md)
+- [NetworkBytesResponse](interfaces/NetworkBytesResponse.md)
+- [path](variables/path.md)
 - [PathDeniedError](classes/PathDeniedError.md)
 - [Disposable](interfaces/Disposable.md)
 - [DockPanelApi](interfaces/DockPanelApi.md)

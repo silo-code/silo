@@ -2,13 +2,81 @@ import { invoke } from "@tauri-apps/api/core";
 import { tauriTerminalClient } from "../services/tauri-terminal-client";
 import { store } from "../state/store";
 import { PathDeniedError } from "@silo-code/sdk";
+import { abortError } from "./abort";
 import { toAbsolute, withinRoots } from "./security/resolve-path";
 import type { PathScope } from "./security/resolve-path";
 import type {
   ProcessService,
   ProcessSession,
   ProcessExecResult,
+  ProcessExecOptions,
 } from "@silo-code/sdk";
+
+// Monotonic id per exec that needs cancellation — handed to `process_exec` so
+// `process_exec_kill` can target its process group on timeout/abort.
+let execSeq = 0;
+
+/**
+ * Run `process_exec`, layering `timeoutMs` / `signal` cancellation on top: the
+ * caller's promise rejects with an AbortError the moment either fires, and the
+ * still-running child (and its process group) is killed via `process_exec_kill`.
+ * The native invocation is allowed to settle in the background and is discarded.
+ */
+function execWithCancellation(
+  command: string,
+  args: string[],
+  options: ProcessExecOptions | undefined,
+): Promise<ProcessExecResult> {
+  const { cwd, env, timeoutMs, signal } = options ?? {};
+  const needsKill = timeoutMs !== undefined || signal !== undefined;
+  const execId = needsKill ? `exec_${++execSeq}` : undefined;
+  const args_ = { command, args, cwd, env, execId };
+
+  if (!needsKill) return invoke<ProcessExecResult>("process_exec", args_);
+  if (signal?.aborted) return Promise.reject(abortError("exec was aborted"));
+
+  return new Promise<ProcessExecResult>((resolve, reject) => {
+    let done = false;
+    const cleanups: Array<() => void> = [];
+    const runCleanups = () => cleanups.forEach((c) => c());
+
+    const abort = (message: string) => {
+      if (done) return;
+      done = true;
+      runCleanups();
+      void invoke("process_exec_kill", { execId }).catch(() => {});
+      reject(abortError(message));
+    };
+
+    if (signal) {
+      const onAbort = () => abort("exec was aborted");
+      signal.addEventListener("abort", onAbort, { once: true });
+      cleanups.push(() => signal.removeEventListener("abort", onAbort));
+    }
+    if (timeoutMs !== undefined) {
+      const timer = setTimeout(
+        () => abort(`exec timed out after ${timeoutMs} ms`),
+        timeoutMs,
+      );
+      cleanups.push(() => clearTimeout(timer));
+    }
+
+    invoke<ProcessExecResult>("process_exec", args_).then(
+      (result) => {
+        if (done) return;
+        done = true;
+        runCleanups();
+        resolve(result);
+      },
+      (err) => {
+        if (done) return;
+        done = true;
+        runCleanups();
+        reject(err);
+      },
+    );
+  });
+}
 
 /**
  * The configured shell command from terminal settings. A leading empty string
@@ -65,11 +133,7 @@ export function getProcessService(): ProcessService {
       return makeSession(id);
     },
     exec(command, args, options) {
-      return invoke<ProcessExecResult>("process_exec", {
-        command,
-        args,
-        cwd: options?.cwd,
-      });
+      return execWithCancellation(command, args, options);
     },
   };
   return service;

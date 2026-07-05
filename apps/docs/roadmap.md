@@ -49,11 +49,14 @@ designed. As a primitive ships, its badge flips from
 | `ctx.search` (cross-file content search)       | <Badge type="tip" text="stable" />   | [docs](/api/search/)                                                                       |
 | `ctx.search` (replace-in-files)                | <Badge type="info" text="planned" /> | [design](/api/search/#replace)                                                             |
 | `ctx.ui` (quickPick / progress)                | <Badge type="info" text="planned" /> | [design](#ctx-ui)                                                                          |
-| `ctx` events (typed `Event<T>`)                | <Badge type="info" text="planned" /> | [design](#ctx-events)                                                                      |
+| `ctx` events (typed `Event<T>`)                | <Badge type="tip" text="stable" />   | [docs](/api/other/event)                                                                   |
+| `ctx.editors.getState` / `subscribe`           | <Badge type="tip" text="stable" />   | [docs](/api/editors/)                                                                      |
+| `path` (cross-platform path utilities)         | <Badge type="tip" text="stable" />   | [docs](/api/other/path)                                                                    |
 | per-extension settings (page + persistence)    | <Badge type="tip" text="stable" />   | [docs](/api/registration/register-settings-page)                                           |
 | `ctx.storage` (global / workspace)             | <Badge type="tip" text="stable" />   | [docs](/api/storage/)                                                                      |
 | `ctx.secrets` (host-mediated credentials)      | <Badge type="info" text="planned" /> | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md) |
 | `ctx.webview` (iframe navigation events)       | <Badge type="info" text="planned" /> | [design](#ctx-webview)                                                                     |
+| context-menu contributions (explorer/editor)   | <Badge type="info" text="planned" /> | [design](#context-menus)                                                                   |
 
 ## Extension-owned features
 
@@ -131,6 +134,7 @@ The shape of each planned surface is now designed in an **RFC** under
 | Language intelligence (TS/JS via `tsserver`)                                        | [RFC 0009](https://github.com/silo-code/silo/blob/main/docs/proposals/0009-language-intelligence-lsp.md)               |
 | Self-owned PTY host daemon                                                          | [RFC 0010](https://github.com/silo-code/silo/blob/main/docs/proposals/0010-pty-host-daemon.md)                         |
 | <a id="ctx-webview"></a>`ctx.webview` — iframe navigation events via init script    | [RFC 0011](https://github.com/silo-code/silo/blob/main/docs/proposals/0011-iframe-navigation-events.md)                |
+| <a id="context-menus"></a>Context-menu contributions (explorer / editor / terminal) | [RFC 0013](https://github.com/silo-code/silo/blob/main/docs/proposals/0013-context-menu-contributions.md)              |
 
 ---
 

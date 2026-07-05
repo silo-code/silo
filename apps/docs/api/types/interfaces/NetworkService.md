@@ -1,6 +1,6 @@
 # Interface: NetworkService
 
-Defined in: [packages/sdk/src/network-service.ts:90](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L90)
+Defined in: [packages/sdk/src/network-service.ts:112](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L112)
 
 Server-side HTTP client exposed as [ExtensionContext.net](ExtensionContext.md#net). Requests
 run in the Rust backend via `reqwest`, so they bypass the browser's CORS
@@ -21,7 +21,7 @@ Typical use-cases:
 fetch(url, options?): Promise<NetworkResponse>;
 ```
 
-Defined in: [packages/sdk/src/network-service.ts:105](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L105)
+Defined in: [packages/sdk/src/network-service.ts:127](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L127)
 
 Make an HTTP request server-side, bypassing CORS. Returns the full
 response: status, headers, body, and the final URL after any redirects.
@@ -57,13 +57,64 @@ const { status, body } = await ctx.net.fetch("https://api.example.com/data");
 
 ***
 
+### fetchBytes()
+
+```ts
+fetchBytes(url, options?): Promise<NetworkBytesResponse>;
+```
+
+Defined in: [packages/sdk/src/network-service.ts:151](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L151)
+
+Like [NetworkService.fetch](#fetch), but resolves the response body as raw
+bytes ([NetworkBytesResponse](NetworkBytesResponse.md)) instead of decoding it as UTF-8 text —
+for downloading images, archives, or any binary payload.
+
+#### Parameters
+
+##### url
+
+`string`
+
+The URL to fetch.
+
+##### options?
+
+[`NetworkRequestOptions`](NetworkRequestOptions.md)
+
+Method, headers, body, redirect and timeout controls. The
+  body may itself be binary (`ArrayBuffer` / `Uint8Array`).
+
+#### Returns
+
+`Promise`\<[`NetworkBytesResponse`](NetworkBytesResponse.md)\>
+
+#### Throws
+
+[NetworkError](../classes/NetworkError.md) if the request fails.
+
+#### Remarks
+
+The body rides Tauri's binary IPC channel (no base64), but the whole
+response is still buffered in memory on both sides — suitable for typical
+asset downloads (up to a few tens of MB), not for streaming multi-hundred-MB
+files.
+
+#### Example
+
+```ts
+const { body } = await ctx.net.fetchBytes("https://example.com/logo.png");
+await ctx.files.writeBytes("logo.png", body);
+```
+
+***
+
 ### fetchHeaders()
 
 ```ts
 fetchHeaders(url, options?): Promise<Record<string, string>>;
 ```
 
-Defined in: [packages/sdk/src/network-service.ts:126](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L126)
+Defined in: [packages/sdk/src/network-service.ts:175](https://github.com/silo-code/silo/blob/main/packages/sdk/src/network-service.ts#L175)
 
 Send a `HEAD` request and return only the response headers — no body is
 downloaded. More efficient than [NetworkService.fetch](#fetch) when you only

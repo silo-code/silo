@@ -1,8 +1,9 @@
 # ctx.editors <Badge type="tip" text="stable" />
 
 The editor & document domain: open files into editor tabs, drive the active
-editor (save / close), and let editor viewers register save handlers. Opening
-editors lives here — not on [`ctx.workspaces`](/api/state/workspaces).
+editor (save / close), let editors register save handlers, and **reactively
+observe which editor is focused**. Opening editors lives here — not on
+[`ctx.workspaces`](/api/state/workspaces).
 
 ```ts
 ctx.editors: EditorService
@@ -44,6 +45,8 @@ ctx.registerCommand({
 | [`editorsFor(path)`](/api/types/interfaces/EditorService#editorsfor)                                           | List the [views](/api/types/interfaces/EditorViewInfo) that match a path (highest-priority first, default flagged) — for building "Open With" menus / a view-switcher.        |
 | [`setViewType(editorId, viewType, opts?)`](/api/types/interfaces/EditorService#setviewtype)                    | Switch an open tab to a different [editor view](/api/registration/register-editor) in place, persisting the choice.                                                           |
 | [`registerSaveHandler(editorId, handlers)`](/api/types/interfaces/EditorService#registersavehandler)           | Register an editor's `save`/`saveAs` so the active-editor commands dispatch to it. Returns a [`Disposable`](/api/types/interfaces/Disposable).                                |
+| [`getState()`](/api/types/interfaces/EditorService#getstate)                                                   | Current frozen [`EditorsState`](/api/types/interfaces/EditorsState) snapshot (active editor info + hydration flag). Referentially stable between renders.                     |
+| [`subscribe(listener)`](/api/types/interfaces/EditorService#subscribe)                                         | Subscribe to active-editor changes. Returns a [`Disposable`](/api/types/interfaces/Disposable). Use [`useServiceState(ctx.editors)`](/api/other/use-service-state) in React.  |
 
 `open` / `openUntitled` take [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions)
 (`workspaceId`, `preview`, `viewType`, `selection`). Pass `selection` (1-indexed
@@ -107,9 +110,41 @@ useEffect(() => {
 }, [editorId]);
 ```
 
+## Reactive active-editor state
+
+`ctx.editors` is a [`ReactiveService`](/api/types/interfaces/ReactiveService)
+— it has `getState()` and `subscribe()`, so you can read and react to the
+focused editor without watching the DOM or polling.
+
+```tsx
+import { useServiceState } from "@silo-code/sdk";
+
+function FileLabel({ ctx }: { ctx: ExtensionContext }) {
+  const { active } = useServiceState(ctx.editors);
+  return <span>{active?.filePath ?? "(no file)"}</span>;
+}
+```
+
+From a non-React context (a command, a status item's plain-object background
+logic):
+
+```ts
+ctx.subscriptions.push(
+  ctx.editors.subscribe(({ active }) => {
+    if (active) ctx.log.info(`Active: ${active.filePath ?? "(untitled)"}`);
+  }),
+);
+```
+
+`active` is `null` when the focused dock panel is not an editor (a terminal, a
+custom panel, or nothing). Check `hydrated` before restoring any
+startup-persisted selection that depends on editor state.
+
 ## Types
 
 [`EditorService`](/api/types/interfaces/EditorService) ·
+[`EditorsState`](/api/types/interfaces/EditorsState) ·
+[`ActiveEditorInfo`](/api/types/interfaces/ActiveEditorInfo) ·
 [`EditorSaveHandlers`](/api/types/interfaces/EditorSaveHandlers) ·
 [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions) ·
 [`EditorViewInfo`](/api/types/interfaces/EditorViewInfo) ·

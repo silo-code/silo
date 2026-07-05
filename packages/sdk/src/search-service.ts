@@ -43,6 +43,17 @@ export interface SearchOptions {
    * is hit, the search stops early and {@link SearchResponse.truncated} is true.
    */
   maxResults?: number;
+  /**
+   * Cancel the search. When the signal aborts, the promise returned by
+   * {@link SearchService.search} rejects with an `Error` whose `name` is
+   * `"AbortError"` (the `fetch` convention — branch on `err.name`).
+   *
+   * Cancellation is observable immediately, but the native search may still run
+   * to completion in the background — its result is simply discarded. Use this
+   * to abandon a stale query (e.g. superseded by the next keystroke) rather than
+   * to reclaim native CPU the instant you abort.
+   */
+  signal?: AbortSignal;
 }
 
 /**

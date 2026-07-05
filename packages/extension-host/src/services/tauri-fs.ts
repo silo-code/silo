@@ -28,6 +28,37 @@ export function fsWriteText(path: string, content: string): Promise<void> {
   return invoke<void>("fs_write_text", { path, content });
 }
 
+export function fsWriteBytes(
+  path: string,
+  data: ArrayBuffer | Uint8Array,
+): Promise<void> {
+  // Tauri's default IPC serializes args as JSON, so hand the Rust `Vec<u8>` a
+  // plain number array (matching how `terminal_write` passes bytes).
+  const bytes = Array.from(
+    data instanceof Uint8Array ? data : new Uint8Array(data),
+  );
+  return invoke<void>("fs_write_bytes", { path, data: bytes });
+}
+
+function mapMeta(r: RawFileMeta): FileMeta {
+  return {
+    name: r.name,
+    path: r.path,
+    isDir: r.is_dir,
+    size: r.size,
+    modifiedMs: r.modified_ms,
+  };
+}
+
+export async function fsStat(path: string): Promise<FileMeta | null> {
+  const raw = await invoke<RawFileMeta | null>("fs_stat", { path });
+  return raw ? mapMeta(raw) : null;
+}
+
+export function fsCopy(src: string, dest: string): Promise<void> {
+  return invoke<void>("fs_copy", { src, dst: dest });
+}
+
 export function fsCreateDir(path: string): Promise<void> {
   return invoke<void>("fs_create_dir", { path });
 }
@@ -54,11 +85,5 @@ export function fsReveal(path: string): Promise<void> {
 
 export async function fsReadDir(path: string): Promise<FileMeta[]> {
   const raw = await invoke<RawFileMeta[]>("fs_read_dir", { path });
-  return raw.map((r) => ({
-    name: r.name,
-    path: r.path,
-    isDir: r.is_dir,
-    size: r.size,
-    modifiedMs: r.modified_ms,
-  }));
+  return raw.map(mapMeta);
 }

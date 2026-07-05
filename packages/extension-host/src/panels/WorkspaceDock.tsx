@@ -286,11 +286,17 @@ export function WorkspaceDock({
       }
       setContextKey("activeEditorId", editorId);
       const record = findEditor(workspaceId, editorId);
-      try {
-        const editor = resolveEditorForRecord(record);
-        setContextKey("activeEditorViewId", editor.id);
-      } catch {
+      // Diff tabs have no editor presenter — resolveEditorForRecord would
+      // match the file's text editor, producing a viewId/mode mismatch.
+      if (record?.mode === "diff") {
         setContextKey("activeEditorViewId", null);
+      } else {
+        try {
+          const editor = resolveEditorForRecord(record);
+          setContextKey("activeEditorViewId", editor.id);
+        } catch {
+          setContextKey("activeEditorViewId", null);
+        }
       }
     }
     update();

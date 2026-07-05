@@ -67,6 +67,24 @@ export interface ProcessExecOptions {
    * {@link Permission}. First-party (bundled) extensions are unscoped.
    */
   cwd?: string;
+  /**
+   * Extra environment variables, **merged over** the host's environment (the
+   * command inherits the host env; these keys add to or override it). Use it to
+   * set things like `GIT_PAGER=cat` or a locale without clobbering `PATH`.
+   */
+  env?: Record<string, string>;
+  /**
+   * Kill the process and reject after this many milliseconds. The whole process
+   * group is terminated (not just the direct child), so shell wrappers don't
+   * leak orphans. The rejection is an `Error` whose `name` is `"AbortError"`.
+   */
+  timeoutMs?: number;
+  /**
+   * Abort handle. Aborting kills the process (and its group) and rejects the
+   * `exec` promise with an `Error` whose `name` is `"AbortError"` — the same
+   * shape as a `timeoutMs` expiry, so callers branch on `err.name`.
+   */
+  signal?: AbortSignal;
 }
 
 /**
@@ -116,10 +134,12 @@ export interface ProcessService {
    * interactive sessions instead.
    *
    * Runs **off the UI thread**, so a slow or network-bound command never
-   * stutters the app. The returned promise rejects only if the process could
-   * not be spawned (e.g. the command was not found); a command that runs but
-   * exits non-zero **resolves** — check {@link ProcessExecResult.code} and
-   * {@link ProcessExecResult.stderr}.
+   * stutters the app. The returned promise rejects if the process could not be
+   * spawned (e.g. the command was not found), or if a
+   * {@link ProcessExecOptions.timeoutMs | timeout} / {@link ProcessExecOptions.signal | abort}
+   * fires (an `Error` with `name === "AbortError"`); a command that runs to
+   * completion but exits non-zero **resolves** — check
+   * {@link ProcessExecResult.code} and {@link ProcessExecResult.stderr}.
    *
    * @param command - Executable to run (resolved via `PATH`), e.g. `"git"`.
    * @param args - Arguments passed verbatim — not shell-interpreted, so no

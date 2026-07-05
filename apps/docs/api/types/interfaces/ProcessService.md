@@ -1,6 +1,6 @@
 # Interface: ProcessService
 
-Defined in: [packages/sdk/src/process-service.ts:101](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L101)
+Defined in: [packages/sdk/src/process-service.ts:119](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L119)
 
 Persistent process / PTY sessions that **survive app restarts** — the core
 primitive under the terminal (and future task runners, REPLs) — plus one-shot
@@ -15,7 +15,7 @@ Exposed as [ExtensionContext.process](ExtensionContext.md#process).
 spawn(opts): Promise<ProcessSession>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:103](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L103)
+Defined in: [packages/sdk/src/process-service.ts:121](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L121)
 
 Spawn a new session in `opts.cwd`.
 
@@ -37,7 +37,7 @@ Spawn a new session in `opts.cwd`.
 attach(id, opts?): Promise<ProcessSession>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:108](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L108)
+Defined in: [packages/sdk/src/process-service.ts:126](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L126)
 
 Re-attach to an existing session by id (e.g. after an app restart). Rejects
 with a 404-style error if the session no longer exists.
@@ -73,7 +73,7 @@ exec(
 options?): Promise<ProcessExecResult>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:138](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L138)
+Defined in: [packages/sdk/src/process-service.ts:158](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L158)
 
 Run a one-shot command and resolve with its captured output — for
 extensions that wrap a CLI (git, formatters, linters) rather than drive an
@@ -81,10 +81,12 @@ interactive shell. Use [spawn](#spawn) for long-lived
 interactive sessions instead.
 
 Runs **off the UI thread**, so a slow or network-bound command never
-stutters the app. The returned promise rejects only if the process could
-not be spawned (e.g. the command was not found); a command that runs but
-exits non-zero **resolves** — check [ProcessExecResult.code](ProcessExecResult.md#code) and
-[ProcessExecResult.stderr](ProcessExecResult.md#stderr).
+stutters the app. The returned promise rejects if the process could not be
+spawned (e.g. the command was not found), or if a
+[timeout](ProcessExecOptions.md#timeoutms) / [abort](ProcessExecOptions.md#signal)
+fires (an `Error` with `name === "AbortError"`); a command that runs to
+completion but exits non-zero **resolves** — check
+[ProcessExecResult.code](ProcessExecResult.md#code) and [ProcessExecResult.stderr](ProcessExecResult.md#stderr).
 
 #### Parameters
 

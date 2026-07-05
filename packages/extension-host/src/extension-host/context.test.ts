@@ -15,12 +15,15 @@ vi.mock("../services/tauri-fs", () => ({
   fsReadText: readTextMock,
   fsReadBytes: vi.fn(),
   fsWriteText: vi.fn(),
+  fsWriteBytes: vi.fn(),
   fsCreateDir: vi.fn(),
   fsPathExists: vi.fn(),
+  fsStat: vi.fn(),
   fsRename: vi.fn(),
   fsDelete: vi.fn(),
   fsReveal: vi.fn(),
   fsReadDir: vi.fn(),
+  fsCopy: vi.fn(),
 }));
 vi.mock("../services/tauri-watch", () => ({
   startWatch: vi.fn(),

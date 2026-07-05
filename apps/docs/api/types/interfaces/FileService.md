@@ -95,9 +95,11 @@ List a directory's immediate entries.
 pathExists(path): Promise<boolean>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:86](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L86)
+Defined in: [packages/sdk/src/file-service.ts:90](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L90)
 
-Resolve true if a file or directory exists at `path`.
+Resolve true if a file or directory exists at `path`. Prefer
+[FileService.stat](#stat) when you also need the entry's metadata — `stat`
+returning non-`null` subsumes this check in one call.
 
 #### Parameters
 
@@ -111,13 +113,39 @@ Resolve true if a file or directory exists at `path`.
 
 ***
 
+### stat()
+
+```ts
+stat(path): Promise<FileMeta | null>;
+```
+
+Defined in: [packages/sdk/src/file-service.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L98)
+
+Metadata for a single path, following symlinks, or `null` if nothing
+exists there. Resolving `null` (rather than rejecting) for an absent path
+is deliberate — it makes `stat` a one-call replacement for
+[FileService.pathExists](#pathexists) that also returns size / mtime / type.
+Rejects only on a real I/O error (e.g. a permission failure).
+
+#### Parameters
+
+##### path
+
+`string`
+
+#### Returns
+
+`Promise`\<[`FileMeta`](FileMeta.md) \| `null`\>
+
+***
+
 ### writeText()
 
 ```ts
 writeText(path, content): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:88](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L88)
+Defined in: [packages/sdk/src/file-service.ts:100](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L100)
 
 Write UTF-8 text to a file, creating or overwriting it.
 
@@ -137,13 +165,42 @@ Write UTF-8 text to a file, creating or overwriting it.
 
 ***
 
+### writeBytes()
+
+```ts
+writeBytes(path, data): Promise<void>;
+```
+
+Defined in: [packages/sdk/src/file-service.ts:107](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L107)
+
+Write raw bytes to a file, creating or overwriting it (and creating any
+missing parent directories). The byte-oriented counterpart to
+[FileService.writeText](#writetext) / [FileService.readBytes](#readbytes) — use it for
+binary assets (images, archives) where `writeText` would corrupt the data.
+
+#### Parameters
+
+##### path
+
+`string`
+
+##### data
+
+`ArrayBuffer` \| `Uint8Array`\<`ArrayBufferLike`\>
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### createDir()
 
 ```ts
 createDir(path): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:90](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L90)
+Defined in: [packages/sdk/src/file-service.ts:109](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L109)
 
 Create a directory (and any missing parents).
 
@@ -159,13 +216,42 @@ Create a directory (and any missing parents).
 
 ***
 
+### copy()
+
+```ts
+copy(src, dest): Promise<void>;
+```
+
+Defined in: [packages/sdk/src/file-service.ts:116](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L116)
+
+Copy a file or directory from `src` to `dest`, recursively for
+directories, creating any missing parent directories. Requires read access
+to `src` and write access to `dest` (both are workspace-scoped). Overwrites
+existing files at the destination.
+
+#### Parameters
+
+##### src
+
+`string`
+
+##### dest
+
+`string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### rename()
 
 ```ts
 rename(oldPath, newPath): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:92](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L92)
+Defined in: [packages/sdk/src/file-service.ts:118](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L118)
 
 Rename / move a file or directory.
 
@@ -191,9 +277,12 @@ Rename / move a file or directory.
 delete(path): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L94)
+Defined in: [packages/sdk/src/file-service.ts:125](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L125)
 
-Delete a file or directory.
+**Permanently** delete a file or directory (directories are removed
+recursively). This does **not** move the entry to the OS trash/recycle
+bin — the delete is irreversible, so confirm destructive removals with the
+user first. Rejects if the path does not exist.
 
 #### Parameters
 
@@ -213,7 +302,7 @@ Delete a file or directory.
 reveal(path): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L96)
+Defined in: [packages/sdk/src/file-service.ts:127](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L127)
 
 Reveal a path in the OS file manager (Finder / Explorer).
 
@@ -235,7 +324,7 @@ Reveal a path in the OS file manager (Finder / Explorer).
 watch(path, listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/file-service.ts:103](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L103)
+Defined in: [packages/sdk/src/file-service.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/file-service.ts#L134)
 
 Watch `path` recursively, invoking `listener` for each change under it.
 Returns a [Disposable](Disposable.md) that stops listening when disposed. Watcher
