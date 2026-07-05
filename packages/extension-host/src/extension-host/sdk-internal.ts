@@ -113,6 +113,8 @@ export {
   toggleGroupCollapsed,
   groupIdForWorkspace,
   workspaceGroupMap,
+  closeGroup,
+  restoreGroup,
 } from "../state/workspaces";
 export type { WorkspaceGroup, WorkspaceInternal } from "../state/types";
 

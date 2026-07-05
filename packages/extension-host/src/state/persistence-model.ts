@@ -153,7 +153,13 @@ function cloneGroups(
 ): Record<string, WorkspaceGroup> {
   const out: Record<string, WorkspaceGroup> = {};
   for (const [id, group] of Object.entries(src)) {
-    out[id] = { ...group, workspaceOrder: [...group.workspaceOrder] };
+    out[id] = {
+      ...group,
+      workspaceOrder: [...group.workspaceOrder],
+      ...(group.closedMemberIds
+        ? { closedMemberIds: [...group.closedMemberIds] }
+        : {}),
+    };
   }
   return out;
 }

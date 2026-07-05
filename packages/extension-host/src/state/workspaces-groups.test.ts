@@ -25,6 +25,11 @@ import {
   workspaceGroupMap,
   createWorkspace,
   deleteWorkspace,
+  closeGroup,
+  restoreGroup,
+  activateWorkspace,
+  reopenWorkspace,
+  closeWorkspace,
 } from "./workspaces";
 
 function makeGroup(name: string): WorkspaceGroup {
@@ -400,5 +405,234 @@ describe("workspaceGroupMap", () => {
     expect(map.get("ws_b")).toBe("grp_1");
     expect(map.get("ws_c")).toBe("grp_2");
     expect(map.has("ws_d")).toBe(false);
+  });
+});
+
+// ── closeGroup ───────────────────────────────────────────────────────────────
+
+describe("closeGroup", () => {
+  it("sets closedAt on the group and every open member", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    closeGroup(group.id);
+    expect(store.groups[group.id].closedAt).not.toBeNull();
+    expect(store.workspaces[a.id].closedAt).not.toBeNull();
+    expect(store.workspaces[b.id].closedAt).not.toBeNull();
+  });
+
+  it("records only members that were open at close time", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    closeWorkspace(a.id); // pre-closed before the group-close
+    closeGroup(group.id);
+    expect(store.groups[group.id].closedMemberIds).toEqual([b.id]);
+  });
+
+  it("records an empty list for an empty group", () => {
+    const group = makeGroup("G");
+    closeGroup(group.id);
+    expect(store.groups[group.id].closedAt).not.toBeNull();
+    expect(store.groups[group.id].closedMemberIds).toEqual([]);
+  });
+
+  it("records an empty list when all members are already closed", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    moveWorkspaceToGroup(a.id, group.id);
+    closeWorkspace(a.id);
+    closeGroup(group.id);
+    expect(store.groups[group.id].closedMemberIds).toEqual([]);
+  });
+
+  it("falls back the active workspace to the next open non-member", () => {
+    const other = createWorkspace({ folder: "/other", name: "other" });
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    activateWorkspace(b.id);
+    closeGroup(group.id);
+    expect(store.activeWorkspaceId).toBe(other.id);
+  });
+
+  it("falls back the active workspace to null when nothing else is open", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    activateWorkspace(b.id);
+    closeGroup(group.id);
+    expect(store.activeWorkspaceId).toBeNull();
+  });
+
+  it("does not move the group's slot in panelOrder", () => {
+    const before = createWorkspace({ folder: "/before", name: "before" });
+    const group = makeGroup("G");
+    const after = createWorkspace({ folder: "/after", name: "after" });
+    const order = [...store.panelOrder];
+    closeGroup(group.id);
+    expect(store.panelOrder).toEqual(order);
+    expect(store.panelOrder).toEqual([before.id, group.id, after.id]);
+  });
+
+  it("no-ops for an unknown id", () => {
+    expect(() => closeGroup("grp_ghost")).not.toThrow();
+  });
+
+  it("no-ops for an already-closed group", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    moveWorkspaceToGroup(a.id, group.id);
+    closeGroup(group.id);
+    const closedAt = store.groups[group.id].closedAt;
+    closeGroup(group.id);
+    expect(store.groups[group.id].closedAt).toBe(closedAt);
+    expect(store.groups[group.id].closedMemberIds).toEqual([a.id]);
+  });
+});
+
+// ── restoreGroup ─────────────────────────────────────────────────────────────
+
+describe("restoreGroup", () => {
+  it("reopens exactly the members recorded at close time", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    closeWorkspace(a.id); // pre-closed before the group-close
+    closeGroup(group.id);
+    restoreGroup(group.id);
+    expect(store.groups[group.id].closedAt).toBeNull();
+    expect(store.groups[group.id].closedMemberIds).toBeUndefined();
+    expect(store.workspaces[b.id].closedAt).toBeNull();
+    // The pre-closed member is left closed — restore only reverses the group-close.
+    expect(store.workspaces[a.id].closedAt).not.toBeNull();
+  });
+
+  it("activates the first reopened member", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    closeGroup(group.id);
+    restoreGroup(group.id);
+    expect(store.activeWorkspaceId).toBe(a.id);
+  });
+
+  it("skips a recorded member that was deleted while the group was closed", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    closeGroup(group.id);
+    deleteWorkspace(a.id);
+    expect(() => restoreGroup(group.id)).not.toThrow();
+    expect(store.workspaces[b.id].closedAt).toBeNull();
+    expect(store.activeWorkspaceId).toBe(b.id);
+  });
+
+  it("skips a recorded member that was moved to another group while closed", () => {
+    const group = makeGroup("G");
+    const other = makeGroup("Other");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    moveWorkspaceToGroup(a.id, group.id);
+    closeGroup(group.id);
+    moveWorkspaceToGroup(a.id, other.id); // allowed: destination group is open
+    restoreGroup(group.id);
+    expect(store.workspaces[a.id].closedAt).not.toBeNull();
+    expect(groupIdForWorkspace(a.id)).toBe(other.id);
+  });
+
+  it("leaves activeWorkspaceId unchanged when nothing is reopened", () => {
+    const group = makeGroup("G"); // empty group
+    const active = createWorkspace({ folder: "/active", name: "active" });
+    closeGroup(group.id);
+    restoreGroup(group.id);
+    expect(store.groups[group.id].closedAt).toBeNull();
+    expect(store.activeWorkspaceId).toBe(active.id);
+  });
+
+  it("no-ops for an unknown id", () => {
+    expect(() => restoreGroup("grp_ghost")).not.toThrow();
+  });
+
+  it("no-ops for a group that is not closed", () => {
+    const group = makeGroup("G");
+    expect(() => restoreGroup(group.id)).not.toThrow();
+    expect(store.groups[group.id].closedAt).toBeUndefined();
+  });
+});
+
+// ── activateWorkspace / reopenWorkspace reopen a closed group's shell ────────
+
+describe("activateWorkspace / reopenWorkspace on a member of a closed group", () => {
+  it("activateWorkspace reopens the group shell but leaves siblings closed", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    closeGroup(group.id);
+    activateWorkspace(a.id);
+    expect(store.groups[group.id].closedAt).toBeNull();
+    expect(store.groups[group.id].closedMemberIds).toBeUndefined();
+    expect(store.workspaces[a.id].closedAt).toBeNull();
+    expect(store.workspaces[b.id].closedAt).not.toBeNull();
+  });
+
+  it("reopenWorkspace reopens the group shell but leaves siblings closed", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    closeGroup(group.id);
+    reopenWorkspace(b.id);
+    expect(store.groups[group.id].closedAt).toBeNull();
+    expect(store.workspaces[b.id].closedAt).toBeNull();
+    expect(store.workspaces[a.id].closedAt).not.toBeNull();
+  });
+});
+
+// ── moveWorkspaceToGroup guard against closed groups ─────────────────────────
+
+describe("moveWorkspaceToGroup into a closed group", () => {
+  it("no-ops, leaving the workspace where it was", () => {
+    const group = makeGroup("G");
+    closeGroup(group.id);
+    const ws = createWorkspace({ folder: "/p", name: "p" });
+    moveWorkspaceToGroup(ws.id, group.id);
+    expect(groupIdForWorkspace(ws.id)).toBeUndefined();
+    expect(store.panelOrder).toContain(ws.id);
+    expect(store.groups[group.id].workspaceOrder).not.toContain(ws.id);
+  });
+});
+
+// ── deleteGroup on a closed group ─────────────────────────────────────────────
+
+describe("deleteGroup on a closed group", () => {
+  it("splices members into panelOrder at the group's slot and leaves them closed", () => {
+    const group = makeGroup("G");
+    const a = createWorkspace({ folder: "/a", name: "a" });
+    const b = createWorkspace({ folder: "/b", name: "b" });
+    moveWorkspaceToGroup(a.id, group.id);
+    moveWorkspaceToGroup(b.id, group.id);
+    closeGroup(group.id);
+    deleteGroup(group.id);
+    expect(store.groups[group.id]).toBeUndefined();
+    expect(store.panelOrder).toEqual([a.id, b.id]);
+    expect(store.workspaces[a.id].closedAt).not.toBeNull();
+    expect(store.workspaces[b.id].closedAt).not.toBeNull();
   });
 });

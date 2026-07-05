@@ -15,6 +15,7 @@ export interface GroupSnapshot {
   color?: string;
   collapsed: boolean;
   workspaceOrder: readonly string[] | string[];
+  closedAt?: string | null;
 }
 
 type Swatch = { label: string; value: string | undefined };

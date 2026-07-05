@@ -90,6 +90,7 @@ export function activateWorkspace(id: string): void {
   const ws = store.workspaces[id];
   if (!ws) return;
   if (ws.closedAt) ws.closedAt = null;
+  ensureGroupVisible(id);
   if (store.activeWorkspaceId === id) return;
   // Capture outgoing panel state before switching.
   if (store.activeWorkspaceId)
@@ -115,6 +116,7 @@ export function reopenWorkspace(id: string): void {
   if (!ws) return;
   ws.closedAt = null;
   ws.lastOpenedAt = new Date().toISOString();
+  ensureGroupVisible(id);
   store.activeWorkspaceId = id;
 }
 
@@ -318,7 +320,7 @@ export function moveWorkspaceToGroup(
   anchor?: { toId: string; position: "before" | "after" },
 ): void {
   const group = store.groups[groupId];
-  if (!group) return;
+  if (!group || group.closedAt) return;
   removeWorkspaceFromGroup(wsId);
   // The workspace leaves the top level — it now lives inside the group.
   store.panelOrder = store.panelOrder.filter((id) => id !== wsId);
@@ -394,6 +396,55 @@ export function toggleGroupCollapsed(id: string): void {
   const group = store.groups[id];
   if (!group) return;
   group.collapsed = !group.collapsed;
+}
+
+/**
+ * Soft-close a group: close every currently-open member (via `closeWorkspace`,
+ * so active-workspace fallback runs per member) and record exactly which
+ * members that was, so `restoreGroup` reopens only those. No-op if the group
+ * is unknown or already closed.
+ */
+export function closeGroup(id: string): void {
+  const group = store.groups[id];
+  if (!group || group.closedAt) return;
+  const openMembers = group.workspaceOrder.filter(
+    (wsId) => store.workspaces[wsId] && !store.workspaces[wsId].closedAt,
+  );
+  for (const wsId of openMembers) closeWorkspace(wsId);
+  group.closedMemberIds = openMembers;
+  group.closedAt = new Date().toISOString();
+}
+
+/**
+ * Reopen a closed group: reopen the members recorded by `closeGroup` (skipping
+ * any since deleted or moved out of the group) and activate the first of them.
+ * No-op if the group is unknown or already open.
+ */
+export function restoreGroup(id: string): void {
+  const group = store.groups[id];
+  if (!group || !group.closedAt) return;
+  const toReopen = (group.closedMemberIds ?? []).filter(
+    (wsId) => group.workspaceOrder.includes(wsId) && store.workspaces[wsId],
+  );
+  group.closedAt = null;
+  delete group.closedMemberIds;
+  const now = new Date().toISOString();
+  for (const wsId of toReopen) {
+    store.workspaces[wsId].closedAt = null;
+    store.workspaces[wsId].lastOpenedAt = now;
+  }
+  if (toReopen[0]) activateWorkspace(toReopen[0]);
+}
+
+/** If `wsId`'s group is closed, reopen the group shell only (siblings stay
+ * closed) — a reopened workspace must render somewhere. */
+function ensureGroupVisible(wsId: string): void {
+  const groupId = groupIdForWorkspace(wsId);
+  const group = groupId ? store.groups[groupId] : undefined;
+  if (group?.closedAt) {
+    group.closedAt = null;
+    delete group.closedMemberIds;
+  }
 }
 
 export function addTerminal(

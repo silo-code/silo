@@ -36,10 +36,14 @@ Workspace panel groups stay a **host-internal, `core.*`-only** concern. Group
 state (`AppState.groups` / `panelOrder`) and its mutators (`createGroup`,
 `renameGroup`, `deleteGroup`, `setGroupColor`, `reorderPanel`,
 `moveWorkspaceToGroup`, `ungroupWorkspace`, `reorderWorkspaceInGroup`,
-`toggleGroupCollapsed`) plus the derived lookups (`groupIdForWorkspace`,
-`workspaceGroupMap`) are exported from `@silo-code/extension-host/internal` and
-consumed only by `core.workspaces`. They are **not** added to the public
-`WorkspaceService` and carry no SDK docs or roadmap entry.
+`toggleGroupCollapsed`, `closeGroup`, `restoreGroup`) plus the derived lookups
+(`groupIdForWorkspace`, `workspaceGroupMap`) are exported from
+`@silo-code/extension-host/internal` and consumed only by `core.workspaces`.
+They are **not** added to the public `WorkspaceService` and carry no SDK docs
+or roadmap entry. `closeGroup`/`restoreGroup` soft-close and reopen a group's
+members through the existing workspace lifecycle (`Workspace.closedAt`) —
+extending the same internal channel rather than crossing onto the public
+service.
 
 Two orders back the panel. `panelOrder` is a single interleaved list of
 top-level entries — ungrouped workspace ids and group ids — so a group can be

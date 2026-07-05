@@ -62,6 +62,43 @@ describe("buildNavItems", () => {
     ]);
   });
 
+  it("omits a closed group's header and its members entirely", () => {
+    const items = buildNavItems(
+      ["top", "grp_1", "bottom"],
+      {
+        grp_1: {
+          collapsed: false,
+          workspaceOrder: ["a", "b"],
+          closedAt: "2026-01-01T00:00:00.000Z",
+        },
+      },
+      openAll,
+    );
+    expect(items).toEqual([
+      { kind: "workspace", id: "top" },
+      { kind: "workspace", id: "bottom" },
+    ]);
+  });
+
+  it("still renders an open group next to a closed one, in panel order", () => {
+    const items = buildNavItems(
+      ["grp_closed", "grp_open"],
+      {
+        grp_closed: {
+          collapsed: false,
+          workspaceOrder: ["a"],
+          closedAt: "2026-01-01T00:00:00.000Z",
+        },
+        grp_open: { collapsed: false, workspaceOrder: ["b"] },
+      },
+      openAll,
+    );
+    expect(items).toEqual([
+      { kind: "group", id: "grp_open" },
+      { kind: "workspace", id: "b" },
+    ]);
+  });
+
   it("yields sequential indices matching render order (via the resulting map)", () => {
     const items = buildNavItems(
       ["grp_1", "solo"],
