@@ -38,11 +38,21 @@ function activate(ctx: ExtensionContext) {
   // An empty string means "subscribed while the PTY hadn't spawned yet".
   // When the sessionId changes (PTY spawns or restarts), we re-subscribe.
   const oscSubSessionIds = new Map<string, string>();
+  // Disposables for per-terminal raw output subscriptions. These cancel pending
+  // agent-idle timers when output arrives, preventing false "needs attention"
+  // when Claude emits ✳ briefly between tool calls.
+  const outputSubs = new Map<string, { dispose(): void }>();
   // Per-terminal debounce timers for OSC 133 "working" → "waiting" fallback.
   // Some agents (e.g. pi) emit 133;C for each step but never emit 133;A/D on
   // completion. When the stream goes silent for SHELL_IDLE_MS we clear to waiting.
   const SHELL_IDLE_MS = 3_000;
   const shellIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // Pending debounced ✳ → "waiting" transitions. Claude Code emits ✳ briefly
+  // between tool calls while computing the next action. subscribeOutput cancels
+  // this timer when the next output chunk arrives, so we only transition to
+  // "waiting" if the terminal actually goes quiet for AGENT_IDLE_DEBOUNCE_MS.
+  const AGENT_IDLE_DEBOUNCE_MS = 1_500;
+  const agentIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   let activeTerminalId = ctx.terminals.getActive();
 
@@ -102,6 +112,25 @@ function activate(ctx: ExtensionContext) {
     );
   }
 
+  function clearAgentIdleTimer(terminalId: string) {
+    const t = agentIdleTimers.get(terminalId);
+    if (t !== undefined) {
+      clearTimeout(t);
+      agentIdleTimers.delete(terminalId);
+    }
+  }
+
+  function scheduleAgentIdle(terminalId: string) {
+    clearAgentIdleTimer(terminalId);
+    agentIdleTimers.set(
+      terminalId,
+      setTimeout(() => {
+        agentIdleTimers.delete(terminalId);
+        dispatch(terminalId, detectedEvent(terminalId, "waiting", "agent"));
+      }, AGENT_IDLE_DEBOUNCE_MS),
+    );
+  }
+
   function subscribeTerminalOsc(terminalId: string, sessionId: string) {
     const prevSessionId = oscSubSessionIds.get(terminalId);
     // Skip if we already have a live sub for this exact session. If sessionId
@@ -132,15 +161,35 @@ function activate(ctx: ExtensionContext) {
           );
           if (result.timer === "schedule") scheduleShellIdle(terminalId);
           else if (result.timer === "clear") clearShellIdleTimer(terminalId);
-          dispatch(
-            terminalId,
-            detectedEvent(terminalId, result.status, result.source),
-          );
+          if (result.status === "waiting" && result.source === "agent") {
+            // Debounce: Claude emits ✳ briefly between tool calls. Only transition
+            // to "waiting" if the terminal goes quiet for AGENT_IDLE_DEBOUNCE_MS.
+            // subscribeOutput cancels this timer when the next output chunk arrives.
+            scheduleAgentIdle(terminalId);
+          } else {
+            if (result.status === "working") clearAgentIdleTimer(terminalId);
+            dispatch(
+              terminalId,
+              detectedEvent(terminalId, result.status, result.source),
+            );
+          }
           break;
         }
       }
     });
     oscSubs.set(terminalId, sub);
+    // Subscribe to raw output for this terminal (once per terminal record id).
+    // On every PTY chunk, cancel any pending agent-idle timer — if the agent is
+    // still producing output it's not truly idle yet. Subscribed only once; the
+    // host's subscribeOutput handles sessionId resolution and polling internally.
+    if (!outputSubs.has(terminalId)) {
+      outputSubs.set(
+        terminalId,
+        ctx.terminals.subscribeOutput(terminalId, () => {
+          clearAgentIdleTimer(terminalId);
+        }),
+      );
+    }
     // Note: do NOT push into ctx.subscriptions — oscSubs manages the lifecycle
     // of these per-terminal subscriptions (disposed in syncOscSubscriptions and
     // the bulk disposable below). Pushing them would cause the array to grow
@@ -164,8 +213,11 @@ function activate(ctx: ExtensionContext) {
         sub.dispose();
         oscSubs.delete(id);
         oscSubSessionIds.delete(id);
+        outputSubs.get(id)?.dispose();
+        outputSubs.delete(id);
         states.delete(id);
         clearShellIdleTimer(id);
+        clearAgentIdleTimer(id);
       }
     }
   }
@@ -189,8 +241,12 @@ function activate(ctx: ExtensionContext) {
         for (const sub of oscSubs.values()) sub.dispose();
         oscSubs.clear();
         oscSubSessionIds.clear();
+        for (const sub of outputSubs.values()) sub.dispose();
+        outputSubs.clear();
         for (const t of shellIdleTimers.values()) clearTimeout(t);
         shellIdleTimers.clear();
+        for (const t of agentIdleTimers.values()) clearTimeout(t);
+        agentIdleTimers.clear();
       },
     },
   );
