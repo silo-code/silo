@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.23.0](https://github.com/silo-code/silo/compare/sdk-v0.22.0...sdk-v0.23.0) (2026-07-06)
+
+
+### Features
+
+* **sdk:** add ctx.terminals.subscribeOutput for raw PTY output access ([#174](https://github.com/silo-code/silo/issues/174)) ([8a16a9e](https://github.com/silo-code/silo/commit/8a16a9e4b1f4fab61af6d5feefcee168c7a6d461))
+
 ## [0.22.0](https://github.com/silo-code/silo/compare/sdk-v0.21.0...sdk-v0.22.0) (2026-07-05)
 
 
