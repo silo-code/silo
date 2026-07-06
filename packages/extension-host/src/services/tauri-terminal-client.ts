@@ -24,6 +24,11 @@ export class TauriTerminalClient {
   private exitListeners = new Map<string, Set<ExitListener>>();
   private oscListeners = new Map<string, Set<OscListener>>();
   private unlisteners = new Map<string, Array<() => void>>();
+  // Tracks sessions whose Tauri event bridge is currently being set up. Guards
+  // against concurrent calls to setupSessionListeners (e.g. onOsc + onOutput
+  // firing synchronously for the same new session) registering duplicate bridges
+  // before the first async listen() call has a chance to set `unlisteners`.
+  private setupInProgress = new Set<string>();
 
   async createTerminal(opts: CreateOpts): Promise<{ sessionId: string }> {
     // `process` doesn't exist in the webview; callers pass an explicit cwd.
@@ -82,40 +87,50 @@ export class TauriTerminalClient {
     // doubling the on-screen echo. Per-component callbacks are tracked separately
     // via onOutput/onExit, so it's safe to reuse the existing bridge.
     if (this.unlisteners.has(sessionId)) return;
+    // Synchronous in-progress guard: prevents a second concurrent call from
+    // also passing the unlisteners check above before the first await resolves.
+    // Without this, onOsc + onOutput called back-to-back for a new session both
+    // start setup before either finishes, registering two Tauri event bridges.
+    if (this.setupInProgress.has(sessionId)) return;
+    this.setupInProgress.add(sessionId);
 
-    // Listen for output events from this session
-    const unlistenOutput = await listen<string>(
-      `terminal_output:${sessionId}`,
-      (event) => {
-        const listeners = this.outputListeners.get(sessionId);
-        listeners?.forEach((cb) => cb(event.payload));
-        // Parse and dispatch any OSC sequences in this chunk.
-        // Checked on every chunk so OSC listeners registered after setup
-        // (e.g. from subscribeOsc) are picked up immediately.
-        const oscListeners = this.oscListeners.get(sessionId);
-        if (oscListeners?.size) {
-          parseOscSequences(event.payload, (osc) =>
-            oscListeners.forEach((cb) => cb(osc)),
-          );
-        }
-      },
-    );
+    try {
+      // Listen for output events from this session
+      const unlistenOutput = await listen<string>(
+        `terminal_output:${sessionId}`,
+        (event) => {
+          const listeners = this.outputListeners.get(sessionId);
+          listeners?.forEach((cb) => cb(event.payload));
+          // Parse and dispatch any OSC sequences in this chunk.
+          // Checked on every chunk so OSC listeners registered after setup
+          // (e.g. from subscribeOsc) are picked up immediately.
+          const oscListeners = this.oscListeners.get(sessionId);
+          if (oscListeners?.size) {
+            parseOscSequences(event.payload, (osc) =>
+              oscListeners.forEach((cb) => cb(osc)),
+            );
+          }
+        },
+      );
 
-    // Listen for exit events from this session
-    const unlistenExit = await listen<number>(
-      `terminal_exit:${sessionId}`,
-      (event) => {
-        const listeners = this.exitListeners.get(sessionId);
-        listeners?.forEach((cb) => cb(event.payload));
-        // Clean up listeners for this session
-        this.cleanup(sessionId);
-      },
-    );
+      // Listen for exit events from this session
+      const unlistenExit = await listen<number>(
+        `terminal_exit:${sessionId}`,
+        (event) => {
+          const listeners = this.exitListeners.get(sessionId);
+          listeners?.forEach((cb) => cb(event.payload));
+          // Clean up listeners for this session
+          this.cleanup(sessionId);
+        },
+      );
 
-    if (!this.unlisteners.has(sessionId)) {
-      this.unlisteners.set(sessionId, []);
+      if (!this.unlisteners.has(sessionId)) {
+        this.unlisteners.set(sessionId, []);
+      }
+      this.unlisteners.get(sessionId)!.push(unlistenOutput, unlistenExit);
+    } finally {
+      this.setupInProgress.delete(sessionId);
     }
-    this.unlisteners.get(sessionId)!.push(unlistenOutput, unlistenExit);
   }
 
   async deleteTerminal(sessionId: string): Promise<void> {
@@ -243,6 +258,7 @@ export class TauriTerminalClient {
     this.outputListeners.delete(sessionId);
     this.exitListeners.delete(sessionId);
     this.oscListeners.delete(sessionId);
+    this.setupInProgress.delete(sessionId);
     const unlisteners = this.unlisteners.get(sessionId);
     if (unlisteners) {
       unlisteners.forEach((fn) => fn());
