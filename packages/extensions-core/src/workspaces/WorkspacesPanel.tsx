@@ -124,7 +124,9 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   }, [service]);
 
   const addWrapRef = useRef<HTMLDivElement | null>(null);
-  useNow();
+  // 1s so formatElapsed's seconds-resolution display (< 1 minute) ticks live;
+  // rows past a minute don't need it but the tick is cheap for a side panel.
+  useNow(1_000);
 
   // All drag-and-drop state + wiring lives in the hook; the panel just spreads
   // its prop getters onto the entries.

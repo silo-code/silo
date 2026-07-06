@@ -35,8 +35,19 @@ export interface TerminalAgentState {
   activity: Activity;
   /** Sticky "finished, go look" flag — cleared by the `activated` event. */
   needsAttention: boolean;
+  /** ISO timestamp of when needsAttention was set; null when not pending. */
+  attentionSince: string | null;
   /** ISO timestamp of when the current work started; null when not working. */
   workingSince: string | null;
+  /**
+   * Which source last set activity to "working"; null when not working.
+   * Used to gate timer-source demotion: the idle-fallback timer should only
+   * end a working phase that was established by a shell-source event (pi).
+   * Agent-sourced working phases (Claude Code) must end via an agent-source
+   * event — blocking the timer prevents a false "needs attention" when OSC
+   * streaming pauses because the terminal tab goes to the background.
+   */
+  workingSource: "agent" | "shell" | null;
 }
 
 export type AgentEvent =
@@ -61,7 +72,9 @@ export function initialState(kind: TerminalKind): TerminalAgentState {
     isAgent: kind !== "shell",
     activity: "none",
     needsAttention: false,
+    attentionSince: null,
     workingSince: null,
+    workingSource: null,
   };
 }
 
@@ -75,7 +88,9 @@ export function reduce(
   ev: AgentEvent,
 ): TerminalAgentState {
   if (ev.type === "activated") {
-    return prev.needsAttention ? { ...prev, needsAttention: false } : prev;
+    return prev.needsAttention
+      ? { ...prev, needsAttention: false, attentionSince: null }
+      : prev;
   }
 
   // Promotion first: an agent-specific detector marks this terminal as an
@@ -83,29 +98,50 @@ export function reduce(
   // transition sees the promoted flag.
   let isAgent = prev.isAgent || ev.source === "agent";
 
-  let { activity, needsAttention, workingSince } = prev;
+  let {
+    activity,
+    needsAttention,
+    attentionSince,
+    workingSince,
+    workingSource,
+  } = prev;
   if (ev.status !== activity) {
-    // Born-agent terminals (kind !== "shell") use agent-source or timer events
-    // as the authoritative signal. Shell events can promote them to "working"
-    // (needed for pi's OSC 133;C steps), but cannot pull them back out of
-    // "working" — that prevents subprocess shell-integration OSC 133;A/D
-    // (emitted inside Claude Code's bash tool calls) from causing flicker.
-    const blockShellDemotion =
-      ev.source === "shell" && prev.kind !== "shell" && ev.status !== "working";
-    if (!blockShellDemotion) {
+    // Block demotion events that shouldn't end an agent's working phase:
+    //   • Shell-source non-working on a born-agent: subprocess OSC 133;A/D from
+    //     inside Claude's bash tool calls must not pull Claude back out of
+    //     "working" (flicker). Only applies to born-agents (kind !== "shell")
+    //     since promoted shell terminals legitimately see shell-source demotion.
+    //   • Timer-source when working was agent-sourced: the shell idle timer is
+    //     the fallback for pi (shell-sourced working). When the terminal tab goes
+    //     to the background, OSC streaming pauses and the timer fires — but that
+    //     must not produce a false "needs attention" for any terminal whose
+    //     working phase was established by an agent-source event (the braille
+    //     spinner). This covers both born-agent terminals (kind "claude") AND
+    //     shell terminals running Claude Code (kind "shell", promoted). Only an
+    //     agent-source event (the explicit ✳ idle signal) can end it.
+    const blockDemotion =
+      ev.status !== "working" &&
+      ((ev.source === "shell" && prev.kind !== "shell") ||
+        (ev.source === "timer" && prev.workingSource === "agent"));
+    if (!blockDemotion) {
       if (ev.status === "working") {
         workingSince = ev.now;
+        workingSource = ev.source === "agent" ? "agent" : "shell";
         needsAttention = false;
+        attentionSince = null;
       } else {
         if (
           activity === "working" &&
           (ev.status === "waiting" || ev.status === "done")
         ) {
           // Work just stopped: flag for attention unless the user is already
-          // looking at this terminal.
+          // looking at this terminal. Stamp when it starts so the row can
+          // show how long it's been waiting, same as the busy row's elapsed time.
           needsAttention = isAgent && !ev.isActiveTerminal;
+          attentionSince = needsAttention ? ev.now : null;
         }
         workingSince = null;
+        workingSource = null;
       }
       activity = ev.status;
     }
@@ -124,11 +160,36 @@ export function reduce(
     isAgent === prev.isAgent &&
     activity === prev.activity &&
     needsAttention === prev.needsAttention &&
-    workingSince === prev.workingSince
+    attentionSince === prev.attentionSince &&
+    workingSince === prev.workingSince &&
+    workingSource === prev.workingSource
   ) {
     return prev;
   }
-  return { ...prev, isAgent, activity, needsAttention, workingSince };
+  return {
+    ...prev,
+    isAgent,
+    activity,
+    needsAttention,
+    attentionSince,
+    workingSince,
+    workingSource,
+  };
+}
+
+// Matches a leading agent-status glyph an OSC title may carry: the Claude/
+// Codex braille spinner (U+2800-U+28FF), Claude's ✳ idle signal, or Codex's
+// "[ ! ]"/"[ . ]" action-required marker — plus any following whitespace.
+const LEADING_MARKER_RE = /^(?:[⠀-⣿]|✳|\[ [!.] \])\s*/;
+
+/**
+ * Strip the leading agent-status glyph from a terminal title before showing
+ * it as a Workspaces-panel status-row label. The glyph is meaningful in the
+ * tab title (paired with the tab's own spinner/badge icon) but redundant —
+ * and visually noisy — next to the row's own status dot.
+ */
+export function stripStatusMarker(title: string): string {
+  return title.replace(LEADING_MARKER_RE, "");
 }
 
 /**
@@ -142,7 +203,9 @@ export function deriveStatusRow(
   if (s.activity === "working") {
     return { status: "busy", startedAt: s.workingSince ?? undefined };
   }
-  if (s.needsAttention) return { status: "warn" };
+  if (s.needsAttention) {
+    return { status: "warn", startedAt: s.attentionSince ?? undefined };
+  }
   return null;
 }
 

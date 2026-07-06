@@ -4,6 +4,7 @@ import {
   reduce,
   deriveStatusRow,
   deriveTabBadge,
+  stripStatusMarker,
   type AgentEvent,
   type TerminalAgentState,
 } from "./agent-status";
@@ -120,14 +121,14 @@ describe("working state", () => {
       detected("working", "agent", { now: T1 }),
     );
     expect(s.needsAttention).toBe(false);
+    expect(s.attentionSince).toBeNull();
     expect(s.workingSince).toBe(T1);
   });
 
   it("shell events cannot pull a born-agent out of working (flicker fix)", () => {
     // Claude Code subprocess tool calls emit OSC 133;A/D from the inner shell.
     // Those arrive as source:"shell" status:"waiting" — they must not override
-    // the agent-driven "working" state, which only agent events or the timer
-    // should end.
+    // the agent-driven "working" state, which only an agent-source event ends.
     const s = run(
       initialState("claude"),
       detected("working", "agent"),
@@ -139,11 +140,48 @@ describe("working state", () => {
     expect(s.needsAttention).toBe(false);
   });
 
+  it("timer events cannot pull a born-agent out of agent-sourced working", () => {
+    // When the terminal tab goes to the background, OSC streaming pauses and
+    // the shell idle timer fires. That must not produce a false "needs attention"
+    // for Claude Code — only the explicit ✳ idle signal (agent-source) ends it.
+    const s = run(
+      initialState("claude"),
+      detected("working", "agent"),
+      detected("waiting", "timer"), // shell idle timer fires (background / OSC pause)
+    );
+    expect(s.activity).toBe("working");
+    expect(s.needsAttention).toBe(false);
+  });
+
+  it("timer events cannot pull a promoted shell terminal out of agent-sourced working", () => {
+    // Claude Code typed into a plain shell terminal: kind="shell" but promoted
+    // to agent by the braille spinner. The same tab-switch false-positive applies —
+    // workingSource="agent" blocks the timer regardless of kind.
+    const s = run(
+      initialState("shell"),
+      detected("working", "agent"), // braille spinner promotes + sets workingSource
+      detected("waiting", "timer"), // shell idle timer fires (background / OSC pause)
+    );
+    expect(s.activity).toBe("working");
+    expect(s.needsAttention).toBe(false);
+  });
+
   it("pi can be driven into working by shell events", () => {
     // pi uses OSC 133;C (source:"shell", status:"working"); the timer ends it.
     const s = run(initialState("pi"), detected("working", "shell"));
     expect(s.activity).toBe("working");
     expect(s.isAgent).toBe(true);
+  });
+
+  it("timer events CAN end pi's shell-sourced working phase", () => {
+    // pi never emits an explicit done signal; the 3-second idle timer is its
+    // intended demotion mechanism. workingSource === "shell" so timer is allowed.
+    const s = run(
+      initialState("pi"),
+      detected("working", "shell"),
+      detected("waiting", "timer"),
+    );
+    expect(s.activity).toBe("waiting");
   });
 
   it("born-agent working state ends on agent-source waiting", () => {
@@ -162,9 +200,10 @@ describe("needs attention", () => {
     const s = run(
       initialState("claude"),
       detected("working", "agent"),
-      detected("waiting", "agent"),
+      detected("waiting", "agent", { now: T1 }),
     );
     expect(s.needsAttention).toBe(true);
+    expect(s.attentionSince).toBe(T1);
     expect(s.workingSince).toBeNull();
   });
 
@@ -203,7 +242,18 @@ describe("needs attention", () => {
     expect(s.needsAttention).toBe(true);
   });
 
-  it("is cleared by activation", () => {
+  it("attentionSince is pinned to when it first became true, not reset by further waiting events", () => {
+    const s = run(
+      initialState("claude"),
+      detected("working", "agent"),
+      detected("waiting", "agent", { now: T1 }),
+      detected("waiting", "timer"),
+      detected("waiting", "agent"),
+    );
+    expect(s.attentionSince).toBe(T1);
+  });
+
+  it("is cleared by activation, along with attentionSince", () => {
     const s = run(
       initialState("claude"),
       detected("working", "agent"),
@@ -211,6 +261,7 @@ describe("needs attention", () => {
       { type: "activated" },
     );
     expect(s.needsAttention).toBe(false);
+    expect(s.attentionSince).toBeNull();
   });
 
   it("activation is a no-op (by identity) when nothing is pending", () => {
@@ -235,13 +286,13 @@ describe("deriveStatusRow", () => {
     expect(deriveStatusRow(s)).toEqual({ status: "busy", startedAt: T0 });
   });
 
-  it("returns a warn row while attention is pending", () => {
+  it("returns a warn row with startedAt while attention is pending", () => {
     const s = run(
       initialState("claude"),
       detected("working", "agent"),
-      detected("waiting", "agent"),
+      detected("waiting", "agent", { now: T1 }),
     );
-    expect(deriveStatusRow(s)).toEqual({ status: "warn" });
+    expect(deriveStatusRow(s)).toEqual({ status: "warn", startedAt: T1 });
   });
 
   it("returns null for idle agents", () => {
@@ -278,5 +329,36 @@ describe("deriveTabBadge", () => {
   it("returns null for shells, whatever their activity", () => {
     const s = run(initialState("shell"), detected("working", "shell"));
     expect(deriveTabBadge(s)).toBeNull();
+  });
+});
+
+describe("stripStatusMarker", () => {
+  it("strips a leading braille spinner glyph and its space", () => {
+    expect(stripStatusMarker("⠐ agent-status-monitor")).toBe(
+      "agent-status-monitor",
+    );
+    expect(stripStatusMarker("⠂ my-project")).toBe("my-project");
+  });
+
+  it("strips Claude's leading ✳ idle marker", () => {
+    expect(stripStatusMarker("✳ agent-status-monitor")).toBe(
+      "agent-status-monitor",
+    );
+  });
+
+  it("strips Codex's leading action-required bracket markers", () => {
+    expect(stripStatusMarker("[ ! ] my-project")).toBe("my-project");
+    expect(stripStatusMarker("[ . ] my-project")).toBe("my-project");
+  });
+
+  it("leaves titles with no recognized marker untouched", () => {
+    expect(stripStatusMarker("zsh")).toBe("zsh");
+    expect(stripStatusMarker("my-project")).toBe("my-project");
+  });
+
+  it("only strips a single leading marker, not ones mid-string", () => {
+    expect(stripStatusMarker("⠐ note about ✳ something")).toBe(
+      "note about ✳ something",
+    );
   });
 });

@@ -25,3 +25,92 @@
   background: currentColor;
   border-radius: 1px;
 }
+
+/* Settings page — mirrors the host's Editor / Keyboard Shortcuts pages so a
+   third-party page reads as one family. */
+.am-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+}
+.am-header {
+  display: flex;
+  align-items: center;
+  min-height: var(--settings-header-height);
+}
+.am-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--silo-color-text-hi);
+}
+.am-list {
+  display: flex;
+  flex-direction: column;
+  margin-left: calc(var(--settings-pane-pad) * -1);
+}
+.am-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 7px 8px 7px var(--settings-pane-pad);
+  border-bottom: 1px solid var(--silo-color-border);
+}
+.am-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.am-label {
+  color: var(--silo-color-text-hi);
+}
+.am-hint {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  line-height: 1.35;
+}
+.am-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.am-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.am-switch-track {
+  width: 34px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border-strong);
+  transition: background 0.15s ease;
+  position: relative;
+}
+.am-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--silo-color-text-lo);
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
+}
+.am-switch input:checked + .am-switch-track {
+  background: var(--silo-color-accent);
+  border-color: var(--silo-color-accent);
+}
+.am-switch input:checked + .am-switch-track::after {
+  transform: translateX(16px);
+  background: var(--silo-button-primary-text, #fff);
+}

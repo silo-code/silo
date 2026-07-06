@@ -10,11 +10,18 @@ import {
   reduce,
   deriveStatusRow,
   deriveTabBadge,
+  stripStatusMarker,
   type Activity,
   type AgentEvent,
   type EventSource,
   type TerminalAgentState,
 } from "./agent-status";
+import {
+  settingsService,
+  initSettings,
+  clearSettingsListeners,
+  AgentMonitorSettingsPage,
+} from "./settings";
 import styles from "./styles.css";
 
 const STYLE_ID = "silo-agent-monitor-styles";
@@ -27,7 +34,12 @@ function log(...args: unknown[]) {
   if (DEBUG) console.log("[agent-monitor]", ...args);
 }
 
+// Bumped on every build so the console shows which build is actually loaded.
+const BUILD = "2026-07-06a (timer block for promoted shells)";
+
 function activate(ctx: ExtensionContext) {
+  log(`build ${BUILD}`);
+  ctx.subscriptions.push(initSettings(ctx.storage.global));
   // Per-terminal agent state, keyed by terminal record id. All transitions go
   // through dispatch() → reduce(); this map is the single source of truth the
   // status-row and tab-decoration providers read from.
@@ -38,19 +50,15 @@ function activate(ctx: ExtensionContext) {
   // An empty string means "subscribed while the PTY hadn't spawned yet".
   // When the sessionId changes (PTY spawns or restarts), we re-subscribe.
   const oscSubSessionIds = new Map<string, string>();
-  // Disposables for per-terminal raw output subscriptions. These cancel pending
-  // agent-idle timers when output arrives, preventing false "needs attention"
-  // when Claude emits ✳ briefly between tool calls.
-  const outputSubs = new Map<string, { dispose(): void }>();
   // Per-terminal debounce timers for OSC 133 "working" → "waiting" fallback.
   // Some agents (e.g. pi) emit 133;C for each step but never emit 133;A/D on
   // completion. When the stream goes silent for SHELL_IDLE_MS we clear to waiting.
   const SHELL_IDLE_MS = 3_000;
   const shellIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
   // Pending debounced ✳ → "waiting" transitions. Claude Code emits ✳ briefly
-  // between tool calls while computing the next action. subscribeOutput cancels
-  // this timer when the next output chunk arrives, so we only transition to
-  // "waiting" if the terminal actually goes quiet for AGENT_IDLE_DEBOUNCE_MS.
+  // between tool calls while computing the next action. The timer is cancelled
+  // when the next braille-spinner OSC (working) arrives, so we only transition
+  // to "waiting" if no working signal appears within AGENT_IDLE_DEBOUNCE_MS.
   const AGENT_IDLE_DEBOUNCE_MS = 1_500;
   const agentIdleTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -88,7 +96,11 @@ function activate(ctx: ExtensionContext) {
       type: "detected",
       status,
       source,
-      isActiveTerminal: terminalId === activeTerminalId,
+      // Gated by the "hide status when focused" setting: when disabled, focus
+      // never suppresses a row, so this is always false.
+      isActiveTerminal:
+        settingsService.getState().hideStatusWhenFocused &&
+        terminalId === activeTerminalId,
       now: new Date().toISOString(),
     };
   }
@@ -163,8 +175,8 @@ function activate(ctx: ExtensionContext) {
           else if (result.timer === "clear") clearShellIdleTimer(terminalId);
           if (result.status === "waiting" && result.source === "agent") {
             // Debounce: Claude emits ✳ briefly between tool calls. Only transition
-            // to "waiting" if the terminal goes quiet for AGENT_IDLE_DEBOUNCE_MS.
-            // subscribeOutput cancels this timer when the next output chunk arrives.
+            // to "waiting" if no braille-spinner (working) OSC arrives within
+            // AGENT_IDLE_DEBOUNCE_MS. The working branch below clears this timer.
             scheduleAgentIdle(terminalId);
           } else {
             if (result.status === "working") clearAgentIdleTimer(terminalId);
@@ -178,19 +190,6 @@ function activate(ctx: ExtensionContext) {
       }
     });
     oscSubs.set(terminalId, sub);
-    // Subscribe to raw output for this terminal (once per terminal record id).
-    // On every PTY chunk, cancel any pending agent-idle timer — if the agent is
-    // still producing output it's not truly idle yet. Subscribed only once; the
-    // host's subscribeOutput handles sessionId resolution and polling internally.
-    // Guard: subscribeOutput requires SDK ≥ 0.23.0 / Silo host ≥ 0.23.0.
-    if (!outputSubs.has(terminalId) && ctx.terminals.subscribeOutput) {
-      outputSubs.set(
-        terminalId,
-        ctx.terminals.subscribeOutput(terminalId, () => {
-          clearAgentIdleTimer(terminalId);
-        }),
-      );
-    }
     // Note: do NOT push into ctx.subscriptions — oscSubs manages the lifecycle
     // of these per-terminal subscriptions (disposed in syncOscSubscriptions and
     // the bulk disposable below). Pushing them would cause the array to grow
@@ -214,8 +213,6 @@ function activate(ctx: ExtensionContext) {
         sub.dispose();
         oscSubs.delete(id);
         oscSubSessionIds.delete(id);
-        outputSubs.get(id)?.dispose();
-        outputSubs.delete(id);
         states.delete(id);
         clearShellIdleTimer(id);
         clearAgentIdleTimer(id);
@@ -232,8 +229,12 @@ function activate(ctx: ExtensionContext) {
     }),
     ctx.terminals.subscribeActive((terminalId) => {
       activeTerminalId = terminalId;
-      // Viewing a terminal clears its "needs attention" flag.
-      if (terminalId) dispatch(terminalId, { type: "activated" });
+      // Viewing a terminal clears its "needs attention" flag — unless the
+      // user has disabled hiding status on focus, in which case it stays
+      // visible until the underlying activity actually changes.
+      if (terminalId && settingsService.getState().hideStatusWhenFocused) {
+        dispatch(terminalId, { type: "activated" });
+      }
     }),
     // Bulk cleanup at deactivation for whatever per-terminal resources are
     // still live at that point.
@@ -242,8 +243,6 @@ function activate(ctx: ExtensionContext) {
         for (const sub of oscSubs.values()) sub.dispose();
         oscSubs.clear();
         oscSubSessionIds.clear();
-        for (const sub of outputSubs.values()) sub.dispose();
-        outputSubs.clear();
         for (const t of shellIdleTimers.values()) clearTimeout(t);
         shellIdleTimers.clear();
         for (const t of agentIdleTimers.values()) clearTimeout(t);
@@ -269,7 +268,7 @@ function activate(ctx: ExtensionContext) {
           if (!row) continue;
           rows.push({
             id: t.id,
-            label: t.customName ?? t.title,
+            label: t.customName ?? stripStatusMarker(t.title),
             status: row.status,
             startedAt: row.startedAt,
           });
@@ -315,11 +314,21 @@ function activate(ctx: ExtensionContext) {
     }),
   );
 
+  // No group needed — the host groups non-core settings pages under Extensions.
+  ctx.subscriptions.push(
+    ctx.registerSettingsPage({
+      id: "agent-monitor",
+      title: "Agent Monitor",
+      component: AgentMonitorSettingsPage,
+    }),
+  );
+
   injectStyles();
 }
 
 function deactivate() {
   document.getElementById(STYLE_ID)?.remove();
+  clearSettingsListeners();
 }
 
 function injectStyles() {

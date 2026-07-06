@@ -130,8 +130,9 @@ export function FrontTruncatedPath({
 
 export function formatElapsed(isoDate: string): string {
   const ms = Date.now() - new Date(isoDate).getTime();
-  const min = Math.floor(ms / 60_000);
-  if (min < 2) return "just now";
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${Math.max(0, sec)}s`;
+  const min = Math.floor(sec / 60);
   if (min < 60) return `${min}m`;
   const h = Math.floor(min / 60);
   if (h < 24) return `${h}h`;
