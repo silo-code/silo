@@ -16,12 +16,15 @@ await build({
   logLevel: "info",
 });
 
-// Sync to the dev-build's installed extension directory so "Reload" in the
-// Extensions page picks up the new bundle without a full reinstall.
-const installed = `${homedir()}/.config/silo-dev/extensions/silo.agent-monitor/dist/index.js`;
-if (existsSync(installed)) {
-  copyFileSync("dist/index.js", installed);
-  console.log(
-    "  synced → ~/.config/silo-dev/extensions/silo.agent-monitor/dist/index.js",
-  );
+// Sync to every installed location so "Reload" in the Extensions page picks
+// up the new bundle without a full reinstall.
+const installTargets = [
+  `${homedir()}/.config/silo-dev/extensions/silo.agent-monitor/dist/index.js`,
+  `${homedir()}/.config/silo/extensions/silo.agent-monitor/dist/index.js`,
+];
+for (const target of installTargets) {
+  if (existsSync(target)) {
+    copyFileSync("dist/index.js", target);
+    console.log(`  synced → ${target.replace(homedir(), "~")}`);
+  }
 }
