@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.23.0](https://github.com/silo-code/silo/compare/silo-v0.22.0...silo-v0.23.0) (2026-07-06)
+
+
+### Features
+
+* **examples:** agent-monitor — at-a-glance agent status in the Workspaces panel ([#169](https://github.com/silo-code/silo/issues/169)) ([ea74226](https://github.com/silo-code/silo/commit/ea74226832b2bb40fb811aa76d450276e6456bc4))
+* **sdk:** add ctx.terminals.subscribeOutput for raw PTY output access ([#174](https://github.com/silo-code/silo/issues/174)) ([8a16a9e](https://github.com/silo-code/silo/commit/8a16a9e4b1f4fab61af6d5feefcee168c7a6d461))
+
+
+### Bug Fixes
+
+* **agent-monitor:** debounce ✳ idle signal with subscribeOutput ([#176](https://github.com/silo-code/silo/issues/176)) ([b05d907](https://github.com/silo-code/silo/commit/b05d9074e2500dd03216ce56fe89cc2df0f749a7))
+* **agent-monitor:** re-subscribe OSC when terminal PTY spawns after initial poll timeout ([8171835](https://github.com/silo-code/silo/commit/8171835badb55e5c255b926893d3a380736e858e))
+* **agent-monitor:** sync built bundle to both silo and silo-dev install paths ([199b3d4](https://github.com/silo-code/silo/commit/199b3d4338b0e9faf4481047caf8c63b15a05608))
+
 ## [0.22.0](https://github.com/silo-code/silo/compare/silo-v0.21.1...silo-v0.22.0) (2026-07-05)
 
 
