@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.1](https://github.com/silo-code/silo/compare/silo-v0.23.0...silo-v0.23.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **extension-host:** prevent double Tauri event bridge via setupInProgress guard ([5d8b6ae](https://github.com/silo-code/silo/commit/5d8b6ae61a612949a7a4d45260f2bf9069bb3c85))
+
 ## [0.23.0](https://github.com/silo-code/silo/compare/silo-v0.22.0...silo-v0.23.0) (2026-07-06)
 
 
