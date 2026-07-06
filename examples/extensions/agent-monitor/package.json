@@ -7,7 +7,7 @@
   "type": "module",
   "silo": {
     "id": "silo.agent-monitor",
-    "engine": "^0.9",
+    "engine": ">=0.23.0",
     "main": "dist/index.js",
     "permissions": []
   },
