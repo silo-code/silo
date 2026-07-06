@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.22.0](https://github.com/silo-code/silo/compare/silo-v0.21.1...silo-v0.22.0) (2026-07-05)
+
+
+### Features
+
+* **sdk:** add non-breaking Part B surface (docs, terminal, fs, exec, search, net) ([#168](https://github.com/silo-code/silo/issues/168)) ([ec2ab1c](https://github.com/silo-code/silo/commit/ec2ab1c1ee0c9daafbfa93b97a20d839989a7e49))
+* **workspaces:** close and restore workspace groups ([#170](https://github.com/silo-code/silo/issues/170)) ([1727d91](https://github.com/silo-code/silo/commit/1727d916a78a4b81d107becc0d2b709cf91f719a))
+
 ## [0.21.1](https://github.com/silo-code/silo/compare/silo-v0.21.0...silo-v0.21.1) (2026-07-02)
 
 
