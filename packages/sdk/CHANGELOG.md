@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.22.0](https://github.com/silo-code/silo/compare/sdk-v0.21.0...sdk-v0.22.0) (2026-07-05)
+
+
+### Features
+
+* **sdk:** add non-breaking Part B surface (docs, terminal, fs, exec, search, net) ([#168](https://github.com/silo-code/silo/issues/168)) ([ec2ab1c](https://github.com/silo-code/silo/commit/ec2ab1c1ee0c9daafbfa93b97a20d839989a7e49))
+
 ## [0.21.0](https://github.com/silo-code/silo/compare/sdk-v0.20.0...sdk-v0.21.0) (2026-07-02)
 
 

@@ -43,19 +43,34 @@ jobs:
           DAYS=$(( $(date -u +%s) / 86400 ))
           echo "Nightly build: ${BASE}-${DAYS} (date ${DATE}, commit ${HASH})"
           echo "version=${BASE}-${DAYS}" >> "$GITHUB_OUTPUT"
+          echo "built_at=$(date -u +'%Y-%m-%d %H:%M UTC')" >> "$GITHUB_OUTPUT"
+          echo "hash=${HASH}" >> "$GITHUB_OUTPUT"
 
       - name: upsert nightly release and clear stale assets
         id: release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Create the pinned nightly release if it doesn't exist yet.
+          # The release's own "published" timestamp only reflects when the
+          # "nightly" tag was first created and doesn't update on later runs
+          # (only asset timestamps do), so it looks stale even when the build
+          # underneath it is current. Stamp the actual build time + commit
+          # into the notes on every run as the real freshness signal.
+          NOTES=$(printf '%s\n\n**Last built:** %s · commit [`%s`](https://github.com/silo-code/silo/commit/%s)' \
+            "Nightly builds — latest from \`main\`. May be unstable. Install alongside stable Silo; they share no data by default." \
+            "${{ steps.version.outputs.built_at }}" \
+            "${{ steps.version.outputs.hash }}" \
+            "${{ steps.version.outputs.hash }}")
+
+          # Create the pinned nightly release if it doesn't exist yet, otherwise refresh its notes.
           if ! gh release view nightly --repo silo-code/silo 2>/dev/null; then
             gh release create nightly \
               --repo silo-code/silo \
               --prerelease \
               --title "Silo Nightly" \
-              --notes "Nightly builds — latest from \`main\`. May be unstable. Install alongside stable Silo; they share no data by default."
+              --notes "$NOTES"
+          else
+            gh release edit nightly --repo silo-code/silo --notes "$NOTES"
           fi
 
           # Clear all existing assets so this build starts clean.

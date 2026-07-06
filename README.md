@@ -104,6 +104,8 @@ silo uninstall dave.git-branch
 
 **Windows** — experimental builds are attached to every [GitHub Release](https://github.com/silo-code/silo/releases) and may not work correctly. If you try it, please [open an issue](https://github.com/silo-code/silo/issues) with what you find.
 
+**Nightly builds** — built every night from `main`; may be unstable. [Get the latest nightly →](https://github.com/silo-code/silo/releases/tag/nightly)
+
 ---
 
 ## Develop
