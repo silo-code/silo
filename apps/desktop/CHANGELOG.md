@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/silo-code/silo/compare/silo-v0.23.1...silo-v0.24.0) (2026-07-06)
+
+
+### Features
+
+* **agent-monitor:** needs-attention settings, timer-demotion fixes, and status polish ([60679a2](https://github.com/silo-code/silo/commit/60679a2b62c1949a82e1364f685802f025e36dfe))
+
 ## [0.23.1](https://github.com/silo-code/silo/compare/silo-v0.23.0...silo-v0.23.1) (2026-07-06)
 
 
