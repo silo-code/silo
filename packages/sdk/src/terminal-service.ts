@@ -210,6 +210,39 @@ export interface TerminalService {
   ): Disposable;
 
   /**
+   * Subscribe to the raw PTY output stream of the terminal identified by
+   * `terminalId`. The `handler` is called with every chunk of bytes the PTY
+   * produces — including ANSI escape sequences, OSC sequences, and all other
+   * control characters — exactly as they arrive, with no parsing or filtering.
+   *
+   * This fires even when the terminal's panel is not visible, so it is suitable
+   * for background monitoring (e.g. detecting output activity to confirm an
+   * agent is still running). Keep handlers lightweight: they execute
+   * synchronously on every PTY chunk, which can be multiple times per second
+   * while a program is active.
+   *
+   * The subscription is keyed to the **terminal record id** (e.g. `"term_…"`),
+   * not the underlying PTY session id, so it survives terminal recreation within
+   * the same record.
+   *
+   * Returns a {@link Disposable} that cancels the subscription.
+   *
+   * @example
+   * ```ts
+   * // Track the last time any output arrived to confirm agent activity.
+   * let lastOutputAt = 0;
+   * const sub = ctx.terminals.subscribeOutput(terminalId, () => {
+   *   lastOutputAt = Date.now();
+   * });
+   * ctx.subscriptions.push(sub);
+   * ```
+   */
+  subscribeOutput(
+    terminalId: string,
+    handler: (data: string) => void,
+  ): Disposable;
+
+  /**
    * The record id of the terminal tab that is currently active in the active
    * workspace's center dock, or `null` when an editor tab (or nothing) is
    * active. "Active" is the dock's single active panel — the tab the user is

@@ -186,6 +186,10 @@ export class TauriTerminalClient {
       invoke("terminal_start_stream", { sessionId }).catch(() => {});
       set = new Set();
       this.outputListeners.set(sessionId, set);
+      // Establish the Tauri event bridge for this session if it isn't already
+      // active. Without this, callers that subscribe before the terminal panel
+      // mounts (e.g. ctx.terminals.subscribeOutput) would never receive events.
+      this.setupSessionListeners(sessionId).catch(() => {});
     }
     set.add(cb);
     return () => {
