@@ -122,6 +122,39 @@ describe("working state", () => {
     expect(s.needsAttention).toBe(false);
     expect(s.workingSince).toBe(T1);
   });
+
+  it("shell events cannot pull a born-agent out of working (flicker fix)", () => {
+    // Claude Code subprocess tool calls emit OSC 133;A/D from the inner shell.
+    // Those arrive as source:"shell" status:"waiting" — they must not override
+    // the agent-driven "working" state, which only agent events or the timer
+    // should end.
+    const s = run(
+      initialState("claude"),
+      detected("working", "agent"),
+      detected("waiting", "shell"), // subprocess shell-integration noise
+      detected("waiting", "shell"), // another one
+    );
+    expect(s.activity).toBe("working");
+    expect(s.workingSince).toBe(T0);
+    expect(s.needsAttention).toBe(false);
+  });
+
+  it("pi can be driven into working by shell events", () => {
+    // pi uses OSC 133;C (source:"shell", status:"working"); the timer ends it.
+    const s = run(initialState("pi"), detected("working", "shell"));
+    expect(s.activity).toBe("working");
+    expect(s.isAgent).toBe(true);
+  });
+
+  it("born-agent working state ends on agent-source waiting", () => {
+    // The actual idle signal from Claude Code (✳) should still end working.
+    const s = run(
+      initialState("claude"),
+      detected("working", "agent"),
+      detected("waiting", "agent"),
+    );
+    expect(s.activity).toBe("waiting");
+  });
 });
 
 describe("needs attention", () => {

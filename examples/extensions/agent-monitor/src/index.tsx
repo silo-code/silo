@@ -19,6 +19,14 @@ import styles from "./styles.css";
 
 const STYLE_ID = "silo-agent-monitor-styles";
 
+// Set to true to log OSC events and state transitions to the browser console.
+// Open devtools in Silo with Cmd+Option+I (Mac) or F12.
+const DEBUG = true;
+
+function log(...args: unknown[]) {
+  if (DEBUG) console.log("[agent-monitor]", ...args);
+}
+
 function activate(ctx: ExtensionContext) {
   // Per-terminal agent state, keyed by terminal record id. All transitions go
   // through dispatch() → reduce(); this map is the single source of truth the
@@ -42,6 +50,16 @@ function activate(ctx: ExtensionContext) {
     // since Claude Code's braille spinner emits an OSC 0 per animation frame
     // and each invalidation re-renders the Workspaces panel and terminal tabs.
     if (next === prev) return;
+    const tid = terminalId.slice(-8);
+    if (ev.type === "detected") {
+      log(
+        `${tid} ${prev.activity}→${next.activity}` +
+          ` isAgent=${next.isAgent} needsAttn=${next.needsAttention}` +
+          ` (src=${ev.source} status=${ev.status})`,
+      );
+    } else {
+      log(`${tid} activated → needsAttn cleared`);
+    }
     states.set(terminalId, next);
     ctx.workspaces.invalidateStatus();
     ctx.terminals.invalidateTabDecorations();
@@ -86,6 +104,11 @@ function activate(ctx: ExtensionContext) {
       for (const detect of AGENT_DETECTORS) {
         const result = detect(code, payload);
         if (result) {
+          log(
+            `osc${code} "${payload.slice(0, 40)}" → ${result.status}/${result.source}` +
+              (result.timer ? ` timer:${result.timer}` : "") +
+              ` tid=…${terminalId.slice(-8)}`,
+          );
           if (result.timer === "schedule") scheduleShellIdle(terminalId);
           else if (result.timer === "clear") clearShellIdleTimer(terminalId);
           dispatch(

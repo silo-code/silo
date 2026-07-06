@@ -85,21 +85,30 @@ export function reduce(
 
   let { activity, needsAttention, workingSince } = prev;
   if (ev.status !== activity) {
-    if (ev.status === "working") {
-      workingSince = ev.now;
-      needsAttention = false;
-    } else {
-      if (
-        activity === "working" &&
-        (ev.status === "waiting" || ev.status === "done")
-      ) {
-        // Work just stopped: flag for attention unless the user is already
-        // looking at this terminal.
-        needsAttention = isAgent && !ev.isActiveTerminal;
+    // Born-agent terminals (kind !== "shell") use agent-source or timer events
+    // as the authoritative signal. Shell events can promote them to "working"
+    // (needed for pi's OSC 133;C steps), but cannot pull them back out of
+    // "working" — that prevents subprocess shell-integration OSC 133;A/D
+    // (emitted inside Claude Code's bash tool calls) from causing flicker.
+    const blockShellDemotion =
+      ev.source === "shell" && prev.kind !== "shell" && ev.status !== "working";
+    if (!blockShellDemotion) {
+      if (ev.status === "working") {
+        workingSince = ev.now;
+        needsAttention = false;
+      } else {
+        if (
+          activity === "working" &&
+          (ev.status === "waiting" || ev.status === "done")
+        ) {
+          // Work just stopped: flag for attention unless the user is already
+          // looking at this terminal.
+          needsAttention = isAgent && !ev.isActiveTerminal;
+        }
+        workingSince = null;
       }
-      workingSince = null;
+      activity = ev.status;
     }
-    activity = ev.status;
   }
 
   // Demotion last: plain shell-integration traffic on a kind-"shell" terminal
