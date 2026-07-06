@@ -198,6 +198,40 @@ export function getTerminalService(): TerminalService {
         },
       };
     },
+    subscribeOutput(terminalId: string, handler: (data: string) => void) {
+      const getSessionId = () => {
+        for (const ws of Object.values(store.workspaces)) {
+          const rec = ws?.terminals.find((t) => t.id === terminalId);
+          if (rec?.sessionId) return rec.sessionId;
+        }
+        return null;
+      };
+
+      let unsub: (() => void) | null = null;
+
+      const attach = () => {
+        const sid = getSessionId();
+        if (!sid) return;
+        unsub = tauriTerminalClient.onOutput(sid, handler);
+      };
+
+      attach();
+
+      let attempts = 0;
+      const poll = unsub
+        ? null
+        : window.setInterval(() => {
+            attach();
+            if (unsub || ++attempts > 100) window.clearInterval(poll!);
+          }, 100);
+
+      return {
+        dispose() {
+          if (poll !== null) window.clearInterval(poll);
+          unsub?.();
+        },
+      };
+    },
   };
   return service;
 }

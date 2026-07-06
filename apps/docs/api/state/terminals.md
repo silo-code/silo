@@ -103,6 +103,32 @@ ctx.subscriptions.push(
 
 Each event is an [`OscEvent`](/api/types/interfaces/OscEvent).
 
+## Raw output
+
+Subscribe to the raw PTY output stream of a terminal. The handler receives
+every chunk of bytes the PTY produces — ANSI escape sequences, OSC sequences,
+plain text — exactly as they arrive, before any parsing. This fires regardless
+of whether the terminal's panel is visible, making it suitable for background
+activity monitoring (for example, confirming an agent is still producing output
+between OSC signals).
+
+Keep handlers lightweight: they execute synchronously on every PTY chunk, which
+can be multiple times per second while a program is running.
+
+```ts
+// Track the last time any output arrived to confirm agent activity.
+let lastOutputAt = 0;
+ctx.subscriptions.push(
+  ctx.terminals.subscribeOutput(terminalId, () => {
+    lastOutputAt = Date.now();
+  }),
+);
+```
+
+| Method                                                                                          | What it does                                                                                                    |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [`subscribeOutput(terminalId, handler)`](/api/types/interfaces/TerminalService#subscribeoutput) | Subscribe to raw PTY output chunks from a terminal. Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+
 ## Active terminal
 
 Track which terminal tab the user is looking at. "Active" is the center dock's

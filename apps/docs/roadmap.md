@@ -31,6 +31,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.terminals.focus`                          | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                                                               |
 | `ctx.terminals.subscribeOsc`                   | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals#osc-events)                                                    |
 | `ctx.terminals.getActive` / `subscribeActive`  | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals#active-terminal)                                               |
+| `ctx.terminals.subscribeOutput`                | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals#raw-output)                                                    |
 | `ctx.workspaces.registerStatus`                | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces)                                                              |
 | `ctx.workspaces.registerSection`               | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces#workspace-sections)                                           |
 | `ctx.files`                                    | <Badge type="tip" text="stable" />   | [docs](/api/files/)                                                                        |
