@@ -182,7 +182,8 @@ function activate(ctx: ExtensionContext) {
     // On every PTY chunk, cancel any pending agent-idle timer — if the agent is
     // still producing output it's not truly idle yet. Subscribed only once; the
     // host's subscribeOutput handles sessionId resolution and polling internally.
-    if (!outputSubs.has(terminalId)) {
+    // Guard: subscribeOutput requires SDK ≥ 0.23.0 / Silo host ≥ 0.23.0.
+    if (!outputSubs.has(terminalId) && ctx.terminals.subscribeOutput) {
       outputSubs.set(
         terminalId,
         ctx.terminals.subscribeOutput(terminalId, () => {

@@ -16,15 +16,11 @@ await build({
   logLevel: "info",
 });
 
-// Sync to every installed location so "Reload" in the Extensions page picks
-// up the new bundle without a full reinstall.
-const installTargets = [
-  `${homedir()}/.config/silo-dev/extensions/silo.agent-monitor/dist/index.js`,
-  `${homedir()}/.config/silo/extensions/silo.agent-monitor/dist/index.js`,
-];
-for (const target of installTargets) {
-  if (existsSync(target)) {
-    copyFileSync("dist/index.js", target);
-    console.log(`  synced → ${target.replace(homedir(), "~")}`);
-  }
+// Sync to the dev install so "Reload" in the Extensions page picks up the
+// new bundle without a full reinstall. Prod (~/.config/silo/) is intentionally
+// excluded — reinstall there manually via "Install from folder".
+const devTarget = `${homedir()}/.config/silo-dev/extensions/silo.agent-monitor/dist/index.js`;
+if (existsSync(devTarget)) {
+  copyFileSync("dist/index.js", devTarget);
+  console.log(`  synced → ${devTarget.replace(homedir(), "~")}`);
 }
