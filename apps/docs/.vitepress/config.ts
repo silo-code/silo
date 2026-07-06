@@ -93,6 +93,18 @@ export default withMermaid(
     base: "/",
     cleanUrls: true,
     lastUpdated: true,
+    head: [
+      // GoatCounter analytics (privacy-friendly, no cookies) —
+      // dashboard at https://silo.goatcounter.com/
+      [
+        "script",
+        {
+          "data-goatcounter": "https://silo.goatcounter.com/count",
+          async: "",
+          src: "//gc.zgo.at/count.js",
+        },
+      ],
+    ],
     // api-intro.md is TypeDoc's readme source (merged into /api/index.md); it is
     // not a standalone page, so keep VitePress from rendering/link-checking it.
     srcExclude: ["api-intro.md"],
