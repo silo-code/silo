@@ -34,6 +34,10 @@ function activate(ctx: ExtensionContext) {
   const states = new Map<string, TerminalAgentState>();
   // Disposables for per-terminal OSC subscriptions, keyed by terminal id.
   const oscSubs = new Map<string, { dispose(): void }>();
+  // sessionId that was current when each OSC subscription was established.
+  // An empty string means "subscribed while the PTY hadn't spawned yet".
+  // When the sessionId changes (PTY spawns or restarts), we re-subscribe.
+  const oscSubSessionIds = new Map<string, string>();
   // Per-terminal debounce timers for OSC 133 "working" → "waiting" fallback.
   // Some agents (e.g. pi) emit 133;C for each step but never emit 133;A/D on
   // completion. When the stream goes silent for SHELL_IDLE_MS we clear to waiting.
@@ -98,8 +102,25 @@ function activate(ctx: ExtensionContext) {
     );
   }
 
-  function subscribeTerminalOsc(terminalId: string) {
-    if (oscSubs.has(terminalId)) return;
+  function subscribeTerminalOsc(terminalId: string, sessionId: string) {
+    const prevSessionId = oscSubSessionIds.get(terminalId);
+    // Skip if we already have a live sub for this exact session. If sessionId
+    // is still empty (PTY not spawned yet), the prior poll is still running;
+    // only skip if a real session is already subscribed.
+    if (
+      oscSubs.has(terminalId) &&
+      prevSessionId === sessionId &&
+      sessionId !== ""
+    )
+      return;
+    // Dispose any stale sub (e.g. subscribed before the PTY spawned, poll
+    // timed out, and now the PTY has spawned with a new sessionId).
+    const stale = oscSubs.get(terminalId);
+    if (stale) {
+      stale.dispose();
+      oscSubs.delete(terminalId);
+    }
+    oscSubSessionIds.set(terminalId, sessionId);
     const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
       for (const detect of AGENT_DETECTORS) {
         const result = detect(code, payload);
@@ -134,7 +155,7 @@ function activate(ctx: ExtensionContext) {
       for (const t of workspace.terminals) {
         live.add(t.id);
         if (!states.has(t.id)) states.set(t.id, initialState(t.kind));
-        subscribeTerminalOsc(t.id);
+        subscribeTerminalOsc(t.id, t.sessionId);
       }
     }
     // Clean up state for terminals that no longer exist.
@@ -142,6 +163,7 @@ function activate(ctx: ExtensionContext) {
       if (!live.has(id)) {
         sub.dispose();
         oscSubs.delete(id);
+        oscSubSessionIds.delete(id);
         states.delete(id);
         clearShellIdleTimer(id);
       }
@@ -166,6 +188,7 @@ function activate(ctx: ExtensionContext) {
       dispose() {
         for (const sub of oscSubs.values()) sub.dispose();
         oscSubs.clear();
+        oscSubSessionIds.clear();
         for (const t of shellIdleTimers.values()) clearTimeout(t);
         shellIdleTimers.clear();
       },
