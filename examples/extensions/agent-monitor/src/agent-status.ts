@@ -79,6 +79,34 @@ export function initialState(kind: TerminalKind): TerminalAgentState {
 }
 
 /**
+ * The subset of {@link TerminalAgentState} persisted across app restarts
+ * (`index.tsx` writes this to `ctx.storage.global`, keyed by terminal id, on
+ * every real transition). Excludes `kind` — restored fresh from the terminal
+ * record each time, since a terminal's kind never changes after creation.
+ */
+export type PersistedAgentState = Omit<TerminalAgentState, "kind">;
+
+/** Strip `kind` for persistence. See {@link PersistedAgentState}. */
+export function toPersisted(s: TerminalAgentState): PersistedAgentState {
+  const { kind: _kind, ...rest } = s;
+  return rest;
+}
+
+/**
+ * Rebuild a {@link TerminalAgentState} at activation: `persisted` (if any,
+ * from a prior session) plus the terminal's current `kind`. Falls back to
+ * {@link initialState} when nothing was persisted (a brand-new terminal, or
+ * one that never transitioned before the app closed).
+ */
+export function restoreState(
+  kind: TerminalKind,
+  persisted: PersistedAgentState | undefined,
+): TerminalAgentState {
+  if (!persisted) return initialState(kind);
+  return { ...persisted, kind };
+}
+
+/**
  * Apply one event. Returns `prev` **by identity** when nothing changed — the
  * caller uses that to skip invalidations, which matters because Claude Code's
  * braille spinner emits an OSC 0 per animation frame.

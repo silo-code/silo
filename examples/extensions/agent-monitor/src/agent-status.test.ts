@@ -5,6 +5,8 @@ import {
   deriveStatusRow,
   deriveTabBadge,
   stripStatusMarker,
+  toPersisted,
+  restoreState,
   type AgentEvent,
   type TerminalAgentState,
 } from "./agent-status";
@@ -360,5 +362,39 @@ describe("stripStatusMarker", () => {
     expect(stripStatusMarker("⠐ note about ✳ something")).toBe(
       "note about ✳ something",
     );
+  });
+});
+
+describe("toPersisted / restoreState (app-restart persistence)", () => {
+  it("round-trips a working state, minus kind", () => {
+    const s = run(initialState("claude"), detected("working", "agent"));
+    const persisted = toPersisted(s);
+    expect(persisted).not.toHaveProperty("kind");
+    expect(restoreState("claude", persisted)).toEqual(s);
+  });
+
+  it("round-trips a needs-attention state", () => {
+    const s = run(
+      initialState("claude"),
+      detected("working", "agent"),
+      detected("waiting", "agent", { now: T1 }),
+    );
+    const restored = restoreState("claude", toPersisted(s));
+    expect(restored).toEqual(s);
+    expect(restored.needsAttention).toBe(true);
+    expect(restored.attentionSince).toBe(T1);
+  });
+
+  it("restores against the terminal's current kind, not a stale one", () => {
+    // A shell terminal promoted to agent mid-session; on restart the terminal
+    // record itself still reports kind "shell" — restoreState takes kind from
+    // the caller (the live terminal record), not from the persisted blob.
+    const s = run(initialState("shell"), detected("working", "agent"));
+    const persisted = toPersisted(s);
+    expect(restoreState("shell", persisted).kind).toBe("shell");
+  });
+
+  it("falls back to initialState when nothing was persisted", () => {
+    expect(restoreState("claude", undefined)).toEqual(initialState("claude"));
   });
 });

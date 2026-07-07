@@ -6,14 +6,16 @@ import type {
 } from "@silo-code/sdk";
 import { AGENT_DETECTORS } from "./osc-detectors";
 import {
-  initialState,
   reduce,
   deriveStatusRow,
   deriveTabBadge,
   stripStatusMarker,
+  toPersisted,
+  restoreState,
   type Activity,
   type AgentEvent,
   type EventSource,
+  type PersistedAgentState,
   type TerminalAgentState,
 } from "./agent-status";
 import {
@@ -37,12 +39,23 @@ function log(...args: unknown[]) {
 // Bumped on every build so the console shows which build is actually loaded.
 const BUILD = "2026-07-06a (timer block for promoted shells)";
 
+// Prefix for the per-terminal persisted-state keys in ctx.storage.global,
+// namespacing them away from settings keys (e.g. "hideStatusWhenFocused") in
+// the same bag.
+function stateStorageKey(terminalId: string): string {
+  return `agentState:${terminalId}`;
+}
+
 function activate(ctx: ExtensionContext) {
   log(`build ${BUILD}`);
-  ctx.subscriptions.push(initSettings(ctx.storage.global));
+  const storage = ctx.storage.global;
+  ctx.subscriptions.push(initSettings(storage));
   // Per-terminal agent state, keyed by terminal record id. All transitions go
   // through dispatch() → reduce(); this map is the single source of truth the
-  // status-row and tab-decoration providers read from.
+  // status-row and tab-decoration providers read from. Persisted to `storage`
+  // on every transition (see dispatch()) so a working/needs-attention row's
+  // elapsed time survives an app restart instead of resetting to the moment
+  // the terminal reactivates.
   const states = new Map<string, TerminalAgentState>();
   // Disposables for per-terminal OSC subscriptions, keyed by terminal id.
   const oscSubs = new Map<string, { dispose(): void }>();
@@ -83,6 +96,7 @@ function activate(ctx: ExtensionContext) {
       log(`${tid} activated → needsAttn cleared`);
     }
     states.set(terminalId, next);
+    storage.set(stateStorageKey(terminalId), toPersisted(next));
     ctx.workspaces.invalidateStatus();
     ctx.terminals.invalidateTabDecorations();
   }
@@ -203,7 +217,12 @@ function activate(ctx: ExtensionContext) {
     for (const workspace of ws.all) {
       for (const t of workspace.terminals) {
         live.add(t.id);
-        if (!states.has(t.id)) states.set(t.id, initialState(t.kind));
+        if (!states.has(t.id)) {
+          const persisted = storage.get<PersistedAgentState>(
+            stateStorageKey(t.id),
+          );
+          states.set(t.id, restoreState(t.kind, persisted));
+        }
         subscribeTerminalOsc(t.id, t.sessionId);
       }
     }
@@ -216,6 +235,7 @@ function activate(ctx: ExtensionContext) {
         states.delete(id);
         clearShellIdleTimer(id);
         clearAgentIdleTimer(id);
+        storage.set(stateStorageKey(id), undefined);
       }
     }
   }
