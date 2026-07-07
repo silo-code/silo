@@ -36,6 +36,8 @@ export function GitView({
   folder,
   rootLabel,
   paused,
+  collapsed,
+  onToggleCollapsed,
 }: {
   ctx: ExtensionContext;
   cacheKey: string;
@@ -43,6 +45,8 @@ export function GitView({
   folder: string;
   rootLabel?: string;
   paused: boolean;
+  collapsed: boolean;
+  onToggleCollapsed?: () => void;
 }) {
   // Public primitives, read through ctx (stable per extension).
   const editors = ctx.editors;
@@ -69,7 +73,6 @@ export function GitView({
   const [pendingPull, setPendingPull] = useState(false);
   const [stagedOpen, setStagedOpen] = useState(true);
   const [changesOpen, setChangesOpen] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
 
   const refresh = useCallback(() => {
     setBusy(true);
@@ -544,10 +547,7 @@ export function GitView({
   return (
     <div className="git-panel">
       {rootLabel ? (
-        <button
-          className="git-root-label"
-          onClick={() => setCollapsed((v) => !v)}
-        >
+        <button className="git-root-label" onClick={onToggleCollapsed}>
           <span className="git-root-top">
             <span className="git-root-chev">
               {collapsed ? (
