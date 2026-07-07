@@ -7,6 +7,7 @@ import {
   stripStatusMarker,
   toPersisted,
   restoreState,
+  STALE_THRESHOLD_MS,
   type AgentEvent,
   type TerminalAgentState,
 } from "./agent-status";
@@ -366,11 +367,15 @@ describe("stripStatusMarker", () => {
 });
 
 describe("toPersisted / restoreState (app-restart persistence)", () => {
-  it("round-trips a working state, minus kind", () => {
+  const SHORT_GAP = 1_000; // well under STALE_THRESHOLD_MS
+  const LONG_GAP = STALE_THRESHOLD_MS + 1;
+
+  it("round-trips a working state, minus kind and stale", () => {
     const s = run(initialState("claude"), detected("working", "agent"));
     const persisted = toPersisted(s);
     expect(persisted).not.toHaveProperty("kind");
-    expect(restoreState("claude", persisted)).toEqual(s);
+    expect(persisted).not.toHaveProperty("stale");
+    expect(restoreState("claude", persisted, SHORT_GAP)).toEqual(s);
   });
 
   it("round-trips a needs-attention state", () => {
@@ -379,7 +384,7 @@ describe("toPersisted / restoreState (app-restart persistence)", () => {
       detected("working", "agent"),
       detected("waiting", "agent", { now: T1 }),
     );
-    const restored = restoreState("claude", toPersisted(s));
+    const restored = restoreState("claude", toPersisted(s), SHORT_GAP);
     expect(restored).toEqual(s);
     expect(restored.needsAttention).toBe(true);
     expect(restored.attentionSince).toBe(T1);
@@ -391,10 +396,70 @@ describe("toPersisted / restoreState (app-restart persistence)", () => {
     // the caller (the live terminal record), not from the persisted blob.
     const s = run(initialState("shell"), detected("working", "agent"));
     const persisted = toPersisted(s);
-    expect(restoreState("shell", persisted).kind).toBe("shell");
+    expect(restoreState("shell", persisted, SHORT_GAP).kind).toBe("shell");
   });
 
   it("falls back to initialState when nothing was persisted", () => {
-    expect(restoreState("claude", undefined)).toEqual(initialState("claude"));
+    expect(restoreState("claude", undefined, LONG_GAP)).toEqual(
+      initialState("claude"),
+    );
+  });
+
+  it("marks a restored working state stale after a long gap", () => {
+    const s = run(initialState("claude"), detected("working", "agent"));
+    const restored = restoreState("claude", toPersisted(s), LONG_GAP);
+    expect(restored.stale).toBe(true);
+    expect(restored.activity).toBe("working"); // status/duration unaffected
+  });
+
+  it("marks a restored needs-attention state stale after a long gap", () => {
+    const s = run(
+      initialState("claude"),
+      detected("working", "agent"),
+      detected("waiting", "agent"),
+    );
+    expect(restoreState("claude", toPersisted(s), LONG_GAP).stale).toBe(true);
+  });
+
+  it("does not mark stale within the threshold", () => {
+    const s = run(initialState("claude"), detected("working", "agent"));
+    expect(restoreState("claude", toPersisted(s), SHORT_GAP).stale).toBe(false);
+  });
+
+  it("does not mark stale when not showing a duration, however long the gap", () => {
+    // "waiting" with no pending attention derives no row — nothing for
+    // staleness to qualify, regardless of the gap.
+    const s = run(
+      initialState("claude"),
+      detected("working", "agent"),
+      detected("waiting", "agent", { active: true }), // suppresses needsAttention
+    );
+    expect(restoreState("claude", toPersisted(s), LONG_GAP).stale).toBe(false);
+  });
+
+  it("reduce() clears a restored stale flag on the next non-timer detected event", () => {
+    const s = run(initialState("claude"), detected("working", "agent"));
+    const restored = restoreState("claude", toPersisted(s), LONG_GAP);
+    expect(restored.stale).toBe(true);
+    // Same status, same source — would otherwise be a no-op identity return,
+    // but clearing `stale` must still count as a real change.
+    const reconfirmed = reduce(restored, detected("working", "agent"));
+    expect(reconfirmed).not.toBe(restored);
+    expect(reconfirmed.stale).toBe(false);
+  });
+
+  it("a timer event does not clear a restored stale flag", () => {
+    // pi's working→waiting demotion goes through the idle timer (shell-source
+    // "waiting" is blocked for the same flicker-prevention rule that protects
+    // born agents — see "working state" tests above).
+    const s = run(
+      initialState("pi"),
+      detected("working", "shell"),
+      detected("waiting", "timer"),
+    );
+    const restored = restoreState("pi", toPersisted(s), LONG_GAP);
+    expect(restored.stale).toBe(true);
+    const afterTimer = reduce(restored, detected("waiting", "timer"));
+    expect(afterTimer.stale).toBe(true);
   });
 });

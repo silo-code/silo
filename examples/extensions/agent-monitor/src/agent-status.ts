@@ -48,6 +48,14 @@ export interface TerminalAgentState {
    * streaming pauses because the terminal tab goes to the background.
    */
   workingSource: "agent" | "shell" | null;
+  /**
+   * True when the current busy/needs-attention duration was restored from a
+   * prior session after a long-enough app-closed gap that it can't be trusted
+   * — the agent may have finished without us observing it. Set only by
+   * `restoreState()`; cleared by the next non-timer detected event (any live
+   * agent/shell OSC signal), whether or not that event changes activity.
+   */
+  stale: boolean;
 }
 
 export type AgentEvent =
@@ -75,6 +83,7 @@ export function initialState(kind: TerminalKind): TerminalAgentState {
     attentionSince: null,
     workingSince: null,
     workingSource: null,
+    stale: false,
   };
 }
 
@@ -82,28 +91,47 @@ export function initialState(kind: TerminalKind): TerminalAgentState {
  * The subset of {@link TerminalAgentState} persisted across app restarts
  * (`index.tsx` writes this to `ctx.storage.global`, keyed by terminal id, on
  * every real transition). Excludes `kind` — restored fresh from the terminal
- * record each time, since a terminal's kind never changes after creation.
+ * record each time, since a terminal's kind never changes after creation —
+ * and `stale`, which is derived fresh by `restoreState()` on every restore
+ * rather than round-tripped.
  */
-export type PersistedAgentState = Omit<TerminalAgentState, "kind">;
+export type PersistedAgentState = Omit<TerminalAgentState, "kind" | "stale">;
 
-/** Strip `kind` for persistence. See {@link PersistedAgentState}. */
+/** Strip `kind`/`stale` for persistence. See {@link PersistedAgentState}. */
 export function toPersisted(s: TerminalAgentState): PersistedAgentState {
-  const { kind: _kind, ...rest } = s;
+  const { kind: _kind, stale: _stale, ...rest } = s;
   return rest;
 }
+
+/**
+ * A restored duration older than this is marked `stale` — long enough that
+ * it's plausibly a full app-closed gap rather than a quick reload, so the
+ * agent may have finished without us observing it.
+ */
+export const STALE_THRESHOLD_MS = 60_000;
 
 /**
  * Rebuild a {@link TerminalAgentState} at activation: `persisted` (if any,
  * from a prior session) plus the terminal's current `kind`. Falls back to
  * {@link initialState} when nothing was persisted (a brand-new terminal, or
  * one that never transitioned before the app closed).
+ *
+ * `gapMs` is how long it's been since we last observed a live signal for this
+ * terminal (`now - lastSeenAt`, computed by the caller — see `index.tsx`).
+ * When restoring a state that's showing a duration (working or needing
+ * attention) and the gap exceeds {@link STALE_THRESHOLD_MS}, the restored
+ * state is marked `stale` until the next live signal confirms it.
  */
 export function restoreState(
   kind: TerminalKind,
   persisted: PersistedAgentState | undefined,
+  gapMs: number,
 ): TerminalAgentState {
   if (!persisted) return initialState(kind);
-  return { ...persisted, kind };
+  const showingDuration =
+    persisted.activity === "working" || persisted.needsAttention;
+  const stale = showingDuration && gapMs > STALE_THRESHOLD_MS;
+  return { ...persisted, kind, stale };
 }
 
 /**
@@ -132,7 +160,15 @@ export function reduce(
     attentionSince,
     workingSince,
     workingSource,
+    stale,
   } = prev;
+
+  // Any live agent/shell signal reconfirms this terminal, whether or not it
+  // changes activity — clears a `stale` flag set by restoreState() after an
+  // app-closed gap. A timer event is purely-internal debounce firing on
+  // silence, not new information from the terminal, so it doesn't clear it.
+  if (ev.source !== "timer") stale = false;
+
   if (ev.status !== activity) {
     // Block demotion events that shouldn't end an agent's working phase:
     //   • Shell-source non-working on a born-agent: subprocess OSC 133;A/D from
@@ -190,7 +226,8 @@ export function reduce(
     needsAttention === prev.needsAttention &&
     attentionSince === prev.attentionSince &&
     workingSince === prev.workingSince &&
-    workingSource === prev.workingSource
+    workingSource === prev.workingSource &&
+    stale === prev.stale
   ) {
     return prev;
   }
@@ -202,6 +239,7 @@ export function reduce(
     attentionSince,
     workingSince,
     workingSource,
+    stale,
   };
 }
 

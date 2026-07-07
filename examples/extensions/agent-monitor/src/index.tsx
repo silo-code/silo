@@ -46,6 +46,16 @@ function stateStorageKey(terminalId: string): string {
   return `agentState:${terminalId}`;
 }
 
+// The actual storage envelope: agent-status.ts's PersistedAgentState plus a
+// lastSeenAt heartbeat. lastSeenAt is bookkeeping for detecting an
+// app-closed gap on restart (see restoreState's `gapMs` param) — it isn't
+// part of the agent-status model itself, so it's tracked here rather than
+// folded into PersistedAgentState.
+interface StoredTerminalState {
+  state: PersistedAgentState;
+  lastSeenAt: string;
+}
+
 function activate(ctx: ExtensionContext) {
   log(`build ${BUILD}`);
   const storage = ctx.storage.global;
@@ -57,6 +67,13 @@ function activate(ctx: ExtensionContext) {
   // elapsed time survives an app restart instead of resetting to the moment
   // the terminal reactivates.
   const states = new Map<string, TerminalAgentState>();
+  // Last time we observed a live, non-timer agent/shell OSC signal for a
+  // terminal — updated on every matched detector result, even when it
+  // doesn't change status (Claude's braille spinner repeats every animation
+  // frame while genuinely still working). This is the heartbeat restoreState()
+  // uses at the next activation to tell "app was closed a while" apart from
+  // "we were alive a second ago."
+  const lastSeenAt = new Map<string, string>();
   // Disposables for per-terminal OSC subscriptions, keyed by terminal id.
   const oscSubs = new Map<string, { dispose(): void }>();
   // sessionId that was current when each OSC subscription was established.
@@ -77,14 +94,32 @@ function activate(ctx: ExtensionContext) {
 
   let activeTerminalId = ctx.terminals.getActive();
 
+  function persistState(terminalId: string, state: TerminalAgentState) {
+    const stored: StoredTerminalState = {
+      state: toPersisted(state),
+      lastSeenAt: lastSeenAt.get(terminalId) ?? new Date().toISOString(),
+    };
+    storage.set(stateStorageKey(terminalId), stored);
+  }
+
   function dispatch(terminalId: string, ev: AgentEvent) {
     const prev = states.get(terminalId);
     if (!prev) return;
     const next = reduce(prev, ev);
+
+    // Any live, non-timer signal reconfirms this terminal's aliveness, even
+    // when the transition itself is a no-op — bump + persist the heartbeat
+    // so a long unchanging "working" phase doesn't look stale on restart.
+    const isLiveSignal = ev.type === "detected" && ev.source !== "timer";
+    if (isLiveSignal) lastSeenAt.set(terminalId, ev.now);
+
     // reduce() returns prev by identity when nothing changed — critical here,
     // since Claude Code's braille spinner emits an OSC 0 per animation frame
     // and each invalidation re-renders the Workspaces panel and terminal tabs.
-    if (next === prev) return;
+    if (next === prev) {
+      if (isLiveSignal) persistState(terminalId, prev);
+      return;
+    }
     const tid = terminalId.slice(-8);
     if (ev.type === "detected") {
       log(
@@ -96,7 +131,7 @@ function activate(ctx: ExtensionContext) {
       log(`${tid} activated → needsAttn cleared`);
     }
     states.set(terminalId, next);
-    storage.set(stateStorageKey(terminalId), toPersisted(next));
+    persistState(terminalId, next);
     ctx.workspaces.invalidateStatus();
     ctx.terminals.invalidateTabDecorations();
   }
@@ -218,10 +253,14 @@ function activate(ctx: ExtensionContext) {
       for (const t of workspace.terminals) {
         live.add(t.id);
         if (!states.has(t.id)) {
-          const persisted = storage.get<PersistedAgentState>(
+          const stored = storage.get<StoredTerminalState>(
             stateStorageKey(t.id),
           );
-          states.set(t.id, restoreState(t.kind, persisted));
+          const gapMs = stored
+            ? Date.now() - new Date(stored.lastSeenAt).getTime()
+            : 0;
+          states.set(t.id, restoreState(t.kind, stored?.state, gapMs));
+          if (stored) lastSeenAt.set(t.id, stored.lastSeenAt);
         }
         subscribeTerminalOsc(t.id, t.sessionId);
       }
@@ -233,6 +272,7 @@ function activate(ctx: ExtensionContext) {
         oscSubs.delete(id);
         oscSubSessionIds.delete(id);
         states.delete(id);
+        lastSeenAt.delete(id);
         clearShellIdleTimer(id);
         clearAgentIdleTimer(id);
         storage.set(stateStorageKey(id), undefined);
@@ -286,9 +326,14 @@ function activate(ctx: ExtensionContext) {
           if (!s) continue;
           const row = deriveStatusRow(s);
           if (!row) continue;
+          const label = t.customName ?? stripStatusMarker(t.title);
           rows.push({
             id: t.id,
-            label: t.customName ?? stripStatusMarker(t.title),
+            // Restored from a prior session after a long-enough app-closed
+            // gap that the agent may have already finished without us
+            // observing it — flag the duration as unconfirmed rather than
+            // silently show it as if freshly confirmed.
+            label: s.stale ? `${label} (unconfirmed)` : label,
             status: row.status,
             startedAt: row.startedAt,
           });
@@ -304,18 +349,19 @@ function activate(ctx: ExtensionContext) {
       provide(terminalId): TerminalTabDecoration | null {
         const s = states.get(terminalId);
         if (!s) return null;
+        const staleSuffix = s.stale ? " (unconfirmed since restart)" : "";
         switch (deriveTabBadge(s)) {
           case "working":
             return {
               icon: <SpinnerIcon />,
               color: "accent",
-              tooltip: "Agent working",
+              tooltip: `Agent working${staleSuffix}`,
             };
           case "attention":
             return {
               icon: <AttentionIcon />,
               color: "warn",
-              tooltip: "Needs attention",
+              tooltip: `Needs attention${staleSuffix}`,
             };
           case "waiting":
             return {
