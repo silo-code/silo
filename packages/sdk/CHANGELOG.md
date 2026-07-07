@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.23.1](https://github.com/silo-code/silo/compare/sdk-v0.23.0...sdk-v0.23.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **sdk:** rewrite extensionless relative imports in the published dist ([#181](https://github.com/silo-code/silo/issues/181)) ([4f910ae](https://github.com/silo-code/silo/commit/4f910aefae3f90256800fab537f8a94b1c519d92))
+
 ## [0.23.0](https://github.com/silo-code/silo/compare/sdk-v0.22.0...sdk-v0.23.0) (2026-07-06)
 
 
