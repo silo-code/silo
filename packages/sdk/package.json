@@ -27,7 +27,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/fix-esm-extensions.mjs",
     "prepack": "pnpm build",
     "test": "vitest run",
     "test:watch": "vitest"
