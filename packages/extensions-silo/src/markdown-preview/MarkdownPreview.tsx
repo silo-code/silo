@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent } from "react";
+import type { MouseEvent, UIEvent } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -10,7 +10,11 @@ import { classifyMarkdownLink } from "./links";
 import { parseFrontmatter, formatFrontmatterValue } from "./frontmatter";
 import { GITHUB_SANITIZE_SCHEMA } from "./sanitize-schema";
 import { isExternalImageUrl, resolveLocalImagePath } from "./resolveImageSrc";
+import { isValidScrollTop, scrollStorageKey } from "./scroll";
 import "./MarkdownPreview.css";
+
+// Matches TextViewer's Monaco scroll-save debounce.
+const SCROLL_SAVE_DEBOUNCE_MS = 300;
 
 const MIME_BY_EXT: Record<string, string> = {
   png: "image/png",
@@ -106,12 +110,17 @@ function FrontmatterBlock({ fields }: { fields: Record<string, unknown> }) {
  * handler — it's a presenter.
  */
 export function MarkdownPreview({
+  editorId,
   filePath,
   ctx,
 }: EditorProps & { ctx: ExtensionContext }) {
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bodyRef = useRef<HTMLElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const hasRestoredScrollRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const scrollSaveTimerRef = useRef<number | null>(null);
 
   const components = useMemo(
     () => ({
@@ -162,6 +171,46 @@ export function MarkdownPreview({
       sub.dispose();
     };
   }, [filePath]);
+
+  // Restore the saved scroll position once, the first time content lands (the
+  // article's height needs to be present before a scrollTop assignment sticks).
+  // Later reloads (file-watch re-renders) don't re-trigger this.
+  useEffect(() => {
+    if (content === null || hasRestoredScrollRef.current) return;
+    hasRestoredScrollRef.current = true;
+    const saved = ctx.storage.workspace.get<number>(scrollStorageKey(editorId));
+    if (!isValidScrollTop(saved)) return;
+    lastScrollTopRef.current = saved;
+    requestAnimationFrame(() => {
+      if (containerRef.current) containerRef.current.scrollTop = saved;
+    });
+  }, [content, editorId, ctx]);
+
+  // Persist the final scroll position on unmount (tab close, app quit) in case
+  // a debounced save hasn't fired yet. Reads from the live-updated ref rather
+  // than the DOM node, since React may have already cleared the element ref.
+  useEffect(() => {
+    return () => {
+      if (scrollSaveTimerRef.current !== null) {
+        window.clearTimeout(scrollSaveTimerRef.current);
+      }
+      ctx.storage.workspace.set(
+        scrollStorageKey(editorId),
+        lastScrollTopRef.current,
+      );
+    };
+  }, [editorId, ctx]);
+
+  const onScroll = (e: UIEvent<HTMLDivElement>) => {
+    const top = e.currentTarget.scrollTop;
+    lastScrollTopRef.current = top;
+    if (scrollSaveTimerRef.current !== null) {
+      window.clearTimeout(scrollSaveTimerRef.current);
+    }
+    scrollSaveTimerRef.current = window.setTimeout(() => {
+      ctx.storage.workspace.set(scrollStorageKey(editorId), top);
+    }, SCROLL_SAVE_DEBOUNCE_MS);
+  };
 
   const selectAll = () => {
     const el = bodyRef.current;
@@ -222,9 +271,11 @@ export function MarkdownPreview({
   return (
     <div
       className="markdown-preview"
+      ref={containerRef}
       tabIndex={0}
       onClick={onClick}
       onContextMenu={onContextMenu}
+      onScroll={onScroll}
     >
       {error ? (
         <div className="placeholder error">Failed: {error}</div>
