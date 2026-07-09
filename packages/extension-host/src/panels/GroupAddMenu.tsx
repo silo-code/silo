@@ -1,10 +1,12 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   type IDockviewHeaderActionsProps,
   type DockviewGroupPanel,
 } from "dockview";
 import {
   Plus,
+  CornersOut,
+  CornersIn,
   Terminal as TerminalIcon,
   FilePlus,
   FolderOpen,
@@ -21,12 +23,49 @@ import { dockPanelKindRegistry } from "../extension-host/dock-panel-kinds";
 import { openMenu } from "../extension-host/menu-controller";
 import type { MenuEntry } from "@silo-code/sdk";
 import type { TerminalKind } from "../state/types";
-import { pickFileForWorkspace } from "./dock-helpers";
+import { pickFileForWorkspace, shouldShowMaximizeButton } from "./dock-helpers";
 
 // Mounted by dockview as the right-side header-actions slot of every tab
 // group. Clicking + adds new panels into *this* group via referenceGroup.
 export function GroupAddMenu(props: IDockviewHeaderActionsProps) {
   const btnRef = useRef<HTMLButtonElement | null>(null);
+  const [groupCount, setGroupCount] = useState(
+    () => props.containerApi.groups.length,
+  );
+  const [isMaximized, setIsMaximized] = useState(() => props.api.isMaximized());
+
+  useEffect(() => {
+    const containerApi = props.containerApi;
+    function syncGroupCount() {
+      setGroupCount(containerApi.groups.length);
+    }
+    const subAdd = containerApi.onDidAddGroup(syncGroupCount);
+    const subRemove = containerApi.onDidRemoveGroup(syncGroupCount);
+    return () => {
+      subAdd.dispose();
+      subRemove.dispose();
+    };
+  }, [props.containerApi]);
+
+  useEffect(() => {
+    const api = props.api;
+    // Resync on every maximize change, not just this group's — this is also
+    // what picks up dockview's own auto-exit when a different (hidden) group
+    // gets programmatically activated while this group is maximized.
+    const sub = props.containerApi.onDidMaximizedGroupChange(() =>
+      setIsMaximized(api.isMaximized()),
+    );
+    return () => sub.dispose();
+  }, [props.containerApi, props.api]);
+
+  function toggleMaximize(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (props.api.isMaximized()) {
+      props.api.exitMaximized();
+    } else {
+      props.api.maximize();
+    }
+  }
 
   function newPanelInGroup(opts: {
     id: string;
@@ -145,6 +184,28 @@ export function GroupAddMenu(props: IDockviewHeaderActionsProps) {
 
   return (
     <div className="group-add-menu">
+      {shouldShowMaximizeButton(groupCount) && (
+        <button
+          className="group-add-btn"
+          title={isMaximized ? "Restore group" : "Maximize group"}
+          // Signals the active/zoomed state visually (accent-tinted background,
+          // see .group-add-btn[aria-pressed="true"] in CenterDock.css) and
+          // semantically, matching this codebase's toggle-button convention
+          // (e.g. ViewSwitcher, TerminalSearch flags).
+          aria-pressed={isMaximized}
+          // Mouse-driven dock chrome — kept out of the keyboard Tab order so Tab
+          // through the center doesn't stop on it (the center is entered at its
+          // content, not its chrome).
+          tabIndex={-1}
+          onClick={toggleMaximize}
+        >
+          {isMaximized ? (
+            <CornersIn size={16} weight="bold" />
+          ) : (
+            <CornersOut size={16} weight="bold" />
+          )}
+        </button>
+      )}
       <button
         ref={btnRef}
         className="group-add-btn"
@@ -155,7 +216,7 @@ export function GroupAddMenu(props: IDockviewHeaderActionsProps) {
         tabIndex={-1}
         onClick={openAddMenu}
       >
-        <Plus size={14} weight="bold" />
+        <Plus size={16} weight="bold" />
       </button>
     </div>
   );

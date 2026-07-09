@@ -58,3 +58,8 @@ export async function pickFileForWorkspace(
   });
   return typeof picked === "string" ? picked : null;
 }
+
+// The maximize toggle only makes sense when there's an actual split.
+export function shouldShowMaximizeButton(groupCount: number): boolean {
+  return groupCount > 1;
+}
