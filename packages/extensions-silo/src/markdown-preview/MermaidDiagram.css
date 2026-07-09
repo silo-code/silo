@@ -1,0 +1,91 @@
+.mermaid-diagram {
+  position: relative;
+  margin: 1em 0;
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg);
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* Scale the diagram down to fit the pane width instead of overflowing it —
+   mermaid bakes an intrinsic width/height into the SVG root, so without this
+   a wide flowchart runs off the right edge. SVGs stay crisp at any scale, so
+   this costs nothing but label legibility on very wide diagrams (the expand
+   button is the escape hatch for that). */
+.mermaid-diagram__svg svg {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-diagram--loading,
+.mermaid-diagram--error {
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+
+.mermaid-diagram--error {
+  color: var(--silo-color-err);
+}
+
+.mermaid-diagram__error-label {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.mermaid-diagram__error-message {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  white-space: pre-wrap;
+  margin: 0 0 12px;
+}
+
+.mermaid-diagram__source {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.mermaid-diagram__expand {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--silo-radius-sm);
+  background: var(--silo-color-bg);
+  color: var(--silo-color-toolbar-text);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.1s ease;
+}
+
+.mermaid-diagram:hover .mermaid-diagram__expand,
+.mermaid-diagram__expand:focus-visible {
+  opacity: 1;
+}
+
+.mermaid-diagram__expand:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+/* The expanded view in ctx.ui.showModal — full native size, scrollable
+   instead of scaled, since the whole point is reading small labels. */
+.mermaid-diagram__modal-svg {
+  max-width: 85vw;
+  max-height: 80vh;
+  overflow: auto;
+}
+
+.mermaid-diagram__modal-svg svg {
+  display: block;
+}

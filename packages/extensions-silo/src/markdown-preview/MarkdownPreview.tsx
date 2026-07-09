@@ -11,6 +11,8 @@ import { parseFrontmatter, formatFrontmatterValue } from "./frontmatter";
 import { GITHUB_SANITIZE_SCHEMA } from "./sanitize-schema";
 import { isExternalImageUrl, resolveLocalImagePath } from "./resolveImageSrc";
 import { isValidScrollTop, scrollStorageKey } from "./scroll";
+import { codeBlockLanguage, codeBlockText } from "./mermaid-block";
+import { MermaidDiagram } from "./MermaidDiagram";
 import "./MarkdownPreview.css";
 
 // Matches TextViewer's Monaco scroll-save debounce.
@@ -139,6 +141,29 @@ export function MarkdownPreview({
             {...rest}
           />
         );
+      },
+      // Fenced ```mermaid blocks render as an actual diagram instead of a
+      // code block. Every other language falls through to the default <pre>.
+      pre({
+        node: _node,
+        children,
+        ...rest
+      }: React.HTMLAttributes<HTMLPreElement> & { node?: unknown }) {
+        const codeEl = Array.isArray(children) ? children[0] : children;
+        const codeProps = (
+          codeEl as {
+            props?: { className?: string; children?: React.ReactNode };
+          }
+        )?.props;
+        if (codeBlockLanguage(codeProps?.className) === "mermaid") {
+          return (
+            <MermaidDiagram
+              code={codeBlockText(codeProps?.children).replace(/\n$/, "")}
+              ctx={ctx}
+            />
+          );
+        }
+        return <pre {...rest}>{children}</pre>;
       },
     }),
     [ctx, filePath],
