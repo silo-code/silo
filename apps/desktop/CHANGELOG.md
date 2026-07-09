@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.25.0](https://github.com/silo-code/silo/compare/silo-v0.24.0...silo-v0.25.0) (2026-07-09)
+
+
+### Features
+
+* **agent-monitor:** flag restored status as unconfirmed after a long gap ([89a9b3d](https://github.com/silo-code/silo/commit/89a9b3dc288f243d761debf0cf5bfe6752182220))
+* **agent-monitor:** persist per-terminal status across app restarts ([fd2a2f7](https://github.com/silo-code/silo/commit/fd2a2f797c3d667b939cb3e8617be160ee3df8b8))
+* **dock:** add maximize/restore toggle for center dock groups ([#186](https://github.com/silo-code/silo/issues/186)) ([5e705e3](https://github.com/silo-code/silo/commit/5e705e3466204d4cb73061d63a81d16aa74be717)), closes [#141](https://github.com/silo-code/silo/issues/141)
+* **markdown-preview:** render mermaid fenced code blocks as diagrams ([#185](https://github.com/silo-code/silo/issues/185)) ([f263f71](https://github.com/silo-code/silo/commit/f263f71a651646fdd768730aa58056cbbe7986f9))
+
+
+### Bug Fixes
+
+* **git-explorer:** persist per-repo collapse state across workspace switches ([#182](https://github.com/silo-code/silo/issues/182)) ([22cbd0f](https://github.com/silo-code/silo/commit/22cbd0f763d399cd57ec8b2c71202f67c8190bca))
+* **markdown-preview:** persist scroll position across workspace switches ([#184](https://github.com/silo-code/silo/issues/184)) ([4fdc588](https://github.com/silo-code/silo/commit/4fdc588fd9c73d2d6dd14dfd67bb2aadc77c5917))
+* **sdk:** rewrite extensionless relative imports in the published dist ([#181](https://github.com/silo-code/silo/issues/181)) ([4f910ae](https://github.com/silo-code/silo/commit/4f910aefae3f90256800fab537f8a94b1c519d92))
+
 ## [0.24.0](https://github.com/silo-code/silo/compare/silo-v0.23.1...silo-v0.24.0) (2026-07-06)
 
 
