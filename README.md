@@ -1,7 +1,7 @@
 <img src="assets/readme-icon.png" width="96" height="96" alt="Silo" align="left" />
-<h3>Every project, always live —<br>built for the multi-agent workflow</h3>
+<h3>All your projects, alive at once —<br>for developers juggling coding agents</h3>
 
-Keep all your projects running simultaneously — terminals, agents, and layout intact — and switch between them in an instant.
+Keep every project you're juggling running simultaneously — terminals, agents, and layout intact — switch between them instantly. 100% open source, free forever.
 
 [**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [**Download for Linux →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap) &nbsp;·&nbsp; [Follow on X](https://x.com/silo_code)
 
@@ -26,11 +26,11 @@ Open as many project workspaces as you need and tab between them instantly. Each
 ## How it works
 
 - **Instant switching, zero reload** — each project gets its own persistent tab; switch instantly without losing anything
+- **Free and open source, forever** — MIT licensed, no subscription, no account, no enterprise tier; fork it, contribute to it, build on it
+- **Local-first** — everything runs on your machine; no cloud sync, no telemetry, no account required
 - **Layout that sticks** — each workspace remembers its exact terminal tab arrangement; name tabs for specific jobs and they're waiting exactly where you left them
 - **Terminals and editors as equals** — a terminal tab and an editor tab are the same thing; arrange them side by side, stack them, name them; span a workspace across multiple folders for monorepos or paired projects
-- **Free and open source, forever** — MIT licensed, no subscription, no account, no enterprise tier; fork it, contribute to it, build on it
 - **Extension SDK** — every built-in feature ships as an extension against the same public API you get; no ceiling on what you can add
-- **Local-first** — everything runs on your machine; no cloud sync, no telemetry, no account required
 
 ## Extend Silo with Claude Code
 
@@ -85,6 +85,17 @@ silo uninstall dave.git-branch
 | **Primary surface**      | File editor                          | Terminal + agents                         |
 | **Background terminals** | Die or disconnect                    | Stay running                              |
 | **Extensible**           | Yes                                  | Yes — open SDK, MIT licensed              |
+| **Cost to try**          | Free (VS Code) / paid (Cursor)       | 100% open source, free forever            |
+
+## vs. AI orchestrators (Superset, Conductor, etc.)
+
+|                     | Orchestrators                          | Silo                                  |
+| ------------------- | -------------------------------------- | ------------------------------------- |
+| **Primary unit**    | Agent tasks (worktrees)                | Workspaces — your whole project       |
+| **Scope**           | Agent work only                        | _All_ your work — agent-driven or not |
+| **Switch cost**     | Re-open editor per task                | Zero — nothing reloads                |
+| **Close a project** | Lose non-agent context                 | Resurrects intact, weeks later        |
+| **License**         | Source-available or closed (typically) | 100% open source (MIT), free forever  |
 
 ## Download
 

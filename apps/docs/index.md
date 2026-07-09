@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "Silo"
-  text: "Every project, always live"
-  tagline: "Keep all your projects running simultaneously — terminals, agents, and layout intact — and switch between them in an instant."
+  text: "All your projects, alive at once"
+  tagline: "For developers juggling coding agents across many projects. Terminals, agents, and layout stay intact — switch between them instantly. 100% open source, free forever."
   actions:
     - theme: brand
       text: Download →
@@ -23,6 +23,12 @@ features:
   - icon: ⚡
     title: Instant switching, zero reload
     details: Every workspace stays live in the background. Switch projects and land exactly where you left off — running terminals, open editors, active agents, all intact. Nothing reloads.
+  - icon: 🌱
+    title: Free and open source, forever
+    details: MIT licensed — no subscription, no trial, no enterprise tier. Fork it, contribute to it, build on it. Every first-party feature ships as an extension against the same SDK you get, so the codebase is genuinely open, not just open-licensed.
+  - icon: 🔒
+    title: Local-first
+    details: Everything runs on your machine. No cloud sync, no telemetry, no account required. Your workspaces, terminals, and files stay on your hardware.
   - icon: 🗂️
     title: Layout that sticks
     details: Each workspace remembers its exact terminal tab arrangement. Name a tab "dev build", another "claude", a third "docs" — they're waiting exactly where you left them, every time you return.
@@ -32,15 +38,9 @@ features:
   - icon: 🧩
     title: Open extension SDK
     details: Every built-in feature — terminal, files, git, themes — ships as an extension against the same public API you get. No ceiling on what you can add.
-  - icon: 🌱
-    title: Free and open source, forever
-    details: MIT licensed — no subscription, no trial, no enterprise tier. Fork it, contribute to it, build on it. Every first-party feature ships as an extension against the same SDK you get, so the codebase is genuinely open, not just open-licensed.
-  - icon: 🔒
-    title: Local-first
-    details: Everything runs on your machine. No cloud sync, no telemetry, no account required. Your workspaces, terminals, and files stay on your hardware.
 ---
 
-## Built for running multiple agents at once
+## Built for developers juggling coding agents
 
 You're driving a Claude session in one project while a dev build grinds in another, keeping a third open for quick fixes. Traditional editors weren't built for this. Every time you switch context, you lose your terminal state. Agents get interrupted. You spend half your time reconstructing what you had.
 
