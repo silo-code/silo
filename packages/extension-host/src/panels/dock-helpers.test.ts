@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { panelToReactivateOnClose } from "./dock-helpers";
+import {
+  panelToReactivateOnClose,
+  shouldShowMaximizeButton,
+} from "./dock-helpers";
 
 describe("panelToReactivateOnClose", () => {
   it("returns null when the closed tab WAS the active one (let dockview's within-group MRU pick)", () => {
@@ -21,5 +24,17 @@ describe("panelToReactivateOnClose", () => {
   it("returns null when nothing was active before the close", () => {
     expect(panelToReactivateOnClose("editor:a", null)).toBeNull();
     expect(panelToReactivateOnClose("editor:a", undefined)).toBeNull();
+  });
+});
+
+describe("shouldShowMaximizeButton", () => {
+  it("hides when there's zero or one group", () => {
+    expect(shouldShowMaximizeButton(0)).toBe(false);
+    expect(shouldShowMaximizeButton(1)).toBe(false);
+  });
+
+  it("shows once there's a split (2+ groups)", () => {
+    expect(shouldShowMaximizeButton(2)).toBe(true);
+    expect(shouldShowMaximizeButton(3)).toBe(true);
   });
 });

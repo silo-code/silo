@@ -251,6 +251,7 @@
   display: inline-flex;
   align-items: center;
   height: 100%;
+  gap: 4px;
   padding-left: 8px;
   padding-right: 6px;
 }
@@ -271,6 +272,17 @@
 }
 .group-add-btn:hover {
   background: transparent;
+  color: var(--silo-color-text-hi);
+}
+/* Active/zoomed state (maximize toggle) — accent-tinted chip so it reads as
+ * "on", matching this codebase's other toggle buttons (e.g. TerminalSearch's
+ * case-sensitive/whole-word/regex flags). */
+.group-add-btn[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--silo-color-accent) 18%, transparent);
+  color: var(--silo-color-text-hi);
+}
+.group-add-btn[aria-pressed="true"]:hover {
+  background: color-mix(in srgb, var(--silo-color-accent) 26%, transparent);
   color: var(--silo-color-text-hi);
 }
 
