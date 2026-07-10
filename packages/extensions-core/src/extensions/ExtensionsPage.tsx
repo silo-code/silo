@@ -1,21 +1,39 @@
 import { useState, useRef } from "react";
-import { ArrowsClockwise } from "@phosphor-icons/react";
-import type { ExtensionContext } from "@silo-code/sdk";
+import {
+  ArrowsClockwise,
+  DotsThreeVertical,
+  Folder,
+  LinkSimple,
+  Package,
+} from "@phosphor-icons/react";
+import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
 import {
   getExtensionManager,
+  type InstallSource,
   type InstalledExtension,
   type ManifestPreview,
 } from "@silo-code/extension-host/internal";
 import { PermissionConsent } from "./PermissionConsent";
 import {
+  describeSource,
   filterExtensions,
   hasBuiltins,
   showsReloadHint,
+  showsUpdateAction,
 } from "./extensions-list-model";
 import "./ExtensionsPage.css";
 
 const mgr = getExtensionManager();
+
+// The label prefix ("Folder: ", "URL: ", "npm: ") is redundant once the kind
+// is legible at a glance — an icon says the same thing in less width, leaving
+// more room for the (often long) path/URL itself.
+const SOURCE_ICON: Record<InstallSource["kind"], typeof Folder> = {
+  folder: Folder,
+  url: LinkSimple,
+  npm: Package,
+};
 
 /**
  * Factory: the Extensions settings page closes over `ctx` so it can drive the
@@ -112,10 +130,10 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       );
     }
 
-    function reload(ext: InstalledExtension) {
+    function update(ext: InstalledExtension) {
       void run(ext.id, async () => {
-        await mgr.disable(ext.id);
-        await mgr.enable(ext.id);
+        await mgr.update(ext.id, requestConsent);
+        ctx.ui.notify("info", `Updated ${ext.name}`);
       });
     }
 
@@ -131,6 +149,33 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
         await mgr.uninstall(ext.id);
         ctx.ui.notify("info", `Uninstalled ${ext.name}`);
       });
+    }
+
+    // Every row action lives behind one overflow menu rather than a row of
+    // buttons — Reload only applies to rows with a recorded install source,
+    // Uninstall only to non-built-ins, Disable/Enable always applies.
+    function openRowMenu(ext: InstalledExtension, anchor: HTMLElement) {
+      const items: MenuEntry[] = [];
+      if (showsUpdateAction(ext)) {
+        items.push({
+          label: "Reload",
+          icon: <ArrowsClockwise size={14} />,
+          run: () => update(ext),
+        });
+      }
+      items.push({
+        label: ext.enabled ? "Disable" : "Enable",
+        run: () => toggle(ext),
+      });
+      if (!ext.builtin) {
+        items.push({ type: "separator" });
+        items.push({
+          label: "Uninstall",
+          danger: true,
+          run: () => uninstall(ext),
+        });
+      }
+      void ctx.ui.showMenu({ items, anchor, align: "end" });
     }
 
     return (
@@ -200,59 +245,60 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
           <div className="ext-list">
             {visible.map((ext) => (
               <div key={ext.id} className="ext-row">
-                <div className="ext-row-text">
-                  <span className="ext-label">
-                    {ext.name}
-                    <span className="ext-brand">{ext.publisher}</span>
-                    {ext.builtin && (
-                      <span className="ext-badge-builtin">Built-in</span>
-                    )}
-                    <span className="ext-version">v{ext.version}</span>
-                    {!ext.enabled && (
-                      <span className="ext-badge">disabled</span>
-                    )}
-                  </span>
-                  <span className="ext-hint">{ext.description ?? ext.id}</span>
-                  {showsReloadHint(ext) && (
-                    <span className="ext-hint ext-hint-warn">
-                      Reload the window to finish disabling this extension.
+                <div className="ext-row-top">
+                  <div className="ext-row-text">
+                    <span className="ext-label">
+                      {ext.name}
+                      <span className="ext-brand">{ext.publisher}</span>
+                      {ext.builtin && (
+                        <span className="ext-badge-builtin">Built-in</span>
+                      )}
+                      <span className="ext-version">v{ext.version}</span>
+                      {!ext.enabled && (
+                        <span className="ext-badge">disabled</span>
+                      )}
                     </span>
-                  )}
-                  {!ext.engineCompatible && (
-                    <span className="ext-hint ext-hint-warn">
-                      Needs Silo {ext.engine} — you&rsquo;re on{" "}
-                      {ext.hostVersion}. Update Silo to use this extension.
+                    <span className="ext-hint">
+                      {ext.description ?? ext.id}
                     </span>
-                  )}
-                </div>
-                <div className="ext-actions">
-                  <button
-                    className="ext-btn"
-                    onClick={() => toggle(ext)}
-                    disabled={busy === ext.id}
-                  >
-                    {ext.enabled ? "Disable" : "Enable"}
-                  </button>
-                  {import.meta.env.DEV && !ext.builtin && ext.enabled && (
+                    {showsReloadHint(ext) && (
+                      <span className="ext-hint ext-hint-warn">
+                        Reload the window to finish disabling this extension.
+                      </span>
+                    )}
+                    {!ext.engineCompatible && (
+                      <span className="ext-hint ext-hint-warn">
+                        Needs Silo {ext.engine} — you&rsquo;re on{" "}
+                        {ext.hostVersion}. Update Silo to use this extension.
+                      </span>
+                    )}
+                  </div>
+                  <div className="ext-actions">
                     <button
-                      className="ext-btn ext-btn-icon"
-                      onClick={() => reload(ext)}
+                      className="ext-btn ext-row-btn ext-btn-icon"
+                      onClick={(e) => openRowMenu(ext, e.currentTarget)}
                       disabled={busy === ext.id}
-                      title="Reload extension"
+                      title="Extension actions"
                     >
-                      <ArrowsClockwise size={14} />
+                      <DotsThreeVertical size={16} weight="bold" />
                     </button>
-                  )}
-                  {!ext.builtin && (
-                    <button
-                      className="ext-btn ext-btn-danger"
-                      onClick={() => uninstall(ext)}
-                      disabled={busy === ext.id}
-                    >
-                      Uninstall
-                    </button>
-                  )}
+                  </div>
                 </div>
+                {ext.source &&
+                  (() => {
+                    const SourceIcon = SOURCE_ICON[ext.source.kind];
+                    return (
+                      <span
+                        className="ext-hint ext-source"
+                        title={describeSource(ext.source)}
+                      >
+                        <SourceIcon size={12} />
+                        <span className="ext-source-value">
+                          {ext.source.value}
+                        </span>
+                      </span>
+                    );
+                  })()}
               </div>
             ))}
           </div>

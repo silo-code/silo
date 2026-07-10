@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import type { InstalledExtension } from "@silo-code/extension-host/internal";
 import {
+  describeSource,
   filterExtensions,
   hasBuiltins,
   showsReloadHint,
+  showsUpdateAction,
 } from "./extensions-list-model";
 
 function ext(over: Partial<InstalledExtension>): InstalledExtension {
@@ -73,6 +75,39 @@ describe("hasBuiltins", () => {
   });
   it("is false for a third-party-only list", () => {
     expect(hasBuiltins([ext({ id: "acme.hello" })])).toBe(false);
+  });
+});
+
+describe("showsUpdateAction", () => {
+  const source = { kind: "folder", value: "/src/ext" } as const;
+
+  it("offers Update for a third-party row with a recorded source", () => {
+    expect(showsUpdateAction(ext({ source }))).toBe(true);
+    // Visible even while disabled — updating doesn't require it to be running.
+    expect(showsUpdateAction(ext({ source, enabled: false }))).toBe(true);
+  });
+
+  it("hides Update for built-ins and legacy records without a source", () => {
+    expect(showsUpdateAction(ext({ builtin: true, source }))).toBe(false);
+    expect(showsUpdateAction(ext({}))).toBe(false);
+  });
+});
+
+describe("describeSource", () => {
+  it("formats each source kind with its label", () => {
+    expect(describeSource({ kind: "folder", value: "/src/ext" })).toBe(
+      "Folder: /src/ext",
+    );
+    expect(
+      describeSource({ kind: "url", value: "https://example.com/ext.tgz" }),
+    ).toBe("URL: https://example.com/ext.tgz");
+    expect(describeSource({ kind: "npm", value: "acme-ext@1.2.0" })).toBe(
+      "npm: acme-ext@1.2.0",
+    );
+  });
+
+  it("is undefined when there's no recorded source", () => {
+    expect(describeSource(undefined)).toBeUndefined();
   });
 });
 

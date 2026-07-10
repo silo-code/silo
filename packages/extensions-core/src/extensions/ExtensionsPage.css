@@ -96,13 +96,25 @@
 
 .ext-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 4px;
   /* Left inset = pane pad so row text lines up with the page title; the row
      itself (and its separator) reaches the pane's left edge via the list bleed. */
   padding: 7px 8px 7px var(--settings-pane-pad);
   border-bottom: 1px solid var(--silo-color-border);
+}
+
+/* Name/description + actions, side by side. The source line (below) is its own
+   full-width line rather than squeezed into this row's leftover space — a long
+   path/URL needs the room a lot more than it needs to share a line with the
+   buttons. Top-aligned rather than centered: the text block can grow to two or
+   three lines (hints/warnings), and the action menu should stay pinned to the
+   row's top rather than drift toward its vertical middle. */
+.ext-row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .ext-row-text {
@@ -120,7 +132,9 @@
 .ext-brand {
   font-size: calc(var(--settings-font) - 2px);
   color: var(--silo-color-accent);
-  border: 1px solid var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--silo-color-accent) 35%, transparent);
   border-radius: var(--silo-radius-sm);
   padding: 0 5px;
 }
@@ -132,14 +146,17 @@
 .ext-badge-builtin {
   font-size: calc(var(--settings-font) - 2px);
   color: var(--silo-color-ok);
-  border: 1px solid var(--silo-color-ok);
+  background: color-mix(in srgb, var(--silo-color-ok) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--silo-color-ok) 35%, transparent);
   border-radius: var(--silo-radius-sm);
   padding: 0 5px;
 }
 .ext-badge {
   font-size: calc(var(--settings-font) - 2px);
   color: var(--silo-color-text-lo);
-  border: 1px solid var(--silo-color-border-strong);
+  background: color-mix(in srgb, var(--silo-color-text-lo) 12%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--silo-color-text-lo) 30%, transparent);
   border-radius: var(--silo-radius-sm);
   padding: 0 5px;
 }
@@ -151,23 +168,45 @@
 .ext-hint-warn {
   color: var(--silo-color-warn);
 }
+.ext-source {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--silo-font-mono, monospace);
+}
+.ext-source svg {
+  flex: 0 0 auto;
+}
+.ext-source-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Truncate from the left: the tail of a path/URL (the filename, the last
+     path segment) is the useful part, not the leading /Users/you/... or
+     https://... that's the same for every row. */
+  direction: rtl;
+  text-align: left;
+}
 
 .ext-actions {
   flex: 0 0 auto;
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 
-/* Buttons mirror .kb-edit-btn. */
+/* Buttons mirror .kb-edit-btn, sized down from that shared baseline so a row's
+   text (often a long path/URL) keeps most of the row's width. */
 .ext-btn {
   background: var(--silo-color-bg-active);
   border: 1px solid var(--silo-color-border);
   color: var(--silo-color-text-hi);
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
   font: inherit;
-  font-size: calc(var(--settings-font) - 1px);
+  font-size: calc(var(--settings-font) - 2px);
 }
 .ext-btn:hover {
   background: var(--silo-color-bg-hover);
@@ -176,13 +215,19 @@
   opacity: 0.5;
   cursor: default;
 }
-.ext-btn-danger:hover {
-  background: var(--silo-color-err);
-  border-color: var(--silo-color-err);
-  color: var(--silo-button-danger-text, #fff);
+/* The per-row overflow-menu trigger sits on every row, so it should read as a
+   quiet affordance, not compete with the page-level buttons above (Install
+   from folder…, Install) — transparent until hovered. */
+.ext-row-btn {
+  background: transparent;
+  border-color: transparent;
+}
+.ext-row-btn:hover {
+  background: var(--silo-color-bg-hover);
+  border-color: var(--silo-color-border);
 }
 .ext-btn-icon {
-  padding: 5px 7px;
+  padding: 4px 6px;
   display: flex;
   align-items: center;
 }

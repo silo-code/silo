@@ -2,7 +2,10 @@
 // filter — factored out of the component so the rules are unit-testable (the
 // component stays thin glue). See ExtensionsPage.tsx.
 
-import type { InstalledExtension } from "@silo-code/extension-host/internal";
+import type {
+  InstalledExtension,
+  InstallSource,
+} from "@silo-code/extension-host/internal";
 
 export interface ExtensionsFilter {
   /** Free-text search; matched against name, id, publisher, and description. */
@@ -43,4 +46,27 @@ export function hasBuiltins(
  */
 export function showsReloadHint(ext: InstalledExtension): boolean {
   return !ext.enabled && ext.reloadRequired === true;
+}
+
+/**
+ * Whether to offer the Update action: third-party rows whose install source was
+ * recorded. Records from before source tracking have nothing to re-fetch from,
+ * so the action is hidden until a one-time reinstall records it.
+ */
+export function showsUpdateAction(ext: InstalledExtension): boolean {
+  return !ext.builtin && ext.source !== undefined;
+}
+
+/**
+ * Human-readable "where this came from" line for a row, e.g. `Folder:
+ * /path/to/ext` or `URL: https://example.com/ext.tgz`. `undefined` for
+ * built-ins and legacy records with no recorded source — the row hides the
+ * line entirely rather than showing a label with nothing after it.
+ */
+export function describeSource(
+  source: InstallSource | undefined,
+): string | undefined {
+  if (!source) return undefined;
+  const label = { folder: "Folder", url: "URL", npm: "npm" }[source.kind];
+  return `${label}: ${source.value}`;
 }

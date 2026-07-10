@@ -16,8 +16,12 @@ const { fsMap, loaderMock, invokeMock, fsDeleteSpy } = vi.hoisted(() => {
       needsReload: vi.fn(() => false),
     },
     invokeMock: vi.fn(async () => {}),
+    // Directory semantics over the flat map: deleting a path also deletes
+    // everything under it (the update flow deletes/renames whole install dirs).
     fsDeleteSpy: vi.fn(async (p: string) => {
-      fsMap.delete(p);
+      for (const key of [...fsMap.keys()]) {
+        if (key === p || key.startsWith(`${p}/`)) fsMap.delete(key);
+      }
     }),
   };
 });
@@ -33,9 +37,25 @@ vi.mock("../services/tauri-fs", () => ({
     return v;
   },
   fsWriteText: async (p: string, c: string) => void fsMap.set(p, c),
-  fsCopyDir: async () => {},
+  // Real directory copy/move/exists over the flat map, so the update flow's
+  // backup-rename-swap can be asserted on actual file contents.
+  fsCopyDir: async (src: string, dst: string) => {
+    for (const [key, val] of [...fsMap.entries()]) {
+      if (key.startsWith(`${src}/`))
+        fsMap.set(`${dst}${key.slice(src.length)}`, val);
+    }
+  },
   fsDelete: fsDeleteSpy,
-  fsPathExists: async (p: string) => fsMap.has(p),
+  fsPathExists: async (p: string) =>
+    fsMap.has(p) || [...fsMap.keys()].some((k) => k.startsWith(`${p}/`)),
+  fsRename: async (from: string, to: string) => {
+    for (const [key, val] of [...fsMap.entries()]) {
+      if (key === from || key.startsWith(`${from}/`)) {
+        fsMap.delete(key);
+        fsMap.set(`${to}${key.slice(from.length)}`, val);
+      }
+    }
+  },
   // Remaining surface the scoped file service binds when a built-in activates
   // (createContext → getScopedFileService). Not exercised by these tests.
   fsReadBytes: vi.fn(),
@@ -43,7 +63,6 @@ vi.mock("../services/tauri-fs", () => ({
   fsCreateDir: vi.fn(),
   fsWriteBytes: vi.fn(),
   fsStat: vi.fn(),
-  fsRename: vi.fn(),
   fsReveal: vi.fn(),
   fsCopy: vi.fn(),
 }));
@@ -74,6 +93,7 @@ import {
   validateManifestPermissions,
   resolveNpmTarball,
   findPackageRoot,
+  updateNeedsConsent,
 } from "./extension-manager";
 import { registerBuiltins } from "./builtins-registry";
 import type { Extension } from "@silo-code/sdk";
@@ -505,6 +525,299 @@ describe("installFromUrl (integration)", () => {
     expect(invokeMock).toHaveBeenCalledWith(
       "download_extract",
       expect.objectContaining({ url: tarball }),
+    );
+  });
+});
+
+// ---- install source + in-place update -----------------------------------
+
+function installedRecord(id = "acme.x") {
+  return JSON.parse(fsMap.get(INSTALLED)!).extensions.find(
+    (e: { id: string }) => e.id === id,
+  );
+}
+
+describe("install source recording", () => {
+  /** Stage a tarball extraction: manifest + a bundle file with `content`. */
+  function stageWith(content: string) {
+    return async (_cmd: string, args: { destDir?: string }) => {
+      if (args.destDir) {
+        fsMap.set(
+          `${args.destDir}/package/package.json`,
+          manifest(["fs:read"]),
+        );
+        fsMap.set(`${args.destDir}/package/dist/index.js`, content);
+      }
+    };
+  }
+
+  it("installFromFolder records a folder source (trailing slash trimmed)", async () => {
+    fsMap.set("/src/ext/package.json", manifest());
+    await mgr.installFromFolder("/src/ext/");
+    expect(installedRecord().source).toEqual({
+      kind: "folder",
+      value: "/src/ext",
+    });
+  });
+
+  it("installFromUrl records the URL, not the staging dir", async () => {
+    invokeMock.mockImplementation(stageWith("v1"));
+    await mgr.installFromUrl("https://example.com/ext.tgz", async () => true);
+    expect(installedRecord().source).toEqual({
+      kind: "url",
+      value: "https://example.com/ext.tgz",
+    });
+  });
+
+  it("installFromNpm records the original spec, not the resolved tarball", async () => {
+    global.fetch = okFetch(npmMeta());
+    invokeMock.mockImplementation(stageWith("v1"));
+    await mgr.installFromNpm("pkg", async () => true);
+    expect(installedRecord().source).toEqual({ kind: "npm", value: "pkg" });
+  });
+
+  it("reinstalling the same id replaces the recorded source", async () => {
+    fsMap.set("/src/a/package.json", manifest());
+    fsMap.set("/src/b/package.json", manifest());
+    await mgr.installFromFolder("/src/a");
+    await mgr.installFromFolder("/src/b");
+    const recs = JSON.parse(fsMap.get(INSTALLED)!).extensions;
+    expect(recs).toHaveLength(1);
+    expect(recs[0].source).toEqual({ kind: "folder", value: "/src/b" });
+  });
+});
+
+describe("updateNeedsConsent", () => {
+  it("skips the prompt when permissions are unchanged or narrowed", () => {
+    expect(
+      updateNeedsConsent(["fs:read"], {
+        permissions: ["fs:read"],
+        engineCompatible: true,
+      }),
+    ).toBe(false);
+    expect(
+      updateNeedsConsent(["fs:read", "process"], {
+        permissions: ["fs:read"],
+        engineCompatible: true,
+      }),
+    ).toBe(false);
+    expect(
+      updateNeedsConsent([], { permissions: [], engineCompatible: true }),
+    ).toBe(false);
+  });
+
+  it("prompts when the set widens", () => {
+    expect(
+      updateNeedsConsent(["fs:read"], {
+        permissions: ["fs:read", "network"],
+        engineCompatible: true,
+      }),
+    ).toBe(true);
+    expect(
+      updateNeedsConsent([], {
+        permissions: ["fs:read"],
+        engineCompatible: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("prompts when the engine floor is unmet, even with equal permissions", () => {
+    expect(
+      updateNeedsConsent(["fs:read"], {
+        permissions: ["fs:read"],
+        engineCompatible: false,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("update", () => {
+  const DEST = "/cfg/extensions/acme.x";
+
+  /** Install acme.x from a source folder with a v1 bundle, then reset spies. */
+  async function installV1(perms: unknown = ["fs:read"]) {
+    fsMap.set("/src/ext/package.json", manifest(perms));
+    fsMap.set("/src/ext/dist/index.js", "v1");
+    await mgr.installFromFolder("/src/ext");
+    loaderMock.loadExtension.mockClear();
+    loaderMock.unloadExtension.mockClear();
+  }
+
+  it("swaps files in place from the folder source and reloads, without a prompt", async () => {
+    await installV1(["fs:read"]);
+    loaderMock.isLoaded.mockReturnValue(true);
+    fsMap.set("/src/ext/dist/index.js", "v2");
+    const consent = vi.fn(async () => true);
+
+    await mgr.update("acme.x", consent);
+
+    expect(consent).not.toHaveBeenCalled(); // permissions unchanged
+    expect(loaderMock.unloadExtension).toHaveBeenCalledWith("acme.x");
+    expect(fsMap.get(`${DEST}/dist/index.js`)).toBe("v2");
+    expect(loaderMock.loadExtension).toHaveBeenCalledWith({
+      id: "acme.x",
+      dir: DEST,
+      main: "dist/index.js",
+      permissions: ["fs:read"],
+    });
+    // Backup committed away; record keeps its identity, source, and enabled state.
+    expect([...fsMap.keys()].some((k) => k.includes(".update-"))).toBe(false);
+    expect(installedRecord()).toMatchObject({
+      id: "acme.x",
+      dir: "acme.x",
+      enabled: true,
+      source: { kind: "folder", value: "/src/ext" },
+    });
+  });
+
+  it("prompts when the new manifest widens permissions, and records the new set", async () => {
+    await installV1(["fs:read"]);
+    fsMap.set("/src/ext/package.json", manifest(["fs:read", "network"]));
+    const consent = vi.fn(async () => true);
+
+    await mgr.update("acme.x", consent);
+
+    expect(consent).toHaveBeenCalledWith(
+      expect.objectContaining({ permissions: ["fs:read", "network"] }),
+    );
+    expect(installedRecord().permissions).toEqual(["fs:read", "network"]);
+    expect(loaderMock.loadExtension).toHaveBeenCalledWith(
+      expect.objectContaining({ permissions: ["fs:read", "network"] }),
+    );
+  });
+
+  it("aborts silently when consent is denied — nothing changes", async () => {
+    await installV1(["fs:read"]);
+    fsMap.set("/src/ext/package.json", manifest(["fs:read", "network"]));
+    fsMap.set("/src/ext/dist/index.js", "v2");
+
+    await mgr.update("acme.x", async () => false);
+
+    expect(fsMap.get(`${DEST}/dist/index.js`)).toBe("v1");
+    expect(installedRecord().permissions).toEqual(["fs:read"]);
+    expect(loaderMock.loadExtension).not.toHaveBeenCalled();
+  });
+
+  it("re-resolves an unpinned npm spec and downloads the new tarball", async () => {
+    const stage =
+      (content: string) => async (_cmd: string, args: { destDir?: string }) => {
+        if (args.destDir) {
+          fsMap.set(
+            `${args.destDir}/package/package.json`,
+            manifest(["fs:read"]),
+          );
+          fsMap.set(`${args.destDir}/package/dist/index.js`, content);
+        }
+      };
+    global.fetch = okFetch(npmMeta("1.0.0", "https://reg/pkg-1.tgz"));
+    invokeMock.mockImplementation(stage("v1"));
+    await mgr.installFromNpm("pkg", async () => true);
+
+    global.fetch = okFetch(npmMeta("2.0.0", "https://reg/pkg-2.tgz"));
+    invokeMock.mockClear().mockImplementation(stage("v2"));
+    await mgr.update(
+      "acme.x",
+      vi.fn(async () => true),
+    );
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      "download_extract",
+      expect.objectContaining({ url: "https://reg/pkg-2.tgz" }),
+    );
+    expect(fsMap.get(`${DEST}/dist/index.js`)).toBe("v2");
+    // Staging cleaned up on the way out.
+    expect(
+      [...fsMap.keys()].some((k) => k.startsWith("/tmp/silo-install-")),
+    ).toBe(false);
+  });
+
+  it("restores files, record, and the running version when the new load fails", async () => {
+    await installV1(["fs:read"]);
+    loaderMock.isLoaded.mockReturnValue(true);
+    fsMap.set("/src/ext/package.json", manifest(["fs:read", "network"]));
+    fsMap.set("/src/ext/dist/index.js", "v2");
+    loaderMock.loadExtension
+      .mockRejectedValueOnce(new Error("activate exploded"))
+      .mockResolvedValueOnce(undefined);
+
+    await expect(mgr.update("acme.x", async () => true)).rejects.toThrow(
+      "activate exploded",
+    );
+
+    // Old files back in place.
+    expect(fsMap.get(`${DEST}/dist/index.js`)).toBe("v1");
+    expect(fsMap.get(`${DEST}/package.json`)).toBe(manifest(["fs:read"]));
+    // Record restored byte-for-byte (old grant, still enabled).
+    expect(installedRecord()).toMatchObject({
+      permissions: ["fs:read"],
+      enabled: true,
+    });
+    // Old version reloaded with the previously granted set, not the manifest.
+    expect(loaderMock.loadExtension).toHaveBeenLastCalledWith(
+      expect.objectContaining({ permissions: ["fs:read"] }),
+    );
+    expect([...fsMap.keys()].some((k) => k.includes(".update-"))).toBe(false);
+  });
+
+  it("updates a disabled extension in place without loading it", async () => {
+    await installV1(["fs:read"]);
+    await mgr.disable("acme.x");
+    loaderMock.loadExtension.mockClear();
+    fsMap.set("/src/ext/dist/index.js", "v2");
+
+    await mgr.update("acme.x", async () => true);
+
+    expect(loaderMock.loadExtension).not.toHaveBeenCalled();
+    expect(fsMap.get(`${DEST}/dist/index.js`)).toBe("v2");
+    expect(installedRecord().enabled).toBe(false);
+  });
+
+  it("rejects for built-ins, unknown ids, and legacy records without a source", async () => {
+    const consent = vi.fn(async () => true);
+    registerBuiltins([fakeBuiltin("silo.demo", "Demo")], new Set());
+    await expect(mgr.update("silo.demo", consent)).rejects.toThrow(
+      /update with the app/,
+    );
+    await expect(mgr.update("acme.gone", consent)).rejects.toThrow(
+      /not installed/,
+    );
+
+    fsMap.set(
+      INSTALLED,
+      JSON.stringify({
+        version: 1,
+        extensions: [
+          { id: "acme.x", dir: "acme.x", enabled: true, permissions: [] },
+        ],
+      }),
+    );
+    await expect(mgr.update("acme.x", consent)).rejects.toThrow(
+      /before update support/,
+    );
+  });
+
+  it("rejects when the source folder is gone or now declares a different id", async () => {
+    await installV1();
+
+    fsMap.set(
+      "/src/ext/package.json",
+      JSON.stringify({
+        name: "Other",
+        version: "1.0.0",
+        silo: { id: "acme.y", main: "dist/index.js" },
+      }),
+    );
+    await expect(mgr.update("acme.x", async () => true)).rejects.toThrow(
+      /expected "acme.x"/,
+    );
+    // The failed attempt never touched the install.
+    expect(fsMap.get(`${DEST}/dist/index.js`)).toBe("v1");
+
+    for (const k of [...fsMap.keys()]) {
+      if (k.startsWith("/src/ext/")) fsMap.delete(k);
+    }
+    await expect(mgr.update("acme.x", async () => true)).rejects.toThrow(
+      /no longer exists/,
     );
   });
 });

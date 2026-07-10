@@ -68,6 +68,7 @@ export type {
   ExtensionManager,
   ExtensionManagerState,
   InstalledExtension,
+  InstallSource,
   ManifestPreview,
 } from "./extension-manager";
 export { getExtensionManager } from "./extension-manager";
