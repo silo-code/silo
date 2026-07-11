@@ -14,9 +14,10 @@ import { EventEmitter } from "./event-emitter";
 // docs/proposals/0011-iframe-navigation-events.md). Talks to the shim
 // injected into every frame by the Rust-side `webview_bridge` plugin
 // (apps/desktop/src-tauri/src/webview_bridge.js). One global `message`
-// listener multiplexes every attached frame, keyed by `event.source` (the
-// iframe's stable `contentWindow` WindowProxy — it survives cross-origin
-// navigations, only the document behind it changes).
+// listener multiplexes every attached frame, matching `event.source` against
+// each attached frame's *current* `iframe.contentWindow` (see `findState`) —
+// that WindowProxy is not guaranteed stable across navigations in this
+// WebView, so nothing caches it as a lookup key.
 //
 // `attachWebviewBridge` is the raw, unscoped entry point; `getScopedWebviewService`
 // (bottom of this file) is what `createContext` actually hands out on
