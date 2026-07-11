@@ -268,6 +268,43 @@ async function captureViaBackend(rect: WebviewRect): Promise<Blob> {
   return new Blob([buf], { type: "image/png" });
 }
 
+// A full-page capture stitches together bands captured at different scroll
+// positions — any `position: fixed`/`sticky` element (a sticky nav header,
+// a floating "back to top" button, etc.) stays visually pinned across every
+// one of those scroll positions, so it ends up baked into the stitched
+// image once per band instead of once. Hiding them for the capture's
+// duration is the standard fix (what most full-page screenshot tools do).
+// `visibility: hidden` rather than `display: none` so it can't shift layout
+// (a `position: sticky` element still occupies its normal-flow box) —
+// `metrics.docHeight`/the band math must stay valid throughout. State lives
+// on a page-global rather than coming back over the RPC channel: DOM
+// elements aren't structured-cloneable across postMessage.
+const HIDE_FIXED_STICKY_CODE = `(function(){
+  var hidden = [];
+  var all = document.querySelectorAll("*");
+  for (var i = 0; i < all.length; i++) {
+    var el = all[i];
+    var cs = getComputedStyle(el);
+    if (cs.position === "fixed" || cs.position === "sticky") {
+      hidden.push({ el: el, prevVisibility: el.style.visibility, prevPriority: el.style.getPropertyPriority("visibility") });
+      el.style.setProperty("visibility", "hidden", "important");
+    }
+  }
+  window.__siloCaptureHiddenEls = hidden;
+  return hidden.length;
+})()`;
+
+const RESTORE_FIXED_STICKY_CODE = `(function(){
+  var hidden = window.__siloCaptureHiddenEls || [];
+  for (var i = 0; i < hidden.length; i++) {
+    var entry = hidden[i];
+    if (entry.prevVisibility) entry.el.style.setProperty("visibility", entry.prevVisibility, entry.prevPriority || "");
+    else entry.el.style.removeProperty("visibility");
+  }
+  window.__siloCaptureHiddenEls = null;
+  return hidden.length;
+})()`;
+
 /** Attach the bridge to an iframe. Call `dispose()` on the returned handle when the panel unmounts. */
 export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
   installListener();
@@ -362,6 +399,9 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
       if (!ctx)
         throw new Error("webview bridge: 2D canvas context unavailable");
 
+      await sendCommand(state, "exec", { code: HIDE_FIXED_STICKY_CODE }).catch(
+        () => {},
+      );
       try {
         for (let y = 0; y < metrics.docHeight; y += metrics.vh) {
           await sendCommand(state, "scroll_to", { x: 0, y });
@@ -377,6 +417,9 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
           bitmap.close();
         }
       } finally {
+        await sendCommand(state, "exec", {
+          code: RESTORE_FIXED_STICKY_CODE,
+        }).catch(() => {});
         await sendCommand(state, "scroll_to", {
           x: metrics.scrollX,
           y: metrics.scrollY,
