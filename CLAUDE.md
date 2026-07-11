@@ -19,6 +19,9 @@ Orientation docs (read when relevant):
   repo (cloned at `../silo-extensions`): how its third-party extensions relate to
   this repo — published-SDK lag, npm (not pnpm) build commands, runtime trust /
   `silo.permissions`, and how to install a branch without merging.
+- `apps/docs/guide/extension-checklist.md` — pre-flight checklist for any
+  extension (bundled or third-party): boundaries, permissions, styling,
+  lifecycle, packaging, stability.
 
 ## Self-documentation — keep docs in sync AS YOU BUILD
 
@@ -70,6 +73,17 @@ where new features become extensions, not core changes.
 When you **expand `ExtensionContext` (`ctx`)** — the main ongoing work — that is
 exactly the moment to do all of the above. A documented `ctx` surface is both
 the invariant #4 burn-down _and_ the docs site growing. They are the same act.
+
+## External docs indexing (Context7)
+
+`apps/docs` is indexed by [Context7](https://context7.com) (library ID
+`/silo-code/silo`) so coding agents can pull Silo's docs directly. What gets
+indexed and how the project is described there is controlled by the root
+`context7.json` — keep its `description` in sync with the current positioning
+in `README.md` / `apps/docs/index.md` (not the architecture description at the
+top of this file, which is written for Claude, not Context7's audience). The
+`context7-refresh` job in `.github/workflows/docs.yml` re-triggers indexing on
+every push to `main`.
 
 ## Architecture boundaries — enforced, don't regress
 
@@ -148,7 +162,9 @@ All run from the repo root (pnpm workspace).
   root (`apps/desktop/src/builtins.ts`), which hands the ordered list to the
   host's `activateExtensions`. Model new ones on `image-viewer` (editor,
   `silo.*`) or `about` (settings page, `core.*`) — both touch the app only
-  through `ctx`.
+  through `ctx`. Run through the
+  [extension checklist](apps/docs/guide/extension-checklist.md) before calling
+  a new one done.
 - No legacy/internal brand names in source — the product is `Silo`.
 - Docs under `docs/` use lowercase kebab-case filenames (`automation.md`,
   `ui-terminology.md`), not ALLCAPS. The only exception is the conventional

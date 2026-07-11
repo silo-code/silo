@@ -20,6 +20,7 @@ import {
   fsDelete,
   fsPathExists,
   fsCreateDir,
+  fsRename,
 } from "../services/tauri-fs";
 import {
   loadExtension,
@@ -77,6 +78,20 @@ export function validateManifestPermissions(
   return out;
 }
 
+/**
+ * Where an install came from, persisted so {@link ExtensionManager.update} can
+ * re-fetch the same package later without an uninstall/reinstall round-trip.
+ */
+export interface InstallSource {
+  kind: "folder" | "url" | "npm";
+  /**
+   * `folder`: absolute path to the source folder; `url`: the tarball URL;
+   * `npm`: the original spec as typed (`"pkg"` or `"@scope/pkg@1.2.0"`), so an
+   * unpinned spec re-resolves to latest on update while a pinned one stays pinned.
+   */
+  value: string;
+}
+
 /** One row in the manager's UI list. */
 export interface InstalledExtension {
   /** The extension id (e.g. `"acme.hello"`). */
@@ -120,6 +135,12 @@ export interface InstalledExtension {
    * warning, not a hard block.
    */
   engineCompatible: boolean;
+  /**
+   * Where the extension was installed from, when recorded. Absent for built-ins
+   * and for records installed before source tracking existed — the UI hides the
+   * Update action for those (a one-time reinstall records it).
+   */
+  source?: InstallSource;
 }
 
 export interface ExtensionManagerState {
@@ -127,8 +148,12 @@ export interface ExtensionManagerState {
 }
 
 export interface ExtensionManager extends ReactiveService<ExtensionManagerState> {
-  /** Install from a source folder (copied into the extensions dir), then load. */
-  installFromFolder(srcDir: string): Promise<void>;
+  /**
+   * Install from a source folder (copied into the extensions dir), then load.
+   * `source` overrides the recorded {@link InstallSource} — the URL/npm paths
+   * pass their true origin here so the temp staging dir is never recorded.
+   */
+  installFromFolder(srcDir: string, source?: InstallSource): Promise<void>;
   /** Unload (if loaded), delete the folder, and drop the record. Rejects for built-ins. */
   uninstall(id: string): Promise<void>;
   /** Enable: load a third-party extension, or hot-enable a built-in. */
@@ -171,9 +196,32 @@ export interface ExtensionManager extends ReactiveService<ExtensionManagerState>
    *
    * The tarball must contain a `package.json` with a `silo.*` manifest at its
    * root or under a `package/` prefix (the npm standard layout).
+   *
+   * `source` overrides the recorded {@link InstallSource} (the npm path passes
+   * the original package spec here instead of the resolved tarball URL).
    */
   installFromUrl(
     url: string,
+    requestConsent: (preview: ManifestPreview) => Promise<boolean>,
+    source?: InstallSource,
+  ): Promise<void>;
+  /**
+   * Update an installed extension in place from its recorded
+   * {@link InstallSource}: re-fetch the package (folder: re-copy; url/npm:
+   * re-download), unload the running version, swap the files, and reload —
+   * keeping the extension id and record so panel/dock state survives.
+   *
+   * Consent is re-requested via `requestConsent` **only** when the new manifest
+   * widens the granted permission set or the engine floor is unmet (see
+   * {@link updateNeedsConsent}); returning `false` aborts silently. If loading
+   * the new version fails, the previous files, record, and running version are
+   * restored and the original error is rethrown.
+   *
+   * Rejects for built-ins and for records with no recorded source (installed
+   * before source tracking — reinstall once from the original source).
+   */
+  update(
+    id: string,
     requestConsent: (preview: ManifestPreview) => Promise<boolean>,
   ): Promise<void>;
 }
@@ -215,6 +263,8 @@ interface InstalledRecord {
   dir: string;
   enabled: boolean;
   permissions?: Permission[];
+  /** Where the install came from; absent on records from before source tracking. */
+  source?: InstallSource;
 }
 
 interface InstalledFile {
@@ -365,6 +415,7 @@ async function refresh(): Promise<void> {
         engine: m.engine,
         hostVersion,
         engineCompatible: isEngineCompatible(m.engine, hostVersion),
+        source: rec.source,
       });
     } catch {
       rows.push({
@@ -380,6 +431,7 @@ async function refresh(): Promise<void> {
         permissions: rec.permissions ?? [],
         hostVersion,
         engineCompatible: true, // can't read manifest → no constraint to check
+        source: rec.source,
       });
     }
   }
@@ -427,6 +479,21 @@ async function setBuiltinDisabled(
     else set.delete(id);
     file.disabledBuiltins = [...set];
   });
+}
+
+/**
+ * Whether an update must re-prompt for consent: only when the new manifest
+ * widens the already-granted permission set, or the host no longer meets the
+ * declared engine floor. Equal or narrowed permissions update silently.
+ */
+export function updateNeedsConsent(
+  granted: readonly Permission[],
+  preview: Pick<ManifestPreview, "permissions" | "engineCompatible">,
+): boolean {
+  return (
+    !preview.engineCompatible ||
+    preview.permissions.some((p) => !granted.includes(p))
+  );
 }
 
 // ---- npm / URL install helpers -----------------------------------------------
@@ -508,7 +575,7 @@ export function getExtensionManager(): ExtensionManager {
       return d;
     },
 
-    async installFromFolder(srcDir) {
+    async installFromFolder(srcDir, source) {
       const cleanedSrc = srcDir.replace(/\/+$/, "");
       const manifest = await readManifest(cleanedSrc);
       const root = await extensionsRoot();
@@ -521,17 +588,23 @@ export function getExtensionManager(): ExtensionManager {
       // Persist the consented permissions as the granted set (the UI has
       // already prompted via previewInstall). On reinstall/upgrade, re-record
       // them from the new manifest — the user re-consented to install.
+      const recordedSource: InstallSource = source ?? {
+        kind: "folder",
+        value: cleanedSrc,
+      };
       await upsertRecord((file) => {
         const existing = file.extensions.find((e) => e.id === manifest.id);
         if (existing) {
           existing.enabled = true;
           existing.permissions = manifest.permissions;
+          existing.source = recordedSource;
         } else
           file.extensions.push({
             id: manifest.id,
             dir: manifest.id,
             enabled: true,
             permissions: manifest.permissions,
+            source: recordedSource,
           });
       });
 
@@ -657,19 +730,140 @@ export function getExtensionManager(): ExtensionManager {
 
     async installFromNpm(packageName, requestConsent) {
       const tarballUrl = await resolveNpmTarball(packageName);
-      await service!.installFromUrl(tarballUrl, requestConsent);
+      // Record the original spec, not the resolved tarball URL — an unpinned
+      // spec then re-resolves to the latest version on update.
+      await service!.installFromUrl(tarballUrl, requestConsent, {
+        kind: "npm",
+        value: packageName,
+      });
     },
 
-    async installFromUrl(url, requestConsent) {
+    async installFromUrl(url, requestConsent, source) {
       const stagingDir = await stageFromUrl(url);
       try {
         const pkgRoot = await findPackageRoot(stagingDir);
         const preview = await service!.previewInstall(pkgRoot);
         const granted = await requestConsent(preview);
         if (!granted) return;
-        await service!.installFromFolder(pkgRoot);
+        await service!.installFromFolder(
+          pkgRoot,
+          source ?? { kind: "url", value: url },
+        );
       } finally {
         await fsDelete(stagingDir).catch(() => {});
+      }
+    },
+
+    async update(id, requestConsent) {
+      if (isBuiltin(id)) {
+        throw new Error("Built-in extensions update with the app.");
+      }
+      const rec = (await readInstalledFile()).extensions.find(
+        (e) => e.id === id,
+      );
+      if (!rec) throw new Error(`${id} is not installed.`);
+      if (!rec.source) {
+        throw new Error(
+          `${id} was installed before update support — reinstall it once from its original source to enable updates.`,
+        );
+      }
+
+      // Resolve a fresh copy of the package from the recorded source.
+      let stagingDir: string | null = null;
+      let pkgRoot: string;
+      if (rec.source.kind === "folder") {
+        pkgRoot = rec.source.value.replace(/\/+$/, "");
+        if (!(await fsPathExists(`${pkgRoot}/package.json`))) {
+          throw new Error(`Source folder no longer exists: ${pkgRoot}`);
+        }
+      } else {
+        const url =
+          rec.source.kind === "npm"
+            ? await resolveNpmTarball(rec.source.value)
+            : rec.source.value;
+        stagingDir = await stageFromUrl(url);
+        pkgRoot = await findPackageRoot(stagingDir);
+      }
+
+      try {
+        const preview = await service!.previewInstall(pkgRoot);
+        if (preview.id !== id) {
+          throw new Error(
+            `Source now declares id "${preview.id}" — expected "${id}". Uninstall and install it fresh.`,
+          );
+        }
+        if (
+          updateNeedsConsent(rec.permissions ?? [], preview) &&
+          !(await requestConsent(preview))
+        ) {
+          return;
+        }
+
+        // In-place swap: park the old install as a backup so a failed load of
+        // the new version can restore it. The "." prefix can't collide with an
+        // extension dir (ids must start alphanumeric).
+        const root = await extensionsRoot();
+        const destDir = `${root}/${rec.dir}`;
+        const backupDir = `${root}/.update-${id}`;
+        const oldRecord: InstalledRecord = { ...rec };
+        const wasEnabled = rec.enabled;
+        if (isLoaded(id)) unloadExtension(id);
+        if (await fsPathExists(backupDir)) await fsDelete(backupDir);
+        await fsRename(destDir, backupDir);
+        try {
+          await fsCopyDir(pkgRoot, destDir);
+          const manifest = await readManifest(destDir);
+          await upsertRecord((f) => {
+            const r = f.extensions.find((e) => e.id === id);
+            if (r) {
+              r.permissions = manifest.permissions;
+              r.enabled = wasEnabled;
+            }
+          });
+          if (wasEnabled) {
+            await loadExtension({
+              id,
+              dir: destDir,
+              main: manifest.main,
+              permissions: manifest.permissions,
+            });
+          }
+          await fsDelete(backupDir).catch(() => {});
+        } catch (err) {
+          // Restore files, then record, then the running version — best-effort
+          // each, without masking the original failure.
+          try {
+            if (await fsPathExists(destDir)) await fsDelete(destDir);
+            await fsRename(backupDir, destDir);
+            await upsertRecord((f) => {
+              const i = f.extensions.findIndex((e) => e.id === id);
+              if (i >= 0) f.extensions[i] = oldRecord;
+            });
+            if (wasEnabled) {
+              const old = await readManifest(destDir);
+              // Reload with the previously granted set, not the manifest.
+              await loadExtension({
+                id,
+                dir: destDir,
+                main: old.main,
+                permissions: oldRecord.permissions ?? [],
+              });
+            }
+          } catch (restoreErr) {
+            reportError(`Extension update rollback failed: ${id}`, {
+              extensionId: id,
+              error:
+                restoreErr instanceof Error
+                  ? restoreErr.message
+                  : String(restoreErr),
+            });
+          }
+          throw err;
+        } finally {
+          await refresh();
+        }
+      } finally {
+        if (stagingDir) await fsDelete(stagingDir).catch(() => {});
       }
     },
   };

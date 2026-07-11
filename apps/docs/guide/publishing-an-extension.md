@@ -212,3 +212,9 @@ cleanly. A **dock panel kind** (`ctx.registerDockPanelKind`) registered by a
 runtime extension may require a window reload to fully remove if a panel of that
 kind is open when you disable it. Prefer a side panel for now.
 :::
+
+## Before you publish
+
+Run through the [extension checklist](/guide/extension-checklist) —
+boundaries, permissions, styling, lifecycle, packaging, and stability, in one
+scannable pass.
