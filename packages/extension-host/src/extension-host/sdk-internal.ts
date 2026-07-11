@@ -256,3 +256,21 @@ export type { TerminalForeground } from "./terminal-foreground";
 // internal barrel. The component itself is now public (@silo-code/sdk); the
 // host component file re-exports from SDK and owns the CSS load.
 export { Tooltip } from "../components/Tooltip";
+
+// Webview bridge (Phase 1 of the future `ctx.webview` public API — see
+// docs/proposals/0011-iframe-navigation-events.md). Talks to the init-script
+// shim `webview_bridge.js` (injected into every frame by the Rust
+// `webview_bridge` plugin) to get real DOM access, navigation events, element
+// picking, and native pixel snapshots out of same- AND cross-origin iframes.
+// Internal-only *for now*: the shape here is still being proven out across
+// platforms by `core.webview-bridge-test` before it graduates to a stable,
+// permission-gated `ctx.webview` on the public SDK. Do not build a
+// user-facing feature on this barrel export — it will move.
+export { attachWebviewBridge } from "./webview-service";
+export type {
+  WebviewFrameHandle,
+  WebviewNavigateEvent,
+  WebviewNavType,
+  WebviewRect,
+  PickedElement,
+} from "./webview-service";
