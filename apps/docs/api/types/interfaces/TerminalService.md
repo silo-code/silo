@@ -388,7 +388,7 @@ ctx.subscriptions.push(sub);
 getActive(): string | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:249](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L249)
+Defined in: [packages/sdk/src/terminal-service.ts:252](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L252)
 
 The record id of the terminal tab that is currently active in the active
 workspace's center dock, or `null` when an editor tab (or nothing) is
@@ -408,7 +408,7 @@ split does not count.
 subscribeActive(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:271](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L271)
+Defined in: [packages/sdk/src/terminal-service.ts:274](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L274)
 
 Subscribe to active-terminal changes. The listener receives the terminal
 record id whenever a terminal tab becomes the active center-dock panel,

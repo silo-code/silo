@@ -1,10 +1,10 @@
 # Type Alias: Permission
 
 ```ts
-type Permission = "fs:read" | "fs:write" | "process" | "network";
+type Permission = "fs:read" | "fs:write" | "process" | "network" | "webview";
 ```
 
-Defined in: [packages/sdk/src/permissions.ts:23](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L23)
+Defined in: [packages/sdk/src/permissions.ts:28](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L28)
 
 A capability an extension declares in its manifest (`silo.permissions`) to
 request access **beyond the open workspace**. With none declared, an
@@ -18,3 +18,8 @@ and the user consents to the set at install.
 - `network` — make outbound network requests. Declarative consent only until
   sandboxed execution lands (in-process code can reach the network directly);
   declare it so the capability is reviewable and shown at install.
+- `webview` — use [ExtensionContext.webview](../interfaces/ExtensionContext.md#webview) to get real DOM access,
+  script execution, and native pixel capture inside an iframe you own,
+  including cross-origin content. Declare it because this reaches into
+  arbitrary embedded pages, not because it touches the filesystem/network
+  directly.
