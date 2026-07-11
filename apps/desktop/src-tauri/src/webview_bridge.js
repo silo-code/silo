@@ -57,6 +57,21 @@
     for (var i = 0; i < queued.length; i++) post(queued[i]);
   }
 
+  // Announce our own (re)injection immediately, unconditionally (no nonce
+  // needed — this is what lets the host acquire one). The host previously
+  // only re-handshook in reaction to the *outer* iframe element's DOM "load"
+  // event, but that event does not reliably fire for navigations initiated
+  // *inside* the frame (a same-frame link click, `location.href =`, etc.) —
+  // only for the host's own iframe.src reassignments. Since this script runs
+  // fresh at document_start on every navigation regardless of what caused
+  // it, self-announcing here is the reliable trigger; the host treats it as
+  // "this frame has a brand new JS realm, re-handshake."
+  try {
+    window.parent.postMessage({ __silo_wv: true, type: "announce" }, "*");
+  } catch (_) {
+    /* ignore */
+  }
+
   function safePost(msg) {
     try {
       post(msg);

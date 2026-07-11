@@ -36,6 +36,20 @@ export interface WebviewNavigateEvent {
   type: WebviewNavType;
   /** The frame's URL after the navigation. */
   url: string;
+  /**
+   * `true` on the first event reported by a freshly created document — i.e.
+   * this event is the result of a full document load, whoever initiated it.
+   * `false` for every subsequent event from the same document (SPA route
+   * changes, the page's own `replaceState` calls, hash changes).
+   *
+   * This matters because frameworks commonly call `history.replaceState`
+   * while booting, so a single full-page navigation can report a `"replace"`
+   * event *before* its `"load"`. Without this flag a consumer tracking its
+   * own history stack can't tell that boot-time `"replace"` (a brand-new
+   * page — usually a new history entry) apart from a genuine in-page
+   * `replaceState` (rewrite the current entry).
+   */
+  newDocument: boolean;
 }
 
 /**

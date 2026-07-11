@@ -53,6 +53,12 @@ interface FrameState {
   handshakeTimer: ReturnType<typeof setTimeout> | null;
   nextId: number;
   disposed: boolean;
+  /**
+   * Set by the shim's "announce" (a fresh JS realm = a fresh document),
+   * consumed by the next nav event fired to consumers — that event carries
+   * `newDocument: true`, everything after it from the same document `false`.
+   */
+  pendingNewDocument: boolean;
 }
 
 const registry = new Map<Window, FrameState>();
@@ -71,6 +77,18 @@ function installListener() {
     if (!state || state.disposed) return;
     const data = event.data as Record<string, unknown> | null;
     if (!data || data.__silo_wv !== true) return;
+
+    // Self-announcement, sent unconditionally (no nonce yet) the instant the
+    // shim is (re)injected — the sole, reliable "this frame has a fresh JS
+    // realm" signal, and the only trigger for (re)handshaking (see the
+    // registration comment in attachWebviewBridge for why the outer iframe
+    // element's own DOM "load" event isn't used for this).
+    if (data.type === "announce") {
+      state.pendingNewDocument = true;
+      handshake(state);
+      return;
+    }
+
     if (typeof data.nonce !== "string" || data.nonce !== state.nonce) return;
 
     if (data.type === "ready") {
@@ -86,10 +104,22 @@ function installListener() {
     }
 
     if (data.type === "nav") {
+      // The bridge's own handshake targets the iframe before any real URL is
+      // set, so a spurious "load" for about:blank fires on every attach —
+      // implementation noise, never a page the consumer actually navigated
+      // to. Suppress it here so no consumer has to special-case it (and so
+      // it can't false-positive the frame-blocked emptiness probe below,
+      // which would otherwise see about:blank's trivially-empty document and
+      // report every fresh, empty frame as "blocked").
+      if (data.url === "about:blank") return;
+
       state.url = data.url as string;
+      const newDocument = state.pendingNewDocument;
+      state.pendingNewDocument = false;
       state.navEmitter.fire({
         type: data.navType as WebviewNavType,
         url: data.url as string,
+        newDocument,
       });
       // A full-page load (not an SPA route change) is the point to check for
       // frame-blocking: sites sending X-Frame-Options/frame-ancestors don't
@@ -237,18 +267,22 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
     handshakeTimer: null,
     nextId: 0,
     disposed: false,
+    pendingNewDocument: false,
   };
 
-  const onLoad = () => {
-    if (!iframe.contentWindow) return;
-    registry.set(iframe.contentWindow, state);
-    handshake(state);
-  };
-  iframe.addEventListener("load", onLoad);
-  // The iframe may already be loaded (e.g. src was set before attach ran).
+  // `contentWindow` identity is stable for the iframe element's whole
+  // lifetime — the same WindowProxy survives every future navigation, full
+  // reload or not — so registering once here (rather than re-registering on
+  // every "load") is sufficient. Actual (re)handshaking is triggered by the
+  // shim's own "announce" self-report in installListener's message handler,
+  // not from here: the outer iframe element's DOM "load" event used to drive
+  // it, but that event doesn't reliably fire for navigations initiated
+  // *inside* the frame (a link click, `location.href =`), and — worse —
+  // calling handshake() a second time from a stale "load" after "announce"
+  // already handshook correctly would silently invalidate the nonce out from
+  // under a message already in flight with the (correct) earlier one.
   if (iframe.contentWindow) {
     registry.set(iframe.contentWindow, state);
-    handshake(state);
   }
 
   function frameRectInWindow(): WebviewRect {
@@ -347,7 +381,6 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
     dispose() {
       if (state.disposed) return;
       state.disposed = true;
-      iframe.removeEventListener("load", onLoad);
       if (state.handshakeTimer !== null) clearTimeout(state.handshakeTimer);
       if (iframe.contentWindow) registry.delete(iframe.contentWindow);
       for (const [id, pending] of state.pending) {
