@@ -157,6 +157,77 @@ describe("webview-service: announce / newDocument handshake", () => {
     expect(events).toEqual([]);
   });
 
+  it("keeps matching the frame after contentWindow's identity changes across a navigation", () => {
+    // Some WebViews (this app's, in practice) don't guarantee the DOM-spec
+    // expectation that `iframe.contentWindow` returns the same WindowProxy
+    // for the whole lifetime of the element — a real navigation can make it
+    // start returning a different object. A lookup keyed by a *cached*
+    // window reference would silently stop matching every message from that
+    // point on (nav events, title fetches, and RPCs all queue forever with
+    // no error). The frame lookup must re-read `iframe.contentWindow` fresh
+    // on every message instead of trusting a snapshot taken at attach time.
+    const frame = attachWebviewBridge(iframe);
+    const events: WebviewNavigateEvent[] = [];
+    frame.onNavigate((e) => events.push(e));
+
+    shimSend(iframe, { type: "announce" });
+    const firstNonce = lastHelloNonce(postMessage);
+    shimSend(iframe, { type: "ready", nonce: firstNonce });
+    shimSend(iframe, {
+      type: "nav",
+      navType: "load",
+      url: "https://example.com/",
+      nonce: firstNonce,
+    });
+
+    // Simulate the WebView swapping in a new WindowProxy for the same
+    // iframe element after a navigation. Reuses the same `postMessage` spy
+    // so `lastHelloNonce` keeps working against the new "window".
+    const newContentWindow = { postMessage } as unknown as Window;
+    Object.defineProperty(iframe, "contentWindow", {
+      value: newContentWindow,
+      configurable: true,
+    });
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { __silo_wv: true, type: "announce" },
+        source: newContentWindow,
+      }),
+    );
+    expect(postMessage.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({ cmd: "hello", nonce: expect.any(String) }),
+    );
+    const secondNonce = lastHelloNonce(postMessage);
+    expect(secondNonce).not.toBe(firstNonce);
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { __silo_wv: true, type: "ready", nonce: secondNonce },
+        source: newContentWindow,
+      }),
+    );
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: {
+          __silo_wv: true,
+          type: "nav",
+          navType: "load",
+          url: "https://example.org/",
+          nonce: secondNonce,
+        },
+        source: newContentWindow,
+      }),
+    );
+
+    expect(
+      events.map((e) => ({ url: e.url, newDocument: e.newDocument })),
+    ).toEqual([
+      { url: "https://example.com/", newDocument: true },
+      { url: "https://example.org/", newDocument: true },
+    ]);
+  });
+
   it("stops delivering events once disposed", () => {
     const frame = attachWebviewBridge(iframe);
     const events: WebviewNavigateEvent[] = [];

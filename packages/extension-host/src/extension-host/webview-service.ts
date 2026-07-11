@@ -61,8 +61,25 @@ interface FrameState {
   pendingNewDocument: boolean;
 }
 
-const registry = new Map<Window, FrameState>();
+// Every currently-attached frame. NOT keyed by `iframe.contentWindow` — that
+// WindowProxy is not actually stable across navigations in this WebView
+// (contrary to the DOM spec's usual guarantee for same-origin same-process
+// frames): after a real navigation, `iframe.contentWindow` can start
+// returning a *different* object than the one captured at attach time. A Map
+// keyed by the old reference would silently stop matching `event.source` on
+// every message after that point — nav events, title fetches, and RPCs all
+// queue forever with no error, since nothing ever looks broken from the
+// caller's side (the promises just never resolve). Comparing
+// `state.iframe.contentWindow` fresh, per message, is immune to that.
+const registry = new Set<FrameState>();
 let listenerInstalled = false;
+
+function findState(source: Window): FrameState | undefined {
+  for (const state of registry) {
+    if (state.iframe.contentWindow === source) return state;
+  }
+  return undefined;
+}
 
 function installListener() {
   if (listenerInstalled) return;
@@ -73,7 +90,7 @@ function installListener() {
   // `event.source` matching a frame we actually attached to, combined with
   // the per-handshake nonce below — both are unforgeable by page content.
   window.addEventListener("message", (event: MessageEvent) => {
-    const state = registry.get(event.source as Window);
+    const state = findState(event.source as Window);
     if (!state || state.disposed) return;
     const data = event.data as Record<string, unknown> | null;
     if (!data || data.__silo_wv !== true) return;
@@ -270,20 +287,20 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
     pendingNewDocument: false,
   };
 
-  // `contentWindow` identity is stable for the iframe element's whole
-  // lifetime — the same WindowProxy survives every future navigation, full
-  // reload or not — so registering once here (rather than re-registering on
-  // every "load") is sufficient. Actual (re)handshaking is triggered by the
-  // shim's own "announce" self-report in installListener's message handler,
-  // not from here: the outer iframe element's DOM "load" event used to drive
-  // it, but that event doesn't reliably fire for navigations initiated
-  // *inside* the frame (a link click, `location.href =`), and — worse —
-  // calling handshake() a second time from a stale "load" after "announce"
-  // already handshook correctly would silently invalidate the nonce out from
-  // under a message already in flight with the (correct) earlier one.
-  if (iframe.contentWindow) {
-    registry.set(iframe.contentWindow, state);
-  }
+  // Registering once here (rather than re-registering `iframe.contentWindow`
+  // on every "load") is sufficient — `findState` looks up by comparing
+  // `state.iframe.contentWindow` fresh on every message rather than relying
+  // on a cached identity, so it doesn't matter that the WindowProxy behind
+  // `iframe.contentWindow` can change across navigations. Actual
+  // (re)handshaking is triggered by the shim's own "announce" self-report in
+  // installListener's message handler, not from here: the outer iframe
+  // element's DOM "load" event used to drive it, but that event doesn't
+  // reliably fire for navigations initiated *inside* the frame (a link
+  // click, `location.href =`), and — worse — calling handshake() a second
+  // time from a stale "load" after "announce" already handshook correctly
+  // would silently invalidate the nonce out from under a message already in
+  // flight with the (correct) earlier one.
+  registry.add(state);
 
   function frameRectInWindow(): WebviewRect {
     const r = iframe.getBoundingClientRect();
@@ -382,7 +399,7 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
       if (state.disposed) return;
       state.disposed = true;
       if (state.handshakeTimer !== null) clearTimeout(state.handshakeTimer);
-      if (iframe.contentWindow) registry.delete(iframe.contentWindow);
+      registry.delete(state);
       for (const [id, pending] of state.pending) {
         pending.reject(new Error("webview bridge: frame handle disposed"));
         state.pending.delete(id);
