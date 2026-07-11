@@ -1,0 +1,15 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "Silo",
+  "description": "All your projects, alive at once — for developers juggling coding agents across many projects. Terminals, agents, and layout stay intact when switching. 100% open source, free forever. Extensible via a typed ctx SDK.",
+  "folders": ["apps/docs"],
+  "excludeFolders": ["apps/docs/node_modules"],
+  "rules": [
+    "Extensions touch the app only through ctx and @silo-code/sdk types — never host internals (state/services/layout/panels/docked/components)",
+    "No raw @tauri-apps/* or node:* imports in extension code — route platform access through ctx",
+    "Extension CSS may only use design tokens (--silo-color-*, --silo-font*, --silo-radius-*, --silo-button-*) — never a component token (--silo-content-*, --silo-statusbar-*, …) or internal token (--silo-internal-*)",
+    "Declare only the silo.permissions (fs:read, fs:write, process, network) an extension actually needs in package.json",
+    "Register everything through ctx.subscriptions / return a Disposable so uninstall cleans up fully",
+    "Check apps/docs/roadmap.md badge status (stable/experimental/planned) before depending on a ctx API"
+  ]
+}

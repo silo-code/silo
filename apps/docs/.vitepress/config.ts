@@ -183,6 +183,10 @@ export default withMermaid(
                     text: "Sharing extensions",
                     link: "/guide/sharing-extensions",
                   },
+                  {
+                    text: "Extension checklist",
+                    link: "/guide/extension-checklist",
+                  },
                 ],
               },
             ],
