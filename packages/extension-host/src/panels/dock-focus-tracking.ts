@@ -1,16 +1,20 @@
 // `.editor-dock`'s focus-accent bar (CenterDock.css) used to be gated purely
 // on CSS `:focus-within`. That breaks for extensions that embed a
 // cross-origin `<iframe>` (e.g. local-web-viewer): clicking into the
-// embedded page makes `document.activeElement` the `<iframe>` element itself
-// (normal, spec-correct focus behavior), but this WebView's `:focus-within`
-// implementation doesn't reliably propagate that up through ancestors for
-// cross-origin frames — so the dock visually "loses focus" even though the
-// panel the iframe lives in is exactly what the user is interacting with.
+// embedded page's *rendered content* moves focus into it, but neither
+// `:focus-within` nor a `focusin` listener on this document reliably
+// observes that — cross-origin iframe content doesn't forward ordinary DOM
+// events (mouse or focus) to the parent document at all (the same reason
+// this extension's pick-element/marquee features need a postMessage bridge
+// instead of plain listeners, rather than a CSS engine quirk as first
+// suspected). `document.activeElement` DOES correctly become the `<iframe>`
+// element the moment focus lands inside it, though — so instead of waiting
+// for an event that may never arrive, poll it.
 //
-// This tracks the same thing `:focus-within` is supposed to via a plain
-// `focusin` listener + DOM containment check instead, which only cares that
-// `document.activeElement` (whatever it is, iframe included) is a descendant
-// of a given `.editor-dock` — no CSS engine iframe quirk in the loop.
+// The `focusin` listener stays for the normal (non-iframe) case: instant
+// response for regular clicks. Polling is a low-frequency reconciliation
+// pass on top of that — it's the only thing that catches the iframe case.
+const POLL_INTERVAL_MS = 150;
 let installed = false;
 
 export function installDockFocusTracking() {
@@ -31,4 +35,6 @@ export function installDockFocusTracking() {
   // still drop the bar — unlike focus moving into a same-window iframe, that
   // case doesn't fire `focusin` for anything, so it needs its own listener.
   window.addEventListener("blur", () => apply(null));
+
+  setInterval(() => apply(document.activeElement), POLL_INTERVAL_MS);
 }
