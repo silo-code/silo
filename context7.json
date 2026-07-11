@@ -1,5 +1,7 @@
 {
   "$schema": "https://context7.com/schema/context7.json",
+  "url": "https://context7.com/silo-code/silo",
+  "public_key": "pk_XYvT35iz02pXKo4Wsi7Zv",
   "projectTitle": "Silo",
   "description": "All your projects, alive at once — for developers juggling coding agents across many projects. Terminals, agents, and layout stay intact when switching. 100% open source, free forever.",
   "folders": ["apps/docs"],
