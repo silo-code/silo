@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import type { DockPanelProps, ExtensionContext } from "@silo-code/sdk";
-import {
-  attachWebviewBridge,
-  type WebviewFrameHandle,
-  type WebviewRect,
-} from "@silo-code/extension-host/internal";
+import type {
+  DockPanelProps,
+  ExtensionContext,
+  WebFrame,
+  WebviewRect,
+} from "@silo-code/sdk";
 import "./WebviewBridgeTestPanel.css";
 
 interface Props extends DockPanelProps {
@@ -27,16 +27,16 @@ interface Marquee {
 
 let logCounter = 0;
 
-// Internal diagnostic panel for Phase 1 of the ctx.webview bridge (see
+// Internal diagnostic panel for `ctx.webview` (see
 // docs/proposals/0011-iframe-navigation-events.md). Not registered on any
 // "add panel" menu — reachable only via the "Developer: Webview Bridge Test"
-// command — so it never shows up for ordinary users. Exists purely to prove
-// out shim injection, nav events, exec, element picking, and native snapshot
-// capture against real cross-origin iframes before any of this becomes a
-// public SDK surface.
+// command — so it never shows up for ordinary users. Doubles as a reference
+// implementation of the public ctx.webview API and a manual-test surface for
+// exercising shim injection, nav events, exec, element picking, and native
+// snapshot capture against real cross-origin iframes across platforms.
 export function WebviewBridgeTestPanel({ ctx }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const handleRef = useRef<WebviewFrameHandle | null>(null);
+  const handleRef = useRef<WebFrame | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const [addressBar, setAddressBar] = useState("http://localhost:5173");
@@ -59,7 +59,7 @@ export function WebviewBridgeTestPanel({ ctx }: Props) {
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    const handle = attachWebviewBridge(iframe);
+    const handle = ctx.webview.attach(iframe);
     handleRef.current = handle;
     const navSub = handle.onNavigate((e) => {
       appendLog(`nav: ${e.type} → ${e.url}`);

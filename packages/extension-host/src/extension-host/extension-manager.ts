@@ -45,6 +45,7 @@ const KNOWN_PERMISSIONS: readonly Permission[] = [
   "fs:write",
   "process",
   "network",
+  "webview",
 ];
 
 /**

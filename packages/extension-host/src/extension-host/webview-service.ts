@@ -1,67 +1,28 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Disposable } from "@silo-code/sdk";
+import type {
+  Permission,
+  WebviewService,
+  WebFrame,
+  WebviewNavType,
+  WebviewNavigateEvent,
+  WebviewRect,
+  PickedElement,
+} from "@silo-code/sdk";
 import { EventEmitter } from "./event-emitter";
 
-// Phase 1 of the `ctx.webview` iframe bridge (see
-// docs/proposals/0011-iframe-navigation-events.md). Internal only — this
-// module has no public SDK contract yet and is consumed directly by the
-// hidden `core.webview-bridge-test` panel while the bridge is being proven
-// out on all three platforms. The shape here will likely change before it
-// becomes `ctx.webview` in Phase 2.
+// The implementation behind `ctx.webview` (see
+// docs/proposals/0011-iframe-navigation-events.md). Talks to the shim
+// injected into every frame by the Rust-side `webview_bridge` plugin
+// (apps/desktop/src-tauri/src/webview_bridge.js). One global `message`
+// listener multiplexes every attached frame, keyed by `event.source` (the
+// iframe's stable `contentWindow` WindowProxy — it survives cross-origin
+// navigations, only the document behind it changes).
 //
-// Talks to the shim injected into every frame by the Rust-side
-// `webview_bridge` plugin (apps/desktop/src-tauri/src/webview_bridge.js).
-// One global `message` listener multiplexes every attached frame, keyed by
-// `event.source` (the iframe's stable `contentWindow` WindowProxy — it
-// survives cross-origin navigations, only the document behind it changes).
-
-export type WebviewNavType = "push" | "replace" | "pop" | "load" | "hash";
-
-export interface WebviewNavigateEvent {
-  type: WebviewNavType;
-  url: string;
-}
-
-export interface WebviewRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface PickedElement {
-  selector: string;
-  text: string;
-  rect: WebviewRect;
-}
-
-export interface WebviewFrameHandle extends Disposable {
-  readonly url: string | null;
-  onNavigate(listener: (e: WebviewNavigateEvent) => void): Disposable;
-  /**
-   * Fires when a handshake never completes after a navigation — the strongest
-   * available signal that the page refused to load in an iframe (e.g.
-   * `X-Frame-Options: DENY` / `frame-ancestors 'none'`, as github.com and
-   * many other sites send). The network layer blocks these before any script
-   * runs, so there's no error event to catch — this is a timeout heuristic,
-   * not a definitive diagnosis. Consumers should treat it as "probably
-   * frame-blocked; suggest opening in a browser instead."
-   */
-  onBlocked(listener: () => void): Disposable;
-  back(): void;
-  forward(): void;
-  reload(): void;
-  /** Run code inside the frame; resolves with its structured-clone-safe result. */
-  exec<T = unknown>(code: string): Promise<T>;
-  /** Interactive element pick; resolves null on Escape/cancel. No timeout — inherently user-paced. */
-  pickElement(): Promise<PickedElement | null>;
-  /** Native PNG snapshot of the frame's current visible rect. */
-  capture(): Promise<Blob>;
-  /** Native PNG snapshot of a frame-relative sub-rect (e.g. a picked element, or a marquee selection). */
-  captureRect(rect: WebviewRect): Promise<Blob>;
-  /** Scroll-and-stitch PNG snapshot of the frame's entire scrollable document. */
-  captureFullPage(): Promise<Blob>;
-}
+// `attachWebviewBridge` is the raw, unscoped entry point; `getScopedWebviewService`
+// (bottom of this file) is what `createContext` actually hands out on
+// `ctx.webview` — it gates `attach()` behind the `"webview"` permission for
+// third-party extensions. Trusted (bundled) extensions bypass the check, same
+// as `ctx.files`/`ctx.process`'s trust model.
 
 const HANDSHAKE_TIMEOUT_MS = 5_000;
 const RPC_TIMEOUT_MS = 8_000;
@@ -261,9 +222,7 @@ async function captureViaBackend(rect: WebviewRect): Promise<Blob> {
 }
 
 /** Attach the bridge to an iframe. Call `dispose()` on the returned handle when the panel unmounts. */
-export function attachWebviewBridge(
-  iframe: HTMLIFrameElement,
-): WebviewFrameHandle {
+export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
   installListener();
 
   const state: FrameState = {
@@ -297,7 +256,7 @@ export function attachWebviewBridge(
     return { x: r.left, y: r.top, width: r.width, height: r.height };
   }
 
-  const handle: WebviewFrameHandle = {
+  const handle: WebFrame = {
     get url() {
       return state.url;
     },
@@ -401,4 +360,32 @@ export function attachWebviewBridge(
   };
 
   return handle;
+}
+
+/** What `getScopedWebviewService` needs to decide whether `attach()` is allowed. */
+export interface WebviewScope {
+  /** First-party (bundled) extensions bypass the permission check. */
+  readonly trusted: boolean;
+  readonly permissions: ReadonlySet<Permission>;
+}
+
+/**
+ * `ctx.webview` as handed to an extension by `createContext` — gates
+ * `attach()` behind the `"webview"` permission for third-party extensions
+ * (trusted/bundled extensions are unscoped, same trust model as
+ * `ctx.files`/`ctx.process`). Denied calls throw synchronously rather than
+ * returning a handle whose methods all reject — there's no partial-access
+ * story for this capability the way there is for path-scoped fs/process.
+ */
+export function getScopedWebviewService(scope: WebviewScope): WebviewService {
+  return {
+    attach(frame: HTMLIFrameElement): WebFrame {
+      if (!scope.trusted && !scope.permissions.has("webview")) {
+        throw new Error(
+          'ctx.webview.attach() requires the "webview" permission — declare it in the extension manifest.',
+        );
+      }
+      return attachWebviewBridge(frame);
+    },
+  };
 }

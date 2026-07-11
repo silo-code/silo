@@ -38,6 +38,7 @@ import type { ThemeService, ThemePreset } from "./theme-service";
 import type { DndService } from "./dnd-service";
 import type { UiService } from "./ui-service";
 import type { NetworkService } from "./network-service";
+import type { WebviewService } from "./webview-service";
 import type { SystemService } from "./system-service";
 import type { LogService } from "./output-service";
 import type {
@@ -639,6 +640,13 @@ export interface ExtensionContext {
    * loading a URL. See {@link NetworkService} for the full API.
    */
   readonly net: NetworkService;
+  /**
+   * Real DOM access, navigation control, and native pixel capture inside an
+   * `<iframe>` you own — including cross-origin content the browser's
+   * same-origin policy would otherwise fully sandbox. Requires the
+   * `"webview"` {@link Permission}. See {@link WebviewService}.
+   */
+  readonly webview: WebviewService;
   /**
    * Static host-platform metadata — the OS, CPU architecture, and running Silo
    * version. Values are baked into the binary at build time and never change
