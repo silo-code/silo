@@ -128,6 +128,13 @@ export interface WebFrame extends Disposable {
    * user-paced.
    */
   pickElement(): Promise<PickedElement | null>;
+  /**
+   * Cancel an in-flight {@link pickElement} call — exits pick mode in the
+   * frame and resolves the pending `pickElement()` promise with `null`. A
+   * no-op if no pick is active (including if it already ended, e.g. via
+   * Escape or a click).
+   */
+  cancelPick(): void;
   /** A native PNG snapshot of the frame's current visible viewport. */
   capture(): Promise<Blob>;
   /** A native PNG snapshot of a frame-relative sub-rect — e.g. a {@link PickedElement.rect} or a marquee selection. */

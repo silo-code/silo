@@ -1,6 +1,6 @@
 # Interface: WebviewService
 
-Defined in: [packages/sdk/src/webview-service.ts:150](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L150)
+Defined in: [packages/sdk/src/webview-service.ts:171](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L171)
 
 The webview-bridge domain, exposed as [ExtensionContext.webview](ExtensionContext.md#webview).
 Requires the `"webview"` [Permission](../type-aliases/Permission.md).
@@ -32,7 +32,7 @@ function MyPanel({ ctx }: { ctx: ExtensionContext }) {
 attach(frame): WebFrame;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:156](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L156)
+Defined in: [packages/sdk/src/webview-service.ts:177](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L177)
 
 Attach the bridge to an iframe your panel owns. The iframe can be
 cross-origin — that's the point. Returns a [WebFrame](WebFrame.md); call

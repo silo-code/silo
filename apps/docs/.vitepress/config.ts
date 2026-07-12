@@ -48,6 +48,7 @@ const apiSidebar = [
       { text: "ctx.ui", link: "/api/ui/" },
       { text: "ctx.net", link: "/api/net/" },
       { text: "ctx.system", link: "/api/system/" },
+      { text: "ctx.webview", link: "/api/webview/" },
     ],
   },
   {

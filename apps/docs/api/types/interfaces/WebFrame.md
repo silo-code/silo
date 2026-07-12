@@ -1,6 +1,6 @@
 # Interface: WebFrame
 
-Defined in: [packages/sdk/src/webview-service.ts:81](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L81)
+Defined in: [packages/sdk/src/webview-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L95)
 
 A live connection to an embedded frame's content, returned by
 [WebviewService.attach](WebviewService.md#attach). Dispose it (or let `ctx.subscriptions`
@@ -18,7 +18,7 @@ dispose it) when your panel unmounts.
 readonly url: string | null;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:83](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L83)
+Defined in: [packages/sdk/src/webview-service.ts:97](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L97)
 
 The frame's current URL, updated on every [onNavigate](#onnavigate) event. `null` before the first load.
 
@@ -30,7 +30,7 @@ The frame's current URL, updated on every [onNavigate](#onnavigate) event. `null
 onNavigate: Event<WebviewNavigateEvent>;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:85](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L85)
+Defined in: [packages/sdk/src/webview-service.ts:99](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L99)
 
 Subscribe to in-frame navigation — the only way to track SPA route changes and full loads alike. See [WebviewNavType](../type-aliases/WebviewNavType.md).
 
@@ -42,7 +42,7 @@ Subscribe to in-frame navigation — the only way to track SPA route changes and
 onBlocked: Event<void>;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L94)
+Defined in: [packages/sdk/src/webview-service.ts:108](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L108)
 
 Fires when a navigation lands on what looks like a frame-blocked page —
 sites sending `X-Frame-Options` / `frame-ancestors` don't error, WebKit
@@ -77,7 +77,7 @@ Defined in: [packages/sdk/src/types.ts:60](https://github.com/silo-code/silo/blo
 back(): void;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L96)
+Defined in: [packages/sdk/src/webview-service.ts:110](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L110)
 
 Navigate the frame back in its history, if possible.
 
@@ -93,7 +93,7 @@ Navigate the frame back in its history, if possible.
 forward(): void;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L98)
+Defined in: [packages/sdk/src/webview-service.ts:112](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L112)
 
 Navigate the frame forward in its history, if possible.
 
@@ -109,7 +109,7 @@ Navigate the frame forward in its history, if possible.
 reload(): void;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:100](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L100)
+Defined in: [packages/sdk/src/webview-service.ts:114](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L114)
 
 Reload the frame's current page.
 
@@ -125,7 +125,7 @@ Reload the frame's current page.
 exec<T>(code): Promise<T>;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:109](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L109)
+Defined in: [packages/sdk/src/webview-service.ts:123](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L123)
 
 Run JavaScript inside the frame and resolve with its result. A single
 expression's value is returned (e.g. `"document.title"`,
@@ -158,7 +158,7 @@ The result must be structured-clone-safe (no DOM nodes, functions, etc.).
 pickElement(): Promise<PickedElement | null>;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:116](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L116)
+Defined in: [packages/sdk/src/webview-service.ts:130](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L130)
 
 Enter interactive element-pick mode: the user hovers to highlight and
 clicks to select, or presses Escape to cancel. Resolves with the picked
@@ -171,13 +171,32 @@ user-paced.
 
 ***
 
+### cancelPick()
+
+```ts
+cancelPick(): void;
+```
+
+Defined in: [packages/sdk/src/webview-service.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L137)
+
+Cancel an in-flight [pickElement](#pickelement) call — exits pick mode in the
+frame and resolves the pending `pickElement()` promise with `null`. A
+no-op if no pick is active (including if it already ended, e.g. via
+Escape or a click).
+
+#### Returns
+
+`void`
+
+***
+
 ### capture()
 
 ```ts
 capture(): Promise<Blob>;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:118](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L118)
+Defined in: [packages/sdk/src/webview-service.ts:139](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L139)
 
 A native PNG snapshot of the frame's current visible viewport.
 
@@ -193,7 +212,7 @@ A native PNG snapshot of the frame's current visible viewport.
 captureRect(rect): Promise<Blob>;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:120](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L120)
+Defined in: [packages/sdk/src/webview-service.ts:141](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L141)
 
 A native PNG snapshot of a frame-relative sub-rect — e.g. a [PickedElement.rect](PickedElement.md#rect) or a marquee selection.
 
@@ -215,7 +234,7 @@ A native PNG snapshot of a frame-relative sub-rect — e.g. a [PickedElement.rec
 captureFullPage(): Promise<Blob>;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:122](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L122)
+Defined in: [packages/sdk/src/webview-service.ts:143](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L143)
 
 A native PNG snapshot of the frame's entire scrollable document, stitched from scrolled captures. Scroll position is restored afterward.
 
