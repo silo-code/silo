@@ -1,5 +1,18 @@
 # @silo-code/sdk
 
+## [0.24.0](https://github.com/silo-code/silo/compare/sdk-v0.23.1...sdk-v0.24.0) (2026-07-12)
+
+
+### Features
+
+* **webview:** cross-origin iframe bridge + public SDK surface ([#189](https://github.com/silo-code/silo/issues/189)) ([fcf585a](https://github.com/silo-code/silo/commit/fcf585acd4899a7361e873518224eefcb3b87c82))
+
+
+### Bug Fixes
+
+* **webview-bridge:** re-handshake reliability, contentWindow instability, dock focus, sticky headers ([#191](https://github.com/silo-code/silo/issues/191)) ([fc58f28](https://github.com/silo-code/silo/commit/fc58f2833b4ef7a4dc50c2d5d11902e4fff83333))
+* **webview-bridge:** security gate, Windows origin, pending-RPC cleanup, permission re-check ([#193](https://github.com/silo-code/silo/issues/193)) ([578f39b](https://github.com/silo-code/silo/commit/578f39b0f44ceca7dd623ee879c31601a7182591))
+
 ## [0.23.1](https://github.com/silo-code/silo/compare/sdk-v0.23.0...sdk-v0.23.1) (2026-07-07)
 
 
