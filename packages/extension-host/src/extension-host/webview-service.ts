@@ -273,8 +273,11 @@ async function captureViaBackend(rect: WebviewRect): Promise<Blob> {
 // positions — any `position: fixed`/`sticky` element (a sticky nav header,
 // a floating "back to top" button, etc.) stays visually pinned across every
 // one of those scroll positions, so it ends up baked into the stitched
-// image once per band instead of once. Hiding them for the capture's
-// duration is the standard fix (what most full-page screenshot tools do).
+// image once per band instead of once. The call site only applies this
+// starting with the *second* band: the first is captured at the top of the
+// page before anything is hidden, so a top-pinned element still lands in
+// the stitched image — once, in its natural spot — same as in a normal
+// screenshot; hiding it only for the bands where it would otherwise repeat.
 // `visibility: hidden` rather than `display: none` so it can't shift layout
 // (a `position: sticky` element still occupies its normal-flow box) —
 // `metrics.docHeight`/the band math must stay valid throughout. State lives
@@ -400,11 +403,22 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
       if (!ctx)
         throw new Error("webview bridge: 2D canvas context unavailable");
 
-      await sendCommand(state, "exec", { code: HIDE_FIXED_STICKY_CODE }).catch(
-        () => {},
-      );
+      // The very first band is captured at the top of the page (y=0) with
+      // fixed/sticky elements NOT yet hidden — so a top-pinned header lands
+      // in the stitched image once, in its natural position, exactly like a
+      // normal screenshot. Only bands after that hide them (right before
+      // scrolling away from the top), since those are the ones that would
+      // otherwise re-bake the same pinned content in on top of new page
+      // content underneath it.
+      let hidFixedSticky = false;
       try {
         for (let y = 0; y < metrics.docHeight; y += metrics.vh) {
+          if (y > 0 && !hidFixedSticky) {
+            hidFixedSticky = true;
+            await sendCommand(state, "exec", {
+              code: HIDE_FIXED_STICKY_CODE,
+            }).catch(() => {});
+          }
           await sendCommand(state, "scroll_to", { x: 0, y });
           const bandHeight = Math.min(metrics.vh, metrics.docHeight - y);
           const blob = await captureViaBackend({
@@ -418,9 +432,11 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
           bitmap.close();
         }
       } finally {
-        await sendCommand(state, "exec", {
-          code: RESTORE_FIXED_STICKY_CODE,
-        }).catch(() => {});
+        if (hidFixedSticky) {
+          await sendCommand(state, "exec", {
+            code: RESTORE_FIXED_STICKY_CODE,
+          }).catch(() => {});
+        }
         await sendCommand(state, "scroll_to", {
           x: metrics.scrollX,
           y: metrics.scrollY,
