@@ -140,6 +140,9 @@ describe("validateManifestPermissions", () => {
       validateManifestPermissions(["fs:read", "process", "fs:read"], "x"),
     ).toEqual(["fs:read", "process"]);
   });
+  it("accepts the webview permission", () => {
+    expect(validateManifestPermissions(["webview"], "x")).toEqual(["webview"]);
+  });
   it("throws on an unknown permission", () => {
     expect(() => validateManifestPermissions(["fs:delete"], "x")).toThrow(
       /unknown permission/,

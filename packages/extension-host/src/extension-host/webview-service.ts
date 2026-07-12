@@ -27,6 +27,7 @@ import { EventEmitter } from "./event-emitter";
 
 const HANDSHAKE_TIMEOUT_MS = 5_000;
 const RPC_TIMEOUT_MS = 8_000;
+const BLOCKED_RECHECK_DELAY_MS = 400;
 
 interface OutMessage {
   __silo_wv: true;
@@ -52,6 +53,7 @@ interface FrameState {
   pending: Map<string, PendingRpc>;
   queued: (() => void)[];
   handshakeTimer: ReturnType<typeof setTimeout> | null;
+  blockedRecheckTimer: ReturnType<typeof setTimeout> | null;
   nextId: number;
   disposed: boolean;
   /**
@@ -162,6 +164,26 @@ function installListener() {
 }
 
 function handshake(state: FrameState) {
+  // A new handshake means the previous document — and everything in flight
+  // to it — is gone. Reject stale pending RPCs and drop anything still
+  // queued (not yet dispatched) rather than letting them hang until their
+  // own timeout (or forever, for calls like pickElement() that have none),
+  // or silently fire against the *new* document once it becomes ready.
+  state.queued = [];
+  for (const [id, pending] of state.pending) {
+    if (pending.timer !== null) clearTimeout(pending.timer);
+    pending.reject(
+      new Error(
+        "webview bridge: frame navigated before this request completed",
+      ),
+    );
+    state.pending.delete(id);
+  }
+  if (state.blockedRecheckTimer !== null) {
+    clearTimeout(state.blockedRecheckTimer);
+    state.blockedRecheckTimer = null;
+  }
+
   const nonce =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
@@ -194,15 +216,43 @@ function handshake(state: FrameState) {
   }
 }
 
+const EMPTINESS_PROBE =
+  "!document.title && (!document.body || document.body.children.length === 0)";
+
 /** Probe an emptiness signature after a full-page load — see the call site's comment. */
 async function checkIfBlocked(state: FrameState): Promise<void> {
+  if (state.blockedRecheckTimer !== null) {
+    clearTimeout(state.blockedRecheckTimer);
+    state.blockedRecheckTimer = null;
+  }
   try {
     const isEmpty = await sendCommand<boolean>(state, "exec", {
-      code: "!document.title && (!document.body || document.body.children.length === 0)",
+      code: EMPTINESS_PROBE,
+    });
+    if (!isEmpty) return;
+    // A single empty-document reading can be a transient interstitial (a
+    // meta-refresh or JS redirector, common for short-link/OAuth pages)
+    // rather than genuine frame-blocking — a truly blocked page stays empty
+    // indefinitely, a redirector doesn't. Re-probe once before firing
+    // onBlocked instead of trusting the first reading.
+    state.blockedRecheckTimer = setTimeout(() => {
+      state.blockedRecheckTimer = null;
+      void recheckBlocked(state);
+    }, BLOCKED_RECHECK_DELAY_MS);
+  } catch {
+    /* an exec failure here isn't itself a blocked signal (e.g. a stale/torn-down frame) */
+  }
+}
+
+async function recheckBlocked(state: FrameState): Promise<void> {
+  if (state.disposed) return;
+  try {
+    const isEmpty = await sendCommand<boolean>(state, "exec", {
+      code: EMPTINESS_PROBE,
     });
     if (isEmpty) state.blockedEmitter.fire();
   } catch {
-    /* an exec failure here isn't itself a blocked signal (e.g. a stale/torn-down frame) */
+    /* frame torn down or navigated mid-recheck; not itself a blocked signal */
   }
 }
 
@@ -257,6 +307,37 @@ function sendCommand<T>(
     if (state.ready) send();
     else state.queued.push(send);
   });
+}
+
+/**
+ * Fire-and-forget send, for commands whose response (if any) isn't routed
+ * back to their own id — `pick_cancel`'s ack rides on the `pick_start` it
+ * cancels (see `endPick` in webview_bridge.js), so tracking it in
+ * `state.pending` like a normal RPC would just leak a pending entry that
+ * times out unanswered 8 seconds later.
+ */
+function postCommand(
+  state: FrameState,
+  cmd: string,
+  args: Record<string, unknown>,
+): void {
+  const send = () => {
+    try {
+      state.iframe.contentWindow?.postMessage(
+        {
+          __silo_wv: true,
+          cmd,
+          nonce: state.nonce,
+          ...args,
+        } satisfies OutMessage,
+        "*",
+      );
+    } catch {
+      /* frame gone; nothing pending to clean up for a fire-and-forget send */
+    }
+  };
+  if (state.ready) send();
+  else state.queued.push(send);
 }
 
 async function captureViaBackend(rect: WebviewRect): Promise<Blob> {
@@ -323,6 +404,7 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
     pending: new Map(),
     queued: [],
     handshakeTimer: null,
+    blockedRecheckTimer: null,
     nextId: 0,
     disposed: false,
     pendingNewDocument: false,
@@ -358,20 +440,27 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
     onBlocked(listener) {
       return state.blockedEmitter.event(listener);
     },
+    // These three are `void`-returning by design (see WebFrame's TSDoc) — the
+    // caller has no handle to observe a failure, so a rejection (disposal,
+    // timeout, a navigation racing this very command) must be swallowed here
+    // rather than left as an unhandled rejection with nowhere to go.
     back() {
-      void sendCommand(state, "history", { dir: "back" });
+      sendCommand(state, "history", { dir: "back" }).catch(() => {});
     },
     forward() {
-      void sendCommand(state, "history", { dir: "forward" });
+      sendCommand(state, "history", { dir: "forward" }).catch(() => {});
     },
     reload() {
-      void sendCommand(state, "reload", {});
+      sendCommand(state, "reload", {}).catch(() => {});
     },
     exec<T>(code: string) {
       return sendCommand<T>(state, "exec", { code });
     },
     pickElement() {
       return sendCommand<PickedElement | null>(state, "pick_start", {}, null);
+    },
+    cancelPick() {
+      postCommand(state, "pick_cancel", {});
     },
     capture() {
       return captureViaBackend(frameRectInWindow());
@@ -394,6 +483,12 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
         vw: number;
         vh: number;
       }>(state, "get_metrics", {});
+
+      if (metrics.vh <= 0) {
+        throw new Error(
+          "webview bridge: captureFullPage() failed — frame has zero viewport height (is the panel visible and laid out?)",
+        );
+      }
 
       const frameRect = frameRectInWindow();
       const canvas = document.createElement("canvas");
@@ -459,8 +554,11 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
       if (state.disposed) return;
       state.disposed = true;
       if (state.handshakeTimer !== null) clearTimeout(state.handshakeTimer);
+      if (state.blockedRecheckTimer !== null)
+        clearTimeout(state.blockedRecheckTimer);
       registry.delete(state);
       for (const [id, pending] of state.pending) {
+        if (pending.timer !== null) clearTimeout(pending.timer);
         pending.reject(new Error("webview bridge: frame handle disposed"));
         state.pending.delete(id);
       }
@@ -479,23 +577,86 @@ export interface WebviewScope {
   readonly permissions: ReadonlySet<Permission>;
 }
 
+function assertWebviewPermission(scope: WebviewScope): void {
+  if (!scope.trusted && !scope.permissions.has("webview")) {
+    throw new Error(
+      'ctx.webview requires the "webview" permission — declare it in the extension manifest.',
+    );
+  }
+}
+
 /**
- * `ctx.webview` as handed to an extension by `createContext` — gates
- * `attach()` behind the `"webview"` permission for third-party extensions
+ * Wrap a raw {@link WebFrame} so every method re-checks the `"webview"`
+ * permission against `scope`, not just the initial `attach()` call — mirrors
+ * `scopeProcessService`'s per-call `guardCwd` in process-service.ts, rather
+ * than gating the capability once and handing out an unscoped handle.
+ * `dispose()` and the read-only `url`/event members are exempt: tearing down
+ * or observing an already-attached frame isn't a new grant of access.
+ */
+function scopeWebFrame(frame: WebFrame, scope: WebviewScope): WebFrame {
+  return {
+    get url() {
+      return frame.url;
+    },
+    onNavigate: (listener) => frame.onNavigate(listener),
+    onBlocked: (listener) => frame.onBlocked(listener),
+    back() {
+      assertWebviewPermission(scope);
+      frame.back();
+    },
+    forward() {
+      assertWebviewPermission(scope);
+      frame.forward();
+    },
+    reload() {
+      assertWebviewPermission(scope);
+      frame.reload();
+    },
+    exec<T = unknown>(code: string) {
+      assertWebviewPermission(scope);
+      return frame.exec<T>(code);
+    },
+    pickElement() {
+      assertWebviewPermission(scope);
+      return frame.pickElement();
+    },
+    cancelPick() {
+      assertWebviewPermission(scope);
+      frame.cancelPick();
+    },
+    capture() {
+      assertWebviewPermission(scope);
+      return frame.capture();
+    },
+    captureRect(rect) {
+      assertWebviewPermission(scope);
+      return frame.captureRect(rect);
+    },
+    captureFullPage() {
+      assertWebviewPermission(scope);
+      return frame.captureFullPage();
+    },
+    dispose() {
+      frame.dispose();
+    },
+  };
+}
+
+/**
+ * `ctx.webview` as handed to an extension by `createContext` — gates every
+ * capability behind the `"webview"` permission for third-party extensions
  * (trusted/bundled extensions are unscoped, same trust model as
- * `ctx.files`/`ctx.process`). Denied calls throw synchronously rather than
- * returning a handle whose methods all reject — there's no partial-access
- * story for this capability the way there is for path-scoped fs/process.
+ * `ctx.files`/`ctx.process`). `attach()` throws synchronously when denied;
+ * a subsequent revocation instead surfaces as each individual method
+ * throwing/rejecting, since a WebFrame can outlive the scope it was
+ * attached under (e.g. a dock panel that isn't torn down promptly when its
+ * owning extension reloads).
  */
 export function getScopedWebviewService(scope: WebviewScope): WebviewService {
   return {
     attach(frame: HTMLIFrameElement): WebFrame {
-      if (!scope.trusted && !scope.permissions.has("webview")) {
-        throw new Error(
-          'ctx.webview.attach() requires the "webview" permission — declare it in the extension manifest.',
-        );
-      }
-      return attachWebviewBridge(frame);
+      assertWebviewPermission(scope);
+      return scopeWebFrame(attachWebviewBridge(frame), scope);
     },
   };
 }

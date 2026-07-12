@@ -21,25 +21,30 @@ export const extension: Extension = {
       "Diagnostic panel and reference implementation for ctx.webview.",
   },
   activate(ctx) {
-    ctx.registerDockPanelKind({
-      id: "webview-bridge-test",
-      component: (props: DockPanelProps) => (
-        <WebviewBridgeTestPanel {...props} ctx={ctx} />
-      ),
-    });
-
-    ctx.registerCommand({
-      id: "core.webviewBridgeTest.open",
-      label: "Webview Bridge Test",
-      run: () =>
-        ctx.layout.openPanel(
-          "webview-bridge-test",
-          { title: "Webview Bridge Test" },
-          { singleton: true },
-        ),
-    });
-
+    // Gated on the dev build in full — panel kind, command, and menu item —
+    // same as core.menu's Reload/Inspect Element. Registering the command or
+    // panel kind unconditionally would leave this reachable via
+    // ctx.executeCommand("core.webviewBridgeTest.open") in release builds,
+    // bypassing the "webview" permission's install-time consent entirely.
     if (import.meta.env.DEV) {
+      ctx.registerDockPanelKind({
+        id: "webview-bridge-test",
+        component: (props: DockPanelProps) => (
+          <WebviewBridgeTestPanel {...props} ctx={ctx} />
+        ),
+      });
+
+      ctx.registerCommand({
+        id: "core.webviewBridgeTest.open",
+        label: "Webview Bridge Test",
+        run: () =>
+          ctx.layout.openPanel(
+            "webview-bridge-test",
+            { title: "Webview Bridge Test" },
+            { singleton: true },
+          ),
+      });
+
       ctx.registerMenuItem({
         id: "core.menu.webviewBridgeTest",
         menu: "window",

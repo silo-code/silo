@@ -1,6 +1,6 @@
 # Interface: WebviewRect
 
-Defined in: [packages/sdk/src/webview-service.ts:50](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L50)
+Defined in: [packages/sdk/src/webview-service.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L64)
 
 A rectangle in frame-relative CSS pixels — the coordinate space
 `getBoundingClientRect()` returns inside the frame's own document. Used by
@@ -15,7 +15,7 @@ selection) and returned as part of [PickedElement](PickedElement.md).
 x: number;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:51](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L51)
+Defined in: [packages/sdk/src/webview-service.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L65)
 
 ***
 
@@ -25,7 +25,7 @@ Defined in: [packages/sdk/src/webview-service.ts:51](https://github.com/silo-cod
 y: number;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L52)
+Defined in: [packages/sdk/src/webview-service.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L66)
 
 ***
 
@@ -35,7 +35,7 @@ Defined in: [packages/sdk/src/webview-service.ts:52](https://github.com/silo-cod
 width: number;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:53](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L53)
+Defined in: [packages/sdk/src/webview-service.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L67)
 
 ***
 
@@ -45,4 +45,4 @@ Defined in: [packages/sdk/src/webview-service.ts:53](https://github.com/silo-cod
 height: number;
 ```
 
-Defined in: [packages/sdk/src/webview-service.ts:54](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L54)
+Defined in: [packages/sdk/src/webview-service.ts:68](https://github.com/silo-code/silo/blob/main/packages/sdk/src/webview-service.ts#L68)
