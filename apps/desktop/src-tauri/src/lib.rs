@@ -1,6 +1,7 @@
 mod commands;
 #[cfg(target_os = "macos")]
 mod mac_keys;
+mod webview_bridge;
 
 #[cfg(windows)]
 pub use commands::session_windows::run_daemon as run_win_session_host;
@@ -60,7 +61,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_window_state::Builder::default().build());
+        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(webview_bridge::init());
 
     // Auto-updater + relaunch — desktop only.
     #[cfg(desktop)]
@@ -167,6 +169,7 @@ pub fn run() {
             commands::network::net_fetch,
             commands::network::net_fetch_bytes,
             commands::network::net_fetch_headers,
+            commands::webview::webview_snapshot,
             commands::finder_drop::dnd_get_finder_paths,
             commands::window_chrome::window_set_caption_color,
             commands::system::system_info,

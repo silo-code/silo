@@ -179,6 +179,17 @@ export type {
   NetworkBytesResponse,
 } from "./network-service";
 
+// The webview-bridge domain: real DOM access, navigation control, and native
+// pixel capture inside an iframe you own, including cross-origin content.
+export type {
+  WebviewService,
+  WebFrame,
+  WebviewNavType,
+  WebviewNavigateEvent,
+  WebviewRect,
+  PickedElement,
+} from "./webview-service";
+
 // Static host-platform metadata: OS, CPU arch, and Silo version.
 export type { SystemService, SystemInfo } from "./system-service";
 

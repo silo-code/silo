@@ -76,9 +76,24 @@ raw-window-handle = "0.6"
 # background thread instead. CG queries don't depend on event delivery.
 # objc2: method-swizzle WKWebView to capture Finder drag-drop file paths
 # (NSDraggingInfo.draggingPasteboard) — only accessible via the delegate.
+# objc2-web-kit/app-kit/foundation/core-foundation + block2: webview_snapshot
+# (Phase 1 of the ctx.webview bridge) — WKWebView.takeSnapshot(with:) to
+# rect-capture the app's own webview (iframe pixels included) as PNG bytes.
 [target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = "0.25"
 objc2 = "0.6"
+block2 = "0.6"
+objc2-core-foundation = { version = "0.3", features = ["std", "CFCGTypes"] }
+objc2-foundation = { version = "0.3", features = ["std", "NSData", "NSDictionary", "NSString", "NSObject"] }
+objc2-app-kit = { version = "0.3", features = ["std", "NSImage", "NSImageRep", "NSBitmapImageRep"] }
+objc2-web-kit = { version = "0.3", features = [
+    "std",
+    "WKWebView",
+    "WKSnapshotConfiguration",
+    "objc2-core-foundation",
+    "objc2-app-kit",
+    "block2",
+] }
 
 # Auto-updater + single-instance — desktop only (no mobile update channel; no
 # second-launch model on mobile). Single-instance powers the `silo <path>` CLI:

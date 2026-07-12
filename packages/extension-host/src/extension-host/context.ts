@@ -37,6 +37,7 @@ import type { ThemePreset } from "@silo-code/sdk";
 import { getDndService } from "./dnd-service";
 import { getUiService } from "./ui-service";
 import { getNetworkService } from "./network-service";
+import { getScopedWebviewService } from "./webview-service";
 import { getSystemService } from "./system-service";
 import { themePresetRegistry } from "./theme-presets";
 import { getExtensionHandle } from "./extension-registry";
@@ -175,6 +176,7 @@ export function createContext(
     dnd: getDndService(),
     ui: getUiService(),
     net: getNetworkService(),
+    webview: getScopedWebviewService(scope),
     system: getSystemService(),
     log: {
       debug: (msg, data) => pushEntry(channelKey, "debug", msg, data),

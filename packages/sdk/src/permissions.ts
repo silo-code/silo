@@ -16,11 +16,21 @@
  * - `network` — make outbound network requests. Declarative consent only until
  *   sandboxed execution lands (in-process code can reach the network directly);
  *   declare it so the capability is reviewable and shown at install.
+ * - `webview` — use {@link ExtensionContext.webview} to get real DOM access,
+ *   script execution, and native pixel capture inside an iframe you own,
+ *   including cross-origin content. Declare it because this reaches into
+ *   arbitrary embedded pages, not because it touches the filesystem/network
+ *   directly.
  *
  * @category Extension Contract
  * @public
  */
-export type Permission = "fs:read" | "fs:write" | "process" | "network";
+export type Permission =
+  | "fs:read"
+  | "fs:write"
+  | "process"
+  | "network"
+  | "webview";
 
 /**
  * Thrown by {@link FileService} and {@link ProcessService} when an extension

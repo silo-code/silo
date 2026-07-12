@@ -2,6 +2,7 @@ pub mod app_paths;
 pub mod system;
 pub mod finder_drop;
 pub mod network;
+pub mod webview;
 #[cfg(feature = "automation")]
 pub mod automation;
 pub mod cli;
