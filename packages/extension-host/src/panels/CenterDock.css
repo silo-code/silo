@@ -232,12 +232,20 @@
 }
 /* When the dock holds focus, light up the active group's active-tab top edge
  * with the accent color — a clear "this panel + tab has focus" cue. Gated on
- * `:focus-within` so the bar drops when focus moves to a side panel or the
- * status bar (dockview keeps `dv-active-group` for the text color regardless).
- * The 2px space is reserved by `.dv-tab`'s `border-top-width`; the vertical
- * sash is nudged 1px (see the `.dv-vertical .dv-sash` rule above) so it never
- * clips this bar on the lower panel of a split. */
-.editor-dock:focus-within .dv-groupview.dv-active-group .dv-tab.dv-active-tab {
+ * `.dock-has-focus` (see dock-focus-tracking.ts) rather than CSS
+ * `:focus-within` — this WebView doesn't reliably propagate `:focus-within`
+ * up through ancestors when focus lands inside a cross-origin `<iframe>`
+ * (e.g. local-web-viewer), which made the bar drop even though the panel
+ * containing that iframe was exactly what had focus. The tracked class
+ * covers the same "focus moved to a side panel or the status bar" case
+ * `:focus-within` used to (dockview keeps `dv-active-group` for the text
+ * color regardless). The 2px space is reserved by `.dv-tab`'s
+ * `border-top-width`; the vertical sash is nudged 1px (see the
+ * `.dv-vertical .dv-sash` rule above) so it never clips this bar on the
+ * lower panel of a split. */
+.editor-dock.dock-has-focus
+  .dv-groupview.dv-active-group
+  .dv-tab.dv-active-tab {
   border-top-color: var(--silo-color-accent);
 }
 

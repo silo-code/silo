@@ -15,8 +15,11 @@ import {
   buildOpenWorkspaceItems,
   useFolderExistence,
 } from "./open-workspace-menu";
+import { installDockFocusTracking } from "./dock-focus-tracking";
 import "dockview/dist/styles/dockview.css";
 import "./CenterDock.css";
+
+installDockFocusTracking();
 
 export function CenterDock() {
   const snap = useSnapshot(store);

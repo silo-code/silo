@@ -14,9 +14,10 @@ import { EventEmitter } from "./event-emitter";
 // docs/proposals/0011-iframe-navigation-events.md). Talks to the shim
 // injected into every frame by the Rust-side `webview_bridge` plugin
 // (apps/desktop/src-tauri/src/webview_bridge.js). One global `message`
-// listener multiplexes every attached frame, keyed by `event.source` (the
-// iframe's stable `contentWindow` WindowProxy — it survives cross-origin
-// navigations, only the document behind it changes).
+// listener multiplexes every attached frame, matching `event.source` against
+// each attached frame's *current* `iframe.contentWindow` (see `findState`) —
+// that WindowProxy is not guaranteed stable across navigations in this
+// WebView, so nothing caches it as a lookup key.
 //
 // `attachWebviewBridge` is the raw, unscoped entry point; `getScopedWebviewService`
 // (bottom of this file) is what `createContext` actually hands out on
@@ -53,10 +54,33 @@ interface FrameState {
   handshakeTimer: ReturnType<typeof setTimeout> | null;
   nextId: number;
   disposed: boolean;
+  /**
+   * Set by the shim's "announce" (a fresh JS realm = a fresh document),
+   * consumed by the next nav event fired to consumers — that event carries
+   * `newDocument: true`, everything after it from the same document `false`.
+   */
+  pendingNewDocument: boolean;
 }
 
-const registry = new Map<Window, FrameState>();
+// Every currently-attached frame. NOT keyed by `iframe.contentWindow` — that
+// WindowProxy is not actually stable across navigations in this WebView
+// (contrary to the DOM spec's usual guarantee for same-origin same-process
+// frames): after a real navigation, `iframe.contentWindow` can start
+// returning a *different* object than the one captured at attach time. A Map
+// keyed by the old reference would silently stop matching `event.source` on
+// every message after that point — nav events, title fetches, and RPCs all
+// queue forever with no error, since nothing ever looks broken from the
+// caller's side (the promises just never resolve). Comparing
+// `state.iframe.contentWindow` fresh, per message, is immune to that.
+const registry = new Set<FrameState>();
 let listenerInstalled = false;
+
+function findState(source: Window): FrameState | undefined {
+  for (const state of registry) {
+    if (state.iframe.contentWindow === source) return state;
+  }
+  return undefined;
+}
 
 function installListener() {
   if (listenerInstalled) return;
@@ -67,10 +91,22 @@ function installListener() {
   // `event.source` matching a frame we actually attached to, combined with
   // the per-handshake nonce below — both are unforgeable by page content.
   window.addEventListener("message", (event: MessageEvent) => {
-    const state = registry.get(event.source as Window);
+    const state = findState(event.source as Window);
     if (!state || state.disposed) return;
     const data = event.data as Record<string, unknown> | null;
     if (!data || data.__silo_wv !== true) return;
+
+    // Self-announcement, sent unconditionally (no nonce yet) the instant the
+    // shim is (re)injected — the sole, reliable "this frame has a fresh JS
+    // realm" signal, and the only trigger for (re)handshaking (see the
+    // registration comment in attachWebviewBridge for why the outer iframe
+    // element's own DOM "load" event isn't used for this).
+    if (data.type === "announce") {
+      state.pendingNewDocument = true;
+      handshake(state);
+      return;
+    }
+
     if (typeof data.nonce !== "string" || data.nonce !== state.nonce) return;
 
     if (data.type === "ready") {
@@ -86,10 +122,22 @@ function installListener() {
     }
 
     if (data.type === "nav") {
+      // The bridge's own handshake targets the iframe before any real URL is
+      // set, so a spurious "load" for about:blank fires on every attach —
+      // implementation noise, never a page the consumer actually navigated
+      // to. Suppress it here so no consumer has to special-case it (and so
+      // it can't false-positive the frame-blocked emptiness probe below,
+      // which would otherwise see about:blank's trivially-empty document and
+      // report every fresh, empty frame as "blocked").
+      if (data.url === "about:blank") return;
+
       state.url = data.url as string;
+      const newDocument = state.pendingNewDocument;
+      state.pendingNewDocument = false;
       state.navEmitter.fire({
         type: data.navType as WebviewNavType,
         url: data.url as string,
+        newDocument,
       });
       // A full-page load (not an SPA route change) is the point to check for
       // frame-blocking: sites sending X-Frame-Options/frame-ancestors don't
@@ -221,6 +269,46 @@ async function captureViaBackend(rect: WebviewRect): Promise<Blob> {
   return new Blob([buf], { type: "image/png" });
 }
 
+// A full-page capture stitches together bands captured at different scroll
+// positions — any `position: fixed`/`sticky` element (a sticky nav header,
+// a floating "back to top" button, etc.) stays visually pinned across every
+// one of those scroll positions, so it ends up baked into the stitched
+// image once per band instead of once. The call site only applies this
+// starting with the *second* band: the first is captured at the top of the
+// page before anything is hidden, so a top-pinned element still lands in
+// the stitched image — once, in its natural spot — same as in a normal
+// screenshot; hiding it only for the bands where it would otherwise repeat.
+// `visibility: hidden` rather than `display: none` so it can't shift layout
+// (a `position: sticky` element still occupies its normal-flow box) —
+// `metrics.docHeight`/the band math must stay valid throughout. State lives
+// on a page-global rather than coming back over the RPC channel: DOM
+// elements aren't structured-cloneable across postMessage.
+const HIDE_FIXED_STICKY_CODE = `(function(){
+  var hidden = [];
+  var all = document.querySelectorAll("*");
+  for (var i = 0; i < all.length; i++) {
+    var el = all[i];
+    var cs = getComputedStyle(el);
+    if (cs.position === "fixed" || cs.position === "sticky") {
+      hidden.push({ el: el, prevVisibility: el.style.visibility, prevPriority: el.style.getPropertyPriority("visibility") });
+      el.style.setProperty("visibility", "hidden", "important");
+    }
+  }
+  window.__siloCaptureHiddenEls = hidden;
+  return hidden.length;
+})()`;
+
+const RESTORE_FIXED_STICKY_CODE = `(function(){
+  var hidden = window.__siloCaptureHiddenEls || [];
+  for (var i = 0; i < hidden.length; i++) {
+    var entry = hidden[i];
+    if (entry.prevVisibility) entry.el.style.setProperty("visibility", entry.prevVisibility, entry.prevPriority || "");
+    else entry.el.style.removeProperty("visibility");
+  }
+  window.__siloCaptureHiddenEls = null;
+  return hidden.length;
+})()`;
+
 /** Attach the bridge to an iframe. Call `dispose()` on the returned handle when the panel unmounts. */
 export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
   installListener();
@@ -237,19 +325,23 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
     handshakeTimer: null,
     nextId: 0,
     disposed: false,
+    pendingNewDocument: false,
   };
 
-  const onLoad = () => {
-    if (!iframe.contentWindow) return;
-    registry.set(iframe.contentWindow, state);
-    handshake(state);
-  };
-  iframe.addEventListener("load", onLoad);
-  // The iframe may already be loaded (e.g. src was set before attach ran).
-  if (iframe.contentWindow) {
-    registry.set(iframe.contentWindow, state);
-    handshake(state);
-  }
+  // Registering once here (rather than re-registering `iframe.contentWindow`
+  // on every "load") is sufficient — `findState` looks up by comparing
+  // `state.iframe.contentWindow` fresh on every message rather than relying
+  // on a cached identity, so it doesn't matter that the WindowProxy behind
+  // `iframe.contentWindow` can change across navigations. Actual
+  // (re)handshaking is triggered by the shim's own "announce" self-report in
+  // installListener's message handler, not from here: the outer iframe
+  // element's DOM "load" event used to drive it, but that event doesn't
+  // reliably fire for navigations initiated *inside* the frame (a link
+  // click, `location.href =`), and — worse — calling handshake() a second
+  // time from a stale "load" after "announce" already handshook correctly
+  // would silently invalidate the nonce out from under a message already in
+  // flight with the (correct) earlier one.
+  registry.add(state);
 
   function frameRectInWindow(): WebviewRect {
     const r = iframe.getBoundingClientRect();
@@ -311,8 +403,22 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
       if (!ctx)
         throw new Error("webview bridge: 2D canvas context unavailable");
 
+      // The very first band is captured at the top of the page (y=0) with
+      // fixed/sticky elements NOT yet hidden — so a top-pinned header lands
+      // in the stitched image once, in its natural position, exactly like a
+      // normal screenshot. Only bands after that hide them (right before
+      // scrolling away from the top), since those are the ones that would
+      // otherwise re-bake the same pinned content in on top of new page
+      // content underneath it.
+      let hidFixedSticky = false;
       try {
         for (let y = 0; y < metrics.docHeight; y += metrics.vh) {
+          if (y > 0 && !hidFixedSticky) {
+            hidFixedSticky = true;
+            await sendCommand(state, "exec", {
+              code: HIDE_FIXED_STICKY_CODE,
+            }).catch(() => {});
+          }
           await sendCommand(state, "scroll_to", { x: 0, y });
           const bandHeight = Math.min(metrics.vh, metrics.docHeight - y);
           const blob = await captureViaBackend({
@@ -326,6 +432,11 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
           bitmap.close();
         }
       } finally {
+        if (hidFixedSticky) {
+          await sendCommand(state, "exec", {
+            code: RESTORE_FIXED_STICKY_CODE,
+          }).catch(() => {});
+        }
         await sendCommand(state, "scroll_to", {
           x: metrics.scrollX,
           y: metrics.scrollY,
@@ -347,9 +458,8 @@ export function attachWebviewBridge(iframe: HTMLIFrameElement): WebFrame {
     dispose() {
       if (state.disposed) return;
       state.disposed = true;
-      iframe.removeEventListener("load", onLoad);
       if (state.handshakeTimer !== null) clearTimeout(state.handshakeTimer);
-      if (iframe.contentWindow) registry.delete(iframe.contentWindow);
+      registry.delete(state);
       for (const [id, pending] of state.pending) {
         pending.reject(new Error("webview bridge: frame handle disposed"));
         state.pending.delete(id);
