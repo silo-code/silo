@@ -21,7 +21,7 @@
   var TRUSTED_ORIGINS = [
     "http://localhost:1420",
     "tauri://localhost",
-    "http://tauri.localhost",
+    "https://tauri.localhost",
   ];
 
   var nonce = null; // set only after a validated handshake; gates all outbound posts
@@ -35,11 +35,16 @@
   // handshaking in reaction to the *outer* iframe's load event, which races
   // this frame's *own* load event. Buffer anything sent before we have a
   // nonce and flush it once "hello" arrives, instead of silently dropping it.
+  // Capped: this script runs in every frame, including nested iframes that
+  // never get a "hello" — an SPA widget inside one of those would otherwise
+  // push nav events into this array forever.
   var pendingOutbox = [];
+  var MAX_PENDING_OUTBOX = 50;
 
   function post(msg) {
     if (!nonce) {
       pendingOutbox.push(msg);
+      if (pendingOutbox.length > MAX_PENDING_OUTBOX) pendingOutbox.shift();
       return;
     }
     try {
