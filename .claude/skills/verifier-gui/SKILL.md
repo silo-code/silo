@@ -73,6 +73,27 @@ fi
 launching never touches the user's real Silo install — but if you _attached_ to
 an already-running instance, the sandbox rule above still applies.
 
+**If you attached (ping succeeded on the first try), verify it's actually serving
+your code before doing anything else.** A `pong` only proves _some_ dev app is
+listening on 7878 — it can just as easily be a stale instance from a different
+checkout, a different branch, or a session someone else started hours ago, with
+none of the changes you're here to verify. Confirm the process identity, not just
+liveness:
+
+```bash
+ps aux | grep "target/debug/silo\b" | grep -v grep
+# expect the binary path to start with YOUR working directory, e.g.:
+#   /path/to/your/repo/apps/desktop/src-tauri/target/debug/silo
+# a path pointing anywhere else means you're about to verify the wrong code —
+# stop and either ask the user to close it or launch your own (a port conflict
+# will make that obvious rather than silently reusing the wrong instance)
+```
+
+This check is cheap (one `ps`) against the cost of it going wrong: driving and
+debugging against the wrong checkout produces confident-looking PASS/FAIL results
+for code you didn't touch, and any oddity you hit sends you chasing a phantom bug
+in your own change instead of noticing the mismatch.
+
 ## 2. Drive & capture — one block, one turn
 
 Per golden rule 2, do the whole sandbox setup, drive steps, and screenshot in a
@@ -222,6 +243,25 @@ attached to (it's the user's).
 - **Focus-sensitive checks** (asserting a `<textarea>` is `document.activeElement`)
   only pass while the window is frontmost; an agent session can't hold focus, so
   gate them on `SiloAutomation.foreground()` and SKIP otherwise — don't FAIL.
-- **Code freshness**: confirm the running app is the code under test (e.g. the
-  process started after your last commit, or trigger a reload) before trusting a
-  PASS — an attached instance may predate your change if HMR didn't fully apply.
+- **Code freshness**: confirm the running app is the code under test, not just that
+  _a_ dev app answers `ping` — see the identity check in §1. An attached instance
+  can be a different checkout entirely (wrong repo clone, wrong branch), not just
+  stale HMR.
+- **`eval` has a hard 5-second reply timeout independent of curl's `-m`.** The
+  bridge's Rust side (`REPLY_TIMEOUT` in `automation.rs`) gives up waiting on the
+  webview after 5s and returns `{"ok":false,"error":"timed out waiting for
+webview reply"}` — but **the JS keeps running in the page regardless**, since
+  nothing on the page side knows the host stopped listening. A driver script that
+  does `await sleep(15000)` internally will report a timeout error to you while
+  still fully executing moments later — actions you think failed actually land,
+  which is deeply confusing to debug from the outside. Never put multi-second
+  waits inside an `eval` payload. Instead: fire one fast action (a `.click()`
+  returns essentially instantly), `sleep` in **bash** between calls, then a
+  second fast `eval` to read the result:
+  ```bash
+  silo '{"op":"eval","args":{"expr":"document.querySelector(\"button\").click(); \"clicked\""}}'
+  sleep 2   # bash sleep, not JS sleep — the RPC call itself stays fast
+  silo '{"op":"eval","args":{"expr":"document.querySelector(\".result\").textContent"}}'
+  ```
+  This also composes with golden rule 2 — each fire/sleep/read trio is still
+  cheap `curl` calls inside one `Bash` block, just no longer racing the 5s limit.
