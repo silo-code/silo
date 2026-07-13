@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.28.0](https://github.com/silo-code/silo/compare/silo-v0.27.0...silo-v0.28.0) (2026-07-13)
+
+
+### Features
+
+* **git:** add worktree manager to the Git panel ([#207](https://github.com/silo-code/silo/issues/207)) ([2081e26](https://github.com/silo-code/silo/commit/2081e26414db8f1cf25d24e144797387527ce503))
+
+
+### Bug Fixes
+
+* **dock:** shrink editor/terminal tabs to fit instead of scrolling ([#205](https://github.com/silo-code/silo/issues/205)) ([e89949e](https://github.com/silo-code/silo/commit/e89949ee7a5f4f20fff5e2847d829cd35c48612d))
+* **registry:** give the update-available badge a warn color and capitalized label ([#204](https://github.com/silo-code/silo/issues/204)) ([9756e71](https://github.com/silo-code/silo/commit/9756e713f1db3cc11c4fc4814b16fe0cdfcacb77))
+* **workspaces:** desync busy status dots across workspaces ([#206](https://github.com/silo-code/silo/issues/206)) ([28aa17f](https://github.com/silo-code/silo/commit/28aa17f071776b99c016e62125796ac4dde8ff3c))
+* **workspaces:** make busy status indicator more noticeable ([#202](https://github.com/silo-code/silo/issues/202)) ([e83ab9f](https://github.com/silo-code/silo/commit/e83ab9f6cbb775cda37e1a8d739f749452be89c7))
+
 ## [0.27.0](https://github.com/silo-code/silo/compare/silo-v0.26.0...silo-v0.27.0) (2026-07-13)
 
 
