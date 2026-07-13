@@ -379,6 +379,27 @@
   min-width: 0;
 }
 
+/* Status-dot colors are fixed, not theme tokens: `--silo-color-ok/warn/err/
+   accent` vary a lot across presets (the "busy" dot in particular can land on
+   a teal or a neutral gray depending on the theme's accent, not the blue a
+   user expects "in progress" to mean). These four are meant to read as a
+   stable ok/warn/error/busy signal regardless of which theme is active, so
+   they're pinned to one semantic palette that only adapts to light vs. dark
+   (via `data-theme`, not the per-preset tokens). */
+:root {
+  --ws-status-ok: #16a34a;
+  --ws-status-warn: #d97706;
+  --ws-status-error: #dc2626;
+  --ws-status-busy: #2563eb;
+}
+
+[data-theme="dark"] {
+  --ws-status-ok: #4ade80;
+  --ws-status-warn: #fbbf24;
+  --ws-status-error: #f87171;
+  --ws-status-busy: #60a5fa;
+}
+
 .ws-status-dot {
   position: relative;
   flex-shrink: 0;
@@ -391,20 +412,23 @@
 }
 
 .ws-status-dot[data-status="ok"] {
-  color: var(--silo-color-ok);
+  color: var(--ws-status-ok);
 }
 
 .ws-status-dot[data-status="warn"] {
-  color: var(--silo-color-warn);
+  color: var(--ws-status-warn);
 }
 
 .ws-status-dot[data-status="error"] {
-  color: var(--silo-color-err);
+  color: var(--ws-status-error);
 }
 
 .ws-status-dot[data-status="busy"] {
-  color: var(--silo-color-accent);
+  color: var(--ws-status-busy);
   animation: ws-status-pulse 1.4s ease-in-out infinite;
+  /* Per-row jitter (set inline from row.id) keeps multiple busy dots from
+     throbbing in lockstep — see busyJitterStyle in WorkspacesPanel.tsx. */
+  animation-delay: var(--ws-busy-jitter, 0s);
 }
 
 .ws-status-dot[data-status="busy"]::before,
@@ -415,11 +439,12 @@
   border-radius: 50%;
   border: 1px solid currentColor;
   animation: ws-status-wave 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+  animation-delay: var(--ws-busy-jitter, 0s);
   pointer-events: none;
 }
 
 .ws-status-dot[data-status="busy"]::after {
-  animation-delay: 0.9s;
+  animation-delay: calc(var(--ws-busy-jitter, 0s) - 0.9s);
 }
 
 .ws-status-dot[data-status="none"] {
