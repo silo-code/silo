@@ -527,6 +527,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.2.7(react@19.2.7)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.2.16)(react@19.2.7)
       valtio:
         specifier: ^2.3.2
         version: 2.3.2(@types/react@19.2.16)(react@19.2.7)

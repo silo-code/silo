@@ -59,14 +59,19 @@ export function showsUpdateAction(ext: InstalledExtension): boolean {
 
 /**
  * Human-readable "where this came from" line for a row, e.g. `Folder:
- * /path/to/ext` or `URL: https://example.com/ext.tgz`. `undefined` for
- * built-ins and legacy records with no recorded source — the row hides the
- * line entirely rather than showing a label with nothing after it.
+ * /path/to/ext` or `Registry: acme.weather`. `undefined` for built-ins and
+ * legacy records with no recorded source — the row hides the line entirely
+ * rather than showing a label with nothing after it.
  */
 export function describeSource(
   source: InstallSource | undefined,
 ): string | undefined {
   if (!source) return undefined;
-  const label = { folder: "Folder", url: "URL", npm: "npm" }[source.kind];
+  const label = {
+    folder: "Folder",
+    url: "URL",
+    npm: "npm",
+    registry: "Registry",
+  }[source.kind];
   return `${label}: ${source.value}`;
 }

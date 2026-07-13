@@ -102,6 +102,17 @@ export async function applyCliInstall(path: string): Promise<void> {
   await getExtensionManager().installFromFolder(path);
 }
 
+/**
+ * Install an extension by registry id (`silo install acme.weather`). The
+ * tarball is digest-verified against the registry's pinned sha256. Like the
+ * folder path above, an explicit CLI install implies consent — the manifest's
+ * permissions are granted without the UI modal (same contract since the CLI
+ * shipped); they're visible afterward on the Extensions page.
+ */
+export async function applyCliInstallFromRegistry(id: string): Promise<void> {
+  await getExtensionManager().installFromRegistry(id, async () => true);
+}
+
 /** Uninstall an extension by its id (e.g. `"dave.clock"`). */
 export async function applyCliUninstall(id: string): Promise<void> {
   await getExtensionManager().uninstall(id);

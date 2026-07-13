@@ -72,6 +72,19 @@ export type {
   ManifestPreview,
 } from "./extension-manager";
 export { getExtensionManager } from "./extension-manager";
+// The registry client — browse/search data for the manager page and id → pinned
+// tarball resolution. Same core-only rationale as the manager it feeds.
+export type {
+  RegistryExtension,
+  RegistryIndex,
+  RegistryUpdate,
+  RegistryVersionInfo,
+} from "./registry-client";
+export {
+  DEFAULT_REGISTRY_URL,
+  fetchRegistryIndex,
+  registryReadmeUrl,
+} from "./registry-client";
 // The rail group the manager page shares with all non-core settings pages, so
 // the manager declares the same key the host forces non-core pages into.
 export { EXTENSIONS_SETTINGS_GROUP } from "./settings-pages";
