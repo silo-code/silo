@@ -427,8 +427,8 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                               </span>
                             )}
                             {state === "update-available" && (
-                              <span className="ext-badge">
-                                update available
+                              <span className="ext-badge-update">
+                                Update available
                               </span>
                             )}
                           </span>

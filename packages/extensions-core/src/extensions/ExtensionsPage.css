@@ -160,6 +160,14 @@
   border-radius: var(--silo-radius-sm);
   padding: 0 5px;
 }
+.ext-badge-update {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-warn);
+  background: color-mix(in srgb, var(--silo-color-warn) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--silo-color-warn) 35%, transparent);
+  border-radius: var(--silo-radius-sm);
+  padding: 0 5px;
+}
 .ext-hint {
   font-size: calc(var(--settings-font) - 2px);
   color: var(--silo-color-text-lo);
