@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.27.0](https://github.com/silo-code/silo/compare/silo-v0.26.0...silo-v0.27.0) (2026-07-13)
+
+
+### Features
+
+* **registry:** app-side extension registry — browse, install, update (RFC 0014 P1) ([#199](https://github.com/silo-code/silo/issues/199)) ([759c37b](https://github.com/silo-code/silo/commit/759c37bd1db0d1902874d5a37340ad5e8c6a7661))
+
+
+### Bug Fixes
+
+* **extensions:** show registry display name in detail view, add browse row actions ([#201](https://github.com/silo-code/silo/issues/201)) ([87da69c](https://github.com/silo-code/silo/commit/87da69c48882dca92e0ba0f7d79bd8b734d0834d))
+
 ## [0.26.0](https://github.com/silo-code/silo/compare/silo-v0.25.0...silo-v0.26.0) (2026-07-13)
 
 
