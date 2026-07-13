@@ -37,6 +37,12 @@ import {
 } from "./builtins-registry";
 import { appVersion } from "../services/tauri-app";
 import { isEngineCompatible } from "./engine-compat";
+import {
+  fetchRegistryIndex,
+  findUpdates,
+  resolveRegistryInstall,
+  type RegistryUpdate,
+} from "./registry-client";
 import type { Disposable, Permission } from "@silo-code/sdk";
 import type { ReactiveService } from "@silo-code/sdk";
 
@@ -83,11 +89,13 @@ export function validateManifestPermissions(
  * re-fetch the same package later without an uninstall/reinstall round-trip.
  */
 export interface InstallSource {
-  kind: "folder" | "url" | "npm";
+  kind: "folder" | "url" | "npm" | "registry";
   /**
    * `folder`: absolute path to the source folder; `url`: the tarball URL;
    * `npm`: the original spec as typed (`"pkg"` or `"@scope/pkg@1.2.0"`), so an
-   * unpinned spec re-resolves to latest on update while a pinned one stays pinned.
+   * unpinned spec re-resolves to latest on update while a pinned one stays
+   * pinned; `registry`: the extension id, re-resolved against the registry
+   * index (with its pinned digest) on update.
    */
   value: string;
 }
@@ -204,7 +212,31 @@ export interface ExtensionManager extends ReactiveService<ExtensionManagerState>
     url: string,
     requestConsent: (preview: ManifestPreview) => Promise<boolean>,
     source?: InstallSource,
+    expectedSha256?: string,
   ): Promise<void>;
+  /**
+   * Install an extension by id from the Silo Extension Registry (RFC 0014):
+   * resolve the id against the registry index, download the pinned tarball,
+   * **verify its sha256 against the digest the registry recorded at ingest**
+   * (a swapped or tampered asset fails before extraction), then run the
+   * standard consent + install pipeline. Records `{ kind: "registry" }` as the
+   * install source so updates re-resolve (and re-verify) through the index.
+   */
+  installFromRegistry(
+    id: string,
+    requestConsent: (preview: ManifestPreview) => Promise<boolean>,
+  ): Promise<void>;
+  /**
+   * Diff installed registry-sourced extensions against the registry index and
+   * return the available updates. Cheap to poll: the index fetch is
+   * ETag-conditional, so the steady state is a zero-body 304.
+   */
+  checkUpdates(): Promise<RegistryUpdate[]>;
+  /**
+   * The README.md shipped inside an installed extension's package (npm pack
+   * always includes it), for the detail view. `null` when absent.
+   */
+  readInstalledReadme(id: string): Promise<string | null>;
   /**
    * Update an installed extension in place from its recorded
    * {@link InstallSource}: re-fetch the package (folder: re-copy; url/npm:
@@ -530,12 +562,23 @@ export async function resolveNpmTarball(packageName: string): Promise<string> {
   return versionData.dist.tarball;
 }
 
-/** Extract the tarball from `url` into a unique temp dir, return the staging dir path. */
-async function stageFromUrl(url: string): Promise<string> {
+/**
+ * Extract the tarball from `url` into a unique temp dir, return the staging dir
+ * path. With `expectedSha256` (registry installs), the host verifies the
+ * downloaded bytes against the pinned digest before extracting anything.
+ */
+async function stageFromUrl(
+  url: string,
+  expectedSha256?: string,
+): Promise<string> {
   const tmp = await tempDir();
   const stagingDir = `${tmp}silo-install-${Date.now()}`;
   await fsCreateDir(stagingDir);
-  await invoke("download_extract", { url, destDir: stagingDir });
+  await invoke("download_extract", {
+    url,
+    destDir: stagingDir,
+    expectedSha256,
+  });
   return stagingDir;
 }
 
@@ -738,8 +781,8 @@ export function getExtensionManager(): ExtensionManager {
       });
     },
 
-    async installFromUrl(url, requestConsent, source) {
-      const stagingDir = await stageFromUrl(url);
+    async installFromUrl(url, requestConsent, source, expectedSha256) {
+      const stagingDir = await stageFromUrl(url, expectedSha256);
       try {
         const pkgRoot = await findPackageRoot(stagingDir);
         const preview = await service!.previewInstall(pkgRoot);
@@ -752,6 +795,31 @@ export function getExtensionManager(): ExtensionManager {
       } finally {
         await fsDelete(stagingDir).catch(() => {});
       }
+    },
+
+    async installFromRegistry(id, requestConsent) {
+      const index = await fetchRegistryIndex();
+      const release = resolveRegistryInstall(index, id);
+      await service!.installFromUrl(
+        release.url,
+        requestConsent,
+        { kind: "registry", value: id },
+        release.sha256,
+      );
+    },
+
+    async checkUpdates() {
+      const index = await fetchRegistryIndex();
+      return findUpdates(cached.extensions, index);
+    },
+
+    async readInstalledReadme(id) {
+      const rec = (await readInstalledFile()).extensions.find(
+        (e) => e.id === id,
+      );
+      if (!rec) return null;
+      const root = await extensionsRoot();
+      return fsReadText(`${root}/${rec.dir}/README.md`).catch(() => null);
     },
 
     async update(id, requestConsent) {
@@ -776,6 +844,15 @@ export function getExtensionManager(): ExtensionManager {
         if (!(await fsPathExists(`${pkgRoot}/package.json`))) {
           throw new Error(`Source folder no longer exists: ${pkgRoot}`);
         }
+      } else if (rec.source.kind === "registry") {
+        // Re-resolve through the index so the update gets the current pinned
+        // digest and is verified the same way the original install was.
+        const release = resolveRegistryInstall(
+          await fetchRegistryIndex(),
+          rec.source.value,
+        );
+        stagingDir = await stageFromUrl(release.url, release.sha256);
+        pkgRoot = await findPackageRoot(stagingDir);
       } else {
         const url =
           rec.source.kind === "npm"

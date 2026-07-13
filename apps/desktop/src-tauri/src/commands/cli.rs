@@ -49,7 +49,18 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
     match first.as_str() {
         "install" => {
             let raw = pos.next()?;
+            // A registry id (`publisher.name`, no separators) installs from the
+            // Silo Extension Registry — unless a matching path actually exists,
+            // in which case the folder wins (paths are the older contract).
             let resolved = resolve_path(raw, cwd);
+            if looks_like_extension_id(raw) && !resolved.exists() {
+                return Some(CliRequest {
+                    action: "install".to_string(),
+                    path: None,
+                    kind: None,
+                    id: Some(raw.clone()),
+                });
+            }
             Some(CliRequest {
                 action: "install".to_string(),
                 path: Some(super::fs::normalize_path(&resolved)),
@@ -81,6 +92,28 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
             })
         }
     }
+}
+
+/// Whether an install argument reads as a registry extension id
+/// (`<publisher>.<name>`, lowercase, no path separators) rather than a path.
+fn looks_like_extension_id(raw: &str) -> bool {
+    if raw.contains('/') || raw.contains('\\') {
+        return false;
+    }
+    let Some((publisher, name)) = raw.split_once('.') else {
+        return false;
+    };
+    let ok_publisher = !publisher.is_empty()
+        && publisher.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+        && publisher
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    let ok_name = !name.is_empty()
+        && name.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '-' || c == '_');
+    ok_publisher && ok_name
 }
 
 /// Resolve a raw CLI path token to an absolute, canonicalized path.
@@ -239,5 +272,44 @@ mod tests {
     #[test]
     fn uninstall_no_id_returns_none() {
         assert!(resolve_cli_request(&argv(&["uninstall"]), "/").is_none());
+    }
+
+    #[test]
+    fn install_registry_id_when_no_such_path() {
+        // "silo.system-monitor" reads as an id and nothing exists at that
+        // relative path → registry install.
+        let req =
+            resolve_cli_request(&argv(&["install", "silo.system-monitor"]), "/no/such/cwd")
+                .unwrap();
+        assert_eq!(req.action, "install");
+        assert_eq!(req.id.unwrap(), "silo.system-monitor");
+        assert!(req.path.is_none());
+    }
+
+    #[test]
+    fn install_existing_path_beats_registry_id() {
+        // A real directory whose name also parses as an id installs as a folder.
+        let dir = std::env::temp_dir().join("acme.clock");
+        std::fs::create_dir_all(&dir).unwrap();
+        let req = resolve_cli_request(
+            &argv(&["install", "acme.clock"]),
+            &std::env::temp_dir().to_string_lossy(),
+        )
+        .unwrap();
+        assert!(req.id.is_none());
+        assert!(req.path.unwrap().ends_with("acme.clock"));
+        let _ = std::fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn looks_like_extension_id_rules() {
+        assert!(looks_like_extension_id("acme.weather"));
+        assert!(looks_like_extension_id("silo.system-monitor"));
+        assert!(looks_like_extension_id("a1.b_c.d"));
+        assert!(!looks_like_extension_id("no-dot"));
+        assert!(!looks_like_extension_id("Acme.weather")); // ids are lowercase
+        assert!(!looks_like_extension_id("./relative.path"));
+        assert!(!looks_like_extension_id("dir/file.ext"));
+        assert!(!looks_like_extension_id(".hidden"));
     }
 }

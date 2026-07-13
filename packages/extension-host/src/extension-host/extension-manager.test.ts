@@ -824,3 +824,134 @@ describe("update", () => {
     );
   });
 });
+
+// ---- registry install + update (RFC 0014) --------------------------------
+
+import { clearRegistryCache } from "./registry-client";
+
+describe("installFromRegistry", () => {
+  /** A registry index whose only entry is acme.x at `version`. */
+  function registryFetch(version: string, sha256: string) {
+    return vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: async () => ({
+        schemaVersion: 1,
+        name: "test",
+        generatedAt: "",
+        extensions: [
+          {
+            id: "acme.x",
+            description: "x",
+            categories: ["productivity"],
+            repo: "acme/x",
+            status: "active",
+            latest: {
+              version,
+              tarballUrl: `https://github.com/acme/x/releases/download/v${version}/x.tgz`,
+              mirrorUrl: null,
+              sha256,
+              size: 1,
+              engine: null,
+              permissions: ["fs:read"],
+              provenance: "none",
+              publishedAt: "",
+            },
+            totalDownloads: 0,
+            readme: "/readme/acme.x.md",
+            detail: "/ext/acme.x.json",
+          },
+        ],
+      }),
+    });
+  }
+
+  function stageOnDownload() {
+    invokeMock.mockImplementation(
+      async (_cmd: string, args: { destDir?: string }) => {
+        if (args.destDir) {
+          fsMap.set(
+            `${args.destDir}/package/package.json`,
+            manifest(["fs:read"]),
+          );
+          fsMap.set(
+            "/cfg/extensions/acme.x/package.json",
+            manifest(["fs:read"]),
+          );
+        }
+      },
+    );
+  }
+
+  beforeEach(() => {
+    clearRegistryCache();
+  });
+
+  it("passes the pinned digest to download_extract and records the registry source", async () => {
+    global.fetch = registryFetch("1.0.0", "digest-1");
+    stageOnDownload();
+
+    await mgr.installFromRegistry("acme.x", async () => true);
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      "download_extract",
+      expect.objectContaining({
+        url: "https://github.com/acme/x/releases/download/v1.0.0/x.tgz",
+        expectedSha256: "digest-1",
+      }),
+    );
+    expect(installedRecord()).toMatchObject({
+      source: { kind: "registry", value: "acme.x" },
+    });
+  });
+
+  it("rejects ids the registry does not list", async () => {
+    global.fetch = registryFetch("1.0.0", "digest-1");
+    await expect(
+      mgr.installFromRegistry("acme.nope", async () => true),
+    ).rejects.toThrow(/not in the registry/);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "download_extract",
+      expect.anything(),
+    );
+  });
+
+  it("update() re-resolves a registry source through the index with the new digest", async () => {
+    global.fetch = registryFetch("1.0.0", "digest-1");
+    stageOnDownload();
+    await mgr.installFromRegistry("acme.x", async () => true);
+
+    // A new version lands in the registry.
+    clearRegistryCache();
+    global.fetch = registryFetch("1.1.0", "digest-2");
+
+    await mgr.update("acme.x", async () => true);
+
+    expect(invokeMock).toHaveBeenLastCalledWith(
+      "download_extract",
+      expect.objectContaining({
+        url: "https://github.com/acme/x/releases/download/v1.1.0/x.tgz",
+        expectedSha256: "digest-2",
+      }),
+    );
+  });
+
+  it("checkUpdates surfaces newer registry versions for installed rows", async () => {
+    global.fetch = registryFetch("1.0.0", "digest-1");
+    stageOnDownload();
+    await mgr.installFromRegistry("acme.x", async () => true);
+
+    clearRegistryCache();
+    global.fetch = registryFetch("1.1.0", "digest-2");
+
+    const updates = await mgr.checkUpdates();
+    expect(updates).toEqual([
+      expect.objectContaining({
+        id: "acme.x",
+        installedVersion: "1.0.0",
+        latestVersion: "1.1.0",
+      }),
+    ]);
+  });
+});

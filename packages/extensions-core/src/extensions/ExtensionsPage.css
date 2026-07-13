@@ -231,3 +231,201 @@
   display: flex;
   align-items: center;
 }
+
+/* ---- Browse / Installed tabs (registry is the primary surface) ---------- */
+
+.ext-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 2px;
+}
+.ext-tab {
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text-lo);
+  padding: 3px 10px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(var(--settings-font) - 1px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ext-tab-active {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+.ext-update-count {
+  font-size: calc(var(--settings-font) - 3px);
+  color: var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--silo-color-accent) 35%, transparent);
+  border-radius: 999px;
+  padding: 0 5px;
+  line-height: 1.4;
+}
+
+/* Category facet chips on the Browse view. */
+.ext-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ext-cat {
+  background: transparent;
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-text-lo);
+  padding: 1px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(var(--settings-font) - 2px);
+  font-family: var(--silo-font-mono, monospace);
+}
+.ext-cat:hover {
+  color: var(--silo-color-text-hi);
+}
+.ext-cat-active {
+  color: var(--silo-color-accent);
+  border-color: var(--silo-color-accent);
+}
+
+/* Rows double as drill-in targets on both views. */
+.ext-row-click {
+  cursor: pointer;
+}
+.ext-row-click:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.ext-badge-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-ok);
+  background: color-mix(in srgb, var(--silo-color-ok) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--silo-color-ok) 35%, transparent);
+  border-radius: var(--silo-radius-sm);
+  padding: 0 5px;
+}
+
+/* Search + built-in toggle + Update all, on one line above the installed list. */
+.ext-installed-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ext-installed-bar .ext-search {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+/* ---- Detail drill-in ----------------------------------------------------- */
+
+.ext-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.ext-detail-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ext-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ext-detail-title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ext-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+.ext-detail-meta a {
+  color: var(--silo-color-accent);
+  text-decoration: none;
+}
+.ext-detail-meta a:hover {
+  text-decoration: underline;
+}
+
+/* The README scrolls on its own; keep it readable but clearly subordinate. */
+.ext-detail-readme {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  color: var(--silo-color-text-hi);
+  font-size: calc(var(--settings-font) - 1px);
+  line-height: 1.55;
+}
+.ext-detail-readme h1,
+.ext-detail-readme h2,
+.ext-detail-readme h3 {
+  color: var(--silo-color-text-hi);
+  margin: 0.9em 0 0.35em;
+}
+.ext-detail-readme h1 {
+  font-size: 1.25em;
+}
+.ext-detail-readme h2 {
+  font-size: 1.1em;
+}
+.ext-detail-readme h3 {
+  font-size: 1em;
+}
+.ext-detail-readme p,
+.ext-detail-readme ul,
+.ext-detail-readme ol {
+  margin: 0.4em 0;
+}
+.ext-detail-readme code {
+  font-family: var(--silo-font-mono, monospace);
+  font-size: 0.92em;
+  background: var(--silo-color-bg-active);
+  border-radius: var(--silo-radius-sm);
+  padding: 0.1em 0.35em;
+}
+.ext-detail-readme pre {
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 8px 10px;
+  overflow-x: auto;
+}
+.ext-detail-readme pre code {
+  background: none;
+  padding: 0;
+}
+.ext-detail-readme img {
+  max-width: 100%;
+}
+.ext-detail-readme a {
+  color: var(--silo-color-accent);
+}
+.ext-detail-readme table {
+  border-collapse: collapse;
+}
+.ext-detail-readme th,
+.ext-detail-readme td {
+  border: 1px solid var(--silo-color-border);
+  padding: 3px 8px;
+}

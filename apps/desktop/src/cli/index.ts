@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import {
   applyCliOpen,
   applyCliInstall,
+  applyCliInstallFromRegistry,
   applyCliUninstall,
   type CliOpenRequest,
 } from "./open-handler";
@@ -11,21 +12,23 @@ import {
  * A resolved CLI request from `src-tauri/src/commands/cli.rs`.
  *
  * - `open` — open a path (dir, file, or missing)
- * - `install` — install an extension from a local folder
+ * - `install` — install an extension: `path` for a local folder, `id` for a
+ *   registry id (`silo install acme.weather`)
  * - `uninstall` — uninstall an extension by id
  */
 type CliRequest =
   | ({ action: "open" } & CliOpenRequest)
-  | { action: "install"; path: string }
+  | { action: "install"; path?: string; id?: string }
   | { action: "uninstall"; id: string };
 
 function dispatch(req: CliRequest): void {
   if (req.action === "open") {
     applyCliOpen(req);
   } else if (req.action === "install") {
-    applyCliInstall(req.path).catch((err) =>
-      console.error("[silo cli] install failed:", err),
-    );
+    const run = req.id
+      ? applyCliInstallFromRegistry(req.id)
+      : applyCliInstall(req.path ?? "");
+    run.catch((err) => console.error("[silo cli] install failed:", err));
   } else if (req.action === "uninstall") {
     applyCliUninstall(req.id).catch((err) =>
       console.error("[silo cli] uninstall failed:", err),
