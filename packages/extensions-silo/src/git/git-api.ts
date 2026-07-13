@@ -52,6 +52,26 @@ export interface GitBranch {
   upstream: string | null;
 }
 
+/** One working tree, as listed by {@link GitAPI.worktrees}. */
+export interface GitWorktree {
+  /** Absolute path of the worktree root (forward slashes). */
+  path: string;
+  /** Checked-out commit hash; `null` for a bare or prunable entry. */
+  head: string | null;
+  /** Short branch name (`refs/heads/x` → `x`); `null` when detached or bare. */
+  branch: string | null;
+  /** True for the main worktree — always the first entry git lists. */
+  isMain: boolean;
+  /** True when `HEAD` is detached (no branch checked out). */
+  detached: boolean;
+  /** True for a bare repository entry (nothing checked out to browse). */
+  bare: boolean;
+  /** Lock reason (`""` when locked without one); `null` when unlocked. */
+  locked: string | null;
+  /** Prune reason (e.g. a deleted directory); `null` when healthy. */
+  prunable: string | null;
+}
+
 /**
  * The typed API the `silo.git` provider publishes. All methods take the repo
  * working directory (`cwd`) as their first argument and run `git` off the UI
@@ -146,4 +166,32 @@ export interface GitAPI {
     branch: string,
     upstream?: string | null,
   ): Promise<GitLogEntry[]>;
+  /**
+   * All working trees of the repo containing `cwd` (`git worktree list
+   * --porcelain`), main worktree first — git lists the whole family from any
+   * of its worktrees. Resolves to an empty array outside a repo.
+   */
+  worktrees(cwd: string): Promise<GitWorktree[]>;
+  /**
+   * Create a worktree at `path` (`git worktree add`). Pass `branch` to check
+   * out an existing branch, or `newBranch` to create one (from `startPoint`,
+   * defaulting to `HEAD`) and check it out. Git refuses a branch that is
+   * already checked out in another worktree.
+   */
+  addWorktree(
+    cwd: string,
+    path: string,
+    options: { branch: string } | { newBranch: string; startPoint?: string },
+  ): Promise<void>;
+  /**
+   * Remove a worktree's directory and its bookkeeping (`git worktree remove`).
+   * The branch it had checked out is kept. Without `force`, git refuses to
+   * remove a worktree with modified or untracked files.
+   */
+  removeWorktree(cwd: string, path: string, force?: boolean): Promise<void>;
+  /**
+   * Drop bookkeeping for worktrees whose directories no longer exist
+   * (`git worktree prune`) — the entries {@link GitWorktree.prunable} flags.
+   */
+  pruneWorktrees(cwd: string): Promise<void>;
 }

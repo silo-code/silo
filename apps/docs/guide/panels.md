@@ -17,16 +17,42 @@ the columns are secondary, collapsible surfaces.
 
 **Right column**
 
-| Panel  | What it shows                                    |
-| ------ | ------------------------------------------------ |
-| Files  | File tree for the active workspace               |
-| Search | Cross-file content search                        |
-| Git    | Staged/unstaged changes, commit, branch switcher |
-| Themes | Live theme preview and picker                    |
+| Panel  | What it shows                                                |
+| ------ | ------------------------------------------------------------ |
+| Files  | File tree for the active workspace                           |
+| Search | Cross-file content search                                    |
+| Git    | Staged/unstaged changes, commit, branch + worktree switchers |
+| Themes | Live theme preview and picker                                |
 
 Extensions can add panels to either column — see [Extensions](/guide/extensions).
 
 <img src="/img/guide/git-panel.png" alt="Git panel open in the right column, showing staged changes and commit interface" width="400" />
+
+### Git worktrees
+
+The Git panel's **⋯ → Manage worktrees…** lists every
+[git worktree](https://git-scm.com/docs/git-worktree) of the repo — including
+ones created outside Silo (say, by a coding agent) — no matter where they live
+on disk. From there you can:
+
+- **Open a worktree alongside** the current folders (click its row). It appears
+  as an extra root in both the Files panel and the Git panel — the same
+  multi-root convention as [workspaces](/guide/workspaces) with several
+  folders — with its own branch, commit box, and changes. **Close view** later
+  removes just that root; the worktree on disk is untouched.
+- **Create a worktree** on a new or existing branch. The suggested location is
+  a sibling directory named `<repo>-<branch>`, which keeps the checkout out of
+  the main repo's file watcher and git status; the path is editable. (If you
+  place a worktree _inside_ the repo, add its directory to `.gitignore` so the
+  main view's status doesn't fill with its files.)
+- **Remove a worktree** — deletes its directory but keeps the branch. A
+  worktree with uncommitted changes asks for a force-remove first. **Prune
+  stale** clears bookkeeping for worktrees whose directories were deleted
+  manually.
+
+A Git view whose root is a linked worktree shows a small **worktree** pill next
+to its branch name, and its ⋯ menu gains **Close worktree view** and
+**Remove worktree…**.
 
 ## Organizing panels
 
