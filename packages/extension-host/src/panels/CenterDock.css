@@ -212,6 +212,28 @@
   border-top-left-radius: 4px;
   border-top-right-radius: 4px;
 }
+
+/* Shrink tabs to fit the strip instead of relying on horizontal scroll once
+ * many are open. Dockview's default is `flex-shrink: 0`, which keeps every
+ * tab at its full label width and pushes the strip into native scroll —
+ * clunky with a lot of terminals/editors open. Letting tabs shrink down to
+ * `min-width` (ellipsis handles the truncated label) covers the common case;
+ * beyond that floor, dockview's native scroll/overflow dropdown still kicks
+ * in as before. `max-width` keeps a couple of open tabs from stretching
+ * across the whole strip. */
+.editor-dock .dv-tabs-container .dv-tab {
+  flex-shrink: 1;
+  min-width: 84px;
+  max-width: 200px;
+}
+.editor-dock .dv-tabs-container .dv-tab .dv-default-tab-action {
+  flex-shrink: 0;
+}
+.editor-dock .dv-tabs-container .dv-tab .dv-default-tab-content {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .editor-dock .dv-tab.dv-inactive-tab {
   border-color: transparent;
   color: var(--silo-content-tab-text-inactive);
