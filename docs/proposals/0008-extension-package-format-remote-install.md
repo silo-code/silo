@@ -41,7 +41,9 @@ GitHub/npm are the real distribution channels.
 
 Draft. Post-monorepo / go-public. Requires
 [RFC 0006](./0006-extension-permissions-sandbox.md) as the trust gate before
-loading arbitrary remote code.
+loading arbitrary remote code. The marketplace built on this format — and the
+amended trust gating — is designed in
+[RFC 0014](./0014-extension-registry.md).
 
 ## References
 

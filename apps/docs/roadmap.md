@@ -84,19 +84,22 @@ primitives above — so a third party could build the same.
 How a third-party extension gets from a package into the running app. See
 [Publishing an extension](/guide/publishing-an-extension).
 
-| Capability                                           | Status                               |                                                                     |
-| ---------------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------- |
-| Author against `@silo-code/sdk` from npm             | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#the-build-contract-externals) |
-| Install from local folder                            | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
-| Enable / disable / uninstall (runtime)               | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
-| First-party built-ins listed (disable-only, branded) | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#install-enable-uninstall)     |
-| Load on launch + persisted registry                  | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                              |
-| `silo install` / `silo uninstall` CLI                | <Badge type="tip" text="stable" />   | [docs](/guide/cli#extension-commands)                               |
-| `npx create-silo-extension` scaffold                 | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#scaffold-a-new-extension)     |
-| Install from URL (tarball / GitHub release)          | <Badge type="tip" text="stable" />   | [docs](/guide/sharing-extensions#share-a-packed-tarball)            |
-| Install from npm registry                            | <Badge type="tip" text="stable" />   | [docs](/guide/sharing-extensions#publish-to-npm)                    |
-| Update checking + apply                              | <Badge type="info" text="planned" /> | —                                                                   |
-| Permissions / capability model                       | <Badge type="tip" text="stable" />   | [docs](/guide/permissions)                                          |
+| Capability                                           | Status                               |                                                                                                 |
+| ---------------------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Author against `@silo-code/sdk` from npm             | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#the-build-contract-externals)                             |
+| Install from local folder                            | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                                                          |
+| Enable / disable / uninstall (runtime)               | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                                                          |
+| First-party built-ins listed (disable-only, branded) | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#install-enable-uninstall)                                 |
+| Load on launch + persisted registry                  | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension)                                                          |
+| `silo install` / `silo uninstall` CLI                | <Badge type="tip" text="stable" />   | [docs](/guide/cli#extension-commands)                                                           |
+| `npx create-silo-extension` scaffold                 | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#scaffold-a-new-extension)                                 |
+| Install from URL (tarball / GitHub release)          | <Badge type="tip" text="stable" />   | [docs](/guide/sharing-extensions#share-a-packed-tarball)                                        |
+| Install from npm registry                            | <Badge type="tip" text="stable" />   | [docs](/guide/sharing-extensions#publish-to-npm)                                                |
+| Update checking + apply                              | <Badge type="info" text="planned" /> | [design](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md) |
+| Extension registry — browse / search / install       | <Badge type="info" text="planned" /> | [design](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md) |
+| Registry website (`extensions.getsilo.dev`)          | <Badge type="info" text="planned" /> | [design](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md) |
+| Private / team registries (federated index)          | <Badge type="info" text="planned" /> | [design](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md) |
+| Permissions / capability model                       | <Badge type="tip" text="stable" />   | [docs](/guide/permissions)                                                                      |
 
 ## Extension model & safety
 
