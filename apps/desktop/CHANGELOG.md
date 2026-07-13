@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.26.0](https://github.com/silo-code/silo/compare/silo-v0.25.0...silo-v0.26.0) (2026-07-13)
+
+
+### Features
+
+* **extensions:** track install source, support updates, revamp settings UI ([#187](https://github.com/silo-code/silo/issues/187)) ([e151617](https://github.com/silo-code/silo/commit/e1516178fc8c1e9ed37da9791bdd4ce96a15dea3))
+* **webview:** cross-origin iframe bridge + public SDK surface ([#189](https://github.com/silo-code/silo/issues/189)) ([fcf585a](https://github.com/silo-code/silo/commit/fcf585acd4899a7361e873518224eefcb3b87c82))
+
+
+### Bug Fixes
+
+* **context7:** trim description under 200 chars, exclude CLAUDE.md ([36ff1b2](https://github.com/silo-code/silo/commit/36ff1b2b06ca05751f2c7537638e7a54f5ed50bc))
+* **release:** bump create-silo-extension past its already-published version ([#194](https://github.com/silo-code/silo/issues/194)) ([0a28b95](https://github.com/silo-code/silo/commit/0a28b952e767c2002ffdc2b1a2ba99b5ee1e8413))
+* **skills:** harden verifier-gui against wrong-instance attach and eval timeouts ([605212b](https://github.com/silo-code/silo/commit/605212b8981efb82eb525c15b819a517a10d7d4a))
+* **webview-bridge:** re-handshake reliability, contentWindow instability, dock focus, sticky headers ([#191](https://github.com/silo-code/silo/issues/191)) ([fc58f28](https://github.com/silo-code/silo/commit/fc58f2833b4ef7a4dc50c2d5d11902e4fff83333))
+* **webview-bridge:** security gate, Windows origin, pending-RPC cleanup, permission re-check ([#193](https://github.com/silo-code/silo/issues/193)) ([578f39b](https://github.com/silo-code/silo/commit/578f39b0f44ceca7dd623ee879c31601a7182591))
+
 ## [0.25.0](https://github.com/silo-code/silo/compare/silo-v0.24.0...silo-v0.25.0) (2026-07-09)
 
 
