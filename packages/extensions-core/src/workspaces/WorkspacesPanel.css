@@ -405,6 +405,9 @@
 .ws-status-dot[data-status="busy"] {
   color: var(--silo-color-accent);
   animation: ws-status-pulse 1.4s ease-in-out infinite;
+  /* Per-row jitter (set inline from row.id) keeps multiple busy dots from
+     throbbing in lockstep — see busyJitterStyle in WorkspacesPanel.tsx. */
+  animation-delay: var(--ws-busy-jitter, 0s);
 }
 
 .ws-status-dot[data-status="busy"]::before,
@@ -415,11 +418,12 @@
   border-radius: 50%;
   border: 1px solid currentColor;
   animation: ws-status-wave 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+  animation-delay: var(--ws-busy-jitter, 0s);
   pointer-events: none;
 }
 
 .ws-status-dot[data-status="busy"]::after {
-  animation-delay: 0.9s;
+  animation-delay: calc(var(--ws-busy-jitter, 0s) - 0.9s);
 }
 
 .ws-status-dot[data-status="none"] {

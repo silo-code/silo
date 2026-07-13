@@ -79,7 +79,28 @@ function useHomeDir(): string {
   return useSyncExternalStore(subscribeHome, getHome);
 }
 
-function WorkspaceStatusRows({ rows }: { rows: WorkspaceStatusRow[] }) {
+// Deterministic per-row jitter so multiple "busy" status dots don't throb in
+// lockstep — hashed from the stable row id (not Math.random()) so the offset
+// doesn't jump around on re-render. Expressed as a negative delay so the
+// animation starts already in progress rather than pausing on mount.
+function busyJitterStyle(id: string): React.CSSProperties {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  }
+  const delaySeconds = -(((hash >>> 0) % 1000) / 1000) * 1.8;
+  return {
+    "--ws-busy-jitter": `${delaySeconds.toFixed(3)}s`,
+  } as React.CSSProperties;
+}
+
+function WorkspaceStatusRows({
+  workspaceId,
+  rows,
+}: {
+  workspaceId: string;
+  rows: WorkspaceStatusRow[];
+}) {
   if (rows.length === 0) return null;
   return (
     <>
@@ -89,6 +110,15 @@ function WorkspaceStatusRows({ rows }: { rows: WorkspaceStatusRow[] }) {
             className="ws-status-dot"
             data-status={row.status ?? "none"}
             aria-hidden="true"
+            style={
+              row.status === "busy"
+                ? // Providers commonly reuse the same row id across every
+                  // workspace (e.g. a fixed "build-task" id) — fold in the
+                  // workspace id too, or every workspace's dot would still
+                  // land on the same delay and throb in lockstep.
+                  busyJitterStyle(`${workspaceId}:${row.id}`)
+                : undefined
+            }
           />
           <span className="ws-status-label">{row.label}</span>
           {row.startedAt && (
@@ -369,7 +399,10 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
             </span>
           )}
         </div>
-        <WorkspaceStatusRows rows={service.getStatus(ws.id)} />
+        <WorkspaceStatusRows
+          workspaceId={ws.id}
+          rows={service.getStatus(ws.id)}
+        />
         <div className="ws-sections">
           {workspaceSectionRegistry.list().map((p) => {
             const Comp = p.component;
