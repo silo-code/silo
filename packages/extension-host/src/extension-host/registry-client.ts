@@ -31,6 +31,8 @@ export function registryBaseUrl(): string {
 /** The pinned, installable release of an extension, as recorded at ingest. */
 export interface RegistryVersionInfo {
   version: string;
+  /** Display name from package.json `displayName` or `name`. */
+  name: string | null;
   tarballUrl: string;
   /** Availability fallback copy (P2 mirror); null until mirrored. */
   mirrorUrl: string | null;
@@ -46,6 +48,8 @@ export interface RegistryVersionInfo {
 /** One extension in the registry index. */
 export interface RegistryExtension {
   id: string;
+  /** Display name from manifest displayName/name, or title-cased id segment. */
+  name: string;
   description: string;
   categories: string[];
   /** The bound GitHub repo (`owner/name`) — identity, per the namespace rule. */
@@ -109,6 +113,7 @@ export function parseRegistryIndex(raw: unknown): RegistryIndex {
       typeof l.sha256 === "string"
         ? ({
             version: l.version,
+            name: typeof l.name === "string" ? l.name : null,
             tarballUrl: l.tarballUrl,
             mirrorUrl: typeof l.mirrorUrl === "string" ? l.mirrorUrl : null,
             sha256: l.sha256,
@@ -123,6 +128,7 @@ export function parseRegistryIndex(raw: unknown): RegistryIndex {
         : null;
     extensions.push({
       id: e.id,
+      name: typeof e.name === "string" ? e.name : e.id,
       description: e.description,
       categories: e.categories.filter(
         (c): c is string => typeof c === "string",

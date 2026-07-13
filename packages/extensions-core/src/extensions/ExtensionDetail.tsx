@@ -72,7 +72,7 @@ export function ExtensionDetail({
     };
   }, [id, installed !== undefined, registryEntry !== undefined]);
 
-  const name = installed?.name ?? id;
+  const name = installed?.name ?? registryEntry?.name ?? id;
   const description = installed?.description ?? registryEntry?.description;
   const version = installed?.version ?? registryEntry?.latest?.version;
   const permissions =

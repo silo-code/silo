@@ -377,6 +377,10 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
               <div className="ext-list">
                 {catalog.map((entry) => {
                   const state = browseInstallState(entry, extensions, updates);
+                  const installedExt = extensions.find(
+                    (e) => e.id === entry.id,
+                  );
+                  const upd = updates.find((u) => u.id === entry.id);
                   return (
                     <div
                       key={entry.id}
@@ -392,7 +396,18 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                       <div className="ext-row-top">
                         <div className="ext-row-text">
                           <span className="ext-label">
-                            {entry.id}
+                            {entry.name}
+                            {(() => {
+                              const dot = entry.id.indexOf(".");
+                              const publisher =
+                                dot > 0 ? entry.id.slice(0, dot) : null;
+                              return publisher ? (
+                                <span className="ext-brand">
+                                  {publisher[0].toUpperCase() +
+                                    publisher.slice(1)}
+                                </span>
+                              ) : null;
+                            })()}
                             {entry.latest && (
                               <span className="ext-version">
                                 v{entry.latest.version}
@@ -419,6 +434,8 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                           </span>
                           <span className="ext-hint">{entry.description}</span>
                           <span className="ext-hint">
+                            {entry.id}
+                            {" · "}
                             {entry.latest?.permissions.length
                               ? `permissions: ${entry.latest.permissions.join(", ")}`
                               : "no permissions"}
@@ -440,6 +457,31 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                                 Install
                               </button>
                             )}
+                          {upd && installedExt && (
+                            <button
+                              className="ext-btn"
+                              disabled={busy === entry.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                update(installedExt);
+                              }}
+                            >
+                              Update
+                            </button>
+                          )}
+                          {installedExt && (
+                            <button
+                              className="ext-btn ext-row-btn ext-btn-icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openRowMenu(installedExt, e.currentTarget);
+                              }}
+                              disabled={busy === entry.id}
+                              title="Extension actions"
+                            >
+                              <DotsThreeVertical size={16} weight="bold" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
