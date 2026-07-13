@@ -34,20 +34,36 @@
   padding-top: 0;
 }
 
+/* Overlaid on the row's right edge (not in the flex flow) so the root title
+   always fills the full width and nothing reflows when the icons appear — the
+   row keeps its height and the title doesn't jump. On hover they fade in over
+   the title's end, masked by the row's hover background. */
 .tree-root-actions {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 1px;
-  margin-left: auto;
-  padding-right: 4px;
+  /* Masks the title's end underneath. Defaults to the panel background (rows
+     are transparent over it) and switches to the hover color on the row that's
+     actually under the cursor, so the mask is seamless in both states. */
+  background: var(--silo-color-bg);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s;
 }
 
+/* Hovering anywhere in the panel reveals every root's actions — the prior
+   discoverability behavior, kept while avoiding the flow-reflow jump. */
 .file-explorer-panel:hover .tree-root-actions {
   opacity: 1;
   pointer-events: auto;
+}
+
+.tree-row.root:hover .tree-root-actions {
+  background: var(--silo-color-bg-hover);
 }
 
 .tree-hdr-btn {
@@ -127,6 +143,7 @@
   border-radius: 3px;
 }
 .tree-row.root {
+  position: relative;
   font-size: calc(1em - 2px);
   letter-spacing: 0.04em;
   color: var(--silo-color-text-hi);
@@ -153,10 +170,21 @@
   color: var(--silo-color-text);
 }
 
+/* The name is wrapped in an SDK Tooltip, whose host span is the real flex
+   child. Let it shrink so a long name (e.g. a deep root) truncates instead of
+   pushing the trailing root actions past the row's clipped right edge. */
+.tree-row > .silo-tooltip-host {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+}
+
 .tree-row .name {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex: 1;
+  white-space: nowrap;
   margin-left: calc(0.4em - 4px);
 }
 

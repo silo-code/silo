@@ -35,7 +35,11 @@ export const extension: Extension<GitAPI> = {
       // Strip --no-optional-locks from the display — it's an internal safeguard.
       const displayArgs = args.filter((a) => a !== "--no-optional-locks");
       const subcommand = displayArgs[0] ?? "";
-      const isReadOnly = READ_ONLY.has(subcommand);
+      // `worktree list` is a read the panel polls; other worktree subcommands
+      // (add/remove/prune) mutate and stay at info.
+      const isReadOnly =
+        READ_ONLY.has(subcommand) ||
+        (subcommand === "worktree" && displayArgs[1] === "list");
       ctx.log[isReadOnly ? "debug" : "info"](
         `> ${[command, ...displayArgs].join(" ")}`,
         options?.cwd ? { cwd: options.cwd } : undefined,

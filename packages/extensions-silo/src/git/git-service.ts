@@ -1,6 +1,7 @@
 import type { GitAPI, GitLogEntry } from "./git-api";
 import { parseGitStatus } from "./parse-status";
 import { parseBranches } from "./parse-branches";
+import { parseWorktrees } from "./parse-worktrees";
 
 // The GitAPI implementation, built on a generic one-shot `exec` (ctx.process.exec
 // in the app; a real-git wrapper in the contract test). This is the whole point
@@ -208,6 +209,50 @@ export function createGitService(exec: ExecFn): GitAPI {
         if (code === 0) return parseLog(stdout);
       }
       return [];
+    },
+
+    async worktrees(cwd) {
+      const { stdout, code } = await git(cwd, [
+        "worktree",
+        "list",
+        "--porcelain",
+      ]);
+      // Any error (e.g. not a git repository) → no worktrees.
+      if (code !== 0) return [];
+      return parseWorktrees(stdout);
+    },
+
+    addWorktree(cwd, path, options) {
+      // Existing branch: `worktree add <path> <branch>`; new branch:
+      // `worktree add -b <name> <path> [startPoint]`. Note the created path may
+      // lie outside the workspace's scope roots — fine for the bundled (unscoped)
+      // silo.git, but a scoped third-party git extension couldn't exec there.
+      return run(
+        cwd,
+        "branch" in options
+          ? ["worktree", "add", path, options.branch]
+          : [
+              "worktree",
+              "add",
+              "-b",
+              options.newBranch,
+              path,
+              ...(options.startPoint ? [options.startPoint] : []),
+            ],
+      );
+    },
+
+    removeWorktree(cwd, path, force) {
+      return run(cwd, [
+        "worktree",
+        "remove",
+        ...(force ? ["--force"] : []),
+        path,
+      ]);
+    },
+
+    pruneWorktrees(cwd) {
+      return run(cwd, ["worktree", "prune"]);
     },
   };
 }

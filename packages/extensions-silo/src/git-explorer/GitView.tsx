@@ -14,13 +14,15 @@ import {
   type MenuEntry,
   type NotifyOptions,
 } from "@silo-code/sdk";
-import type { GitFileStatus, GitStatus } from "../git/git-api";
+import type { GitFileStatus, GitStatus, GitWorktree } from "../git/git-api";
 import { getGitApi } from "./git-runtime";
 import { Section, FileRow } from "./git-rows";
 import { buildGitNavItems, navItemKey } from "./git-nav";
 import { ICON_CHECK, ICON_PLUS, ICON_MINUS, ICON_UNDO } from "./git-icons";
 import { summarizeGitError } from "./notify-error";
 import { BranchManager } from "./BranchManager";
+import { WorktreeManager } from "./WorktreeManager";
+import { findWorktreeFor } from "./worktree-model";
 
 const REFRESH_DEBOUNCE_MS = 400;
 // How often the panel fetches in the background so ↑ahead/↓behind stay roughly
@@ -28,6 +30,7 @@ const REFRESH_DEBOUNCE_MS = 400;
 const AUTOFETCH_INTERVAL_MS = 180_000;
 const statusCache = new Map<string, GitStatus>();
 const messageCache = new Map<string, string>();
+const worktreeCache = new Map<string, GitWorktree[]>();
 
 export function GitView({
   ctx,
@@ -53,6 +56,9 @@ export function GitView({
   const files = ctx.files;
   const [status, setStatus] = useState<GitStatus | null>(
     () => statusCache.get(cacheKey) ?? null,
+  );
+  const [worktrees, setWorktrees] = useState<GitWorktree[] | null>(
+    () => worktreeCache.get(cacheKey) ?? null,
   );
   const [message, setMessage] = useState(
     () => messageCache.get(cacheKey) ?? "",
@@ -124,6 +130,7 @@ export function GitView({
   useEffect(() => {
     setStatus(statusCache.get(cacheKey) ?? null);
     setMessage(messageCache.get(cacheKey) ?? "");
+    setWorktrees(worktreeCache.get(cacheKey) ?? null);
     if (!paused) refresh();
   }, [cacheKey, paused, refresh]);
 
@@ -156,6 +163,15 @@ export function GitView({
         })
         .catch((err) => notifyError("Git status failed", err, true))
         .finally(() => min.then(() => setBusy(false)));
+      // Also learn whether this folder is a linked worktree (drives the
+      // header pill). Cheap read; failures just leave the pill off.
+      api
+        .worktrees(folder)
+        .then((wts) => {
+          worktreeCache.set(cacheKey, wts);
+          setWorktrees(wts);
+        })
+        .catch(() => undefined);
     }, 50);
   }, [pendingRefresh, folder, workspaceId, cacheKey, notifyError]);
 
@@ -473,16 +489,35 @@ export function GitView({
   }
 
   // The "⋯" dropdown: the explicit Push/Pull (folded off the bar), plus Fetch
-  // and a way into the branch manager.
+  // and ways into the branch and worktree managers. A linked-worktree view
+  // additionally offers closing its root and removing the worktree itself.
   function gitMenuItems(): MenuEntry[] {
-    return [
+    const items: MenuEntry[] = [
       { label: pushTitle, disabled: !canPush || pushing, run: push },
       { label: "Pull", disabled: !canPull || pulling, run: pull },
       { type: "separator" },
       { label: "Fetch", run: fetchRemote },
       { type: "separator" },
       { label: "Manage branches…", run: openBranchManager },
+      { label: "Manage worktrees…", run: openWorktreeManager },
     ];
+    if (linkedWorktree) {
+      items.push({ type: "separator" });
+      if (isExtraFolder) {
+        items.push({
+          label: "Close worktree view",
+          run: () => ctx.workspaces.removeFolder(workspaceId, folder),
+        });
+      }
+      if (linkedWorktree.locked == null) {
+        items.push({
+          label: "Remove worktree…",
+          danger: true,
+          run: () => void removeThisWorktree(),
+        });
+      }
+    }
+    return items;
   }
 
   function openGitMenu(anchor: HTMLElement) {
@@ -504,6 +539,63 @@ export function GitView({
       ),
       { title: "Switch branches", size: "md", dismissible: true },
     );
+  }
+
+  // Open the worktree manager modal for this repo. Everything inside is
+  // parameterized by `folder`, so a multi-root workspace gets an independent
+  // manager per repo.
+  function openWorktreeManager() {
+    ctx.ui.showModal(
+      () => (
+        <WorktreeManager
+          ctx={ctx}
+          folder={folder}
+          workspaceId={workspaceId}
+          onChanged={refresh}
+          notifyError={notifyError}
+        />
+      ),
+      { title: "Worktrees", size: "md", dismissible: true },
+    );
+  }
+
+  // Remove the worktree this view is rooted in. Runs `git worktree remove`
+  // from the main worktree (git refuses to remove the worktree it's run in),
+  // then closes this view's root. Dirty trees get a force-remove confirm.
+  async function removeThisWorktree() {
+    const api = getGitApi();
+    if (!api) return;
+    const name = folder.split("/").filter(Boolean).pop() ?? folder;
+    const mainPath = worktrees?.find((w) => w.isMain)?.path ?? folder;
+    const ok = await ctx.ui.confirm({
+      title: `Remove worktree "${name}"?`,
+      body: `Deletes the directory at ${folder}. The branch itself is kept.`,
+      confirmLabel: "Remove",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      try {
+        await api.removeWorktree(mainPath, folder);
+      } catch (err) {
+        if (
+          !/contains modified or untracked files|use --force/i.test(String(err))
+        ) {
+          throw err;
+        }
+        const force = await ctx.ui.confirm({
+          title: `"${name}" has uncommitted changes`,
+          body: "Force-remove the worktree and discard them? This can't be undone.",
+          confirmLabel: "Force Remove",
+          danger: true,
+        });
+        if (!force) return;
+        await api.removeWorktree(mainPath, folder, true);
+      }
+      ctx.workspaces.removeFolder(workspaceId, folder);
+    } catch (err) {
+      notifyError(`Remove "${name}" failed`, err);
+    }
   }
 
   async function commit() {
@@ -543,6 +635,18 @@ export function GitView({
   // Pull needs a tracking branch to pull from; the menu item is disabled
   // (not hidden) otherwise.
   const canPull = !!status?.upstream;
+  // This view's folder is a *linked* worktree of its repo (not the main one) —
+  // drives the header pill and the extra menu entries.
+  const linkedWorktree = (() => {
+    const wt = worktrees ? findWorktreeFor(folder, worktrees) : undefined;
+    return wt && !wt.isMain ? wt : undefined;
+  })();
+  // A linked worktree opened alongside is an extra folder; the host no-ops
+  // removeFolder on the primary, so only offer "close" for extras.
+  const isExtraFolder = (() => {
+    const ws = ctx.workspaces.getState().all.find((w) => w.id === workspaceId);
+    return ws ? ws.folder !== folder : false;
+  })();
 
   return (
     <div className="git-panel">
@@ -585,6 +689,11 @@ export function GitView({
                   </span>
                 </Tooltip>
               </span>
+              {linkedWorktree && (
+                <Tooltip content={`Linked worktree at ${folder}`}>
+                  <span className="git-wt-pill">worktree</span>
+                </Tooltip>
+              )}
               <span
                 className="git-root-remote"
                 onClick={(e) => e.stopPropagation()}
@@ -657,6 +766,11 @@ export function GitView({
               </span>
             )}
           </span>
+          {linkedWorktree && (
+            <Tooltip content={`Linked worktree at ${folder}`}>
+              <span className="git-wt-pill">worktree</span>
+            </Tooltip>
+          )}
           {/* Where the remote state lives: published → the ↑/↓ counts double as
               a Sync button; not yet published → a Publish-branch button. */}
           {status?.upstream ? (
