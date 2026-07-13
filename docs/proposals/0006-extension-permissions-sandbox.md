@@ -96,6 +96,13 @@ are **implemented**; phases 3–4 (sandbox + integrity) remain and are gated to 
 remote install / a marketplace is real. The RFC stays open until the sandbox —
 the phase that turns declared capabilities into enforcement — lands.
 
+**Amended by [RFC 0014](./0014-extension-registry.md):** the registry launches
+_before_ the sandbox, with distribution-trust controls (identity binding,
+digest pinning, provenance, advisories) as compensation; the sandbox becomes
+future hardening on its own track rather than the marketplace gate. Tarball
+integrity (phase 4) is delivered by 0014's ingest-time sha256 pinning +
+install-time verification.
+
 ## References
 
 - [ADR 0015](../decisions/0015-phased-security-model.md),
