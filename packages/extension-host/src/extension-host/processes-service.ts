@@ -7,6 +7,7 @@ import type {
   ProcessesService,
   ProcessInfo,
   ProcessStats,
+  ProcessTreeNode,
 } from "@silo-code/sdk";
 import type { PathScope } from "./security/resolve-path";
 
@@ -165,7 +166,11 @@ subscribe(store, syncSessions);
 // ---- stats polling ----------------------------------------------------------
 
 let statsRefcount = 0;
+let treesRefcount = 0;
 let statsInterval: ReturnType<typeof setInterval> | null = null;
+
+// What process_get_stats returns; `tree` present only when requested.
+type HostProcessStats = ProcessStats & { tree?: ProcessTreeNode };
 
 function startStatsPolling() {
   if (statsInterval !== null) return;
@@ -175,7 +180,10 @@ function startStatsPolling() {
       .filter((p) => p > 0);
     if (pgids.length === 0) return;
 
-    void invoke<ProcessStats[]>("process_get_stats", { pids: pgids })
+    void invoke<HostProcessStats[]>("process_get_stats", {
+      pids: pgids,
+      withTrees: treesRefcount > 0,
+    })
       .then((results) => {
         let changed = false;
         for (const stat of results) {
@@ -183,7 +191,8 @@ function startStatsPolling() {
             (e) => e.info.pgid === stat.pid,
           );
           if (entry) {
-            entry.info = { ...entry.info, stats: stat };
+            const { tree, ...stats } = stat;
+            entry.info = { ...entry.info, stats, tree };
             changed = true;
           }
         }
@@ -201,8 +210,8 @@ function stopStatsPolling() {
   statsInterval = null;
   let changed = false;
   for (const entry of sessions.values()) {
-    if (entry.info.stats !== undefined) {
-      entry.info = { ...entry.info, stats: undefined };
+    if (entry.info.stats !== undefined || entry.info.tree !== undefined) {
+      entry.info = { ...entry.info, stats: undefined, tree: undefined };
       changed = true;
     }
   }
@@ -239,12 +248,19 @@ export function getProcessesService(): ProcessesService {
     async kill(pgid) {
       await invoke("process_kill_group", { pgid });
     },
-    enableStats() {
+    enableStats(options) {
+      const withTrees = options?.trees === true;
       statsRefcount++;
+      if (withTrees) treesRefcount++;
       if (statsRefcount === 1) startStatsPolling();
+      let disposed = false;
       return {
         dispose() {
+          // Guard double-dispose — it would corrupt the refcounts.
+          if (disposed) return;
+          disposed = true;
           statsRefcount = Math.max(0, statsRefcount - 1);
+          if (withTrees) treesRefcount = Math.max(0, treesRefcount - 1);
           if (statsRefcount === 0) stopStatsPolling();
         },
       };

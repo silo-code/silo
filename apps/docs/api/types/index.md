@@ -76,6 +76,7 @@ the published reference is exactly this surface — no more, no less.
 - [ProcessExecResult](interfaces/ProcessExecResult.md)
 - [ProcessService](interfaces/ProcessService.md)
 - [ProcessStats](interfaces/ProcessStats.md)
+- [ProcessTreeNode](interfaces/ProcessTreeNode.md)
 - [ProcessInfo](interfaces/ProcessInfo.md)
 - [ProcessesService](interfaces/ProcessesService.md)
 - [SearchOptions](interfaces/SearchOptions.md)
