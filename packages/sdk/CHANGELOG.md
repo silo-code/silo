@@ -1,5 +1,13 @@
 # @silo-code/sdk
 
+## [0.25.0](https://github.com/silo-code/silo/compare/sdk-v0.24.0...sdk-v0.25.0) (2026-07-14)
+
+
+### Features
+
+* **dock:** show a tooltip with the full tab name when the label is truncated ([#208](https://github.com/silo-code/silo/issues/208)) ([978b3b4](https://github.com/silo-code/silo/commit/978b3b43f3c5f42bba35dfc9acb983ba254eb300))
+* **processes:** host-built process trees via enableStats({ trees: true }) ([#212](https://github.com/silo-code/silo/issues/212)) ([812b41a](https://github.com/silo-code/silo/commit/812b41a51387a66bf2434eebc51b9f3ad1a4d174))
+
 ## [0.24.0](https://github.com/silo-code/silo/compare/sdk-v0.23.1...sdk-v0.24.0) (2026-07-12)
 
 
