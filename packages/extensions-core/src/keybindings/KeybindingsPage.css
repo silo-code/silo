@@ -18,18 +18,12 @@
   color: var(--silo-color-text-hi);
 }
 
+/* Rides the shared global button treatment (the `--silo-button-*` tokens behind
+   `button` in theme.css); this rule only sets the compact size so it matches the
+   Extensions page's `.ext-btn` and buttons read the same across settings pages. */
 .kb-edit-btn {
-  background: var(--silo-color-bg-active);
-  border: 1px solid var(--silo-color-border);
-  color: var(--silo-color-text-hi);
-  padding: 5px 10px;
-  border-radius: var(--silo-radius-sm);
-  cursor: pointer;
-  font: inherit;
-  font-size: calc(var(--settings-font) - 1px);
-}
-.kb-edit-btn:hover {
-  background: var(--silo-color-bg-hover);
+  padding: 4px 8px;
+  font-size: calc(var(--settings-font) - 2px);
 }
 
 .kb-search {

@@ -96,8 +96,9 @@
   flex: 1 1 auto;
   overflow: auto;
   /* Extra right padding reserves the top-right gutter for the close button so
-     page content (e.g. a header action) never sits under it. */
-  padding: 20px 40px 20px var(--settings-pane-pad);
+     page content (e.g. a header action) never sits under it — sized to clear the
+     close button (right: 12px + 26px wide) with breathing room. */
+  padding: 20px 48px 20px var(--settings-pane-pad);
   color: var(--silo-color-text);
 }
 
@@ -119,24 +120,31 @@
   outline-offset: -1px;
 }
 
+/* Mirrors the shared modal close button (.silo-modal-close in theme.css) so the
+   bare Settings card's corner close reads identically to every ctx.ui / <Modal>
+   dialog — same 26px hit target, top-right inset, icon, and ghost hover. */
 .settings-close {
   position: absolute;
-  top: 8px;
-  right: 10px;
+  top: 12px;
+  right: 12px;
   width: 26px;
   height: 26px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   background: transparent;
   border: none;
   border-radius: var(--silo-radius-sm);
   color: var(--silo-color-text-lo);
-  font-size: 20px;
-  line-height: 1;
   cursor: pointer;
 }
-.settings-close:hover {
+/* Scoped under .settings-dialog (specificity 0,3,0) so it beats the global
+   `button:hover` rule (0,2,1) — otherwise the close would pick up the darker
+   filled-button hover mix instead of this subtle ghost highlight. This is the
+   same way the shared `.silo-modal .silo-modal-close:hover` outspecifies the
+   global, and matches the focus-ring rule above. */
+.settings-dialog .settings-close:hover {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
