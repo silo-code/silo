@@ -385,12 +385,18 @@
    user expects "in progress" to mean). These four are meant to read as a
    stable ok/warn/error/busy signal regardless of which theme is active, so
    they're pinned to one semantic palette that only adapts to light vs. dark
-   (via `data-theme`, not the per-preset tokens). */
+   (via `data-theme`, not the per-preset tokens).
+   `--ws-status-none` (the "unconfirmed" dot) replaces the previous
+   `--silo-color-text` fallback — that token is tuned for reading body text,
+   which in light theme sits at nearly the same perceived lightness as
+   `--ws-status-ok`, making the two dots hard to tell apart at 6px. Pairing a
+   lighter neutral with a brighter, more saturated green widens that gap. */
 :root {
-  --ws-status-ok: #16a34a;
+  --ws-status-ok: #22c55e;
   --ws-status-warn: #d97706;
   --ws-status-error: #dc2626;
   --ws-status-busy: #2563eb;
+  --ws-status-none: #b0b0b0;
 }
 
 [data-theme="dark"] {
@@ -398,6 +404,7 @@
   --ws-status-warn: #fbbf24;
   --ws-status-error: #f87171;
   --ws-status-busy: #60a5fa;
+  --ws-status-none: #6b6b6b;
 }
 
 .ws-status-dot {
@@ -413,6 +420,10 @@
 
 .ws-status-dot[data-status="ok"] {
   color: var(--ws-status-ok);
+  animation: ws-status-pulse-subtle 1.4s ease-in-out infinite;
+  /* Per-row jitter (set inline from row.id) keeps multiple ok dots from
+     pulsing in lockstep — see statusJitterStyle in WorkspacesPanel.tsx. */
+  animation-delay: var(--ws-status-jitter, 0s);
 }
 
 .ws-status-dot[data-status="warn"] {
@@ -427,8 +438,8 @@
   color: var(--ws-status-busy);
   animation: ws-status-pulse 1.4s ease-in-out infinite;
   /* Per-row jitter (set inline from row.id) keeps multiple busy dots from
-     throbbing in lockstep — see busyJitterStyle in WorkspacesPanel.tsx. */
-  animation-delay: var(--ws-busy-jitter, 0s);
+     throbbing in lockstep — see statusJitterStyle in WorkspacesPanel.tsx. */
+  animation-delay: var(--ws-status-jitter, 0s);
 }
 
 .ws-status-dot[data-status="busy"]::before,
@@ -439,16 +450,16 @@
   border-radius: 50%;
   border: 1px solid currentColor;
   animation: ws-status-wave 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
-  animation-delay: var(--ws-busy-jitter, 0s);
+  animation-delay: var(--ws-status-jitter, 0s);
   pointer-events: none;
 }
 
 .ws-status-dot[data-status="busy"]::after {
-  animation-delay: calc(var(--ws-busy-jitter, 0s) - 0.9s);
+  animation-delay: calc(var(--ws-status-jitter, 0s) - 0.9s);
 }
 
 .ws-status-dot[data-status="none"] {
-  color: var(--silo-color-text);
+  color: var(--ws-status-none);
 }
 
 @keyframes ws-status-pulse {
@@ -461,6 +472,19 @@
   50% {
     opacity: 0.55;
     transform: scale(1.2);
+  }
+}
+
+@keyframes ws-status-pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.65;
+    transform: scale(1.25);
   }
 }
 

@@ -89,26 +89,49 @@ const sub = ctx.processes.subscribe((procs) => {
 
 **`ProcessesService`** (`ctx.processes`):
 
-| Method                                                                          | What it does                                                                                                                            |
-| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| [`getState()`](/api/types/interfaces/ProcessesService#getState)                 | Current [`ProcessInfo[]`](/api/types/interfaces/ProcessInfo) for the active workspace (sessions with a known leader).                   |
-| [`getByTerminalId(id)`](/api/types/interfaces/ProcessesService#getByTerminalId) | Look up by terminal tab id — shortcut to avoid scanning `getState()`.                                                                   |
-| [`subscribe(listener)`](/api/types/interfaces/ProcessesService#subscribe)       | Observe changes (leader flip, atPrompt change, stats tick, tab add/remove). Returns a [`Disposable`](/api/types/interfaces/Disposable). |
-| [`kill(pgid)`](/api/types/interfaces/ProcessesService#kill)                     | Send SIGTERM → SIGKILL (after 3 s) to the process group. Shell stays alive.                                                             |
-| [`enableStats()`](/api/types/interfaces/ProcessesService#enableStats)           | Start CPU + memory polling (~1500 ms). Returns a `Disposable`; dispose to stop.                                                         |
+| Method                                                                              | What it does                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`getState(options?)`](/api/types/interfaces/ProcessesService#getState)             | Current [`ProcessInfo[]`](/api/types/interfaces/ProcessInfo) for the active workspace (sessions with a known leader). Pass `{ allWorkspaces: true }` for every loaded workspace.                   |
+| [`getByTerminalId(id)`](/api/types/interfaces/ProcessesService#getByTerminalId)     | Look up by terminal tab id — shortcut to avoid scanning `getState()`. Spans all loaded workspaces (terminal ids are unique).                                                                       |
+| [`subscribe(listener, options?)`](/api/types/interfaces/ProcessesService#subscribe) | Observe changes (leader flip, atPrompt change, stats tick, tab add/remove). Pass `{ allWorkspaces: true }` to observe every workspace. Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+| [`kill(pgid)`](/api/types/interfaces/ProcessesService#kill)                         | Send SIGTERM → SIGKILL (after 3 s) to the process group. Shell stays alive.                                                                                                                        |
+| [`enableStats()`](/api/types/interfaces/ProcessesService#enableStats)               | Start CPU + memory polling (~1500 ms). Returns a `Disposable`; dispose to stop.                                                                                                                    |
 
 **[`ProcessInfo`](/api/types/interfaces/ProcessInfo)** fields:
 
-| Field           | Type                                                                | What it means                                                           |
-| --------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `sessionId`     | `string`                                                            | Stable PTY session id.                                                  |
-| `terminalId`    | `string \| undefined`                                               | Terminal tab id (e.g. `"term_abc"`); `undefined` for headless sessions. |
-| `terminalTitle` | `string \| undefined`                                               | Label shown on the terminal tab (`customName ?? title`).                |
-| `pgid`          | `number`                                                            | Foreground process-group id (== leader PID by Unix convention).         |
-| `leader`        | `string`                                                            | Program name (`"node"`, `"vim"`, `"-zsh"`, …).                          |
-| `cwd`           | `string`                                                            | Working directory of the foreground leader.                             |
-| `atPrompt`      | `boolean`                                                           | `true` when the shell is idle (no foreground program running).          |
-| `stats`         | [`ProcessStats`](/api/types/interfaces/ProcessStats) \| `undefined` | CPU + memory (only when `enableStats()` is active).                     |
+| Field           | Type                                                                | What it means                                                                                     |
+| --------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `sessionId`     | `string`                                                            | Stable PTY session id.                                                                            |
+| `workspaceId`   | `string`                                                            | Workspace the session belongs to — group/filter results from `getState({ allWorkspaces: true })`. |
+| `terminalId`    | `string \| undefined`                                               | Terminal tab id (e.g. `"term_abc"`); `undefined` for headless sessions.                           |
+| `terminalTitle` | `string \| undefined`                                               | Label shown on the terminal tab (`customName ?? title`).                                          |
+| `pgid`          | `number`                                                            | Foreground process-group id (== leader PID by Unix convention).                                   |
+| `leader`        | `string`                                                            | Program name (`"node"`, `"vim"`, `"-zsh"`, …).                                                    |
+| `cwd`           | `string`                                                            | Working directory of the foreground leader.                                                       |
+| `atPrompt`      | `boolean`                                                           | `true` when the shell is idle (no foreground program running).                                    |
+| `stats`         | [`ProcessStats`](/api/types/interfaces/ProcessStats) \| `undefined` | CPU + memory (only when `enableStats()` is active).                                               |
+
+### Cross-workspace badges — count busy terminals per workspace in a sidebar
+
+```ts
+// procs spans every loaded workspace; group by workspaceId for per-workspace badges.
+const sub = ctx.processes.subscribe(
+  (procs) => {
+    const busyByWorkspace = new Map<string, number>();
+    for (const p of procs) {
+      if (!p.atPrompt) {
+        busyByWorkspace.set(
+          p.workspaceId,
+          (busyByWorkspace.get(p.workspaceId) ?? 0) + 1,
+        );
+      }
+    }
+    updateSidebarBadges(busyByWorkspace);
+  },
+  { allWorkspaces: true },
+);
+ctx.subscriptions.push(sub);
+```
 
 ## Correlating with ctx.terminals
 

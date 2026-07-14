@@ -58,6 +58,12 @@ export interface ProcessInfo {
   /** The underlying PTY session id — stable across app restarts. */
   readonly sessionId: string;
   /**
+   * The workspace this session belongs to. Use to group entries when
+   * requesting {@link ProcessesService.getState} with `{ allWorkspaces: true }`,
+   * or to correlate with `ctx.workspaces`.
+   */
+  readonly workspaceId: string;
+  /**
    * The terminal tab record id (e.g. `"term_abc"`) when this session is backed
    * by a visible terminal tab. `undefined` only for headless sessions created
    * directly via {@link ProcessService.spawn}. Use to correlate with
@@ -126,16 +132,22 @@ export interface ProcessInfo {
  */
 export interface ProcessesService {
   /**
-   * Current {@link ProcessInfo} for every live session in the active workspace.
-   * Only includes sessions that have received at least one foreground update
-   * from the daemon (entries with an unknown leader are omitted).
+   * Current {@link ProcessInfo} for every live session in the active
+   * workspace. Pass `{ allWorkspaces: true }` to get every live session across
+   * every loaded workspace instead — use {@link ProcessInfo.workspaceId} to
+   * group or filter the result (e.g. for a sidebar badge per workspace).
+   * Sessions appear as soon as their terminal is attached, with placeholder
+   * values (`leader: ""`, `pgid: 0`) until the first foreground update
+   * arrives from the daemon.
    */
-  getState(): ProcessInfo[];
+  getState(options?: { allWorkspaces?: boolean }): ProcessInfo[];
 
   /**
    * Look up the {@link ProcessInfo} for a specific terminal tab by its record
    * id (e.g. `"term_abc"`). Returns `undefined` until the first foreground
-   * event has been received for that terminal's session.
+   * event has been received for that terminal's session. Terminal ids are
+   * unique across workspaces, so this looks across all loaded workspaces
+   * regardless of which one is active.
    *
    * Convenience shortcut — avoids scanning {@link ProcessesService.getState}
    * when the caller already has a `terminalId`.
@@ -143,12 +155,18 @@ export interface ProcessesService {
   getByTerminalId(terminalId: string): ProcessInfo | undefined;
 
   /**
-   * Subscribe to changes in the active workspace's process list. The listener
-   * is called whenever a leader changes, `atPrompt` flips, a terminal is
-   * added or removed, or a stats tick arrives (if {@link ProcessesService.enableStats}
-   * is active). Returns a {@link Disposable} that cancels the subscription.
+   * Subscribe to changes in the active workspace's process list. Pass
+   * `{ allWorkspaces: true }` to be notified about changes across every
+   * loaded workspace instead (see {@link ProcessesService.getState}). The
+   * listener is called whenever a leader changes, `atPrompt` flips, a
+   * terminal is added or removed, or a stats tick arrives (if
+   * {@link ProcessesService.enableStats} is active). Returns a
+   * {@link Disposable} that cancels the subscription.
    */
-  subscribe(listener: (state: ProcessInfo[]) => void): Disposable;
+  subscribe(
+    listener: (state: ProcessInfo[]) => void,
+    options?: { allWorkspaces?: boolean },
+  ): Disposable;
 
   /**
    * Kill a specific foreground process group by pgid — sends `SIGTERM`, then

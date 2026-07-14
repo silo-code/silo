@@ -128,6 +128,7 @@ describe("getState / subscribe", () => {
     expect(state).toHaveLength(1);
     expect(state[0]).toMatchObject({
       sessionId: "sid1",
+      workspaceId: "ws1",
       pgid: 0,
       atPrompt: true,
     });
@@ -151,6 +152,7 @@ describe("getState / subscribe", () => {
     expect(state).toHaveLength(1);
     expect(state[0]).toMatchObject({
       sessionId: "sid1",
+      workspaceId: "ws1",
       terminalId: "t1",
       terminalTitle: "My Shell",
       pgid: 1234,
@@ -220,6 +222,83 @@ describe("getState / subscribe", () => {
     triggerStoreSync();
     expect(svc.getState()).toHaveLength(1);
     expect(svc.getState()[0].sessionId).toBe("sid2");
+  });
+
+  it("getState({ allWorkspaces: true }) returns sessions from every loaded workspace", () => {
+    const svc = getProcessesService();
+    mockStore.workspaces.ws1.terminals = [makeTerminal("t1", "sid1")];
+    mockStore.workspaces.ws2 = {
+      id: "ws2",
+      terminals: [makeTerminal("t2", "sid2")],
+    };
+    triggerStoreSync();
+
+    emitFg("sid1", { pgid: 1, atPrompt: false, leader: "a", cwd: "/" });
+    emitFg("sid2", { pgid: 2, atPrompt: false, leader: "b", cwd: "/" });
+
+    const all = svc.getState({ allWorkspaces: true });
+    expect(all).toHaveLength(2);
+    expect(all.map((p) => p.sessionId).sort()).toEqual(["sid1", "sid2"]);
+    expect(all.find((p) => p.sessionId === "sid1")?.workspaceId).toBe("ws1");
+    expect(all.find((p) => p.sessionId === "sid2")?.workspaceId).toBe("ws2");
+
+    // Unscoped getState() is unaffected — still only the active workspace.
+    expect(svc.getState()).toHaveLength(1);
+    expect(svc.getState()[0].sessionId).toBe("sid1");
+  });
+
+  it("updates workspaceId when a session's terminal moves to a different workspace", () => {
+    const svc = getProcessesService();
+    mockStore.workspaces.ws1.terminals = [makeTerminal("t1", "sid1")];
+    triggerStoreSync();
+
+    emitFg("sid1", { pgid: 1, atPrompt: false, leader: "a", cwd: "/" });
+    expect(svc.getState({ allWorkspaces: true })[0].workspaceId).toBe("ws1");
+
+    // The terminal moves from ws1 to a new ws2 (e.g. the user drags the tab).
+    mockStore.workspaces.ws1.terminals = [];
+    mockStore.workspaces.ws2 = {
+      id: "ws2",
+      terminals: [makeTerminal("t1", "sid1")],
+    };
+    triggerStoreSync();
+
+    emitFg("sid1", { pgid: 2, atPrompt: false, leader: "b", cwd: "/" });
+    const all = svc.getState({ allWorkspaces: true });
+    expect(all).toHaveLength(1);
+    expect(all[0].workspaceId).toBe("ws2");
+  });
+
+  it("subscribe({ allWorkspaces: true }) fires on changes in any workspace", () => {
+    const svc = getProcessesService();
+    mockStore.workspaces.ws1.terminals = [makeTerminal("t1", "sid1")];
+    mockStore.workspaces.ws2 = {
+      id: "ws2",
+      terminals: [makeTerminal("t2", "sid2")],
+    };
+    triggerStoreSync();
+
+    const activeCalls: unknown[][] = [];
+    const allCalls: unknown[][] = [];
+    const activeSub = svc.subscribe((s) => activeCalls.push(s));
+    const allSub = svc.subscribe((s) => allCalls.push(s), {
+      allWorkspaces: true,
+    });
+
+    // A change in the inactive workspace (ws2) notifies only the
+    // all-workspaces listener — the active-workspace view didn't change.
+    emitFg("sid2", { pgid: 2, atPrompt: false, leader: "b", cwd: "/" });
+    expect(activeCalls).toHaveLength(0);
+    expect(allCalls).toHaveLength(1);
+    expect(allCalls[0]).toHaveLength(2);
+
+    // A change in the active workspace (ws1) notifies both.
+    emitFg("sid1", { pgid: 1, atPrompt: false, leader: "a", cwd: "/" });
+    expect(activeCalls).toHaveLength(1);
+    expect(allCalls).toHaveLength(2);
+
+    activeSub.dispose();
+    allSub.dispose();
   });
 });
 

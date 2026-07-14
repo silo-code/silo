@@ -27,21 +27,39 @@ type SessionEntry = {
 };
 
 // Map<sessionId, SessionEntry> — all sessions across all workspaces, keyed by
-// PTY session id. getState() filters this to the active workspace.
+// PTY session id. getState() filters this to the active workspace by default,
+// or returns everything when called with `{ allWorkspaces: true }`.
 const sessions = new Map<string, SessionEntry>();
-const listeners = new Set<(state: ProcessInfo[]) => void>();
 
-// Stable snapshot for useSyncExternalStore: getState() must return the same
+type ListenerEntry = {
+  listener: (state: ProcessInfo[]) => void;
+  allWorkspaces: boolean;
+};
+const listeners = new Set<ListenerEntry>();
+
+// Stable snapshots for useSyncExternalStore: getState() must return the same
 // reference when nothing changed, otherwise React re-renders in a loop.
 // Updated in notify() only when the set of items (by reference) actually changes.
-let cachedSnapshot: ProcessInfo[] = [];
+let cachedActiveSnapshot: ProcessInfo[] = [];
+let cachedAllSnapshot: ProcessInfo[] = [];
+// Nobody needs cachedAllSnapshot until a caller asks for `allWorkspaces` —
+// recomputing it on every notify() would scan `sessions` a second time on
+// every foreground/stats tick for the (common) case where nothing reads it.
+// Marked stale by notify() instead; getState()/an allWorkspaces listener
+// recompute it lazily, still diffed by reference to preserve the invariant
+// above.
+let allSnapshotStale = true;
 
 // ---- helpers ----------------------------------------------------------------
 
-function findTerminalRecord(sessionId: string) {
-  for (const ws of Object.values(store.workspaces)) {
+// Finds the terminal record for a session together with the id of the
+// workspace it belongs to. Every session tracked here originates from a
+// workspace's terminal list (see syncSessions), so this always resolves for
+// sessions currently in `sessions`.
+function findTerminalContext(sessionId: string) {
+  for (const [wsId, ws] of Object.entries(store.workspaces)) {
     const rec = ws?.terminals.find((t) => t.sessionId === sessionId);
-    if (rec) return rec;
+    if (rec) return { rec, wsId };
   }
   return null;
 }
@@ -59,18 +77,54 @@ function activeWorkspaceInfos(): ProcessInfo[] {
     .map((e) => e.info);
 }
 
-function notify() {
-  const next = activeWorkspaceInfos();
-  // ProcessInfo objects are replaced by value on every fg update, so reference
-  // equality on each element is a sufficient change check — no deep compare needed.
-  if (
-    next.length === cachedSnapshot.length &&
-    next.every((p, i) => p === cachedSnapshot[i])
-  ) {
-    return;
+function allWorkspaceInfos(): ProcessInfo[] {
+  return Array.from(sessions.values()).map((e) => e.info);
+}
+
+// ProcessInfo objects are replaced by value on every fg update, so reference
+// equality on each element is a sufficient change check — no deep compare needed.
+function sameByRef(a: ProcessInfo[], b: ProcessInfo[]): boolean {
+  return a.length === b.length && a.every((p, i) => p === b[i]);
+}
+
+function hasAllWorkspacesListener(): boolean {
+  for (const entry of listeners) {
+    if (entry.allWorkspaces) return true;
   }
-  cachedSnapshot = next;
-  for (const l of listeners) l(cachedSnapshot);
+  return false;
+}
+
+// Recomputes cachedAllSnapshot if stale, preserving reference stability by
+// only replacing it when the contents actually differ.
+function refreshAllSnapshot(): boolean {
+  if (!allSnapshotStale) return false;
+  allSnapshotStale = false;
+  const nextAll = allWorkspaceInfos();
+  const allChanged = !sameByRef(nextAll, cachedAllSnapshot);
+  if (allChanged) cachedAllSnapshot = nextAll;
+  return allChanged;
+}
+
+function notify() {
+  const nextActive = activeWorkspaceInfos();
+  const activeChanged = !sameByRef(nextActive, cachedActiveSnapshot);
+  if (activeChanged) cachedActiveSnapshot = nextActive;
+
+  // Only worth the extra scan over `sessions` when something actually
+  // consumes the all-workspaces view; otherwise defer it to the next
+  // getState({ allWorkspaces: true }) / subscribe({ allWorkspaces: true }).
+  allSnapshotStale = true;
+  const allChanged = hasAllWorkspacesListener() ? refreshAllSnapshot() : false;
+
+  if (!activeChanged && !allChanged) return;
+
+  for (const entry of listeners) {
+    if (entry.allWorkspaces) {
+      if (allChanged) entry.listener(cachedAllSnapshot);
+    } else if (activeChanged) {
+      entry.listener(cachedActiveSnapshot);
+    }
+  }
 }
 
 // ---- session tracking -------------------------------------------------------
@@ -78,11 +132,12 @@ function notify() {
 function attachSession(sessionId: string) {
   if (sessions.has(sessionId)) return;
 
-  const rec = findTerminalRecord(sessionId);
+  const ctx = findTerminalContext(sessionId);
   const placeholder: ProcessInfo = {
     sessionId,
-    terminalId: rec?.id,
-    terminalTitle: rec?.customName ?? rec?.title,
+    workspaceId: ctx?.wsId ?? "",
+    terminalId: ctx?.rec.id,
+    terminalTitle: ctx?.rec.customName ?? ctx?.rec.title,
     pgid: 0,
     leader: "",
     cwd: "",
@@ -92,12 +147,15 @@ function attachSession(sessionId: string) {
   const cleanupFg = onTerminalForeground(sessionId, (fg) => {
     const entry = sessions.get(sessionId);
     if (!entry) return;
-    const termRec = findTerminalRecord(sessionId);
+    const termCtx = findTerminalContext(sessionId);
     entry.info = {
       ...entry.info,
-      terminalId: termRec?.id ?? entry.info.terminalId,
+      workspaceId: termCtx?.wsId ?? entry.info.workspaceId,
+      terminalId: termCtx?.rec.id ?? entry.info.terminalId,
       terminalTitle:
-        termRec?.customName ?? termRec?.title ?? entry.info.terminalTitle,
+        termCtx?.rec.customName ??
+        termCtx?.rec.title ??
+        entry.info.terminalTitle,
       pgid: fg.pgid,
       leader: fg.leader,
       cwd: fg.cwd,
@@ -117,12 +175,15 @@ function attachSession(sessionId: string) {
     if (!fg) return;
     const entry = sessions.get(sessionId);
     if (!entry || entry.info.pgid !== 0) return; // already got a real event
-    const termRec = findTerminalRecord(sessionId);
+    const termCtx = findTerminalContext(sessionId);
     entry.info = {
       ...entry.info,
-      terminalId: termRec?.id ?? entry.info.terminalId,
+      workspaceId: termCtx?.wsId ?? entry.info.workspaceId,
+      terminalId: termCtx?.rec.id ?? entry.info.terminalId,
       terminalTitle:
-        termRec?.customName ?? termRec?.title ?? entry.info.terminalTitle,
+        termCtx?.rec.customName ??
+        termCtx?.rec.title ??
+        entry.info.terminalTitle,
       pgid: fg.pgid,
       leader: fg.leader,
       cwd: fg.cwd,
@@ -226,8 +287,10 @@ let processesService: ProcessesService | null = null;
 export function getProcessesService(): ProcessesService {
   if (processesService) return processesService;
   processesService = {
-    getState() {
-      return cachedSnapshot;
+    getState(options) {
+      if (!options?.allWorkspaces) return cachedActiveSnapshot;
+      refreshAllSnapshot();
+      return cachedAllSnapshot;
     },
     getByTerminalId(terminalId) {
       for (const entry of sessions.values()) {
@@ -237,11 +300,15 @@ export function getProcessesService(): ProcessesService {
       }
       return undefined;
     },
-    subscribe(listener) {
-      listeners.add(listener);
+    subscribe(listener, options) {
+      const entry: ListenerEntry = {
+        listener,
+        allWorkspaces: options?.allWorkspaces === true,
+      };
+      listeners.add(entry);
       return {
         dispose() {
-          listeners.delete(listener);
+          listeners.delete(entry);
         },
       };
     },

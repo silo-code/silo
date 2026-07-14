@@ -1,6 +1,6 @@
 # Interface: ProcessesService
 
-Defined in: [packages/sdk/src/processes-service.ts:127](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L127)
+Defined in: [packages/sdk/src/processes-service.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L133)
 
 Workspace process observability — a live read-only view of what is running
 in each terminal of the active workspace, with optional resource stats and a
@@ -32,14 +32,26 @@ ctx.subscriptions.push(ctx.processes.enableStats());
 ### getState()
 
 ```ts
-getState(): ProcessInfo[];
+getState(options?): ProcessInfo[];
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L133)
+Defined in: [packages/sdk/src/processes-service.ts:143](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L143)
 
-Current [ProcessInfo](ProcessInfo.md) for every live session in the active workspace.
-Only includes sessions that have received at least one foreground update
-from the daemon (entries with an unknown leader are omitted).
+Current [ProcessInfo](ProcessInfo.md) for every live session in the active
+workspace. Pass `{ allWorkspaces: true }` to get every live session across
+every loaded workspace instead — use [ProcessInfo.workspaceId](ProcessInfo.md#workspaceid) to
+group or filter the result (e.g. for a sidebar badge per workspace).
+Sessions appear as soon as their terminal is attached, with placeholder
+values (`leader: ""`, `pgid: 0`) until the first foreground update
+arrives from the daemon.
+
+#### Parameters
+
+##### options?
+
+###### allWorkspaces?
+
+`boolean`
 
 #### Returns
 
@@ -53,11 +65,13 @@ from the daemon (entries with an unknown leader are omitted).
 getByTerminalId(terminalId): ProcessInfo | undefined;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:143](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L143)
+Defined in: [packages/sdk/src/processes-service.ts:155](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L155)
 
 Look up the [ProcessInfo](ProcessInfo.md) for a specific terminal tab by its record
 id (e.g. `"term_abc"`). Returns `undefined` until the first foreground
-event has been received for that terminal's session.
+event has been received for that terminal's session. Terminal ids are
+unique across workspaces, so this looks across all loaded workspaces
+regardless of which one is active.
 
 Convenience shortcut — avoids scanning [ProcessesService.getState](#getstate)
 when the caller already has a `terminalId`.
@@ -77,21 +91,30 @@ when the caller already has a `terminalId`.
 ### subscribe()
 
 ```ts
-subscribe(listener): Disposable;
+subscribe(listener, options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:151](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L151)
+Defined in: [packages/sdk/src/processes-service.ts:166](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L166)
 
-Subscribe to changes in the active workspace's process list. The listener
-is called whenever a leader changes, `atPrompt` flips, a terminal is
-added or removed, or a stats tick arrives (if [ProcessesService.enableStats](#enablestats)
-is active). Returns a [Disposable](Disposable.md) that cancels the subscription.
+Subscribe to changes in the active workspace's process list. Pass
+`{ allWorkspaces: true }` to be notified about changes across every
+loaded workspace instead (see [ProcessesService.getState](#getstate)). The
+listener is called whenever a leader changes, `atPrompt` flips, a
+terminal is added or removed, or a stats tick arrives (if
+[ProcessesService.enableStats](#enablestats) is active). Returns a
+[Disposable](Disposable.md) that cancels the subscription.
 
 #### Parameters
 
 ##### listener
 
 (`state`) => `void`
+
+##### options?
+
+###### allWorkspaces?
+
+`boolean`
 
 #### Returns
 
@@ -105,7 +128,7 @@ is active). Returns a [Disposable](Disposable.md) that cancels the subscription.
 kill(pgid): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L164)
+Defined in: [packages/sdk/src/processes-service.ts:182](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L182)
 
 Kill a specific foreground process group by pgid — sends `SIGTERM`, then
 `SIGKILL` after 3 s if the group is still alive. **Does not destroy the
@@ -135,7 +158,7 @@ Requires the `"process"` [Permission](../type-aliases/Permission.md) for third-p
 enableStats(options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:181](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L181)
+Defined in: [packages/sdk/src/processes-service.ts:199](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L199)
 
 Enable CPU + memory polling for all sessions in the active workspace.
 Returns a [Disposable](Disposable.md) — **dispose it when done** to stop polling and
