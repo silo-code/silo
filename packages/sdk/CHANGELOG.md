@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.25.1](https://github.com/silo-code/silo/compare/sdk-v0.25.0...sdk-v0.25.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **processes:** correct getState() docs, avoid redundant allWorkspaces scan ([#213](https://github.com/silo-code/silo/issues/213)) ([1fdcef3](https://github.com/silo-code/silo/commit/1fdcef3d5602e35dcb757837e85de11ef7846240))
+
 ## [0.25.0](https://github.com/silo-code/silo/compare/sdk-v0.24.0...sdk-v0.25.0) (2026-07-14)
 
 
