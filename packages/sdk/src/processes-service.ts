@@ -26,6 +26,24 @@ export interface ProcessStats {
 }
 
 /**
+ * One process in a session's descendant tree. Only produced while an extension
+ * holds `enableStats({ trees: true })` — see {@link ProcessInfo.tree}.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface ProcessTreeNode {
+  readonly pid: number;
+  /** Executable name (e.g. `"node"`), not a full command line. */
+  readonly command: string;
+  /** CPU% delta since the previous sample, per-core. 0 on the first sample after the process appears. */
+  readonly cpuPercent: number;
+  /** Resident memory in megabytes. */
+  readonly memoryMb: number;
+  readonly children: readonly ProcessTreeNode[];
+}
+
+/**
  * Live view of what is currently running in one PTY session — the foreground
  * process group as reported by the pty-host daemon every ~750 ms.
  *
@@ -69,6 +87,13 @@ export interface ProcessInfo {
    * Absent otherwise (no polling overhead when nobody needs it).
    */
   readonly stats?: ProcessStats;
+  /**
+   * Process tree rooted at the foreground leader (the root node is the leader
+   * itself; descendants are found via parent edges, unioned on Unix with
+   * orphaned processes sharing the leader's process group). Only present while
+   * at least one extension holds `enableStats({ trees: true })`.
+   */
+  readonly tree?: ProcessTreeNode;
 }
 
 /**
@@ -141,12 +166,17 @@ export interface ProcessesService {
   /**
    * Enable CPU + memory polling for all sessions in the active workspace.
    * Returns a {@link Disposable} — **dispose it when done** to stop polling and
-   * remove `stats` from all {@link ProcessInfo} objects.
+   * remove `stats` (and `tree`) from all {@link ProcessInfo} objects.
+   *
+   * With `{ trees: true }`, each {@link ProcessInfo} additionally carries the
+   * descendant process tree rooted at its foreground leader (see
+   * {@link ProcessInfo.tree}) — built host-side from one shared process-table
+   * scan per tick, so it costs the same no matter how many extensions ask.
    *
    * Multiple callers share one poll loop (refcounted); the loop stops only when
    * the last disposable is released. Polling interval is ~1500 ms.
    *
    * CPU% is `0` on the first sample; values stabilize after ~3 s.
    */
-  enableStats(): Disposable;
+  enableStats(options?: { trees?: boolean }): Disposable;
 }

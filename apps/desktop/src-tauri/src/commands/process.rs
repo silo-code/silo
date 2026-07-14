@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::process::{Command, Stdio};
-use std::sync::{Mutex as StdMutex, OnceLock};
+use std::sync::{Arc, Mutex as StdMutex, OnceLock};
 
 use parking_lot::Mutex;
 use serde::Serialize;
@@ -26,13 +26,26 @@ fn exec_registry() -> &'static StdMutex<HashMap<String, u32>> {
 
 /// Tauri-managed state for process resource stats (ctx.processes.enableStats).
 /// Holds a sysinfo::System that is refreshed in-place on each `process_get_stats`
-/// call so CPU% is computed as a delta between consecutive samples.
-pub struct ProcessStatsState(pub Mutex<System>);
+/// call so CPU% is computed as a delta between consecutive samples. Arc so the
+/// refresh can run on a spawn_blocking worker (a full-table scan for trees takes
+/// tens of milliseconds and must not occupy the async executor).
+pub struct ProcessStatsState(pub Arc<Mutex<System>>);
 
 impl ProcessStatsState {
     pub fn new() -> Self {
-        ProcessStatsState(Mutex::new(System::new()))
+        ProcessStatsState(Arc::new(Mutex::new(System::new())))
     }
+}
+
+/// One process in a session's descendant tree (`with_trees` mode).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProcessTreeNode {
+    pub pid: i32,
+    pub command: String,
+    pub cpu_percent: f32,
+    pub memory_mb: f64,
+    pub children: Vec<ProcessTreeNode>,
 }
 
 /// Per-process resource snapshot returned by `process_get_stats`.
@@ -42,6 +55,10 @@ pub struct ProcessStats {
     pub pid: i32,
     pub cpu_percent: f32,
     pub memory_mb: f64,
+    /// Tree rooted at this pid (the root duplicates pid/cpu/mem for uniform
+    /// rendering). Only present when the command was called with `with_trees`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tree: Option<ProcessTreeNode>,
 }
 
 /// The captured result of a one-shot subprocess.
@@ -197,8 +214,14 @@ pub async fn process_kill_group(_pgid: i32) -> Result<(), String> {
 
 /// Query CPU and memory usage for a list of PIDs. Used by the TypeScript
 /// `ctx.processes.enableStats()` polling loop (called every ~1500 ms while
-/// at least one extension has stats enabled). Only the requested PIDs are
-/// refreshed — not a full system scan.
+/// at least one extension has stats enabled). Without `with_trees` only the
+/// requested PIDs are refreshed — not a full system scan.
+///
+/// With `with_trees` the whole process table is refreshed (needed to walk
+/// parent edges) and each returned entry carries the descendant tree rooted
+/// at its pid. One refresh serves both stats and trees — CPU% is a delta
+/// against the shared System state, so refreshing twice per tick would
+/// poison the deltas.
 ///
 /// CPU% is a delta between consecutive calls (first call returns 0%).
 /// Returns only the entries for PIDs that are still alive.
@@ -206,23 +229,177 @@ pub async fn process_kill_group(_pgid: i32) -> Result<(), String> {
 pub async fn process_get_stats(
     state: tauri::State<'_, ProcessStatsState>,
     pids: Vec<i32>,
+    with_trees: Option<bool>,
 ) -> Result<Vec<ProcessStats>, String> {
-    let sys_pids: Vec<Pid> = pids.iter().map(|&p| Pid::from(p as usize)).collect();
-    let mut sys = state.0.lock();
-    sys.refresh_processes_specifics(
-        ProcessesToUpdate::Some(&sys_pids),
-        true,
-        ProcessRefreshKind::everything(),
-    );
-    Ok(pids
-        .iter()
-        .filter_map(|&pid| {
-            let p = sys.process(Pid::from(pid as usize))?;
-            Some(ProcessStats {
-                pid,
-                cpu_percent: p.cpu_usage(),
-                memory_mb: p.memory() as f64 / 1_048_576.0,
+    let with_trees = with_trees.unwrap_or(false);
+    let sys = Arc::clone(&state.0);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut sys = sys.lock();
+        // cpu + memory only — cwd/environ/exe are the expensive per-pid
+        // queries and nothing here reads them.
+        let kind = ProcessRefreshKind::new().with_cpu().with_memory();
+        if with_trees {
+            sys.refresh_processes_specifics(ProcessesToUpdate::All, true, kind);
+        } else {
+            let sys_pids: Vec<Pid> = pids.iter().map(|&p| Pid::from(p as usize)).collect();
+            sys.refresh_processes_specifics(ProcessesToUpdate::Some(&sys_pids), true, kind);
+        }
+        let mut trees = if with_trees {
+            build_trees(&sys, &pids)
+        } else {
+            HashMap::new()
+        };
+        pids.iter()
+            .filter_map(|&pid| {
+                let p = sys.process(Pid::from(pid as usize))?;
+                Some(ProcessStats {
+                    pid,
+                    cpu_percent: p.cpu_usage(),
+                    memory_mb: p.memory() as f64 / 1_048_576.0,
+                    tree: trees.remove(&pid),
+                })
             })
-        })
-        .collect())
+            .collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|e| format!("stats task panicked: {}", e))
+}
+
+fn tree_node(sys: &System, pid: Pid) -> Option<ProcessTreeNode> {
+    let p = sys.process(pid)?;
+    Some(ProcessTreeNode {
+        pid: pid.as_u32() as i32,
+        command: p.name().to_string_lossy().into_owned(),
+        cpu_percent: p.cpu_usage(),
+        memory_mb: p.memory() as f64 / 1_048_576.0,
+        children: Vec::new(),
+    })
+}
+
+fn attach_descendants(
+    sys: &System,
+    node: &mut ProcessTreeNode,
+    pid: Pid,
+    children_by_ppid: &HashMap<Pid, Vec<Pid>>,
+    visited: &mut HashSet<Pid>,
+) {
+    let Some(kids) = children_by_ppid.get(&pid) else {
+        return;
+    };
+    for &kid in kids {
+        // Guard against revisiting a pid (corrupt/duplicate table entries
+        // could otherwise recurse forever).
+        if !visited.insert(kid) {
+            continue;
+        }
+        if let Some(mut kid_node) = tree_node(sys, kid) {
+            attach_descendants(sys, &mut kid_node, kid, children_by_ppid, visited);
+            node.children.push(kid_node);
+        }
+    }
+}
+
+/// Build the descendant tree for each leader pid from the refreshed process
+/// table — recursion over parent edges, unioned (on Unix) with any orphaned
+/// process whose process-group id matches the leader: double-forked daemons
+/// are re-parented to pid 1 when their original parent exits, so only
+/// processes whose parent is pid 1 (or unknown) are candidates, keeping the
+/// per-candidate getpgid syscall off the hot path.
+fn build_trees(sys: &System, leader_pids: &[i32]) -> HashMap<i32, ProcessTreeNode> {
+    let mut children_by_ppid: HashMap<Pid, Vec<Pid>> = HashMap::new();
+    for (pid, proc) in sys.processes() {
+        if let Some(ppid) = proc.parent() {
+            // Self-parented roots (pid 0/1 on some platforms) are never children.
+            if ppid != *pid {
+                children_by_ppid.entry(ppid).or_default().push(*pid);
+            }
+        }
+    }
+    // Deterministic child order — the process table iterates in hash order.
+    for kids in children_by_ppid.values_mut() {
+        kids.sort_unstable_by_key(|p| p.as_u32());
+    }
+
+    let mut result = HashMap::new();
+    for &leader in leader_pids {
+        let leader_pid = Pid::from(leader as usize);
+        let Some(mut root) = tree_node(sys, leader_pid) else {
+            continue;
+        };
+        let mut visited: HashSet<Pid> = HashSet::from([leader_pid]);
+        attach_descendants(sys, &mut root, leader_pid, &children_by_ppid, &mut visited);
+
+        #[cfg(unix)]
+        for (pid, proc) in sys.processes() {
+            let orphaned = proc.parent().map_or(true, |pp| pp.as_u32() == 1);
+            if !orphaned || visited.contains(pid) {
+                continue;
+            }
+            let pgid = unsafe { libc::getpgid(pid.as_u32() as i32) };
+            if pgid == leader {
+                visited.insert(*pid);
+                if let Some(mut orphan) = tree_node(sys, *pid) {
+                    attach_descendants(sys, &mut orphan, *pid, &children_by_ppid, &mut visited);
+                    root.children.push(orphan);
+                }
+            }
+        }
+
+        result.insert(leader, root);
+    }
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// End-to-end over the real process table: spawn a child, refresh, and
+    /// expect it under this test process's tree.
+    #[cfg(unix)]
+    #[test]
+    fn build_trees_finds_spawned_child() {
+        let mut child = Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn sleep");
+        let child_pid = child.id() as i32;
+        let my_pid = std::process::id() as i32;
+
+        let mut sys = System::new();
+        sys.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::new().with_cpu().with_memory(),
+        );
+
+        let trees = build_trees(&sys, &[my_pid]);
+        let root = trees.get(&my_pid).expect("tree for this process");
+        assert_eq!(root.pid, my_pid);
+
+        fn contains(node: &ProcessTreeNode, pid: i32) -> bool {
+            node.pid == pid || node.children.iter().any(|c| contains(c, pid))
+        }
+        assert!(
+            contains(root, child_pid),
+            "spawned child {} not found under test process tree",
+            child_pid
+        );
+
+        child.kill().ok();
+        child.wait().ok();
+    }
+
+    #[test]
+    fn build_trees_skips_unknown_leaders() {
+        let mut sys = System::new();
+        sys.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::new().with_cpu().with_memory(),
+        );
+        // A pid that can't exist — no tree entry, no panic.
+        let trees = build_trees(&sys, &[i32::MAX]);
+        assert!(trees.is_empty());
+    }
 }

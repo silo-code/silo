@@ -93,6 +93,7 @@ export type {
   ProcessesService,
   ProcessInfo,
   ProcessStats,
+  ProcessTreeNode,
 } from "./processes-service";
 export type {
   TerminalService,

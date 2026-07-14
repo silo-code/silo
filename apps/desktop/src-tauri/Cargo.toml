@@ -60,7 +60,9 @@ base64 = { version = "0.22", optional = true }
 # Process resource metrics for ctx.processes.enableStats(). Used via
 # sysinfo::System::refresh_processes_specifics — targeted (only known PIDs),
 # so cost is proportional to the number of active terminal sessions, not total
-# process count. Defaults off: only polled when an extension calls enableStats().
+# process count. enableStats({ trees: true }) upgrades to a full-table refresh
+# (cpu+memory only, on a blocking worker) to build descendant trees. Defaults
+# off: only polled when an extension calls enableStats().
 sysinfo = { version = "0.32", default-features = false, features = ["system"] }
 
 # Self-owned PTY session host (RFC 0010). Unix-only (forkpty + Unix sockets);

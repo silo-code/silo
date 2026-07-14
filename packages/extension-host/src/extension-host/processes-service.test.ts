@@ -314,6 +314,7 @@ describe("enableStats refcounting", () => {
     await vi.advanceTimersByTimeAsync(1600);
     expect(mockInvoke).toHaveBeenCalledWith("process_get_stats", {
       pids: [42],
+      withTrees: false,
     });
 
     // Disposing one handle should not stop polling.
@@ -354,6 +355,89 @@ describe("enableStats refcounting", () => {
 
     d.dispose();
     sub.dispose();
+  });
+
+  it("requests trees while a trees handle is held and clears them after", async () => {
+    const svc = getProcessesService();
+    mockStore.workspaces.ws1.terminals = [makeTerminal("t1", "sid1")];
+    triggerStoreSync();
+    emitFg("sid1", { pgid: 42, atPrompt: false, leader: "node", cwd: "/" });
+
+    const tree = {
+      pid: 42,
+      command: "node",
+      cpuPercent: 10.0,
+      memoryMb: 128.0,
+      children: [
+        {
+          pid: 43,
+          command: "esbuild",
+          cpuPercent: 5.0,
+          memoryMb: 64.0,
+          children: [],
+        },
+      ],
+    };
+    mockInvoke.mockResolvedValue([
+      { pid: 42, cpuPercent: 10.0, memoryMb: 128.0, tree },
+    ]);
+
+    const plain = svc.enableStats();
+    const withTrees = svc.enableStats({ trees: true });
+
+    await vi.advanceTimersByTimeAsync(1600);
+    expect(mockInvoke).toHaveBeenCalledWith("process_get_stats", {
+      pids: [42],
+      withTrees: true,
+    });
+    expect(svc.getState()[0].tree).toMatchObject({
+      pid: 42,
+      children: [{ pid: 43, command: "esbuild" }],
+    });
+    // The tree is not folded into stats.
+    expect(svc.getState()[0].stats).toEqual({
+      pid: 42,
+      cpuPercent: 10.0,
+      memoryMb: 128.0,
+    });
+
+    // Dropping the trees handle keeps stats polling but stops requesting trees;
+    // the next tick (with no tree in the response) clears it from the info.
+    withTrees.dispose();
+    mockInvoke.mockClear();
+    mockInvoke.mockResolvedValue([
+      { pid: 42, cpuPercent: 10.0, memoryMb: 128.0 },
+    ]);
+    await vi.advanceTimersByTimeAsync(1600);
+    expect(mockInvoke).toHaveBeenCalledWith("process_get_stats", {
+      pids: [42],
+      withTrees: false,
+    });
+    expect(svc.getState()[0].tree).toBeUndefined();
+    expect(svc.getState()[0].stats).toBeDefined();
+
+    plain.dispose();
+  });
+
+  it("double-disposing a handle does not corrupt the refcount", async () => {
+    const svc = getProcessesService();
+    mockStore.workspaces.ws1.terminals = [makeTerminal("t1", "sid1")];
+    triggerStoreSync();
+    emitFg("sid1", { pgid: 42, atPrompt: false, leader: "node", cwd: "/" });
+    mockInvoke.mockResolvedValue([
+      { pid: 42, cpuPercent: 1.0, memoryMb: 10.0 },
+    ]);
+
+    const d1 = svc.enableStats();
+    const d2 = svc.enableStats();
+    d1.dispose();
+    d1.dispose(); // second dispose of the same handle must be a no-op
+
+    mockInvoke.mockClear();
+    await vi.advanceTimersByTimeAsync(1600);
+    // d2 is still held, so polling must continue.
+    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    d2.dispose();
   });
 
   it("clears stats from ProcessInfo when polling stops", async () => {
