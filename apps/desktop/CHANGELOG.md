@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.29.0](https://github.com/silo-code/silo/compare/silo-v0.28.0...silo-v0.29.0) (2026-07-14)
+
+
+### Features
+
+* **dock:** show a tooltip with the full tab name when the label is truncated ([#208](https://github.com/silo-code/silo/issues/208)) ([978b3b4](https://github.com/silo-code/silo/commit/978b3b43f3c5f42bba35dfc9acb983ba254eb300))
+* **processes:** host-built process trees via enableStats({ trees: true }) ([#212](https://github.com/silo-code/silo/issues/212)) ([812b41a](https://github.com/silo-code/silo/commit/812b41a51387a66bf2434eebc51b9f3ad1a4d174))
+* **settings:** align Extensions & Shortcuts chrome with the shared button/modal system ([#211](https://github.com/silo-code/silo/issues/211)) ([a976705](https://github.com/silo-code/silo/commit/a9767055c9650f24dc0bd3d81cd3dc4fb97bf844))
+
 ## [0.28.0](https://github.com/silo-code/silo/compare/silo-v0.27.0...silo-v0.28.0) (2026-07-13)
 
 
