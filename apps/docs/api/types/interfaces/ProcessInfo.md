@@ -23,13 +23,27 @@ The underlying PTY session id — stable across app restarts.
 
 ***
 
+### workspaceId
+
+```ts
+readonly workspaceId: string;
+```
+
+Defined in: [packages/sdk/src/processes-service.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L65)
+
+The workspace this session belongs to. Use to group entries when
+requesting [ProcessesService.getState](ProcessesService.md#getstate) with `{ allWorkspaces: true }`,
+or to correlate with `ctx.workspaces`.
+
+***
+
 ### terminalId?
 
 ```ts
 readonly optional terminalId?: string;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L66)
+Defined in: [packages/sdk/src/processes-service.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L72)
 
 The terminal tab record id (e.g. `"term_abc"`) when this session is backed
 by a visible terminal tab. `undefined` only for headless sessions created
@@ -44,7 +58,7 @@ directly via [ProcessService.spawn](ProcessService.md#spawn). Use to correlate w
 readonly optional terminalTitle?: string;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L72)
+Defined in: [packages/sdk/src/processes-service.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L78)
 
 Display title of the terminal tab — matches the tab label the user sees
 (`customName ?? title` from the terminal record). Undefined for headless
@@ -58,7 +72,7 @@ sessions.
 readonly pgid: number;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:77](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L77)
+Defined in: [packages/sdk/src/processes-service.ts:83](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L83)
 
 Foreground process-group id — the group the PTY is currently routing input
 to. Equals the PID of the group leader (by Unix convention).
@@ -71,7 +85,7 @@ to. Equals the PID of the group leader (by Unix convention).
 readonly leader: string;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:79](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L79)
+Defined in: [packages/sdk/src/processes-service.ts:85](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L85)
 
 Name of the foreground program (e.g. `"node"`, `"vim"`, `"-zsh"`).
 
@@ -83,7 +97,7 @@ Name of the foreground program (e.g. `"node"`, `"vim"`, `"-zsh"`).
 readonly cwd: string;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:81](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L81)
+Defined in: [packages/sdk/src/processes-service.ts:87](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L87)
 
 Working directory of the foreground leader (`""` if unknown).
 
@@ -95,7 +109,7 @@ Working directory of the foreground leader (`""` if unknown).
 readonly atPrompt: boolean;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:83](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L83)
+Defined in: [packages/sdk/src/processes-service.ts:89](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L89)
 
 `true` when the foreground group is the shell itself — i.e. idle at a prompt.
 
@@ -107,7 +121,7 @@ Defined in: [packages/sdk/src/processes-service.ts:83](https://github.com/silo-c
 readonly optional stats?: ProcessStats;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:89](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L89)
+Defined in: [packages/sdk/src/processes-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L95)
 
 CPU and memory snapshot. Only present while at least one extension has
 called [ProcessesService.enableStats](ProcessesService.md#enablestats) and held its [Disposable](Disposable.md).
@@ -121,7 +135,7 @@ Absent otherwise (no polling overhead when nobody needs it).
 readonly optional tree?: ProcessTreeNode;
 ```
 
-Defined in: [packages/sdk/src/processes-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L96)
+Defined in: [packages/sdk/src/processes-service.ts:102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/processes-service.ts#L102)
 
 Process tree rooted at the foreground leader (the root node is the leader
 itself; descendants are found via parent edges, unioned on Unix with
