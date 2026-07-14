@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSnapshot } from "valtio";
 import type { IDockviewPanelHeaderProps } from "dockview";
 import type { TerminalTabDecoration } from "@silo-code/sdk";
@@ -10,6 +10,7 @@ import {
 } from "../state/workspaces";
 import { prompt } from "../extension-host/modal-service";
 import { terminalTabDecorationRegistry } from "../extension-host/terminal-tab-decoration-registry";
+import { Tooltip } from "../components/Tooltip";
 
 // Custom tab: mirrors dockview's default tab DOM, but renders the dirty marker
 // as its own styled span so we can size/color it independently. (DockviewDefaultTab
@@ -32,6 +33,12 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
   const [isDeleted, setIsDeleted] = useState(
     () => !!api.getParameters<{ deleted?: boolean }>().deleted,
   );
+  // Only surface the hover tooltip when the label is actually clipped by the
+  // shrink-to-fit tab strip (see CenterDock.css) — otherwise it just gets in
+  // the way. `scrollWidth > clientWidth` on the label span detects the ellipsis;
+  // a ResizeObserver re-checks whenever the strip resizes or tabs open/close.
+  const contentRef = useRef<HTMLSpanElement>(null);
+  const [isTruncated, setIsTruncated] = useState(false);
   const snap = useSnapshot(store);
   const [tabDecoration, setTabDecoration] =
     useState<TerminalTabDecoration | null>(() =>
@@ -56,6 +63,16 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
     setTitle(api.title ?? "");
     return () => sub.dispose();
   }, [api]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const check = () => setIsTruncated(el.scrollWidth > el.clientWidth);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [title, isDirty]);
 
   // Re-read getParameters() on each change rather than trusting the event
   // payload, which only carries the keys that changed in that update.
@@ -177,12 +194,15 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
       onDoubleClick={onTabDoubleClick}
       onContextMenu={onTabContextMenu}
     >
-      <span
-        className={`dv-default-tab-content${isPreview ? " preview-title" : ""}${isDeleted ? " deleted-title" : ""}`}
-      >
-        {isDirty && <span className="dvi-dirty-indicator">●</span>}
-        {title}
-      </span>
+      <Tooltip content={title} disabled={!isTruncated}>
+        <span
+          ref={contentRef}
+          className={`dv-default-tab-content${isPreview ? " preview-title" : ""}${isDeleted ? " deleted-title" : ""}`}
+        >
+          {isDirty && <span className="dvi-dirty-indicator">●</span>}
+          {title}
+        </span>
+      </Tooltip>
       {tabDecoration && (
         <span
           className="dvi-tab-decoration"

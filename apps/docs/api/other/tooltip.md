@@ -42,6 +42,17 @@ function PanelActions({ onNewFile, onNewFolder, onRefresh }) {
 trigger. Drop the native `title` attribute when you add `Tooltip`; they serve
 the same purpose and the native one produces a second popup.
 
+Pass `disabled` to suppress the popup while keeping the wrapper mounted (so
+layout doesn't shift). This is the way to make a tooltip conditional without
+toggling the element in and out of the tree — for example, showing a tab's full
+name only once its label is truncated:
+
+```tsx
+<Tooltip content={title} disabled={!isTruncated}>
+  <span className="tab-label">{title}</span>
+</Tooltip>
+```
+
 ## Behaviour
 
 - **600 ms hover delay** — avoids visual noise while the cursor moves across
@@ -54,6 +65,8 @@ the same purpose and the native one produces a second popup.
   enough room above, it flips below.
 - **Display-only** — `pointer-events: none` on the popup; it never
   interferes with the element beneath it.
+- **Disablable** — when `disabled` is `true` the wrapper still renders (layout
+  is unchanged) but the popup never appears.
 
 ## Styling
 
@@ -66,7 +79,8 @@ host loads the CSS.
 ## Types
 
 - [`Tooltip`](/api/types/functions/Tooltip) — the component's generated type
-  reference (props: `content: string`, `children: ReactNode`).
+  reference (props: `content: string`, `children: ReactNode`,
+  `disabled?: boolean`).
 
 ## See also
 
