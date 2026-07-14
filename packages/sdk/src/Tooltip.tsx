@@ -16,6 +16,10 @@ const MARGIN_PX = 8;
  * The CSS classes (`.silo-tooltip`, `.silo-tooltip-host`) are provided by the
  * host — no stylesheet import is needed in the extension.
  *
+ * Pass `disabled` to keep the trigger wrapper mounted (so layout stays stable)
+ * while suppressing the popup — handy when the tooltip is only useful
+ * conditionally, e.g. showing the full label of a tab only once it's truncated.
+ *
  * @example
  * ```tsx
  * <Tooltip content="New File">
@@ -31,9 +35,17 @@ const MARGIN_PX = 8;
 export function Tooltip({
   content,
   children,
+  disabled = false,
 }: {
+  /** Text shown in the popup. */
   content: string;
+  /** The trigger element the tooltip is anchored to. */
   children: ReactNode;
+  /**
+   * When `true`, the wrapper still renders (layout is unchanged) but the popup
+   * never appears. Defaults to `false`.
+   */
+  disabled?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [anchor, setAnchor] = useState<{ cx: number; top: number } | null>(
@@ -42,6 +54,7 @@ export function Tooltip({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const show = () => {
+    if (disabled) return;
     timer.current = setTimeout(() => {
       const r = ref.current?.getBoundingClientRect();
       if (r) setAnchor({ cx: r.left + r.width / 2, top: r.top - GAP_PX });

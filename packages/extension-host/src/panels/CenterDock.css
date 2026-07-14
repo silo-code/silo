@@ -229,6 +229,15 @@
 .editor-dock .dv-tabs-container .dv-tab .dv-default-tab-action {
   flex-shrink: 0;
 }
+/* The label is wrapped in a `<Tooltip>` (`.silo-tooltip-host`) so the full name
+ * shows on hover once the label is truncated — the host span is now the flex
+ * child, so it carries the shrink + `min-width: 0` and the inner content span
+ * keeps the ellipsis. */
+.editor-dock .dv-tabs-container .dv-tab .silo-tooltip-host {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+}
 .editor-dock .dv-tabs-container .dv-tab .dv-default-tab-content {
   min-width: 0;
   overflow: hidden;
