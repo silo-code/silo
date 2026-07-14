@@ -2,18 +2,13 @@ import { useEffect, useState } from "react";
 import {
   ArrowsClockwise,
   DotsThreeVertical,
-  Folder,
-  LinkSimple,
-  Package,
   SealCheck,
-  Storefront,
 } from "@phosphor-icons/react";
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
 import {
   getExtensionManager,
   fetchRegistryIndex,
-  type InstallSource,
   type InstalledExtension,
   type ManifestPreview,
   type RegistryExtension,
@@ -21,9 +16,9 @@ import {
 } from "@silo-code/extension-host/internal";
 import { PermissionConsent } from "./PermissionConsent";
 import {
-  describeSource,
   filterExtensions,
   hasBuiltins,
+  localInstallSource,
   showsReloadHint,
   showsUpdateAction,
 } from "./extensions-list-model";
@@ -33,20 +28,11 @@ import {
   isInstallable,
   registryCategories,
 } from "./browse-model";
+import { sourceOriginLabel } from "./source-meta";
 import { ExtensionDetail } from "./ExtensionDetail";
 import "./ExtensionsPage.css";
 
 const mgr = getExtensionManager();
-
-// The label prefix ("Folder: ", "URL: ", …) is redundant once the kind is
-// legible at a glance — an icon says the same thing in less width, leaving
-// more room for the (often long) path/URL/id itself.
-const SOURCE_ICON: Record<InstallSource["kind"], typeof Folder> = {
-  folder: Folder,
-  url: LinkSimple,
-  npm: Package,
-  registry: Storefront,
-};
 
 /** Which pane the page is showing. Browse (the registry) is the landing view. */
 type View =
@@ -380,6 +366,9 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                   const installedExt = extensions.find(
                     (e) => e.id === entry.id,
                   );
+                  // A folder/URL/npm install of this id: note the origin in
+                  // place of the registry download count (it's not this build).
+                  const localSource = localInstallSource(installedExt);
                   const upd = updates.find((u) => u.id === entry.id);
                   return (
                     <div
@@ -440,7 +429,14 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                               ? `permissions: ${entry.latest.permissions.join(", ")}`
                               : "no permissions"}
                             {" · "}
-                            {entry.totalDownloads} downloads
+                            {localSource ? (
+                              <span className="ext-source-note">
+                                Installed from{" "}
+                                {sourceOriginLabel(localSource.kind)}
+                              </span>
+                            ) : (
+                              `${entry.totalDownloads} downloads`
+                            )}
                           </span>
                         </div>
                         <div className="ext-actions">
@@ -533,6 +529,9 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
               <div className="ext-list">
                 {visible.map((ext) => {
                   const upd = updates.find((u) => u.id === ext.id);
+                  // Folder/URL/npm origin, noted compactly; the full path lives
+                  // in the detail callout (registry installs need no note).
+                  const localSource = localInstallSource(ext);
                   return (
                     <div
                       key={ext.id}
@@ -560,8 +559,20 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                               <span className="ext-badge">disabled</span>
                             )}
                           </span>
+                          {ext.description && (
+                            <span className="ext-hint">{ext.description}</span>
+                          )}
                           <span className="ext-hint">
-                            {ext.description ?? ext.id}
+                            {ext.id}
+                            {localSource && (
+                              <>
+                                {" · "}
+                                <span className="ext-source-note">
+                                  Installed from{" "}
+                                  {sourceOriginLabel(localSource.kind)}
+                                </span>
+                              </>
+                            )}
                           </span>
                           {upd && (
                             <span className="ext-hint">
@@ -610,21 +621,6 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                           </button>
                         </div>
                       </div>
-                      {ext.source &&
-                        (() => {
-                          const SourceIcon = SOURCE_ICON[ext.source.kind];
-                          return (
-                            <span
-                              className="ext-hint ext-source"
-                              title={describeSource(ext.source)}
-                            >
-                              <SourceIcon size={12} />
-                              <span className="ext-source-value">
-                                {ext.source.value}
-                              </span>
-                            </span>
-                          );
-                        })()}
                     </div>
                   );
                 })}

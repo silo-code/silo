@@ -4,6 +4,7 @@ import {
   describeSource,
   filterExtensions,
   hasBuiltins,
+  localInstallSource,
   showsReloadHint,
   showsUpdateAction,
 } from "./extensions-list-model";
@@ -108,6 +109,31 @@ describe("describeSource", () => {
 
   it("is undefined when there's no recorded source", () => {
     expect(describeSource(undefined)).toBeUndefined();
+  });
+});
+
+describe("localInstallSource", () => {
+  it("returns the source only for non-registry installs", () => {
+    expect(
+      localInstallSource(ext({ source: { kind: "folder", value: "/e" } })),
+    ).toEqual({ kind: "folder", value: "/e" });
+    expect(
+      localInstallSource(ext({ source: { kind: "url", value: "https://x" } }))
+        ?.kind,
+    ).toBe("url");
+    expect(
+      localInstallSource(ext({ source: { kind: "npm", value: "acme-ext" } }))
+        ?.kind,
+    ).toBe("npm");
+    // Registry is the normal case — nothing to call out.
+    expect(
+      localInstallSource(ext({ source: { kind: "registry", value: "a.b" } })),
+    ).toBeNull();
+  });
+
+  it("is null for legacy source-less records and undefined", () => {
+    expect(localInstallSource(ext({}))).toBeNull();
+    expect(localInstallSource(undefined)).toBeNull();
   });
 });
 

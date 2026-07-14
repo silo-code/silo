@@ -9,6 +9,8 @@ import {
   type RegistryExtension,
   type RegistryUpdate,
 } from "@silo-code/extension-host/internal";
+import { describeSource, localInstallSource } from "./extensions-list-model";
+import { SOURCE_ICON, sourceOriginLabel } from "./source-meta";
 
 const mgr = getExtensionManager();
 
@@ -79,6 +81,9 @@ export function ExtensionDetail({
     installed?.permissions ?? registryEntry?.latest?.permissions ?? [];
   const attested = registryEntry?.latest?.provenance === "attested";
   const repo = registryEntry?.repo;
+  // Installed from a folder/URL/npm rather than the registry — call the origin
+  // out explicitly (and drop the registry download count, which isn't this build).
+  const localSource = localInstallSource(installed);
 
   return (
     <div className="ext-detail">
@@ -155,7 +160,7 @@ export function ExtensionDetail({
         )}
         {registryEntry && (
           <span className="ext-hint">
-            {registryEntry.totalDownloads} downloads ·{" "}
+            {!localSource && `${registryEntry.totalDownloads} downloads · `}
             <a
               href="#"
               onClick={(e) => {
@@ -168,6 +173,27 @@ export function ExtensionDetail({
           </span>
         )}
       </div>
+
+      {localSource &&
+        (() => {
+          const SourceIcon = SOURCE_ICON[localSource.kind];
+          return (
+            <div
+              className="ext-source-callout"
+              title={describeSource(localSource)}
+            >
+              <SourceIcon size={16} weight="bold" />
+              <div className="ext-source-callout-text">
+                <span className="ext-source-callout-title">
+                  Installed from {sourceOriginLabel(localSource.kind)}
+                </span>
+                <span className="ext-source-callout-value">
+                  {localSource.value}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
 
       <div className="ext-detail-readme">
         {readme === undefined ? (

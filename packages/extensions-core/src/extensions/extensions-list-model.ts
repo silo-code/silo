@@ -75,3 +75,17 @@ export function describeSource(
   }[source.kind];
   return `${label}: ${source.value}`;
 }
+
+/**
+ * The install source when an extension came from somewhere other than the
+ * registry (a folder, URL, or npm) — the case worth calling out explicitly,
+ * because the registry download count then describes a different artifact than
+ * the one installed. `null` for registry installs, built-ins, and legacy
+ * source-less records (nothing reliable to surface).
+ */
+export function localInstallSource(
+  ext: Pick<InstalledExtension, "source"> | undefined,
+): InstallSource | null {
+  const source = ext?.source;
+  return source && source.kind !== "registry" ? source : null;
+}

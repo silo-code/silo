@@ -176,26 +176,50 @@
 .ext-hint-warn {
   color: var(--silo-color-warn);
 }
-.ext-source {
+/* Browse row: the origin note that replaces the download count for a
+   folder/URL/npm install. Brighter than the surrounding dim meta line
+   (--silo-color-text-lo) so the "not from the registry" fact stands out. */
+.ext-source-note {
+  color: var(--silo-color-text-hi);
+}
+
+/* Detail view: an unmissable callout for a folder/URL/npm origin — the source
+   icon plus the full path/URL, which the Browse row deliberately omits. */
+.ext-source-callout {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  font-family: var(--silo-font-mono, monospace);
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
 }
-.ext-source svg {
+.ext-source-callout svg {
   flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--silo-color-accent);
 }
-.ext-source-value {
+.ext-source-callout-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ext-source-callout-title {
+  color: var(--silo-color-text-hi);
+  font-size: calc(var(--settings-font) - 1px);
+}
+.ext-source-callout-value {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* Truncate from the left: the tail of a path/URL (the filename, the last
-     path segment) is the useful part, not the leading /Users/you/... or
-     https://... that's the same for every row. */
+  /* Left-truncate: the tail (filename / last path segment) is the useful part. */
   direction: rtl;
   text-align: left;
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-mono, monospace);
+  font-size: calc(var(--settings-font) - 2px);
 }
 
 .ext-actions {
@@ -204,20 +228,14 @@
   gap: 4px;
 }
 
-/* Buttons mirror .kb-edit-btn, sized down from that shared baseline so a row's
-   text (often a long path/URL) keeps most of the row's width. */
+/* Buttons ride the shared global button treatment (the `--silo-button-*` tokens
+   behind `button` / `.silo-button` in theme.css) — the same fill and hover the
+   git-explorer dialogs use — so this rule only trims them to the compact
+   settings-row size, keeping a row's text (often a long path/URL) most of the
+   width. */
 .ext-btn {
-  background: var(--silo-color-bg-active);
-  border: 1px solid var(--silo-color-border);
-  color: var(--silo-color-text-hi);
   padding: 4px 8px;
-  border-radius: var(--silo-radius-sm);
-  cursor: pointer;
-  font: inherit;
   font-size: calc(var(--settings-font) - 2px);
-}
-.ext-btn:hover {
-  background: var(--silo-color-bg-hover);
 }
 .ext-btn:disabled {
   opacity: 0.5;
@@ -230,9 +248,11 @@
   background: transparent;
   border-color: transparent;
 }
-.ext-row-btn:hover {
+/* Quiet ghost reveal on hover — same treatment as the modal close button. The
+   :not(:disabled) also lifts specificity past the global `button:hover` so this
+   wins rather than the darker filled-button hover. */
+.ext-row-btn:hover:not(:disabled) {
   background: var(--silo-color-bg-hover);
-  border-color: var(--silo-color-border);
 }
 .ext-btn-icon {
   padding: 4px 6px;
@@ -245,8 +265,10 @@
 .ext-tabs {
   display: flex;
   gap: 2px;
-  background: var(--silo-color-bg-active);
-  border: 1px solid var(--silo-color-border);
+  /* A recessed well (content surface, sunk below the card) with a defined edge,
+     so the active segment reads as a button raised out of it. */
+  background: var(--silo-color-content-bg);
+  border: 1px solid var(--silo-color-border-strong);
   border-radius: var(--silo-radius-sm);
   padding: 2px;
 }
@@ -264,7 +286,9 @@
   gap: 6px;
 }
 .ext-tab-active {
-  background: var(--silo-color-bg-hover);
+  /* The selected segment reads as a raised button — same fill as a resting
+     `.silo-button` — against the recessed track. */
+  background: var(--silo-button-bg);
   color: var(--silo-color-text-hi);
 }
 .ext-update-count {
