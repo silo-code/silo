@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.31.0](https://github.com/silo-code/silo/compare/silo-v0.30.0...silo-v0.31.0) (2026-07-15)
+
+
+### Features
+
+* **extensions:** nudge new users to the Extensions settings panel ([#232](https://github.com/silo-code/silo/issues/232)) ([4add02f](https://github.com/silo-code/silo/commit/4add02f5f7c3a041fb800a57345d59b0fa4de1ae))
+* **workspaces:** align empty-state open menu with groups and blended mark ([#231](https://github.com/silo-code/silo/issues/231)) ([b678380](https://github.com/silo-code/silo/commit/b678380c576f6897a9a07bc83ddd95736e90c596))
+
 ## [0.30.0](https://github.com/silo-code/silo/compare/silo-v0.29.2...silo-v0.30.0) (2026-07-15)
 
 
