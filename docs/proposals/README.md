@@ -55,3 +55,4 @@ never deleted** — "we considered X and rejected it" stops the debate recurring
 | [0010](./0010-pty-host-daemon.md)                         | Self-owned PTY host daemon (replace abduco)                       | 2026-06-04 | implemented |
 | [0013](./0013-context-menu-contributions.md)              | Context-menu contributions for built-in surfaces                  | 2026-07-02 | draft       |
 | [0014](./0014-extension-registry.md)                      | Extension registry — publishing, discovery, install               | 2026-07-12 | draft       |
+| [0015](./0015-workspace-extension-contributions.md)       | Workspace extension contributions — property pages + context menu | 2026-07-15 | draft       |
