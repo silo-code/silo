@@ -43,6 +43,14 @@ jobs:
         if: ${{ !inputs.publish }}
         run: pnpm publish --filter create-silo-extension --dry-run --no-git-checks
 
+      # Filtered to just create-silo-extension: `changeset publish` runs across
+      # every non-ignored workspace package, which previously made this
+      # workflow also re-attempt publishing @silo-code/sdk and could fail the
+      # whole job with "cannot publish over the previously published versions"
+      # if either package's local version already matched what's on npm.
+      # Versioning here is driven by release-please, not changesets (no
+      # pending changesets), so scoping the actual `npm publish` to this
+      # package loses nothing.
       - name: Publish to npm
         if: ${{ inputs.publish }}
-        run: pnpm changeset publish
+        run: pnpm publish --filter create-silo-extension --no-git-checks

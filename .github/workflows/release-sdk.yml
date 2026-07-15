@@ -47,10 +47,13 @@ jobs:
         run: pnpm publish --filter @silo-code/sdk --dry-run --no-git-checks
 
       # Gated path: real publish via OIDC trusted publishing (no token in env).
-      # `changeset publish` ships only non-private, ahead-of-registry packages
-      # (just @silo-code/sdk) and tags the release. If a scoped-package OIDC E404
-      # ever appears here, the fallback is `pnpm publish --filter @silo-code/sdk
-      # --no-git-checks` (npm/cli #8976).
+      # Filtered to just @silo-code/sdk: `changeset publish` runs across every
+      # non-ignored workspace package, which previously made this workflow also
+      # re-attempt publishing create-silo-extension (already on npm at the same
+      # version) and fail the whole job with "cannot publish over the previously
+      # published versions". Versioning here is driven by release-please, not
+      # changesets (no pending changesets), so scoping the actual `npm publish`
+      # to this package loses nothing.
       - name: Publish to npm
         if: ${{ inputs.publish }}
-        run: pnpm changeset publish
+        run: pnpm publish --filter @silo-code/sdk --no-git-checks
