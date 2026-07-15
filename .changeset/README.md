@@ -1,23 +1,37 @@
-# Changesets
+# Changesets (mostly vestigial — read this before touching SDK versioning)
 
-This folder versions the **publishable npm packages** in the monorepo via
-[changesets](https://github.com/changesets/changesets). Today that is exactly one
-package: **`@silo-code/sdk`** — every other package is `private: true`, and
-changesets skips private packages.
+**`@silo-code/sdk` is actually versioned and released by release-please**, not by
+this folder. `release-please-config.json` configures `packages/sdk` as a `node`
+component alongside the app (`separate-pull-requests: true`), computing the next
+version from conventional-commit messages (`feat:`/`fix:`) scoped to files under
+`packages/sdk`. Every `sdk-vX.Y.Z` tag/release/CHANGELOG entry going back to 0.9.0
+was cut this way — `release-please.yml` proposes the release PR, and merging it
+auto-tags, creates the GitHub release (marked pre-release so it never steals the
+"Latest" slot from app releases), and auto-dispatches `release-sdk.yml -f
+publish=true` to actually publish to npm via OIDC trusted publishing.
 
-Add a changeset whenever you change the public SDK surface:
+**What this means for you:** to ship an SDK change, just write a properly-scoped
+conventional commit (`feat(processes): ...`, `fix(sdk): ...`) touching
+`packages/sdk` in your PR. You do not need to run `pnpm changeset`, add a file to
+this folder, or run `pnpm version-packages` / `pnpm release:sdk` yourself —
+release-please picks it up automatically on the next push to `main`.
 
-```sh
-pnpm changeset
-```
+`pnpm changeset` / `pnpm version-packages` / `pnpm release:sdk` still exist as
+scripts, and `.changeset/*.md` files are still a valid (if currently unused)
+changesets format — but nothing in CI actually consumes them for versioning
+`@silo-code/sdk` right now. **Do not run `pnpm version-packages` manually** —
+doing so bumps `packages/sdk/package.json`/`CHANGELOG.md` in changesets' own
+format without updating `.release-please-manifest.json` or creating a
+release-please-recognized tag, which desyncs release-please's tracking. When
+that happened in practice, release-please's next run couldn't recognize the
+manual CHANGELOG entry as continuous with its own history and proposed a
+release that re-listed the SDK's _entire_ commit history as newly shipped.
 
-Pick `@silo-code/sdk`, a bump level (patch / minor / major — the SDK is a stable
-public contract, so treat removals/renames as **major**), and write a one-line
-summary. The file it creates is committed alongside your change; at release time
-`pnpm version-packages` rolls accumulated changesets into the version + CHANGELOG,
-and `pnpm release:sdk` builds and publishes.
+`release-sdk.yml` remains a legitimate manual **fallback** — dispatch it with
+`publish: true` if the auto-dispatch from release-please ever fails to fire (its
+default dry-run mode is always safe to run to sanity-check the publishable
+artifact). Just don't pair it with a hand-rolled version bump.
 
-> **Note:** the desktop app (`apps/desktop`, the `silo` package) is versioned and
-> released separately by **release-please** (`release-please-config.json` +
-> `.github/workflows/release-please.yml`). The two systems never touch the same
-> package — changesets owns `@silo-code/sdk`; release-please owns the app.
+If you're touching this area: this whole folder may be worth removing once
+someone confirms nothing else depends on it — flagging here rather than doing
+that unprompted.
