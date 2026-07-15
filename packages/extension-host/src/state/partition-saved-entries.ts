@@ -1,8 +1,9 @@
-import type { Workspace } from "./workspace-helpers";
+import type { Workspace } from "@silo-code/sdk";
 
 // Pure partitioning logic for the "Saved" reopen menu: while a group is
 // closed, its members are hidden from the individual closed-workspace list —
 // only the group entry appears, and restoring it brings the members back.
+// Shared by the host empty-state menu and the workspaces extension's add menu.
 
 export interface ClosedGroupEntry {
   id: string;

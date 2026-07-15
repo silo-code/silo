@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { partitionSavedEntries } from "./workspace-add-menu-model";
-import type { Workspace } from "./workspace-helpers";
+import { partitionSavedEntries } from "./partition-saved-entries";
+import type { Workspace } from "@silo-code/sdk";
 
 function ws(
   id: string,

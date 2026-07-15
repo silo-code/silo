@@ -6,10 +6,14 @@ import {
   type ExtensionContext,
   type MenuEntry,
 } from "@silo-code/sdk";
-import { homeDir, store, Tooltip } from "@silo-code/extension-host/internal";
+import {
+  homeDir,
+  store,
+  Tooltip,
+  partitionSavedEntries,
+} from "@silo-code/extension-host/internal";
 import { useFolderExistence } from "./workspace-helpers";
 import { buildAddWorkspaceItems } from "./workspace-add-menu";
-import { partitionSavedEntries } from "./workspace-add-menu-model";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { openWorkspaceProperties } from "./workspace-properties";
 import "./WorkspaceStatusItem.css";
@@ -92,6 +96,9 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
         closedGroups: savedEntries.groupEntries,
         folderExistence,
         onNew,
+        onNewGroup: () => {
+          void ctx.executeCommand("workspace.newGroup");
+        },
       }),
     });
     // 5. ── divider ──

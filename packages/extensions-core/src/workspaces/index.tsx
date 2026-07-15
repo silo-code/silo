@@ -3,6 +3,7 @@ import { store, groupIdForWorkspace } from "@silo-code/extension-host/internal";
 import { WorkspacesPanel } from "./WorkspacesPanel";
 import { WorkspaceStatusItem } from "./WorkspaceStatusItem";
 import { registerWorkspaceCycle } from "./workspace-cycle";
+import { openNewGroup } from "./group-properties";
 
 export const extension: Extension = {
   id: "core.workspaces",
@@ -63,6 +64,14 @@ export const extension: Extension = {
         void ctx.workspaces.createFromFolderPicker().catch((err) => {
           console.error("create workspace failed", err);
         });
+      },
+    });
+
+    ctx.registerCommand({
+      id: "workspace.newGroup",
+      label: "New Group…",
+      run: () => {
+        void openNewGroup(ctx);
       },
     });
 

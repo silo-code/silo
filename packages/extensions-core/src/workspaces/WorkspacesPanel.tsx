@@ -15,6 +15,7 @@ import {
   ungroupWorkspace,
   toggleGroupCollapsed,
   workspaceGroupMap,
+  partitionSavedEntries,
 } from "@silo-code/extension-host/internal";
 import {
   Tooltip,
@@ -37,13 +38,8 @@ import {
   type Workspace,
 } from "./workspace-helpers";
 import { buildAddWorkspaceItems } from "./workspace-add-menu";
-import { partitionSavedEntries } from "./workspace-add-menu-model";
 import { openWorkspaceProperties } from "./workspace-properties";
-import {
-  openGroupProperties,
-  openNewGroup,
-  type GroupSnapshot,
-} from "./group-properties";
+import { openGroupProperties, type GroupSnapshot } from "./group-properties";
 import { useWorkspaceDnd } from "./use-workspace-dnd";
 import { buildNavItems } from "./workspace-nav";
 import "./WorkspacesPanel.css";
@@ -250,7 +246,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   }
 
   function onNewGroup() {
-    void openNewGroup(ctx);
+    void ctx.executeCommand("workspace.newGroup");
   }
 
   function openClosedMenu() {

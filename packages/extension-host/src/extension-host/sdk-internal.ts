@@ -131,6 +131,10 @@ export {
   restoreGroup,
 } from "../state/workspaces";
 export type { WorkspaceGroup, WorkspaceInternal } from "../state/types";
+// Shared "Saved" menu partitioning (closed groups vs individually-listed
+// workspaces) used by the host empty-state menu and the workspaces add menus.
+export { partitionSavedEntries } from "../state/partition-saved-entries";
+export type { ClosedGroupEntry } from "../state/partition-saved-entries";
 
 export {
   // The shared editor seam: reactive host store + the editor/diff record model,
