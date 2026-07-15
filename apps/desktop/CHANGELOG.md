@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.2](https://github.com/silo-code/silo/compare/silo-v0.29.1...silo-v0.29.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* **release:** reconcile release-please manifest with the manual sdk 0.26.0 bump ([#218](https://github.com/silo-code/silo/issues/218)) ([f3787c6](https://github.com/silo-code/silo/commit/f3787c6b990cd50267a6497aba25d6db25a018a4))
+
 ## [0.29.1](https://github.com/silo-code/silo/compare/silo-v0.29.0...silo-v0.29.1) (2026-07-14)
 
 
