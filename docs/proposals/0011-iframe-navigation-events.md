@@ -1,5 +1,5 @@
 ---
-status: draft
+status: implemented
 created: 2026-06-21
 ---
 
@@ -189,7 +189,7 @@ frames; polling cannot distinguish "same URL" from "new URL" without reading it.
 
 ## Decision
 
-_To be filled in when the RFC is accepted._
-
-Once implemented, flip `ctx.webview` on the [Roadmap](/roadmap) from `planned`
-to `stable` and add its hand-authored page at `apps/docs/api/state/webview.md`.
+**Implemented.** Shipped as `ctx.webview` — `WebFrame.onNavigate` /
+`onBlocked` — via the three-layer design above (Tauri init script → host
+message listener → SDK surface). `ctx.webview` is `stable` on the
+[Roadmap](/roadmap) and documented at [`/api/webview/`](/api/webview/).

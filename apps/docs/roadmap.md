@@ -136,7 +136,6 @@ The shape of each planned surface is now designed in an **RFC** under
 | Extension authoring toolchain                                                       | [RFC 0007](https://github.com/silo-code/silo/blob/main/docs/proposals/0007-extension-authoring-toolchain.md)           |
 | Package format + remote install (GitHub / npm)                                      | [RFC 0008](https://github.com/silo-code/silo/blob/main/docs/proposals/0008-extension-package-format-remote-install.md) |
 | Language intelligence (TS/JS via `tsserver`)                                        | [RFC 0009](https://github.com/silo-code/silo/blob/main/docs/proposals/0009-language-intelligence-lsp.md)               |
-| Self-owned PTY host daemon                                                          | [RFC 0010](https://github.com/silo-code/silo/blob/main/docs/proposals/0010-pty-host-daemon.md)                         |
 | <a id="context-menus"></a>Context-menu contributions (explorer / editor / terminal) | [RFC 0013](https://github.com/silo-code/silo/blob/main/docs/proposals/0013-context-menu-contributions.md)              |
 
 ---
