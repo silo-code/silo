@@ -1,6 +1,6 @@
 {
   "name": "@silo-code/sdk",
-  "version": "0.25.1",
+  "version": "0.26.0",
   "description": "The public, types-first SDK for building Silo extensions — the only surface third-party extensions import.",
   "license": "MIT",
   "author": "Dave Weaver",
