@@ -4,6 +4,7 @@ import {
   DotsThreeVertical,
   SealCheck,
 } from "@phosphor-icons/react";
+import { useSnapshot } from "valtio";
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
 import {
@@ -30,19 +31,24 @@ import {
 } from "./browse-model";
 import { sourceOriginLabel } from "./source-meta";
 import { ExtensionDetail } from "./ExtensionDetail";
+import { extensionsOnboarding, markVisited } from "./extensions-onboarding";
 import "./ExtensionsPage.css";
 
 const mgr = getExtensionManager();
 
 /**
  * The Settings-rail badge for the Extensions page (registered as
- * `SettingsPage.badge`): a count pill, mirroring the one on the Installed tab
- * (below), so an update is visible before the page is even opened. Reads the
- * manager's reactive state directly rather than the page's own `updates`
- * (which only exists once this page has mounted and fetched the registry).
+ * `SettingsPage.badge`): a "New" onboarding pill until the page is opened
+ * once, then the update-count pill (mirroring Installed). Reads the manager's
+ * reactive state directly rather than the page's own `updates` (which only
+ * exists once this page has mounted and fetched the registry).
  */
 export function ExtensionsRailBadge() {
+  const { visited } = useSnapshot(extensionsOnboarding);
   const { availableUpdates } = useServiceState(mgr);
+  if (!visited) {
+    return <span className="ext-update-count">New</span>;
+  }
   if (availableUpdates.length === 0) return null;
   return <span className="ext-update-count">{availableUpdates.length}</span>;
 }
@@ -77,6 +83,11 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       status: "loading",
     });
     const [updates, setUpdates] = useState<RegistryUpdate[]>([]);
+
+    // First mount clears the status-bar / rail onboarding indicators.
+    useEffect(() => {
+      markVisited(ctx.storage.global);
+    }, [ctx.storage.global]);
 
     // One index fetch feeds both the catalog and the update check; the fetch
     // is ETag-conditional so re-opening the page is a zero-body 304.

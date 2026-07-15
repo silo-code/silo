@@ -18,8 +18,9 @@
   color: var(--silo-color-text-hi);
 }
 
-/* Subtle presence dot — extension updates are pending. No count: this is a
-   glance indicator, the count lives in the settings rail / Installed tab. */
+/* Subtle presence dot — extension updates pending, or the Extensions panel
+   has never been opened. No count: this is a glance indicator; the rail
+   badge carries the text / count. */
 .settings-button-badge {
   position: absolute;
   top: 1px;

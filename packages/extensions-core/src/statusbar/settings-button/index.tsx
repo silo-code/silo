@@ -4,9 +4,11 @@
 // deps (React, @phosphor-icons/react), and acts on the app only through `ctx`
 // (the core-owned `settings.open` command).
 
+import { useSnapshot } from "valtio";
 import type { Extension } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
 import { getExtensionManager } from "@silo-code/extension-host/internal";
+import { extensionsOnboarding } from "../../extensions/extensions-onboarding";
 import "./settings-button.css";
 
 // Gear/cog path on a 24×24 grid (from Twitter/X settings icon).
@@ -41,17 +43,22 @@ export const extension: Extension = {
     // The component closes over `ctx`; identity is stable (activate runs once).
     function SettingsButton() {
       const { availableUpdates } = useServiceState(getExtensionManager());
+      const { visited } = useSnapshot(extensionsOnboarding);
       const hasUpdates = availableUpdates.length > 0;
+      const showBadge = hasUpdates || !visited;
+      const ariaLabel = hasUpdates
+        ? "Settings (extension updates available)"
+        : !visited
+          ? "Settings (discover Extensions)"
+          : "Settings";
       return (
         <button
           className="settings-button"
-          aria-label={
-            hasUpdates ? "Settings (extension updates available)" : "Settings"
-          }
+          aria-label={ariaLabel}
           onClick={() => ctx.executeCommand("settings.open")}
         >
           <GearIcon />
-          {hasUpdates && (
+          {showBadge && (
             <span className="settings-button-badge" aria-hidden="true" />
           )}
         </button>

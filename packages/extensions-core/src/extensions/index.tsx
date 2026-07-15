@@ -1,10 +1,12 @@
 import type { Extension } from "@silo-code/sdk";
 import { EXTENSIONS_SETTINGS_GROUP } from "@silo-code/extension-host/internal";
 import { makeExtensionsPage, ExtensionsRailBadge } from "./ExtensionsPage";
+import { bindExtensionsOnboarding } from "./extensions-onboarding";
 
 export const extension: Extension = {
   id: "core.extensions",
   activate(ctx) {
+    ctx.subscriptions.push(bindExtensionsOnboarding(ctx.storage.global));
     ctx.registerSettingsPage({
       id: "extensions",
       title: "Extensions",
