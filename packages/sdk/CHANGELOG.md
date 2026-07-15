@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.27.0](https://github.com/silo-code/silo/compare/sdk-v0.26.0...sdk-v0.27.0) (2026-07-15)
+
+
+### Features
+
+* **extensions:** surface pending extension updates in status bar, settings rail, and app menu ([#224](https://github.com/silo-code/silo/issues/224)) ([00e5911](https://github.com/silo-code/silo/commit/00e5911ff1c154f4b4cbda9e26f0276caf4e310c))
+
 ## 0.26.0
 
 ### Minor Changes
