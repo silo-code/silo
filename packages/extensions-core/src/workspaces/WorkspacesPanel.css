@@ -115,6 +115,11 @@
   align-items: baseline;
   gap: 6px;
   min-width: 0;
+}
+
+/* Only reserve room for the close button while it's actually visible (on
+   hover) — otherwise it forces truncation even when nothing overlaps. */
+.ws-item:hover .ws-name-row {
   padding-right: 22px;
 }
 
@@ -129,14 +134,18 @@
 
 .ws-item .ws-badge {
   font-family: var(--silo-font-ui);
-  font-size: calc(1em - 2px);
+  font-size: calc(1em - 3px);
   color: var(--silo-color-text-lo);
   border: 1px solid var(--silo-color-text-lo);
   border-radius: 3px;
   padding: 0 4px;
   line-height: 1.1;
   flex-shrink: 0;
+  text-transform: lowercase;
   background: color-mix(in srgb, currentColor 12%, transparent);
+  /* Nudge up so the bordered box optically aligns with the baseline-aligned name text. */
+  position: relative;
+  top: -1px;
 }
 
 .ws-item .ws-folder {
