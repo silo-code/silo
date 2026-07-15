@@ -35,6 +35,8 @@ export interface WorkspaceInternal extends Workspace {
   dockLayout: unknown | null;
   editorScrollPositions?: Record<string, { top: number; left: number }>;
   editorViewStates?: Record<string, unknown>;
+  /** Per-tab word-wrap/minimap overrides, toggled from the editor's context menu. */
+  editorSettingsOverrides?: Record<string, EditorSettingsOverride>;
   sidePanelLocations?: Record<string, SidePanelSlot>;
   sidePanelOrder?: Record<string, number>;
   activeSidePanelTabs?: Record<string, string>;
@@ -216,6 +218,16 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   smoothScrolling: true,
   breadcrumbs: true,
 };
+
+/**
+ * A single tab's overrides of the global {@link EditorSettings} — only the
+ * fields a per-instance context-menu toggle can flip. Absent keys fall
+ * through to the global setting; see mergeEditorSettings() in
+ * editor-settings.ts.
+ */
+export type EditorSettingsOverride = Partial<
+  Pick<EditorSettings, "wordWrap" | "minimap">
+>;
 
 export type TerminalCursorStyle = "block" | "bar" | "underline";
 

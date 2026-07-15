@@ -4,6 +4,7 @@ import { store } from "./store";
 import { clearEditorBackup } from "./editor-backups";
 import type {
   EditorRecord,
+  EditorSettingsOverride,
   TerminalKind,
   TerminalRecord,
   WorkspaceInternal,
@@ -172,6 +173,31 @@ export function getEditorViewState(
   editorId: string,
 ): unknown {
   return store.workspaces[workspaceId]?.editorViewStates?.[editorId] ?? null;
+}
+
+export function setEditorSettingOverride<
+  K extends keyof EditorSettingsOverride,
+>(
+  workspaceId: string,
+  editorId: string,
+  key: K,
+  value: EditorSettingsOverride[K],
+): void {
+  const ws = store.workspaces[workspaceId];
+  if (!ws) return;
+  if (!ws.editorSettingsOverrides) ws.editorSettingsOverrides = {};
+  if (!ws.editorSettingsOverrides[editorId])
+    ws.editorSettingsOverrides[editorId] = {};
+  ws.editorSettingsOverrides[editorId][key] = value;
+}
+
+export function getEditorSettingOverride(
+  workspaceId: string,
+  editorId: string,
+): EditorSettingsOverride {
+  return (
+    store.workspaces[workspaceId]?.editorSettingsOverrides?.[editorId] ?? {}
+  );
 }
 
 /**

@@ -14,6 +14,8 @@ import {
   savePanelStateToWorkspace,
   loadPanelStateFromWorkspace,
   activateWorkspace,
+  setEditorSettingOverride,
+  getEditorSettingOverride,
 } from "./workspaces";
 import { clearEditorBackup } from "./editor-backups";
 
@@ -95,5 +97,35 @@ describe("side-panel visibility is per-workspace", () => {
     // And w2 kept its own.
     activateWorkspace("w2");
     expect(store.sidePanelVisibility).toEqual({ git: false });
+  });
+});
+
+describe("editor settings override (per-tab word wrap / minimap)", () => {
+  it("returns {} when no override has been set", () => {
+    expect(getEditorSettingOverride("w", "ed1")).toEqual({});
+  });
+
+  it("stores and reads back a single key", () => {
+    setEditorSettingOverride("w", "ed1", "wordWrap", true);
+    expect(getEditorSettingOverride("w", "ed1")).toEqual({ wordWrap: true });
+  });
+
+  it("merges a second key into the same editor's override", () => {
+    setEditorSettingOverride("w", "ed1", "wordWrap", true);
+    setEditorSettingOverride("w", "ed1", "minimap", true);
+    expect(getEditorSettingOverride("w", "ed1")).toEqual({
+      wordWrap: true,
+      minimap: true,
+    });
+  });
+
+  it("keeps overrides independent per editor id", () => {
+    setEditorSettingOverride("w", "ed1", "wordWrap", true);
+    expect(getEditorSettingOverride("w", "ed2")).toEqual({});
+  });
+
+  it("is a no-op for a workspace id that doesn't exist", () => {
+    setEditorSettingOverride("missing", "ed1", "wordWrap", true);
+    expect(getEditorSettingOverride("missing", "ed1")).toEqual({});
   });
 });

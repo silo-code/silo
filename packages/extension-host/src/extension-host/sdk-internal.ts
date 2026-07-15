@@ -150,6 +150,9 @@ export {
   resolveRestoredBuffer,
   getEditorSettings,
   setEditorSetting,
+  getEditorSettingOverride,
+  mergeEditorSettings,
+  toggleEditorViewOption,
   monacoThemeName,
   getDiffContentProvider,
   languageFromPath,
@@ -160,6 +163,7 @@ export {
 } from "./editor-core";
 export type {
   EditorSettings,
+  EditorSettingsOverride,
   RenderWhitespace,
   RenderLineHighlight,
 } from "./editor-core";

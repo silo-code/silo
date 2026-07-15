@@ -1,6 +1,10 @@
 import type { editor as MonacoEditor } from "monaco-editor";
 import { store } from "./store";
-import type { EditorSettings } from "./types";
+import {
+  getEditorSettingOverride,
+  setEditorSettingOverride,
+} from "./workspaces";
+import type { EditorSettings, EditorSettingsOverride } from "./types";
 
 /**
  * Resolve the effective editor settings.
@@ -20,6 +24,35 @@ export function setEditorSetting<K extends keyof EditorSettings>(
   value: EditorSettings[K],
 ): void {
   store.editorSettings[key] = value;
+}
+
+/**
+ * Overlay a tab's local override (if any) onto the global settings — pure, so
+ * it's unit-testable without touching the store. Absent override keys fall
+ * through to `base`.
+ */
+export function mergeEditorSettings(
+  base: EditorSettings,
+  override: EditorSettingsOverride | undefined,
+): EditorSettings {
+  return { ...base, ...override };
+}
+
+/**
+ * Flip one tab's word-wrap/minimap override relative to its *effective*
+ * current value (global setting overlaid by any existing override) — not the
+ * global value — so toggling always does what the menu label just showed.
+ */
+export function toggleEditorViewOption(
+  workspaceId: string,
+  editorId: string,
+  key: keyof EditorSettingsOverride,
+): void {
+  const effective = mergeEditorSettings(
+    getEditorSettings(),
+    getEditorSettingOverride(workspaceId, editorId),
+  );
+  setEditorSettingOverride(workspaceId, editorId, key, !effective[key]);
 }
 
 /**
