@@ -9,9 +9,19 @@
 // Assert at the surviving contract (the settings → options function), not the
 // component internals that are about to move.
 
-import { describe, it, expect } from "vitest";
-import { toMonacoOptions } from "./editor-settings";
-import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from "./types";
+import { describe, it, expect, beforeEach } from "vitest";
+import {
+  toMonacoOptions,
+  mergeEditorSettings,
+  toggleEditorViewOption,
+} from "./editor-settings";
+import { getEditorSettingOverride } from "./workspaces";
+import { store } from "./store";
+import {
+  DEFAULT_EDITOR_SETTINGS,
+  type EditorSettings,
+  type WorkspaceInternal,
+} from "./types";
 
 describe("toMonacoOptions", () => {
   it("maps the shipped defaults to the expected Monaco options", () => {
@@ -75,5 +85,78 @@ describe("toMonacoOptions", () => {
       formatOnSave: true,
     });
     expect(opts).not.toHaveProperty("formatOnSave");
+  });
+});
+
+describe("mergeEditorSettings", () => {
+  it("falls through to the base when no override is given", () => {
+    expect(mergeEditorSettings(DEFAULT_EDITOR_SETTINGS, undefined)).toEqual(
+      DEFAULT_EDITOR_SETTINGS,
+    );
+  });
+
+  it("overlays only the overridden keys, leaving the rest of the base untouched", () => {
+    const merged = mergeEditorSettings(DEFAULT_EDITOR_SETTINGS, {
+      wordWrap: true,
+    });
+    expect(merged.wordWrap).toBe(true);
+    expect(merged.minimap).toBe(DEFAULT_EDITOR_SETTINGS.minimap);
+    expect(merged.tabSize).toBe(DEFAULT_EDITOR_SETTINGS.tabSize);
+  });
+
+  it("overlays both overridden keys at once", () => {
+    const merged = mergeEditorSettings(DEFAULT_EDITOR_SETTINGS, {
+      wordWrap: true,
+      minimap: true,
+    });
+    expect(merged.wordWrap).toBe(true);
+    expect(merged.minimap).toBe(true);
+  });
+});
+
+describe("toggleEditorViewOption", () => {
+  function makeWorkspace(id: string): WorkspaceInternal {
+    return {
+      id,
+      name: id,
+      folder: `/ws/${id}`,
+      createdAt: "",
+      lastOpenedAt: "",
+      terminals: [],
+      editors: [],
+      dockLayout: null,
+      previewEditorId: null,
+    };
+  }
+
+  beforeEach(() => {
+    store.workspaces = { w: makeWorkspace("w") };
+    store.editorSettings = { ...DEFAULT_EDITOR_SETTINGS };
+  });
+
+  it("flips the effective (global) value into an explicit override", () => {
+    expect(store.editorSettings.wordWrap).toBe(false);
+    toggleEditorViewOption("w", "ed1", "wordWrap");
+    expect(getEditorSettingOverride("w", "ed1")).toEqual({ wordWrap: true });
+  });
+
+  it("flips relative to an existing override, not the global default", () => {
+    toggleEditorViewOption("w", "ed1", "wordWrap"); // false -> true
+    toggleEditorViewOption("w", "ed1", "wordWrap"); // true -> false
+    expect(getEditorSettingOverride("w", "ed1")).toEqual({ wordWrap: false });
+  });
+
+  it("keeps overrides independent per key", () => {
+    toggleEditorViewOption("w", "ed1", "wordWrap");
+    toggleEditorViewOption("w", "ed1", "minimap");
+    expect(getEditorSettingOverride("w", "ed1")).toEqual({
+      wordWrap: true,
+      minimap: true,
+    });
+  });
+
+  it("keeps overrides independent per editor id", () => {
+    toggleEditorViewOption("w", "ed1", "wordWrap");
+    expect(getEditorSettingOverride("w", "ed2")).toEqual({});
   });
 });

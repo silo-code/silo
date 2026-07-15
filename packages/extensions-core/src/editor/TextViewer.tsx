@@ -22,6 +22,8 @@ import {
   readEditorBackup,
   resolveRestoredBuffer,
   getEditorSettings,
+  mergeEditorSettings,
+  toggleEditorViewOption,
   monacoThemeName,
   languageFromPath,
   toTextEditorOptions,
@@ -74,6 +76,17 @@ export function TextViewer({
   const filePath = record?.filePath ?? null;
   const isUntitled = record !== null && filePath === null;
 
+  // This tab's own word-wrap/minimap overrides (if any), read through `snap`
+  // so valtio re-renders this component when they change — merged over the
+  // global settings without mutating them.
+  const settingsOverride = wsId
+    ? snap.workspaces[wsId]?.editorSettingsOverrides?.[editorId]
+    : undefined;
+  const effectiveSettings = mergeEditorSettings(
+    snap.editorSettings,
+    settingsOverride,
+  );
+
   // Both saved files and untitled buffers start with `null` content so we
   // render the placeholder for one paint before Monaco mounts. This lets
   // dockview finish its own focus shuffle around a freshly-added panel — if
@@ -99,6 +112,10 @@ export function TextViewer({
   // re-reading from disk when an untitled buffer is "save-as"d — we just
   // wrote the file ourselves so disk == in-memory.
   const loadedPathRef = useRef<string | null>(null);
+  // The two per-tab view-toggle context-menu actions currently registered on
+  // this editor, so a re-registration (label needs to flip) disposes the
+  // previous pair first.
+  const viewActionsRef = useRef<Array<{ dispose(): void }>>([]);
   // Active disposer for this editor's selection source (registered while focused).
   const selSourceRef = useRef<Disposable | null>(null);
 
@@ -395,12 +412,56 @@ export function TextViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [content]);
 
+  // Keep the context-menu labels in sync after the initial mount (registered
+  // once by onMount above) — re-registers whenever the effective value
+  // changes, whether from this tab's own toggle or a change to the global
+  // default while this tab has no override.
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    registerViewToggleActions(ed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSettings.wordWrap, effectiveSettings.minimap]);
+
+  // Register this tab's "Word Wrap" / "Minimap" entries in Monaco's own
+  // native context menu, just below its built-in groups. Monaco actions have
+  // no checkbox rendering, so on/off is encoded in the label text — which
+  // means the pair has to be disposed and re-added whenever the effective
+  // value flips, to keep the label in sync. Text editor only; diff mode has
+  // no per-tab override.
+  function registerViewToggleActions(ed: MonacoEditor.IStandaloneCodeEditor) {
+    for (const d of viewActionsRef.current) d.dispose();
+    viewActionsRef.current = [
+      ed.addAction({
+        id: "silo.editor.toggleWordWrapForTab",
+        label: effectiveSettings.wordWrap ? "Word Wrap ✓" : "Word Wrap",
+        contextMenuGroupId: "9_silo-view",
+        contextMenuOrder: 1,
+        run: () => {
+          const ws = wsIdRef.current;
+          if (ws) toggleEditorViewOption(ws, editorId, "wordWrap");
+        },
+      }),
+      ed.addAction({
+        id: "silo.editor.toggleMinimapForTab",
+        label: effectiveSettings.minimap ? "Minimap ✓" : "Minimap",
+        contextMenuGroupId: "9_silo-view",
+        contextMenuOrder: 2,
+        run: () => {
+          const ws = wsIdRef.current;
+          if (ws) toggleEditorViewOption(ws, editorId, "minimap");
+        },
+      }),
+    ];
+  }
+
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     // Shared core setup: app themes + active theme + strip the broken
     // semantic-navigation context-menu actions. Same call the diff mode makes,
     // so both stay in lockstep.
     setupMonacoEditor(monaco, editor);
+    registerViewToggleActions(editor);
 
     // A pending reveal (opened via `ctx.editors.open(path, { selection })` — e.g.
     // a clicked search result) wins over scroll restore: jump to and select the
@@ -564,11 +625,12 @@ export function TextViewer({
         }}
         onMount={onMount}
         // The shared core's text-mode options: global editor settings (minimap,
-        // indentation, wrap, whitespace, formatOnType/Paste, …) + font + drop
-        // handling. Diff mode derives from the same settings via the sibling
-        // builder, so the two can't drift. Updates flow through because
+        // indentation, wrap, whitespace, formatOnType/Paste, …), this tab's own
+        // word-wrap/minimap override (if any), + font + drop handling. Diff
+        // mode derives from the global settings alone via the sibling builder
+        // (no per-tab override there). Updates flow through because
         // @monaco-editor/react re-applies the options prop.
-        options={toTextEditorOptions(snap.editorSettings, snap.uiFontSize)}
+        options={toTextEditorOptions(effectiveSettings, snap.uiFontSize)}
       />
     );
   }

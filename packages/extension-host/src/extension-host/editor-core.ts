@@ -7,6 +7,7 @@ import {
   getEditorScrollPosition,
   setEditorViewState,
   getEditorViewState,
+  getEditorSettingOverride,
 } from "../state/workspaces";
 import {
   setEditorBackup,
@@ -14,9 +15,15 @@ import {
   readEditorBackup,
   resolveRestoredBuffer,
 } from "../state/editor-backups";
-import { getEditorSettings, setEditorSetting } from "../state/editor-settings";
+import {
+  getEditorSettings,
+  setEditorSetting,
+  mergeEditorSettings,
+  toggleEditorViewOption,
+} from "../state/editor-settings";
 import type {
   EditorSettings,
+  EditorSettingsOverride,
   RenderWhitespace,
   RenderLineHighlight,
 } from "../state/types";
@@ -68,6 +75,12 @@ export {
   resolveRestoredBuffer,
   getEditorSettings,
   setEditorSetting,
+  // Per-tab word-wrap/minimap override: read, merge with the global tier, and
+  // toggle — backs the editor's own context-menu entries (not part of the
+  // global Settings page).
+  getEditorSettingOverride,
+  mergeEditorSettings,
+  toggleEditorViewOption,
   getDndService,
   monacoThemeName,
   getThemeBase,
@@ -76,7 +89,12 @@ export {
   // views reach it via @silo-code/extension-host/internal rather than a raw docked/ path.
   ensureMonaco,
 };
-export type { EditorSettings, RenderWhitespace, RenderLineHighlight };
+export type {
+  EditorSettings,
+  EditorSettingsOverride,
+  RenderWhitespace,
+  RenderLineHighlight,
+};
 
 /**
  * Shared Monaco onMount setup for both modes: register the app themes, apply the
