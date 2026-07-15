@@ -1,4 +1,5 @@
 .settings-button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -15,4 +16,16 @@
 
 .settings-button:hover {
   color: var(--silo-color-text-hi);
+}
+
+/* Subtle presence dot — extension updates are pending. No count: this is a
+   glance indicator, the count lives in the settings rail / Installed tab. */
+.settings-button-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--silo-color-accent);
 }

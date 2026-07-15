@@ -53,6 +53,10 @@
 }
 
 .settings-rail-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   text-align: left;
   background: transparent;
   border: none;
@@ -61,6 +65,11 @@
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
   font: inherit;
+}
+.settings-rail-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .settings-rail-item:hover {
   background: var(--silo-color-bg-hover);

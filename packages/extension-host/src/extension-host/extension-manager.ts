@@ -153,6 +153,14 @@ export interface InstalledExtension {
 
 export interface ExtensionManagerState {
   extensions: readonly InstalledExtension[];
+  /**
+   * Registry updates available for installed extensions, as of the last
+   * {@link ExtensionManager.checkUpdates} call. Empty until the first check
+   * (startup kicks one off; see `main.tsx`) — surfaces the same data the
+   * Extensions page shows, reactively, so other UI (status bar, settings
+   * rail) can indicate updates without polling the registry themselves.
+   */
+  availableUpdates: readonly RegistryUpdate[];
 }
 
 export interface ExtensionManager extends ReactiveService<ExtensionManagerState> {
@@ -412,7 +420,10 @@ async function writeInstalledFile(file: InstalledFile): Promise<void> {
 
 // ---- reactive state ----------------------------------------------------------
 
-let cached: ExtensionManagerState = Object.freeze({ extensions: [] });
+let cached: ExtensionManagerState = Object.freeze({
+  extensions: [],
+  availableUpdates: [],
+});
 const listeners = new Set<(s: ExtensionManagerState) => void>();
 
 function emit(): void {
@@ -487,7 +498,12 @@ async function refresh(): Promise<void> {
     });
   }
   rows.sort((a, b) => a.name.localeCompare(b.name));
-  cached = Object.freeze({ extensions: rows });
+  // Preserve the last update check — a refresh (install/uninstall/enable/
+  // disable) doesn't itself change what's available upstream.
+  cached = Object.freeze({
+    extensions: rows,
+    availableUpdates: cached.availableUpdates,
+  });
   emit();
 }
 
@@ -810,7 +826,10 @@ export function getExtensionManager(): ExtensionManager {
 
     async checkUpdates() {
       const index = await fetchRegistryIndex();
-      return findUpdates(cached.extensions, index);
+      const availableUpdates = findUpdates(cached.extensions, index);
+      cached = Object.freeze({ ...cached, availableUpdates });
+      emit();
+      return availableUpdates;
     },
 
     async readInstalledReadme(id) {

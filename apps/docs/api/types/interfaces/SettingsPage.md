@@ -66,3 +66,19 @@ component: ComponentType;
 Defined in: [packages/sdk/src/types.ts:482](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L482)
 
 Renders the right-hand pane when this page is selected.
+
+***
+
+### badge?
+
+```ts
+optional badge?: ComponentType<{
+}>;
+```
+
+Defined in: [packages/sdk/src/types.ts:489](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L489)
+
+Optional small indicator rendered after the title in the left rail (e.g.
+an update-available count). Rendered as its own component — separate from
+[SettingsPage.component](#component) — so it can subscribe to reactive state and
+update independently of whether the page itself is the active one.

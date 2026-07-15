@@ -1,6 +1,6 @@
 import type { Extension } from "@silo-code/sdk";
 import { EXTENSIONS_SETTINGS_GROUP } from "@silo-code/extension-host/internal";
-import { makeExtensionsPage } from "./ExtensionsPage";
+import { makeExtensionsPage, ExtensionsRailBadge } from "./ExtensionsPage";
 
 export const extension: Extension = {
   id: "core.extensions",
@@ -13,6 +13,7 @@ export const extension: Extension = {
       group: EXTENSIONS_SETTINGS_GROUP,
       order: -1,
       component: makeExtensionsPage(ctx),
+      badge: ExtensionsRailBadge,
     });
   },
 };

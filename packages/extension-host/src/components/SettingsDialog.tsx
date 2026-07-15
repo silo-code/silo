@@ -45,6 +45,7 @@ export function SettingsDialog() {
           {pages.map((p) => {
             const newGroup = p.group !== lastGroup;
             lastGroup = p.group;
+            const Badge = p.badge;
             return (
               <button
                 key={p.id}
@@ -55,7 +56,8 @@ export function SettingsDialog() {
                   ui.pageId = p.id;
                 }}
               >
-                {p.title}
+                <span className="settings-rail-item-label">{p.title}</span>
+                {Badge && <Badge />}
               </button>
             );
           })}

@@ -57,6 +57,12 @@
   --silo-button-primary-text: #fff;
   --silo-button-danger-bg: var(--silo-color-err);
   --silo-button-danger-text: #fff;
+  /* Normal-button hover/active fill. Dark themes push toward black (the
+     button surface already sits lighter than the panel, so darkening reads
+     as a subtle recess); light themes override this to push toward white
+     instead — see the light block below. */
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
 
   /* ── Component tokens · colors (theming-contract.md › The component-token
    * surface). Host-chrome treatments — `ThemeVars` keys (theme-overridable) but
@@ -211,6 +217,11 @@
      --silo-color-bg-hover default). Hover darkens further via the color-mix in the button
      rules. */
   --silo-button-bg: #d4d4d4;
+  /* Direction flip from the dark default above: the button surface here sits
+     darker than the panel, so darkening it further on hover reads as harsh,
+     near-black. Push toward white instead — lighter and still visible. */
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #fff);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #fff);
 
   --silo-content-text: var(--silo-color-content-text);
   --silo-content-editor-text-dim: #6b6b6b;
@@ -281,9 +292,12 @@ body,
  * Class names are `silo-`-prefixed for the same collision-firewall reason the
  * custom properties are (theming-contract.md › Decision 1) — these globals ride
  * on every button in extension DOM too.
- * Every variant hovers the same way: a slightly darker shade of its own fill
- * (color-mix toward black), with no border change. The variant :hover/:active
- * selectors carry a class, so they outspecify the generic ones below. */
+ * Every variant hovers/actives the same way structurally: a color-mix shade
+ * of its own fill, no border change. The normal variant's shade direction is
+ * theme-driven (`--silo-button-hover-bg`/`--silo-button-active-bg`, flipped
+ * light vs. dark above); primary/danger always mix toward black since their
+ * saturated fills read fine either way. The variant :hover/:active selectors
+ * carry a class, so they outspecify the generic ones below. */
 button {
   background: var(--silo-button-bg);
   color: var(--silo-button-text);
@@ -295,11 +309,11 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+  background: var(--silo-button-hover-bg);
 }
 
 button:active:not(:disabled) {
-  background: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+  background: var(--silo-button-active-bg);
 }
 
 button:disabled {
@@ -315,11 +329,11 @@ button.silo-button {
 }
 
 button.silo-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+  background: var(--silo-button-hover-bg);
 }
 
 button.silo-button:active:not(:disabled) {
-  background: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+  background: var(--silo-button-active-bg);
 }
 
 /* primary — primary action. */

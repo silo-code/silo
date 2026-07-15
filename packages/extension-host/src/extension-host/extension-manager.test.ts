@@ -954,4 +954,25 @@ describe("installFromRegistry", () => {
       }),
     ]);
   });
+
+  it("checkUpdates publishes the result onto reactive state for other UI to read", async () => {
+    global.fetch = registryFetch("1.0.0", "digest-1");
+    stageOnDownload();
+    await mgr.installFromRegistry("acme.x", async () => true);
+
+    clearRegistryCache();
+    global.fetch = registryFetch("1.1.0", "digest-2");
+
+    await mgr.checkUpdates();
+    expect(mgr.getState().availableUpdates).toEqual([
+      expect.objectContaining({ id: "acme.x" }),
+    ]);
+
+    // A subsequent refresh (install/uninstall/enable/disable) must not wipe
+    // the last known update check.
+    await mgr.disable("acme.x");
+    expect(mgr.getState().availableUpdates).toEqual([
+      expect.objectContaining({ id: "acme.x" }),
+    ]);
+  });
 });

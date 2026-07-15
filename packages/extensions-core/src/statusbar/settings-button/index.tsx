@@ -5,6 +5,8 @@
 // (the core-owned `settings.open` command).
 
 import type { Extension } from "@silo-code/sdk";
+import { useServiceState } from "@silo-code/sdk";
+import { getExtensionManager } from "@silo-code/extension-host/internal";
 import "./settings-button.css";
 
 // Gear/cog path on a 24×24 grid (from Twitter/X settings icon).
@@ -38,13 +40,20 @@ export const extension: Extension = {
   activate(ctx) {
     // The component closes over `ctx`; identity is stable (activate runs once).
     function SettingsButton() {
+      const { availableUpdates } = useServiceState(getExtensionManager());
+      const hasUpdates = availableUpdates.length > 0;
       return (
         <button
           className="settings-button"
-          aria-label="Settings"
+          aria-label={
+            hasUpdates ? "Settings (extension updates available)" : "Settings"
+          }
           onClick={() => ctx.executeCommand("settings.open")}
         >
           <GearIcon />
+          {hasUpdates && (
+            <span className="settings-button-badge" aria-hidden="true" />
+          )}
         </button>
       );
     }
