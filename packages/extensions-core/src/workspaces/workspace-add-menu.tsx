@@ -5,10 +5,13 @@ import {
   Trash,
   Warning,
 } from "@phosphor-icons/react";
-import { deleteGroup, restoreGroup } from "@silo-code/extension-host/internal";
+import {
+  deleteGroup,
+  restoreGroup,
+  type ClosedGroupEntry,
+} from "@silo-code/extension-host/internal";
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import type { Workspace } from "./workspace-helpers";
-import type { ClosedGroupEntry } from "./workspace-add-menu-model";
 
 // The "Add workspace" menu rows — closed workspaces to reopen, a separator, then
 // "New workspace…". Shared by the workspaces panel's add button (a standalone

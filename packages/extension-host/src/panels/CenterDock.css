@@ -26,17 +26,29 @@
 }
 
 .center-empty-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 60px;
-  height: 60px;
-  margin-bottom: 16px;
-  border-radius: var(--silo-radius-md);
-  color: var(--silo-color-accent);
-  background: color-mix(in srgb, var(--silo-color-accent) 12%, transparent);
-  border: 1px solid
-    color-mix(in srgb, var(--silo-color-accent) 22%, transparent);
+  /* Blended brand mark: a plate of the page bg with the "silo" wordmark
+     punched out (transparent) so the real screen bg shows through.
+     Luminance mask: white = painted plate, black = cutout.
+     Dark theme lifts the plate; light theme darkens it — either way the
+     cutout reads against the true `--silo-color-bg`. */
+  width: 72px;
+  height: 72px;
+  margin-bottom: 18px;
+  border-radius: 22%;
+  background: color-mix(in srgb, #ffffff 18%, var(--silo-color-bg));
+  -webkit-mask-image: url("./silo-mark-mask.png");
+  mask-image: url("./silo-mark-mask.png");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  /* WebKit still prefers the older source-type name for luminance masks. */
+  -webkit-mask-source-type: luminance;
+  mask-mode: luminance;
+}
+
+[data-theme="light"] .center-empty-mark {
+  background: color-mix(in srgb, #000000 12%, var(--silo-color-bg));
 }
 
 .center-empty-title {
