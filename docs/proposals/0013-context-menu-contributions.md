@@ -51,7 +51,8 @@ shown):
 export type MenuSurface =
   | "explorer/item" // right-click on a file/folder in the file explorer
   | "editor/tab" // right-click on an editor tab
-  | "terminal/tab"; // right-click on a terminal tab
+  | "terminal/tab" // right-click on a terminal tab
+  | "workspace"; // right-click on a workspace row in the Workspaces panel
 ```
 
 ### Context object per surface
@@ -65,8 +66,16 @@ export interface MenuContext {
   "explorer/item": { path: string; isDir: boolean; workspaceId: string };
   "editor/tab": { editorId: string; filePath: string | null; viewId: string };
   "terminal/tab": { terminalId: string; workspaceId: string };
+  workspace: Workspace; // the full Workspace type from domain-types
 }
 ```
+
+Note: the `"workspace"` surface is unique in that its context object is the
+full `Workspace` type rather than a lightweight derived object. This is because
+workspace actions (refresh, clear alerts, configure) typically need workspace
+metadata (id, folder, name) that the context menu consumer already has access to
+via the Workspaces panel's selection state. The `"workspace"` surface is added
+by [RFC 0015](./0015-workspace-extension-contributions.md).
 
 ### Registration
 
@@ -116,6 +125,9 @@ chosen command with the target as its argument. This reuses:
   via `when`. B12 is not required to ship this, but the two compose. (Note: B12
   is currently deferred, so v1 `when` predicates read only built-in keys + the
   target object.)
+- **Cooperates with [RFC 0015](./0015-workspace-extension-contributions.md)** —
+  workspace context-menu items use this RFC's `"workspace"` surface. RFC 0015
+  adds the surface to the `MenuSurface` union and the `MenuContext` mapping.
 
 ## Alternatives considered
 
@@ -132,6 +144,15 @@ chosen command with the target as its argument. This reuses:
   Rejected: it would couple extensions to host component internals and break the
   serializable-boundary rule. A closed, per-surface data object keeps the
   contract narrow and testable.
+
+- **Adding the workspace surface via a separate RFC/proposal**.
+  [RFC 0015](./0015-workspace-extension-contributions.md) could have created a
+  `registerWorkspaceAction` call with its own `WorkspaceActionContribution` type.
+  Instead, it folds into this RFC as `"workspace"` in the `MenuSurface` union.
+  The contribution model is identical (surface → command + when + order + group);
+  the workspace just happens to use the full `Workspace` type as the context
+  object. A single `registerContextMenuItem` API keeps the extension API surface
+  small and predictable.
 
 ## Decision
 
