@@ -54,14 +54,21 @@ pass the path — use the binary path or the installed shim.
 ## Extension commands
 
 ```sh
-silo install /path/to/my-extension   # install an extension from a local folder
+silo install silo.local-web-viewer   # install from the Silo registry by id
+silo install /path/to/my-extension   # install from a local folder
+silo install <url-or-npm>            # install from a tarball URL or npm name
 silo uninstall acme.clock            # uninstall an extension by id
 ```
 
-`silo install <path>` is the CLI equivalent of **Settings → Extensions →
-Install from folder…**: Silo copies the package into
-`~/.config/silo/extensions/<id>/` and loads it immediately. The path resolves
-against your shell's working directory, so relative paths work.
+`silo install` picks the source from the argument:
+
+- A registry id (`publisher.name`, and no such path on disk) installs from
+  [registry.getsilo.dev](https://registry.getsilo.dev) — same catalog as
+  **Settings → Extensions → Browse**.
+- A filesystem path is the CLI equivalent of **Install from folder…**: Silo
+  copies the package into `~/.config/silo/extensions/<id>/` and loads it
+  immediately. Relative paths resolve against your shell's working directory.
+- A URL or npm package name downloads that tarball (sideload).
 
 `silo uninstall <id>` removes the extension's copied files from disk and
 unloads it from the running app. The `id` is the `silo.id` value from the
@@ -70,3 +77,6 @@ extension's `package.json`.
 Both commands follow the same warm/cold model as `silo <path>`: if Silo is
 already running the command is forwarded to the live instance; if not, it is
 applied on the next launch.
+
+See [Extensions](/guide/extensions) for Browse, updates, and the public catalog
+at [extensions.getsilo.dev](https://extensions.getsilo.dev).

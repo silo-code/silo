@@ -7,10 +7,22 @@ Locally it's cloned as a sibling of this repo — from the Silo repo root that's
 that repo relates to this one, so working across the boundary doesn't require
 rediscovering it each time.
 
+## Discovery vs. this repo
+
+`silo-extensions` is a **publisher** of packages, not the catalog. Released
+extensions appear on [extensions.getsilo.dev](https://extensions.getsilo.dev)
+and in **Settings → Extensions → Browse** via the
+[`extensions-registry`](./extensions-registry-repo.md) index. To install one as
+a user: Browse, `silo install <id>`, or the website — **do not** clone this repo
+just to try a published release.
+
+Clone / build / folder-install here when **developing** an extension (or testing
+a branch that isn't on the registry yet).
+
 ## What lives there
 
 Independently-installable extensions, one per top-level folder
-(`docs-panel`, `local-web-viewer`, `system-monitor`). Each is its own npm
+(`docs-panel`, `local-web-viewer`, `system-monitor`, …). Each is its own npm
 package. These are the model for **third-party** extensions — unlike the bundled
 `core.*` / `silo.*` extensions in `packages/extensions-*`, they consume Silo only
 through the public SDK and are installed at runtime, not compiled into the app.
@@ -67,7 +79,12 @@ To reach beyond that scope they must declare capabilities in `package.json` unde
 
 ## Installing one without merging to `main`
 
-The host `ExtensionManager` offers three install paths:
+For a **released** id that's already ingested, prefer the registry path:
+`silo install <id>` or Settings → Extensions → Browse
+(see [`extensions-registry-repo.md`](./extensions-registry-repo.md)).
+
+For a **branch** that isn't on the registry yet, the host
+`ExtensionManager` offers:
 
 - **Install from folder** (`previewInstall`) — point at a built extension dir.
   Easiest for a branch: clone, `npm install && npm run build`, install the folder.
@@ -76,7 +93,10 @@ The host `ExtensionManager` offers three install paths:
   npm-standard `package/` layout, a `package.json` with the `silo.*` manifest,
   and the built `dist/` (pulled in via the `files` field). A raw git-branch
   codeload tarball does **not** qualify — no built `dist/`, wrong layout.
-- **Install from npm** (`installFromNpm`) — by package name from the registry.
+- **Install from npm** (`installFromNpm`) — by package name from npm (sideload;
+  not the Silo registry).
+- **Install from registry** (`installFromRegistry`) — by `<publisher>.<name>`
+  from [registry.getsilo.dev](https://registry.getsilo.dev).
 
 So to test a branch on another machine: either clone + build + install-folder, or
 `npm pack` the built extension and attach the `.tgz` to a GitHub **pre-release**

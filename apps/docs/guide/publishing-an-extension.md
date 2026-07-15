@@ -5,11 +5,12 @@ folder — no rebuild of the app required. If you've followed [Your first
 extension](/guide/getting-started) you've already written one; this page is the
 full packaging contract: the manifest, the build, and how the host loads it.
 
-::: tip Status
-Installing from a **local folder** (via UI or `silo install <path>`) is
-available now. Scaffolding via `npx create-silo-extension` is available now.
-Installing from a **URL / git / npm registry** and **update checking** are on the
-[roadmap](/roadmap#extension-distribution).
+::: tip Distribution
+Install from a **local folder**, **URL / npm**, or the **Silo registry**
+(`silo install <id>`, Settings → Extensions → Browse). Updates poll the
+registry automatically. To list an extension on Browse and
+[extensions.getsilo.dev](https://extensions.getsilo.dev), see
+[Sharing extensions](/guide/sharing-extensions#publish-to-the-silo-registry).
 :::
 
 ## Scaffold a new extension
@@ -218,3 +219,9 @@ kind is open when you disable it. Prefer a side panel for now.
 Run through the [extension checklist](/guide/extension-checklist) —
 boundaries, permissions, styling, lifecycle, packaging, and stability, in one
 scannable pass.
+
+To put the package on the public catalog (Browse +
+[extensions.getsilo.dev](https://extensions.getsilo.dev)), follow
+[Publish to the Silo registry](/guide/sharing-extensions#publish-to-the-silo-registry)
+— register once via the website form, then cut GitHub Releases with the
+[publish-extension-action](https://github.com/silo-code/publish-extension-action).

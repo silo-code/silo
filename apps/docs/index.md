@@ -13,6 +13,9 @@ hero:
       text: Get started
       link: /guide/
     - theme: alt
+      text: Extensions
+      link: https://extensions.getsilo.dev
+    - theme: alt
       text: View on GitHub
       link: https://github.com/silo-code/silo
     - theme: alt
@@ -37,7 +40,7 @@ features:
     details: A terminal tab and an editor tab are the same thing — arrange them side by side, stack them, name them. Span a workspace across multiple folders for monorepos or paired projects, and the file tree, git panel, and search cover all roots automatically.
   - icon: 🧩
     title: Open extension SDK
-    details: Every built-in feature — terminal, files, git, themes — ships as an extension against the same public API you get. No ceiling on what you can add.
+    details: Every built-in feature — terminal, files, git, themes — ships as an extension against the same public API you get. Browse and install from the catalog (extensions.getsilo.dev) or Settings → Extensions.
 ---
 
 ## Built for developers juggling coding agents
@@ -95,8 +98,11 @@ The result is a first-class extension — installs and uninstalls live, no resta
 
 Silo has a public extension SDK (`@silo-code/sdk`), modeled on VS Code and Obsidian. Every first-party feature — terminal, file explorer, git, themes — is built as an extension against the same API you get. If a built-in can do it, so can you.
 
+Browse what's already available at **[extensions.getsilo.dev](https://extensions.getsilo.dev)**, or install from **Settings → Extensions → Browse** in the app.
+
 - **[What is an extension?](/guide/what-is-an-extension)** — start here
 - **[Your first extension](/guide/getting-started)** — 5-minute walkthrough
 - **[Build with Claude Code](/guide/claude-skill)** — scaffold and install via AI
+- **[Sharing & publishing](/guide/sharing-extensions)** — list on the catalog
 - **[API Reference](/api/)** — the full `ctx` surface
 - **[Roadmap](/roadmap)** — what's stable, what's planned

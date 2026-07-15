@@ -3,7 +3,7 @@
 
 Keep every project you're juggling running simultaneously — terminals, agents, and layout intact — switch between them instantly. 100% open source, free forever.
 
-[**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [**Download for Linux →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap) &nbsp;·&nbsp; [Follow on X](https://x.com/silo_code)
+[**Download for macOS →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [**Download for Linux →**](https://github.com/silo-code/silo/releases/latest) &nbsp;·&nbsp; [Docs](https://getsilo.dev) &nbsp;·&nbsp; [Extensions](https://extensions.getsilo.dev) &nbsp;·&nbsp; [Roadmap](https://getsilo.dev/roadmap) &nbsp;·&nbsp; [Follow on X](https://x.com/silo_code)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey) ![Platform: Linux](https://img.shields.io/badge/platform-Linux-lightgrey) ![Platform: Windows (experimental)](<https://img.shields.io/badge/platform-Windows%20(experimental)-yellow>) ![Status: Early](https://img.shields.io/badge/status-early%20access-orange)
 
@@ -30,7 +30,7 @@ Open as many project workspaces as you need and tab between them instantly. Each
 - **Local-first** — everything runs on your machine; no cloud sync, no telemetry, no account required
 - **Layout that sticks** — each workspace remembers its exact terminal tab arrangement; name tabs for specific jobs and they're waiting exactly where you left them
 - **Terminals and editors as equals** — a terminal tab and an editor tab are the same thing; arrange them side by side, stack them, name them; span a workspace across multiple folders for monorepos or paired projects
-- **Extension SDK** — every built-in feature ships as an extension against the same public API you get; no ceiling on what you can add
+- **Extension SDK** — every built-in feature ships as an extension against the same public API you get; browse and install from [extensions.getsilo.dev](https://extensions.getsilo.dev) or **Settings → Extensions**
 
 ## Extend Silo with Claude Code
 
@@ -63,11 +63,12 @@ Claude scaffolds the project, writes the TypeScript, compiles it, and installs i
 Extensions install and uninstall live — no restart needed:
 
 ```bash
-silo install ~/my-extensions/dave.git-branch
+silo install silo.local-web-viewer              # from the registry by id
+silo install ~/my-extensions/dave.git-branch    # or from a local folder
 silo uninstall dave.git-branch
 ```
 
-→ [Full guide](https://getsilo.dev/guide/claude-skill) · [Extension API](https://getsilo.dev/api/)
+→ [Extension catalog](https://extensions.getsilo.dev) · [Full guide](https://getsilo.dev/guide/claude-skill) · [Extension API](https://getsilo.dev/api/)
 
 ## Who it's for
 

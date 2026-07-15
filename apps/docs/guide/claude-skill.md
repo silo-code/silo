@@ -65,8 +65,11 @@ disable or uninstall them from the UI.
 
 ## Publish your extension
 
-When the extension is ready to share, publish it to npm and others can install
-it by package name from Silo's Extensions settings page.
+When the extension is ready to share, publish it to the Silo registry so it
+appears on Browse and
+[extensions.getsilo.dev](https://extensions.getsilo.dev) — see
+[Sharing extensions](/guide/sharing-extensions#publish-to-the-silo-registry).
+Folder / URL / npm sideloads still work for private shares.
 
-See [Publishing an extension](/guide/publishing-an-extension) for the full
-workflow.
+See [Publishing an extension](/guide/publishing-an-extension) for the package
+contract.

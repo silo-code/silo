@@ -118,6 +118,10 @@ export default withMermaid(
         },
         { text: "Guides", link: "/guide/" },
         { text: "API Reference", link: "/api/" },
+        {
+          text: "Extensions",
+          link: "https://extensions.getsilo.dev",
+        },
         { text: "Roadmap", link: "/roadmap" },
       ],
 

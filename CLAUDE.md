@@ -18,7 +18,15 @@ Orientation docs (read when relevant):
 - `docs/silo-extensions-repo.md` — the **external** `silo-code/silo-extensions`
   repo (cloned at `../silo-extensions`): how its third-party extensions relate to
   this repo — published-SDK lag, npm (not pnpm) build commands, runtime trust /
-  `silo.permissions`, and how to install a branch without merging.
+  `silo.permissions`, and how to install a branch without merging. They
+  **publish into** the registry; discovery is Browse /
+  [extensions.getsilo.dev](https://extensions.getsilo.dev), not cloning that repo.
+- `docs/extensions-registry-repo.md` — the **external**
+  `silo-code/extensions-registry` repo (cloned at `../extensions-registry`):
+  git-backed catalog behind
+  [extensions.getsilo.dev](https://extensions.getsilo.dev) (humans) and
+  [registry.getsilo.dev](https://registry.getsilo.dev) (app/CLI index). How it
+  relates to in-app Browse / install / update in this monorepo.
 - `apps/docs/guide/extension-checklist.md` — pre-flight checklist for any
   extension (bundled or third-party): boundaries, permissions, styling,
   lifecycle, packaging, stability.
