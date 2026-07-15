@@ -265,10 +265,9 @@
 .ext-tabs {
   display: flex;
   gap: 2px;
-  /* A recessed well (content surface, sunk below the card) with a defined edge,
-     so the active segment reads as a button raised out of it. */
+  /* A recessed well (content surface, sunk below the card) so the active
+     segment reads as a button raised out of it. */
   background: var(--silo-color-content-bg);
-  border: 1px solid var(--silo-color-border-strong);
   border-radius: var(--silo-radius-sm);
   padding: 2px;
 }

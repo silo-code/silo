@@ -480,6 +480,13 @@ export interface SettingsPage {
   order?: number;
   /** Renders the right-hand pane when this page is selected. */
   component: React.ComponentType;
+  /**
+   * Optional small indicator rendered after the title in the left rail (e.g.
+   * an update-available count). Rendered as its own component — separate from
+   * {@link SettingsPage.component} — so it can subscribe to reactive state and
+   * update independently of whether the page itself is the active one.
+   */
+  badge?: React.ComponentType;
 }
 
 /**

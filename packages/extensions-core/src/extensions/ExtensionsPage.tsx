@@ -34,6 +34,19 @@ import "./ExtensionsPage.css";
 
 const mgr = getExtensionManager();
 
+/**
+ * The Settings-rail badge for the Extensions page (registered as
+ * `SettingsPage.badge`): a count pill, mirroring the one on the Installed tab
+ * (below), so an update is visible before the page is even opened. Reads the
+ * manager's reactive state directly rather than the page's own `updates`
+ * (which only exists once this page has mounted and fetched the registry).
+ */
+export function ExtensionsRailBadge() {
+  const { availableUpdates } = useServiceState(mgr);
+  if (availableUpdates.length === 0) return null;
+  return <span className="ext-update-count">{availableUpdates.length}</span>;
+}
+
 /** Which pane the page is showing. Browse (the registry) is the landing view. */
 type View =
   | { kind: "browse" }
@@ -455,7 +468,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                             )}
                           {upd && installedExt && (
                             <button
-                              className="ext-btn"
+                              className="ext-btn silo-button-primary"
                               disabled={busy === entry.id}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -510,7 +523,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
               )}
               {updates.length > 0 && (
                 <button
-                  className="ext-btn"
+                  className="ext-btn silo-button-primary"
                   onClick={updateAll}
                   disabled={busy !== null}
                 >
@@ -598,7 +611,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                         <div className="ext-actions">
                           {upd && (
                             <button
-                              className="ext-btn"
+                              className="ext-btn silo-button-primary"
                               disabled={busy === ext.id}
                               onClick={(e) => {
                                 e.stopPropagation();

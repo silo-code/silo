@@ -33,7 +33,15 @@ mgr
     void mgr
       .loadInstalled()
       .catch((err) => console.error("loadInstalled failed", err))
-      .finally(() => setExtensionsReady());
+      .finally(() => {
+        setExtensionsReady();
+        // Kick off one background update check so the status bar / settings
+        // rail can show a badge without anyone having opened the Extensions
+        // page first (which does its own check on mount).
+        void mgr.checkUpdates().catch((err) => {
+          console.error("checkUpdates failed", err);
+        });
+      });
   });
 
 userConfigDir()
