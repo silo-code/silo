@@ -82,6 +82,7 @@ primitives above — so a third party could build the same.
 ## Extension distribution <a id="extension-distribution"></a>
 
 How a third-party extension gets from a package into the running app. See
+[Extensions](/guide/extensions) (install / Browse / updates) and
 [Publishing an extension](/guide/publishing-an-extension).
 
 | Capability                                           | Status                               |                                                                                                 |
@@ -95,11 +96,17 @@ How a third-party extension gets from a package into the running app. See
 | `npx create-silo-extension` scaffold                 | <Badge type="tip" text="stable" />   | [docs](/guide/publishing-an-extension#scaffold-a-new-extension)                                 |
 | Install from URL (tarball / GitHub release)          | <Badge type="tip" text="stable" />   | [docs](/guide/sharing-extensions#share-a-packed-tarball)                                        |
 | Install from npm registry                            | <Badge type="tip" text="stable" />   | [docs](/guide/sharing-extensions#publish-to-npm)                                                |
-| Update checking + apply                              | <Badge type="info" text="planned" /> | [design](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md) |
-| Extension registry — browse / search / install       | <Badge type="info" text="planned" /> | [design](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md) |
-| Registry website (`extensions.getsilo.dev`)          | <Badge type="info" text="planned" /> | [design](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md) |
+| Update checking + apply                              | <Badge type="tip" text="stable" />   | [docs](/guide/extensions#updates)                                                               |
+| Extension registry — browse / search / install       | <Badge type="tip" text="stable" />   | [docs](/guide/extensions) · [catalog](https://extensions.getsilo.dev)                           |
+| Registry website (`extensions.getsilo.dev`)          | <Badge type="tip" text="stable" />   | [extensions.getsilo.dev](https://extensions.getsilo.dev)                                        |
 | Private / team registries (federated index)          | <Badge type="info" text="planned" /> | [design](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md) |
 | Permissions / capability model                       | <Badge type="tip" text="stable" />   | [docs](/guide/permissions)                                                                      |
+
+> **Updates:** "Update checking + apply" is the P1 registry feature — the app
+> polls [registry.getsilo.dev](https://registry.getsilo.dev), shows a badge, and
+> applies Update / Update all from Settings → Extensions. That is not the same
+> as **Safe update** below (stage → validate → swap + rollback on a bad
+> install), which is still planned.
 
 ## Extension model & safety
 
