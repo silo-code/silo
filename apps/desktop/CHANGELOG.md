@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.30.0](https://github.com/silo-code/silo/compare/silo-v0.29.2...silo-v0.30.0) (2026-07-15)
+
+
+### Features
+
+* **editor:** add per-tab word wrap / minimap toggle to context menu ([#226](https://github.com/silo-code/silo/issues/226)) ([e50633b](https://github.com/silo-code/silo/commit/e50633ba33a7f4f1f52caafcd70d043a66ff50fd))
+* **extensions:** surface pending extension updates in status bar, settings rail, and app menu ([#224](https://github.com/silo-code/silo/issues/224)) ([00e5911](https://github.com/silo-code/silo/commit/00e5911ff1c154f4b4cbda9e26f0276caf4e310c))
+
+
+### Bug Fixes
+
+* **release:** scope npm publish steps to their own package ([#227](https://github.com/silo-code/silo/issues/227)) ([b3d8a44](https://github.com/silo-code/silo/commit/b3d8a4490e6a9397b743ad8dd7c5fafb3ee70c0a))
+* **workspaces:** tighten badge styling and stop over-truncating names ([#222](https://github.com/silo-code/silo/issues/222)) ([81b52d8](https://github.com/silo-code/silo/commit/81b52d86acdedccae5390e6927487f92f7b08495))
+
 ## [0.29.2](https://github.com/silo-code/silo/compare/silo-v0.29.1...silo-v0.29.2) (2026-07-15)
 
 
