@@ -114,6 +114,12 @@ export { homeDir } from "./platform";
 // workspace-section-registry.ts.
 export { workspaceSectionRegistry } from "./workspace-section-registry";
 
+// Context-menu contribution read side (RFC 0013) — the *write* side
+// (registerContextMenuItem) is public via ctx; building the merged menu rows
+// for a surface is a core-extension concern (the built-in surface owns its
+// menu and appends these). See context-menu-items.ts.
+export { contextMenuEntriesFor } from "./context-menu-items";
+
 // Editor host-plumbing — the raw Monaco/editor host access that `core.editor`
 // needs but that is wrong to hand to silo.*/third-party (Tier 3 "raw Monaco
 // setup"; see ctx-domains.md → "The editor surface"). NOTE what is deliberately
