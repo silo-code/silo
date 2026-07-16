@@ -25,18 +25,19 @@ Add things to the app. Each method takes a typed object and returns a
 [`Disposable`](/api/types/interfaces/Disposable) (the host also tracks it on
 `ctx.subscriptions`, so teardown is automatic).
 
-| Method                                                                    | Adds                                  |
-| ------------------------------------------------------------------------- | ------------------------------------- |
-| [`ctx.registerEditor`](/api/registration/register-editor)                 | an editor (presenter) for a file type |
-| [`ctx.registerSidePanel`](/api/registration/register-side-panel)          | a left/right column panel             |
-| [`ctx.registerStatusItem`](/api/registration/register-status-item)        | a status-bar widget                   |
-| [`ctx.registerCommand`](/api/registration/register-command)               | a named, invokable action             |
-| [`ctx.registerKeybinding`](/api/registration/register-keybinding)         | a shortcut bound to a command         |
-| [`ctx.registerMenuItem`](/api/registration/register-menu-item)            | a command in an application menu      |
-| [`ctx.registerFileType`](/api/registration/register-file-type)            | declarative file metadata             |
-| [`ctx.registerDockPanelKind`](/api/registration/register-dock-panel-kind) | a center-dock tab kind                |
-| [`ctx.registerSettingsPage`](/api/registration/register-settings-page)    | a page in the Settings dialog         |
-| [`ctx.registerThemePreset`](/api/registration/register-theme-preset)      | a selectable theme in the picker      |
+| Method                                                                        | Adds                                  |
+| ----------------------------------------------------------------------------- | ------------------------------------- |
+| [`ctx.registerEditor`](/api/registration/register-editor)                     | an editor (presenter) for a file type |
+| [`ctx.registerSidePanel`](/api/registration/register-side-panel)              | a left/right column panel             |
+| [`ctx.registerStatusItem`](/api/registration/register-status-item)            | a status-bar widget                   |
+| [`ctx.registerCommand`](/api/registration/register-command)                   | a named, invokable action             |
+| [`ctx.registerKeybinding`](/api/registration/register-keybinding)             | a shortcut bound to a command         |
+| [`ctx.registerMenuItem`](/api/registration/register-menu-item)                | a command in an application menu      |
+| [`ctx.registerContextMenuItem`](/api/registration/register-context-menu-item) | a command in a surface's context menu |
+| [`ctx.registerFileType`](/api/registration/register-file-type)                | declarative file metadata             |
+| [`ctx.registerDockPanelKind`](/api/registration/register-dock-panel-kind)     | a center-dock tab kind                |
+| [`ctx.registerSettingsPage`](/api/registration/register-settings-page)        | a page in the Settings dialog         |
+| [`ctx.registerThemePreset`](/api/registration/register-theme-preset)          | a selectable theme in the picker      |
 
 ## Services
 

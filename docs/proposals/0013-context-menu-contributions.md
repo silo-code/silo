@@ -1,5 +1,5 @@
 ---
-status: draft
+status: accepted
 created: 2026-07-02
 ---
 
@@ -97,6 +97,15 @@ export interface ContextMenuContribution<S extends MenuSurface = MenuSurface> {
    * command plus the current context keys. Returning false hides the item.
    */
   when?: (ctx: ContextKeys, target: MenuContext[S]) => boolean;
+  /**
+   * Toggle-row predicate. When provided, the item renders with a checkmark
+   * in the leading gutter whenever this returns true — the same rendering
+   * `MenuItem.checked` already gives `ctx.ui.showMenu` rows (used today for
+   * side-panel visibility toggles). Lets a single command represent an on/off
+   * state (e.g. "enabled for this workspace") instead of registering two
+   * mutually-exclusive commands gated by `when`.
+   */
+  checked?: (ctx: ContextKeys, target: MenuContext[S]) => boolean;
 }
 
 // on ExtensionContext:
@@ -104,6 +113,11 @@ registerContextMenuItem<S extends MenuSurface>(
   item: ContextMenuContribution<S>,
 ): Disposable;
 ```
+
+A toggle row is one contribution, not two: the command runs on click and flips
+whatever state `checked` reads, so the checkmark reflects the new state on the
+next render. See [RFC 0015](./0015-workspace-extension-contributions.md) for a
+worked example (github-actions' per-workspace enable/disable toggle).
 
 The host builds the menu when a surface is right-clicked: it collects the
 registered contributions for that surface, evaluates each `when` against the
@@ -156,12 +170,26 @@ chosen command with the target as its argument. This reuses:
 
 ## Decision
 
-_Draft._ Open questions to resolve before acceptance:
+**Accepted** for the `"workspace"` surface, `registerContextMenuItem`,
+freeform grouping, and the `checked` toggle-row field — this is what
+[RFC 0015](./0015-workspace-extension-contributions.md)'s workspace
+context-menu items and property pages build on.
+
+Resolved:
+
+1. **Grouping/separator model: freeform `group?: string`.** Matches the
+   existing `registerMenuItem` (menubar) convention exactly, including its
+   `"9_default"` fallback when `group` is omitted
+   (`packages/extension-host/src/extension-host/menu-items.ts`). A fixed enum
+   would be a second, inconsistent convention for no real benefit.
+2. **Toggle rows: `checked` predicate, not two mutually-exclusive commands.**
+   See the `ContextMenuContribution.checked` field above.
+
+**Deferred** — open, not blocking acceptance of the above (separate surface
+family, orthogonal design questions):
 
 1. Final seed set of surfaces — is `terminal/tab` worth v1, or start with
    explorer + editor only?
-2. Grouping/separator model — freeform `group` string vs. a fixed set of named
-   groups (`"navigation" | "modification" | "…"`) as VS Code uses.
-3. Multi-select in the explorer — does `explorer/item` pass a single `path` or
+2. Multi-select in the explorer — does `explorer/item` pass a single `path` or
    `paths: string[]` when several entries are selected? (Leaning single for v1,
    with a `paths` follow-up.)

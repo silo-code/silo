@@ -26,6 +26,7 @@
  */
 import type React from "react";
 import type { ContextKeys } from "./context-keys";
+import type { Workspace } from "./domain-types";
 import type { WorkspaceService } from "./workspace-service";
 import type { EditorService } from "./editor-service";
 import type { LayoutService } from "./layout-service";
@@ -310,6 +311,87 @@ export interface MenuItemContribution {
 }
 
 /**
+ * The context menus of built-in surfaces that a
+ * {@link ContextMenuContribution} can target — distinct from the menubar
+ * {@link MenuId}, because context items receive a **target argument** (which
+ * file, which editor, which workspace) that menubar items never have.
+ *
+ * Each surface's target type is declared by {@link MenuContext}.
+ *
+ * @category Registration
+ * @public
+ */
+export type MenuSurface =
+  | "explorer/item" // right-click on a file/folder in the file explorer
+  | "editor/tab" // right-click on an editor tab
+  | "terminal/tab" // right-click on a terminal tab
+  | "workspace"; // right-click on a workspace row in the Workspaces panel
+
+/**
+ * The typed **context object** each {@link MenuSurface} passes to an invoked
+ * command (as its first argument) and to the contribution's
+ * {@link ContextMenuContribution.when | when} /
+ * {@link ContextMenuContribution.checked | checked} predicates. The contract
+ * is per-surface and closed: a flat, serializable object — never a DOM event
+ * or host component internals.
+ *
+ * The `"workspace"` surface is unique in passing the full {@link Workspace}
+ * rather than a lightweight derived object — workspace actions typically need
+ * the workspace's metadata (id, folder, name) wholesale.
+ *
+ * @category Registration
+ * @public
+ */
+export interface MenuContext {
+  "explorer/item": { path: string; isDir: boolean; workspaceId: string };
+  "editor/tab": { editorId: string; filePath: string | null; viewId: string };
+  "terminal/tab": { terminalId: string; workspaceId: string };
+  workspace: Workspace;
+}
+
+/**
+ * Adds a command to the right-click context menu of a built-in surface.
+ * Register via {@link ExtensionContext.registerContextMenuItem}.
+ *
+ * When the surface is right-clicked, the host collects the registered
+ * contributions, evaluates each {@link ContextMenuContribution.when | when}
+ * against the current context keys **and** the freshly-built target object,
+ * and dispatches the chosen command with the target as its first argument.
+ *
+ * @category Registration
+ * @public
+ */
+export interface ContextMenuContribution<S extends MenuSurface = MenuSurface> {
+  /** Which context menu to contribute to. */
+  surface: S;
+  /** The command to run; receives the surface's {@link MenuContext | MenuContext[S]} as its first arg. */
+  command: string;
+  /** Menu label (falls back to the command's label). */
+  label?: string;
+  /** Ordering within the menu; lower sorts first. */
+  order?: number;
+  /**
+   * Optional group id — items with the same group render together with a
+   * separator between groups. Group names sort lexically; defaults to
+   * `"9_default"`, same as {@link MenuItemContribution.group}.
+   */
+  group?: string;
+  /**
+   * Enable/visibility predicate. Receives the same per-surface context as the
+   * command plus the current context keys. Returning false hides the item.
+   */
+  when?: (ctx: ContextKeys, target: MenuContext[S]) => boolean;
+  /**
+   * Toggle-row predicate. When provided, the item renders with a checkmark
+   * in the leading gutter whenever this returns true — the same rendering
+   * {@link MenuItem.checked} gives `ctx.ui.showMenu` rows. Lets a single
+   * command represent an on/off state (e.g. "enabled for this workspace")
+   * instead of registering two mutually-exclusive commands gated by `when`.
+   */
+  checked?: (ctx: ContextKeys, target: MenuContext[S]) => boolean;
+}
+
+/**
  * Binds a keyboard shortcut to a {@link Command}.
  *
  * @category Registration
@@ -528,6 +610,14 @@ export interface ExtensionContext {
   registerCommand(cmd: Command): Disposable;
   /** Register a {@link MenuItemContribution} (place a command in a menu). */
   registerMenuItem(item: MenuItemContribution): Disposable;
+  /**
+   * Register a {@link ContextMenuContribution} (add a command to a built-in
+   * surface's right-click context menu). The invoked command receives the
+   * surface's {@link MenuContext} target as its first argument.
+   */
+  registerContextMenuItem<S extends MenuSurface>(
+    item: ContextMenuContribution<S>,
+  ): Disposable;
   /** Register a {@link Keybinding} (bind a shortcut to a command). */
   registerKeybinding(binding: Keybinding): Disposable;
   /** Register a {@link SidePanel} (a left/right column panel). */

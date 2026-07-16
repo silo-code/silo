@@ -2,6 +2,7 @@ import { commandRegistry, executeCommandAsync } from "./commands";
 import { dockPanelKindRegistry } from "./dock-panel-kinds";
 import { keybindingRegistry } from "./keybindings";
 import { menuItemRegistry } from "./menu-items";
+import { registerContextMenuItem } from "./context-menu-items";
 import { sidePanelRegistry } from "./side-panels";
 import { statusItemRegistry } from "./status-items";
 import {
@@ -10,12 +11,14 @@ import {
 } from "./settings-pages";
 import type {
   Command,
+  ContextMenuContribution,
   Disposable,
   DockPanelKind,
   ExtensionContext,
   FileType,
   Keybinding,
   MenuItemContribution,
+  MenuSurface,
   Permission,
   SettingsPage,
   SidePanel,
@@ -124,6 +127,11 @@ export function createContext(
     },
     registerMenuItem(item: MenuItemContribution): Disposable {
       return track(menuItemRegistry.register(item));
+    },
+    registerContextMenuItem<S extends MenuSurface>(
+      item: ContextMenuContribution<S>,
+    ): Disposable {
+      return track(registerContextMenuItem(item));
     },
     registerKeybinding(binding: Keybinding): Disposable {
       return track(keybindingRegistry.register(binding));
