@@ -9,8 +9,6 @@ import { CaretRight, Plus, SquaresFour } from "@phosphor-icons/react";
 import { useSnapshot } from "valtio";
 import {
   store,
-  deleteGroup,
-  closeGroup,
   moveWorkspaceToGroup,
   ungroupWorkspace,
   toggleGroupCollapsed,
@@ -37,7 +35,12 @@ import {
   useFolderExistence,
   type Workspace,
 } from "./workspace-helpers";
-import { buildAddWorkspaceItems } from "./workspace-add-menu";
+import {
+  buildAddWorkspaceItems,
+  confirmAndCloseGroup,
+  confirmAndCloseWorkspace,
+  confirmAndDeleteGroup,
+} from "./workspace-add-menu";
 import { openWorkspaceProperties } from "./workspace-properties";
 import { openGroupProperties, type GroupSnapshot } from "./group-properties";
 import { useWorkspaceDnd } from "./use-workspace-dnd";
@@ -290,7 +293,10 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     }
 
     if (!ws.closedAt) {
-      items.push({ label: "Close", run: () => service.close(ws.id) });
+      items.push({
+        label: "Close",
+        run: () => void confirmAndCloseWorkspace(ctx, ws.id, ws.name),
+      });
     }
     return items;
   }
@@ -318,11 +324,11 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
         },
         {
           label: "Close Group",
-          run: () => closeGroup(group.id),
+          run: () => void confirmAndCloseGroup(ctx, group.id, group.name),
         },
         {
           label: "Delete Group",
-          run: () => deleteGroup(group.id),
+          run: () => void confirmAndDeleteGroup(ctx, group.id, group.name),
         },
       ],
       toggle: false,
@@ -412,7 +418,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
           aria-label="Close workspace"
           onClick={(e) => {
             e.stopPropagation();
-            service.close(ws.id);
+            void confirmAndCloseWorkspace(ctx, ws.id, ws.name);
           }}
         >
           ×
@@ -478,7 +484,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
             aria-label="Close group"
             onClick={(e) => {
               e.stopPropagation();
-              closeGroup(group.id);
+              void confirmAndCloseGroup(ctx, group.id, group.name);
             }}
           >
             ×

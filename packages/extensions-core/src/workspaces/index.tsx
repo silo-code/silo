@@ -4,6 +4,7 @@ import { WorkspacesPanel } from "./WorkspacesPanel";
 import { WorkspaceStatusItem } from "./WorkspaceStatusItem";
 import { registerWorkspaceCycle } from "./workspace-cycle";
 import { openNewGroup } from "./group-properties";
+import { confirmAndCloseWorkspace } from "./workspace-add-menu";
 
 export const extension: Extension = {
   id: "core.workspaces",
@@ -79,8 +80,10 @@ export const extension: Extension = {
       id: "workspace.close",
       label: "Close Workspace",
       run: () => {
-        const { activeId } = ctx.workspaces.getState();
-        if (activeId) ctx.workspaces.close(activeId);
+        const { activeId, all } = ctx.workspaces.getState();
+        if (!activeId) return;
+        const ws = all.find((w) => w.id === activeId);
+        if (ws) void confirmAndCloseWorkspace(ctx, activeId, ws.name);
       },
     });
 

@@ -472,6 +472,19 @@ button.silo-button-sm {
   margin-top: 4px;
 }
 
+.silo-modal-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+}
+
+.silo-modal-checkbox-row input[type="checkbox"] {
+  margin: 0;
+}
+
 .silo-modal-form {
   display: flex;
   flex-direction: column;
