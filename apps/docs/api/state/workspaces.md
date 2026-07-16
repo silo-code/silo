@@ -160,11 +160,46 @@ re-render the name row.
 
 Each badge is a [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge); the provider shape is [`WorkspaceBadgeProvider`](/api/types/interfaces/WorkspaceBadgeProvider).
 
+## Workspace property pages
+
+Extensions can contribute a tab to the **workspace properties modal** — the
+right place for per-workspace configuration (persistent settings the user
+adjusts through forms). The modal always shows a tab bar: the built-in
+**General** tab (name, folders) first, then registered pages in ascending
+`order`.
+
+Persist the page's settings via `ctx.storage.workspace`, immediately on change
+— the modal has no Save button. For one-shot _actions_ (refresh, clear) prefer
+a [workspace context-menu item](/api/registration/register-context-menu-item)
+instead; property pages are for configuration.
+
+```tsx
+ctx.subscriptions.push(
+  ctx.workspaces.registerPropertyPage({
+    id: "my-ext.properties",
+    title: "My Extension",
+    component: ({ ws }) => (
+      <MySettingsForm
+        value={readSettings(ws.id)}
+        onChange={(next) => writeSettings(ws.id, next)}
+      />
+    ),
+    visible: (ws) => isRelevant(ws), // hide the tab where it doesn't apply
+  }),
+);
+```
+
+| Method                                                                                      | What it does                                                                                                  |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [`registerPropertyPage(page)`](/api/types/interfaces/WorkspaceService#registerpropertypage) | Register a tab in the workspace properties modal. Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+
+The page shape is [`WorkspacePropertyPage`](/api/types/interfaces/WorkspacePropertyPage); component props are [`WorkspacePropertyPageProps`](/api/types/interfaces/WorkspacePropertyPageProps).
+
 ## Types
 
 Pass [`WorkspaceService`](/api/types/interfaces/WorkspaceService).
 
-Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow) · [`WorkspaceStatusProvider`](/api/types/interfaces/WorkspaceStatusProvider) · [`WorkspaceSectionProvider`](/api/types/interfaces/WorkspaceSectionProvider) · [`WorkspaceSectionProps`](/api/types/interfaces/WorkspaceSectionProps) · [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge) · [`WorkspaceBadgeProvider`](/api/types/interfaces/WorkspaceBadgeProvider) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
+Related: [`WorkspaceState`](/api/types/interfaces/WorkspaceState) · [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow) · [`WorkspaceStatusProvider`](/api/types/interfaces/WorkspaceStatusProvider) · [`WorkspaceSectionProvider`](/api/types/interfaces/WorkspaceSectionProvider) · [`WorkspaceSectionProps`](/api/types/interfaces/WorkspaceSectionProps) · [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge) · [`WorkspaceBadgeProvider`](/api/types/interfaces/WorkspaceBadgeProvider) · [`WorkspacePropertyPage`](/api/types/interfaces/WorkspacePropertyPage) · [`WorkspacePropertyPageProps`](/api/types/interfaces/WorkspacePropertyPageProps) · [`CreateWorkspaceInput`](/api/types/interfaces/CreateWorkspaceInput) · [`OpenFileOptions`](/api/types/interfaces/OpenFileOptions).
 
 ## See also
 
