@@ -17,6 +17,18 @@ export interface GitErrorSummary {
 /** A line that reads like a conclusive failure (commitlint/lint/test output). */
 const ERROR_MARKER = /(✖|✗|\b(?:failed|blocked|error|fatal)\b)/i;
 
+// eslint-disable-next-line no-control-regex -- matches raw ANSI escape codes to strip them
+const ANSI_ESCAPE = /\x1b\[[0-9;]*[a-zA-Z]/g;
+
+/**
+ * Strip ANSI color/cursor escape codes. Hook output (pnpm/turbo/vitest) is
+ * colorized for a terminal; piped through a thrown error and rendered in
+ * `<pre>`, those codes show up as literal garbage like `[32m✓[39m`.
+ */
+function stripAnsi(text: string): string {
+  return text.replace(ANSI_ESCAPE, "");
+}
+
 /**
  * Pick the line that best explains the failure. Plain git errors put the reason
  * on a `fatal:`/`error:` line, so prefer that. Hook output (lint, commitlint,
@@ -46,7 +58,7 @@ export function summarizeGitError(
   err: unknown,
   fallback: string,
 ): GitErrorSummary {
-  const detail = String(err)
+  const detail = stripAnsi(String(err))
     .replace(/^Error:\s*/, "")
     .trim();
   const summary = pickSummaryLine(detail) ?? fallback;

@@ -20,6 +20,7 @@ import { Section, FileRow } from "./git-rows";
 import { buildGitNavItems, navItemKey } from "./git-nav";
 import { ICON_CHECK, ICON_PLUS, ICON_MINUS, ICON_UNDO } from "./git-icons";
 import { summarizeGitError } from "./notify-error";
+import { GitErrorModal } from "./GitErrorModal";
 import { BranchManager } from "./BranchManager";
 import { WorktreeManager } from "./WorktreeManager";
 import { findWorktreeFor } from "./worktree-model";
@@ -103,21 +104,8 @@ export function GitView({
             label: "View details",
             run: () =>
               ctx.ui.showModal(
-                (close) => (
-                  <>
-                    <pre className="git-error-detail">{detail}</pre>
-                    <div className="silo-modal-actions">
-                      <button
-                        type="button"
-                        className="silo-button-primary"
-                        onClick={() => close()}
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </>
-                ),
-                { title, dismissible: true, size: "md" },
+                (close) => <GitErrorModal detail={detail} onClose={close} />,
+                { title, dismissible: true, size: "lg" },
               ),
           },
         ];

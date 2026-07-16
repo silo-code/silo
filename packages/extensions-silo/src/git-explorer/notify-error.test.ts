@@ -72,4 +72,12 @@ describe("summarizeGitError", () => {
       "boom",
     );
   });
+
+  it("strips ANSI escape codes from colorized hook output", () => {
+    const detail = summarizeGitError(
+      "\x1b[32m✓\x1b[39m tests passed\nfatal: \x1b[31mnothing to commit\x1b[39m",
+      "Commit failed",
+    ).detail;
+    expect(detail).toBe("✓ tests passed\nfatal: nothing to commit");
+  });
 });

@@ -1,6 +1,21 @@
 #!/bin/sh
 # Enforce Conventional Commits on every commit message.
 # Bypass in a genuine pinch with:  git commit --no-verify
+
+# Robustly find npx (especially for GUI git clients on macOS)
+if ! command -v npx >/dev/null 2>&1; then
+  export PATH="$PATH:/usr/local/bin:/opt/homebrew/bin"
+  [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
+  [ -s "$HOME/.asdf/asdf.sh" ] && . "$HOME/.asdf/asdf.sh"
+fi
+
+if ! command -v npx >/dev/null 2>&1; then
+  echo ""
+  echo "✖ Commit blocked: 'npx' command not found."
+  echo "  Please ensure npx is in your PATH."
+  exit 1
+fi
+
 npx --no-install commitlint --edit "$1"
 if [ $? -ne 0 ]; then
   echo ""
