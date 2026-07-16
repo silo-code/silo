@@ -83,12 +83,24 @@ pub fn all() -> HashMap<String, String> {
     read_map()
 }
 
+/// Serializes any test in this crate that redirects `SILO_SESSION_REGISTRY` —
+/// it's a process-global env var, and cargo runs unit tests in parallel
+/// threads within one binary, so two tests touching it concurrently (this
+/// module's own test, plus `terminal.rs`'s `resolve_attach` tests) would race
+/// without a shared lock.
+#[cfg(test)]
+pub(crate) fn test_lock() -> &'static Mutex<()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn save_load_remove_roundtrip() {
+        let _guard = test_lock().lock().unwrap();
         // Redirect the registry to a temp file for the duration of the test.
         let mut file = std::env::temp_dir();
         file.push(format!("silo-session-test-{}.json", std::process::id()));

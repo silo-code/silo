@@ -23,6 +23,7 @@ import type {
 import { workspaceStatusRegistry } from "./workspace-status-registry";
 import { workspaceSectionRegistry } from "./workspace-section-registry";
 import { workspaceBadgeRegistry } from "./workspace-badge-registry";
+import { reapWorkspaceTerminals } from "./terminal-service";
 
 // `ctx.workspaces` — the public contract lives in @silo-code/sdk
 // (workspace-service.ts); this is the host implementation.
@@ -94,7 +95,18 @@ export function getWorkspaceService(): WorkspaceService {
     reopen: reopenWorkspace,
     addFolder: addExtraFolder,
     removeFolder: removeExtraFolder,
-    delete: deleteWorkspace,
+    delete(id) {
+      // Start the reap before removing the workspace entry — callers must not
+      // have to remember a separate terminals.closeWorkspace step (orphaned
+      // sessions otherwise live on in the pty-host daemon). reapWorkspaceTerminals
+      // removes the terminal records synchronously (before its first await), so
+      // deleteWorkspace below still runs against an already-emptied list; the
+      // returned promise only resolves once the PTYs are actually killed, for
+      // callers that need that guarantee (e.g. the automation bridge).
+      const reaped = reapWorkspaceTerminals(id);
+      deleteWorkspace(id);
+      return reaped;
+    },
     registerStatus(provider: WorkspaceStatusProvider) {
       return workspaceStatusRegistry.register(provider);
     },

@@ -21,7 +21,7 @@ import type { Workspace } from "./workspace-helpers";
 
 const WorkspaceIcon = SquaresFour;
 
-/** Confirm, then hard-delete a workspace and tear down its terminals. */
+/** Confirm, then hard-delete a workspace (terminals are reaped by delete). */
 export async function confirmAndDeleteWorkspace(
   ctx: ExtensionContext,
   id: string,
@@ -34,7 +34,6 @@ export async function confirmAndDeleteWorkspace(
     danger: true,
   });
   if (!ok) return;
-  ctx.terminals.closeWorkspace(id);
   ctx.workspaces.delete(id);
 }
 

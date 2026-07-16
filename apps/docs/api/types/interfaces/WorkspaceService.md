@@ -289,12 +289,17 @@ Remove an extra folder from a workspace.
 ### delete()
 
 ```ts
-delete(id): void;
+delete(id): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:191](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L191)
+Defined in: [packages/sdk/src/workspace-service.ts:198](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L198)
 
-Hard delete — permanent removal.
+Hard delete — permanent removal. Also reaps every terminal in the
+workspace (removes records and kills live PTY sessions); callers do not
+need a separate [TerminalService.closeWorkspace](TerminalService.md#closeworkspace) step. The entry is
+removed from state synchronously (before this returns); the returned
+promise resolves once the reaped PTYs have actually been killed, for
+callers (e.g. tests) that need that guarantee. Most callers can ignore it.
 
 #### Parameters
 
@@ -304,7 +309,7 @@ Hard delete — permanent removal.
 
 #### Returns
 
-`void`
+`Promise`\<`void`\>
 
 ***
 
@@ -314,7 +319,7 @@ Hard delete — permanent removal.
 registerStatus(provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:213](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L213)
+Defined in: [packages/sdk/src/workspace-service.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L220)
 
 Register a status provider that contributes status rows to workspace
 rows in the Workspaces side panel. Multiple providers may be registered;
@@ -354,7 +359,7 @@ ctx.subscriptions.push(
 getStatus(workspaceId): WorkspaceStatusRow[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L220)
+Defined in: [packages/sdk/src/workspace-service.ts:227](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L227)
 
 Concatenate all registered providers' rows for one workspace (in
 registration order). Called synchronously during panel render — providers
@@ -378,7 +383,7 @@ must be fast and side-effect-free.
 invalidateStatus(): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:229](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L229)
+Defined in: [packages/sdk/src/workspace-service.ts:236](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L236)
 
 Signal that status data has changed. Fires all listeners registered
 via [WorkspaceService.subscribeStatus](#subscribestatus), causing the Workspaces
@@ -398,7 +403,7 @@ Call this after any mutation to the state your `provide` function reads.
 subscribeStatus(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:239](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L239)
+Defined in: [packages/sdk/src/workspace-service.ts:246](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L246)
 
 Subscribe to status invalidations. The listener is called whenever
 [WorkspaceService.invalidateStatus](#invalidatestatus) is invoked. Returns a
@@ -425,7 +430,7 @@ to observe invalidations.
 registerSection(provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:263](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L263)
+Defined in: [packages/sdk/src/workspace-service.ts:270](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L270)
 
 Register a section provider that mounts a React component inside workspace
 rows in the Workspaces side panel. Returns a [Disposable](Disposable.md) that
@@ -467,7 +472,7 @@ ctx.subscriptions.push(
 subscribeSection(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:280](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L280)
+Defined in: [packages/sdk/src/workspace-service.ts:287](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L287)
 
 Subscribe to section registration changes. The listener is called whenever
 a [WorkspaceSectionProvider](WorkspaceSectionProvider.md) is registered or unregistered. Returns a
@@ -501,7 +506,7 @@ update its own state directly.
 registerBadge(provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:302](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L302)
+Defined in: [packages/sdk/src/workspace-service.ts:309](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L309)
 
 Register a badge provider that contributes [WorkspaceBadge](WorkspaceBadge.md)s next to
 the workspace name in the Workspaces side panel. Multiple providers may be
@@ -541,7 +546,7 @@ ctx.subscriptions.push(
 getBadges(workspaceId): WorkspaceBadge[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:309](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L309)
+Defined in: [packages/sdk/src/workspace-service.ts:316](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L316)
 
 Concatenate all registered providers' badges for one workspace (in
 registration order). Called synchronously during panel render — providers
@@ -565,7 +570,7 @@ must be fast and side-effect-free.
 invalidateBadges(): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:318](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L318)
+Defined in: [packages/sdk/src/workspace-service.ts:325](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L325)
 
 Signal that badge data has changed. Fires all listeners registered via
 [WorkspaceService.subscribeBadges](#subscribebadges), causing the Workspaces panel to
@@ -585,7 +590,7 @@ Call this after any mutation to the state your `provide` function reads.
 subscribeBadges(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:325](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L325)
+Defined in: [packages/sdk/src/workspace-service.ts:332](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L332)
 
 Subscribe to badge invalidations. The listener is called whenever
 [WorkspaceService.invalidateBadges](#invalidatebadges) is invoked. Returns a

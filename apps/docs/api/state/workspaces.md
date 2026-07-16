@@ -42,7 +42,7 @@ to the full signature.
 | [`activate(id)`](/api/types/interfaces/WorkspaceService#activate)                           | Activate (and reopen if closed).                                             |
 | [`close(id)`](/api/types/interfaces/WorkspaceService#close)                                 | Soft close — hidden but still saved.                                         |
 | [`reopen(id)`](/api/types/interfaces/WorkspaceService#reopen)                               | Reverse of `close`.                                                          |
-| [`delete(id)`](/api/types/interfaces/WorkspaceService#delete)                               | Hard delete — permanent removal.                                             |
+| [`delete(id)`](/api/types/interfaces/WorkspaceService#delete)                               | Hard delete — permanent removal (also reaps the workspace's terminals).      |
 | [`addFolder(id, folder)`](/api/types/interfaces/WorkspaceService#addfolder)                 | Add an extra folder to a workspace.                                          |
 | [`removeFolder(id, folder)`](/api/types/interfaces/WorkspaceService#removefolder)           | Remove an extra folder.                                                      |
 

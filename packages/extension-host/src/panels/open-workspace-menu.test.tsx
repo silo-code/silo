@@ -14,12 +14,6 @@ vi.mock("../extension-host/ui-service", () => ({
   }),
 }));
 
-vi.mock("../extension-host/terminal-service", () => ({
-  getTerminalService: () => ({
-    closeWorkspace: vi.fn(),
-  }),
-}));
-
 vi.mock("../extension-host/file-service", () => ({
   getFileService: () => ({
     pathExists: vi.fn(),

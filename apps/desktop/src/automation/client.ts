@@ -23,7 +23,13 @@ export interface EditorDetail {
 
 export interface WorkspaceList {
   active: string | null;
-  workspaces: { id: string; name?: string; folder?: string }[];
+  workspaces: {
+    id: string;
+    name?: string;
+    folder?: string;
+    /** ISO timestamp when soft-closed, or null when open. */
+    closedAt?: string | null;
+  }[];
 }
 
 /** Resolved Monaco editor configuration, from the `editorOptions` op. */
@@ -156,11 +162,41 @@ export class SiloAutomation {
     return this.call("activateWorkspace", { id });
   }
 
-  /** Fully remove a workspace entry (switches active away first). For teardown. */
+  /**
+   * Soft-close a workspace — keeps the entry (and its terminals / PTYs) so it
+   * can be reopened. Counterpart to {@link SiloAutomation.deleteWorkspace}.
+   */
+  closeWorkspace(
+    id: string,
+  ): Promise<{ closed: boolean; active: string | null }> {
+    return this.call("closeWorkspace", { id });
+  }
+
+  /** Fully remove a workspace entry (and reap its PTYs). For teardown. */
   deleteWorkspace(
     id: string,
   ): Promise<{ deleted: boolean; active: string | null }> {
     return this.call("deleteWorkspace", { id });
+  }
+
+  /**
+   * Whether a PTY session is still alive in the pty-host daemon. Uses
+   * `ctx.process.attach` as a probe — does not kill the session.
+   */
+  processAlive(sessionId: string): Promise<{ alive: boolean; error?: string }> {
+    return this.call("processAlive", { sessionId });
+  }
+
+  /** Terminal tab records for a workspace (defaults to the active one). */
+  listTerminals(workspaceId?: string): Promise<{
+    terminals: {
+      id: string;
+      title: string;
+      sessionId: string;
+      kind: string;
+    }[];
+  }> {
+    return this.call("listTerminals", { workspaceId });
   }
 
   openFile(path: string): Promise<{ editorId: string; panelId: string }> {
@@ -206,6 +242,19 @@ export class SiloAutomation {
 
   openTerminal(cwd?: string): Promise<{ terminalId: string; panelId: string }> {
     return this.call("openTerminal", { cwd });
+  }
+
+  /**
+   * Write to a terminal's PTY as if typed. Force-spawns the session when the
+   * tab has never mounted — useful for tests that need a live `sessionId`
+   * without waiting on dock mount/focus.
+   */
+  sendText(
+    terminalId: string,
+    text: string,
+    addNewline = true,
+  ): Promise<{ sent: boolean }> {
+    return this.call("sendText", { terminalId, text, addNewline });
   }
 
   /** Run a registered command id — the same dispatch menus/keybindings use. */

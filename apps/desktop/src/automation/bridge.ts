@@ -5,13 +5,13 @@ import {
   getThemeService,
   getProcessService,
   getTerminalService,
+  getWorkspaceService,
   executeCommand,
   contextKeys,
   store,
   sidePanelRegistry,
   createWorkspace,
   activateWorkspace,
-  deleteWorkspace,
   openEditor,
   openDiff,
   openPreviewDiff,
@@ -313,7 +313,12 @@ async function handleOp(
         active: store.activeWorkspaceId,
         workspaces: store.workspaceOrder.map((id) => {
           const w = store.workspaces[id];
-          return { id, name: w?.name, folder: w?.folder };
+          return {
+            id,
+            name: w?.name,
+            folder: w?.folder,
+            closedAt: w?.closedAt ?? null,
+          };
         }),
       };
 
@@ -330,19 +335,51 @@ async function handleOp(
       return { active: store.activeWorkspaceId };
     }
 
-    // Asserted teardown: fully remove a workspace entry. deleteWorkspace()
-    // switches the active workspace away first (pickNextOpen), so a test can
-    // then safely delete the sandbox folder it pointed at. Returns the verified
-    // end state — `deleted` is true only if the id is truly gone from the store.
+    // Soft-close — keeps the workspace entry (and its terminal records / PTYs).
+    // Counterpart to deleteWorkspace; drives ctx.workspaces.close.
+    case "closeWorkspace": {
+      const id = String(args.id ?? "");
+      getWorkspaceService().close(id);
+      const ws = store.workspaces[id];
+      return {
+        closed: Boolean(ws?.closedAt),
+        active: store.activeWorkspaceId,
+      };
+    }
+
+    // Asserted teardown: fully remove a workspace entry (and reap its PTYs).
+    // Routes through the same WorkspaceService.delete the UI uses, awaiting
+    // its returned promise so the reply waits until PTYs are actually killed
+    // — the entry itself is already gone by the time delete() returns, since
+    // it removes it synchronously before awaiting the reap. Returns the
+    // verified end state — `deleted` is true only if the id is truly gone.
     case "deleteWorkspace": {
       const id = String(args.id ?? "");
-      // Mirror the real UI delete path (WorkspacesPanel.confirmDelete): reap the
-      // workspace's terminal sessions before removing it, so no PTYs leak.
-      getTerminalService().closeWorkspace(id);
-      deleteWorkspace(id);
+      await getWorkspaceService().delete(id);
       const deleted =
         !store.workspaces[id] && !store.workspaceOrder.includes(id);
       return { deleted, active: store.activeWorkspaceId };
+    }
+
+    // Probe whether a PTY session is still alive in the pty-host daemon.
+    // Uses process.attach (404/"no longer exists" → alive:false). Does not
+    // kill the session — kill() itself (terminal.rs) now blocks until the
+    // daemon actually tears down, so there's no post-kill race window left to
+    // guard against here; a single probe is enough.
+    case "processAlive": {
+      const sessionId = String(args.sessionId ?? "");
+      if (!sessionId) return { alive: false };
+      try {
+        await getProcessService().attach(sessionId, { cols: 80, rows: 24 });
+        return { alive: true };
+      } catch (err) {
+        const status = (err as { status?: number } | null)?.status;
+        const msg = err instanceof Error ? err.message : String(err);
+        if (status === 404 || msg.includes("no longer exists")) {
+          return { alive: false };
+        }
+        return { alive: false, error: msg };
+      }
     }
 
     case "openFile": {
@@ -359,6 +396,15 @@ async function handleOp(
       });
       if (!rec) throw new Error("openTerminal: no active workspace");
       return { terminalId: rec.id, panelId: `terminal:${rec.id}` };
+    }
+
+    // Write to a terminal PTY (force-spawns if the tab has never mounted).
+    case "sendText": {
+      const terminalId = String(args.terminalId ?? "");
+      const text = String(args.text ?? "");
+      const addNewline = args.addNewline !== false;
+      getTerminalService().sendText(terminalId, text, addNewline);
+      return { sent: true };
     }
 
     case "listTerminals": {

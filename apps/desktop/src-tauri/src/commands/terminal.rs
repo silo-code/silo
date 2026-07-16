@@ -8,7 +8,8 @@ use std::thread;
 use uuid::Uuid;
 
 use super::session_backend::{
-    active_backend, log_event, Connection, ForegroundInfo, SessionChild, SessionMaster,
+    active_backend, log_event, Connection, ForegroundInfo, SessionBackend, SessionChild,
+    SessionMaster,
 };
 use super::session_registry;
 use super::terminal_io::{run_foreground_loop, run_reader_loop};
@@ -110,8 +111,9 @@ pub fn terminal_create(
         let handle_clone = handle.clone();
         let session_id_clone = session_id.clone();
         let app_clone = app.clone();
+        let on_gone = evict_on_gone(&state, &session_id, &session);
         thread::spawn(move || {
-            run_reader_loop(reader, handle_clone, app_clone, session_id_clone);
+            run_reader_loop(reader, handle_clone, app_clone, session_id_clone, on_gone);
         });
     }
 
@@ -126,6 +128,24 @@ pub fn terminal_create(
     Ok(session_id)
 }
 
+/// Build the reader loop's `on_gone` callback: evict `session_id` from
+/// `state.sessions`, but only if it still points at this exact session — a
+/// kill+reattach (or a fresh recreate under the same id) may have already
+/// replaced the entry by the time this stream's reader loop notices EOF, and
+/// blindly removing by key would evict that newer, live session instead.
+fn evict_on_gone(
+    state: &TerminalState,
+    session_id: &str,
+    session: &Arc<PtySession>,
+) -> impl FnOnce() + Send + 'static {
+    let sessions = state.sessions.clone();
+    let session_id = session_id.to_string();
+    let session = session.clone();
+    move || {
+        sessions.remove_if(&session_id, |_, v| Arc::ptr_eq(v, &session));
+    }
+}
+
 #[tauri::command]
 pub fn terminal_write(
     state: tauri::State<TerminalState>,
@@ -138,7 +158,9 @@ pub fn terminal_write(
     writer
         .write_all(&data)
         .map_err(|e| format!("Failed to write: {}", e))?;
-    writer.flush().map_err(|e| format!("Failed to flush: {}", e))?;
+    writer
+        .flush()
+        .map_err(|e| format!("Failed to flush: {}", e))?;
 
     Ok(())
 }
@@ -168,10 +190,7 @@ pub fn terminal_resize(
 }
 
 #[tauri::command]
-pub fn terminal_kill(
-    state: tauri::State<TerminalState>,
-    sessionId: String,
-) -> Result<(), String> {
+pub fn terminal_kill(state: tauri::State<TerminalState>, sessionId: String) -> Result<(), String> {
     let backend = active_backend();
     // Resolve the handle: prefer the persisted mapping, then the live session's
     // recorded handle, finally derivation (legacy sessions).
@@ -205,6 +224,53 @@ pub fn terminal_kill(
     result
 }
 
+/// Outcome of resolving a session id to an attachable handle: either it's
+/// already tracked in memory and live (nothing left to do), or it needs a
+/// fresh `backend.attach()` at the returned handle.
+#[cfg_attr(test, derive(Debug))]
+enum AttachPlan {
+    AlreadyLive,
+    NeedsAttach(String),
+}
+
+/// The handle/liveness resolution at the top of `terminal_attach`, pulled out
+/// as a pure function of `backend` + `state` so it's unit-testable without a
+/// `tauri::AppHandle`. Detects a dead/missing session up front — attaching to
+/// a session that no longer exists must fail with a typed marker (not a fake
+/// "Process exited"), so the frontend can show a clear "session no longer
+/// exists" state instead — and evicts a stale in-memory entry left after kill
+/// / daemon crash. An early-return "already live" here used to skip this
+/// check entirely, which made post-kill probes report alive forever.
+fn resolve_attach(
+    backend: &dyn SessionBackend,
+    state: &TerminalState,
+    session_id: &str,
+) -> Result<AttachPlan, String> {
+    // Use the persisted handle; only fall back to derivation for legacy
+    // sessions created before the registry existed.
+    let handle = session_registry::load(session_id)
+        .or_else(|| state.sessions.get(session_id).map(|s| s.handle.clone()))
+        .unwrap_or_else(|| backend.handle_for(session_id));
+
+    if !backend.exists(&handle) {
+        state.sessions.remove(session_id);
+        session_registry::remove(session_id);
+        log_event(
+            "attach_gone",
+            &format!("session={} handle={}", session_id, handle),
+        );
+        return Err("SESSION_GONE".to_string());
+    }
+
+    // Already live in memory (e.g. the app reloaded but the process didn't die)
+    // and the daemon still owns the session.
+    if state.sessions.contains_key(session_id) {
+        return Ok(AttachPlan::AlreadyLive);
+    }
+
+    Ok(AttachPlan::NeedsAttach(handle))
+}
+
 #[tauri::command]
 pub fn terminal_attach(
     app: tauri::AppHandle,
@@ -213,26 +279,11 @@ pub fn terminal_attach(
     cols: u16,
     rows: u16,
 ) -> Result<(), String> {
-    // Already live in memory (e.g. the app reloaded but the process didn't die).
-    if state.sessions.contains_key(&sessionId) {
-        return Ok(());
-    }
-
     let backend = active_backend();
-    // Use the persisted handle; only fall back to derivation for legacy sessions
-    // created before the registry existed.
-    let handle = session_registry::load(&sessionId).unwrap_or_else(|| backend.handle_for(&sessionId));
-
-    // Detect a dead/missing session up front. Attaching to a session that no
-    // longer exists must fail with a typed marker (not a fake "Process exited"),
-    // so the frontend can show a clear "session no longer exists" state instead.
-    if !backend.exists(&handle) {
-        log_event(
-            "attach_gone",
-            &format!("session={} handle={}", sessionId, handle),
-        );
-        return Err("SESSION_GONE".to_string());
-    }
+    let handle = match resolve_attach(backend.as_ref(), &state, &sessionId)? {
+        AttachPlan::AlreadyLive => return Ok(()),
+        AttachPlan::NeedsAttach(handle) => handle,
+    };
 
     let size = PtySize {
         rows,
@@ -256,8 +307,9 @@ pub fn terminal_attach(
         let handle_clone = handle.clone();
         let session_id_clone = sessionId.clone();
         let app_clone = app.clone();
+        let on_gone = evict_on_gone(&state, &sessionId, &session);
         thread::spawn(move || {
-            run_reader_loop(reader, handle_clone, app_clone, session_id_clone);
+            run_reader_loop(reader, handle_clone, app_clone, session_id_clone, on_gone);
         });
     }
 
@@ -300,8 +352,9 @@ pub fn terminal_start_stream(
         }
         let reader = session.reader.clone();
         let handle = session.handle.clone();
+        let on_gone = evict_on_gone(&state, &sessionId, session.value());
         thread::spawn(move || {
-            run_reader_loop(reader, handle, app, sessionId);
+            run_reader_loop(reader, handle, app, sessionId, on_gone);
         });
         Ok(())
     }
@@ -332,4 +385,146 @@ pub fn terminal_foreground_snapshot(
     sessionId: String,
 ) -> Option<ForegroundInfo> {
     state.fg_cache.get(&sessionId).map(|r| r.value().clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::session_backend::ForegroundSub;
+    use super::*;
+
+    /// A `SessionBackend` whose `exists()` answer is fixed for the test —
+    /// the only thing `resolve_attach` needs to make its decision.
+    struct FakeBackend {
+        exists: bool,
+    }
+
+    impl SessionBackend for FakeBackend {
+        fn handle_for(&self, session_id: &str) -> String {
+            format!("fake-{session_id}")
+        }
+        fn create(
+            &self,
+            _handle: &str,
+            _cwd: &str,
+            _size: PtySize,
+            _command: Option<Vec<String>>,
+        ) -> Result<Connection, String> {
+            unimplemented!("not exercised by resolve_attach")
+        }
+        fn attach(&self, _handle: &str, _size: PtySize) -> Result<Connection, String> {
+            unimplemented!("not exercised by resolve_attach")
+        }
+        fn exists(&self, _handle: &str) -> bool {
+            self.exists
+        }
+        fn list(&self) -> Vec<String> {
+            vec![]
+        }
+        fn kill(&self, _handle: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn subscribe_foreground(&self, _handle: &str) -> Option<Box<dyn ForegroundSub>> {
+            None
+        }
+    }
+
+    struct NoopMaster;
+    impl SessionMaster for NoopMaster {
+        fn resize(&self, _size: PtySize) -> Result<(), String> {
+            Ok(())
+        }
+    }
+
+    /// A tracked-in-memory session with no real backend behind it — enough to
+    /// populate `state.sessions` for a test.
+    fn fake_session(handle: &str) -> Arc<PtySession> {
+        Arc::new(PtySession {
+            handle: handle.to_string(),
+            master: Arc::new(Mutex::new(Box::new(NoopMaster) as Box<dyn SessionMaster>)),
+            reader: Arc::new(Mutex::new(
+                Box::new(std::io::empty()) as Box<dyn Read + Send>
+            )),
+            writer: Arc::new(Mutex::new(
+                Box::new(std::io::sink()) as Box<dyn Write + Send>
+            )),
+            child: None,
+            #[cfg(windows)]
+            streaming: Arc::new(AtomicBool::new(false)),
+        })
+    }
+
+    /// Redirects `session_registry` to a scratch file for the duration of
+    /// `f`, under the crate-wide test lock (see `session_registry::test_lock`).
+    fn with_registry(f: impl FnOnce()) {
+        let _guard = session_registry::test_lock().lock().unwrap();
+        let mut file = std::env::temp_dir();
+        file.push(format!(
+            "silo-terminal-attach-test-{}.json",
+            std::process::id()
+        ));
+        std::env::set_var("SILO_SESSION_REGISTRY", &file);
+        let _ = std::fs::remove_file(&file);
+        f();
+        let _ = std::fs::remove_file(&file);
+        std::env::remove_var("SILO_SESSION_REGISTRY");
+    }
+
+    #[test]
+    fn dead_backend_evicts_stale_in_memory_entry_and_returns_session_gone() {
+        with_registry(|| {
+            let state = TerminalState::new();
+            session_registry::save("s1", "fake-s1");
+            // Simulate exactly the bug this fixes: a session still tracked in
+            // memory (e.g. after a daemon crash) whose backend no longer has it.
+            state
+                .sessions
+                .insert("s1".to_string(), fake_session("fake-s1"));
+
+            let backend = FakeBackend { exists: false };
+            let result = resolve_attach(&backend, &state, "s1");
+
+            assert_eq!(result.unwrap_err(), "SESSION_GONE");
+            assert!(
+                !state.sessions.contains_key("s1"),
+                "stale entry must be evicted, not left to report alive forever"
+            );
+            assert_eq!(session_registry::load("s1"), None);
+        });
+    }
+
+    #[test]
+    fn live_backend_with_tracked_session_short_circuits_as_already_live() {
+        with_registry(|| {
+            let state = TerminalState::new();
+            session_registry::save("s2", "fake-s2");
+            state
+                .sessions
+                .insert("s2".to_string(), fake_session("fake-s2"));
+
+            let backend = FakeBackend { exists: true };
+            let plan = resolve_attach(&backend, &state, "s2").unwrap();
+
+            assert!(matches!(plan, AttachPlan::AlreadyLive));
+            assert!(
+                state.sessions.contains_key("s2"),
+                "must not evict a live session"
+            );
+        });
+    }
+
+    #[test]
+    fn live_backend_without_tracked_session_resolves_to_needs_attach() {
+        with_registry(|| {
+            let state = TerminalState::new();
+            session_registry::save("s3", "fake-s3");
+
+            let backend = FakeBackend { exists: true };
+            let plan = resolve_attach(&backend, &state, "s3").unwrap();
+
+            match plan {
+                AttachPlan::NeedsAttach(handle) => assert_eq!(handle, "fake-s3"),
+                AttachPlan::AlreadyLive => panic!("expected NeedsAttach, not AlreadyLive"),
+            }
+        });
+    }
 }

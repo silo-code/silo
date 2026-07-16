@@ -9,7 +9,6 @@ import {
 import type { MenuEntry, Workspace } from "@silo-code/sdk";
 import { getWorkspaceService } from "../extension-host/workspace-service";
 import { getUiService } from "../extension-host/ui-service";
-import { getTerminalService } from "../extension-host/terminal-service";
 import { getFileService } from "../extension-host/file-service";
 import { deleteGroup, restoreGroup } from "../state/workspaces";
 import type { ClosedGroupEntry } from "../state/partition-saved-entries";
@@ -58,7 +57,7 @@ export function useFolderExistence(
   return results;
 }
 
-/** Confirm, then hard-delete a workspace and tear down its terminals. */
+/** Confirm, then hard-delete a workspace (terminals are reaped by delete). */
 async function confirmAndDeleteWorkspace(
   id: string,
   name: string,
@@ -70,7 +69,6 @@ async function confirmAndDeleteWorkspace(
     danger: true,
   });
   if (!ok) return;
-  getTerminalService().closeWorkspace(id);
   getWorkspaceService().delete(id);
 }
 

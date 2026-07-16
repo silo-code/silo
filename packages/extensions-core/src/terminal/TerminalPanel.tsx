@@ -33,6 +33,7 @@ import { xtermThemeFor } from "./xterm-theme";
 import { effectiveFontFamily } from "./terminal-font";
 import { buildTerminalPaste } from "./terminal-path-paste";
 import { findFileLinks, getHomeDir } from "./terminal-links";
+import { findTerminalOwnerId } from "./terminal-lifecycle";
 import { TerminalSearch } from "./TerminalSearch";
 import { Breadcrumb } from "../editor/Breadcrumb";
 import "@xterm/xterm/css/xterm.css";
@@ -78,9 +79,7 @@ async function openFileFromTerminal(
   editors: EditorService,
 ): Promise<void> {
   // Find the workspace that owns this terminal (don't assume the active one).
-  const wsId = Object.keys(store.workspaces).find((id) =>
-    store.workspaces[id].terminals.some((t) => t.id === terminalId),
-  );
+  const wsId = findTerminalOwnerId(Object.values(store.workspaces), terminalId);
   if (!wsId) return;
   const ws = store.workspaces[wsId];
 
@@ -612,12 +611,17 @@ export function TerminalPanel(
       disposers.forEach((d) => d());
       term.dispose();
 
-      // Clean up session only if the terminal record was deleted
-      const wsId = store.activeWorkspaceId;
-      const recordStillExists =
-        wsId &&
-        store.workspaces[wsId]?.terminals.some((t) => t.id === terminalId);
-      if (!recordStillExists && sessionId && session) {
+      // Kill only when the record was removed (tab close / workspace delete).
+      // Soft-close and empty-state unmount leave records in place — including
+      // on non-active workspaces — so look across every workspace, not just
+      // store.activeWorkspaceId (which is null when the last open workspace
+      // soft-closes and CenterDock swaps to the empty state).
+      if (
+        findTerminalOwnerId(Object.values(store.workspaces), terminalId) ===
+          null &&
+        sessionId &&
+        session
+      ) {
         session.kill().catch(() => {});
       }
     };
