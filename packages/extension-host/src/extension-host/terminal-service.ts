@@ -1,3 +1,4 @@
+import { subscribe } from "valtio";
 import { store } from "../state/store";
 import {
   activateWorkspace,
@@ -20,6 +21,102 @@ import {
   subscribeActiveTerminal,
 } from "./active-terminal-registry";
 import { focusCenterDock, getActiveDockApi } from "../docked/dock-api-registry";
+import { createHostChannel } from "./output-store";
+import {
+  collectLivePtys,
+  formatPtyEventMessage,
+  formatPtySummaryMessage,
+  type PtyEntry,
+} from "./pty-diagnostics";
+
+// Dedicated Output channel for PTY lifecycle visibility — separate from
+// `silo:application` so it doesn't crowd out other host logs, and so it can be
+// found/filtered on its own when debugging a session that outlived its
+// workspace (soft-close keeps PTYs alive by design; this channel is how you
+// eyeball whether that's actually what's happening).
+const terminalsChannel = createHostChannel("silo:terminals", "Terminals");
+
+/** Log one PTY create/delete event, resolving the workspace name for the line. */
+function logPtyEvent(
+  action: "created" | "deleted",
+  opts: {
+    workspaceId: string;
+    terminalId: string;
+    sessionId: string;
+    reason?: string;
+    level?: "info" | "error";
+  },
+): void {
+  const workspaceName =
+    store.workspaces[opts.workspaceId]?.name ?? opts.workspaceId;
+  const message = formatPtyEventMessage(action, { ...opts, workspaceName });
+  const data = { ...opts, workspaceName };
+  if (opts.level === "error") terminalsChannel.error(message, data);
+  else terminalsChannel.info(message, data);
+}
+
+// ---- create/delete detection ------------------------------------------------
+// A PTY's `sessionId` gets attached to its terminal record from several call
+// sites — TerminalPanel.tsx spawning directly via `ctx.process.spawn` on mount
+// (the common case), this module's own `ensureSession` (the `sendText` lazy-
+// spawn fallback), `close()`, `reapWorkspaceTerminals` — and any future one.
+// Rather than instrument every call site (guaranteed to miss the next one),
+// mirror `processes-service.ts`'s approach: diff the live sessionId set on
+// every store mutation. This is the one place that can't miss a spawn/kill
+// regardless of which layer triggered it.
+
+function logPtySummary(entries: PtyEntry[]): void {
+  const { message, data } = formatPtySummaryMessage(entries);
+  terminalsChannel.info(message, data);
+}
+
+// `null` until the post-hydration baseline is taken — the workspaces restored
+// from disk aren't newly "created", so the first sync after hydration seeds
+// the known set silently (logging one startup summary instead of a batch of
+// false creates).
+let knownPtys: Map<string, PtyEntry> | null = null;
+
+function syncPtyDiagnostics(): void {
+  if (!store.hydrated) return;
+  const current = collectLivePtys(store.workspaces);
+  const currentMap = new Map(current.map((e) => [e.sessionId, e]));
+
+  if (knownPtys === null) {
+    knownPtys = currentMap;
+    logPtySummary(current);
+    return;
+  }
+
+  for (const [sessionId, entry] of currentMap) {
+    if (!knownPtys.has(sessionId)) {
+      logPtyEvent("created", {
+        workspaceId: entry.workspaceId,
+        terminalId: entry.terminalId,
+        sessionId,
+      });
+    }
+  }
+  for (const [sessionId, entry] of knownPtys) {
+    if (!currentMap.has(sessionId)) {
+      logPtyEvent("deleted", {
+        workspaceId: entry.workspaceId,
+        terminalId: entry.terminalId,
+        sessionId,
+        reason: "removed from workspace state",
+      });
+    }
+  }
+  knownPtys = currentMap;
+}
+
+subscribe(store, syncPtyDiagnostics);
+
+// Periodic PTY census — every 5 minutes after the startup log above, dump a
+// per-workspace rollup (count + terminal names). The only way to notice a
+// session that's still alive when nothing should be holding it open.
+setInterval(() => {
+  logPtySummary(collectLivePtys(store.workspaces));
+}, 5 * 60_000);
 
 // `ctx.terminals` — the public contract lives in @silo-code/sdk
 // (terminal-service.ts); this is the host implementation.
@@ -62,7 +159,15 @@ function ensureSession(terminalId: string): Promise<string | null> {
       // Re-resolve the record — it may have moved/closed during the await.
       const rec = findTerminal(found.workspaceId, terminalId);
       if (!rec) {
+        // The terminal was removed while its PTY was still spawning — kill the
+        // now-orphaned session rather than leaking it.
         void session.kill();
+        logPtyEvent("deleted", {
+          workspaceId: found.workspaceId,
+          terminalId,
+          sessionId: session.id,
+          reason: "terminal removed mid-spawn",
+        });
         return null;
       }
       if (!rec.sessionId) rec.sessionId = session.id;
@@ -93,10 +198,23 @@ export async function reapWorkspaceTerminals(
   for (const id of ids) {
     const rec = removeTerminal(workspaceId, id);
     if (rec?.sessionId) {
+      const sessionId = rec.sessionId;
+      // The successful path is already covered by the store-diff (removeTerminal
+      // above drops the sessionId immediately, so the next sync logs "deleted").
+      // A failed kill is the one thing the diff can't see — store already thinks
+      // the PTY is gone, so this is the only trace of a session outliving the
+      // workspace it belonged to.
       kills.push(
-        tauriTerminalClient
-          .deleteTerminal(rec.sessionId)
-          .catch((err) => console.warn("delete terminal failed", err)),
+        tauriTerminalClient.deleteTerminal(sessionId).catch((err) => {
+          console.warn("delete terminal failed", err);
+          logPtyEvent("deleted", {
+            workspaceId,
+            terminalId: id,
+            sessionId,
+            reason: `workspace reap FAILED: ${String(err)}`,
+            level: "error",
+          });
+        }),
       );
     }
   }
@@ -148,9 +266,20 @@ export function getTerminalService(): TerminalService {
       if (!found) return; // unknown id → no-op
       const rec = removeTerminal(found.workspaceId, terminalId);
       if (rec?.sessionId) {
-        tauriTerminalClient
-          .deleteTerminal(rec.sessionId)
-          .catch((err) => console.warn("close terminal failed", err));
+        const { workspaceId } = found;
+        const sessionId = rec.sessionId;
+        // As in reapWorkspaceTerminals: the successful path is covered by the
+        // store-diff; only a failed kill needs its own log.
+        tauriTerminalClient.deleteTerminal(sessionId).catch((err) => {
+          console.warn("close terminal failed", err);
+          logPtyEvent("deleted", {
+            workspaceId,
+            terminalId,
+            sessionId,
+            reason: `terminal close FAILED: ${String(err)}`,
+            level: "error",
+          });
+        });
       }
     },
     rename(terminalId, name) {
