@@ -18,6 +18,7 @@ const registration = [
   ["registerCommand", "register-command"],
   ["registerKeybinding", "register-keybinding"],
   ["registerMenuItem", "register-menu-item"],
+  ["registerContextMenuItem", "register-context-menu-item"],
   ["registerFileType", "register-file-type"],
   ["registerDockPanelKind", "register-dock-panel-kind"],
   ["registerSettingsPage", "register-settings-page"],

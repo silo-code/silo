@@ -1,6 +1,6 @@
 # Interface: DockPanelKind\<T\>
 
-Defined in: [packages/sdk/src/types.ts:394](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L394)
+Defined in: [packages/sdk/src/types.ts:476](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L476)
 
 Registers a kind of dock panel (a tab that can live in the center dock area,
 e.g. the terminal). Workspaces open panels of registered kinds by id. The
@@ -22,7 +22,7 @@ opened with — annotate your component with `DockPanelProps<T>` and
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:396](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L396)
+Defined in: [packages/sdk/src/types.ts:478](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L478)
 
 Unique id for this panel kind.
 
@@ -34,7 +34,7 @@ Unique id for this panel kind.
 component: ComponentType<DockPanelProps<T>>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:398](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L398)
+Defined in: [packages/sdk/src/types.ts:480](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L480)
 
 The React component that renders this panel; receives [DockPanelProps](DockPanelProps.md).
 
@@ -46,7 +46,7 @@ The React component that renders this panel; receives [DockPanelProps](DockPanel
 optional addMenuItem?: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:403](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L403)
+Defined in: [packages/sdk/src/types.ts:485](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L485)
 
 When set, this kind appears as an entry in the center dock's **+** add
 menu (the per-group header button). Omit to keep the kind internal.
