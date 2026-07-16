@@ -19,10 +19,12 @@ import type {
   WorkspaceStatusProvider,
   WorkspaceSectionProvider,
   WorkspaceBadgeProvider,
+  WorkspacePropertyPage,
 } from "@silo-code/sdk";
 import { workspaceStatusRegistry } from "./workspace-status-registry";
 import { workspaceSectionRegistry } from "./workspace-section-registry";
 import { workspaceBadgeRegistry } from "./workspace-badge-registry";
+import { workspacePropertyPageRegistry } from "./workspace-property-page-registry";
 import { reapWorkspaceTerminals } from "./terminal-service";
 
 // `ctx.workspaces` — the public contract lives in @silo-code/sdk
@@ -123,6 +125,9 @@ export function getWorkspaceService(): WorkspaceService {
     subscribeSection: workspaceSectionRegistry.subscribe.bind(
       workspaceSectionRegistry,
     ),
+    registerPropertyPage(page: WorkspacePropertyPage) {
+      return workspacePropertyPageRegistry.register(page);
+    },
     registerBadge(provider: WorkspaceBadgeProvider) {
       return workspaceBadgeRegistry.register(provider);
     },

@@ -115,6 +115,68 @@ export interface WorkspaceStatusProvider {
 }
 
 /**
+ * Props passed to a {@link WorkspacePropertyPage} component.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface WorkspacePropertyPageProps {
+  /** The workspace whose properties are being edited. */
+  ws: Workspace;
+  /**
+   * The workspace service — read workspace state and subscribe to changes.
+   * Persist the page's own settings via `ctx.storage.workspace`, applying
+   * them immediately on change (the properties modal has no Save button —
+   * every field persists as it changes).
+   */
+  workspaces: WorkspaceService;
+  /**
+   * Force a re-render of this tab's content. The host never persists
+   * extension state — the extension owns that via `ctx.storage.workspace` —
+   * but after an out-of-band change (e.g. a background poll updating what
+   * the page displays) call this to refresh the mounted component.
+   */
+  refresh?: () => void;
+}
+
+/**
+ * A tab contributed by an extension inside the workspace properties modal.
+ * Register via {@link WorkspaceService.registerPropertyPage}.
+ *
+ * The modal always shows a tab bar; the built-in **General** tab (name,
+ * folders) is first, followed by registered pages sorted by
+ * {@link WorkspacePropertyPage.order | order} within each extension.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface WorkspacePropertyPage {
+  /** Unique id, conventionally `"<extension-id>.properties"`. */
+  id: string;
+  /** Tab label shown in the tab bar. */
+  title: string;
+  /** Optional icon rendered to the left of the tab label. */
+  icon?: React.ReactNode;
+  /**
+   * The React component rendered as the tab's content. Receives the
+   * workspace being edited and the workspace service
+   * ({@link WorkspacePropertyPageProps}).
+   */
+  component: React.ComponentType<WorkspacePropertyPageProps>;
+  /**
+   * Whether this tab should appear for this workspace. Defaults to `true`
+   * (always visible); return `false` to hide it for workspaces where the
+   * extension is not relevant (e.g. a workspace with no git repo).
+   */
+  visible?: (ws: Workspace) => boolean;
+  /**
+   * Sort order within this extension's contributions. Lower values appear
+   * first. Defaults to `0`.
+   */
+  order?: number;
+}
+
+/**
  * An immutable, frozen view of workspace state, returned by
  * {@link WorkspaceService.getState} and delivered to subscribers — read
  * access without a Valtio dependency.
@@ -285,6 +347,31 @@ export interface WorkspaceService {
    * update its own state directly.
    */
   subscribeSection(listener: () => void): Disposable;
+
+  /**
+   * Register a property page that adds a tab to the workspace properties
+   * modal. The host composes all registered pages into the modal's tab bar,
+   * after the built-in General tab. The extension is responsible for
+   * persisting its settings via `ctx.storage.workspace`, immediately on
+   * change — the modal has no Save button.
+   *
+   * Returns a {@link Disposable} that unregisters the page and unmounts the
+   * component from any open properties modal.
+   *
+   * @example
+   * ```tsx
+   * ctx.subscriptions.push(
+   *   ctx.workspaces.registerPropertyPage({
+   *     id: "silo.github-actions.properties",
+   *     title: "GitHub Actions",
+   *     icon: <IconGitHub size={14} />,
+   *     component: GhActionsWorkspaceSettings,
+   *     visible: (ws) => hasDetectedRepo(ws.id),
+   *   }),
+   * );
+   * ```
+   */
+  registerPropertyPage(page: WorkspacePropertyPage): Disposable;
 
   /**
    * Register a badge provider that contributes {@link WorkspaceBadge}s next to

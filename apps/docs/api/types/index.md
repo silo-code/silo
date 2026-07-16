@@ -110,6 +110,8 @@ the published reference is exactly this surface — no more, no less.
 - [WorkspaceBadge](interfaces/WorkspaceBadge.md)
 - [WorkspaceBadgeProvider](interfaces/WorkspaceBadgeProvider.md)
 - [WorkspaceStatusProvider](interfaces/WorkspaceStatusProvider.md)
+- [WorkspacePropertyPageProps](interfaces/WorkspacePropertyPageProps.md)
+- [WorkspacePropertyPage](interfaces/WorkspacePropertyPage.md)
 - [WorkspaceState](interfaces/WorkspaceState.md)
 - [CreateWorkspaceInput](interfaces/CreateWorkspaceInput.md)
 - [WorkspaceService](interfaces/WorkspaceService.md)
