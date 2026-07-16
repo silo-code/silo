@@ -323,7 +323,7 @@
 
 /* Full git error output, shown in the "View details" modal (ctx.ui.showModal). */
 .git-error-detail {
-  max-height: 50vh;
+  max-height: 25vh;
   overflow: auto;
   margin: 0;
   padding: 10px 12px;
@@ -335,6 +335,18 @@
   font-size: var(--silo-font-size-sm);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  /* Root sets user-select: none for the app's desktop chrome; opt this output
+     back in so the error text (and stack traces) can be selected/copied. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Icon + label in the error modal's "Copy" button — plain JSX whitespace
+   between the two children collapses to nothing, so space them with flex. */
+.git-error-copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Commit area */
