@@ -1,5 +1,5 @@
 ---
-status: draft
+status: accepted
 created: 2026-07-15
 # supersedes:
 # superseded-by:
@@ -25,7 +25,18 @@ its modal — out of reach when a user wants to toggle them from the sidebar.
 With this proposal, the github-actions extension contributes a **GitHub Actions
 tab** to the workspace properties modal, adds "Refresh" and "Clear Alerts" to
 the workspace context menu via the `"workspace"` surface, and keeps the existing
-modal workflow for the full workflow list.
+modal workflow for the full workflow list. It also adds a **per-workspace
+enable/disable toggle** — surfaced both as a checkbox in the GitHub Actions tab
+and as a checked/toggle context-menu row (via [RFC 0013](./0013-context-menu-contributions.md)'s
+`checked` field) — built entirely on the primitives below with no new SDK
+surface (see "Per-workspace enable/disable" under Design).
+
+This proposal also redesigns the workspace properties modal's save model:
+every field now persists immediately on change (matching the Settings-page
+convention), the modal becomes dismissible, and the Name field — the one input
+where an empty value would be visibly broken elsewhere in the UI — gets a
+dedicated edit-mode component with explicit validation. See "Workspace
+properties modal redesign" under Design.
 
 ## Motivation
 
@@ -87,12 +98,13 @@ that swaps on workspace change. The github-actions extension uses it to persist
 
 When `openWorkspaceProperties` is called, the host:
 
-1. Renders the **base properties** (name, folders) as today.
-2. Collects all registered **workspace property pages** from loaded extensions.
-3. If there are any, renders a **tab bar** above the properties content with
-   extension contribution tabs.
-4. The first tab is always "General" (the built-in properties); subsequent tabs
-   are sorted by `order` within each extension.
+1. Renders a **tab bar** above the properties content — always present, even
+   with zero extension contributions (revised from the original "only when
+   extensions contribute" proposal; see Decision).
+2. The first tab is always **"General"** (the built-in name/folders
+   properties); subsequent tabs are the registered **workspace property
+   pages**, sorted by `order` within each extension.
+3. Renders the active tab's content.
 
 ### API surface
 
@@ -192,9 +204,58 @@ interface WorkspaceService {
 }
 ````
 
+### Workspace properties modal redesign
+
+This proposal also changes the **General** tab's save model, replacing the
+existing staged-edit + Save/Cancel footer (`packages/extensions-core/src/workspaces/workspace-properties.tsx`)
+with immediate persistence, consistent with how extension property pages
+already work and with the Settings-page convention elsewhere in the app
+(`TerminalSettingsPage.tsx`, `EditorSettingsPage.tsx`: plain `onChange` commits
+straight to the store, no debounce, no staging).
+
+**Folders** (add / remove) already commit as atomic, one-shot actions today —
+no change needed, they translate to immediate-persist for free.
+
+**Name** is the one field where immediate per-keystroke persistence is the
+wrong model: unlike a Settings text field (harmless if momentarily empty — e.g.
+"Shell path" falls back to `$SHELL`), a workspace with an empty name is
+visibly broken everywhere it's rendered (tabs, sidebar, window title). Name
+gets a dedicated edit-mode component instead, following the existing
+inline-rename pattern already used by the file explorer
+(`packages/extensions-silo/src/file-explorer/Tree.tsx` / `TreeNodes.tsx`):
+
+- Displayed as static text by default, with a pencil-icon affordance.
+- Clicking the pencil icon enters edit mode: the static text becomes an
+  input, with explicit **Save** and **Cancel** icon buttons appearing to its
+  right.
+- **Save** validates the trimmed value is non-empty. Unlike the file
+  explorer's silent no-op-on-empty, this shows an inline error instead — the
+  workspace-properties context makes an empty name enough of a mistake to
+  surface, rather than silently discarding it.
+- **Enter** triggers the same path as clicking Save.
+- **Escape** cancels the edit (discarding the typed value, reverting to the
+  static display) and **stops propagation** so it doesn't also trigger the
+  modal's own Escape-to-close — mirroring the existing precedent in
+  `Modal.tsx` for layered Escape ownership ("a menu open on top of the modal
+  owns Escape — let it close first").
+- Opening the modal no longer auto-focuses/auto-selects the name field (it
+  did previously, when renaming was the modal's only job) — the tab bar and
+  General tab now serve broader purposes, so a single pencil-icon click to
+  opt into renaming is preferred over presuming that's what the user is here
+  for.
+
+**The modal itself becomes dismissible** — `ctx.ui.showModal(..., { dismissible: true })`
+instead of the current non-dismissible default. The non-dismissible behavior
+existed specifically to protect staged edits from an accidental click-away;
+with folders, extension tabs, and now Name (outside of an active edit) all
+persisting immediately, there is nothing left to lose except an in-progress
+name edit — which the Escape/close-while-editing rule above already handles by
+discarding it explicitly, rather than by blocking the modal from closing at
+all.
+
 ### GitHub Actions example implementation
 
-The github-actions extension registers two things:
+The github-actions extension registers three things:
 
 **1. A property page (per-workspace settings):**
 
@@ -258,6 +319,64 @@ which introduces the `MenuSurface` type and `registerContextMenuItem`. The
 `"workspace"` surface adds the workspace row as a fourth context-menu surface.
 See the **references** section at the bottom of this RFC.
 
+**3. Per-workspace enable/disable:**
+
+No new SDK surface — this is application logic built entirely on
+`ctx.storage.workspace`, following the exact pattern already used for
+`workspaceCurrentBranchOnly` / `workspaceDismissOnSuccess` (`store.ts`):
+
+```ts
+// store.ts — same Map<string, boolean> + Record<string, boolean> pattern as
+// the existing per-workspace booleans; defaults to `true` so upgrading users
+// see zero behavior change until they explicitly disable a workspace.
+getWorkspaceEnabled(workspaceId: string): boolean {
+  return this._workspaceEnabled.get(workspaceId) ?? true;
+}
+
+setWorkspaceEnabled(workspaceId: string, value: boolean): void {
+  this._workspaceEnabled.set(workspaceId, value);
+  // ...persist to storage, mirroring setWorkspaceCurrentBranchOnly
+}
+```
+
+`gh-actions-service.tsx`'s `_scheduleReconcile` gates polling on this flag —
+a disabled workspace gets no timer started (or an existing one stopped), and
+its status-bar item and workspace decorations (badges/status rows) are hidden
+rather than left showing frozen, stale data. The GitHub Actions property-page
+tab stays visible regardless of the flag (gated on repo-detection via
+`visible`, not on `enabled`) — it's the only way back to re-enable a disabled
+workspace.
+
+A single command with a `checked` predicate (RFC 0013) renders as a toggle
+row — not two mutually-exclusive commands like Refresh/Clear Alerts, since
+this represents persistent on/off state rather than a one-shot action:
+
+```ts
+ctx.registerCommand({
+  id: "silo.github-actions.toggle-enabled-workspace",
+  label: "GitHub Actions: Enabled",
+  run: (ws: Workspace) =>
+    ghStore.setWorkspaceEnabled(ws.id, !ghStore.getWorkspaceEnabled(ws.id)),
+});
+
+ctx.subscriptions.push(
+  ctx.registerContextMenuItem({
+    surface: "workspace",
+    command: "silo.github-actions.toggle-enabled-workspace",
+    label: "GitHub Actions: Enabled",
+    group: "gh-actions",
+    when: (_, ws) =>
+      ghStore.getRepoStates(ws.id).some((s) => s.repoInfo !== null),
+    checked: (_, ws) => ghStore.getWorkspaceEnabled(ws.id),
+  }),
+);
+```
+
+The same flag is also a checkbox in the property page (see
+`GhActionsWorkspaceSettings` below) — both surfaces read/write
+`getWorkspaceEnabled`/`setWorkspaceEnabled`, so they can never drift out of
+sync.
+
 ```tsx
 function GhActionsWorkspaceSettings({
   ws,
@@ -265,6 +384,7 @@ function GhActionsWorkspaceSettings({
 }: WorkspacePropertyPageProps) {
   const states = ghStore.getRepoStates(ws.id);
   const hasRepo = states.some((s) => s.repoInfo !== null);
+  const enabled = ghStore.getWorkspaceEnabled(ws.id);
   const branchOnly = ghStore.getWorkspaceCurrentBranchOnly(ws.id);
   const dismissOnSuccess = ghStore.getWorkspaceDismissOnSuccess(ws.id);
   const clearedAt = ghStore.getClearedAt(ws.id);
@@ -283,6 +403,16 @@ function GhActionsWorkspaceSettings({
     <div className="gha-ws-props">
       <section className="gha-ws-props__section">
         <h3 className="gha-ws-props__title">Monitoring</h3>
+        <label className="gha-ws-props__row">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) =>
+              ghStore.setWorkspaceEnabled(ws.id, e.target.checked)
+            }
+          />
+          <span className="gha-ws-props__label">Monitor this workspace</span>
+        </label>
         <label className="gha-ws-props__row">
           <input
             type="checkbox"
@@ -411,38 +541,50 @@ forms.
 
 ## Decision
 
-_Draft._ Open questions:
+**Accepted.**
 
-1. **Tab behavior when no pages are registered.** Should the tab bar be hidden
-   entirely when only the built-in "General" tab exists? (The github-actions modal
-   today is a flat form; if an extension registers a page, we introduce tabs.)
-   **Proposed: yes, show the tab bar only when extensions contribute pages.**
+1. **Tab behavior when no pages are registered.** Revised from the original
+   proposal: the tab bar is **always shown**, including a permanent "General"
+   tab, even with zero extension contributions. (Originally proposed hiding it
+   entirely in that case; reconsidered during design review — a tab bar that
+   sometimes exists and sometimes doesn't was judged more surprising than one
+   that's simply always there.)
 
-2. **Save semantics for extension tabs.** The workspace-properties modal saves
-   name + folders on Save. Extension property pages persist their own state via
-   `ctx.storage.workspace` — they don't need the modal's Save button. Should the
-   modal still show a Save/Cancel footer when extension tabs are present?
-   **Proposed: no footer when only extension tabs are rendered; the modal
-   auto-closes on extension save. Show footer when the General tab has changes.**
-   This mirrors the natural pattern: extension settings save immediately on change,
-   workspace metadata saves on explicit Save.
+2. **Save semantics.** Revised from the original proposal: there is **no
+   Save/Cancel footer at all**. Every field persists immediately on change —
+   folders (already atomic actions), extension property pages (unchanged from
+   the original proposal), and now the General tab's fields too, matching the
+   Settings-page convention. The one exception is **Name**, which uses a
+   dedicated edit-mode component with explicit Save/Cancel and empty-value
+   validation (see "Workspace properties modal redesign" under Design) — the
+   only field where immediate per-keystroke persistence would be visibly
+   broken elsewhere in the UI. The modal itself is now `dismissible: true`;
+   closing it while Name is mid-edit discards that edit specifically, which is
+   the only state left that can be lost.
 
-3. **Property page lifecycle across modal reopen.** If the user opens workspace
-   properties, navigates to the github-actions tab, changes a toggle, closes the
-   modal, then reopens it — should the toggle persist? Yes, because it's persisted
-   to `ctx.storage.workspace`. The host doesn't need to know about extension state;
-   the extension re-hydrates from storage on mount.
+3. **Property page lifecycle across modal reopen.** Unchanged from the
+   original proposal: yes, persists via `ctx.storage.workspace`. The host
+   doesn't need to know about extension state; the extension re-hydrates from
+   storage on mount.
 
-4. **Multi-workspace editing.** Can the user open one properties modal and see
-   workspace B's settings? No — the modal is single-workspace. Extensions register
-   against `ctx`, not against a workspace, so the component always renders for the
-   workspace passed as `ws`. **Not a gap** — this matches the current workspace
-   properties behavior.
+4. **Multi-workspace editing.** Unchanged: not a gap. The modal is
+   single-workspace; extensions register against `ctx`, not a workspace, so
+   the component always renders for the `ws` passed to it.
 
-5. **Security / sandbox.** Property pages render in the extension's React tree
-   (same as side panels, dock panels, status items). No new permission surface —
-   the extension already has access to `ctx.workspaces` and `ctx.storage.workspace`.
-   No sandbox change needed.
+5. **Security / sandbox.** Unchanged: no new permission surface, no sandbox
+   change. Property pages render in the extension's React tree with the same
+   access (`ctx.workspaces`, `ctx.storage.workspace`) it already has.
+
+6. **Per-workspace enable/disable (new, not in the original proposal).**
+   Github-actions-specific application logic, no new SDK primitive — see
+   "Per-workspace enable/disable" under Design. Summary of the resolved
+   design: `ctx.storage.workspace`-backed, following the existing
+   `workspaceCurrentBranchOnly` pattern exactly; a single toggling command
+   with RFC 0013's `checked` predicate for the context-menu row (not two
+   mutually-exclusive commands); a mirrored checkbox in the property page;
+   default `true` (zero behavior change on upgrade); disabling fully
+   suppresses polling and hides the status-bar item/decorations for that
+   workspace, rather than leaving stale data visible.
 
 ## References
 
