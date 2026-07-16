@@ -10,8 +10,16 @@ import type { MenuEntry, Workspace } from "@silo-code/sdk";
 import { getWorkspaceService } from "../extension-host/workspace-service";
 import { getUiService } from "../extension-host/ui-service";
 import { getFileService } from "../extension-host/file-service";
+import { confirmWithDontShowAgain } from "../extension-host/confirm-with-dont-show-again";
+import { getGlobalExtensionStorage } from "../extension-host/extension-storage";
 import { deleteGroup, restoreGroup } from "../state/workspaces";
 import type { ClosedGroupEntry } from "../state/partition-saved-entries";
+
+// Suppression flags are read from the "core.workspaces" extension's own
+// storage bag — the exact same one `ctx.storage.global` resolves to inside
+// that extension (see `getGlobalExtensionStorage` / `context.ts`), so a
+// checkbox ticked here or in the workspaces panel suppresses both.
+const workspacesStorage = getGlobalExtensionStorage("core.workspaces");
 
 // The empty-state "Open workspace" menu — the host-side twin of the workspaces
 // panel's add menu (extensions-core/workspaces/workspace-add-menu.tsx). The
@@ -62,24 +70,26 @@ async function confirmAndDeleteWorkspace(
   id: string,
   name: string,
 ): Promise<void> {
-  const ok = await getUiService().confirm({
+  const ok = await confirmWithDontShowAgain(getUiService(), workspacesStorage, {
+    storageKey: "deleteWorkspace.dontShowAgain",
     title: "Delete workspace?",
     body: `${name} and its saved terminals will be permanently removed.`,
     confirmLabel: "Delete",
-    danger: true,
+    mode: { kind: "confirm", danger: true },
   });
   if (!ok) return;
   getWorkspaceService().delete(id);
 }
 
-/** Confirm, then delete a closed group. Member workspaces are kept and reappear
+/** Confirm, then delete a group. Member workspaces are kept and reappear
  * individually in Saved (deleting a group only ungroups its members). */
 async function confirmAndDeleteGroup(id: string, name: string): Promise<void> {
-  const ok = await getUiService().confirm({
+  const ok = await confirmWithDontShowAgain(getUiService(), workspacesStorage, {
+    storageKey: "deleteGroup.dontShowAgain",
     title: "Delete group?",
     body: `${name} will be removed. Its workspaces stay saved and will appear individually.`,
     confirmLabel: "Delete",
-    danger: true,
+    mode: { kind: "confirm", danger: true },
   });
   if (!ok) return;
   deleteGroup(id);

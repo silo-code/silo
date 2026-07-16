@@ -13,7 +13,10 @@ import {
   partitionSavedEntries,
 } from "@silo-code/extension-host/internal";
 import { useFolderExistence } from "./workspace-helpers";
-import { buildAddWorkspaceItems } from "./workspace-add-menu";
+import {
+  buildAddWorkspaceItems,
+  confirmAndCloseWorkspace,
+} from "./workspace-add-menu";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { openWorkspaceProperties } from "./workspace-properties";
 import "./WorkspaceStatusItem.css";
@@ -111,7 +114,10 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
         if (ws) void openWorkspaceProperties(ctx, home, ws);
       },
     });
-    items.push({ label: "Close", run: () => service.close(activeId) });
+    items.push({
+      label: "Close",
+      run: () => void confirmAndCloseWorkspace(ctx, activeId, active.name),
+    });
     void ctx.ui.showMenu({ items, anchor: buttonRef.current });
   }
 

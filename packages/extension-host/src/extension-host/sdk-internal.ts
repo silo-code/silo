@@ -40,6 +40,16 @@
 export { Modal, ModalActions } from "./Modal";
 export type { ModalProps } from "./Modal";
 
+// A `ctx.ui.showModal`-based confirm/info dialog with a persisted "don't show
+// this again" checkbox — a capability `ctx.ui.confirm` has no room for.
+// Core-only: it's bespoke host content built on `<Modal>`, not a public
+// contract addition (see the file's header comment for the rationale).
+export { confirmWithDontShowAgain } from "./confirm-with-dont-show-again";
+export type {
+  DontShowAgainDialogMode,
+  DontShowAgainDialogOptions,
+} from "./confirm-with-dont-show-again";
+
 // App identity metadata (version/name) — privileged because its only consumer
 // is `core.about`, part of Silo's identity; not a public-surface capability.
 // See app-service.ts for the rationale.
