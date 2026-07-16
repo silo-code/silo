@@ -45,7 +45,11 @@ The docs site has two layers (see `apps/docs/`):
 
 - **Hand-authored, member-centric pages** — the navigable narrative organized by
   what you do with `ctx`: `apps/docs/api/index.md` (overview + shape diagram), then
-  `apps/docs/api/{registration,state,other}/*.md`, one page per `ctx` member.
+  one subdirectory per `ctx` domain (`apps/docs/api/registration/`,
+  `apps/docs/api/editors/`, `apps/docs/api/state/`, `apps/docs/api/storage/`,
+  `apps/docs/api/other/`, …), one page per `ctx` member. The `apiSidebar` in
+  `apps/docs/.vitepress/config.ts` is the source of truth for the current set of
+  domains.
 - **Generated type leaves** — TypeDoc renders the SDK types into
   `apps/docs/api/types/` (drill-down targets, linked from the member pages).
 
@@ -60,9 +64,9 @@ field):
 3. If it's a genuinely public type, **re-export it from `packages/sdk/src/index.ts`**
    (the barrel is the declared surface; if it's not in the barrel, it's not public).
 4. **If you added a `ctx` member**, add its hand-authored page under
-   `apps/docs/api/<registration|state|other>/<name>.md` (copy an existing one for
-   the shape: blurb → signature → example → type links → see-also) and add it to
-   the `apiSidebar` in `apps/docs/.vitepress/config.ts`. Link it from the overview
+   `apps/docs/api/<domain>/<name>.md` (copy an existing one for the shape:
+   blurb → signature → example → type links → see-also) and add it to the
+   `apiSidebar` in `apps/docs/.vitepress/config.ts`. Link it from the overview
    table in `apps/docs/api/index.md`.
 5. **Regenerate the type reference:** `pnpm docs:api` (writes
    `apps/docs/api/types/`, committed so growth shows in diffs).
@@ -205,3 +209,30 @@ How testing works here:
   no-ops/guards, disabled states, and "hidden/absent" cases (the new editor
   view-switching tests pin the priority tie-break, stale-`viewType` fallback,
   read-only Cut/Paste, and the single-view/diff/untitled hidden cases).
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues in `silo-code/silo`, via the `gh` CLI. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context, mapped to this repo's existing `docs/decisions/` (ADRs) and
+`docs/proposals/` (RFCs). See `docs/agents/domain.md`.
+
+**Path mismatch note**: the installed `domain-modeling`, `improve-codebase-architecture`,
+and `grill-with-docs` skills (from mattpocock/skills) hardcode `CONTEXT.md` and
+`docs/adr/` in their own instructions — they don't read `docs/agents/domain.md`.
+When running them: treat any `docs/adr/` reference as `docs/decisions/` (read
+existing ADRs from there; write new ones there, continuing the existing numbering
+— don't create a separate `docs/adr/` directory); `CONTEXT.md` at the repo root
+has no existing equivalent, so create it fresh if one of these skills needs it.
+These skills have no concept of `docs/proposals/` (RFCs) — that tier is outside
+their vocabulary, so don't expect them to read or write there.
