@@ -87,8 +87,10 @@ export interface CreateTerminalInput {
  * {@link ExtensionContext.terminals}. The terminal is a core feature — a
  * built-in DockKind like the editor — so this mirrors {@link EditorService}:
  * `create` opens a terminal tab in a workspace, and `closeWorkspace` reaps a
- * workspace's terminals (used when a workspace is deleted). The tab itself is
- * rendered by the core dock from the workspace's terminal records.
+ * workspace's terminals. {@link WorkspaceService.delete} calls `closeWorkspace`
+ * for you; the primitive remains available for surgical reaping without
+ * deleting the workspace. The tab itself is rendered by the core dock from the
+ * workspace's terminal records.
  *
  * @category Consumer Services
  * @public
@@ -104,7 +106,11 @@ export interface TerminalService {
    * happen because activating any workspace happens before extensions run.
    */
   create(input?: CreateTerminalInput): TerminalRecord | undefined;
-  /** Close and kill every terminal in a workspace (e.g. on workspace delete). */
+  /**
+   * Close and kill every terminal in a workspace. {@link WorkspaceService.delete}
+   * reaps terminals the same way automatically, so this is for reaping a
+   * workspace's terminals surgically, without deleting the workspace itself.
+   */
   closeWorkspace(workspaceId: string): void;
 
   /**

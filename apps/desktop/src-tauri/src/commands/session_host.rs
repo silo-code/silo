@@ -28,6 +28,10 @@ use pty_host::{discovery, foreground, paths};
 
 const NAME_PREFIX: &str = "silo";
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(3000);
+// The daemon's own kill sequence (SIGTERM, sleep 150ms, SIGKILL — see
+// pty-host's `kill_group`) plus buffer for the OS to actually reap it and the
+// master reader thread to remove the socket file.
+const KILL_TIMEOUT: Duration = Duration::from_millis(1000);
 // Sentinel the frontend normalizes to a 404 ("session no longer exists" +
 // Recreate), via tauri-terminal-client.ts. An incompatible leftover daemon is,
 // from this build's view, unreachable — i.e. effectively gone.
@@ -86,7 +90,10 @@ impl SessionHostBackend {
             Ok((T_HELLO, p)) => {
                 log_event(
                     "host_incompatible",
-                    &format!("handle={handle} daemon_proto={:?} app_proto={PROTO_VERSION}", parse_hello(&p)),
+                    &format!(
+                        "handle={handle} daemon_proto={:?} app_proto={PROTO_VERSION}",
+                        parse_hello(&p)
+                    ),
                 );
                 Err(SESSION_GONE.into())
             }
@@ -168,8 +175,27 @@ impl SessionBackend for SessionHostBackend {
     fn kill(&self, handle: &str) -> Result<(), String> {
         // Best-effort: if we can connect, ask the daemon to terminate; a failed
         // connect means it's already gone, which is success for our purposes.
-        if let Ok(mut s) = UnixStream::connect(paths::sock_path(handle)) {
-            let _ = write_frame(&mut s, T_KILL, &[]);
+        match UnixStream::connect(paths::sock_path(handle)) {
+            Ok(mut s) => {
+                let _ = write_frame(&mut s, T_KILL, &[]);
+            }
+            Err(_) => return Ok(()),
+        }
+
+        // Block until the socket actually stops accepting connections, so a
+        // caller that awaits kill() can trust the session is truly gone. Without
+        // this, a liveness probe or reattach racing right after kill() returns
+        // could reconnect to the still-dying daemon and resurrect the session in
+        // `terminal_attach` before the daemon's SIGTERM/sleep(150ms)/SIGKILL
+        // sequence finishes tearing it down. Best-effort: if it doesn't converge
+        // within the timeout, return anyway rather than hang a delete/close.
+        let sock = paths::sock_path(handle);
+        let deadline = Instant::now() + KILL_TIMEOUT;
+        while Instant::now() < deadline {
+            if !discovery::is_live(&sock) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(20));
         }
         Ok(())
     }
@@ -203,7 +229,7 @@ impl ForegroundSub for SocketForegroundSub {
                     }
                     // malformed — keep waiting rather than ending the stream
                 }
-                Ok(_) => {} // ignore the HELLO / any stray ring data
+                Ok(_) => {}            // ignore the HELLO / any stray ring data
                 Err(_) => return None, // connection closed → session gone
             }
         }
@@ -276,7 +302,8 @@ struct SocketMaster(UnixStream);
 impl SessionMaster for SocketMaster {
     fn resize(&self, size: PtySize) -> Result<(), String> {
         let mut s = &self.0;
-        write_frame(&mut s, T_RESIZE, &resize_payload(size.cols, size.rows)).map_err(|e| e.to_string())
+        write_frame(&mut s, T_RESIZE, &resize_payload(size.cols, size.rows))
+            .map_err(|e| e.to_string())
     }
 }
 

@@ -118,6 +118,21 @@ describe("TerminalService.close (B7)", () => {
   });
 });
 
+describe("TerminalService.closeWorkspace", () => {
+  it("kills every live session and clears the workspace's terminal list", () => {
+    svc.closeWorkspace("w");
+    expect(store.workspaces.w.terminals).toEqual([]);
+    expect(deleteTerminal).toHaveBeenCalledWith("sess-1");
+    expect(deleteTerminal).toHaveBeenCalledTimes(1);
+  });
+
+  it("is a no-op for an unknown workspace id", () => {
+    svc.closeWorkspace("nope");
+    expect(store.workspaces.w.terminals).toHaveLength(2);
+    expect(deleteTerminal).not.toHaveBeenCalled();
+  });
+});
+
 describe("TerminalService.rename (B7)", () => {
   it("sets a custom name and mirrors it into the title", () => {
     svc.rename("t1", "  deploy  ");

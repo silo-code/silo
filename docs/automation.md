@@ -192,26 +192,39 @@ automation can't operate). They call the **same `state/workspaces` APIs the UI
 does**, so the behavior under test — focus, activation, panel routing — is
 faithful. **Intended for a sandbox workspace; never point them at real files.**
 
-| op                  | args                                                 | result                                                                                |
-| ------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `listWorkspaces`    | —                                                    | `{ active, workspaces: [{id,name,folder}] }`                                          |
-| `openWorkspace`     | `{ folder: string, name?: string }`                  | `{ id }` — creates **and activates** it                                               |
-| `activateWorkspace` | `{ id: string }`                                     | `{ active }` — the active workspace id                                                |
-| `deleteWorkspace`   | `{ id: string }`                                     | `{ deleted, active }` — asserted teardown; removes the entry and switches active away |
-| `openFile`          | `{ path: string }`                                   | `{ editorId, panelId: "editor:<id>" }`                                                |
-| `openTerminal`      | `{ cwd?: string }`                                   | `{ terminalId, panelId: "terminal:<id>" }`                                            |
-| `openDiff`          | `{ path: string, mode?: "workingTree" \| "staged" }` | `{ diffId, panelId: "diff:<id>" }`                                                    |
-| `activatePanel`     | `{ panelId: string }`                                | `{ activated }`                                                                       |
-| `showSidePanel`     | `{ id: string }`                                     | `{ shown, slot?, error? }` — expands the panel's slot and clicks its tab              |
+| op                  | args                                                 | result                                                                                 |
+| ------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `listWorkspaces`    | —                                                    | `{ active, workspaces: [{id,name,folder}] }`                                           |
+| `openWorkspace`     | `{ folder: string, name?: string }`                  | `{ id }` — creates **and activates** it                                                |
+| `activateWorkspace` | `{ id: string }`                                     | `{ active }` — the active workspace id                                                 |
+| `closeWorkspace`    | `{ id: string }`                                     | `{ closed, active }` — soft-close; keeps entry + PTYs (reopen via `activateWorkspace`) |
+| `deleteWorkspace`   | `{ id: string }`                                     | `{ deleted, active }` — hard-delete; reaps terminals/PTYs and removes the entry        |
+| `processAlive`      | `{ sessionId: string }`                              | `{ alive, error? }` — probe whether a PTY session still exists in the daemon           |
+| `listTerminals`     | `{ workspaceId?: string }`                           | `{ terminals: [{id,title,sessionId,kind}] }` — defaults to the active workspace        |
+| `openFile`          | `{ path: string }`                                   | `{ editorId, panelId: "editor:<id>" }`                                                 |
+| `openTerminal`      | `{ cwd?: string }`                                   | `{ terminalId, panelId: "terminal:<id>" }`                                             |
+| `sendText`          | `{ terminalId, text, addNewline? }`                  | `{ sent }` — write to a PTY; force-spawns if the tab never mounted                     |
+| `openDiff`          | `{ path: string, mode?: "workingTree" \| "staged" }` | `{ diffId, panelId: "diff:<id>" }`                                                     |
+| `activatePanel`     | `{ panelId: string }`                                | `{ activated }`                                                                        |
+| `showSidePanel`     | `{ id: string }`                                     | `{ shown, slot?, error? }` — expands the panel's slot and clicks its tab               |
 
 Notes:
 
 - `openWorkspace` derives `name` from the last path segment of `folder` if
   omitted, and activates the new workspace.
+- `closeWorkspace` is the soft-close counterpart: sets `closedAt`, keeps the
+  workspace entry and its terminal records / PTY sessions, and switches active
+  away when needed. Reopen with `activateWorkspace` (or `workspaces.reopen`).
 - `deleteWorkspace` is the teardown counterpart: it removes the workspace entry
   and (if it was active) switches to the next open one, so a test can then
-  delete the sandbox folder it pointed at without racing the dock. `deleted` is
-  `true` only once the id is gone from the store.
+  delete the sandbox folder it pointed at without racing the dock. It also
+  awaits the reap of the workspace's terminals — the reply only returns once
+  every live PTY is confirmed killed at the daemon (not just once the kill
+  request was sent), so a `processAlive` check right after is not racy.
+  `deleted` is `true` only once the id is gone from the store.
+- `processAlive` probes a session via `ctx.process.attach` — `{ alive: true }`
+  if the pty-host still has it, `{ alive: false }` on a 404 ("session no
+  longer exists"). It does not terminate the session.
 - `openFile`/`openTerminal`/`openDiff` operate on the **active workspace**; if
   there is none they error with `no active workspace`.
 - `showSidePanel` wakes a **lazy-mounted** side panel (file explorer, git,
@@ -473,8 +486,6 @@ Conventions that keep them reliable:
 
 This is the minimal-plus surface. Natural extensions, roughly in order:
 
-- **`closeWorkspace` op:** the soft-close counterpart to `deleteWorkspace`
-  (keeps the entry, reopenable) — add if a test needs to exercise close/reopen.
 - **More input ops:** `type` (synthetic input into the focused editor),
   `dispatchKey`, `waitFor` (poll an `expr`/op until truthy), `screenshot`
   (webview capture).

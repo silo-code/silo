@@ -41,11 +41,19 @@ pub fn decode_utf8_stream(bytes: &[u8]) -> (String, Vec<u8>) {
 /// to the frontend. Scrollback persistence is handled on the frontend via the
 /// xterm.js SerializeAddon (see terminal_save_buffer) — the backend no longer
 /// captures or interprets the byte stream.
+///
+/// `on_gone` is called once the stream ends (EOF or a read error), so the
+/// caller can evict its own tracked session entry — this is the one place that
+/// reliably observes "this session just died", so it's also the one place that
+/// should own pruning stale bookkeeping, rather than leaving every other
+/// session-touching command (`terminal_write`, `terminal_resize`, a future
+/// reattach) to trust a possibly-stale entry until something else notices.
 pub fn run_reader_loop(
     reader: Arc<Mutex<Box<dyn Read + Send>>>,
     handle: String,
     app: tauri::AppHandle,
     session_id: String,
+    on_gone: impl FnOnce() + Send + 'static,
 ) {
     let mut buf = vec![0u8; 8192];
     // Holds an incomplete multi-byte UTF-8 sequence split across reads.
@@ -87,6 +95,7 @@ pub fn run_reader_loop(
             }
         }
     }
+    on_gone();
 }
 
 /// Forward a session's foreground-process updates (RFC 0010 N1) to the frontend

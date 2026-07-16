@@ -75,6 +75,34 @@ function ensureSession(terminalId: string): Promise<string | null> {
 
 let service: TerminalService | null = null;
 
+/**
+ * Remove every terminal record in a workspace and await force-kill of each live
+ * PTY. Used by {@link TerminalService.closeWorkspace} (fire-and-forget) and by
+ * the automation bridge (awaited so delete replies after reaps finish).
+ *
+ * @internal
+ */
+export async function reapWorkspaceTerminals(
+  workspaceId: string,
+): Promise<void> {
+  const ws = store.workspaces[workspaceId];
+  if (!ws) return;
+  // Snapshot ids first — removeTerminal mutates the array.
+  const ids = ws.terminals.map((t) => t.id);
+  const kills: Promise<void>[] = [];
+  for (const id of ids) {
+    const rec = removeTerminal(workspaceId, id);
+    if (rec?.sessionId) {
+      kills.push(
+        tauriTerminalClient
+          .deleteTerminal(rec.sessionId)
+          .catch((err) => console.warn("delete terminal failed", err)),
+      );
+    }
+  }
+  await Promise.all(kills);
+}
+
 /** @internal — host factory; extensions receive this as `ctx.terminals`. */
 export function getTerminalService(): TerminalService {
   if (service) return service;
@@ -105,18 +133,7 @@ export function getTerminalService(): TerminalService {
       }
     },
     closeWorkspace(workspaceId) {
-      const ws = store.workspaces[workspaceId];
-      if (!ws) return;
-      // Snapshot ids first — removeTerminal mutates the array.
-      const ids = ws.terminals.map((t) => t.id);
-      for (const id of ids) {
-        const rec = removeTerminal(workspaceId, id);
-        if (rec?.sessionId) {
-          tauriTerminalClient
-            .deleteTerminal(rec.sessionId)
-            .catch((err) => console.warn("delete terminal failed", err));
-        }
-      }
+      void reapWorkspaceTerminals(workspaceId);
     },
     sendText(terminalId, text, addNewline = true) {
       // A PTY treats Enter as a carriage return, so append "\r" (not "\n") to

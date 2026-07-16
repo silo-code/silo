@@ -187,8 +187,15 @@ export interface WorkspaceService {
   addFolder(id: string, folder: string): void;
   /** Remove an extra folder from a workspace. */
   removeFolder(id: string, folder: string): void;
-  /** Hard delete — permanent removal. */
-  delete(id: string): void;
+  /**
+   * Hard delete — permanent removal. Also reaps every terminal in the
+   * workspace (removes records and kills live PTY sessions); callers do not
+   * need a separate {@link TerminalService.closeWorkspace} step. The entry is
+   * removed from state synchronously (before this returns); the returned
+   * promise resolves once the reaped PTYs have actually been killed, for
+   * callers (e.g. tests) that need that guarantee. Most callers can ignore it.
+   */
+  delete(id: string): Promise<void>;
 
   /**
    * Register a status provider that contributes status rows to workspace
