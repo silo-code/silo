@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.27.1](https://github.com/silo-code/silo/compare/sdk-v0.27.0...sdk-v0.27.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **terminals:** keep PTYs on soft-close; reap them on workspace delete ([#234](https://github.com/silo-code/silo/issues/234)) ([b135229](https://github.com/silo-code/silo/commit/b135229ff78810e0911b3b88aa883111b228300c))
+
 ## [0.27.0](https://github.com/silo-code/silo/compare/sdk-v0.26.0...sdk-v0.27.0) (2026-07-15)
 
 
