@@ -114,6 +114,12 @@ export { homeDir } from "./platform";
 // workspace-section-registry.ts.
 export { workspaceSectionRegistry } from "./workspace-section-registry";
 
+// Workspace property page registry (RFC 0015) — same rationale as the section
+// registry above: reading back the full page list (React component refs) to
+// render the properties-modal tab bar is a core-extension-only concern. The
+// *write* side (registerPropertyPage) is public via ctx.workspaces.
+export { workspacePropertyPageRegistry } from "./workspace-property-page-registry";
+
 // Context-menu contribution read side (RFC 0013) — the *write* side
 // (registerContextMenuItem) is public via ctx; building the merged menu rows
 // for a surface is a core-extension concern (the built-in surface owns its

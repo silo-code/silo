@@ -59,7 +59,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.webview` (cross-origin iframe bridge)            | <Badge type="tip" text="stable" />   | [docs](/api/webview/)                                                                      |
 | context-menu contributions (workspace)                | <Badge type="tip" text="stable" />   | [docs](/api/registration/register-context-menu-item)                                       |
 | context-menu contributions (explorer/editor/terminal) | <Badge type="info" text="planned" /> | [design](#context-menus)                                                                   |
-| `ctx.workspaces.registerPropertyPage`                 | <Badge type="info" text="planned" /> | [design](#workspace-property-pages)                                                        |
+| `ctx.workspaces.registerPropertyPage`                 | <Badge type="tip" text="stable" />   | [docs](/api/state/workspaces#workspace-property-pages)                                     |
 
 ## Extension-owned features
 
@@ -135,18 +135,17 @@ The shape of each planned surface is now designed in an **RFC** under
 [`docs/proposals/`](https://github.com/silo-code/silo/tree/main/docs/proposals)
 (subject to change until it ships):
 
-| Planned surface                                                                                        | RFC                                                                                                                    |
-| ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| <a id="ctx-ui"></a>`ctx.ui` slice 2 — `quickPick` / `inputBox` / `progress`                            | [RFC 0001](https://github.com/silo-code/silo/blob/main/docs/proposals/0001-ctx-ui-slice-2.md)                          |
-| <a id="ctx-events"></a>Typed `ctx` events (`Event<T>`, domain-owned, no global bus)                    | [RFC 0002](https://github.com/silo-code/silo/blob/main/docs/proposals/0002-ctx-events.md)                              |
-| `ctx.secrets` — host-mediated credentials (storage `global` / `workspace` shipped)                     | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md)                             |
-| Declarative `contributes` + activation events                                                          | [RFC 0005](https://github.com/silo-code/silo/blob/main/docs/proposals/0005-declarative-contributes-activation.md)      |
-| Extension permissions + sandbox                                                                        | [RFC 0006](https://github.com/silo-code/silo/blob/main/docs/proposals/0006-extension-permissions-sandbox.md)           |
-| Extension authoring toolchain                                                                          | [RFC 0007](https://github.com/silo-code/silo/blob/main/docs/proposals/0007-extension-authoring-toolchain.md)           |
-| Package format + remote install (GitHub / npm)                                                         | [RFC 0008](https://github.com/silo-code/silo/blob/main/docs/proposals/0008-extension-package-format-remote-install.md) |
-| Language intelligence (TS/JS via `tsserver`)                                                           | [RFC 0009](https://github.com/silo-code/silo/blob/main/docs/proposals/0009-language-intelligence-lsp.md)               |
-| <a id="context-menus"></a>Context-menu contributions (explorer / editor / terminal / workspace)        | [RFC 0013](https://github.com/silo-code/silo/blob/main/docs/proposals/0013-context-menu-contributions.md)              |
-| <a id="workspace-property-pages"></a>Workspace property pages (tabs in the workspace properties modal) | [RFC 0015](https://github.com/silo-code/silo/blob/main/docs/proposals/0015-workspace-extension-contributions.md)       |
+| Planned surface                                                                                 | RFC                                                                                                                    |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| <a id="ctx-ui"></a>`ctx.ui` slice 2 — `quickPick` / `inputBox` / `progress`                     | [RFC 0001](https://github.com/silo-code/silo/blob/main/docs/proposals/0001-ctx-ui-slice-2.md)                          |
+| <a id="ctx-events"></a>Typed `ctx` events (`Event<T>`, domain-owned, no global bus)             | [RFC 0002](https://github.com/silo-code/silo/blob/main/docs/proposals/0002-ctx-events.md)                              |
+| `ctx.secrets` — host-mediated credentials (storage `global` / `workspace` shipped)              | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md)                             |
+| Declarative `contributes` + activation events                                                   | [RFC 0005](https://github.com/silo-code/silo/blob/main/docs/proposals/0005-declarative-contributes-activation.md)      |
+| Extension permissions + sandbox                                                                 | [RFC 0006](https://github.com/silo-code/silo/blob/main/docs/proposals/0006-extension-permissions-sandbox.md)           |
+| Extension authoring toolchain                                                                   | [RFC 0007](https://github.com/silo-code/silo/blob/main/docs/proposals/0007-extension-authoring-toolchain.md)           |
+| Package format + remote install (GitHub / npm)                                                  | [RFC 0008](https://github.com/silo-code/silo/blob/main/docs/proposals/0008-extension-package-format-remote-install.md) |
+| Language intelligence (TS/JS via `tsserver`)                                                    | [RFC 0009](https://github.com/silo-code/silo/blob/main/docs/proposals/0009-language-intelligence-lsp.md)               |
+| <a id="context-menus"></a>Context-menu contributions (explorer / editor / terminal / workspace) | [RFC 0013](https://github.com/silo-code/silo/blob/main/docs/proposals/0013-context-menu-contributions.md)              |
 
 ---
 

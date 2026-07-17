@@ -1,9 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type {
-  FileService,
-  WorkspaceService,
-  WorkspaceState,
-} from "@silo-code/sdk";
+import type { FileService, WorkspaceState } from "@silo-code/sdk";
 
 /**
  * A single workspace row, derived from the public {@link WorkspaceState} the
@@ -12,38 +8,6 @@ import type {
  * interface as a public SDK type).
  */
 export type Workspace = WorkspaceState["all"][number];
-
-/** The staged edits the Workspace Properties form hands back on save. */
-export interface WorkspacePropertiesChanges {
-  name: string;
-  extraFolders: string[];
-}
-
-/**
- * Apply staged Workspace Properties changes (rename + folder add/remove) by
- * diffing against the current state. Shared by the workspaces panel and the
- * status-bar Properties entry so the save logic lives in exactly one place.
- */
-export function applyWorkspaceProperties(
-  service: WorkspaceService,
-  id: string,
-  changes: WorkspacePropertiesChanges,
-): void {
-  const current = service.getState().all.find((w) => w.id === id);
-  if (!current) return;
-
-  const trimmed = changes.name.trim();
-  if (trimmed && trimmed !== current.name) service.rename(id, trimmed);
-
-  const origExtra = current.extraFolders ?? [];
-  for (const folder of origExtra) {
-    if (!changes.extraFolders.includes(folder))
-      service.removeFolder(id, folder);
-  }
-  for (const folder of changes.extraFolders) {
-    if (!origExtra.includes(folder)) service.addFolder(id, folder);
-  }
-}
 
 export function fullPath(folder: string, home: string): string {
   const p = folder.replace(/\/+$/, "");
