@@ -24,6 +24,7 @@ import {
   type WorkspaceStatusRow,
 } from "@silo-code/sdk";
 import {
+  contextMenuEntriesFor,
   homeDir,
   workspaceSectionRegistry,
 } from "@silo-code/extension-host/internal";
@@ -297,6 +298,13 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
         label: "Close",
         run: () => void confirmAndCloseWorkspace(ctx, ws.id, ws.name),
       });
+    }
+
+    // Extension contributions on the "workspace" surface (RFC 0013), grouped
+    // and separated below the built-in rows.
+    const contributed = contextMenuEntriesFor("workspace", ws);
+    if (contributed.length > 0) {
+      items.push({ type: "separator" }, ...contributed);
     }
     return items;
   }
