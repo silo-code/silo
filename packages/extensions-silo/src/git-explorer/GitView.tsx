@@ -5,6 +5,7 @@ import {
   CaretRight,
   CloudArrowUp,
   DotsThreeVertical,
+  TreeStructure,
 } from "@phosphor-icons/react";
 import {
   Tooltip,
@@ -22,7 +23,11 @@ import { ICON_CHECK, ICON_PLUS, ICON_MINUS, ICON_UNDO } from "./git-icons";
 import { summarizeGitError } from "./notify-error";
 import { GitErrorModal } from "./GitErrorModal";
 import { BranchManager } from "./BranchManager";
-import { findWorktreeFor } from "./worktree-model";
+import {
+  findWorktreeFor,
+  shouldShowWorktreeManagerButton,
+  worktreeManagerButtonTooltip,
+} from "./worktree-model";
 import { showWorktreeManager } from "./open-worktree-manager";
 import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
 
@@ -152,8 +157,9 @@ export function GitView({
         })
         .catch((err) => notifyError("Git status failed", err, true))
         .finally(() => min.then(() => setBusy(false)));
-      // Also learn whether this folder is a linked worktree (drives the
-      // header pill). Cheap read; failures just leave the pill off.
+      // Worktree list drives the linked-worktree header pill and the Manage
+      // worktrees shortcut. Cheap read; on failure keep the last good cache
+      // so a transient error doesn't flicker the button away.
       api
         .worktrees(folder)
         .then((wts) => {
@@ -604,12 +610,31 @@ export function GitView({
     const wt = worktrees ? findWorktreeFor(folder, worktrees) : undefined;
     return wt && !wt.isMain ? wt : undefined;
   })();
+  // Shortcut icon only on the main worktree view — linked views use the
+  // clickable "worktree" pill instead (avoids icon + pill redundancy).
+  const showWorktreeButton =
+    !linkedWorktree && shouldShowWorktreeManagerButton(worktrees);
   // A linked worktree opened alongside is an extra folder; the host no-ops
   // removeFolder on the primary, so only offer "close" for extras.
   const isExtraFolder = (() => {
     const ws = ctx.workspaces.getState().all.find((w) => w.id === workspaceId);
     return ws ? ws.folder !== folder : false;
   })();
+
+  const worktreePill = linkedWorktree ? (
+    <Tooltip content={worktreeManagerButtonTooltip(worktrees)}>
+      <button
+        type="button"
+        className="git-wt-pill"
+        onClick={(e) => {
+          e.stopPropagation();
+          openWorktreeManager();
+        }}
+      >
+        worktree
+      </button>
+    </Tooltip>
+  ) : null;
 
   return (
     <div className="git-panel">
@@ -652,11 +677,7 @@ export function GitView({
                   </span>
                 </Tooltip>
               </span>
-              {linkedWorktree && (
-                <Tooltip content={`Linked worktree at ${folder}`}>
-                  <span className="git-wt-pill">worktree</span>
-                </Tooltip>
-              )}
+              {worktreePill}
               <span
                 className="git-root-remote"
                 onClick={(e) => e.stopPropagation()}
@@ -699,6 +720,17 @@ export function GitView({
                     <ArrowsClockwise size={14} />
                   </button>
                 </Tooltip>
+                {showWorktreeButton && (
+                  <Tooltip content={worktreeManagerButtonTooltip(worktrees)}>
+                    <button
+                      className="branch-action git-wt-btn"
+                      onClick={openWorktreeManager}
+                      aria-label={worktreeManagerButtonTooltip(worktrees)}
+                    >
+                      <TreeStructure size={14} />
+                    </button>
+                  </Tooltip>
+                )}
                 <Tooltip content="More actions">
                   <button
                     className="branch-action git-menu-btn"
@@ -729,11 +761,7 @@ export function GitView({
               </span>
             )}
           </span>
-          {linkedWorktree && (
-            <Tooltip content={`Linked worktree at ${folder}`}>
-              <span className="git-wt-pill">worktree</span>
-            </Tooltip>
-          )}
+          {worktreePill}
           {/* Where the remote state lives: published → the ↑/↓ counts double as
               a Sync button; not yet published → a Publish-branch button. */}
           {status?.upstream ? (
@@ -766,6 +794,17 @@ export function GitView({
               <ArrowsClockwise size={16} />
             </button>
           </Tooltip>
+          {showWorktreeButton && (
+            <Tooltip content={worktreeManagerButtonTooltip(worktrees)}>
+              <button
+                className="branch-action git-wt-btn"
+                onClick={openWorktreeManager}
+                aria-label={worktreeManagerButtonTooltip(worktrees)}
+              >
+                <TreeStructure size={16} />
+              </button>
+            </Tooltip>
+          )}
           {status?.inRepo && (
             <Tooltip content="More actions">
               <button

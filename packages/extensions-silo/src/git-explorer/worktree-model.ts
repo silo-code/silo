@@ -121,6 +121,35 @@ export function findWorktreeFor(
 }
 
 /**
+ * How many worktrees the manager modal would list — non-bare only, matching
+ * {@link buildWorktreeRows}. `null` (list not yet known) counts as zero.
+ */
+export function managerWorktreeCount(
+  worktrees: GitWorktree[] | null | undefined,
+): number {
+  if (!worktrees) return 0;
+  return worktrees.filter((wt) => !wt.bare).length;
+}
+
+/**
+ * Whether the Git header should show the Manage worktrees shortcut: the
+ * manager would list more than the main worktree alone. Driven by the last
+ * successful list (callers keep prior cache on refresh failure).
+ */
+export function shouldShowWorktreeManagerButton(
+  worktrees: GitWorktree[] | null | undefined,
+): boolean {
+  return managerWorktreeCount(worktrees) > 1;
+}
+
+/** Tooltip for the header Manage worktrees button (`N` = manager row count). */
+export function worktreeManagerButtonTooltip(
+  worktrees: GitWorktree[] | null | undefined,
+): string {
+  return `Manage worktrees (${managerWorktreeCount(worktrees)})`;
+}
+
+/**
  * Branch names already checked out in some worktree — git refuses
  * `worktree add` for these, so the create dialog filters them proactively.
  * Detached and bare entries contribute nothing.

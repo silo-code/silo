@@ -33,7 +33,10 @@ Extensions can add panels to either column — see [Extensions](/guide/extension
 The Git panel's **⋯ → Manage worktrees…** lists every
 [git worktree](https://git-scm.com/docs/git-worktree) of the repo — including
 ones created outside Silo (say, by a coding agent) — no matter where they live
-on disk. From there you can:
+on disk. When the manager would list more than the main worktree, a worktrees
+icon appears in the Git header (before ⋯) as a shortcut into the same modal;
+the tooltip shows the count. On a **linked** worktree view the icon is omitted
+— click the **worktree** pill instead. From the manager you can:
 
 - **Open a worktree alongside** the current folders (click its row). It appears
   as an extra root in both the Files panel and the Git panel — the same
@@ -54,8 +57,8 @@ on disk. From there you can:
   whose directories were deleted manually.
 
 A Git view whose root is a linked worktree shows a small **worktree** pill next
-to its branch name, and its ⋯ menu gains **Close worktree view** and
-**Remove worktree…**.
+to its branch name (click it to open the worktree manager), and its ⋯ menu
+gains **Close worktree view** and **Remove worktree…**.
 
 ## Organizing panels
 
