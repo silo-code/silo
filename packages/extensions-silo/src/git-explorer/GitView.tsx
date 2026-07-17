@@ -24,6 +24,7 @@ import { GitErrorModal } from "./GitErrorModal";
 import { BranchManager } from "./BranchManager";
 import { findWorktreeFor } from "./worktree-model";
 import { showWorktreeManager } from "./open-worktree-manager";
+import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
 
 const REFRESH_DEBOUNCE_MS = 400;
 // How often the panel fetches in the background so ↑ahead/↓behind stay roughly
@@ -543,40 +544,21 @@ export function GitView({
   // Remove the worktree this view is rooted in. Runs `git worktree remove`
   // from the main worktree (git refuses to remove the worktree it's run in),
   // then closes this view's root. Dirty trees get a force-remove confirm.
+  // Pending-remove UX (StatusBar + close-on-start) lives in confirmAndRemoveWorktree.
   async function removeThisWorktree() {
     const api = getGitApi();
     if (!api) return;
-    const name = folder.split("/").filter(Boolean).pop() ?? folder;
     const mainPath = worktrees?.find((w) => w.isMain)?.path ?? folder;
-    const ok = await ctx.ui.confirm({
-      title: `Remove worktree "${name}"?`,
-      body: `Deletes the directory at ${folder}. The branch itself is kept.`,
-      confirmLabel: "Remove",
-      danger: true,
+    await confirmAndRemoveWorktree({
+      ctx,
+      api,
+      cwd: mainPath,
+      worktreePath: folder,
+      workspaceId,
+      isOpen: true,
+      notifyError,
+      onSuccess: refresh,
     });
-    if (!ok) return;
-    try {
-      try {
-        await api.removeWorktree(mainPath, folder);
-      } catch (err) {
-        if (
-          !/contains modified or untracked files|use --force/i.test(String(err))
-        ) {
-          throw err;
-        }
-        const force = await ctx.ui.confirm({
-          title: `"${name}" has uncommitted changes`,
-          body: "Force-remove the worktree and discard them? This can't be undone.",
-          confirmLabel: "Force Remove",
-          danger: true,
-        });
-        if (!force) return;
-        await api.removeWorktree(mainPath, folder, true);
-      }
-      ctx.workspaces.removeFolder(workspaceId, folder);
-    } catch (err) {
-      notifyError(`Remove "${name}" failed`, err);
-    }
   }
 
   async function commit() {

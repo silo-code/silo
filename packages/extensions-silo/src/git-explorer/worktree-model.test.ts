@@ -136,6 +136,16 @@ describe("worktreeActions", () => {
     ).toEqual(["prune"]);
   });
 
+  it("offers no actions while a remove is pending", () => {
+    expect(worktreeActions({ ...base, wt: wt({}) }, true)).toEqual([]);
+    expect(
+      worktreeActions(
+        { ...base, isOpen: true, wt: wt({ prunable: "gone" }) },
+        true,
+      ),
+    ).toEqual([]);
+  });
+
   it("offers nothing but remove for the current (unopened-elsewhere) view", () => {
     // isCurrent implies the folder is one of the workspace's folders in
     // practice, but the gate itself: current rows never offer open.
