@@ -241,13 +241,52 @@
   outline: none;
 }
 
-/* Combined workspace properties dialog — content layout inside the host
-   <Modal> card (which owns the backdrop/card chrome + width). */
+/* Workspace properties dialog — content layout inside the host <Modal> card
+   (which owns the backdrop/card chrome + width). */
+.ws-props-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Tab bar — segmented-control look, matching .ext-tabs (ExtensionsPage.css):
+   a recessed well with the active tab reading as a raised button. Always
+   rendered, even with only the built-in General tab (RFC 0015 decision). */
+.ws-props-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--silo-color-content-bg);
+  border-radius: var(--silo-radius-sm);
+  padding: 2px;
+}
+
+.ws-props-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text-lo);
+  padding: 4px 10px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--silo-font-size-sm);
+}
+
+.ws-props-tab-active {
+  background: var(--silo-button-bg);
+  color: var(--silo-color-text-hi);
+}
+
+.ws-props-tab-content {
+  animation: ws-props-in 140ms ease-out;
+}
+
 .ws-props-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  animation: ws-props-in 140ms ease-out;
 }
 
 @keyframes ws-props-in {
@@ -266,6 +305,82 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* EditableWorkspaceName — static display + pencil affordance, or edit mode
+   with explicit Save/Cancel icon buttons and an inline validation error. */
+.ws-name-display {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ws-name-text {
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+
+.ws-name-edit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--silo-color-text-lo);
+  padding: 3px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+
+.ws-name-edit-btn:hover {
+  color: var(--silo-color-text-hi);
+  background: var(--silo-color-bg-hover);
+}
+
+.ws-name-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ws-name-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ws-name-edit-row .ws-rename-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ws-name-edit-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  background: var(--silo-color-button-bg);
+  color: var(--silo-color-text-lo);
+  padding: 6px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+
+.ws-name-edit-save:hover {
+  color: var(--silo-color-ok);
+  background: var(--silo-color-bg-hover);
+}
+
+.ws-name-edit-cancel:hover {
+  color: var(--silo-color-err);
+  background: var(--silo-color-bg-hover);
+}
+
+.ws-name-edit-error {
+  font-size: calc(var(--silo-font-size-sm) - 1px);
+  color: var(--silo-color-err);
 }
 
 .ws-prop-label {

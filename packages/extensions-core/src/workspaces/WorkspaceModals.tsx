@@ -1,92 +1,149 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { FolderPlus } from "@phosphor-icons/react";
-import { ModalActions } from "@silo-code/extension-host/internal";
-import { Tooltip } from "@silo-code/sdk";
+import { workspacePropertyPageRegistry } from "@silo-code/extension-host/internal";
 import {
-  fullPath,
-  type Workspace,
-  type WorkspacePropertiesChanges,
-} from "./workspace-helpers";
+  Tooltip,
+  useServiceState,
+  type WorkspaceService,
+} from "@silo-code/sdk";
+import { EditableWorkspaceName } from "./EditableWorkspaceName";
+import { visiblePropertyPages } from "./workspace-properties-model";
+import { fullPath, type Workspace } from "./workspace-helpers";
 
-export interface WorkspacePropertiesContentProps {
-  ws: Workspace;
+export interface WorkspacePropertiesModalProps {
+  wsId: string;
   home: string;
+  workspaces: WorkspaceService;
   /** Opens the native folder picker; resolves to the chosen path or null. */
   onPickFolder: () => Promise<string | null>;
-  /** Cancel — discard staged edits and close. */
-  onCancel: () => void;
-  /** Save — apply the staged changes and close. */
-  onSave: (changes: WorkspacePropertiesChanges) => void;
 }
 
+interface GeneralTabProps {
+  ws: Workspace;
+  home: string;
+  workspaces: WorkspaceService;
+  onPickFolder: () => Promise<string | null>;
+}
+
+const GENERAL_TAB_ID = "general";
+
 /**
- * Combined workspace properties form — edit the title and manage the folder set
- * in one place. Changes are staged locally and only applied on Save; Cancel
- * discards everything. This is the *content* of the dialog; the host owns the
- * surrounding modal chrome (rendered via `ctx.ui.showModal` as a non-dismissible
- * modal, so staged edits can't be lost by an accidental click-away).
+ * The workspace properties modal's content — a tab bar (built-in **General**
+ * plus registered {@link WorkspacePropertyPage}s) over a form where every
+ * field persists immediately on change. This is the *content* of the dialog;
+ * the host owns the surrounding modal chrome (`ctx.ui.showModal`, rendered
+ * `dismissible: true` so Escape/backdrop/✕ all close it — nothing here is
+ * staged, so there's nothing left to lose by an accidental close except an
+ * in-progress name edit, which {@link EditableWorkspaceName} owns).
+ *
+ * Takes `wsId` rather than a `Workspace` snapshot and re-derives the live
+ * workspace on every render via {@link useServiceState} — unlike the old
+ * staged-edit modal (which closed immediately on Save, so a frozen snapshot
+ * never had a chance to go stale), this modal stays open across edits, so a
+ * captured-at-open-time `ws` would display an outdated name/folder list the
+ * instant something saved.
  */
-export function WorkspacePropertiesContent({
-  ws,
+export function WorkspacePropertiesModal({
+  wsId,
   home,
+  workspaces,
   onPickFolder,
-  onCancel,
-  onSave,
-}: WorkspacePropertiesContentProps) {
-  const [name, setName] = useState(ws.name);
-  const [extraFolders, setExtraFolders] = useState<string[]>(
-    ws.extraFolders ?? [],
-  );
-  const nameRef = useRef<HTMLInputElement | null>(null);
-
-  useLayoutEffect(() => {
-    nameRef.current?.focus();
-    nameRef.current?.select();
+}: WorkspacePropertiesModalProps) {
+  const state = useServiceState(workspaces);
+  const ws = state.all.find((w) => w.id === wsId);
+  if (!ws) return null; // deleted out from under the open modal — dismissible, so the ✕/Escape still closes it
+  // Re-render when a property page is registered/unregistered (rare —
+  // e.g. an extension activating while the modal happens to be open).
+  const [, setPagesTick] = useState(0);
+  useEffect(() => {
+    return workspacePropertyPageRegistry.subscribe(() =>
+      setPagesTick((t) => t + 1),
+    ).dispose;
   }, []);
+  const pages = visiblePropertyPages(workspacePropertyPageRegistry.list(), ws);
 
+  // A page's own `refresh()` — distinct from the registration tick above, so
+  // an extension asking to re-render its tab never gets confused with the
+  // tab bar's own membership changing.
+  const [, setRefreshTick] = useState(0);
+
+  const [activeTab, setActiveTab] = useState<string>(GENERAL_TAB_ID);
+  const activePage = pages.find((p) => p.id === activeTab);
+  // If the active extension tab disappears (unregistered, or its `visible`
+  // flipped false) fall back to General rather than rendering a blank pane.
+  const effectiveTab =
+    activeTab === GENERAL_TAB_ID || activePage ? activeTab : GENERAL_TAB_ID;
+
+  return (
+    <div className="ws-props-modal">
+      <div className="ws-props-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={effectiveTab === GENERAL_TAB_ID}
+          className={`ws-props-tab${effectiveTab === GENERAL_TAB_ID ? " ws-props-tab-active" : ""}`}
+          onClick={() => setActiveTab(GENERAL_TAB_ID)}
+        >
+          General
+        </button>
+        {pages.map((page) => (
+          <button
+            key={page.id}
+            type="button"
+            role="tab"
+            aria-selected={effectiveTab === page.id}
+            className={`ws-props-tab${effectiveTab === page.id ? " ws-props-tab-active" : ""}`}
+            onClick={() => setActiveTab(page.id)}
+          >
+            {page.icon}
+            {page.title}
+          </button>
+        ))}
+      </div>
+      <div className="ws-props-tab-content">
+        {effectiveTab === GENERAL_TAB_ID ? (
+          <GeneralTab
+            ws={ws}
+            home={home}
+            workspaces={workspaces}
+            onPickFolder={onPickFolder}
+          />
+        ) : (
+          activePage && (
+            <activePage.component
+              ws={ws}
+              workspaces={workspaces}
+              refresh={() => setRefreshTick((t) => t + 1)}
+            />
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GeneralTab({ ws, home, workspaces, onPickFolder }: GeneralTabProps) {
+  const extraFolders = ws.extraFolders ?? [];
   const allFolders = [ws.folder, ...extraFolders];
-  const trimmed = name.trim();
-  const origExtra = ws.extraFolders ?? [];
-  const nameDirty = trimmed.length > 0 && trimmed !== ws.name;
-  const foldersDirty =
-    extraFolders.length !== origExtra.length ||
-    extraFolders.some((f) => !origExtra.includes(f));
-  const dirty = nameDirty || foldersDirty;
 
   async function addFolder() {
     const picked = await onPickFolder();
     if (!picked) return;
     if (picked === ws.folder || extraFolders.includes(picked)) return;
-    setExtraFolders((prev) => [...prev, picked]);
+    workspaces.addFolder(ws.id, picked);
   }
 
   function removeFolder(folder: string) {
-    setExtraFolders((prev) => prev.filter((f) => f !== folder));
-  }
-
-  function commit() {
-    if (dirty) onSave({ name: trimmed || ws.name, extraFolders });
-    else onCancel();
+    workspaces.removeFolder(ws.id, folder);
   }
 
   return (
-    <form
-      className="ws-props-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        commit();
-      }}
-    >
+    <div className="ws-props-form">
       <div className="ws-prop-section">
-        <label className="ws-prop-label" htmlFor="ws-prop-name">
-          Name
-        </label>
-        <input
-          id="ws-prop-name"
-          ref={nameRef}
-          className="ws-rename-input"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+        <span className="ws-prop-label">Name</span>
+        <EditableWorkspaceName
+          name={ws.name}
+          onSave={(name) => workspaces.rename(ws.id, name)}
         />
       </div>
 
@@ -124,15 +181,6 @@ export function WorkspacePropertiesContent({
           Add Folder…
         </button>
       </div>
-
-      <ModalActions>
-        <button type="button" className="silo-button" onClick={onCancel}>
-          Cancel
-        </button>
-        <button type="submit" className="silo-button-primary" disabled={!dirty}>
-          Save
-        </button>
-      </ModalActions>
-    </form>
+    </div>
   );
 }
