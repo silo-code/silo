@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { ArrowsClockwise } from "@phosphor-icons/react";
 import type { Extension } from "@silo-code/sdk";
 import type { GitAPI } from "../git/git-api";
 import { GitExplorerPanel } from "./GitExplorerPanel";
@@ -23,7 +24,12 @@ function PendingWorktreeRemoveStatus() {
     getPendingRemoveStatusLabel,
   );
   if (!label) return null;
-  return <span className="git-pending-remove-status">{label}</span>;
+  return (
+    <span className="git-pending-remove-status" aria-live="polite">
+      <ArrowsClockwise size={14} className="git-pending-remove-spin" />
+      <span>{label}</span>
+    </span>
+  );
 }
 
 // `silo.git-explorer` — the git panel (view). Consumes the `silo.git` provider's

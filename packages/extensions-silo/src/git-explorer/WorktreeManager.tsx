@@ -27,6 +27,7 @@ import {
   getPendingWorktreeRemoves,
   isWorktreeRemovePending,
   subscribePendingWorktreeRemoves,
+  subscribeWorktreeListDirty,
 } from "./pending-worktree-remove";
 import {
   branchesInUse,
@@ -100,6 +101,19 @@ export function WorktreeManager({
     void reload();
   }, [reload]);
 
+  // Reload when a remove succeeds from any entry point (e.g. Git view ⋯ while
+  // this modal stays open). Unsubscribe on unmount / reload identity change.
+  useEffect(() => {
+    let active = true;
+    const unsubscribe = subscribeWorktreeListDirty(() => {
+      if (active) void reload();
+    });
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [reload]);
+
   const rows = useMemo(
     () => buildWorktreeRows(worktrees ?? [], folder, wsFolder, allFolders),
     [worktrees, folder, wsFolder, allFolders],
@@ -128,29 +142,25 @@ export function WorktreeManager({
     return a;
   }
 
-  function rowPending(row: WorktreeRow): boolean {
-    return isWorktreeRemovePending(row.wt.path);
-  }
-
   // Open alongside: the worktree becomes another workspace folder, so File
   // Explorer and the Git panel grow an extra root. The scope roots follow the
   // folder list, so files/terminals in the worktree work immediately.
   async function open(row: WorktreeRow) {
-    if (busy || rowPending(row)) return;
+    if (busy || isWorktreeRemovePending(row.wt.path)) return;
     ctx.workspaces.addFolder(workspaceId, row.wt.path);
     ctx.ui.notify("info", `Opened ${path.basename(row.wt.path)} alongside`);
   }
 
   // Close the view only — the worktree itself is untouched.
   function closeView(row: WorktreeRow) {
-    if (rowPending(row)) return;
+    if (isWorktreeRemovePending(row.wt.path)) return;
     ctx.workspaces.removeFolder(workspaceId, row.wt.path);
   }
 
   // Clicking a row toggles its view: open it alongside if closed, close it if
   // open. The primary folder and stale (prune-only) rows toggle nothing.
   function toggleView(row: WorktreeRow) {
-    const acts = worktreeActions(row, rowPending(row));
+    const acts = worktreeActions(row, isWorktreeRemovePending(row.wt.path));
     if (acts.includes("open")) void open(row);
     else if (acts.includes("close")) closeView(row);
   }
@@ -158,7 +168,7 @@ export function WorktreeManager({
   // Hover hint for a row, standing in for the removed open/close icons: what a
   // click will do, or the path for a row that can't be toggled.
   function toggleHint(row: WorktreeRow): string {
-    if (rowPending(row)) return "Removing this worktree…";
+    if (isWorktreeRemovePending(row.wt.path)) return "Removing this worktree…";
     const acts = worktreeActions(row, false);
     if (acts.includes("open")) return "Open alongside your current folders";
     if (acts.includes("close"))
@@ -215,7 +225,7 @@ export function WorktreeManager({
 
   async function remove(row: WorktreeRow) {
     const a = api();
-    if (!a || busy || rowPending(row)) return;
+    if (!a || busy || isWorktreeRemovePending(row.wt.path)) return;
     await confirmAndRemoveWorktree({
       ctx,
       api: a,
@@ -256,7 +266,7 @@ export function WorktreeManager({
   // key / Shift+F10 via the focus group, or right-click), mirroring the hover
   // buttons.
   function rowMenuItems(row: WorktreeRow): MenuEntry[] {
-    const acts = worktreeActions(row, rowPending(row));
+    const acts = worktreeActions(row, isWorktreeRemovePending(row.wt.path));
     const items: MenuEntry[] = [];
     if (acts.includes("open")) {
       items.push({ label: "Open alongside", run: () => void open(row) });
@@ -289,8 +299,8 @@ export function WorktreeManager({
 
   function rowBadges(row: WorktreeRow) {
     const badges: { label: string; tooltip?: string; warn?: boolean }[] = [];
-    if (rowPending(row)) {
-      badges.push({ label: "removing…" });
+    if (isWorktreeRemovePending(row.wt.path)) {
+      badges.push({ label: "Removing…" });
       return badges;
     }
     if (row.wt.isMain) badges.push({ label: "main" });
@@ -326,7 +336,7 @@ export function WorktreeManager({
           <div className="git-branch-empty">No worktrees.</div>
         )}
         {rows.map((row, i) => {
-          const pending = rowPending(row);
+          const pending = isWorktreeRemovePending(row.wt.path);
           const acts = worktreeActions(row, pending);
           const toggleable =
             !pending && (acts.includes("open") || acts.includes("close"));

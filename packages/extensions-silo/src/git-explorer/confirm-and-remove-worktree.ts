@@ -5,6 +5,7 @@ import {
   endPendingWorktreeRemove,
   isWorktreeManagerOpen,
   isWorktreeRemovePending,
+  markWorktreeListDirty,
 } from "./pending-worktree-remove";
 import { worktreeDisplayName } from "./pending-worktree-remove-model";
 
@@ -83,6 +84,7 @@ export async function confirmAndRemoveWorktree(
     }
 
     endPendingWorktreeRemove(worktreePath);
+    markWorktreeListDirty();
     if (!isWorktreeManagerOpen()) {
       ctx.ui.notify("info", `Removed worktree ${name}`);
     }

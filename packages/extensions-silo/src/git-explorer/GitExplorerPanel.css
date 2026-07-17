@@ -904,9 +904,22 @@
 }
 
 .git-pending-remove-status {
-  padding: 0 8px;
-  color: var(--silo-color-text-lo);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  /* Inherit status-bar font-size + --silo-statusbar-text (SDK StatusItem contract). */
+  font: inherit;
+  color: inherit;
   white-space: nowrap;
+  pointer-events: none;
+}
+
+.git-pending-remove-spin {
+  flex-shrink: 0;
+  opacity: 0.85;
+  -webkit-animation: branch-spin 0.8s linear infinite;
+  animation: branch-spin 0.8s linear infinite;
 }
 
 /* The row action icons (prune/remove) sit a touch darker than the branch

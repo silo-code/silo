@@ -1,5 +1,6 @@
 import { normalizeFolderPath } from "./worktree-model";
 import {
+  isPathPendingRemove,
   pendingRemoveStatusLabel,
   worktreeDisplayName,
   type PendingWorktreeRemove,
@@ -13,9 +14,11 @@ let pending: PendingWorktreeRemove[] = [];
 /** Nested showModal depth for the worktree manager (usually 0 or 1). */
 let managerOpenDepth = 0;
 const listeners = new Set<() => void>();
+/** Open WorktreeManager instances reload when a remove succeeds anywhere. */
+const listDirtyListeners = new Set<() => void>();
 
 function emit(): void {
-  for (const listener of listeners) listener();
+  for (const listener of [...listeners]) listener();
 }
 
 /** Subscribe to pending-remove / manager-open changes (for StatusBar + modal). */
@@ -28,6 +31,23 @@ export function subscribePendingWorktreeRemoves(
   };
 }
 
+/**
+ * Subscribe so an open manager reloads after a successful remove (including
+ * removes started from the Git view while the manager stays open).
+ * Returns an unsubscribe — callers must dispose (e.g. effect cleanup).
+ */
+export function subscribeWorktreeListDirty(listener: () => void): () => void {
+  listDirtyListeners.add(listener);
+  return () => {
+    listDirtyListeners.delete(listener);
+  };
+}
+
+/** Notify open managers that the worktree list may have changed on disk. */
+export function markWorktreeListDirty(): void {
+  for (const listener of [...listDirtyListeners]) listener();
+}
+
 /** Snapshot of in-flight removes (stable order: insertion). */
 export function getPendingWorktreeRemoves(): readonly PendingWorktreeRemove[] {
   return pending;
@@ -38,8 +58,7 @@ export function getPendingRemoveStatusLabel(): string | null {
 }
 
 export function isWorktreeRemovePending(worktreePath: string): boolean {
-  const key = normalizeFolderPath(worktreePath);
-  return pending.some((p) => p.path === key);
+  return isPathPendingRemove(worktreePath, pending);
 }
 
 export function isWorktreeManagerOpen(): boolean {
@@ -64,11 +83,13 @@ export function markWorktreeManagerOpen(): () => void {
 
 /** Begin a pending remove (StatusBar + row chrome). Idempotent per path. */
 export function beginPendingWorktreeRemove(worktreePath: string): void {
-  const key = normalizeFolderPath(worktreePath);
-  if (pending.some((p) => p.path === key)) return;
+  if (isPathPendingRemove(worktreePath, pending)) return;
   pending = [
     ...pending,
-    { path: key, name: worktreeDisplayName(worktreePath) },
+    {
+      path: normalizeFolderPath(worktreePath),
+      name: worktreeDisplayName(worktreePath),
+    },
   ];
   emit();
 }
@@ -87,4 +108,5 @@ export function resetPendingWorktreeRemovesForTests(): void {
   pending = [];
   managerOpenDepth = 0;
   listeners.clear();
+  listDirtyListeners.clear();
 }

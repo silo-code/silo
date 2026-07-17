@@ -6,9 +6,11 @@ import {
   getPendingWorktreeRemoves,
   isWorktreeManagerOpen,
   isWorktreeRemovePending,
+  markWorktreeListDirty,
   markWorktreeManagerOpen,
   resetPendingWorktreeRemovesForTests,
   subscribePendingWorktreeRemoves,
+  subscribeWorktreeListDirty,
 } from "./pending-worktree-remove";
 
 describe("pending-worktree-remove store", () => {
@@ -44,5 +46,18 @@ describe("pending-worktree-remove store", () => {
     endPendingWorktreeRemove("/w/a");
     stop();
     expect(ticks).toBeGreaterThanOrEqual(4);
+  });
+
+  it("notifies list-dirty listeners and stops after unsubscribe", () => {
+    let dirty = 0;
+    const stop = subscribeWorktreeListDirty(() => {
+      dirty += 1;
+    });
+    markWorktreeListDirty();
+    markWorktreeListDirty();
+    expect(dirty).toBe(2);
+    stop();
+    markWorktreeListDirty();
+    expect(dirty).toBe(2);
   });
 });

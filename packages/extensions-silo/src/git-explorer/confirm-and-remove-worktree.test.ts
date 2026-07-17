@@ -6,6 +6,7 @@ import {
   isWorktreeManagerOpen,
   markWorktreeManagerOpen,
   resetPendingWorktreeRemovesForTests,
+  subscribeWorktreeListDirty,
 } from "./pending-worktree-remove";
 import type { GitAPI } from "../git/git-api";
 
@@ -52,6 +53,10 @@ describe("confirmAndRemoveWorktree", () => {
     const removeWorktree = vi.fn(async () => {});
     const ctx = mockCtx({ confirms: [true] });
     const onSuccess = vi.fn();
+    let dirty = 0;
+    const stop = subscribeWorktreeListDirty(() => {
+      dirty += 1;
+    });
     await confirmAndRemoveWorktree({
       ctx,
       api: { removeWorktree } as unknown as GitAPI,
@@ -62,6 +67,7 @@ describe("confirmAndRemoveWorktree", () => {
       notifyError: vi.fn(),
       onSuccess,
     });
+    stop();
     expect(ctx.workspaces.removeFolder).toHaveBeenCalledWith(
       "ws1",
       "/w/repo-feat",
@@ -73,6 +79,7 @@ describe("confirmAndRemoveWorktree", () => {
       "Removed worktree repo-feat",
     );
     expect(onSuccess).toHaveBeenCalled();
+    expect(dirty).toBe(1);
   });
 
   it("skips the success toast when the manager is open", async () => {
