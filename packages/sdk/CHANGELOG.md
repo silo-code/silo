@@ -1,5 +1,13 @@
 # @silo-code/sdk
 
+## [0.28.0](https://github.com/silo-code/silo/compare/sdk-v0.27.1...sdk-v0.28.0) (2026-07-17)
+
+
+### Features
+
+* **sdk:** context-menu contribution types + registerContextMenuItem (RFC 0013) ([#249](https://github.com/silo-code/silo/issues/249)) ([0e28e7a](https://github.com/silo-code/silo/commit/0e28e7a2eaa6cd22cf706a025e44fd44b2fad909))
+* **sdk:** workspace property page types + registerPropertyPage (RFC 0015) ([#251](https://github.com/silo-code/silo/issues/251)) ([5ef6439](https://github.com/silo-code/silo/commit/5ef6439114f4462f831b5dd01989a346aa2f6363)), closes [#243](https://github.com/silo-code/silo/issues/243)
+
 ## [0.27.1](https://github.com/silo-code/silo/compare/sdk-v0.27.0...sdk-v0.27.1) (2026-07-16)
 
 
