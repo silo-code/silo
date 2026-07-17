@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.32.0](https://github.com/silo-code/silo/compare/silo-v0.31.0...silo-v0.32.0) (2026-07-17)
+
+
+### Features
+
+* **extension-host:** dispatch workspace context-menu contributions (RFC 0013) ([#252](https://github.com/silo-code/silo/issues/252)) ([763e5ee](https://github.com/silo-code/silo/commit/763e5ee970e14d218d7c612e0343087d47c3a15e)), closes [#244](https://github.com/silo-code/silo/issues/244)
+* **extensions-core:** workspace properties modal redesign (RFC 0015) ([#253](https://github.com/silo-code/silo/issues/253)) ([573f8c7](https://github.com/silo-code/silo/commit/573f8c75475aab6404bebeffbe7dd6fa17af82c9))
+* **sdk:** context-menu contribution types + registerContextMenuItem (RFC 0013) ([#249](https://github.com/silo-code/silo/issues/249)) ([0e28e7a](https://github.com/silo-code/silo/commit/0e28e7a2eaa6cd22cf706a025e44fd44b2fad909))
+* **sdk:** workspace property page types + registerPropertyPage (RFC 0015) ([#251](https://github.com/silo-code/silo/issues/251)) ([5ef6439](https://github.com/silo-code/silo/commit/5ef6439114f4462f831b5dd01989a346aa2f6363)), closes [#243](https://github.com/silo-code/silo/issues/243)
+* **terminals:** log PTY create/delete + a periodic per-workspace census ([#238](https://github.com/silo-code/silo/issues/238)) ([57d960d](https://github.com/silo-code/silo/commit/57d960d4e970bd0e7f2503b2d62b776bbdd9f4ee))
+* **workspaces:** educational close/delete popups with a "don't show again" checkbox ([#237](https://github.com/silo-code/silo/issues/237)) ([ae7b9f1](https://github.com/silo-code/silo/commit/ae7b9f12ee9c9d814129a6d9daef6894621c8b1a))
+
+
+### Bug Fixes
+
+* **git:** commit-msg hook PATH + unreadable commit-error modal ([#240](https://github.com/silo-code/silo/issues/240)) ([0a0da18](https://github.com/silo-code/silo/commit/0a0da18bc9536a52cc153b98f6877e13b06bc593))
+* **terminals:** keep PTYs on soft-close; reap them on workspace delete ([#234](https://github.com/silo-code/silo/issues/234)) ([b135229](https://github.com/silo-code/silo/commit/b135229ff78810e0911b3b88aa883111b228300c))
+
 ## [0.31.0](https://github.com/silo-code/silo/compare/silo-v0.30.0...silo-v0.31.0) (2026-07-15)
 
 
