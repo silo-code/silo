@@ -51,7 +51,12 @@ export function WorkspacePropertiesModal({
 }: WorkspacePropertiesModalProps) {
   const state = useServiceState(workspaces);
   const ws = state.all.find((w) => w.id === wsId);
-  if (!ws) return null; // deleted out from under the open modal — dismissible, so the ✕/Escape still closes it
+
+  // Every hook below must run unconditionally, on every render, before the
+  // `!ws` early return further down — otherwise a workspace deleted out from
+  // under an open modal would change the hook count between renders (React's
+  // Rules of Hooks), not just make the content disappear.
+
   // Re-render when a property page is registered/unregistered (rare —
   // e.g. an extension activating while the modal happens to be open).
   const [, setPagesTick] = useState(0);
@@ -60,7 +65,6 @@ export function WorkspacePropertiesModal({
       setPagesTick((t) => t + 1),
     ).dispose;
   }, []);
-  const pages = visiblePropertyPages(workspacePropertyPageRegistry.list(), ws);
 
   // A page's own `refresh()` — distinct from the registration tick above, so
   // an extension asking to re-render its tab never gets confused with the
@@ -68,6 +72,10 @@ export function WorkspacePropertiesModal({
   const [, setRefreshTick] = useState(0);
 
   const [activeTab, setActiveTab] = useState<string>(GENERAL_TAB_ID);
+
+  if (!ws) return null; // deleted out from under the open modal — dismissible, so the ✕/Escape still closes it
+
+  const pages = visiblePropertyPages(workspacePropertyPageRegistry.list(), ws);
   const activePage = pages.find((p) => p.id === activeTab);
   // If the active extension tab disappears (unregistered, or its `visible`
   // flipped false) fall back to General rather than rendering a blank pane.
