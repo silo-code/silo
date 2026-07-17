@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.33.0](https://github.com/silo-code/silo/compare/silo-v0.32.0...silo-v0.33.0) (2026-07-17)
+
+
+### Features
+
+* **git-explorer:** pending remove feedback for worktrees ([#259](https://github.com/silo-code/silo/issues/259)) ([cf2c0ac](https://github.com/silo-code/silo/commit/cf2c0ac7f27091dab0645f985079142ec2a9aaaa))
+* **git-explorer:** surface worktree manager from the Git header ([#260](https://github.com/silo-code/silo/issues/260)) ([070d259](https://github.com/silo-code/silo/commit/070d2596b0ba45a05c7d9da16219c74afe8553a6))
+* **workspaces:** polish properties modal and related surfaces ([#256](https://github.com/silo-code/silo/issues/256)) ([019bb71](https://github.com/silo-code/silo/commit/019bb71ce216393b0401b8e17267953a3c345a88))
+
 ## [0.32.0](https://github.com/silo-code/silo/compare/silo-v0.31.0...silo-v0.32.0) (2026-07-17)
 
 
