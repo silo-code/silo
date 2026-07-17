@@ -277,16 +277,20 @@ ctx.subscriptions.push(
 **2. Context menu actions via RFC 0013's `"workspace"` surface:**
 
 ```ts
+// Command.run is `(...args: unknown[])` — narrow args[0] in the body rather
+// than typing the parameter directly (implemented and confirmed by tsc
+// during the workspace-context-menu ticket; the latter form doesn't satisfy
+// Command.run's actual signature).
 ctx.registerCommand({
   id: "silo.github-actions.refresh-workspace",
   label: "GitHub Actions: Refresh",
-  run: (ws: Workspace) => service.refreshWorkspace(ws.id),
+  run: (...args) => service.refreshWorkspace((args[0] as Workspace).id),
 });
 
 ctx.registerCommand({
   id: "silo.github-actions.clear-alerts-workspace",
   label: "GitHub Actions: Clear Alerts",
-  run: (ws: Workspace) => service.clearAlerts(ws.id),
+  run: (...args) => service.clearAlerts((args[0] as Workspace).id),
 });
 
 ctx.subscriptions.push(
@@ -355,8 +359,10 @@ this represents persistent on/off state rather than a one-shot action:
 ctx.registerCommand({
   id: "silo.github-actions.toggle-enabled-workspace",
   label: "GitHub Actions: Enabled",
-  run: (ws: Workspace) =>
-    ghStore.setWorkspaceEnabled(ws.id, !ghStore.getWorkspaceEnabled(ws.id)),
+  run: (...args) => {
+    const ws = args[0] as Workspace;
+    ghStore.setWorkspaceEnabled(ws.id, !ghStore.getWorkspaceEnabled(ws.id));
+  },
 });
 
 ctx.subscriptions.push(
