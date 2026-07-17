@@ -22,8 +22,8 @@ import { ICON_CHECK, ICON_PLUS, ICON_MINUS, ICON_UNDO } from "./git-icons";
 import { summarizeGitError } from "./notify-error";
 import { GitErrorModal } from "./GitErrorModal";
 import { BranchManager } from "./BranchManager";
-import { WorktreeManager } from "./WorktreeManager";
 import { findWorktreeFor } from "./worktree-model";
+import { showWorktreeManager } from "./open-worktree-manager";
 
 const REFRESH_DEBOUNCE_MS = 400;
 // How often the panel fetches in the background so ↑ahead/↓behind stay roughly
@@ -533,18 +533,11 @@ export function GitView({
   // parameterized by `folder`, so a multi-root workspace gets an independent
   // manager per repo.
   function openWorktreeManager() {
-    ctx.ui.showModal(
-      () => (
-        <WorktreeManager
-          ctx={ctx}
-          folder={folder}
-          workspaceId={workspaceId}
-          onChanged={refresh}
-          notifyError={notifyError}
-        />
-      ),
-      { title: "Worktrees", size: "md", dismissible: true },
-    );
+    showWorktreeManager(ctx, {
+      folder,
+      workspaceId,
+      onChanged: refresh,
+    });
   }
 
   // Remove the worktree this view is rooted in. Runs `git worktree remove`

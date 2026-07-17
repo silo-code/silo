@@ -26,7 +26,8 @@ import { TABBABLE } from "./focus-dom";
 // `dismissible`) Escape + backdrop-click. Only the topmost modal traps/listens.
 //
 // Styled entirely from the `--silo-modal-*` component tokens + `.silo-modal*`
-// classes (theme.css), so it themes with everything else.
+// classes (theme.css), so it themes with everything else. Non-bare modals bump
+// reading size by +1px (`--silo-modal-font`; Settings uses the same bump).
 
 /** z-index step between stacked modals; the base is `--silo-z-modal-base`. */
 const Z_STEP = 10;
@@ -173,8 +174,17 @@ export function Modal({
         tabIndex={-1}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {title != null && <div className="silo-modal-title">{title}</div>}
-        {children}
+        {bare ? (
+          <>
+            {title != null && <div className="silo-modal-title">{title}</div>}
+            {children}
+          </>
+        ) : (
+          <div className="silo-modal-scale">
+            {title != null && <div className="silo-modal-title">{title}</div>}
+            {children}
+          </div>
+        )}
         {/* Close affordance for dismissible modals — last in the DOM so it
             never steals the initial focus from the modal's real first control,
             but visually pinned to the top-right corner. Bare modals own their

@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  isLinkedWorktreeGitEntry,
+  partitionWorkspaceFolders,
   validateWorkspaceName,
   visiblePropertyPages,
 } from "./workspace-properties-model";
@@ -79,5 +81,58 @@ describe("visiblePropertyPages", () => {
       "show1",
       "show2",
     ]);
+  });
+});
+
+describe("isLinkedWorktreeGitEntry", () => {
+  it("is true when .git exists and is a file", () => {
+    expect(isLinkedWorktreeGitEntry({ isDir: false })).toBe(true);
+  });
+
+  it("is false when .git is a directory (main worktree / ordinary repo)", () => {
+    expect(isLinkedWorktreeGitEntry({ isDir: true })).toBe(false);
+  });
+
+  it("is false when .git is missing", () => {
+    expect(isLinkedWorktreeGitEntry(null)).toBe(false);
+  });
+});
+
+describe("partitionWorkspaceFolders", () => {
+  it("keeps primary in folders and leaves unmarked extras there", () => {
+    expect(
+      partitionWorkspaceFolders("/repo", ["/docs", "/assets"], new Set()),
+    ).toEqual({
+      folders: ["/repo", "/docs", "/assets"],
+      worktrees: [],
+    });
+  });
+
+  it("moves linked-worktree extras into worktrees, preserving order", () => {
+    expect(
+      partitionWorkspaceFolders(
+        "/repo",
+        ["/docs", "/repo-feat", "/assets", "/repo-fix"],
+        new Set(["/repo-feat", "/repo-fix"]),
+      ),
+    ).toEqual({
+      folders: ["/repo", "/docs", "/assets"],
+      worktrees: ["/repo-feat", "/repo-fix"],
+    });
+  });
+
+  it("never classifies the primary as a worktree row", () => {
+    // Even if the primary path appears in the linked set (e.g. the workspace
+    // itself is a linked worktree), it stays under Folders as primary.
+    expect(
+      partitionWorkspaceFolders(
+        "/repo-feat",
+        ["/other"],
+        new Set(["/repo-feat"]),
+      ),
+    ).toEqual({
+      folders: ["/repo-feat", "/other"],
+      worktrees: [],
+    });
   });
 });

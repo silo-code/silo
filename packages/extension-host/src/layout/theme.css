@@ -403,9 +403,27 @@ button.silo-button-sm {
   box-shadow: var(--silo-modal-shadow);
   display: flex;
   flex-direction: column;
-  gap: 12px;
   padding: 20px;
   font-family: var(--silo-font-ui);
+  /* Reading size — +1px over the app base (same bump as `--silo-modal-font`).
+     Resolved against the inherited app base so ThemeInjector / uiFontSize
+     still apply. */
+  --silo-modal-font: calc(var(--silo-font-size-base) + 1px);
+}
+
+/* Inner scale wrapper: rebinds the shared size tokens for the modal subtree
+   (title, body, extension content) without a circular custom-property ref on
+   `.silo-modal` itself. Bare modals (Settings) skip this and own their size. */
+.silo-modal-scale {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+  --silo-font-size-base: var(--silo-modal-font);
+  --silo-font-size-sm: calc(var(--silo-modal-font) - 1px);
+  --silo-font-size-chrome: calc(var(--silo-modal-font) - 2px);
+  font-size: var(--silo-modal-font);
 }
 
 /* Corner close button (dismissible modals). Scoped under .silo-modal so the
