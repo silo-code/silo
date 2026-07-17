@@ -15,11 +15,17 @@ ctx.registerContextMenuItem<S extends MenuSurface>(
 ## Example
 
 ```tsx
+// Command.run is `(...args: unknown[])` — a context-menu dispatch hands the
+// surface's target (here, the clicked Workspace) as args[0]; narrow it in
+// the body rather than typing the parameter directly (the latter doesn't
+// satisfy Command.run's signature).
 ctx.registerCommand({
   id: "acme.toggleWatch",
   label: "Acme: Watch this workspace",
-  run: (ws: Workspace) =>
-    acmeStore.setWatched(ws.id, !acmeStore.isWatched(ws.id)),
+  run: (...args) => {
+    const ws = args[0] as Workspace;
+    acmeStore.setWatched(ws.id, !acmeStore.isWatched(ws.id));
+  },
 });
 
 ctx.subscriptions.push(
