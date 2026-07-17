@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import type { Extension } from "@silo-code/sdk";
 import type { GitAPI } from "../git/git-api";
 import { GitExplorerPanel } from "./GitExplorerPanel";
@@ -8,6 +9,22 @@ import {
   showWorktreeManager,
   type ManageWorktreesArgs,
 } from "./open-worktree-manager";
+import {
+  getPendingRemoveStatusLabel,
+  subscribePendingWorktreeRemoves,
+} from "./pending-worktree-remove";
+import "./GitExplorerPanel.css";
+
+/** Informational StatusBar item while Remove worktree runs (ADR 0025). */
+function PendingWorktreeRemoveStatus() {
+  const label = useSyncExternalStore(
+    subscribePendingWorktreeRemoves,
+    getPendingRemoveStatusLabel,
+    getPendingRemoveStatusLabel,
+  );
+  if (!label) return null;
+  return <span className="git-pending-remove-status">{label}</span>;
+}
 
 // `silo.git-explorer` — the git panel (view). Consumes the `silo.git` provider's
 // GitAPI via getExtension; resolves it at use time so the provider can activate
@@ -32,6 +49,15 @@ export const extension: Extension = {
       ),
       order: 2,
       lazyMount: true,
+    });
+
+    ctx.registerStatusItem({
+      id: "git-pending-worktree-remove",
+      alignment: "left",
+      // After the workspace name; extension zone (priority ≥ 0).
+      priority: 0,
+      tooltip: "A worktree is being removed",
+      component: PendingWorktreeRemoveStatus,
     });
 
     // Workspace properties (and anything else) open the same Worktrees modal

@@ -894,6 +894,21 @@
   background: transparent;
 }
 
+.git-wt-removing {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.git-wt-removing:hover {
+  background: transparent;
+}
+
+.git-pending-remove-status {
+  padding: 0 8px;
+  color: var(--silo-color-text-lo);
+  white-space: nowrap;
+}
+
 /* The row action icons (prune/remove) sit a touch darker than the branch
  * manager's resting `--silo-color-text-lo` so the single trash reads clearly
  * in the two-line row. */

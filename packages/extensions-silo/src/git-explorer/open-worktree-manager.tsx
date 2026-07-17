@@ -1,6 +1,7 @@
 import type { ExtensionContext, NotifyOptions } from "@silo-code/sdk";
 import { GitErrorModal } from "./GitErrorModal";
 import { summarizeGitError } from "./notify-error";
+import { markWorktreeManagerOpen } from "./pending-worktree-remove";
 import { WorktreeManager } from "./WorktreeManager";
 
 /** Command id — opened from the Git panel menu and workspace properties. */
@@ -47,18 +48,21 @@ export function showWorktreeManager(
     ctx.ui.notify("error", summary, options);
   };
 
-  ctx.ui.showModal(
-    () => (
-      <WorktreeManager
-        ctx={ctx}
-        folder={opts.folder}
-        workspaceId={opts.workspaceId}
-        onChanged={opts.onChanged ?? (() => {})}
-        notifyError={notifyError}
-      />
-    ),
-    { title: "Worktrees", size: "md", dismissible: true },
-  );
+  const releaseManagerOpen = markWorktreeManagerOpen();
+  void ctx.ui
+    .showModal(
+      () => (
+        <WorktreeManager
+          ctx={ctx}
+          folder={opts.folder}
+          workspaceId={opts.workspaceId}
+          onChanged={opts.onChanged ?? (() => {})}
+          notifyError={notifyError}
+        />
+      ),
+      { title: "Worktrees", size: "md", dismissible: true },
+    )
+    .finally(releaseManagerOpen);
 }
 
 /**

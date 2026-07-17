@@ -46,9 +46,12 @@ on disk. From there you can:
   place a worktree _inside_ the repo, add its directory to `.gitignore` so the
   main view's status doesn't fill with its files.)
 - **Remove a worktree** — deletes its directory but keeps the branch. A
-  worktree with uncommitted changes asks for a force-remove first. **Prune
-  stale** clears bookkeeping for worktrees whose directories were deleted
-  manually.
+  worktree with uncommitted changes asks for a force-remove first. While the
+  directory is deleting (large trees can take a while), the manager row shows
+  **removing…**, a StatusBar item tracks progress, and you can dismiss the
+  manager — the remove keeps running. An open folder for that worktree closes
+  as soon as remove starts. **Prune stale** clears bookkeeping for worktrees
+  whose directories were deleted manually.
 
 A Git view whose root is a linked worktree shows a small **worktree** pill next
 to its branch name, and its ⋯ menu gains **Close worktree view** and
