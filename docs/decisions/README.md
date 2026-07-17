@@ -58,3 +58,5 @@ A small, obvious choice needs neither.
 | [0021](./0021-keyboard-navigation-architecture.md)      | Keyboard nav: headless focus-group + region model    | 2026-06-08 | accepted |
 | [0022](./0022-on-disk-storage-layout.md)                | On-disk storage layout: config / app-state / runtime | 2026-06-10 | accepted |
 | [0023](./0023-workspace-groups-host-internal.md)        | Workspace panel groups are host-internal             | 2026-06-30 | accepted |
+| [0024](./0024-release-channels.md)                      | Two release channels: stable and nightly             | 2026-07-01 | accepted |
+| [0025](./0025-pending-remove-worktree.md)               | Pending remove worktree: close folder on start       | 2026-07-17 | accepted |

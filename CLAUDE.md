@@ -1,14 +1,16 @@
 # Silo — project guide for Claude
 
-Silo is a local-first, terminal-first code editor (Tauri + React + TypeScript)
-built to **run many workspaces at once and switch between them instantly without
-losing state** — each workspace keeps its terminals, panels, and layout alive in
-the background. The workflow it optimizes for is driving coding agents and shells
-in the foreground, with file editing as a secondary surface (the inverse of
-VS Code). It's also **extensible**: modeled on VS Code / Obsidian with a small
-stable core, a public extension SDK, and first-party features built as
-extensions. It is going **100% open source**, so the bar for boundaries,
-documentation, and a clean public surface is high.
+Silo keeps **all your projects alive at once** — for developers juggling coding
+agents (Tauri + React + TypeScript). Open many workspaces and switch instantly;
+each keeps its terminals, agents, panels, and layout intact in the background.
+**100% open source**, free forever. **Extensible**: modeled on VS Code / Obsidian
+with a small stable core, a public extension SDK, and first-party features built
+as extensions — so the bar for boundaries, documentation, and a clean public
+surface is high.
+
+Product positioning for humans lives in `README.md` / `apps/docs/index.md` /
+`context7.json`. Prefer those over inventing a tagline. This file is agent
+orientation (architecture, boundaries, commands), not marketing copy.
 
 Orientation docs (read when relevant):
 
@@ -91,9 +93,9 @@ the invariant #4 burn-down _and_ the docs site growing. They are the same act.
 `apps/docs` is indexed by [Context7](https://context7.com) (library ID
 `/silo-code/silo`) so coding agents can pull Silo's docs directly. What gets
 indexed and how the project is described there is controlled by the root
-`context7.json` — keep its `description` in sync with the current positioning
-in `README.md` / `apps/docs/index.md` (not the architecture description at the
-top of this file, which is written for Claude, not Context7's audience). The
+`context7.json` — keep its `description` in sync with `README.md` /
+`apps/docs/index.md`, and keep this file's opening + `CONTEXT.md` aligned with
+that same positioning (do not reintroduce older taglines). The
 `context7-refresh` job in `.github/workflows/docs.yml` re-triggers indexing on
 every push to `main`.
 
