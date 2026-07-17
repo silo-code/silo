@@ -30,8 +30,9 @@
   background: transparent;
   border: none;
   font-family: var(--silo-font-ui);
-  font-size: 14px;
-  font-weight: 600;
+  /* Match .tree-row.root (file explorer): panel em minus 2px, weight 700. */
+  font-size: calc(1em - 2px);
+  font-weight: 700;
   color: var(--silo-color-text-hi);
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -91,7 +92,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 400;
-  font-size: 13px;
+  /* Absolute — don't inherit the root label's size/weight/tracking. */
+  font-size: var(--silo-font-size-base);
   color: var(--silo-color-text);
   letter-spacing: 0;
 }

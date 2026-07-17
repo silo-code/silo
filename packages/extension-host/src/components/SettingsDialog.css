@@ -17,7 +17,7 @@
   /* The modal's reading size, tunable in one place. Children inherit it, and
      pages (incl. contributed ones) can derive from --settings-font so secondary
      text scales with it. */
-  --settings-font: calc(var(--silo-font-size-base) + 2px);
+  --settings-font: calc(var(--silo-font-size-base) + 1px);
   font-size: var(--settings-font);
   /* Shared min-height for a settings page's title row. Sized to a header that
      contains an action button (e.g. Shortcuts' "Edit keybindings.json") so a

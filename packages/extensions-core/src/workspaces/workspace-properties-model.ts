@@ -25,3 +25,43 @@ export function visiblePropertyPages(
 ): WorkspacePropertyPage[] {
   return pages.filter((p) => p.visible?.(ws) ?? true);
 }
+
+/**
+ * Whether a `.git` entry marks a **linked** git worktree. Linked worktrees
+ * store a `.git` *file* (pointing at the main repo's `worktrees/` dir); the
+ * main worktree and ordinary repos use a `.git` *directory*. Absent → not a
+ * linked worktree.
+ */
+export function isLinkedWorktreeGitEntry(
+  meta: { isDir: boolean } | null,
+): boolean {
+  return meta != null && !meta.isDir;
+}
+
+/** Primary + extras split into ordinary folders vs linked-worktree extras. */
+export interface PartitionedFolders {
+  /** Primary first, then extras that are not linked worktrees. */
+  folders: string[];
+  /** Extras whose `.git` is a file (opened alongside via the worktree manager). */
+  worktrees: string[];
+}
+
+/**
+ * Split a workspace's folder list for the properties modal: the primary root
+ * always stays under Folders; extras known to be linked worktrees move to a
+ * separate Worktrees section so multi-root folders and opened worktrees don't
+ * look like the same thing.
+ */
+export function partitionWorkspaceFolders(
+  primary: string,
+  extras: readonly string[],
+  linkedWorktrees: ReadonlySet<string>,
+): PartitionedFolders {
+  const folders = [primary];
+  const worktrees: string[] = [];
+  for (const folder of extras) {
+    if (linkedWorktrees.has(folder)) worktrees.push(folder);
+    else folders.push(folder);
+  }
+  return { folders, worktrees };
+}

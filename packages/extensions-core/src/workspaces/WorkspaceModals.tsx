@@ -1,28 +1,43 @@
 import { useEffect, useState } from "react";
-import { FolderPlus } from "@phosphor-icons/react";
+import { FolderPlus, GitBranch } from "@phosphor-icons/react";
 import { workspacePropertyPageRegistry } from "@silo-code/extension-host/internal";
 import {
   Tooltip,
+  path,
   useServiceState,
+  type FileService,
   type WorkspaceService,
 } from "@silo-code/sdk";
 import { EditableWorkspaceName } from "./EditableWorkspaceName";
-import { visiblePropertyPages } from "./workspace-properties-model";
-import { fullPath, type Workspace } from "./workspace-helpers";
+import {
+  isLinkedWorktreeGitEntry,
+  partitionWorkspaceFolders,
+  visiblePropertyPages,
+} from "./workspace-properties-model";
+import {
+  FrontTruncatedPath,
+  fullPath,
+  type Workspace,
+} from "./workspace-helpers";
 
 export interface WorkspacePropertiesModalProps {
   wsId: string;
   home: string;
   workspaces: WorkspaceService;
+  files: FileService;
   /** Opens the native folder picker; resolves to the chosen path or null. */
   onPickFolder: () => Promise<string | null>;
+  /** Open the Manage Worktrees modal for this workspace. */
+  onManageWorktrees: () => void;
 }
 
 interface GeneralTabProps {
   ws: Workspace;
   home: string;
   workspaces: WorkspaceService;
+  files: FileService;
   onPickFolder: () => Promise<string | null>;
+  onManageWorktrees: () => void;
 }
 
 const GENERAL_TAB_ID = "general";
@@ -47,7 +62,9 @@ export function WorkspacePropertiesModal({
   wsId,
   home,
   workspaces,
+  files,
   onPickFolder,
+  onManageWorktrees,
 }: WorkspacePropertiesModalProps) {
   const state = useServiceState(workspaces);
   const ws = state.all.find((w) => w.id === wsId);
@@ -103,7 +120,6 @@ export function WorkspacePropertiesModal({
             className={`ws-props-tab${effectiveTab === page.id ? " ws-props-tab-active" : ""}`}
             onClick={() => setActiveTab(page.id)}
           >
-            {page.icon}
             {page.title}
           </button>
         ))}
@@ -114,7 +130,9 @@ export function WorkspacePropertiesModal({
             ws={ws}
             home={home}
             workspaces={workspaces}
+            files={files}
             onPickFolder={onPickFolder}
+            onManageWorktrees={onManageWorktrees}
           />
         ) : (
           activePage && (
@@ -130,9 +148,62 @@ export function WorkspacePropertiesModal({
   );
 }
 
-function GeneralTab({ ws, home, workspaces, onPickFolder }: GeneralTabProps) {
+/**
+ * Classify which of `extras` are linked git worktrees by stating each
+ * folder's `.git` entry. Linked worktrees use a `.git` file; ordinary
+ * folders / the main worktree use a directory (or have no `.git`).
+ */
+function useLinkedWorktreeExtras(
+  extras: readonly string[],
+  files: FileService,
+): ReadonlySet<string> {
+  const [linked, setLinked] = useState<ReadonlySet<string>>(() => new Set());
+  // Stable key so reordering-identical lists don't re-stat.
+  const extrasKey = extras.join("\0");
+
+  useEffect(() => {
+    let cancelled = false;
+    if (extras.length === 0) {
+      setLinked(new Set());
+      return;
+    }
+    void (async () => {
+      const next = new Set<string>();
+      await Promise.all(
+        extras.map(async (folder) => {
+          try {
+            const meta = await files.stat(path.join(folder, ".git"));
+            if (isLinkedWorktreeGitEntry(meta)) next.add(folder);
+          } catch {
+            // Permission / I/O errors — treat as ordinary folder.
+          }
+        }),
+      );
+      if (!cancelled) setLinked(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [extrasKey, extras, files]);
+
+  return linked;
+}
+
+function GeneralTab({
+  ws,
+  home,
+  workspaces,
+  files,
+  onPickFolder,
+  onManageWorktrees,
+}: GeneralTabProps) {
   const extraFolders = ws.extraFolders ?? [];
-  const allFolders = [ws.folder, ...extraFolders];
+  const linkedWorktrees = useLinkedWorktreeExtras(extraFolders, files);
+  const { folders, worktrees } = partitionWorkspaceFolders(
+    ws.folder,
+    extraFolders,
+    linkedWorktrees,
+  );
 
   async function addFolder() {
     const picked = await onPickFolder();
@@ -158,15 +229,16 @@ function GeneralTab({ ws, home, workspaces, onPickFolder }: GeneralTabProps) {
       <div className="ws-prop-section">
         <div className="ws-prop-label-row">
           <span className="ws-prop-label">Folders</span>
-          <span className="ws-prop-count">{allFolders.length}</span>
+          <span className="ws-prop-count">{folders.length}</span>
         </div>
         <div className="ws-folders-list">
-          {allFolders.map((folder, i) => (
+          {folders.map((folder, i) => (
             <div key={folder} className="ws-folder-list-item">
               <Tooltip content={folder}>
-                <span className="ws-folder-list-path" dir="ltr">
-                  {fullPath(folder, home)}
-                </span>
+                <FrontTruncatedPath
+                  className="ws-folder-list-path"
+                  text={fullPath(folder, home)}
+                />
               </Tooltip>
               {i === 0 ? (
                 <span className="ws-folder-primary-badge">primary</span>
@@ -187,6 +259,44 @@ function GeneralTab({ ws, home, workspaces, onPickFolder }: GeneralTabProps) {
         <button type="button" className="ws-prop-add" onClick={addFolder}>
           <FolderPlus size={14} weight="bold" />
           Add Folder…
+        </button>
+      </div>
+
+      <div className="ws-prop-section">
+        <div className="ws-prop-label-row">
+          <span className="ws-prop-label">Worktrees</span>
+          <span className="ws-prop-count">{worktrees.length}</span>
+        </div>
+        {worktrees.length > 0 && (
+          <div className="ws-folders-list">
+            {worktrees.map((folder) => (
+              <div key={folder} className="ws-folder-list-item">
+                <Tooltip content={folder}>
+                  <FrontTruncatedPath
+                    className="ws-folder-list-path"
+                    text={fullPath(folder, home)}
+                  />
+                </Tooltip>
+                <Tooltip content="Close worktree view">
+                  <button
+                    type="button"
+                    className="ws-folder-list-remove"
+                    onClick={() => removeFolder(folder)}
+                  >
+                    ×
+                  </button>
+                </Tooltip>
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          className="ws-prop-add"
+          onClick={onManageWorktrees}
+        >
+          <GitBranch size={14} weight="bold" />
+          Manage Worktrees…
         </button>
       </div>
     </div>

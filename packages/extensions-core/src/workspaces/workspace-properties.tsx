@@ -28,9 +28,20 @@ export async function openWorkspaceProperties(
         wsId={ws.id}
         home={home}
         workspaces={ctx.workspaces}
+        files={ctx.files}
         onPickFolder={() => ctx.ui.pickFolder()}
+        onManageWorktrees={() => {
+          void ctx.executeCommand("silo.git.manageWorktrees", {
+            workspaceId: ws.id,
+          });
+        }}
       />
     ),
-    { title: "Workspace Properties", size: "md", dismissible: true },
+    {
+      title: "Workspace Properties",
+      size: "lg",
+      dismissible: true,
+      className: "ws-props-dialog",
+    },
   );
 }
