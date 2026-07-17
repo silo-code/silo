@@ -237,6 +237,11 @@
   flex-shrink: 0;
 }
 
+/* After .branch-action so accent isn't overridden by text-lo. */
+.branch-action.git-wt-btn {
+  color: var(--silo-color-accent);
+}
+
 .branch-action:hover:not(.working):not(.disabled) {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
@@ -812,17 +817,32 @@
 }
 
 /* Worktree manager modal (shares the branch-modal shell classes) and the
- * "worktree" header pill on linked-worktree GitViews. */
+ * "worktree" header pill on linked-worktree GitViews — clickable into the
+ * manager (replaces the header icon on those views). */
+button.git-wt-pill {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
+}
+
 .git-wt-pill {
   flex-shrink: 0;
   font-size: var(--silo-font-size-chrome);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--silo-color-text-lo);
-  background: color-mix(in srgb, var(--silo-color-text-lo) 14%, transparent);
+  color: var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 16%, transparent);
   border-radius: 999px;
   padding: 1px 8px;
+}
+
+button.git-wt-pill:hover {
+  color: var(--silo-color-text-hi);
+  background: color-mix(in srgb, var(--silo-color-accent) 28%, transparent);
 }
 
 /* Worktree rows stack the directory name (with badges) over the checked-out

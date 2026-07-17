@@ -9,6 +9,9 @@ import {
   suggestWorktreePath,
   findWorktreeFor,
   branchesInUse,
+  managerWorktreeCount,
+  shouldShowWorktreeManagerButton,
+  worktreeManagerButtonTooltip,
 } from "./worktree-model";
 
 function wt(overrides: Partial<GitWorktree>): GitWorktree {
@@ -192,5 +195,28 @@ describe("findWorktreeFor / branchesInUse", () => {
       wt({ path: "/w/d", branch: null, detached: true }),
     ];
     expect(branchesInUse(wts)).toEqual(new Set(["main", "feat"]));
+  });
+});
+
+describe("shouldShowWorktreeManagerButton", () => {
+  const main = wt({ path: "/w/repo", isMain: true, branch: "main" });
+  const feat = wt({ path: "/w/repo-feat", branch: "feat" });
+  const bare = wt({ path: "/w/repo.git", bare: true });
+  const gone = wt({ path: "/w/gone", prunable: "directory missing" });
+
+  it("hides when the list is unknown or only the main worktree", () => {
+    expect(shouldShowWorktreeManagerButton(null)).toBe(false);
+    expect(shouldShowWorktreeManagerButton(undefined)).toBe(false);
+    expect(shouldShowWorktreeManagerButton([main])).toBe(false);
+    expect(shouldShowWorktreeManagerButton([main, bare])).toBe(false);
+  });
+
+  it("shows when the manager would list more than main (incl. prunable)", () => {
+    expect(shouldShowWorktreeManagerButton([main, feat])).toBe(true);
+    expect(shouldShowWorktreeManagerButton([main, gone])).toBe(true);
+    expect(managerWorktreeCount([main, bare, feat])).toBe(2);
+    expect(worktreeManagerButtonTooltip([main, feat])).toBe(
+      "Manage worktrees (2)",
+    );
   });
 });
