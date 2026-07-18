@@ -8,6 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import { useSnapshot } from "valtio";
 import type { ModalOptions } from "@silo-code/sdk";
+import { yieldEscapeToInlineEdit } from "@silo-code/sdk";
 import {
   modalStack,
   nextModalKey,
@@ -15,7 +16,6 @@ import {
   removeModal,
 } from "./modal-service";
 import { getMenu } from "./menu-controller";
-import { yieldEscapeToInlineEdit } from "./inline-edit-controller";
 import { TABBABLE } from "./focus-dom";
 
 // The SDK `<Modal>` — host-owned dialog chrome for arbitrary custom content,

@@ -237,3 +237,11 @@ export type {
   FocusGroupOrientation,
   FocusGroupNavQuery,
 } from "./use-focus-group";
+
+// Host/InlineEdit coordination for InlineEdit's two-stage Escape (RFC 0016).
+// @internal — host-only plumbing, not part of the documented reference;
+// extension authors never call these directly.
+export {
+  setActiveInlineEditCancel,
+  yieldEscapeToInlineEdit,
+} from "./inline-edit-controller";
