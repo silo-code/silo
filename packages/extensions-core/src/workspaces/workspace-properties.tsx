@@ -11,11 +11,11 @@ import { WorkspacePropertiesModal } from "./WorkspaceModals";
 /**
  * Open the Workspace Properties dialog for `ws`. Every field persists
  * immediately as it changes — folders, registered extension property pages,
- * and the name (via its own explicit Save in {@link EditableWorkspaceName})
- * — so there is nothing staged to apply on close. Built on `ctx.ui.showModal`
- * as a dismissible modal (Escape / backdrop-click / the ✕ button all close
- * it); closing while the name is mid-edit discards that edit only. Resolves
- * once the dialog closes.
+ * and the name (via its own explicit Save in `InlineEdit`) — so there is
+ * nothing staged to apply on close. Built on `ctx.ui.showModal` as a
+ * dismissible modal (Escape / backdrop-click / the ✕ button all close it);
+ * `InlineEdit`'s two-stage Escape cancels an in-progress name edit before a
+ * second Escape closes the modal. Resolves once the dialog closes.
  */
 export async function openWorkspaceProperties(
   ctx: ExtensionContext,

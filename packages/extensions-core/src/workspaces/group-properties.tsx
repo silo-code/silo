@@ -1,11 +1,16 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { ModalActions } from "@silo-code/extension-host/internal";
 import {
   createGroup,
   renameGroup,
   setGroupColor,
 } from "@silo-code/extension-host/internal";
-import type { ExtensionContext } from "@silo-code/sdk";
+import {
+  Button,
+  Input,
+  ModalActions,
+  Section,
+  type ExtensionContext,
+} from "@silo-code/sdk";
 import { resolveGroupProps, type GroupDraft } from "./group-properties-model";
 
 // Accepts both the mutable type and valtio's readonly snapshot form.
@@ -111,38 +116,31 @@ function GroupPropertiesContent({
         commit();
       }}
     >
-      <div className="ws-prop-section">
-        <label className="ws-prop-label" htmlFor="group-prop-name">
-          Name
-        </label>
-        <input
+      <Section label="Name">
+        <Input
           id="group-prop-name"
           ref={nameRef}
-          className="ws-rename-input"
+          block
           value={name}
           onChange={(e) => setName(e.target.value)}
+          aria-label="Group name"
         />
-      </div>
+      </Section>
 
-      <div className="ws-prop-section">
-        <span className="ws-prop-label">Color</span>
+      <Section label="Color">
         <div className="ws-group-palette">{PALETTE.map(renderSwatch)}</div>
         <div className="ws-group-palette ws-group-palette--offset">
           {GREYSCALE.map(renderSwatch)}
         </div>
-      </div>
+      </Section>
 
       <ModalActions>
-        <button type="button" className="silo-button" onClick={onCancel}>
+        <Button type="button" onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="submit"
-          className="silo-button-primary"
-          disabled={!canSubmit}
-        >
+        </Button>
+        <Button type="submit" variant="primary" disabled={!canSubmit}>
           {mode === "create" ? "Create" : "Save"}
-        </button>
+        </Button>
       </ModalActions>
     </form>
   );

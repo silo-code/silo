@@ -1,24 +1,28 @@
 import { useEffect, useState } from "react";
-import { FolderPlus, GitBranch } from "@phosphor-icons/react";
-import { workspacePropertyPageRegistry } from "@silo-code/extension-host/internal";
 import {
+  AddRow,
+  Badge,
+  IconButton,
+  InlineEdit,
+  List,
+  ListRow,
+  Section,
+  TabPanel,
+  Tabs,
   Tooltip,
   path,
   useServiceState,
   type FileService,
   type WorkspaceService,
 } from "@silo-code/sdk";
-import { EditableWorkspaceName } from "./EditableWorkspaceName";
+import { workspacePropertyPageRegistry } from "@silo-code/extension-host/internal";
 import {
   isLinkedWorktreeGitEntry,
   partitionWorkspaceFolders,
+  validateWorkspaceName,
   visiblePropertyPages,
 } from "./workspace-properties-model";
-import {
-  FrontTruncatedPath,
-  fullPath,
-  type Workspace,
-} from "./workspace-helpers";
+import { fullPath, type Workspace } from "./workspace-helpers";
 
 export interface WorkspacePropertiesModalProps {
   wsId: string;
@@ -42,6 +46,19 @@ interface GeneralTabProps {
 
 const GENERAL_TAB_ID = "general";
 
+function RemoveIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M4 4l8 8M12 4l-8 8"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /**
  * The workspace properties modal's content — a tab bar (built-in **General**
  * plus registered {@link WorkspacePropertyPage}s) over a form where every
@@ -49,7 +66,7 @@ const GENERAL_TAB_ID = "general";
  * the host owns the surrounding modal chrome (`ctx.ui.showModal`, rendered
  * `dismissible: true` so Escape/backdrop/✕ all close it — nothing here is
  * staged, so there's nothing left to lose by an accidental close except an
- * in-progress name edit, which {@link EditableWorkspaceName} owns).
+ * in-progress name edit, which {@link InlineEdit} owns via two-stage Escape).
  *
  * Takes `wsId` rather than a `Workspace` snapshot and re-derives the live
  * workspace on every render via {@link useServiceState} — unlike the old
@@ -99,32 +116,15 @@ export function WorkspacePropertiesModal({
   const effectiveTab =
     activeTab === GENERAL_TAB_ID || activePage ? activeTab : GENERAL_TAB_ID;
 
+  const tabs = [
+    { id: GENERAL_TAB_ID, label: "General" },
+    ...pages.map((page) => ({ id: page.id, label: page.title })),
+  ];
+
   return (
     <div className="ws-props-modal">
-      <div className="ws-props-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={effectiveTab === GENERAL_TAB_ID}
-          className={`ws-props-tab${effectiveTab === GENERAL_TAB_ID ? " ws-props-tab-active" : ""}`}
-          onClick={() => setActiveTab(GENERAL_TAB_ID)}
-        >
-          General
-        </button>
-        {pages.map((page) => (
-          <button
-            key={page.id}
-            type="button"
-            role="tab"
-            aria-selected={effectiveTab === page.id}
-            className={`ws-props-tab${effectiveTab === page.id ? " ws-props-tab-active" : ""}`}
-            onClick={() => setActiveTab(page.id)}
-          >
-            {page.title}
-          </button>
-        ))}
-      </div>
-      <div className="ws-props-tab-content">
+      <Tabs tabs={tabs} active={effectiveTab} onSelect={setActiveTab} />
+      <TabPanel>
         {effectiveTab === GENERAL_TAB_ID ? (
           <GeneralTab
             ws={ws}
@@ -143,7 +143,7 @@ export function WorkspacePropertiesModal({
             />
           )
         )}
-      </div>
+      </TabPanel>
     </div>
   );
 }
@@ -218,87 +218,71 @@ function GeneralTab({
 
   return (
     <div className="ws-props-form">
-      <div className="ws-prop-section">
-        <span className="ws-prop-label">Name</span>
-        <EditableWorkspaceName
-          name={ws.name}
+      <Section label="Name">
+        <InlineEdit
+          value={ws.name}
           onSave={(name) => workspaces.rename(ws.id, name)}
+          validate={validateWorkspaceName}
+          aria-label="Rename workspace"
         />
-      </div>
+      </Section>
 
-      <div className="ws-prop-section">
-        <div className="ws-prop-label-row">
-          <span className="ws-prop-label">Folders</span>
-          <span className="ws-prop-count">{folders.length}</span>
-        </div>
-        <div className="ws-folders-list">
+      <Section label="Folders" accessory={<Badge>{folders.length}</Badge>}>
+        <List aria-label="Workspace folders">
           {folders.map((folder, i) => (
-            <div key={folder} className="ws-folder-list-item">
-              <Tooltip content={folder}>
-                <FrontTruncatedPath
-                  className="ws-folder-list-path"
-                  text={fullPath(folder, home)}
-                />
-              </Tooltip>
-              {i === 0 ? (
-                <span className="ws-folder-primary-badge">primary</span>
-              ) : (
-                <Tooltip content="Remove folder">
-                  <button
-                    type="button"
-                    className="ws-folder-list-remove"
-                    onClick={() => removeFolder(folder)}
-                  >
-                    ×
-                  </button>
-                </Tooltip>
-              )}
-            </div>
+            <ListRow
+              key={folder}
+              selected={i === 0}
+              truncate="start"
+              trailing={
+                i === 0 ? (
+                  <Badge tone="accent">primary</Badge>
+                ) : (
+                  <Tooltip content="Remove folder">
+                    <IconButton
+                      size="sm"
+                      aria-label="Remove folder"
+                      onClick={() => removeFolder(folder)}
+                    >
+                      <RemoveIcon />
+                    </IconButton>
+                  </Tooltip>
+                )
+              }
+            >
+              {fullPath(folder, home)}
+            </ListRow>
           ))}
-        </div>
-        <button type="button" className="ws-prop-add" onClick={addFolder}>
-          <FolderPlus size={14} weight="bold" />
-          Add Folder…
-        </button>
-      </div>
+        </List>
+        <AddRow onClick={addFolder}>Add Folder…</AddRow>
+      </Section>
 
-      <div className="ws-prop-section">
-        <div className="ws-prop-label-row">
-          <span className="ws-prop-label">Worktrees</span>
-          <span className="ws-prop-count">{worktrees.length}</span>
-        </div>
+      <Section label="Worktrees" accessory={<Badge>{worktrees.length}</Badge>}>
         {worktrees.length > 0 && (
-          <div className="ws-folders-list">
+          <List aria-label="Workspace worktrees">
             {worktrees.map((folder) => (
-              <div key={folder} className="ws-folder-list-item">
-                <Tooltip content={folder}>
-                  <FrontTruncatedPath
-                    className="ws-folder-list-path"
-                    text={fullPath(folder, home)}
-                  />
-                </Tooltip>
-                <Tooltip content="Close worktree view">
-                  <button
-                    type="button"
-                    className="ws-folder-list-remove"
-                    onClick={() => removeFolder(folder)}
-                  >
-                    ×
-                  </button>
-                </Tooltip>
-              </div>
+              <ListRow
+                key={folder}
+                truncate="start"
+                trailing={
+                  <Tooltip content="Close worktree view">
+                    <IconButton
+                      size="sm"
+                      aria-label="Close worktree view"
+                      onClick={() => removeFolder(folder)}
+                    >
+                      <RemoveIcon />
+                    </IconButton>
+                  </Tooltip>
+                }
+              >
+                {fullPath(folder, home)}
+              </ListRow>
             ))}
-          </div>
+          </List>
         )}
-        <button
-          type="button"
-          className="ws-prop-add"
-          onClick={onManageWorktrees}
-        >
-          <GitBranch size={14} weight="bold" />
-          Manage Worktrees…
-        </button>
-      </div>
+        <AddRow onClick={onManageWorktrees}>Manage Worktrees…</AddRow>
+      </Section>
     </div>
   );
 }
