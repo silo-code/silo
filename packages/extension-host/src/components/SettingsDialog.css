@@ -116,15 +116,11 @@
   font-size: calc(var(--settings-font) - 1px);
 }
 
-/* Scoped focus ring for the entire settings modal. The global theme rule uses
-   1.5 px and can bleed outside control bounds. Inputs/selects already signal
-   focus via border-color (es-* rules), so suppress the outline there. Buttons
-   get a tight 1 px inset ring. Using :is() raises specificity to (0,3,0) which
-   beats the global (0,2,1) rule without relying on cascade order. */
-.settings-dialog :is(input, select, textarea):focus-visible {
-  outline: none;
-}
-.settings-dialog button:focus-visible {
+/* Scoped focus ring for settings chrome buttons (rail items, close). Skip
+   `.silo-switch-track` — Switch uses a positive-offset ring by design (an
+   18px pill can't take an inset outline). Inputs use the shared global
+   :focus-visible outline from theme.css. */
+.settings-dialog button:not(.silo-switch-track):focus-visible {
   outline: 1px solid var(--silo-color-accent);
   outline-offset: -1px;
 }
@@ -158,9 +154,9 @@
   color: var(--silo-color-text-hi);
 }
 
-/* ─── Settings page design system (es-*) ─────────────────────────────────────
-   Defined here so every settings page — core, third-party, and example
-   extensions — gets these primitives automatically, with no CSS import needed.
+/* ─── Settings page chrome (shared by Editor / Terminal / contributed pages) ─
+   Page shell only — row/section/control primitives live in the SDK
+   (Section, SettingRow, Switch, Select, SearchInput, Input) via components.css.
    ─────────────────────────────────────────────────────────────────────────── */
 
 .es-page {
@@ -183,19 +179,9 @@
   color: var(--silo-color-text-hi);
 }
 
-.es-search {
+/* SearchInput (SDK) spans the page width on Editor / Terminal. */
+.es-page > .silo-search-input {
   width: 100%;
-  box-sizing: border-box;
-  background: var(--silo-color-input-bg);
-  border: 1px solid var(--silo-color-border);
-  color: var(--silo-color-input-text);
-  padding: 7px 10px;
-  border-radius: var(--silo-radius-sm);
-  font: inherit;
-}
-.es-search:focus {
-  outline: none;
-  border-color: var(--silo-color-accent);
 }
 
 .es-scroll {
@@ -204,78 +190,17 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  margin-left: calc(var(--settings-pane-pad) * -1);
 }
 
-.es-section {
+/* Font family picker (Terminal) — bespoke; out of scope for the SDK kit. */
+.es-font-picker {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.es-section-title {
-  margin: 0;
-  padding: 0 var(--settings-pane-pad);
-  font-size: calc(var(--settings-font) - 1px);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--silo-color-text-lo);
+  align-items: stretch;
+  width: 220px;
 }
 
-.es-rows {
-  display: flex;
-  flex-direction: column;
-}
-
-.es-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 7px 8px 7px var(--settings-pane-pad);
-  border-bottom: 1px solid var(--silo-color-border);
-}
-
-.es-empty {
-  color: var(--silo-color-text-lo);
-  padding: 12px var(--settings-pane-pad);
-}
-
-.es-row-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.es-label {
-  color: var(--silo-color-text-hi);
-}
-.es-hint {
-  font-size: calc(var(--settings-font) - 2px);
-  color: var(--silo-color-text-lo);
-  line-height: 1.35;
-}
-
-.es-control {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-}
-
-.es-number {
-  width: 56px;
-  box-sizing: border-box;
-  background: var(--silo-color-input-bg);
-  border: 1px solid var(--silo-color-border);
-  color: var(--silo-color-input-text);
-  padding: 5px 8px;
-  border-radius: var(--silo-radius-sm);
-  font: inherit;
-}
-.es-number:focus {
-  outline: none;
-  border-color: var(--silo-color-accent);
-}
-
+/* Shared text-input treatment used by the font picker field. */
 .es-text {
   width: 220px;
   box-sizing: border-box;
@@ -285,32 +210,6 @@
   padding: 5px 8px;
   border-radius: var(--silo-radius-sm);
   font: inherit;
-}
-.es-text:focus {
-  outline: none;
-  border-color: var(--silo-color-accent);
-}
-
-.es-select {
-  background: var(--silo-color-input-bg);
-  border: 1px solid var(--silo-color-border);
-  color: var(--silo-color-input-text);
-  padding: 5px 8px;
-  border-radius: var(--silo-radius-sm);
-  font: inherit;
-  cursor: pointer;
-}
-.es-select:focus {
-  outline: none;
-  border-color: var(--silo-color-accent);
-}
-
-/* Font family picker */
-.es-font-picker {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  width: 220px;
 }
 
 .es-font-picker-input {
@@ -390,53 +289,4 @@
 .es-font-picker-item:hover,
 .es-font-picker-item--selected {
   background: var(--silo-color-bg-active);
-}
-
-/* Toggle switch */
-.es-switch {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-}
-.es-switch input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.es-switch-track {
-  width: 34px;
-  height: 18px;
-  border-radius: 9px;
-  background: var(--silo-color-bg-active);
-  border: 1px solid var(--silo-color-border-strong);
-  transition: background 0.15s ease;
-  position: relative;
-}
-.es-switch-track::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.12),
-    0 1px 3px rgba(0, 0, 0, 0.4);
-  transition: transform 0.15s ease;
-}
-.es-switch input:checked + .es-switch-track {
-  background: var(--silo-color-accent);
-  border-color: var(--silo-color-accent);
-}
-.es-switch input:checked + .es-switch-track::after {
-  transform: translateX(16px);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-}
-.es-switch input:focus-visible + .es-switch-track {
-  outline: 2px solid var(--silo-color-accent);
-  outline-offset: 2px;
 }

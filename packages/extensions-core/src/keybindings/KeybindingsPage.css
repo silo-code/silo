@@ -18,27 +18,9 @@
   color: var(--silo-color-text-hi);
 }
 
-/* Rides the shared global button treatment (the `--silo-button-*` tokens behind
-   `button` in theme.css); this rule only sets the compact size so it matches the
-   Extensions page's `.ext-btn` and buttons read the same across settings pages. */
-.kb-edit-btn {
-  padding: 4px 8px;
-  font-size: calc(var(--settings-font) - 2px);
-}
-
-.kb-search {
+/* SearchInput (SDK) spans the page width. */
+.kb-page > .silo-search-input {
   width: 100%;
-  box-sizing: border-box;
-  background: var(--silo-color-input-bg);
-  border: 1px solid var(--silo-color-border);
-  color: var(--silo-color-input-text);
-  padding: 7px 10px;
-  border-radius: var(--silo-radius-sm);
-  font: inherit;
-}
-.kb-search:focus {
-  outline: none;
-  border-color: var(--silo-color-accent);
 }
 
 .kb-list {

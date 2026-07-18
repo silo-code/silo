@@ -1,6 +1,15 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useSnapshot } from "valtio";
 import {
+  EmptyState,
+  Input,
+  SearchInput,
+  Section,
+  Select,
+  SettingRow,
+  Switch,
+} from "@silo-code/sdk";
+import {
   store,
   setTerminalSetting,
   type TerminalSettings,
@@ -164,28 +173,6 @@ function FontFamilyPicker({
   );
 }
 
-function Toggle({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="es-switch">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        aria-label={label}
-      />
-      <span className="es-switch-track" />
-    </label>
-  );
-}
-
 interface RowDef {
   label: string;
   hint?: string;
@@ -217,18 +204,17 @@ export function TerminalSettingsPage() {
           label: "Breadcrumbs",
           hint: "Show the working-directory bar at the top of the terminal.",
           control: (
-            <Toggle
-              label="Breadcrumbs"
+            <Switch
               checked={s.breadcrumbs}
               onChange={toggle("breadcrumbs")}
+              aria-label="Breadcrumbs"
             />
           ),
         },
         {
           label: "Cursor style",
           control: (
-            <select
-              className="es-select"
+            <Select
               value={s.cursorStyle}
               onChange={(e) =>
                 setTerminalSetting(
@@ -240,7 +226,7 @@ export function TerminalSettingsPage() {
               <option value="block">Block</option>
               <option value="bar">Bar</option>
               <option value="underline">Underline</option>
-            </select>
+            </Select>
           ),
         },
       ],
@@ -262,8 +248,7 @@ export function TerminalSettingsPage() {
           label: "Font size",
           hint: "px added to the UI font size. 0 = default terminal size.",
           control: (
-            <input
-              className="es-number"
+            <Input
               type="number"
               min={-4}
               max={10}
@@ -287,10 +272,10 @@ export function TerminalSettingsPage() {
           label: "Copy on selection",
           hint: "Copy selected text to the clipboard automatically.",
           control: (
-            <Toggle
-              label="Copy on selection"
+            <Switch
               checked={s.copyOnSelect}
               onChange={toggle("copyOnSelect")}
+              aria-label="Copy on selection"
             />
           ),
         },
@@ -298,10 +283,10 @@ export function TerminalSettingsPage() {
           label: "Paste on right-click",
           hint: "Right-click pastes the clipboard instead of opening the context menu.",
           control: (
-            <Toggle
-              label="Paste on right-click"
+            <Switch
               checked={s.pasteOnRightClick}
               onChange={toggle("pasteOnRightClick")}
+              aria-label="Paste on right-click"
             />
           ),
         },
@@ -314,8 +299,7 @@ export function TerminalSettingsPage() {
           label: "Scroll speed",
           hint: "Lines scrolled per mouse-wheel tick. Default: 3.",
           control: (
-            <input
-              className="es-number"
+            <Input
               type="number"
               min={MIN_TERMINAL_SCROLL_SENSITIVITY}
               max={MAX_TERMINAL_SCROLL_SENSITIVITY}
@@ -338,8 +322,7 @@ export function TerminalSettingsPage() {
           label: "Fast scroll speed",
           hint: "Lines scrolled per tick while holding Alt/Option. Default: 5.",
           control: (
-            <input
-              className="es-number"
+            <Input
               type="number"
               min={MIN_TERMINAL_SCROLL_SENSITIVITY}
               max={MAX_TERMINAL_FAST_SCROLL_SENSITIVITY}
@@ -367,8 +350,7 @@ export function TerminalSettingsPage() {
           label: "Shell path",
           hint: "Program to launch. Leave empty to use your $SHELL. Applies to new terminals.",
           control: (
-            <input
-              className="es-text"
+            <Input
               type="text"
               placeholder="$SHELL"
               value={s.shell}
@@ -381,8 +363,7 @@ export function TerminalSettingsPage() {
           label: "Shell arguments",
           hint: "Whitespace-separated args (e.g. -l for a login shell). Applies to new terminals.",
           control: (
-            <input
-              className="es-text"
+            <Input
               type="text"
               placeholder="-l"
               value={s.shellArgs}
@@ -402,33 +383,24 @@ export function TerminalSettingsPage() {
       <div className="es-header">
         <h2>Terminal</h2>
       </div>
-      <input
-        className="es-search"
-        type="text"
-        placeholder="Search settings…"
+      <SearchInput
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onValueChange={setQuery}
+        placeholder="Search settings…"
         autoFocus
       />
-      <div className="es-scroll">
+      <div className="es-scroll silo-scroll">
         {visible.map((sec) => (
-          <section key={sec.title} className="es-section">
-            <h3 className="es-section-title">{sec.title}</h3>
-            <div className="es-rows">
-              {sec.rows.map((row) => (
-                <div key={row.label} className="es-row">
-                  <div className="es-row-text">
-                    <span className="es-label">{row.label}</span>
-                    {row.hint && <span className="es-hint">{row.hint}</span>}
-                  </div>
-                  <div className="es-control">{row.control}</div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <Section key={sec.title} label={sec.title}>
+            {sec.rows.map((row) => (
+              <SettingRow key={row.label} label={row.label} hint={row.hint}>
+                {row.control}
+              </SettingRow>
+            ))}
+          </Section>
         ))}
         {visible.length === 0 && (
-          <div className="es-empty">No settings match "{query}".</div>
+          <EmptyState title={`No settings match “${query}”.`} />
         )}
       </div>
     </div>
