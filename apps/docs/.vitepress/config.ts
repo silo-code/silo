@@ -28,6 +28,34 @@ const registration = [
   link: `/api/registration/${slug}`,
 }));
 
+// The Design System section — the extension-builder-facing reference for the
+// shared component kit (RFC 0016). Modal-scoped today; panels/status bar later.
+const designSidebar = [
+  { text: "Overview", link: "/design/" },
+  { text: "Modal surfaces", link: "/design/surfaces" },
+  { text: "Principles & best practices", link: "/design/principles" },
+  { text: "Typography", link: "/design/typography" },
+  {
+    text: "Components",
+    collapsed: false,
+    items: [
+      { text: "Buttons", link: "/design/components/buttons" },
+      { text: "Text inputs", link: "/design/components/text-inputs" },
+      {
+        text: "Selection controls",
+        link: "/design/components/selection-controls",
+      },
+      { text: "Tabs", link: "/design/components/tabs" },
+      { text: "Lists", link: "/design/components/lists" },
+      { text: "Badges", link: "/design/components/badges" },
+      { text: "Feedback", link: "/design/components/feedback" },
+      { text: "Structure", link: "/design/components/structure" },
+    ],
+  },
+  { text: "Building modals (guide)", link: "/guide/building-modals" },
+  { text: "Design tokens", link: "/api/theming" },
+];
+
 const apiSidebar = [
   { text: "Using ctx", link: "/api/" },
   { text: "Registration", collapsed: false, items: registration },
@@ -118,6 +146,7 @@ export default withMermaid(
           link: "https://github.com/silo-code/silo/releases/latest",
         },
         { text: "Guides", link: "/guide/" },
+        { text: "Design System", link: "/design/" },
         { text: "API Reference", link: "/api/" },
         {
           text: "Extensions",
@@ -162,6 +191,7 @@ export default withMermaid(
               {
                 text: "UI & theming",
                 items: [
+                  { text: "Building modals", link: "/guide/building-modals" },
                   { text: "Styling your extension", link: "/guide/styling" },
                   {
                     text: "Workspace status & badges",
@@ -198,6 +228,7 @@ export default withMermaid(
             ],
           },
         ],
+        "/design/": designSidebar,
         "/api/": apiSidebar,
         "/reference/": apiSidebar,
       },

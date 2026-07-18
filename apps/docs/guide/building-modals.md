@@ -1,0 +1,238 @@
+# Building modals
+
+How to put a dialog in front of the user, from a one-line confirm to a full
+custom form — using the [design system](/design/) so the result is
+indistinguishable from Silo's own modals.
+
+First, know which of the [three modal surfaces](/design/surfaces) you're
+building: a **standalone modal** (this page's main subject), a **settings
+page**, or a **workspace properties tab**. The last two have their own
+recipes [below](#recipe-a-settings-page) — and different rules: they persist
+immediately and have no footer.
+
+## Start with the built-ins
+
+Most "modals" don't need custom content. Escalate only when the simpler tier
+can't express what you need:
+
+```tsx
+// 1. A yes/no question — host renders everything
+const ok = await ctx.ui.confirm({
+  title: "Force-delete branch?",
+  body: "This branch isn't merged. Deleting it discards those commits.",
+  confirmLabel: "Delete",
+  danger: true,
+});
+
+// 2. One text value
+const name = await ctx.ui.prompt({
+  title: "New branch",
+  placeholder: "feature/…",
+});
+if (name === null) return; // cancelled
+
+// 3. Custom content — you render the inside, the host renders the shell
+const result = await ctx.ui.showModal<string>(
+  (close) => <MyPicker onPick={(id) => close(id)} />,
+  { title: "Switch branches", size: "md", dismissible: true },
+);
+```
+
+## What the shell gives you (so don't rebuild it)
+
+`showModal`'s options control the host-owned shell:
+
+- `title` — rendered by the host at the title role (base+2/600). Don't add
+  your own heading inside.
+- `size` — `"sm"` 400px · `"md"` 560px (default) · `"lg"` 800px.
+- `dismissible` — opt-in Escape/backdrop/✕ closing. Leave it off when open
+  edits could be lost; the default protects staged input.
+- Focus trap, z-stacking, restore-focus-on-close, the ✕ button (mouse-only;
+  Esc is the keyboard path) — all host-owned.
+
+Your render function receives `close(result?)` — wire it to your buttons.
+Resolving with `undefined` means "cancelled."
+
+## Recipe: a form modal
+
+```tsx
+import {
+  Section,
+  Input,
+  CheckboxRow,
+  Button,
+  ModalActions,
+} from "@silo-code/sdk";
+
+function NewGroupModal({ close }: { close: (name?: string) => void }) {
+  const [name, setName] = useState("");
+  return (
+    <>
+      <Section label="Name">
+        <Input
+          block
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </Section>
+      <ModalActions>
+        <Button onClick={() => close()}>Cancel</Button>
+        <Button
+          variant="primary"
+          disabled={!name.trim()}
+          onClick={() => close(name.trim())}
+        >
+          Create
+        </Button>
+      </ModalActions>
+    </>
+  );
+}
+```
+
+Rules embodied above: primary action rightmost and disabled until valid;
+`Section` labels the field group; no hand-rolled footer.
+
+## Recipe: a picker modal {#recipe-a-picker-modal}
+
+Filter-above-list — the pattern behind Switch Branches. There's no combined
+component on purpose; the composition is the API:
+
+```tsx
+import {
+  SearchInput,
+  List,
+  ListRow,
+  Badge,
+  Button,
+  ModalActions,
+} from "@silo-code/sdk";
+
+function BranchPicker({ close }: { close: (branch?: string) => void }) {
+  const [query, setQuery] = useState("");
+  const branches = useBranches();
+  const visible = branches.filter((b) => b.name.includes(query));
+  return (
+    <>
+      <SearchInput
+        autoFocus
+        value={query}
+        onValueChange={setQuery}
+        placeholder="Filter branches…"
+      />
+      <div className="silo-scroll" style={{ maxHeight: 340 }}>
+        <List aria-label="Branches">
+          {visible.length === 0 && (
+            <EmptyState icon={<SearchIcon />} title="No matching branches" />
+          )}
+          {visible.map((b) => (
+            <ListRow
+              key={b.name}
+              selected={b.current}
+              trailing={b.current && <Badge tone="accent">current</Badge>}
+              onSelect={() => close(b.name)}
+            >
+              {b.name}
+            </ListRow>
+          ))}
+        </List>
+      </div>
+      <ModalActions
+        start={
+          <Button size="sm" onClick={createBranch}>
+            + Create branch
+          </Button>
+        }
+      >
+        <Button onClick={fetchAll}>Fetch</Button>
+      </ModalActions>
+    </>
+  );
+}
+```
+
+What you got for free: keyboard navigation (Tab to the list, ↑/↓, Space),
+full-width rows that truncate instead of overflowing, themed scrollbar, and a
+footer that matches every other modal.
+
+## Recipe: a settings page {#recipe-a-settings-page}
+
+Settings pages render inside the host's Settings modal — you register a
+component; the host provides the rail and page chrome, your page provides
+sections. **No footer, no Save button**: every control persists the moment it
+changes.
+
+```tsx
+ctx.registerSettingsPage({
+  id: "my-ext-settings",
+  title: "My Extension",
+  component: () => {
+    const [auto, setAuto] = useStoredSetting("autoRefresh"); // backed by ctx.storage
+    return (
+      <Section label="Behavior">
+        <SettingRow label="Auto-refresh" hint="Poll the API in the background.">
+          <Switch checked={auto} onChange={setAuto} aria-label="Auto-refresh" />
+        </SettingRow>
+      </Section>
+    );
+  },
+});
+```
+
+You never build the left rail — it's host chrome. See
+[Settings pages](/design/surfaces#settings-pages) for the full rules.
+
+## Recipe: a workspace properties tab
+
+Property pages appear as tabs in the Workspace Properties modal, scoped to
+one workspace. Same immediate-persistence grammar as a settings page, but
+stored per-workspace:
+
+```tsx
+ctx.workspaces.registerPropertyPage({
+  id: "gha",
+  title: "GitHub Actions",
+  icon: <GithubIcon />,
+  visible: (ws) => hasGitRepo(ws), // hide where it's meaningless
+  component: ({ ws }) => {
+    const [monitor, setMonitor] = useWorkspaceSetting(ws.id, "monitor");
+    return (
+      <SettingRow
+        label="Monitor this workspace"
+        hint="Watch workflow runs for repos in this workspace."
+      >
+        <Switch
+          checked={monitor}
+          onChange={setMonitor}
+          aria-label="Monitor this workspace"
+        />
+      </SettingRow>
+    );
+  },
+});
+```
+
+Keep the tab about _this workspace_ — global settings belong on your settings
+page. See [Workspace property tabs](/design/surfaces#workspace-property-tabs).
+
+## Best practices, condensed
+
+The full rules live in [Principles](/design/principles); the ones violated
+most often:
+
+1. Don't restyle kit components — you'd freeze today's look and break the
+   automatic-restyle contract.
+2. Don't invent colors, font sizes, focus rings, or scrollbars — every one of
+   those is provided.
+3. Don't intercept Escape or add key handlers to lists — keyboard behavior is
+   built in and coordinated with the shell.
+4. `dismissible: true` only when closing can't lose user input.
+5. One primary action per modal, rightmost.
+
+## See also
+
+- [Design system overview](/design/) · [Modal surfaces](/design/surfaces) ·
+  [Principles](/design/principles) · [Typography](/design/typography)
+- [`ctx.ui`](/api/ui/) — the full shell API (toasts, menus, pickers too)
+- [Extension checklist](/guide/extension-checklist) — pre-flight for shipping

@@ -1,0 +1,795 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Live component demos for the Design System docs.
+
+   Renders the design-system components inline in the docs pages, styled with
+   the same token values the app ships (light palette by default; the `.dark`
+   overrides mirror the app's Dark theme). Everything is scoped under
+   `.silo-demo` so nothing leaks into VitePress chrome.
+
+   Sizes use the modal scale (app base 13px + 1) since every demo shows modal
+   content.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.silo-demo {
+  /* tokens — Light */
+  --silo-color-bg: #e5e5e5;
+  --silo-color-bg-hover: #ececec;
+  --silo-color-bg-active: #cce4ff;
+  --silo-color-button-bg: #d4d4d4;
+  --silo-color-text-hi: #6b6b6b;
+  --silo-color-text: #808080;
+  --silo-color-text-lo: #aaaaaa;
+  --silo-color-input-bg: #ffffff;
+  --silo-color-input-text: #4a4a4a;
+  --silo-color-border: #e5e5e5;
+  --silo-color-border-strong: #c8c8c8;
+  --silo-color-accent: #0078d4;
+  --silo-color-accent-2: #6f42c1;
+  --silo-color-ok: #2da44e;
+  --silo-color-warn: #b08800;
+  --silo-color-err: #cf222e;
+  --silo-color-content-bg: #ffffff;
+  --silo-button-bg: var(--silo-color-button-bg);
+  --silo-button-text: var(--silo-color-text-hi);
+  --silo-button-border: transparent;
+  --silo-button-primary-bg: var(--silo-color-accent);
+  --silo-button-primary-text: #fff;
+  --silo-button-danger-bg: var(--silo-color-err);
+  --silo-button-danger-text: #fff;
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #fff);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #fff);
+  --silo-modal-bg: var(--silo-color-bg);
+  --silo-modal-border: var(--silo-color-border-strong);
+  --silo-modal-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --silo-list-hover-bg: var(--silo-color-bg-hover);
+  --silo-list-active-bg: var(--silo-color-bg-active);
+  --silo-list-radius: var(--silo-radius-sm);
+  --silo-font-ui:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui,
+    sans-serif;
+  /* modal scale: app base 13px + 1 */
+  --silo-font-size-base: 14px;
+  --silo-font-size-sm: 13px;
+  --silo-font-size-chrome: 12px;
+  --silo-radius-sm: 4px;
+  --silo-radius-md: 6px;
+
+  /* the demo stage itself */
+  background: var(--silo-color-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-md);
+  padding: 18px;
+  margin: 16px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  line-height: 1.5;
+  color: var(--silo-color-text-hi);
+}
+
+.dark .silo-demo {
+  /* tokens — Dark (the app's Dark theme: base palette + preset overrides) */
+  --silo-color-bg: #161922;
+  --silo-color-bg-hover: #1c2030;
+  --silo-color-bg-active: #282d3a;
+  --silo-color-button-bg: #232839;
+  --silo-color-text-hi: #818181;
+  --silo-color-text: #5a5959;
+  --silo-color-text-lo: #575757;
+  --silo-color-input-bg: #1c2030;
+  --silo-color-input-text: #b7bccc;
+  --silo-color-border: #222222;
+  --silo-color-border-strong: #2b3148;
+  --silo-color-accent: #a0a0a0;
+  --silo-color-accent-2: #bb9af7;
+  --silo-color-ok: #9ece6a;
+  --silo-color-warn: #e0af68;
+  --silo-color-err: #f7768e;
+  --silo-color-content-bg: #0f1115;
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+}
+
+.silo-demo.silo-demo-block {
+  display: block;
+}
+
+/* ── buttons ── */
+.silo-demo button {
+  font: inherit;
+  cursor: pointer;
+}
+.silo-demo .silo-button,
+.silo-demo .silo-button-primary,
+.silo-demo .silo-button-danger {
+  background: var(--silo-button-bg);
+  color: var(--silo-button-text);
+  border: 1px solid var(--silo-button-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 7px 16px;
+  transition:
+    background 0.1s ease,
+    transform 0.1s ease;
+}
+.silo-demo .silo-button:hover {
+  background: var(--silo-button-hover-bg);
+}
+.silo-demo .silo-button:active {
+  background: var(--silo-button-active-bg);
+  transform: scale(0.97);
+}
+.silo-demo .silo-button-primary {
+  background: var(--silo-button-primary-bg);
+  color: var(--silo-button-primary-text);
+}
+.silo-demo .silo-button-primary:hover {
+  background: color-mix(in srgb, var(--silo-button-primary-bg) 85%, #000);
+}
+.silo-demo .silo-button-primary:active {
+  background: color-mix(in srgb, var(--silo-button-primary-bg) 75%, #000);
+  transform: scale(0.97);
+}
+.silo-demo .silo-button-danger {
+  background: var(--silo-button-danger-bg);
+  color: var(--silo-button-danger-text);
+}
+.silo-demo .silo-button-danger:hover {
+  background: color-mix(in srgb, var(--silo-button-danger-bg) 85%, #000);
+}
+.silo-demo .silo-button-danger:active {
+  background: color-mix(in srgb, var(--silo-button-danger-bg) 75%, #000);
+  transform: scale(0.97);
+}
+.silo-demo .silo-button-sm {
+  padding: 3px 10px;
+  font-size: var(--silo-font-size-chrome);
+}
+.silo-demo .silo-button:disabled,
+.silo-demo .silo-button-primary:disabled,
+.silo-demo .silo-button-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* shared focus ring */
+.silo-demo .silo-button:focus-visible,
+.silo-demo .silo-button-primary:focus-visible,
+.silo-demo .silo-button-danger:focus-visible,
+.silo-demo .silo-input:focus-visible,
+.silo-demo .silo-textarea:focus-visible,
+.silo-demo .silo-search-input input:focus-visible,
+.silo-demo .silo-select:focus-visible,
+.silo-demo .silo-icon-button:focus-visible,
+.silo-demo .silo-segmented-tab:focus-visible,
+.silo-demo .silo-tab:focus-visible,
+.silo-demo .silo-add-row:focus-visible,
+.silo-demo .silo-radio-card:focus-visible,
+.silo-demo .silo-checkbox-row input:focus-visible {
+  outline: 1px solid var(--silo-color-accent);
+  outline-offset: -1px;
+}
+
+/* ── icon buttons ── */
+.silo-demo .silo-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-lo);
+  transition:
+    background 0.1s ease,
+    transform 0.1s ease;
+}
+.silo-demo .silo-icon-button:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+.silo-demo .silo-icon-button:active {
+  background: var(--silo-color-bg-active);
+  transform: scale(0.92);
+}
+.silo-demo .silo-icon-button-sm {
+  width: 26px;
+  height: 26px;
+}
+
+/* ── inputs ── */
+.silo-demo .silo-input {
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 6px 8px;
+  font: inherit;
+}
+.silo-demo .silo-input-block {
+  width: 100%;
+}
+.silo-demo .silo-textarea {
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 6px 8px;
+  font: inherit;
+  line-height: 1.5;
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+}
+.silo-demo .silo-search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+}
+.silo-demo .silo-search-input svg.icon {
+  position: absolute;
+  left: 8px;
+  color: var(--silo-color-text-lo);
+  pointer-events: none;
+}
+.silo-demo .silo-search-input input {
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 6px 28px 6px 28px;
+  font: inherit;
+  width: 100%;
+}
+.silo-demo .silo-search-input .clear {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  padding: 2px;
+  color: var(--silo-color-text-lo);
+  display: inline-flex;
+  border-radius: var(--silo-radius-sm);
+}
+.silo-demo .silo-search-input .clear:hover {
+  background: var(--silo-color-bg-hover);
+}
+.silo-demo .silo-select {
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 5px 8px;
+  font: inherit;
+}
+.silo-demo .silo-number {
+  width: 52px;
+  text-align: center;
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 5px 6px;
+  font: inherit;
+}
+
+/* ── inline edit ── */
+.silo-demo .silo-inline-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.silo-demo .silo-inline-edit .sie-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.silo-demo .silo-inline-edit .sie-text {
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+.silo-demo .silo-inline-edit .sie-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.silo-demo .silo-inline-edit .sie-edit-row .silo-input {
+  flex: 1;
+  min-width: 0;
+}
+.silo-demo .silo-inline-edit .sie-error {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-err);
+}
+
+/* ── switch / checkbox ── */
+.silo-demo .silo-switch-track {
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border-strong);
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.silo-demo .silo-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.silo-demo .silo-switch-track[data-checked="true"] {
+  background: var(--silo-color-accent);
+  border-color: transparent;
+}
+.silo-demo .silo-switch-track[data-checked="true"]::after {
+  transform: translateX(14px);
+}
+.silo-demo .silo-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+}
+.silo-demo .silo-checkbox-row input {
+  margin: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--silo-color-accent);
+}
+
+/* ── segmented tabs ── */
+.silo-demo .silo-segmented {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--silo-color-content-bg);
+  border-radius: var(--silo-radius-sm);
+}
+.silo-demo .silo-segmented-tab {
+  border: none;
+  background: transparent;
+  color: var(--silo-color-text-lo);
+  padding: 3px 10px;
+  border-radius: var(--silo-radius-sm);
+  font-size: var(--silo-font-size-sm);
+}
+.silo-demo .silo-segmented-tab[data-active="true"] {
+  background: var(--silo-button-bg);
+  color: var(--silo-color-text-hi);
+}
+.silo-demo .silo-segmented-tab:not([data-active="true"]):hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text);
+}
+
+/* ── tabs ── */
+.silo-demo .silo-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 6px 0 0 8px;
+  background: var(--silo-color-input-bg);
+  border-radius: var(--silo-radius-sm) var(--silo-radius-sm) 0 0;
+}
+.silo-demo .silo-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm) var(--silo-radius-sm) 0 0;
+  padding: 5px 14px;
+  font: inherit;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  cursor: pointer;
+}
+.silo-demo .silo-tabs .silo-tab:hover {
+  background: color-mix(
+    in srgb,
+    var(--silo-color-text) 10%,
+    var(--silo-color-input-bg)
+  );
+}
+.silo-demo .silo-tab[data-active="true"] {
+  background: var(--silo-color-bg);
+  color: var(--silo-color-text-hi);
+  font-weight: 500;
+}
+.silo-demo .silo-tabs .silo-tab[data-active="true"]:hover {
+  background: var(--silo-color-bg);
+}
+.silo-demo .silo-tab-panel {
+  background: var(--silo-color-bg);
+  border-radius: 0 0 var(--silo-radius-sm) var(--silo-radius-sm);
+  padding: 14px 12px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+}
+
+/* ── radio cards ── */
+.silo-demo .silo-radio-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: var(--silo-radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  width: 100%;
+  font: inherit;
+}
+.silo-demo .silo-radio-card + .silo-radio-card {
+  margin-top: 8px;
+}
+.silo-demo .silo-radio-card[data-selected="true"] {
+  border-color: var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 8%, transparent);
+}
+.silo-demo .silo-radio-card .dot {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  margin-top: 2px;
+  border: 1.5px solid var(--silo-color-border-strong);
+  position: relative;
+}
+.silo-demo .silo-radio-card[data-selected="true"] .dot {
+  border-color: var(--silo-color-accent);
+}
+.silo-demo .silo-radio-card[data-selected="true"] .dot::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--silo-color-accent);
+}
+.silo-demo .silo-radio-card .rc-title {
+  display: block;
+  font-weight: 600;
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+.silo-demo .silo-radio-card .rc-desc {
+  display: block;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  margin-top: 2px;
+}
+
+/* ── lists ── */
+.silo-demo .silo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+}
+.silo-demo .silo-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--silo-list-radius);
+  color: var(--silo-color-text-hi);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+  width: 100%;
+  min-width: 0;
+}
+.silo-demo .silo-list-row:hover {
+  background: var(--silo-list-hover-bg);
+}
+.silo-demo .silo-list-row[data-selected="true"] {
+  background: var(--silo-list-active-bg);
+}
+.silo-demo .silo-list-row .leading {
+  color: var(--silo-color-text-lo);
+  flex-shrink: 0;
+  display: flex;
+}
+.silo-demo .silo-list-row .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.silo-demo .silo-list-row .name[data-truncate="start"] {
+  direction: rtl;
+  text-align: left;
+}
+.silo-demo .silo-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font: inherit;
+  font-size: var(--silo-font-size-sm);
+  transition:
+    background 0.1s ease,
+    transform 0.1s ease;
+}
+.silo-demo .silo-add-row:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+.silo-demo .silo-add-row:active {
+  background: var(--silo-color-bg-active);
+  transform: scale(0.98);
+}
+.silo-demo .silo-add-row .plus {
+  color: var(--silo-color-text-lo);
+  display: inline-flex;
+}
+
+/* ── badges ── */
+.silo-demo .silo-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: calc(var(--silo-font-size-chrome) - 1px);
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+.silo-demo .silo-badge-neutral {
+  background: var(--silo-color-button-bg);
+  color: var(--silo-color-text);
+}
+.silo-demo .silo-badge-accent {
+  background: color-mix(in srgb, var(--silo-color-accent) 20%, transparent);
+  color: var(--silo-color-accent);
+}
+.silo-demo .silo-badge-ok {
+  background: color-mix(in srgb, var(--silo-color-ok) 18%, transparent);
+  color: var(--silo-color-ok);
+}
+.silo-demo .silo-badge-warn {
+  background: color-mix(in srgb, var(--silo-color-warn) 18%, transparent);
+  color: var(--silo-color-warn);
+}
+.silo-demo .silo-badge-err {
+  background: color-mix(in srgb, var(--silo-color-err) 18%, transparent);
+  color: var(--silo-color-err);
+}
+.silo-demo .silo-badge-outline {
+  background: transparent;
+  border: 1px solid var(--silo-color-border-strong);
+  color: var(--silo-color-text);
+}
+.silo-demo .silo-badge-custom {
+  background: color-mix(in srgb, var(--badge-color) 20%, transparent);
+  color: var(--badge-color);
+}
+
+/* ── empty state ── */
+.silo-demo .silo-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 20px;
+  gap: 4px;
+  flex: 1;
+}
+.silo-demo .silo-empty-state .icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  border: 1.5px solid var(--silo-color-ok);
+  color: var(--silo-color-ok);
+}
+.silo-demo .silo-empty-state .icon.neutral {
+  border-color: var(--silo-color-border-strong);
+  color: var(--silo-color-text-lo);
+}
+.silo-demo .silo-empty-state .title {
+  font-weight: 600;
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+.silo-demo .silo-empty-state .desc {
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  max-width: 300px;
+}
+
+/* ── callout ── */
+.silo-demo .silo-callout {
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-md);
+  padding: 10px 12px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  line-height: 1.5;
+}
+
+/* ── section / setting rows ── */
+.silo-demo .silo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.silo-demo .silo-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.silo-demo .silo-section-label {
+  font-size: calc(var(--silo-font-size-chrome) - 1px);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--silo-color-text-lo);
+}
+.silo-demo .silo-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 0;
+}
+.silo-demo .silo-setting-row + .silo-setting-row {
+  border-top: 1px solid var(--silo-color-border-strong);
+}
+.silo-demo .silo-setting-row .text {
+  min-width: 0;
+}
+.silo-demo .silo-setting-row .row-label {
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+.silo-demo .silo-setting-row .row-hint {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  margin-top: 2px;
+  max-width: 420px;
+}
+.silo-demo .silo-setting-row .control {
+  flex-shrink: 0;
+}
+.silo-demo .status-ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-ok);
+}
+
+/* ── modal frame (represents the host shell in demos) ── */
+.silo-demo .silo-demo-modal {
+  width: 100%;
+  max-width: 520px;
+  background: var(--silo-modal-bg);
+  border: 1px solid var(--silo-modal-border);
+  border-radius: var(--silo-radius-md);
+  box-shadow: var(--silo-modal-shadow);
+  padding: 18px;
+}
+.silo-demo .modal-title {
+  font-weight: 600;
+  font-size: calc(var(--silo-font-size-base) + 2px);
+  color: var(--silo-color-text-hi);
+  margin-bottom: 14px;
+  padding-right: 28px;
+}
+.silo-demo .modal-body-text {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.silo-demo .silo-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+.silo-demo .silo-modal-actions-start {
+  margin-right: auto;
+  align-self: center;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+
+/* ── scroll areas ── */
+.silo-demo .silo-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--silo-color-text) 28%, transparent)
+    transparent;
+}
+.silo-demo .silo-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.silo-demo .silo-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.silo-demo .silo-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--silo-color-text) 28%, transparent);
+  border-radius: 999px;
+}
+.silo-demo .silo-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--silo-color-text) 45%, transparent);
+}
+
+/* ── settings-shell demo (rail + pane, host chrome) ── */
+.silo-demo .sd-frame {
+  display: flex;
+  width: 100%;
+  max-width: 720px;
+  overflow: hidden;
+  background: var(--silo-modal-bg);
+  border: 1px solid var(--silo-modal-border);
+  border-radius: var(--silo-radius-md);
+  box-shadow: var(--silo-modal-shadow);
+}
+.silo-demo .sd-rail {
+  width: 170px;
+  flex-shrink: 0;
+  padding: 14px 10px;
+  border-right: 1px solid var(--silo-color-border-strong);
+}
+.silo-demo .sd-rail-label {
+  font-size: var(--silo-font-size-base);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--silo-color-text-lo);
+  margin-top: 4px;
+  padding: 0 10px 10px;
+}
+.silo-demo .sd-rail-item {
+  padding: 6px 10px;
+  margin: 1px 0;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+}
+.silo-demo .sd-rail-item:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+.silo-demo .sd-rail-item[data-active="true"] {
+  background: var(--silo-color-bg-active);
+  color: var(--silo-color-text-hi);
+  font-weight: 600;
+}
+.silo-demo .sd-pane {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 20px 20px;
+  position: relative;
+}
+.silo-demo .sd-pane .sd-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
