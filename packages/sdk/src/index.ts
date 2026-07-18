@@ -5,10 +5,10 @@
  * host-internal and may change without notice.
  *
  * **What's here:** the types-first extension contract (see `types.ts`) plus a
- * small set of blessed runtime helpers (`Tooltip`, `useFocusGroup`,
- * `useServiceState`, `DND_MIME`, `PathDeniedError`, `NetworkError`). The SDK
- * peer-depends on React 19; changes to the runtime helpers can be breaking
- * even when the types are unchanged.
+ * small set of blessed runtime helpers (`Tooltip`, the modal design-system
+ * kit, `useFocusGroup`, `useServiceState`, `DND_MIME`, `PathDeniedError`,
+ * `NetworkError`). The SDK peer-depends on React 19; changes to the runtime
+ * helpers can be breaking even when the types are unchanged.
  *
  * This is also the entry point the API-reference generator (TypeDoc) reads, so
  * the published reference is exactly this surface — no more, no less.
@@ -219,6 +219,24 @@ export { path } from "./path";
 // Tooltip — the same styled hover popup the host uses in the status bar.
 // Extensions use this instead of native `title` attributes to match host chrome.
 export { Tooltip } from "./Tooltip";
+
+// Modal design-system kit (RFC 0016 / ADR 0026) — presentational components
+// styled purely via host-provided `.silo-*` classes. Form-control half of the
+// inventory; structure components land in a follow-up commit.
+export { Button } from "./Button";
+export type { ButtonVariant, ButtonSize } from "./Button";
+export { IconButton } from "./IconButton";
+export type { IconButtonSize } from "./IconButton";
+export { Input } from "./Input";
+export { Textarea } from "./Textarea";
+export { SearchInput } from "./SearchInput";
+export { InlineEdit } from "./InlineEdit";
+export type { InlineEditValidation } from "./InlineEdit";
+export { Select } from "./Select";
+export { Switch } from "./Switch";
+export { CheckboxRow } from "./CheckboxRow";
+export { RadioGroup, RadioCard } from "./RadioGroup";
+export { ModalActions } from "./ModalActions";
 
 // Runtime helpers. The one blessed way for an extension to read a `ctx`
 // service's reactive state in React — replaces hand-rolled useSyncExternalStore.

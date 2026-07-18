@@ -227,14 +227,6 @@ export function Modal({
   );
 }
 
-/**
- * The right-aligned footer row for a {@link Modal}'s action buttons — a thin
- * `.silo-modal-actions` wrapper so every modal's footer lines up without each
- * caller re-specifying the flex row.
- *
- * @category Consumer Services
- * @public
- */
-export function ModalActions({ children }: { children: ReactNode }) {
-  return <div className="silo-modal-actions">{children}</div>;
-}
+// ModalActions lives in `@silo-code/sdk` (RFC 0016) — re-exported here so
+// existing `@silo-code/extension-host/internal` callers keep resolving it.
+export { ModalActions } from "@silo-code/sdk";

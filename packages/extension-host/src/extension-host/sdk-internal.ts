@@ -37,7 +37,10 @@
 // host-owned `ctx.ui.showModal` (ui-service.ts), which renders the caller's
 // content inside this same `<Modal>`. Core extensions may still use `<Modal>`
 // directly for declarative layouts (e.g. the settings dialog).
-export { Modal, ModalActions } from "./Modal";
+export { Modal } from "./Modal";
+// ModalActions is public SDK surface (RFC 0016); re-exported here so existing
+// core.* callers that import from the internal barrel keep resolving.
+export { ModalActions } from "@silo-code/sdk";
 export type { ModalProps } from "./Modal";
 
 // A `ctx.ui.showModal`-based confirm/info dialog with a persisted "don't show

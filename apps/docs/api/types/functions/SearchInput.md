@@ -1,0 +1,54 @@
+# Function: SearchInput()
+
+```ts
+function SearchInput(__namedParameters): ReactNode;
+```
+
+Defined in: packages/sdk/src/SearchInput.tsx:58
+
+The filter-as-you-type field: leading search icon, and a clear ✕ that
+appears once there's a value (and stays a real tab stop). Pair with a
+`List` for the standard picker pattern.
+
+Styled purely via host-provided `.silo-search-input*` classes — no
+stylesheet import is needed in the extension.
+
+## Parameters
+
+### \_\_namedParameters
+
+#### value
+
+`string`
+
+#### onValueChange
+
+(`value`) => `void`
+
+#### placeholder?
+
+`string`
+
+#### autoFocus?
+
+`boolean`
+
+#### onClear?
+
+() => `void`
+
+Extra hook when ✕ clears the field.
+
+## Returns
+
+`ReactNode`
+
+## Example
+
+```tsx
+<SearchInput
+  value={query}
+  onValueChange={setQuery}
+  placeholder="Filter branches…"
+/>
+```
