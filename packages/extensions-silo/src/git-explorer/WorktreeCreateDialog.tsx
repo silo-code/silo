@@ -10,6 +10,24 @@ export interface WorktreeCreateResult {
   branch: { existing: string } | { create: string };
 }
 
+/**
+ * Narrow an unknown `showModal` settle value to a real create result. Guards
+ * against cancel/`undefined` and against a dismiss event leaking through as
+ * the result (truthy but no `path`/`branch`).
+ */
+export function isWorktreeCreateResult(
+  value: unknown,
+): value is WorktreeCreateResult {
+  if (value == null || typeof value !== "object") return false;
+  const v = value as { path?: unknown; branch?: unknown };
+  if (typeof v.path !== "string" || v.path.length === 0) return false;
+  if (v.branch == null || typeof v.branch !== "object") return false;
+  const branch = v.branch as { existing?: unknown; create?: unknown };
+  if ("existing" in branch) return typeof branch.existing === "string";
+  if ("create" in branch) return typeof branch.create === "string";
+  return false;
+}
+
 export interface WorktreeCreateDialogProps {
   ctx: ExtensionContext;
   /** The repo the worktree is created from (drives the path suggestion). */

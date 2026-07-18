@@ -37,6 +37,7 @@ import {
 } from "./worktree-model";
 import {
   WorktreeCreateDialog,
+  isWorktreeCreateResult,
   type WorktreeCreateResult,
 } from "./WorktreeCreateDialog";
 
@@ -199,7 +200,7 @@ export function WorktreeManager({
       ),
       { title: "Create worktree", dismissible: true, size: "sm" },
     );
-    if (!result) return;
+    if (!isWorktreeCreateResult(result)) return;
     setBusy(true);
     try {
       await a.addWorktree(
