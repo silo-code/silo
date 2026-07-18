@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ArrowsClockwise,
   Cloud,
@@ -9,15 +15,20 @@ import {
   Trash,
 } from "@phosphor-icons/react";
 import {
+  Badge,
+  Button,
+  EmptyState,
+  IconButton,
+  List,
+  ListRow,
+  ModalActions,
+  SearchInput,
   Tooltip,
-  useFocusGroup,
   type ExtensionContext,
-  type MenuEntry,
 } from "@silo-code/sdk";
 import type { GitBranch, GitLogEntry } from "../git/git-api";
 import { getGitApi } from "./git-runtime";
 import {
-  branchActions,
   filterBranches,
   isPublished,
   localNameFor,
@@ -43,8 +54,8 @@ export interface BranchManagerProps {
 /**
  * Content of the branch manager modal (`ctx.ui.showModal`). A searchable list of
  * local + remote branches with inline actions: click a row to switch (or check
- * out a remote as a new local tracking branch), hover a local branch for rename
- * / delete, and create a new branch from the input at the top. The host owns the
+ * out a remote as a new local tracking branch), trailing IconButtons for push /
+ * rename / delete, and create / fetch in the footer. The host owns the
  * surrounding modal chrome.
  */
 export function BranchManager({
@@ -59,7 +70,6 @@ export function BranchManager({
   const [busy, setBusy] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [pushing, setPushing] = useState<string | null>(null);
-  const searchRef = useRef<HTMLInputElement | null>(null);
 
   const reload = useCallback(async () => {
     const api = getGitApi();
@@ -76,7 +86,6 @@ export function BranchManager({
 
   useEffect(() => {
     void reload();
-    searchRef.current?.focus();
   }, [reload]);
 
   const visible = useMemo(
@@ -89,25 +98,6 @@ export function BranchManager({
     () => remoteBranchNames(branches ?? []),
     [branches],
   );
-
-  // Roving keyboard nav over the list (same as the side panels): the list is a
-  // single Tab stop, ↑/↓/Home/End move between rows, and Enter switches. Entry
-  // parks on the current branch. ArrowDown from the filter box drops into it.
-  const currentIndex = visible.findIndex((b) => b.current);
-  const list = useFocusGroup({
-    count: visible.length,
-    start: currentIndex >= 0 ? currentIndex : 0,
-    orientation: "vertical",
-    onActivate: (i) => {
-      const b = visible[i];
-      if (b) void switchTo(b);
-    },
-    // ContextMenu key / Shift+F10 → the row's action menu, anchored to the row.
-    onMenu: (i, anchor) => {
-      const b = visible[i];
-      if (b) openBranchMenu(b, { anchor });
-    },
-  });
 
   // The live provider, or a notify + null so handlers can bail gracefully.
   function api() {
@@ -306,183 +296,120 @@ export function BranchManager({
     }
   }
 
-  // The row context menu — the keyboard path to the row actions (ContextMenu
-  // key / Shift+F10 via the focus group, or right-click), mirroring the hover
-  // buttons so keyboard users aren't locked out of push/rename/delete.
-  function branchMenuItems(b: GitBranch): MenuEntry[] {
-    const acts = branchActions(b, isPublished(b, remoteNames));
-    const items: MenuEntry[] = [];
-    if (acts.includes("switch")) {
-      items.push({
-        label: b.remote ? "Check out as local branch" : "Switch to branch",
-        run: () => void switchTo(b),
-      });
+  function rowTrailing(b: GitBranch) {
+    const parts: ReactNode[] = [];
+    if (b.current) {
+      parts.push(
+        <Badge key="current" tone="accent">
+          current
+        </Badge>,
+      );
     }
-    if (acts.includes("push")) {
-      items.push({ label: "Push", run: () => void pushBranch(b) });
-    }
-    if (acts.includes("publish")) {
-      items.push({ label: "Publish", run: () => void pushBranch(b) });
-    }
-    if (acts.includes("rename") || acts.includes("delete")) {
-      items.push({ type: "separator" });
-      if (acts.includes("rename")) {
-        items.push({ label: "Rename…", run: () => void rename(b) });
+    if (!b.remote) {
+      const published = isPublished(b, remoteNames);
+      parts.push(
+        <Tooltip
+          key="push"
+          content={published ? `Push ${b.name}` : `Publish ${b.name}`}
+        >
+          <IconButton
+            size="sm"
+            aria-label={published ? `Push ${b.name}` : `Publish ${b.name}`}
+            disabled={pushing === b.name}
+            onClick={() => void pushBranch(b)}
+          >
+            {pushing === b.name ? (
+              <ArrowsClockwise size={14} className="git-branch-spin" />
+            ) : published ? (
+              ICON_PUSH
+            ) : (
+              <CloudArrowUp size={16} />
+            )}
+          </IconButton>
+        </Tooltip>,
+      );
+      if (!b.current) {
+        parts.push(
+          <Tooltip key="rename" content="Rename branch">
+            <IconButton
+              size="sm"
+              aria-label={`Rename ${b.name}`}
+              onClick={() => void rename(b)}
+            >
+              <PencilSimple size={14} />
+            </IconButton>
+          </Tooltip>,
+          <Tooltip key="delete" content="Delete branch">
+            <IconButton
+              size="sm"
+              aria-label={`Delete ${b.name}`}
+              onClick={() => void del(b)}
+            >
+              <Trash size={14} />
+            </IconButton>
+          </Tooltip>,
+        );
       }
-      if (acts.includes("delete")) {
-        items.push({ label: "Delete", danger: true, run: () => void del(b) });
-      }
     }
-    return items;
-  }
-
-  // Open a row's menu — at the cursor for a right-click, anchored to the row for
-  // a keyboard invocation (`toggle: false` so a stray duplicate event re-opens).
-  function openBranchMenu(
-    b: GitBranch,
-    placement: { at?: { x: number; y: number }; anchor?: HTMLElement | null },
-  ) {
-    const items = branchMenuItems(b);
-    if (items.length === 0) return;
-    void ctx.ui.showMenu({ items, toggle: false, ...placement });
+    return parts.length > 0 ? <>{parts}</> : undefined;
   }
 
   return (
     <div className="git-branch-modal">
-      <input
-        ref={searchRef}
-        className="git-branch-search"
-        placeholder="Filter branches…"
+      <SearchInput
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
-            list.focusItem(currentIndex >= 0 ? currentIndex : 0);
-          }
-        }}
-        autoCapitalize="off"
-        autoCorrect="off"
-        autoComplete="off"
-        spellCheck={false}
+        onValueChange={setQuery}
+        placeholder="Filter branches…"
+        autoFocus
       />
 
-      <div className="git-branch-list" {...list.containerProps}>
-        {branches === null && (
-          <div className="git-branch-loader">
-            <ArrowsClockwise size={22} className="git-branch-spin" />
-            <span>Loading branches…</span>
-          </div>
-        )}
-        {branches !== null && visible.length === 0 && (
-          <div className="git-branch-empty">No matching branches.</div>
-        )}
-        {(branches ?? []).length > 0 &&
-          visible.map((b, i) => (
-            <div
-              key={(b.remote ? "r:" : "l:") + b.name}
-              className={`git-branch-row${b.current ? " current" : ""}`}
-              role="button"
-              onClick={() => void switchTo(b)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                // Right-click opens at the cursor; a keyboard-invoked
-                // contextmenu (button !== 2) anchors to the row instead.
-                if (e.button === 2) {
-                  openBranchMenu(b, { at: { x: e.clientX, y: e.clientY } });
-                } else {
-                  openBranchMenu(b, { anchor: e.currentTarget });
+      <div className="git-branch-list-scroll silo-scroll">
+        {branches === null ? (
+          <EmptyState
+            icon={<ArrowsClockwise size={22} className="git-branch-spin" />}
+            title="Loading branches…"
+          />
+        ) : visible.length === 0 ? (
+          <EmptyState title="No matching branches." />
+        ) : (
+          <List aria-label="Branches">
+            {visible.map((b) => (
+              <ListRow
+                key={(b.remote ? "r:" : "l:") + b.name}
+                selected={b.current}
+                leading={
+                  b.remote ? <Cloud size={15} /> : <GitBranchIcon size={15} />
                 }
-              }}
-              {...list.getItemProps(i)}
-            >
-              <span className="git-branch-glyph">
-                {b.remote ? <Cloud size={15} /> : <GitBranchIcon size={15} />}
-              </span>
-              <Tooltip
-                content={b.current ? "Current branch" : `Switch to ${b.name}`}
+                trailing={rowTrailing(b)}
+                onSelect={() => void switchTo(b)}
               >
-                <span className="git-branch-name">{b.name}</span>
-              </Tooltip>
-              {b.current && <span className="git-branch-badge">current</span>}
-              {!b.remote && (
-                <span
-                  className="git-branch-actions"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Tooltip
-                    content={
-                      isPublished(b, remoteNames)
-                        ? `Push ${b.name}`
-                        : `Publish ${b.name}`
-                    }
-                  >
-                    <button
-                      type="button"
-                      className={`git-branch-action${pushing === b.name ? " working" : ""}`}
-                      tabIndex={-1}
-                      disabled={pushing === b.name}
-                      onClick={() => void pushBranch(b)}
-                    >
-                      {isPublished(b, remoteNames) ? (
-                        ICON_PUSH
-                      ) : (
-                        <CloudArrowUp size={16} />
-                      )}
-                    </button>
-                  </Tooltip>
-                  {!b.current && (
-                    <>
-                      <Tooltip content="Rename branch">
-                        <button
-                          type="button"
-                          className="git-branch-action"
-                          tabIndex={-1}
-                          onClick={() => void rename(b)}
-                        >
-                          <PencilSimple size={14} />
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Delete branch">
-                        <button
-                          type="button"
-                          className="git-branch-action danger"
-                          tabIndex={-1}
-                          onClick={() => void del(b)}
-                        >
-                          <Trash size={14} />
-                        </button>
-                      </Tooltip>
-                    </>
-                  )}
-                </span>
-              )}
-            </div>
-          ))}
+                {b.name}
+              </ListRow>
+            ))}
+          </List>
+        )}
       </div>
 
-      <div className="git-branch-footer">
-        <button
-          type="button"
-          className="silo-button-primary"
-          onClick={() => void create()}
-          disabled={busy}
-        >
-          <Plus size={14} weight="bold" /> Create branch
-        </button>
-        <button
-          type="button"
-          className="silo-button"
-          onClick={() => void runFetch()}
-          disabled={fetching}
-        >
+      <ModalActions
+        start={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => void create()}
+            disabled={busy}
+          >
+            <Plus size={14} weight="bold" /> Create branch
+          </Button>
+        }
+      >
+        <Button onClick={() => void runFetch()} disabled={fetching}>
           <ArrowsClockwise
             size={15}
             className={fetching ? "git-branch-spin" : undefined}
           />{" "}
           Fetch
-        </button>
-      </div>
+        </Button>
+      </ModalActions>
     </div>
   );
 }

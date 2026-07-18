@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CopySimple } from "@phosphor-icons/react";
+import { Button, ModalActions } from "@silo-code/sdk";
 
 // The body of the "View details" modal behind a git failure toast (see
 // GitView's `notifyError`). Pulled out of GitView.tsx so the "Copied" button
@@ -25,19 +26,15 @@ export function GitErrorModal({
   return (
     <>
       <pre className="git-error-detail">{detail}</pre>
-      <div className="silo-modal-actions">
-        <button
-          type="button"
-          className="silo-button git-error-copy-button"
-          onClick={handleCopy}
-        >
+      <ModalActions>
+        <Button className="git-error-copy-button" onClick={handleCopy}>
           <CopySimple size={14} />
           {copied ? "Copied" : "Copy"}
-        </button>
-        <button type="button" className="silo-button-primary" onClick={onClose}>
+        </Button>
+        <Button variant="primary" onClick={onClose}>
           Close
-        </button>
-      </div>
+        </Button>
+      </ModalActions>
     </>
   );
 }

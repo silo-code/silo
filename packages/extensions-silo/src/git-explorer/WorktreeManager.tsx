@@ -4,6 +4,7 @@ import {
   useMemo,
   useState,
   useSyncExternalStore,
+  type ReactNode,
 } from "react";
 import {
   ArrowsClockwise,
@@ -13,12 +14,18 @@ import {
   Trash,
 } from "@phosphor-icons/react";
 import {
+  Badge,
+  Button,
+  Callout,
+  EmptyState,
+  IconButton,
+  List,
+  ListRow,
+  ModalActions,
   Tooltip,
   path,
-  useFocusGroup,
   useServiceState,
   type ExtensionContext,
-  type MenuEntry,
 } from "@silo-code/sdk";
 import type { GitWorktree } from "../git/git-api";
 import { getGitApi } from "./git-runtime";
@@ -55,8 +62,8 @@ export interface WorktreeManagerProps {
  * Content of the worktree manager modal (`ctx.ui.showModal`). Lists every
  * working tree of the repo (main first); click a row to open it **alongside**
  * the current folders (`ctx.workspaces.addFolder` — File Explorer and the Git
- * panel grow an extra root), hover for close-view / remove, and create or
- * prune from the footer. The host owns the surrounding modal chrome.
+ * panel grow an extra root), trailing IconButtons for prune / remove, and
+ * create or prune from the footer. The host owns the surrounding modal chrome.
  */
 export function WorktreeManager({
   ctx,
@@ -120,21 +127,6 @@ export function WorktreeManager({
   );
   const anyPrunable = rows.some((r) => r.wt.prunable != null);
 
-  // Roving keyboard nav (same as the branch manager): one Tab stop, ↑/↓ move,
-  // Enter opens the row alongside when that's an available action.
-  const list = useFocusGroup({
-    count: rows.length,
-    orientation: "vertical",
-    onActivate: (i) => {
-      const row = rows[i];
-      if (row) toggleView(row);
-    },
-    onMenu: (i, anchor) => {
-      const row = rows[i];
-      if (row) openRowMenu(row, { anchor });
-    },
-  });
-
   // The live provider, or a notify + null so handlers can bail gracefully.
   function api() {
     const a = getGitApi();
@@ -163,17 +155,6 @@ export function WorktreeManager({
     const acts = worktreeActions(row, isWorktreeRemovePending(row.wt.path));
     if (acts.includes("open")) void open(row);
     else if (acts.includes("close")) closeView(row);
-  }
-
-  // Hover hint for a row, standing in for the removed open/close icons: what a
-  // click will do, or the path for a row that can't be toggled.
-  function toggleHint(row: WorktreeRow): string {
-    if (isWorktreeRemovePending(row.wt.path)) return "Removing this worktree…";
-    const acts = worktreeActions(row, false);
-    if (acts.includes("open")) return "Open alongside your current folders";
-    if (acts.includes("close"))
-      return "Close this view (the worktree stays on disk)";
-    return row.wt.path;
   }
 
   async function create() {
@@ -262,41 +243,6 @@ export function WorktreeManager({
     }
   }
 
-  // The row context menu — the keyboard path to the row actions (ContextMenu
-  // key / Shift+F10 via the focus group, or right-click), mirroring the hover
-  // buttons.
-  function rowMenuItems(row: WorktreeRow): MenuEntry[] {
-    const acts = worktreeActions(row, isWorktreeRemovePending(row.wt.path));
-    const items: MenuEntry[] = [];
-    if (acts.includes("open")) {
-      items.push({ label: "Open alongside", run: () => void open(row) });
-    }
-    if (acts.includes("close")) {
-      items.push({ label: "Close view", run: () => closeView(row) });
-    }
-    if (acts.includes("prune")) {
-      items.push({ label: "Prune stale worktrees", run: () => void prune() });
-    }
-    if (acts.includes("remove")) {
-      if (items.length > 0) items.push({ type: "separator" });
-      items.push({
-        label: "Remove worktree…",
-        danger: true,
-        run: () => void remove(row),
-      });
-    }
-    return items;
-  }
-
-  function openRowMenu(
-    row: WorktreeRow,
-    placement: { at?: { x: number; y: number }; anchor?: HTMLElement | null },
-  ) {
-    const items = rowMenuItems(row);
-    if (items.length === 0) return;
-    void ctx.ui.showMenu({ items, toggle: false, ...placement });
-  }
-
   function rowBadges(row: WorktreeRow) {
     const badges: { label: string; tooltip?: string; warn?: boolean }[] = [];
     if (isWorktreeRemovePending(row.wt.path)) {
@@ -319,141 +265,117 @@ export function WorktreeManager({
     return badges;
   }
 
+  function rowTrailing(row: WorktreeRow): ReactNode {
+    const pending = isWorktreeRemovePending(row.wt.path);
+    const acts = worktreeActions(row, pending);
+    const parts: ReactNode[] = [];
+
+    for (const b of rowBadges(row)) {
+      const badge = <Badge tone={b.warn ? "warn" : "accent"}>{b.label}</Badge>;
+      parts.push(
+        b.tooltip ? (
+          <Tooltip key={b.label} content={b.tooltip}>
+            {badge}
+          </Tooltip>
+        ) : (
+          <span key={b.label}>{badge}</span>
+        ),
+      );
+    }
+
+    if (acts.includes("prune")) {
+      parts.push(
+        <Tooltip key="prune" content="Prune stale worktrees">
+          <IconButton
+            size="sm"
+            aria-label="Prune stale worktrees"
+            onClick={() => void prune()}
+          >
+            <Broom size={14} />
+          </IconButton>
+        </Tooltip>,
+      );
+    }
+    if (acts.includes("remove")) {
+      parts.push(
+        <Tooltip key="remove" content="Remove worktree">
+          <IconButton
+            size="sm"
+            aria-label={`Remove worktree ${path.basename(row.wt.path)}`}
+            onClick={() => void remove(row)}
+          >
+            <Trash size={14} />
+          </IconButton>
+        </Tooltip>,
+      );
+    }
+
+    return parts.length > 0 ? <>{parts}</> : undefined;
+  }
+
   return (
     <div className="git-branch-modal">
-      <p className="git-wt-lead">
-        Click a worktree to open it alongside your current folders; click an
-        open one again to close its view.
-      </p>
-      <div className="git-branch-list" {...list.containerProps}>
-        {worktrees === null && (
-          <div className="git-branch-loader">
-            <ArrowsClockwise size={22} className="git-branch-spin" />
-            <span>Loading worktrees…</span>
-          </div>
-        )}
-        {worktrees !== null && rows.length === 0 && (
-          <div className="git-branch-empty">No worktrees.</div>
-        )}
-        {rows.map((row, i) => {
-          const pending = isWorktreeRemovePending(row.wt.path);
-          const acts = worktreeActions(row, pending);
-          const toggleable =
-            !pending && (acts.includes("open") || acts.includes("close"));
-          return (
-            <div
-              key={row.wt.path}
-              className={`git-branch-row git-wt-row${row.isOpen && !pending ? " git-wt-open" : ""}${toggleable ? "" : " git-wt-static"}${pending ? " git-wt-removing" : ""}`}
-              role="button"
-              onClick={() => toggleView(row)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (e.button === 2) {
-                  openRowMenu(row, { at: { x: e.clientX, y: e.clientY } });
-                } else {
-                  openRowMenu(row, { anchor: e.currentTarget });
-                }
-              }}
-              {...list.getItemProps(i)}
-            >
-              <span className="git-branch-glyph">
-                {pending ? (
-                  <ArrowsClockwise size={15} className="git-branch-spin" />
-                ) : (
-                  <FolderSimple size={15} />
-                )}
-              </span>
-              <span className="git-wt-text">
-                <span className="git-wt-title">
-                  <Tooltip content={toggleHint(row)}>
-                    <span className="git-wt-dir">
-                      {path.basename(row.wt.path)}
-                    </span>
-                  </Tooltip>
-                  {rowBadges(row).map((b) =>
-                    b.tooltip ? (
-                      <Tooltip key={b.label} content={b.tooltip}>
-                        <span
-                          className={`git-branch-badge${b.warn ? " git-wt-warn" : ""}`}
-                        >
-                          {b.label}
-                        </span>
-                      </Tooltip>
+      <Callout>
+        Opening a worktree adds it as another folder in this workspace — its
+        files, terminals, and Git panel appear alongside your current ones.
+        Closing a view leaves the worktree untouched on disk. Click a row to
+        open or close its view.
+      </Callout>
+
+      <div className="git-branch-list-scroll silo-scroll">
+        {worktrees === null ? (
+          <EmptyState
+            icon={<ArrowsClockwise size={22} className="git-branch-spin" />}
+            title="Loading worktrees…"
+          />
+        ) : rows.length === 0 ? (
+          <EmptyState title="No worktrees." />
+        ) : (
+          <List aria-label="Worktrees">
+            {rows.map((row) => {
+              const pending = isWorktreeRemovePending(row.wt.path);
+              const dir = path.basename(row.wt.path);
+              const branch = row.wt.branch ?? "(detached)";
+              return (
+                <ListRow
+                  key={row.wt.path}
+                  selected={row.isOpen && !pending}
+                  leading={
+                    pending ? (
+                      <ArrowsClockwise size={15} className="git-branch-spin" />
                     ) : (
-                      <span
-                        key={b.label}
-                        className={`git-branch-badge${b.warn ? " git-wt-warn" : ""}`}
-                      >
-                        {b.label}
-                      </span>
-                    ),
-                  )}
-                </span>
-                <span className="git-wt-branch">
-                  {row.wt.branch ?? "(detached)"}
-                </span>
-              </span>
-              <span
-                className="git-branch-actions"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {acts.includes("prune") && (
-                  <Tooltip content="Prune stale worktrees">
-                    <button
-                      type="button"
-                      className="git-branch-action"
-                      tabIndex={-1}
-                      onClick={() => void prune()}
-                    >
-                      <Broom size={14} />
-                    </button>
-                  </Tooltip>
-                )}
-                {acts.includes("remove") && (
-                  <Tooltip content="Remove worktree">
-                    <button
-                      type="button"
-                      className="git-branch-action danger"
-                      tabIndex={-1}
-                      onClick={() => void remove(row)}
-                    >
-                      <Trash size={14} />
-                    </button>
-                  </Tooltip>
-                )}
-              </span>
-            </div>
-          );
-        })}
+                      <FolderSimple size={15} />
+                    )
+                  }
+                  trailing={rowTrailing(row)}
+                  onSelect={() => toggleView(row)}
+                >
+                  {dir} · {branch}
+                </ListRow>
+              );
+            })}
+          </List>
+        )}
       </div>
 
-      <p className="git-wt-note">
-        Opening a worktree adds it as another folder in this workspace — its
-        files, terminals, and Git panel appear alongside your current ones,
-        letting you work a second branch without switching. Closing a view
-        leaves the worktree and its branch untouched on disk.
-      </p>
-
-      <div className="git-branch-footer">
-        <button
-          type="button"
-          className="silo-button-primary"
-          onClick={() => void create()}
-          disabled={busy}
-        >
-          <Plus size={14} weight="bold" /> Create worktree
-        </button>
-        {anyPrunable && (
-          <button
-            type="button"
-            className="silo-button"
-            onClick={() => void prune()}
+      <ModalActions
+        start={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => void create()}
             disabled={busy}
           >
+            <Plus size={14} weight="bold" /> Create worktree
+          </Button>
+        }
+      >
+        {anyPrunable && (
+          <Button onClick={() => void prune()} disabled={busy}>
             <Broom size={15} /> Prune stale
-          </button>
+          </Button>
         )}
-      </div>
+      </ModalActions>
     </div>
   );
 }

@@ -644,7 +644,9 @@
   display: none;
 }
 
-/* Branch manager modal (ctx.ui.showModal content). */
+/* Branch / worktree manager modal shell (ctx.ui.showModal content). List,
+ * search, badges, footer actions, and empty/loading states come from the SDK
+ * kit — only the column shell and fixed-height scroll region stay here. */
 .git-branch-modal {
   display: flex;
   flex-direction: column;
@@ -652,45 +654,13 @@
   font-family: var(--silo-font-ui);
 }
 
-.git-branch-search {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--silo-color-input-bg);
-  color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
-  border-radius: var(--silo-radius-sm);
-  padding: 6px 8px;
-  font: inherit;
-}
-
-.git-branch-search::placeholder {
-  color: color-mix(in srgb, var(--silo-color-input-text) 40%, transparent);
-}
-
-.git-branch-list {
-  display: flex;
-  flex-direction: column;
-  /* Fixed height so the modal doesn't resize as branches load or filter. */
+/* Fixed height so the modal doesn't resize as branches/worktrees load or
+ * filter. Scrollbar treatment is `.silo-scroll` on the same element. */
+.git-branch-list-scroll {
   height: 340px;
   overflow-y: auto;
   border: 1px solid var(--silo-color-border);
   border-radius: var(--silo-radius-sm);
-}
-
-.git-branch-empty {
-  color: var(--silo-color-text-lo);
-  font-style: italic;
-  padding: 10px 12px;
-}
-
-.git-branch-loader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 100%;
-  color: var(--silo-color-text-lo);
 }
 
 .git-branch-spin {
@@ -698,126 +668,7 @@
   animation: branch-spin 0.8s linear infinite;
 }
 
-.git-branch-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.git-branch-footer button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.git-branch-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
-  color: var(--silo-color-text);
-}
-
-.git-branch-row + .git-branch-row {
-  border-top: 1px solid var(--silo-color-border);
-}
-
-.git-branch-row:hover {
-  background: var(--silo-color-bg-hover);
-}
-
-.git-branch-row.current {
-  cursor: default;
-}
-
-.git-branch-glyph {
-  display: inline-flex;
-  align-items: center;
-  color: var(--silo-color-text-lo);
-  flex-shrink: 0;
-}
-
-.git-branch-row.current .git-branch-glyph {
-  color: var(--silo-color-accent);
-}
-
-.git-branch-name {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.git-branch-row.current .git-branch-name {
-  font-weight: 600;
-  color: var(--silo-color-text-hi);
-}
-
-.git-branch-badge {
-  flex-shrink: 0;
-  font-size: var(--silo-font-size-chrome);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--silo-color-accent);
-  background: color-mix(in srgb, var(--silo-color-accent) 16%, transparent);
-  border-radius: 999px;
-  padding: 1px 8px;
-}
-
-.git-branch-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-left: auto;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 100ms ease-out;
-}
-
-.git-branch-row:hover .git-branch-actions {
-  opacity: 1;
-}
-
-.git-branch-action {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  border: none;
-  color: var(--silo-color-text-lo);
-  width: 26px;
-  height: 26px;
-  border-radius: var(--silo-radius-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  cursor: pointer;
-}
-
-.git-branch-action:hover {
-  background: var(--silo-color-bg-active);
-  color: var(--silo-color-text-hi);
-}
-
-.git-branch-action.danger:hover {
-  color: var(--silo-color-err);
-}
-
-.git-branch-action:disabled {
-  cursor: default;
-}
-
-.git-branch-action.working {
-  color: var(--silo-color-accent);
-  -webkit-animation: branch-push 0.7s ease-in-out infinite;
-  animation: branch-push 0.7s ease-in-out infinite;
-}
-
-/* Worktree manager modal (shares the branch-modal shell classes) and the
- * "worktree" header pill on linked-worktree GitViews — clickable into the
+/* "worktree" header pill on linked-worktree GitViews — clickable into the
  * manager (replaces the header icon on those views). */
 button.git-wt-pill {
   -webkit-appearance: none;
@@ -845,84 +696,6 @@ button.git-wt-pill:hover {
   background: color-mix(in srgb, var(--silo-color-accent) 28%, transparent);
 }
 
-/* Worktree rows stack the directory name (with badges) over the checked-out
- * branch on two lines, so long names truncate instead of scrolling the row's
- * controls off-screen. The row aligns to the top so the actions sit against
- * the title line rather than centering across both lines. */
-.git-wt-row {
-  align-items: flex-start;
-}
-
-.git-wt-row .git-branch-glyph {
-  /* Nudge the folder glyph down to sit on the title line's baseline. */
-  margin-top: 1px;
-}
-
-/* Center the hover action cluster across both lines instead of pinning it to
- * the top-aligned title line. */
-.git-wt-row .git-branch-actions {
-  align-self: center;
-}
-
-.git-wt-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.git-wt-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-/* Let the tooltip host holding the directory name shrink so its ellipsis can
- * engage; the badges keep their intrinsic width. */
-.git-wt-title .silo-tooltip-host {
-  min-width: 0;
-}
-
-.git-wt-dir {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Open worktrees (already a workspace folder) read as active: accent glyph and
- * a bolder name. Clicking the row toggles the view, so this isn't a "current,
- * non-clickable" marker — it's just the open state. */
-.git-wt-open .git-branch-glyph {
-  color: var(--silo-color-accent);
-}
-
-.git-wt-open .git-wt-dir {
-  font-weight: 600;
-  color: var(--silo-color-text-hi);
-}
-
-/* Rows with nothing to toggle (the primary folder) aren't interactive. */
-.git-wt-static {
-  cursor: default;
-}
-
-.git-wt-static:hover {
-  background: transparent;
-}
-
-.git-wt-removing {
-  opacity: 0.75;
-  cursor: default;
-}
-
-.git-wt-removing:hover {
-  background: transparent;
-}
-
 .git-pending-remove-status {
   display: inline-flex;
   align-items: center;
@@ -940,39 +713,6 @@ button.git-wt-pill:hover {
   opacity: 0.85;
   -webkit-animation: branch-spin 0.8s linear infinite;
   animation: branch-spin 0.8s linear infinite;
-}
-
-/* The row action icons (prune/remove) sit a touch darker than the branch
- * manager's resting `--silo-color-text-lo` so the single trash reads clearly
- * in the two-line row. */
-.git-wt-row .git-branch-action {
-  color: var(--silo-color-text);
-}
-
-/* Explanatory copy: the lead under the modal title and the note above the
- * footer. Muted and small so the worktree list stays the focus. */
-.git-wt-lead,
-.git-wt-note {
-  margin: 0;
-  color: var(--silo-color-text);
-  font-size: var(--silo-font-size-sm);
-  line-height: 1.45;
-}
-
-/* Second line: the checked-out branch, truncated. */
-.git-wt-branch {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--silo-font-size-sm);
-  color: var(--silo-color-text-lo);
-}
-
-/* Locked/stale badges read as warnings, not accent. */
-.git-branch-badge.git-wt-warn {
-  color: var(--silo-color-warn);
-  background: color-mix(in srgb, var(--silo-color-warn) 16%, transparent);
 }
 
 /* Create-worktree dialog: the new/existing branch choice. */

@@ -1,5 +1,11 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { ExtensionContext } from "@silo-code/sdk";
+import {
+  Button,
+  Input,
+  ModalActions,
+  Select,
+  type ExtensionContext,
+} from "@silo-code/sdk";
 import { suggestWorktreePath } from "./worktree-model";
 
 /** What the create dialog resolves with (see {@link WorktreeCreateDialog}). */
@@ -119,9 +125,9 @@ export function WorktreeCreateDialog({
       {mode === "new" ? (
         <>
           <label className="silo-modal-label">New branch name</label>
-          <input
+          <Input
             ref={nameRef}
-            className="silo-modal-input"
+            block
             value={newName}
             placeholder="feature/my-branch"
             onChange={(e) => {
@@ -137,9 +143,9 @@ export function WorktreeCreateDialog({
       ) : (
         <>
           <label className="silo-modal-label">Branch to check out</label>
-          <select
-            className="silo-modal-input"
+          <Select
             value={existing}
+            style={{ width: "100%", boxSizing: "border-box" }}
             onChange={(e) => {
               setExisting(e.target.value);
               syncSuggestion(e.target.value);
@@ -150,13 +156,13 @@ export function WorktreeCreateDialog({
                 {name}
               </option>
             ))}
-          </select>
+          </Select>
         </>
       )}
 
       <label className="silo-modal-label">Worktree path</label>
-      <input
-        className="silo-modal-input"
+      <Input
+        block
         value={pathValue}
         onChange={(e) => {
           setPathTouched(true);
@@ -170,18 +176,18 @@ export function WorktreeCreateDialog({
       />
       {error && <div className="git-wt-error">{error}</div>}
 
-      <div className="silo-modal-actions">
-        <button type="button" className="silo-button" onClick={() => close()}>
+      <ModalActions>
+        <Button type="button" onClick={() => close()}>
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           type="submit"
-          className="silo-button-primary"
+          variant="primary"
           disabled={!canSubmit || branchName.length === 0}
         >
           Create
-        </button>
-      </div>
+        </Button>
+      </ModalActions>
     </form>
   );
 }
