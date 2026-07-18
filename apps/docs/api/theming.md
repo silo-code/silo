@@ -102,6 +102,21 @@ token.
 | `--silo-button-primary-bg` / `-primary-text` | Primary action     |
 | `--silo-button-danger-bg` / `-danger-text`   | Destructive action |
 
+### Lists
+
+The treatment group behind [`List`/`ListRow`](/design/components/lists) — a
+theme can restyle row selection without moving the generic surfaces other
+components also key off. Defaults derive from the generics below, so setting
+none of these still looks coherent.
+
+| Token                        | Role                                                                                    | Default                  |
+| ---------------------------- | --------------------------------------------------------------------------------------- | ------------------------ |
+| `--silo-list-radius`         | Row corner radius                                                                       | `--silo-radius-sm`       |
+| `--silo-list-hover-bg`       | Row background on hover                                                                 | `--silo-color-bg-hover`  |
+| `--silo-list-active-bg`      | Selected-row background                                                                 | `--silo-color-bg-active` |
+| `--silo-list-inset`          | Row inset (a theme preferring a gap between rows and the list edge)                     | `0`                      |
+| `--silo-list-active-outline` | Selected-row outline (a theme preferring a bordered rather than filled selection state) | `transparent`            |
+
 ## What you _don't_ touch
 
 - **Component tokens** (`--silo-statusbar-bg`, `--silo-content-tab-bg`, …)
