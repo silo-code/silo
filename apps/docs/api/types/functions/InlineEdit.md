@@ -4,7 +4,7 @@
 function InlineEdit(__namedParameters): ReactNode;
 ```
 
-Defined in: packages/sdk/src/InlineEdit.tsx:114
+Defined in: [packages/sdk/src/InlineEdit.tsx:114](https://github.com/silo-code/silo/blob/main/packages/sdk/src/InlineEdit.tsx#L114)
 
 Click-to-edit a value in place — a static display with a pencil affordance
 that swaps to a field with explicit ✓ Save / ✗ Cancel buttons. Use it for

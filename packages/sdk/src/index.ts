@@ -221,8 +221,7 @@ export { path } from "./path";
 export { Tooltip } from "./Tooltip";
 
 // Modal design-system kit (RFC 0016 / ADR 0026) — presentational components
-// styled purely via host-provided `.silo-*` classes. Form-control half of the
-// inventory; structure components land in a follow-up commit.
+// styled purely via host-provided `.silo-*` classes.
 export { Button } from "./Button";
 export type { ButtonVariant, ButtonSize } from "./Button";
 export { IconButton } from "./IconButton";
@@ -237,6 +236,22 @@ export { Switch } from "./Switch";
 export { CheckboxRow } from "./CheckboxRow";
 export { RadioGroup, RadioCard } from "./RadioGroup";
 export { ModalActions } from "./ModalActions";
+
+// Structure half of the modal design-system kit (RFC 0016).
+export { SegmentedTabs } from "./SegmentedTabs";
+export type { SegmentedTabItem } from "./SegmentedTabs";
+export { Tabs, TabPanel } from "./Tabs";
+export type { TabItem } from "./Tabs";
+export { List, ListRow } from "./List";
+export type { ListRowProps, ListRowTruncate } from "./List";
+export { AddRow } from "./AddRow";
+export { Badge } from "./Badge";
+export type { BadgeTone } from "./Badge";
+export { EmptyState } from "./EmptyState";
+export type { EmptyStateTone } from "./EmptyState";
+export { Callout } from "./Callout";
+export { Section } from "./Section";
+export { SettingRow } from "./SettingRow";
 
 // Runtime helpers. The one blessed way for an extension to read a `ctx`
 // service's reactive state in React — replaces hand-rolled useSyncExternalStore.

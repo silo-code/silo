@@ -4,7 +4,7 @@
 const Input: ForwardRefExoticComponent<object & InputHTMLAttributes<HTMLInputElement> & RefAttributes<HTMLInputElement>>;
 ```
 
-Defined in: packages/sdk/src/Input.tsx:24
+Defined in: [packages/sdk/src/Input.tsx:24](https://github.com/silo-code/silo/blob/main/packages/sdk/src/Input.tsx#L24)
 
 The single text-input treatment used across modal content: input-bg,
 6×8px padding, small radius, the shared focus ring.

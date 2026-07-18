@@ -4,7 +4,7 @@
 const Textarea: ForwardRefExoticComponent<TextareaHTMLAttributes<HTMLTextAreaElement> & RefAttributes<HTMLTextAreaElement>>;
 ```
 
-Defined in: packages/sdk/src/Textarea.tsx:22
+Defined in: [packages/sdk/src/Textarea.tsx:22](https://github.com/silo-code/silo/blob/main/packages/sdk/src/Textarea.tsx#L22)
 
 Multi-line text entry wearing the same tokens as [Input](Input.md), plus
 comfortable line-height, vertical resize, and a 64px minimum height.

@@ -4,7 +4,7 @@
 function Select(__namedParameters): Element;
 ```
 
-Defined in: packages/sdk/src/Select.tsx:21
+Defined in: [packages/sdk/src/Select.tsx:21](https://github.com/silo-code/silo/blob/main/packages/sdk/src/Select.tsx#L21)
 
 A native `<select>` wearing the [Input](../variables/Input.md) treatment — keep it for short
 enumerable values ("Block / Bar / Underline").

@@ -4,7 +4,7 @@
 function Switch(__namedParameters): Element;
 ```
 
-Defined in: packages/sdk/src/Switch.tsx:25
+Defined in: [packages/sdk/src/Switch.tsx:25](https://github.com/silo-code/silo/blob/main/packages/sdk/src/Switch.tsx#L25)
 
 The iOS-style on/off toggle used throughout settings. Off = recessed
 `bg-active` track with a hairline border; on = accent fill. Focus uses a

@@ -51,17 +51,29 @@ the published reference is exactly this surface — no more, no less.
 
 ## Consumer Services
 
+- [AddRow](functions/AddRow.md)
+- [Badge](functions/Badge.md)
 - [Button](functions/Button.md)
+- [Callout](functions/Callout.md)
 - [CheckboxRow](functions/CheckboxRow.md)
+- [EmptyState](functions/EmptyState.md)
 - [IconButton](functions/IconButton.md)
 - [InlineEdit](functions/InlineEdit.md)
 - [Input](variables/Input.md)
+- [List](functions/List.md)
+- [ListRowProps](interfaces/ListRowProps.md)
+- [ListRow](functions/ListRow.md)
 - [ModalActions](functions/ModalActions.md)
 - [RadioGroup](functions/RadioGroup.md)
 - [RadioCard](functions/RadioCard.md)
 - [SearchInput](functions/SearchInput.md)
+- [Section](functions/Section.md)
+- [SegmentedTabs](functions/SegmentedTabs.md)
 - [Select](functions/Select.md)
+- [SettingRow](functions/SettingRow.md)
 - [Switch](functions/Switch.md)
+- [Tabs](functions/Tabs.md)
+- [TabPanel](functions/TabPanel.md)
 - [Textarea](variables/Textarea.md)
 - [DndService](interfaces/DndService.md)
 - [OpenFileOptions](interfaces/OpenFileOptions.md)
@@ -131,6 +143,8 @@ the published reference is exactly this surface — no more, no less.
 ## Core Types
 
 - [InlineEditValidation](type-aliases/InlineEditValidation.md)
+- [SegmentedTabItem](interfaces/SegmentedTabItem.md)
+- [TabItem](interfaces/TabItem.md)
 - [Tooltip](functions/Tooltip.md)
 - [ContextKeys](interfaces/ContextKeys.md)
 - [DND\_MIME](variables/DND_MIME.md)

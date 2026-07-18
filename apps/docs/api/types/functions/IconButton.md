@@ -4,7 +4,7 @@
 function IconButton(__namedParameters): Element;
 ```
 
-Defined in: packages/sdk/src/IconButton.tsx:30
+Defined in: [packages/sdk/src/IconButton.tsx:30](https://github.com/silo-code/silo/blob/main/packages/sdk/src/IconButton.tsx#L30)
 
 A square icon-only button — the kit's one answer for ✕, ⋮, ↻, ✏️, and
 friends. `aria-label` is **required**: the icon is the only visual, so the

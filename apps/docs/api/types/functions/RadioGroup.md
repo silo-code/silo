@@ -4,7 +4,7 @@
 function RadioGroup(__namedParameters): Element;
 ```
 
-Defined in: packages/sdk/src/RadioGroup.tsx:41
+Defined in: [packages/sdk/src/RadioGroup.tsx:37](https://github.com/silo-code/silo/blob/main/packages/sdk/src/RadioGroup.tsx#L37)
 
 Stacked option cards — each a full-width click target with a radio dot, a
 bold title, and a dim description. Wrap [RadioCard](RadioCard.md) children; the

@@ -22,7 +22,7 @@ Stable key unique within this provider's results; used for reconciliation.
 ### status?
 
 ```ts
-optional status?: "error" | "ok" | "warn" | "busy";
+optional status?: "ok" | "warn" | "error" | "busy";
 ```
 
 Defined in: [packages/sdk/src/workspace-service.ts:18](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L18)

@@ -37,8 +37,8 @@ function ClearIcon() {
 
 /**
  * The filter-as-you-type field: leading search icon, and a clear ✕ that
- * appears once there's a value (and stays a real tab stop). Pair with a
- * `List` for the standard picker pattern.
+ * appears once there's a value (and stays a real tab stop). Pair with
+ * {@link List} for the standard picker pattern.
  *
  * Styled purely via host-provided `.silo-search-input*` classes — no
  * stylesheet import is needed in the extension.

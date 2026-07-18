@@ -4,7 +4,7 @@
 function Button(__namedParameters): Element;
 ```
 
-Defined in: packages/sdk/src/Button.tsx:28
+Defined in: [packages/sdk/src/Button.tsx:28](https://github.com/silo-code/silo/blob/main/packages/sdk/src/Button.tsx#L28)
 
 The action button in three variants. In a modal footer the primary action
 sits rightmost with neutral actions to its left (see [ModalActions](ModalActions.md)).

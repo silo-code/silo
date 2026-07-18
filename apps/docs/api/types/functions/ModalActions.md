@@ -4,7 +4,7 @@
 function ModalActions(__namedParameters): Element;
 ```
 
-Defined in: packages/sdk/src/ModalActions.tsx:34
+Defined in: [packages/sdk/src/ModalActions.tsx:34](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ModalActions.tsx#L34)
 
 The right-aligned footer row for a modal's action buttons — a thin
 `.silo-modal-actions` wrapper so every modal's footer lines up without each

@@ -4,7 +4,7 @@
 function CheckboxRow(__namedParameters): Element;
 ```
 
-Defined in: packages/sdk/src/CheckboxRow.tsx:22
+Defined in: [packages/sdk/src/CheckboxRow.tsx:22](https://github.com/silo-code/silo/blob/main/packages/sdk/src/CheckboxRow.tsx#L22)
 
 A labeled checkbox row (15px box, accent check). The whole label is the
 click target.

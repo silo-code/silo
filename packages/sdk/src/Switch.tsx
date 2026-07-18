@@ -35,7 +35,7 @@ export function Switch({
   onChange: (checked: boolean) => void;
   disabled?: boolean;
   /**
-   * Required unless wrapped by a labeled `SettingRow`.
+   * Required unless wrapped by a labeled {@link SettingRow}.
    */
   "aria-label"?: string;
 } & Omit<

@@ -4,7 +4,7 @@
 function RadioCard(__namedParameters): Element;
 ```
 
-Defined in: packages/sdk/src/RadioGroup.tsx:72
+Defined in: [packages/sdk/src/RadioGroup.tsx:68](https://github.com/silo-code/silo/blob/main/packages/sdk/src/RadioGroup.tsx#L68)
 
 One option inside a [RadioGroup](RadioGroup.md). The whole card is the click target.
 
