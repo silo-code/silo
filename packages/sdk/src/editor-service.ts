@@ -118,8 +118,10 @@ export interface DiffContent {
 
 /**
  * The request a {@link DiffContentProvider} receives to resolve a diff's two
- * sides — the {@link OpenDiffSpec}'s `filePath`/`args` plus the folder of the
- * workspace the diff lives in (the natural cwd for path-relative providers).
+ * sides — the {@link OpenDiffSpec}'s `filePath`/`args` plus the workspace
+ * folder that contains that file (the natural cwd for path-relative providers).
+ * In a multi-root workspace this is the matching root (primary or an
+ * `extraFolder` such as an opened git worktree), not always the primary folder.
  *
  * @category Consumer Services
  * @public
@@ -129,7 +131,11 @@ export interface DiffContentRequest {
   filePath: string;
   /** The provider's args (from {@link OpenDiffSpec.args}). */
   args?: Record<string, unknown>;
-  /** Folder of the workspace the diff lives in, or `null` if none. */
+  /**
+   * Workspace root that contains {@link DiffContentRequest.filePath}, or
+   * `null` if none. Prefer this over the workspace primary folder when roots
+   * differ (e.g. a linked worktree opened alongside).
+   */
   workspaceFolder: string | null;
 }
 
