@@ -134,8 +134,10 @@ function CustomModalSlot({ id }: { id: string }) {
     [id],
   );
   if (!entry?.render) return null;
+  // Dismiss must settle with `undefined` — pass a zero-arg wrapper so React
+  // event handlers (X / backdrop) don't forward the MouseEvent as the result.
   return (
-    <Modal {...entry.options} onClose={close}>
+    <Modal {...entry.options} onClose={() => close()}>
       {entry.render(close)}
     </Modal>
   );
