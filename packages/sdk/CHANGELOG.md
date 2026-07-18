@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.28.1](https://github.com/silo-code/silo/compare/sdk-v0.28.0...sdk-v0.28.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* **diff:** scope git diffs to the file's workspace root ([#262](https://github.com/silo-code/silo/issues/262)) ([b5e2bef](https://github.com/silo-code/silo/commit/b5e2beff89c601be5d75bbd4fdba1c5a95e2c214))
+
 ## [0.28.0](https://github.com/silo-code/silo/compare/sdk-v0.27.1...sdk-v0.28.0) (2026-07-17)
 
 
