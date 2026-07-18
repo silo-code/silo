@@ -431,7 +431,9 @@ export function GitView({
       {
         filePath,
         providerId: "silo.git",
-        args: { mode },
+        // cwd pins the git root for this row (worktree vs primary) so the
+        // content provider doesn't rely solely on the workspace primary folder.
+        args: { mode, cwd: folder },
         title: mode === "staged" ? `${base} (staged)` : `${base} (diff)`,
       },
       { workspaceId, preview: true },

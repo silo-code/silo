@@ -58,7 +58,13 @@ export const extension: Extension<GitAPI> = {
     // re-register — the provider registry rejects a duplicate id).
     ctx.subscriptions.push(
       ctx.editors.registerDiffContentProvider("silo.git", async (req) => {
-        const folder = req.workspaceFolder;
+        // Prefer an explicit cwd from the opener (Git panel knows which repo
+        // root the row belongs to); otherwise the host's containing workspace
+        // folder (correct for multi-root / opened worktrees).
+        const folder =
+          typeof req.args?.cwd === "string" && req.args.cwd.length > 0
+            ? req.args.cwd
+            : req.workspaceFolder;
         if (!folder) return { original: "", modified: "" };
         const relative = relativeTo(req.filePath, folder);
         const mode = req.args?.mode as DiffMode | undefined;

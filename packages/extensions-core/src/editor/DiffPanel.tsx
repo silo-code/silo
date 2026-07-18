@@ -26,6 +26,7 @@ import {
   blurTextareaWithin,
   isTextareaFocusedWithin,
 } from "@silo-code/extension-host/internal";
+import { workspaceFolderForPath } from "./workspace-folder-for-path";
 import "./EditorPanel.css";
 
 /** Coalesce burst writes (e.g. an agent rewriting a file) into one reload. */
@@ -71,10 +72,17 @@ export function DiffViewer({
       return;
     }
     const seq = ++fetchSeq.current;
+    // Multi-root (opened worktrees live in extraFolders): scope the provider
+    // cwd to the root that contains the file, not always the primary folder.
+    // Otherwise silo.git runs `git show` in the primary checkout and a tiny
+    // worktree edit looks like a full-file add from the wrong HEAD.
+    const workspaceFolder =
+      workspaceFolderForPath(rec.filePath!, ws.folder, ws.extraFolders ?? []) ??
+      ws.folder;
     provider({
       filePath: rec.filePath!,
       args: rec.args,
-      workspaceFolder: ws.folder,
+      workspaceFolder,
     })
       .then(({ original: orig, modified: mod }) => {
         if (seq !== fetchSeq.current) return;
@@ -86,7 +94,13 @@ export function DiffViewer({
         if (seq !== fetchSeq.current) return;
         setError(String(err));
       });
-  }, [rec?.filePath, rec?.providerId, JSON.stringify(rec?.args), ws?.folder]);
+  }, [
+    rec?.filePath,
+    rec?.providerId,
+    JSON.stringify(rec?.args),
+    ws?.folder,
+    JSON.stringify(ws?.extraFolders ?? []),
+  ]);
 
   // Initial load + reload when the diff's identity changes (open / tab switch /
   // app restart, or a save-as that repoints the record).
