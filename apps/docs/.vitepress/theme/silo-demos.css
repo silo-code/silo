@@ -719,6 +719,25 @@
   font-size: var(--silo-font-size-sm);
 }
 
+/* ── tooltip (app-wide, not modal-scoped — see design/index.md) ── */
+.silo-demo .silo-tooltip-host {
+  display: inline-flex;
+  align-items: center;
+}
+.silo-demo .silo-tooltip {
+  position: relative;
+  z-index: 1;
+  padding: 4px 8px;
+  background: var(--silo-color-button-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: var(--silo-color-input-text);
+  font-size: var(--silo-font-size-sm);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* ── scroll areas ── */
 .silo-demo .silo-scroll {
   overflow-y: auto;

@@ -80,6 +80,37 @@ Not part of the kit (use your own rendering, scoped to your extension): data
 tables/tree grids, charts and sparklines. There's also no combined
 `FilterList` — compose `SearchInput` + `List` yourself; it's four lines.
 
+## Tooltip
+
+One more component belongs in this list, even though it isn't modal-scoped —
+[`Tooltip`](/api/other/tooltip) is app-wide (status bar, panels, toolbars,
+_and_ modal content), which is why it lives in the main API reference rather
+than the [Components](#the-component-inventory) pages above. It's also the
+precedent the whole kit follows: a real component in the SDK, styled entirely
+by host classes, no stylesheet import.
+
+<div class="silo-demo" style="justify-content:center; padding-top:36px; padding-bottom:36px;">
+  <span class="silo-tooltip-host">
+    <button class="silo-icon-button" aria-label="More options"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="13" r="1.3" fill="currentColor"/></svg></button>
+  </span>
+  <span class="silo-tooltip" style="margin-left:-8px;">More options</span>
+</div>
+
+Reach for it whenever an `IconButton`'s `aria-label` is the _only_ label —
+sighted users get nothing from `aria-label` alone, so pair the two:
+
+```tsx
+<Tooltip content="Refresh">
+  <IconButton aria-label="Refresh" onClick={refresh}>
+    <RefreshIcon />
+  </IconButton>
+</Tooltip>
+```
+
+The other common case inside modal content: a `ListRow`'s truncated text —
+see [`Tooltip`'s `disabled` prop](/api/other/tooltip#example) for the
+show-only-when-truncated pattern.
+
 ## Read next
 
 1. [Modal surfaces](/design/surfaces) — which of the three modal types you're

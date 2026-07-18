@@ -69,6 +69,10 @@ import { List, ListRow, Badge } from "@silo-code/sdk";
   pushed offscreen.
 - `truncate="start"` ellipsizes the _front_ (`…agent/projects/xerro-edit`) —
   the right choice for file paths.
+- When a row's content is genuinely likely to truncate, wrap it in
+  [`Tooltip`](/design/#tooltip) with `disabled={!isTruncated}` so a hover
+  reveals the full value — see the pattern in
+  [`Tooltip`'s docs](/api/other/tooltip#example).
 
 ## Keyboard — built in, one tab stop
 

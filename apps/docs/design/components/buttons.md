@@ -91,3 +91,9 @@ brighter icon on hover, `bg-active` fill + scale-down when pressed.
 A `ListRow`'s `trailing` slot takes several `IconButton size="sm"` side by
 side — don't wrap them in extra layout.
 :::
+
+::: tip Pair it with a Tooltip
+`aria-label` gives screen readers the name; sighted users get nothing from it.
+Wrap the button in [`Tooltip`](/design/#tooltip) so everyone gets the label:
+`<Tooltip content="Refresh"><IconButton aria-label="Refresh">…</IconButton></Tooltip>`.
+:::
