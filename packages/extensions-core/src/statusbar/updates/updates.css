@@ -26,16 +26,6 @@
 .update-prompt-body p {
   margin: 0;
 }
-.update-prompt-warn {
-  font-weight: 600;
-  color: var(--silo-color-text-hi);
-}
-.update-prompt-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 2px;
-}
 
 .update-status .update-link {
   display: inline-flex;

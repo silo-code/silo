@@ -6,7 +6,17 @@ import {
 } from "@phosphor-icons/react";
 import { useSnapshot } from "valtio";
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
-import { useServiceState } from "@silo-code/sdk";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  IconButton,
+  SearchInput,
+  SegmentedTabs,
+  Switch,
+  Tooltip,
+  useServiceState,
+} from "@silo-code/sdk";
 import {
   getExtensionManager,
   fetchRegistryIndex,
@@ -47,10 +57,10 @@ export function ExtensionsRailBadge() {
   const { visited } = useSnapshot(extensionsOnboarding);
   const { availableUpdates } = useServiceState(mgr);
   if (!visited) {
-    return <span className="ext-update-count">New</span>;
+    return <Badge tone="accent">New</Badge>;
   }
   if (availableUpdates.length === 0) return null;
-  return <span className="ext-update-count">{availableUpdates.length}</span>;
+  return <Badge tone="accent">{availableUpdates.length}</Badge>;
 }
 
 /** Which pane the page is showing. Browse (the registry) is the landing view. */
@@ -308,50 +318,44 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
 
     // ---- list views ---------------------------------------------------------
 
+    const listTab = view.kind;
+
     return (
       <div className="ext-page">
         <div className="ext-header">
           <h2>Extensions</h2>
           <div className="ext-header-actions">
-            <div className="ext-tabs" role="tablist">
-              <button
-                role="tab"
-                aria-selected={view.kind === "browse"}
-                className={`ext-tab${view.kind === "browse" ? " ext-tab-active" : ""}`}
-                onClick={() => setView({ kind: "browse" })}
+            <SegmentedTabs
+              tabs={[
+                { id: "browse", label: "Browse" },
+                {
+                  id: "installed",
+                  label:
+                    updates.length > 0
+                      ? `Installed (${updates.length})`
+                      : "Installed",
+                },
+              ]}
+              active={listTab}
+              onSelect={(id) => setView({ kind: id })}
+            />
+            <Tooltip content="More install options">
+              <IconButton
+                aria-label="More install options"
+                onClick={(e) => openPageMenu(e.currentTarget)}
               >
-                Browse
-              </button>
-              <button
-                role="tab"
-                aria-selected={view.kind === "installed"}
-                className={`ext-tab${view.kind === "installed" ? " ext-tab-active" : ""}`}
-                onClick={() => setView({ kind: "installed" })}
-              >
-                Installed
-                {updates.length > 0 && (
-                  <span className="ext-update-count">{updates.length}</span>
-                )}
-              </button>
-            </div>
-            <button
-              className="ext-btn ext-btn-icon"
-              onClick={(e) => openPageMenu(e.currentTarget)}
-              title="More install options"
-            >
-              <DotsThreeVertical size={16} weight="bold" />
-            </button>
+                <DotsThreeVertical size={16} weight="bold" />
+              </IconButton>
+            </Tooltip>
           </div>
         </div>
 
         {view.kind === "browse" ? (
           <>
-            <input
-              className="ext-search"
-              type="text"
-              placeholder="Search the extension registry…"
+            <SearchInput
               value={browseQuery}
-              onChange={(e) => setBrowseQuery(e.target.value)}
+              onValueChange={setBrowseQuery}
+              placeholder="Search the extension registry…"
             />
             {registry.status === "ready" && (
               <div className="ext-cats">
@@ -373,16 +377,17 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
               </div>
             )}
             {registry.status === "loading" ? (
-              <div className="ext-empty">Loading the extension registry…</div>
+              <EmptyState title="Loading the extension registry…" />
             ) : registry.status === "error" ? (
-              <div className="ext-empty">
-                Couldn&rsquo;t reach the extension registry: {registry.message}{" "}
-                <button className="ext-btn" onClick={() => void loadRegistry()}>
-                  Retry
-                </button>
-              </div>
+              <EmptyState
+                title="Couldn't reach the extension registry"
+                description={registry.message}
+                action={
+                  <Button onClick={() => void loadRegistry()}>Retry</Button>
+                }
+              />
             ) : catalog.length === 0 ? (
-              <div className="ext-empty">No extensions match.</div>
+              <EmptyState title="No extensions match." />
             ) : (
               <div className="ext-list">
                 {catalog.map((entry) => {
@@ -427,22 +432,18 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                               </span>
                             )}
                             {entry.latest?.provenance === "attested" && (
-                              <span
-                                className="ext-badge-verified"
+                              <Badge
+                                tone="ok"
                                 title="Build provenance verified"
                               >
                                 <SealCheck size={12} weight="fill" /> verified
-                              </span>
+                              </Badge>
                             )}
                             {state === "installed" && (
-                              <span className="ext-badge-builtin">
-                                Installed
-                              </span>
+                              <Badge tone="outline">Installed</Badge>
                             )}
                             {state === "update-available" && (
-                              <span className="ext-badge-update">
-                                Update available
-                              </span>
+                              <Badge tone="warn">Update available</Badge>
                             )}
                           </span>
                           <span className="ext-hint">{entry.description}</span>
@@ -466,8 +467,8 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                         <div className="ext-actions">
                           {state === "not-installed" &&
                             isInstallable(entry) && (
-                              <button
-                                className="ext-btn"
+                              <Button
+                                size="sm"
                                 disabled={busy === entry.id}
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -475,11 +476,12 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                                 }}
                               >
                                 Install
-                              </button>
+                              </Button>
                             )}
                           {upd && installedExt && (
-                            <button
-                              className="ext-btn silo-button-primary"
+                            <Button
+                              size="sm"
+                              variant="primary"
                               disabled={busy === entry.id}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -487,20 +489,22 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                               }}
                             >
                               Update
-                            </button>
+                            </Button>
                           )}
                           {installedExt && (
-                            <button
-                              className="ext-btn ext-row-btn ext-btn-icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openRowMenu(installedExt, e.currentTarget);
-                              }}
-                              disabled={busy === entry.id}
-                              title="Extension actions"
-                            >
-                              <DotsThreeVertical size={16} weight="bold" />
-                            </button>
+                            <Tooltip content="Extension actions">
+                              <IconButton
+                                size="sm"
+                                aria-label="Extension actions"
+                                disabled={busy === entry.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openRowMenu(installedExt, e.currentTarget);
+                                }}
+                              >
+                                <DotsThreeVertical size={16} weight="bold" />
+                              </IconButton>
+                            </Tooltip>
                           )}
                         </div>
                       </div>
@@ -514,41 +518,40 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
           <>
             <div className="ext-installed-bar">
               {extensions.length > 0 && (
-                <input
-                  className="ext-search"
-                  type="text"
-                  placeholder="Search installed extensions…"
+                <SearchInput
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onValueChange={setQuery}
+                  placeholder="Search installed extensions…"
                 />
               )}
               {builtinsPresent && (
                 <label className="ext-toggle">
-                  <input
-                    type="checkbox"
+                  <Switch
                     checked={showBuiltins}
-                    onChange={(e) => setShowBuiltins(e.target.checked)}
+                    onChange={setShowBuiltins}
+                    aria-label="Show built-in"
                   />
                   Show built-in
                 </label>
               )}
               {updates.length > 0 && (
-                <button
-                  className="ext-btn silo-button-primary"
+                <Button
+                  variant="primary"
                   onClick={updateAll}
                   disabled={busy !== null}
                 >
                   Update all ({updates.length})
-                </button>
+                </Button>
               )}
             </div>
 
             {extensions.length === 0 ? (
-              <div className="ext-empty">
-                No extensions installed yet — find one in <b>Browse</b>.
-              </div>
+              <EmptyState
+                title="No extensions installed yet"
+                description="Find one in Browse."
+              />
             ) : visible.length === 0 ? (
-              <div className="ext-empty">No extensions match “{query}”.</div>
+              <EmptyState title={`No extensions match “${query}”.`} />
             ) : (
               <div className="ext-list">
                 {visible.map((ext) => {
@@ -574,13 +577,11 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                             {ext.name}
                             <span className="ext-brand">{ext.publisher}</span>
                             {ext.builtin && (
-                              <span className="ext-badge-builtin">
-                                Built-in
-                              </span>
+                              <Badge tone="outline">Built-in</Badge>
                             )}
                             <span className="ext-version">v{ext.version}</span>
                             {!ext.enabled && (
-                              <span className="ext-badge">disabled</span>
+                              <Badge tone="neutral">disabled</Badge>
                             )}
                           </span>
                           {ext.description && (
@@ -621,8 +622,9 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                         </div>
                         <div className="ext-actions">
                           {upd && (
-                            <button
-                              className="ext-btn silo-button-primary"
+                            <Button
+                              size="sm"
+                              variant="primary"
                               disabled={busy === ext.id}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -630,19 +632,21 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                               }}
                             >
                               Update
-                            </button>
+                            </Button>
                           )}
-                          <button
-                            className="ext-btn ext-row-btn ext-btn-icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openRowMenu(ext, e.currentTarget);
-                            }}
-                            disabled={busy === ext.id}
-                            title="Extension actions"
-                          >
-                            <DotsThreeVertical size={16} weight="bold" />
-                          </button>
+                          <Tooltip content="Extension actions">
+                            <IconButton
+                              size="sm"
+                              aria-label="Extension actions"
+                              disabled={busy === ext.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openRowMenu(ext, e.currentTarget);
+                              }}
+                            >
+                              <DotsThreeVertical size={16} weight="bold" />
+                            </IconButton>
+                          </Tooltip>
                         </div>
                       </div>
                     </div>

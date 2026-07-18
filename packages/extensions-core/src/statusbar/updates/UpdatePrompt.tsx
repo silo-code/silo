@@ -1,3 +1,4 @@
+import { Button, Callout, ModalActions } from "@silo-code/sdk";
 import { buildUpdateLead } from "./model";
 
 /**
@@ -20,18 +21,16 @@ export function UpdatePrompt({
       <div className="update-prompt-title">Update Silo?</div>
       <div className="update-prompt-body">
         <p>{buildUpdateLead(version)}</p>
-        <p className="update-prompt-warn">
+        <Callout>
           Save your work first — Silo will close and restart to finish updating.
-        </p>
+        </Callout>
       </div>
-      <div className="update-prompt-actions">
-        <button className="silo-button" onClick={onLater}>
-          Later
-        </button>
-        <button className="silo-button-primary" onClick={onInstall}>
-          Install &amp; Restart
-        </button>
-      </div>
+      <ModalActions>
+        <Button onClick={onLater}>Later</Button>
+        <Button variant="primary" onClick={onInstall}>
+          Install & Restart
+        </Button>
+      </ModalActions>
     </div>
   );
 }
