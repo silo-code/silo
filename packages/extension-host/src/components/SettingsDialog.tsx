@@ -69,11 +69,17 @@ export function SettingsDialog() {
             <div className="settings-empty">No settings pages registered.</div>
           )}
         </section>
+        {/* Mouse-only by design (RFC 0016), matching Modal.tsx's own close ✕ —
+            its own title already says Esc is the keyboard path. Settings is
+            a `bare` modal, so it doesn't get Modal.tsx's close button and
+            renders this one instead; the tabIndex=-1 fix has to be applied
+            here too. */}
         <button
           className="settings-close"
           onClick={closeSettings}
           title="Close (Esc)"
           aria-label="Close settings"
+          tabIndex={-1}
         >
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
             <path
