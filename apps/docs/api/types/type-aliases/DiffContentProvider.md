@@ -4,7 +4,7 @@
 type DiffContentProvider = (request) => Promise<DiffContent>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:145](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L145)
+Defined in: [packages/sdk/src/editor-service.ts:151](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L151)
 
 Resolves the two sides of a diff on demand — called by the host whenever a
 diff panel mounts (open, tab switch, app restart), so content stays a pure
