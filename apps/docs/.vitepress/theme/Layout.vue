@@ -47,6 +47,7 @@ function paintAllToggles() {
 }
 
 let menuEl = null;
+let openAnchor = null;
 
 function paintMenu() {
   if (!menuEl) return;
@@ -67,6 +68,8 @@ function selectTheme(id) {
 
 function closeMenu() {
   if (menuEl) menuEl.hidden = true;
+  openAnchor?.classList.remove("is-open");
+  openAnchor = null;
   document.removeEventListener("mousedown", handleOutsideClick, true);
   document.removeEventListener("keydown", handleMenuKeydown, true);
 }
@@ -109,6 +112,10 @@ function ensureMenu() {
 }
 
 function openMenu(anchor) {
+  if (openAnchor && openAnchor !== anchor)
+    openAnchor.classList.remove("is-open");
+  openAnchor = anchor;
+  anchor.classList.add("is-open");
   const menu = ensureMenu();
   paintMenu();
   menu.hidden = false;

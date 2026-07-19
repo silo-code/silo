@@ -247,7 +247,8 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 }
 
 /* ── theme picker toggle (injected by Layout.vue, one shared state
-   site-wide) ── */
+   site-wide). Hidden until the card is hovered/focused/its menu is open, so
+   it doesn't compete with the component being demoed at rest. ── */
 .silo-demo-theme-toggle {
   position: absolute;
   top: 8px;
@@ -263,11 +264,19 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   border: 1px solid var(--silo-color-border-strong);
   border-radius: 999px;
   cursor: pointer;
-  opacity: 0.85;
+  opacity: 0;
+  pointer-events: none;
   transition:
     opacity 0.12s ease,
     border-color 0.12s ease,
     transform 0.12s ease;
+}
+.silo-demo:hover .silo-demo-theme-toggle,
+.silo-demo:focus-within .silo-demo-theme-toggle,
+.silo-demo-theme-toggle:focus-visible,
+.silo-demo-theme-toggle.is-open {
+  opacity: 0.85;
+  pointer-events: auto;
 }
 .silo-demo-theme-toggle:hover {
   opacity: 1;
