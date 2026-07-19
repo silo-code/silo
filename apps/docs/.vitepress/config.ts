@@ -156,7 +156,7 @@ export default withMermaid(
           link: "https://github.com/silo-code/silo/releases/latest",
         },
         { text: "Guides", link: "/guide/" },
-        { text: "Design System", link: "/design/" },
+        { text: "Design", link: "/design/" },
         { text: "API Reference", link: "/api/" },
         {
           text: "Extensions",
