@@ -1,0 +1,728 @@
+/* ── Modal design-system class contract (RFC 0016) ──────────────────────────
+ * The `.silo-*` classes the `@silo-code/sdk` component kit renders — every
+ * component in `packages/sdk/src/components/` targets exactly one class
+ * family here, and nothing else styles them. This file, like theme.css, is
+ * the **visual** half of the two-lane propagation model: a tweak here ships
+ * to every extension on next launch, no SDK bump required.
+ *
+ * These classes are new and, as of this file landing, consumed by nothing —
+ * no bundled modal has migrated onto them yet (that's the Phase 4 migration
+ * work). They coexist with the older bespoke per-modal classes
+ * (`.ws-rename-input`, `.git-branch-search`, `.es-row`, …) until each modal
+ * migrates and its old rules are deleted.
+ *
+ * Every class name and rendered DOM shape here is public API once a
+ * component ships consuming it — see RFC 0016 "The class contract."
+ */
+
+/* ── Input / Textarea ───────────────────────────────────────────────────── */
+
+.silo-input {
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.silo-input-block {
+  width: 100%;
+}
+
+.silo-textarea {
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 6px 8px;
+  font: inherit;
+  line-height: 1.5;
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+}
+
+/* ── SearchInput ─────────────────────────────────────────────────────────
+ * Wrapper + leading icon + trailing clear button. The clear button stays a
+ * real tab stop (unlike the modal close ✕ — see Modal.tsx) since it acts on
+ * the field's own value, not the surrounding shell. */
+
+.silo-search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.silo-search-input .silo-search-input-icon {
+  position: absolute;
+  left: 8px;
+  color: var(--silo-color-text-lo);
+  pointer-events: none;
+  display: flex;
+}
+
+.silo-search-input input {
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 6px 28px 6px 28px;
+  font: inherit;
+  width: 100%;
+}
+
+.silo-search-input .silo-search-input-clear {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  padding: 2px;
+  color: var(--silo-color-text-lo);
+  display: none;
+  border-radius: var(--silo-radius-sm);
+}
+
+.silo-search-input .silo-search-input-clear:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.silo-search-input.has-value .silo-search-input-clear {
+  display: inline-flex;
+}
+
+/* ── InlineEdit ──────────────────────────────────────────────────────────
+ * Display mode (value + pencil IconButton) or edit mode (field + ✓/✗
+ * IconButtons). See Modal.tsx for the Esc-yield contract that lets its
+ * two-stage Escape (cancel edit, then close modal) work reliably. */
+
+.silo-inline-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.silo-inline-edit-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.silo-inline-edit-display.multiline {
+  display: flex;
+  align-items: flex-start;
+}
+
+.silo-inline-edit-value {
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+  line-height: 1.5;
+}
+
+.silo-inline-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.silo-inline-edit-row.multiline {
+  align-items: flex-start;
+}
+
+.silo-inline-edit-row .silo-input,
+.silo-inline-edit-row .silo-textarea {
+  flex: 1;
+  min-width: 0;
+}
+
+.silo-inline-edit-error {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-err);
+}
+
+/* ── Select ──────────────────────────────────────────────────────────────*/
+
+.silo-select {
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 5px 8px;
+  font: inherit;
+}
+
+/* ── Switch / CheckboxRow ────────────────────────────────────────────────*/
+
+.silo-switch-track {
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--silo-color-bg-active);
+  border: 1px solid var(--silo-color-border-strong);
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background 0.1s ease,
+    border-color 0.1s ease;
+}
+
+.silo-switch-track::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.1s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.silo-switch-track[data-checked="true"] {
+  background: var(--silo-color-accent);
+  border-color: transparent;
+}
+
+.silo-switch-track[data-checked="true"]::after {
+  transform: translateX(14px);
+}
+
+/* Positive offset, not inset — an 18px pill can't take an inset ring
+   without swallowing the control, the one deliberate exception to the
+   shared inset ring in theme.css. */
+.silo-switch-track:focus-visible {
+  outline: 1px solid var(--silo-color-accent);
+  outline-offset: 2px;
+}
+
+.silo-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+}
+
+.silo-checkbox-row input {
+  margin: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--silo-color-accent);
+}
+
+/* ── SegmentedTabs — pill-in-a-recessed-well ─────────────────────────────
+ * Self-contained, no relationship to content below it. Native tab stops
+ * (no arrow-key roving) per RFC 0016. */
+
+.silo-segmented {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--silo-color-content-bg);
+  border-radius: var(--silo-radius-sm);
+}
+
+.silo-segmented-tab {
+  border: none;
+  background: transparent;
+  color: var(--silo-color-text-lo);
+  padding: 3px 10px;
+  border-radius: var(--silo-radius-sm);
+  font-size: var(--silo-font-size-sm);
+}
+
+.silo-segmented-tab[data-active="true"] {
+  background: var(--silo-button-bg);
+  color: var(--silo-color-text-hi);
+}
+
+.silo-segmented-tab:not([data-active="true"]):hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text);
+}
+
+/* ── Tabs / TabPanel — borderless strip attached to its panel ────────────
+ * The active tab's background IS the panel's background (same token) —
+ * that shared fill is the "attached" illusion, not a border. Consolidates
+ * `.ws-props-tabs` and `.sms-tabs` (silo-extensions), which were
+ * byte-for-byte duplicates. Native tab stops (no arrow-key roving). */
+
+.silo-tabs {
+  display: flex;
+  gap: 4px;
+  /* Pair with .silo-modal-title's lighter margin — title→tabs needs more
+   * separation than title→body, without over-spacing every modal. */
+  margin-top: 4px;
+  padding: 6px 0 0 8px;
+  background: var(--silo-color-input-bg);
+  border-radius: var(--silo-radius-sm) var(--silo-radius-sm) 0 0;
+}
+
+.silo-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm) var(--silo-radius-sm) 0 0;
+  padding: 5px 14px;
+  font: inherit;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  cursor: pointer;
+}
+
+.silo-tabs .silo-tab:hover {
+  background: color-mix(
+    in srgb,
+    var(--silo-color-text) 10%,
+    var(--silo-color-input-bg)
+  );
+}
+
+.silo-tab[data-active="true"] {
+  background: var(--silo-color-bg);
+  color: var(--silo-color-text-hi);
+  font-weight: 500;
+}
+
+.silo-tabs .silo-tab[data-active="true"]:hover {
+  background: var(--silo-color-bg);
+}
+
+.silo-tab-panel {
+  background: var(--silo-color-bg);
+  border-radius: 0 0 var(--silo-radius-sm) var(--silo-radius-sm);
+  padding: 14px 12px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+}
+
+/* ── RadioGroup / RadioCard ──────────────────────────────────────────────
+ * Full-width click target; resting border transparent, selected gets an
+ * accent border + faint tint. Native tab stops (no arrow-key roving). */
+
+.silo-radio-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: var(--silo-radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  width: 100%;
+  font: inherit;
+}
+
+.silo-radio-card + .silo-radio-card {
+  margin-top: 8px;
+}
+
+.silo-radio-card[data-selected="true"] {
+  border-color: var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 8%, transparent);
+}
+
+.silo-radio-card-dot {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  margin-top: 2px;
+  border: 1.5px solid var(--silo-color-border-strong);
+  position: relative;
+}
+
+.silo-radio-card[data-selected="true"] .silo-radio-card-dot {
+  border-color: var(--silo-color-accent);
+}
+
+.silo-radio-card[data-selected="true"] .silo-radio-card-dot::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--silo-color-accent);
+}
+
+.silo-radio-card-title {
+  display: block;
+  font-weight: 600;
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+
+.silo-radio-card-desc {
+  display: block;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  margin-top: 2px;
+}
+
+/* ── List / ListRow ──────────────────────────────────────────────────────
+ * min-width: 0 at every level is load-bearing: without it, a row's
+ * unwrapped content pushes both the row and the list itself wider than the
+ * parent instead of shrinking to fit (the classic flexbox min-width:auto
+ * trap) — the list overflows its container edge rather than the text
+ * truncating. trailing content (badges, icon buttons) gets flex-shrink: 0
+ * on its own rules so it's the text that absorbs the squeeze, never the
+ * trailing slot. */
+
+.silo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+}
+
+.silo-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--silo-list-radius);
+  color: var(--silo-color-text-hi);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+  width: 100%;
+  min-width: 0;
+  outline: var(--silo-list-active-outline, none);
+  outline-offset: -1px;
+}
+
+.silo-list-row:hover {
+  background: var(--silo-list-hover-bg);
+}
+
+.silo-list-row[data-selected="true"] {
+  background: var(--silo-list-active-bg);
+}
+
+.silo-list-row-leading {
+  color: var(--silo-color-text-lo);
+  flex-shrink: 0;
+  display: flex;
+}
+
+.silo-list-row-trailing {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.silo-list-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Front-truncation ("truncate=start"): flip the row's base direction to
+   RTL so the browser ellipsizes/clips at the logical end, which for RTL is
+   the visual LEFT — the standard trick for paths (VS Code / DevTools use
+   it). The Latin/digit characters still render left-to-right; only the
+   truncation side and text-align flip. */
+.silo-list-row-name[data-truncate="start"] {
+  direction: rtl;
+  text-align: left;
+}
+
+.silo-list-empty {
+  padding: 24px 10px;
+  text-align: center;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+
+/* ── AddRow — a ghost action row flush with a list ───────────────────────*/
+
+.silo-add-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font: inherit;
+  font-size: var(--silo-font-size-sm);
+  transition:
+    background 0.1s ease,
+    transform 0.1s ease;
+}
+
+.silo-add-row:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+
+.silo-add-row:active {
+  background: var(--silo-color-bg-active);
+  transform: scale(0.98);
+}
+
+.silo-add-row-plus {
+  color: var(--silo-color-text-lo);
+  display: inline-flex;
+}
+
+/* ── Badge ────────────────────────────────────────────────────────────────
+ * Every tone tint is a `color-mix()` derived from a generic color, not a
+ * dedicated token — see RFC 0016's open follow-up on promoting these to
+ * `--silo-badge-*` tokens if a theme ever needs to override just tints. */
+
+.silo-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: calc(var(--silo-font-size-chrome) - 1px);
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: 999px;
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+
+.silo-badge-neutral {
+  background: var(--silo-color-button-bg);
+  color: var(--silo-color-text);
+}
+
+.silo-badge-accent {
+  background: color-mix(in srgb, var(--silo-color-accent) 20%, transparent);
+  color: var(--silo-color-accent);
+}
+
+.silo-badge-ok {
+  background: color-mix(in srgb, var(--silo-color-ok) 18%, transparent);
+  color: var(--silo-color-ok);
+}
+
+.silo-badge-warn {
+  background: color-mix(in srgb, var(--silo-color-warn) 18%, transparent);
+  color: var(--silo-color-warn);
+}
+
+.silo-badge-err {
+  background: color-mix(in srgb, var(--silo-color-err) 18%, transparent);
+  color: var(--silo-color-err);
+}
+
+.silo-badge-outline {
+  background: transparent;
+  border: 1px solid var(--silo-color-border-strong);
+  color: var(--silo-color-text);
+}
+
+/* Arbitrary color (Badge's `color` prop, not `tone`) — e.g. a workspace
+   group's own chosen color. Same 20%-tint derivation, fed a caller-supplied
+   color via one custom property instead of a token. */
+.silo-badge-custom {
+  background: color-mix(in srgb, var(--badge-color) 20%, transparent);
+  color: var(--badge-color);
+}
+
+/* ── IconButton — two sizes ──────────────────────────────────────────────
+ * Default: standalone (modal close, a toolbar button). -sm: tighter/inline
+ * contexts wherever space is constrained — a ListRow's trailing slot is
+ * one example, not the only one. */
+
+.silo-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-lo);
+  transition:
+    background 0.1s ease,
+    transform 0.1s ease;
+}
+
+.silo-icon-button:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+
+/* Pressed feedback — reuses the same "active surface" token the rail's
+   current item and the switch's off-track use, plus a slight scale. */
+.silo-icon-button:active {
+  background: var(--silo-color-bg-active);
+  transform: scale(0.92);
+}
+
+.silo-icon-button-sm {
+  width: 26px;
+  height: 26px;
+}
+
+/* ── EmptyState ──────────────────────────────────────────────────────────
+ * No shadow/card of its own — it lives flat in the modal body. */
+
+.silo-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 20px;
+  gap: 4px;
+  flex: 1;
+  width: 100%;
+}
+
+.silo-empty-state-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  border: 1.5px solid var(--silo-color-border-strong);
+  color: var(--silo-color-text-lo);
+}
+
+.silo-empty-state-icon[data-tone="ok"] {
+  border-color: var(--silo-color-ok);
+  color: var(--silo-color-ok);
+}
+
+.silo-empty-state-title {
+  font-weight: 600;
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+
+.silo-empty-state-desc {
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  max-width: 300px;
+}
+
+/* ── Callout ─────────────────────────────────────────────────────────────
+ * Deliberately colorless: a hairline border, no fill, no tone. Not for
+ * status/alerts (that's Badge tones / EmptyState). */
+
+.silo-callout {
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-md);
+  padding: 10px 12px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  line-height: 1.5;
+}
+
+/* ── Section / SettingRow ────────────────────────────────────────────────*/
+
+.silo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.silo-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.silo-section-label {
+  font-size: calc(var(--silo-font-size-chrome) - 1px);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--silo-color-text-lo);
+}
+
+.silo-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 10px 0;
+}
+
+.silo-setting-row + .silo-setting-row {
+  border-top: 1px solid var(--silo-color-border-strong);
+}
+
+.silo-setting-row-text {
+  min-width: 0;
+}
+
+.silo-setting-row-label {
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+
+.silo-setting-row-hint {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  margin-top: 2px;
+  max-width: 420px;
+}
+
+.silo-setting-row-control {
+  flex-shrink: 0;
+}
+
+/* ── ModalActions — start slot ───────────────────────────────────────────
+ * The .silo-modal-actions container itself already exists in theme.css
+ * (flex-end row). This adds the optional left slot for meta text or a
+ * secondary action, replacing the git modals' bespoke space-between
+ * footer. */
+
+.silo-modal-actions-start {
+  margin-right: auto;
+  align-self: center;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+
+/* ── Scroll areas ─────────────────────────────────────────────────────────
+ * .silo-scroll on any overflow container inside a modal. The thumb derives
+ * from the theme's TEXT color at partial opacity rather than a surface
+ * token — text always contrasts with its background by definition, so this
+ * self-adjusts in every theme (a surface token failed in Light: button-bg
+ * #e0e0e0 on the #e5e5e5 modal was nearly invisible). Replaces the app's
+ * default 10px outlined-pill scrollbar (below, in this file's App scroll
+ * section) for modal content specifically. */
+
+.silo-scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--silo-color-text) 28%, transparent)
+    transparent;
+  /* Overlay scrollbars (macOS) sit on top of the content box; keep trailing
+     controls (Switch, Select, IconButton) clear of the 8px thumb. */
+  padding-inline-end: 10px;
+  box-sizing: border-box;
+}
+
+.silo-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.silo-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.silo-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--silo-color-text) 28%, transparent);
+  border-radius: 999px;
+}
+
+.silo-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--silo-color-text) 45%, transparent);
+}

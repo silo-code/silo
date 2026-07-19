@@ -8,6 +8,7 @@ import {
 import { createPortal } from "react-dom";
 import { useSnapshot } from "valtio";
 import type { ModalOptions } from "@silo-code/sdk";
+import { yieldEscapeToInlineEdit } from "@silo-code/sdk";
 import {
   modalStack,
   nextModalKey,
@@ -121,7 +122,16 @@ export function Modal({
   useEffect(() => {
     if (!isTop) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && dismissible) {
+      if (e.key === "Escape") {
+        // An in-progress InlineEdit owns the first Escape (cancelling its
+        // edit) regardless of `dismissible` — InlineEdit's two-stage Escape
+        // needs to work even on the common non-dismissible modal protecting
+        // other staged input. See inline-edit-controller.ts.
+        if (yieldEscapeToInlineEdit()) {
+          e.preventDefault();
+          return;
+        }
+        if (!dismissible) return;
         // A menu open on top of the modal owns Escape — let it close first, and
         // the modal closes on the next Escape. Both listen on document/capture
         // and the modal's listener was registered first, so without this the
@@ -185,15 +195,20 @@ export function Modal({
             {children}
           </div>
         )}
-        {/* Close affordance for dismissible modals — last in the DOM so it
-            never steals the initial focus from the modal's real first control,
-            but visually pinned to the top-right corner. Bare modals own their
-            own chrome, so they opt out. */}
+        {/* Close affordance for dismissible modals — mouse-only by design
+            (RFC 0016): Escape is the keyboard path for closing, so this
+            never becomes a tab stop (tabindex=-1, which TABBABLE in
+            focus-dom.ts already excludes — the exact "deliberately
+            untabbable control" case it was built for). Also last in the
+            DOM so it never steals the initial focus from the modal's real
+            first control, and visually pinned to the top-right corner.
+            Bare modals own their own chrome, so they opt out. */}
         {dismissible && !bare && (
           <button
             type="button"
             className="silo-modal-close"
             aria-label="Close"
+            tabIndex={-1}
             onClick={onClose}
           >
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
@@ -212,14 +227,6 @@ export function Modal({
   );
 }
 
-/**
- * The right-aligned footer row for a {@link Modal}'s action buttons — a thin
- * `.silo-modal-actions` wrapper so every modal's footer lines up without each
- * caller re-specifying the flex row.
- *
- * @category Consumer Services
- * @public
- */
-export function ModalActions({ children }: { children: ReactNode }) {
-  return <div className="silo-modal-actions">{children}</div>;
-}
+// ModalActions lives in `@silo-code/sdk` (RFC 0016) — re-exported here so
+// existing `@silo-code/extension-host/internal` callers keep resolving it.
+export { ModalActions } from "@silo-code/sdk";

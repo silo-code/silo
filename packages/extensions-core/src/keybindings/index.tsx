@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useState } from "react";
 import type { Extension, ExtensionContext } from "@silo-code/sdk";
+import { Button, SearchInput } from "@silo-code/sdk";
 import {
   commandRegistry,
   keybindingRegistry,
@@ -58,22 +59,17 @@ function makePage(ctx: ExtensionContext) {
       <div className="kb-page">
         <div className="kb-header">
           <h2>Keyboard Shortcuts</h2>
-          <button
-            className="kb-edit-btn"
-            onClick={() => void openKeybindingsFile(ctx)}
-          >
+          <Button size="sm" onClick={() => void openKeybindingsFile(ctx)}>
             Edit keybindings.json
-          </button>
+          </Button>
         </div>
-        <input
-          className="kb-search"
-          type="text"
-          placeholder="Search commands…"
+        <SearchInput
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onValueChange={setQuery}
+          placeholder="Search commands…"
           autoFocus
         />
-        <div className="kb-list">
+        <div className="kb-list silo-scroll">
           {rows.map((c) => {
             const eff = effectiveKey(c.id);
             return (

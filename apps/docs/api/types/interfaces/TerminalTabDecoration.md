@@ -37,7 +37,7 @@ Tooltip shown when hovering the decoration icon.
 ### color?
 
 ```ts
-optional color?: "ok" | "warn" | "error" | "accent" | "muted";
+optional color?: "accent" | "ok" | "warn" | "error" | "muted";
 ```
 
 Defined in: [packages/sdk/src/terminal-service.ts:49](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L49)

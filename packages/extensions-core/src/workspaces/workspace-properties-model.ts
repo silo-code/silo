@@ -48,19 +48,19 @@ export interface PartitionedFolders {
 
 /**
  * Split a workspace's folder list for the properties modal: the primary root
- * always stays under Folders; extras known to be linked worktrees move to a
- * separate Worktrees section so multi-root folders and opened worktrees don't
- * look like the same thing.
+ * always stays under Folders; extras known to be linked worktrees (or extras
+ * that are missing on disk — still closable here) move to Worktrees so
+ * multi-root folders and opened worktrees don't look like the same thing.
  */
 export function partitionWorkspaceFolders(
   primary: string,
   extras: readonly string[],
-  linkedWorktrees: ReadonlySet<string>,
+  worktreeExtras: ReadonlySet<string>,
 ): PartitionedFolders {
   const folders = [primary];
   const worktrees: string[] = [];
   for (const folder of extras) {
-    if (linkedWorktrees.has(folder)) worktrees.push(folder);
+    if (worktreeExtras.has(folder)) worktrees.push(folder);
     else folders.push(folder);
   }
   return { folders, worktrees };

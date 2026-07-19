@@ -272,6 +272,24 @@ importers:
         specifier: ^5.6.0
         version: 5.8.3
 
+  examples/extensions/modal-gallery-extension:
+    devDependencies:
+      '@silo-code/sdk':
+        specifier: workspace:*
+        version: link:../../../packages/sdk
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.16
+      esbuild:
+        specifier: ^0.24.0
+        version: 0.24.2
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
+      typescript:
+        specifier: ^5.6.0
+        version: 5.8.3
+
   examples/extensions/notify-demo-extension:
     devDependencies:
       '@types/react':
@@ -3073,6 +3091,7 @@ packages:
   git-raw-commits@5.0.1:
     resolution: {integrity: sha512-Y+csSm2GD/PCSh6Isd/WiMjNAydu0VBiG9J7EdQsNA5P9uXvLayqjmTsNlK5Gs9IhblFZqOU0yid5Il5JPoLiQ==}
     engines: {node: '>=18'}
+    deprecated: Deprecated and no longer maintained. Use @conventional-changelog/git-client instead.
     hasBin: true
 
   glob-parent@5.1.2:

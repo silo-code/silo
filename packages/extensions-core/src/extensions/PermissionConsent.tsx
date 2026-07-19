@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Permission } from "@silo-code/sdk";
+import { Button, Callout, ModalActions } from "@silo-code/sdk";
 import "./PermissionConsent.css";
 
 /* Per-capability presentation: an icon, a short label, and one line of detail.
@@ -108,22 +109,22 @@ export function PermissionConsent({
       )}
 
       {hasPerms && (
-        <p className="perm-consent-note">
+        <Callout>
           Only install extensions you trust — granted capabilities run with the
           app&rsquo;s privileges.
-        </p>
+        </Callout>
       )}
 
-      <div className="perm-consent-actions">
-        <button onClick={onCancel}>Cancel</button>
-        <button className="silo-button-primary" onClick={onGrant}>
+      <ModalActions>
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button variant="primary" onClick={onGrant}>
           {incompatible
             ? "Install anyway"
             : hasPerms
               ? "Install & grant"
               : "Install"}
-        </button>
-      </div>
+        </Button>
+      </ModalActions>
     </div>
   );
 }

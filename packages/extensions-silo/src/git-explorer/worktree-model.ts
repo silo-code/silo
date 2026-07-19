@@ -34,6 +34,11 @@ export interface WorktreeRow {
   isOpen: boolean;
   /** The worktree's path is the workspace's primary folder (can't be closed). */
   isPrimary: boolean;
+  /**
+   * Open as a workspace folder but absent from `git worktree list` — e.g. the
+   * directory was deleted/pruned while the view stayed open. Close-only.
+   */
+  isOrphan?: boolean;
 }
 
 /**
@@ -61,6 +66,46 @@ export function buildWorktreeRows(
     }));
 }
 
+/**
+ * True when the manager list is just the repo's main worktree — no linked
+ * worktrees yet. Drives the subtle "none yet" hint under the primary row.
+ */
+export function isOnlyMainWorktree(rows: readonly WorktreeRow[]): boolean {
+  return rows.length === 1 && rows[0]!.wt.isMain && !rows[0]!.isOrphan;
+}
+
+/**
+ * Workspace folders that are open alongside but missing from git's worktree
+ * list (deleted/pruned on disk while the view stayed open). Surfaced so the
+ * manager can still offer Close — they won't appear in `git worktree list`.
+ */
+export function orphanOpenFolders(
+  rows: readonly WorktreeRow[],
+  allFolders: readonly string[],
+  wsFolder: string,
+  currentFolder: string,
+): WorktreeRow[] {
+  return allFolders
+    .filter((f) => !samePath(f, wsFolder))
+    .filter((f) => !rows.some((r) => samePath(r.wt.path, f)))
+    .map((f) => ({
+      wt: {
+        path: f,
+        head: "",
+        branch: null,
+        isMain: false,
+        detached: true,
+        bare: false,
+        locked: null,
+        prunable: null,
+      },
+      isCurrent: samePath(f, currentFolder),
+      isOpen: true,
+      isPrimary: false,
+      isOrphan: true,
+    }));
+}
+
 /** A row action offered for a worktree (drives the row context menu). */
 export type WorktreeAction = "open" | "close" | "remove" | "prune";
 
@@ -78,6 +123,10 @@ export function worktreeActions(
   pendingRemove = false,
 ): WorktreeAction[] {
   if (pendingRemove) return [];
+  // Orphan open folders aren't real git worktrees — Close view only.
+  if (row.isOrphan) {
+    return row.isOpen && !row.isPrimary ? ["close"] : [];
+  }
   if (row.wt.prunable != null) return ["prune"];
   const actions: WorktreeAction[] = [];
   if (!row.isOpen && !row.isCurrent) actions.push("open");

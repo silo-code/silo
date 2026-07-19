@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { Button, Input, ModalActions } from "@silo-code/sdk";
 
 export interface BranchNameDialogProps {
   /** Optional label above the input. */
@@ -44,9 +45,9 @@ export function BranchNameDialog({
       }}
     >
       {label && <label className="silo-modal-label">{label}</label>}
-      <input
+      <Input
         ref={ref}
-        className="silo-modal-input"
+        block
         value={name}
         placeholder={placeholder}
         onChange={(e) => setName(e.target.value)}
@@ -55,18 +56,14 @@ export function BranchNameDialog({
         autoComplete="off"
         spellCheck={false}
       />
-      <div className="silo-modal-actions">
-        <button type="button" className="silo-button" onClick={() => close()}>
+      <ModalActions>
+        <Button type="button" onClick={() => close()}>
           Cancel
-        </button>
-        <button
-          type="submit"
-          className="silo-button-primary"
-          disabled={!trimmed}
-        >
+        </Button>
+        <Button type="submit" variant="primary" disabled={!trimmed}>
           {confirmLabel}
-        </button>
-      </div>
+        </Button>
+      </ModalActions>
     </form>
   );
 }

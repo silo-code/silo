@@ -108,17 +108,3 @@
   line-height: 1.4;
   color: var(--silo-color-text-lo);
 }
-
-/* Trust caveat — quiet, but present. */
-.perm-consent-note {
-  margin: 0;
-  font-size: 1em;
-  line-height: 1.5;
-  color: var(--silo-color-text-lo);
-}
-
-.perm-consent-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}

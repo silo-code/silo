@@ -57,6 +57,15 @@ marked **external** — the host injects its own singletons at load, so the
 extension shares one React and one SDK instance. CSS is loaded as a text string
 and injected at activate time.
 
+**The modal design system (RFC 0016)** is the current instance of this lag:
+`system-monitor`'s Processes modal and `github-actions`'s workflow-run modal
+predate the [Design System](https://getsilo.dev/design/) kit and still hand-roll
+their modal markup. They can't adopt `Button`/`List`/`ModalActions`/etc. until
+they bump to the `@silo-code/sdk` version that publishes those components —
+see the SDK's own CHANGELOG for the version, and
+[Building modals](https://getsilo.dev/guide/building-modals) for the migration
+target.
+
 ## Trust and permissions (the part that bites)
 
 At runtime these are **third-party / untrusted** extensions, _even the ones using

@@ -175,6 +175,21 @@
   --silo-radius-sm: 4px;
   --silo-radius-md: 6px;
 
+  /* ── Design tokens · list row treatment (RFC 0016). The `--silo-list-*`
+   * split mirrors the button-treatment group above: a theme can restyle
+   * list rows (the selection/hover surface `List`/`ListRow` render)
+   * without moving the generic `--silo-color-bg-*` primitives other
+   * surfaces also key off. Defaults derive from the generics, so a theme
+   * that sets nothing here still gets a coherent look; --silo-list-inset
+   * and --silo-list-active-outline exist for a theme wanting a bordered
+   * rather than filled selection state. Pre-whitelisted in the
+   * extension-design-tokens-only stylelint rule ahead of this landing. */
+  --silo-list-radius: var(--silo-radius-sm);
+  --silo-list-inset: 0;
+  --silo-list-hover-bg: var(--silo-color-bg-hover);
+  --silo-list-active-bg: var(--silo-color-bg-active);
+  --silo-list-active-outline: transparent;
+
   /* ── Internal tokens (theming-contract.md › Internal tokens). Host plumbing,
    * never a contract — lint-blocked for extensions. The panel-derived sizes are
    * applied to the panel slot wrapper; extension content inherits them (see the
@@ -413,7 +428,8 @@ button.silo-button-sm {
 
 /* Inner scale wrapper: rebinds the shared size tokens for the modal subtree
    (title, body, extension content) without a circular custom-property ref on
-   `.silo-modal` itself. Bare modals (Settings) skip this and own their size. */
+   `.silo-modal` itself. Bare modals (Settings) skip this wrapper and rebind
+   the same tokens from `--settings-font` on `.settings-rail` / `.settings-pane`. */
 .silo-modal-scale {
   display: flex;
   flex-direction: column;
@@ -471,10 +487,18 @@ button.silo-button-sm {
 
 .silo-modal-title {
   font-weight: 600;
-  font-size: var(--silo-font-size-base);
+  /* base + 2 (RFC 0016) — a real size step above every other modal text
+   * role, not weight alone. Deliberate change: previously raw base, which
+   * on the +1 modal content scale (.silo-modal-scale below) put the title
+   * visually *smaller* than the modal's own body text. */
+  font-size: calc(var(--silo-font-size-base) + 2px);
   color: var(--silo-color-text-hi);
   /* Leave room for the corner close button so a long title never runs under it. */
   padding-right: 24px;
+  /* Light air under the title beyond the modal-scale's 12px gap. Tabs get the
+   * rest as their own margin-top — title→tabs is where the cramped pairing
+   * shows up most. */
+  margin-bottom: 4px;
 }
 
 .silo-modal-body {
@@ -676,8 +700,12 @@ body.panel-resizing .side-resize-handle {
 }
 
 [data-focus-item][data-focus-visible] {
-  outline: 1.5px solid var(--silo-color-accent);
-  outline-offset: -1.5px;
+  /* 1px (RFC 0016, was 1.5px) — app-wide, not modal-scoped: this is the one
+   * ring for every keyboard-navigable surface per the comment above, so the
+   * modal-content review's request applies everywhere it's used, not just
+   * inside modals. */
+  outline: 1px solid var(--silo-color-accent);
+  outline-offset: -1px;
 }
 
 /* Fallback ring for standalone interactive controls that aren't part of a focus
@@ -694,6 +722,10 @@ input:focus-visible:not([data-focus-item]),
 select:focus-visible:not([data-focus-item]),
 textarea:focus-visible:not([data-focus-item]),
 [tabindex]:focus-visible:not([data-focus-item]) {
-  outline: 1.5px solid var(--silo-color-accent);
-  outline-offset: -1.5px;
+  /* 1px (RFC 0016, was 1.5px) — app-wide, not modal-scoped: this is the one
+   * ring for every keyboard-navigable surface per the comment above, so the
+   * modal-content review's request applies everywhere it's used, not just
+   * inside modals. */
+  outline: 1px solid var(--silo-color-accent);
+  outline-offset: -1px;
 }

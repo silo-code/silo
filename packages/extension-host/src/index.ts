@@ -16,6 +16,10 @@
 // layout). Importing the barrel injects it, so the app doesn't need to know the
 // path. Was `apps/desktop/src/main.tsx`'s first import before the cluster move.
 import "./layout/theme.css";
+// The class contract for the @silo-code/sdk modal component kit (RFC 0016).
+// Unused until the SDK components + bundled-modal migrations land (Phases
+// 3-4); importing it now keeps the CSS reviewable as its own change.
+import "./layout/components.css";
 
 // --- App shell + chrome (rendered by App.tsx) -------------------------------
 export { ErrorBoundary } from "./components/ErrorBoundary";

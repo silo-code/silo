@@ -4,6 +4,12 @@ Your extension ships its own CSS. To look native — and to re-theme, recolor, a
 font-scale for free — style against Silo's [design tokens](/api/theming) instead
 of hard-coding values. The rules are short.
 
+::: tip Building modal UI? Start with the Design System
+For modal content there's a full [component kit](/design/) — buttons, inputs,
+lists, tabs, badges — so most modals need little or no custom CSS at all. This
+page covers the CSS you write around and beyond it.
+:::
+
 ## Do: style against design tokens
 
 Use the `--silo-*` [design tokens](/api/theming#the-tokens-you-use) for

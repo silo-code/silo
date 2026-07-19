@@ -1,3 +1,4 @@
+import { Button, ModalActions } from "@silo-code/sdk";
 import type { GitLogEntry } from "../git/git-api";
 
 export interface ForceDeleteDialogProps {
@@ -40,7 +41,7 @@ export function ForceDeleteDialog({
             <strong>{branchName}</strong> {one ? "isn't" : "aren't"} merged into{" "}
             {target} and will be <strong>permanently lost</strong>:
           </p>
-          <ul className="git-force-delete-list">
+          <ul className="git-force-delete-list silo-scroll">
             {commits.map((c) => (
               <li key={c.hash} className="git-force-delete-commit">
                 <code className="git-force-delete-hash">{c.shortHash}</code>
@@ -52,22 +53,14 @@ export function ForceDeleteDialog({
           </ul>
         </>
       )}
-      <div className="silo-modal-actions">
-        <button
-          type="button"
-          className="silo-button"
-          onClick={() => close(false)}
-        >
+      <ModalActions>
+        <Button type="button" onClick={() => close(false)}>
           Cancel
-        </button>
-        <button
-          type="button"
-          className="silo-button-danger"
-          onClick={() => close(true)}
-        >
+        </Button>
+        <Button type="button" variant="danger" onClick={() => close(true)}>
           Force delete
-        </button>
-      </div>
+        </Button>
+      </ModalActions>
     </div>
   );
 }

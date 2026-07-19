@@ -37,6 +37,17 @@ doesn't repeat the reasoning, just the list.
       native outline on a base element, `outline: none` is enough — the
       shared rule still wins on focus.
 
+## Modal UI
+
+- [ ] Modal content, settings pages, and workspace property tabs are built
+      from the [Design System](/design/) component kit (`Button`, `Input`,
+      `List`/`ListRow`, `Section`, `ModalActions`, …) — not bespoke markup.
+      See [Building modals](/guide/building-modals).
+- [ ] No custom modal title, close button, or footer — `showModal`'s `title`
+      option, the host's ✕/Escape, and `ModalActions` own those.
+- [ ] Settings pages and property tabs have **no footer** — every control
+      persists the moment it changes.
+
 ## Lifecycle
 
 - [ ] Everything registered in `activate(ctx)` comes back as a

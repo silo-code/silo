@@ -1,0 +1,20 @@
+import { describe, it, expect } from "vitest";
+import { badgeClass } from "./badge-classes";
+
+describe("badgeClass", () => {
+  it("defaults to neutral", () => {
+    expect(badgeClass()).toBe("silo-badge silo-badge-neutral");
+  });
+
+  it("maps every tone to silo-badge-{tone}", () => {
+    expect(badgeClass("accent")).toBe("silo-badge silo-badge-accent");
+    expect(badgeClass("ok")).toBe("silo-badge silo-badge-ok");
+    expect(badgeClass("warn")).toBe("silo-badge silo-badge-warn");
+    expect(badgeClass("err")).toBe("silo-badge silo-badge-err");
+    expect(badgeClass("outline")).toBe("silo-badge silo-badge-outline");
+  });
+
+  it("uses silo-badge-custom when color is set (overrides tone)", () => {
+    expect(badgeClass("ok", "#e06c75")).toBe("silo-badge silo-badge-custom");
+  });
+});

@@ -1,6 +1,15 @@
 import { useState, type ReactNode } from "react";
 import { useSnapshot } from "valtio";
 import {
+  EmptyState,
+  Input,
+  SearchInput,
+  Section,
+  Select,
+  SettingRow,
+  Switch,
+} from "@silo-code/sdk";
+import {
   store,
   setEditorSetting,
   type EditorSettings,
@@ -19,28 +28,6 @@ interface RowDef {
 interface SectionDef {
   title: string;
   rows: RowDef[];
-}
-
-function Toggle({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="es-switch">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        aria-label={label}
-      />
-      <span className="es-switch-track" />
-    </label>
-  );
 }
 
 // A module of the core.editor extension (registered from its activate as the
@@ -64,10 +51,10 @@ export function EditorSettingsPage() {
           label: "Format on save",
           hint: "Run Format Document before writing to disk. No-ops for file types without a formatter (e.g. Markdown, Python).",
           control: (
-            <Toggle
-              label="Format on save"
+            <Switch
               checked={s.formatOnSave}
               onChange={toggle("formatOnSave")}
+              aria-label="Format on save"
             />
           ),
         },
@@ -75,10 +62,10 @@ export function EditorSettingsPage() {
           label: "Format on type",
           hint: "Reformat the current line as you type.",
           control: (
-            <Toggle
-              label="Format on type"
+            <Switch
               checked={s.formatOnType}
               onChange={toggle("formatOnType")}
+              aria-label="Format on type"
             />
           ),
         },
@@ -86,10 +73,10 @@ export function EditorSettingsPage() {
           label: "Format on paste",
           hint: "Reformat pasted text.",
           control: (
-            <Toggle
-              label="Format on paste"
+            <Switch
               checked={s.formatOnPaste}
               onChange={toggle("formatOnPaste")}
+              aria-label="Format on paste"
             />
           ),
         },
@@ -102,8 +89,7 @@ export function EditorSettingsPage() {
           label: "Tab size",
           hint: "Spaces per indentation level.",
           control: (
-            <input
-              className="es-number"
+            <Input
               type="number"
               min={1}
               max={8}
@@ -121,10 +107,10 @@ export function EditorSettingsPage() {
           label: "Insert spaces",
           hint: "Indent with spaces instead of tab characters.",
           control: (
-            <Toggle
-              label="Insert spaces"
+            <Switch
               checked={s.insertSpaces}
               onChange={toggle("insertSpaces")}
+              aria-label="Insert spaces"
             />
           ),
         },
@@ -137,10 +123,10 @@ export function EditorSettingsPage() {
           label: "Word wrap",
           hint: "Soft-wrap long lines at the viewport edge.",
           control: (
-            <Toggle
-              label="Word wrap"
+            <Switch
               checked={s.wordWrap}
               onChange={toggle("wordWrap")}
+              aria-label="Word wrap"
             />
           ),
         },
@@ -148,10 +134,10 @@ export function EditorSettingsPage() {
           label: "Minimap",
           hint: "Show the code overview on the right edge.",
           control: (
-            <Toggle
-              label="Minimap"
+            <Switch
               checked={s.minimap}
               onChange={toggle("minimap")}
+              aria-label="Minimap"
             />
           ),
         },
@@ -159,18 +145,17 @@ export function EditorSettingsPage() {
           label: "Breadcrumbs",
           hint: "Show the file path bar at the top of the editor.",
           control: (
-            <Toggle
-              label="Breadcrumbs"
+            <Switch
               checked={s.breadcrumbs}
               onChange={toggle("breadcrumbs")}
+              aria-label="Breadcrumbs"
             />
           ),
         },
         {
           label: "Render whitespace",
           control: (
-            <select
-              className="es-select"
+            <Select
               value={s.renderWhitespace}
               onChange={(e) =>
                 setEditorSetting(
@@ -184,14 +169,13 @@ export function EditorSettingsPage() {
               <option value="selection">Selection</option>
               <option value="trailing">Trailing</option>
               <option value="all">All</option>
-            </select>
+            </Select>
           ),
         },
         {
           label: "Line highlight",
           control: (
-            <select
-              className="es-select"
+            <Select
               value={s.renderLineHighlight}
               onChange={(e) =>
                 setEditorSetting(
@@ -204,17 +188,17 @@ export function EditorSettingsPage() {
               <option value="gutter">Gutter</option>
               <option value="line">Line</option>
               <option value="all">All</option>
-            </select>
+            </Select>
           ),
         },
         {
           label: "Smooth scrolling",
           hint: "Animate scroll position changes.",
           control: (
-            <Toggle
-              label="Smooth scrolling"
+            <Switch
               checked={s.smoothScrolling}
               onChange={toggle("smoothScrolling")}
+              aria-label="Smooth scrolling"
             />
           ),
         },
@@ -229,33 +213,24 @@ export function EditorSettingsPage() {
       <div className="es-header">
         <h2>Editor</h2>
       </div>
-      <input
-        className="es-search"
-        type="text"
-        placeholder="Search settings…"
+      <SearchInput
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onValueChange={setQuery}
+        placeholder="Search settings…"
         autoFocus
       />
-      <div className="es-scroll">
+      <div className="es-scroll silo-scroll">
         {visible.map((sec) => (
-          <section key={sec.title} className="es-section">
-            <h3 className="es-section-title">{sec.title}</h3>
-            <div className="es-rows">
-              {sec.rows.map((row) => (
-                <div key={row.label} className="es-row">
-                  <div className="es-row-text">
-                    <span className="es-label">{row.label}</span>
-                    {row.hint && <span className="es-hint">{row.hint}</span>}
-                  </div>
-                  <div className="es-control">{row.control}</div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <Section key={sec.title} label={sec.title}>
+            {sec.rows.map((row) => (
+              <SettingRow key={row.label} label={row.label} hint={row.hint}>
+                {row.control}
+              </SettingRow>
+            ))}
+          </Section>
         ))}
         {visible.length === 0 && (
-          <div className="es-empty">No settings match “{query}”.</div>
+          <EmptyState title={`No settings match “${query}”.`} />
         )}
       </div>
     </div>
