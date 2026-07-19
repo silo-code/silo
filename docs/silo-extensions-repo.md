@@ -57,14 +57,19 @@ marked **external** — the host injects its own singletons at load, so the
 extension shares one React and one SDK instance. CSS is loaded as a text string
 and injected at activate time.
 
-**The modal design system (RFC 0016)** is the current instance of this lag:
-`system-monitor`'s Processes modal and `github-actions`'s workflow-run modal
-predate the [Design System](https://getsilo.dev/design/) kit and still hand-roll
-their modal markup. They can't adopt `Button`/`List`/`ModalActions`/etc. until
-they bump to the `@silo-code/sdk` version that publishes those components —
-see the SDK's own CHANGELOG for the version, and
-[Building modals](https://getsilo.dev/guide/building-modals) for the migration
-target.
+**The modal design system (RFC 0016)** was the previous instance of this lag,
+now on `@silo-code/sdk@0.29.0`: both extensions bumped their dependency, and
+`github-actions` adopted `EmptyState` for its "no repo" / "all workflows
+passing" screens. Most of both extensions' modal markup — `system-monitor`'s
+Processes modal (a custom heat-mapped tree table with mini bar charts) and
+the rest of `github-actions`'s workflow-run modal (run cards, section
+headers, footer toggles) — is either intentionally bespoke (data
+tables/charts are [out of the kit's scope](https://getsilo.dev/design/))
+or simply hasn't been migrated yet. Adopting more of `Button`/`List`/
+`ModalActions`/etc. there is a UI change that wants the repo owner's design
+review, not something to do unattended — see
+[Building modals](https://getsilo.dev/guide/building-modals) for the
+migration target when that review happens.
 
 ## Trust and permissions (the part that bites)
 
