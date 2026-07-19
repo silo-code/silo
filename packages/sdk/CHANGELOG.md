@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.29.0](https://github.com/silo-code/silo/compare/sdk-v0.28.1...sdk-v0.29.0) (2026-07-19)
+
+
+### Features
+
+* **sdk:** modal design system — component kit, host tokens, and migrations (RFC 0016) ([#265](https://github.com/silo-code/silo/issues/265)) ([30c48f7](https://github.com/silo-code/silo/commit/30c48f7a6b0564185e68afe0a169233cb66cc6f6))
+
 ## [0.28.1](https://github.com/silo-code/silo/compare/sdk-v0.28.0...sdk-v0.28.1) (2026-07-18)
 
 
