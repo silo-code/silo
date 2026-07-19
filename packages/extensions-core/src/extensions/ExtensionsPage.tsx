@@ -389,7 +389,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
             ) : catalog.length === 0 ? (
               <EmptyState title="No extensions match." />
             ) : (
-              <div className="ext-list">
+              <div className="ext-list silo-scroll">
                 {catalog.map((entry) => {
                   const state = browseInstallState(entry, extensions, updates);
                   const installedExt = extensions.find(
@@ -440,7 +440,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                               </Badge>
                             )}
                             {state === "installed" && (
-                              <Badge tone="outline">Installed</Badge>
+                              <Badge tone="ok">Installed</Badge>
                             )}
                             {state === "update-available" && (
                               <Badge tone="warn">Update available</Badge>
@@ -553,7 +553,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
             ) : visible.length === 0 ? (
               <EmptyState title={`No extensions match “${query}”.`} />
             ) : (
-              <div className="ext-list">
+              <div className="ext-list silo-scroll">
                 {visible.map((ext) => {
                   const upd = updates.find((u) => u.id === ext.id);
                   // Folder/URL/npm origin, noted compactly; the full path lives

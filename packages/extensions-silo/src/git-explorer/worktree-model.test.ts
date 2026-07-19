@@ -4,6 +4,8 @@ import {
   normalizeFolderPath,
   samePath,
   buildWorktreeRows,
+  isOnlyMainWorktree,
+  orphanOpenFolders,
   worktreeActions,
   sanitizeBranchForPath,
   suggestWorktreePath,
@@ -88,6 +90,65 @@ describe("buildWorktreeRows", () => {
       "/w/repo",
     ]);
     expect(rows.map((r) => r.wt.path)).toEqual(["/w/repo", "/w/gone"]);
+  });
+});
+
+describe("isOnlyMainWorktree", () => {
+  const main = wt({ path: "/w/repo", isMain: true, branch: "main" });
+  const feat = wt({ path: "/w/repo-feat", branch: "feat" });
+
+  it("is true for a lone main worktree", () => {
+    const rows = buildWorktreeRows([main], "/w/repo", "/w/repo", ["/w/repo"]);
+    expect(isOnlyMainWorktree(rows)).toBe(true);
+  });
+
+  it("is false when linked worktrees exist or the list is empty", () => {
+    expect(
+      isOnlyMainWorktree(
+        buildWorktreeRows([main, feat], "/w/repo", "/w/repo", ["/w/repo"]),
+      ),
+    ).toBe(false);
+    expect(isOnlyMainWorktree([])).toBe(false);
+  });
+});
+
+describe("orphanOpenFolders", () => {
+  const main = wt({ path: "/w/repo", isMain: true, branch: "main" });
+  const feat = wt({ path: "/w/repo-feat", branch: "feat" });
+
+  it("surfaces open folders that git no longer lists", () => {
+    const rows = buildWorktreeRows([main], "/w/repo", "/w/repo", [
+      "/w/repo",
+      "/w/gone",
+    ]);
+    const orphans = orphanOpenFolders(
+      rows,
+      ["/w/repo", "/w/gone"],
+      "/w/repo",
+      "/w/repo",
+    );
+    expect(orphans).toHaveLength(1);
+    expect(orphans[0]).toMatchObject({
+      wt: { path: "/w/gone" },
+      isOpen: true,
+      isOrphan: true,
+    });
+    expect(worktreeActions(orphans[0]!)).toEqual(["close"]);
+  });
+
+  it("skips folders already represented in the worktree list", () => {
+    const rows = buildWorktreeRows([main, feat], "/w/repo", "/w/repo", [
+      "/w/repo",
+      "/w/repo-feat",
+    ]);
+    expect(
+      orphanOpenFolders(
+        rows,
+        ["/w/repo", "/w/repo-feat"],
+        "/w/repo",
+        "/w/repo",
+      ),
+    ).toEqual([]);
   });
 });
 

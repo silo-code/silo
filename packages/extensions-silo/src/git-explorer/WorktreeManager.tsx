@@ -12,6 +12,7 @@ import {
   FolderSimple,
   Plus,
   Trash,
+  X,
 } from "@phosphor-icons/react";
 import {
   Badge,
@@ -39,6 +40,8 @@ import {
 import {
   branchesInUse,
   buildWorktreeRows,
+  isOnlyMainWorktree,
+  orphanOpenFolders,
   worktreeActions,
   type WorktreeRow,
 } from "./worktree-model";
@@ -125,7 +128,14 @@ export function WorktreeManager({
     () => buildWorktreeRows(worktrees ?? [], folder, wsFolder, allFolders),
     [worktrees, folder, wsFolder, allFolders],
   );
-  const anyPrunable = rows.some((r) => r.wt.prunable != null);
+  // Folders still open in the workspace but gone from git's worktree list
+  // (deleted/pruned on disk) — otherwise they'd be invisible in this modal
+  // while still spawning Git panel sections and status errors.
+  const displayRows = useMemo(
+    () => [...rows, ...orphanOpenFolders(rows, allFolders, wsFolder, folder)],
+    [rows, allFolders, wsFolder, folder],
+  );
+  const anyPrunable = displayRows.some((r) => r.wt.prunable != null);
 
   // The live provider, or a notify + null so handlers can bail gracefully.
   function api() {
@@ -249,6 +259,14 @@ export function WorktreeManager({
       badges.push({ label: "Removing…" });
       return badges;
     }
+    if (row.isOrphan) {
+      badges.push({
+        label: "missing on disk",
+        tooltip: "This folder is open in the workspace but no longer on disk.",
+        warn: true,
+      });
+      return badges;
+    }
     if (row.wt.isMain) badges.push({ label: "main" });
     if (row.isCurrent) badges.push({ label: "this view" });
     else if (row.isOpen) badges.push({ label: "open" });
@@ -296,6 +314,22 @@ export function WorktreeManager({
         </Tooltip>,
       );
     }
+    if (acts.includes("close") && row.isOrphan) {
+      parts.push(
+        <Tooltip
+          key="close"
+          content="Close this view (folder is missing on disk)"
+        >
+          <IconButton
+            size="sm"
+            aria-label={`Close view ${path.basename(row.wt.path)}`}
+            onClick={() => closeView(row)}
+          >
+            <X size={14} />
+          </IconButton>
+        </Tooltip>,
+      );
+    }
     if (acts.includes("remove")) {
       parts.push(
         <Tooltip key="remove" content="Remove worktree">
@@ -315,12 +349,10 @@ export function WorktreeManager({
 
   return (
     <div className="git-branch-modal">
-      <Callout>
-        Opening a worktree adds it as another folder in this workspace — its
-        files, terminals, and Git panel appear alongside your current ones.
-        Closing a view leaves the worktree untouched on disk. Click a row to
-        open or close its view.
-      </Callout>
+      <p className="git-wt-lead">
+        Click a worktree to open it alongside your current folders; click an
+        open one again to close its view.
+      </p>
 
       <div className="git-branch-list-scroll silo-scroll">
         {worktrees === null ? (
@@ -328,41 +360,61 @@ export function WorktreeManager({
             icon={<ArrowsClockwise size={22} className="git-branch-spin" />}
             title="Loading worktrees…"
           />
-        ) : rows.length === 0 ? (
+        ) : displayRows.length === 0 ? (
           <EmptyState title="No worktrees." />
         ) : (
-          <List aria-label="Worktrees">
-            {rows.map((row) => {
-              const pending = isWorktreeRemovePending(row.wt.path);
-              const dir = path.basename(row.wt.path);
-              const branch = row.wt.branch ?? "(detached)";
-              return (
-                <ListRow
-                  key={row.wt.path}
-                  selected={row.isOpen && !pending}
-                  leading={
-                    pending ? (
-                      <ArrowsClockwise size={15} className="git-branch-spin" />
-                    ) : (
-                      <FolderSimple size={15} />
-                    )
-                  }
-                  trailing={rowTrailing(row)}
-                  onSelect={() => toggleView(row)}
-                >
-                  {dir} · {branch}
-                </ListRow>
-              );
-            })}
-          </List>
+          <>
+            <List aria-label="Worktrees">
+              {displayRows.map((row) => {
+                const pending = isWorktreeRemovePending(row.wt.path);
+                const dir = path.basename(row.wt.path);
+                // Orphans keep status in the trailing badge — don't duplicate
+                // "missing on disk" in the name line where it truncates away.
+                const label = row.isOrphan
+                  ? dir
+                  : `${dir} · ${row.wt.branch ?? "(detached)"}`;
+                return (
+                  <ListRow
+                    key={row.wt.path}
+                    selected={row.isOpen && !row.isOrphan && !pending}
+                    leading={
+                      pending ? (
+                        <ArrowsClockwise
+                          size={15}
+                          className="git-branch-spin"
+                        />
+                      ) : (
+                        <FolderSimple size={15} />
+                      )
+                    }
+                    trailing={rowTrailing(row)}
+                    onSelect={() => toggleView(row)}
+                  >
+                    {label}
+                  </ListRow>
+                );
+              })}
+            </List>
+            {isOnlyMainWorktree(displayRows) && (
+              <p className="git-wt-empty-hint">
+                No linked worktrees for this repo yet.
+              </p>
+            )}
+          </>
         )}
       </div>
+
+      <Callout>
+        Opening a worktree adds it as another folder in this workspace — its
+        files, terminals, and Git panel appear alongside your current ones,
+        letting you work a second branch without switching. Closing a view
+        leaves the worktree and its branch untouched on disk.
+      </Callout>
 
       <ModalActions
         start={
           <Button
             variant="primary"
-            size="sm"
             onClick={() => void create()}
             disabled={busy}
           >

@@ -701,6 +701,10 @@
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--silo-color-text) 28%, transparent)
     transparent;
+  /* Overlay scrollbars (macOS) sit on top of the content box; keep trailing
+     controls (Switch, Select, IconButton) clear of the 8px thumb. */
+  padding-inline-end: 10px;
+  box-sizing: border-box;
 }
 
 .silo-scroll::-webkit-scrollbar {

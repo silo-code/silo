@@ -135,4 +135,17 @@ describe("partitionWorkspaceFolders", () => {
       worktrees: [],
     });
   });
+
+  it("routes missing-on-disk extras into worktrees", () => {
+    expect(
+      partitionWorkspaceFolders(
+        "/repo",
+        ["/docs", "/repo-gone"],
+        new Set(["/repo-gone"]),
+      ),
+    ).toEqual({
+      folders: ["/repo", "/docs"],
+      worktrees: ["/repo-gone"],
+    });
+  });
 });

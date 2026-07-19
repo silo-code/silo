@@ -394,7 +394,6 @@ export function BranchManager({
         start={
           <Button
             variant="primary"
-            size="sm"
             onClick={() => void create()}
             disabled={busy}
           >

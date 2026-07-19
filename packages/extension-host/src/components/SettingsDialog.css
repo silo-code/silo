@@ -14,9 +14,10 @@
   border-radius: var(--silo-modal-radius);
   box-shadow: var(--silo-modal-shadow);
   overflow: hidden;
-  /* The modal's reading size, tunable in one place. Children inherit it, and
-     pages (incl. contributed ones) can derive from --settings-font so secondary
-     text scales with it. */
+  /* Intermediate reading size (+1 over the inherited app base). Kept as a
+     separate custom property so children can rebind --silo-font-size-* from
+     it without a circular custom-property cycle on this same element — the
+     same parent/child split as `.silo-modal` / `.silo-modal-scale`. */
   --settings-font: calc(var(--silo-font-size-base) + 1px);
   font-size: var(--settings-font);
   /* Shared min-height for a settings page's title row. Sized to a header that
@@ -30,6 +31,18 @@
   --settings-pane-pad: 24px;
 }
 
+/* Settings is a `bare` modal, so it never mounts `.silo-modal-scale`. Rebind
+   the shared size tokens here so SDK primitives (SettingRow, Section, Select,
+   …) pick up the same modal +1 scale as every other dialog. Defined on the
+   rail/pane children so `--settings-font` still resolves against the
+   inherited app base. */
+.settings-rail,
+.settings-pane {
+  --silo-font-size-base: var(--settings-font);
+  --silo-font-size-sm: calc(var(--settings-font) - 1px);
+  --silo-font-size-chrome: calc(var(--settings-font) - 2px);
+}
+
 .settings-rail {
   flex: 0 0 200px;
   display: flex;
@@ -41,6 +54,8 @@
      rest of the card; the rail-item hover/active states still use the generics. */
   background: var(--silo-modal-bg);
   border-right: 1px solid var(--silo-color-border);
+  /* Page lists own scrolling via .silo-scroll; the rail only scrolls when the
+     settings catalog itself overflows. */
   overflow-y: auto;
 }
 
@@ -50,6 +65,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 4px 8px 8px;
+  margin-top: 16px;
 }
 
 .settings-rail-item {
@@ -78,6 +94,7 @@
 .settings-rail-item.active {
   background: var(--silo-color-bg-active);
   color: var(--silo-color-text-hi);
+  font-weight: 600;
 }
 .settings-rail-item.group-start {
   margin-top: 9px;
@@ -103,7 +120,10 @@
 
 .settings-pane {
   flex: 1 1 auto;
-  overflow: auto;
+  /* Pages own their scroll regions via `.silo-scroll`; keep the pane from
+     growing a second (app-default) scrollbar that would sit in the close-button
+     gutter and clip trailing controls. */
+  overflow: hidden;
   /* Extra right padding reserves the top-right gutter for the close button so
      page content (e.g. a header action) never sits under it — sized to clear the
      close button (right: 12px + 26px wide) with breathing room. */

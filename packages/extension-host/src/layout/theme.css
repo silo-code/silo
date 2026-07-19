@@ -428,7 +428,8 @@ button.silo-button-sm {
 
 /* Inner scale wrapper: rebinds the shared size tokens for the modal subtree
    (title, body, extension content) without a circular custom-property ref on
-   `.silo-modal` itself. Bare modals (Settings) skip this and own their size. */
+   `.silo-modal` itself. Bare modals (Settings) skip this wrapper and rebind
+   the same tokens from `--settings-font` on `.settings-rail` / `.settings-pane`. */
 .silo-modal-scale {
   display: flex;
   flex-direction: column;

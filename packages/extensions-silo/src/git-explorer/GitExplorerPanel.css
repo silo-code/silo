@@ -654,6 +654,14 @@
   font-family: var(--silo-font-ui);
 }
 
+/* Short how-to line above the worktree list (not a Callout — body copy). */
+.git-wt-lead {
+  margin: 0;
+  color: var(--silo-color-text);
+  font-size: var(--silo-font-size-sm);
+  line-height: 1.45;
+}
+
 /* Fixed height so the modal doesn't resize as branches/worktrees load or
  * filter. Scrollbar treatment is `.silo-scroll` on the same element. */
 .git-branch-list-scroll {
@@ -661,6 +669,15 @@
   overflow-y: auto;
   border: 1px solid var(--silo-color-border);
   border-radius: var(--silo-radius-sm);
+}
+
+/* Quiet “none yet” line under the lone main worktree — sits in normal flow
+   below the list so the selected row can’t paint over it. */
+.git-wt-empty-hint {
+  margin: 20px 10px 12px;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  line-height: 1.4;
 }
 
 .git-branch-spin {

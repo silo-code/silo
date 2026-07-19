@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AddRow,
   Badge,
@@ -152,12 +152,15 @@ export function WorkspacePropertiesModal({
  * Classify which of `extras` are linked git worktrees by stating each
  * folder's `.git` entry. Linked worktrees use a `.git` file; ordinary
  * folders / the main worktree use a directory (or have no `.git`).
+ * Also records extras whose directory is gone from disk — those still need
+ * a Close affordance under Worktrees (they won't show up in `git worktree`).
  */
-function useLinkedWorktreeExtras(
+function useWorktreeExtras(
   extras: readonly string[],
   files: FileService,
-): ReadonlySet<string> {
+): { linked: ReadonlySet<string>; missing: ReadonlySet<string> } {
   const [linked, setLinked] = useState<ReadonlySet<string>>(() => new Set());
+  const [missing, setMissing] = useState<ReadonlySet<string>>(() => new Set());
   // Stable key so reordering-identical lists don't re-stat.
   const extrasKey = extras.join("\0");
 
@@ -165,28 +168,37 @@ function useLinkedWorktreeExtras(
     let cancelled = false;
     if (extras.length === 0) {
       setLinked(new Set());
+      setMissing(new Set());
       return;
     }
     void (async () => {
-      const next = new Set<string>();
+      const nextLinked = new Set<string>();
+      const nextMissing = new Set<string>();
       await Promise.all(
         extras.map(async (folder) => {
           try {
+            if (!(await files.pathExists(folder))) {
+              nextMissing.add(folder);
+              return;
+            }
             const meta = await files.stat(path.join(folder, ".git"));
-            if (isLinkedWorktreeGitEntry(meta)) next.add(folder);
+            if (isLinkedWorktreeGitEntry(meta)) nextLinked.add(folder);
           } catch {
             // Permission / I/O errors — treat as ordinary folder.
           }
         }),
       );
-      if (!cancelled) setLinked(next);
+      if (!cancelled) {
+        setLinked(nextLinked);
+        setMissing(nextMissing);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [extrasKey, extras, files]);
 
-  return linked;
+  return { linked, missing };
 }
 
 function GeneralTab({
@@ -198,11 +210,18 @@ function GeneralTab({
   onManageWorktrees,
 }: GeneralTabProps) {
   const extraFolders = ws.extraFolders ?? [];
-  const linkedWorktrees = useLinkedWorktreeExtras(extraFolders, files);
+  const { linked, missing } = useWorktreeExtras(extraFolders, files);
+  // Missing-on-disk extras belong under Worktrees (Close view) — they were
+  // opened via the worktree manager and Folders would hide them among roots.
+  const worktreeExtras = useMemo(() => {
+    const set = new Set(linked);
+    for (const f of missing) set.add(f);
+    return set;
+  }, [linked, missing]);
   const { folders, worktrees } = partitionWorkspaceFolders(
     ws.folder,
     extraFolders,
-    linkedWorktrees,
+    worktreeExtras,
   );
 
   async function addFolder() {
@@ -260,25 +279,42 @@ function GeneralTab({
       <Section label="Worktrees" accessory={<Badge>{worktrees.length}</Badge>}>
         {worktrees.length > 0 && (
           <List aria-label="Workspace worktrees">
-            {worktrees.map((folder) => (
-              <ListRow
-                key={folder}
-                truncate="start"
-                trailing={
-                  <Tooltip content="Close worktree view">
-                    <IconButton
-                      size="sm"
-                      aria-label="Close worktree view"
-                      onClick={() => removeFolder(folder)}
-                    >
-                      <RemoveIcon />
-                    </IconButton>
-                  </Tooltip>
-                }
-              >
-                {fullPath(folder, home)}
-              </ListRow>
-            ))}
+            {worktrees.map((folder) => {
+              const isMissing = missing.has(folder);
+              return (
+                <ListRow
+                  key={folder}
+                  truncate="start"
+                  selected={false}
+                  trailing={
+                    <>
+                      {isMissing && (
+                        <Tooltip content="This folder is open in the workspace but no longer on disk.">
+                          <Badge tone="warn">missing on disk</Badge>
+                        </Tooltip>
+                      )}
+                      <Tooltip
+                        content={
+                          isMissing
+                            ? "Close this view (folder is missing on disk)"
+                            : "Close worktree view"
+                        }
+                      >
+                        <IconButton
+                          size="sm"
+                          aria-label="Close worktree view"
+                          onClick={() => removeFolder(folder)}
+                        >
+                          <RemoveIcon />
+                        </IconButton>
+                      </Tooltip>
+                    </>
+                  }
+                >
+                  {fullPath(folder, home)}
+                </ListRow>
+              );
+            })}
           </List>
         )}
         <AddRow onClick={onManageWorktrees}>Manage Worktrees…</AddRow>

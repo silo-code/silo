@@ -40,7 +40,7 @@ export function SettingsDialog() {
   return (
     <Modal bare dismissible ariaLabel="Settings" onClose={closeSettings}>
       <div className="settings-dialog">
-        <nav className="settings-rail">
+        <nav className="settings-rail silo-scroll">
           <div className="settings-rail-title">Settings</div>
           {pages.map((p) => {
             const newGroup = p.group !== lastGroup;

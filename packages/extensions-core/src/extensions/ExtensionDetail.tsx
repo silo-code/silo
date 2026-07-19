@@ -195,7 +195,7 @@ export function ExtensionDetail({
           );
         })()}
 
-      <div className="ext-detail-readme">
+      <div className="ext-detail-readme silo-scroll">
         {readme === undefined ? (
           <span className="ext-hint">Loading README…</span>
         ) : readme === null ? (
