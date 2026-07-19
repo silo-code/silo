@@ -229,6 +229,13 @@ Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`,
 Single-context, mapped to this repo's existing `docs/decisions/` (ADRs) and
 `docs/proposals/` (RFCs). See `docs/agents/domain.md`.
 
+### Modal & extension UI design
+
+Decision table for building modal content, settings pages, or workspace
+property tabs with the [Design System](https://getsilo.dev/design/) kit —
+which surface, which component, and the forbidden list. See
+`docs/agents/modal-design.md`.
+
 **Path mismatch note**: the installed `domain-modeling`, `improve-codebase-architecture`,
 and `grill-with-docs` skills (from mattpocock/skills) hardcode `CONTEXT.md` and
 `docs/adr/` in their own instructions — they don't read `docs/agents/domain.md`.
