@@ -91,6 +91,22 @@ function NewGroupModal({ close }: { close: (name?: string) => void }) {
 }
 ```
 
+That renders as:
+
+<div class="silo-demo">
+  <div class="silo-demo-modal" style="max-width:420px;">
+    <div class="modal-title">New Group</div>
+    <div class="silo-section" style="margin-bottom:4px;">
+      <div class="silo-section-header"><span class="silo-section-label">Name</span></div>
+      <input class="silo-input silo-input-block" value="Frontend" readonly>
+    </div>
+    <div class="silo-modal-actions">
+      <button class="silo-button">Cancel</button>
+      <button class="silo-button-primary">Create</button>
+    </div>
+  </div>
+</div>
+
 Rules embodied above: primary action rightmost and disabled until valid;
 `Section` labels the field group; no hand-rolled footer.
 
@@ -152,6 +168,32 @@ function BranchPicker({ close }: { close: (branch?: string) => void }) {
 }
 ```
 
+That renders as:
+
+<div class="silo-demo silo-demo-block">
+  <div class="silo-demo-modal" style="max-width:460px;">
+    <div class="modal-title">Switch branches</div>
+    <div class="silo-search-input" style="margin-bottom:10px;">
+      <svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <input placeholder="Filter branches…" readonly>
+    </div>
+    <div class="silo-scroll" style="max-height:160px;">
+      <div class="silo-list">
+        <div class="silo-list-row" data-selected="true">
+          <span class="name">main</span>
+          <span class="silo-badge silo-badge-accent">current</span>
+        </div>
+        <div class="silo-list-row"><span class="name">feature/theme-picker</span></div>
+        <div class="silo-list-row"><span class="name">fix/list-truncation</span></div>
+      </div>
+    </div>
+    <div class="silo-modal-actions">
+      <div class="silo-modal-actions-start"><button class="silo-button silo-button-sm">+ Create branch</button></div>
+      <button class="silo-button">Fetch</button>
+    </div>
+  </div>
+</div>
+
 What you got for free: keyboard navigation (Tab to the list, ↑/↓, Space),
 full-width rows that truncate instead of overflowing, themed scrollbar, and a
 footer that matches every other modal.
@@ -179,6 +221,32 @@ ctx.registerSettingsPage({
   },
 });
 ```
+
+That renders as:
+
+<div class="silo-demo silo-demo-block">
+  <div class="sd-frame">
+    <div class="sd-rail">
+      <div class="sd-rail-label">Settings</div>
+      <div class="sd-rail-item">Editor</div>
+      <div class="sd-rail-item">Terminal</div>
+      <div class="sd-rail-item" data-active="true">My Extension</div>
+    </div>
+    <div class="sd-pane">
+      <div class="modal-title">My Extension</div>
+      <div class="silo-section">
+        <div class="silo-section-header"><span class="silo-section-label">Behavior</span></div>
+        <div class="silo-setting-row" style="padding-top:0;">
+          <div class="text">
+            <div class="row-label">Auto-refresh</div>
+            <div class="row-hint">Poll the API in the background.</div>
+          </div>
+          <div class="control"><button class="silo-switch-track" data-checked="true" aria-label="Auto-refresh"></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 You never build the left rail — it's host chrome. See
 [Settings pages](/design/surfaces#settings-pages) for the full rules.
@@ -212,6 +280,27 @@ ctx.workspaces.registerPropertyPage({
   },
 });
 ```
+
+That renders as:
+
+<div class="silo-demo">
+  <div class="silo-demo-modal" style="max-width:460px;">
+    <div class="modal-title">Workspace Properties</div>
+    <div class="silo-tabs">
+      <button class="silo-tab">General</button>
+      <button class="silo-tab" data-active="true">GitHub Actions</button>
+    </div>
+    <div class="silo-tab-panel">
+      <div class="silo-setting-row" style="padding-top:0;">
+        <div class="text">
+          <div class="row-label">Monitor this workspace</div>
+          <div class="row-hint">Watch workflow runs for repos in this workspace.</div>
+        </div>
+        <div class="control"><button class="silo-switch-track" data-checked="true" aria-label="Monitor this workspace"></button></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 Keep the tab about _this workspace_ — global settings belong on your settings
 page. See [Workspace property tabs](/design/surfaces#workspace-property-tabs).
