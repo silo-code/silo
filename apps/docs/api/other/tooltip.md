@@ -87,5 +87,5 @@ host loads the CSS.
 - [`useFocusGroup`](/api/other/use-focus-group) — keyboard navigation for panel lists and toolbars.
 - [`ctx.ui.showMenu`](/api/ui/) — for richer action surfaces (labelled rows, icons, submenus).
 - [Design tokens](/api/theming) — the full `--silo-*` token reference.
-- [Design System](/design/#tooltip) — pairing `Tooltip` with `IconButton` and
-  truncated `ListRow` text inside modal content.
+- [Design System](/design/components/feedback#tooltip) — pairing `Tooltip`
+  with `IconButton` and truncated `ListRow` text inside modal content.

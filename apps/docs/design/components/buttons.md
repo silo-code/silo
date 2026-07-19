@@ -94,6 +94,6 @@ side — don't wrap them in extra layout.
 
 ::: tip Pair it with a Tooltip
 `aria-label` gives screen readers the name; sighted users get nothing from it.
-Wrap the button in [`Tooltip`](/design/#tooltip) so everyone gets the label:
+Wrap the button in [`Tooltip`](/design/components/feedback#tooltip) so everyone gets the label:
 `<Tooltip content="Refresh"><IconButton aria-label="Refresh">…</IconButton></Tooltip>`.
 :::

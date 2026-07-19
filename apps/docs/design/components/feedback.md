@@ -85,3 +85,34 @@ you're building the wrong thing.
 | ------ | ----------------------------------- |
 | Border | `--silo-color-border-strong`        |
 | Text   | `--silo-color-text` (sm, body role) |
+
+## Tooltip
+
+A hover/focus label for anything whose meaning isn't already on the page —
+most often an `IconButton`, whose `aria-label` gives screen readers a name but
+leaves sighted users with nothing. It's the one component here that isn't
+modal-scoped: `Tooltip` is app-wide (status bar, panels, toolbars, _and_
+modal content), so its full prop reference lives with the rest of `ctx`-level
+API docs at [`Tooltip`](/api/other/tooltip) rather than only here — this
+section covers the pattern you'll actually reach for inside a modal.
+
+<div class="silo-demo" style="justify-content:center; padding-top:36px; padding-bottom:36px;">
+  <span class="silo-tooltip-host">
+    <button class="silo-icon-button" aria-label="More options"><svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="3" r="1.3" fill="currentColor"/><circle cx="8" cy="8" r="1.3" fill="currentColor"/><circle cx="8" cy="13" r="1.3" fill="currentColor"/></svg></button>
+  </span>
+  <span class="silo-tooltip" style="margin-left:-8px;">More options</span>
+</div>
+
+```tsx
+import { Tooltip, IconButton } from "@silo-code/sdk";
+
+<Tooltip content="Refresh">
+  <IconButton aria-label="Refresh" onClick={refresh}>
+    <RefreshIcon />
+  </IconButton>
+</Tooltip>;
+```
+
+The other common case inside modal content: a `ListRow`'s truncated text —
+see [`Tooltip`'s `disabled` prop](/api/other/tooltip#example) for the
+show-only-when-truncated pattern.
