@@ -253,6 +253,9 @@
 .silo-tabs {
   display: flex;
   gap: 4px;
+  /* Pair with .silo-modal-title's lighter margin — title→tabs needs more
+   * separation than title→body, without over-spacing every modal. */
+  margin-top: 4px;
   padding: 6px 0 0 8px;
   background: var(--silo-color-input-bg);
   border-radius: var(--silo-radius-sm) var(--silo-radius-sm) 0 0;

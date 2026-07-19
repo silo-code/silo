@@ -23,7 +23,7 @@ The bundle treats `react`, `react/jsx-runtime`, and `@silo-code/sdk` as
 ## Install
 
 In Silo, open **Settings → Extensions → Install from folder…** and choose this
-folder. Then open **View → Modal Gallery** (or press **`cmd+shift+g`**).
+folder. Then open **Window → Modal Gallery** (or press **`cmd+shift+g`**).
 
 ## Tabs ↔ docs
 

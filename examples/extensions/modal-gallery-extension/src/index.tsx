@@ -46,8 +46,21 @@ const STYLES = `
   display: flex;
   flex-direction: column;
   gap: 0;
+  height: min(70vh, 640px);
   min-height: 420px;
-  max-height: min(70vh, 640px);
+}
+.mg-tab-slot {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.mg-tab-slot .silo-tab-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .mg-panel {
   flex: 1;
@@ -84,6 +97,31 @@ const STYLES = `
 .mg-status {
   font-size: var(--silo-font-size-sm);
   color: var(--silo-color-ok);
+}
+.mg-demo-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 520px;
+  padding: 14px;
+  background: var(--silo-color-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-md);
+}
+.mg-demo-modal-title {
+  font-weight: 600;
+  font-size: calc(var(--silo-font-size-base) + 2px);
+  color: var(--silo-color-text-hi);
+}
+.mg-demo-modal-body {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  line-height: 1.45;
+}
+.mg-demo-modals {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 `;
 
@@ -386,15 +424,10 @@ function TextInputsPanel() {
       <DemoBlock title="Input">
         <div className="mg-narrow">
           <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Workspace name"
-          />
-          <Input
             block
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Workspace name (block)"
+            placeholder="Workspace name"
           />
         </div>
       </DemoBlock>
@@ -845,27 +878,47 @@ function StructurePanel({ close }: { close: () => void }) {
       </DemoBlock>
 
       <DemoBlock title="ModalActions — standard footer + start slot">
-        <ModalActions>
-          <Button onClick={close}>Cancel</Button>
-          <Button variant="primary" onClick={close}>
-            Create
-          </Button>
-        </ModalActions>
-        <ModalActions start="6 sessions · 6 procs">
-          <Button onClick={close}>Go to Terminal</Button>
-          <Button variant="danger" onClick={close}>
-            End Task
-          </Button>
-        </ModalActions>
-        <ModalActions
-          start={
-            <Button size="sm" onClick={() => setScrollBranch(0)}>
-              + Create branch
-            </Button>
-          }
-        >
-          <Button onClick={close}>Fetch</Button>
-        </ModalActions>
+        <div className="mg-demo-modals">
+          <div className="mg-demo-modal">
+            <div className="mg-demo-modal-title">Group Properties</div>
+            <Input block value="Frontend" readOnly />
+            <ModalActions>
+              <Button onClick={close}>Cancel</Button>
+              <Button variant="primary" onClick={close}>
+                Create
+              </Button>
+            </ModalActions>
+          </div>
+          <div className="mg-demo-modal">
+            <div className="mg-demo-modal-title">
+              Processes — All Workspaces
+            </div>
+            <p className="mg-demo-modal-body">
+              Select a process, then end it or jump to its terminal.
+            </p>
+            <ModalActions start="6 sessions · 6 procs">
+              <Button onClick={close}>Go to Terminal</Button>
+              <Button variant="danger" onClick={close}>
+                End Task
+              </Button>
+            </ModalActions>
+          </div>
+          <div className="mg-demo-modal">
+            <div className="mg-demo-modal-title">Branches</div>
+            <p className="mg-demo-modal-body">
+              Fetch updates, or create a branch from the start slot.
+            </p>
+            <ModalActions
+              start={
+                <Button size="sm" onClick={() => setScrollBranch(0)}>
+                  + Create branch
+                </Button>
+              }
+            >
+              <Button onClick={close}>Fetch</Button>
+            </ModalActions>
+          </div>
+        </div>
       </DemoBlock>
     </div>
   );
@@ -879,18 +932,20 @@ function GalleryModal({ close }: { close: () => void }) {
   return (
     <div className="mg-body">
       <Tabs tabs={GALLERY_TABS} active={tab} onSelect={setTab} />
-      <TabPanel>
-        <div className="mg-panel silo-scroll">
-          {tab === "buttons" && <ButtonsPanel />}
-          {tab === "text" && <TextInputsPanel />}
-          {tab === "selection" && <SelectionPanel />}
-          {tab === "tabs" && <TabsPanel />}
-          {tab === "lists" && <ListsPanel />}
-          {tab === "badges" && <BadgesPanel />}
-          {tab === "feedback" && <FeedbackPanel />}
-          {tab === "structure" && <StructurePanel close={close} />}
-        </div>
-      </TabPanel>
+      <div className="mg-tab-slot">
+        <TabPanel>
+          <div className="mg-panel silo-scroll">
+            {tab === "buttons" && <ButtonsPanel />}
+            {tab === "text" && <TextInputsPanel />}
+            {tab === "selection" && <SelectionPanel />}
+            {tab === "tabs" && <TabsPanel />}
+            {tab === "lists" && <ListsPanel />}
+            {tab === "badges" && <BadgesPanel />}
+            {tab === "feedback" && <FeedbackPanel />}
+            {tab === "structure" && <StructurePanel close={close} />}
+          </div>
+        </TabPanel>
+      </div>
       <ModalActions start="RFC 0016 · modal design system">
         <Button onClick={close}>Close</Button>
       </ModalActions>
@@ -917,8 +972,9 @@ export const extension: Extension = {
     });
     ctx.registerMenuItem({
       id: "modal-gallery.view",
-      menu: "view",
+      menu: "window",
       command: OPEN_COMMAND,
+      group: "9_dev",
     });
     ctx.registerKeybinding({
       id: "modal-gallery.open",
