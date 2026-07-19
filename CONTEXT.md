@@ -45,3 +45,60 @@ _Avoid_: Clean, garbage-collect worktrees
 A Remove worktree that has passed every confirm and is still deleting on disk.
 The workspace folder is already closed; the operation is not cancelable.
 _Avoid_: Background delete, queued delete
+
+### Keybindings
+
+**Keybinding**:
+A single chord bound to a command. Each command has at most one effective
+keybinding.
+_Avoid_: Hotkey, accelerator (native-menu term only), shortcut (prefer for the
+settings page name, not the binding itself)
+
+**Keyboard Shortcuts**:
+The Settings page where users browse and change keybindings.
+_Avoid_: Keybindings page, keymap editor, hotkeys settings
+
+**Chord**:
+One simultaneous key combination (modifiers + key), e.g. Cmd+Shift+S. Not a
+multi-press sequence.
+_Avoid_: Sequence, key chord chain, chord progression
+
+**Default keybinding**:
+The chord an extension or menu declares for a command before any user change.
+_Avoid_: Built-in shortcut, factory binding
+
+**Override**:
+A user-chosen chord for a command that replaces its default.
+_Avoid_: Custom keybinding, remapping, user binding (prefer "override" when
+contrasting with default)
+
+**Unbound**:
+A command the user has explicitly left with no chord, including clearing a
+default.
+_Avoid_: Disabled, removed command, cleared (prefer "unbound" / "remove
+keybinding")
+
+**Effective key**:
+The chord that actually applies to a command right now — override if present,
+otherwise default, unless unbound.
+_Avoid_: Resolved key, active shortcut, current binding (ambiguous with
+"selected row")
+
+**Capture**:
+The inline mode on a Keyboard Shortcuts row where the next chord pressed
+becomes that command's override.
+_Avoid_: Record, listen, key recording, rebind mode
+
+**Reassign**:
+Taking a chord from another command: the previous owner becomes unbound (or
+loses that override) so only one command keeps the chord.
+_Avoid_: Steal, conflict resolve, overwrite
+
+**Reset keybinding**:
+Drop the override so the command returns to its default (or to unbound if it
+had no default).
+_Avoid_: Restore, revert shortcut, clear override (prefer "reset" in the UI)
+
+**Remove keybinding**:
+Make a command unbound — no chord fires it, even if a default existed.
+_Avoid_: Delete keybinding, clear shortcut, unbind (ok in prose; UI says Remove)

@@ -4,6 +4,7 @@ import { contextKeys } from "./context-keys";
 import { menuItemRegistry } from "./menu-items";
 import {
   clearKeybindingDefaults,
+  isKeybindingCaptureActive,
   isRemoved,
   overrideKey,
   recordKeybindingDefault,
@@ -127,6 +128,7 @@ function matches(p: ParsedKey, e: KeyboardEvent): boolean {
  * fall through to other handling.
  */
 export function dispatchKey(e: KeyboardEvent): boolean {
+  if (isKeybindingCaptureActive()) return false;
   for (const binding of keybindingRegistry.list()) {
     // Menu-homed commands dispatch via their native menu accelerator (which the
     // menu builder sources from the keymap); skip them here to avoid double-fire.

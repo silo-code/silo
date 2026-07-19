@@ -1,5 +1,6 @@
 import { Registry } from "./registry";
 import type { Command } from "@silo-code/sdk";
+import { isKeybindingCaptureActive } from "./keymap";
 
 export const commandRegistry = new Registry<Command>();
 
@@ -10,6 +11,9 @@ export const commandRegistry = new Registry<Command>();
  * unhandled-rejection warning.
  */
 export function executeCommand(id: string, ...args: unknown[]): boolean {
+  // Keyboard Shortcuts capture mode: swallow dispatch so the chord is recorded
+  // instead of running (covers native-menu accelerators too).
+  if (isKeybindingCaptureActive()) return false;
   const cmd = commandRegistry.get(id);
   if (!cmd) {
     console.warn(`[extensions] unknown command: ${id}`);
@@ -42,6 +46,9 @@ export function executeCommandAsync<T = unknown>(
   id: string,
   ...args: unknown[]
 ): Promise<T> {
+  if (isKeybindingCaptureActive()) {
+    return Promise.resolve(undefined as T);
+  }
   const cmd = commandRegistry.get(id);
   let result: Promise<T>;
   if (!cmd) {
