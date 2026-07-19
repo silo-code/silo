@@ -1,27 +1,25 @@
 # Silo Design System
 
 A shared kit of React components, text styles, and interaction rules for
-building **modal UI** that looks and behaves exactly like Silo's own. Import
-the components from `@silo-code/sdk`, compose them inside the surface you're
+extension UI that looks and behaves exactly like Silo's own. Import the
+components from `@silo-code/sdk`, compose them inside the surface you're
 targeting, and your UI blends in — in every theme, at every font size, with
 keyboard support you didn't have to write.
 
-> **Scope:** modal surfaces. Panels, the status bar, and other surfaces will
-> adopt the same system later.
+## Surfaces
 
-## The three modal surfaces
-
-An extension can put UI in three modal surfaces, and they follow different
+An extension puts UI in one of several surfaces, and each follows its own
 patterns — know which one you're building before you pick components:
 
-| Surface                                                                                                          | You provide                                                | The host provides                                | Persistence pattern                                    |
-| ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------ |
-| **[Standalone modal](/design/surfaces#standalone-modals)** (`ctx.ui.showModal`)                                  | everything inside the shell, incl. a `ModalActions` footer | backdrop, title, sizing, close, focus trap       | explicit — Cancel / Save buttons                       |
-| **[Settings page](/design/surfaces#settings-pages)** (`ctx.registerSettingsPage`)                                | `Section`s of `SettingRow`s                                | the Settings modal: rail, page title, scroll     | immediate — every control applies on change, no footer |
-| **[Workspace properties tab](/design/surfaces#workspace-property-tabs)** (`ctx.workspaces.registerPropertyPage`) | the tab's content                                          | the Workspace Properties modal: tab strip, shell | immediate — save as the user types                     |
+| Surface                                                                                     | Registered with                                                                       | Status                                       |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **[Modals](/design/surfaces#modals)** — standalone, settings pages, workspace property tabs | `ctx.ui.showModal`, `ctx.registerSettingsPage`, `ctx.workspaces.registerPropertyPage` | Documented below and throughout this section |
+| **[Side panels](/design/surfaces#side-panels)**                                             | `ctx.registerSidePanel`                                                               | <Badge type="info" text="coming soon" />     |
+| **[Status bar items](/design/surfaces#status-bar-items)**                                   | `ctx.registerStatusItem`                                                              | <Badge type="info" text="coming soon" />     |
+| **[Dock panels & editors](/design/surfaces#dock-panels-and-editors)**                       | `ctx.registerEditor`, `ctx.registerDockPanelKind`                                     | <Badge type="info" text="coming soon" />     |
 
-[Modal surfaces](/design/surfaces) covers each in depth, with the best
-practices that differ between them.
+[Surfaces](/design/surfaces) covers each in depth, with the best practices
+that differ between them.
 
 ## The two-lane update contract
 
@@ -113,10 +111,10 @@ show-only-when-truncated pattern.
 
 ## Read next
 
-1. [Modal surfaces](/design/surfaces) — which of the three modal types you're
-   building, and the rules specific to each.
+1. [Surfaces](/design/surfaces) — which surface you're building for, and the
+   rules specific to each.
 2. [Principles & best practices](/design/principles) — the rules that keep
-   modals consistent. Read once before building anything.
+   Silo's UI consistent. Read once before building anything.
 3. [Typography](/design/typography) — every text role, so you never invent a
    font size.
 4. [Building modals](/guide/building-modals) — the guided walkthrough with

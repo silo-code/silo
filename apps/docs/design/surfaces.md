@@ -1,11 +1,17 @@
-# Modal surfaces
+# Surfaces
+
+Every place an extension can put UI, and the rules specific to each — a
+settings page built like a standalone modal (or vice versa) reads as foreign
+immediately, so know which surface you're building for before you pick
+components.
+
+## Modals
 
 An extension can create three kinds of modal UI. They share the same
 components and tokens, but each has its own layout conventions, persistence
-pattern, and best practices — a settings page built like a standalone modal
-(or vice versa) reads as foreign immediately.
+pattern, and best practices.
 
-## Standalone modals {#standalone-modals}
+### Standalone modals {#standalone-modals}
 
 Opened with [`ctx.ui.showModal`](/api/ui/) — a dialog your extension owns
 end to end: pickers, forms, confirmations richer than `ctx.ui.confirm`,
@@ -44,7 +50,7 @@ Rules specific to this surface:
 - Scrollable middles (long lists) get `.silo-scroll` with a max height, so
   the title and footer stay pinned.
 
-## Settings pages {#settings-pages}
+### Settings pages {#settings-pages}
 
 Registered with [`ctx.registerSettingsPage`](/api/registration/register-settings-page)
 — your page appears in Silo's Settings modal, alongside the built-in Editor
@@ -102,7 +108,7 @@ Rules specific to this surface:
   and pages that need internal grouping use `Tabs` _within_ the page body
   sparingly.
 
-## Workspace property tabs {#workspace-property-tabs}
+### Workspace property tabs {#workspace-property-tabs}
 
 Registered with [`ctx.workspaces.registerPropertyPage`](/api/state/workspaces#workspace-property-pages)
 — your page appears as a tab in the Workspace Properties modal, next to the
@@ -145,8 +151,44 @@ Rules specific to this surface:
 - Don't render your own tab strip — you're _in_ one. If your tab needs
   sub-navigation, it's probably two property pages.
 
-## Choosing, in one line each
+### Choosing between the three, in one line each
 
 - Transient task the user completes and leaves → **standalone modal**.
 - How the extension behaves everywhere → **settings page**.
 - How the extension behaves _for this workspace_ → **workspace property tab**.
+
+## Side panels {#side-panels}
+
+Registered with [`ctx.registerSidePanel`](/api/registration/register-side-panel)
+— a persistent panel docked in Silo's side column, alongside the file
+explorer and git panel.
+
+::: info Coming soon
+Side panel components and layout patterns — headers, toolbars, empty states,
+and how the modal kit's components (`List`, `Badge`, `EmptyState`, …) carry
+over into a docked panel — aren't documented yet.
+:::
+
+## Status bar items {#status-bar-items}
+
+Registered with [`ctx.registerStatusItem`](/api/registration/register-status-item)
+— a compact item in Silo's status bar, alongside the branch indicator and
+process monitor.
+
+::: info Coming soon
+Status bar item patterns — icon + label conventions, click/hover behavior,
+badge and color usage at that scale — aren't documented yet.
+:::
+
+## Dock panels & editors {#dock-panels-and-editors}
+
+Registered with [`ctx.registerEditor`](/api/registration/register-editor) or
+[`ctx.registerDockPanelKind`](/api/registration/register-dock-panel-kind) —
+content that lives in Silo's center dock alongside the code editor and
+terminal.
+
+::: info Coming soon
+Dock panel and editor UI patterns — toolbars, breadcrumbs, and how much of
+the modal kit (if any) is the right fit for a content viewport — aren't
+documented yet.
+:::

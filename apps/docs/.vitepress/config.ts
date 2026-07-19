@@ -32,7 +32,7 @@ const registration = [
 // shared component kit (RFC 0016). Modal-scoped today; panels/status bar later.
 const designSidebar = [
   { text: "Overview", link: "/design/" },
-  { text: "Modal surfaces", link: "/design/surfaces" },
+  { text: "Surfaces", link: "/design/surfaces" },
   { text: "Principles & best practices", link: "/design/principles" },
   { text: "Typography", link: "/design/typography" },
   {

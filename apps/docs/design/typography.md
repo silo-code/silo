@@ -1,6 +1,8 @@
 # Typography
 
-Every text role a modal uses. Sizes are relative to the app's base font size
+Every named text role in Silo's UI — modal content today, the full set as
+more surfaces adopt the design system. Sizes are relative to the app's base
+font size
 (`--silo-font-size-base`, default 13px, user-scalable with `Cmd/Ctrl +/-`).
 **Modal content rides a +1 scale**: the host rebinds the size tokens inside a
 modal, so "base" below already means base+1px (14px at defaults). You inherit

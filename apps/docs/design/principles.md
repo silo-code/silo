@@ -1,8 +1,11 @@
 # Principles & best practices
 
-The rules that keep every modal — first-party or third-party — reading as one
-product. Written to be followed literally; when a rule says "never," a coding
-agent should treat it as a hard constraint, not a style preference.
+The rules that keep Silo's UI — first-party or third-party, whatever surface
+it's built for — reading as one product. Written to be followed literally;
+when a rule says "never," a coding agent should treat it as a hard
+constraint, not a style preference. Examples below are modal content, since
+that's what's built today, but the rules themselves apply wherever you're
+building.
 
 ## 1. Every color comes from a theme token
 
