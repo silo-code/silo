@@ -129,6 +129,12 @@ export { workspacePropertyPageRegistry } from "./workspace-property-page-registr
 // menu and appends these). See context-menu-items.ts.
 export { contextMenuEntriesFor } from "./context-menu-items";
 
+// Reading a command's menu placement back out (rather than registering one)
+// is a core-extension-only concern — today the sole caller is `core.keybindings`,
+// which uses it to group the shortcuts list by the same File/View/Window/Help
+// buckets the native menu already uses, instead of duplicating that taxonomy.
+export { menuFor } from "./menu-items";
+
 // Editor host-plumbing — the raw Monaco/editor host access that `core.editor`
 // needs but that is wrong to hand to silo.*/third-party (Tier 3 "raw Monaco
 // setup"; see ctx-domains.md → "The editor surface"). NOTE what is deliberately
@@ -290,8 +296,14 @@ export { keybindingRegistry } from "./keybindings";
 export {
   displayKey,
   effectiveKey,
+  defaultKey,
+  getUserBindings,
+  saveUserBindings,
   keybindingsPath,
   onKeymapChange,
+  overrideKey,
+  isRemoved,
+  setKeybindingCaptureActive,
 } from "./keymap";
 
 // Foreground-process updates for a terminal session (RFC 0010 N1) — consumed by

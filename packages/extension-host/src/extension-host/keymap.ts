@@ -10,7 +10,7 @@
 // Keys are stored in a normalized "cmd+shift+s" form. Converters bridge to the
 // Tauri accelerator form ("CmdOrCtrl+Shift+S") used by the native menu.
 
-import { fsReadText } from "../services/tauri-fs";
+import { fsReadText, fsWriteText } from "../services/tauri-fs";
 import { startWatch, onFileChange } from "../services/tauri-watch";
 import { userConfigDir, userConfigPath } from "../services/user-config";
 import type { Disposable } from "@silo-code/sdk";
@@ -134,7 +134,7 @@ export function displayKey(norm: string): string {
 
 let overrides = new Map<string, string>(); // command → normalized key
 let removed = new Set<string>(); // commands the user unbound
-const menuDefaults = new Map<string, string>(); // command → normalized key (from menu accelerators)
+let menuDefaults = new Map<string, string>(); // command → normalized key (from menu accelerators)
 const keybindingDefaults = new Map<string, string>(); // command → normalized key (from registerKeybinding)
 
 const listeners = new Set<() => void>();
@@ -149,12 +149,37 @@ export function onKeymapChange(fn: () => void): Disposable {
 
 /** Record an extension-declared default (called by the menu builder per item). */
 export function recordMenuDefault(command: string, accelerator: string): void {
-  menuDefaults.set(command, normalizeKey(accelerator));
+  const key = normalizeKey(accelerator);
+  if (menuDefaultBatch) menuDefaultBatch.set(command, key);
+  else menuDefaults.set(command, key);
 }
 
 /** Cleared and rebuilt on every menu sync so stale entries don't linger. */
 export function clearMenuDefaults(): void {
   menuDefaults.clear();
+}
+
+/**
+ * Stage menu-default recording into a side map so a mid-sync
+ * {@link clearMenuDefaults} never blanks the live map the Keyboard Shortcuts
+ * page reads. Pair with {@link commitMenuDefaultBatch}.
+ */
+let menuDefaultBatch: Map<string, string> | null = null;
+
+export function beginMenuDefaultBatch(): void {
+  menuDefaultBatch = new Map();
+}
+
+/** Atomically replace live menu defaults with the staged batch. */
+export function commitMenuDefaultBatch(): void {
+  if (!menuDefaultBatch) return;
+  menuDefaults = menuDefaultBatch;
+  menuDefaultBatch = null;
+  // Do NOT emit here. onKeymapChange → syncMenu → commit would loop forever,
+  // and overlapping syncs can commit a partial batch (menu-homed keys flicker).
+  // Callers that mutate user overrides already emit via setUserBindings; the
+  // live map stays readable throughout the batch so the Shortcuts page never
+  // sees an empty gap.
 }
 
 /**
@@ -180,6 +205,11 @@ export function overrideKey(command: string): string | undefined {
   return overrides.get(command);
 }
 
+/** Extension/menu-declared default, ignoring user overrides and unbinds. */
+export function defaultKey(command: string): string | undefined {
+  return menuDefaults.get(command) ?? keybindingDefaults.get(command);
+}
+
 /** Effective key = override ?? default, unless the user unbound it. */
 export function effectiveKey(command: string): string | undefined {
   if (removed.has(command)) return undefined;
@@ -188,6 +218,38 @@ export function effectiveKey(command: string): string | undefined {
     menuDefaults.get(command) ??
     keybindingDefaults.get(command)
   );
+}
+
+/**
+ * Snapshot of the in-memory user overrides / unbinds, suitable for rewriting
+ * keybindings.json. Sorted for stable diffs.
+ */
+export function getUserBindings(): UserBinding[] {
+  const list: UserBinding[] = [];
+  for (const [command, key] of [...overrides.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    list.push({ command, key });
+  }
+  for (const command of [...removed].sort()) {
+    list.push({ command: `-${command}`, key: "" });
+  }
+  return list;
+}
+
+/**
+ * While the Keyboard Shortcuts page is capturing a chord, suppress command
+ * dispatch (registry keybindings and native-menu accelerators alike) so the
+ * pressed keys bind instead of firing.
+ */
+let keybindingCaptureActive = false;
+
+export function setKeybindingCaptureActive(active: boolean): void {
+  keybindingCaptureActive = active;
+}
+
+export function isKeybindingCaptureActive(): boolean {
+  return keybindingCaptureActive;
 }
 
 /** Snapshot of every command that has a default, with its effective key. */
@@ -214,6 +276,22 @@ export function setUserBindings(list: UserBinding[]): void {
     overrides.set(b.command, normalizeKey(b.key));
   }
   emit();
+}
+
+/**
+ * Apply a new user-bindings list in memory and rewrite keybindings.json.
+ * Structured pretty-JSON rewrite — comments/formatting in the file are not
+ * preserved (power users still have the editor escape hatch).
+ */
+export async function saveUserBindings(list: UserBinding[]): Promise<void> {
+  const normalized = list.map((b) =>
+    b.command.startsWith("-")
+      ? { command: b.command, key: b.key }
+      : { command: b.command, key: normalizeKey(b.key) },
+  );
+  setUserBindings(normalized);
+  const path = await keybindingsPath();
+  await fsWriteText(path, `${JSON.stringify(normalized, null, 2)}\n`);
 }
 
 // ── keybindings.json ───────────────────────────────────────────────────────

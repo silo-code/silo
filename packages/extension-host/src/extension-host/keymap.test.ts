@@ -3,12 +3,20 @@ import {
   normalizeKey,
   toTauriAccelerator,
   setUserBindings,
+  getUserBindings,
   effectiveKey,
+  defaultKey,
   isRemoved,
+  overrideKey,
   recordMenuDefault,
   clearMenuDefaults,
+  beginMenuDefaultBatch,
+  commitMenuDefaultBatch,
   recordKeybindingDefault,
   clearKeybindingDefaults,
+  setKeybindingCaptureActive,
+  isKeybindingCaptureActive,
+  onKeymapChange,
 } from "./keymap";
 
 describe("normalizeKey", () => {
@@ -47,6 +55,10 @@ describe("user bindings → effective key", () => {
     setUserBindings([]); // reset module state between tests
     clearMenuDefaults();
     clearKeybindingDefaults();
+    setKeybindingCaptureActive(false);
+    // Abandon any half-open batch from a previous test.
+    beginMenuDefaultBatch();
+    commitMenuDefaultBatch();
   });
 
   it("override wins over the menu default", () => {
@@ -81,5 +93,77 @@ describe("user bindings → effective key", () => {
     // @ts-expect-error intentionally malformed
     setUserBindings([{ command: 123 }, null, { key: "cmd+x" }]);
     expect(effectiveKey("anything")).toBeUndefined();
+  });
+
+  it("defaultKey ignores overrides and unbinds", () => {
+    recordMenuDefault("file.save", "CmdOrCtrl+S");
+    setUserBindings([{ command: "file.save", key: "cmd+k" }]);
+    expect(defaultKey("file.save")).toBe("cmd+s");
+    expect(overrideKey("file.save")).toBe("cmd+k");
+    setUserBindings([{ command: "-file.save", key: "" }]);
+    expect(defaultKey("file.save")).toBe("cmd+s");
+    expect(effectiveKey("file.save")).toBeUndefined();
+  });
+
+  it("getUserBindings round-trips overrides and unbinds in sorted order", () => {
+    setUserBindings([
+      { command: "z.cmd", key: "cmd+z" },
+      { command: "-a.cmd", key: "" },
+      { command: "b.cmd", key: "cmd+b" },
+    ]);
+    expect(getUserBindings()).toEqual([
+      { command: "b.cmd", key: "cmd+b" },
+      { command: "z.cmd", key: "cmd+z" },
+      { command: "-a.cmd", key: "" },
+    ]);
+  });
+
+  it("tracks keybinding capture active flag", () => {
+    expect(isKeybindingCaptureActive()).toBe(false);
+    setKeybindingCaptureActive(true);
+    expect(isKeybindingCaptureActive()).toBe(true);
+    setKeybindingCaptureActive(false);
+    expect(isKeybindingCaptureActive()).toBe(false);
+  });
+
+  it("menu-default batches keep the live map intact until commit", () => {
+    recordMenuDefault("file.save", "CmdOrCtrl+S");
+    expect(effectiveKey("file.save")).toBe("cmd+s");
+
+    beginMenuDefaultBatch();
+    // Live map still has the old default while the batch is open.
+    expect(effectiveKey("file.save")).toBe("cmd+s");
+    recordMenuDefault("file.save", "CmdOrCtrl+S");
+    recordMenuDefault("file.saveAs", "CmdOrCtrl+Shift+S");
+    // Staged keys are not live yet.
+    expect(effectiveKey("file.saveAs")).toBeUndefined();
+
+    commitMenuDefaultBatch();
+    expect(effectiveKey("file.save")).toBe("cmd+s");
+    expect(effectiveKey("file.saveAs")).toBe("cmd+shift+s");
+  });
+
+  it("commitMenuDefaultBatch drops defaults that were not re-recorded", () => {
+    recordMenuDefault("file.save", "CmdOrCtrl+S");
+    recordMenuDefault("file.gone", "CmdOrCtrl+G");
+    beginMenuDefaultBatch();
+    recordMenuDefault("file.save", "CmdOrCtrl+S");
+    commitMenuDefaultBatch();
+    expect(effectiveKey("file.save")).toBe("cmd+s");
+    expect(effectiveKey("file.gone")).toBeUndefined();
+  });
+
+  it("commitMenuDefaultBatch does not emit (avoids syncMenu feedback loop)", () => {
+    let emissions = 0;
+    const sub = onKeymapChange(() => {
+      emissions++;
+    });
+    beginMenuDefaultBatch();
+    recordMenuDefault("file.save", "CmdOrCtrl+S");
+    commitMenuDefaultBatch();
+    expect(emissions).toBe(0);
+    setUserBindings([{ command: "file.save", key: "cmd+k" }]);
+    expect(emissions).toBe(1);
+    sub.dispose();
   });
 });

@@ -8,7 +8,8 @@ import { Registry } from "./registry";
 import { commandRegistry, executeCommand } from "./commands";
 import { contextKeys, onContextChange } from "./context-keys";
 import {
-  clearMenuDefaults,
+  beginMenuDefaultBatch,
+  commitMenuDefaultBatch,
   effectiveKey,
   onKeymapChange,
   recordMenuDefault,
@@ -20,6 +21,16 @@ import { openSettings } from "./settings-dialog";
 import { getExtensionManager } from "./extension-manager";
 
 export const menuItemRegistry = new Registry<MenuItemContribution>();
+
+/**
+ * Which top-level application menu (if any) a command is homed in. Commands
+ * carry no category of their own — this is the closest thing to one, reused
+ * by the Keybindings settings page to group its command list without adding
+ * a new field to {@link Command}.
+ */
+export function menuFor(command: string): MenuId | undefined {
+  return menuItemRegistry.list().find((i) => i.command === command)?.menu;
+}
 
 // Rebuild the native menu whenever user keybinding overrides change, so a
 // menu-homed command's accelerator reflects its effective key.
@@ -41,6 +52,11 @@ function ensureExtensionManagerSubscription(): void {
     void syncMenu();
   });
 }
+
+/** Coalesce overlapping syncs — a second call joins the in-flight one and
+ *  schedules a follow-up if defaults/accelerators may have changed mid-flight. */
+let syncMenuInFlight: Promise<void> | null = null;
+let syncMenuQueued = false;
 
 const isMac =
   typeof navigator !== "undefined" &&
@@ -226,45 +242,70 @@ async function applyWhenClauses(): Promise<void> {
 }
 
 export async function syncMenu(): Promise<void> {
+  if (syncMenuInFlight) {
+    syncMenuQueued = true;
+    return syncMenuInFlight;
+  }
+  syncMenuInFlight = runSyncMenu().finally(() => {
+    syncMenuInFlight = null;
+    if (syncMenuQueued) {
+      syncMenuQueued = false;
+      void syncMenu();
+    }
+  });
+  return syncMenuInFlight;
+}
+
+async function runSyncMenu(): Promise<void> {
   ensureExtensionManagerSubscription();
   // Drop any previous tracking from a prior sync.
   liveItems = [];
   contextSub?.dispose();
   contextSub = null;
-  // Menu defaults are re-recorded as items are rebuilt below.
-  clearMenuDefaults();
+  // Stage defaults into a side map while rebuilding so the live map (what
+  // Keyboard Shortcuts reads) stays intact until the new set is ready —
+  // otherwise setUserBindings → syncMenu briefly blanks every menu-homed key.
+  beginMenuDefaultBatch();
 
-  const byMenu: Record<MenuId, MenuItemContribution[]> = {
-    file: [],
-    edit: [],
-    view: [],
-    window: [],
-    help: [],
-  };
-  for (const item of menuItemRegistry.list()) {
-    byMenu[item.menu].push(item);
-  }
+  try {
+    const byMenu: Record<MenuId, MenuItemContribution[]> = {
+      file: [],
+      edit: [],
+      view: [],
+      window: [],
+      help: [],
+    };
+    for (const item of menuItemRegistry.list()) {
+      byMenu[item.menu].push(item);
+    }
 
-  const submenus: Submenu[] = [];
-  if (isMac) submenus.push(await buildAppSubmenu());
-  submenus.push(await buildSubmenu("File", [], byMenu.file));
-  submenus.push(
-    await buildSubmenu("Edit", await editPredefinedGroups(), byMenu.edit),
-  );
-  submenus.push(await buildSubmenu("View", [], byMenu.view));
-  submenus.push(
-    await buildSubmenu("Window", await windowPredefinedGroups(), byMenu.window),
-  );
-  submenus.push(await buildHelpSubmenu(byMenu.help));
+    const submenus: Submenu[] = [];
+    if (isMac) submenus.push(await buildAppSubmenu());
+    submenus.push(await buildSubmenu("File", [], byMenu.file));
+    submenus.push(
+      await buildSubmenu("Edit", await editPredefinedGroups(), byMenu.edit),
+    );
+    submenus.push(await buildSubmenu("View", [], byMenu.view));
+    submenus.push(
+      await buildSubmenu(
+        "Window",
+        await windowPredefinedGroups(),
+        byMenu.window,
+      ),
+    );
+    submenus.push(await buildHelpSubmenu(byMenu.help));
 
-  const menu = await Menu.new({ items: submenus });
-  await menu.setAsAppMenu();
+    const menu = await Menu.new({ items: submenus });
+    await menu.setAsAppMenu();
 
-  // Re-evaluate when-clauses whenever context keys change. Fire-and-forget
-  // since setEnabled is async over Tauri IPC.
-  if (liveItems.length > 0) {
-    contextSub = onContextChange(() => {
-      void applyWhenClauses();
-    });
+    // Re-evaluate when-clauses whenever context keys change. Fire-and-forget
+    // since setEnabled is async over Tauri IPC.
+    if (liveItems.length > 0) {
+      contextSub = onContextChange(() => {
+        void applyWhenClauses();
+      });
+    }
+  } finally {
+    commitMenuDefaultBatch();
   }
 }

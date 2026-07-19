@@ -28,8 +28,9 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  /* Bleed rows to the pane's left edge so the separators run full-width. */
-  margin-left: calc(var(--settings-pane-pad) * -1);
+  /* Space between groups; the gap itself separates each Section from the one
+     before it, so no group needs its own top margin. */
+  gap: 20px;
 }
 
 .kb-row {
@@ -37,9 +38,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  /* Left inset = pane pad so row text lines up with the page title. */
-  padding: 7px 8px 7px var(--settings-pane-pad);
-  border-bottom: 1px solid var(--silo-color-border);
+  padding: 7px 0;
+}
+/* Row separators, same pattern as the SDK's own SettingRow: a top border
+   between adjacent rows, none trailing the last row in a group. */
+.kb-row + .kb-row {
+  border-top: 1px solid var(--silo-color-border);
 }
 
 .kb-cmd {
@@ -57,8 +61,41 @@
   font-family: var(--silo-font-mono, monospace);
 }
 
-.kb-key {
+.kb-key-btn {
   flex: 0 0 auto;
+  max-width: 55%;
+  margin: 0;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--silo-radius-sm);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: right;
+}
+.kb-key-btn:hover {
+  background: var(--silo-color-bg-hover);
+}
+.kb-key-btn-capture,
+.kb-key-btn-confirm {
+  max-width: 70%;
+  border-color: var(--silo-color-accent);
+  background: var(--silo-color-bg-active);
+  text-align: left;
+}
+.kb-key-btn-override .kb-key {
+  border-color: var(--silo-color-accent);
+  color: var(--silo-color-accent);
+}
+.kb-key-btn-unbound .kb-unbound {
+  color: var(--silo-color-text-lo);
+  font-style: italic;
+  text-decoration: line-through;
+  text-decoration-color: var(--silo-color-border-strong);
+}
+
+.kb-key {
+  display: inline-block;
   background: var(--silo-color-bg-active);
   border: 1px solid var(--silo-color-border-strong);
   border-radius: var(--silo-radius-sm);
@@ -69,11 +106,17 @@
   white-space: nowrap;
 }
 .kb-unbound {
-  flex: 0 0 auto;
   color: var(--silo-color-text-lo);
+  padding: 2px 7px;
+}
+.kb-capture-hint {
+  display: block;
+  font-size: calc(var(--settings-font) - 1px);
+  color: var(--silo-color-text-hi);
+  line-height: 1.35;
 }
 
 .kb-empty {
   color: var(--silo-color-text-lo);
-  padding: 12px var(--settings-pane-pad);
+  padding: 12px 0;
 }
