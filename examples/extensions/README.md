@@ -15,6 +15,7 @@ surface at a time.
 | **[scratchpad](./scratchpad-extension)**             | A **side panel** with persisted state.                                                                               | side panel                | —         |
 | **[permissions-demo](./permissions-demo-extension)** | Workspace **path-scoping** and the capability consent flow.                                                          | status bar                | `fs:read` |
 | **[sdk-playground](./sdk-playground-extension)**     | Live demos of the newest `ctx` APIs (editor text, terminal I/O, file bytes, exec, cancellable search, binary fetch). | side panel                | —         |
+| **[modal-gallery](./modal-gallery-extension)**       | Live tour of every modal design-system component (RFC 0016) — Buttons through ModalActions, one tab per docs group.  | View menu / `cmd+shift+g` | —         |
 
 ## Which one do I want?
 
@@ -29,6 +30,9 @@ surface at a time.
   **permissions-demo** — it declares `fs:read`, so installing it shows the
   consent prompt, and it demonstrates what a grant does (and doesn't) allow. See
   the [Permissions & access](../../apps/docs/guide/permissions.md) guide.
+- **Building a modal?** See **modal-gallery** — every kit component from
+  RFC 0016, live and interactive, grouped the same way as the
+  [design docs](../../apps/docs/design/components/).
 
 `hello` is deliberately a strict subset of `clock`: same shape (command + status
 item), minus the state and settings page — so "what does the next step look
