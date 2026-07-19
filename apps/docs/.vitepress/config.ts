@@ -135,12 +135,14 @@ export default withMermaid(
         },
       ],
       // Applies a stored Design System demo theme (see
-      // theme/silo-demos.css + theme/Layout.vue) before first paint, so
-      // returning visitors who toggled to Dark don't see a flash of Light.
+      // theme/silo-demos.css + theme/Layout.vue's THEMES list) before first
+      // paint, so returning visitors don't see a flash of Light. An unknown
+      // or missing value is a no-op — silo-demos.css's unprefixed rules are
+      // already Light.
       [
         "script",
         {},
-        `(function(){try{var t=localStorage.getItem("silo-demo-theme");if(t==="dark")document.documentElement.setAttribute("data-silo-demo-theme","dark");}catch(e){}})();`,
+        `(function(){try{var t=localStorage.getItem("silo-demo-theme");if(t)document.documentElement.setAttribute("data-silo-demo-theme",t);}catch(e){}})();`,
       ],
     ],
     // api-intro.md is TypeDoc's readme source (merged into /api/index.md); it is

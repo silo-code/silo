@@ -2,16 +2,19 @@
    Live component demos for the Design System docs.
 
    Renders the design-system components inline in the docs pages, styled with
-   the same token values the app ships (light palette by default; the
-   `[data-silo-demo-theme="dark"]` override mirrors the app's Dark theme).
-   Everything is scoped under `.silo-demo` so nothing leaks into VitePress
-   chrome.
+   the same token values the app ships. Light is the default (unprefixed)
+   block; every other bundled preset — Dark, Gruvbox Dark, High Contrast
+   Dark/Light, Solarized Dark/Light, Tokyo Night — is a `[data-silo-demo-theme
+   ="<id>"]` override block below, mirroring
+   packages/extension-host/src/layout/presets.ts +
+   packages/extensions-silo/src/theme-presets/index.ts. Everything is scoped
+   under `.silo-demo` so nothing leaks into VitePress chrome.
 
    The demo theme is independent of VitePress's own site dark/light toggle —
-   it's driven by a small button injected into each `.silo-demo` (see
-   Layout.vue), backed by a `data-silo-demo-theme` attribute on `<html>` and
-   persisted to localStorage so it's shared across every example on the site
-   and across visits.
+   it's driven by a button injected into each `.silo-demo` that opens a shared
+   picker menu (see Layout.vue), backed by a `data-silo-demo-theme` attribute
+   on `<html>` and persisted to localStorage so it's shared across every
+   example on the site and across visits.
 
    Sizes use the modal scale (app base 13px + 1) since every demo shows modal
    content.
@@ -79,7 +82,7 @@
 }
 
 html[data-silo-demo-theme="dark"] .silo-demo {
-  /* tokens — Dark (the app's Dark theme: base palette + preset overrides) */
+  /* tokens — Dark */
   --silo-color-bg: #161922;
   --silo-color-bg-hover: #1c2030;
   --silo-color-bg-active: #282d3a;
@@ -101,44 +104,237 @@ html[data-silo-demo-theme="dark"] .silo-demo {
   --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
 }
 
+html[data-silo-demo-theme="gruvbox-dark"] .silo-demo {
+  /* tokens — Gruvbox Dark */
+  --silo-color-bg: #1d2021;
+  --silo-color-bg-hover: #3c3836;
+  --silo-color-bg-active: #665c5466;
+  --silo-color-button-bg: #504945;
+  --silo-color-text-hi: #a89984;
+  --silo-color-text: #928374;
+  --silo-color-text-lo: #5f564d;
+  --silo-color-input-bg: #3c3836;
+  --silo-color-input-text: #ebdbb2;
+  --silo-color-border: transparent;
+  --silo-color-border-strong: #7c6f64;
+  --silo-color-accent: #83a598;
+  --silo-color-accent-2: #d3869b;
+  --silo-color-ok: #b8bb26;
+  --silo-color-warn: #fabd2f;
+  --silo-color-err: #fb4934;
+  --silo-color-content-bg: #1d2021;
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+}
+
+html[data-silo-demo-theme="high-contrast-dark"] .silo-demo {
+  /* tokens — High Contrast Dark */
+  --silo-color-bg: #161922;
+  --silo-color-bg-hover: #1c2030;
+  --silo-color-bg-active: #282d3a;
+  --silo-color-button-bg: #232839;
+  --silo-color-text-hi: #e4e6ec;
+  --silo-color-text: #a0a0a0;
+  --silo-color-text-lo: #6b6b6b;
+  --silo-color-input-bg: #1c2030;
+  --silo-color-input-text: #f5f6fa;
+  --silo-color-border: #222222;
+  --silo-color-border-strong: #2b3148;
+  --silo-color-accent: #a0a0a0;
+  --silo-color-accent-2: #bb9af7;
+  --silo-color-ok: #9ece6a;
+  --silo-color-warn: #e0af68;
+  --silo-color-err: #f7768e;
+  --silo-color-content-bg: #0f1115;
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+}
+
+html[data-silo-demo-theme="high-contrast-light"] .silo-demo {
+  /* tokens — High Contrast Light */
+  --silo-color-bg: #e5e5e5;
+  --silo-color-bg-hover: #ececec;
+  --silo-color-bg-active: #cce4ff;
+  --silo-color-button-bg: #e0e0e0;
+  --silo-color-text-hi: #1a1a1a;
+  --silo-color-text: #3a3a3a;
+  --silo-color-text-lo: #5a5a5a;
+  --silo-color-input-bg: #ffffff;
+  --silo-color-input-text: #0a0a0a;
+  --silo-color-border: #e5e5e5;
+  --silo-color-border-strong: #c8c8c8;
+  --silo-color-accent: #0078d4;
+  --silo-color-accent-2: #6f42c1;
+  --silo-color-ok: #2da44e;
+  --silo-color-warn: #b08800;
+  --silo-color-err: #cf222e;
+  --silo-color-content-bg: #ffffff;
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #fff);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #fff);
+}
+
+html[data-silo-demo-theme="solarized-dark"] .silo-demo {
+  /* tokens — Solarized Dark */
+  --silo-color-bg: #002b36;
+  --silo-color-bg-hover: #073642;
+  --silo-color-bg-active: #586e7566;
+  --silo-color-button-bg: #073642;
+  --silo-color-text-hi: #93a1a1;
+  --silo-color-text: #839496;
+  --silo-color-text-lo: #586e75;
+  --silo-color-input-bg: #073642;
+  --silo-color-input-text: #93a1a1;
+  --silo-color-border: transparent;
+  --silo-color-border-strong: #586e75;
+  --silo-color-accent: #cb4b16;
+  --silo-color-accent-2: #6c71c4;
+  --silo-color-ok: #859900;
+  --silo-color-warn: #b58900;
+  --silo-color-err: #dc322f;
+  --silo-color-content-bg: #002b36;
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+}
+
+html[data-silo-demo-theme="solarized-light"] .silo-demo {
+  /* tokens — Solarized Light */
+  --silo-color-bg: #eee8d5;
+  --silo-color-bg-hover: #e8e2d0;
+  --silo-color-bg-active: #cdc8ae;
+  --silo-color-button-bg: #d6cfbd;
+  --silo-color-text-hi: #839496;
+  --silo-color-text: #738a8a;
+  --silo-color-text-lo: #a3b1b1;
+  --silo-color-input-bg: #e8e2d0;
+  --silo-color-input-text: #657b83;
+  --silo-color-border: #eee8d5;
+  --silo-color-border-strong: #93a1a1;
+  --silo-color-accent: #d25f26;
+  --silo-color-accent-2: #6c71c4;
+  --silo-color-ok: #859900;
+  --silo-color-warn: #b58900;
+  --silo-color-err: #dc322f;
+  --silo-color-content-bg: #eee8d5;
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #fff);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #fff);
+}
+
+html[data-silo-demo-theme="tokyo-night"] .silo-demo {
+  /* tokens — Tokyo Night */
+  --silo-color-bg: #16161e;
+  --silo-color-bg-hover: #1f2335;
+  --silo-color-bg-active: #364a8266;
+  --silo-color-button-bg: #24283b;
+  --silo-color-text-hi: #787c99;
+  --silo-color-text: #6b7099;
+  --silo-color-text-lo: #434a6b;
+  --silo-color-input-bg: #1f2335;
+  --silo-color-input-text: #a9b1d6;
+  --silo-color-border: transparent;
+  --silo-color-border-strong: #3d4461;
+  --silo-color-accent: #7aa2f7;
+  --silo-color-accent-2: #bb9af7;
+  --silo-color-ok: #9ece6a;
+  --silo-color-warn: #e0af68;
+  --silo-color-err: #f7768e;
+  --silo-color-content-bg: #16161e;
+  --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
+  --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+}
+
 .silo-demo.silo-demo-block {
   display: block;
 }
 
-/* ── theme toggle (injected by Layout.vue, one shared state site-wide) ── */
+/* ── theme picker toggle (injected by Layout.vue, one shared state
+   site-wide) ── */
 .silo-demo-theme-toggle {
   position: absolute;
   top: 8px;
   right: 8px;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
   padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: var(--silo-radius-sm);
-  color: var(--silo-color-text-lo);
-  opacity: 0.5;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: 999px;
   cursor: pointer;
+  opacity: 0.85;
   transition:
     opacity 0.12s ease,
-    background 0.12s ease,
-    color 0.12s ease;
+    border-color 0.12s ease,
+    transform 0.12s ease;
 }
 .silo-demo-theme-toggle:hover {
   opacity: 1;
-  background: var(--silo-color-bg-hover);
-  color: var(--silo-color-text-hi);
+  border-color: var(--silo-color-accent);
+}
+.silo-demo-theme-toggle:active {
+  transform: scale(0.94);
 }
 .silo-demo-theme-toggle:focus-visible {
   opacity: 1;
   outline: 1px solid var(--silo-color-accent);
-  outline-offset: -1px;
+  outline-offset: 2px;
 }
-.silo-demo-theme-toggle svg {
+.silo-demo-theme-swatch {
   display: block;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 0 0 2px rgba(255, 255, 255, 0.25) inset;
+}
+
+/* ── theme picker menu (appended to <body> by Layout.vue; styled with
+   VitePress's own chrome tokens, not .silo-demo tokens, so it reads
+   consistently no matter which demo theme is currently selected) ── */
+.silo-demo-theme-menu {
+  position: absolute;
+  z-index: 100;
+  min-width: 190px;
+  padding: 4px;
+  background: var(--vp-c-bg-elv);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  box-shadow: var(--vp-shadow-3);
+  font-size: 13px;
+}
+.silo-demo-theme-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--vp-c-text-1);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.silo-demo-theme-menu-item:hover {
+  background: var(--vp-c-default-soft);
+}
+.silo-demo-theme-menu-item.is-active {
+  color: var(--vp-c-brand-1);
+  font-weight: 600;
+}
+.silo-demo-theme-menu-swatch {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 0 0 2px rgba(255, 255, 255, 0.25) inset;
 }
 
 /* ── buttons ── */
