@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.0](https://github.com/silo-code/silo/compare/silo-v0.33.1...silo-v0.34.0) (2026-07-19)
+
+
+### Features
+
+* **keybindings:** edit shortcuts in Settings without opening JSON ([#269](https://github.com/silo-code/silo/issues/269)) ([3e4f1c7](https://github.com/silo-code/silo/commit/3e4f1c7389a7e085e03b96e86877621c53509add))
+* **sdk:** modal design system — component kit, host tokens, and migrations (RFC 0016) ([#265](https://github.com/silo-code/silo/issues/265)) ([30c48f7](https://github.com/silo-code/silo/commit/30c48f7a6b0564185e68afe0a169233cb66cc6f6))
+
 ## [0.33.1](https://github.com/silo-code/silo/compare/silo-v0.33.0...silo-v0.33.1) (2026-07-18)
 
 
