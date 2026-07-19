@@ -26,8 +26,48 @@ describe("theme-presets extension", () => {
         "tokyo-night",
         "solarized-light",
         "gruvbox-dark",
+        "high-contrast-dark",
+        "high-contrast-light",
+        "solarized-dark",
       ]),
     );
+  });
+
+  it("registers presets in alphabetical order by name", () => {
+    const names = activateAndCollect().map((p) => p.name);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+  });
+
+  it("keeps High Contrast Dark on the dark base/color-scheme with only text tokens overridden", () => {
+    const highContrastDark = activateAndCollect().find(
+      (p) => p.id === "high-contrast-dark",
+    );
+    expect(highContrastDark).toBeDefined();
+    expect(highContrastDark!.base).toBe("dark");
+    expect(highContrastDark!.colorScheme).toBe("dark");
+    expect(highContrastDark!.vars["--silo-color-bg"]).toBeUndefined();
+    expect(highContrastDark!.vars["--silo-color-accent"]).toBeUndefined();
+  });
+
+  it("keeps High Contrast Light on the light base/color-scheme with only text tokens overridden", () => {
+    const highContrastLight = activateAndCollect().find(
+      (p) => p.id === "high-contrast-light",
+    );
+    expect(highContrastLight).toBeDefined();
+    expect(highContrastLight!.base).toBe("light");
+    expect(highContrastLight!.colorScheme).toBe("light");
+    expect(highContrastLight!.vars["--silo-color-bg"]).toBeUndefined();
+    expect(highContrastLight!.vars["--silo-color-accent"]).toBeUndefined();
+  });
+
+  it("gives Solarized Dark a dark base matching its light sibling's structure", () => {
+    const solarizedDark = activateAndCollect().find(
+      (p) => p.id === "solarized-dark",
+    );
+    expect(solarizedDark).toBeDefined();
+    expect(solarizedDark!.base).toBe("dark");
+    expect(solarizedDark!.colorScheme).toBe("dark");
+    expect(solarizedDark!.vars["--silo-color-bg"]).toBe("#002b36");
   });
 
   it("gives Gruvbox Dark its own warm notify (toast) palette", () => {
