@@ -134,6 +134,14 @@ export default withMermaid(
           src: "//gc.zgo.at/count.js",
         },
       ],
+      // Applies a stored Design System demo theme (see
+      // theme/silo-demos.css + theme/Layout.vue) before first paint, so
+      // returning visitors who toggled to Dark don't see a flash of Light.
+      [
+        "script",
+        {},
+        `(function(){try{var t=localStorage.getItem("silo-demo-theme");if(t==="dark")document.documentElement.setAttribute("data-silo-demo-theme","dark");}catch(e){}})();`,
+      ],
     ],
     // api-intro.md is TypeDoc's readme source (merged into /api/index.md); it is
     // not a standalone page, so keep VitePress from rendering/link-checking it.

@@ -2,9 +2,16 @@
    Live component demos for the Design System docs.
 
    Renders the design-system components inline in the docs pages, styled with
-   the same token values the app ships (light palette by default; the `.dark`
-   overrides mirror the app's Dark theme). Everything is scoped under
-   `.silo-demo` so nothing leaks into VitePress chrome.
+   the same token values the app ships (light palette by default; the
+   `[data-silo-demo-theme="dark"]` override mirrors the app's Dark theme).
+   Everything is scoped under `.silo-demo` so nothing leaks into VitePress
+   chrome.
+
+   The demo theme is independent of VitePress's own site dark/light toggle —
+   it's driven by a small button injected into each `.silo-demo` (see
+   Layout.vue), backed by a `data-silo-demo-theme` attribute on `<html>` and
+   persisted to localStorage so it's shared across every example on the site
+   and across visits.
 
    Sizes use the modal scale (app base 13px + 1) since every demo shows modal
    content.
@@ -55,6 +62,7 @@
   --silo-radius-md: 6px;
 
   /* the demo stage itself */
+  position: relative; /* anchors the theme toggle */
   background: var(--silo-color-bg);
   border: 1px solid var(--silo-color-border-strong);
   border-radius: var(--silo-radius-md);
@@ -70,7 +78,7 @@
   color: var(--silo-color-text-hi);
 }
 
-.dark .silo-demo {
+html[data-silo-demo-theme="dark"] .silo-demo {
   /* tokens — Dark (the app's Dark theme: base palette + preset overrides) */
   --silo-color-bg: #161922;
   --silo-color-bg-hover: #1c2030;
@@ -94,6 +102,42 @@
 }
 
 .silo-demo.silo-demo-block {
+  display: block;
+}
+
+/* ── theme toggle (injected by Layout.vue, one shared state site-wide) ── */
+.silo-demo-theme-toggle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-lo);
+  opacity: 0.5;
+  cursor: pointer;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.silo-demo-theme-toggle:hover {
+  opacity: 1;
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+.silo-demo-theme-toggle:focus-visible {
+  opacity: 1;
+  outline: 1px solid var(--silo-color-accent);
+  outline-offset: -1px;
+}
+.silo-demo-theme-toggle svg {
   display: block;
 }
 
