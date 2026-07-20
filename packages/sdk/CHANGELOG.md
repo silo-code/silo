@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.29.1](https://github.com/silo-code/silo/compare/sdk-v0.29.0...sdk-v0.29.1) (2026-07-20)
+
+
+### Bug Fixes
+
+* **markdown-preview:** render unsaved buffer instead of disk-only ([#271](https://github.com/silo-code/silo/issues/271)) ([2ae1db9](https://github.com/silo-code/silo/commit/2ae1db908cd9e6ce7180b1cb6b2050d3cae38860)), closes [#270](https://github.com/silo-code/silo/issues/270)
+
 ## [0.29.0](https://github.com/silo-code/silo/compare/sdk-v0.28.1...sdk-v0.29.0) (2026-07-19)
 
 
