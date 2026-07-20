@@ -133,6 +133,20 @@ the **design-token-only CSS** rule.
   intra-package import. There is no suppressions file to prune; new violations
   simply fail.
 
+The **design-system kit** (RFC 0016 / ADR 0026 — `Button`, `List`,
+`ModalActions`, …) has **one source**: the public `@silo-code/sdk`. There is no
+internal fork — the host and bundled extensions consume the same components at
+HEAD via `workspace:*`, so first-party Silo UI and third-party extension UI build
+from identical markup. When building Silo, **reach for the kit**, don't
+re-hand-roll a modal input/list/badge. The host may import kit components from
+`@silo-code/sdk` just as it imports SDK types (host → SDK is the normal leaf
+direction; nothing lints against it). The **chrome line**: the kit covers the
+_content_ of modals, settings pages, and property tabs; host **chrome** — the
+`<Modal>` shell (ADR 0018), the Settings rail, the status-bar container, panels,
+the title bar — stays bespoke and host-owned, styled via **component tokens**.
+See ADR 0026 for the full rationale and the version asymmetry (internal rides
+HEAD, third parties ride the last published SDK).
+
 The **CSS surface** (the theming contract — ADR 0017 + the public token reference
 `apps/docs/api/theming.md`): all host design tokens are `--silo-*`, and an
 extension's CSS may consume only the **design tokens** (`--silo-color-*`,

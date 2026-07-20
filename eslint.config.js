@@ -25,6 +25,15 @@ import reactHooks from "eslint-plugin-react-hooks";
 //      host's dependency graph and must not import "up" or sideways.
 // (The CSS half — design-token-only extension CSS — is the stylelint rule in
 // stylelint.config.js, run per extension package.)
+//
+// NOT restricted, on purpose: the host importing the public SDK component kit
+// (RFC 0016 / ADR 0026 — Button, List, ModalActions, …) from @silo-code/sdk.
+// The SDK is a leaf and host → SDK is the normal acyclic direction, same as the
+// host's existing SDK *type* imports. There is no internal fork of the kit; the
+// host and bundled extensions consume the one public source directly. Host
+// chrome (the <Modal> shell, settings rail, status-bar container) stays bespoke
+// and component-token-styled — that's an architecture convention (ADR 0026's
+// chrome line), not an import rule.
 
 // Raw platform access is host-only.
 const EXTENSION_NO_PLATFORM = {

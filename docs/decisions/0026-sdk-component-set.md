@@ -38,6 +38,49 @@ everything else in that ADR stands:
   components.css) so restyles propagate app-side without SDK bumps —
   RFC 0016's propagation contract.
 
+## Host consumption and the chrome line
+
+The kit has **one source** — `@silo-code/sdk` — consumed by every tier the same
+way. There is deliberately **no internal fork or mirror package**: the
+would-be-internal design system and the public one are the same code. The
+monorepo makes this work without a bridge — the host and the bundled extensions
+depend on the SDK via `workspace:*` and import the components directly, so
+"internal Silo UI" and "third-party extension UI" build from identical markup.
+(The instinct to add a private `@silo-code/ui-internal` that re-exports the
+public kit is the pattern for a _published_ design system consumed across repos;
+here the `workspace:*` graph already gives internal consumers the kit at HEAD, so
+that layer would only add drift.)
+
+Consumers, and the direction of the dependency:
+
+- **Bundled extensions** (`@silo-code/extensions-core` = `core.*`,
+  `@silo-code/extensions-silo` = `silo.*`) use the kit exactly as a third party
+  would — they are where most first-party UI lives, and their modals are the
+  migration target in RFC 0016's sequencing.
+- **The host** (`@silo-code/extension-host`) may import the kit components from
+  the public SDK just as it already imports SDK **types** — the SDK is a leaf and
+  host → SDK is the normal (acyclic) direction. No boundary rule restricts it;
+  the platform ban and leaf-layering rules point the other way.
+
+The **chrome line** — what the kit covers vs. what stays host-owned:
+
+- **Kit territory** (design-token-styled `.silo-*` content): the _content_ of
+  modals, settings pages, and workspace property tabs. Whoever renders that
+  content — host or extension — uses the kit.
+- **Host chrome** (component-token-styled, bespoke, host-owned): the `<Modal>`
+  shell/backdrop/z-stack (ADR 0018), the Settings **rail**, the status-bar
+  container, panels, and the title bar. These are styled via **component tokens**
+  (`--silo-content-*`, `--silo-statusbar-*`, …) the kit and extensions may not
+  touch, and they are intentionally absent from the public kit (RFC 0016
+  non-goals). Panels and the status bar adopt kit _pieces_ only when a later
+  RFC phase promotes them — until then they stay bespoke.
+
+**Version asymmetry (by design):** internal consumers ride the kit at HEAD
+through `workspace:*`; third-party extensions ride the last _published_ SDK. A
+new component is usable app-side the day it lands but reaches third parties only
+after a publish + their `@silo-code/sdk` bump. Keep the kit's public contract
+additive-only regardless of who consumes it first.
+
 ## Consequences
 
 - Extensions (and coding agents) get a normative, importable answer to "make a
