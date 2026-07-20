@@ -291,9 +291,12 @@ export interface EditorService {
    * The current buffer text of an open editor tab, including unsaved edits.
    *
    * Resolves `undefined` when the tab isn't text-backed (e.g. the image
-   * viewer) or hasn't mounted yet — a lazy-mounted dock panel is **not**
-   * force-mounted to read its text. It is async precisely because the text
-   * lives in the mounted editor component, not in host state.
+   * viewer), has never mounted a text document, and has no retained unsaved
+   * buffer. A dirty text editor that unmounts on a view switch (e.g. Text →
+   * Markdown Preview) retains its buffer so presenters can still read it. A
+   * lazy-mounted dock panel is **not** force-mounted to read its text. It is
+   * async precisely because the live text lives in the mounted editor
+   * component, not in host state.
    *
    * @example
    * ```ts
@@ -304,7 +307,8 @@ export interface EditorService {
   getText(editorId: string): Promise<string | undefined>;
   /**
    * Whether an open editor tab has unsaved changes. Returns `false` for an
-   * unknown id or a tab that isn't mounted / text-backed.
+   * unknown id or a tab that isn't text-backed and has no retained dirty
+   * buffer. Stays `true` across a dirty Text → Preview view switch.
    */
   isDirty(editorId: string): boolean;
   /**

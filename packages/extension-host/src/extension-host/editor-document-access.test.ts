@@ -33,8 +33,46 @@ describe("EditorService.getText / isDirty (B6)", () => {
     expect(svc.isDirty("e1")).toBe(true);
 
     sub.dispose();
-    await expect(svc.getText("e1")).resolves.toBeUndefined();
-    expect(svc.isDirty("e1")).toBe(false);
+    // Dirty unmount retains the buffer for view-switch handoff (Text → Preview).
+    await expect(svc.getText("e1")).resolves.toBe("hello world");
+    expect(svc.isDirty("e1")).toBe(true);
+  });
+
+  it("does not retain clean buffer text after the provider unmounts", async () => {
+    const sub = registerDocumentProvider("e1-clean", {
+      getText: () => "saved on disk",
+      isDirty: () => false,
+    });
+    sub.dispose();
+    await expect(svc.getText("e1-clean")).resolves.toBeUndefined();
+    expect(svc.isDirty("e1-clean")).toBe(false);
+  });
+
+  it("clears retained dirty text when a provider remounts", async () => {
+    const first = registerDocumentProvider("e1-re", {
+      getText: () => "unsaved",
+      isDirty: () => true,
+    });
+    first.dispose();
+    await expect(svc.getText("e1-re")).resolves.toBe("unsaved");
+
+    registerDocumentProvider("e1-re", {
+      getText: () => "restored in monaco",
+      isDirty: () => true,
+    });
+    await expect(svc.getText("e1-re")).resolves.toBe("restored in monaco");
+  });
+
+  it("clears retained dirty text on save", async () => {
+    const sub = registerDocumentProvider("e1-save", {
+      getText: () => "draft",
+      isDirty: () => true,
+    });
+    sub.dispose();
+    await expect(svc.getText("e1-save")).resolves.toBe("draft");
+    emitDidSave({ editorId: "e1-save", filePath: "/ws/a.md" });
+    await expect(svc.getText("e1-save")).resolves.toBeUndefined();
+    expect(svc.isDirty("e1-save")).toBe(false);
   });
 
   it("a stale provider's dispose does not clobber a remounted provider", async () => {
