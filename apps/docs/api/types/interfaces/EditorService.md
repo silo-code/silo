@@ -15,7 +15,7 @@ prefer it over reaching into workspace/editor state.
 onDidSave: Event<EditorSaveEvent>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:323](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L323)
+Defined in: [packages/sdk/src/editor-service.ts:327](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L327)
 
 Fires after an editor tab's contents are saved to disk — a formatter,
 linter, or build-on-save extension's entry point. See [Event](../type-aliases/Event.md).
@@ -285,14 +285,17 @@ through this provider, on every mount. Dispose to unregister.
 getText(editorId): Promise<string | undefined>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:304](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L304)
+Defined in: [packages/sdk/src/editor-service.ts:307](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L307)
 
 The current buffer text of an open editor tab, including unsaved edits.
 
 Resolves `undefined` when the tab isn't text-backed (e.g. the image
-viewer) or hasn't mounted yet — a lazy-mounted dock panel is **not**
-force-mounted to read its text. It is async precisely because the text
-lives in the mounted editor component, not in host state.
+viewer), has never mounted a text document, and has no retained unsaved
+buffer. A dirty text editor that unmounts on a view switch (e.g. Text →
+Markdown Preview) retains its buffer so presenters can still read it. A
+lazy-mounted dock panel is **not** force-mounted to read its text. It is
+async precisely because the live text lives in the mounted editor
+component, not in host state.
 
 #### Parameters
 
@@ -319,10 +322,11 @@ if (text !== undefined) ctx.log.info(`${text.length} chars`);
 isDirty(editorId): boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:309](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L309)
+Defined in: [packages/sdk/src/editor-service.ts:313](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L313)
 
 Whether an open editor tab has unsaved changes. Returns `false` for an
-unknown id or a tab that isn't mounted / text-backed.
+unknown id or a tab that isn't text-backed and has no retained dirty
+buffer. Stays `true` across a dirty Text → Preview view switch.
 
 #### Parameters
 
@@ -342,7 +346,7 @@ unknown id or a tab that isn't mounted / text-backed.
 getState(): EditorsState;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:336](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L336)
+Defined in: [packages/sdk/src/editor-service.ts:340](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L340)
 
 Current frozen snapshot of editor state. The returned object is
 referentially stable between renders — `getState() === getState()` when
@@ -368,7 +372,7 @@ if (active) ctx.log.info(`Active file: ${active.filePath ?? "(untitled)"}`);
 subscribe(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:355](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L355)
+Defined in: [packages/sdk/src/editor-service.ts:359](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L359)
 
 Subscribe to changes in the active editor. The listener is called whenever
 `active` changes (tab focus moves, workspace switches, editor opens or

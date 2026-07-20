@@ -12,6 +12,7 @@ import { GITHUB_SANITIZE_SCHEMA } from "./sanitize-schema";
 import { isExternalImageUrl, resolveLocalImagePath } from "./resolveImageSrc";
 import { isValidScrollTop, scrollStorageKey } from "./scroll";
 import { codeBlockLanguage, codeBlockText } from "./mermaid-block";
+import { loadMarkdownSource } from "./load-source";
 import { MermaidDiagram } from "./MermaidDiagram";
 import "./MarkdownPreview.css";
 
@@ -104,16 +105,17 @@ function FrontmatterBlock({ fields }: { fields: Record<string, unknown> }) {
 }
 
 /**
- * Read-only rendered-Markdown view of a `.md` file. Reads the file's text
- * through `ctx.files` (the public primitive — same as the text editor and image
- * viewer), re-reading when the file changes on disk, and renders it with
- * GitHub-flavored Markdown. Text is selectable with a Copy / Select All context
- * menu (Cut/Paste are inert — the preview is read-only). Registers no save
- * handler — it's a presenter.
+ * Read-only rendered-Markdown view of a `.md` file. Prefers the live / retained
+ * editor buffer (`ctx.editors.getText`) so unsaved edits survive a Text →
+ * Preview switch, falling back to `ctx.files.readText` for clean on-disk files.
+ * Re-reads when the file changes on disk. Renders with GitHub-flavored Markdown.
+ * Text is selectable with a Copy / Select All context menu (Cut/Paste are inert
+ * — the preview is read-only). Registers no save handler — it's a presenter.
  */
 export function MarkdownPreview({
   editorId,
   filePath,
+  dockApi,
   ctx,
 }: EditorProps & { ctx: ExtensionContext }) {
   const [content, setContent] = useState<string | null>(null);
@@ -123,6 +125,14 @@ export function MarkdownPreview({
   const hasRestoredScrollRef = useRef(false);
   const lastScrollTopRef = useRef(0);
   const scrollSaveTimerRef = useRef<number | null>(null);
+
+  // Text clears the tab dirty flag on unmount; re-assert it from the retained
+  // buffer so the ● survives a Text → Preview switch.
+  useEffect(() => {
+    if (!ctx.editors.isDirty(editorId)) return;
+    dockApi.updateParameters({ dirty: true });
+    return () => dockApi.updateParameters({ dirty: false });
+  }, [editorId, ctx, dockApi]);
 
   const components = useMemo(
     () => ({
@@ -170,32 +180,34 @@ export function MarkdownPreview({
   );
 
   useEffect(() => {
-    if (!filePath) {
-      setError("Markdown preview requires a file path.");
-      return;
-    }
     let cancelled = false;
     const load = () => {
-      ctx.files
-        .readText(filePath)
-        .then((text) => {
-          if (cancelled) return;
-          setContent(text);
+      void loadMarkdownSource({
+        editorId,
+        filePath,
+        getText: (id) => ctx.editors.getText(id),
+        readText: (path) => ctx.files.readText(path),
+      }).then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          setContent(result.content);
           setError(null);
-        })
-        .catch((err) => {
-          if (!cancelled) setError(String(err));
-        });
+        } else {
+          setError(result.error);
+        }
+      });
     };
     load();
     // Re-render when the file changes underneath us (external edits, the text
-    // editor saving in another tab).
-    const sub = ctx.files.watch(filePath, () => load());
+    // editor saving in another tab). Prefer live/retained buffer on each load.
+    const sub = filePath
+      ? ctx.files.watch(filePath, () => load())
+      : { dispose() {} };
     return () => {
       cancelled = true;
       sub.dispose();
     };
-  }, [filePath]);
+  }, [filePath, editorId, ctx]);
 
   // Restore the saved scroll position once, the first time content lands (the
   // article's height needs to be present before a scrollTop assignment sticks).
