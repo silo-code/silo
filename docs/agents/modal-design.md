@@ -6,6 +6,13 @@ the [Design System](https://getsilo.dev/design/) site
 (`apps/docs/design/`); this file is the terse decision table for an agent
 mid-task, not a replacement for reading it.
 
+Applies to **building Silo too**, not just third-party extensions: the kit has
+one source (`@silo-code/sdk`) that the host and bundled `core.*`/`silo.*`
+extensions consume directly — same components, same rules. Only host **chrome**
+(the modal shell, Settings rail, status-bar container, panels, title bar) stays
+bespoke; everything below is the content you put inside it. See ADR 0026's chrome
+line.
+
 ## Which surface
 
 - Transient task the user completes and leaves → **standalone modal**
