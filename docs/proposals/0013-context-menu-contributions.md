@@ -193,3 +193,13 @@ family, orthogonal design questions):
 2. Multi-select in the explorer — does `explorer/item` pass a single `path` or
    `paths: string[]` when several entries are selected? (Leaning single for v1,
    with a `paths` follow-up.)
+3. A finer-grained `terminal/link` surface — right-click on a specific URL or
+   file-path link inside a terminal's output, distinct from `terminal/tab`
+   (which targets the tab itself). [ADR 0027](../decisions/0027-terminal-link-policy.md)
+   established a unified right-click behavior for terminal links (select the
+   span, show "Open Link"/"Copy Link" or "Open File"/"Copy Path") but that menu
+   is currently hard-coded in the host — there's no contribution point for an
+   extension to add to it. Concrete motivating case: a `local-web-viewer`-style
+   extension adding "Open in local web viewer..." to a URL link's context menu.
+   The context object would need the link's `kind` (`"url" | "path"`) and
+   `text` alongside `terminalId`.
