@@ -60,3 +60,5 @@ A small, obvious choice needs neither.
 | [0023](./0023-workspace-groups-host-internal.md)        | Workspace panel groups are host-internal             | 2026-06-30 | accepted |
 | [0024](./0024-release-channels.md)                      | Two release channels: stable and nightly             | 2026-07-01 | accepted |
 | [0025](./0025-pending-remove-worktree.md)               | Pending remove worktree: close folder on start       | 2026-07-17 | accepted |
+| [0026](./0026-sdk-component-set.md)                     | A curated presentational component set joins the SDK | 2026-07-18 | accepted |
+| [0027](./0027-terminal-link-policy.md)                  | Unified terminal link policy: modifier-click to open | 2026-07-21 | accepted |

@@ -2,6 +2,7 @@
 // PTY host (RFC 0010); screen + scrollback persisted/restored via the xterm.js
 // SerializeAddon (VS Code-style "process revive").
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { subscribe, useSnapshot } from "valtio";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -33,6 +34,13 @@ import { xtermThemeFor } from "./xterm-theme";
 import { effectiveFontFamily } from "./terminal-font";
 import { buildTerminalPaste } from "./terminal-path-paste";
 import { findFileLinks, getHomeDir } from "./terminal-links";
+import {
+  isLinkActivationClick,
+  linkMenuLabels,
+  linkTooltipText,
+  type HoveredTerminalLink,
+  type TerminalLinkRange,
+} from "./terminal-link-policy";
 import { findTerminalOwnerId } from "./terminal-lifecycle";
 import { TerminalSearch } from "./TerminalSearch";
 import { Breadcrumb } from "../editor/Breadcrumb";
@@ -54,6 +62,20 @@ function effectiveFontSize(): number {
   return store.uiFontSize + store.terminalSettings.fontSizeOffset + 0.5;
 }
 const cmdKey = isMac ? "⌘" : "Ctrl";
+
+// Matches the hover delay of the shared `Tooltip` component (packages/sdk/src/Tooltip.tsx)
+// so terminal link tooltips feel consistent with the rest of the app.
+const LINK_TOOLTIP_DELAY_MS = 600;
+
+// xterm's built-in OSC-8/web-link fallback opens via `window.open()`, which
+// the Tauri webview doesn't hand off to the OS the way a real browser does.
+// Route through the host's opener (the same path menu items and extensions
+// use) instead.
+function openTerminalLink(ctx: ExtensionContext, uri: string): void {
+  void ctx.ui.openExternal(uri).catch((err: unknown) => {
+    console.warn("[terminal] failed to open external link", uri, err);
+  });
+}
 
 export interface TerminalPanelParams {
   terminalId: string;
@@ -109,6 +131,20 @@ export function TerminalPanel(
   const liveRef = useRef<LiveRefs | null>(null);
   // Active disposer for this terminal's selection source (registered while focused).
   const selSourceRef = useRef<Disposable | null>(null);
+  // The link (if any) currently under the pointer, across all three link
+  // mechanisms (OSC-8, WebLinksAddon, file-path provider) — see ADR 0027.
+  // Read by onContextMenu (right-click selects + shows link actions) and by
+  // the tooltip below. A ref because it's written from xterm's hover
+  // callbacks, which fire far more often than a render can usefully follow.
+  const hoveredLinkRef = useRef<HoveredTerminalLink | null>(null);
+  const linkTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const [linkTooltip, setLinkTooltip] = useState<{
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
   // Live working directory of the terminal's foreground process (RFC 0010 N2),
   // updated from foreground events. The ref feeds "New Terminal Here" (sync,
   // no re-render needed); the state drives the breadcrumb bar.
@@ -177,6 +213,38 @@ export function TerminalPanel(
     }
   }, []);
 
+  // Shared hover/tooltip plumbing for every link provider (ADR 0027): each
+  // provider's `hover`/`leave` callback funnels into these two, so the
+  // tooltip text and the right-click "what's under the pointer" state stay
+  // consistent no matter which mechanism found the link.
+  const showLinkTooltip = useCallback(
+    (
+      event: MouseEvent,
+      kind: HoveredTerminalLink["kind"],
+      text: string,
+      range: TerminalLinkRange,
+    ) => {
+      hoveredLinkRef.current = { kind, text, range };
+      if (linkTooltipTimerRef.current)
+        clearTimeout(linkTooltipTimerRef.current);
+      const x = event.clientX;
+      const y = event.clientY;
+      linkTooltipTimerRef.current = setTimeout(() => {
+        setLinkTooltip({ x, y, text: linkTooltipText(kind, isMac) });
+      }, LINK_TOOLTIP_DELAY_MS);
+    },
+    [],
+  );
+
+  const hideLinkTooltip = useCallback(() => {
+    hoveredLinkRef.current = null;
+    if (linkTooltipTimerRef.current) {
+      clearTimeout(linkTooltipTimerRef.current);
+      linkTooltipTimerRef.current = null;
+    }
+    setLinkTooltip(null);
+  }, []);
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -197,13 +265,55 @@ export function TerminalPanel(
       // glyphs from the font instead. Regular text is unaffected.
       customGlyphs: false,
       allowProposedApi: true,
+      // Overrides xterm's default OSC-8 hyperlink activation (see
+      // openTerminalLink above for why the default doesn't work here) and
+      // applies the shared link policy (ADR 0027): Cmd/Ctrl+click to open,
+      // hover shows a tooltip, plain click is a no-op.
+      linkHandler: {
+        activate: (event, uri) => {
+          if (!isLinkActivationClick(event, isMac)) return;
+          openTerminalLink(ctx, uri);
+        },
+        hover: (event, text, range) =>
+          showLinkTooltip(event, "url", text, range),
+        leave: () => hideLinkTooltip(),
+      },
     });
     // xterm v6 removed the bellStyle option; subscribe to onBell with a no-op
     // to suppress any audio the WebView would otherwise play on BEL (0x07).
     term.onBell(() => {});
     const fit = new FitAddon();
     term.loadAddon(fit);
-    term.loadAddon(new WebLinksAddon());
+    term.loadAddon(
+      new WebLinksAddon(
+        (event, uri) => {
+          if (!isLinkActivationClick(event, isMac)) return;
+          openTerminalLink(ctx, uri);
+        },
+        {
+          // WebLinksAddon reports hover position in viewport-relative,
+          // 0-based coordinates; convert to the same buffer-absolute,
+          // 1-based coordinates the other two link providers use (see
+          // terminal-link-policy.ts) so right-click "select the link" works
+          // identically no matter which provider found it.
+          hover: (event, text, location) => {
+            const viewportY = term.buffer.active.viewportY;
+            const range: TerminalLinkRange = {
+              start: {
+                x: location.start.x + 1,
+                y: viewportY + location.start.y + 1,
+              },
+              end: {
+                x: location.end.x + 1,
+                y: viewportY + location.end.y + 1,
+              },
+            };
+            showLinkTooltip(event, "url", text, range);
+          },
+          leave: () => hideLinkTooltip(),
+        },
+      ),
+    );
     // SerializeAddon dumps the buffer (screen + scrollback, alt-screen aware) to
     // a self-contained string we persist for restore — the same mechanism VS
     // Code uses for terminal "process revive".
@@ -244,9 +354,14 @@ export function TerminalPanel(
     term.registerLinkProvider({
       provideLinks(bufferLineNumber, callback) {
         callback(
-          findFileLinks(term, bufferLineNumber, (text) =>
-            openFileFromTerminal(text, terminalId, ctx.editors),
-          ),
+          findFileLinks(term, bufferLineNumber, {
+            isMac,
+            onActivate: (text) =>
+              openFileFromTerminal(text, terminalId, ctx.editors),
+            onHover: (event, text, range) =>
+              showLinkTooltip(event, "path", text, range),
+            onLeave: () => hideLinkTooltip(),
+          }),
         );
       },
     });
@@ -603,6 +718,7 @@ export function TerminalPanel(
       cancelled = true;
       ro.disconnect();
       unsubFont();
+      hideLinkTooltip();
 
       // Capture session info before disposers clear liveRef
       const sessionId = liveRef.current?.sessionId;
@@ -798,13 +914,10 @@ export function TerminalPanel(
 
   function onContextMenu(e: React.MouseEvent) {
     e.preventDefault();
-    // When enabled, right-click pastes instead of opening the context menu. The
-    // paste itself happens in the `auxclick` handler — WebKit grants clipboard
-    // read only on a real click gesture, not on a `contextmenu` event.
-    if (store.terminalSettings.pasteOnRightClick) {
-      return;
-    }
-    const items: MenuEntry[] = [
+    // Capture before hiding — hideLinkTooltip() clears hoveredLinkRef too.
+    const hovered = hoveredLinkRef.current;
+    hideLinkTooltip();
+    const genericItems: MenuEntry[] = [
       { label: "Copy", accelerator: `${cmdKey}C`, run: ctxCopy },
       { label: "Copy as HTML", run: ctxCopyAsHtml },
       { label: "Paste", accelerator: `${cmdKey}V`, run: ctxPaste },
@@ -815,7 +928,51 @@ export function TerminalPanel(
       { type: "separator" },
       { label: "Kill Terminal", danger: true, run: ctxKill },
     ];
-    void ctx.ui.showMenu({ items, at: { x: e.clientX, y: e.clientY } });
+
+    // Right-clicking directly on a link always selects it and shows link
+    // actions (ADR 0027) — this takes priority over pasteOnRightClick, since
+    // landing on a specific, unambiguous target is a stronger signal of
+    // intent than the blanket "paste on right-click" setting.
+    if (hovered) {
+      const live = liveRef.current;
+      if (live) {
+        live.term.select(
+          hovered.range.start.x - 1,
+          hovered.range.start.y - 1,
+          hovered.text.length,
+        );
+      }
+      const labels = linkMenuLabels(hovered.kind);
+      const items: MenuEntry[] = [
+        {
+          label: labels.open,
+          run: () => {
+            if (hovered.kind === "url") openTerminalLink(ctx, hovered.text);
+            else
+              void openFileFromTerminal(hovered.text, terminalId, ctx.editors);
+          },
+        },
+        {
+          label: labels.copy,
+          run: () => void navigator.clipboard.writeText(hovered.text),
+        },
+        { type: "separator" },
+        ...genericItems,
+      ];
+      void ctx.ui.showMenu({ items, at: { x: e.clientX, y: e.clientY } });
+      return;
+    }
+
+    // When enabled, right-click pastes instead of opening the context menu. The
+    // paste itself happens in the `auxclick` handler — WebKit grants clipboard
+    // read only on a real click gesture, not on a `contextmenu` event.
+    if (store.terminalSettings.pasteOnRightClick) {
+      return;
+    }
+    void ctx.ui.showMenu({
+      items: genericItems,
+      at: { x: e.clientX, y: e.clientY },
+    });
   }
 
   async function ctxCopy() {
@@ -974,6 +1131,22 @@ export function TerminalPanel(
           </div>
         )}
       </div>
+      {linkTooltip &&
+        // .silo-tooltip is the host's shared tooltip style (see
+        // packages/extension-host/src/components/Tooltip.css), loaded
+        // globally since other core extensions (e.g. the status bar) use the
+        // Tooltip component. Positioned by hand here since xterm renders
+        // links to canvas — there's no DOM element to anchor a wrapping
+        // Tooltip to.
+        createPortal(
+          <div
+            className="silo-tooltip"
+            style={{ left: linkTooltip.x + 12, top: linkTooltip.y + 16 }}
+          >
+            {linkTooltip.text}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

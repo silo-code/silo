@@ -1,9 +1,14 @@
 // Cmd/Ctrl+click on a file path in terminal output opens it in the editor.
 // This module is pure parsing: it finds path-like spans in a logical terminal
-// line and builds xterm `ILink`s. The actual "open" action is injected by the
-// panel (which owns store + editor access) via the `onActivate` callback.
+// line and builds xterm `ILink`s. The actual "open"/hover behavior is injected
+// by the panel (which owns store + editor access + the shared link policy)
+// via the callbacks below.
 import { Terminal as XTerm, type ILink } from "@xterm/xterm";
 import { homeDir } from "@silo-code/extension-host/internal";
+import {
+  isLinkActivationClick,
+  type TerminalLinkRange,
+} from "./terminal-link-policy";
 
 // Two alternatives:
 //   1. Explicit-prefix paths — `~/...`, `/abs/...`, `./rel/...`, `../rel/...`.
@@ -48,10 +53,17 @@ function collectLogicalLine(
   return { text, startY: y + 1 };
 }
 
+export interface FileLinkCallbacks {
+  isMac: boolean;
+  onActivate: (matchText: string) => void;
+  onHover: (event: MouseEvent, text: string, range: TerminalLinkRange) => void;
+  onLeave: () => void;
+}
+
 export function findFileLinks(
   term: XTerm,
   bufferLineNumber: number,
-  onActivate: (matchText: string) => void,
+  callbacks: FileLinkCallbacks,
 ): ILink[] | undefined {
   const logical = collectLogicalLine(term, bufferLineNumber);
   if (!logical) return undefined;
@@ -66,22 +78,25 @@ export function findFileLinks(
     if (!matchText) continue;
     const startOffset = m.index;
     const endOffsetIncl = startOffset + matchText.length - 1;
-    links.push({
-      range: {
-        start: {
-          x: (startOffset % cols) + 1,
-          y: logical.startY + Math.floor(startOffset / cols),
-        },
-        end: {
-          x: (endOffsetIncl % cols) + 1,
-          y: logical.startY + Math.floor(endOffsetIncl / cols),
-        },
+    const range: TerminalLinkRange = {
+      start: {
+        x: (startOffset % cols) + 1,
+        y: logical.startY + Math.floor(startOffset / cols),
       },
+      end: {
+        x: (endOffsetIncl % cols) + 1,
+        y: logical.startY + Math.floor(endOffsetIncl / cols),
+      },
+    };
+    links.push({
+      range,
       text: matchText,
       activate: (event, text) => {
-        if (!event.metaKey && !event.ctrlKey) return;
-        onActivate(text);
+        if (!isLinkActivationClick(event, callbacks.isMac)) return;
+        callbacks.onActivate(text);
       },
+      hover: (event, text) => callbacks.onHover(event, text, range),
+      leave: () => callbacks.onLeave(),
     });
   }
   return links.length ? links : undefined;
