@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.34.1](https://github.com/silo-code/silo/compare/silo-v0.34.0...silo-v0.34.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* **markdown-preview:** render unsaved buffer instead of disk-only ([#271](https://github.com/silo-code/silo/issues/271)) ([2ae1db9](https://github.com/silo-code/silo/commit/2ae1db908cd9e6ce7180b1cb6b2050d3cae38860)), closes [#270](https://github.com/silo-code/silo/issues/270)
+* **terminal:** unify link click/hover/right-click behavior across link types ([#275](https://github.com/silo-code/silo/issues/275)) ([fe15d25](https://github.com/silo-code/silo/commit/fe15d2587294c0d43416c3d2f21fa6b6f6ef3257))
+
 ## [0.34.0](https://github.com/silo-code/silo/compare/silo-v0.33.1...silo-v0.34.0) (2026-07-19)
 
 
