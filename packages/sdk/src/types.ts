@@ -325,6 +325,7 @@ export type MenuSurface =
   | "explorer/item" // right-click on a file/folder in the file explorer
   | "editor/tab" // right-click on an editor tab
   | "terminal/tab" // right-click on a terminal tab
+  | "terminal/link" // right-click landing directly on a link inside a terminal
   | "workspace"; // right-click on a workspace row in the Workspaces panel
 
 /**
@@ -346,6 +347,14 @@ export interface MenuContext {
   "explorer/item": { path: string; isDir: boolean; workspaceId: string };
   "editor/tab": { editorId: string; filePath: string | null; viewId: string };
   "terminal/tab": { terminalId: string; workspaceId: string };
+  /**
+   * The right-clicked link's kind (`"url"` for OSC-8/`WebLinksAddon`-detected
+   * links, `"path"` for Silo's own file-path provider) and its literal text
+   * (the URL or path string), alongside which terminal it was found in. See
+   * {@link https://github.com/silo-code/silo/blob/main/docs/decisions/0027-terminal-link-policy.md | ADR 0027}
+   * for the shared link contract this surface hooks into.
+   */
+  "terminal/link": { terminalId: string; kind: "url" | "path"; text: string };
   workspace: Workspace;
 }
 
@@ -368,6 +377,8 @@ export interface ContextMenuContribution<S extends MenuSurface = MenuSurface> {
   command: string;
   /** Menu label (falls back to the command's label). */
   label?: string;
+  /** Leading glyph for the row (e.g. a Phosphor icon element), same as {@link MenuItem.icon}. */
+  icon?: React.ReactNode;
   /** Ordering within the menu; lower sorts first. */
   order?: number;
   /**

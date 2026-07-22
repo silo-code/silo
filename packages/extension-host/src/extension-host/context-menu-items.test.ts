@@ -187,6 +187,16 @@ describe("buildContextMenuEntries", () => {
     expect(entries[1].checked).toBeUndefined();
   });
 
+  it("carries the icon through and leaves it undefined when absent", () => {
+    const icon = "globe-icon" as unknown as ContextMenuContribution["icon"];
+    const entries = build([
+      contribution("a.icon", { icon }),
+      contribution("a.plain"),
+    ]) as MenuItem[];
+    expect(entries[0].icon).toBe(icon);
+    expect(entries[1].icon).toBeUndefined();
+  });
+
   it("dispatches the command with the target when a row runs", () => {
     const dispatch = vi.fn();
     const entries = build([contribution("a.run")], dispatch) as MenuItem[];

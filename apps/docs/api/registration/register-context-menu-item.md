@@ -1,9 +1,9 @@
 # ctx.registerContextMenuItem
 
-Add a command to the right-click context menu of a built-in surface — the file-explorer entry, an editor tab, a terminal tab, or a workspace row. Unlike [`registerMenuItem`](/api/registration/register-menu-item) (the menubar), the invoked command receives a typed **target** — which file, which editor, which workspace — as its first argument, and the same target is threaded into the `when` (visibility) and `checked` (toggle checkmark) predicates.
+Add a command to the right-click context menu of a built-in surface — the file-explorer entry, an editor tab, a terminal tab, a link inside a terminal, or a workspace row. Unlike [`registerMenuItem`](/api/registration/register-menu-item) (the menubar), the invoked command receives a typed **target** — which file, which editor, which workspace — as its first argument, and the same target is threaded into the `when` (visibility) and `checked` (toggle checkmark) predicates.
 
 ::: info Surface status
-The `"workspace"` surface renders today. The other `MenuSurface` values (`"explorer/item"`, `"editor/tab"`, `"terminal/tab"`) are typed but not yet dispatched — contributions to them register cleanly and appear once those surfaces land (see the [Roadmap](/roadmap#context-menus)).
+The `"workspace"` and `"terminal/link"` surfaces render today. The other `MenuSurface` values (`"explorer/item"`, `"editor/tab"`, `"terminal/tab"`) are typed but not yet dispatched — contributions to them register cleanly and appear once those surfaces land (see the [Roadmap](/roadmap#context-menus)).
 :::
 
 ```ts
@@ -35,6 +35,28 @@ ctx.subscriptions.push(
     group: "acme",
     when: (_, ws) => acmeStore.supports(ws),
     checked: (_, ws) => acmeStore.isWatched(ws.id), // renders a toggle row
+  }),
+);
+```
+
+`"terminal/link"` fires only when a right-click lands directly on a link span (ADR 0027); `target.kind` distinguishes a URL from a file-path link:
+
+```tsx
+ctx.registerCommand({
+  id: "acme.openInViewer",
+  label: "Acme: Open in viewer",
+  run: (...args) => {
+    const { text } = args[0] as MenuContext["terminal/link"];
+    ctx.layout.openPanel("acme.viewer", { url: text });
+  },
+});
+
+ctx.subscriptions.push(
+  ctx.registerContextMenuItem({
+    surface: "terminal/link",
+    command: "acme.openInViewer",
+    icon: <Globe size={14} weight="regular" />, // rendered leading the row, same as MenuItem.icon
+    when: (_, target) => target.kind === "url",
   }),
 );
 ```

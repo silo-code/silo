@@ -52,6 +52,7 @@ export type MenuSurface =
   | "explorer/item" // right-click on a file/folder in the file explorer
   | "editor/tab" // right-click on an editor tab
   | "terminal/tab" // right-click on a terminal tab
+  | "terminal/link" // right-click landing directly on a link inside a terminal
   | "workspace"; // right-click on a workspace row in the Workspaces panel
 ```
 
@@ -66,6 +67,7 @@ export interface MenuContext {
   "explorer/item": { path: string; isDir: boolean; workspaceId: string };
   "editor/tab": { editorId: string; filePath: string | null; viewId: string };
   "terminal/tab": { terminalId: string; workspaceId: string };
+  "terminal/link": { terminalId: string; kind: "url" | "path"; text: string };
   workspace: Workspace; // the full Workspace type from domain-types
 }
 ```
@@ -184,22 +186,25 @@ Resolved:
    would be a second, inconsistent convention for no real benefit.
 2. **Toggle rows: `checked` predicate, not two mutually-exclusive commands.**
    See the `ContextMenuContribution.checked` field above.
+3. **The `"terminal/link"` surface**, resolving the "finer-grained terminal
+   link surface" question raised below and the extension point ADR 0027 noted
+   as future work. Right-clicking directly on a link (URL or file-path span)
+   is already its own event, distinct from `terminal/tab` — `TerminalPanel.tsx`
+   knows at that point which link kind was hit and its literal text, so the
+   context object is `{ terminalId, kind: "url" | "path", text }`. The host
+   appends contributed rows after the built-in "Open Link"/"Copy Link" (or
+   "Open File"/"Copy Path") actions, behind their own separator, only when
+   `contextMenuEntriesFor("terminal/link", target)` returns a non-empty list —
+   same append-with-separator convention as the `"workspace"` surface in
+   `WorkspacesPanel.tsx`. Concrete motivating case:
+   `local-web-viewer`'s "Open in Local Web Viewer" item, gated
+   `when: (_, target) => target.kind === "url"`.
 
 **Deferred** — open, not blocking acceptance of the above (separate surface
 family, orthogonal design questions):
 
-1. Final seed set of surfaces — is `terminal/tab` worth v1, or start with
-   explorer + editor only?
+1. Final seed set of the remaining surfaces — is `terminal/tab` worth v1, or
+   start with explorer + editor only?
 2. Multi-select in the explorer — does `explorer/item` pass a single `path` or
    `paths: string[]` when several entries are selected? (Leaning single for v1,
    with a `paths` follow-up.)
-3. A finer-grained `terminal/link` surface — right-click on a specific URL or
-   file-path link inside a terminal's output, distinct from `terminal/tab`
-   (which targets the tab itself). [ADR 0027](../decisions/0027-terminal-link-policy.md)
-   established a unified right-click behavior for terminal links (select the
-   span, show "Open Link"/"Copy Link" or "Open File"/"Copy Path") but that menu
-   is currently hard-coded in the host — there's no contribution point for an
-   extension to add to it. Concrete motivating case: a `local-web-viewer`-style
-   extension adding "Open in local web viewer..." to a URL link's context menu.
-   The context object would need the link's `kind` (`"url" | "path"`) and
-   `text` alongside `terminalId`.
