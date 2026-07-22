@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.30.0](https://github.com/silo-code/silo/compare/sdk-v0.29.1...sdk-v0.30.0) (2026-07-22)
+
+
+### Features
+
+* **terminals:** add terminal/link context-menu contribution surface ([#277](https://github.com/silo-code/silo/issues/277)) ([d1277b2](https://github.com/silo-code/silo/commit/d1277b2b10795132e4abcc86281ab22a0b34491d))
+
 ## [0.29.1](https://github.com/silo-code/silo/compare/sdk-v0.29.0...sdk-v0.29.1) (2026-07-20)
 
 
