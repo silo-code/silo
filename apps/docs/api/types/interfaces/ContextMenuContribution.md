@@ -1,6 +1,6 @@
 # Interface: ContextMenuContribution\<S\>
 
-Defined in: [packages/sdk/src/types.ts:364](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L364)
+Defined in: [packages/sdk/src/types.ts:373](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L373)
 
 Adds a command to the right-click context menu of a built-in surface.
 Register via [ExtensionContext.registerContextMenuItem](ExtensionContext.md#registercontextmenuitem).
@@ -24,7 +24,7 @@ and dispatches the chosen command with the target as its first argument.
 surface: S;
 ```
 
-Defined in: [packages/sdk/src/types.ts:366](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L366)
+Defined in: [packages/sdk/src/types.ts:375](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L375)
 
 Which context menu to contribute to.
 
@@ -36,7 +36,7 @@ Which context menu to contribute to.
 command: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:368](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L368)
+Defined in: [packages/sdk/src/types.ts:377](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L377)
 
 The command to run; receives the surface's [MenuContext\[S\]](MenuContext.md) as its first arg.
 
@@ -48,9 +48,21 @@ The command to run; receives the surface's [MenuContext\[S\]](MenuContext.md) as
 optional label?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:370](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L370)
+Defined in: [packages/sdk/src/types.ts:379](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L379)
 
 Menu label (falls back to the command's label).
+
+***
+
+### icon?
+
+```ts
+optional icon?: ReactNode;
+```
+
+Defined in: [packages/sdk/src/types.ts:381](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L381)
+
+Leading glyph for the row (e.g. a Phosphor icon element), same as [MenuItem.icon](MenuItem.md#icon).
 
 ***
 
@@ -60,7 +72,7 @@ Menu label (falls back to the command's label).
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:372](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L372)
+Defined in: [packages/sdk/src/types.ts:383](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L383)
 
 Ordering within the menu; lower sorts first.
 
@@ -72,7 +84,7 @@ Ordering within the menu; lower sorts first.
 optional group?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:378](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L378)
+Defined in: [packages/sdk/src/types.ts:389](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L389)
 
 Optional group id — items with the same group render together with a
 separator between groups. Group names sort lexically; defaults to
@@ -86,7 +98,7 @@ separator between groups. Group names sort lexically; defaults to
 optional when?: (ctx, target) => boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:383](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L383)
+Defined in: [packages/sdk/src/types.ts:394](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L394)
 
 Enable/visibility predicate. Receives the same per-surface context as the
 command plus the current context keys. Returning false hides the item.
@@ -113,7 +125,7 @@ command plus the current context keys. Returning false hides the item.
 optional checked?: (ctx, target) => boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:391](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L391)
+Defined in: [packages/sdk/src/types.ts:402](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L402)
 
 Toggle-row predicate. When provided, the item renders with a checkmark
 in the leading gutter whenever this returns true — the same rendering

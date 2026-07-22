@@ -98,6 +98,7 @@ export function buildContextMenuEntries<S extends MenuSurface>(
     for (const item of group) {
       entries.push({
         label: item.label ?? resolveLabel(item.command),
+        icon: item.icon,
         checked: item.checked ? item.checked(keys, target) : undefined,
         run: () => dispatch(item.command, target),
       });

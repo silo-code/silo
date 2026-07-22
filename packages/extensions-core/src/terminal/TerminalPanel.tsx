@@ -29,6 +29,7 @@ import {
   useFocusOnActive,
   onTerminalForeground,
   registerSelectionSource,
+  contextMenuEntriesFor,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
 import { effectiveFontFamily } from "./terminal-font";
@@ -956,9 +957,18 @@ export function TerminalPanel(
           label: labels.copy,
           run: () => void navigator.clipboard.writeText(hovered.text),
         },
-        { type: "separator" },
-        ...genericItems,
       ];
+      // Extension contributions on the "terminal/link" surface (RFC 0013),
+      // grouped and separated below the built-in link actions.
+      const contributed = contextMenuEntriesFor("terminal/link", {
+        terminalId,
+        kind: hovered.kind,
+        text: hovered.text,
+      });
+      if (contributed.length > 0) {
+        items.push({ type: "separator" }, ...contributed);
+      }
+      items.push({ type: "separator" }, ...genericItems);
       void ctx.ui.showMenu({ items, at: { x: e.clientX, y: e.clientY } });
       return;
     }

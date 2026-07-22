@@ -1,25 +1,17 @@
 // Cmd/Ctrl+click on a file path in terminal output opens it in the editor.
-// This module is pure parsing: it finds path-like spans in a logical terminal
-// line and builds xterm `ILink`s. The actual "open"/hover behavior is injected
-// by the panel (which owns store + editor access + the shared link policy)
-// via the callbacks below.
+// Path parsing lives in {@link ./terminal-link-match}; this module builds
+// xterm `ILink`s around those spans. The actual "open"/hover behavior is
+// injected by the panel (which owns store + editor access + the shared link
+// policy) via the callbacks below.
 import { Terminal as XTerm, type ILink } from "@xterm/xterm";
 import { homeDir } from "@silo-code/extension-host/internal";
 import {
   isLinkActivationClick,
   type TerminalLinkRange,
 } from "./terminal-link-policy";
+import { matchFilePaths } from "./terminal-link-match";
 
-// Two alternatives:
-//   1. Explicit-prefix paths — `~/...`, `/abs/...`, `./rel/...`, `../rel/...`.
-//   2. Bare relative paths — `word/word/.../file.ext`. The trailing
-//      `.ext` requirement keeps random `1/2` style noise out.
-// Either form can carry an optional `:LINE` or `:LINE:COL` suffix.
-// Trailing sentence punctuation is stripped after the match so
-// `see /etc/hosts.` doesn't include the dot.
-export const FILE_PATH_RE =
-  /(?<![A-Za-z0-9_.:/])(?:(?:~|\.{1,2})?\/[A-Za-z0-9_./\-@+]+|[A-Za-z0-9_\-@+]+\/[A-Za-z0-9_./\-@+]*\.[A-Za-z0-9_\-@+]+)(?::\d+(?::\d+)?)?/g;
-const TRAILING_PUNCT_RE = /[.,;:)\]}>'"]+$/;
+export { FILE_PATH_RE, matchFilePaths } from "./terminal-link-match";
 
 let cachedHomeDir: string | null = null;
 export function getHomeDir(): Promise<string> {
@@ -69,15 +61,9 @@ export function findFileLinks(
   if (!logical) return undefined;
   const cols = term.cols;
   const links: ILink[] = [];
-  FILE_PATH_RE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = FILE_PATH_RE.exec(logical.text)) !== null) {
-    let matchText = m[0];
-    const trailing = matchText.match(TRAILING_PUNCT_RE);
-    if (trailing) matchText = matchText.slice(0, -trailing[0].length);
-    if (!matchText) continue;
-    const startOffset = m.index;
-    const endOffsetIncl = startOffset + matchText.length - 1;
+  for (const match of matchFilePaths(logical.text)) {
+    const startOffset = match.index;
+    const endOffsetIncl = startOffset + match.text.length - 1;
     const range: TerminalLinkRange = {
       start: {
         x: (startOffset % cols) + 1,
@@ -90,7 +76,7 @@ export function findFileLinks(
     };
     links.push({
       range,
-      text: matchText,
+      text: match.text,
       activate: (event, text) => {
         if (!isLinkActivationClick(event, callbacks.isMac)) return;
         callbacks.onActivate(text);
