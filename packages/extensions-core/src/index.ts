@@ -17,6 +17,7 @@ export { extension as workspaces } from "./workspaces";
 export { extension as themes } from "./themes";
 export { extension as keybindings } from "./keybindings";
 export { extension as about } from "./about";
+export { extension as agentsSettings } from "./agents-settings";
 export { extension as cliInstall } from "./cli-install";
 export { extension as extensions } from "./extensions";
 export { extension as panelToggles } from "./statusbar/panel-toggles";

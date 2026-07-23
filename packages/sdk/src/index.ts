@@ -100,6 +100,7 @@ export type {
   ProcessStats,
   ProcessTreeNode,
 } from "./processes-service";
+export type { AgentsService, AgentInfo, AgentActivity } from "./agents-service";
 export type {
   TerminalService,
   CreateTerminalInput,

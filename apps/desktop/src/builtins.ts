@@ -9,6 +9,7 @@ import {
   themes,
   keybindings,
   about,
+  agentsSettings,
   cliInstall,
   extensions,
   panelToggles,
@@ -60,6 +61,7 @@ const builtins: Extension[] = [
   updates,
   keybindings,
   about,
+  agentsSettings,
   cliInstall,
   extensions,
   // Phase 1 of the ctx.webview bridge (docs/proposals/0011-iframe-navigation-events.md).

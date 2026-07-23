@@ -174,6 +174,7 @@ export default withMermaid(
               { text: "Workspaces", link: "/guide/workspaces" },
               { text: "Side panels", link: "/guide/panels" },
               { text: "Extensions", link: "/guide/extensions" },
+              { text: "Agent sessions", link: "/guide/agent-sessions" },
               { text: "The `silo` command", link: "/guide/cli" },
               { text: "Release channels", link: "/guide/release-channels" },
             ],

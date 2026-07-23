@@ -24,3 +24,7 @@ dist-ssr
 
 # Turborepo local cache
 .turbo
+
+# Reference clones for research (see root CLAUDE.md's "Repository Clones"
+# convention) — never part of this repo's own source.
+/repos/

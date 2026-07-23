@@ -14,6 +14,7 @@ import type {
   TerminalSettings,
   WorkspaceInternal,
   WorkspaceGroup,
+  PersistedAgentInfo,
 } from "./types";
 
 /** The global index blob — everything in the old store *except* the workspaces
@@ -29,6 +30,10 @@ export interface PersistedIndex {
   // Global (not per-workspace), so it lives in the index; absent in older
   // indexes, in which case extensions start from their defaults.
   globalExtensionState?: Record<string, Record<string, unknown>>;
+  // Host-owned `ctx.agents` state, keyed by terminal id. Global for the same
+  // reason globalExtensionState is: not per-workspace-scoped. Absent in
+  // older indexes (pre-ctx.agents installs).
+  agentState?: Record<string, PersistedAgentInfo>;
   // Legacy migration fields — stored globally in old installs, now per-workspace.
   leftPanelCollapsed?: boolean;
   rightPanelCollapsed?: boolean;
@@ -77,6 +82,17 @@ export function cloneExtensionState(
   src: Record<string, Record<string, unknown>>,
 ): Record<string, Record<string, unknown>> {
   const out: Record<string, Record<string, unknown>> = {};
+  for (const k of Object.keys(src)) out[k] = { ...src[k] };
+  return out;
+}
+
+/** Shallow-clone `ctx.agents` persisted state so the result doesn't alias
+ * live state — each `PersistedAgentInfo` is a flat object, so a per-key
+ * spread (like {@link cloneExtensionState}) is sufficient. */
+export function cloneAgentState(
+  src: Record<string, PersistedAgentInfo>,
+): Record<string, PersistedAgentInfo> {
+  const out: Record<string, PersistedAgentInfo> = {};
   for (const k of Object.keys(src)) out[k] = { ...src[k] };
   return out;
 }
@@ -142,6 +158,9 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
       : undefined,
     globalExtensionState: snapshot.globalExtensionState
       ? cloneExtensionState(snapshot.globalExtensionState)
+      : undefined,
+    agentState: snapshot.agentState
+      ? cloneAgentState(snapshot.agentState)
       : undefined,
     groups: snapshot.groups ? cloneGroups(snapshot.groups) : undefined,
     panelOrder: snapshot.panelOrder ? [...snapshot.panelOrder] : undefined,

@@ -20,6 +20,7 @@ import type {
   CustomTheme,
   TerminalRecord,
   EditorRecord,
+  AgentActivity,
 } from "@silo-code/sdk";
 
 /**
@@ -76,6 +77,32 @@ export interface WorkspaceGroup {
   closedMemberIds?: string[];
 }
 
+/**
+ * Persisted subset of the SDK's `AgentInfo`, keyed by terminal id in
+ * `AppState.agentState`. Excludes `kind` (re-read fresh from the terminal
+ * record on restore) and `terminalId` (the map key). Written by the host's
+ * `ctx.agents` implementation on every real transition; read back on restore
+ * to compute `stale` from `lastLiveAt`. See RFC 0017.
+ */
+export interface PersistedAgentInfo {
+  workspaceId: string;
+  isAgent: boolean;
+  activity: AgentActivity;
+  needsAttention: boolean;
+  attentionSince?: string;
+  workingSince?: string;
+  /** Which source last set activity to "working"; gates timer-source
+   *  demotion after restore the same way it does live — see
+   *  `agent-activity-model.ts`'s `reduce()`. */
+  workingSource: "agent" | "shell" | null;
+  sessionId?: string;
+  resumeCommand?: string;
+  agentName?: string;
+  /** ISO timestamp of the last live (non-stale-restore) update — the
+   *  reference point for computing the gap against the stale threshold. */
+  lastLiveAt: string;
+}
+
 export interface AppState {
   workspaces: Record<string, WorkspaceInternal>;
   workspaceOrder: string[];
@@ -124,6 +151,14 @@ export interface AppState {
    * then by key. Persisted in the global index, not per-workspace.
    */
   globalExtensionState: Record<string, Record<string, unknown>>;
+  /**
+   * Host-owned `ctx.agents` state, keyed by terminal id. Not extension-facing
+   * (unlike `extensionState`/`globalExtensionState`) — no `ctx.storage`
+   * surface exposes this; it backs `AgentsService` directly. Global, not
+   * per-workspace-swapped, since a terminal id is already globally unique and
+   * each `PersistedAgentInfo` carries its own `workspaceId`.
+   */
+  agentState: Record<string, PersistedAgentInfo>;
   leftPanelCollapsed: boolean;
   rightPanelCollapsed: boolean;
   /**

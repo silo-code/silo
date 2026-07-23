@@ -13,6 +13,7 @@ import { setBackupDir, sweepEditorBackups } from "./editor-backups";
 import {
   buildIndex,
   cloneExtensionState,
+  cloneAgentState,
   diffWorkspaceWrites,
   reconcilePanelOrder,
   reconcileWorkspaceListing,
@@ -136,6 +137,9 @@ export async function hydrate(configDir: string): Promise<void> {
     };
     store.globalExtensionState = index.globalExtensionState
       ? cloneExtensionState(index.globalExtensionState)
+      : {};
+    store.agentState = index.agentState
+      ? cloneAgentState(index.agentState)
       : {};
   }
 
@@ -279,6 +283,7 @@ async function doPersist(): Promise<void> {
       editorSettings: { ...store.editorSettings },
       terminalSettings: { ...store.terminalSettings },
       globalExtensionState: store.globalExtensionState,
+      agentState: store.agentState,
       groups: store.groups,
       panelOrder: [...store.panelOrder],
     }),

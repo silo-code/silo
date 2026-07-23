@@ -1,0 +1,37 @@
+.agents-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 16px;
+}
+
+.agents-settings-blurb {
+  margin: 0 0 12px;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-lo);
+  line-height: 1.6;
+}
+
+.agents-settings-blurb code {
+  font-family: var(--silo-font-mono);
+  color: var(--silo-color-text-hi);
+}
+
+.agents-settings-empty {
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-lo);
+}
+
+.agents-settings-docs-link {
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
+.agents-settings-docs-link:hover {
+  color: var(--silo-color-text-hi);
+}

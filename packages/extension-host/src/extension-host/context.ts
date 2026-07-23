@@ -32,6 +32,7 @@ import { getEditorService } from "./editor-service";
 import { getLayoutService } from "./layout-service";
 import { getScopedProcessService } from "./process-service";
 import { getScopedProcessesService } from "./processes-service";
+import { getAgentsService } from "./agents-service";
 import { getTerminalService } from "./terminal-service";
 import { getScopedFileService } from "./file-service";
 import { getScopedSearchService } from "./search-service";
@@ -172,6 +173,7 @@ export function createContext(
     layout: getLayoutService(),
     process: getScopedProcessService(scope),
     processes: getScopedProcessesService(scope),
+    agents: getAgentsService(),
     terminals: getTerminalService(),
     files: getScopedFileService(scope),
     search: getScopedSearchService(scope),

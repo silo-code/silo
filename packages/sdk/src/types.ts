@@ -32,6 +32,7 @@ import type { EditorService } from "./editor-service";
 import type { LayoutService } from "./layout-service";
 import type { ProcessService } from "./process-service";
 import type { ProcessesService } from "./processes-service";
+import type { AgentsService } from "./agents-service";
 import type { TerminalService } from "./terminal-service";
 import type { FileService } from "./file-service";
 import type { SearchService } from "./search-service";
@@ -698,6 +699,16 @@ export interface ExtensionContext {
    * See {@link ProcessesService} for the full API.
    */
   readonly processes: ProcessesService;
+  /**
+   * Host-computed coding-agent activity and resume-identity observability —
+   * a live, read-only view of what each terminal's agent is doing
+   * (`working`/`waiting`/`done`/`error`/`dead`) and, once a terminal's
+   * backend is confirmed dead after an unclean shutdown, a resume hint for
+   * it. Detection is fully sealed in the host implementation; there is no
+   * registration API. **Experimental** — the shape may still change. See
+   * {@link AgentsService} for the full API.
+   */
+  readonly agents: AgentsService;
   /**
    * Consumer API for the terminal domain — open a terminal tab in a workspace
    * (`create`) or reap a workspace's terminals (`closeWorkspace`). The terminal

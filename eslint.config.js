@@ -75,6 +75,10 @@ export default [
       // Example extensions are self-contained mini-projects with their own
       // toolchain (own tsconfig/build, @silo-code/sdk as an external).
       "examples/**",
+      // Reference clones for research (see root CLAUDE.md's "Repository
+      // Clones" convention) — not part of this repo's own source or lint
+      // scope.
+      "repos/**",
     ],
   },
   {
