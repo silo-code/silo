@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.36.1](https://github.com/silo-code/silo/compare/silo-v0.36.0...silo-v0.36.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* **git-explorer:** scope "View Commits" to the branch, add exact total ([#283](https://github.com/silo-code/silo/issues/283)) ([44956f7](https://github.com/silo-code/silo/commit/44956f7b4888389dccfa281a56fa1fb8c9117e74))
+
 ## [0.36.0](https://github.com/silo-code/silo/compare/silo-v0.35.0...silo-v0.36.0) (2026-07-24)
 
 
