@@ -110,8 +110,21 @@ export interface GitWorktree {
 export interface GitAPI {
   /** Parsed working-tree status (branch, ahead/behind, per-file changes). */
   status(cwd: string): Promise<GitStatus>;
-  /** Recent commits (most recent first), capped at `limit` (default 50). */
-  log(cwd: string, limit?: number): Promise<GitLogEntry[]>;
+  /**
+   * Recent commits (most recent first), capped at `limit` (default 50). Pass
+   * `base` (from {@link GitAPI.branchBase}) to scope the log to commits
+   * reachable from `HEAD` but not from `base` — GitHub's PR "Commits" tab
+   * semantics — instead of walking `HEAD`'s full ancestry (which eventually
+   * surfaces the default branch's history shared before the fork point).
+   */
+  log(cwd: string, limit?: number, base?: string): Promise<GitLogEntry[]>;
+  /**
+   * Exact commit count for {@link GitAPI.log}'s range (`base..HEAD` when
+   * `base` is given, else all of `HEAD`'s ancestry) — cheap way to show a
+   * "Commits (N)" total (`git rev-list --count`) without paging through
+   * every entry. Resolves to `0` on error (e.g. an empty repo).
+   */
+  commitCount(cwd: string, base?: string): Promise<number>;
   /** Unified diff text for `path` (or the whole tree); `staged` diffs the index. */
   diff(cwd: string, path?: string, staged?: boolean): Promise<string>;
   /** Stage the given paths (`git add`). */
@@ -195,6 +208,16 @@ export interface GitAPI {
     branch: string,
     upstream?: string | null,
   ): Promise<GitLogEntry[]>;
+  /**
+   * The commit to pass as {@link GitAPI.log}'s `base` so the log shows only
+   * `branch`'s own commits — the merge-base between `branch` and the repo's
+   * default branch (resolved from `origin/HEAD`, falling back through
+   * `origin/main`, `origin/master`, `main`, `master`). Resolves to `null` when
+   * `branch` **is** the default branch (nothing to scope against) or no
+   * default branch can be resolved (e.g. no `origin` remote) — either way the
+   * caller should fall back to an unscoped log.
+   */
+  branchBase(cwd: string, branch: string): Promise<string | null>;
   /**
    * Full detail for one commit — message body, parents, and its changed files
    * (each with a status letter, rename origin, and line stats). A merge

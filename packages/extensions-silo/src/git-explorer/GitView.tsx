@@ -74,6 +74,15 @@ export function GitView({
   // a multi-root workspace's git roots don't share one stack.
   const viewStack = useViewStack(storage, `view:${cacheKey}`, hydrated);
   const [commitOrder, setCommitOrder] = useState<CommitOrder>("oldestFirst");
+  // Exact total for the "Commits (N)" subview header — reported by
+  // CommitListView once it resolves (see GitAPI.commitCount), independent of
+  // how many rows are currently paged in.
+  const [commitsTotal, setCommitsTotal] = useState<number | null>(null);
+  // Clear the stale total on the way out so reopening "Commits" doesn't flash
+  // the previous branch's count before CommitListView re-resolves it.
+  useEffect(() => {
+    if (viewStack.view.kind !== "commits") setCommitsTotal(null);
+  }, [viewStack.view.kind]);
   // Public primitives, read through ctx (stable per extension).
   const editors = ctx.editors;
   const files = ctx.files;
@@ -967,7 +976,11 @@ export function GitView({
               Back
             </button>
             <span className="git-subview-title">
-              {viewStack.view.kind === "commits" ? "Commits" : "Commit"}
+              {viewStack.view.kind === "commits"
+                ? commitsTotal === null
+                  ? "Commits"
+                  : `Commits (${commitsTotal})`
+                : "Commit"}
             </span>
             {viewStack.view.kind === "commits" && (
               <Tooltip
@@ -1000,6 +1013,7 @@ export function GitView({
                 folder={folder}
                 status={status}
                 order={commitOrder}
+                onTotalCountChange={setCommitsTotal}
                 onSelectCommit={(hash) =>
                   viewStack.push({ kind: "commit-detail", hash })
                 }

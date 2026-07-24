@@ -100,17 +100,29 @@ export function createGitService(exec: ExecFn): GitAPI {
       return parseGitStatus(stdout);
     },
 
-    async log(cwd, limit = 50) {
+    async log(cwd, limit = 50, base) {
       const { stdout, code } = await git(cwd, [
         "log",
         "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%s",
         "--numstat",
         "--diff-merges=first-parent",
         `-${limit}`,
+        ...(base ? [`${base}..HEAD`] : []),
       ]);
       // Any error (e.g. empty repo with no commits) → no history.
       if (code !== 0) return [];
       return parseLog(stdout);
+    },
+
+    async commitCount(cwd, base) {
+      const { stdout, code } = await git(cwd, [
+        "rev-list",
+        "--count",
+        base ? `${base}..HEAD` : "HEAD",
+      ]);
+      if (code !== 0) return 0;
+      const n = parseInt(stdout.trim(), 10);
+      return Number.isFinite(n) ? n : 0;
     },
 
     async diff(cwd, path, staged = false) {
@@ -232,6 +244,57 @@ export function createGitService(exec: ExecFn): GitAPI {
         if (code === 0) return parseLog(stdout);
       }
       return [];
+    },
+
+    async branchBase(cwd, branch) {
+      // Prefer the remote's recorded default branch (`origin/HEAD`, set by
+      // `git clone`/`git remote set-head`); fall back to the common default
+      // names, remote-tracking ref first since it reflects the shared
+      // history more reliably than a possibly-stale local branch.
+      let defaultRef: string | null = null;
+      const sym = await git(cwd, [
+        "symbolic-ref",
+        "--quiet",
+        "--short",
+        "refs/remotes/origin/HEAD",
+      ]);
+      if (sym.code === 0 && sym.stdout.trim()) {
+        defaultRef = sym.stdout.trim();
+      } else {
+        for (const candidate of [
+          "origin/main",
+          "origin/master",
+          "main",
+          "master",
+        ]) {
+          const verify = await git(cwd, [
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            candidate,
+          ]);
+          if (verify.code === 0) {
+            defaultRef = candidate;
+            break;
+          }
+        }
+      }
+      if (!defaultRef) return null;
+
+      // Strip a remote prefix (`origin/main` → `main`) to compare against the
+      // current branch's own short name.
+      const defaultShortName = defaultRef.includes("/")
+        ? defaultRef.slice(defaultRef.indexOf("/") + 1)
+        : defaultRef;
+      if (defaultShortName === branch) return null;
+
+      const { stdout, code } = await git(cwd, [
+        "merge-base",
+        defaultRef,
+        "HEAD",
+      ]);
+      if (code !== 0) return null;
+      return stdout.trim() || null;
     },
 
     async commitDetail(cwd, hash) {

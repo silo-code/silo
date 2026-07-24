@@ -13,21 +13,29 @@ import {
 
 const PAGE_SIZE = 50;
 
-/** List page of the "View Commits" flow: current-branch history, with a
- * divider marking the boundary between unpushed and pushed commits. Display
- * `order` is controlled by the parent (its toggle button lives in `GitView`'s
- * shared subview header, next to Back/title). Reads `status` live from the
- * parent (not a snapshot taken when the view opened), so a branch switch
- * underfoot just re-fetches in place. */
+/** List page of the "View Commits" flow: commits unique to the current branch
+ * (scoped against the default branch via `GitAPI.branchBase` — GitHub's PR
+ * "Commits" tab semantics — falling back to the branch's full history when no
+ * default branch can be resolved), with a divider marking the boundary
+ * between unpushed and pushed commits. Display `order` is controlled by the
+ * parent (its toggle button lives in `GitView`'s shared subview header, next
+ * to Back/title). Reads `status` live from the parent (not a snapshot taken
+ * when the view opened), so a branch switch underfoot just re-fetches in
+ * place. */
 export function CommitListView({
   folder,
   status,
   order,
+  onTotalCountChange,
   onSelectCommit,
 }: {
   folder: string;
   status: GitStatus;
   order: CommitOrder;
+  /** Reports the exact total once resolved (see `GitAPI.commitCount`), for
+   * the parent's "Commits (N)" header — independent of how many rows are
+   * currently paged in. */
+  onTotalCountChange?: (count: number | null) => void;
   onSelectCommit: (hash: string) => void;
 }) {
   const [commits, setCommits] = useState<GitLogEntry[]>([]);
@@ -36,12 +44,50 @@ export function CommitListView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
+  const [branchBase, setBranchBase] = useState<string | null>(null);
+  const [baseResolved, setBaseResolved] = useState(false);
 
   // Reset pagination when the underlying branch changes so "Load more" starts
   // fresh rather than appending a different branch's tail onto this one's.
   useEffect(() => {
     setLimit(PAGE_SIZE);
   }, [folder, status.branch]);
+
+  // Resolve the boundary that scopes the log to this branch's own commits —
+  // see GitAPI.branchBase — before the first fetch, so the list never briefly
+  // shows the default branch's shared history and then narrows.
+  useEffect(() => {
+    const api = getGitApi();
+    if (!api || !status.branch) {
+      setBranchBase(null);
+      setBaseResolved(true);
+      return;
+    }
+    let cancelled = false;
+    setBaseResolved(false);
+    api.branchBase(folder, status.branch).then((base) => {
+      if (cancelled) return;
+      setBranchBase(base);
+      setBaseResolved(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [folder, status.branch]);
+
+  // Exact total for the parent's "Commits (N)" header — a single cheap
+  // `rev-list --count` call, independent of pagination (`limit`).
+  useEffect(() => {
+    const api = getGitApi();
+    if (!api || !baseResolved) return;
+    let cancelled = false;
+    api.commitCount(folder, branchBase ?? undefined).then((count) => {
+      if (!cancelled) onTotalCountChange?.(count);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [folder, branchBase, baseResolved, onTotalCountChange]);
 
   useEffect(() => {
     const api = getGitApi();
@@ -50,11 +96,12 @@ export function CommitListView({
       setLoading(false);
       return;
     }
+    if (!baseResolved) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
     api
-      .log(folder, limit)
+      .log(folder, limit, branchBase ?? undefined)
       .then(async (entries) => {
         if (cancelled) return;
         setCommits(entries);
@@ -79,7 +126,7 @@ export function CommitListView({
     return () => {
       cancelled = true;
     };
-  }, [folder, limit, status.branch, status.upstream]);
+  }, [folder, limit, status.branch, status.upstream, branchBase, baseResolved]);
 
   function copyHash(hash: string) {
     void navigator.clipboard.writeText(hash);
