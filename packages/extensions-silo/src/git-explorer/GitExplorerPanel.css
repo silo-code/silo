@@ -801,3 +801,209 @@ button.git-wt-pill:hover {
   overflow-wrap: anywhere;
   color: var(--silo-color-text);
 }
+
+/* "View Commits" list/detail sub-pages (view-stack.ts) — replace the normal
+ * commit-box + Changes sections while a sub-page is open; the branch/sync
+ * header above stays put. */
+.git-subview {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.git-subview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.git-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  padding: 3px 6px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+
+.git-back-button:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+
+.git-subview-title {
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+}
+
+.git-sort-toggle {
+  margin-left: auto;
+}
+
+.git-commits-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-commit-note {
+  padding: 6px 10px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.git-commit-divider {
+  padding: 4px 10px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  border-top: 1px solid var(--silo-color-border);
+  border-bottom: 1px solid var(--silo-color-border);
+  background: var(--silo-color-bg-hover);
+}
+
+.git-commit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  cursor: pointer;
+  position: relative;
+}
+
+.git-commit-row:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.git-commit-subject {
+  font-family: var(--silo-font-ui);
+  color: var(--silo-color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.git-commit-meta {
+  display: flex;
+  gap: 8px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.git-commit-hash-action {
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--silo-color-bg-hover);
+  transition: opacity 100ms ease-out;
+}
+
+.git-commit-row:hover .git-commit-hash-action {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.git-commit-shorthash {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.git-commits-load-more {
+  margin: 8px;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+}
+
+.git-commits-load-more:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.git-commits-load-more:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Commit detail page */
+.git-commit-detail {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-commit-detail-message {
+  padding: 10px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.git-commit-detail-subject {
+  font-family: var(--silo-font-ui);
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+  overflow-wrap: anywhere;
+}
+
+.git-commit-detail-body {
+  margin: 6px 0 0;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.git-commit-detail-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-mono);
+}
+
+.git-commit-detail-stats {
+  padding: 6px 10px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.git-stat-add {
+  color: var(--silo-color-ok);
+}
+
+.git-stat-del {
+  color: var(--silo-color-err);
+}
+
+.git-commit-detail-files {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-file-stat {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  margin-left: 4px;
+}
+
+.git-file-stat.binary {
+  color: var(--silo-color-text-lo);
+}

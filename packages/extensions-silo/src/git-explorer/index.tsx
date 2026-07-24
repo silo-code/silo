@@ -50,8 +50,13 @@ export const extension: Extension = {
       title: "Git",
       // Inject ctx so the panel/view reach workspaces/editors/files through
       // the public primitives, not host getters.
-      component: ({ active, storage }) => (
-        <GitExplorerPanel ctx={ctx} storage={storage} paused={!active} />
+      component: ({ active, storage, hydrated }) => (
+        <GitExplorerPanel
+          ctx={ctx}
+          storage={storage}
+          paused={!active}
+          hydrated={hydrated}
+        />
       ),
       order: 2,
       lazyMount: true,

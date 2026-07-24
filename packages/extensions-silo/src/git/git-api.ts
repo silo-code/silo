@@ -38,6 +38,35 @@ export interface GitLogEntry {
   author: string;
   relativeDate: string;
   subject: string;
+  /**
+   * Number of files this commit touched — a merge commit's count is relative
+   * to its **first parent** (same convention as {@link GitAPI.commitDetail}).
+   * Comes free off the same `git log` call (via `--numstat`), no per-commit
+   * follow-up request.
+   */
+  filesChanged: number;
+}
+
+/** One file changed by a commit, as listed by {@link GitAPI.commitDetail}. */
+export interface CommitFileChange {
+  path: string;
+  /** Original path for a rename/copy (from `diff-tree -M`). */
+  origPath?: string;
+  status: "A" | "M" | "D" | "R" | "C" | "T" | "U" | "X";
+  /** True when git reports no line counts for this path (a binary blob). */
+  binary: boolean;
+  /** `null` for a binary file — no line count to show. */
+  additions: number | null;
+  deletions: number | null;
+}
+
+/** A single commit's full message and changed files, as returned by {@link GitAPI.commitDetail}. */
+export interface CommitDetail extends GitLogEntry {
+  /** Commit message body (everything after the subject line); `""` when none. */
+  body: string;
+  /** Parent commit hashes — empty for a root commit, 2+ for a merge. */
+  parents: string[];
+  files: CommitFileChange[];
 }
 
 /** One branch, as listed by {@link GitAPI.branches}. */
@@ -166,6 +195,28 @@ export interface GitAPI {
     branch: string,
     upstream?: string | null,
   ): Promise<GitLogEntry[]>;
+  /**
+   * Full detail for one commit — message body, parents, and its changed files
+   * (each with a status letter, rename origin, and line stats). A merge
+   * commit's files are relative to its **first parent** (`--first-parent`
+   * convention, matching `git log --first-parent`/GitHub's merge view); a root
+   * commit (no parents) is relative to the empty tree, i.e. every file shows
+   * as added. Resolves to `null` if `hash` can't be resolved.
+   */
+  commitDetail(cwd: string, hash: string): Promise<CommitDetail | null>;
+  /**
+   * Whether `path` is a binary file in the given comparison — `"workingTree"`
+   * (`HEAD` vs. the working file), `"staged"` (`HEAD` vs. the index), or
+   * `"commit"` (`ref.parent` vs. `ref.commit`, required for that mode).
+   * Backs the diff content provider's binary guard so a binary blob shows a
+   * placeholder instead of raw bytes garbling the diff editor.
+   */
+  isBinaryDiff(
+    cwd: string,
+    path: string,
+    mode: "workingTree" | "staged" | "commit",
+    ref?: { commit: string; parent: string },
+  ): Promise<boolean>;
   /**
    * All working trees of the repo containing `cwd` (`git worktree list
    * --porcelain`), main worktree first — git lists the whole family from any
