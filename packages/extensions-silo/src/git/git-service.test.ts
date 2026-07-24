@@ -169,6 +169,31 @@ describe(
       expect(log[0]).toMatchObject({ subject: "two files", filesChanged: 2 });
     });
 
+    it("commitCount reports HEAD's full ancestry with no base, and just the range with one", async () => {
+      await seedCommit();
+
+      await git.createBranch(repo, "feature");
+      writeFileSync(join(repo, "f.txt"), "x\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work 1");
+      writeFileSync(join(repo, "f.txt"), "y\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work 2");
+
+      expect(await git.commitCount(repo)).toBe(3);
+      const branchBase = await git.branchBase(repo, "feature");
+      expect(await git.commitCount(repo, branchBase!)).toBe(2);
+    });
+
+    it("commitCount resolves to 0 outside a repository", async () => {
+      const outside = mkdtempSync(join(tmpdir(), "silo-norepo-"));
+      try {
+        expect(await git.commitCount(outside)).toBe(0);
+      } finally {
+        rmSync(outside, { recursive: true, force: true });
+      }
+    });
+
     it("log counts a merge commit's filesChanged against its first parent", async () => {
       await seedCommit();
       const base = (await git.branches(repo)).find((b) => b.current)!.name;
@@ -288,6 +313,100 @@ describe(
       const unmerged = await git.unmergedCommits(repo, "wip", "origin/gone");
       expect(unmerged).toHaveLength(1);
       expect(unmerged[0].subject).toBe("wip work");
+    });
+
+    it("branchBase resolves to null when branch is the default branch", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+      expect(await git.branchBase(repo, base)).toBeNull();
+    });
+
+    it("branchBase resolves to null when no default branch can be found", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+      await git.renameBranch(repo, base, "trunk");
+      expect(await git.branchBase(repo, "trunk")).toBeNull();
+    });
+
+    it("branchBase computes the merge-base for a feature branch off the default branch (falling back to a local main/master)", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+      const { stdout: forkPoint } = await realExec(
+        "git",
+        ["rev-parse", "HEAD"],
+        {
+          cwd: repo,
+        },
+      );
+
+      await git.createBranch(repo, "feature");
+      writeFileSync(join(repo, "f.txt"), "x\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work");
+
+      // The default branch (base) hasn't moved since the fork, so the
+      // merge-base is exactly where "feature" branched off.
+      expect(await git.branchBase(repo, "feature")).toBe(forkPoint.trim());
+    });
+
+    it("branchBase prefers origin/HEAD when a remote's default branch is configured", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+      const remote = mkdtempSync(join(tmpdir(), "silo-gitremote-"));
+      try {
+        await realExec("git", ["init", "--bare", "-q"], { cwd: remote });
+        await realExec("git", ["remote", "add", "origin", remote], {
+          cwd: repo,
+        });
+        await realExec("git", ["push", "-q", "origin", base], { cwd: repo });
+        await realExec("git", ["remote", "set-head", "origin", base], {
+          cwd: repo,
+        });
+        const { stdout: forkPoint } = await realExec(
+          "git",
+          ["rev-parse", "HEAD"],
+          { cwd: repo },
+        );
+
+        await git.createBranch(repo, "feature");
+        writeFileSync(join(repo, "f.txt"), "x\n");
+        await git.stage(repo, ["f.txt"]);
+        await git.commit(repo, "feature work");
+
+        expect(await git.branchBase(repo, "feature")).toBe(forkPoint.trim());
+      } finally {
+        rmSync(remote, { recursive: true, force: true });
+      }
+    });
+
+    it("log(base) scopes commits to just the branch, matching GitHub's PR Commits tab", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+
+      await git.createBranch(repo, "feature");
+      writeFileSync(join(repo, "f.txt"), "x\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work 1");
+      writeFileSync(join(repo, "f.txt"), "y\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work 2");
+
+      const branchBase = await git.branchBase(repo, "feature");
+      expect(branchBase).not.toBeNull();
+      const scoped = await git.log(repo, 50, branchBase!);
+      expect(scoped.map((c) => c.subject)).toEqual([
+        "feature work 2",
+        "feature work 1",
+      ]);
+
+      // Unscoped, the shared history with `base` (the seed commit) is
+      // included too — the exact confusion this feature exists to avoid.
+      const unscoped = await git.log(repo, 50);
+      expect(unscoped.map((c) => c.subject)).toEqual([
+        "feature work 2",
+        "feature work 1",
+        "init",
+      ]);
     });
 
     it("fetch --prune drops remote-tracking branches deleted upstream", async () => {
