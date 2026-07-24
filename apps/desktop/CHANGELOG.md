@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.36.0](https://github.com/silo-code/silo/compare/silo-v0.35.0...silo-v0.36.0) (2026-07-24)
+
+
+### Features
+
+* **git-explorer:** add "View Commits" drill-down to the git panel ([#282](https://github.com/silo-code/silo/issues/282)) ([31e04a2](https://github.com/silo-code/silo/commit/31e04a2c59c143eb51a0f54fc333ed767e2cc4db))
+* **layout:** add Laptop Mode — auto-hide side panels on a small screen ([#280](https://github.com/silo-code/silo/issues/280)) ([6d25170](https://github.com/silo-code/silo/commit/6d2517059b2b420eed0fa927235624c168c6fa3f))
+
 ## [0.35.0](https://github.com/silo-code/silo/compare/silo-v0.34.1...silo-v0.35.0) (2026-07-22)
 
 
