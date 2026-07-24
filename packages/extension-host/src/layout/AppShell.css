@@ -63,6 +63,91 @@
   background: var(--silo-content-tab-bg);
 }
 
+/* Small-screen-mode peek: the collapsed (0-width) side panel stays clipped by
+ * `overflow: hidden` above — and react-resizable-panels sets that as an
+ * *inline* style on the Panel's own root div, which beats a plain CSS
+ * override regardless of selector specificity. `!important` is the only way
+ * to win against it while peeking; `.side-peek-host.peeking` inside then
+ * renders at its real captured width instead of being clipped to 0. The
+ * raised `z-index` (flex items honor z-index even at `position: static`)
+ * lifts this column above its sibling columns' paint order. */
+.app-col--peeking {
+  overflow: visible !important;
+  position: relative;
+  z-index: 10;
+}
+
+.side-peek-host {
+  height: 100%;
+}
+
+.side-peek-host.peeking {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: var(--peek-width, 400px);
+  background: var(--silo-color-bg);
+  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.3);
+  transition: transform 0.12s ease-out;
+}
+
+.side-peek-host--left.peeking {
+  left: 0;
+}
+
+.side-peek-host--right.peeking {
+  right: 0;
+}
+
+/* `padding-top` on `.app-col` (above) only pushes down *in-flow* content —
+ * it has no effect on an absolutely-positioned child's own `top: 0`, since
+ * that positions relative to the padding edge, not the content edge. So the
+ * peek overlay needs its own explicit offset to clear the traffic-light
+ * reservation, matching `.app-shell.mac .app-col`'s 36px. */
+.app-shell.mac .side-peek-host.peeking {
+  top: 36px;
+}
+
+/* The peek overlay's own resize handle, on its inner edge (away from the
+ * screen edge) — global, independent of the panel's normal (large-screen)
+ * width. Same visual language as react-resizable-panels' own handles
+ * (theme.css): a 1px border-color line, a wider invisible ::after hit area,
+ * and an accent highlight on hover/drag. */
+.peek-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--silo-color-border);
+  cursor: ew-resize;
+  z-index: 1;
+}
+
+.peek-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -3px;
+  right: -3px;
+  cursor: ew-resize;
+}
+
+.peek-resize-handle:hover,
+.peek-resize-handle.dragging {
+  background: var(--silo-color-accent);
+  transition: background-color 0.1s ease-in-out;
+  transition-delay: 0.5s;
+}
+
+.side-peek-host--left .peek-resize-handle {
+  right: 0;
+}
+
+.side-peek-host--right .peek-resize-handle {
+  left: 0;
+}
+
 .panel-header {
   display: flex;
   align-items: center;

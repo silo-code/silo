@@ -256,6 +256,23 @@ describe("buildIndex", () => {
     expect(index.editorSettings).toBeUndefined();
     expect(index.terminalSettings).toBeUndefined();
     expect(index.uiFontSize).toBeUndefined();
+    expect(index.smallScreenModeEnabled).toBeUndefined();
+    expect(index.smallScreenThresholdPx).toBeUndefined();
+  });
+
+  it("round-trips small-screen-mode settings when provided", () => {
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      smallScreenModeEnabled: false,
+      smallScreenThresholdPx: 1600,
+      smallScreenPeekWidthLeftPx: 320,
+      smallScreenPeekWidthRightPx: 260,
+    });
+    expect(index.smallScreenModeEnabled).toBe(false);
+    expect(index.smallScreenThresholdPx).toBe(1600);
+    expect(index.smallScreenPeekWidthLeftPx).toBe(320);
+    expect(index.smallScreenPeekWidthRightPx).toBe(260);
   });
 
   it("round-trips group fields when provided", () => {
