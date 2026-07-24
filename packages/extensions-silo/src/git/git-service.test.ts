@@ -9,6 +9,7 @@ import { execFile } from "node:child_process";
 import {
   mkdtempSync,
   writeFileSync,
+  renameSync,
   rmSync,
   existsSync,
   realpathSync,
@@ -157,6 +158,40 @@ describe(
       await git.stage(repo, ["a.txt"]);
       await git.commit(repo, "init");
     }
+
+    it("log reports each commit's filesChanged count (--numstat, no extra request)", async () => {
+      writeFileSync(join(repo, "a.txt"), "v1\n");
+      writeFileSync(join(repo, "b.txt"), "v1\n");
+      await git.stage(repo, ["a.txt", "b.txt"]);
+      await git.commit(repo, "two files");
+
+      const log = await git.log(repo);
+      expect(log[0]).toMatchObject({ subject: "two files", filesChanged: 2 });
+    });
+
+    it("log counts a merge commit's filesChanged against its first parent", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+
+      await git.createBranch(repo, "side");
+      writeFileSync(join(repo, "b.txt"), "from side\n");
+      await git.stage(repo, ["b.txt"]);
+      await git.commit(repo, "add b on side");
+      await git.switchBranch(repo, base);
+
+      writeFileSync(join(repo, "c.txt"), "from base\n");
+      await git.stage(repo, ["c.txt"]);
+      await git.commit(repo, "add c on base");
+      await realExec("git", ["merge", "--no-ff", "-m", "merge side", "side"], {
+        cwd: repo,
+      });
+
+      const log = await git.log(repo);
+      const mergeEntry = log.find((c) => c.subject === "merge side")!;
+      // First-parent diff: only b.txt (what the merge itself brought in) —
+      // not c.txt, already on the mainline before the merge.
+      expect(mergeEntry.filesChanged).toBe(1);
+    });
 
     it("creates, lists, switches between, and deletes branches", async () => {
       await seedCommit();
@@ -498,6 +533,133 @@ describe(
         rmSync(remote, { recursive: true, force: true });
         rmSync(other, { recursive: true, force: true });
       }
+    });
+
+    it("commitDetail resolves a root commit's files against the empty tree", async () => {
+      writeFileSync(join(repo, "a.txt"), "hello\n");
+      await git.stage(repo, ["a.txt"]);
+      await git.commit(repo, "root commit\n\nSome body text.");
+
+      const log = await git.log(repo);
+      const detail = await git.commitDetail(repo, log[0].hash);
+      expect(detail).toMatchObject({
+        subject: "root commit",
+        body: "Some body text.",
+        parents: [],
+      });
+      expect(detail!.files).toEqual([
+        {
+          path: "a.txt",
+          origPath: undefined,
+          status: "A",
+          binary: false,
+          additions: 1,
+          deletions: 0,
+        },
+      ]);
+    });
+
+    it("commitDetail resolves an ordinary commit's files against its single parent", async () => {
+      await seedCommit();
+      writeFileSync(join(repo, "a.txt"), "v1\nv2\n");
+      await git.stage(repo, ["a.txt"]);
+      await git.commit(repo, "update a");
+
+      const log = await git.log(repo);
+      const detail = await git.commitDetail(repo, log[0].hash);
+      expect(detail!.parents).toHaveLength(1);
+      expect(detail!.files).toEqual([
+        {
+          path: "a.txt",
+          origPath: undefined,
+          status: "M",
+          binary: false,
+          additions: 1,
+          deletions: 0,
+        },
+      ]);
+    });
+
+    it("commitDetail reports a rename with its origin path", async () => {
+      await seedCommit();
+      renameSync(join(repo, "a.txt"), join(repo, "renamed.txt"));
+      await git.stage(repo, ["a.txt", "renamed.txt"]);
+      await git.commit(repo, "rename a");
+
+      const log = await git.log(repo);
+      const detail = await git.commitDetail(repo, log[0].hash);
+      expect(detail!.files).toEqual([
+        expect.objectContaining({
+          path: "renamed.txt",
+          origPath: "a.txt",
+          status: "R",
+        }),
+      ]);
+    });
+
+    it("commitDetail resolves a merge commit's files against its first parent only", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+
+      // Side branch adds b.txt.
+      await git.createBranch(repo, "side");
+      writeFileSync(join(repo, "b.txt"), "from side\n");
+      await git.stage(repo, ["b.txt"]);
+      await git.commit(repo, "add b on side");
+      await git.switchBranch(repo, base);
+
+      // Mainline adds c.txt, then merges side in.
+      writeFileSync(join(repo, "c.txt"), "from base\n");
+      await git.stage(repo, ["c.txt"]);
+      await git.commit(repo, "add c on base");
+      await realExec("git", ["merge", "--no-ff", "-m", "merge side", "side"], {
+        cwd: repo,
+      });
+
+      const log = await git.log(repo);
+      const mergeCommit = log.find((c) => c.subject === "merge side")!;
+      const detail = await git.commitDetail(repo, mergeCommit.hash);
+      expect(detail!.parents).toHaveLength(2);
+      // First-parent diff: only what the merge itself brought in (b.txt from
+      // the side branch) — not c.txt, which was already on the mainline.
+      expect(detail!.files.map((f) => f.path)).toEqual(["b.txt"]);
+    });
+
+    it("commitDetail resolves to null for an unknown hash", async () => {
+      await seedCommit();
+      expect(await git.commitDetail(repo, "0".repeat(40))).toBeNull();
+    });
+
+    it("isBinaryDiff detects a binary file in each mode", async () => {
+      await seedCommit();
+      const binary = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01, 0x02]);
+      writeFileSync(join(repo, "img.png"), binary);
+      await git.stage(repo, ["img.png"]);
+
+      // staged: HEAD (missing) vs the index.
+      expect(await git.isBinaryDiff(repo, "img.png", "staged")).toBe(true);
+      await git.commit(repo, "add binary");
+
+      // workingTree: no further changes, so nothing to diff, but a modified
+      // binary working-tree file still reports as binary.
+      writeFileSync(join(repo, "img.png"), Buffer.concat([binary, binary]));
+      expect(await git.isBinaryDiff(repo, "img.png", "workingTree")).toBe(true);
+
+      // commit: the add-binary commit vs. its parent.
+      const log = await git.log(repo);
+      const addCommit = log.find((c) => c.subject === "add binary")!;
+      expect(
+        await git.isBinaryDiff(repo, "img.png", "commit", {
+          commit: addCommit.hash,
+          parent: addCommit.hash + "^",
+        }),
+      ).toBe(true);
+    });
+
+    it("isBinaryDiff reports false for an ordinary text file", async () => {
+      await seedCommit();
+      writeFileSync(join(repo, "a.txt"), "v2\n");
+      expect(await git.isBinaryDiff(repo, "a.txt", "workingTree")).toBe(false);
     });
   },
 );

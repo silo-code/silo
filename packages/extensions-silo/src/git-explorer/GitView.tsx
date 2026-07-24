@@ -2,15 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowsClockwise,
   CaretDown,
+  CaretLeft,
   CaretRight,
   CloudArrowUp,
   DotsThreeVertical,
+  SortAscending,
+  SortDescending,
   TreeStructure,
 } from "@phosphor-icons/react";
 import {
   Tooltip,
   useFocusGroup,
   type ExtensionContext,
+  type ExtensionStorage,
   type FocusGroupItemProps,
   type MenuEntry,
   type NotifyOptions,
@@ -30,6 +34,10 @@ import {
 } from "./worktree-model";
 import { showWorktreeManager } from "./open-worktree-manager";
 import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
+import { useViewStack } from "./use-view-stack";
+import { CommitListView } from "./CommitListView";
+import { CommitDetailView } from "./CommitDetailView";
+import type { CommitOrder } from "./commit-list-model";
 
 const REFRESH_DEBOUNCE_MS = 400;
 // How often the panel fetches in the background so ↑ahead/↓behind stay roughly
@@ -48,6 +56,8 @@ export function GitView({
   paused,
   collapsed,
   onToggleCollapsed,
+  storage,
+  hydrated,
 }: {
   ctx: ExtensionContext;
   cacheKey: string;
@@ -57,7 +67,13 @@ export function GitView({
   paused: boolean;
   collapsed: boolean;
   onToggleCollapsed?: () => void;
+  storage: ExtensionStorage;
+  hydrated: boolean;
 }) {
+  // "View Commits" list/detail navigation — keyed per repo root (cacheKey) so
+  // a multi-root workspace's git roots don't share one stack.
+  const viewStack = useViewStack(storage, `view:${cacheKey}`, hydrated);
+  const [commitOrder, setCommitOrder] = useState<CommitOrder>("oldestFirst");
   // Public primitives, read through ctx (stable per extension).
   const editors = ctx.editors;
   const files = ctx.files;
@@ -495,6 +511,10 @@ export function GitView({
       { type: "separator" },
       { label: "Fetch", run: fetchRemote },
       { type: "separator" },
+      {
+        label: "View Commits",
+        run: () => viewStack.push({ kind: "commits" }),
+      },
       { label: "Manage branches…", run: openBranchManager },
       { label: "Manage worktrees…", run: openWorktreeManager },
     ];
@@ -819,7 +839,7 @@ export function GitView({
           )}
         </div>
       )}
-      {!collapsed && (
+      {!collapsed && viewStack.view.kind === "root" && (
         <>
           <div className="commit-area">
             <textarea
@@ -930,6 +950,72 @@ export function GitView({
             </Section>
           </div>
         </>
+      )}
+      {!collapsed && viewStack.view.kind !== "root" && (
+        <div
+          className="git-subview"
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && viewStack.canPop) {
+              e.preventDefault();
+              viewStack.pop();
+            }
+          }}
+        >
+          <div className="git-subview-header">
+            <button className="git-back-button" onClick={viewStack.pop}>
+              <CaretLeft size={14} weight="bold" />
+              Back
+            </button>
+            <span className="git-subview-title">
+              {viewStack.view.kind === "commits" ? "Commits" : "Commit"}
+            </span>
+            {viewStack.view.kind === "commits" && (
+              <Tooltip
+                content={
+                  commitOrder === "oldestFirst"
+                    ? "Showing oldest first — click for newest first"
+                    : "Showing newest first — click for oldest first"
+                }
+              >
+                <button
+                  className="row-action git-sort-toggle"
+                  onClick={() =>
+                    setCommitOrder((o) =>
+                      o === "oldestFirst" ? "newestFirst" : "oldestFirst",
+                    )
+                  }
+                >
+                  {commitOrder === "oldestFirst" ? (
+                    <SortAscending size={14} />
+                  ) : (
+                    <SortDescending size={14} />
+                  )}
+                </button>
+              </Tooltip>
+            )}
+          </div>
+          {viewStack.view.kind === "commits" &&
+            (status ? (
+              <CommitListView
+                folder={folder}
+                status={status}
+                order={commitOrder}
+                onSelectCommit={(hash) =>
+                  viewStack.push({ kind: "commit-detail", hash })
+                }
+              />
+            ) : (
+              <div className="placeholder">Loading…</div>
+            ))}
+          {viewStack.view.kind === "commit-detail" && (
+            <CommitDetailView
+              ctx={ctx}
+              folder={folder}
+              workspaceId={workspaceId}
+              hash={viewStack.view.hash}
+            />
+          )}
+        </div>
       )}
     </div>
   );
