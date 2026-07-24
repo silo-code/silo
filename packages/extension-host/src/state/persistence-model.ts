@@ -25,6 +25,14 @@ export interface PersistedIndex {
   activeThemeId?: string;
   editorSettings?: Partial<EditorSettings>;
   terminalSettings?: Partial<TerminalSettings>;
+  // Global (not per-workspace) small-screen-mode preference — see
+  // `small-screen-mode.ts`. Absent in older indexes: defaults applied at hydrate.
+  smallScreenModeEnabled?: boolean;
+  smallScreenThresholdPx?: number;
+  // Small-screen peek overlay width — also global, independent of the
+  // panel's normal (large-screen) width. See `small-screen-mode.ts`.
+  smallScreenPeekWidthLeftPx?: number;
+  smallScreenPeekWidthRightPx?: number;
   // Per-extension global storage (`ctx.storage.global`), keyed by extension id.
   // Global (not per-workspace), so it lives in the index; absent in older
   // indexes, in which case extensions start from their defaults.
@@ -140,6 +148,10 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
     terminalSettings: snapshot.terminalSettings
       ? { ...snapshot.terminalSettings }
       : undefined,
+    smallScreenModeEnabled: snapshot.smallScreenModeEnabled,
+    smallScreenThresholdPx: snapshot.smallScreenThresholdPx,
+    smallScreenPeekWidthLeftPx: snapshot.smallScreenPeekWidthLeftPx,
+    smallScreenPeekWidthRightPx: snapshot.smallScreenPeekWidthRightPx,
     globalExtensionState: snapshot.globalExtensionState
       ? cloneExtensionState(snapshot.globalExtensionState)
       : undefined,

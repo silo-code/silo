@@ -1,5 +1,11 @@
 import { subscribe, snapshot } from "valtio";
-import { store, toggleLeftPanel, toggleRightPanel } from "../state/store";
+import {
+  store,
+  toggleLeftPanel,
+  toggleRightPanel,
+  setLeftPanelCollapsed,
+  setRightPanelCollapsed,
+} from "../state/store";
 import { sidePanelRegistry } from "./side-panels";
 import { activateSidePaneTab } from "../layout/side-pane-registry";
 import { getActiveDockApi } from "../docked/dock-api-registry";
@@ -45,8 +51,8 @@ export function getLayoutService(): LayoutService {
       else toggleRightPanel();
     },
     setSidePanelCollapsed(location, collapsed) {
-      if (location === "left") store.leftPanelCollapsed = collapsed;
-      else store.rightPanelCollapsed = collapsed;
+      if (location === "left") setLeftPanelCollapsed(collapsed);
+      else setRightPanelCollapsed(collapsed);
     },
     openPanel(kindId, params, options) {
       const api = getActiveDockApi();
@@ -85,8 +91,8 @@ export function getLayoutService(): LayoutService {
       store.activeSidePanelTabs[slot] = id;
       activateSidePaneTab(slot, id);
       // Expand the column so it's actually on screen.
-      if (location === "left") store.leftPanelCollapsed = false;
-      else store.rightPanelCollapsed = false;
+      if (location === "left") setLeftPanelCollapsed(false);
+      else setRightPanelCollapsed(false);
     },
   };
   return service;
