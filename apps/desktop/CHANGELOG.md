@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.37.0](https://github.com/silo-code/silo/compare/silo-v0.36.1...silo-v0.37.0) (2026-07-25)
+
+
+### Features
+
+* **file-explorer:** add worktree badge, icon-button parity, and bug fixes ([#285](https://github.com/silo-code/silo/issues/285)) ([e9e1ae5](https://github.com/silo-code/silo/commit/e9e1ae5cead3ad6e61964e92e7e968d21281e715))
+* **git-explorer:** make "View Commits" a full-panel takeover ([#287](https://github.com/silo-code/silo/issues/287)) ([39f2ae6](https://github.com/silo-code/silo/commit/39f2ae683fa720aede0abf4aca852746ea29e9ee))
+
 ## [0.36.1](https://github.com/silo-code/silo/compare/silo-v0.36.0...silo-v0.36.1) (2026-07-24)
 
 
