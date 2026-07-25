@@ -7,7 +7,7 @@ import {
   ArrowClockwise,
   ArrowsIn,
 } from "@phosphor-icons/react";
-import { DND_MIME, Tooltip } from "@silo-code/sdk";
+import { Badge, DND_MIME, IconButton, Tooltip } from "@silo-code/sdk";
 import {
   rowIndent,
   ROW_INDENT_PX,
@@ -42,6 +42,7 @@ export function DirNode({
   onNewItemCancel,
   selected,
   onDrop,
+  isWorktree = false,
   rootActions,
 }: {
   path: string;
@@ -51,6 +52,8 @@ export function DirNode({
   listings: Record<string, Listing>;
   onToggle: (path: string, isDir: boolean) => void;
   isRoot?: boolean;
+  /** This root is a linked git worktree — shows the "worktree" header badge. */
+  isWorktree?: boolean;
 } & RowSharedProps) {
   const isExpanded = !!expanded[path];
   const listing = listings[path];
@@ -155,9 +158,31 @@ export function DirNode({
             }}
             onClick={(e) => e.stopPropagation()}
           />
+        ) : isRoot ? (
+          // Name + WT badge share this flex container so the badge sits right
+          // against the (possibly truncated) visible text — .name shrinks to
+          // fit here instead of block-filling the row's full flex:1 share,
+          // which would strand the badge out at the row's far right.
+          <span className="tree-root-title">
+            <Tooltip content={path}>
+              <span className="name">{name.toUpperCase()}</span>
+            </Tooltip>
+            {isWorktree && (
+              // Wrapped in its own span so the Tooltip's host (also a
+              // .silo-tooltip-host, like the name's above) isn't a *direct*
+              // child of .tree-root-title — it'd otherwise match the same
+              // shrink-to-fit rule meant only for the name and start
+              // shrinking the badge instead of staying fixed-size.
+              <span className="tree-wt-pill-wrap">
+                <Tooltip content="Linked git worktree">
+                  <Badge tone="accent">WT</Badge>
+                </Tooltip>
+              </span>
+            )}
+          </span>
         ) : (
           <Tooltip content={path}>
-            <span className="name">{isRoot ? name.toUpperCase() : name}</span>
+            <span className="name">{name}</span>
           </Tooltip>
         )}
         {isRoot && rootActions && (
@@ -166,40 +191,44 @@ export function DirNode({
             onClick={(e) => e.stopPropagation()}
           >
             <Tooltip content="New File">
-              <button
-                className="tree-hdr-btn"
+              <IconButton
+                size="sm"
+                aria-label="New File"
                 tabIndex={-1}
                 onClick={rootActions.onNewFile}
               >
                 <FilePlus size="1.2em" weight="regular" />
-              </button>
+              </IconButton>
             </Tooltip>
             <Tooltip content="New Folder">
-              <button
-                className="tree-hdr-btn"
+              <IconButton
+                size="sm"
+                aria-label="New Folder"
                 tabIndex={-1}
                 onClick={rootActions.onNewFolder}
               >
                 <FolderPlus size="1.2em" weight="regular" />
-              </button>
+              </IconButton>
             </Tooltip>
             <Tooltip content="Refresh">
-              <button
-                className="tree-hdr-btn"
+              <IconButton
+                size="sm"
+                aria-label="Refresh"
                 tabIndex={-1}
                 onClick={rootActions.onRefresh}
               >
                 <ArrowClockwise size="1.2em" weight="regular" />
-              </button>
+              </IconButton>
             </Tooltip>
             <Tooltip content="Collapse All">
-              <button
-                className="tree-hdr-btn"
+              <IconButton
+                size="sm"
+                aria-label="Collapse All"
                 tabIndex={-1}
                 onClick={rootActions.onCollapseAll}
               >
                 <ArrowsIn size="1.2em" weight="regular" />
-              </button>
+              </IconButton>
             </Tooltip>
           </span>
         )}

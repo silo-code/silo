@@ -66,28 +66,6 @@
   background: var(--silo-color-bg-hover);
 }
 
-.tree-hdr-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--silo-color-text-hi);
-  padding: 3px 4px;
-  border-radius: var(--silo-radius-sm);
-  line-height: 1;
-  font-size: 1.2em;
-  opacity: 0.7;
-  transition:
-    opacity 0.1s,
-    background 0.1s;
-}
-.tree-hdr-btn:hover {
-  opacity: 1;
-  background: var(--silo-color-bg-hover);
-}
-
 .tree-row.new-item-row {
   opacity: 1;
 }
@@ -172,12 +150,39 @@
 
 /* The name is wrapped in an SDK Tooltip, whose host span is the real flex
    child. Let it shrink so a long name (e.g. a deep root) truncates instead of
-   pushing the trailing root actions past the row's clipped right edge. */
+   pushing the trailing root actions past the row's clipped right edge. Root
+   rows nest their Tooltip host inside .tree-root-title instead (below), so
+   this doesn't double-apply there. */
 .tree-row > .silo-tooltip-host {
   flex: 1;
   min-width: 0;
   display: block;
   overflow: hidden;
+}
+
+/* Root row only: name + WT badge (TreeNodes.tsx) share this flex container.
+   flex: 1 here claims the row's available width (same role the rule above
+   plays for non-root rows), but the *name* inside must NOT also be flex: 1 —
+   a flex: 1 block element fills that whole width even when its text is short,
+   stranding the badge out past the visible text at the row's far right. Grow:
+   0 (shrink-to-fit) makes .name hug its own text, with shrink: 1 + min-width:
+   0 still letting it truncate when the row's too narrow for name + badge. */
+.tree-root-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+.tree-root-title > .silo-tooltip-host {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+}
+.tree-root-title > .tree-wt-pill-wrap {
+  flex: 0 0 auto;
 }
 
 .tree-row .name {

@@ -72,3 +72,26 @@ export function treeArrowNav(opts: {
   if (parent && parent !== root) return { kind: "focusParent", path: parent };
   return null;
 }
+
+/**
+ * The expanded-map update for "Collapse All": `root` stays expanded, every
+ * other path this tree has ever expanded is explicitly set to `false`.
+ *
+ * Explicit `false` (not just omitting the key) matters because the caller
+ * persists this map by merging it onto shared storage — a merge can only
+ * add/overwrite keys, never clear ones absent from the update. Returning
+ * `{ [root]: true }` alone would leave every previously-expanded
+ * subdirectory stuck at `true` in storage, so the next remount (workspace
+ * switch, hot reload) would reopen them even though this collapse looked
+ * like it took effect locally.
+ */
+export function collapseAllExpanded(
+  expanded: Record<string, boolean>,
+  root: string,
+): Record<string, boolean> {
+  const next: Record<string, boolean> = { [root]: true };
+  for (const path of Object.keys(expanded)) {
+    if (path !== root) next[path] = false;
+  }
+  return next;
+}
