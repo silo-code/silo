@@ -1,8 +1,29 @@
+/* Positioned ancestor for .git-takeover (CommitsTakeover) — it escapes past
+ * .git-panel and .git-explorer-scroll (neither sets `position`, and
+ * .git-explorer-scroll must never get a `transform` either — see below) to
+ * cover this whole viewport, not just the repo's own slot in the scroll list. */
+.git-explorer-viewport {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
 .git-explorer-scroll {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
+  transition: margin-left 220ms ease;
+}
+
+/* Slides left out of view while a repo's commits takeover is open, so the
+ * list visibly "pushes off" as the takeover slides in — see .git-takeover.
+ * Deliberately `margin-left`, not `transform`: a `transform` here would make
+ * this element a containing block for `position: absolute` descendants,
+ * hijacking .git-takeover's escape to .git-explorer-viewport (it's nested
+ * inside .git-panel, itself inside this list) and dragging it off-screen too. */
+.git-explorer-scroll--covered {
+  margin-left: -100%;
 }
 
 .git-panel {
@@ -11,6 +32,15 @@
   gap: 6px;
   padding: 8px 4px 12px;
   font-family: var(--silo-font-ui);
+}
+
+/* Wraps the commit-box + Staged/Changes sections — kept as its own flex
+ * column (mirrors .git-panel's own gap) so it can be aria-hidden as a unit
+ * while this repo's commits takeover covers it. */
+.git-panel-root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .git-panel + .git-panel {
@@ -797,51 +827,121 @@
   color: var(--silo-color-text);
 }
 
-/* "View Commits" list/detail sub-pages (view-stack.ts) — replace the normal
- * commit-box + Changes sections while a sub-page is open; the branch/sync
- * header above stays put. */
-.git-subview {
+/* "View Commits" full-panel takeover (takeover-model.ts / CommitsTakeover) —
+ * always mounted by GitView, off-screen right until `isActive` (so toggling
+ * the modifier class is a genuine CSS transition, not a mount with no
+ * "before" frame). `position: absolute` escapes past .git-panel and
+ * .git-explorer-scroll (neither sets `position`) up to .git-explorer-viewport,
+ * covering the whole panel rather than just this repo's slot in the list. */
+.git-takeover {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: var(--silo-color-bg);
+  transform: translateX(100%);
+  transition: transform 220ms ease;
+  pointer-events: none;
+  z-index: 1;
 }
 
-.git-subview-header {
+.git-takeover--active {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.git-takeover-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--silo-color-border);
+  flex-shrink: 0;
+}
+
+.git-takeover-toolbar {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--silo-color-border);
+  min-height: 22px;
 }
 
-.git-back-button {
+/* Accent-colored (unlike the muted github-prs back button it's modeled on)
+ * so it reads as an interactive control at rest, not just on hover. */
+.git-takeover-back {
   display: inline-flex;
   align-items: center;
   gap: 2px;
   background: transparent;
   border: none;
-  color: var(--silo-color-text);
+  color: var(--silo-color-accent);
   font-family: var(--silo-font-ui);
   font-size: var(--silo-font-size-sm);
+  font-weight: 600;
   padding: 3px 6px;
+  margin-left: -6px;
   border-radius: var(--silo-radius-sm);
   cursor: pointer;
 }
 
-.git-back-button:hover {
+.git-takeover-back:hover {
   background: var(--silo-color-bg-hover);
-  color: var(--silo-color-text-hi);
 }
 
-.git-subview-title {
-  font-family: var(--silo-font-ui);
+.git-takeover-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.git-takeover-count {
   font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.git-takeover-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.git-takeover-branch {
+  font-family: var(--silo-font-ui);
+  font-size: 1em;
   font-weight: 600;
   color: var(--silo-color-text-hi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.git-sort-toggle {
-  margin-left: auto;
+.git-takeover-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.git-takeover-pane {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  transition: transform 220ms ease;
+}
+
+.git-takeover-pane--current {
+  transform: translateX(0);
+}
+
+.git-takeover-pane--parked-left {
+  transform: translateX(-100%);
+}
+
+.git-takeover-pane--parked-right {
+  transform: translateX(100%);
 }
 
 .git-commits-list {
