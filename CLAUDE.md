@@ -165,6 +165,15 @@ every interactive element (`button`, `input`, `[role="button"]`, …) the accent
 on the shared ring; if you must suppress the native one on a base element use
 `outline: none` (the global rule has higher specificity and still wins on focus).
 
+**Every tooltip uses the SDK `Tooltip`, never the native `title` attribute.**
+`Tooltip` (`packages/sdk/src/Tooltip.tsx`) is the one tooltip implementation —
+consistent 600ms delay, styling, and positioning app-wide, both in the host
+chrome and every extension. A native `title` attribute renders with the
+browser's own (unstyled, immediate-on-hover, per-OS) tooltip instead, which
+looks inconsistent next to every other tooltip in the app. This applies
+everywhere a hover hint is needed, not just on already-interactive elements —
+wrap the target in `<Tooltip content="...">...</Tooltip>`.
+
 ## Commands
 
 All run from the repo root (pnpm workspace).
@@ -197,6 +206,14 @@ All run from the repo root (pnpm workspace).
 - Docs under `docs/` use lowercase kebab-case filenames (`automation.md`,
   `ui-terminology.md`), not ALLCAPS. The only exception is the conventional
   `README.md`.
+- **Commit messages and PR titles are Conventional Commits**: `type(scope):
+summary` — e.g. `feat(git-explorer): add "View Commits" drill-down`,
+  `fix(file-explorer): scope "View Commits" to the branch`. Check `git log`
+  for the type/scope vocabulary already in use before inventing a new scope.
+  This isn't just a style nit: GitHub squash-merges every PR using its title
+  as the resulting commit message on `main`, so an untitled/prose PR title
+  (e.g. "Fix some file explorer bugs") becomes the permanent, non-conventional
+  entry in `git log` — get the title right before opening the PR, not after.
 
 ## Testing — write unit tests for all new functionality
 

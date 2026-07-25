@@ -11,6 +11,7 @@ import {
   TreeStructure,
 } from "@phosphor-icons/react";
 import {
+  Badge,
   Tooltip,
   useFocusGroup,
   type ExtensionContext,
@@ -656,13 +657,13 @@ export function GitView({
     <Tooltip content={worktreeManagerButtonTooltip(worktrees)}>
       <button
         type="button"
-        className="git-wt-pill"
+        className="git-wt-pill-btn"
         onClick={(e) => {
           e.stopPropagation();
           openWorktreeManager();
         }}
       >
-        worktree
+        <Badge tone="accent">WT</Badge>
       </button>
     </Tooltip>
   ) : null;

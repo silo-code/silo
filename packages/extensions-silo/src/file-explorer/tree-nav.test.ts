@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { flattenVisible, treeArrowNav } from "./tree-nav";
+import { collapseAllExpanded, flattenVisible, treeArrowNav } from "./tree-nav";
 import type { Listing } from "./tree-types";
 
 const root = "/ws";
@@ -173,5 +173,28 @@ describe("treeArrowNav", () => {
         root,
       }),
     ).toBeNull();
+  });
+});
+
+describe("collapseAllExpanded", () => {
+  it("keeps the root expanded and explicitly collapses every other known path", () => {
+    expect(
+      collapseAllExpanded(
+        { "/ws": true, "/ws/src": true, "/ws/src/util": false },
+        root,
+      ),
+    ).toEqual({ "/ws": true, "/ws/src": false, "/ws/src/util": false });
+  });
+
+  it("writes explicit `false`, not just an omitted key — the caller merges this onto storage, which can't clear a key that's simply missing", () => {
+    const next = collapseAllExpanded({ "/ws": true, "/ws/src": true }, root);
+    expect(Object.prototype.hasOwnProperty.call(next, "/ws/src")).toBe(true);
+    expect(next["/ws/src"]).toBe(false);
+  });
+
+  it("is a no-op map when nothing but the root was ever expanded", () => {
+    expect(collapseAllExpanded({ "/ws": true }, root)).toEqual({
+      "/ws": true,
+    });
   });
 });

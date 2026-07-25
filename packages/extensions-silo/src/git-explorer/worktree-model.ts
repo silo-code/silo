@@ -1,29 +1,19 @@
 import { path } from "@silo-code/sdk";
 import type { GitWorktree } from "../git/git-api";
+import {
+  findWorktreeFor,
+  normalizeFolderPath,
+  samePath,
+} from "../git/worktree-utils";
 
-// Pure presentation logic for the worktree manager modal — path identity,
-// row derivation, action gating, and the suggested-path convention. Extracted
-// from WorktreeManager.tsx so the rules are unit-testable without rendering
-// React (per the repo's testing convention; see branch-model.ts).
+// Pure presentation logic for the worktree manager modal — row derivation,
+// action gating, and the suggested-path convention, built on the path-identity
+// primitives from ../git/worktree-utils (shared with any other extension that
+// needs "is this folder a worktree", e.g. the file-explorer header badge).
+// Extracted from WorktreeManager.tsx so the rules are unit-testable without
+// rendering React (per the repo's testing convention; see branch-model.ts).
 
-/**
- * Normalize a folder path for identity comparison: forward slashes, no
- * trailing slash, and macOS realpath'd temp prefixes folded back to their
- * symlinked form (`/private/tmp/x` ⇔ `/tmp/x`) — git reports realpaths while
- * workspace folders may hold the symlinked spelling.
- */
-export function normalizeFolderPath(p: string): string {
-  let n = path.normalize(p);
-  if (n.length > 1 && n.endsWith("/")) n = n.slice(0, -1);
-  const priv = /^\/private(\/(?:tmp|var|etc)(?:\/|$).*)$/.exec(n);
-  if (priv) n = priv[1];
-  return n;
-}
-
-/** Whether two folder paths identify the same directory (see {@link normalizeFolderPath}). */
-export function samePath(a: string, b: string): boolean {
-  return normalizeFolderPath(a) === normalizeFolderPath(b);
-}
+export { normalizeFolderPath, samePath, findWorktreeFor };
 
 /** One worktree row in the manager, with its relationship to the workspace. */
 export interface WorktreeRow {
@@ -159,14 +149,6 @@ export function suggestWorktreePath(repoPath: string, branch: string): string {
   return suffix
     ? path.join(parent, `${repoName}-${suffix}`)
     : path.join(parent, repoName ? `${repoName}-` : "");
-}
-
-/** The worktree whose root is `folder`, if any (see {@link samePath}). */
-export function findWorktreeFor(
-  folder: string,
-  worktrees: GitWorktree[],
-): GitWorktree | undefined {
-  return worktrees.find((wt) => samePath(wt.path, folder));
 }
 
 /**
