@@ -206,6 +206,14 @@ All run from the repo root (pnpm workspace).
 - Docs under `docs/` use lowercase kebab-case filenames (`automation.md`,
   `ui-terminology.md`), not ALLCAPS. The only exception is the conventional
   `README.md`.
+- **Commit messages and PR titles are Conventional Commits**: `type(scope):
+summary` — e.g. `feat(git-explorer): add "View Commits" drill-down`,
+  `fix(file-explorer): scope "View Commits" to the branch`. Check `git log`
+  for the type/scope vocabulary already in use before inventing a new scope.
+  This isn't just a style nit: GitHub squash-merges every PR using its title
+  as the resulting commit message on `main`, so an untitled/prose PR title
+  (e.g. "Fix some file explorer bugs") becomes the permanent, non-conventional
+  entry in `git log` — get the title right before opening the PR, not after.
 
 ## Testing — write unit tests for all new functionality
 
