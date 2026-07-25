@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import {
   useServiceState,
   type ExtensionContext,
@@ -33,6 +33,12 @@ export function GitExplorerPanel({
   const wsState = useServiceState(ctx.workspaces);
   const ws = wsState.all.find((w) => w.id === wsState.activeId) ?? null;
 
+  // Which repo (if any) has the panel-wide "View Commits" takeover open.
+  // Deliberately in-memory only — not persisted — so a relaunch always shows
+  // the multi-repo list first, even though each repo's own list/detail
+  // position is still remembered (see useViewStack's storage persistence).
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
+
   // Per-workspace, per-repo collapse state lives in the panel's storage bag
   // (which the host swaps and persists per active workspace), not on GitView's
   // own component state — otherwise it resets whenever the view remounts.
@@ -58,26 +64,36 @@ export function GitExplorerPanel({
     });
 
   return (
-    <div className="git-explorer-scroll">
-      {allFolders.map((folder) => (
-        <GitView
-          key={ws.id + "::" + folder}
-          ctx={ctx}
-          cacheKey={ws.id + "::" + folder}
-          workspaceId={ws.id}
-          folder={folder}
-          rootLabel={showLabel ? rootName(folder) : undefined}
-          paused={paused}
-          storage={storage}
-          hydrated={hydrated}
-          collapsed={showLabel && (collapsedMap[folder] ?? false)}
-          onToggleCollapsed={
-            showLabel
-              ? () => persistCollapsed(folder, !(collapsedMap[folder] ?? false))
-              : undefined
-          }
-        />
-      ))}
+    <div className="git-explorer-viewport">
+      <div
+        className={`git-explorer-scroll${activeFolder ? " git-explorer-scroll--covered" : ""}`}
+      >
+        {allFolders.map((folder) => (
+          <GitView
+            key={ws.id + "::" + folder}
+            ctx={ctx}
+            cacheKey={ws.id + "::" + folder}
+            workspaceId={ws.id}
+            folder={folder}
+            rootLabel={showLabel ? rootName(folder) : undefined}
+            paused={paused}
+            storage={storage}
+            hydrated={hydrated}
+            collapsed={showLabel && (collapsedMap[folder] ?? false)}
+            onToggleCollapsed={
+              showLabel
+                ? () =>
+                    persistCollapsed(folder, !(collapsedMap[folder] ?? false))
+                : undefined
+            }
+            isTakeoverActive={activeFolder === folder}
+            onEnterTakeover={() => setActiveFolder(folder)}
+            onExitTakeover={() =>
+              setActiveFolder((f) => (f === folder ? null : f))
+            }
+          />
+        ))}
+      </div>
     </div>
   );
 }

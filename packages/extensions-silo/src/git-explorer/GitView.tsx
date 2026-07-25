@@ -2,12 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowsClockwise,
   CaretDown,
-  CaretLeft,
   CaretRight,
   CloudArrowUp,
   DotsThreeVertical,
-  SortAscending,
-  SortDescending,
   TreeStructure,
 } from "@phosphor-icons/react";
 import {
@@ -36,9 +33,8 @@ import {
 import { showWorktreeManager } from "./open-worktree-manager";
 import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
 import { useViewStack } from "./use-view-stack";
-import { CommitListView } from "./CommitListView";
-import { CommitDetailView } from "./CommitDetailView";
-import type { CommitOrder } from "./commit-list-model";
+import { CommitsTakeover } from "./CommitsTakeover";
+import { shouldExitTakeover, shouldPushCommitsOnOpen } from "./takeover-model";
 
 const REFRESH_DEBOUNCE_MS = 400;
 // How often the panel fetches in the background so ↑ahead/↓behind stay roughly
@@ -59,6 +55,9 @@ export function GitView({
   onToggleCollapsed,
   storage,
   hydrated,
+  isTakeoverActive,
+  onEnterTakeover,
+  onExitTakeover,
 }: {
   ctx: ExtensionContext;
   cacheKey: string;
@@ -70,20 +69,20 @@ export function GitView({
   onToggleCollapsed?: () => void;
   storage: ExtensionStorage;
   hydrated: boolean;
+  /** Whether *this* repo is the one panel-wide "View Commits" takeover
+   * (only one repo can cover the panel at a time — see GitExplorerPanel). */
+  isTakeoverActive: boolean;
+  onEnterTakeover: () => void;
+  onExitTakeover: () => void;
 }) {
   // "View Commits" list/detail navigation — keyed per repo root (cacheKey) so
   // a multi-root workspace's git roots don't share one stack.
   const viewStack = useViewStack(storage, `view:${cacheKey}`, hydrated);
-  const [commitOrder, setCommitOrder] = useState<CommitOrder>("oldestFirst");
-  // Exact total for the "Commits (N)" subview header — reported by
-  // CommitListView once it resolves (see GitAPI.commitCount), independent of
-  // how many rows are currently paged in.
-  const [commitsTotal, setCommitsTotal] = useState<number | null>(null);
-  // Clear the stale total on the way out so reopening "Commits" doesn't flash
-  // the previous branch's count before CommitListView re-resolves it.
+  // The takeover auto-closes once this repo's stack pops back to root, from
+  // Back, Escape, or any other path — see takeover-model.ts.
   useEffect(() => {
-    if (viewStack.view.kind !== "commits") setCommitsTotal(null);
-  }, [viewStack.view.kind]);
+    if (shouldExitTakeover(isTakeoverActive, viewStack.view)) onExitTakeover();
+  }, [isTakeoverActive, viewStack.view, onExitTakeover]);
   // Public primitives, read through ctx (stable per extension).
   const editors = ctx.editors;
   const files = ctx.files;
@@ -523,7 +522,14 @@ export function GitView({
       { type: "separator" },
       {
         label: "View Commits",
-        run: () => viewStack.push({ kind: "commits" }),
+        run: () => {
+          // A repo left mid-drill (persisted per-repo) resumes as-is instead
+          // of restarting the list — see takeover-model.ts.
+          if (shouldPushCommitsOnOpen(viewStack.view)) {
+            viewStack.push({ kind: "commits" });
+          }
+          onEnterTakeover();
+        },
       },
       { label: "Manage branches…", run: openBranchManager },
       { label: "Manage worktrees…", run: openWorktreeManager },
@@ -849,8 +855,11 @@ export function GitView({
           )}
         </div>
       )}
-      {!collapsed && viewStack.view.kind === "root" && (
-        <>
+      {!collapsed && (
+        <div
+          className="git-panel-root"
+          aria-hidden={isTakeoverActive || undefined}
+        >
           <div className="commit-area">
             <textarea
               value={message}
@@ -959,79 +968,18 @@ export function GitView({
               ))}
             </Section>
           </div>
-        </>
-      )}
-      {!collapsed && viewStack.view.kind !== "root" && (
-        <div
-          className="git-subview"
-          onKeyDown={(e) => {
-            if (e.key === "Escape" && viewStack.canPop) {
-              e.preventDefault();
-              viewStack.pop();
-            }
-          }}
-        >
-          <div className="git-subview-header">
-            <button className="git-back-button" onClick={viewStack.pop}>
-              <CaretLeft size={14} weight="bold" />
-              Back
-            </button>
-            <span className="git-subview-title">
-              {viewStack.view.kind === "commits"
-                ? commitsTotal === null
-                  ? "Commits"
-                  : `Commits (${commitsTotal})`
-                : "Commit"}
-            </span>
-            {viewStack.view.kind === "commits" && (
-              <Tooltip
-                content={
-                  commitOrder === "oldestFirst"
-                    ? "Showing oldest first — click for newest first"
-                    : "Showing newest first — click for oldest first"
-                }
-              >
-                <button
-                  className="row-action git-sort-toggle"
-                  onClick={() =>
-                    setCommitOrder((o) =>
-                      o === "oldestFirst" ? "newestFirst" : "oldestFirst",
-                    )
-                  }
-                >
-                  {commitOrder === "oldestFirst" ? (
-                    <SortAscending size={14} />
-                  ) : (
-                    <SortDescending size={14} />
-                  )}
-                </button>
-              </Tooltip>
-            )}
-          </div>
-          {viewStack.view.kind === "commits" &&
-            (status ? (
-              <CommitListView
-                folder={folder}
-                status={status}
-                order={commitOrder}
-                onTotalCountChange={setCommitsTotal}
-                onSelectCommit={(hash) =>
-                  viewStack.push({ kind: "commit-detail", hash })
-                }
-              />
-            ) : (
-              <div className="placeholder">Loading…</div>
-            ))}
-          {viewStack.view.kind === "commit-detail" && (
-            <CommitDetailView
-              ctx={ctx}
-              folder={folder}
-              workspaceId={workspaceId}
-              hash={viewStack.view.hash}
-            />
-          )}
         </div>
       )}
+      <CommitsTakeover
+        ctx={ctx}
+        folder={folder}
+        workspaceId={workspaceId}
+        status={status}
+        viewStack={viewStack}
+        isActive={isTakeoverActive}
+        branchLabel={status?.branch ?? "(detached)"}
+        worktreePill={worktreePill}
+      />
     </div>
   );
 }
