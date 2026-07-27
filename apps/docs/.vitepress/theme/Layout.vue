@@ -187,6 +187,44 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
+/* Standout "★ Star on GitHub" hero button — targeted by href so it stays
+   styled regardless of its position in the actions list. */
+.VPHero .actions a.VPButton[href="https://github.com/silo-code/silo"] {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(135deg, #8957e5 0%, #d2367a 100%);
+  transition:
+    filter 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+.VPHero .actions a.VPButton[href="https://github.com/silo-code/silo"]:hover {
+  border-color: transparent;
+  color: #fff;
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(137, 87, 229, 0.4);
+}
+
+/* De-emphasize secondary destinations: render them as plain text links
+   rather than buttons. Targeted by href so they stay styled if reordered. */
+.VPHero .actions a.VPButton[href="https://extensions.getsilo.dev"],
+.VPHero .actions a.VPButton[href="https://x.com/silo_code"] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--vp-c-text-2);
+  font-weight: 500;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.VPHero .actions a.VPButton[href="https://extensions.getsilo.dev"]:hover,
+.VPHero .actions a.VPButton[href="https://x.com/silo_code"]:hover {
+  border-color: transparent;
+  background: transparent;
+  color: var(--vp-c-brand-1);
+  text-decoration: underline;
+}
+
 .demo-video {
   padding: 0 24px;
   margin: 2rem 0 3.5rem;
