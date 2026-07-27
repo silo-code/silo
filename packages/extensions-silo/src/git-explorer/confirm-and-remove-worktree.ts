@@ -10,6 +10,10 @@ import {
 import { worktreeDisplayName } from "./pending-worktree-remove-model";
 
 const DIRTY_RE = /contains modified or untracked files|use --force/i;
+// git's message when the path was already deregistered as a worktree — e.g.
+// removed by something outside Silo (another terminal, another tool) since
+// the list this row was drawn from was last fetched.
+const NOT_A_WORKTREE_RE = /is not a working tree/i;
 
 export interface RemoveWorktreeParams {
   ctx: ExtensionContext;
@@ -63,30 +67,44 @@ export async function confirmAndRemoveWorktree(
   if (isOpen) ctx.workspaces.removeFolder(workspaceId, worktreePath);
 
   try {
+    let alreadyGone = false;
     try {
       await api.removeWorktree(cwd, worktreePath);
     } catch (err) {
-      if (!DIRTY_RE.test(String(err))) throw err;
+      if (NOT_A_WORKTREE_RE.test(String(err))) {
+        // The row was stale — this worktree is already gone at the git
+        // level. Nothing left to delete; just resync our own state instead
+        // of surfacing git's fatal error for a no-op.
+        alreadyGone = true;
+      } else if (DIRTY_RE.test(String(err))) {
+        // Clear pending while the force confirm is up (ADR: progress only
+        // after every confirm). Folder stays closed — recoverable via Open
+        // alongside.
+        endPendingWorktreeRemove(worktreePath);
+        const force = await ctx.ui.confirm({
+          title: `"${name}" has uncommitted changes`,
+          body: "Force-remove the worktree and discard them? This can't be undone.",
+          confirmLabel: "Force Remove",
+          danger: true,
+        });
+        if (!force) return;
 
-      // Clear pending while the force confirm is up (ADR: progress only after
-      // every confirm). Folder stays closed — recoverable via Open alongside.
-      endPendingWorktreeRemove(worktreePath);
-      const force = await ctx.ui.confirm({
-        title: `"${name}" has uncommitted changes`,
-        body: "Force-remove the worktree and discard them? This can't be undone.",
-        confirmLabel: "Force Remove",
-        danger: true,
-      });
-      if (!force) return;
-
-      beginPendingWorktreeRemove(worktreePath);
-      await api.removeWorktree(cwd, worktreePath, true);
+        beginPendingWorktreeRemove(worktreePath);
+        await api.removeWorktree(cwd, worktreePath, true);
+      } else {
+        throw err;
+      }
     }
 
     endPendingWorktreeRemove(worktreePath);
     markWorktreeListDirty();
     if (!isWorktreeManagerOpen()) {
-      ctx.ui.notify("info", `Removed worktree ${name}`);
+      ctx.ui.notify(
+        "info",
+        alreadyGone
+          ? `${name} was already removed`
+          : `Removed worktree ${name}`,
+      );
     }
     onSuccess?.();
   } catch (err) {
