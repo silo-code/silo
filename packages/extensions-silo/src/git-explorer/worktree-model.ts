@@ -65,19 +65,42 @@ export function isOnlyMainWorktree(rows: readonly WorktreeRow[]): boolean {
 }
 
 /**
+ * Workspace folders that are open alongside but absent from this repo's
+ * `git worktree list`. Absence alone isn't proof the directory is
+ * deleted/pruned — it's equally what an *unrelated* folder looks like (a
+ * second repo the user attached to the same workspace, nothing to do with
+ * this repo's worktrees). Callers must confirm on disk (see
+ * {@link orphanOpenFolders}) before treating a candidate as truly orphaned.
+ */
+export function orphanCandidateFolders(
+  rows: readonly WorktreeRow[],
+  allFolders: readonly string[],
+  wsFolder: string,
+): string[] {
+  return allFolders
+    .filter((f) => !samePath(f, wsFolder))
+    .filter((f) => !rows.some((r) => samePath(r.wt.path, f)));
+}
+
+/**
  * Workspace folders that are open alongside but missing from git's worktree
- * list (deleted/pruned on disk while the view stayed open). Surfaced so the
- * manager can still offer Close — they won't appear in `git worktree list`.
+ * list *and* confirmed gone from disk (deleted/pruned while the view stayed
+ * open) — `missingOnDisk` holds normalized ({@link normalizeFolderPath})
+ * paths the caller verified via `ctx.files.pathExists`. A candidate that
+ * still exists on disk is left out entirely: it's not this repo's worktree
+ * to manage, so it doesn't belong in the list (and must never be offered a
+ * "missing on disk" Close that silently drops a perfectly good folder from
+ * the workspace).
  */
 export function orphanOpenFolders(
   rows: readonly WorktreeRow[],
   allFolders: readonly string[],
   wsFolder: string,
   currentFolder: string,
+  missingOnDisk: ReadonlySet<string>,
 ): WorktreeRow[] {
-  return allFolders
-    .filter((f) => !samePath(f, wsFolder))
-    .filter((f) => !rows.some((r) => samePath(r.wt.path, f)))
+  return orphanCandidateFolders(rows, allFolders, wsFolder)
+    .filter((f) => missingOnDisk.has(normalizeFolderPath(f)))
     .map((f) => ({
       wt: {
         path: f,
