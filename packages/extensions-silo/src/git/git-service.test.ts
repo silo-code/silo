@@ -782,3 +782,35 @@ describe(
     });
   },
 );
+
+// A missing `cwd` fails the process spawn itself and *rejects* — unlike a
+// normal git failure, which resolves with a non-zero code (see the ExecFn
+// contract note atop this file). The real-git contract tests above can't
+// exercise that path (Node's execFile masks it as a non-zero exit), so this
+// is a focused mock-`ExecFn` test for status()'s handling of the rejection.
+describe("GitService.status against a rejecting exec (e.g. missing cwd)", () => {
+  it("treats 'no such file or directory' as a missing folder, not a throw", async () => {
+    const execRejects: ExecFn = () =>
+      Promise.reject(
+        new Error("failed to run git: No such file or directory (os error 2)"),
+      );
+    const git = createGitService(execRejects);
+    const s = await git.status("/gone");
+    expect(s).toEqual({
+      branch: null,
+      upstream: null,
+      ahead: 0,
+      behind: 0,
+      files: [],
+      inRepo: false,
+      missing: true,
+    });
+  });
+
+  it("still throws for other spawn failures (e.g. git not installed)", async () => {
+    const execRejects: ExecFn = () =>
+      Promise.reject(new Error("failed to run git: permission denied"));
+    const git = createGitService(execRejects);
+    await expect(git.status("/somewhere")).rejects.toThrow("permission denied");
+  });
+});
