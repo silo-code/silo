@@ -335,6 +335,17 @@ async function handleOp(
       return { active: store.activeWorkspaceId };
     }
 
+    // Attach a folder to a workspace ("Add Folder…" in Workspace Properties),
+    // bypassing the native OS folder picker that automation can't drive.
+    // Routes through the same WorkspaceService.addFolder the UI uses.
+    case "addFolder": {
+      const id = String(args.id ?? "");
+      const folder = String(args.folder ?? "");
+      getWorkspaceService().addFolder(id, folder);
+      const ws = store.workspaces[id];
+      return { extraFolders: ws?.extraFolders ?? [] };
+    }
+
     // Soft-close — keeps the workspace entry (and its terminal records / PTYs).
     // Counterpart to deleteWorkspace; drives ctx.workspaces.close.
     case "closeWorkspace": {

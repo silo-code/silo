@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.37.0](https://github.com/silo-code/silo/compare/silo-v0.36.1...silo-v0.37.0) (2026-07-25)
+
+
+### Features
+
+* **file-explorer:** add worktree badge, icon-button parity, and bug fixes ([#285](https://github.com/silo-code/silo/issues/285)) ([e9e1ae5](https://github.com/silo-code/silo/commit/e9e1ae5cead3ad6e61964e92e7e968d21281e715))
+* **git-explorer:** make "View Commits" a full-panel takeover ([#287](https://github.com/silo-code/silo/issues/287)) ([39f2ae6](https://github.com/silo-code/silo/commit/39f2ae683fa720aede0abf4aca852746ea29e9ee))
+
+## [0.36.1](https://github.com/silo-code/silo/compare/silo-v0.36.0...silo-v0.36.1) (2026-07-24)
+
+
+### Bug Fixes
+
+* **git-explorer:** scope "View Commits" to the branch, add exact total ([#283](https://github.com/silo-code/silo/issues/283)) ([44956f7](https://github.com/silo-code/silo/commit/44956f7b4888389dccfa281a56fa1fb8c9117e74))
+
+## [0.36.0](https://github.com/silo-code/silo/compare/silo-v0.35.0...silo-v0.36.0) (2026-07-24)
+
+
+### Features
+
+* **git-explorer:** add "View Commits" drill-down to the git panel ([#282](https://github.com/silo-code/silo/issues/282)) ([31e04a2](https://github.com/silo-code/silo/commit/31e04a2c59c143eb51a0f54fc333ed767e2cc4db))
+* **layout:** add Laptop Mode — auto-hide side panels on a small screen ([#280](https://github.com/silo-code/silo/issues/280)) ([6d25170](https://github.com/silo-code/silo/commit/6d2517059b2b420eed0fa927235624c168c6fa3f))
+
 ## [0.35.0](https://github.com/silo-code/silo/compare/silo-v0.34.1...silo-v0.35.0) (2026-07-22)
 
 

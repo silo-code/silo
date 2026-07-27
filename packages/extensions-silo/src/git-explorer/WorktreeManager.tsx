@@ -41,6 +41,8 @@ import {
   branchesInUse,
   buildWorktreeRows,
   isOnlyMainWorktree,
+  normalizeFolderPath,
+  orphanCandidateFolders,
   orphanOpenFolders,
   worktreeActions,
   type WorktreeRow,
@@ -129,12 +131,47 @@ export function WorktreeManager({
     () => buildWorktreeRows(worktrees ?? [], folder, wsFolder, allFolders),
     [worktrees, folder, wsFolder, allFolders],
   );
-  // Folders still open in the workspace but gone from git's worktree list
-  // (deleted/pruned on disk) — otherwise they'd be invisible in this modal
-  // while still spawning Git panel sections and status errors.
+
+  // Folders open in the workspace but absent from this repo's worktree list
+  // are candidates for "missing on disk" — but absence alone doesn't prove
+  // it; an unrelated folder (a second repo attached to the same workspace)
+  // looks identical to git. Confirm each candidate against disk before
+  // treating it as an orphaned worktree directory rather than just leaving it
+  // out of this modal entirely.
+  const orphanCandidates = useMemo(
+    () => orphanCandidateFolders(rows, allFolders, wsFolder),
+    [rows, allFolders, wsFolder],
+  );
+  const [missingOnDisk, setMissingOnDisk] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (orphanCandidates.length === 0) {
+      setMissingOnDisk(new Set());
+      return;
+    }
+    let active = true;
+    void (async () => {
+      const missing = new Set<string>();
+      await Promise.all(
+        orphanCandidates.map(async (f) => {
+          // Fail open on a read error — don't offer to drop a folder we
+          // couldn't actually confirm is gone.
+          const exists = await ctx.files.pathExists(f).catch(() => true);
+          if (!exists) missing.add(normalizeFolderPath(f));
+        }),
+      );
+      if (active) setMissingOnDisk(missing);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [orphanCandidates, ctx.files]);
+
   const displayRows = useMemo(
-    () => [...rows, ...orphanOpenFolders(rows, allFolders, wsFolder, folder)],
-    [rows, allFolders, wsFolder, folder],
+    () => [
+      ...rows,
+      ...orphanOpenFolders(rows, allFolders, wsFolder, folder, missingOnDisk),
+    ],
+    [rows, allFolders, wsFolder, folder, missingOnDisk],
   );
   const anyPrunable = displayRows.some((r) => r.wt.prunable != null);
 

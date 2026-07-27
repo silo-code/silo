@@ -13,6 +13,10 @@ import {
   trackRegionFocus,
 } from "../extension-host/focus-restore";
 import { installRegionTabHandoff } from "../extension-host/focus-regions";
+import {
+  installSmallScreenMode,
+  beginPeekResize,
+} from "../extension-host/small-screen-mode";
 import "./AppShell.css";
 
 // On macOS, `titleBarStyle: "Overlay"` causes the webview to extend under the
@@ -94,6 +98,10 @@ export function AppShell() {
   // editor cursor), skipping the resize handle + dockview chrome between them.
   useEffect(() => installRegionTabHandoff(), []);
 
+  // Small screen mode: auto-hide/auto-restore side panels by window width,
+  // plus the edge-hover peek. See extension-host/small-screen-mode.ts.
+  useEffect(() => installSmallScreenMode(), []);
+
   // macOS eats the click that reactivates an inactive window, so restore focus
   // to the last-focused dock/panel when the window regains focus — the user
   // lands back where they were without a throwaway second click.
@@ -141,11 +149,34 @@ export function AppShell() {
           onExpand={() => {
             store.leftPanelCollapsed = false;
           }}
-          className="app-col"
+          className={`app-col${snap.leftPanelPeeking ? " app-col--peeking" : ""}`}
         >
-          <ErrorBoundary name="side-left">
-            <SideColumn location="left" />
-          </ErrorBoundary>
+          <div
+            className={`side-peek-host side-peek-host--left${
+              snap.leftPanelPeeking ? " peeking" : ""
+            }`}
+            style={
+              snap.leftPanelPeeking
+                ? ({
+                    "--peek-width": `${snap.smallScreenPeekWidthLeftPx}px`,
+                  } as React.CSSProperties)
+                : undefined
+            }
+          >
+            <ErrorBoundary name="side-left">
+              <SideColumn location="left" />
+            </ErrorBoundary>
+            {snap.leftPanelPeeking && (
+              <div
+                className={`peek-resize-handle${snap.leftPanelPeekDragging ? " dragging" : ""}`}
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return;
+                  e.preventDefault();
+                  beginPeekResize("left", e.clientX);
+                }}
+              />
+            )}
+          </div>
         </Panel>
         <PanelResizeHandle onDragging={onPanelDragging} tabIndex={-1} />
         <Panel defaultSize={58} minSize={30} className="app-col">
@@ -167,11 +198,34 @@ export function AppShell() {
           onExpand={() => {
             store.rightPanelCollapsed = false;
           }}
-          className="app-col"
+          className={`app-col${snap.rightPanelPeeking ? " app-col--peeking" : ""}`}
         >
-          <ErrorBoundary name="side-right">
-            <SideColumn location="right" />
-          </ErrorBoundary>
+          <div
+            className={`side-peek-host side-peek-host--right${
+              snap.rightPanelPeeking ? " peeking" : ""
+            }`}
+            style={
+              snap.rightPanelPeeking
+                ? ({
+                    "--peek-width": `${snap.smallScreenPeekWidthRightPx}px`,
+                  } as React.CSSProperties)
+                : undefined
+            }
+          >
+            {snap.rightPanelPeeking && (
+              <div
+                className={`peek-resize-handle${snap.rightPanelPeekDragging ? " dragging" : ""}`}
+                onMouseDown={(e) => {
+                  if (e.button !== 0) return;
+                  e.preventDefault();
+                  beginPeekResize("right", e.clientX);
+                }}
+              />
+            )}
+            <ErrorBoundary name="side-right">
+              <SideColumn location="right" />
+            </ErrorBoundary>
+          </div>
         </Panel>
       </PanelGroup>
       <StatusBar />

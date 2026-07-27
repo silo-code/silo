@@ -321,3 +321,16 @@ export { markSessionDead, resetSessionAfterRecreate } from "./agents-service";
 // internal barrel. The component itself is now public (@silo-code/sdk); the
 // host component file re-exports from SDK and owns the CSS load.
 export { Tooltip } from "../components/Tooltip";
+
+// Small-screen-mode settings (global on/off + width threshold) — read/write
+// for the `core.layout` settings page. The auto-hide/peek behavior itself is
+// host-internal (small-screen-mode.ts, wired directly into AppShell); only the
+// two user-facing preferences need a settings-page seam.
+export {
+  setSmallScreenModeEnabled,
+  setSmallScreenThresholdPx,
+} from "../state/store";
+export {
+  DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
+  MIN_SMALL_SCREEN_THRESHOLD_PX,
+} from "../state/types";

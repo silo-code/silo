@@ -6,6 +6,8 @@ import {
   DEFAULT_UI_FONT_SIZE,
   DEFAULT_EDITOR_SETTINGS,
   DEFAULT_TERMINAL_SETTINGS,
+  DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
+  DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
 } from "./types";
 import type { WorkspaceInternal } from "./types";
 import { loadPanelStateFromWorkspace } from "./workspaces";
@@ -135,6 +137,13 @@ export async function hydrate(configDir: string): Promise<void> {
       ...DEFAULT_TERMINAL_SETTINGS,
       ...index.terminalSettings,
     };
+    store.smallScreenModeEnabled = index.smallScreenModeEnabled ?? true;
+    store.smallScreenThresholdPx =
+      index.smallScreenThresholdPx ?? DEFAULT_SMALL_SCREEN_THRESHOLD_PX;
+    store.smallScreenPeekWidthLeftPx =
+      index.smallScreenPeekWidthLeftPx ?? DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX;
+    store.smallScreenPeekWidthRightPx =
+      index.smallScreenPeekWidthRightPx ?? DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX;
     store.globalExtensionState = index.globalExtensionState
       ? cloneExtensionState(index.globalExtensionState)
       : {};
@@ -282,6 +291,10 @@ async function doPersist(): Promise<void> {
       activeThemeId: store.activeThemeId,
       editorSettings: { ...store.editorSettings },
       terminalSettings: { ...store.terminalSettings },
+      smallScreenModeEnabled: store.smallScreenModeEnabled,
+      smallScreenThresholdPx: store.smallScreenThresholdPx,
+      smallScreenPeekWidthLeftPx: store.smallScreenPeekWidthLeftPx,
+      smallScreenPeekWidthRightPx: store.smallScreenPeekWidthRightPx,
       globalExtensionState: store.globalExtensionState,
       agentState: store.agentState,
       groups: store.groups,

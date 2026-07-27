@@ -38,6 +38,35 @@ export interface GitLogEntry {
   author: string;
   relativeDate: string;
   subject: string;
+  /**
+   * Number of files this commit touched — a merge commit's count is relative
+   * to its **first parent** (same convention as {@link GitAPI.commitDetail}).
+   * Comes free off the same `git log` call (via `--numstat`), no per-commit
+   * follow-up request.
+   */
+  filesChanged: number;
+}
+
+/** One file changed by a commit, as listed by {@link GitAPI.commitDetail}. */
+export interface CommitFileChange {
+  path: string;
+  /** Original path for a rename/copy (from `diff-tree -M`). */
+  origPath?: string;
+  status: "A" | "M" | "D" | "R" | "C" | "T" | "U" | "X";
+  /** True when git reports no line counts for this path (a binary blob). */
+  binary: boolean;
+  /** `null` for a binary file — no line count to show. */
+  additions: number | null;
+  deletions: number | null;
+}
+
+/** A single commit's full message and changed files, as returned by {@link GitAPI.commitDetail}. */
+export interface CommitDetail extends GitLogEntry {
+  /** Commit message body (everything after the subject line); `""` when none. */
+  body: string;
+  /** Parent commit hashes — empty for a root commit, 2+ for a merge. */
+  parents: string[];
+  files: CommitFileChange[];
 }
 
 /** One branch, as listed by {@link GitAPI.branches}. */
@@ -81,8 +110,21 @@ export interface GitWorktree {
 export interface GitAPI {
   /** Parsed working-tree status (branch, ahead/behind, per-file changes). */
   status(cwd: string): Promise<GitStatus>;
-  /** Recent commits (most recent first), capped at `limit` (default 50). */
-  log(cwd: string, limit?: number): Promise<GitLogEntry[]>;
+  /**
+   * Recent commits (most recent first), capped at `limit` (default 50). Pass
+   * `base` (from {@link GitAPI.branchBase}) to scope the log to commits
+   * reachable from `HEAD` but not from `base` — GitHub's PR "Commits" tab
+   * semantics — instead of walking `HEAD`'s full ancestry (which eventually
+   * surfaces the default branch's history shared before the fork point).
+   */
+  log(cwd: string, limit?: number, base?: string): Promise<GitLogEntry[]>;
+  /**
+   * Exact commit count for {@link GitAPI.log}'s range (`base..HEAD` when
+   * `base` is given, else all of `HEAD`'s ancestry) — cheap way to show a
+   * "Commits (N)" total (`git rev-list --count`) without paging through
+   * every entry. Resolves to `0` on error (e.g. an empty repo).
+   */
+  commitCount(cwd: string, base?: string): Promise<number>;
   /** Unified diff text for `path` (or the whole tree); `staged` diffs the index. */
   diff(cwd: string, path?: string, staged?: boolean): Promise<string>;
   /** Stage the given paths (`git add`). */
@@ -166,6 +208,38 @@ export interface GitAPI {
     branch: string,
     upstream?: string | null,
   ): Promise<GitLogEntry[]>;
+  /**
+   * The commit to pass as {@link GitAPI.log}'s `base` so the log shows only
+   * `branch`'s own commits — the merge-base between `branch` and the repo's
+   * default branch (resolved from `origin/HEAD`, falling back through
+   * `origin/main`, `origin/master`, `main`, `master`). Resolves to `null` when
+   * `branch` **is** the default branch (nothing to scope against) or no
+   * default branch can be resolved (e.g. no `origin` remote) — either way the
+   * caller should fall back to an unscoped log.
+   */
+  branchBase(cwd: string, branch: string): Promise<string | null>;
+  /**
+   * Full detail for one commit — message body, parents, and its changed files
+   * (each with a status letter, rename origin, and line stats). A merge
+   * commit's files are relative to its **first parent** (`--first-parent`
+   * convention, matching `git log --first-parent`/GitHub's merge view); a root
+   * commit (no parents) is relative to the empty tree, i.e. every file shows
+   * as added. Resolves to `null` if `hash` can't be resolved.
+   */
+  commitDetail(cwd: string, hash: string): Promise<CommitDetail | null>;
+  /**
+   * Whether `path` is a binary file in the given comparison — `"workingTree"`
+   * (`HEAD` vs. the working file), `"staged"` (`HEAD` vs. the index), or
+   * `"commit"` (`ref.parent` vs. `ref.commit`, required for that mode).
+   * Backs the diff content provider's binary guard so a binary blob shows a
+   * placeholder instead of raw bytes garbling the diff editor.
+   */
+  isBinaryDiff(
+    cwd: string,
+    path: string,
+    mode: "workingTree" | "staged" | "commit",
+    ref?: { commit: string; parent: string },
+  ): Promise<boolean>;
   /**
    * All working trees of the repo containing `cwd` (`git worktree list
    * --porcelain`), main worktree first — git lists the whole family from any

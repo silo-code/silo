@@ -8,9 +8,11 @@ import {
   TreeStructure,
 } from "@phosphor-icons/react";
 import {
+  Badge,
   Tooltip,
   useFocusGroup,
   type ExtensionContext,
+  type ExtensionStorage,
   type FocusGroupItemProps,
   type MenuEntry,
   type NotifyOptions,
@@ -30,6 +32,9 @@ import {
 } from "./worktree-model";
 import { showWorktreeManager } from "./open-worktree-manager";
 import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
+import { useViewStack } from "./use-view-stack";
+import { CommitsTakeover } from "./CommitsTakeover";
+import { shouldExitTakeover, shouldPushCommitsOnOpen } from "./takeover-model";
 
 const REFRESH_DEBOUNCE_MS = 400;
 // How often the panel fetches in the background so ↑ahead/↓behind stay roughly
@@ -48,6 +53,11 @@ export function GitView({
   paused,
   collapsed,
   onToggleCollapsed,
+  storage,
+  hydrated,
+  isTakeoverActive,
+  onEnterTakeover,
+  onExitTakeover,
 }: {
   ctx: ExtensionContext;
   cacheKey: string;
@@ -57,7 +67,22 @@ export function GitView({
   paused: boolean;
   collapsed: boolean;
   onToggleCollapsed?: () => void;
+  storage: ExtensionStorage;
+  hydrated: boolean;
+  /** Whether *this* repo is the one panel-wide "View Commits" takeover
+   * (only one repo can cover the panel at a time — see GitExplorerPanel). */
+  isTakeoverActive: boolean;
+  onEnterTakeover: () => void;
+  onExitTakeover: () => void;
 }) {
+  // "View Commits" list/detail navigation — keyed per repo root (cacheKey) so
+  // a multi-root workspace's git roots don't share one stack.
+  const viewStack = useViewStack(storage, `view:${cacheKey}`, hydrated);
+  // The takeover auto-closes once this repo's stack pops back to root, from
+  // Back, Escape, or any other path — see takeover-model.ts.
+  useEffect(() => {
+    if (shouldExitTakeover(isTakeoverActive, viewStack.view)) onExitTakeover();
+  }, [isTakeoverActive, viewStack.view, onExitTakeover]);
   // Public primitives, read through ctx (stable per extension).
   const editors = ctx.editors;
   const files = ctx.files;
@@ -495,6 +520,17 @@ export function GitView({
       { type: "separator" },
       { label: "Fetch", run: fetchRemote },
       { type: "separator" },
+      {
+        label: "View Commits",
+        run: () => {
+          // A repo left mid-drill (persisted per-repo) resumes as-is instead
+          // of restarting the list — see takeover-model.ts.
+          if (shouldPushCommitsOnOpen(viewStack.view)) {
+            viewStack.push({ kind: "commits" });
+          }
+          onEnterTakeover();
+        },
+      },
       { label: "Manage branches…", run: openBranchManager },
       { label: "Manage worktrees…", run: openWorktreeManager },
     ];
@@ -627,13 +663,13 @@ export function GitView({
     <Tooltip content={worktreeManagerButtonTooltip(worktrees)}>
       <button
         type="button"
-        className="git-wt-pill"
+        className="git-wt-pill-btn"
         onClick={(e) => {
           e.stopPropagation();
           openWorktreeManager();
         }}
       >
-        worktree
+        <Badge tone="accent">WT</Badge>
       </button>
     </Tooltip>
   ) : null;
@@ -820,7 +856,10 @@ export function GitView({
         </div>
       )}
       {!collapsed && (
-        <>
+        <div
+          className="git-panel-root"
+          aria-hidden={isTakeoverActive || undefined}
+        >
           <div className="commit-area">
             <textarea
               value={message}
@@ -929,8 +968,18 @@ export function GitView({
               ))}
             </Section>
           </div>
-        </>
+        </div>
       )}
+      <CommitsTakeover
+        ctx={ctx}
+        folder={folder}
+        workspaceId={workspaceId}
+        status={status}
+        viewStack={viewStack}
+        isActive={isTakeoverActive}
+        branchLabel={status?.branch ?? "(detached)"}
+        worktreePill={worktreePill}
+      />
     </div>
   );
 }

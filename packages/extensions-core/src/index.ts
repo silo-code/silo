@@ -13,6 +13,7 @@
 export { extension as menu } from "./menu";
 export { extension as terminal } from "./terminal";
 export { extension as editor } from "./editor";
+export { extension as layout } from "./layout";
 export { extension as workspaces } from "./workspaces";
 export { extension as themes } from "./themes";
 export { extension as keybindings } from "./keybindings";

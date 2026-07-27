@@ -10,6 +10,7 @@ import {
   supersedeCenterRetry,
 } from "../docked/dock-api-registry";
 import { registerSidePane } from "../layout/side-pane-registry";
+import { store } from "../state/store";
 
 // Isolate the region MODEL (cycle order / skipping / Tab handoff / click-to-enter)
 // from the center's async retry machinery: mock dock-api-registry so the center
@@ -29,6 +30,8 @@ afterEach(() => {
   document.body.innerHTML = "";
   vi.clearAllMocks();
   for (const dispose of sidePaneDisposers.splice(0)) dispose();
+  store.leftPanelAutoHidden = false;
+  store.rightPanelAutoHidden = false;
 });
 
 // ── DOM builders (jsdom has no layout, so side-pane visibility is stubbed via a
@@ -179,6 +182,20 @@ describe("cycleRegionFocus", () => {
     expect(document.activeElement).toBe(editor);
   });
 
+  it("skips a side dock that small-screen mode auto-hid, even though it's rendered at full width (a peek)", () => {
+    // Full clientWidth (200) — as if genuinely peeking — but flagged
+    // autoHidden, which alone must be enough to exclude it: peek is a
+    // mouse-only affordance with no keyboard gesture to invoke it.
+    sidePane("left");
+    const editor = document.createElement("textarea");
+    centerWith(editor);
+    store.leftPanelAutoHidden = true;
+
+    editor.focus();
+    expect(cycleRegionFocus(-1)).toBe(false);
+    expect(document.activeElement).toBe(editor);
+  });
+
   it("skips an empty center (focusEntry returns false)", () => {
     const left = sidePane("left");
     const status = statusBar();
@@ -241,6 +258,17 @@ describe("installRegionTabHandoff", () => {
     expect(e.defaultPrevented).toBe(true);
     expect(mockCenter).toHaveBeenCalled();
     expect(document.activeElement).toBe(editor);
+  });
+
+  it("never hands off out of a small-screen-auto-hidden dock, even from its last tabbable", () => {
+    const left = sidePane("left");
+    centerWith(document.createElement("textarea"));
+    store.leftPanelAutoHidden = true;
+
+    left.focus(); // its only (so "last") tabbable
+    const e = pressTab();
+    expect(e.defaultPrevented).toBe(false);
+    expect(mockCenter).not.toHaveBeenCalled();
   });
 
   it("does not hand off from a non-last tabbable", () => {

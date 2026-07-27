@@ -9,7 +9,7 @@ import { createGitService } from "./git-service";
 // view and the diff editor consume this via getExtension("silo.git").
 
 /** Diff modes the git content provider understands (carried in OpenDiffSpec.args). */
-type DiffMode = "workingTree" | "staged";
+type DiffMode = "workingTree" | "staged" | "commit";
 
 function relativeTo(absPath: string, folder: string): string {
   return absPath.startsWith(folder + "/")
@@ -68,6 +68,35 @@ export const extension: Extension<GitAPI> = {
         if (!folder) return { original: "", modified: "" };
         const relative = relativeTo(req.filePath, folder);
         const mode = req.args?.mode as DiffMode | undefined;
+        const commit = req.args?.commit as string | undefined;
+        const parent = req.args?.parent as string | undefined;
+        const commitRef =
+          mode === "commit" && commit && parent
+            ? { commit, parent }
+            : undefined;
+
+        // A binary blob fed straight to the diff editor renders as garbled
+        // raw bytes (no text diff makes sense) — check first and short-circuit
+        // with a placeholder, same for every mode this provider serves.
+        const binary = await api.isBinaryDiff(
+          folder,
+          relative,
+          mode ?? "workingTree",
+          commitRef,
+        );
+        if (binary) {
+          const placeholder = "Binary file not shown.";
+          return { original: placeholder, modified: placeholder };
+        }
+
+        if (commitRef) {
+          const [original, modified] = await Promise.all([
+            api.show(folder, `${commitRef.parent}:${relative}`),
+            api.show(folder, `${commitRef.commit}:${relative}`),
+          ]);
+          return { original, modified };
+        }
+
         // original = HEAD; modified = the index (staged) or the working file.
         const [original, modified] = await Promise.all([
           api.show(folder, `HEAD:${relative}`),

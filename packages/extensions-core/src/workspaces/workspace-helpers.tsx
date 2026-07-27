@@ -9,13 +9,32 @@ import type { FileService, WorkspaceState } from "@silo-code/sdk";
  */
 export type Workspace = WorkspaceState["all"][number];
 
+// U+2066 LEFT-TO-RIGHT ISOLATE / U+2069 POP DIRECTIONAL ISOLATE. WorkspaceModals
+// renders this text with `truncate="start"`, which flips the row to
+// `direction: rtl` so text-overflow clips at the visual left instead of the
+// right (see .silo-list-row-name[data-truncate="start"]). That trick only
+// repositions the ellipsis; it also hands our LTR path text to the Unicode
+// bidi algorithm as part of an RTL paragraph. A path is almost always a
+// strong-LTR run, but `~` and the leading `/` are bidi-*neutral* — with
+// nothing before them to anchor their direction, the RTL paragraph resolves
+// them against ITS OWN direction and can reorder them to the visual end of
+// the line, so "~/Projects/…/repo" renders as "Projects/…/repo/~". Isolating
+// the text as its own explicit LTR run keeps the neutral characters glued to
+// the text they belong with, regardless of the paragraph they're embedded in.
+const LRI = "⁦";
+const PDI = "⁩";
+
 export function fullPath(folder: string, home: string): string {
   const p = folder.replace(/\/+$/, "");
-  if (!home) return p;
-  const h = home.replace(/\/+$/, "");
-  if (p === h) return "~";
-  if (p.startsWith(h + "/")) return "~" + p.slice(h.length);
-  return p;
+  let result: string;
+  if (!home) {
+    result = p;
+  } else {
+    const h = home.replace(/\/+$/, "");
+    result =
+      p === h ? "~" : p.startsWith(h + "/") ? "~" + p.slice(h.length) : p;
+  }
+  return LRI + result + PDI;
 }
 
 function truncatePath(el: HTMLElement, text: string): string | null {

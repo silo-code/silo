@@ -5,6 +5,7 @@ import {
   terminal,
   output,
   editor,
+  layout,
   workspaces,
   themes,
   keybindings,
@@ -44,6 +45,7 @@ const builtins: Extension[] = [
   // priority 0, a plain .md open ties to Text (the default view); Preview is
   // opt-in via "Open With" / the breadcrumb switcher.
   editor,
+  layout,
   imageViewer,
   markdownPreview,
   workspaces,

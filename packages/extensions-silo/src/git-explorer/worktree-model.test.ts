@@ -1,15 +1,13 @@
 import { describe, it, expect } from "vitest";
 import type { GitWorktree } from "../git/git-api";
 import {
-  normalizeFolderPath,
-  samePath,
   buildWorktreeRows,
   isOnlyMainWorktree,
+  orphanCandidateFolders,
   orphanOpenFolders,
   worktreeActions,
   sanitizeBranchForPath,
   suggestWorktreePath,
-  findWorktreeFor,
   branchesInUse,
   managerWorktreeCount,
   shouldShowWorktreeManagerButton,
@@ -29,26 +27,6 @@ function wt(overrides: Partial<GitWorktree>): GitWorktree {
     ...overrides,
   };
 }
-
-describe("normalizeFolderPath / samePath", () => {
-  it("normalizes separators and trailing slashes", () => {
-    expect(normalizeFolderPath("/a/b/")).toBe("/a/b");
-    expect(normalizeFolderPath("C:\\repos\\proj")).toBe("C:/repos/proj");
-    expect(samePath("/a/b/", "/a/b")).toBe(true);
-  });
-
-  it("treats macOS /private realpaths as their symlinked form", () => {
-    expect(samePath("/private/tmp/x", "/tmp/x")).toBe(true);
-    expect(samePath("/private/var/folders/y", "/var/folders/y")).toBe(true);
-    // "/privateer" or unrelated /private children must not be rewritten.
-    expect(samePath("/privateer/tmp", "/tmp")).toBe(false);
-    expect(normalizeFolderPath("/private/stuff")).toBe("/private/stuff");
-  });
-
-  it("keeps distinct paths distinct", () => {
-    expect(samePath("/a/b", "/a/b2")).toBe(false);
-  });
-});
 
 describe("buildWorktreeRows", () => {
   const main = wt({ path: "/w/repo", isMain: true, branch: "main" });
@@ -112,11 +90,40 @@ describe("isOnlyMainWorktree", () => {
   });
 });
 
-describe("orphanOpenFolders", () => {
+describe("orphanCandidateFolders", () => {
   const main = wt({ path: "/w/repo", isMain: true, branch: "main" });
   const feat = wt({ path: "/w/repo-feat", branch: "feat" });
 
-  it("surfaces open folders that git no longer lists", () => {
+  it("collects open folders absent from the worktree list", () => {
+    const rows = buildWorktreeRows([main], "/w/repo", "/w/repo", [
+      "/w/repo",
+      "/w/gone",
+      "/w/other-repo",
+    ]);
+    expect(
+      orphanCandidateFolders(
+        rows,
+        ["/w/repo", "/w/gone", "/w/other-repo"],
+        "/w/repo",
+      ),
+    ).toEqual(["/w/gone", "/w/other-repo"]);
+  });
+
+  it("skips folders already represented in the worktree list", () => {
+    const rows = buildWorktreeRows([main, feat], "/w/repo", "/w/repo", [
+      "/w/repo",
+      "/w/repo-feat",
+    ]);
+    expect(
+      orphanCandidateFolders(rows, ["/w/repo", "/w/repo-feat"], "/w/repo"),
+    ).toEqual([]);
+  });
+});
+
+describe("orphanOpenFolders", () => {
+  const main = wt({ path: "/w/repo", isMain: true, branch: "main" });
+
+  it("surfaces a candidate confirmed missing on disk", () => {
     const rows = buildWorktreeRows([main], "/w/repo", "/w/repo", [
       "/w/repo",
       "/w/gone",
@@ -126,6 +133,7 @@ describe("orphanOpenFolders", () => {
       ["/w/repo", "/w/gone"],
       "/w/repo",
       "/w/repo",
+      new Set(["/w/gone"]),
     );
     expect(orphans).toHaveLength(1);
     expect(orphans[0]).toMatchObject({
@@ -136,17 +144,18 @@ describe("orphanOpenFolders", () => {
     expect(worktreeActions(orphans[0]!)).toEqual(["close"]);
   });
 
-  it("skips folders already represented in the worktree list", () => {
-    const rows = buildWorktreeRows([main, feat], "/w/repo", "/w/repo", [
+  it("leaves out a candidate that still exists on disk — an unrelated folder (e.g. a second repo attached to the workspace), not a deleted worktree", () => {
+    const rows = buildWorktreeRows([main], "/w/repo", "/w/repo", [
       "/w/repo",
-      "/w/repo-feat",
+      "/w/other-repo",
     ]);
     expect(
       orphanOpenFolders(
         rows,
-        ["/w/repo", "/w/repo-feat"],
+        ["/w/repo", "/w/other-repo"],
         "/w/repo",
         "/w/repo",
+        new Set(), // nothing confirmed missing
       ),
     ).toEqual([]);
   });
@@ -242,13 +251,7 @@ describe("sanitizeBranchForPath / suggestWorktreePath", () => {
   });
 });
 
-describe("findWorktreeFor / branchesInUse", () => {
-  it("matches a folder to its worktree through path normalization", () => {
-    const wts = [wt({ path: "/private/tmp/repo", isMain: true })];
-    expect(findWorktreeFor("/tmp/repo/", wts)).toBe(wts[0]);
-    expect(findWorktreeFor("/tmp/other", wts)).toBeUndefined();
-  });
-
+describe("branchesInUse", () => {
   it("collects checked-out branch names, skipping detached entries", () => {
     const wts = [
       wt({ branch: "main", isMain: true }),

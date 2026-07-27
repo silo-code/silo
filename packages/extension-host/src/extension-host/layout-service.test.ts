@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { DockviewApi } from "dockview";
 import { getLayoutService } from "./layout-service";
 import { setActiveDockApi } from "../docked/dock-api-registry";
+import { store } from "../state/store";
+import { sidePanelRegistry } from "./side-panels";
 
 // Fake just the slice of DockviewApi that openPanel touches: getPanel for the
 // singleton existence check, addPanel returning a panel whose api.setActive
@@ -81,5 +83,54 @@ describe("LayoutService.openPanel", () => {
     layout.openSingletonPanel("output", { title: "Output" });
     expect(dock.addPanel).toHaveBeenCalledTimes(1);
     expect(dock.panels.get("output")!.api.setActive).toHaveBeenCalled();
+  });
+});
+
+// These three are the public (command/`ctx.layout`) collapse path, which must
+// always clear the corresponding `*PanelAutoHidden` flag — that's what makes
+// an explicit call "stick" instead of being re-hidden by small-screen mode's
+// next auto-hide pass (see extension-host/small-screen-mode.ts).
+describe("LayoutService manual collapse path clears autoHidden", () => {
+  beforeEach(() => {
+    store.leftPanelCollapsed = true;
+    store.rightPanelCollapsed = true;
+    store.leftPanelAutoHidden = true;
+    store.rightPanelAutoHidden = true;
+  });
+
+  afterEach(() => {
+    store.leftPanelCollapsed = false;
+    store.rightPanelCollapsed = false;
+    store.leftPanelAutoHidden = false;
+    store.rightPanelAutoHidden = false;
+  });
+
+  it("setSidePanelCollapsed clears autoHidden for the given side only", () => {
+    layout.setSidePanelCollapsed("left", false);
+    expect(store.leftPanelCollapsed).toBe(false);
+    expect(store.leftPanelAutoHidden).toBe(false);
+    expect(store.rightPanelAutoHidden).toBe(true); // untouched
+  });
+
+  it("toggleSidePanel clears autoHidden", () => {
+    layout.toggleSidePanel("right"); // currently collapsed → expands
+    expect(store.rightPanelCollapsed).toBe(false);
+    expect(store.rightPanelAutoHidden).toBe(false);
+  });
+
+  it("revealSidePanel clears autoHidden for the panel's column", () => {
+    const dispose = sidePanelRegistry.register({
+      id: "test.panel",
+      location: "left",
+      title: "Test",
+      component: () => null,
+    });
+    try {
+      layout.revealSidePanel("test.panel");
+      expect(store.leftPanelCollapsed).toBe(false);
+      expect(store.leftPanelAutoHidden).toBe(false);
+    } finally {
+      dispose.dispose();
+    }
   });
 });

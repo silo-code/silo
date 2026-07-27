@@ -1,8 +1,29 @@
+/* Positioned ancestor for .git-takeover (CommitsTakeover) — it escapes past
+ * .git-panel and .git-explorer-scroll (neither sets `position`, and
+ * .git-explorer-scroll must never get a `transform` either — see below) to
+ * cover this whole viewport, not just the repo's own slot in the scroll list. */
+.git-explorer-viewport {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
 .git-explorer-scroll {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
+  transition: margin-left 220ms ease;
+}
+
+/* Slides left out of view while a repo's commits takeover is open, so the
+ * list visibly "pushes off" as the takeover slides in — see .git-takeover.
+ * Deliberately `margin-left`, not `transform`: a `transform` here would make
+ * this element a containing block for `position: absolute` descendants,
+ * hijacking .git-takeover's escape to .git-explorer-viewport (it's nested
+ * inside .git-panel, itself inside this list) and dragging it off-screen too. */
+.git-explorer-scroll--covered {
+  margin-left: -100%;
 }
 
 .git-panel {
@@ -11,6 +32,15 @@
   gap: 6px;
   padding: 8px 4px 12px;
   font-family: var(--silo-font-ui);
+}
+
+/* Wraps the commit-box + Staged/Changes sections — kept as its own flex
+ * column (mirrors .git-panel's own gap) so it can be aria-hidden as a unit
+ * while this repo's commits takeover covers it. */
+.git-panel-root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .git-panel + .git-panel {
@@ -685,32 +715,27 @@
   animation: branch-spin 0.8s linear infinite;
 }
 
-/* "worktree" header pill on linked-worktree GitViews — clickable into the
- * manager (replaces the header icon on those views). */
-button.git-wt-pill {
+/* "WT" header badge on linked-worktree GitViews — clickable into the manager
+ * (replaces the header icon on those views). Bare button reset around the
+ * SDK design-kit Badge (packages/sdk/src/Badge.tsx) — the pill's own look
+ * comes entirely from Badge/.silo-badge-accent, not from this class, so it
+ * stays pixel-identical to every other accent badge in the app (including
+ * the file-explorer header's, see .tree-wt-pill). */
+.git-wt-pill-btn {
   -webkit-appearance: none;
   appearance: none;
   border: none;
+  background: none;
+  padding: 0;
   cursor: pointer;
   font-family: inherit;
   line-height: inherit;
-}
-
-.git-wt-pill {
   flex-shrink: 0;
-  font-size: var(--silo-font-size-chrome);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--silo-color-accent);
-  background: color-mix(in srgb, var(--silo-color-accent) 16%, transparent);
-  border-radius: 999px;
-  padding: 1px 8px;
 }
 
-button.git-wt-pill:hover {
+.git-wt-pill-btn:hover .silo-badge {
   color: var(--silo-color-text-hi);
-  background: color-mix(in srgb, var(--silo-color-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--silo-color-accent) 32%, transparent);
 }
 
 .git-pending-remove-status {
@@ -800,4 +825,280 @@ button.git-wt-pill:hover {
   white-space: normal;
   overflow-wrap: anywhere;
   color: var(--silo-color-text);
+}
+
+/* "View Commits" full-panel takeover (takeover-model.ts / CommitsTakeover) —
+ * always mounted by GitView, off-screen right until `isActive` (so toggling
+ * the modifier class is a genuine CSS transition, not a mount with no
+ * "before" frame). `position: absolute` escapes past .git-panel and
+ * .git-explorer-scroll (neither sets `position`) up to .git-explorer-viewport,
+ * covering the whole panel rather than just this repo's slot in the list. */
+.git-takeover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--silo-color-bg);
+  transform: translateX(100%);
+  transition: transform 220ms ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.git-takeover--active {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.git-takeover-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--silo-color-border);
+  flex-shrink: 0;
+}
+
+.git-takeover-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+}
+
+/* Accent-colored (unlike the muted github-prs back button it's modeled on)
+ * so it reads as an interactive control at rest, not just on hover. */
+.git-takeover-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-accent);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  font-weight: 600;
+  padding: 3px 6px;
+  margin-left: -6px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+
+.git-takeover-back:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.git-takeover-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.git-takeover-count {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.git-takeover-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.git-takeover-branch {
+  font-family: var(--silo-font-ui);
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-takeover-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.git-takeover-pane {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  transition: transform 220ms ease;
+}
+
+.git-takeover-pane--current {
+  transform: translateX(0);
+}
+
+.git-takeover-pane--parked-left {
+  transform: translateX(-100%);
+}
+
+.git-takeover-pane--parked-right {
+  transform: translateX(100%);
+}
+
+.git-commits-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-commit-note {
+  padding: 6px 10px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.git-commit-divider {
+  padding: 4px 10px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  border-top: 1px solid var(--silo-color-border);
+  border-bottom: 1px solid var(--silo-color-border);
+  background: var(--silo-color-bg-hover);
+}
+
+.git-commit-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  cursor: pointer;
+  position: relative;
+}
+
+.git-commit-row:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.git-commit-subject {
+  font-family: var(--silo-font-ui);
+  color: var(--silo-color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.git-commit-meta {
+  display: flex;
+  gap: 8px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.git-commit-hash-action {
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  background: var(--silo-color-bg-hover);
+  transition: opacity 100ms ease-out;
+}
+
+.git-commit-row:hover .git-commit-hash-action {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.git-commit-shorthash {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.git-commits-load-more {
+  margin: 8px;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+}
+
+.git-commits-load-more:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.git-commits-load-more:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Commit detail page */
+.git-commit-detail {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-commit-detail-message {
+  padding: 10px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.git-commit-detail-subject {
+  font-family: var(--silo-font-ui);
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+  overflow-wrap: anywhere;
+}
+
+.git-commit-detail-body {
+  margin: 6px 0 0;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.git-commit-detail-meta {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-mono);
+}
+
+.git-commit-detail-stats {
+  padding: 6px 10px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.git-stat-add {
+  color: var(--silo-color-ok);
+}
+
+.git-stat-del {
+  color: var(--silo-color-err);
+}
+
+.git-commit-detail-files {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-file-stat {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  margin-left: 4px;
+}
+
+.git-file-stat.binary {
+  color: var(--silo-color-text-lo);
 }

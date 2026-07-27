@@ -2,6 +2,12 @@ import type { GitAPI, GitLogEntry } from "./git-api";
 import { parseGitStatus } from "./parse-status";
 import { parseBranches } from "./parse-branches";
 import { parseWorktrees } from "./parse-worktrees";
+import {
+  mergeCommitFiles,
+  parseNameStatus,
+  parseNumstat,
+  resolveDiffBase,
+} from "./parse-commit-files";
 
 // The GitAPI implementation, built on a generic one-shot `exec` (ctx.process.exec
 // in the app; a real-git wrapper in the contract test). This is the whole point
@@ -19,20 +25,35 @@ export type ExecFn = (
   options?: { cwd?: string },
 ) => Promise<{ stdout: string; stderr: string; code: number }>;
 
+// A commit header line — the %H%x09... pretty-format row — vs. a trailing
+// --numstat line ("<add>\t<del>\t<path>", or "-\t-\t<path>" for binary). The
+// 40-hex-char-then-tab shape only ever starts a header, so header lines are
+// unambiguous even interleaved with each commit's own numstat block.
+const LOG_HEADER_RE = /^[0-9a-f]{40}\t/;
+
+/** Parses `git log --pretty=format:%H%x09%h%x09%an%x09%ar%x09%s --numstat
+ * [--diff-merges=first-parent]` output — the file lines under each header
+ * count that commit's `filesChanged`, with no extra request per commit. */
 function parseLog(raw: string): GitLogEntry[] {
-  return raw
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
+  const entries: GitLogEntry[] = [];
+  let current: GitLogEntry | null = null;
+  for (const line of raw.split("\n")) {
+    if (LOG_HEADER_RE.test(line)) {
       const [hash, shortHash, author, relativeDate, ...rest] = line.split(TAB);
-      return {
+      current = {
         hash: hash ?? "",
         shortHash: shortHash ?? "",
         author: author ?? "",
         relativeDate: relativeDate ?? "",
         subject: rest.join(TAB),
+        filesChanged: 0,
       };
-    });
+      entries.push(current);
+    } else if (line.trim() && current) {
+      current.filesChanged++;
+    }
+  }
+  return entries;
 }
 
 /** Build a {@link GitAPI} backed by the given one-shot `exec`. */
@@ -79,15 +100,29 @@ export function createGitService(exec: ExecFn): GitAPI {
       return parseGitStatus(stdout);
     },
 
-    async log(cwd, limit = 50) {
+    async log(cwd, limit = 50, base) {
       const { stdout, code } = await git(cwd, [
         "log",
         "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%s",
+        "--numstat",
+        "--diff-merges=first-parent",
         `-${limit}`,
+        ...(base ? [`${base}..HEAD`] : []),
       ]);
       // Any error (e.g. empty repo with no commits) → no history.
       if (code !== 0) return [];
       return parseLog(stdout);
+    },
+
+    async commitCount(cwd, base) {
+      const { stdout, code } = await git(cwd, [
+        "rev-list",
+        "--count",
+        base ? `${base}..HEAD` : "HEAD",
+      ]);
+      if (code !== 0) return 0;
+      const n = parseInt(stdout.trim(), 10);
+      return Number.isFinite(n) ? n : 0;
     },
 
     async diff(cwd, path, staged = false) {
@@ -209,6 +244,125 @@ export function createGitService(exec: ExecFn): GitAPI {
         if (code === 0) return parseLog(stdout);
       }
       return [];
+    },
+
+    async branchBase(cwd, branch) {
+      // Prefer the remote's recorded default branch (`origin/HEAD`, set by
+      // `git clone`/`git remote set-head`); fall back to the common default
+      // names, remote-tracking ref first since it reflects the shared
+      // history more reliably than a possibly-stale local branch.
+      let defaultRef: string | null = null;
+      const sym = await git(cwd, [
+        "symbolic-ref",
+        "--quiet",
+        "--short",
+        "refs/remotes/origin/HEAD",
+      ]);
+      if (sym.code === 0 && sym.stdout.trim()) {
+        defaultRef = sym.stdout.trim();
+      } else {
+        for (const candidate of [
+          "origin/main",
+          "origin/master",
+          "main",
+          "master",
+        ]) {
+          const verify = await git(cwd, [
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            candidate,
+          ]);
+          if (verify.code === 0) {
+            defaultRef = candidate;
+            break;
+          }
+        }
+      }
+      if (!defaultRef) return null;
+
+      // Strip a remote prefix (`origin/main` → `main`) to compare against the
+      // current branch's own short name.
+      const defaultShortName = defaultRef.includes("/")
+        ? defaultRef.slice(defaultRef.indexOf("/") + 1)
+        : defaultRef;
+      if (defaultShortName === branch) return null;
+
+      const { stdout, code } = await git(cwd, [
+        "merge-base",
+        defaultRef,
+        "HEAD",
+      ]);
+      if (code !== 0) return null;
+      return stdout.trim() || null;
+    },
+
+    async commitDetail(cwd, hash) {
+      const { stdout: metaLine, code: metaCode } = await git(cwd, [
+        "show",
+        "-s",
+        "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%P%x09%s%x09%b",
+        hash,
+      ]);
+      if (metaCode !== 0 || !metaLine) return null;
+      const [
+        h,
+        shortHash,
+        author,
+        relativeDate,
+        parentsRaw,
+        subject,
+        ...bodyParts
+      ] = metaLine.split(TAB);
+      const parents = (parentsRaw ?? "").split(" ").filter(Boolean);
+      const base = resolveDiffBase(parents);
+
+      const [nameStatusResult, numstatResult] = await Promise.all([
+        git(cwd, [
+          "diff-tree",
+          "--no-commit-id",
+          "-r",
+          "-M",
+          "--name-status",
+          base,
+          hash,
+        ]),
+        git(cwd, [
+          "diff-tree",
+          "--no-commit-id",
+          "-r",
+          "--numstat",
+          base,
+          hash,
+        ]),
+      ]);
+      const files = mergeCommitFiles(
+        parseNameStatus(nameStatusResult.stdout),
+        parseNumstat(numstatResult.stdout),
+      );
+
+      return {
+        hash: h ?? hash,
+        shortHash: shortHash ?? "",
+        author: author ?? "",
+        relativeDate: relativeDate ?? "",
+        subject: subject ?? "",
+        filesChanged: files.length,
+        body: bodyParts.join(TAB).trim(),
+        parents,
+        files,
+      };
+    },
+
+    async isBinaryDiff(cwd, path, mode, ref) {
+      const args = ["diff", "--numstat"];
+      if (mode === "workingTree") args.push("HEAD");
+      else if (mode === "staged") args.push("--cached");
+      else if (mode === "commit" && ref) args.push(ref.parent, ref.commit);
+      args.push("--", path);
+      const { stdout, code } = await git(cwd, args);
+      if (code !== 0) return false;
+      return /^-\t-\t/.test(stdout);
     },
 
     async worktrees(cwd) {

@@ -6,7 +6,13 @@ import {
   MAX_UI_FONT_SIZE,
   DEFAULT_EDITOR_SETTINGS,
   DEFAULT_TERMINAL_SETTINGS,
+  DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
+  MIN_SMALL_SCREEN_THRESHOLD_PX,
+  DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
+  MIN_SMALL_SCREEN_PEEK_WIDTH_PX,
+  MAX_SMALL_SCREEN_PEEK_WIDTH_PX,
 } from "./types";
+import type { SideLocation } from "@silo-code/sdk";
 
 export const store = proxy<AppState>({
   workspaces: {},
@@ -28,6 +34,16 @@ export const store = proxy<AppState>({
   agentState: {},
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,
+  smallScreenModeEnabled: true,
+  smallScreenThresholdPx: DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
+  leftPanelAutoHidden: false,
+  rightPanelAutoHidden: false,
+  leftPanelPeeking: false,
+  rightPanelPeeking: false,
+  leftPanelPeekDragging: false,
+  rightPanelPeekDragging: false,
+  smallScreenPeekWidthLeftPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
+  smallScreenPeekWidthRightPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
   sidePanelVisibility: {},
   groups: {},
   panelOrder: [],
@@ -59,12 +75,55 @@ export function reorderSidePanels(orderedIds: string[]) {
   }
 }
 
+/**
+ * Explicit collapse setters for the manual/public path (commands, the status
+ * bar, `ctx.layout`). Always clear the corresponding `*PanelAutoHidden` flag —
+ * an explicit call is by definition not small-screen mode's doing, so it
+ * "promotes" the panel to a manual state that auto-hide/auto-restore leaves
+ * alone until the next full large→small→large round-trip. Small-screen mode
+ * itself (`small-screen-mode.ts`) bypasses these and mutates the collapsed +
+ * autoHidden fields together directly.
+ */
+export function setLeftPanelCollapsed(collapsed: boolean) {
+  store.leftPanelCollapsed = collapsed;
+  store.leftPanelAutoHidden = false;
+}
+
+export function setRightPanelCollapsed(collapsed: boolean) {
+  store.rightPanelCollapsed = collapsed;
+  store.rightPanelAutoHidden = false;
+}
+
 export function toggleLeftPanel() {
-  store.leftPanelCollapsed = !store.leftPanelCollapsed;
+  setLeftPanelCollapsed(!store.leftPanelCollapsed);
 }
 
 export function toggleRightPanel() {
-  store.rightPanelCollapsed = !store.rightPanelCollapsed;
+  setRightPanelCollapsed(!store.rightPanelCollapsed);
+}
+
+export function setSmallScreenModeEnabled(enabled: boolean) {
+  store.smallScreenModeEnabled = enabled;
+}
+
+export function setSmallScreenThresholdPx(px: number) {
+  store.smallScreenThresholdPx = Math.max(
+    MIN_SMALL_SCREEN_THRESHOLD_PX,
+    Math.round(px),
+  );
+}
+
+/** Set the small-screen peek overlay's width for one side — global (not
+ * per-workspace) and independent of the panel's normal (large-screen) width.
+ * Clamped to a sane, usable range regardless of caller (a drag gesture or a
+ * future settings-page field). */
+export function setSmallScreenPeekWidthPx(side: SideLocation, px: number) {
+  const clamped = Math.max(
+    MIN_SMALL_SCREEN_PEEK_WIDTH_PX,
+    Math.min(MAX_SMALL_SCREEN_PEEK_WIDTH_PX, Math.round(px)),
+  );
+  if (side === "left") store.smallScreenPeekWidthLeftPx = clamped;
+  else store.smallScreenPeekWidthRightPx = clamped;
 }
 
 /** Whether a side panel is shown in the dock. Absent = visible (default). */

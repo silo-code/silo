@@ -21,8 +21,9 @@ describe("matchHookEventsToTerminals", () => {
       { terminalId: "t1", pgid: 111 },
       { terminalId: "t2", pgid: 222 },
     ];
-    const result = matchHookEventsToTerminals([event({ pid: 222 })], terminals);
-    expect(result).toEqual([{ terminalId: "t2", event: event({ pid: 222 }) }]);
+    const evt = event({ pid: 222 });
+    const result = matchHookEventsToTerminals([evt], terminals);
+    expect(result).toEqual([{ terminalId: "t2", event: evt }]);
   });
 
   it("never matches a terminal with a null pgid", () => {

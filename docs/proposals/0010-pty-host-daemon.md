@@ -216,6 +216,19 @@ it until the client needs to share types.)
 | **Scope creep** — N1/N2/cwd are tempting; persistence parity must land first.                                                                | Med      | Phase it (below). Parity is the gate; capabilities are phase 3.                                                                                                                   |
 | **Daemon survives uninstall / leaks across updates**                                                                                         | Low      | Handle in socket path keyed to app identity (Silo vs Silo Dev); shutdown command; idle self-exit.                                                                                 |
 
+> **2026-07-22 update:** the "idle self-exit" mitigation was never implemented —
+> `run_daemon` (`crates/pty-host/src/daemon.rs`) only tears itself down when the
+> shell child exits (P1 working as designed; there is no separate detached-idle
+> timeout). Observed in the wild on Linux: the daemon self-forks via
+> `std::env::current_exe()` (`session_host.rs`), which on an AppImage resolves
+> **inside the FUSE-mounted squashfs**. A long-lived shell (days old, never
+> exited) therefore pins that AppImage's mount open indefinitely — `df` on a
+> long-running Linux box accumulates one live mount per app version with a
+> surviving session. See [RFC 0017](./0017-pty-host-daemon-outside-appimage-mount.md)
+> for the fix (relocate the daemon binary out of the mount) rather than the
+> idle-timeout mitigation originally sketched here, which doesn't help while the
+> session is legitimately still alive.
+
 ---
 
 ## Advantages

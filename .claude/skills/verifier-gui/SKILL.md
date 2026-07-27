@@ -155,16 +155,17 @@ editor ops below — `monaco` is not a page global, so `eval` can't reach it.
 
 **Workspaces / panels** (sandbox only — never point at real workspaces)
 
-| Op                  | Args                         | Returns / use                                               |
-| ------------------- | ---------------------------- | ----------------------------------------------------------- |
-| `listWorkspaces`    | —                            | `{active, workspaces[{id,name,folder}]}`                    |
-| `openWorkspace`     | `folder,name`                | create + activate (use a temp dir) → `{id}`                 |
-| `activateWorkspace` | `id`                         | switch active → `{active}`                                  |
-| `closeWorkspace`    | `id`                         | close (sets `closedAt`, doesn't remove) → `{closed,active}` |
-| `deleteWorkspace`   | `id`                         | reap terminals + remove → `{deleted,active}`                |
-| `splitActivePanel`  | `position?` (l/r/top/bottom) | split center group → `{groups}`                             |
-| `activatePanel`     | `panelId`                    | focus a dock panel → `{activated}`                          |
-| `showSidePanel`     | `id`                         | expand slot + activate its tab → `{shown,slot}`             |
+| Op                  | Args                         | Returns / use                                                                                              |
+| ------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `listWorkspaces`    | —                            | `{active, workspaces[{id,name,folder}]}`                                                                   |
+| `openWorkspace`     | `folder,name`                | create + activate (use a temp dir) → `{id}`                                                                |
+| `activateWorkspace` | `id`                         | switch active → `{active}`                                                                                 |
+| `addFolder`         | `id,folder`                  | attach a folder, bypassing the native OS picker ("Add Folder…" in Workspace Properties) → `{extraFolders}` |
+| `closeWorkspace`    | `id`                         | close (sets `closedAt`, doesn't remove) → `{closed,active}`                                                |
+| `deleteWorkspace`   | `id`                         | reap terminals + remove → `{deleted,active}`                                                               |
+| `splitActivePanel`  | `position?` (l/r/top/bottom) | split center group → `{groups}`                                                                            |
+| `activatePanel`     | `panelId`                    | focus a dock panel → `{activated}`                                                                         |
+| `showSidePanel`     | `id`                         | expand slot + activate its tab → `{shown,slot}`                                                            |
 
 **Editors / terminals**
 

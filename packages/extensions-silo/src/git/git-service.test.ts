@@ -9,6 +9,7 @@ import { execFile } from "node:child_process";
 import {
   mkdtempSync,
   writeFileSync,
+  renameSync,
   rmSync,
   existsSync,
   realpathSync,
@@ -158,6 +159,65 @@ describe(
       await git.commit(repo, "init");
     }
 
+    it("log reports each commit's filesChanged count (--numstat, no extra request)", async () => {
+      writeFileSync(join(repo, "a.txt"), "v1\n");
+      writeFileSync(join(repo, "b.txt"), "v1\n");
+      await git.stage(repo, ["a.txt", "b.txt"]);
+      await git.commit(repo, "two files");
+
+      const log = await git.log(repo);
+      expect(log[0]).toMatchObject({ subject: "two files", filesChanged: 2 });
+    });
+
+    it("commitCount reports HEAD's full ancestry with no base, and just the range with one", async () => {
+      await seedCommit();
+
+      await git.createBranch(repo, "feature");
+      writeFileSync(join(repo, "f.txt"), "x\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work 1");
+      writeFileSync(join(repo, "f.txt"), "y\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work 2");
+
+      expect(await git.commitCount(repo)).toBe(3);
+      const branchBase = await git.branchBase(repo, "feature");
+      expect(await git.commitCount(repo, branchBase!)).toBe(2);
+    });
+
+    it("commitCount resolves to 0 outside a repository", async () => {
+      const outside = mkdtempSync(join(tmpdir(), "silo-norepo-"));
+      try {
+        expect(await git.commitCount(outside)).toBe(0);
+      } finally {
+        rmSync(outside, { recursive: true, force: true });
+      }
+    });
+
+    it("log counts a merge commit's filesChanged against its first parent", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+
+      await git.createBranch(repo, "side");
+      writeFileSync(join(repo, "b.txt"), "from side\n");
+      await git.stage(repo, ["b.txt"]);
+      await git.commit(repo, "add b on side");
+      await git.switchBranch(repo, base);
+
+      writeFileSync(join(repo, "c.txt"), "from base\n");
+      await git.stage(repo, ["c.txt"]);
+      await git.commit(repo, "add c on base");
+      await realExec("git", ["merge", "--no-ff", "-m", "merge side", "side"], {
+        cwd: repo,
+      });
+
+      const log = await git.log(repo);
+      const mergeEntry = log.find((c) => c.subject === "merge side")!;
+      // First-parent diff: only b.txt (what the merge itself brought in) —
+      // not c.txt, already on the mainline before the merge.
+      expect(mergeEntry.filesChanged).toBe(1);
+    });
+
     it("creates, lists, switches between, and deletes branches", async () => {
       await seedCommit();
       const initial = await git.branches(repo);
@@ -253,6 +313,100 @@ describe(
       const unmerged = await git.unmergedCommits(repo, "wip", "origin/gone");
       expect(unmerged).toHaveLength(1);
       expect(unmerged[0].subject).toBe("wip work");
+    });
+
+    it("branchBase resolves to null when branch is the default branch", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+      expect(await git.branchBase(repo, base)).toBeNull();
+    });
+
+    it("branchBase resolves to null when no default branch can be found", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+      await git.renameBranch(repo, base, "trunk");
+      expect(await git.branchBase(repo, "trunk")).toBeNull();
+    });
+
+    it("branchBase computes the merge-base for a feature branch off the default branch (falling back to a local main/master)", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+      const { stdout: forkPoint } = await realExec(
+        "git",
+        ["rev-parse", "HEAD"],
+        {
+          cwd: repo,
+        },
+      );
+
+      await git.createBranch(repo, "feature");
+      writeFileSync(join(repo, "f.txt"), "x\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work");
+
+      // The default branch (base) hasn't moved since the fork, so the
+      // merge-base is exactly where "feature" branched off.
+      expect(await git.branchBase(repo, "feature")).toBe(forkPoint.trim());
+    });
+
+    it("branchBase prefers origin/HEAD when a remote's default branch is configured", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+      const remote = mkdtempSync(join(tmpdir(), "silo-gitremote-"));
+      try {
+        await realExec("git", ["init", "--bare", "-q"], { cwd: remote });
+        await realExec("git", ["remote", "add", "origin", remote], {
+          cwd: repo,
+        });
+        await realExec("git", ["push", "-q", "origin", base], { cwd: repo });
+        await realExec("git", ["remote", "set-head", "origin", base], {
+          cwd: repo,
+        });
+        const { stdout: forkPoint } = await realExec(
+          "git",
+          ["rev-parse", "HEAD"],
+          { cwd: repo },
+        );
+
+        await git.createBranch(repo, "feature");
+        writeFileSync(join(repo, "f.txt"), "x\n");
+        await git.stage(repo, ["f.txt"]);
+        await git.commit(repo, "feature work");
+
+        expect(await git.branchBase(repo, "feature")).toBe(forkPoint.trim());
+      } finally {
+        rmSync(remote, { recursive: true, force: true });
+      }
+    });
+
+    it("log(base) scopes commits to just the branch, matching GitHub's PR Commits tab", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+
+      await git.createBranch(repo, "feature");
+      writeFileSync(join(repo, "f.txt"), "x\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work 1");
+      writeFileSync(join(repo, "f.txt"), "y\n");
+      await git.stage(repo, ["f.txt"]);
+      await git.commit(repo, "feature work 2");
+
+      const branchBase = await git.branchBase(repo, "feature");
+      expect(branchBase).not.toBeNull();
+      const scoped = await git.log(repo, 50, branchBase!);
+      expect(scoped.map((c) => c.subject)).toEqual([
+        "feature work 2",
+        "feature work 1",
+      ]);
+
+      // Unscoped, the shared history with `base` (the seed commit) is
+      // included too — the exact confusion this feature exists to avoid.
+      const unscoped = await git.log(repo, 50);
+      expect(unscoped.map((c) => c.subject)).toEqual([
+        "feature work 2",
+        "feature work 1",
+        "init",
+      ]);
     });
 
     it("fetch --prune drops remote-tracking branches deleted upstream", async () => {
@@ -498,6 +652,133 @@ describe(
         rmSync(remote, { recursive: true, force: true });
         rmSync(other, { recursive: true, force: true });
       }
+    });
+
+    it("commitDetail resolves a root commit's files against the empty tree", async () => {
+      writeFileSync(join(repo, "a.txt"), "hello\n");
+      await git.stage(repo, ["a.txt"]);
+      await git.commit(repo, "root commit\n\nSome body text.");
+
+      const log = await git.log(repo);
+      const detail = await git.commitDetail(repo, log[0].hash);
+      expect(detail).toMatchObject({
+        subject: "root commit",
+        body: "Some body text.",
+        parents: [],
+      });
+      expect(detail!.files).toEqual([
+        {
+          path: "a.txt",
+          origPath: undefined,
+          status: "A",
+          binary: false,
+          additions: 1,
+          deletions: 0,
+        },
+      ]);
+    });
+
+    it("commitDetail resolves an ordinary commit's files against its single parent", async () => {
+      await seedCommit();
+      writeFileSync(join(repo, "a.txt"), "v1\nv2\n");
+      await git.stage(repo, ["a.txt"]);
+      await git.commit(repo, "update a");
+
+      const log = await git.log(repo);
+      const detail = await git.commitDetail(repo, log[0].hash);
+      expect(detail!.parents).toHaveLength(1);
+      expect(detail!.files).toEqual([
+        {
+          path: "a.txt",
+          origPath: undefined,
+          status: "M",
+          binary: false,
+          additions: 1,
+          deletions: 0,
+        },
+      ]);
+    });
+
+    it("commitDetail reports a rename with its origin path", async () => {
+      await seedCommit();
+      renameSync(join(repo, "a.txt"), join(repo, "renamed.txt"));
+      await git.stage(repo, ["a.txt", "renamed.txt"]);
+      await git.commit(repo, "rename a");
+
+      const log = await git.log(repo);
+      const detail = await git.commitDetail(repo, log[0].hash);
+      expect(detail!.files).toEqual([
+        expect.objectContaining({
+          path: "renamed.txt",
+          origPath: "a.txt",
+          status: "R",
+        }),
+      ]);
+    });
+
+    it("commitDetail resolves a merge commit's files against its first parent only", async () => {
+      await seedCommit();
+      const base = (await git.branches(repo)).find((b) => b.current)!.name;
+
+      // Side branch adds b.txt.
+      await git.createBranch(repo, "side");
+      writeFileSync(join(repo, "b.txt"), "from side\n");
+      await git.stage(repo, ["b.txt"]);
+      await git.commit(repo, "add b on side");
+      await git.switchBranch(repo, base);
+
+      // Mainline adds c.txt, then merges side in.
+      writeFileSync(join(repo, "c.txt"), "from base\n");
+      await git.stage(repo, ["c.txt"]);
+      await git.commit(repo, "add c on base");
+      await realExec("git", ["merge", "--no-ff", "-m", "merge side", "side"], {
+        cwd: repo,
+      });
+
+      const log = await git.log(repo);
+      const mergeCommit = log.find((c) => c.subject === "merge side")!;
+      const detail = await git.commitDetail(repo, mergeCommit.hash);
+      expect(detail!.parents).toHaveLength(2);
+      // First-parent diff: only what the merge itself brought in (b.txt from
+      // the side branch) — not c.txt, which was already on the mainline.
+      expect(detail!.files.map((f) => f.path)).toEqual(["b.txt"]);
+    });
+
+    it("commitDetail resolves to null for an unknown hash", async () => {
+      await seedCommit();
+      expect(await git.commitDetail(repo, "0".repeat(40))).toBeNull();
+    });
+
+    it("isBinaryDiff detects a binary file in each mode", async () => {
+      await seedCommit();
+      const binary = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01, 0x02]);
+      writeFileSync(join(repo, "img.png"), binary);
+      await git.stage(repo, ["img.png"]);
+
+      // staged: HEAD (missing) vs the index.
+      expect(await git.isBinaryDiff(repo, "img.png", "staged")).toBe(true);
+      await git.commit(repo, "add binary");
+
+      // workingTree: no further changes, so nothing to diff, but a modified
+      // binary working-tree file still reports as binary.
+      writeFileSync(join(repo, "img.png"), Buffer.concat([binary, binary]));
+      expect(await git.isBinaryDiff(repo, "img.png", "workingTree")).toBe(true);
+
+      // commit: the add-binary commit vs. its parent.
+      const log = await git.log(repo);
+      const addCommit = log.find((c) => c.subject === "add binary")!;
+      expect(
+        await git.isBinaryDiff(repo, "img.png", "commit", {
+          commit: addCommit.hash,
+          parent: addCommit.hash + "^",
+        }),
+      ).toBe(true);
+    });
+
+    it("isBinaryDiff reports false for an ordinary text file", async () => {
+      await seedCommit();
+      writeFileSync(join(repo, "a.txt"), "v2\n");
+      expect(await git.isBinaryDiff(repo, "a.txt", "workingTree")).toBe(false);
     });
   },
 );

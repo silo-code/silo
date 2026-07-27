@@ -162,6 +162,44 @@ export interface AppState {
   leftPanelCollapsed: boolean;
   rightPanelCollapsed: boolean;
   /**
+   * Small screen mode (RFC-less; see `small-screen-mode.ts`): global (not
+   * per-workspace) on/off switch and the window-width threshold below which a
+   * side panel that's currently open gets auto-collapsed. Persisted in the
+   * global index, like `uiFontSize`.
+   */
+  smallScreenModeEnabled: boolean;
+  smallScreenThresholdPx: number;
+  /**
+   * True while the respective side panel is collapsed *because* small-screen
+   * mode hid it, as opposed to a manual collapse. Drives auto-restore on a
+   * large screen, edge-hover peek eligibility, and Tab-order exclusion.
+   * Ephemeral — recomputed on launch/resize, never persisted.
+   */
+  leftPanelAutoHidden: boolean;
+  rightPanelAutoHidden: boolean;
+  /**
+   * True while an auto-hidden panel is temporarily revealed by an edge-hover
+   * peek. Ephemeral UI state, never persisted.
+   */
+  leftPanelPeeking: boolean;
+  rightPanelPeeking: boolean;
+  /**
+   * True while the user is actively dragging the peek overlay's resize
+   * handle — keeps the peek open even if the cursor briefly moves outside
+   * the overlay's (pre-drag) bounds while growing it. Ephemeral, never
+   * persisted.
+   */
+  leftPanelPeekDragging: boolean;
+  rightPanelPeekDragging: boolean;
+  /**
+   * The peek overlay's width — global (not per-workspace) and independent of
+   * the panel's normal (large-screen) width, since it's a separate, small-
+   * screen-only sizing the user tunes by dragging the peek's own resize
+   * handle. Persisted in the global index, like `smallScreenThresholdPx`.
+   */
+  smallScreenPeekWidthLeftPx: number;
+  smallScreenPeekWidthRightPx: number;
+  /**
    * Side-panel visibility, keyed by panel id. Per-workspace: snapshotted into
    * the active workspace and swapped when the active workspace changes (like
    * the other panel-state fields). Absent = visible (default); only an explicit
@@ -198,6 +236,22 @@ export interface AppState {
 export const DEFAULT_UI_FONT_SIZE = 13;
 export const MIN_UI_FONT_SIZE = 9;
 export const MAX_UI_FONT_SIZE = 24;
+
+/** Default small-screen-mode threshold — tuned for a MacBook's built-in
+ * display once an external monitor is disconnected; user-adjustable in
+ * Settings → Layout. */
+export const DEFAULT_SMALL_SCREEN_THRESHOLD_PX = 1440;
+export const MIN_SMALL_SCREEN_THRESHOLD_PX = 200;
+/** Width above `threshold` a panel must regain before small-screen mode exits
+ * — prevents hide/show flicker right at the boundary. */
+export const SMALL_SCREEN_HYSTERESIS_PX = 80;
+
+/** Default width for the small-screen peek overlay — independent of, and
+ * usually narrower than, the panel's normal (large-screen) width. Drag the
+ * peek's own resize handle to change it; adjustable range below. */
+export const DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX = 400;
+export const MIN_SMALL_SCREEN_PEEK_WIDTH_PX = 180;
+export const MAX_SMALL_SCREEN_PEEK_WIDTH_PX = 600;
 
 export type RenderWhitespace =
   | "none"

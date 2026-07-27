@@ -11,8 +11,10 @@ import {
   type NewItem,
   type RowFocusProps,
 } from "./tree-types";
-import { flattenVisible, treeArrowNav } from "./tree-nav";
+import { collapseAllExpanded, flattenVisible, treeArrowNav } from "./tree-nav";
 import { DirNode } from "./TreeNodes";
+import type { GitAPI, GitWorktree } from "../git/git-api";
+import { findWorktreeFor } from "../git/worktree-utils";
 
 // Module-level file clipboard (cut/copy) — reserved for future Paste implementation
 const fileCb = { current: null as { path: string; op: "cut" | "copy" } | null };
@@ -57,6 +59,23 @@ export function Tree({
   const [selected, setSelected] = useState<string | null>(
     () => initialSelected ?? null,
   );
+  // Whether `root` is itself a linked git worktree — drives the header badge
+  // (mirrors the Git panel's; consumes `silo.git` directly, same as
+  // git-explorer does, rather than reaching into that extension's internals).
+  const [worktrees, setWorktrees] = useState<GitWorktree[] | null>(null);
+  useEffect(() => {
+    setWorktrees(null);
+    const api = ctx.getExtension<GitAPI>("silo.git")?.api;
+    if (!api) return;
+    api
+      .worktrees(root)
+      .then(setWorktrees)
+      .catch(() => undefined);
+  }, [ctx, root]);
+  const linkedWorktree = worktrees
+    ? findWorktreeFor(root, worktrees)
+    : undefined;
+  const isWorktree = !!linkedWorktree && !linkedWorktree.isMain;
 
   function selectPath(path: string | null) {
     setSelected(path);
@@ -237,7 +256,7 @@ export function Tree({
   }
 
   function collapseAll() {
-    const next = { [root]: true };
+    const next = collapseAllExpanded(expanded, root);
     setExpanded(next);
     persistExpanded(next);
   }
@@ -549,6 +568,7 @@ export function Tree({
           onNewItemCancel={() => setNewItem(null)}
           selected={selected}
           onDrop={handleDrop}
+          isWorktree={isWorktree}
           rootActions={{
             onNewFile: () => setNewItem({ dir: root, type: "file" }),
             onNewFolder: () => setNewItem({ dir: root, type: "folder" }),

@@ -55,6 +55,8 @@ never deleted** — "we considered X and rejected it" stops the debate recurring
 | [0010](./0010-pty-host-daemon.md)                         | Self-owned PTY host daemon (replace abduco)                       | 2026-06-04 | implemented |
 | [0011](./0011-iframe-navigation-events.md)                | Iframe navigation events via webview init script                  | 2026-06-21 | implemented |
 | [0012](./0012-keyboard-navigation-architecture.md)        | Keyboard navigation architecture                                  | 2026-06-06 | implemented |
-| [0013](./0013-context-menu-contributions.md)              | Context-menu contributions for built-in surfaces                  | 2026-07-02 | draft       |
+| [0013](./0013-context-menu-contributions.md)              | Context-menu contributions for built-in surfaces                  | 2026-07-02 | accepted    |
 | [0014](./0014-extension-registry.md)                      | Extension registry — publishing, discovery, install               | 2026-07-12 | draft       |
-| [0015](./0015-workspace-extension-contributions.md)       | Workspace extension contributions — property pages + context menu | 2026-07-15 | draft       |
+| [0015](./0015-workspace-extension-contributions.md)       | Workspace extension contributions — property pages + context menu | 2026-07-15 | accepted    |
+| [0016](./0016-modal-design-system.md)                     | Modal design system: a public SDK component set                   | 2026-07-18 | accepted    |
+| [0017](./0017-pty-host-daemon-outside-appimage-mount.md)  | Relocate the pty-host daemon binary outside the AppImage mount    | 2026-07-22 | draft       |

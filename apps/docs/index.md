@@ -6,6 +6,9 @@ hero:
   text: "All your projects, alive at once"
   tagline: "For developers juggling coding agents across many projects. Terminals, agents, and layout stay intact — switch between them instantly. 100% open source, free forever."
   actions:
+    - theme: alt
+      text: ★ Star on GitHub
+      link: https://github.com/silo-code/silo
     - theme: brand
       text: Download →
       link: https://github.com/silo-code/silo/releases/latest
@@ -15,9 +18,6 @@ hero:
     - theme: alt
       text: Extensions
       link: https://extensions.getsilo.dev
-    - theme: alt
-      text: View on GitHub
-      link: https://github.com/silo-code/silo
     - theme: alt
       text: Follow on X
       link: https://x.com/silo_code

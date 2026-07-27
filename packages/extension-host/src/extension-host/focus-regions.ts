@@ -22,12 +22,23 @@ import {
   focusCenterDock,
   supersedeCenterRetry,
 } from "../docked/dock-api-registry";
+import { store } from "../state/store";
 import {
   INTERACTIVE,
   firstTabbable,
   focusFirstOrContainer,
   tabbablesIn,
 } from "./focus-dom";
+
+/** Small-screen mode excludes an auto-hidden panel from Tab order entirely —
+ * peeking or not, since peek is a mouse-only affordance with no keyboard
+ * gesture to invoke it. A manual toggle clears the flag and restores normal
+ * tabbing (see `state/store.ts` `setLeftPanelCollapsed`/`setRightPanelCollapsed`). */
+function isAutoHidden(side: "left" | "right"): boolean {
+  return side === "left"
+    ? store.leftPanelAutoHidden
+    : store.rightPanelAutoHidden;
+}
 
 /**
  * A top-level focus region. The host derives the region cycle, the boundary-Tab
@@ -53,8 +64,10 @@ interface FocusRegion {
   tabbables?(): HTMLElement[];
 }
 
-/** The visible side-pane element for a side, or null when collapsed/empty. */
+/** The visible side-pane element for a side, or null when collapsed/empty/
+ * small-screen-auto-hidden (peeking or not — see `isAutoHidden`). */
 function sidePane(side: "left" | "right"): HTMLElement | null {
+  if (isAutoHidden(side)) return null;
   for (const p of document.querySelectorAll<HTMLElement>(
     `.side-pane[data-slot^="${side}"]`,
   )) {
@@ -91,6 +104,9 @@ function sideRegion(side: "left" | "right", order: number): FocusRegion {
       return focusFirstOrContainer(active);
     },
     tabbables() {
+      // Small-screen-auto-hidden: excluded from the handoff entirely, peeking
+      // or not (see `isAutoHidden`).
+      if (isAutoHidden(side)) return [];
       // Only the ACTIVE panel's tabbables in each pane — a side dock keeps its
       // inactive panels mounted but hidden, and their (unfocusable) tabbables
       // would otherwise be picked as the "last", breaking the handoff.
