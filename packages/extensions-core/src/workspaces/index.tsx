@@ -5,17 +5,27 @@ import { WorkspaceStatusItem } from "./WorkspaceStatusItem";
 import { registerWorkspaceCycle } from "./workspace-cycle";
 import { openNewGroup } from "./group-properties";
 import { confirmAndCloseWorkspace } from "./workspace-add-menu";
+import { checkMissingExtraFolders } from "./missing-folder-notify";
 
 export const extension: Extension = {
   id: "core.workspaces",
   activate(ctx) {
-    // Log workspace lifecycle events to the Application output channel.
+    // Log workspace lifecycle events to the Application output channel, and
+    // (session-lifetime, de-duped per folder) notify if an extra folder no
+    // longer exists on disk — see missing-folder-notify.ts.
     let prev = ctx.workspaces.getState();
+    const notifiedMissingFolders = new Set<string>();
+    const initialWs = prev.all.find((w) => w.id === prev.activeId);
+    if (initialWs) {
+      void checkMissingExtraFolders(ctx, initialWs, notifiedMissingFolders);
+    }
     ctx.subscriptions.push(
       ctx.workspaces.subscribe((state) => {
         if (state.activeId !== prev.activeId && state.activeId) {
           const ws = state.all.find((w) => w.id === state.activeId);
           ctx.log.info(`Workspace activated: ${ws?.name ?? state.activeId}`);
+          if (ws)
+            void checkMissingExtraFolders(ctx, ws, notifiedMissingFolders);
         }
         for (const ws of state.all) {
           if (!prev.all.find((p) => p.id === ws.id)) {
