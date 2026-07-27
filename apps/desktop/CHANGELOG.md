@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.38.0](https://github.com/silo-code/silo/compare/silo-v0.37.0...silo-v0.38.0) (2026-07-27)
+
+
+### Features
+
+* **workspaces:** notify when a workspace's extra folder is gone from disk ([#293](https://github.com/silo-code/silo/issues/293)) ([a05431d](https://github.com/silo-code/silo/commit/a05431d57afe4421c893780fe683bac5a2ab764f))
+
+
+### Bug Fixes
+
+* **git-explorer:** don't mislabel unrelated workspace folders as missing worktrees ([#289](https://github.com/silo-code/silo/issues/289)) ([391774e](https://github.com/silo-code/silo/commit/391774ef39b5abe0bb9b97aa555e9e9b8cff01d7))
+* **git-explorer:** handle a workspace folder that no longer exists on disk ([#292](https://github.com/silo-code/silo/issues/292)) ([213bb99](https://github.com/silo-code/silo/commit/213bb99cf6e36fb7fc8dcde272f892f615c44b2e))
+* **git-explorer:** treat removing an already-gone worktree as success ([#291](https://github.com/silo-code/silo/issues/291)) ([22b08de](https://github.com/silo-code/silo/commit/22b08de4bc44cd45d6ef39cc26716a95f38205f3))
+
 ## [0.37.0](https://github.com/silo-code/silo/compare/silo-v0.36.1...silo-v0.37.0) (2026-07-25)
 
 
