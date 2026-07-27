@@ -630,8 +630,36 @@ export function GitView({
     }
   }
 
+  // A folder with no git status to show — either not a repo, or (missing)
+  // gone from disk entirely (deleted/removed outside Silo). Still render the
+  // collapsible root header when there is one, so a multi-root panel keeps
+  // showing *which* folder this is instead of the section vanishing outright.
   if (status && !status.inRepo) {
-    return <div className="placeholder">Not a git repository.</div>;
+    return (
+      <div className="git-panel">
+        {rootLabel && (
+          <button className="git-root-label" onClick={onToggleCollapsed}>
+            <span className="git-root-top">
+              <span className="git-root-chev">
+                {collapsed ? (
+                  <CaretRight size="0.85em" weight="bold" />
+                ) : (
+                  <CaretDown size="0.85em" weight="bold" />
+                )}
+              </span>
+              <span className="git-root-name">{rootLabel.toUpperCase()}</span>
+            </span>
+          </button>
+        )}
+        {!collapsed && (
+          <div className="placeholder">
+            {status.missing
+              ? "This folder could not be found."
+              : "Not a git repository."}
+          </div>
+        )}
+      </div>
+    );
   }
 
   const canCommit = stagedFiles.length > 0 && message.trim().length > 0;
