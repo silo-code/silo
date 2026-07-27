@@ -29,6 +29,13 @@ export interface GitStatus {
   files: GitFileStatus[];
   /** False when the folder isn't inside a git repository. */
   inRepo: boolean;
+  /**
+   * True when the folder itself doesn't exist on disk (as opposed to existing
+   * but not being a git repository) — e.g. a workspace folder whose directory
+   * was deleted or a worktree removed outside Silo. Always paired with
+   * `inRepo: false`.
+   */
+  missing?: boolean;
 }
 
 /** One commit, as listed by {@link GitAPI.log}. */

@@ -76,14 +76,35 @@ export function createGitService(exec: ExecFn): GitAPI {
 
   return {
     async status(cwd) {
-      const { stdout, stderr, code } = await git(cwd, [
-        "status",
-        "--porcelain=v2",
-        "-b",
-        // Expand untracked directories into their files (don't collapse a whole
-        // untracked subtree into one `directory/` row).
-        "--untracked-files=all",
-      ]);
+      let stdout: string, stderr: string, code: number;
+      try {
+        ({ stdout, stderr, code } = await git(cwd, [
+          "status",
+          "--porcelain=v2",
+          "-b",
+          // Expand untracked directories into their files (don't collapse a
+          // whole untracked subtree into one `directory/` row).
+          "--untracked-files=all",
+        ]));
+      } catch (err) {
+        // Unlike a normal git failure (resolves with a non-zero code), a
+        // missing `cwd` fails the spawn itself and rejects — e.g. a worktree
+        // or extra folder deleted outside Silo (ADR 0025-adjacent: Silo can't
+        // watch for that). Treat it the same as "not a repository" instead of
+        // throwing the raw OS error on every background refresh.
+        if (/no such file or directory/i.test(String(err))) {
+          return {
+            branch: null,
+            upstream: null,
+            ahead: 0,
+            behind: 0,
+            files: [],
+            inRepo: false,
+            missing: true,
+          };
+        }
+        throw err;
+      }
       if (code !== 0) {
         if (stderr.includes("not a git repository")) {
           return {
