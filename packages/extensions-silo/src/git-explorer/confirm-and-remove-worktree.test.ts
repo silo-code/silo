@@ -141,6 +141,39 @@ describe("confirmAndRemoveWorktree", () => {
     expect(getPendingWorktreeRemoves()).toHaveLength(0);
   });
 
+  it("treats an already-deregistered worktree as removed instead of erroring", async () => {
+    const removeWorktree = vi.fn(async () => {
+      throw new Error("fatal: '/w/repo-feat' is not a working tree");
+    });
+    const notifyError = vi.fn();
+    const ctx = mockCtx({ confirms: [true] });
+    const onSuccess = vi.fn();
+    let dirty = 0;
+    const stop = subscribeWorktreeListDirty(() => {
+      dirty += 1;
+    });
+    await confirmAndRemoveWorktree({
+      ctx,
+      api: { removeWorktree } as unknown as GitAPI,
+      cwd: "/w/repo",
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: true,
+      notifyError,
+      onSuccess,
+    });
+    stop();
+    expect(notifyError).not.toHaveBeenCalled();
+    expect(removeWorktree).toHaveBeenCalledTimes(1);
+    expect(getPendingWorktreeRemoves()).toHaveLength(0);
+    expect(ctx.ui.notify).toHaveBeenCalledWith(
+      "info",
+      "repo-feat was already removed",
+    );
+    expect(onSuccess).toHaveBeenCalled();
+    expect(dirty).toBe(1);
+  });
+
   it("notifies on failure and clears pending", async () => {
     const notifyError = vi.fn();
     const ctx = mockCtx({ confirms: [true] });
