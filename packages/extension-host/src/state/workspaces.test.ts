@@ -16,6 +16,8 @@ import {
   activateWorkspace,
   setEditorSettingOverride,
   getEditorSettingOverride,
+  addExtraFolder,
+  removeExtraFolder,
 } from "./workspaces";
 import { clearEditorBackup } from "./editor-backups";
 
@@ -97,6 +99,60 @@ describe("side-panel visibility is per-workspace", () => {
     // And w2 kept its own.
     activateWorkspace("w2");
     expect(store.sidePanelVisibility).toEqual({ git: false });
+  });
+});
+
+describe("extra folders", () => {
+  it("adds and removes a folder by exact path", () => {
+    addExtraFolder("w", "/repo-b");
+    expect(store.workspaces.w.extraFolders).toEqual(["/repo-b"]);
+    removeExtraFolder("w", "/repo-b");
+    expect(store.workspaces.w.extraFolders).toEqual([]);
+  });
+
+  it("does not add a duplicate of an already-open extra folder", () => {
+    addExtraFolder("w", "/repo-b");
+    addExtraFolder("w", "/repo-b");
+    expect(store.workspaces.w.extraFolders).toEqual(["/repo-b"]);
+  });
+
+  it("does not add the workspace's own primary folder as an extra", () => {
+    addExtraFolder("w", "/ws/w");
+    expect(store.workspaces.w.extraFolders ?? []).toEqual([]);
+  });
+
+  // macOS realpaths /tmp, /var, /etc through a /private backing. A folder
+  // opened with the /tmp spelling must still be found and removed when a
+  // caller (e.g. git worktree removal) later hands back the /private/tmp
+  // spelling — see the WorktreeManager verification finding this regression-
+  // tests: `ctx.workspaces.removeFolder` was previously a raw string
+  // comparison, so it silently no-op'd on this exact mismatch, leaving a
+  // stale folder open after its worktree was deleted on disk.
+  it("treats /private/tmp and /tmp spellings of the same path as identical", () => {
+    addExtraFolder("w", "/tmp/wt1");
+    expect(store.workspaces.w.extraFolders).toEqual(["/tmp/wt1"]);
+
+    removeExtraFolder("w", "/private/tmp/wt1");
+    expect(store.workspaces.w.extraFolders).toEqual([]);
+  });
+
+  it("treats a /private-spelled primary folder as already open", () => {
+    store.workspaces.w.folder = "/private/tmp/proj";
+    addExtraFolder("w", "/tmp/proj");
+    expect(store.workspaces.w.extraFolders ?? []).toEqual([]);
+  });
+
+  it("does not fold unrelated /private paths (e.g. /privateer)", () => {
+    addExtraFolder("w", "/privateer/tmp/x");
+    removeExtraFolder("w", "/tmp/x");
+    // The unrelated folder should still be there — only the real /private
+    // prefix is folded, not any path that merely starts with those letters.
+    expect(store.workspaces.w.extraFolders).toEqual(["/privateer/tmp/x"]);
+  });
+
+  it("no-ops for an unknown workspace", () => {
+    expect(() => addExtraFolder("nope", "/x")).not.toThrow();
+    expect(() => removeExtraFolder("nope", "/x")).not.toThrow();
   });
 });
 
