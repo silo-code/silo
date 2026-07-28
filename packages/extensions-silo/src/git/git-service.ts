@@ -1,4 +1,4 @@
-import type { GitAPI, GitLogEntry } from "./git-api";
+import type { GitAPI, GitLogEntry, GitStatus } from "./git-api";
 import { parseGitStatus } from "./parse-status";
 import { parseBranches } from "./parse-branches";
 import { parseWorktrees } from "./parse-worktrees";
@@ -30,6 +30,40 @@ export type ExecFn = (
 // 40-hex-char-then-tab shape only ever starts a header, so header lines are
 // unambiguous even interleaved with each commit's own numstat block.
 const LOG_HEADER_RE = /^[0-9a-f]{40}\t/;
+
+// A working directory that's gone from disk surfaces two ways, depending on the
+// platform and git version: the process *spawn* rejects ("No such file or
+// directory"), or git spawns fine but exits non-zero with "fatal: unable to
+// read current working directory: No such file or directory". Both mean the
+// same thing — treat either as a graceful `missing` status instead of throwing
+// the raw OS error as a toast on every background refresh (see `status`).
+const MISSING_CWD_RE =
+  /no such file or directory|unable to read current working directory/i;
+
+/** A folder that no longer exists on disk — `inRepo: false` plus `missing`. */
+function missingStatus(): GitStatus {
+  return {
+    branch: null,
+    upstream: null,
+    ahead: 0,
+    behind: 0,
+    files: [],
+    inRepo: false,
+    missing: true,
+  };
+}
+
+/** A folder that exists but isn't a git repository. */
+function notARepoStatus(): GitStatus {
+  return {
+    branch: null,
+    upstream: null,
+    ahead: 0,
+    behind: 0,
+    files: [],
+    inRepo: false,
+  };
+}
 
 /** Parses `git log --pretty=format:%H%x09%h%x09%an%x09%ar%x09%s --numstat
  * [--diff-merges=first-parent]` output — the file lines under each header
@@ -87,35 +121,19 @@ export function createGitService(exec: ExecFn): GitAPI {
           "--untracked-files=all",
         ]));
       } catch (err) {
-        // Unlike a normal git failure (resolves with a non-zero code), a
-        // missing `cwd` fails the spawn itself and rejects — e.g. a worktree
-        // or extra folder deleted outside Silo (ADR 0025-adjacent: Silo can't
-        // watch for that). Treat it the same as "not a repository" instead of
-        // throwing the raw OS error on every background refresh.
-        if (/no such file or directory/i.test(String(err))) {
-          return {
-            branch: null,
-            upstream: null,
-            ahead: 0,
-            behind: 0,
-            files: [],
-            inRepo: false,
-            missing: true,
-          };
-        }
+        // A missing `cwd` fails the process spawn itself and rejects — e.g. a
+        // worktree or extra folder deleted outside Silo (ADR 0025-adjacent:
+        // Silo can't watch for that). Treat it as `missing` instead of throwing
+        // the raw OS error on every background refresh.
+        if (MISSING_CWD_RE.test(String(err))) return missingStatus();
         throw err;
       }
       if (code !== 0) {
-        if (stderr.includes("not a git repository")) {
-          return {
-            branch: null,
-            upstream: null,
-            ahead: 0,
-            behind: 0,
-            files: [],
-            inRepo: false,
-          };
-        }
+        // On some platforms git spawns fine against a since-deleted cwd and
+        // instead exits non-zero with "unable to read current working
+        // directory" — the same missing-folder case, so handle it the same way.
+        if (MISSING_CWD_RE.test(stderr)) return missingStatus();
+        if (stderr.includes("not a git repository")) return notARepoStatus();
         throw new Error(stderr.trim() || "git status failed");
       }
       return parseGitStatus(stdout);

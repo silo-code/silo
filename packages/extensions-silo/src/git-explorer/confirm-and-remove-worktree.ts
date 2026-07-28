@@ -3,6 +3,7 @@ import type { GitAPI } from "../git/git-api";
 import {
   beginPendingWorktreeRemove,
   endPendingWorktreeRemove,
+  enqueueWorktreeRemoval,
   isWorktreeManagerOpen,
   isWorktreeRemovePending,
   markWorktreeListDirty,
@@ -69,7 +70,7 @@ export async function confirmAndRemoveWorktree(
   try {
     let alreadyGone = false;
     try {
-      await api.removeWorktree(cwd, worktreePath);
+      await enqueueWorktreeRemoval(() => api.removeWorktree(cwd, worktreePath));
     } catch (err) {
       if (NOT_A_WORKTREE_RE.test(String(err))) {
         // The row was stale — this worktree is already gone at the git
@@ -90,7 +91,9 @@ export async function confirmAndRemoveWorktree(
         if (!force) return;
 
         beginPendingWorktreeRemove(worktreePath);
-        await api.removeWorktree(cwd, worktreePath, true);
+        await enqueueWorktreeRemoval(() =>
+          api.removeWorktree(cwd, worktreePath, true),
+        );
       } else {
         throw err;
       }
