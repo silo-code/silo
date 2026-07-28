@@ -3,13 +3,13 @@ import {
   initialState,
   restoreState,
   reduce,
-  clearResumeIdentityOnDemotion,
+  resetOnDemotion,
   STALE_THRESHOLD_MS,
   type AgentActivityState,
 } from "./agent-activity-model";
 
 function detected(
-  status: "working" | "waiting" | "done" | "error",
+  status: "working" | "idle" | "error",
   opts: Partial<{
     source: "agent" | "shell" | "timer";
     isActiveTerminal: boolean;
@@ -32,7 +32,7 @@ describe("initialState", () => {
   });
 });
 
-describe("reduce — working/waiting/done transitions", () => {
+describe("reduce — working/idle transitions", () => {
   it("promotes a plain shell when an agent-sourced signal fires", () => {
     const s0 = initialState("shell");
     const s1 = reduce(s0, detected("working", { source: "agent" }));
@@ -48,43 +48,39 @@ describe("reduce — working/waiting/done transitions", () => {
     );
     const stopped = reduce(
       working,
-      detected("waiting", { isActiveTerminal: false, now: "t1" }),
+      detected("idle", { isActiveTerminal: false, now: "t1" }),
     );
-    expect(stopped.activity).toBe("waiting");
+    expect(stopped.activity).toBe("idle");
     expect(stopped.needsAttention).toBe(true);
     expect(stopped.attentionSince).toBe("t1");
   });
 
-  it("lands on done instead of waiting when the user watched it finish", () => {
+  it("activity is idle either way, but needsAttention only sets when the user wasn't watching", () => {
     const working = reduce(initialState("claude"), detected("working"));
-    const stopped = reduce(
+    const seenLive = reduce(
       working,
-      detected("waiting", { isActiveTerminal: true }),
+      detected("idle", { isActiveTerminal: true }),
     );
-    expect(stopped.activity).toBe("done");
-    expect(stopped.needsAttention).toBe(false);
+    expect(seenLive.activity).toBe("idle");
+    expect(seenLive.needsAttention).toBe(false);
   });
 
-  it("activating a needsAttention waiting terminal acknowledges it to done", () => {
+  it("activating a needsAttention terminal clears the flag without changing activity", () => {
     const working = reduce(initialState("claude"), detected("working"));
-    const waiting = reduce(
-      working,
-      detected("waiting", { isActiveTerminal: false }),
-    );
-    const activated = reduce(waiting, { type: "activated" });
-    expect(activated.activity).toBe("done");
+    const idle = reduce(working, detected("idle", { isActiveTerminal: false }));
+    expect(idle.activity).toBe("idle");
+    expect(idle.needsAttention).toBe(true);
+    const activated = reduce(idle, { type: "activated" });
+    expect(activated.activity).toBe("idle");
     expect(activated.needsAttention).toBe(false);
   });
 
-  it("done is sticky against a redundant agent idle re-emission", () => {
+  it("a redundant agent idle re-emission from an already-idle, already-seen terminal is a no-op", () => {
     const working = reduce(initialState("claude"), detected("working"));
-    const done = reduce(
-      working,
-      detected("waiting", { isActiveTerminal: true }),
-    );
-    expect(done.activity).toBe("done");
-    const again = reduce(done, detected("waiting"));
-    expect(again).toBe(done); // no-op, same reference
+    const idle = reduce(working, detected("idle", { isActiveTerminal: true }));
+    expect(idle.activity).toBe("idle");
+    const again = reduce(idle, detected("idle"));
+    expect(again).toBe(idle); // no-op, same reference
   });
 
   it("blocks shell-source demotion of a born-agent's working phase (subprocess flicker guard)", () => {
@@ -92,10 +88,7 @@ describe("reduce — working/waiting/done transitions", () => {
       initialState("claude"),
       detected("working", { source: "agent" }),
     );
-    const shellNoise = reduce(
-      working,
-      detected("waiting", { source: "shell" }),
-    );
+    const shellNoise = reduce(working, detected("idle", { source: "shell" }));
     expect(shellNoise.activity).toBe("working");
   });
 
@@ -104,7 +97,7 @@ describe("reduce — working/waiting/done transitions", () => {
       initialState("claude"),
       detected("working", { source: "agent" }),
     );
-    const timerTick = reduce(working, detected("waiting", { source: "timer" }));
+    const timerTick = reduce(working, detected("idle", { source: "timer" }));
     expect(timerTick.activity).toBe("working");
   });
 
@@ -113,8 +106,8 @@ describe("reduce — working/waiting/done transitions", () => {
       initialState("shell"),
       detected("working", { source: "shell" }),
     );
-    const timerTick = reduce(working, detected("waiting", { source: "timer" }));
-    expect(timerTick.activity).toBe("waiting");
+    const timerTick = reduce(working, detected("idle", { source: "timer" }));
+    expect(timerTick.activity).toBe("idle");
   });
 
   it("demotes a promoted shell back to non-agent once shell traffic resumes with no pending attention", () => {
@@ -124,22 +117,22 @@ describe("reduce — working/waiting/done transitions", () => {
     );
     const backAtPrompt = reduce(
       promoted,
-      detected("waiting", { source: "agent", isActiveTerminal: true }),
+      detected("idle", { source: "agent", isActiveTerminal: true }),
     );
     const shellPrompt = reduce(
       backAtPrompt,
-      detected("waiting", { source: "shell" }),
+      detected("idle", { source: "shell" }),
     );
     expect(shellPrompt.isAgent).toBe(false);
   });
 
   it("returns the same reference when the event repeats a no-op status", () => {
-    const waiting = reduce(
+    const idle = reduce(
       initialState("shell"),
-      detected("waiting", { source: "shell" }),
+      detected("idle", { source: "shell" }),
     );
-    const again = reduce(waiting, detected("waiting", { source: "shell" }));
-    expect(again).toBe(waiting);
+    const again = reduce(idle, detected("idle", { source: "shell" }));
+    expect(again).toBe(idle);
   });
 });
 
@@ -154,6 +147,7 @@ describe("stale restore", () => {
     sessionId: null,
     resumeCommand: null,
     agentName: null,
+    agentId: null,
   };
 
   it("marks a restored working duration stale after a long gap", () => {
@@ -200,10 +194,13 @@ describe("dead / reset", () => {
       sessionId: "abc123",
       resumeCommand: "claude --resume abc123",
       agentName: "Claude Code",
+      agentId: "claude",
     });
     expect(dead.activity).toBe("dead");
     expect(dead.sessionId).toBe("abc123");
     expect(dead.resumeCommand).toBe("claude --resume abc123");
+    expect(dead.agentName).toBe("Claude Code");
+    expect(dead.agentId).toBe("claude");
     expect(dead.needsAttention).toBe(false);
     expect(dead.stale).toBe(false);
   });
@@ -227,17 +224,18 @@ describe("dead / reset", () => {
   });
 });
 
-describe("clearResumeIdentityOnDemotion", () => {
+describe("resetOnDemotion", () => {
   function withResumeIdentity(s: AgentActivityState): AgentActivityState {
     return {
       ...s,
       sessionId: "abc123",
       resumeCommand: "claude --resume abc123",
       agentName: "Claude Code",
+      agentId: "claude",
     };
   }
 
-  it("clears resume-identity fields when isAgent demotes true -> false", () => {
+  it("resets activity to none and clears resume-identity fields when isAgent demotes true -> false", () => {
     const prev = withResumeIdentity(
       reduce(initialState("shell"), {
         type: "detected",
@@ -251,20 +249,27 @@ describe("clearResumeIdentityOnDemotion", () => {
 
     // isActiveTerminal: true (the user is watching, e.g. they just typed
     // `exit` themselves) -> needsAttention never gets set, so demotion isn't
-    // deferred; reduce() demotes isAgent on this same shell/waiting event.
+    // deferred; reduce() demotes isAgent on this same shell/idle event.
     const demoted = reduce(prev, {
       type: "detected",
-      status: "waiting",
+      status: "idle",
       source: "shell",
       isActiveTerminal: true,
       now: "t1",
     });
     expect(demoted.isAgent).toBe(false);
+    // Before resetOnDemotion, reduce() alone leaves this at "idle" — the
+    // whole point of resetOnDemotion is to catch that and clean it up.
+    expect(demoted.activity).toBe("idle");
 
-    const cleared = clearResumeIdentityOnDemotion(prev, demoted);
+    const cleared = resetOnDemotion(prev, demoted);
+    expect(cleared.activity).toBe("none");
+    expect(cleared.workingSince).toBeNull();
+    expect(cleared.workingSource).toBeNull();
     expect(cleared.sessionId).toBeNull();
     expect(cleared.resumeCommand).toBeNull();
     expect(cleared.agentName).toBeNull();
+    expect(cleared.agentId).toBeNull();
   });
 
   it("leaves fields untouched when isAgent stays true", () => {
@@ -277,7 +282,8 @@ describe("clearResumeIdentityOnDemotion", () => {
       now: "t0",
     });
     expect(next.isAgent).toBe(true);
-    const result = clearResumeIdentityOnDemotion(prev, next);
+    const result = resetOnDemotion(prev, next);
+    expect(result.activity).toBe("working");
     expect(result.sessionId).toBe("abc123");
   });
 
@@ -290,6 +296,6 @@ describe("clearResumeIdentityOnDemotion", () => {
       isActiveTerminal: false,
       now: "t0",
     });
-    expect(clearResumeIdentityOnDemotion(prev, next)).toBe(next);
+    expect(resetOnDemotion(prev, next)).toBe(next);
   });
 });

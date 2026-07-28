@@ -317,6 +317,14 @@ export type { TerminalForeground } from "./terminal-foreground";
 // Core-only; not public SDK surface — ctx.agents itself is read-only.
 export { markSessionDead, resetSessionAfterRecreate } from "./agents-service";
 
+// The agent catalog (RFC 0017) — the single source of truth for every agent
+// Silo supports. Detection/resume-hint resolution consume it host-side; the
+// `core.agents-settings` page reads `hookInstallableAgents()` (and the hook
+// descriptor on each entry) to render the install toggles. Core-only —
+// detection/resume are sealed, so there is no public `registerAgent`.
+export { hookInstallableAgents } from "./agent-catalog";
+export type { AgentDefinition, AgentHookResume } from "./agent-catalog";
+
 // Tooltip — re-exported here so core.* extensions can still import it from the
 // internal barrel. The component itself is now public (@silo-code/sdk); the
 // host component file re-exports from SDK and owns the CSS load.

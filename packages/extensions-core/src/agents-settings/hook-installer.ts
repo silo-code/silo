@@ -1,39 +1,41 @@
 /**
- * Pure logic for installing/uninstalling Silo's `SessionStart` hook into a
- * Claude Code `settings.json` object — merge-safe, since a real settings.json
- * commonly already has hooks from other tools (confirmed in this project's
- * own testing: an existing "Superset" integration hooks `SessionStart`,
+ * Pure, merge-safe logic for installing/uninstalling a Silo session hook into
+ * a Claude-style `settings.json` object — a real settings.json commonly
+ * already has hooks from other tools (confirmed in this project's own
+ * testing: an existing "Superset" integration hooks `SessionStart`,
  * `SessionEnd`, `UserPromptSubmit`, `Stop`). Install only ever *appends* a
  * new hook-group entry; uninstall only ever removes entries carrying Silo's
  * own marker, never touching anyone else's.
  *
- * The hook's job: read the `SessionStart` JSON payload Claude Code pipes to
- * it on stdin, extract `session_id`, capture `$PPID` (the hook's parent
- * process — Claude Code itself), and append one JSON line to a fixed,
- * app-identity-agnostic path (`~/.silo/agent-hooks/events.jsonl`) that the
- * host reads and correlates against each tracked terminal's own foreground
- * pid — giving an exact session id with no directory/recency inference at
- * all (see RFC 0017's hook-based resolution addendum).
+ * The per-agent facts (which event, the marker, the exact command) live in
+ * the agent catalog (`@silo-code/extension-host/internal`), not here — this
+ * file is just the settings.json merge algorithm, parameterized by a
+ * {@link HookInstallSpec} the caller pulls off the catalog entry. That keeps
+ * it dependency-free (and independently unit-testable) while staying the
+ * single source of truth for the merge behavior.
+ *
+ * NOTE: the merge shape assumed here (`hooks.<Event>[].hooks[]`) is
+ * Claude/Codex-style. A differently-shaped agent config (e.g. Cursor's
+ * `hooks.json`) will need its own installer when it's added.
  */
 
-/** Tags every hook entry Silo installs, so uninstall can find (only) its
- * own entries without disturbing any other tool's hooks. */
-export const SILO_HOOK_MARKER = "silo-managed-agent-hook";
-
-/** A single-line, no-indentation Python script (no conditional blocks, so no
- * newlines are needed) — always writes a line, even with an empty
- * `sessionId`, and lets the host-side reader skip empty ones; simpler than
- * getting shell/JSON quoting right around a Python `if` block. */
-export function buildHookCommand(): string {
-  const script =
-    "import json,sys,os,datetime;" +
-    "d=json.load(sys.stdin);" +
-    "sid=d.get('session_id') or d.get('sessionId') or '';" +
-    "os.makedirs(os.path.expanduser('~/.silo/agent-hooks'),exist_ok=True);" +
-    "open(os.path.expanduser('~/.silo/agent-hooks/events.jsonl'),'a').write(" +
-    "json.dumps({'pid':os.getppid(),'sessionId':sid,'cwd':d.get('cwd',''),'agent':'claude','timestamp':datetime.datetime.utcnow().isoformat()+'Z'})" +
-    "+chr(10))";
-  return `python3 -c "${script}" # ${SILO_HOOK_MARKER}`;
+/** The subset of an agent's hook descriptor this module needs — structurally
+ * satisfied by the catalog's `AgentHookResume`, but declared locally so this
+ * pure module imports nothing from the host. */
+export interface HookInstallSpec {
+  /** Lifecycle event to attach under, e.g. `"SessionStart"`. */
+  hookEvent: string;
+  /** Marker embedded in the command, used to find only Silo's own entries. */
+  marker: string;
+  /** Builds the single-line command string to install. */
+  buildCommand: () => string;
+  /** Optional human-readable label written onto the installed entry (e.g.
+   * Codex's `statusMessage` field), for agents whose schema supports one and
+   * whose review UI might surface it — identifying attribution beyond what's
+   * visible in a (possibly truncated) command preview. Omitted entirely when
+   * absent, not written as `undefined`, so agents without this field in their
+   * schema get a clean entry with no stray key. */
+  statusMessage?: string;
 }
 
 interface HookEntry {
@@ -56,46 +58,56 @@ export interface ClaudeSettings {
   [key: string]: unknown;
 }
 
-function isSiloEntry(entry: HookEntry): boolean {
-  return (
-    typeof entry.command === "string" &&
-    entry.command.includes(SILO_HOOK_MARKER)
+function isSiloEntry(entry: HookEntry, marker: string): boolean {
+  return typeof entry.command === "string" && entry.command.includes(marker);
+}
+
+/** Whether `settings` already has Silo's hook installed for this spec's event. */
+export function hasHookInstalled(
+  settings: ClaudeSettings,
+  spec: HookInstallSpec,
+): boolean {
+  const groups = settings.hooks?.[spec.hookEvent] ?? [];
+  return groups.some((g) =>
+    (g.hooks ?? []).some((e) => isSiloEntry(e, spec.marker)),
   );
 }
 
-/** Whether `settings` already has Silo's `SessionStart` hook installed. */
-export function hasHookInstalled(settings: ClaudeSettings): boolean {
-  const groups = settings.hooks?.SessionStart ?? [];
-  return groups.some((g) => (g.hooks ?? []).some(isSiloEntry));
-}
-
-/** Return a **new** settings object with Silo's `SessionStart` hook
- * appended — idempotent (calling twice doesn't add a second copy) and
- * additive (never touches existing hook groups from other tools). */
-export function withHookInstalled(settings: ClaudeSettings): ClaudeSettings {
-  if (hasHookInstalled(settings)) return settings;
+/** Return a **new** settings object with Silo's hook appended under
+ * `spec.hookEvent` — idempotent (calling twice doesn't add a second copy)
+ * and additive (never touches existing hook groups from other tools). */
+export function withHookInstalled(
+  settings: ClaudeSettings,
+  spec: HookInstallSpec,
+): ClaudeSettings {
+  if (hasHookInstalled(settings, spec)) return settings;
   const hooks = { ...(settings.hooks ?? {}) };
-  const sessionStart = [...(hooks.SessionStart ?? [])];
-  sessionStart.push({
-    hooks: [{ type: "command", command: buildHookCommand() }],
-  });
-  hooks.SessionStart = sessionStart;
+  const forEvent = [...(hooks[spec.hookEvent] ?? [])];
+  const entry: HookEntry = { type: "command", command: spec.buildCommand() };
+  if (spec.statusMessage) entry.statusMessage = spec.statusMessage;
+  forEvent.push({ hooks: [entry] });
+  hooks[spec.hookEvent] = forEvent;
   return { ...settings, hooks };
 }
 
-/** Return a **new** settings object with only Silo's own `SessionStart`
- * hook entries removed — every other tool's hooks (e.g. an existing
+/** Return a **new** settings object with only Silo's own hook entries removed
+ * from `spec.hookEvent` — every other tool's hooks (e.g. an existing
  * "Superset" integration) are left exactly as they were. A hook group that
  * becomes empty after removing Silo's entry is dropped entirely rather than
  * left as inert litter. */
-export function withHookUninstalled(settings: ClaudeSettings): ClaudeSettings {
-  if (!settings.hooks?.SessionStart) return settings;
-  const sessionStart = settings.hooks.SessionStart.map((g) => ({
-    ...g,
-    hooks: (g.hooks ?? []).filter((e) => !isSiloEntry(e)),
-  })).filter((g) => (g.hooks?.length ?? 0) > 0);
+export function withHookUninstalled(
+  settings: ClaudeSettings,
+  spec: HookInstallSpec,
+): ClaudeSettings {
+  if (!settings.hooks?.[spec.hookEvent]) return settings;
+  const forEvent = settings.hooks[spec.hookEvent]
+    .map((g) => ({
+      ...g,
+      hooks: (g.hooks ?? []).filter((e) => !isSiloEntry(e, spec.marker)),
+    }))
+    .filter((g) => (g.hooks?.length ?? 0) > 0);
   return {
     ...settings,
-    hooks: { ...settings.hooks, SessionStart: sessionStart },
+    hooks: { ...settings.hooks, [spec.hookEvent]: forEvent },
   };
 }

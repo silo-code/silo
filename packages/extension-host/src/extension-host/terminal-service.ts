@@ -20,7 +20,10 @@ import {
   getActiveTerminal,
   subscribeActiveTerminal,
 } from "./active-terminal-registry";
-import { focusCenterDock, getActiveDockApi } from "../docked/dock-api-registry";
+import {
+  focusPanelContent,
+  getActiveDockApi,
+} from "../docked/dock-api-registry";
 import { createHostChannel } from "./output-store";
 import {
   collectLivePtys,
@@ -238,8 +241,23 @@ export function getTerminalService(): TerminalService {
       if (!wsId) return;
 
       const activate = () => {
-        getActiveDockApi()?.getPanel(`terminal:${terminalId}`)?.api.setActive();
-        focusCenterDock();
+        const panel = getActiveDockApi()?.getPanel(`terminal:${terminalId}`);
+        panel?.api.setActive();
+        if (!panel) return;
+        // Defer the actual focus grab past this tick, and scope it to this
+        // specific panel's own content — not focusCenterDock()'s "whatever's
+        // visible in the active group" search. With two-plus terminal tabs in
+        // the same group, that generic search can win the race against
+        // dockview's own (async, not synchronous with setActive()) visibility
+        // toggle and land on the *previous* tab's still-visible content,
+        // which reads as "some textarea in the group is focused" and never
+        // retries again — confirmed live: clicking between two terminal rows
+        // in agent-inspector sometimes focused the wrong one. Scoping to
+        // panel.view.content.element removes every other panel from the
+        // search, so there's nothing left to grab but the right one.
+        requestAnimationFrame(() =>
+          focusPanelContent(panel.view.content.element),
+        );
       };
 
       if (store.activeWorkspaceId !== wsId) {

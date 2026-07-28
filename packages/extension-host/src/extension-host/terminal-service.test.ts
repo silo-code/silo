@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // Mock the Tauri terminal client and the process service (force-spawn path).
 const { sendInput, deleteTerminal, spawn } = vi.hoisted(() => ({
@@ -13,12 +13,43 @@ vi.mock("./process-service", () => ({
   getProcessService: () => ({ spawn }),
 }));
 
+// Mock dockview's own registry so `focus()`'s call sequence/timing is
+// observable without a real dockview instance.
+const { setActive, getPanel, getActiveDockApi, focusPanelContent } = vi.hoisted(
+  () => ({
+    setActive: vi.fn(),
+    getPanel: vi.fn(),
+    getActiveDockApi: vi.fn(),
+    focusPanelContent: vi.fn(),
+  }),
+);
+vi.mock("../docked/dock-api-registry", () => ({
+  getActiveDockApi,
+  focusPanelContent,
+}));
+
+// A marker object standing in for a panel's real `view.content.element` —
+// opaque here since focusPanelContent is mocked out; its identity is what
+// lets a test confirm focus() passed *this specific panel's* element through,
+// not some other panel's or a generic group-wide host.
+const PANEL_CONTENT_ELEMENT = {} as HTMLElement;
+
 import { store } from "../state/store";
 import type { WorkspaceInternal } from "../state/types";
 import { getTerminalService } from "./terminal-service";
 
 const svc = getTerminalService();
 const flush = () => new Promise((r) => setTimeout(r, 0));
+
+// Controllable requestAnimationFrame — `focus()`'s fix defers the focus grab
+// by one frame, so tests need to control exactly when that frame "fires"
+// rather than trust jsdom's real (uncontrollable-in-tests) rAF timing.
+let rafCallbacks: FrameRequestCallback[] = [];
+function flushRaf() {
+  const pending = rafCallbacks;
+  rafCallbacks = [];
+  for (const cb of pending) cb(0);
+}
 
 function makeWorkspace(id: string): WorkspaceInternal {
   return {
@@ -38,6 +69,18 @@ beforeEach(() => {
   sendInput.mockReset();
   deleteTerminal.mockReset().mockResolvedValue(undefined);
   spawn.mockReset();
+  setActive.mockReset();
+  getPanel.mockReset().mockReturnValue({
+    api: { setActive },
+    view: { content: { element: PANEL_CONTENT_ELEMENT } },
+  });
+  getActiveDockApi.mockReset().mockReturnValue({ getPanel });
+  focusPanelContent.mockReset();
+  rafCallbacks = [];
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback): number => {
+    rafCallbacks.push(cb);
+    return rafCallbacks.length;
+  });
   const ws = makeWorkspace("w");
   ws.terminals = [
     { id: "t1", sessionId: "sess-1", kind: "shell", title: "Terminal" },
@@ -52,6 +95,11 @@ beforeEach(() => {
   store.workspaces = { w: ws };
   store.workspaceOrder = ["w"];
   store.activeWorkspaceId = "w";
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("TerminalService.sendText (B7)", () => {
@@ -145,5 +193,70 @@ describe("TerminalService.rename (B7)", () => {
     svc.rename("t1", "deploy");
     svc.rename("t1", "");
     expect(store.workspaces.w.terminals[0].customName).toBeUndefined();
+  });
+});
+
+describe("TerminalService.focus", () => {
+  it("activates the panel synchronously but defers the actual focus grab a frame", () => {
+    // Regression test: the deferred focus grab bails out immediately (before
+    // ever reaching its own retry loop) if the target tab's content isn't in
+    // the DOM yet, and dockview's re-render mounting the newly-active tab
+    // happens asynchronously, not synchronously with setActive(). Calling
+    // it in the same tick as setActive() reliably switched the visible tab
+    // but never actually focused it — confirmed live (no blinking cursor,
+    // keystrokes did nothing) when driven from a side panel's click handler.
+    svc.focus("t1");
+
+    // setActive() happens right away — the tab switch itself isn't delayed.
+    expect(setActive).toHaveBeenCalledTimes(1);
+    // The focus grab must NOT have run yet in this same tick.
+    expect(focusPanelContent).not.toHaveBeenCalled();
+
+    flushRaf();
+    // Regression test: scoped to *this panel's own* content element, not
+    // focusCenterDock()'s "whatever's visible in the active group" — with
+    // two-plus terminal tabs in the same group, that generic search could
+    // win the race against dockview's own visibility toggle and land on the
+    // previous tab's still-visible content instead (confirmed live: clicking
+    // between two terminal rows in agent-inspector sometimes focused the
+    // wrong one).
+    expect(focusPanelContent).toHaveBeenCalledTimes(1);
+    expect(focusPanelContent).toHaveBeenCalledWith(PANEL_CONTENT_ELEMENT);
+  });
+
+  it("is a no-op for an unknown terminal id", () => {
+    svc.focus("nope");
+    expect(setActive).not.toHaveBeenCalled();
+    flushRaf();
+    expect(focusPanelContent).not.toHaveBeenCalled();
+  });
+
+  it("does not defer a focus grab when the panel lookup itself comes back empty", () => {
+    getPanel.mockReturnValue(undefined);
+    svc.focus("t1");
+    flushRaf();
+    expect(focusPanelContent).not.toHaveBeenCalled();
+  });
+
+  it("switches the active workspace first when the terminal belongs to a different one", () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const other = makeWorkspace("other");
+    other.terminals = [
+      { id: "t3", sessionId: "sess-3", kind: "shell", title: "Terminal" },
+    ];
+    store.workspaces.other = other;
+    store.workspaceOrder.push("other");
+
+    svc.focus("t3");
+    expect(store.activeWorkspaceId).toBe("other");
+    // The cross-workspace path defers activate() itself (setTimeout 80ms) on
+    // top of the same rAF deferral — setActive() shouldn't have run yet.
+    expect(setActive).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(80);
+    expect(setActive).toHaveBeenCalledTimes(1);
+    flushRaf();
+    expect(focusPanelContent).toHaveBeenCalledTimes(1);
+    expect(focusPanelContent).toHaveBeenCalledWith(PANEL_CONTENT_ELEMENT);
   });
 });

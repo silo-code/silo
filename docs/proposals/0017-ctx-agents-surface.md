@@ -64,10 +64,15 @@ interface AgentInfo {
   /** Soft, time-gap-based, self-clearing — "can't fully vouch for this restored
    *  duration, but the backend may still be alive." Cleared by the next live signal. */
   readonly stale: boolean;
-  /** Only populated when activity === "dead": the backend was confirmed gone
-   *  (no daemon to reattach to) and will never self-resolve. */
+  /** Exact session id — present only when an opt-in hook reported it; Silo
+   *  never infers one. Populated live, then persisted, so it's readable at death. */
   readonly sessionId?: string;
+  /** Ready-to-show resume hint: exact `claude --resume <id>` (with a hook) or
+   *  an honest `was running claude in <cwd>` note (without). */
   readonly resumeCommand?: string;
+  /** Which agent CLI this is (`"Claude Code"`, `"Codex CLI"`, ...) —
+   *  populated as soon as a known leader is detected at all, not gated on
+   *  an exact session id (see correction below). */
   readonly agentName?: string;
 }
 
@@ -81,13 +86,275 @@ interface AgentsService {
 }
 ```
 
+**Correction: `agentName` used to be gated on exact resolution, which was
+wrong.** `genericHint()` (the no-hook fallback) originally left `agentName`
+undefined, only ever setting it once a hook match resolved an exact session
+id — conflating two genuinely separate facts: _which agent CLI is this_ vs.
+_do we have its exact session id_. The former is known the instant a leader
+is recognized at all (`isKnownAgentLeader`/`agentByLeader` already had to
+resolve the catalog entry to get that far), regardless of whether the hook
+ever fires. Fixed by having `genericHint()` also populate `agentName` from
+the catalog's `displayName` — every terminal with a known agent leader now
+reports which one it is immediately, not just the ones that happen to have
+an installed hook.
+
+**Addition: `agentId`, a stable key alongside `agentName`.** Prompted by a
+design question: should an extension be able to rely on _which_ agent this is
+without pattern-matching a human-readable string? Yes — `agentName` is a
+display string ("Claude Code"), meant to be shown to a user, and free to be
+reworded later; an extension that wants to branch on "is this Claude"
+shouldn't be coupled to that wording. `agentId` is the catalog's own stable
+`id` ("claude", "codex", ...) — already used internally as the hook-event tag
+and catalog lookup key, now also surfaced on `AgentInfo`. Populated at the
+exact same moment and through the same lifecycle as `agentName` (both
+`genericHint()` and the hook-match path set both together; both clear
+together on demotion) — deliberately _not_ two independent facts that could
+drift out of sync.
+
+**Considered and deferred: exposing the catalog itself.** The natural
+follow-up — "since `agentId` is a real key now, should extensions be able to
+look up more about an agent from it?" — was raised and deliberately not
+pursued yet. `AGENT_DETECTORS`/`AgentDefinition` mixes genuinely public-safe
+data (`id`, `displayName`) with host-internal mechanics that must not leak as
+written today: hook shell-command builders (`buildCommand`, literal Python
+source), trust-workaround notes (`postInstallNote`), and audit-skill
+bookkeeping (`contract`, `upstreamRefs`, `verifiedAgainstVersion`). Exposing
+`AgentDefinition` as-is would both leak internals and hand out functions on a
+public type that doesn't need them. If a concrete extension need for this
+shows up, the right shape is a small curated public projection (e.g.
+`{ id, displayName, supportsExactResume }` behind something like
+`ctx.agents`'s own lookup, not a raw catalog dump) — consistent with this
+project's "don't expand `ctx` ahead of a real requirement" convention.
+`agentId` is deliberately the seam this would hang off of later, without
+needing a rename or migration.
+
+### `acknowledge()` — the one deliberately scoped mutation
+
+`ctx.agents` was read-only until this addition. The reducer
+(`agent-activity-model.ts`) has always supported an `"activated"` event —
+clears `needsAttention`, advances `waiting` → `done` — ported directly from
+`agent-monitor`'s own state machine, but `agents-service.ts` never dispatched
+it. Practically, this meant the _only_ way `needsAttention` ever cleared was
+a coincidence: a new OSC/foreground signal happening to arrive while the
+terminal was already the active tab (typing a new message, or the agent
+finishing while you're already looking). Simply focusing an already-finished
+terminal did nothing until some later signal arrived.
+
+**First instinct — wire it into the host, unconditionally:** subscribe to
+active-terminal changes inside `agents-service.ts` itself and dispatch
+`"activated"` automatically. Rejected once checked against `agent-monitor`'s
+real, shipping settings page: it offers three answers to "does viewing a
+finished terminal count as acknowledging it" — _clear the indicator_, _clear
+it and hide the row_, or **"keep it until the next run" (viewing changes
+nothing at all)**. If the host unconditionally mutated the canonical
+`needsAttention`/`activity` state the instant a terminal became active, the
+third option would be impossible to honor for any consumer built on
+`ctx.agents` — the fact would already be gone by the time a consumer's own
+policy could decide whether to act on it. There's no "undo" once the host
+has applied the transition.
+
+**Landed on: an explicit method, `ctx.agents.acknowledge(terminalId)`**, that
+any consumer calls on its own terms. This keeps the _mechanism_ (what
+"acknowledged" actually does to the state machine) centralized and canonical
+— not reimplemented per extension, which was the actual duplication problem
+worth solving — while leaving the _policy_ (when does viewing something
+count) entirely with the consumer, exactly where a genuinely
+per-preference decision belongs. Verified this covers `agent-monitor`'s
+three-way setting with a clean 1:1 mapping, _if_ it ever migrates its
+activity computation onto `ctx.agents` (a separate, larger, not-yet-decided
+task — `agent-monitor` needs zero changes today either way, same
+compatibility guarantee as the rest of this RFC):
+
+- "Clear the finished indicator" → call `acknowledge(terminalId)` whenever
+  the newly-active terminal has one pending (or unconditionally — the
+  reducer's own `"activated"` handler already no-ops when nothing is
+  pending, so an unconditional call is safe, not just a shortcut).
+- "Clear it, and hide the row" → the same `acknowledge()` call, plus hiding
+  the currently-focused terminal's row — a pure rendering decision, entirely
+  `agent-monitor`'s own UI layer, untouched by this at all.
+- "Keep it until the next run" → simply never call `acknowledge()` — the
+  exact same conditional (`if (focusBehavior !== "none")`) `agent-monitor`
+  already gates its own internal dispatch behind today; only the _target_ of
+  that dispatch would change.
+
+The new example extension (`agent-inspector`) demonstrates the plain case:
+it has no settings of its own, so it just calls `acknowledge()` unconditionally
+whenever `ctx.terminals.subscribeActive` reports a new active terminal — the
+exact pattern shown in `ctx.terminals.subscribeActive`'s own doc example.
+
 `stale` and `activity === "dead"` are deliberately different signals, not one
 flag: `stale` means "restored after a gap long enough to be unsure, but the
 next real signal will resolve it automatically." `"dead"` means "confirmed —
 there is no backend left to reattach to, and nothing will ever arrive to
-resolve this on its own." Resume-hint fields populate only in the `"dead"`
-case; computing them for a merely-stale terminal would be wasted work and
-could surface a resume command for a session that's actually fine.
+resolve this on its own." The resume-hint fields are attached at agent-start
+and persisted (so they're already there to read the moment `"dead"` is
+reached), but they matter to a consumer specifically in the `"dead"` case —
+that's when a resume command is worth surfacing, rather than for a live or
+merely-stale terminal whose backend is fine.
+
+### `waiting`/`done` collapsed to `idle` (correction)
+
+**The bug that surfaced this:** staying focused on an agent terminal and
+sending messages made it settle on `"done"` after every turn; leaving it
+unfocused made it settle on `"waiting"` + `needsAttention: true` instead —
+reported as "slightly inconsistent." Tracing `reduce()` found the actual
+shape of the problem: no detector ever emits `"done"` — every detector
+(`detectClaudeCode`, `detectCodexCLI`, `detectCursorAgent`, `detectCopilotCLI`,
+`detectShellIntegration`) only ever reports an idle turn as `"waiting"`.
+`"done"` was purely computed, in exactly one branch:
+
+```ts
+needsAttention = isAgent && !ev.isActiveTerminal;
+if (isAgent && ev.isActiveTerminal) nextActivity = "done";
+```
+
+For an agent terminal, this meant `activity === "waiting"` ⟺
+`needsAttention === true`, and `activity === "done"` ⟺ `needsAttention ===
+false` — always, with no independent case. The `waiting`/`done` split on
+`activity` carried **zero information beyond what `needsAttention` already
+encoded** — the same fact, spelled two ways. Checking `agent-monitor`'s own
+source (`agent-status.ts`, the model this was ported from) confirmed its
+author already knew this: _"Agents never emit 'done' themselves; this is
+[acknowledgment]."_ `agent-monitor` just never acted on that observation by
+removing the redundant split.
+
+**Resolution:** `activity`'s `"waiting"`/`"done"` split is removed and
+replaced with a single `"idle"` value — `AgentActivity` is now `"none" |
+"working" | "idle" | "error" | "dead"`. `activity` now reports only a fact
+about the agent itself (working, idle, errored, dead), independent of who's
+watching. `needsAttention` remains the sole viewer-dependent fact, exactly as
+before: set only if the terminal wasn't active the instant the agent went
+idle, cleared only by `acknowledge()`. The mechanism that suppresses
+`needsAttention` for a terminal being watched live (`!ev.isActiveTerminal`)
+is unchanged — that's a mechanism fact (was a human looking at the exact
+instant), not a preference axis, unlike the three-way "does viewing count as
+acknowledging _after_ the fact" policy `acknowledge()` already leaves to the
+consumer. `acknowledge()` itself simplifies to just clearing
+`needsAttention`/`attentionSince` — there's no longer a `waiting` → `done`
+promotion to perform, since `"idle"` already correctly describes the agent
+both before and after acknowledgment.
+
+The rename propagates all the way down through the detection pipeline for
+consistency — `DetectionResult.status` (`agent-osc-detectors.ts`),
+`agent-detection-dispatch.ts`'s `planDetection`, and every detector's return
+value all say `"idle"` now too, not just the public `AgentActivity` type;
+`DetectionResult.status` also drops `"done"`, which no real detector ever
+produced (only a hand-written test literal exercised it). Keeping the
+detector-level vocabulary as `"waiting"` while the public type said `"idle"`
+would have meant a translation step existing nowhere in the code, for no
+benefit. No shipped consumer was affected — `ctx.agents` is still `@beta`,
+and the only real consumers at the time (`TerminalPanel.tsx`'s death/resume
+handling, the `agent-inspector` example) never branched on `"done"` vs
+`"waiting"` in the first place.
+
+**Follow-up: resetting `activity` on demotion too.** A related question
+surfaced right after this landed: when a promoted-shell terminal's `isAgent`
+demotes back to `false` (an ordinary `exit`, the shell reclaiming its own
+prompt), should `activity` reset to `"none"`? Tracing `reduce()` showed it
+didn't — the same shell-sourced event that triggers the demotion had already
+run through the working→idle transition block first, landing `activity` on
+`"idle"`, and nothing downstream touched it back down. The result:
+`{ isAgent: false, activity: "idle" }` — self-contradictory, since `"idle"`
+describes an agent's turn state and there's no agent here anymore. In
+`agent-inspector` this meant a demoted shell kept showing a green "idle" dot
+indefinitely, indistinguishable from a genuinely idle agent.
+
+The fix folds into the existing demotion-cleanup step rather than adding a
+new one: `clearResumeIdentityOnDemotion` (which already reset
+`sessionId`/`resumeCommand`/`agentName`/`agentId` on this exact transition,
+with the identical rationale — "no longer meaningful once the shell is back
+to being just a shell") is renamed **`resetOnDemotion`** and now also resets
+`activity` to `"none"`, plus `workingSince`/`workingSource` to `null`
+defensively (the demotion check in `reduce()` doesn't gate on `ev.status`, so
+this doesn't lean on an assumption that `activity` has always settled to
+`"idle"` by the time demotion fires — `needsAttention`/`attentionSince`/
+`stale` don't need the same defensive treatment, since the demotion gate
+itself already requires `needsAttention` false, and `stale` is unconditionally
+cleared by `isLiveSignal` earlier in the same `reduce()` call for any
+non-timer-sourced event, which every demotion-triggering event is).
+
+### The agent catalog — single source of truth
+
+Every per-agent fact lives in **one** host-internal registry,
+`agent-catalog.ts` (`AGENT_CATALOG: AgentDefinition[]`). Before it, Claude's
+knowledge was scattered across ~6 files — leader names, activity detectors,
+the hook command, the settings-page install list, display names — and adding
+an agent meant touching all of them with nothing forcing you to. Now each
+agent is one entry, and every subsystem derives its view from the catalog:
+
+- detection dispatch → `detectFromOsc` (iterates each entry's
+  `activityDetectors`, then the one generic OSC-133 shell fallback),
+  `detectIdleAfterWorking` (contextual OSC fallback, e.g. Codex's plain-title
+  idle), `detectFromOutput` (raw-PTY fallback, e.g. Cursor's spinner)
+- resume-hint gating → `agentByLeader` / `isKnownAgentLeader`
+- hook-install UI (Settings → Agents) → `hookInstallableAgents`
+- hook-event display names → `agentById`
+
+An `AgentDefinition` carries: `id`, `displayName`, `leaderNames` (foreground
+basenames), `activityDetectors`, an optional `outputDetector`, an optional
+`idleAfterWorking`, `resume`, and `docsUrl`. **`resume` is a discriminated
+union** — `{ kind: "hook"; configPath; hookEvent; marker; buildCommand;
+buildResumeCommand }` or `{ kind: "none" }` — so "Silo has no exact-resume
+path for this agent" is a first-class encoded state, not a gap someone forgot
+to fill. Both the hook command and the resume command (`claude --resume <id>`
+vs `codex resume <id>`) are per-entry, so nothing about an agent's syntax is
+hardcoded in the host. The generic OSC-133 shell detector is deliberately
+_not_ a catalog entry: it's the agent-agnostic fallback, tried after every
+agent's own detectors.
+
+The catalog ships with four entries:
+
+- **Claude Code** — full support: activity detection + auto-installable hook.
+- **Codex CLI** — full activity detection (see "Detection parity" below) +
+  auto-installable hook (its `~/.codex/hooks.json` is the same
+  `hooks.<Event>[].hooks[]` shape as Claude and its payload uses the same
+  `session_id` field, so it reuses the installer and hook command verbatim,
+  confirmed live against codex-cli 0.144.5).
+- **Cursor Agent** — full activity detection, but `resume: { kind: "none" }`
+  **despite** Cursor having a `SessionStart` hook and clean `cursor-agent
+--resume <id>`. The reason is the important one: Cursor's
+  `~/.cursor/hooks.json` uses a _different schema_ than the shape
+  `hook-installer.ts` writes, so Silo can't auto-install it without risking
+  corrupting the user's config. `none` here means "_Silo_ hasn't wired up an
+  exact-resume path," not "the agent lacks the feature" — and it's the safe,
+  honest state until a Cursor-specific installer (a per-agent install
+  strategy, or a new `resume` variant) lands.
+- **GitHub Copilot CLI** — activity detection only; `resume: { kind: "none" }`
+  because no session-id/resume mechanism has been confirmed for this CLI at
+  all yet (not "Silo hasn't wired it up" — genuinely unresearched). Aider,
+  which has no session-id concept at all, would be the same `none` case if
+  added.
+
+The catalog stays host-internal (detection/resume are sealed — see below);
+`core.agents-settings` reads it through the `@silo-code/extension-host/internal`
+barrel. The settings.json merge logic (`hook-installer.ts`) is kept pure and
+dependency-free by having it operate on a structural `HookInstallSpec` the
+catalog entry satisfies, rather than importing the catalog itself.
+
+### Tracking upstream agent changes
+
+Each catalog entry also carries provenance built for the periodic
+**agent-support audit skill** (a repo skill run on demand — see the build
+notes below): `contract` (a plain-language statement of exactly what upstream
+behavior we depend on — hook config path, event name, payload fields, the
+spinner glyphs), `upstreamRefs` (the agent's own docs we track), `lastVerified`,
+and `verifiedAgainstVersion`.
+
+These make the maintenance treadmill cheap and visible rather than eliminating
+it (there's no standard across agents, and they churn). The design decision
+worth recording is **why a skill, and why not a dumb differ**: a scheduled
+version/doc differ fires on every release and every typo regardless of whether
+our contract is affected, so it drowns in false positives and becomes an
+alert channel people ignore. The audit skill instead uses the running agent as
+a _classifier_: it compares each agent's current published version against
+`verifiedAgainstVersion` (the catalog is the durable checkpoint — the skill is
+stateless), and only when they differ does it judge the upstream change
+_against `contract`_, flagging with a severity and never silently suppressing
+an uncertain one. The deterministic backstop underneath it is golden-sample
+tests (a captured real hook payload + spinner byte sequence per agent) that
+lock in the parser once a human re-verifies — the skill is allowed to miss;
+the test isn't. This keeps false negatives (the scarier failure for a
+correctness-critical integration) surfaced rather than swallowed.
 
 ### Detection is sealed, not pluggable
 
@@ -104,172 +371,126 @@ one more internal listener, not a second parser. `ctx.terminals.subscribeOsc`/
 `subscribeOutput` remain fully available, unchanged, as the generic primitive
 for anything unrelated to agent detection.
 
+### Detection parity with `agent-monitor` (correction)
+
+The initial port of this RFC's detection layer was **incomplete** in a way
+that wasn't caught until live Codex testing: only `detectClaudeCode` and the
+generic `detectShellIntegration` were ported, plus (from the earlier Codex
+diagnosis in this same doc) `detectCodexCLI`/`detectCodexIdleAfterWorking`.
+Cursor Agent and GitHub Copilot CLI had **no detectors at all** — they'd
+appear via `ctx.processes`-level `leader`/`cwd` facts only, with no
+`working`/`waiting` state ever. Worse, a whole _mechanism_ was silently
+missing, not just per-agent detectors: `agents-service.ts` never acted on
+`DetectionResult.timer` at all — the debounce-timer scheduling that
+`agent-monitor`'s `terminal-tracker.ts` builds around `applyDetection()` had
+no equivalent here. Concretely, this meant:
+
+- A shell-integration-only agent (`pi`, which emits OSC 133;C per step but
+  never explicitly signals done) would read "working" forever — no fallback
+  existed to clear it on silence.
+- Claude's own `✳` idle marker (emitted briefly _between_ tool calls, not
+  just at genuine completion) had no debounce, risking flicker.
+- Cursor's raw-output spinner fallback is fundamentally unimplementable
+  without a timer — silence after the last frame is its _only_ "done" signal.
+
+Full parity was ported from `silo-extensions/agent-monitor`'s
+`osc-detectors.ts`/`terminal-tracker.ts`:
+
+- **`agent-osc-detectors.ts`** gained `detectCursorAgent` (OSC 0 title
+  parsing — emitted only when `display.showStatusIndicators` is true in
+  `~/.cursor/cli-config.json`, upstream default `false`),
+  `detectCursorAgentOutput` (ink-spinner byte-sequence matching in raw
+  output — the fallback that actually matters for most installs), and
+  `detectCopilotCLI` (OSC 9;4 progress protocol).
+- **`agent-catalog.ts`** gained an optional `outputDetector` (Cursor) and
+  `idleAfterWorking` (Codex) per-entry field, plus dispatch functions
+  `detectFromOutput`/`detectIdleAfterWorking` alongside the existing
+  `detectFromOsc` — and a fourth catalog entry, **GitHub Copilot CLI**
+  (`resume: { kind: "none" }`; no session/resume mechanism confirmed for it).
+- **`agent-detection-dispatch.ts`** (new) is the ported, pure equivalent of
+  `applyDetection()`'s branching — extracted (rather than left inline in
+  `agents-service.ts`, unlike upstream) specifically so the decision logic is
+  unit-testable without driving real timers. `agents-service.ts` gained the
+  actual `SHELL_IDLE_MS`/`AGENT_IDLE_DEBOUNCE_MS` timer state (`setTimeout`
+  maps keyed by terminal id) that was simply absent before, plus a raw-output
+  subscription (`getTerminalService().subscribeOutput`, mirroring the OSC one)
+  for the Cursor fallback.
+
+**Deliberately not ported**: `detectFromOscTitle`/`seedFromTitle` —
+`agent-monitor`'s mechanism for re-deriving state from a terminal's _current_
+title when the extension's own OSC subscription lapsed (disabled/updated/
+reloaded independently of the app, then re-enabled, missing whatever live
+frames occurred in between). `ctx.agents` lives inside the extension-host
+package itself; there is no "reloaded independently of the app, app keeps
+running" lifecycle for it to correct for the same way a third-party extension
+needs to — a full app restart is already `restoreState`'s `stale`-gap job,
+proven throughout this RFC's earlier testing. Porting `seedFromTitle` would
+solve a problem `ctx.agents` doesn't structurally have.
+
 ### Resume-hint resolution is host-internal
 
-No `registerResumeHintProvider`, no `ctx.agentResume`. Resolution happens
-**live, at agent-start detection, not post-hoc at death** — this is the
-important part. The moment a terminal's leader is first detected as a known
-agent kind (`isAgent` flips true), the host resolves and persists `sessionId`
-immediately via `ctx.process.exec("npx", ["--yes", "continues@<pinned>",
-"list", "--json", "-s", "<tool>", "-n", "50"], { cwd })`
-([`continues`](https://github.com/yigitkonur/cli-continues) — MIT,
-community-maintained, covers 11 real terminal-CLI agents as of its April
-hardening pass) — an arm's-length subprocess call, never bundled or required
-by Silo's own install. That resolved value rides along in the same persisted
-`store` slice as the rest of the terminal's `AgentInfo`, so by the time
-`activity` transitions to `"dead"`, no further resolution is needed — the
-fields are just read back from what was already recorded.
+No `registerResumeHintProvider`, no `ctx.agentResume`. A terminal's resume
+hint has exactly two possible forms, and **neither one guesses a session id**:
 
-**Correction from live testing**: the design originally assumed `continues`
-scopes its results to the invoking process's cwd by default (an earlier draft
-of this doc even passed a nonexistent `--cwd` flag). Confirmed empirically
-false for `continues@4.1.1`'s `list --json`: it returns the globally
-most-recently-active sessions across every project on the machine,
-regardless of which directory the command runs from. Relying on that
-assumption resolved a completely unrelated project's session in real testing
-(`claude --resume <id>` failed with "No conversation found" because the id
-belonged to a different project entirely). The fix: fetch a wide batch
-(`-n 50`, matching `continues`'s own default ceiling) and filter for the
-matching `cwd` field client-side, in Silo's own code
-(`findSessionForCwd` in `agent-resume-hint.ts`) — not something delegated to
-`continues`'s own (nonexistent, for this purpose) filtering.
+- **Exact** — an opt-in `SessionStart` hook reports the terminal's own real
+  session id, PID-correlated against the terminal's foreground process (see
+  "Hook-based resolution" below). This is the only source of an exact
+  `claude --resume <id>`.
+- **Generic** — with no hook installed, the host attaches an honest,
+  session-id-less note ("was running `<leader>` in `<cwd>`"), computed
+  synchronously from the last-known foreground leader/cwd. It promises
+  nothing it can't back up, so it is never wrong — only, at worst, vague.
 
-A second, separate correction from the same testing session: `continues`
-prefers an internal `sessionId` field recorded _inside_ a session's JSONL
-messages over the file's own name. For compacted/chained conversations that
-recorded id can reference a different (sometimes since-deleted) session than
-the file `continues` actually matched, which also produced a "No
-conversation found" failure in testing. Fixed by deriving the resumable
-session id from the matched session's own `originalPath` file name instead
-of trusting the `id` field directly — guaranteed to correspond to a file
-that actually exists, since that's exactly the file that was found.
+Both are attached the first time a known agent leader is detected for the
+terminal (`genericHint` in `agent-resume-hint.ts`, stashed via
+`applyResumeHint` in `agents-service.ts`), persisted into the same `store`
+slice as the rest of the terminal's `AgentInfo`, and read back unchanged at
+death. If the hook later reports an exact id, it upgrades the generic hint in
+place; a generic hint never overwrites an exact one (it carries no
+`sessionId`).
 
-A third correction, found _after_ the cwd-scoping fix above: `continues`
-also caches its own scanned session index with a **5-minute TTL**
-(`~/.continues/sessions.jsonl`). Two resolutions inside that window — a
-completely normal thing, e.g. starting a second Claude terminal a minute
-after the first — read the same stale, pre-existing index and both resolved
-to the same wrong, older session sharing the cwd, confirmed in testing.
-Fixed with `--rebuild` (forces a fresh filesystem scan every time; costs a
-few extra seconds, acceptable since resolution only happens once per
-terminal). That surfaced a fourth, deeper issue underneath it: resolution
-fires the instant a terminal's leader is first detected as `"claude"` —
-essentially at process spawn — which is often _before_ the agent has
-written its own session file at all. Even with a fresh index, a single,
-genuinely new session with nothing on disk yet is indistinguishable from "no
-new session," so the query confidently returned the most recent _pre-existing_
-session for that cwd instead — confirmed with a real, solo (non-concurrent)
-session that still resolved to an old one. Fixed by rejecting any match
-older than roughly when resolution started (a small grace window tolerates
-clock/detection skew, not staleness) and retrying for a bounded window
-(`MAX_ATTEMPTS` × `RETRY_INTERVAL_MS` in `agent-resume-hint.ts`) if nothing
-recent enough is found yet, rather than accepting an old match on the first
-try.
+#### Rejected: cwd + recency inference (the `continues` tier)
 
-A fifth correction: the initial retry budget (6 attempts × 3s ≈ 25s) was too
-short — a real, concurrent second session in the same directory found
-nothing at all within it. The session file isn't written at process spawn;
-apparently only once the user's first real message exchange completes, and
-there's no reliable upper bound on how long that takes. Extended to 15
-attempts × 5s (~115s worst case) — generous, not exhaustive; an unusually
-slow first message still falls back to the generic hint.
+An earlier version of this design added a middle tier: shell out to
+[`continues`](https://github.com/yigitkonur/cli-continues) at agent-start and
+infer the session id from the most-recent session matching the terminal's
+cwd. It was implemented, tested extensively against real multi-account,
+concurrent-session usage, and then **removed** — the findings are recorded
+here because they are the justification for _not_ inferring, and a warning to
+anyone tempted to re-add it.
 
-A sixth correction: multiple Claude accounts via `CLAUDE_CONFIG_DIR` (e.g. an
-enterprise account using the default `~/.claude`, a personal one using a
-separate config dir) is a real, confirmed case — `continues` only reads
-whichever `CLAUDE_CONFIG_DIR` is in _its own_ process environment, and
-spawning it via `ctx.process.exec` doesn't inherit or replicate the
-shell-rc logic that would normally set that variable for a real interactive
-terminal (confirmed: sessions under a non-default config dir were never
-found at all, regardless of retry budget). Rather than reproduce the user's
-shell environment exactly (risks interleaving unrelated shell-startup output
-— e.g. `nvm`'s own warnings, seen elsewhere in this same environment — into
-the JSON output this depends on parsing cleanly), the fix queries the known
-alternate config dir explicitly (`$HOME/.claude-personal`, resolved via a
-one-shot `$HOME` exec since there's no `process.env` in this webview
-context) and merges results. This is a narrower, confirmed-case fix, not a
-general "discover every possible config dir" solution.
+Directory + recency is not a unique key, so the approach has a structural
+ceiling no amount of hardening clears: two terminals in the same folder
+share both. Live testing surfaced seven distinct ways it produced a
+_confidently wrong_ id (the worst failure mode — a `claude --resume <id>`
+that fails with "No conversation found", not an empty result): `continues`
+doesn't scope to cwd at all (returns the global most-recent); it prefers an
+internal `sessionId` field that can point at a since-deleted session for
+compacted conversations; it caches its own index with a 5-minute TTL, so two
+resolutions in that window collide; the session file often doesn't exist yet
+at spawn, so a brand-new session resolves to a pre-existing one; the retry
+budget needed to cover "until the user's first message" is unbounded in
+practice; multi-account `CLAUDE_CONFIG_DIR` sessions aren't found without
+replicating the shell environment; and the `$HOME` exec that fix relied on
+hit a non-portable-`echo` bug. Each got a fix; the pile of fixes was the
+signal. A guess that needs seven corrections and still occasionally lies is
+worse than an honest "I don't know exactly" — so the tier was cut in favor
+of exact-or-generic. It also removes a runtime `npx continues` subprocess
+dependency (and the deferred question of shipping it as a compiled Tauri
+sidecar) from Silo entirely.
 
-A seventh correction, found immediately once the sixth's own diagnostic
-logging was added: that one-shot `$HOME` exec used `sh -c "echo -n $HOME"`,
-and `-n` is not a portable `echo` flag — depending on which shell backs
-`/bin/sh`, it printed as **literal text** instead of suppressing the
-newline, corrupting the resolved path into `"-n /Users/dweaver"` (confirmed
-directly in the log's own "trying these config dirs" debug line, which is
-exactly why that logging was added in the first place). Fixed by using
-`printf '%s' "$HOME"` instead — POSIX-standard, no flag-portability
-ambiguity to get wrong.
+### Hook-based resolution (exact)
 
-Resolving at start time rather than at death time is not a stylistic choice —
-it's what keeps this accurate for concurrent sessions in the same directory.
-If resolution happened post-hoc (query `continues` by cwd only after the
-backend is confirmed dead), two terminals that both ran Claude in the same
-workspace would both ask the identical cwd-scoped question at the same later
-moment and get the identical answer — at most one of them right, the other
-pointed at someone else's session. Resolving at each terminal's own start
-time means each capture happens when its own session file is (almost always)
-the newest one for that cwd, before any later sibling session may even exist.
-Residual risk: two sessions in the same cwd starting within the same tight
-window, before either's session file is distinguishable by mtime yet — rarer
-than "concurrent existence" but not zero; a short settle-delay before
-resolving narrows it further.
-
-If the command is missing or errors, or `continues` has no match, the
-resolution falls back to a generic "was running `<leader>` in `<cwd>`" hint
-with no exact session id, still captured at start time. Known gap: Aider is a
-real terminal agent absent from `continues`'s registry (it has no
-session-id concept at all — cwd-based auto-history load, simpler than the
-rest); plan is to contribute it upstream using `continues`'s documented
-3-file "Adding a New Platform" recipe rather than fork or reimplement.
-
-**Invocation: `npx`, pinned to an exact version, not a caret range.**
-`npx <pkg>` caches aggressively and does **not** reliably re-check the
-registry for a newer matching version on subsequent runs (a well-documented,
-recurring complaint in the npm ecosystem, e.g. `npm/cli#7838`) — so a loose
-range like `continues@^2.0.0` doesn't actually give reliable freshness, and
-different users' machines could end up frozen on different actual versions
-depending on when they first triggered the feature. Pinning an **exact**
-version (`npx --yes continues@4.1.1`) instead gives predictable, identical
-behavior across every Silo install on a given release; bumping that literal
-pinned string (verifying the JSON-shape validation still passes) becomes
-routine Silo-side maintenance, not something left to npx's cache behavior.
-This also requires nothing be installed persistently — Node/npm/npx are not
-present on a typical **end-user** Silo install at all (Tauri ships a native
-binary + OS webview, no bundled Node runtime; the Node requirement in this
-repo's own `pnpm dev`/`build` commands is a _development_-time-only
-dependency). Machines without Node get the same generic fallback as any other
-exec failure — accepted as the normal case for a plain Silo install, not an
-edge case being waved away.
-
-**Deferred: a compiled sidecar binary instead of `npx`.** Seriously
-considered, for full guaranteed presence regardless of whether the user has
-Node, and to avoid any dependence on `npx`'s cache semantics at all. Not
-pursued now: `continues` needs real `node:fs`/`node:sqlite`, so it can't be a
-`package.json`/import dependency — the only real path is compiling it to a
-standalone executable and shipping it as a Tauri sidecar binary, which means
-Silo standing up cross-platform (macOS/Windows/Linux) build/CI infrastructure
-for it (no prebuilt binaries exist upstream today), an open feasibility
-question around whether single-executable-app tooling cleanly bundles
-`node:sqlite` (a newer built-in `continues` depends on for OpenCode parsing),
-and pulling `continues`'s own dependency tree (chalk, commander, zod, ora,
-`@clack/prompts`, yaml) into Silo's own build and security-audit surface. That
-'s a disproportionate lift to stand up before `ctx.agents` and the
-resume-hint feature have proven worth the investment. Revisit as a hardening
-step once the feature is shipped and known to matter.
-
-### Hook-based resolution (tier-1, exact) — addendum
-
-Everything above this point is **inference**: `continues` guesses the right
-session by directory + recency, and every correction logged in this section is
-a way that guess can still be wrong (concurrent sessions, stale caches, a
-session file that doesn't exist yet). Testing converged on a structural
-ceiling: no amount of hardening the guess makes it _exact_, because directory +
-recency is fundamentally not a unique key — two terminals can share both.
+The exact tier. Testing on the rejected inference tier converged on a
+structural ceiling: no amount of hardening a directory + recency guess makes
+it _exact_, because directory + recency is fundamentally not a unique key —
+two terminals can share both.
 
 The question that reopened this: **"will the `continues` package work for
-us?"** The answer is no, not as the _only_ mechanism, once concurrent same-cwd
-sessions are a real case rather than a hypothetical. Research into how
-comparable tools solve the identical problem
+us?"** The answer is no — not reliably, once concurrent same-cwd sessions are
+a real case rather than a hypothetical, which is why the inference tier was
+cut entirely rather than kept as a fallback. Research into how comparable
+tools solve the identical problem
 (`tmux-plugins/tmux-resurrect`-style session tracking, `kraten/chimlo`,
 `stablyai/orca`) surfaced the actual precise mechanism available here: Claude
 Code's own `SessionStart` hook, which reports the exact session id of the
@@ -299,15 +520,13 @@ hook fires. So:
    `index.tsx` — today, just Claude Code) as a single toggle per CLI, each
    pointed at that CLI's **default** config location
    (`~/.claude/settings.json`). Deliberately **not** account/
-   `CLAUDE_CONFIG_DIR`-aware — unlike the `continues`-based path's
-   `candidateConfigDirs`, this toggle assumes the CLI's standard setup and
+   `CLAUDE_CONFIG_DIR`-aware — the toggle assumes the CLI's standard setup and
    links out to a docs page (`apps/docs/guide/agent-sessions.md`) for adding
    the hook manually under a non-default config. This is a deliberate
    simplification, not an oversight: the hook path's correlation is
    PID-based, not config-dir-based, so which account's config file carries
-   the hook entry has no bearing on which terminal an event matches — the
-   per-config-dir differentiation the `continues` fallback needs doesn't
-   apply here. Toggling appends a `SessionStart` hook entry to that file
+   the hook entry has no bearing on which terminal an event matches. Toggling
+   appends a `SessionStart` hook entry to that file
    (`hook-installer.ts`; idempotent, merge-safe — only ever adds/removes
    entries carrying Silo's own marker comment, never touches a user's or
    another tool's existing hooks). The installed command is a single-line
@@ -330,23 +549,93 @@ hook fires. So:
    `terminal_foreground_snapshot` seed). A hook event's `pid` matched against
    a terminal's `currentPgid` is an exact identification — no cwd, no
    recency, no guessing.
-4. **Precedence**: a hook match sets `hookConfirmed` on that terminal's entry;
-   once set, a same-terminal `continues`-based resolution that resolves
-   _later_ (the two race, since both can be in flight at once — the hook poll
-   runs on its own 3s interval independent of the `continues` retry loop) is
-   discarded rather than allowed to overwrite the exact result. Whichever
-   arrives first still wins in the sense that either can populate
-   `sessionId`/`resumeCommand` — the guard is one-directional (exact beats
-   inferred), not "hook must always finish first."
+4. **Apply** (`applyHookMatch` → `applyResumeHint` in `agents-service.ts`):
+   a hook match upgrades the terminal's generic hint to an exact
+   `claude --resume <id>` in place, refreshing its `AgentInfo` and persisting
+   immediately (hook events are discrete one-offs, not a continuous tick
+   stream, so there's no guarantee of a follow-up activity tick to piggyback
+   the update on). The upgrade is one-directional: an exact id, once set, is
+   never overwritten by a generic hint (`applyResumeHint` only fills
+   `sessionId` when the incoming hint carries one), so the generic path
+   re-running on a later foreground tick can't clobber it.
 
-This is additive, not a replacement: **not every agent leader has a
-Claude-only, hook-capable equivalent, and the hook is opt-in per config dir**
-(a user who hasn't installed it, or is running an agent Claude Code's hook
-system doesn't cover, still gets the `continues`-based inferred hint as
-before). Nothing above changes `AgentInfo`'s public shape — `sessionId`/
-`resumeCommand`/`agentName` are populated the same way regardless of which
-tier produced them; extensions consuming `ctx.agents` cannot tell (and don't
-need to) which mechanism resolved a given terminal's identity.
+**Correction from live testing (Codex)**: the first Codex hook install
+appeared to do nothing — no exact id, ever. Root-caused via the real
+`~/.codex/hooks.json`/`config.toml`: Codex requires each hook entry to be
+individually reviewed and trusted (`/hooks` inside a session) before it will
+run one at all, confirmed by comparing `[hooks.state]`'s per-hook-index
+`trusted_hash` entries (Superset's pre-existing hook had one; Silo's freshly
+appended entry didn't). Not a Silo bug — see `resume.postInstallNote` and the
+guide's Codex section for the fix (a required manual step, surfaced in the
+Settings UI). A second, follow-on discovery while confirming the trust fix
+worked: after trusting the hook, `events.jsonl` _did_ get a correct entry (its
+`pid` verified, via `ps`, to be Codex's own real pid/pgid) — but the terminal
+still never picked up the exact id. That one **was** a real Silo bug: `Read`
+above is a one-time checkpoint, so an event that doesn't match on the single
+poll it happens to be read on was lost forever, and Codex's `SessionStart`
+hook fires near-instantly at launch — early enough to plausibly race ahead of
+Silo's own foreground-tracking catching up to the terminal's new pgid (the
+two run on independent timers). Fixed with a small pending-events buffer
+(`pendingHookEvents` in `agents-service.ts`, pruned by a pure, unit-tested
+`pruneUnmatchedEvents`): an unmatched-but-still-fresh event is retried on the
+next poll instead of discarded, turning "must land in the same ~3s tick" into
+"eventually consistent within `MAX_EVENT_AGE_MS`." Claude never surfaced this
+because manual testing never happened to land on that exact race window —
+the bug was latent, not Codex-specific, and applies equally to any agent's
+hook.
+
+A third correction, found while chasing why the retry-buffer fix still
+didn't produce an exact id in some tests: `readNewHookEvents()`'s freshness
+check, applied at _ingestion_ (10 minutes from "now" at read time, not from
+when the terminal started tracking), discards a perfectly valid, still-alive
+session's hook event whenever Silo restarts more than 10 minutes after that
+session began — confirmed directly: a long-running Claude session's hook
+event was verified correct (`ps` showed the exact same process, matching
+timestamp to the second) but was silently rejected the moment Silo's
+extension-host module restarted and re-read the whole `events.jsonl` backlog
+fresh. This is a design flaw, not a Codex issue: the age check conflates "too
+old to trust" (guarding against pid reuse) with "too old to be useful," and
+a normal quit-and-relaunch onto still-running sessions hits it every time.
+Fixed by removing the ingestion-time age filter from `readNewHookEvents()`
+entirely — staleness handling now lives solely at the correlation/retry-buffer
+layer (`pruneUnmatchedEvents`), which already has the stronger signal: does
+this pid match a _currently tracked, currently alive_ terminal's foreground
+pgid (independently re-verified by Silo's own foreground-tracking, not just
+trusted from the hook's self-report). An event that matches is accepted
+regardless of its own age; an event that never matches anything is still
+bounded by `MAX_EVENT_AGE_MS` in the retry buffer, so a restart's one-time
+backlog-as-new re-read doesn't retain orphaned events forever.
+
+A fourth correction, found immediately after: even once a hook event
+existed, was correctly captured, and the terminal's foreground pgid was
+already correctly tracked, one specific case still silently never matched —
+no rejection log, no mismatch log, nothing, for many minutes. Root cause:
+`readNewHookEvents()` makes a real native subprocess round-trip
+(`process_exec`) every poll tick, and `setInterval(() => void
+pollHookEvents(), ...)` never waits for the previous tick to finish before
+scheduling the next one. If that round-trip ever takes longer than
+`HOOK_POLL_INTERVAL_MS` (observed: the poll's own diagnostic heartbeat
+cadence drifted from ~3.0s/tick up to ~4.0s/tick over a few minutes of live
+testing — circumstantial but real evidence latency isn't constant), two
+ticks can be in flight at once, each independently reading the file and
+racing to overwrite the shared `linesProcessed` checkpoint — whichever
+resolves _last_ wins, silently, with no exception and nothing to log. Fixed
+with a simple in-flight guard (`pollInFlight` in `agents-service.ts`): a
+tick that fires while the previous one is still running skips outright
+(logged at debug level) rather than ever executing concurrently. Confirmed
+fixed live immediately after: both a fresh Claude session and a fresh Codex
+session in the same test resolved their exact session id and correct
+per-agent resume command (`claude --resume <id>` / `codex resume <id>`) on
+the very next restart.
+
+The hook is the exact tier; the generic hint is the honest fallback. A user
+who hasn't installed the hook — or is running an agent Silo's hook installer
+doesn't cover — simply gets the generic "was running `<leader>` in `<cwd>`"
+note, never an inferred (and possibly wrong) session id. Nothing here changes
+`AgentInfo`'s public shape — `sessionId`/`resumeCommand`/`agentName` are
+populated the same way regardless of which tier produced them; extensions
+consuming `ctx.agents` cannot tell (and don't need to) which mechanism
+resolved a given terminal's identity, only whether a `sessionId` is present.
 
 ### Persistence
 
@@ -409,13 +698,23 @@ PID) reproduces the identical condition directly; Silo has no way to
 distinguish "daemon killed directly" from "daemon killed by OS shutdown."
 
 **Hook-based resolution status**: the matching rule
-(`matchHookEventsToTerminals`) is unit-tested in isolation; installing the
-hook via the Settings → Agents page and confirming a live Claude session
-actually gets exact, hook-confirmed correlation end-to-end (events.jsonl gets
-written, pid matches the right terminal, precedence over an in-flight
-`continues` resolution holds) is still pending live testing, not yet done.
+(`matchHookEventsToTerminals`) and the retry-buffer prune rule
+(`pruneUnmatchedEvents`) are both unit-tested in isolation. End-to-end exact
+correlation has been verified interactively for **both** Claude and Codex,
+in the same clean test, after the overlapping-poll fix above (events.jsonl
+gets written, pid matches the right terminal, the generic hint upgrades to
+the correct per-agent exact resume command). The restart-staleness gap (the
+third correction above) is also fixed — a long-running session's exact id is
+now recovered on restart regardless of how long it had been running,
+verified via the same live process/`ps` cross-check method used throughout
+this testing. **Not yet separately re-verified live** after the fix (the
+overlapping-poll fix's own confirmation test happened to be on freshly
+started sessions, not ones that predated the restart by more than 10
+minutes) — logically sound and unit-testable behavior is unchanged
+(`pruneUnmatchedEvents` itself didn't change), but the specific
+restart-onto-long-running-session scenario is worth one more live pass.
 Quit and relaunch Silo afterward to trigger reattach and observe the
-transition.
+`"dead"` transition carrying the exact command.
 
 Once `ctx.agents` stabilizes, `agent-monitor` can optionally migrate onto it
 (dropping `agent-status.ts`'s state machine and most of `terminal-tracker.ts`'s
@@ -430,17 +729,17 @@ that migration is out of scope for this RFC and not required for it to ship.
   avoid — the same reasoning `ctx.processes` already settled.
 - **Two separate services** (`ctx.agents` for activity, a separate service for
   resume-hints) instead of one `AgentInfo`. Rejected: both answer "what's this
-  agent doing / who is it," share identity keys, and the cost-profile
-  difference (cheap continuous OSC parsing vs. rare expensive subprocess exec)
-  is handled by gating resume-hint fields on `activity === "dead"` rather than
-  splitting the type.
-- **Public `registerResumeHintProvider`.** Rejected: the "cover a dozen
-  agents" extensibility need for resume-hints is already delegated externally
-  to `continues`; Silo doesn't need its own plugin system on top of an
-  existing one.
+  agent doing / who is it" and share identity keys, so splitting the type buys
+  nothing — resume-identity fields are simply present-or-absent on the one
+  payload.
+- **Public `registerResumeHintProvider`.** Rejected: resume identity now has
+  exactly one exact source (the per-agent `SessionStart` hook) and one honest
+  fallback (the generic hint); there's no open-ended "cover a dozen agents by
+  inference" need left for a plugin system to serve. Adding a new agent means
+  a hook installer entry (`SUPPORTED_AGENTS` + `hook-installer.ts`), which is a
+  sealed, first-party concern, not an extension point.
 - **Public `registerDetector`/`registerOscDetector`/`registerOutputDetector`.**
-  Seriously considered (there's no `continues`-equivalent catalog for OSC
-  detection coverage), but rejected in favor of full sealing, for consistency
+  Seriously considered, but rejected in favor of full sealing, for consistency
   with the resume-hint decision above and to keep the public API surface as
   small as possible during the experimental phase. Accepted cost: covering a
   new agent's activity detection requires a Silo core change and release, not
@@ -461,11 +760,11 @@ that migration is out of scope for this RFC and not required for it to ship.
 - **Structured, executable resume data** (`binaryName`, `resumeArgs: string[]`,
   a spawn/shell discriminated union) instead of a flat `resumeCommand` display
   string, to future-proof for an eventual auto-launch feature. Rejected: the
-  generic-fallback case (no `continues` match) is inherently a compound shell
-  command (`"cd ~/foo && claude --resume"`), not a clean binary+args
-  invocation, so structured fields would need a real discriminated union to
-  cover it and would still leave an unstructured path for that case anyway —
-  no clean win. Structured args sitting on the payload also invite silently
+  generic-fallback case (no hook-resolved id) is inherently a free-text note
+  (`"was running claude in ~/foo"`), not a clean binary+args invocation, so
+  structured fields would need a real discriminated union to cover it and
+  would still leave an unstructured path for that case anyway — no clean win.
+  Structured args sitting on the payload also invite silently
   wiring up execution (`ctx.process.spawn(binaryName, resumeArgs)` with no
   confirmation step), directly undermining the explicit no-auto-relaunch
   decision from early in this design. And because `ctx.agents` is marked
@@ -474,17 +773,14 @@ that migration is out of scope for this RFC and not required for it to ship.
   usual — better to add real structure once an actual auto-launch feature is
   proposed and its concrete needs (confirmation UX, which spawn primitive) are
   known. `sessionId` stays as the one field that keeps that door open.
-- **Shipping `continues` as a compiled sidecar binary** bundled with Silo's
-  own install, instead of shelling out via `npx`. Would guarantee presence
-  regardless of whether the user has Node, and sidestep `npx`'s
-  cache-doesn't-reliably-update behavior entirely. Deferred rather than
-  rejected outright: it requires standing up cross-platform build/CI
-  infrastructure Silo doesn't have today (no prebuilt binaries exist
-  upstream), carries an open feasibility question around bundling
-  `node:sqlite` via single-executable-app tooling, and pulls `continues`'s
-  own dependency tree into Silo's build/security surface — a bigger lift than
-  is justified before the feature has shipped and proven itself. Revisit once
-  it has.
+- **A cwd + recency inference tier** (shell out to `continues` at agent-start
+  to guess a session id when no hook is installed). Built, tested, and
+  removed — see "Rejected: cwd + recency inference" under Resume-hint
+  resolution for the full findings. Short version: directory + recency is not
+  a unique key, so it produces confidently-wrong ids for concurrent
+  same-directory sessions, and no amount of hardening (seven distinct fixes
+  were attempted) changes that structural ceiling. A resume hint that is
+  either exact or honestly vague beats one that sometimes silently lies.
 - **Pulling `agent-monitor` into the monorepo** as a bundled extension for the
   duration of the experimental phase, for tighter iteration coupling.
   Considered, but decided against — `agent-monitor` stays external and

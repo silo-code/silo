@@ -98,6 +98,8 @@ export interface PersistedAgentInfo {
   sessionId?: string;
   resumeCommand?: string;
   agentName?: string;
+  /** Stable catalog key, e.g. "claude" — see AgentInfo.agentId's doc comment. */
+  agentId?: string;
   /** ISO timestamp of the last live (non-stale-restore) update — the
    *  reference point for computing the gap against the stale threshold. */
   lastLiveAt: string;

@@ -1,6 +1,6 @@
 # Interface: AgentInfo
 
-Defined in: [packages/sdk/src/agents-service.ts:41](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L41)
+Defined in: [packages/sdk/src/agents-service.ts:42](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L42)
 
 **`Beta`**
 
@@ -18,7 +18,7 @@ per-extension. Returned by [AgentsService.getState](AgentsService.md#getstate) a
 readonly terminalId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:43](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L43)
+Defined in: [packages/sdk/src/agents-service.ts:44](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L44)
 
 **`Beta`**
 
@@ -32,7 +32,7 @@ The terminal record id this state belongs to.
 readonly workspaceId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:45](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L45)
+Defined in: [packages/sdk/src/agents-service.ts:46](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L46)
 
 **`Beta`**
 
@@ -46,7 +46,7 @@ The workspace this terminal belongs to.
 readonly kind: TerminalKind;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:47](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L47)
+Defined in: [packages/sdk/src/agents-service.ts:48](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L48)
 
 **`Beta`**
 
@@ -60,7 +60,7 @@ The terminal's kind at registration time (`"shell"`, `"claude"`, `"pi"`).
 readonly isAgent: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:53](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L53)
+Defined in: [packages/sdk/src/agents-service.ts:54](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L54)
 
 **`Beta`**
 
@@ -76,7 +76,7 @@ as one, or an agent-specific signal was observed in it (e.g. typing
 readonly activity: AgentActivity;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:55](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L55)
+Defined in: [packages/sdk/src/agents-service.ts:56](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L56)
 
 **`Beta`**
 
@@ -90,11 +90,15 @@ Current classified activity.
 readonly needsAttention: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:57](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L57)
+Defined in: [packages/sdk/src/agents-service.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L64)
 
 **`Beta`**
 
-Sticky "finished, go look" flag — cleared when the terminal is viewed.
+Sticky "finished, go look" flag: set when the agent goes idle in a
+terminal that wasn't the active one at that moment, and cleared only by
+[AgentsService.acknowledge](AgentsService.md#acknowledge). Never set at all if the terminal
+*was* already active the instant the agent went idle — being watched
+live counts as already seen, no acknowledgment needed.
 
 ***
 
@@ -104,7 +108,7 @@ Sticky "finished, go look" flag — cleared when the terminal is viewed.
 readonly optional attentionSince?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L59)
+Defined in: [packages/sdk/src/agents-service.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L66)
 
 **`Beta`**
 
@@ -118,7 +122,7 @@ ISO timestamp of when `needsAttention` was set; undefined when not pending.
 readonly optional workingSince?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L61)
+Defined in: [packages/sdk/src/agents-service.ts:68](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L68)
 
 **`Beta`**
 
@@ -132,7 +136,7 @@ ISO timestamp of when the current `"working"` phase started; undefined otherwise
 readonly stale: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:70](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L70)
+Defined in: [packages/sdk/src/agents-service.ts:77](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L77)
 
 **`Beta`**
 
@@ -151,15 +155,17 @@ fact — see [AgentActivity](../type-aliases/AgentActivity.md).
 readonly optional sessionId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L78)
+Defined in: [packages/sdk/src/agents-service.ts:87](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L87)
 
 **`Beta`**
 
-Resolved session identifier for the agent that was running, if one could
-be determined. Only ever populated when `activity === "dead"`. Resolved
-once, live, at the moment this terminal's agent was first detected —
-not re-resolved at death time — so that concurrent sessions in the same
-directory don't collide on a single after-the-fact lookup.
+Exact session identifier for the agent running in this terminal, when one
+could be determined. Present only when an opt-in `SessionStart` hook has
+reported it (see the Settings → Agents page); absent otherwise — Silo
+never *infers* a session id by directory/recency, since that can silently
+resolve to the wrong session. Populated live once the hook fires (not
+deferred to death), then persisted, so a consumer reacting to
+`activity === "dead"` can read it back.
 
 ***
 
@@ -169,14 +175,16 @@ directory don't collide on a single after-the-fact lookup.
 readonly optional resumeCommand?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:85](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L85)
+Defined in: [packages/sdk/src/agents-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L96)
 
 **`Beta`**
 
-A ready-to-show (and copy/paste) resume command, e.g.
-`"claude --resume 01abc..."` when a session id was resolved, or a
-generic `"was running claude in ~/foo"`-style hint when it wasn't. Only
-ever populated when `activity === "dead"`.
+A ready-to-show (and copy/paste) resume hint. Either an exact
+`"claude --resume 01abc..."` (when [AgentInfo.sessionId](#sessionid) was
+resolved via a hook) or an honest, session-id-less
+`"was running claude in ~/foo"` note (when it wasn't). Attached the first
+time the terminal's agent is detected and persisted, so it is available
+both live and at `activity === "dead"`.
 
 ***
 
@@ -186,8 +194,31 @@ ever populated when `activity === "dead"`.
 readonly optional agentName?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:87](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L87)
+Defined in: [packages/sdk/src/agents-service.ts:105](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L105)
 
 **`Beta`**
 
-Human-readable agent name, e.g. `"Claude Code"`. Only ever populated when `activity === "dead"`.
+Human-readable agent name, e.g. `"Claude Code"` or `"Codex CLI"`. Tells
+you *which* agent CLI is running in this terminal, independent of
+whether an exact session id was ever resolved — populated as soon as a
+known agent leader is detected at all (same moment
+[AgentInfo.resumeCommand](#resumecommand) is first attached), not deferred until
+[AgentInfo.sessionId](#sessionid) is available.
+
+***
+
+### agentId?
+
+```ts
+readonly optional agentId?: string;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L113)
+
+**`Beta`**
+
+Stable catalog key for the agent, e.g. `"claude"` or `"codex"` — unlike
+[AgentInfo.agentName](#agentname) (a display string meant for showing to the
+user), this is meant for an extension's own code to switch or compare
+on, and won't change if the display name is ever reworded. Populated at
+the same moment and lifecycle as `agentName`.

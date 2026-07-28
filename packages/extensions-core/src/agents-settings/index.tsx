@@ -1,18 +1,24 @@
 /**
- * Agents settings page — lists every agent CLI Silo supports session
- * detection for, each with a single toggle that installs/uninstalls Silo's
- * `SessionStart` hook into that CLI's **default** config location. No
- * per-account (e.g. `CLAUDE_CONFIG_DIR`) differentiation here — the toggle
- * assumes the CLI's standard setup; the linked docs page covers configuring
- * a non-default setup manually. Installing the hook is what gives
- * `ctx.agents` an exact, PID-correlated session id instead of falling back
- * to directory/recency inference (see RFC 0017's hook-based resolution
- * addendum). Purely a config-file editor — the actual hook-event reading and
- * PID correlation is host-internal, sealed, same as the rest of `ctx.agents`.
+ * Agents settings page — one install toggle per agent CLI that exposes a
+ * session hook (`hookInstallableAgents()` from the agent catalog, the single
+ * source of truth). Toggling installs/uninstalls Silo's hook into that CLI's
+ * **default** config location. No per-account (e.g. `CLAUDE_CONFIG_DIR`)
+ * differentiation — the toggle assumes the CLI's standard setup; the linked
+ * "Setup details" docs page covers a non-default setup manually. Installing
+ * the hook is what gives `ctx.agents` an exact, PID-correlated session id
+ * instead of the honest-but-vague generic hint (see RFC 0017's hook-based
+ * resolution). Purely a config-file editor — the actual hook-event reading
+ * and PID correlation is host-internal, sealed, same as the rest of
+ * `ctx.agents`.
  */
 import { useCallback, useEffect, useState } from "react";
 import type { Extension, ExtensionContext } from "@silo-code/sdk";
 import { Switch, SettingRow, Badge } from "@silo-code/sdk";
+import {
+  hookInstallableAgents,
+  type AgentDefinition,
+  type AgentHookResume,
+} from "@silo-code/extension-host/internal";
 import {
   hasHookInstalled,
   withHookInstalled,
@@ -21,26 +27,10 @@ import {
 } from "./hook-installer";
 import "./AgentsSettingsPage.css";
 
-interface SupportedAgent {
-  id: string;
-  label: string;
-  /** Path to the CLI's settings file under its **default** config
-   * directory — deliberately not account/`CLAUDE_CONFIG_DIR`-aware. */
-  settingsPath: (home: string) => string;
-  docsUrl: string;
-}
-
-const SUPPORTED_AGENTS: SupportedAgent[] = [
-  {
-    id: "claude",
-    label: "Claude Code",
-    settingsPath: (home) => `${home}/.claude/settings.json`,
-    docsUrl: "https://getsilo.dev/guide/agent-sessions#claude-code",
-  },
-];
+type HookAgent = AgentDefinition & { resume: AgentHookResume };
 
 interface AgentRow {
-  agent: SupportedAgent;
+  agent: HookAgent;
   installed: boolean;
   loaded: boolean;
   error?: string;
@@ -74,17 +64,23 @@ async function readSettings(
   }
 }
 
+/** Absolute settings-file path for an agent under the user's home dir. */
+function settingsPathFor(agent: HookAgent, home: string): string {
+  return `${home}/${agent.resume.configPath}`;
+}
+
 function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
   const [home, setHome] = useState<string | null | undefined>(undefined);
   const [rows, setRows] = useState<AgentRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    const agents = hookInstallableAgents();
     const h = await resolveHomeDir(ctx);
     setHome(h);
     if (!h) {
       setRows(
-        SUPPORTED_AGENTS.map((agent) => ({
+        agents.map((agent) => ({
           agent,
           installed: false,
           loaded: false,
@@ -94,9 +90,13 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
       return;
     }
     const next: AgentRow[] = [];
-    for (const agent of SUPPORTED_AGENTS) {
-      const settings = await readSettings(ctx, agent.settingsPath(h));
-      next.push({ agent, installed: hasHookInstalled(settings), loaded: true });
+    for (const agent of agents) {
+      const settings = await readSettings(ctx, settingsPathFor(agent, h));
+      next.push({
+        agent,
+        installed: hasHookInstalled(settings, agent.resume),
+        loaded: true,
+      });
     }
     setRows(next);
   }, [ctx]);
@@ -108,12 +108,12 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
   async function toggle(row: AgentRow, install: boolean) {
     if (!home) return;
     setBusy(row.agent.id);
-    const path = row.agent.settingsPath(home);
+    const path = settingsPathFor(row.agent, home);
     try {
       const current = await readSettings(ctx, path);
       const next = install
-        ? withHookInstalled(current)
-        : withHookUninstalled(current);
+        ? withHookInstalled(current, row.agent.resume)
+        : withHookUninstalled(current, row.agent.resume);
       if (install) {
         await ctx.files.createDir(path.slice(0, path.lastIndexOf("/")));
       }
@@ -147,8 +147,14 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
       {rows.map((row) => (
         <SettingRow
           key={row.agent.id}
-          label={row.agent.label}
-          hint={row.error ? `Error: ${row.error}` : undefined}
+          label={row.agent.displayName}
+          hint={
+            row.error
+              ? `Error: ${row.error}`
+              : row.installed
+                ? row.agent.resume.postInstallNote
+                : undefined
+          }
         >
           {row.installed && <Badge tone="ok">Installed</Badge>}
           <a
@@ -165,7 +171,7 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
             checked={row.installed}
             disabled={busy === row.agent.id || !row.loaded}
             onChange={(checked) => void toggle(row, checked)}
-            aria-label={`Install Silo session hook for ${row.agent.label}`}
+            aria-label={`Install Silo session hook for ${row.agent.displayName}`}
           />
         </SettingRow>
       ))}

@@ -8,8 +8,17 @@
  *   or an agent-specific signal fires in it (covers typing `claude` into a
  *   plain shell).
  * - While working, `workingSince` stamps when so elapsed time can render.
- * - When work stops, the terminal is **finished, unseen** — sticky until viewed.
- * - Viewing a finished terminal acknowledges it: `waiting` → `done`.
+ * - When work stops, `activity` becomes `"idle"` — this is purely a fact
+ *   about the agent, the same regardless of who's watching.
+ *   `needsAttention` is the *separate*, viewer-dependent fact: set only if
+ *   the terminal wasn't the active one the instant the agent went idle, and
+ *   cleared only by an explicit `"activated"` event (`ctx.agents.acknowledge`).
+ *   Watching a terminal live when its agent goes idle never sets
+ *   `needsAttention` in the first place — no acknowledgment is needed for
+ *   something you already saw happen. (Earlier design: `activity` itself
+ *   flipped between `"waiting"`/`"done"` depending on viewer state at that
+ *   instant — dropped once it turned out `needsAttention` already carried
+ *   that exact information on its own.)
  * - `stale` is soft and self-clearing: a restored `working`/`needsAttention`
  *   duration after a long-enough gap can't be fully trusted, but the next
  *   live signal clears it automatically.
@@ -36,12 +45,17 @@ export interface AgentActivityState {
   readonly sessionId: string | null;
   readonly resumeCommand: string | null;
   readonly agentName: string | null;
+  /** Stable catalog key (e.g. `"claude"`, `"codex"`) — unlike `agentName`
+   * (a display string), safe for an extension to switch/compare on without
+   * breaking if the display string is ever reworded. Same lifecycle as
+   * `agentName`: populated together, cleared together on demotion. */
+  readonly agentId: string | null;
 }
 
 export type AgentActivityEvent =
   | {
       type: "detected";
-      status: "working" | "waiting" | "done" | "error";
+      status: "working" | "idle" | "error";
       source: EventSource;
       isActiveTerminal: boolean;
       now: string;
@@ -54,6 +68,7 @@ export type AgentActivityEvent =
       sessionId?: string;
       resumeCommand?: string;
       agentName?: string;
+      agentId?: string;
     }
   | {
       /** A brand-new session has taken over this terminal id (after "dead" +
@@ -80,6 +95,7 @@ export function initialState(kind: TerminalKind): AgentActivityState {
     sessionId: null,
     resumeCommand: null,
     agentName: null,
+    agentId: null,
   };
 }
 
@@ -135,14 +151,13 @@ export function reduce(
       sessionId: ev.sessionId ?? prev.sessionId,
       resumeCommand: ev.resumeCommand ?? prev.resumeCommand,
       agentName: ev.agentName ?? prev.agentName,
+      agentId: ev.agentId ?? prev.agentId,
     };
   }
 
   if (ev.type === "activated") {
     if (!prev.needsAttention) return prev;
-    const activity =
-      prev.activity === "waiting" ? ("done" as const) : prev.activity;
-    return { ...prev, needsAttention: false, attentionSince: null, activity };
+    return { ...prev, needsAttention: false, attentionSince: null };
   }
 
   // "dead" is terminal until a "reset" event — no detected signal reopens it.
@@ -165,9 +180,8 @@ export function reduce(
       ev.status !== "working" &&
       ((ev.source === "shell" && prev.kind !== "shell") ||
         (ev.source === "timer" && prev.workingSource === "agent"));
-    const redundantIdle = activity === "done" && ev.status === "waiting";
 
-    if (!blockDemotion && !redundantIdle) {
+    if (!blockDemotion) {
       if (ev.status === "working") {
         workingSince = ev.now;
         workingSource = ev.source === "agent" ? "agent" : "shell";
@@ -175,18 +189,16 @@ export function reduce(
         attentionSince = null;
         activity = ev.status;
       } else {
-        let nextActivity: AgentActivity = ev.status;
-        if (
-          activity === "working" &&
-          (ev.status === "waiting" || ev.status === "done")
-        ) {
+        // ev.status is "idle" or "error". Only an idle transition out of a
+        // working phase is a viewer-dependent fact — "error" leaves
+        // needsAttention untouched, same as before this rename.
+        if (activity === "working" && ev.status === "idle") {
           needsAttention = isAgent && !ev.isActiveTerminal;
           attentionSince = needsAttention ? ev.now : null;
-          if (isAgent && ev.isActiveTerminal) nextActivity = "done";
         }
         workingSince = null;
         workingSource = null;
-        activity = nextActivity;
+        activity = ev.status;
       }
     }
   }
@@ -219,26 +231,46 @@ export function reduce(
 }
 
 /**
- * Given the state just before and just after a `reduce()` call, clear the
- * resolved resume-identity fields if this transition just demoted a
- * promoted-shell terminal back to non-agent (`isAgent` true → false). A
+ * Given the state just before and just after a `reduce()` call, reset a
+ * terminal back to a clean, agent-free slate if this transition just demoted
+ * a promoted-shell terminal back to non-agent (`isAgent` true → false). A
  * normal `exit` isn't a "session ended unexpectedly, here's how to resume"
- * situation — the shell is alive and fine — so the earlier resolved hint is
- * no longer meaningful and would be misleading if left in place. Returns
- * `next` unchanged (by reference) when no demotion just happened, so callers
- * can still rely on reference equality to detect a real change.
+ * situation — the shell is alive and fine — so the earlier resolved
+ * resume-identity hint is no longer meaningful, and `activity` shouldn't keep
+ * describing a turn state that no longer belongs to any agent: a demoted
+ * terminal left at `activity: "idle"` would read as "an idle agent" to a
+ * consumer, which is exactly backwards, since there's no agent here at all
+ * anymore. `workingSince`/`workingSource` are reset alongside it for the same
+ * reason (defensively — the demotion check in `reduce()` doesn't gate on
+ * `ev.status`, so this doesn't rely on `activity` already having settled to
+ * `"idle"` by the time demotion fires). Returns `next` unchanged (by
+ * reference) when no demotion just happened, so callers can still rely on
+ * reference equality to detect a real change.
  */
-export function clearResumeIdentityOnDemotion(
+export function resetOnDemotion(
   prev: AgentActivityState,
   next: AgentActivityState,
 ): AgentActivityState {
   if (!prev.isAgent || next.isAgent) return next;
   if (
+    next.activity === "none" &&
+    next.workingSince === null &&
+    next.workingSource === null &&
     next.sessionId === null &&
     next.resumeCommand === null &&
-    next.agentName === null
+    next.agentName === null &&
+    next.agentId === null
   ) {
     return next;
   }
-  return { ...next, sessionId: null, resumeCommand: null, agentName: null };
+  return {
+    ...next,
+    activity: "none",
+    workingSince: null,
+    workingSource: null,
+    sessionId: null,
+    resumeCommand: null,
+    agentName: null,
+    agentId: null,
+  };
 }

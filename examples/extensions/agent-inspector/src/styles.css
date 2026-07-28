@@ -24,13 +24,14 @@
   border-bottom: 1px solid var(--silo-color-border);
 }
 
-.ai-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.ai-scope-select {
   font-family: var(--silo-font-ui);
   font-size: var(--silo-font-size-base);
-  color: var(--silo-color-text-lo);
+  color: var(--silo-color-text-hi);
+  background: var(--silo-color-bg-hover);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 3px 6px;
   cursor: pointer;
 }
 
@@ -42,13 +43,27 @@
 
 .ai-row {
   padding: 9px 10px;
+  /* Transparent by default so ai-row--active's accent border doesn't shift
+     layout when a row toggles between the two — same reserved width either
+     way. */
+  border-left: 3px solid transparent;
   border-bottom: 1px solid var(--silo-color-border);
+  cursor: pointer;
 }
 .ai-row:last-child {
   border-bottom: none;
 }
+.ai-row:hover {
+  background: var(--silo-color-bg-hover);
+}
 .ai-row--dead {
-  background: var(--silo-color-bg-2);
+  background: var(--silo-color-bg-active);
+}
+.ai-row--dead:hover {
+  background: var(--silo-color-bg-hover);
+}
+.ai-row--active {
+  border-left-color: var(--silo-color-accent);
 }
 
 .ai-row-header {
@@ -80,12 +95,8 @@
 .ai-dot--working {
   background: var(--silo-color-accent);
 }
-.ai-dot--waiting {
+.ai-dot--idle {
   background: var(--silo-color-ok);
-}
-.ai-dot--done {
-  background: var(--silo-color-text-lo);
-  opacity: 0.4;
 }
 .ai-dot--error {
   background: var(--silo-color-error);
@@ -112,6 +123,21 @@
 .ai-badge--attention {
   color: var(--silo-color-accent);
   border: 1px solid var(--silo-color-accent);
+}
+
+.ai-ack-button {
+  padding: 1px 8px;
+  border-radius: var(--silo-radius-sm);
+  border: 1px solid var(--silo-color-accent);
+  background: var(--silo-color-accent);
+  color: var(--silo-color-bg);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.ai-ack-button:hover {
+  opacity: 0.85;
 }
 
 /* ---- secondary meta row ----------------------------------------------------- */

@@ -184,6 +184,30 @@ export function focusCenterDock(): boolean {
 }
 
 /**
+ * Focus one specific panel's own content directly — for a caller that
+ * already knows exactly which panel it just activated (e.g.
+ * `ctx.terminals.focus(terminalId)`), rather than "whatever's currently
+ * visible in the active group" ({@link focusCenterDock}'s scope).
+ *
+ * This distinction matters once a group holds more than one panel (two
+ * terminal tabs side by side): dockview keeps every panel's content mounted
+ * (just hidden) and toggles which one is visible asynchronously relative to
+ * `panel.api.setActive()` — so a generic "grab the first visible textarea in
+ * the group" search can win the race against that toggle and land on the
+ * *previous* panel's still-visible content, which still satisfies "some
+ * textarea in the group has focus" and so never retries again. Scoping the
+ * search to `element` (this panel's own content container, from
+ * `panel.view.content.element`) removes every other panel from the search
+ * entirely, so there's nothing left to grab but the right one — the retry
+ * loop just waits out however many frames dockview needs before this
+ * specific element's content becomes focusable.
+ */
+export function focusPanelContent(element: HTMLElement): void {
+  focusGen += 1;
+  focusContentIn(element);
+}
+
+/**
  * Test-driver: move the active center panel into a new split group beside its
  * current one, so automation can set up a multi-group center (e.g. an editor +
  * terminal split) — the scenario {@link activeCenterTarget}'s active-group

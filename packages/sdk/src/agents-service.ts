@@ -10,22 +10,23 @@ import type { TerminalKind } from "./domain-types";
 /**
  * What a terminal's agent is currently doing, as classified by the host from
  * OSC/output signals. `"none"` means no agent activity has been observed
- * (including plain, non-agent shells). `"dead"` is distinct from a merely
- * `stale` restored state — see {@link AgentInfo.stale} — and means the
- * terminal's backend was confirmed gone (no daemon to reattach to) after an
- * unclean shutdown; nothing will arrive to resolve this on its own.
+ * (including plain, non-agent shells). `"idle"` means the agent finished its
+ * last turn and is waiting for the next input — this is purely a fact about
+ * the agent itself, independent of whether anyone is looking at the
+ * terminal; see {@link AgentInfo.needsAttention} for the separate "has a
+ * human seen this" signal (an earlier design conflated the two into a
+ * `"waiting"`/`"done"` split on `activity` itself — dropped once it turned
+ * out to carry no information `needsAttention` didn't already have).
+ * `"dead"` is distinct from a merely `stale` restored state — see
+ * {@link AgentInfo.stale} — and means the terminal's backend was confirmed
+ * gone (no daemon to reattach to) after an unclean shutdown; nothing will
+ * arrive to resolve this on its own.
  *
  * @category Core Types
  * @public
  * @beta
  */
-export type AgentActivity =
-  | "none"
-  | "working"
-  | "waiting"
-  | "done"
-  | "error"
-  | "dead";
+export type AgentActivity = "none" | "working" | "idle" | "error" | "dead";
 
 /**
  * Live agent-activity and resume-identity state for one terminal, computed
@@ -53,7 +54,13 @@ export interface AgentInfo {
   readonly isAgent: boolean;
   /** Current classified activity. */
   readonly activity: AgentActivity;
-  /** Sticky "finished, go look" flag — cleared when the terminal is viewed. */
+  /**
+   * Sticky "finished, go look" flag: set when the agent goes idle in a
+   * terminal that wasn't the active one at that moment, and cleared only by
+   * {@link AgentsService.acknowledge}. Never set at all if the terminal
+   * *was* already active the instant the agent went idle — being watched
+   * live counts as already seen, no acknowledgment needed.
+   */
   readonly needsAttention: boolean;
   /** ISO timestamp of when `needsAttention` was set; undefined when not pending. */
   readonly attentionSince?: string;
@@ -69,31 +76,52 @@ export interface AgentInfo {
    */
   readonly stale: boolean;
   /**
-   * Resolved session identifier for the agent that was running, if one could
-   * be determined. Only ever populated when `activity === "dead"`. Resolved
-   * once, live, at the moment this terminal's agent was first detected —
-   * not re-resolved at death time — so that concurrent sessions in the same
-   * directory don't collide on a single after-the-fact lookup.
+   * Exact session identifier for the agent running in this terminal, when one
+   * could be determined. Present only when an opt-in `SessionStart` hook has
+   * reported it (see the Settings → Agents page); absent otherwise — Silo
+   * never *infers* a session id by directory/recency, since that can silently
+   * resolve to the wrong session. Populated live once the hook fires (not
+   * deferred to death), then persisted, so a consumer reacting to
+   * `activity === "dead"` can read it back.
    */
   readonly sessionId?: string;
   /**
-   * A ready-to-show (and copy/paste) resume command, e.g.
-   * `"claude --resume 01abc..."` when a session id was resolved, or a
-   * generic `"was running claude in ~/foo"`-style hint when it wasn't. Only
-   * ever populated when `activity === "dead"`.
+   * A ready-to-show (and copy/paste) resume hint. Either an exact
+   * `"claude --resume 01abc..."` (when {@link AgentInfo.sessionId} was
+   * resolved via a hook) or an honest, session-id-less
+   * `"was running claude in ~/foo"` note (when it wasn't). Attached the first
+   * time the terminal's agent is detected and persisted, so it is available
+   * both live and at `activity === "dead"`.
    */
   readonly resumeCommand?: string;
-  /** Human-readable agent name, e.g. `"Claude Code"`. Only ever populated when `activity === "dead"`. */
+  /**
+   * Human-readable agent name, e.g. `"Claude Code"` or `"Codex CLI"`. Tells
+   * you *which* agent CLI is running in this terminal, independent of
+   * whether an exact session id was ever resolved — populated as soon as a
+   * known agent leader is detected at all (same moment
+   * {@link AgentInfo.resumeCommand} is first attached), not deferred until
+   * {@link AgentInfo.sessionId} is available.
+   */
   readonly agentName?: string;
+  /**
+   * Stable catalog key for the agent, e.g. `"claude"` or `"codex"` — unlike
+   * {@link AgentInfo.agentName} (a display string meant for showing to the
+   * user), this is meant for an extension's own code to switch or compare
+   * on, and won't change if the display name is ever reworded. Populated at
+   * the same moment and lifecycle as `agentName`.
+   */
+  readonly agentId?: string;
 }
 
 /**
- * Host-computed, read-only coding-agent observability — exposed as
+ * Host-computed coding-agent observability — exposed as
  * {@link ExtensionContext.agents}. Detection (what OSC/output signals mean
  * for a given agent) and resume-hint resolution are both sealed inside the
  * host implementation; there is no registration API. Mirrors
  * {@link ProcessesService} in shape: one shared, canonical answer, not
- * something each extension recomputes.
+ * something each extension recomputes — reads are unscoped, and
+ * {@link AgentsService.acknowledge} is the one deliberately scoped mutation,
+ * the same pattern {@link ProcessesService.kill} establishes.
  *
  * @example
  * ```ts
@@ -126,4 +154,28 @@ export interface AgentsService {
     listener: (state: AgentInfo[]) => void,
     options?: { allWorkspaces?: boolean },
   ): Disposable;
+  /**
+   * Acknowledge a finished run: clears {@link AgentInfo.needsAttention} (and
+   * its `attentionSince` timestamp). A no-op if the terminal wasn't pending
+   * attention. Doesn't touch `activity` — `"idle"` already correctly
+   * describes the agent both before and after acknowledgment; only whether
+   * a human has seen it changes.
+   *
+   * Deliberately **not** wired to focus automatically by the host — whether
+   * *viewing* a terminal should count as acknowledging it is a per-consumer
+   * policy call this method leaves to you, not a fixed rule `ctx.agents`
+   * imposes. Call it from wherever your own UI decides a run has been seen —
+   * typically `ctx.terminals.subscribeActive`, but it doesn't have to be.
+   *
+   * @example
+   * ```ts
+   * // Acknowledge whenever the user actually looks at the terminal.
+   * ctx.subscriptions.push(
+   *   ctx.terminals.subscribeActive((terminalId) => {
+   *     if (terminalId) ctx.agents.acknowledge(terminalId);
+   *   }),
+   * );
+   * ```
+   */
+  acknowledge(terminalId: string): void;
 }
