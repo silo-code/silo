@@ -1,6 +1,7 @@
 <script setup>
 import DefaultTheme from "vitepress/theme";
 import { onMounted, onBeforeUnmount } from "vue";
+import GitHubStars from "./GitHubStars.vue";
 const { Layout } = DefaultTheme;
 
 // Theme picker for the live `.silo-demo` component examples (Design System
@@ -182,6 +183,12 @@ onBeforeUnmount(() => {
           <source src="/demo.mp4" type="video/mp4" />
         </video>
       </div>
+    </template>
+    <template #nav-bar-content-after>
+      <GitHubStars />
+    </template>
+    <template #nav-screen-content-after>
+      <GitHubStars />
     </template>
   </Layout>
 </template>

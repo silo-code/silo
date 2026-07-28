@@ -245,9 +245,9 @@ export default withMermaid(
 
       outline: { level: [2, 3] },
 
-      socialLinks: [
-        { icon: "github", link: "https://github.com/silo-code/silo" },
-      ],
+      // The GitHub icon lives in the nav bar as a live star-count badge
+      // (theme/GitHubStars.vue, wired in via Layout.vue's nav-bar-content-after
+      // slot) instead of a plain socialLinks icon.
 
       search: { provider: "local" },
     },
