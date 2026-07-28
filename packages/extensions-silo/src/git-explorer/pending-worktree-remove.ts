@@ -21,6 +21,29 @@ function emit(): void {
   for (const listener of [...listeners]) listener();
 }
 
+// Serialize the actual `git worktree remove` executions. Removing several open
+// worktrees at once (each a `git worktree remove --force`, i.e. an rm -rf of a
+// full working tree) otherwise fires N concurrent removals; on large trees that
+// stacks each removal's refresh/status work and starves the UI thread for the
+// duration — the multi-worktree "app froze" case. Confirms and pending-state
+// updates stay immediate (so "Removing N worktrees…" shows right away); only
+// the disk-deleting git call is queued, draining one at a time.
+let removalChain: Promise<unknown> = Promise.resolve();
+
+/**
+ * Run `task` after any already-queued worktree removals settle, so at most one
+ * `git worktree remove` executes at a time. Resolves/rejects with `task`'s own
+ * outcome; a failing task never breaks the chain for the ones behind it.
+ */
+export function enqueueWorktreeRemoval<T>(task: () => Promise<T>): Promise<T> {
+  const result = removalChain.then(task, task);
+  removalChain = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
 /** Subscribe to pending-remove / manager-open changes (for StatusBar + modal). */
 export function subscribePendingWorktreeRemoves(
   listener: () => void,
@@ -109,4 +132,5 @@ export function resetPendingWorktreeRemovesForTests(): void {
   managerOpenDepth = 0;
   listeners.clear();
   listDirtyListeners.clear();
+  removalChain = Promise.resolve();
 }

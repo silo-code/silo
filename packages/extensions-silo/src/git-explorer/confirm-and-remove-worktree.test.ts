@@ -49,6 +49,48 @@ describe("confirmAndRemoveWorktree", () => {
     expect(getPendingWorktreeRemoves()).toHaveLength(0);
   });
 
+  it("serializes the git removal when several worktrees are removed at once", async () => {
+    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
+    let active = 0;
+    let maxActive = 0;
+    const gates: Array<() => void> = [];
+    // Each removal blocks until released, so we can observe how many run at once.
+    const removeWorktree = vi.fn(async () => {
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      await new Promise<void>((r) => gates.push(r));
+      active -= 1;
+    });
+    const api = { removeWorktree } as unknown as GitAPI;
+    const start = (worktreePath: string) =>
+      confirmAndRemoveWorktree({
+        ctx: mockCtx({ confirms: [true] }),
+        api,
+        cwd: "/w/repo",
+        worktreePath,
+        workspaceId: "ws1",
+        isOpen: false,
+        notifyError: vi.fn(),
+      });
+
+    const all = Promise.all([start("/w/a"), start("/w/b"), start("/w/c")]);
+    // All three are past their confirms and queued; only the first is running.
+    await tick();
+    expect(removeWorktree).toHaveBeenCalledTimes(1);
+    expect(getPendingWorktreeRemoves()).toHaveLength(3);
+
+    // Drain the queue one at a time.
+    while (gates.length) {
+      gates.shift()!();
+      await tick();
+    }
+    await all;
+    expect(removeWorktree).toHaveBeenCalledTimes(3);
+    // The whole point: never two `git worktree remove` running concurrently.
+    expect(maxActive).toBe(1);
+    expect(getPendingWorktreeRemoves()).toHaveLength(0);
+  });
+
   it("closes the folder on start, clears pending on success, toasts when manager closed", async () => {
     const removeWorktree = vi.fn(async () => {});
     const ctx = mockCtx({ confirms: [true] });

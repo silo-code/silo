@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   ArrowsClockwise,
   CaretDown,
@@ -32,6 +39,10 @@ import {
 } from "./worktree-model";
 import { showWorktreeManager } from "./open-worktree-manager";
 import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
+import {
+  isWorktreeRemovePending,
+  subscribePendingWorktreeRemoves,
+} from "./pending-worktree-remove";
 import { useViewStack } from "./use-view-stack";
 import { CommitsTakeover } from "./CommitsTakeover";
 import { shouldExitTakeover, shouldPushCommitsOnOpen } from "./takeover-model";
@@ -117,6 +128,18 @@ export function GitView({
     setPendingRefresh(true);
   }, []);
 
+  // True while *this* folder is being removed (its worktree is deleted from
+  // disk). `beginPendingWorktreeRemove` fires before the folder leaves the
+  // workspace, so subscribing here lets this view stop watching and refreshing
+  // the instant removal starts — a `git status` against a directory mid-`rm -rf`
+  // returns thousands of "deleted" entries and blocks the UI thread, which is
+  // what made removing several open worktrees at once freeze the app.
+  const removing = useSyncExternalStore(
+    subscribePendingWorktreeRemoves,
+    useCallback(() => isWorktreeRemovePending(folder), [folder]),
+    useCallback(() => isWorktreeRemovePending(folder), [folder]),
+  );
+
   // Surface a git failure as a toast: a short summary, plus a "View details"
   // action that opens the full output in a modal when there's more to show.
   // `transient` auto-dismisses (for passive background refreshes) instead of the
@@ -162,6 +185,12 @@ export function GitView({
   useEffect(() => {
     if (!pendingRefresh) return;
     setPendingRefresh(false);
+    // Skip refreshing a folder that's being removed — its directory is being
+    // deleted, so `git status` would race the `rm -rf` (see `removing`).
+    if (removing) {
+      setBusy(false);
+      return;
+    }
     const min = new Promise<void>((r) => setTimeout(r, 600));
     setTimeout(() => {
       const api = getGitApi();
@@ -193,7 +222,7 @@ export function GitView({
         })
         .catch(() => undefined);
     }, 50);
-  }, [pendingRefresh, folder, workspaceId, cacheKey, notifyError]);
+  }, [pendingRefresh, folder, workspaceId, cacheKey, notifyError, removing]);
 
   useEffect(() => {
     if (!pendingPush) return;
@@ -254,7 +283,10 @@ export function GitView({
   }, [pendingPull, folder, notifyError]);
 
   useEffect(() => {
-    if (paused) return;
+    // Stop watching a folder that's paused (background workspace) or being
+    // removed — its `rm -rf` would otherwise spam change events straight into a
+    // refresh against the vanishing directory.
+    if (paused || removing) return;
     let timer: number | null = null;
     const sub = files.watch(folder, () => {
       // Don't poll mid-commit — the commit (and its pre-commit hooks) churn
@@ -267,7 +299,7 @@ export function GitView({
       if (timer) window.clearTimeout(timer);
       sub.dispose();
     };
-  }, [folder, refresh, paused]);
+  }, [folder, refresh, paused, removing]);
 
   // Background autofetch: periodically `git fetch` so ↑ahead/↓behind trend
   // toward accurate without the user acting. Fetch is read-only on the working
@@ -275,7 +307,7 @@ export function GitView({
   // re-read status quietly (no spinner) so the counts update in place. Failures
   // (offline, no remote) are swallowed — autofetch must stay silent.
   useEffect(() => {
-    if (paused) return;
+    if (paused || removing) return;
     const id = window.setInterval(() => {
       if (committingRef.current) return;
       const api = getGitApi();
@@ -290,7 +322,7 @@ export function GitView({
         .catch((err) => console.warn("git autofetch failed", err));
     }, AUTOFETCH_INTERVAL_MS);
     return () => window.clearInterval(id);
-  }, [folder, cacheKey, paused]);
+  }, [folder, cacheKey, paused, removing]);
 
   const stagedFiles = useMemo(
     () => status?.files.filter((f) => f.isStaged) ?? [],

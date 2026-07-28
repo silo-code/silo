@@ -1,5 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { basename } from "@tauri-apps/api/path";
+import { path } from "@silo-code/sdk";
 import { store } from "./store";
 import { clearEditorBackup } from "./editor-backups";
 import type {
@@ -232,19 +233,38 @@ export function reorderWorkspaces(
   reorderInArray(store.workspaceOrder, fromId, toId, position);
 }
 
+// Two folder path strings can identify the same directory without being
+// equal: macOS realpaths /tmp, /var, and /etc through a /private backing, so
+// a worktree removal (which hands back git's /private/... report) needs to
+// match a folder that was added with the /tmp/... spelling, or vice versa.
+// Mirrors extensions-silo's `normalizeFolderPath`/`samePath`
+// (packages/extensions-silo/src/git/worktree-utils.ts), duplicated here
+// rather than shared because extension-host cannot depend on an extension
+// package — only on @silo-code/sdk.
+function normalizeFolderIdentity(p: string): string {
+  let n = path.normalize(p);
+  if (n.length > 1 && n.endsWith("/")) n = n.slice(0, -1);
+  const priv = /^\/private(\/(?:tmp|var|etc)(?:\/|$).*)$/.exec(n);
+  return priv ? priv[1] : n;
+}
+
+function sameFolderPath(a: string, b: string): boolean {
+  return normalizeFolderIdentity(a) === normalizeFolderIdentity(b);
+}
+
 export function addExtraFolder(workspaceId: string, folder: string): void {
   const ws = store.workspaces[workspaceId];
   if (!ws) return;
-  if (ws.folder === folder) return;
+  if (sameFolderPath(ws.folder, folder)) return;
   if (!ws.extraFolders) ws.extraFolders = [];
-  if (ws.extraFolders.includes(folder)) return;
+  if (ws.extraFolders.some((f) => sameFolderPath(f, folder))) return;
   ws.extraFolders.push(folder);
 }
 
 export function removeExtraFolder(workspaceId: string, folder: string): void {
   const ws = store.workspaces[workspaceId];
   if (!ws?.extraFolders) return;
-  ws.extraFolders = ws.extraFolders.filter((f) => f !== folder);
+  ws.extraFolders = ws.extraFolders.filter((f) => !sameFolderPath(f, folder));
 }
 
 export function deleteWorkspace(id: string): void {

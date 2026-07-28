@@ -813,4 +813,42 @@ describe("GitService.status against a rejecting exec (e.g. missing cwd)", () => 
     const git = createGitService(execRejects);
     await expect(git.status("/somewhere")).rejects.toThrow("permission denied");
   });
+
+  // On some platforms git *spawns* fine against a since-deleted cwd and exits
+  // non-zero with this message instead of the spawn rejecting — the same
+  // missing-folder case, so it must map to `missing`, not a thrown toast.
+  it("treats a non-zero 'unable to read current working directory' as missing", async () => {
+    const execExitsNonZero: ExecFn = () =>
+      Promise.resolve({
+        stdout: "",
+        stderr:
+          "fatal: unable to read current working directory: No such file or directory",
+        code: 128,
+      });
+    const git = createGitService(execExitsNonZero);
+    const s = await git.status("/gone");
+    expect(s).toEqual({
+      branch: null,
+      upstream: null,
+      ahead: 0,
+      behind: 0,
+      files: [],
+      inRepo: false,
+      missing: true,
+    });
+  });
+
+  it("keeps 'not a git repository' as inRepo:false without the missing flag", async () => {
+    const execNotRepo: ExecFn = () =>
+      Promise.resolve({
+        stdout: "",
+        stderr:
+          "fatal: not a git repository (or any of the parent directories)",
+        code: 128,
+      });
+    const git = createGitService(execNotRepo);
+    const s = await git.status("/plain-dir");
+    expect(s.inRepo).toBe(false);
+    expect(s.missing).toBeUndefined();
+  });
 });
