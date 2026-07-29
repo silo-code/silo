@@ -287,6 +287,32 @@ describe("resetOnDemotion", () => {
     expect(result.sessionId).toBe("abc123");
   });
 
+  it("force-demotes via exited even when needsAttention is pending", () => {
+    // shell-sourced detected/idle gates on !needsAttention so a stray OSC 133
+    // doesn't wipe an unread badge — exited means the agent is confirmed gone.
+    const working = reduce(initialState("shell"), {
+      type: "detected",
+      status: "working",
+      source: "agent",
+      isActiveTerminal: false,
+      now: "t0",
+    });
+    const unreadIdle = reduce(working, {
+      type: "detected",
+      status: "idle",
+      source: "agent",
+      isActiveTerminal: false,
+      now: "t1",
+    });
+    expect(unreadIdle.needsAttention).toBe(true);
+    expect(unreadIdle.isAgent).toBe(true);
+
+    const exited = reduce(unreadIdle, { type: "exited" });
+    expect(exited.isAgent).toBe(false);
+    expect(exited.needsAttention).toBe(false);
+    expect(resetOnDemotion(unreadIdle, exited).activity).toBe("none");
+  });
+
   it("returns next by reference when there's nothing to clear (no demotion, or already empty)", () => {
     const prev = initialState("shell");
     const next = reduce(prev, {

@@ -5,6 +5,7 @@ import {
   pruneUnmatchedEvents,
   selectEventsJsonlLinesToKeep,
   shouldAcceptHookSessionId,
+  hookEventCompatibleWithStickyAgent,
   stampNewHookEvents,
   type HookEvent,
   type PendingHookEvent,
@@ -331,5 +332,22 @@ describe("shouldAcceptHookSessionId", () => {
 
   it("treats an identical id as acceptable (caller stamps timestamp)", () => {
     expect(shouldAcceptHookSessionId(early.sessionId, null, early)).toBe(true);
+  });
+});
+
+describe("hookEventCompatibleWithStickyAgent", () => {
+  it("allows any hook when no sticky agent is set yet", () => {
+    expect(hookEventCompatibleWithStickyAgent("claude", null)).toBe(true);
+  });
+
+  it("allows a hook whose agent matches the sticky foreground agent", () => {
+    expect(hookEventCompatibleWithStickyAgent("claude", "claude")).toBe(true);
+    expect(hookEventCompatibleWithStickyAgent("grok", "grok")).toBe(true);
+  });
+
+  it("rejects Claude hooks against a Grok sticky foreground (Claude-compat import)", () => {
+    // Grok re-fires ~/.claude/settings.json SessionStart hooks tagged
+    // agent:"claude" against Grok's own pid — must not claim the terminal.
+    expect(hookEventCompatibleWithStickyAgent("claude", "grok")).toBe(false);
   });
 });

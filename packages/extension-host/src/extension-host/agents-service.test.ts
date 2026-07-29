@@ -25,6 +25,11 @@ const { onTerminalForeground } = vi.hoisted(() => ({
 }));
 vi.mock("./terminal-foreground", () => ({ onTerminalForeground }));
 
+const { homeDir } = vi.hoisted(() => ({
+  homeDir: vi.fn(() => Promise.resolve("/Users/test")),
+}));
+vi.mock("./platform", () => ({ homeDir }));
+
 // Skip the hook-events file consume entirely — irrelevant to activity-state
 // tests and would otherwise do a real file read / start a watch.
 vi.mock("./agent-hook-events", async (importOriginal) => {
@@ -40,12 +45,42 @@ vi.mock("./agent-hook-events", async (importOriginal) => {
     ),
   };
 });
+const { startWatch, stopWatch, onFileChange, fileChangeListeners } = vi.hoisted(
+  () => {
+    const fileChangeListeners = new Set<
+      (evt: { watchId: string; paths: string[]; kind: string }) => void
+    >();
+    return {
+      fileChangeListeners,
+      startWatch: vi.fn(() => Promise.resolve()),
+      stopWatch: vi.fn(() => Promise.resolve()),
+      onFileChange: vi.fn(
+        (
+          cb: (evt: { watchId: string; paths: string[]; kind: string }) => void,
+        ) => {
+          fileChangeListeners.add(cb);
+          return Promise.resolve(() => fileChangeListeners.delete(cb));
+        },
+      ),
+    };
+  },
+);
 vi.mock("../services/tauri-watch", () => ({
-  startWatch: vi.fn(() => Promise.resolve()),
-  stopWatch: vi.fn(() => Promise.resolve()),
-  onFileChange: vi.fn(() => Promise.resolve(() => {})),
+  startWatch,
+  stopWatch,
+  onFileChange,
 }));
 
+function emitSessionFileChange() {
+  const watchId = "silo-agent-session-file:/Users/test/.grok";
+  for (const cb of fileChangeListeners) {
+    cb({
+      watchId,
+      paths: ["/Users/test/.grok/active_sessions.json"],
+      kind: "modify",
+    });
+  }
+}
 import { store } from "../state/store";
 import type { WorkspaceInternal } from "../state/types";
 import { getAgentsService } from "./agents-service";
@@ -81,6 +116,7 @@ function makeWorkspace(id: string): WorkspaceInternal {
 beforeEach(() => {
   vi.useFakeTimers();
   invoke.mockReset().mockResolvedValue(null);
+  homeDir.mockReset().mockResolvedValue("/Users/test");
   getActive.mockReset().mockReturnValue(null);
   oscCallbacks.clear();
   fgCallbacks.clear();
@@ -107,6 +143,198 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+});
+
+describe("AgentsService — Grok session-file resume", () => {
+  it("resolves grok --resume from the session file when the foreground is grok", async () => {
+    const id = "t-grok";
+    const sessionId = "sess-grok";
+    const grokPgid = 94122;
+    const grokSession = "019faf7c-714e-7f73-892d-ba57cd52a72e";
+
+    invoke.mockImplementation((cmd: string, args?: { path?: string }) => {
+      if (
+        cmd === "fs_read_text" &&
+        args?.path?.endsWith(".grok/active_sessions.json")
+      ) {
+        return Promise.resolve(
+          JSON.stringify([
+            { session_id: grokSession, pid: grokPgid, cwd: "/tmp" },
+          ]),
+        );
+      }
+      return Promise.resolve(null);
+    });
+
+    await attachTerminal(id, sessionId);
+    foreground(sessionId, {
+      pgid: grokPgid,
+      atPrompt: false,
+      leader: "grok",
+      cwd: "/tmp",
+    });
+
+    // Flush the immediate (0ms) session-file read + its async homeDir/invoke.
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.agentId).toBe("grok");
+    expect(info?.agentName).toBe("Grok");
+    expect(info?.sessionId).toBe(grokSession);
+    expect(info?.resumeCommand).toBe(`grok --resume ${grokSession}`);
+  });
+
+  it("corrects a Claude-tagged identity when the session file resolves for Grok", async () => {
+    const id = "t-grok-correct";
+    const sessionId = "sess-grok-correct";
+    const grokPgid = 58782;
+    const grokSession = "019faf38-fd33-73d2-be89-c14f8f29f315";
+
+    // Simulate the Claude-compat race: a foreign hook already stamped Claude
+    // onto this terminal before the Grok foreground + session-file read.
+    store.agentState[id] = {
+      workspaceId: `ws-${id}`,
+      isAgent: true,
+      activity: "idle",
+      needsAttention: false,
+      workingSource: null,
+      sessionId: grokSession,
+      resumeCommand: `claude --resume ${grokSession}`,
+      agentId: "claude",
+      agentName: "Claude Code",
+      lastLiveAt: "2026-07-29T18:52:56.000Z",
+    };
+
+    invoke.mockImplementation((cmd: string, args?: { path?: string }) => {
+      if (
+        cmd === "fs_read_text" &&
+        args?.path?.endsWith(".grok/active_sessions.json")
+      ) {
+        return Promise.resolve(
+          JSON.stringify([
+            { session_id: grokSession, pid: grokPgid, cwd: "/tmp" },
+          ]),
+        );
+      }
+      return Promise.resolve(null);
+    });
+
+    await attachTerminal(id, sessionId);
+    expect(svc.getByTerminalId(id)?.agentId).toBe("claude");
+
+    foreground(sessionId, {
+      pgid: grokPgid,
+      atPrompt: false,
+      leader: "grok",
+      cwd: "/tmp",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.agentId).toBe("grok");
+    expect(info?.agentName).toBe("Grok");
+    expect(info?.resumeCommand).toBe(`grok --resume ${grokSession}`);
+  });
+
+  it("resolves after a late first-message write via the session-file watch", async () => {
+    // Grok only creates a session on the first typed character — the short
+    // post-foreground retries finish empty; the ~/.grok watch must pick it up.
+    const id = "t-grok-late";
+    const sessionId = "sess-grok-late";
+    const grokPgid = 77777;
+    const grokSession = "019faf99-late-session-id-000000000001";
+    let fileText: string | null = null;
+
+    invoke.mockImplementation((cmd: string, args?: { path?: string }) => {
+      if (
+        cmd === "fs_read_text" &&
+        args?.path?.endsWith(".grok/active_sessions.json")
+      ) {
+        if (fileText == null) return Promise.reject(new Error("ENOENT"));
+        return Promise.resolve(fileText);
+      }
+      return Promise.resolve(null);
+    });
+
+    await attachTerminal(id, sessionId);
+    foreground(sessionId, {
+      pgid: grokPgid,
+      atPrompt: false,
+      leader: "grok",
+      cwd: "/tmp",
+    });
+    // Exhaust the short post-foreground retries — still no session on disk.
+    await vi.advanceTimersByTimeAsync(3000);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(svc.getByTerminalId(id)?.sessionId).toBeUndefined();
+
+    // User types in Grok → registry write → file watch fires.
+    fileText = JSON.stringify([
+      { session_id: grokSession, pid: grokPgid, cwd: "/tmp" },
+    ]);
+    emitSessionFileChange();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.sessionId).toBe(grokSession);
+    expect(info?.agentId).toBe("grok");
+    expect(info?.resumeCommand).toBe(`grok --resume ${grokSession}`);
+  });
+
+  it("demotes when the session-file entry disappears after exit", async () => {
+    const id = "t-grok-exit";
+    const sessionId = "sess-grok-exit";
+    const grokPgid = 88888;
+    const grokSession = "019fafaa-exit-session-id-000000000002";
+    let fileText: string = JSON.stringify([
+      { session_id: grokSession, pid: grokPgid, cwd: "/tmp" },
+    ]);
+
+    invoke.mockImplementation((cmd: string, args?: { path?: string }) => {
+      if (
+        cmd === "fs_read_text" &&
+        args?.path?.endsWith(".grok/active_sessions.json")
+      ) {
+        return Promise.resolve(fileText);
+      }
+      return Promise.resolve(null);
+    });
+
+    await attachTerminal(id, sessionId);
+    // Promote via braille so isAgent is true (session-file alone doesn't).
+    osc(id, 0, "⠀");
+    expect(svc.getByTerminalId(id)?.isAgent).toBe(true);
+
+    foreground(sessionId, {
+      pgid: grokPgid,
+      atPrompt: false,
+      leader: "grok",
+      cwd: "/tmp",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(svc.getByTerminalId(id)?.sessionId).toBe(grokSession);
+
+    // Grok exits → registry drops this pid.
+    fileText = "[]";
+    emitSessionFileChange();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.isAgent).toBe(false);
+    expect(info?.sessionId).toBeUndefined();
+    expect(info?.agentId).toBeUndefined();
+    expect(info?.activity).toBe("none");
+  });
 });
 
 function osc(terminalId: string, code: number, payload: string) {
@@ -205,6 +433,27 @@ describe("AgentsService — demotion cancels pending agent-idle debounce", () =>
     osc("t3", 0, "⠀");
     expect(svc.getByTerminalId("t3")?.isAgent).toBe(true);
     expect(svc.getByTerminalId("t3")?.activity).toBe("working");
+  });
+
+  it("demotes on shell reclaim even when needsAttention was pending", async () => {
+    // reduce() gates shell demotion on !needsAttention so a stray OSC 133
+    // doesn't wipe an unread idle — but an OS-level atPrompt reclaim means
+    // the agent process is gone, so checkPromptDemotion must still demote.
+    const id = "t-exit-with-attn";
+    const sessionId = "sess-exit-with-attn";
+    await attachTerminal(id, sessionId);
+    getActive.mockReturnValue(null); // unfocused → idle sets needsAttention
+
+    osc(id, 0, "⠀");
+    osc(id, 0, "✳ done");
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+    expect(svc.getByTerminalId(id)?.isAgent).toBe(true);
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(true);
+
+    foreground(sessionId, { pgid: 1, atPrompt: true, leader: "/bin/zsh" });
+    expect(svc.getByTerminalId(id)?.isAgent).toBe(false);
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(false);
+    expect(svc.getByTerminalId(id)?.activity).toBe("none");
   });
 });
 

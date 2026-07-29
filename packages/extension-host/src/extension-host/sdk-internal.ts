@@ -324,6 +324,7 @@ export { markSessionDead, resetSessionAfterRecreate } from "./agents-service";
 // detection/resume are sealed, so there is no public `registerAgent`.
 export {
   hookInstallableAgents,
+  sessionFileAgents,
   buildTrackSessionScript,
   TRACK_SCRIPT_REL,
   AGENT_HOOKS_DIR_REL,

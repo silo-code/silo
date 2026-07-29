@@ -154,9 +154,10 @@ export interface AgentHookResume {
  * Exact-resume via the agent's **own** live session registry — no hook, no
  * install, no trust step. For agents (Grok) that already maintain a native
  * `{ pid → session_id }` file of currently-active sessions. Silo reads that
- * file the moment it detects this agent's foreground (the same
- * foreground-tracking signal that sets `agentPgid`, never polled) and matches
- * the terminal's foreground pgid against it — the agent runs as a
+ * file when it detects this agent's foreground (and again whenever the
+ * registry file changes — important for agents like Grok that only create a
+ * session on the first typed character, not at process start) and matches the
+ * terminal's sticky agent pgid against it — the agent runs as a
  * process-group leader, so its pgid equals the pid recorded in the file. This
  * reuses the exact pgid-correlation model the hook path uses, minus the hook.
  */
@@ -167,7 +168,8 @@ export interface AgentSessionFileResume {
   sessionFilePath: string;
   /** Parse the file's text and return the session id whose entry's pid matches
    * `pgid`, or `null` if not present yet (the session may not have been
-   * written when the foreground was first detected — the host retries). Kept
+   * written when the foreground was first detected — e.g. Grok waits for the
+   * first typed character; the host retries briefly and watches the file). Kept
    * per-agent because each agent's file shape differs. */
   resolveSessionId: (fileText: string, pgid: number) => string | null;
   /** Builds the exact resume command for a captured id, e.g.
@@ -601,9 +603,9 @@ const grok: AgentDefinition = {
     "{ session_id, pid, cwd, opened_at } for currently-active sessions; " +
     "(2) Grok runs as a process-group leader (pgid == pid), so a terminal's " +
     "foreground pgid equals the `pid` recorded in the file — Silo reads the " +
-    "file when it first detects a Grok foreground (event-driven off the same " +
-    "signal that sets agentPgid, never polled; retried a few times to cover a " +
-    "session written just after the foreground is detected) and matches pgid " +
+    "file when it first detects a Grok foreground (and again whenever " +
+    "`active_sessions.json` changes — Grok only creates a session on the " +
+    "first typed character, not at process start) and matches pgid " +
     "→ pid to attach the exact session id; (3) `grok --resume <SESSION_ID>` " +
     "resumes by id (UUID-shaped values are always treated as ids, per " +
     "`grok --resume --help`); session ids are UUIDv7. Activity: 'working' " +
@@ -613,7 +615,11 @@ const grok: AgentDefinition = {
     "PROVISIONAL, pending observation of a Grok-specific idle signal. Note: " +
     "Grok ALSO supports [[hooks.SessionStart]] hooks, but only in TOML " +
     "config.toml (no global JSON hooks dir) and behind a folder-trust step, so " +
-    "the native session file is the cleaner integration.",
+    "the native session file is the cleaner integration. Caveat: Grok imports " +
+    "hooks from ~/.claude/settings.json for Claude compatibility — Silo's " +
+    "Claude SessionStart hook can fire against a Grok pid; the host rejects " +
+    "that mismatch via the sticky foreground agent id and lets the session " +
+    "file win.",
   upstreamRefs: ["https://github.com/xai-org/grok-cli", "https://docs.x.ai"],
   lastVerified: "2026-07-29",
   verifiedAgainstVersion: "grok@0.2.114",
@@ -658,6 +664,18 @@ export function hookInstallableAgents(): (AgentDefinition & {
   return AGENT_CATALOG.filter(
     (a): a is AgentDefinition & { resume: AgentHookResume } =>
       a.resume.kind === "hook",
+  );
+}
+
+/** Agents that resolve exact resume from their own session file (no Settings
+ * toggle). Surfaced on the Agents settings page as a "works automatically"
+ * note so users don't hunt for a missing Grok install row. */
+export function sessionFileAgents(): (AgentDefinition & {
+  resume: AgentSessionFileResume;
+})[] {
+  return AGENT_CATALOG.filter(
+    (a): a is AgentDefinition & { resume: AgentSessionFileResume } =>
+      a.resume.kind === "session-file",
   );
 }
 

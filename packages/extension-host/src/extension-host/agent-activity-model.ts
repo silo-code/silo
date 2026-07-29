@@ -74,6 +74,16 @@ export type AgentActivityEvent =
       /** A brand-new session has taken over this terminal id (after "dead" +
        * auto-recreate). Clears "dead" back to a fresh, unstarted state. */
       type: "reset";
+    }
+  | {
+      /**
+       * The agent process is confirmed gone (shell reclaimed the TTY, or a
+       * session-file agent's registry dropped our sticky pgid). Force-demotes
+       * a promoted shell even when `needsAttention` is set — unlike a
+       * shell-sourced `"detected"` idle, which gates demotion so a stray
+       * OSC 133 doesn't wipe an unread idle badge.
+       */
+      type: "exited";
     };
 
 export function isLiveSignal(
@@ -158,6 +168,22 @@ export function reduce(
   if (ev.type === "activated") {
     if (!prev.needsAttention) return prev;
     return { ...prev, needsAttention: false, attentionSince: null };
+  }
+
+  if (ev.type === "exited") {
+    // Confirmed agent-process exit (at-prompt reclaim / session-file drop).
+    // Force-demote promoted shells; born-agents keep isAgent by design.
+    if (!prev.isAgent || prev.kind !== "shell") return prev;
+    return {
+      ...prev,
+      isAgent: false,
+      activity: "idle",
+      needsAttention: false,
+      attentionSince: null,
+      workingSince: null,
+      workingSource: null,
+      stale: false,
+    };
   }
 
   // "dead" is terminal until a "reset" event — no detected signal reopens it.

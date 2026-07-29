@@ -67,4 +67,10 @@ it. Until you do, exact resume stays off for Codex.
 **Grok needs no toggle.** Grok keeps its own live session registry
 (`~/.grok/active_sessions.json`), so Silo reads that directly when it sees a
 Grok terminal and offers `grok --resume <id>` — no hook to install, nothing to
-trust. It just works the moment you run `grok`.
+trust. Grok only writes a session after the first character is typed in the
+TUI (not at process start, and not waiting for Enter/send); Silo watches the
+registry file so the exact resume command appears then, not only after a
+reload. (Grok also imports hooks from `~/.claude/settings.json` for
+Claude compatibility; Silo ignores those Claude-tagged events when the
+foreground process is Grok, so a Claude hook toggle does not mislabel Grok
+terminals.)

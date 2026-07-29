@@ -16,6 +16,7 @@ import {
   detectFromOutput,
   agentById,
   agentByLeader,
+  sessionFileAgents,
   type AgentDefinition,
   type AgentSessionFileResume,
 } from "./agent-catalog";
@@ -31,6 +32,7 @@ import {
   disposeHookEventsRuntime,
   resolveAgentHooksDir,
   shouldAcceptHookSessionId,
+  hookEventCompatibleWithStickyAgent,
   type HookEvent,
   type PendingHookEvent,
 } from "./agent-hook-events";
@@ -78,6 +80,13 @@ type SessionEntry = {
    * / reset. `null` until a known agent leader has been seen.
    */
   agentPgid: number | null;
+  /**
+   * Sticky catalog id (`"claude"`, `"grok"`, …) of the leader that set
+   * {@link agentPgid}. Used to reject foreign SessionStart hooks that share a
+   * pid (Grok imports Claude's `~/.claude/settings.json` and re-fires Silo's
+   * Claude hook against Grok's own process). Cleared with `agentPgid`.
+   */
+  agentCatalogId: string | null;
   /**
    * Timestamp of the hook event that produced {@link AgentActivityState.sessionId}.
    * Used so an earlier SessionStart can replace a wrongly restored/probed id,
@@ -240,7 +249,8 @@ function applyEvent(terminalId: string, ev: AgentActivityEvent) {
   const isLiveTick =
     (ev.type === "detected" && ev.source !== "timer") ||
     ev.type === "dead" ||
-    ev.type === "reset";
+    ev.type === "reset" ||
+    ev.type === "exited";
 
   // Re-arm resume-hint resolution on demotion, so a later agent invocation
   // in the same terminal gets its own fresh generic hint rather than being
@@ -253,6 +263,7 @@ function applyEvent(terminalId: string, ev: AgentActivityEvent) {
     // that simply went idle is unaffected — demotion only fires when the
     // shell reclaims the prompt.)
     entry.agentPgid = null;
+    entry.agentCatalogId = null;
     entry.hookSessionTimestamp = null;
     // The terminal just demoted back to a plain shell — cancel any pending
     // agent-idle/shell-idle debounce timers armed while the agent was still
@@ -341,16 +352,22 @@ function maybeResolveResumeHint(
 // ---- session-file resume resolution (e.g. Grok) ---------------------------
 //
 // Some agents (Grok) keep their OWN live `{ pid → session_id }` registry of
-// active sessions, so exact resume needs no hook: read the agent's file the
-// moment we detect its foreground and match the terminal's foreground pgid
-// against the recorded pid (the agent runs as a process-group leader, so
-// pgid == pid). Event-driven off the foreground signal — never polled. The
-// read may lose a race with the agent writing the file just after it takes the
-// foreground, so it's retried a few times, mirroring the hook catch-up.
+// active sessions, so exact resume needs no hook: read the agent's file and
+// match the terminal's sticky agent pgid against the recorded pid (the agent
+// runs as a process-group leader, so pgid == pid).
+//
+// Timing matters: Grok does **not** write a session entry at process start —
+// only after the first character is typed in the TUI. Short retries after the
+// foreground is first seen cover a write that lands within a few seconds; a
+// file watch on the registry's parent dir covers the common case where the
+// user types much later (or after Silo's short retries have already finished
+// empty). Reload "fixes" it only because attach re-reads a file that now has
+// the entry — the watch makes that happen live.
 
 /** Delays (ms after a session-file agent is first seen in the foreground) at
- * which to (re)read its session registry — the first attempt can beat the
- * agent writing its entry. */
+ * which to (re)read its session registry — covers a write that races the
+ * first foreground tick. Not a substitute for the file watch: Grok may not
+ * create the session until the first typed character, minutes later. */
 const SESSION_FILE_READ_DELAYS_MS = [0, 600, 1500, 3000];
 const sessionFileTimers = new Set<ReturnType<typeof setTimeout>>();
 
@@ -360,9 +377,13 @@ function clearSessionFileTimers() {
 }
 
 /** Read a session-file agent's registry and, if its entry for `pgid` is
- * present, attach the exact session id + resume command. No-op once an exact
- * id is already set, and silently returns on a missing/unreadable file (a
- * later retry may still find it). */
+ * present, attach the exact session id + resume command. Idempotent when
+ * this agent's exact identity is already correct for that id. If a *foreign*
+ * hook already stamped a session id (Grok importing Claude's SessionStart
+ * hook is the known case — same pid/session, wrong `agent: "claude"` tag),
+ * this still corrects the identity to the session-file agent. Silently
+ * returns on a missing/unreadable file (a later retry or file-watch event
+ * may still find it). */
 async function resolveSessionFileId(
   terminalId: string,
   agent: AgentDefinition,
@@ -370,7 +391,7 @@ async function resolveSessionFileId(
   pgid: number,
 ) {
   const entry = sessions.get(terminalId);
-  if (!entry || entry.state.sessionId) return;
+  if (!entry) return;
 
   let text: string;
   try {
@@ -379,19 +400,38 @@ async function resolveSessionFileId(
       path: `${base}/${resume.sessionFilePath}`,
     });
   } catch {
-    return; // missing/unreadable — a scheduled retry may still catch it
+    return; // missing/unreadable — a scheduled retry / watch may still catch it
   }
 
   // The terminal (and its live entry) may have gone away during the await.
   const live = sessions.get(terminalId);
-  if (!live || live.state.sessionId) return;
+  if (!live) return;
 
   const sessionId = resume.resolveSessionId(text, pgid);
-  if (!sessionId) return;
+  if (!sessionId) {
+    // Had an exact session that disappeared from the registry → the agent
+    // exited (or closed the session). Demote so the inspector doesn't keep
+    // showing a live Grok after `exit`. Only when we previously resolved —
+    // Grok doesn't write a session until the first typed character, so a
+    // missing entry right after launch must not demote.
+    if (live.state.agentId === agent.id && live.state.sessionId) {
+      demotePromotedShell(terminalId);
+    }
+    return;
+  }
+
+  const resumeCommand = resume.buildResumeCommand(sessionId);
+  if (
+    live.state.sessionId === sessionId &&
+    live.state.agentId === agent.id &&
+    live.state.resumeCommand === resumeCommand
+  ) {
+    return;
+  }
 
   applyResumeHint(terminalId, {
     sessionId,
-    resumeCommand: resume.buildResumeCommand(sessionId),
+    resumeCommand,
     agentName: agent.displayName,
     agentId: agent.id,
   });
@@ -401,14 +441,28 @@ async function resolveSessionFileId(
   );
 }
 
-/** Schedule the first + retry reads of a session-file agent's registry after
- * it's first seen in a terminal's foreground. */
+/** Re-read every tracked session-file agent's registry against its sticky
+ * agent pgid. Driven by the session-file watch (and boot), so a session
+ * written long after the foreground was first detected still resolves. */
+function resolveAllSessionFileAgents() {
+  for (const [terminalId, entry] of sessions) {
+    if (entry.agentPgid == null || entry.agentCatalogId == null) continue;
+    const agent = agentById(entry.agentCatalogId);
+    if (agent?.resume.kind !== "session-file") continue;
+    void resolveSessionFileId(terminalId, agent, agent.resume, entry.agentPgid);
+  }
+}
+
+/** Schedule the first + short-retry reads of a session-file agent's registry
+ * after it's first seen in a terminal's foreground. Also ensures the parent
+ * dir is watched so a later first-message write still resolves. */
 function scheduleSessionFileReads(
   terminalId: string,
   agent: AgentDefinition,
   resume: AgentSessionFileResume,
   pgid: number,
 ) {
+  void ensureSessionFileWatches();
   for (const ms of SESSION_FILE_READ_DELAYS_MS) {
     if (ms === 0) {
       void resolveSessionFileId(terminalId, agent, resume, pgid);
@@ -422,6 +476,80 @@ function scheduleSessionFileReads(
   }
 }
 
+const SESSION_FILE_WATCH_PREFIX = "silo-agent-session-file:";
+const sessionFileWatchIds = new Set<string>();
+let unlistenSessionFileWatch: (() => void) | null = null;
+/** True once at least one session-file parent dir is watched. Stays false when
+ * the dir doesn't exist yet (Grok never installed / first launch) so the next
+ * foreground can retry. */
+let sessionFileWatchReady = false;
+
+/** Parent directory of a `$HOME`-relative session file path. */
+function sessionFileParentDir(home: string, sessionFilePath: string): string {
+  const idx = sessionFilePath.lastIndexOf("/");
+  return idx >= 0 ? `${home}/${sessionFilePath.slice(0, idx)}` : home;
+}
+
+/**
+ * Watch each session-file agent's registry parent dir (e.g. `~/.grok`) so a
+ * write that happens after Silo's short post-foreground retries — typical for
+ * Grok, which only creates a session on the first typed character — still
+ * resolves live. Directory watch (not the jsonl/json file alone) so the
+ * watcher survives the file being absent at boot and created on first use.
+ * Idempotent; retries later if no dir could be watched yet.
+ */
+async function ensureSessionFileWatches() {
+  if (sessionFileWatchReady) return;
+  const agents = sessionFileAgents();
+  if (agents.length === 0) return;
+
+  try {
+    const home = (await homeDir()).replace(/\/+$/, "");
+    const dirs = [
+      ...new Set(
+        agents.map((a) => sessionFileParentDir(home, a.resume.sessionFilePath)),
+      ),
+    ];
+    for (const dir of dirs) {
+      const watchId = `${SESSION_FILE_WATCH_PREFIX}${dir}`;
+      if (sessionFileWatchIds.has(watchId)) continue;
+      try {
+        await startWatch(watchId, dir);
+        sessionFileWatchIds.add(watchId);
+      } catch (err) {
+        // Dir may not exist yet (first-ever Grok install). Retry on the next
+        // session-file foreground.
+        agentsChannel.debug(
+          `Session-file watch not started for ${dir} (will retry).`,
+          err,
+        );
+      }
+    }
+    if (sessionFileWatchIds.size === 0) return;
+
+    if (!unlistenSessionFileWatch) {
+      unlistenSessionFileWatch = await onFileChange((evt) => {
+        if (!sessionFileWatchIds.has(evt.watchId)) return;
+        void resolveAllSessionFileAgents();
+      });
+    }
+    sessionFileWatchReady = true;
+    agentsChannel.info(
+      `Session-file watch started on ${[...sessionFileWatchIds].join(", ")} ` +
+        `(resolve on write — covers agents that create a session after start).`,
+    );
+    // Catch a write that landed while we were still wiring the watch.
+    resolveAllSessionFileAgents();
+  } catch (err) {
+    agentsChannel.warn(
+      "Could not start session-file watch; short post-foreground retries only.",
+      err,
+    );
+  }
+}
+
+void ensureSessionFileWatches();
+
 /**
  * Demote a promoted-shell terminal back to a plain shell once the foreground
  * genuinely returns to the shell itself. `atPrompt` (from `tcgetpgrp` at the
@@ -432,19 +560,31 @@ function scheduleSessionFileReads(
  * shell's. Only applies to promoted shells (`kind === "shell"`); a
  * born-agent terminal's `isAgent` is permanent by design (see
  * `agent-activity-model.ts`'s `reduce()`).
+ *
+ * Pending `needsAttention` must not block this: a shell-sourced `"detected"`
+ * idle gates demotion so a stray OSC 133 doesn't wipe an unread badge, but
+ * an OS-level prompt reclaim means the agent process is gone — we fire
+ * `"exited"` instead, which force-demotes.
  */
 function checkPromptDemotion(terminalId: string, atPrompt: boolean) {
   const entry = sessions.get(terminalId);
   if (!entry || !atPrompt) return;
   if (!entry.state.isAgent || entry.state.kind !== "shell") return;
+  demotePromotedShell(terminalId);
+}
 
-  applyEvent(terminalId, {
-    type: "detected",
-    status: "idle",
-    source: "shell",
-    isActiveTerminal: getTerminalService().getActive() === terminalId,
-    now: new Date().toISOString(),
-  });
+/**
+ * Force-demote a promoted shell (agent process gone). Uses the `"exited"`
+ * activity event so demotion isn't blocked by `needsAttention` the way a
+ * shell-sourced `"detected"` idle is (that gate exists so a stray OSC 133
+ * doesn't wipe an unread idle badge — but an OS-level prompt reclaim or a
+ * session-file registry drop means the agent is actually gone).
+ */
+function demotePromotedShell(terminalId: string) {
+  const entry = sessions.get(terminalId);
+  if (!entry) return;
+  if (!entry.state.isAgent || entry.state.kind !== "shell") return;
+  applyEvent(terminalId, { type: "exited" });
 }
 
 // ---- OSC detection dispatch (debounce timers) --------------------------------
@@ -553,8 +693,10 @@ function noteForeground(
   // leader — a tool subprocess (zsh/bash/npm) must not overwrite it, or the
   // SessionStart hook's Claude/Codex pid can no longer correlate.
   if (fg.pgid > 0 && isKnownAgentLeader(fg.leader)) {
+    const agent = agentByLeader(fg.leader);
     const becameAgent = entry.agentPgid !== fg.pgid;
     entry.agentPgid = fg.pgid;
+    entry.agentCatalogId = agent?.id ?? null;
     // SessionStart often lands *after* the first foreground tick (confirmed:
     // Claude #2 wrote events.jsonl ~2s after agentPgid was set; a single
     // immediate poll missed it and the regular 3s ticker then failed to
@@ -563,9 +705,9 @@ function noteForeground(
       scheduleHookCatchupReads();
       // Session-file agents (Grok) resolve their exact id from their own
       // registry rather than a hook — read it now (and retry) against this
-      // foreground pgid.
-      const agent = agentByLeader(fg.leader);
-      if (agent?.resume.kind === "session-file" && !entry.state.sessionId) {
+      // foreground pgid. Also re-reads when a foreign hook already stamped a
+      // wrong agentId (Grok + Claude settings import).
+      if (agent?.resume.kind === "session-file") {
         scheduleSessionFileReads(terminalId, agent, agent.resume, fg.pgid);
       }
     }
@@ -613,6 +755,7 @@ function attachSession(terminalId: string) {
       state.sessionId !== null || state.resumeCommand !== null,
     currentPgid: null,
     agentPgid: null,
+    agentCatalogId: null,
     hookSessionTimestamp: null,
     // Only suppress when restore says "idle and already seen" — a restored
     // needsAttention:true (never acked) or mid-working phase must still
@@ -726,6 +869,17 @@ const AGENT_HOOKS_WATCH_ID = "silo-agent-hooks";
 function applyHookMatch(terminalId: string, event: HookEvent) {
   const entry = sessions.get(terminalId);
   if (!entry) return;
+
+  // Grok (and any future Claude-compat CLI) can re-fire Claude's installed
+  // SessionStart hook against its own pid/session — reject when the sticky
+  // foreground leader is a different catalog agent.
+  if (!hookEventCompatibleWithStickyAgent(event.agent, entry.agentCatalogId)) {
+    agentsChannel.info(
+      `Ignoring ${event.agent} hook session ${event.sessionId} for terminal ${terminalId} — ` +
+        `foreground agent is ${entry.agentCatalogId}.`,
+    );
+    return;
+  }
 
   // Prefer the earliest SessionStart. A later probe must not overwrite a
   // live confirmation; a restart that restored a wrong id (no hook
@@ -957,6 +1111,13 @@ if (import.meta.hot) {
     unlistenHookWatch?.();
     unlistenHookWatch = null;
     void stopWatch(AGENT_HOOKS_WATCH_ID).catch(() => {});
+    unlistenSessionFileWatch?.();
+    unlistenSessionFileWatch = null;
+    for (const id of sessionFileWatchIds) {
+      void stopWatch(id).catch(() => {});
+    }
+    sessionFileWatchIds.clear();
+    sessionFileWatchReady = false;
     pendingHookEvents = [];
     consumeInFlight = false;
     consumeQueued = false;
@@ -1002,6 +1163,7 @@ export function resetSessionAfterRecreate(terminalId: string): void {
   if (!entry) return;
   entry.resumeHintResolved = false;
   entry.agentPgid = null;
+  entry.agentCatalogId = null;
   entry.hookSessionTimestamp = null;
   applyEvent(terminalId, { type: "reset" });
 }

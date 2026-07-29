@@ -18,6 +18,7 @@ import {
   agentById,
   agentByLeader,
   hookInstallableAgents,
+  sessionFileAgents,
   leaderBasename,
   detectFromOsc,
   detectIdleAfterWorking,
@@ -354,6 +355,17 @@ describe("hookInstallableAgents", () => {
       kind: "hook",
       installStrategy: "copilot-hooks-dir",
     });
+  });
+});
+
+describe("sessionFileAgents", () => {
+  it("includes Grok and only session-file resume agents", () => {
+    const ids = sessionFileAgents().map((a) => a.id);
+    expect(ids).toContain("grok");
+    for (const a of sessionFileAgents()) {
+      expect(a.resume.kind).toBe("session-file");
+    }
+    expect(ids).not.toContain("claude");
   });
 });
 

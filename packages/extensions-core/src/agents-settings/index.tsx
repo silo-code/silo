@@ -29,6 +29,7 @@ import type { Extension, ExtensionContext } from "@silo-code/sdk";
 import { Switch, SettingRow, Badge } from "@silo-code/sdk";
 import {
   hookInstallableAgents,
+  sessionFileAgents,
   buildTrackSessionScript,
   TRACK_SCRIPT_REL,
   type AgentDefinition,
@@ -332,6 +333,10 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
     }
   }
 
+  const autoAgents = sessionFileAgents();
+  const autoNames = autoAgents.map((a) => a.displayName).join(", ");
+  const autoSingular = autoAgents.length === 1;
+
   return (
     <div className="agents-settings-page">
       <p className="agents-settings-blurb">
@@ -388,6 +393,14 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
           )}
         </SettingRow>
       ))}
+
+      {autoAgents.length > 0 && (
+        <p className="agents-settings-blurb">
+          {autoNames} {autoSingular ? "needs" : "need"} no hook — Silo reads{" "}
+          {autoSingular ? "its" : "their"} native session registry automatically
+          when the CLI is running.
+        </p>
+      )}
     </div>
   );
 }

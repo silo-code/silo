@@ -180,6 +180,24 @@ export function shouldAcceptHookSessionId(
 }
 
 /**
+ * Whether a hook event's `agent` tag is compatible with the terminal's sticky
+ * catalog agent (the leader that set `agentPgid`). A mismatch means the hook
+ * fired under another agent's config — notably Grok importing Claude's
+ * `~/.claude/settings.json` SessionStart hooks and writing
+ * `agent: "claude"` against Grok's own pid/session id — and must not claim
+ * this terminal. `null` sticky means we haven't seen a known leader yet;
+ * allow the match (a later session-file read / foreground tick can still
+ * correct a premature apply).
+ */
+export function hookEventCompatibleWithStickyAgent(
+  eventAgent: string,
+  stickyCatalogId: string | null,
+): boolean {
+  if (stickyCatalogId == null) return true;
+  return eventAgent === stickyCatalogId;
+}
+
+/**
  * From a consume's full candidate list (newly-read events plus whatever was
  * left over, unmatched, from prior consumes) and the matches that were just
  * found, return the events to carry forward: anything not just matched, not
