@@ -7,9 +7,9 @@ import type { TerminalForeground } from "./terminal-foreground";
 import {
   genericHint,
   isKnownAgentLeader,
-  agentsChannel,
   type ResumeHint,
 } from "./agent-resume-hint";
+import { agentsChannel } from "./agents-channel";
 import {
   detectFromOsc,
   detectIdleAfterWorking,

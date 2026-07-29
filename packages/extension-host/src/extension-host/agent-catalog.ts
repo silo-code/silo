@@ -8,6 +8,7 @@ import {
   detectShellIntegration,
   type DetectionResult,
 } from "./agent-osc-detectors";
+import { renderTrackSessionScript } from "./agent-hook-script";
 
 /**
  * The single source of truth for every coding agent Silo supports (RFC 0018).
@@ -237,100 +238,16 @@ function knownAgentNames(): string {
 }
 
 /**
- * Build the shared POSIX-shell session-capture script (RFC 0019). One script
- * serves every agent — the walk logic is agent-independent; the per-agent tag
- * arrives as `$1`. It reads the hook's JSON payload from stdin, extracts the
- * session id, walks up from its own PPID to the real agent process (raw PPID
- * can be a Cursor setpgrp worker or a Claude/Codex tool subprocess), and
- * appends one event line to `~/.silo/agent-hooks/events.jsonl` tagged with the
- * resolved **process-group id** (the reader in `agent-hook-events.ts` matches
- * that against a terminal's foreground pgid).
- *
- * This deliberately replaces the former inline `python3 -c
- * "…exec(base64.b64decode('…'))"` command, which (a) tripped endpoint-security
- * tools on the obfuscated-`exec` signature and (b) assumed a Python interpreter
- * that isn't guaranteed on any platform. `/bin/sh` — the very process that runs
- * the hook — plus POSIX `ps`/`printf`/`date`/`mkdir` are all guaranteed on
- * macOS and Linux (the feature's supported surface). No `eval`, no `base64`,
- * no network, no broad process enumeration (`ps -p <pid>` is targeted).
- *
- * Session-id extraction uses pure shell parameter expansion (no `sed`
- * backreferences), tolerant of both `session_id` (Claude/Codex) and `sessionId`
- * (Cursor/Copilot) spellings. `cwd` is deliberately **not** written: nothing
- * consumes it, and dropping it makes every remaining field escaping-safe by
- * construction (integer pgid / UUID / catalog slug / `date -u` string), so a
- * `printf`-built line can never be malformed in a way that loses the session
- * id. The `$SILO_TERMINAL_ID` branch is the reserved seam for RFC 0020's
- * Silo-spawned fast path; today it falls through to the walk.
+ * Build the shared POSIX-shell session-capture script (RFC 0019). Catalog
+ * supplies known names + marker; the shell body lives in
+ * {@link renderTrackSessionScript}.
  */
 export function buildTrackSessionScript(): string {
-  return [
-    "#!/bin/sh",
-    "# Silo session tracking (getsilo.dev) — records which agent session is",
-    "# running in a terminal so Silo can offer an exact resume command.",
-    "# Safe to inspect. Managed by Silo; see Settings > Agents.",
-    `# Marker: ${SILO_HOOK_MARKER}`,
-    'agent="$1"',
-    "payload=$(cat | tr '\\n' ' ')",
-    "",
-    "# Extract the session id (both key spellings) via parameter expansion —",
-    "# no sed, no regex backslashes; session ids are UUIDs so this is safe.",
-    "sid=",
-    'case "$payload" in',
-    "  *'\"session_id\"'*) rest=${payload#*'\"session_id\"'} ;;",
-    "  *'\"sessionId\"'*)  rest=${payload#*'\"sessionId\"'} ;;",
-    "  *) rest= ;;",
-    "esac",
-    'if [ -n "$rest" ]; then',
-    "  rest=${rest#*'\"'}     # drop through the value's opening quote",
-    "  sid=${rest%%'\"'*}     # value is up to the next quote",
-    "fi",
-    '[ -n "$sid" ] || exit 0  # nothing to record without a session id',
-    "",
-    "# Forward-compat seam (RFC 0020): Silo-spawned agents inherit",
-    "# $SILO_TERMINAL_ID and can be matched directly, skipping the walk.",
-    "# Structured env-var-first so 0020 slots in additively; empty today.",
-    'if [ -n "$SILO_TERMINAL_ID" ]; then',
-    "  : # RFC 0020 fills this in (write a terminal-id-keyed event, then exit).",
-    "fi",
-    "",
-    "# Walk parents from our PPID to the real agent process, then take its pgid.",
-    "# Prefer an EXACT argv0-basename match ($exact) over a mere substring match",
-    "# ($sub). Cursor runs the hook from a setpgrp worker whose argv references",
-    "# the cursor-agent path (so it substring-matches) but whose basename is not",
-    "# an agent — stopping there yields the worker's own pgid, not the terminal's",
-    "# foreground group (confirmed live: worker pgid 99940 vs cursor-agent 98143).",
-    "# Exact-first climbs past that worker to cursor-agent; substring stays as the",
-    "# fallback for node-wrapped agents whose argv0 is 'node' (Claude/Copilot).",
-    `KNOWN="${knownAgentNames()}"`,
-    "pid=$PPID; exact=; sub=",
-    "i=0",
-    'while [ "$i" -lt 12 ] && [ "${pid:-0}" -gt 1 ]; do',
-    '  args=$(ps -p "$pid" -o args= 2>/dev/null)',
-    '  [ -n "$args" ] || break',
-    "  base=${args%% *}; base=${base##*/}",
-    "  for k in $KNOWN; do",
-    '    [ "$base" = "$k" ] && { exact=$pid; break; }',
-    "  done",
-    '  [ -n "$exact" ] && break',
-    '  if [ -z "$sub" ]; then',
-    "    for k in $KNOWN; do",
-    '      case "$args" in *"$k"*) sub=$pid; break ;; esac',
-    "    done",
-    "  fi",
-    "  pid=$(ps -p \"$pid\" -o ppid= 2>/dev/null | tr -d ' ')",
-    "  i=$((i + 1))",
-    "done",
-    "target=${exact:-${sub:-$PPID}}",
-    "pgid=$(ps -p \"$target\" -o pgid= 2>/dev/null | tr -d ' ')",
-    '[ -n "$pgid" ] || exit 0',
-    "",
-    'dir="$HOME/.silo/agent-hooks"; mkdir -p "$dir"',
-    "ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-    'printf \'{"pid":%s,"sessionId":"%s","agent":"%s","timestamp":"%s"}\\n\' \\',
-    '  "$pgid" "$sid" "$agent" "$ts" >> "$dir/events.jsonl"',
-    "",
-  ].join("\n");
+  return renderTrackSessionScript({
+    marker: SILO_HOOK_MARKER,
+    hooksDirRel: AGENT_HOOKS_DIR_REL,
+    knownNames: knownAgentNames(),
+  });
 }
 
 /**

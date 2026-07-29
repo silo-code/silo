@@ -4,7 +4,7 @@ const invoke = vi.fn();
 const homeDir = vi.fn(async () => "/tmp");
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("./platform", () => ({ homeDir }));
-vi.mock("./agent-resume-hint", () => ({
+vi.mock("./agents-channel", () => ({
   agentsChannel: {
     debug: vi.fn(),
     info: vi.fn(),

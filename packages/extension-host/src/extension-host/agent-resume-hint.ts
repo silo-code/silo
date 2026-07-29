@@ -1,9 +1,4 @@
-import { createHostChannel } from "./output-store";
 import { agentByLeader, leaderBasename } from "./agent-catalog";
-
-/** Output-panel channel for `ctx.agents` diagnostics — visible in Silo's own
- * Output window, not the devtools console. */
-export const agentsChannel = createHostChannel("silo:agents", "Agents");
 
 // Resume-hint resolution for `ctx.agents` (RFC 0018). There are exactly two
 // possible outcomes, and neither one guesses:

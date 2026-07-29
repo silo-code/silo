@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { agentsChannel } from "./agent-resume-hint";
+import { agentsChannel } from "./agents-channel";
+import { AGENT_HOOKS_DIR_REL } from "./agent-catalog";
 import { homeDir } from "./platform";
 
 /**
@@ -9,7 +10,7 @@ import { homeDir } from "./platform";
  * with no directory/recency inference at all. This is the *only* source of an
  * exact session id; without a hook match, a terminal gets the honest,
  * session-id-less generic hint in `agent-resume-hint.ts` instead. See RFC
- * 0017's hook-based resolution addendum.
+ * 0018's hook-based resolution addendum.
  *
  * Fixed, app-identity-agnostic path (not under `~/.config/silo[-dev]`) so it
  * works the same regardless of which Silo build/identity is running — the
@@ -18,7 +19,7 @@ import { homeDir } from "./platform";
  * Delivery is watch-driven (`agents-service.ts` watches the hooks directory);
  * this module only tails new lines when asked.
  */
-const HOOKS_DIR_REL = ".silo/agent-hooks";
+const HOOKS_DIR_REL = AGENT_HOOKS_DIR_REL;
 
 /**
  * How long an unmatched event is retried against tracked terminals before
