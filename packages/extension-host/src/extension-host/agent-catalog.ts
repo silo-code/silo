@@ -10,7 +10,7 @@ import {
 } from "./agent-osc-detectors";
 
 /**
- * The single source of truth for every coding agent Silo supports (RFC 0017).
+ * The single source of truth for every coding agent Silo supports (RFC 0018).
  *
  * Before this catalog, per-agent knowledge was scattered across ~6 files
  * (leader names, activity detectors, the hook command, the settings-page
@@ -26,7 +26,7 @@ import {
  * - hook-event display names → `agentById`
  *
  * Host-internal by design — detection and resume are sealed (no public
- * `registerAgent`; see RFC 0017 "Detection is sealed, not pluggable"). The
+ * `registerAgent`; see RFC 0018 "Detection is sealed, not pluggable"). The
  * `core.agents-settings` extension reads the catalog through the privileged
  * `@silo-code/extension-host/internal` barrel.
  *
@@ -38,7 +38,7 @@ import {
  * checkpoint for the periodic agent-support audit skill: it compares the
  * agent's current published version against `verifiedAgainstVersion`, and
  * when they differ, judges the upstream change against `contract` (rather
- * than dumbly diffing docs) before flagging anything. See RFC 0017
+ * than dumbly diffing docs) before flagging anything. See RFC 0018
  * "Tracking upstream agent changes".
  */
 
@@ -75,6 +75,28 @@ export type IdleAfterWorkingDetector = (
  * disturbing hooks a user configured through another tool. */
 export const SILO_HOOK_MARKER = "silo-managed-agent-hook";
 
+/** Directory, relative to `$HOME`, where Silo's session hook writes its event
+ * log and where the shared capture script lives. App-identity-agnostic (not
+ * under `~/.config/silo[-dev]`) so every Silo build/identity reads the same
+ * place — see `agent-hook-events.ts`. */
+export const AGENT_HOOKS_DIR_REL = ".silo/agent-hooks";
+
+/** The shared POSIX-shell session-capture script, relative to `$HOME`. Written
+ * once by the Settings → Agents installer (RFC 0019); every agent's hook
+ * command invokes it as `sh "$HOME/<this>" <agentId>`. */
+export const TRACK_SCRIPT_REL = `${AGENT_HOOKS_DIR_REL}/track-session.sh`;
+
+/**
+ * How Settings → Agents writes this agent's hook into its config. Each
+ * strategy has its own pure installer (Claude/Codex share
+ * `hook-installer.ts`; Cursor and Copilot each have a dedicated module)
+ * because the on-disk schemas differ.
+ */
+export type HookInstallStrategy =
+  | "claude-settings"
+  | "cursor-hooks-json"
+  | "copilot-hooks-dir";
+
 /**
  * Exact-resume capability for an agent: either it exposes a session-start
  * hook Silo can install (`kind: "hook"`), or it doesn't and the terminal
@@ -84,13 +106,15 @@ export const SILO_HOOK_MARKER = "silo-managed-agent-hook";
  */
 export interface AgentHookResume {
   kind: "hook";
-  /** Path to the agent's settings file, relative to `$HOME` (POSIX slashes).
-   * NOTE: the install/merge logic (`hook-installer.ts`) currently assumes a
-   * Claude-style `settings.json` (`hooks.<Event>[].hooks[]`). A genuinely
-   * different-shaped config (e.g. Cursor's `hooks.json`) will need its own
-   * install strategy when it's added — this union is the seam for that. */
+  /** Which on-disk schema / installer Settings should use for this agent. */
+  installStrategy: HookInstallStrategy;
+  /** Path to the agent's hook config file, relative to `$HOME` (POSIX
+   * slashes). For `copilot-hooks-dir` this is Silo's dedicated file under
+   * `~/.copilot/hooks/` (created/removed wholesale); for the others it is
+   * the shared settings/hooks file that is merge-edited. */
   configPath: string;
-  /** Lifecycle event the hook attaches to, e.g. `"SessionStart"`. */
+  /** Lifecycle event the hook attaches to, e.g. `"SessionStart"` (Claude/
+   * Codex) or `"sessionStart"` (Cursor / Copilot camelCase). */
   hookEvent: string;
   /** Marker embedded in the built command (always {@link SILO_HOOK_MARKER}). */
   marker: string;
@@ -99,16 +123,18 @@ export interface AgentHookResume {
    * (see `agent-hook-events.ts`). */
   buildCommand: () => string;
   /** Builds the exact resume command for a captured session id, e.g.
-   * `claude --resume <id>` / `codex resume <id>`. Per-agent because the
-   * syntax differs; this is what `applyHookMatch` surfaces as the terminal's
-   * `resumeCommand` once the hook reports an exact id. */
+   * `claude --resume <id>` / `codex resume <id>` / `agent --resume <id>` /
+   * `copilot --resume=<id>`. Per-agent because the syntax differs; this is
+   * what `applyHookMatch` surfaces as the terminal's `resumeCommand` once
+   * the hook reports an exact id. */
   buildResumeCommand: (sessionId: string) => string;
   /** Optional human-readable label written onto the installed entry (passed
    * through to `HookInstallSpec.statusMessage`) for agents whose schema
    * supports one (Codex's `statusMessage` field) — an extra attribution
    * layer for a human reviewing the hook, on top of the command's own
-   * leading identifier (see `buildPythonHookCommand`). Undefined for agents
-   * whose schema doesn't have an equivalent field (Claude Code). */
+   * self-identifying `.silo/…/track-session.sh` path (see
+   * {@link buildHookCommand}). Undefined for agents whose schema doesn't have
+   * an equivalent field (Claude Code). */
   statusMessage?: string;
   /**
    * Extra manual step required *after* toggling install on, shown in the
@@ -170,37 +196,112 @@ export interface AgentDefinition {
 }
 
 /**
- * The session-capture hook command: a single-line `python3` one-liner (no new
- * runtime dependency beyond what the agent CLI itself assumes) that reads the
- * hook's JSON stdin payload and appends one event line, tagged with `agentId`.
- * Single-line with no conditional blocks so no newline is ever needed — it
- * always writes a line, even with an empty session id, and the host-side
- * reader skips empty ones. Shared by every agent whose SessionStart payload
- * exposes a `session_id`/`sessionId` field (Claude and Codex both do).
- *
- * The **leading** `_='Silo session tracking (getsilo.dev)'` no-op assignment
- * exists purely for human review, not behavior — confirmed necessary in
- * testing: an agent that gates a new hook behind manual trust approval (see
- * Codex's `postInstallNote`) shows the reviewer a *truncated* command
- * preview, and `SILO_HOOK_MARKER` is embedded as a trailing `#` comment,
- * which never survives that truncation. Putting a human-readable identifier
- * first means a user reviewing an unfamiliar hook can actually tell it's
- * Silo's before approving it, rather than trusting an opaque `python3 -c
- * "import json,sys,os,…`. `SILO_HOOK_MARKER` itself stays at the end — it's
- * the exact, code-matched string `hasHookInstalled`/uninstall key off of, not
- * a display concern, so it isn't duplicated up front.
+ * The list of known-agent binary names the capture script matches against
+ * while walking up the process tree — the union of every catalog entry's
+ * `leaderNames`, deduped. Templated into the script at write time (RFC 0019)
+ * so the catalog stays the single source of truth: adding an agent updates the
+ * script the next time it's written, with no second hand-maintained list.
  */
-function buildPythonHookCommand(agentId: string): string {
-  const script =
-    "_='Silo session tracking (getsilo.dev)';" +
-    "import json,sys,os,datetime;" +
-    "d=json.load(sys.stdin);" +
-    "sid=d.get('session_id') or d.get('sessionId') or '';" +
-    "os.makedirs(os.path.expanduser('~/.silo/agent-hooks'),exist_ok=True);" +
-    "open(os.path.expanduser('~/.silo/agent-hooks/events.jsonl'),'a').write(" +
-    `json.dumps({'pid':os.getppid(),'sessionId':sid,'cwd':d.get('cwd',''),'agent':'${agentId}','timestamp':datetime.datetime.utcnow().isoformat()+'Z'})` +
-    "+chr(10))";
-  return `python3 -c "${script}" # ${SILO_HOOK_MARKER}`;
+function knownAgentNames(): string {
+  return [...new Set(AGENT_CATALOG.flatMap((a) => a.leaderNames))].join(" ");
+}
+
+/**
+ * Build the shared POSIX-shell session-capture script (RFC 0019). One script
+ * serves every agent — the walk logic is agent-independent; the per-agent tag
+ * arrives as `$1`. It reads the hook's JSON payload from stdin, extracts the
+ * session id, walks up from its own PPID to the real agent process (raw PPID
+ * can be a Cursor setpgrp worker or a Claude/Codex tool subprocess), and
+ * appends one event line to `~/.silo/agent-hooks/events.jsonl` tagged with the
+ * resolved **process-group id** (the reader in `agent-hook-events.ts` matches
+ * that against a terminal's foreground pgid).
+ *
+ * This deliberately replaces the former inline `python3 -c
+ * "…exec(base64.b64decode('…'))"` command, which (a) tripped endpoint-security
+ * tools on the obfuscated-`exec` signature and (b) assumed a Python interpreter
+ * that isn't guaranteed on any platform. `/bin/sh` — the very process that runs
+ * the hook — plus POSIX `ps`/`printf`/`date`/`mkdir` are all guaranteed on
+ * macOS and Linux (the feature's supported surface). No `eval`, no `base64`,
+ * no network, no broad process enumeration (`ps -p <pid>` is targeted).
+ *
+ * Session-id extraction uses pure shell parameter expansion (no `sed`
+ * backreferences), tolerant of both `session_id` (Claude/Codex) and `sessionId`
+ * (Cursor/Copilot) spellings. `cwd` is deliberately **not** written: nothing
+ * consumes it, and dropping it makes every remaining field escaping-safe by
+ * construction (integer pgid / UUID / catalog slug / `date -u` string), so a
+ * `printf`-built line can never be malformed in a way that loses the session
+ * id. The `$SILO_TERMINAL_ID` branch is the reserved seam for RFC 0020's
+ * Silo-spawned fast path; today it falls through to the walk.
+ */
+export function buildTrackSessionScript(): string {
+  return [
+    "#!/bin/sh",
+    "# Silo session tracking (getsilo.dev) — records which agent session is",
+    "# running in a terminal so Silo can offer an exact resume command.",
+    "# Safe to inspect. Managed by Silo; see Settings > Agents.",
+    `# Marker: ${SILO_HOOK_MARKER}`,
+    'agent="$1"',
+    "payload=$(cat | tr '\\n' ' ')",
+    "",
+    "# Extract the session id (both key spellings) via parameter expansion —",
+    "# no sed, no regex backslashes; session ids are UUIDs so this is safe.",
+    "sid=",
+    'case "$payload" in',
+    "  *'\"session_id\"'*) rest=${payload#*'\"session_id\"'} ;;",
+    "  *'\"sessionId\"'*)  rest=${payload#*'\"sessionId\"'} ;;",
+    "  *) rest= ;;",
+    "esac",
+    'if [ -n "$rest" ]; then',
+    "  rest=${rest#*'\"'}     # drop through the value's opening quote",
+    "  sid=${rest%%'\"'*}     # value is up to the next quote",
+    "fi",
+    '[ -n "$sid" ] || exit 0  # nothing to record without a session id',
+    "",
+    "# Forward-compat seam (RFC 0020): Silo-spawned agents inherit",
+    "# $SILO_TERMINAL_ID and can be matched directly, skipping the walk.",
+    "# Structured env-var-first so 0020 slots in additively; empty today.",
+    'if [ -n "$SILO_TERMINAL_ID" ]; then',
+    "  : # RFC 0020 fills this in (write a terminal-id-keyed event, then exit).",
+    "fi",
+    "",
+    "# Walk parents from our PPID to the real agent process, then take its pgid.",
+    `KNOWN="${knownAgentNames()}"`,
+    "pid=$PPID; found=",
+    "i=0",
+    'while [ "$i" -lt 12 ] && [ "${pid:-0}" -gt 1 ]; do',
+    '  args=$(ps -p "$pid" -o args= 2>/dev/null)',
+    "  base=${args%% *}; base=${base##*/}",
+    "  for k in $KNOWN; do",
+    '    if [ "$base" = "$k" ]; then found=$pid; break; fi',
+    '    case "$args" in *"$k"*) found=$pid; break ;; esac',
+    "  done",
+    '  [ -n "$found" ] && break',
+    "  pid=$(ps -p \"$pid\" -o ppid= 2>/dev/null | tr -d ' ')",
+    "  i=$((i + 1))",
+    "done",
+    "target=${found:-$PPID}",
+    "pgid=$(ps -p \"$target\" -o pgid= 2>/dev/null | tr -d ' ')",
+    '[ -n "$pgid" ] || exit 0',
+    "",
+    'dir="$HOME/.silo/agent-hooks"; mkdir -p "$dir"',
+    "ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    'printf \'{"pid":%s,"sessionId":"%s","agent":"%s","timestamp":"%s"}\\n\' \\',
+    '  "$pgid" "$sid" "$agent" "$ts" >> "$dir/events.jsonl"',
+    "",
+  ].join("\n");
+}
+
+/**
+ * The single-line command Silo installs into an agent's hook config: a plain
+ * invocation of the shared {@link buildTrackSessionScript} script, tagged with
+ * this agent's id and carrying {@link SILO_HOOK_MARKER} as a trailing comment
+ * (what `isSiloEntry` keys off for install-state detection / uninstall /
+ * drift-refresh). `$HOME`-relative so it bakes in no machine-specific path and
+ * survives config-syncing across machines; every agent runs hooks via `sh -c`,
+ * so `$HOME` expands.
+ */
+function buildHookCommand(agentId: string): string {
+  return `sh "$HOME/${TRACK_SCRIPT_REL}" ${agentId} # ${SILO_HOOK_MARKER}`;
 }
 
 const claude: AgentDefinition = {
@@ -210,10 +311,11 @@ const claude: AgentDefinition = {
   activityDetectors: [detectClaudeCode],
   resume: {
     kind: "hook",
+    installStrategy: "claude-settings",
     configPath: ".claude/settings.json",
     hookEvent: "SessionStart",
     marker: SILO_HOOK_MARKER,
-    buildCommand: () => buildPythonHookCommand("claude"),
+    buildCommand: () => buildHookCommand("claude"),
     buildResumeCommand: (sessionId) => `claude --resume ${sessionId}`,
   },
   docsUrl: "https://getsilo.dev/guide/agent-sessions#claude-code",
@@ -222,8 +324,10 @@ const claude: AgentDefinition = {
     "configured in ~/.claude/settings.json under hooks.SessionStart[].hooks[] " +
     "as { type: 'command', command }; (2) the hook receives a JSON stdin " +
     "payload carrying a session id (field `session_id`, or `sessionId`) and " +
-    "`cwd`; (3) the hook process's PPID is the claude process's own PID (used " +
-    "to correlate against the terminal's foreground pgid). Activity detection " +
+    "`cwd`; (3) the hook walks parents from its PPID to find the agent " +
+    "process and records that process's pgid (used to correlate against the " +
+    "terminal's foreground pgid — raw PPID alone misses Cursor workers that " +
+    "setpgrp). Activity detection " +
     "depends on Claude emitting a braille-spinner glyph (U+2800–28FF) while " +
     "working and a '✳' marker when awaiting input.",
   upstreamRefs: [
@@ -249,13 +353,14 @@ const codex: AgentDefinition = {
   idleAfterWorking: detectCodexIdleAfterWorking,
   resume: {
     kind: "hook",
+    installStrategy: "claude-settings",
     // Same shape as Claude's settings.json (hooks.SessionStart[].hooks[]), and
     // the same `session_id` payload field — so it reuses the installer and
     // hook command verbatim, only the agent tag and resume command differ.
     configPath: ".codex/hooks.json",
     hookEvent: "SessionStart",
     marker: SILO_HOOK_MARKER,
-    buildCommand: () => buildPythonHookCommand("codex"),
+    buildCommand: () => buildHookCommand("codex"),
     buildResumeCommand: (sessionId) => `codex resume ${sessionId}`,
     // Codex's schema documents statusMessage as "a display string shown
     // during hook execution" — an extra attribution surface on top of the
@@ -311,7 +416,9 @@ const codex: AgentDefinition = {
 const cursor: AgentDefinition = {
   id: "cursor",
   displayName: "Cursor Agent",
-  leaderNames: ["cursor-agent"],
+  // `cursor-agent` is the binary basename on PATH installs; `agent` is the
+  // common shim name (`~/.local/bin/agent` → cursor-agent).
+  leaderNames: ["cursor-agent", "agent"],
   // OSC 0 title status (preferred), ported from silo-extensions/agent-monitor.
   // Only emitted when `display.showStatusIndicators` is true in
   // ~/.cursor/cli-config.json — the upstream *default is false* — so the raw
@@ -320,36 +427,47 @@ const cursor: AgentDefinition = {
   // Ink TUI spinner frames land in the raw PTY stream regardless of the OSC
   // config flag — this is the fallback that works out of the box.
   outputDetector: detectCursorAgentOutput,
-  // Cursor DOES support session hooks and exact resume by id
-  // (`cursor-agent --resume <id>`, chats under ~/.cursor/chats), but its
-  // ~/.cursor/hooks.json uses a *different schema* than the
-  // hooks.<Event>[].hooks[] shape Silo's installer writes — so Silo cannot
-  // safely auto-install it yet (writing the wrong shape would corrupt the
-  // user's config). Encoded as `none` (detection + honest generic hint only)
-  // until a Cursor-shaped installer exists. This is a statement about *Silo's*
-  // current capability, not a claim that Cursor lacks the feature. Follow-up:
-  // a per-agent install strategy (or a Cursor `resume` variant) + confirming
-  // the exact payload field carrying the resumable id.
-  resume: { kind: "none" },
+  resume: {
+    kind: "hook",
+    installStrategy: "cursor-hooks-json",
+    // Cursor's schema is `{ version, hooks: { sessionStart: [{ command }] } }`
+    // — not Claude's nested hooks[] groups. Installed via
+    // cursor-hook-installer.ts.
+    configPath: ".cursor/hooks.json",
+    hookEvent: "sessionStart",
+    marker: SILO_HOOK_MARKER,
+    buildCommand: () => buildHookCommand("cursor"),
+    // Confirmed live (2026-07-28, cursor-agent 2026.07.23): CLI help lists
+    // `--resume [chatId]`; the sessionStart payload's `session_id` is the
+    // same UUID as `conversation_id` and works with `agent --resume <id>`.
+    buildResumeCommand: (sessionId) => `agent --resume ${sessionId}`,
+  },
   docsUrl: "https://getsilo.dev/guide/agent-sessions#cursor-agent",
   contract:
-    "Resume: Silo recognizes the `cursor-agent` leader and gives a generic " +
-    "resume hint. Exact resume is possible upstream (`cursor-agent --resume " +
-    "<id>`) via a SessionStart hook in ~/.cursor/hooks.json, but that file's " +
-    "schema differs from the shape Silo's installer writes, so auto-install " +
-    "is a follow-up. Activity detection (ported from " +
-    "silo-extensions/agent-monitor, 2026-07-28): preferred signal is an OSC " +
-    "0 title of the form '<name> - <emoji?> <status>' — but only emitted " +
-    "when `display.showStatusIndicators` is true in ~/.cursor/cli-config.json " +
-    "(default false); the fallback (what most installs actually hit) matches " +
-    "known ink-spinner byte sequences in the terminal's raw output stream " +
-    "instead, ending on ~1.5s of silence after the last frame (no explicit " +
-    "'idle' signal exists in raw output).",
+    "Exact resume depends on Cursor CLI's sessionStart hook in " +
+    "~/.cursor/hooks.json: (1) schema is `{ version: 1, hooks: { " +
+    "sessionStart: [{ command }] } }` (camelCase event, flat command " +
+    "entries — NOT Claude's hooks.<Event>[].hooks[] shape); (2) CONFIRMED " +
+    "live against cursor-agent 2026.07.23 (2026-07-28): CLI fires " +
+    "sessionStart with JSON stdin carrying `session_id` (= conversation_id); " +
+    "(3) the hook walks parents from its PPID to find the agent process and " +
+    "records that process's pgid (raw PPID/getpgid(ppid) miss Cursor workers " +
+    "that setpgrp); (4) " +
+    "`agent --resume <id>` (or `cursor-agent --resume <id>`) resumes by that " +
+    "id. Activity detection (ported from silo-extensions/agent-monitor, " +
+    "2026-07-28): preferred signal is an OSC 0 title of the form " +
+    "'<name> - <emoji?> <status>' — but only emitted when " +
+    "`display.showStatusIndicators` is true in ~/.cursor/cli-config.json " +
+    "(default false); the fallback matches known ink-spinner byte sequences " +
+    "in the terminal's raw output stream, ending on ~1.5s of silence after " +
+    "the last frame.",
   upstreamRefs: [
     "https://docs.cursor.com/en/cli/reference/hooks",
     "https://docs.cursor.com/en/cli/overview",
+    "https://cursor.com/docs/hooks",
   ],
-  lastVerified: "2026-07-27",
+  lastVerified: "2026-07-28",
+  verifiedAgainstVersion: "cursor-agent@2026.07.23-e383d2b",
 };
 
 const copilot: AgentDefinition = {
@@ -357,21 +475,37 @@ const copilot: AgentDefinition = {
   displayName: "GitHub Copilot CLI",
   leaderNames: ["copilot"],
   // OSC 9;4 (ConEmu/Windows Terminal progress protocol), ported from
-  // silo-extensions/agent-monitor. No hook/session mechanism is known for
-  // this CLI yet — resume is `none` until one is confirmed, same honest-gap
-  // treatment as Cursor.
+  // silo-extensions/agent-monitor.
   activityDetectors: [detectCopilotCLI],
-  resume: { kind: "none" },
+  resume: {
+    kind: "hook",
+    installStrategy: "copilot-hooks-dir",
+    // Dedicated file under ~/.copilot/hooks/ — Copilot loads every *.json
+    // there, so create/delete is safer than merging settings.json.
+    configPath: ".copilot/hooks/silo-managed-agent-hook.json",
+    hookEvent: "sessionStart",
+    marker: SILO_HOOK_MARKER,
+    buildCommand: () => buildHookCommand("copilot"),
+    // Confirmed live (2026-07-28): `copilot --resume=<id>` (and
+    // `--resume=<prefix>`); sessionStart payload carries camelCase
+    // `sessionId`.
+    buildResumeCommand: (sessionId) => `copilot --resume=${sessionId}`,
+  },
   docsUrl: "https://getsilo.dev/guide/agent-sessions#github-copilot-cli",
   contract:
-    "Detection only: 'copilot' is the confirmed leader/binary name (per " +
-    "`npm install -g @github/copilot`, `copilot` to launch). Activity comes " +
-    "from OSC 9;4 progress notifications — payload '4;<state>' — with " +
-    "state 1/2/3 = working and state 0/4 = idle. No session-hook or " +
-    "resume-by-id mechanism has been confirmed for this CLI, so exact resume " +
-    "is out of scope until one is found; this entry exists for activity " +
-    "detection parity only.",
+    "Exact resume depends on Copilot CLI's sessionStart hook: (1) user-level " +
+    "hooks live as *.json files under ~/.copilot/hooks/ with shape " +
+    "`{ version: 1, hooks: { sessionStart: [{ type: 'command', command }] } }` " +
+    "(also loadable inline in ~/.copilot/settings.json — Silo uses a " +
+    "dedicated file so uninstall is delete-only); (2) CONFIRMED live " +
+    "(2026-07-28): sessionStart fires with camelCase `sessionId` + `cwd` on " +
+    "stdin, including for `copilot -p`; (3) the hook walks parents from its " +
+    "PPID to find the agent process and records that process's pgid; (4) " +
+    "`copilot --resume=<id>` resumes by that id. Activity comes from " +
+    "OSC 9;4 progress notifications — payload '4;<state>' — with state " +
+    "1/2/3 = working and state 0/4 = idle.",
   upstreamRefs: [
+    "https://docs.github.com/en/copilot/reference/hooks-configuration",
     "https://github.com/github/copilot-cli",
     "https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/overview",
   ],

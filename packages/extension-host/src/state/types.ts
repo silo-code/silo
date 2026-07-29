@@ -82,7 +82,7 @@ export interface WorkspaceGroup {
  * `AppState.agentState`. Excludes `kind` (re-read fresh from the terminal
  * record on restore) and `terminalId` (the map key). Written by the host's
  * `ctx.agents` implementation on every real transition; read back on restore
- * to compute `stale` from `lastLiveAt`. See RFC 0017.
+ * to compute `stale` from `lastLiveAt`. See RFC 0018.
  */
 export interface PersistedAgentInfo {
   workspaceId: string;

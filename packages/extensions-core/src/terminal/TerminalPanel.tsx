@@ -607,7 +607,7 @@ export function TerminalPanel(
           // toggling that risks revealing/hiding content rather than just
           // fixing input routing, and nothing observed here implicates it.
           term.write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?2004l");
-          // ctx.agents (RFC 0017): the resume hint markSessionDead resolved
+          // ctx.agents (RFC 0018): the resume hint markSessionDead resolved
           // above, if any, appended as inert text before the fresh prompt —
           // then clear "dead" back to a fresh state now that a live session
           // has taken over this terminal id.
@@ -725,7 +725,7 @@ export function TerminalPanel(
           // PTY daemon died (e.g. reboot). Save the old sessionId so the next
           // init() run can replay its persisted buffer after spawning a fresh shell.
           replayFromRef.current = tRec.sessionId;
-          // ctx.agents (RFC 0017): mark this terminal's agent activity "dead" —
+          // ctx.agents (RFC 0018): mark this terminal's agent activity "dead" —
           // resolves/attaches the resume hint if one wasn't already live-resolved.
           markSessionDead(terminalId);
           recreateTerminal(activeWsId!, terminalId);

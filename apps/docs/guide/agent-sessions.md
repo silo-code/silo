@@ -39,9 +39,11 @@ only ever adds or removes its own entry (marked `# silo-managed-agent-hook`);
 your other hooks are never touched.
 
 Exact resume works on **macOS and Linux**; on Windows, agents are still
-detected, but exact resume isn't available. (The exact hook command is being
-simplified — see the [agent system architecture](/roadmap/agent-system) for the
-why.)
+detected, but exact resume isn't available. The hook runs a small, readable
+shell script Silo writes to `~/.silo/agent-hooks/track-session.sh` — you can
+open and inspect it, and it needs no interpreter or dependency beyond the shell
+your agent already runs its hooks with. See the
+[agent system architecture](/roadmap/agent-system) for the design.
 
 ## Settings → Agents
 

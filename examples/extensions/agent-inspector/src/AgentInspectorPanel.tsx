@@ -70,25 +70,17 @@ export function AgentInspectorPanel({ ctx }: Props) {
   // Tracks the currently active terminal so its row can be highlighted
   // (see AgentRow's ai-row--active) — seeded from getActive() since
   // subscribeActive only reports *changes*, not the terminal that's already
-  // active when this panel mounts.
+  // active when this panel mounts. Deliberately does *not* call
+  // ctx.agents.acknowledge() on focus — that's what the per-row Ack button
+  // is for (and matches the host policy: acknowledge is consumer-driven,
+  // not auto-on-view).
   const [activeTerminalId, setActiveTerminalId] = useState<string | null>(() =>
     ctx.terminals.getActive(),
   );
 
-  // Demonstrates ctx.agents.acknowledge(): viewing a terminal clears its
-  // "needs attention" flag (activity itself stays "idle" — only
-  // needsAttention changes), same as clicking a row's "focus" button
-  // eventually does implicitly once a new signal arrives —
-  // this makes it immediate instead. ctx.agents deliberately doesn't wire
-  // this up itself (see acknowledge()'s own doc comment) — a consumer with
-  // its own opinion about what counts as "acknowledged" (e.g. agent-monitor's
-  // configurable "keep it until the next run" setting) needs the freedom to
-  // call this conditionally, or not at all. This example has no such
-  // setting, so it just always acknowledges on focus.
   useEffect(() => {
     const sub = ctx.terminals.subscribeActive((terminalId) => {
       setActiveTerminalId(terminalId);
-      if (terminalId) ctx.agents.acknowledge(terminalId);
     });
     return () => sub.dispose();
   }, [ctx]);

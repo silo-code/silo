@@ -25,12 +25,26 @@ const { onTerminalForeground } = vi.hoisted(() => ({
 }));
 vi.mock("./terminal-foreground", () => ({ onTerminalForeground }));
 
-// Skip the hook-events file poll entirely — irrelevant to activity-state
-// tests and would otherwise do a real subprocess/file read every tick.
+// Skip the hook-events file consume entirely — irrelevant to activity-state
+// tests and would otherwise do a real file read / start a watch.
 vi.mock("./agent-hook-events", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./agent-hook-events")>();
-  return { ...actual, readNewHookEvents: vi.fn(() => Promise.resolve([])) };
+  return {
+    ...actual,
+    readNewHookEvents: vi.fn(() => Promise.resolve([])),
+    resolveAgentHooksDir: vi.fn(() =>
+      Promise.resolve("/tmp/.silo/agent-hooks"),
+    ),
+    pruneAgentHooksEventsFile: vi.fn(() =>
+      Promise.resolve({ before: 0, after: 0 }),
+    ),
+  };
 });
+vi.mock("../services/tauri-watch", () => ({
+  startWatch: vi.fn(() => Promise.resolve()),
+  stopWatch: vi.fn(() => Promise.resolve()),
+  onFileChange: vi.fn(() => Promise.resolve(() => {})),
+}));
 
 import { store } from "../state/store";
 import type { WorkspaceInternal } from "../state/types";
@@ -191,5 +205,71 @@ describe("AgentsService — demotion cancels pending agent-idle debounce", () =>
     osc("t3", 0, "⠀");
     expect(svc.getByTerminalId("t3")?.isAgent).toBe(true);
     expect(svc.getByTerminalId("t3")?.activity).toBe("working");
+  });
+});
+
+describe("AgentsService — restored acknowledged idle does not re-flag attention", () => {
+  it("swallows the first post-restore working→idle, then flags a later real turn", async () => {
+    const id = "t-restored-idle";
+    const sessionId = "sess-restored-idle";
+    // Simulate a prior session the user already acknowledged before restart.
+    store.agentState[id] = {
+      workspaceId: `ws-${id}`,
+      isAgent: true,
+      activity: "idle",
+      needsAttention: false,
+      workingSource: null,
+      agentId: "claude",
+      agentName: "Claude Code",
+      lastLiveAt: "2026-07-28T19:00:00.000Z",
+    };
+
+    await attachTerminal(id, sessionId);
+    getActive.mockReturnValue(null); // not the focused tab
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(false);
+    expect(svc.getByTerminalId(id)?.activity).toBe("idle");
+
+    // Reattach redraw: braille → ✳ debounce → idle. Must not look like a
+    // brand-new finished turn the user hasn't seen.
+    osc(id, 0, "⠀");
+    expect(svc.getByTerminalId(id)?.activity).toBe("working");
+    osc(id, 0, "✳ done");
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+    expect(svc.getByTerminalId(id)?.activity).toBe("idle");
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(false);
+
+    // A later real turn while still unfocused should raise attention.
+    osc(id, 0, "⠀");
+    expect(svc.getByTerminalId(id)?.activity).toBe("working");
+    osc(id, 0, "✳ done");
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+    expect(svc.getByTerminalId(id)?.activity).toBe("idle");
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(true);
+  });
+
+  it("does not suppress when restore still had needsAttention pending", async () => {
+    const id = "t-restored-attn";
+    const sessionId = "sess-restored-attn";
+    store.agentState[id] = {
+      workspaceId: `ws-${id}`,
+      isAgent: true,
+      activity: "idle",
+      needsAttention: true,
+      attentionSince: "2026-07-28T18:00:00.000Z",
+      workingSource: null,
+      agentId: "claude",
+      agentName: "Claude Code",
+      lastLiveAt: "2026-07-28T18:00:00.000Z",
+    };
+
+    await attachTerminal(id, sessionId);
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(true);
+
+    // working→idle while unfocused should keep/refresh attention (guard off).
+    getActive.mockReturnValue(null);
+    osc(id, 0, "⠀");
+    osc(id, 0, "✳ done");
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(true);
   });
 });

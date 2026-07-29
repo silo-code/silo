@@ -91,6 +91,23 @@ describe("withHookInstalled", () => {
     expect(twice.hooks!.SessionStart).toHaveLength(2);
   });
 
+  it("refreshes the command body when Silo's correlator has changed", () => {
+    const stale = withHookInstalled(SUPERSET_SETTINGS, {
+      ...CLAUDE_SPEC,
+      buildCommand: () => `python3 -c "old" # ${CLAUDE_SPEC.marker}`,
+    });
+    const refreshed = withHookInstalled(stale, {
+      ...CLAUDE_SPEC,
+      buildCommand: () => `python3 -c "new" # ${CLAUDE_SPEC.marker}`,
+    });
+    expect(refreshed.hooks!.SessionStart).toHaveLength(2);
+    const silo = refreshed
+      .hooks!.SessionStart.flatMap((g) => g.hooks ?? [])
+      .find((e) => e.command?.includes(CLAUDE_SPEC.marker));
+    expect(silo?.command).toContain("new");
+    expect(silo?.command).not.toContain("old");
+  });
+
   it("works from a completely empty settings object", () => {
     const next = withHookInstalled({}, CLAUDE_SPEC);
     expect(hasHookInstalled(next, CLAUDE_SPEC)).toBe(true);

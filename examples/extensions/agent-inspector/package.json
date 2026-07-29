@@ -2,7 +2,7 @@
   "name": "agent-inspector",
   "displayName": "Agent Inspector",
   "version": "0.1.0",
-  "description": "Read-only inspector panel over ctx.agents — activity, staleness, and resume hints per terminal. Demonstrates the experimental ctx.agents surface (RFC 0017).",
+  "description": "Read-only inspector panel over ctx.agents — activity, staleness, and resume hints per terminal. Demonstrates the experimental ctx.agents surface (RFC 0018).",
   "private": true,
   "type": "module",
   "silo": {

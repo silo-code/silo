@@ -15,8 +15,9 @@
  * single source of truth for the merge behavior.
  *
  * NOTE: the merge shape assumed here (`hooks.<Event>[].hooks[]`) is
- * Claude/Codex-style. A differently-shaped agent config (e.g. Cursor's
- * `hooks.json`) will need its own installer when it's added.
+ * Claude/Codex-style. Cursor and Copilot use different schemas and have
+ * their own installers (`cursor-hook-installer.ts`,
+ * `copilot-hook-installer.ts`), selected via `AgentHookResume.installStrategy`.
  */
 
 /** The subset of an agent's hook descriptor this module needs — structurally
@@ -73,17 +74,36 @@ export function hasHookInstalled(
   );
 }
 
-/** Return a **new** settings object with Silo's hook appended under
- * `spec.hookEvent` — idempotent (calling twice doesn't add a second copy)
- * and additive (never touches existing hook groups from other tools). */
+/** Return a **new** settings object with Silo's hook under `spec.hookEvent`.
+ * Idempotent on *presence* (never adds a second Silo entry) and additive
+ * (never touches other tools' groups). If Silo's entry is already present
+ * but its command body drifted (correlator fixes), refresh it in place. */
 export function withHookInstalled(
   settings: ClaudeSettings,
   spec: HookInstallSpec,
 ): ClaudeSettings {
-  if (hasHookInstalled(settings, spec)) return settings;
+  const command = spec.buildCommand();
   const hooks = { ...(settings.hooks ?? {}) };
   const forEvent = [...(hooks[spec.hookEvent] ?? [])];
-  const entry: HookEntry = { type: "command", command: spec.buildCommand() };
+
+  if (hasHookInstalled(settings, spec)) {
+    let changed = false;
+    const refreshed = forEvent.map((g) => {
+      const entries = (g.hooks ?? []).map((e) => {
+        if (!isSiloEntry(e, spec.marker) || e.command === command) return e;
+        changed = true;
+        const next: HookEntry = { ...e, command };
+        if (spec.statusMessage) next.statusMessage = spec.statusMessage;
+        return next;
+      });
+      return { ...g, hooks: entries };
+    });
+    if (!changed) return settings;
+    hooks[spec.hookEvent] = refreshed;
+    return { ...settings, hooks };
+  }
+
+  const entry: HookEntry = { type: "command", command };
   if (spec.statusMessage) entry.statusMessage = spec.statusMessage;
   forEvent.push({ hooks: [entry] });
   hooks[spec.hookEvent] = forEvent;

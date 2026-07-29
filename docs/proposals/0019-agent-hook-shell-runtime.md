@@ -1,5 +1,5 @@
 ---
-status: draft
+status: implemented
 created: 2026-07-29
 supersedes-section: 0018 # replaces RFC 0018's Python/base64 hook-command mechanism only
 ---
@@ -71,12 +71,21 @@ it runs on, with no obfuscation anywhere in sight.
 The seam between the hook and the rest of Silo is the **event line** in
 `~/.silo/agent-hooks/events.jsonl` and its correlation rule. Both are unchanged:
 
-- **Wire format** — the script emits exactly the JSON object
-  `agent-hook-events.ts`'s `parseLine` already expects:
-  `{"pid":<pgid>,"sessionId":"<id>","cwd":"<cwd>","agent":"<id>","timestamp":"<ISO8601>Z"}`,
-  one per line. The `pid` field carries the resolved **process-group id** (the
-  historical field name is kept for wire compatibility with the reader, which
-  matches it against a terminal's foreground pgid / sticky agent pgid).
+- **Wire format** — the script emits the JSON object `agent-hook-events.ts`'s
+  `parseLine` expects, now with `cwd` dropped (decision B):
+  `{"pid":<pgid>,"sessionId":"<id>","agent":"<id>","timestamp":"<ISO8601>Z"}`,
+  one per line. `parseLine` already defaults a missing `cwd` to `""`, so this is
+  forward- and backward-compatible with lines written by the old command. The
+  `pid` field carries the resolved **process-group id** (the historical field
+  name is kept for wire compatibility with the reader, which matches it against a
+  terminal's foreground pgid / sticky agent pgid). Dropping `cwd` is what makes
+  the line **escaping-safe by construction**: every remaining field is a value
+  that cannot contain a JSON-hostile character — `pid` is an integer,
+  `sessionId` a UUID, `agent` a catalog slug, `timestamp` a `date -u` string — so
+  a `printf`-built line can never be malformed in a way that takes the session id
+  down with it. `cwd` was the sole field that could carry a quote/backslash (a
+  path), and nothing consumes it: `applyHookMatch` never reads `event.cwd` — the
+  generic resume hint uses Silo's _own_ foreground-tracked cwd, not the hook's.
 - **Correlation** — `matchHookEventsToTerminals` still does exact
   `event.pid === terminal.pgid` (or `=== agentPgid`) matching. The script's job
   is unchanged: report the _agent process's_ pgid, resolved by walking up from
@@ -101,13 +110,30 @@ in as `$1`. Shape (illustrative, not final):
 # in a terminal so Silo can offer an exact resume command. Safe to inspect.
 # Managed by Silo; see Settings > Agents. Marker: silo-managed-agent-hook
 agent="$1"
-payload=$(cat)                       # agent CLI pipes {session_id, cwd} on stdin
+payload=$(cat)                       # agent CLI pipes {session_id, ...} on stdin
+
+# Extract the session id. Agents spell the key two ways (session_id / sessionId)
+# and the spellings differ in length, so match each explicitly — no BRE optional
+# quantifier (`?`), which POSIX/BSD sed doesn't support. Session ids are UUIDs,
+# so a `[^"]*` capture is safe.
 sid=$(printf '%s' "$payload" | sed -n \
-  's/.*"session_?[iI]d"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+  's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
+[ -n "$sid" ] || sid=$(printf '%s' "$payload" | sed -n \
+  's/.*"sessionId"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n1)
 [ -n "$sid" ] || exit 0              # nothing to record without a session id
 
-# Walk parents from our PPID to the real agent process, then take its pgid.
-# Raw PPID can be a setpgrp worker (Cursor) or a tool subprocess (Claude/Codex).
+# Resolve the correlation target that gets written as "pid".
+# Forward-compat seam (RFC 0020): Silo-spawned agents inherit $SILO_TERMINAL_ID
+# and can be matched directly, skipping the walk. Structured env-var-first so
+# 0020 slots in as an additive branch without reshaping this script. Today the
+# body is empty and we always fall through to the walk.
+if [ -n "$SILO_TERMINAL_ID" ]; then
+  : # RFC 0020 fills this in (write a terminal-id-keyed event, then exit 0).
+fi
+
+# Fallback (always, until 0020): walk parents from our PPID to the real agent
+# process, then take its pgid. Raw PPID can be a setpgrp worker (Cursor) or a
+# tool subprocess (Claude/Codex), so we can't trust it directly.
 KNOWN="cursor-agent claude codex copilot gemini aider"   # templated from catalog
 pid=$PPID; found=""
 i=0; while [ "$i" -lt 12 ] && [ "${pid:-0}" -gt 1 ]; do
@@ -123,8 +149,8 @@ pgid=$(ps -p "$target" -o pgid= 2>/dev/null | tr -d ' ')
 
 dir="$HOME/.silo/agent-hooks"; mkdir -p "$dir"
 ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-printf '{"pid":%s,"sessionId":"%s","cwd":"%s","agent":"%s","timestamp":"%s"}\n' \
-  "$pgid" "$sid" "$PWD" "$agent" "$ts" >> "$dir/events.jsonl"
+printf '{"pid":%s,"sessionId":"%s","agent":"%s","timestamp":"%s"}\n' \
+  "$pgid" "$sid" "$agent" "$ts" >> "$dir/events.jsonl"
 ```
 
 Every line is legible, uses only guaranteed tools, and there is no `eval`, no
@@ -132,7 +158,10 @@ Every line is legible, uses only guaranteed tools, and there is no `eval`, no
 not `ps aux`). The `KNOWN` list is **templated in at write time from
 `AGENT_CATALOG`'s `leaderNames`**, so it stays a single source of truth — adding
 an agent to the catalog updates the script the next time it's written, with no
-second hand-maintained list.
+second hand-maintained list. The `$SILO_TERMINAL_ID` branch is the seam
+[RFC 0020](./0020-agent-hook-activity-channel.md) hangs its Silo-spawned fast
+path off of; keeping it here now means 0020 is an additive change, not a
+rewrite.
 
 ### The installed command
 
@@ -144,7 +173,14 @@ sh "$HOME/.silo/agent-hooks/track-session.sh" claude # silo-managed-agent-hook
 
 - Invoked via `sh <path>` (not the script directly) because `ctx.files` has no
   `chmod` — this sidesteps needing the executable bit, and adds no new SDK
-  capability. (Open decision A below revisits `$HOME` vs. absolute path.)
+  capability.
+- The path is `$HOME`-relative, not an absolute path resolved at install time
+  (decision A). Every agent runs the hook via `sh -c`, so `$HOME` expands
+  reliably, and a `$HOME`-relative command bakes in no machine-specific path — it
+  even survives dotfile-syncing an agent's config across machines/users, where a
+  baked `/Users/alice/…` would not. Absolute-home is the trivial fallback if any
+  agent ever turns out to `exec` the command directly rather than through a
+  shell.
 - The `# silo-managed-agent-hook` marker is retained verbatim; `isSiloEntry`
   keys off it unchanged, so install-state detection, uninstall, and (critically)
   **automatic migration of the old base64 entries** all keep working — an old
@@ -178,12 +214,24 @@ agent off/on:
 
 - **On `load()`** of the Settings → Agents page: for each agent whose Silo hook
   is installed, if the stored command differs from the current `buildCommand()`
-  (which it will, for every base64-era install), rewrite it — and ensure the
-  script file is current. This promotes the already-existing "refresh on drift"
-  logic (currently only reachable via an explicit toggle) to run whenever the
-  page opens, so simply visiting Settings → Agents heals a flagged install.
+  (which it will, for every base64-era install), rewrite it — and (re)write
+  `track-session.sh` when it's absent or drifted. This promotes the
+  already-existing "refresh on drift" logic (currently only reachable via an
+  explicit toggle) to run whenever the page opens, so simply visiting Settings →
+  Agents heals a flagged install.
+- **Idempotent and silent on a no-op**: rewrite _only_ when the command (or the
+  script body) has actually drifted — an already-current install touches no
+  files and produces no log noise. When a heal _does_ happen, log it to the
+  Agents Output channel (which agent, and that the command/script was rewritten)
+  so there's a diagnostic trail for "why did my config change when I opened
+  Settings."
 - This covers all three install strategies (claude-settings merge, cursor
   merge, copilot dedicated-file rebuild).
+- **On Windows** (see gating below), `load()` does **not** heal — a shell hook
+  can neither run nor correlate there, so silently rewriting it to a form that
+  still can't work would be pointless churn. A pre-existing Silo hook is left
+  inert as-is; the page may offer an explicit one-time "remove Silo's hook"
+  cleanup, but never auto-rewrites on Windows.
 
 ### Platform gating (now required, not cosmetic)
 
@@ -193,12 +241,16 @@ ConPTY foreground-tracking out; `session_windows.rs`'s `subscribe_foreground`
 returns `None`). The feature is therefore macOS + Linux only, and the install
 toggles must reflect that:
 
-- `hookInstallableAgents()` consumers, or the Settings page itself, gate on
-  platform: on Windows the Agents page shows the agents as detection-only with a
-  short "exact resume is macOS/Linux only for now" note, and renders **no
-  install toggle** (installing a hook that can neither run nor correlate would
-  be user-hostile). This needs a platform signal on the frontend — either an
-  existing Tauri `platform()` call or a tiny host bit; see open decision C.
+- The Settings page gates on **`ctx.system.os`** (decision C) — which already
+  returns `"macos" | "linux" | "windows"`. On Windows the Agents page shows the
+  agents as detection-only with a short "exact resume is macOS/Linux only for
+  now" note, and renders **no install toggle** (installing a hook that can
+  neither run nor correlate would be user-hostile). `ctx.system.os` is
+  specifically the right signal here rather than reaching for `@tauri-apps/*`
+  platform APIs directly: the extension boundary bans raw platform imports in
+  extensions (this settings page is `core.agents-settings`, a bundled
+  extension), and routing OS detection through `ctx` is exactly what that ban
+  exists to enforce.
 
 ### Test & docs surface (part of the change, not follow-up)
 
@@ -250,31 +302,47 @@ toggles must reflect that:
   directly.** Rejected: `ctx.files` has no `chmod`, and adding one to the SDK
   surface for this is unwarranted when `sh <path>` works identically.
 
-## Open decisions (need sign-off before implementation)
+## Decisions (resolved)
 
-- **A — `$HOME`-relative vs. absolute path in the installed command.**
-  `sh "$HOME/.silo/…/track-session.sh"` relies on `$HOME` expanding when the
-  agent runs the command through `sh -c` (robust on both OSes, and avoids
-  baking any absolute path). The absolute alternative
-  (`sh "/Users/you/.silo/…"`, resolved at install time) is immune to any
-  non-shell invocation but re-introduces a mild path-in-config coupling (breaks
-  if the home dir moves — rare, and self-heal covers it). **Recommend
-  `$HOME`-relative**: strictly more portable, and every agent documents running
-  hooks through a shell.
-- **B — drop `cwd` from the event payload?** Investigation shows `applyHookMatch`
-  does not consume `event.cwd` (the generic hint uses Silo's _own_ foreground
-  cwd, not the hook's). `cwd` is also the one field that could contain a
-  JSON-hostile character (a quote/backslash in a path) and break the line's
-  `JSON.parse`, losing the _session id_ with it. **Recommend dropping `cwd`**
-  from what the script writes (the reader already tolerates its absence,
-  defaulting to `""`), which removes the escaping risk entirely and simplifies
-  the script. Session ids are UUIDs, so the remaining extracted field is
-  escaping-safe by construction.
-- **C — how the Settings page learns the platform.** Options: an existing Tauri
-  `platform()`/`os` call from the frontend, or a small host-exposed bit. Prefer
-  whatever the codebase already uses to branch on OS in the renderer; add the
-  smallest thing if none exists.
+All three open questions were signed off; recorded here with their outcomes.
+
+- **A — path form in the installed command → `$HOME`-relative.** More portable,
+  bakes in no machine-specific path, and survives dotfile-syncing a config
+  across machines/users (an absolute `/Users/alice/…` would not). The single
+  assumption — every agent runs the hook via `sh -c`, so `$HOME` expands — is
+  already exercised by live testing against all four agents. Absolute-home is the
+  trivial fallback if any agent turns out to `exec` the command directly.
+- **B — drop `cwd` from the event payload → yes.** Independently verified that
+  `event.cwd` is never consumed (the generic hint uses Silo's own
+  foreground-tracked cwd). With `cwd` gone, every remaining field is
+  escaping-safe by construction (integer / UUID / catalog slug / `date -u`), so a
+  `printf`-built line can't be malformed in a way that loses the session id.
+  `parseLine` already defaults a missing `cwd` to `""`, making it forward- and
+  backward-compatible.
+- **C — platform detection → `ctx.system.os`.** Already returns
+  `"macos" | "linux" | "windows"`; gate the Windows toggle on it. Deliberately
+  _not_ `@tauri-apps/*` — the extension platform-import ban applies to this
+  bundled settings extension, and routing OS detection through `ctx` is what that
+  ban is for.
+
+Two design points that were framed as "required" are likewise confirmed:
+migration self-heals on `load()` (idempotent and silent on a no-op, logs to the
+Agents Output channel when it does heal, and never auto-heals on Windows); and
+Windows gets no install toggle at all (detection-only, with an optional one-time
+"remove Silo's hook" cleanup for a pre-existing inert install).
 
 ## Decision
 
-_Pending._
+**Implemented** on the `feat/ctx-agents` branch: the POSIX-shell
+`track-session.sh` runtime with the resolutions above (A `$HOME`-relative,
+B drop `cwd`, C gate on `ctx.system.getInfo().os`), auto-migrating existing
+base64 installs on Settings → Agents load (idempotent, logs on heal), and gating
+the feature to macOS + Linux. `agent-catalog.ts` builds the script and the short
+`sh "$HOME/…/track-session.sh" <id>` command; `agents-settings/index.tsx` writes
+the script and self-heals on load; `agent-catalog.test.ts` executes the generated
+script under `sh` to pin the wire format. The event wire format (minus `cwd`) and
+the pgid-correlation design from RFC 0018 are unchanged; only the command runtime
+is replaced. The `$SILO_TERMINAL_ID` seam is reserved in the script so
+[RFC 0020](./0020-agent-hook-activity-channel.md)'s Silo-spawned fast path lands
+additively. Windows exact-resume remains deferred with the pre-existing RFC 0010
+ConPTY foreground-tracking gap — explicitly out of scope here.

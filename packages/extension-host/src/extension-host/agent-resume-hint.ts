@@ -5,7 +5,7 @@ import { agentByLeader, leaderBasename } from "./agent-catalog";
  * Output window, not the devtools console. */
 export const agentsChannel = createHostChannel("silo:agents", "Agents");
 
-// Resume-hint resolution for `ctx.agents` (RFC 0017). There are exactly two
+// Resume-hint resolution for `ctx.agents` (RFC 0018). There are exactly two
 // possible outcomes, and neither one guesses:
 //
 //   - **Exact** — the opt-in `SessionStart` hook reported this terminal's own
@@ -20,7 +20,7 @@ export const agentsChannel = createHostChannel("silo:agents", "Agents");
 // misses (a `claude --resume <id>` that fails with "No conversation found").
 // The earlier `continues`-based inference tier was removed for exactly that
 // reason: a feature that is either exact or honestly vague is stronger than
-// one that is sometimes secretly wrong. See RFC 0017 "Rejected: cwd + recency
+// one that is sometimes secretly wrong. See RFC 0018 "Rejected: cwd + recency
 // inference".
 
 /** Whether `leader` is a known coding agent (per `AGENT_CATALOG`) worth

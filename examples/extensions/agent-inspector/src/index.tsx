@@ -1,5 +1,5 @@
 /**
- * agent-inspector — example extension for ctx.agents (RFC 0017, experimental)
+ * agent-inspector — example extension for ctx.agents (RFC 0018, experimental)
  *
  * Demonstrates:
  *   ctx.agents.getState()        — current AgentInfo[] for the workspace

@@ -2,7 +2,7 @@ import type { Disposable } from "./types";
 import type { TerminalKind } from "./domain-types";
 
 // `ctx.agents` — host-computed coding-agent activity and resume-identity
-// observability. See RFC 0017 (docs/proposals/0017-ctx-agents-surface.md).
+// observability. See RFC 0018 (docs/proposals/0018-ctx-agents-surface.md).
 // Detection is fully sealed inside the host implementation — there is no
 // registration API for detectors or resume-hint resolvers. Extensions only
 // ever read this surface.

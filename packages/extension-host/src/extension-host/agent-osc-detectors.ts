@@ -1,5 +1,5 @@
 /**
- * Pure per-agent OSC/output activity detectors for `ctx.agents` (RFC 0017).
+ * Pure per-agent OSC/output activity detectors for `ctx.agents` (RFC 0018).
  * Sealed inside the host — there is no registration API (see the RFC's
  * "Detection is sealed, not pluggable"). Ported from
  * `silo-extensions/agent-monitor`'s private `osc-detectors.ts` — full parity,

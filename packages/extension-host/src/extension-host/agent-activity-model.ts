@@ -1,6 +1,6 @@
 /**
  * The per-terminal agent-activity state machine backing `ctx.agents` — the
- * pure, unit-tested core of the host implementation (RFC 0017). Ported from
+ * pure, unit-tested core of the host implementation (RFC 0018). Ported from
  * `silo-extensions/agent-monitor`'s private `agent-status.ts`, which proved
  * this model out first; the rules below are the same ones, centralized.
  *
