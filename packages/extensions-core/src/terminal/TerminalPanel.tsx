@@ -30,8 +30,8 @@ import {
   onTerminalForeground,
   registerSelectionSource,
   contextMenuEntriesFor,
-  markSessionDead,
-  resetSessionAfterRecreate,
+  notifyTerminalSessionGone,
+  notifyTerminalSessionRecreated,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
 import { effectiveFontFamily } from "./terminal-font";
@@ -607,17 +607,17 @@ export function TerminalPanel(
           // toggling that risks revealing/hiding content rather than just
           // fixing input routing, and nothing observed here implicates it.
           term.write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?2004l");
-          // ctx.agents (RFC 0018): the resume hint markSessionDead resolved
-          // above, if any, appended as inert text before the fresh prompt —
-          // then clear "dead" back to a fresh state now that a live session
-          // has taken over this terminal id.
+          // ctx.agents (RFC 0018): the resume hint notifyTerminalSessionGone
+          // resolved above, if any, appended as inert text before the fresh
+          // prompt — then clear "dead" back to a fresh state now that a live
+          // session has taken over this terminal id.
           const agentInfo = ctx.agents.getByTerminalId(terminalId);
           if (agentInfo?.activity === "dead" && agentInfo.resumeCommand) {
             term.write(
               `\r\n\x1b[1;33m── session ended — ${agentInfo.resumeCommand} ──\x1b[0m\r\n`,
             );
           }
-          resetSessionAfterRecreate(terminalId);
+          notifyTerminalSessionRecreated(terminalId);
           replayed = true;
           for (const d of pendingLive) writeLive(d);
           pendingLive.length = 0;
@@ -727,7 +727,7 @@ export function TerminalPanel(
           replayFromRef.current = tRec.sessionId;
           // ctx.agents (RFC 0018): mark this terminal's agent activity "dead" —
           // resolves/attaches the resume hint if one wasn't already live-resolved.
-          markSessionDead(terminalId);
+          notifyTerminalSessionGone(terminalId);
           recreateTerminal(activeWsId!, terminalId);
           setLifecycle({ kind: "loading" });
           setVersion((v) => v + 1);

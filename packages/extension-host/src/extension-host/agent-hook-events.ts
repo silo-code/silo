@@ -77,7 +77,9 @@ function parseLine(line: string): HookEvent | null {
       typeof rec.pid !== "number" ||
       typeof rec.sessionId !== "string" ||
       !rec.sessionId ||
-      typeof rec.timestamp !== "string"
+      typeof rec.timestamp !== "string" ||
+      typeof rec.agent !== "string" ||
+      !rec.agent
     ) {
       return null;
     }
@@ -85,7 +87,7 @@ function parseLine(line: string): HookEvent | null {
       pid: rec.pid,
       sessionId: rec.sessionId,
       cwd: typeof rec.cwd === "string" ? rec.cwd : "",
-      agent: typeof rec.agent === "string" ? rec.agent : "claude",
+      agent: rec.agent,
       timestamp: rec.timestamp,
     };
   } catch {

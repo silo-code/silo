@@ -313,9 +313,13 @@ export type { TerminalForeground } from "./terminal-foreground";
 
 // `ctx.agents`'s death/reset hooks (RFC 0018) — called by the built-in
 // terminal panel at the exact moment it observes SESSION_GONE on reattach
-// (markSessionDead) and once a fresh session replaces it (resetSessionAfterRecreate).
-// Core-only; not public SDK surface — ctx.agents itself is read-only.
-export { markSessionDead, resetSessionAfterRecreate } from "./agents-service";
+// (notifyTerminalSessionGone) and once a fresh session replaces it
+// (notifyTerminalSessionRecreated). Core-only; not public SDK surface —
+// ctx.agents itself is read-only.
+export {
+  notifyTerminalSessionGone,
+  notifyTerminalSessionRecreated,
+} from "./agents-service";
 
 // The agent catalog (RFC 0018) — the single source of truth for every agent
 // Silo supports. Detection/resume-hint resolution consume it host-side; the

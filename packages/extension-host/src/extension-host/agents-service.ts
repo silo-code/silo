@@ -16,27 +16,14 @@ import {
   detectFromOutput,
   agentById,
   agentByLeader,
-  sessionFileAgents,
-  type AgentDefinition,
-  type AgentSessionFileResume,
 } from "./agent-catalog";
-import { homeDir } from "./platform";
 import {
-  readNewHookEvents,
-  matchHookEventsToTerminals,
-  pickEarliestMatchPerTerminal,
-  pruneUnmatchedEvents,
-  pruneAgentHooksEventsFile,
-  stampNewHookEvents,
-  resetHookEventsCheckpoint,
-  disposeHookEventsRuntime,
-  resolveAgentHooksDir,
   shouldAcceptHookSessionId,
   hookEventCompatibleWithStickyAgent,
   type HookEvent,
-  type PendingHookEvent,
 } from "./agent-hook-events";
-import { startWatch, stopWatch, onFileChange } from "../services/tauri-watch";
+import { createSessionFileResumeRuntime } from "./agent-session-file-resume";
+import { createHookRuntime } from "./agent-hook-runtime";
 import {
   planDetection,
   SHELL_IDLE_MS,
@@ -64,7 +51,7 @@ import type { PersistedAgentInfo } from "../state/types";
 // existing foreground stream (onTerminalForeground), which also triggers
 // live resume-hint resolution the first time a known agent leader appears.
 
-type SessionEntry = {
+type TrackedAgent = {
   info: AgentInfo;
   state: AgentActivityState;
   lastLiveAt: string;
@@ -108,8 +95,8 @@ type SessionEntry = {
   cleanupOutput: () => void;
 };
 
-// Map<terminalId, SessionEntry>.
-const sessions = new Map<string, SessionEntry>();
+// Map<terminalId, TrackedAgent>.
+const trackedAgents = new Map<string, TrackedAgent>();
 
 type ListenerEntry = {
   listener: (state: AgentInfo[]) => void;
@@ -177,13 +164,13 @@ function toPersisted(
 function activeWorkspaceInfos(): AgentInfo[] {
   const wsId = store.activeWorkspaceId;
   if (!wsId) return [];
-  return Array.from(sessions.values())
+  return Array.from(trackedAgents.values())
     .filter((e) => e.info.workspaceId === wsId)
     .map((e) => e.info);
 }
 
 function allWorkspaceInfos(): AgentInfo[] {
-  return Array.from(sessions.values()).map((e) => e.info);
+  return Array.from(trackedAgents.values()).map((e) => e.info);
 }
 
 function sameByRef(a: AgentInfo[], b: AgentInfo[]): boolean {
@@ -225,7 +212,7 @@ function notify() {
 // ---- event application -------------------------------------------------------
 
 function applyEvent(terminalId: string, ev: AgentActivityEvent) {
-  const entry = sessions.get(terminalId);
+  const entry = trackedAgents.get(terminalId);
   if (!entry) return;
 
   const reduced = reduce(entry.state, ev);
@@ -279,7 +266,7 @@ function applyEvent(terminalId: string, ev: AgentActivityEvent) {
     clearShellIdleTimer(terminalId);
     // Pending session-file retries (Grok first-char write) must not fire after
     // demotion and re-stamp an exact id onto a plain shell.
-    clearSessionFileTimersFor(terminalId);
+    sessionFileResume.clearSessionFileTimersFor(terminalId);
   }
 
   if (next === entry.state) {
@@ -309,7 +296,7 @@ function applyEvent(terminalId: string, ev: AgentActivityEvent) {
  * hook path ({@link applyHookMatch}). A generic hint carries no `sessionId`,
  * so it never clobbers an exact id already set by a hook. */
 function applyResumeHint(terminalId: string, hint: ResumeHint) {
-  const entry = sessions.get(terminalId);
+  const entry = trackedAgents.get(terminalId);
   if (!entry) return;
   entry.state = {
     ...entry.state,
@@ -339,7 +326,7 @@ function maybeResolveResumeHint(
   leader: string,
   cwd: string,
 ) {
-  const entry = sessions.get(terminalId);
+  const entry = trackedAgents.get(terminalId);
   if (!entry) return;
   if (entry.resumeHintResolved) return;
   if (!isKnownAgentLeader(leader)) {
@@ -351,232 +338,6 @@ function maybeResolveResumeHint(
   entry.resumeHintResolved = true;
   applyResumeHint(terminalId, genericHint(leader, cwd));
 }
-
-// ---- session-file resume resolution (e.g. Grok) ---------------------------
-//
-// Some agents (Grok) keep their OWN live `{ pid → session_id }` registry of
-// active sessions, so exact resume needs no hook: read the agent's file and
-// match the terminal's sticky agent pgid against the recorded pid (the agent
-// runs as a process-group leader, so pgid == pid).
-//
-// Timing matters: Grok does **not** write a session entry at process start —
-// only after the first character is typed in the TUI. Short retries after the
-// foreground is first seen cover a write that lands within a few seconds; a
-// file watch on the registry's parent dir covers the common case where the
-// user types much later (or after Silo's short retries have already finished
-// empty). Reload "fixes" it only because attach re-reads a file that now has
-// the entry — the watch makes that happen live.
-
-/** Delays (ms after a session-file agent is first seen in the foreground) at
- * which to (re)read its session registry — covers a write that races the
- * first foreground tick. Not a substitute for the file watch: Grok may not
- * create the session until the first typed character, minutes later. */
-const SESSION_FILE_READ_DELAYS_MS = [0, 600, 1500, 3000];
-/** Per-terminal session-file retry timers. Cleared on demotion/reset so a
- * late retry cannot re-stamp identity onto a plain shell after the agent
- * exited. Global clear remains for HMR dispose. */
-const sessionFileTimersByTerminal = new Map<
-  string,
-  Set<ReturnType<typeof setTimeout>>
->();
-
-function clearSessionFileTimersFor(terminalId: string) {
-  const timers = sessionFileTimersByTerminal.get(terminalId);
-  if (!timers) return;
-  for (const h of timers) clearTimeout(h);
-  sessionFileTimersByTerminal.delete(terminalId);
-}
-
-function clearAllSessionFileTimers() {
-  for (const terminalId of [...sessionFileTimersByTerminal.keys()]) {
-    clearSessionFileTimersFor(terminalId);
-  }
-}
-
-/** Read a session-file agent's registry and, if its entry for `pgid` is
- * present, attach the exact session id + resume command. Idempotent when
- * this agent's exact identity is already correct for that id. If a *foreign*
- * hook already stamped a session id (Grok importing Claude's SessionStart
- * hook is the known case — same pid/session, wrong `agent: "claude"` tag),
- * this still corrects the identity to the session-file agent. Silently
- * returns on a missing/unreadable file (a later retry or file-watch event
- * may still find it). */
-async function resolveSessionFileId(
-  terminalId: string,
-  agent: AgentDefinition,
-  resume: AgentSessionFileResume,
-  pgid: number,
-) {
-  const entry = sessions.get(terminalId);
-  // Demotion / reset clears sticky catalog id + pgid and cancels timers; a
-  // timer that already fired must still no-op so we never re-stamp identity.
-  if (!entry || entry.agentCatalogId !== agent.id || entry.agentPgid !== pgid) {
-    return;
-  }
-
-  let text: string;
-  try {
-    const base = (await homeDir()).replace(/\/+$/, "");
-    text = await invoke<string>("fs_read_text", {
-      path: `${base}/${resume.sessionFilePath}`,
-    });
-  } catch {
-    return; // missing/unreadable — a scheduled retry / watch may still catch it
-  }
-
-  // The terminal (and its live sticky identity) may have gone away during await.
-  const live = sessions.get(terminalId);
-  if (!live || live.agentCatalogId !== agent.id || live.agentPgid !== pgid) {
-    return;
-  }
-
-  const sessionId = resume.resolveSessionId(text, pgid);
-  if (!sessionId) {
-    // Had an exact session that disappeared from the registry → the agent
-    // exited (or closed the session). Demote so the inspector doesn't keep
-    // showing a live Grok after `exit`. Only when we previously resolved —
-    // Grok doesn't write a session until the first typed character, so a
-    // missing entry right after launch must not demote.
-    if (live.state.agentId === agent.id && live.state.sessionId) {
-      demotePromotedShell(terminalId);
-    }
-    return;
-  }
-
-  const resumeCommand = resume.buildResumeCommand(sessionId);
-  if (
-    live.state.sessionId === sessionId &&
-    live.state.agentId === agent.id &&
-    live.state.resumeCommand === resumeCommand
-  ) {
-    return;
-  }
-
-  applyResumeHint(terminalId, {
-    sessionId,
-    resumeCommand,
-    agentName: agent.displayName,
-    agentId: agent.id,
-  });
-  agentsChannel.info(
-    `Resolved ${agent.displayName} session ${sessionId} for terminal ${terminalId} ` +
-      `from ${resume.sessionFilePath} (pgid ${pgid}).`,
-  );
-}
-
-/** Re-read every tracked session-file agent's registry against its sticky
- * agent pgid. Driven by the session-file watch (and boot), so a session
- * written long after the foreground was first detected still resolves. */
-function resolveAllSessionFileAgents() {
-  for (const [terminalId, entry] of sessions) {
-    if (entry.agentPgid == null || entry.agentCatalogId == null) continue;
-    const agent = agentById(entry.agentCatalogId);
-    if (agent?.resume.kind !== "session-file") continue;
-    void resolveSessionFileId(terminalId, agent, agent.resume, entry.agentPgid);
-  }
-}
-
-/** Schedule the first + short-retry reads of a session-file agent's registry
- * after it's first seen in a terminal's foreground. Also ensures the parent
- * dir is watched so a later first-message write still resolves. */
-function scheduleSessionFileReads(
-  terminalId: string,
-  agent: AgentDefinition,
-  resume: AgentSessionFileResume,
-  pgid: number,
-) {
-  void ensureSessionFileWatches();
-  // Replace any prior retry schedule for this terminal (re-foreground).
-  clearSessionFileTimersFor(terminalId);
-  const timers = new Set<ReturnType<typeof setTimeout>>();
-  sessionFileTimersByTerminal.set(terminalId, timers);
-  for (const ms of SESSION_FILE_READ_DELAYS_MS) {
-    if (ms === 0) {
-      void resolveSessionFileId(terminalId, agent, resume, pgid);
-      continue;
-    }
-    const h = setTimeout(() => {
-      timers.delete(h);
-      if (timers.size === 0) sessionFileTimersByTerminal.delete(terminalId);
-      void resolveSessionFileId(terminalId, agent, resume, pgid);
-    }, ms);
-    timers.add(h);
-  }
-}
-
-const SESSION_FILE_WATCH_PREFIX = "silo-agent-session-file:";
-const sessionFileWatchIds = new Set<string>();
-let unlistenSessionFileWatch: (() => void) | null = null;
-/** True once at least one session-file parent dir is watched. Stays false when
- * the dir doesn't exist yet (Grok never installed / first launch) so the next
- * foreground can retry. */
-let sessionFileWatchReady = false;
-
-/** Parent directory of a `$HOME`-relative session file path. */
-function sessionFileParentDir(home: string, sessionFilePath: string): string {
-  const idx = sessionFilePath.lastIndexOf("/");
-  return idx >= 0 ? `${home}/${sessionFilePath.slice(0, idx)}` : home;
-}
-
-/**
- * Watch each session-file agent's registry parent dir (e.g. `~/.grok`) so a
- * write that happens after Silo's short post-foreground retries — typical for
- * Grok, which only creates a session on the first typed character — still
- * resolves live. Directory watch (not the jsonl/json file alone) so the
- * watcher survives the file being absent at boot and created on first use.
- * Idempotent; retries later if no dir could be watched yet.
- */
-async function ensureSessionFileWatches() {
-  if (sessionFileWatchReady) return;
-  const agents = sessionFileAgents();
-  if (agents.length === 0) return;
-
-  try {
-    const home = (await homeDir()).replace(/\/+$/, "");
-    const dirs = [
-      ...new Set(
-        agents.map((a) => sessionFileParentDir(home, a.resume.sessionFilePath)),
-      ),
-    ];
-    for (const dir of dirs) {
-      const watchId = `${SESSION_FILE_WATCH_PREFIX}${dir}`;
-      if (sessionFileWatchIds.has(watchId)) continue;
-      try {
-        await startWatch(watchId, dir);
-        sessionFileWatchIds.add(watchId);
-      } catch (err) {
-        // Dir may not exist yet (first-ever Grok install). Retry on the next
-        // session-file foreground.
-        agentsChannel.debug(
-          `Session-file watch not started for ${dir} (will retry).`,
-          err,
-        );
-      }
-    }
-    if (sessionFileWatchIds.size === 0) return;
-
-    if (!unlistenSessionFileWatch) {
-      unlistenSessionFileWatch = await onFileChange((evt) => {
-        if (!sessionFileWatchIds.has(evt.watchId)) return;
-        void resolveAllSessionFileAgents();
-      });
-    }
-    sessionFileWatchReady = true;
-    agentsChannel.info(
-      `Session-file watch started on ${[...sessionFileWatchIds].join(", ")} ` +
-        `(resolve on write — covers agents that create a session after start).`,
-    );
-    // Catch a write that landed while we were still wiring the watch.
-    resolveAllSessionFileAgents();
-  } catch (err) {
-    agentsChannel.warn(
-      "Could not start session-file watch; short post-foreground retries only.",
-      err,
-    );
-  }
-}
-
-void ensureSessionFileWatches();
 
 /**
  * Demote a promoted-shell terminal back to a plain shell once the foreground
@@ -595,7 +356,7 @@ void ensureSessionFileWatches();
  * `"exited"` instead, which force-demotes.
  */
 function checkPromptDemotion(terminalId: string, atPrompt: boolean) {
-  const entry = sessions.get(terminalId);
+  const entry = trackedAgents.get(terminalId);
   if (!entry || !atPrompt) return;
   if (!entry.state.isAgent || entry.state.kind !== "shell") return;
   demotePromotedShell(terminalId);
@@ -609,11 +370,121 @@ function checkPromptDemotion(terminalId: string, atPrompt: boolean) {
  * session-file registry drop means the agent is actually gone).
  */
 function demotePromotedShell(terminalId: string) {
-  const entry = sessions.get(terminalId);
+  const entry = trackedAgents.get(terminalId);
   if (!entry) return;
   if (!entry.state.isAgent || entry.state.kind !== "shell") return;
   applyEvent(terminalId, { type: "exited" });
 }
+
+/** Apply an exact, hook-reported resume identity to a terminal — upgrading
+ * whatever generic hint may already be attached to an exact resume command.
+ * Both the command syntax and the display name come from the catalog entry
+ * for `event.agent` (see agent-catalog.ts), so this is agent-agnostic; the
+ * `${agent} --resume` form is only a defensive fallback for an event whose
+ * agent id somehow isn't in the catalog. `resumeHintResolved` is set so the
+ * generic path won't later re-stash a vague hint over this one. */
+function applyHookMatch(terminalId: string, event: HookEvent) {
+  const entry = trackedAgents.get(terminalId);
+  if (!entry) return;
+
+  // Grok (and any future Claude-compat CLI) can re-fire Claude's installed
+  // SessionStart hook against its own pid/session — reject when the sticky
+  // foreground leader is a different catalog agent.
+  if (!hookEventCompatibleWithStickyAgent(event.agent, entry.agentCatalogId)) {
+    agentsChannel.info(
+      `Ignoring ${event.agent} hook session ${event.sessionId} for terminal ${terminalId} — ` +
+        `foreground agent is ${entry.agentCatalogId}.`,
+    );
+    return;
+  }
+
+  // Prefer the earliest SessionStart. A later probe must not overwrite a
+  // live confirmation; a restart that restored a wrong id (no hook
+  // timestamp yet) may still be corrected by the backlog's earliest event
+  // (confirmed live: Codex showed `CODEX-PROBE-*` over `019fa9d2-…`).
+  if (
+    !shouldAcceptHookSessionId(
+      entry.state.sessionId,
+      entry.hookSessionTimestamp,
+      event,
+    )
+  ) {
+    agentsChannel.debug(
+      `Ignoring later hook session ${event.sessionId} for terminal ${terminalId} — already confirmed ${entry.state.sessionId}.`,
+    );
+    return;
+  }
+  if (entry.state.sessionId === event.sessionId) {
+    // Same id (e.g. restart re-read) — still stamp the timestamp so a
+    // subsequent probe can't slip through the "restored, no timestamp" path.
+    entry.hookSessionTimestamp = event.timestamp;
+    return;
+  }
+
+  const agent = agentById(event.agent);
+  const hook = agent?.resume.kind === "hook" ? agent.resume : undefined;
+
+  entry.resumeHintResolved = true;
+  entry.hookSessionTimestamp = event.timestamp;
+  applyResumeHint(terminalId, {
+    sessionId: event.sessionId,
+    resumeCommand: hook
+      ? hook.buildResumeCommand(event.sessionId)
+      : `${event.agent} --resume ${event.sessionId}`,
+    agentName: agent?.displayName ?? event.agent,
+    agentId: agent?.id ?? event.agent,
+  });
+
+  agentsChannel.info(
+    `Hook-confirmed session ${event.sessionId} for terminal ${terminalId} (pid ${event.pid}).`,
+  );
+}
+
+// Session-file exact resume + hook-events consume live in extracted runtimes
+// (agent-session-file-resume.ts / agent-hook-runtime.ts). Host owns sticky
+// identity + applyHookMatch; the runtimes own timers/watches/checkpoints.
+const sessionFileResume = createSessionFileResumeRuntime({
+  getSticky(terminalId) {
+    const entry = trackedAgents.get(terminalId);
+    if (!entry) return null;
+    return {
+      agentCatalogId: entry.agentCatalogId,
+      agentPgid: entry.agentPgid,
+      resolvedAgentId: entry.state.agentId ?? undefined,
+      resolvedSessionId: entry.state.sessionId ?? undefined,
+      resolvedResumeCommand: entry.state.resumeCommand ?? undefined,
+    };
+  },
+  listSessionFileTargets() {
+    const out: Array<{
+      terminalId: string;
+      agentCatalogId: string;
+      agentPgid: number;
+    }> = [];
+    for (const [terminalId, entry] of trackedAgents) {
+      if (entry.agentPgid == null || entry.agentCatalogId == null) continue;
+      out.push({
+        terminalId,
+        agentCatalogId: entry.agentCatalogId,
+        agentPgid: entry.agentPgid,
+      });
+    }
+    return out;
+  },
+  applyResumeHint,
+  demotePromotedShell,
+});
+
+const hookRuntime = createHookRuntime({
+  listTerminals() {
+    return Array.from(trackedAgents.entries()).map(([terminalId, entry]) => ({
+      terminalId,
+      pgid: entry.currentPgid,
+      agentPgid: entry.agentPgid,
+    }));
+  },
+  applyHookMatch,
+});
 
 // ---- OSC detection dispatch (debounce timers) --------------------------------
 //
@@ -711,7 +582,7 @@ function applyDetection(terminalId: string, result: DetectionResult) {
  * resume-hint + demotion side effects. Shared by the live stream and the
  * one-shot seed so both paths keep the sticky pid in sync. */
 function noteForeground(
-  entry: SessionEntry,
+  entry: TrackedAgent,
   terminalId: string,
   fg: TerminalForeground,
   source: "tick" | "seed" = "tick",
@@ -730,13 +601,18 @@ function noteForeground(
     // immediate poll missed it and the regular 3s ticker then failed to
     // consume the new line until reload). Catch up a few times.
     if (becameAgent) {
-      scheduleHookCatchupReads();
+      hookRuntime.scheduleHookCatchupReads();
       // Session-file agents (Grok) resolve their exact id from their own
       // registry rather than a hook — read it now (and retry) against this
       // foreground pgid. Also re-reads when a foreign hook already stamped a
       // wrong agentId (Grok + Claude settings import).
       if (agent?.resume.kind === "session-file") {
-        scheduleSessionFileReads(terminalId, agent, agent.resume, fg.pgid);
+        sessionFileResume.scheduleSessionFileReads(
+          terminalId,
+          agent,
+          agent.resume,
+          fg.pgid,
+        );
       }
     }
   }
@@ -749,7 +625,7 @@ function noteForeground(
 }
 
 function attachSession(terminalId: string) {
-  if (sessions.has(terminalId)) return;
+  if (trackedAgents.has(terminalId)) return;
   const ctx = findTerminalContext(terminalId);
   if (!ctx?.rec.sessionId) return;
 
@@ -775,7 +651,7 @@ function attachSession(terminalId: string) {
   );
   const nowIso = new Date().toISOString();
 
-  const entry: SessionEntry = {
+  const entry: TrackedAgent = {
     state,
     info: toAgentInfo(terminalId, ctx.wsId, state),
     lastLiveAt: persisted?.lastLiveAt ?? nowIso,
@@ -793,7 +669,7 @@ function attachSession(terminalId: string) {
     cleanupFg: () => {},
     cleanupOutput: () => {},
   };
-  sessions.set(terminalId, entry);
+  trackedAgents.set(terminalId, entry);
 
   entry.cleanupOsc = getTerminalService().subscribeOsc(
     terminalId,
@@ -855,14 +731,14 @@ function attachSession(terminalId: string) {
 }
 
 function detachSession(terminalId: string) {
-  const entry = sessions.get(terminalId);
+  const entry = trackedAgents.get(terminalId);
   if (!entry) return;
   entry.cleanupOsc();
   entry.cleanupFg();
   entry.cleanupOutput();
   clearShellIdleTimer(terminalId);
   clearAgentIdleTimer(terminalId);
-  sessions.delete(terminalId);
+  trackedAgents.delete(terminalId);
   notify();
 }
 
@@ -874,7 +750,7 @@ function syncSessions() {
       attachSession(t.id);
     }
   }
-  for (const tid of sessions.keys()) {
+  for (const tid of trackedAgents.keys()) {
     if (!known.has(tid)) detachSession(tid);
   }
   notify();
@@ -883,274 +759,19 @@ function syncSessions() {
 syncSessions();
 subscribe(store, syncSessions);
 
-// ---- hook-based resolution (exact) ----------------------------------------
+// ---- session-file / hook runtime boot ------------------------------------
 
-const AGENT_HOOKS_WATCH_ID = "silo-agent-hooks";
-
-/** Apply an exact, hook-reported resume identity to a terminal — upgrading
- * whatever generic hint may already be attached to an exact resume command.
- * Both the command syntax and the display name come from the catalog entry
- * for `event.agent` (see agent-catalog.ts), so this is agent-agnostic; the
- * `${agent} --resume` form is only a defensive fallback for an event whose
- * agent id somehow isn't in the catalog. `resumeHintResolved` is set so the
- * generic path won't later re-stash a vague hint over this one. */
-function applyHookMatch(terminalId: string, event: HookEvent) {
-  const entry = sessions.get(terminalId);
-  if (!entry) return;
-
-  // Grok (and any future Claude-compat CLI) can re-fire Claude's installed
-  // SessionStart hook against its own pid/session — reject when the sticky
-  // foreground leader is a different catalog agent.
-  if (!hookEventCompatibleWithStickyAgent(event.agent, entry.agentCatalogId)) {
-    agentsChannel.info(
-      `Ignoring ${event.agent} hook session ${event.sessionId} for terminal ${terminalId} — ` +
-        `foreground agent is ${entry.agentCatalogId}.`,
-    );
-    return;
-  }
-
-  // Prefer the earliest SessionStart. A later probe must not overwrite a
-  // live confirmation; a restart that restored a wrong id (no hook
-  // timestamp yet) may still be corrected by the backlog's earliest event
-  // (confirmed live: Codex showed `CODEX-PROBE-*` over `019fa9d2-…`).
-  if (
-    !shouldAcceptHookSessionId(
-      entry.state.sessionId,
-      entry.hookSessionTimestamp,
-      event,
-    )
-  ) {
-    agentsChannel.debug(
-      `Ignoring later hook session ${event.sessionId} for terminal ${terminalId} — already confirmed ${entry.state.sessionId}.`,
-    );
-    return;
-  }
-  if (entry.state.sessionId === event.sessionId) {
-    // Same id (e.g. restart re-read) — still stamp the timestamp so a
-    // subsequent probe can't slip through the "restored, no timestamp" path.
-    entry.hookSessionTimestamp = event.timestamp;
-    return;
-  }
-
-  const agent = agentById(event.agent);
-  const hook = agent?.resume.kind === "hook" ? agent.resume : undefined;
-
-  entry.resumeHintResolved = true;
-  entry.hookSessionTimestamp = event.timestamp;
-  applyResumeHint(terminalId, {
-    sessionId: event.sessionId,
-    resumeCommand: hook
-      ? hook.buildResumeCommand(event.sessionId)
-      : `${event.agent} --resume ${event.sessionId}`,
-    agentName: agent?.displayName ?? event.agent,
-    agentId: agent?.id ?? event.agent,
-  });
-
-  agentsChannel.info(
-    `Hook-confirmed session ${event.sessionId} for terminal ${terminalId} (pid ${event.pid}).`,
-  );
-}
-
-/**
- * Events read but not yet matched to a terminal, retried on the next
- * consume rather than discarded. This matters because `readNewHookEvents()`
- * is a checkpoint — each line is returned exactly once, ever — but a hook
- * can fire (and the event line get read) *before* Silo's own
- * foreground-tracking has caught up to the terminal's new pgid. Without a
- * retry buffer, that single unlucky consume permanently loses an event that
- * would have matched correctly a few hundred milliseconds later. Pruned by
- * `MAX_EVENT_AGE_MS` measured from {@link PendingHookEvent.firstSeenAt}.
- */
-let pendingHookEvents: PendingHookEvent[] = [];
-
-/** Single-flight so rapid notify events / catch-up timers don't overlap
- * reads and race the shared `linesProcessed` checkpoint. A concurrent
- * request sets `consumeQueued` so we run once more after the in-flight
- * consume finishes (otherwise a write during an active read would be
- * missed until the next catch-up/watch event). */
-let consumeInFlight = false;
-let consumeQueued = false;
-
-/**
- * Delays (ms) after a terminal's foreground first becomes a known agent.
- * Immediate read catches a SessionStart that already wrote; later ticks catch
- * the common case where the hook fires a second or two after `agentPgid` is
- * set (live: Claude #2's events.jsonl line landed ~2s after the foreground
- * tick). Codex may fire SessionStart on the first user message rather than
- * process start — catch-up still helps once the line appears around then.
- */
-const HOOK_CATCHUP_DELAYS_MS = [0, 500, 2_000] as const;
-const hookCatchupTimers = new Set<ReturnType<typeof setTimeout>>();
-
-function scheduleHookCatchupReads() {
-  for (const ms of HOOK_CATCHUP_DELAYS_MS) {
-    if (ms === 0) {
-      void consumeHookEvents();
-      continue;
-    }
-    const handle = setTimeout(() => {
-      hookCatchupTimers.delete(handle);
-      void consumeHookEvents();
-    }, ms);
-    hookCatchupTimers.add(handle);
-  }
-}
-
-/** Tail `events.jsonl`, match new (+ pending) lines to tracked terminals,
- * apply exact session ids. Shared by the file watch and catch-up reads. */
-async function consumeHookEvents() {
-  if (consumeInFlight) {
-    consumeQueued = true;
-    return;
-  }
-  consumeInFlight = true;
-
-  try {
-    do {
-      consumeQueued = false;
-      if (sessions.size === 0) {
-        pendingHookEvents = [];
-        continue;
-      }
-
-      const now = Date.now();
-      const newEvents = stampNewHookEvents(await readNewHookEvents(), now);
-
-      if (newEvents.length > 0) {
-        agentsChannel.debug(
-          `Read ${newEvents.length} new hook event(s): ` +
-            newEvents
-              .map((e) => `pid=${e.event.pid}(${e.event.agent})`)
-              .join(", "),
-        );
-      }
-
-      const candidates =
-        pendingHookEvents.length > 0
-          ? [...pendingHookEvents, ...newEvents]
-          : newEvents;
-      if (candidates.length === 0) continue;
-
-      const terminals = Array.from(sessions.entries()).map(
-        ([terminalId, entry]) => ({
-          terminalId,
-          pgid: entry.currentPgid,
-          agentPgid: entry.agentPgid,
-        }),
-      );
-      const livePids = new Set<number>();
-      for (const t of terminals) {
-        if (t.pgid != null) livePids.add(t.pgid);
-        if (t.agentPgid != null) livePids.add(t.agentPgid);
-      }
-      const matches = matchHookEventsToTerminals(
-        candidates.map((c) => c.event),
-        terminals,
-      );
-      // One terminal can match many backlog lines for the same live pid
-      // (real SessionStart + later probes). Keep the earliest event so a
-      // probe never wins the race within a single consume.
-      const applied = pickEarliestMatchPerTerminal(matches);
-      const matchedSessionIds = new Set<string>();
-      for (const match of applied) {
-        applyHookMatch(match.terminalId, match.event);
-        matchedSessionIds.add(match.event.sessionId);
-      }
-      pendingHookEvents = pruneUnmatchedEvents(
-        candidates,
-        matches,
-        now,
-        livePids,
-      );
-      if (pendingHookEvents.length > 0) {
-        agentsChannel.debug(
-          `${pendingHookEvents.length} hook event(s) still unmatched: ` +
-            pendingHookEvents
-              .map((c) => `pid=${c.event.pid}(${c.event.agent})`)
-              .join(", ") +
-            ` — tracked terminal pgids: ` +
-            terminals
-              .map(
-                (t) =>
-                  `${t.terminalId.slice(-8)}=pgid:${t.pgid}/agent:${t.agentPgid}`,
-              )
-              .join(", "),
-        );
-      }
-      // Remove applied session ids from the jsonl (identity now lives on
-      // agentState) and drop aged leftovers so restarts stay quiet.
-      try {
-        await pruneAgentHooksEventsFile(
-          now,
-          matchedSessionIds.size > 0 ? matchedSessionIds : undefined,
-        );
-      } catch (err) {
-        agentsChannel.warn("Pruning agent-hooks events.jsonl failed", err);
-      }
-    } while (consumeQueued);
-  } catch (err) {
-    agentsChannel.warn("consumeHookEvents threw", err);
-  } finally {
-    consumeInFlight = false;
-    if (consumeQueued) {
-      consumeQueued = false;
-      void consumeHookEvents();
-    }
-  }
-}
-
-let unlistenHookWatch: (() => void) | null = null;
-
-/** Watch `~/.silo/agent-hooks` and consume on create/modify. Directory watch
- * (not the jsonl file alone) so the watcher survives the file being absent
- * at boot and created on the first SessionStart. */
-async function startAgentHooksWatch() {
-  try {
-    const dir = await resolveAgentHooksDir();
-    await invoke("fs_create_dir", { path: dir });
-    await startWatch(AGENT_HOOKS_WATCH_ID, dir);
-    unlistenHookWatch = await onFileChange((evt) => {
-      if (evt.watchId !== AGENT_HOOKS_WATCH_ID) return;
-      // Any change under the hooks dir — typically events.jsonl append.
-      void consumeHookEvents();
-    });
-    agentsChannel.info(
-      `Hook-events watch started on ${dir} (consume on write, not polled).`,
-    );
-  } catch (err) {
-    agentsChannel.warn(
-      "Could not start agent-hooks file watch; catch-up reads only.",
-      err,
-    );
-  }
-}
-
-void startAgentHooksWatch();
+void sessionFileResume.ensureSessionFileWatches();
+void hookRuntime.startAgentHooksWatch();
 // Still-running sessions' hook events are already on disk at boot/reload.
-void consumeHookEvents();
+void hookRuntime.consumeHookEvents();
 
-// Vite HMR: tear down the watch + catch-up timers and reset the line
-// checkpoint so the next module instance re-reads cleanly.
+// Vite HMR: tear down watches + catch-up timers and reset the line checkpoint
+// so the next module instance re-reads cleanly.
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
-    for (const handle of hookCatchupTimers) clearTimeout(handle);
-    hookCatchupTimers.clear();
-    clearAllSessionFileTimers();
-    unlistenHookWatch?.();
-    unlistenHookWatch = null;
-    void stopWatch(AGENT_HOOKS_WATCH_ID).catch(() => {});
-    unlistenSessionFileWatch?.();
-    unlistenSessionFileWatch = null;
-    for (const id of sessionFileWatchIds) {
-      void stopWatch(id).catch(() => {});
-    }
-    sessionFileWatchIds.clear();
-    sessionFileWatchReady = false;
-    pendingHookEvents = [];
-    consumeInFlight = false;
-    consumeQueued = false;
-    resetHookEventsCheckpoint();
-    disposeHookEventsRuntime();
+    sessionFileResume.dispose();
+    hookRuntime.dispose();
   });
 }
 
@@ -1165,8 +786,8 @@ if (import.meta.hot) {
  * leader never matched a known agent), falls back to the generic hint using
  * the last-known `leader`/`cwd`.
  */
-export function markSessionDead(terminalId: string): void {
-  const entry = sessions.get(terminalId);
+function markSessionDead(terminalId: string): void {
+  const entry = trackedAgents.get(terminalId);
   if (!entry) return;
 
   if (entry.state.resumeCommand || entry.state.sessionId) {
@@ -1186,15 +807,24 @@ export function markSessionDead(terminalId: string): void {
 /** Called once a fresh session has been spawned for a terminal that was
  * `"dead"` (the auto-recreate path in `TerminalPanel.tsx`), clearing it back
  * to a fresh, unstarted state so agent tracking resumes normally. */
-export function resetSessionAfterRecreate(terminalId: string): void {
-  const entry = sessions.get(terminalId);
+function resetSessionAfterRecreate(terminalId: string): void {
+  const entry = trackedAgents.get(terminalId);
   if (!entry) return;
   entry.resumeHintResolved = false;
   entry.agentPgid = null;
   entry.agentCatalogId = null;
   entry.hookSessionTimestamp = null;
-  clearSessionFileTimersFor(terminalId);
+  sessionFileResume.clearSessionFileTimersFor(terminalId);
   applyEvent(terminalId, { type: "reset" });
+}
+
+/** Terminal lifecycle seam — `TerminalPanel` calls these when a PTY session
+ * disappears (`SESSION_GONE`) or is replaced after recreate. */
+export function notifyTerminalSessionGone(terminalId: string): void {
+  markSessionDead(terminalId);
+}
+export function notifyTerminalSessionRecreated(terminalId: string): void {
+  resetSessionAfterRecreate(terminalId);
 }
 
 // ---- service ----------------------------------------------------------------
@@ -1212,7 +842,7 @@ export function getAgentsService(): AgentsService {
       return cachedAllSnapshot;
     },
     getByTerminalId(terminalId) {
-      return sessions.get(terminalId)?.info;
+      return trackedAgents.get(terminalId)?.info;
     },
     subscribe(listener, options) {
       const entry: ListenerEntry = {

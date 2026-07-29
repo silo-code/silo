@@ -12,7 +12,8 @@
 
 .agents-settings-docs-link {
   display: inline-block;
-  margin-top: 6px;
+  /* No --silo-space-* token yet; half a sm font size keeps chrome spacing scaled. */
+  margin-top: calc(var(--silo-font-size-sm) * 0.5);
   padding: 0;
   border: none;
   background: transparent;

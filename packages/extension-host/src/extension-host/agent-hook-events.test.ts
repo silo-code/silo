@@ -236,6 +236,37 @@ describe("selectEventsJsonlLinesToKeep", () => {
     const kept = selectEventsJsonlLinesToKeep(lines, NOW + 10_000, 60_000, 2);
     expect(kept).toEqual([lines[1], lines[2]]);
   });
+
+  it("drops lines missing a non-empty agent field", () => {
+    const withAgent = JSON.stringify({
+      pid: 1,
+      sessionId: "keep",
+      cwd: "/tmp",
+      agent: "claude",
+      timestamp: new Date(NOW).toISOString(),
+    });
+    const missingAgent = JSON.stringify({
+      pid: 2,
+      sessionId: "no-agent",
+      cwd: "/tmp",
+      timestamp: new Date(NOW).toISOString(),
+    });
+    const emptyAgent = JSON.stringify({
+      pid: 3,
+      sessionId: "empty-agent",
+      cwd: "/tmp",
+      agent: "",
+      timestamp: new Date(NOW).toISOString(),
+    });
+    expect(
+      selectEventsJsonlLinesToKeep(
+        [withAgent, missingAgent, emptyAgent],
+        NOW,
+        60_000,
+        100,
+      ),
+    ).toEqual([withAgent]);
+  });
 });
 
 describe("stampNewHookEvents", () => {
