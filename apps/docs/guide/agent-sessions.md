@@ -1,8 +1,8 @@
 # Using agents with Silo
 
 Silo recognizes the coding agents you run in your terminals — Claude Code,
-Codex, Cursor Agent, and Copilot CLI — and shows you what each one is doing at a
-glance.
+Codex, Cursor Agent, Copilot CLI, and Grok — and shows you what each one is
+doing at a glance.
 
 Two optional setup steps: install a monitoring extension to see agent status in
 the UI, and flip on a CLI in **Settings → Agents** so Silo can give you the
@@ -63,3 +63,8 @@ location — if you run one somewhere else, enable the toggle once and copy the
 trust it. After turning the toggle on, open Codex and run `/hooks` once — the
 entry shows a `Silo session tracking (getsilo.dev)` label so you can recognize
 it. Until you do, exact resume stays off for Codex.
+
+**Grok needs no toggle.** Grok keeps its own live session registry
+(`~/.grok/active_sessions.json`), so Silo reads that directly when it sees a
+Grok terminal and offers `grok --resume <id>` — no hook to install, nothing to
+trust. It just works the moment you run `grok`.

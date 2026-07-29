@@ -15,7 +15,11 @@ import {
   detectIdleAfterWorking,
   detectFromOutput,
   agentById,
+  agentByLeader,
+  type AgentDefinition,
+  type AgentSessionFileResume,
 } from "./agent-catalog";
+import { homeDir } from "./platform";
 import {
   readNewHookEvents,
   matchHookEventsToTerminals,
@@ -334,6 +338,90 @@ function maybeResolveResumeHint(
   applyResumeHint(terminalId, genericHint(leader, cwd));
 }
 
+// ---- session-file resume resolution (e.g. Grok) ---------------------------
+//
+// Some agents (Grok) keep their OWN live `{ pid → session_id }` registry of
+// active sessions, so exact resume needs no hook: read the agent's file the
+// moment we detect its foreground and match the terminal's foreground pgid
+// against the recorded pid (the agent runs as a process-group leader, so
+// pgid == pid). Event-driven off the foreground signal — never polled. The
+// read may lose a race with the agent writing the file just after it takes the
+// foreground, so it's retried a few times, mirroring the hook catch-up.
+
+/** Delays (ms after a session-file agent is first seen in the foreground) at
+ * which to (re)read its session registry — the first attempt can beat the
+ * agent writing its entry. */
+const SESSION_FILE_READ_DELAYS_MS = [0, 600, 1500, 3000];
+const sessionFileTimers = new Set<ReturnType<typeof setTimeout>>();
+
+function clearSessionFileTimers() {
+  for (const h of sessionFileTimers) clearTimeout(h);
+  sessionFileTimers.clear();
+}
+
+/** Read a session-file agent's registry and, if its entry for `pgid` is
+ * present, attach the exact session id + resume command. No-op once an exact
+ * id is already set, and silently returns on a missing/unreadable file (a
+ * later retry may still find it). */
+async function resolveSessionFileId(
+  terminalId: string,
+  agent: AgentDefinition,
+  resume: AgentSessionFileResume,
+  pgid: number,
+) {
+  const entry = sessions.get(terminalId);
+  if (!entry || entry.state.sessionId) return;
+
+  let text: string;
+  try {
+    const base = (await homeDir()).replace(/\/+$/, "");
+    text = await invoke<string>("fs_read_text", {
+      path: `${base}/${resume.sessionFilePath}`,
+    });
+  } catch {
+    return; // missing/unreadable — a scheduled retry may still catch it
+  }
+
+  // The terminal (and its live entry) may have gone away during the await.
+  const live = sessions.get(terminalId);
+  if (!live || live.state.sessionId) return;
+
+  const sessionId = resume.resolveSessionId(text, pgid);
+  if (!sessionId) return;
+
+  applyResumeHint(terminalId, {
+    sessionId,
+    resumeCommand: resume.buildResumeCommand(sessionId),
+    agentName: agent.displayName,
+    agentId: agent.id,
+  });
+  agentsChannel.info(
+    `Resolved ${agent.displayName} session ${sessionId} for terminal ${terminalId} ` +
+      `from ${resume.sessionFilePath} (pgid ${pgid}).`,
+  );
+}
+
+/** Schedule the first + retry reads of a session-file agent's registry after
+ * it's first seen in a terminal's foreground. */
+function scheduleSessionFileReads(
+  terminalId: string,
+  agent: AgentDefinition,
+  resume: AgentSessionFileResume,
+  pgid: number,
+) {
+  for (const ms of SESSION_FILE_READ_DELAYS_MS) {
+    if (ms === 0) {
+      void resolveSessionFileId(terminalId, agent, resume, pgid);
+      continue;
+    }
+    const h = setTimeout(() => {
+      sessionFileTimers.delete(h);
+      void resolveSessionFileId(terminalId, agent, resume, pgid);
+    }, ms);
+    sessionFileTimers.add(h);
+  }
+}
+
 /**
  * Demote a promoted-shell terminal back to a plain shell once the foreground
  * genuinely returns to the shell itself. `atPrompt` (from `tcgetpgrp` at the
@@ -471,7 +559,16 @@ function noteForeground(
     // Claude #2 wrote events.jsonl ~2s after agentPgid was set; a single
     // immediate poll missed it and the regular 3s ticker then failed to
     // consume the new line until reload). Catch up a few times.
-    if (becameAgent) scheduleHookCatchupReads();
+    if (becameAgent) {
+      scheduleHookCatchupReads();
+      // Session-file agents (Grok) resolve their exact id from their own
+      // registry rather than a hook — read it now (and retry) against this
+      // foreground pgid.
+      const agent = agentByLeader(fg.leader);
+      if (agent?.resume.kind === "session-file" && !entry.state.sessionId) {
+        scheduleSessionFileReads(terminalId, agent, agent.resume, fg.pgid);
+      }
+    }
   }
   agentsChannel.debug(
     `terminal ${terminalId} foreground ${source}: pgid=${fg.pgid} agentPgid=${entry.agentPgid} leader="${fg.leader}" cwd=${fg.cwd}` +
@@ -856,6 +953,7 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     for (const handle of hookCatchupTimers) clearTimeout(handle);
     hookCatchupTimers.clear();
+    clearSessionFileTimers();
     unlistenHookWatch?.();
     unlistenHookWatch = null;
     void stopWatch(AGENT_HOOKS_WATCH_ID).catch(() => {});

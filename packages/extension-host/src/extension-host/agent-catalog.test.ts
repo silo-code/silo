@@ -287,6 +287,7 @@ describe("agentByLeader", () => {
     expect(agentByLeader("cursor-agent")?.id).toBe("cursor");
     expect(agentByLeader("agent")?.id).toBe("cursor");
     expect(agentByLeader("copilot")?.id).toBe("copilot");
+    expect(agentByLeader("grok")?.id).toBe("grok");
   });
 
   it("matches a known agent by full-path leader", () => {
@@ -331,6 +332,11 @@ describe("hookInstallableAgents", () => {
     expect(ids).toContain("copilot");
   });
 
+  it("excludes Grok — it resolves via its own session file, not a hook", () => {
+    expect(hookInstallableAgents().map((a) => a.id)).not.toContain("grok");
+    expect(agentById("grok")?.resume.kind).toBe("session-file");
+  });
+
   it("assigns the correct installStrategy per agent", () => {
     expect(agentById("claude")?.resume).toMatchObject({
       kind: "hook",
@@ -348,6 +354,46 @@ describe("hookInstallableAgents", () => {
       kind: "hook",
       installStrategy: "copilot-hooks-dir",
     });
+  });
+});
+
+describe("Grok — session-file resume", () => {
+  const grok = agentById("grok");
+  const resume = grok?.resume.kind === "session-file" ? grok.resume : undefined;
+
+  it("is a session-file resume pointing at Grok's active-session registry", () => {
+    expect(resume).toBeDefined();
+    expect(resume!.sessionFilePath).toBe(".grok/active_sessions.json");
+    expect(resume!.buildResumeCommand("abc-123")).toBe("grok --resume abc-123");
+  });
+
+  it("resolves the session id whose entry pid matches the terminal's pgid", () => {
+    const file = JSON.stringify([
+      { session_id: "sess-A", pid: 58782, cwd: "/a" },
+      { session_id: "sess-B", pid: 69739, cwd: "/b" },
+    ]);
+    expect(resume!.resolveSessionId(file, 58782)).toBe("sess-A");
+    expect(resume!.resolveSessionId(file, 69739)).toBe("sess-B");
+  });
+
+  it("returns null for a pgid with no active session, and for junk input", () => {
+    const file = JSON.stringify([
+      { session_id: "sess-A", pid: 111, cwd: "/a" },
+    ]);
+    expect(resume!.resolveSessionId(file, 999)).toBeNull();
+    expect(resume!.resolveSessionId("not json", 111)).toBeNull();
+    expect(resume!.resolveSessionId("{}", 111)).toBeNull(); // not an array
+    expect(resume!.resolveSessionId("[]", 111)).toBeNull();
+    // Entry present but missing/empty session_id → no false positive.
+    expect(
+      resume!.resolveSessionId(JSON.stringify([{ pid: 111 }]), 111),
+    ).toBeNull();
+    expect(
+      resume!.resolveSessionId(
+        JSON.stringify([{ pid: 111, session_id: "" }]),
+        111,
+      ),
+    ).toBeNull();
   });
 });
 

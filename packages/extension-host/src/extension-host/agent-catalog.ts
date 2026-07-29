@@ -150,11 +150,39 @@ export interface AgentHookResume {
   postInstallNote?: string;
 }
 
+/**
+ * Exact-resume via the agent's **own** live session registry — no hook, no
+ * install, no trust step. For agents (Grok) that already maintain a native
+ * `{ pid → session_id }` file of currently-active sessions. Silo reads that
+ * file the moment it detects this agent's foreground (the same
+ * foreground-tracking signal that sets `agentPgid`, never polled) and matches
+ * the terminal's foreground pgid against it — the agent runs as a
+ * process-group leader, so its pgid equals the pid recorded in the file. This
+ * reuses the exact pgid-correlation model the hook path uses, minus the hook.
+ */
+export interface AgentSessionFileResume {
+  kind: "session-file";
+  /** Path to the agent's live active-session registry, relative to `$HOME`
+   * (POSIX slashes), e.g. `.grok/active_sessions.json`. */
+  sessionFilePath: string;
+  /** Parse the file's text and return the session id whose entry's pid matches
+   * `pgid`, or `null` if not present yet (the session may not have been
+   * written when the foreground was first detected — the host retries). Kept
+   * per-agent because each agent's file shape differs. */
+  resolveSessionId: (fileText: string, pgid: number) => string | null;
+  /** Builds the exact resume command for a captured id, e.g.
+   * `grok --resume <id>`. Surfaced as the terminal's `resumeCommand`. */
+  buildResumeCommand: (sessionId: string) => string;
+}
+
 export interface AgentNoResume {
   kind: "none";
 }
 
-export type AgentResume = AgentHookResume | AgentNoResume;
+export type AgentResume =
+  | AgentHookResume
+  | AgentSessionFileResume
+  | AgentNoResume;
 
 export interface AgentDefinition {
   /** Stable id, also written into hook events as the `agent` tag. */
@@ -524,12 +552,80 @@ const copilot: AgentDefinition = {
   lastVerified: "2026-07-28",
 };
 
+const grok: AgentDefinition = {
+  id: "grok",
+  displayName: "Grok",
+  leaderNames: ["grok"],
+  // "Working" shares the braille-spinner OSC 0 detector — Grok's TUI uses the
+  // same U+2800–28FF glyph range as Claude/Codex (confirmed live: Grok shows as
+  // an agent via this shared detector before any Grok-specific entry existed).
+  // Idle is the shared contextual fallback (a non-braille OSC 0 title after an
+  // agent-sourced working phase), reused from Codex — provisional until a
+  // Grok-specific idle signal is observed.
+  activityDetectors: [detectClaudeCode],
+  idleAfterWorking: detectCodexIdleAfterWorking,
+  resume: {
+    // Grok maintains its own live session registry, so exact resume needs no
+    // hook: Silo reads Grok's file when it detects the Grok foreground and
+    // matches the terminal's foreground pgid against the recorded pid.
+    kind: "session-file",
+    sessionFilePath: ".grok/active_sessions.json",
+    resolveSessionId: (fileText, pgid) => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(fileText);
+      } catch {
+        return null;
+      }
+      if (!Array.isArray(parsed)) return null;
+      for (const e of parsed) {
+        if (
+          e &&
+          typeof e === "object" &&
+          (e as { pid?: unknown }).pid === pgid &&
+          typeof (e as { session_id?: unknown }).session_id === "string" &&
+          (e as { session_id: string }).session_id
+        ) {
+          return (e as { session_id: string }).session_id;
+        }
+      }
+      return null;
+    },
+    buildResumeCommand: (sessionId) => `grok --resume ${sessionId}`,
+  },
+  docsUrl: "https://getsilo.dev/guide/agent-sessions#grok",
+  contract:
+    "Exact resume uses Grok's OWN live session registry — no hook, no install, " +
+    "no trust step. CONFIRMED live against grok 0.2.114 (2026-07-29): " +
+    "(1) Grok maintains ~/.grok/active_sessions.json, a JSON array of " +
+    "{ session_id, pid, cwd, opened_at } for currently-active sessions; " +
+    "(2) Grok runs as a process-group leader (pgid == pid), so a terminal's " +
+    "foreground pgid equals the `pid` recorded in the file — Silo reads the " +
+    "file when it first detects a Grok foreground (event-driven off the same " +
+    "signal that sets agentPgid, never polled; retried a few times to cover a " +
+    "session written just after the foreground is detected) and matches pgid " +
+    "→ pid to attach the exact session id; (3) `grok --resume <SESSION_ID>` " +
+    "resumes by id (UUID-shaped values are always treated as ids, per " +
+    "`grok --resume --help`); session ids are UUIDv7. Activity: 'working' " +
+    "shares the Claude/Codex braille-spinner OSC 0 detector (same glyph " +
+    "range, confirmed shared); idle is the shared contextual fallback (a " +
+    "non-braille OSC 0 title after an agent-sourced working phase) — " +
+    "PROVISIONAL, pending observation of a Grok-specific idle signal. Note: " +
+    "Grok ALSO supports [[hooks.SessionStart]] hooks, but only in TOML " +
+    "config.toml (no global JSON hooks dir) and behind a folder-trust step, so " +
+    "the native session file is the cleaner integration.",
+  upstreamRefs: ["https://github.com/xai-org/grok-cli", "https://docs.x.ai"],
+  lastVerified: "2026-07-29",
+  verifiedAgainstVersion: "grok@0.2.114",
+};
+
 /** Every agent Silo knows about. Order is the detection-dispatch order. */
 export const AGENT_CATALOG: AgentDefinition[] = [
   claude,
   codex,
   cursor,
   copilot,
+  grok,
 ];
 
 // ---- derived views ----------------------------------------------------------
