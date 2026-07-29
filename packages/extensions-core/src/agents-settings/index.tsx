@@ -52,6 +52,11 @@ import {
   hasCopilotHookInstalled,
   type CopilotHooksFile,
 } from "./copilot-hook-installer";
+import {
+  parseSettingsJsonText,
+  writableSettingsOrThrow,
+  type SettingsJsonRead,
+} from "./settings-json";
 import "./AgentsSettingsPage.css";
 
 type HookAgent = AgentDefinition & { resume: AgentHookResume };
@@ -75,18 +80,27 @@ async function resolveHomeDir(ctx: ExtensionContext): Promise<string | null> {
   }
 }
 
-async function readJsonFile<T extends object>(
+/**
+ * Read a settings JSON file fail-closed: missing vs unreadable are distinct.
+ * Never coerce parse failures to `{}` — that path used to rewrite corrupt
+ * Claude/Cursor settings and wipe the user's other hooks.
+ */
+async function readSettingsJson<T extends object>(
   ctx: ExtensionContext,
   path: string,
-): Promise<T | null> {
-  if (!(await ctx.files.pathExists(path))) return null;
+): Promise<SettingsJsonRead<T>> {
+  if (!(await ctx.files.pathExists(path))) return { kind: "missing" };
+  let text: string;
   try {
-    const text = await ctx.files.readText(path);
-    const parsed: unknown = JSON.parse(text);
-    return typeof parsed === "object" && parsed !== null ? (parsed as T) : null;
-  } catch {
-    return null;
+    text = await ctx.files.readText(path);
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    return {
+      kind: "invalid",
+      message: `Could not read settings file (${detail}): ${path}`,
+    };
   }
+  return parseSettingsJsonText<T>(text, path);
 }
 
 /** Absolute settings-file path for an agent under the user's home dir. */
@@ -101,15 +115,21 @@ async function isInstalled(
 ): Promise<boolean> {
   const strategy = agent.resume.installStrategy;
   if (strategy === "cursor-hooks-json") {
-    const file = (await readJsonFile<CursorHooksFile>(ctx, path)) ?? {};
-    return hasCursorHookInstalled(file, agent.resume);
+    const read = await readSettingsJson<CursorHooksFile>(ctx, path);
+    if (read.kind === "invalid") throw new Error(read.message);
+    if (read.kind === "missing") return false;
+    return hasCursorHookInstalled(read.value, agent.resume);
   }
   if (strategy === "copilot-hooks-dir") {
-    const file = await readJsonFile<CopilotHooksFile>(ctx, path);
-    return hasCopilotHookInstalled(file, agent.resume);
+    const read = await readSettingsJson<CopilotHooksFile>(ctx, path);
+    if (read.kind === "invalid") throw new Error(read.message);
+    if (read.kind === "missing") return false;
+    return hasCopilotHookInstalled(read.value, agent.resume);
   }
-  const settings = (await readJsonFile<ClaudeSettings>(ctx, path)) ?? {};
-  return hasHookInstalled(settings, agent.resume);
+  const read = await readSettingsJson<ClaudeSettings>(ctx, path);
+  if (read.kind === "invalid") throw new Error(read.message);
+  if (read.kind === "missing") return false;
+  return hasHookInstalled(read.value, agent.resume);
 }
 
 /**
@@ -149,9 +169,15 @@ async function refreshConfigIfDrifted(
 ): Promise<boolean> {
   const strategy = agent.resume.installStrategy;
   if (strategy === "copilot-hooks-dir") {
-    const existing = (await ctx.files.pathExists(path))
+    const exists = await ctx.files.pathExists(path);
+    const existing = exists
       ? await ctx.files.readText(path).catch(() => null)
       : null;
+    // File present but unreadable — refuse to clobber it during self-heal.
+    if (exists && existing != null) {
+      const read = parseSettingsJsonText<CopilotHooksFile>(existing, path);
+      if (read.kind === "invalid") throw new Error(read.message);
+    }
     const next =
       JSON.stringify(buildCopilotHookFile(agent.resume), null, 2) + "\n";
     if (existing === next) return false;
@@ -161,13 +187,19 @@ async function refreshConfigIfDrifted(
     return true;
   }
   if (strategy === "cursor-hooks-json") {
-    const current = (await readJsonFile<CursorHooksFile>(ctx, path)) ?? {};
+    const current = writableSettingsOrThrow(
+      await readSettingsJson<CursorHooksFile>(ctx, path),
+      path,
+    );
     const next = withCursorHookInstalled(current, agent.resume);
     if (next === current) return false;
     await ctx.files.writeText(path, JSON.stringify(next, null, 2) + "\n");
     return true;
   }
-  const current = (await readJsonFile<ClaudeSettings>(ctx, path)) ?? {};
+  const current = writableSettingsOrThrow(
+    await readSettingsJson<ClaudeSettings>(ctx, path),
+    path,
+  );
   const next = withHookInstalled(current, agent.resume);
   if (next === current) return false;
   await ctx.files.writeText(path, JSON.stringify(next, null, 2) + "\n");
@@ -191,7 +223,17 @@ async function writeInstalled(
   const strategy = agent.resume.installStrategy;
   if (strategy === "copilot-hooks-dir") {
     // Dedicated file: write the full document on install, delete on uninstall.
+    // Refuse to overwrite a present-but-invalid file (same fail-closed rule).
     if (install) {
+      if (await ctx.files.pathExists(path)) {
+        const text = await ctx.files.readText(path).catch(() => null);
+        if (text != null) {
+          writableSettingsOrThrow(
+            parseSettingsJsonText<CopilotHooksFile>(text, path),
+            path,
+          );
+        }
+      }
       const next = buildCopilotHookFile(agent.resume);
       await ctx.files.writeText(path, JSON.stringify(next, null, 2) + "\n");
     } else if (await ctx.files.pathExists(path)) {
@@ -201,7 +243,10 @@ async function writeInstalled(
   }
 
   if (strategy === "cursor-hooks-json") {
-    const current = (await readJsonFile<CursorHooksFile>(ctx, path)) ?? {};
+    const current = writableSettingsOrThrow(
+      await readSettingsJson<CursorHooksFile>(ctx, path),
+      path,
+    );
     const next = install
       ? withCursorHookInstalled(current, agent.resume)
       : withCursorHookUninstalled(current, agent.resume);
@@ -209,7 +254,10 @@ async function writeInstalled(
     return;
   }
 
-  const current = (await readJsonFile<ClaudeSettings>(ctx, path)) ?? {};
+  const current = writableSettingsOrThrow(
+    await readSettingsJson<ClaudeSettings>(ctx, path),
+    path,
+  );
   const next = install
     ? withHookInstalled(current, agent.resume)
     : withHookUninstalled(current, agent.resume);

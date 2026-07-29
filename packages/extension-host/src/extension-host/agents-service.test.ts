@@ -85,6 +85,9 @@ import { store } from "../state/store";
 import type { WorkspaceInternal } from "../state/types";
 import { getAgentsService } from "./agents-service";
 import { AGENT_IDLE_DEBOUNCE_MS } from "./agent-detection-dispatch";
+import { readNewHookEvents } from "./agent-hook-events";
+
+const readNewHookEventsMock = vi.mocked(readNewHookEvents);
 
 const svc = getAgentsService();
 
@@ -118,6 +121,7 @@ beforeEach(() => {
   invoke.mockReset().mockResolvedValue(null);
   homeDir.mockReset().mockResolvedValue("/Users/test");
   getActive.mockReset().mockReturnValue(null);
+  readNewHookEventsMock.mockReset().mockResolvedValue([]);
   oscCallbacks.clear();
   fgCallbacks.clear();
 
@@ -334,6 +338,106 @@ describe("AgentsService — Grok session-file resume", () => {
     expect(info?.sessionId).toBeUndefined();
     expect(info?.agentId).toBeUndefined();
     expect(info?.activity).toBe("none");
+  });
+
+  it("does not re-stamp a session id from a pending timer after demotion", async () => {
+    const id = "t-grok-timer-demote";
+    const sessionId = "sess-grok-timer-demote";
+    const grokPgid = 66666;
+    const grokSession = "019fafbb-timer-demote-session-00000003";
+    let fileText: string | null = null;
+
+    invoke.mockImplementation((cmd: string, args?: { path?: string }) => {
+      if (
+        cmd === "fs_read_text" &&
+        args?.path?.endsWith(".grok/active_sessions.json")
+      ) {
+        if (fileText == null) return Promise.reject(new Error("ENOENT"));
+        return Promise.resolve(fileText);
+      }
+      return Promise.resolve(null);
+    });
+
+    await attachTerminal(id, sessionId);
+    getActive.mockReturnValue(id);
+    osc(id, 0, "⠀");
+    foreground(sessionId, {
+      pgid: grokPgid,
+      atPrompt: false,
+      leader: "grok",
+      cwd: "/tmp",
+    });
+    // Immediate read misses; retries at 600/1500/3000 are still armed.
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(svc.getByTerminalId(id)?.sessionId).toBeUndefined();
+
+    // Shell reclaim demotes and must cancel those retries.
+    foreground(sessionId, {
+      pgid: 1,
+      atPrompt: true,
+      leader: "/bin/zsh",
+      cwd: "/tmp",
+    });
+    expect(svc.getByTerminalId(id)?.isAgent).toBe(false);
+
+    // Session appears on disk after exit — timers must not apply it.
+    fileText = JSON.stringify([
+      { session_id: grokSession, pid: grokPgid, cwd: "/tmp" },
+    ]);
+    await vi.advanceTimersByTimeAsync(3000);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.isAgent).toBe(false);
+    expect(info?.sessionId).toBeUndefined();
+    expect(info?.agentId).toBeUndefined();
+  });
+
+  it("ignores a Claude SessionStart hook when sticky foreground is Grok", async () => {
+    const id = "t-grok-hook-reject";
+    const sessionId = "sess-grok-hook-reject";
+    const grokPgid = 99901;
+
+    invoke.mockImplementation((cmd: string, args?: { path?: string }) => {
+      if (
+        cmd === "fs_read_text" &&
+        args?.path?.endsWith(".grok/active_sessions.json")
+      ) {
+        return Promise.reject(new Error("ENOENT"));
+      }
+      return Promise.resolve(null);
+    });
+
+    readNewHookEventsMock.mockResolvedValue([
+      {
+        sessionId: "claude-sess-should-ignore",
+        pid: grokPgid,
+        agent: "claude",
+        cwd: "/tmp",
+        timestamp: "2026-07-29T12:00:00.000Z",
+      },
+    ]);
+
+    await attachTerminal(id, sessionId);
+    osc(id, 0, "⠀");
+    foreground(sessionId, {
+      pgid: grokPgid,
+      atPrompt: false,
+      leader: "grok",
+      cwd: "/tmp",
+    });
+    // Foreground schedules hook catch-up reads (0 / 500 / 2000ms).
+    await vi.advanceTimersByTimeAsync(2000);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.agentId).not.toBe("claude");
+    expect(info?.sessionId).not.toBe("claude-sess-should-ignore");
+    expect(info?.resumeCommand).not.toMatch(/^claude --resume/);
   });
 });
 

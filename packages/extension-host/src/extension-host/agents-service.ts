@@ -277,6 +277,9 @@ function applyEvent(terminalId: string, ev: AgentActivityEvent) {
     // briefly show isAgent: false, then flip back to true moments later).
     clearAgentIdleTimer(terminalId);
     clearShellIdleTimer(terminalId);
+    // Pending session-file retries (Grok first-char write) must not fire after
+    // demotion and re-stamp an exact id onto a plain shell.
+    clearSessionFileTimersFor(terminalId);
   }
 
   if (next === entry.state) {
@@ -369,11 +372,25 @@ function maybeResolveResumeHint(
  * first foreground tick. Not a substitute for the file watch: Grok may not
  * create the session until the first typed character, minutes later. */
 const SESSION_FILE_READ_DELAYS_MS = [0, 600, 1500, 3000];
-const sessionFileTimers = new Set<ReturnType<typeof setTimeout>>();
+/** Per-terminal session-file retry timers. Cleared on demotion/reset so a
+ * late retry cannot re-stamp identity onto a plain shell after the agent
+ * exited. Global clear remains for HMR dispose. */
+const sessionFileTimersByTerminal = new Map<
+  string,
+  Set<ReturnType<typeof setTimeout>>
+>();
 
-function clearSessionFileTimers() {
-  for (const h of sessionFileTimers) clearTimeout(h);
-  sessionFileTimers.clear();
+function clearSessionFileTimersFor(terminalId: string) {
+  const timers = sessionFileTimersByTerminal.get(terminalId);
+  if (!timers) return;
+  for (const h of timers) clearTimeout(h);
+  sessionFileTimersByTerminal.delete(terminalId);
+}
+
+function clearAllSessionFileTimers() {
+  for (const terminalId of [...sessionFileTimersByTerminal.keys()]) {
+    clearSessionFileTimersFor(terminalId);
+  }
 }
 
 /** Read a session-file agent's registry and, if its entry for `pgid` is
@@ -391,7 +408,11 @@ async function resolveSessionFileId(
   pgid: number,
 ) {
   const entry = sessions.get(terminalId);
-  if (!entry) return;
+  // Demotion / reset clears sticky catalog id + pgid and cancels timers; a
+  // timer that already fired must still no-op so we never re-stamp identity.
+  if (!entry || entry.agentCatalogId !== agent.id || entry.agentPgid !== pgid) {
+    return;
+  }
 
   let text: string;
   try {
@@ -403,9 +424,11 @@ async function resolveSessionFileId(
     return; // missing/unreadable — a scheduled retry / watch may still catch it
   }
 
-  // The terminal (and its live entry) may have gone away during the await.
+  // The terminal (and its live sticky identity) may have gone away during await.
   const live = sessions.get(terminalId);
-  if (!live) return;
+  if (!live || live.agentCatalogId !== agent.id || live.agentPgid !== pgid) {
+    return;
+  }
 
   const sessionId = resume.resolveSessionId(text, pgid);
   if (!sessionId) {
@@ -463,16 +486,21 @@ function scheduleSessionFileReads(
   pgid: number,
 ) {
   void ensureSessionFileWatches();
+  // Replace any prior retry schedule for this terminal (re-foreground).
+  clearSessionFileTimersFor(terminalId);
+  const timers = new Set<ReturnType<typeof setTimeout>>();
+  sessionFileTimersByTerminal.set(terminalId, timers);
   for (const ms of SESSION_FILE_READ_DELAYS_MS) {
     if (ms === 0) {
       void resolveSessionFileId(terminalId, agent, resume, pgid);
       continue;
     }
     const h = setTimeout(() => {
-      sessionFileTimers.delete(h);
+      timers.delete(h);
+      if (timers.size === 0) sessionFileTimersByTerminal.delete(terminalId);
       void resolveSessionFileId(terminalId, agent, resume, pgid);
     }, ms);
-    sessionFileTimers.add(h);
+    timers.add(h);
   }
 }
 
@@ -1107,7 +1135,7 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     for (const handle of hookCatchupTimers) clearTimeout(handle);
     hookCatchupTimers.clear();
-    clearSessionFileTimers();
+    clearAllSessionFileTimers();
     unlistenHookWatch?.();
     unlistenHookWatch = null;
     void stopWatch(AGENT_HOOKS_WATCH_ID).catch(() => {});
@@ -1165,6 +1193,7 @@ export function resetSessionAfterRecreate(terminalId: string): void {
   entry.agentPgid = null;
   entry.agentCatalogId = null;
   entry.hookSessionTimestamp = null;
+  clearSessionFileTimersFor(terminalId);
   applyEvent(terminalId, { type: "reset" });
 }
 
