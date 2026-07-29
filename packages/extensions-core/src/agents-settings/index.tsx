@@ -24,9 +24,9 @@
  * (no toggle, no self-heal), since a shell hook can neither run nor correlate
  * there.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { Extension, ExtensionContext } from "@silo-code/sdk";
-import { Switch, SettingRow, Badge } from "@silo-code/sdk";
+import { Badge, Section, Callout, Button } from "@silo-code/sdk";
 import {
   hookInstallableAgents,
   sessionFileAgents,
@@ -216,6 +216,42 @@ async function writeInstalled(
   await ctx.files.writeText(path, JSON.stringify(next, null, 2) + "\n");
 }
 
+/** Label + hint + docs link on the left; a single control on the right —
+ * matches other settings pages (Install / Uninstall alone), instead of cramming badge +
+ * link + switch into the control slot. */
+function AgentSettingsRow({
+  label,
+  hint,
+  docsUrl,
+  onOpenDocs,
+  control,
+}: {
+  label: string;
+  hint: string;
+  docsUrl: string;
+  onOpenDocs: (url: string) => void;
+  control?: ReactNode;
+}) {
+  return (
+    <div className="silo-setting-row">
+      <div className="silo-setting-row-text">
+        <div className="silo-setting-row-label">{label}</div>
+        <div className="silo-setting-row-hint">{hint}</div>
+        <button
+          type="button"
+          className="agents-settings-docs-link"
+          onClick={() => onOpenDocs(docsUrl)}
+        >
+          Setup details
+        </button>
+      </div>
+      {control != null && (
+        <div className="silo-setting-row-control">{control}</div>
+      )}
+    </div>
+  );
+}
+
 function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
   const [home, setHome] = useState<string | null | undefined>(undefined);
   const [rows, setRows] = useState<AgentRow[]>([]);
@@ -334,73 +370,76 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
   }
 
   const autoAgents = sessionFileAgents();
-  const autoNames = autoAgents.map((a) => a.displayName).join(", ");
-  const autoSingular = autoAgents.length === 1;
 
   return (
-    <div className="agents-settings-page">
-      <p className="agents-settings-blurb">
-        Installing a hook lets Silo identify exactly which session is running in
-        a terminal — precise enough to tell two concurrent sessions in the same
-        directory apart, and to give an exact resume command if a session's
-        backend ever dies unexpectedly (e.g. an OS restart). It only appends one
-        hook entry — any other hooks you already have configured (e.g. from
-        another tool) are left untouched. Assumes each CLI's default setup; see
-        "Setup details" for configuring a non-default setup manually.
-      </p>
+    <div className="es-page">
+      <div className="es-header">
+        <h2>Agents</h2>
+      </div>
 
-      {windows && (
-        <p className="agents-settings-blurb">
-          Exact resume via session hooks is macOS and Linux only for now — it
-          relies on a POSIX-shell hook and terminal process-group tracking that
-          Windows doesn&rsquo;t yet support. Silo still detects these agents and
-          shows a best-effort resume hint.
+      <div className="es-scroll silo-scroll">
+        <p className="agents-settings-banner">
+          <Badge tone="warn">Work in progress</Badge> Agent detection and exact
+          resume are still evolving. Expect rough edges — feedback welcome.
         </p>
-      )}
 
-      {rows.map((row) => (
-        <SettingRow
-          key={row.agent.id}
-          label={row.agent.displayName}
-          hint={
-            row.error
-              ? `Error: ${row.error}`
-              : windows
-                ? "Detection only on this platform"
-                : row.installed
-                  ? row.agent.resume.postInstallNote
-                  : undefined
-          }
-        >
-          {!windows && row.installed && <Badge tone="ok">Installed</Badge>}
-          <a
-            className="agents-settings-docs-link"
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              void ctx.ui.openExternal(row.agent.docsUrl);
-            }}
-          >
-            Setup details
-          </a>
-          {!windows && (
-            <Switch
-              checked={row.installed}
-              disabled={busy === row.agent.id || !row.loaded}
-              onChange={(checked) => void toggle(row, checked)}
-              aria-label={`Install Silo session hook for ${row.agent.displayName}`}
+        {windows && (
+          <Callout>
+            Exact resume via session hooks is macOS and Linux only for now —
+            Windows doesn&rsquo;t yet support the POSIX-shell hook and
+            process-group tracking it relies on. Silo still detects these agents
+            and shows a best-effort resume hint.
+          </Callout>
+        )}
+
+        <Section label="Session hooks">
+          {rows.map((row) => (
+            <AgentSettingsRow
+              key={row.agent.id}
+              label={row.agent.displayName}
+              hint={
+                row.error
+                  ? `Error: ${row.error}`
+                  : windows
+                    ? "Detection only on this platform"
+                    : row.installed
+                      ? (row.agent.resume.postInstallNote ??
+                        "Hook installed — exact resume enabled.")
+                      : "Install Silo's session hook for exact resume."
+              }
+              docsUrl={row.agent.docsUrl}
+              onOpenDocs={(url) => void ctx.ui.openExternal(url)}
+              control={
+                windows ? undefined : (
+                  <Button
+                    size="sm"
+                    variant={row.installed ? "normal" : "primary"}
+                    disabled={busy === row.agent.id || !row.loaded}
+                    onClick={() => void toggle(row, !row.installed)}
+                  >
+                    {row.installed ? "Uninstall" : "Install"}
+                  </Button>
+                )
+              }
             />
-          )}
-        </SettingRow>
-      ))}
+          ))}
+        </Section>
 
-      {autoAgents.length > 0 && (
-        <p className="agents-settings-blurb">
-          {autoNames} {autoSingular ? "needs" : "need"} no hook — Silo reads{" "}
-          {autoSingular ? "its" : "their"} native session registry automatically
-          when the CLI is running.
-        </p>
-      )}
+        {autoAgents.length > 0 && (
+          <Section label="Works automatically">
+            {autoAgents.map((agent) => (
+              <AgentSettingsRow
+                key={agent.id}
+                label={agent.displayName}
+                hint="Uses its native session registry — no hook to install."
+                docsUrl={agent.docsUrl}
+                onOpenDocs={(url) => void ctx.ui.openExternal(url)}
+                control={<Badge tone="ok">Automatic</Badge>}
+              />
+            ))}
+          </Section>
+        )}
+      </div>
     </div>
   );
 }
@@ -411,7 +450,8 @@ export const extension: Extension = {
     ctx.registerSettingsPage({
       id: "agents",
       title: "Agents",
-      group: "5_agents",
+      // Just above About Silo (9_about): after Extensions (5_*), before About.
+      group: "8_agents",
       order: 1,
       component: () => <AgentsSettingsPage ctx={ctx} />,
     });

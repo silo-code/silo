@@ -1,35 +1,26 @@
-.agents-settings-page {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 4px 0 16px;
-}
+/* Agents settings uses the shared settings page chrome (`.es-page` /
+ * `.es-header` / `.es-scroll` from SettingsDialog.css) and SDK primitives
+ * (Section, Callout, Badge, Button). Keep this file for the unboxed WIP
+ * banner and the per-row docs link under the SettingRow hint. */
 
-.agents-settings-blurb {
-  margin: 0 0 12px;
-  font-family: var(--silo-font-ui);
-  font-size: var(--silo-font-size-base);
-  color: var(--silo-color-text-lo);
-  line-height: 1.6;
-}
-
-.agents-settings-blurb code {
-  font-family: var(--silo-font-mono);
-  color: var(--silo-color-text-hi);
-}
-
-.agents-settings-empty {
-  font-family: var(--silo-font-ui);
-  font-size: var(--silo-font-size-base);
-  color: var(--silo-color-text-lo);
+.agents-settings-banner {
+  margin: 0;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  line-height: 1.5;
 }
 
 .agents-settings-docs-link {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
   font-family: var(--silo-font-ui);
   font-size: var(--silo-font-size-sm);
   color: var(--silo-color-text-lo);
   text-decoration: underline;
-  white-space: nowrap;
+  cursor: pointer;
 }
 
 .agents-settings-docs-link:hover {
