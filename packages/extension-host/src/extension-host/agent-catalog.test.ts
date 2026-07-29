@@ -1,6 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -62,6 +69,25 @@ describe("catalog integrity", () => {
   });
 });
 
+/**
+ * Write a minimal fake `ps` into `<dir>/bin` and return that bin dir. Prepend
+ * it to PATH when running the capture script so its parent-walk resolves in one
+ * step (no agent ancestor → immediate fallback) instead of climbing the real
+ * test-runner ancestry — which is slow (up to 12 levels × real `ps` spawns),
+ * nondeterministic, and, run several times under the parallel commit-gate load,
+ * enough to blow vitest's 5s per-test timeout.
+ */
+function fastPsBin(dir: string): string {
+  const bin = join(dir, "bin");
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(
+    join(bin, "ps"),
+    '#!/bin/sh\ncase "${4%=}" in\n  args) echo "login-shell" ;;\n  ppid) echo 1 ;;\n  pgid) echo "$2" ;;\nesac\n',
+  );
+  chmodSync(join(bin, "ps"), 0o755);
+  return bin;
+}
+
 describe("buildTrackSessionScript", () => {
   it("is a legible POSIX shell script with no obfuscation or extra runtime dep", () => {
     const script = buildTrackSessionScript();
@@ -101,11 +127,16 @@ describe("buildTrackSessionScript", () => {
       const scriptPath = join(dir, "track-session.sh");
       writeFileSync(scriptPath, buildTrackSessionScript());
       const home = join(dir, "home");
+      const bin = fastPsBin(dir);
 
       const run = (payload: string): string | null => {
         execFileSync("sh", [scriptPath, "claude"], {
           input: payload,
-          env: { ...process.env, HOME: home },
+          env: {
+            ...process.env,
+            HOME: home,
+            PATH: `${bin}:${process.env.PATH}`,
+          },
           stdio: ["pipe", "pipe", "pipe"],
         });
         try {
@@ -148,6 +179,68 @@ describe("buildTrackSessionScript", () => {
       expect(JSON.parse(hostile!).sessionId).toBe(
         "dddd0000-1111-2222-3333-444455556666",
       );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("resolves the real agent's pgid past a setpgrp worker that only references it (Cursor regression)", () => {
+    // Confirmed live: a fresh Cursor session runs the hook from a worker that
+    // called setpgrp — so the worker's own pgid (99940) is NOT the terminal's
+    // foreground group (cursor-agent's 98143). The worker's argv references the
+    // cursor-agent path, so a substring-first walk stops there and writes the
+    // wrong pgid → the event never correlates. The walk must prefer an EXACT
+    // argv0-basename match and climb past the worker to cursor-agent.
+    const dir = mkdtempSync(join(tmpdir(), "silo-hook-walk-"));
+    try {
+      const bin = join(dir, "bin");
+      mkdirSync(bin);
+      const scriptPath = join(dir, "track-session.sh");
+      writeFileSync(scriptPath, buildTrackSessionScript());
+      const home = join(dir, "home");
+
+      // The hook's real PPID (whatever it is under this test runner) is
+      // modeled as Cursor's setpgrp WORKER: basename `node`, argv referencing
+      // the cursor-agent path (substring-matches but is NOT an exact agent),
+      // in its own process group (pgid == its own pid). Its parent is a fake
+      // cursor-agent (exact basename) leading the terminal's foreground group.
+      // The fake `ps` treats *any* pid other than the agent as that worker, so
+      // the test doesn't depend on the real PPID's numeric value (which varies
+      // by test-runner pool / pre-commit environment).
+      const agentPid = 990001; // fake cursor-agent: pid == pgid (group leader)
+      const fakePs = [
+        "#!/bin/sh",
+        "pid=$2; field=${4%=}",
+        `if [ "$pid" = "${agentPid}" ]; then`,
+        '  case "$field" in',
+        '    args) echo "/Users/x/.local/bin/cursor-agent --use-system-ca /opt/index.js -f" ;;',
+        '    ppid) echo "1" ;;',
+        `    pgid) echo "${agentPid}" ;;`,
+        "  esac",
+        "else",
+        '  case "$field" in',
+        '    args) echo "node --x /Users/x/.local/share/cursor-agent/versions/z/index.js" ;;',
+        `    ppid) echo "${agentPid}" ;;`,
+        '    pgid) echo "$pid" ;;',
+        "  esac",
+        "fi",
+      ].join("\n");
+      writeFileSync(join(bin, "ps"), fakePs);
+      chmodSync(join(bin, "ps"), 0o755);
+
+      execFileSync("sh", [scriptPath, "cursor"], {
+        input: '{"session_id":"CURSOR-WALK-TEST"}',
+        env: { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}` },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      const line = readFileSync(
+        join(home, ".silo/agent-hooks/events.jsonl"),
+        "utf8",
+      ).trim();
+      const obj = JSON.parse(line);
+      // Must be the cursor-agent group (exact match wins), NOT the worker's
+      // own group (which would be the hook's real PPID).
+      expect(obj.pid).toBe(agentPid);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
