@@ -702,10 +702,10 @@ export interface ExtensionContext {
   /**
    * Host-computed coding-agent activity and resume-identity observability —
    * a live, read-only view of what each terminal's agent is doing
-   * (`working`/`waiting`/`done`/`error`/`dead`) and, once a terminal's
+   * (`none`/`working`/`idle`/`error`/`dead`) and, once a terminal's
    * backend is confirmed dead after an unclean shutdown, a resume hint for
    * it. Detection is fully sealed in the host implementation; there is no
-   * registration API. **Experimental** — the shape may still change. See
+   * registration API. **@beta** — the shape may still change. See
    * {@link AgentsService} for the full API.
    */
   readonly agents: AgentsService;

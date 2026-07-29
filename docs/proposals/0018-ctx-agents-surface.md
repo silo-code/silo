@@ -1,5 +1,5 @@
 ---
-status: draft
+status: accepted
 created: 2026-07-22
 # supersedes:
 # superseded-by:
@@ -11,19 +11,23 @@ created: 2026-07-22
 > (this RFC) → [0019 · POSIX-shell hook runtime](./0019-agent-hook-shell-runtime.md)
 > → [0020 · hook activity channel](./0020-agent-hook-activity-channel.md). The
 > consolidated, human-facing narrative lives in the
-> [agent sessions guide](../../apps/docs/guide/agent-sessions.md).
+> [agent sessions guide](../../apps/docs/guide/agent-sessions.md). Decisions of
+> record: [ADR 0028](../decisions/0028-sealed-agent-detection.md).
 
 ## Summary
 
 Add `ctx.agents`, a new host-computed SDK surface that reports, per terminal,
-what coding-agent activity is going on — busy/waiting/done/error, whether a
-prior run should be trusted after a restart, and (when a terminal's backend was
-found dead after an unclean shutdown) an exact or best-effort resume hint.
-Detection is fully sealed inside the host implementation — no extension,
-first- or third-party, registers detectors or resume-hint resolvers. The
-surface is read-only (`getState`/`getByTerminalId`/`subscribe`), unscoped for
-all extensions (no new `Permission`), and ships marked `experimental` via the
-existing roadmap/TSDoc convention while its shape is still moving.
+what coding-agent activity is going on — `none` / `working` / `idle` /
+`error` / `dead`, plus a separate sticky `needsAttention` cleared by
+`acknowledge` — whether a prior run should be trusted after a restart, and
+(when a terminal's backend was found dead after an unclean shutdown) an exact
+or best-effort resume hint. Detection is fully sealed inside the host
+implementation — no extension, first- or third-party, registers detectors or
+resume-hint resolvers. The surface is mostly read-only
+(`getState`/`getByTerminalId`/`subscribe`), with `acknowledge` as the one
+scoped mutation; unscoped for all extensions (no new `Permission`), and ships
+marked `@beta` via the existing roadmap/TSDoc convention while its shape is
+still moving.
 
 ## Motivation
 
@@ -63,15 +67,16 @@ interface AgentInfo {
   readonly workspaceId: string;
   readonly kind: TerminalKind;
   readonly isAgent: boolean;
-  readonly activity: "none" | "working" | "waiting" | "done" | "error" | "dead";
+  readonly activity: "none" | "working" | "idle" | "error" | "dead";
   readonly needsAttention: boolean;
   readonly attentionSince?: string;
   readonly workingSince?: string;
   /** Soft, time-gap-based, self-clearing — "can't fully vouch for this restored
    *  duration, but the backend may still be alive." Cleared by the next live signal. */
   readonly stale: boolean;
-  /** Exact session id — present only when an opt-in hook reported it; Silo
-   *  never infers one. Populated live, then persisted, so it's readable at death. */
+  /** Exact session id — present only when an opt-in hook (or native session
+   *  file) reported it; Silo never infers one. Populated live, then persisted,
+   *  so it's readable at death. */
   readonly sessionId?: string;
   /** Ready-to-show resume hint: exact `claude --resume <id>` (with a hook) or
    *  an honest `was running claude in <cwd>` note (without). */
