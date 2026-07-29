@@ -5,7 +5,13 @@ created: 2026-07-22
 # superseded-by:
 ---
 
-# 0017. `ctx.agents` — unified, host-computed agent activity and resume-hint surface
+# 0018. `ctx.agents` — unified, host-computed agent activity and resume-hint surface
+
+> **Agent-observability series** — read together: **0018 · `ctx.agents` surface**
+> (this RFC) → [0019 · POSIX-shell hook runtime](./0019-agent-hook-shell-runtime.md)
+> → [0020 · hook activity channel](./0020-agent-hook-activity-channel.md). The
+> consolidated, human-facing narrative lives in the
+> [agent sessions guide](../../apps/docs/guide/agent-sessions.md).
 
 ## Summary
 
@@ -304,32 +310,30 @@ agent's own detectors.
 
 The catalog ships with four entries:
 
-- **Claude Code** — full support: activity detection + auto-installable hook.
+- **Claude Code** — full support: activity detection + auto-installable hook
+  (`installStrategy: "claude-settings"`).
 - **Codex CLI** — full activity detection (see "Detection parity" below) +
   auto-installable hook (its `~/.codex/hooks.json` is the same
   `hooks.<Event>[].hooks[]` shape as Claude and its payload uses the same
-  `session_id` field, so it reuses the installer and hook command verbatim,
-  confirmed live against codex-cli 0.144.5).
-- **Cursor Agent** — full activity detection, but `resume: { kind: "none" }`
-  **despite** Cursor having a `SessionStart` hook and clean `cursor-agent
---resume <id>`. The reason is the important one: Cursor's
-  `~/.cursor/hooks.json` uses a _different schema_ than the shape
-  `hook-installer.ts` writes, so Silo can't auto-install it without risking
-  corrupting the user's config. `none` here means "_Silo_ hasn't wired up an
-  exact-resume path," not "the agent lacks the feature" — and it's the safe,
-  honest state until a Cursor-specific installer (a per-agent install
-  strategy, or a new `resume` variant) lands.
-- **GitHub Copilot CLI** — activity detection only; `resume: { kind: "none" }`
-  because no session-id/resume mechanism has been confirmed for this CLI at
-  all yet (not "Silo hasn't wired it up" — genuinely unresearched). Aider,
-  which has no session-id concept at all, would be the same `none` case if
-  added.
+  `session_id` field, so it reuses the Claude installer and hook command
+  verbatim, confirmed live against codex-cli 0.144.5).
+- **Cursor Agent** — full activity detection + auto-installable hook via
+  `installStrategy: "cursor-hooks-json"` (Cursor's `~/.cursor/hooks.json`
+  uses `{ version, hooks: { sessionStart: [{ command }] } }`, not Claude's
+  nested groups — `cursor-hook-installer.ts` merges that shape). Confirmed
+  live against cursor-agent 2026.07.23: CLI `sessionStart` fires with
+  `session_id`; resume is `agent --resume <id>`.
+- **GitHub Copilot CLI** — full activity detection + auto-installable hook
+  via `installStrategy: "copilot-hooks-dir"` (dedicated file under
+  `~/.copilot/hooks/`). Confirmed live: `sessionStart` payload carries
+  camelCase `sessionId`; resume is `copilot --resume=<id>`.
 
 The catalog stays host-internal (detection/resume are sealed — see below);
 `core.agents-settings` reads it through the `@silo-code/extension-host/internal`
-barrel. The settings.json merge logic (`hook-installer.ts`) is kept pure and
-dependency-free by having it operate on a structural `HookInstallSpec` the
-catalog entry satisfies, rather than importing the catalog itself.
+barrel. Each `installStrategy` has its own pure installer module
+(`hook-installer.ts`, `cursor-hook-installer.ts`, `copilot-hook-installer.ts`)
+operating on a structural spec the catalog entry satisfies, rather than
+importing the catalog itself.
 
 ### Tracking upstream agent changes
 
@@ -406,7 +410,8 @@ Full parity was ported from `silo-extensions/agent-monitor`'s
   `idleAfterWorking` (Codex) per-entry field, plus dispatch functions
   `detectFromOutput`/`detectIdleAfterWorking` alongside the existing
   `detectFromOsc` — and a fourth catalog entry, **GitHub Copilot CLI**
-  (`resume: { kind: "none" }`; no session/resume mechanism confirmed for it).
+  (`resume: { kind: "hook", installStrategy: "copilot-hooks-dir" }`;
+  dedicated file under `~/.copilot/hooks/`).
 - **`agent-detection-dispatch.ts`** (new) is the ported, pure equivalent of
   `applyDetection()`'s branching — extracted (rather than left inline in
   `agents-service.ts`, unlike upstream) specifically so the decision logic is
@@ -537,17 +542,22 @@ hook fires. So:
    `~/.silo/agent-hooks/events.jsonl` (deliberately _not_ under
    `~/.config/silo[-dev]`, since the hook has no way to know at install time
    which Silo build/identity will eventually read it).
-2. **Read** (`agent-hook-events.ts`): the host tails that file (new lines only,
-   via an in-memory line-count checkpoint — resets harmlessly on app restart),
-   discarding any event older than 10 minutes (`MAX_EVENT_AGE_MS`) as a guard
-   against the OS reusing a pid long after the hook that reported it fired.
+2. **Read** (`agent-hook-events.ts` + `agents-service.ts`): the host watches
+   `~/.silo/agent-hooks/` via the existing Rust `notify` watcher (`start_watch`
+   / `file:changed`) and tails `events.jsonl` on create/modify (new lines
+   only, via an in-memory line-count checkpoint — resets harmlessly on app
+   restart). A short catch-up read also runs at startup and when a terminal's
+   foreground first becomes a known agent (SessionStart can land a second or
+   two after `agentPgid` is set; Codex may fire on the first user message).
+   Delivery is **not** a periodic JS poll — polling through webview `invoke`
+   stalled while the page was backgrounded and missed live writes.
 3. **Correlate** (`matchHookEventsToTerminals`, a pure function so the
    matching rule itself is unit-testable without the rest of the
    session-tracking machinery): each tracked terminal's `SessionEntry` now
    also carries `currentPgid`, updated on every foreground tick (both the live
    `onTerminalForeground` stream and the one-time
    `terminal_foreground_snapshot` seed). A hook event's `pid` matched against
-   a terminal's `currentPgid` is an exact identification — no cwd, no
+   a terminal's `currentPgid` (or sticky `agentPgid`) is an exact identification — no cwd, no
    recency, no guessing.
 4. **Apply** (`applyHookMatch` → `applyResumeHint` in `agents-service.ts`):
    a hook match upgrades the terminal's generic hint to an exact

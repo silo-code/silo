@@ -174,7 +174,7 @@ export default withMermaid(
               { text: "Workspaces", link: "/guide/workspaces" },
               { text: "Side panels", link: "/guide/panels" },
               { text: "Extensions", link: "/guide/extensions" },
-              { text: "Agent sessions", link: "/guide/agent-sessions" },
+              { text: "Using agents", link: "/guide/agent-sessions" },
               { text: "The `silo` command", link: "/guide/cli" },
               { text: "Release channels", link: "/guide/release-channels" },
             ],
@@ -242,6 +242,18 @@ export default withMermaid(
         "/design/": designSidebar,
         "/api/": apiSidebar,
         "/reference/": apiSidebar,
+        "/roadmap": [
+          { text: "Roadmap & API status", link: "/roadmap" },
+          {
+            text: "Architecture deep dives",
+            items: [
+              {
+                text: "Agent system (RFCs 18–20)",
+                link: "/roadmap/agent-system",
+              },
+            ],
+          },
+        ],
       },
 
       outline: { level: [2, 3] },
