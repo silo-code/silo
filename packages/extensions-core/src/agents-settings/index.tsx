@@ -1,14 +1,14 @@
 /**
- * Agents settings page — one install toggle per agent CLI that exposes a
+ * Agents settings page — Install / Uninstall per agent CLI that exposes a
  * session hook (`hookInstallableAgents()` from the agent catalog, the single
- * source of truth). Toggling installs/uninstalls Silo's hook into that CLI's
- * **default** config location. No per-account (e.g. `CLAUDE_CONFIG_DIR`)
- * differentiation — the toggle assumes the CLI's standard setup; the linked
- * "Setup details" docs page covers a non-default setup manually. Installing
- * the hook is what gives `ctx.agents` an exact, PID-correlated session id
- * instead of the honest-but-vague generic hint (see RFC 0018's hook-based
- * resolution). The actual hook-event reading and PID correlation is
- * host-internal, sealed, same as the rest of `ctx.agents`.
+ * source of truth). Install writes Silo's hook into that CLI's **default**
+ * config location. No per-account (e.g. `CLAUDE_CONFIG_DIR`) differentiation —
+ * assumes the CLI's standard setup; the linked "Setup details" docs page
+ * covers a non-default setup manually. Installing the hook is what gives
+ * `ctx.agents` an exact, PID-correlated session id instead of the
+ * honest-but-vague generic hint (see RFC 0018's hook-based resolution). The
+ * actual hook-event reading and PID correlation is host-internal, sealed,
+ * same as the rest of `ctx.agents`.
  *
  * Installing does two things (RFC 0019): write the shared POSIX-shell capture
  * script (`~/.silo/agent-hooks/track-session.sh`, catalog-templated), then add
@@ -17,12 +17,10 @@
  * tripped endpoint-security tools) is rewritten to the shell runtime, silently
  * unless it actually changes something.
  *
- * Three on-disk schemas are supported via `resume.installStrategy`:
- * Claude/Codex (`claude-settings`), Cursor (`cursor-hooks-json`), and
- * Copilot (`copilot-hooks-dir` — dedicated file under `~/.copilot/hooks/`).
- * The whole feature is macOS/Linux only — on Windows the page is detection-only
- * (no toggle, no self-heal), since a shell hook can neither run nor correlate
- * there.
+ * On-disk schemas are selected via `resume.installStrategy` through
+ * {@link installerFor} (Claude/Codex, Cursor, Copilot). The whole feature is
+ * macOS/Linux only — on Windows the page is detection-only (no Install, no
+ * self-heal), since a shell hook can neither run nor correlate there.
  */
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { Extension, ExtensionContext } from "@silo-code/sdk";
@@ -35,28 +33,7 @@ import {
   type AgentDefinition,
   type AgentHookResume,
 } from "@silo-code/extension-host/internal";
-import {
-  hasHookInstalled,
-  withHookInstalled,
-  withHookUninstalled,
-  type ClaudeSettings,
-} from "./hook-installer";
-import {
-  hasCursorHookInstalled,
-  withCursorHookInstalled,
-  withCursorHookUninstalled,
-  type CursorHooksFile,
-} from "./cursor-hook-installer";
-import {
-  buildCopilotHookFile,
-  hasCopilotHookInstalled,
-  type CopilotHooksFile,
-} from "./copilot-hook-installer";
-import {
-  parseSettingsJsonText,
-  writableSettingsOrThrow,
-  type SettingsJsonRead,
-} from "./settings-json";
+import { installerFor } from "./install-strategy";
 import "./AgentsSettingsPage.css";
 
 type HookAgent = AgentDefinition & { resume: AgentHookResume };
@@ -80,56 +57,9 @@ async function resolveHomeDir(ctx: ExtensionContext): Promise<string | null> {
   }
 }
 
-/**
- * Read a settings JSON file fail-closed: missing vs unreadable are distinct.
- * Never coerce parse failures to `{}` — that path used to rewrite corrupt
- * Claude/Cursor settings and wipe the user's other hooks.
- */
-async function readSettingsJson<T extends object>(
-  ctx: ExtensionContext,
-  path: string,
-): Promise<SettingsJsonRead<T>> {
-  if (!(await ctx.files.pathExists(path))) return { kind: "missing" };
-  let text: string;
-  try {
-    text = await ctx.files.readText(path);
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    return {
-      kind: "invalid",
-      message: `Could not read settings file (${detail}): ${path}`,
-    };
-  }
-  return parseSettingsJsonText<T>(text, path);
-}
-
 /** Absolute settings-file path for an agent under the user's home dir. */
 function settingsPathFor(agent: HookAgent, home: string): string {
   return `${home}/${agent.resume.configPath}`;
-}
-
-async function isInstalled(
-  ctx: ExtensionContext,
-  agent: HookAgent,
-  path: string,
-): Promise<boolean> {
-  const strategy = agent.resume.installStrategy;
-  if (strategy === "cursor-hooks-json") {
-    const read = await readSettingsJson<CursorHooksFile>(ctx, path);
-    if (read.kind === "invalid") throw new Error(read.message);
-    if (read.kind === "missing") return false;
-    return hasCursorHookInstalled(read.value, agent.resume);
-  }
-  if (strategy === "copilot-hooks-dir") {
-    const read = await readSettingsJson<CopilotHooksFile>(ctx, path);
-    if (read.kind === "invalid") throw new Error(read.message);
-    if (read.kind === "missing") return false;
-    return hasCopilotHookInstalled(read.value, agent.resume);
-  }
-  const read = await readSettingsJson<ClaudeSettings>(ctx, path);
-  if (read.kind === "invalid") throw new Error(read.message);
-  if (read.kind === "missing") return false;
-  return hasHookInstalled(read.value, agent.resume);
 }
 
 /**
@@ -167,43 +97,7 @@ async function refreshConfigIfDrifted(
   agent: HookAgent,
   path: string,
 ): Promise<boolean> {
-  const strategy = agent.resume.installStrategy;
-  if (strategy === "copilot-hooks-dir") {
-    const exists = await ctx.files.pathExists(path);
-    const existing = exists
-      ? await ctx.files.readText(path).catch(() => null)
-      : null;
-    // File present but unreadable — refuse to clobber it during self-heal.
-    if (exists && existing != null) {
-      const read = parseSettingsJsonText<CopilotHooksFile>(existing, path);
-      if (read.kind === "invalid") throw new Error(read.message);
-    }
-    const next =
-      JSON.stringify(buildCopilotHookFile(agent.resume), null, 2) + "\n";
-    if (existing === next) return false;
-    const dir = path.slice(0, path.lastIndexOf("/"));
-    if (dir) await ctx.files.createDir(dir);
-    await ctx.files.writeText(path, next);
-    return true;
-  }
-  if (strategy === "cursor-hooks-json") {
-    const current = writableSettingsOrThrow(
-      await readSettingsJson<CursorHooksFile>(ctx, path),
-      path,
-    );
-    const next = withCursorHookInstalled(current, agent.resume);
-    if (next === current) return false;
-    await ctx.files.writeText(path, JSON.stringify(next, null, 2) + "\n");
-    return true;
-  }
-  const current = writableSettingsOrThrow(
-    await readSettingsJson<ClaudeSettings>(ctx, path),
-    path,
-  );
-  const next = withHookInstalled(current, agent.resume);
-  if (next === current) return false;
-  await ctx.files.writeText(path, JSON.stringify(next, null, 2) + "\n");
-  return true;
+  return installerFor(agent.resume).refreshIfDrifted(ctx, agent.resume, path);
 }
 
 async function writeInstalled(
@@ -216,52 +110,7 @@ async function writeInstalled(
   // The config command references the shared capture script, so the script has
   // to exist before anything points at it.
   if (install) await ensureTrackScript(ctx, home);
-
-  const dir = path.slice(0, path.lastIndexOf("/"));
-  if (dir) await ctx.files.createDir(dir);
-
-  const strategy = agent.resume.installStrategy;
-  if (strategy === "copilot-hooks-dir") {
-    // Dedicated file: write the full document on install, delete on uninstall.
-    // Refuse to overwrite a present-but-invalid file (same fail-closed rule).
-    if (install) {
-      if (await ctx.files.pathExists(path)) {
-        const text = await ctx.files.readText(path).catch(() => null);
-        if (text != null) {
-          writableSettingsOrThrow(
-            parseSettingsJsonText<CopilotHooksFile>(text, path),
-            path,
-          );
-        }
-      }
-      const next = buildCopilotHookFile(agent.resume);
-      await ctx.files.writeText(path, JSON.stringify(next, null, 2) + "\n");
-    } else if (await ctx.files.pathExists(path)) {
-      await ctx.files.delete(path);
-    }
-    return;
-  }
-
-  if (strategy === "cursor-hooks-json") {
-    const current = writableSettingsOrThrow(
-      await readSettingsJson<CursorHooksFile>(ctx, path),
-      path,
-    );
-    const next = install
-      ? withCursorHookInstalled(current, agent.resume)
-      : withCursorHookUninstalled(current, agent.resume);
-    await ctx.files.writeText(path, JSON.stringify(next, null, 2) + "\n");
-    return;
-  }
-
-  const current = writableSettingsOrThrow(
-    await readSettingsJson<ClaudeSettings>(ctx, path),
-    path,
-  );
-  const next = install
-    ? withHookInstalled(current, agent.resume)
-    : withHookUninstalled(current, agent.resume);
-  await ctx.files.writeText(path, JSON.stringify(next, null, 2) + "\n");
+  await installerFor(agent.resume).write(ctx, agent.resume, path, install);
 }
 
 /** Label + hint + docs link on the left; a single control on the right —
@@ -341,9 +190,9 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
     const next: AgentRow[] = [];
     for (const agent of agents) {
       try {
-        const installed = await isInstalled(
+        const installed = await installerFor(agent.resume).isInstalled(
           ctx,
-          agent,
+          agent.resume,
           settingsPathFor(agent, h),
         );
         next.push({ agent, installed, loaded: true });
