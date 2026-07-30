@@ -325,3 +325,45 @@ describe("resetOnDemotion", () => {
     expect(resetOnDemotion(prev, next)).toBe(next);
   });
 });
+
+describe("reduce — process-gone keeps the resume identity", () => {
+  const resolved = {
+    ...reduce(initialState("shell"), {
+      type: "detected",
+      status: "working",
+      source: "agent" as const,
+      isActiveTerminal: false,
+      now: "t0",
+    }),
+    sessionId: "sid-1",
+    resumeCommand: "grok --resume sid-1",
+    agentName: "Grok",
+    agentId: "grok",
+  };
+
+  it("demotes to a non-agent but preserves sessionId/resumeCommand/agentName/agentId", () => {
+    const gone = reduce(resolved, { type: "process-gone" });
+    expect(gone.isAgent).toBe(false);
+    expect(gone.activity).toBe("none");
+    expect(gone.sessionId).toBe("sid-1");
+    expect(gone.resumeCommand).toBe("grok --resume sid-1");
+    expect(gone.agentName).toBe("Grok");
+    expect(gone.agentId).toBe("grok");
+  });
+
+  it("contrasts with exited, which reduce()+resetOnDemotion clears", () => {
+    const exited = reduce(resolved, { type: "exited" });
+    const cleared = resetOnDemotion(resolved, exited);
+    expect(cleared.isAgent).toBe(false);
+    expect(cleared.resumeCommand).toBeNull();
+    expect(cleared.sessionId).toBeNull();
+  });
+
+  it("no-ops on a born-agent terminal (isAgent stays true)", () => {
+    const bornAgent = {
+      ...initialState("agent"),
+      resumeCommand: "x --resume 1",
+    };
+    expect(reduce(bornAgent, { type: "process-gone" })).toBe(bornAgent);
+  });
+});

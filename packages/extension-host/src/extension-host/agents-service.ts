@@ -229,7 +229,15 @@ function applyEvent(terminalId: string, ev: AgentActivityEvent) {
   if (!entry) return;
 
   const reduced = reduce(entry.state, ev);
-  let next = resetOnDemotion(entry.state, reduced);
+  // A "process-gone" demotion (session-file registry drop) deliberately keeps
+  // the resolved resume identity — reduce() already spreads it through, so
+  // skip resetOnDemotion, which would clear it. Every other demotion (a live
+  // shell reclaiming the prompt / a shell-sourced idle) runs through
+  // resetOnDemotion, which wipes the now-stale hint.
+  let next =
+    ev.type === "process-gone"
+      ? reduced
+      : resetOnDemotion(entry.state, reduced);
 
   // Restored acknowledged-idle: swallow the first working→idle so a reattach
   // OSC redraw doesn't look like a brand-new finished turn (confirmed live:
@@ -371,22 +379,77 @@ function maybeResolveResumeHint(
 function checkPromptDemotion(terminalId: string, atPrompt: boolean) {
   const entry = trackedAgents.get(terminalId);
   if (!entry || !atPrompt) return;
-  if (!entry.state.isAgent || entry.state.kind !== "shell") return;
-  demotePromotedShell(terminalId);
+  if (entry.state.kind !== "shell" || entry.state.activity === "dead") return;
+  if (entry.state.isAgent) {
+    demotePromotedShell(terminalId);
+    return;
+  }
+  // Not (or no longer) an agent, yet a resume identity is still attached — a
+  // prior `process-gone` demotion (session-file drop) preserved it. The shell
+  // is now confirmed live at its prompt, so that hint is stale: clear it. (The
+  // clean-exit path lands here; a reboot never delivers an at-prompt tick, so
+  // the hint survives to markSessionDead there instead.)
+  if (entry.state.resumeCommand || entry.state.sessionId) {
+    clearStaleResume(terminalId);
+  }
 }
 
 /**
- * Force-demote a promoted shell (agent process gone). Uses the `"exited"`
- * activity event so demotion isn't blocked by `needsAttention` the way a
- * shell-sourced `"detected"` idle is (that gate exists so a stray OSC 133
- * doesn't wipe an unread idle badge — but an OS-level prompt reclaim or a
- * session-file registry drop means the agent is actually gone).
+ * Force-demote a promoted shell whose shell is confirmed live again (OS-level
+ * at-prompt reclaim). Uses the `"exited"` activity event so demotion isn't
+ * blocked by `needsAttention` the way a shell-sourced `"detected"` idle is
+ * (that gate exists so a stray OSC 133 doesn't wipe an unread idle badge — but
+ * an OS-level prompt reclaim means the agent is actually gone). The resolved
+ * resume identity is cleared (the shell is alive, so the hint is stale).
  */
 function demotePromotedShell(terminalId: string) {
   const entry = trackedAgents.get(terminalId);
   if (!entry) return;
   if (!entry.state.isAgent || entry.state.kind !== "shell") return;
   applyEvent(terminalId, { type: "exited" });
+}
+
+/**
+ * Demote a promoted shell whose agent *process* is gone (a session-file
+ * registry drop) but whose shell liveness is unconfirmed. Unlike
+ * {@link demotePromotedShell}, this **keeps** the resolved resume identity so
+ * the reboot-resume box can still surface it (a reboot never delivers an
+ * at-prompt reclaim to clear it — see the `"process-gone"` event doc).
+ */
+function notePromotedShellProcessGone(terminalId: string) {
+  const entry = trackedAgents.get(terminalId);
+  if (!entry) return;
+  if (!entry.state.isAgent || entry.state.kind !== "shell") return;
+  applyEvent(terminalId, { type: "process-gone" });
+}
+
+/**
+ * Clear a stale resume identity left on a demoted shell by an earlier
+ * `process-gone` demotion, once the shell is confirmed live at its prompt.
+ * Mirrors {@link applyResumeHint}'s persist/notify, but blanks the identity
+ * fields instead of setting them.
+ */
+function clearStaleResume(terminalId: string) {
+  const entry = trackedAgents.get(terminalId);
+  if (!entry) return;
+  if (entry.state.resumeCommand == null && entry.state.sessionId == null)
+    return;
+  entry.state = {
+    ...entry.state,
+    sessionId: null,
+    resumeCommand: null,
+    agentName: null,
+    agentId: null,
+  };
+  const ctx = findTerminalContext(terminalId);
+  const workspaceId = ctx?.wsId ?? entry.info.workspaceId;
+  entry.info = toAgentInfo(terminalId, workspaceId, entry.state);
+  store.agentState[terminalId] = toPersisted(
+    workspaceId,
+    entry.state,
+    entry.lastLiveAt,
+  );
+  notify();
 }
 
 /** Apply an exact, hook-reported resume identity to a terminal — upgrading
@@ -485,7 +548,7 @@ const sessionFileResume = createSessionFileResumeRuntime({
     return out;
   },
   applyResumeHint,
-  demotePromotedShell,
+  notePromotedShellProcessGone,
 });
 
 const hookRuntime = createHookRuntime({

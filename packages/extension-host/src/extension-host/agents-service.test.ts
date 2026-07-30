@@ -83,7 +83,7 @@ function emitSessionFileChange() {
 }
 import { store } from "../state/store";
 import type { WorkspaceInternal } from "../state/types";
-import { getAgentsService } from "./agents-service";
+import { getAgentsService, notifyTerminalSessionGone } from "./agents-service";
 import { AGENT_IDLE_DEBOUNCE_MS } from "./agent-detection-dispatch";
 import { readNewHookEvents } from "./agent-hook-events";
 
@@ -385,17 +385,95 @@ describe("AgentsService — Grok session-file resume", () => {
     await Promise.resolve();
     expect(svc.getByTerminalId(id)?.sessionId).toBe(grokSession);
 
-    // Grok exits → registry drops this pid.
+    // Grok exits → registry drops this pid. Demotes to a non-agent, but the
+    // resume identity is PRESERVED (this is the "session ended, resume with…"
+    // moment; a reboot has no at-prompt reclaim to follow, so keeping it is
+    // what lets the reboot-resume box surface it later).
     fileText = "[]";
     emitSessionFileChange();
     await Promise.resolve();
     await Promise.resolve();
 
-    const info = svc.getByTerminalId(id);
-    expect(info?.isAgent).toBe(false);
-    expect(info?.sessionId).toBeUndefined();
-    expect(info?.agentId).toBeUndefined();
-    expect(info?.activity).toBe("none");
+    const gone = svc.getByTerminalId(id);
+    expect(gone?.isAgent).toBe(false);
+    expect(gone?.activity).toBe("none");
+    expect(gone?.sessionId).toBe(grokSession);
+    expect(gone?.resumeCommand).toBe(`grok --resume ${grokSession}`);
+
+    // The shell then reclaims its prompt (clean-exit path): now the shell is
+    // confirmed live, so the stale hint is cleared.
+    foreground(sessionId, {
+      pgid: 99999,
+      atPrompt: true,
+      leader: "/bin/zsh",
+      cwd: "/tmp",
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const cleared = svc.getByTerminalId(id);
+    expect(cleared?.isAgent).toBe(false);
+    expect(cleared?.sessionId).toBeUndefined();
+    expect(cleared?.agentId).toBeUndefined();
+    expect(cleared?.resumeCommand).toBeUndefined();
+  });
+
+  it("keeps the resume identity through a session-file drop so a reboot death still surfaces it", async () => {
+    // Reboot scenario: Grok's registry entry drops as the process is killed,
+    // but no at-prompt reclaim follows (the app dies). The preserved resume
+    // identity must let markSessionDead surface the resume box.
+    const id = "t-grok-reboot";
+    const sessionId = "sess-grok-reboot";
+    const grokPgid = 77777;
+    const grokSession = "019fafbb-reboot-session-id-00000000003";
+    let fileText: string = JSON.stringify([
+      { session_id: grokSession, pid: grokPgid, cwd: "/tmp" },
+    ]);
+
+    invoke.mockImplementation((cmd: string, args?: { path?: string }) => {
+      if (
+        cmd === "fs_read_text" &&
+        args?.path?.endsWith(".grok/active_sessions.json")
+      ) {
+        return Promise.resolve(fileText);
+      }
+      return Promise.resolve(null);
+    });
+
+    await attachTerminal(id, sessionId);
+    osc(id, 0, "⠀"); // promote via braille
+    foreground(sessionId, {
+      pgid: grokPgid,
+      atPrompt: false,
+      leader: "grok",
+      cwd: "/tmp",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(svc.getByTerminalId(id)?.resumeCommand).toBe(
+      `grok --resume ${grokSession}`,
+    );
+
+    // Registry drop with NO at-prompt reclaim after it (reboot).
+    fileText = "[]";
+    emitSessionFileChange();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(svc.getByTerminalId(id)?.resumeCommand).toBe(
+      `grok --resume ${grokSession}`,
+    );
+
+    // The PTY is confirmed gone (SESSION_GONE) — the resume identity survived
+    // to here, so the terminal goes "dead" WITH the resume command (what the
+    // TerminalPanel box renders).
+    notifyTerminalSessionGone(id);
+    await Promise.resolve();
+
+    const dead = svc.getByTerminalId(id);
+    expect(dead?.activity).toBe("dead");
+    expect(dead?.resumeCommand).toBe(`grok --resume ${grokSession}`);
+    expect(dead?.sessionId).toBe(grokSession);
   });
 
   it("does not re-stamp a session id from a pending timer after demotion", async () => {

@@ -77,13 +77,30 @@ export type AgentActivityEvent =
     }
   | {
       /**
-       * The agent process is confirmed gone (shell reclaimed the TTY, or a
-       * session-file agent's registry dropped our sticky pgid). Force-demotes
-       * a promoted shell even when `needsAttention` is set — unlike a
-       * shell-sourced `"detected"` idle, which gates demotion so a stray
-       * OSC 133 doesn't wipe an unread idle badge.
+       * The shell reclaimed the TTY (OS-level at-prompt), so the agent process
+       * is gone *and* the shell is confirmed live. Force-demotes a promoted
+       * shell even when `needsAttention` is set — unlike a shell-sourced
+       * `"detected"` idle, which gates demotion so a stray OSC 133 doesn't
+       * wipe an unread idle badge. Because the shell is live, the resolved
+       * resume identity is now stale and is cleared on demotion (see
+       * {@link resetOnDemotion}).
        */
       type: "exited";
+    }
+  | {
+      /**
+       * A session-file agent's registry dropped our sticky pgid: the agent
+       * *process* is gone, but the shell's liveness is NOT confirmed (no
+       * at-prompt reclaim was observed). Demotes the promoted shell, but —
+       * unlike `"exited"` — deliberately **keeps** the resolved resume
+       * identity. This is the "session ended, here's how to resume" moment,
+       * and on a reboot it is the last signal before the app dies (no
+       * at-prompt reclaim ever follows), so wiping the resume identity here
+       * would destroy exactly what the reboot-resume box needs. A later
+       * confirmed live-shell signal clears the now-stale hint; a reboot fires
+       * none, so it survives to `markSessionDead`.
+       */
+      type: "process-gone";
     };
 
 export function isLiveSignal(
@@ -171,13 +188,35 @@ export function reduce(
   }
 
   if (ev.type === "exited") {
-    // Confirmed agent-process exit (at-prompt reclaim / session-file drop).
-    // Force-demote promoted shells; born-agents keep isAgent by design.
+    // Confirmed agent-process exit with the shell live again (at-prompt
+    // reclaim). Force-demote promoted shells; born-agents keep isAgent by
+    // design. The resume identity is cleared by resetOnDemotion (the shell is
+    // alive, so the hint is stale).
     if (!prev.isAgent || prev.kind !== "shell") return prev;
     return {
       ...prev,
       isAgent: false,
       activity: "idle",
+      needsAttention: false,
+      attentionSince: null,
+      workingSince: null,
+      workingSource: null,
+      stale: false,
+    };
+  }
+
+  if (ev.type === "process-gone") {
+    // Agent process gone (session-file registry drop) but the shell's
+    // liveness is unconfirmed. Demote, but KEEP the resolved resume identity
+    // (sessionId/resumeCommand/agentName/agentId are spread through) — the
+    // caller skips resetOnDemotion for this event. Activity goes to "none"
+    // (no live turn belongs to a demoted terminal) rather than "idle", so a
+    // consumer doesn't read it as "an idle agent".
+    if (!prev.isAgent || prev.kind !== "shell") return prev;
+    return {
+      ...prev,
+      isAgent: false,
+      activity: "none",
       needsAttention: false,
       attentionSince: null,
       workingSince: null,

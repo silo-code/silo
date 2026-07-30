@@ -37,7 +37,11 @@ export interface SessionFileResumeDeps {
     agentPgid: number;
   }>;
   applyResumeHint(terminalId: string, hint: ResumeHint): void;
-  demotePromotedShell(terminalId: string): void;
+  /** Demote a promoted shell whose registry entry dropped (agent process
+   * gone, shell liveness unconfirmed). Keeps the resolved resume identity so
+   * the reboot-resume box can still surface it — see the host's
+   * `notePromotedShellProcessGone` / the `"process-gone"` event. */
+  notePromotedShellProcessGone(terminalId: string): void;
 }
 
 export interface SessionFileResumeRuntime {
@@ -115,7 +119,7 @@ export function createSessionFileResumeRuntime(
     const sessionId = resume.resolveSessionId(text, pgid);
     if (!sessionId) {
       if (live.resolvedAgentId === agent.id && live.resolvedSessionId) {
-        deps.demotePromotedShell(terminalId);
+        deps.notePromotedShellProcessGone(terminalId);
       }
       return;
     }
