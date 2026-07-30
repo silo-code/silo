@@ -277,7 +277,18 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
       <div className="es-scroll silo-scroll">
         <p className="agents-settings-banner">
           <Badge tone="warn">Work in progress</Badge> Agent detection and exact
-          resume are still evolving. Expect rough edges — feedback welcome.
+          resume are still evolving. Expect rough edges — feedback welcome.{" "}
+          <button
+            type="button"
+            className="agents-settings-banner-link"
+            onClick={() =>
+              void ctx.ui.openExternal(
+                "https://getsilo.dev/guide/agent-sessions",
+              )
+            }
+          >
+            Learn more
+          </button>
         </p>
 
         {windows && (

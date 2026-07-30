@@ -27,3 +27,20 @@
 .agents-settings-docs-link:hover {
   color: var(--silo-color-text-hi);
 }
+
+/* Inline "Learn more" link within the WIP banner sentence — same link styling
+ * as the per-row docs link but no top margin, since it flows inline. */
+.agents-settings-banner-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.agents-settings-banner-link:hover {
+  color: var(--silo-color-text-hi);
+}
