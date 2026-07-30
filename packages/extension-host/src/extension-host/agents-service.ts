@@ -7,6 +7,7 @@ import type { TerminalForeground } from "./terminal-foreground";
 import {
   genericHint,
   isKnownAgentLeader,
+  parseResumeSessionIdFromArgv,
   type ResumeHint,
 } from "./agent-resume-hint";
 import { agentsChannel } from "./agents-channel";
@@ -16,6 +17,7 @@ import {
   detectFromOutput,
   agentById,
   agentByLeader,
+  type AgentDefinition,
 } from "./agent-catalog";
 import {
   shouldAcceptHookSessionId,
@@ -611,6 +613,64 @@ function resetSessionIdentityForNewInstance(
   notify();
 }
 
+/** The agent's exact-resume command builder, if it has an exact-resume path
+ * (hook or session-file). `null` for detection-only agents. */
+function resumeCommandBuilder(
+  agent: AgentDefinition,
+): ((sessionId: string) => string) | null {
+  const r = agent.resume;
+  return r.kind === "hook" || r.kind === "session-file"
+    ? r.buildResumeCommand
+    : null;
+}
+
+/** Resolve a *resumed* session's id straight from the agent's `--resume <id>`
+ * argv — the fallback for when resuming didn't re-fire the SessionStart hook
+ * (confirmed for Cursor). Reads the agent process's command line via the same
+ * `process_exec`/`ps` the rest of the host uses, so it needs no Rust change.
+ * No-op once an id is resolved (a hook, if one fires, still wins), for
+ * detection-only agents, or for a fresh (non-resume) launch. */
+async function resolveResumeIdFromArgv(
+  terminalId: string,
+  agent: AgentDefinition,
+  pgid: number,
+) {
+  const entry = trackedAgents.get(terminalId);
+  if (!entry || entry.state.sessionId) return;
+  const build = resumeCommandBuilder(agent);
+  if (!build) return;
+
+  let stdout: string;
+  try {
+    const res = await invoke<{ stdout?: string }>("process_exec", {
+      command: "ps",
+      args: ["-p", String(pgid), "-o", "args="],
+    });
+    stdout = res?.stdout ?? "";
+  } catch {
+    return;
+  }
+
+  const sessionId = parseResumeSessionIdFromArgv(stdout);
+  if (!sessionId) return;
+
+  // A hook (or session-file read) may have won the race during the await —
+  // leave the authoritative id in place.
+  const live = trackedAgents.get(terminalId);
+  if (!live || live.state.sessionId) return;
+
+  applyResumeHint(terminalId, {
+    sessionId,
+    resumeCommand: build(sessionId),
+    agentName: agent.displayName,
+    agentId: agent.id,
+  });
+  agentsChannel.info(
+    `Resolved ${agent.displayName} resume session ${sessionId} for terminal ${terminalId} ` +
+      `from its --resume argv (pgid ${pgid}).`,
+  );
+}
+
 function noteForeground(
   entry: TrackedAgent,
   terminalId: string,
@@ -656,6 +716,13 @@ function noteForeground(
           agent.resume,
           fg.pgid,
         );
+      }
+      // Hook agents don't necessarily re-fire SessionStart on `--resume`
+      // (confirmed for Cursor) — so a resumed terminal would never get an
+      // exact id from the hook. Recover it from the `--resume <id>` argv the
+      // agent was launched with (no-op for a fresh, non-resume launch).
+      if (agent?.resume.kind === "hook") {
+        void resolveResumeIdFromArgv(terminalId, agent, fg.pgid);
       }
     }
   }

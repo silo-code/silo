@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { genericHint, isKnownAgentLeader } from "./agent-resume-hint";
+import {
+  genericHint,
+  isKnownAgentLeader,
+  parseResumeSessionIdFromArgv,
+} from "./agent-resume-hint";
 
 describe("genericHint", () => {
   it("includes agentName from the catalog, not just the resume text", () => {
@@ -36,6 +40,49 @@ describe("genericHint", () => {
     const hint = genericHint("some-random-tool", "/tmp/proj");
     expect(hint.agentName).toBeUndefined();
     expect(hint.agentId).toBeUndefined();
+  });
+});
+
+describe("parseResumeSessionIdFromArgv", () => {
+  const uuid = "a95d1c3b-5cae-40ad-aa88-dee475fc31e2";
+
+  it("extracts the id from `--resume=<uuid>` (Cursor's form)", () => {
+    expect(
+      parseResumeSessionIdFromArgv(
+        `/Users/x/.local/bin/cursor-agent --use-system-ca /opt/index.js -f --resume=${uuid}`,
+      ),
+    ).toBe(uuid);
+  });
+
+  it("extracts the id from `--resume <uuid>` (space) and `-r <uuid>`", () => {
+    expect(parseResumeSessionIdFromArgv(`claude --resume ${uuid}`)).toBe(uuid);
+    expect(parseResumeSessionIdFromArgv(`cursor-agent -r ${uuid}`)).toBe(uuid);
+    expect(parseResumeSessionIdFromArgv(`grok -r=${uuid}`)).toBe(uuid);
+  });
+
+  it("returns null for a fresh (non-resume) launch", () => {
+    expect(
+      parseResumeSessionIdFromArgv(
+        "/Users/x/.local/bin/cursor-agent --use-system-ca /opt/index.js -f",
+      ),
+    ).toBeNull();
+  });
+
+  it("only treats UUID-shaped values as ids, not titles", () => {
+    // Cursor/Grok --resume accept a title too; a non-UUID must NOT be captured
+    // as an exact resumable id.
+    expect(
+      parseResumeSessionIdFromArgv("cursor-agent --resume my-feature"),
+    ).toBeNull();
+    expect(
+      parseResumeSessionIdFromArgv('cursor-agent --resume "Fix the bug"'),
+    ).toBeNull();
+  });
+
+  it("doesn't misfire on a substring or a non-flag occurrence", () => {
+    // `--resumex` isn't `--resume`; a bare uuid without the flag isn't a resume.
+    expect(parseResumeSessionIdFromArgv(`tool --resumex=${uuid}`)).toBeNull();
+    expect(parseResumeSessionIdFromArgv(`tool ${uuid}`)).toBeNull();
   });
 });
 

@@ -55,3 +55,26 @@ export function genericHint(leader: string, cwd: string): ResumeHint {
     agentId: agent?.id,
   };
 }
+
+/**
+ * Extract an exact session id from an agent's command line when it was launched
+ * to **resume** a session (`--resume <id>` / `--resume=<id>` / `-r <id>`).
+ *
+ * This is how a *resumed* terminal gets its exact resume identity: resuming a
+ * session does not necessarily re-fire the SessionStart hook (confirmed for
+ * Cursor — it fires only on a new session's first keystroke, never on
+ * `--resume`), so there's no hook event to correlate. But the id is right there
+ * in the agent's own argv, which Silo already reads for foreground tracking.
+ *
+ * Only **UUID-shaped** values are treated as ids: every supported agent's
+ * `--resume` accepts either an id or a title, and a non-UUID value is a title/
+ * prefix, not a resumable id (per Grok/Cursor `--resume` help — "UUID-shaped
+ * values are always ids"). Returns `null` when the agent wasn't launched with a
+ * resume id (e.g. a fresh session, where the hook is the right source).
+ */
+export function parseResumeSessionIdFromArgv(argv: string): string | null {
+  const m = argv.match(
+    /(?:^|\s)(?:--resume|-r)[=\s]+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?=\s|$)/i,
+  );
+  return m ? m[1] : null;
+}

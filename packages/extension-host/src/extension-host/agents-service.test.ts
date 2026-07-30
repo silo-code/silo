@@ -684,3 +684,77 @@ describe("AgentsService — restored acknowledged idle does not re-flag attentio
     expect(svc.getByTerminalId(id)?.needsAttention).toBe(true);
   });
 });
+
+describe("AgentsService — resumed session id from --resume argv", () => {
+  it("captures a resumed Cursor session's id from argv when the hook doesn't re-fire", async () => {
+    // Resuming a Cursor session does not re-fire its SessionStart hook
+    // (confirmed live), so there's no hook event to correlate. But the id is
+    // in the agent's `--resume=<id>` argv, which Silo reads via `ps`.
+    const id = "t-cursor-resume";
+    const ptySessionId = "sess-cursor-resume";
+    const cursorPgid = 92492;
+    const resumedId = "a95d1c3b-5cae-40ad-aa88-dee475fc31e2";
+
+    invoke.mockImplementation((cmd: string) => {
+      if (cmd === "process_exec") {
+        return Promise.resolve({
+          stdout:
+            `/Users/x/.local/bin/cursor-agent --use-system-ca /opt/index.js ` +
+            `-f --resume=${resumedId}\n`,
+        });
+      }
+      return Promise.resolve(null); // fs_read_text (no hook events on disk)
+    });
+
+    await attachTerminal(id, ptySessionId);
+    foreground(ptySessionId, {
+      pgid: cursorPgid,
+      atPrompt: false,
+      leader: "cursor-agent",
+      cwd: "/tmp",
+    });
+
+    // Flush the async ps read + applyResumeHint.
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.agentId).toBe("cursor");
+    expect(info?.sessionId).toBe(resumedId);
+    expect(info?.resumeCommand).toBe(`cursor-agent --resume ${resumedId}`);
+  });
+
+  it("leaves a fresh (non-resume) Cursor launch for the hook — argv sets no id", async () => {
+    const id = "t-cursor-fresh";
+    const ptySessionId = "sess-cursor-fresh";
+
+    invoke.mockImplementation((cmd: string) => {
+      if (cmd === "process_exec") {
+        return Promise.resolve({
+          stdout:
+            "/Users/x/.local/bin/cursor-agent --use-system-ca /opt/index.js -f\n",
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    await attachTerminal(id, ptySessionId);
+    foreground(ptySessionId, {
+      pgid: 77001,
+      atPrompt: false,
+      leader: "cursor-agent",
+      cwd: "/tmp",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Detected as Cursor, but no exact id from argv (a fresh launch — the hook
+    // is the right source, which didn't fire in this test).
+    const info = svc.getByTerminalId(id);
+    expect(info?.agentId).toBe("cursor");
+    expect(info?.sessionId).toBeUndefined();
+  });
+});
