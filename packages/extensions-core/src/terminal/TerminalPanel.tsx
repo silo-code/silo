@@ -45,6 +45,7 @@ import {
   type TerminalLinkRange,
 } from "./terminal-link-policy";
 import { findTerminalOwnerId } from "./terminal-lifecycle";
+import { formatResumeBox } from "./resume-box";
 import { TerminalSearch } from "./TerminalSearch";
 import { Breadcrumb } from "../editor/Breadcrumb";
 import "@xterm/xterm/css/xterm.css";
@@ -613,9 +614,15 @@ export function TerminalPanel(
           // session has taken over this terminal id.
           const agentInfo = ctx.agents.getByTerminalId(terminalId);
           if (agentInfo?.activity === "dead" && agentInfo.resumeCommand) {
-            term.write(
-              `\r\n\x1b[1;33m── session ended — ${agentInfo.resumeCommand} ──\x1b[0m\r\n`,
-            );
+            // Exact hint (a real `<agent> --resume <id>` command, gated on a
+            // captured sessionId) gets the two-line "resume with" form; the
+            // generic "was running … in …" hint has nothing to run, so it
+            // rides on the header line instead.
+            const header = "Terminal restarted, agent terminated.";
+            const lines = agentInfo.sessionId
+              ? [`${header} Resume with:`, agentInfo.resumeCommand]
+              : [`${header} ${agentInfo.resumeCommand}`];
+            term.write(formatResumeBox(lines));
           }
           notifyTerminalSessionRecreated(terminalId);
           replayed = true;
