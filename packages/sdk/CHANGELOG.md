@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.31.0](https://github.com/silo-code/silo/compare/sdk-v0.30.0...sdk-v0.31.0) (2026-07-30)
+
+
+### Features
+
+* **agents:** ctx.agents surface with multi-agent detection, resume, and reboot recovery ([#299](https://github.com/silo-code/silo/issues/299)) ([d125828](https://github.com/silo-code/silo/commit/d1258287b8478cee4ac502407d481bd658150845))
+
 ## [0.30.0](https://github.com/silo-code/silo/compare/sdk-v0.29.1...sdk-v0.30.0) (2026-07-22)
 
 
