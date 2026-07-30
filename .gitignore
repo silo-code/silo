@@ -24,3 +24,10 @@ dist-ssr
 
 # Turborepo local cache
 .turbo
+
+# Playwright MCP local output (console logs, page snapshots)
+/.playwright-mcp/
+
+# Reference clones for research (see root CLAUDE.md's "Repository Clones"
+# convention) — never part of this repo's own source.
+/repos/

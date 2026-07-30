@@ -1,6 +1,6 @@
 # Interface: Extension\<API\>
 
-Defined in: [packages/sdk/src/types.ts:855](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L855)
+Defined in: [packages/sdk/src/types.ts:866](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L866)
 
 The shape of a Silo extension: a stable id plus an
 [activate](#activate) function the host calls once, passing
@@ -25,7 +25,7 @@ extensions that publish nothing.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:861](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L861)
+Defined in: [packages/sdk/src/types.ts:872](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L872)
 
 Unique extension id, conventionally namespaced: `core.*` for Silo's core
 feature set, `silo.*` for its optional bundled features, `<vendor>.*` for
@@ -39,7 +39,7 @@ third parties (e.g. `"core.editor"`, `"silo.git"`, `"acme.foo"`).
 optional manifest?: ExtensionManifest;
 ```
 
-Defined in: [packages/sdk/src/types.ts:868](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L868)
+Defined in: [packages/sdk/src/types.ts:879](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L879)
 
 Optional display metadata for the **Extensions** settings page. Built-in
 extensions declare it here so they can be listed (and disabled) with a name
@@ -54,7 +54,7 @@ package manifest instead. See [ExtensionManifest](ExtensionManifest.md).
 activate(ctx): void | API;
 ```
 
-Defined in: [packages/sdk/src/types.ts:875](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L875)
+Defined in: [packages/sdk/src/types.ts:886](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L886)
 
 Called once by the host; register contributions against `ctx` here.
 **Optionally return an API object** to publish it for other extensions to
@@ -79,7 +79,7 @@ extension publishes no API.
 optional deactivate(): void;
 ```
 
-Defined in: [packages/sdk/src/types.ts:877](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L877)
+Defined in: [packages/sdk/src/types.ts:888](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L888)
 
 Optional cleanup hook (reserved for dynamic load/unload).
 

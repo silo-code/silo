@@ -60,3 +60,6 @@ never deleted** — "we considered X and rejected it" stops the debate recurring
 | [0015](./0015-workspace-extension-contributions.md)       | Workspace extension contributions — property pages + context menu | 2026-07-15 | accepted    |
 | [0016](./0016-modal-design-system.md)                     | Modal design system: a public SDK component set                   | 2026-07-18 | accepted    |
 | [0017](./0017-pty-host-daemon-outside-appimage-mount.md)  | Relocate the pty-host daemon binary outside the AppImage mount    | 2026-07-22 | draft       |
+| [0018](./0018-ctx-agents-surface.md)                      | `ctx.agents` — host-computed agent activity + resume-hint surface | 2026-07-22 | draft       |
+| [0019](./0019-agent-hook-shell-runtime.md)                | Agent session hook — POSIX-shell runtime (replaces base64/Python) | 2026-07-29 | implemented |
+| [0020](./0020-agent-hook-activity-channel.md)             | Hooks as an authoritative agent-activity channel (over OSC)       | 2026-07-29 | draft       |

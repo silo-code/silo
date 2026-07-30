@@ -159,22 +159,34 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
                 }
                 // pgid + cwd are cheap, polled every tick (so a bare `cd` at the
                 // prompt — same pgid, new cwd — is caught). The name lookup shells
-                // out, so re-resolve it only when the group actually changes.
+                // out, so re-resolve it when the group changes *or* the cached
+                // name is still a transitional launcher (Cursor's
+                // `cursor-agent` is a bash shebang that `exec -a`s into node
+                // without changing pgid — confirmed live: leader stayed
+                // "bash" forever and `ctx.agents` never stuck agentPgid).
                 let pgid = foreground::pgid(master);
                 let cwd = if pgid > 0 {
                     foreground::cwd_of(pgid)
                 } else {
                     String::new()
                 };
-                if pgid == last_pgid && cwd == last_cwd {
-                    continue;
-                }
+                let mut name_changed = false;
                 if pgid != last_pgid {
                     name = if pgid > 0 {
                         foreground::name_of(pgid)
                     } else {
                         "?".to_string()
                     };
+                    name_changed = true;
+                } else if pgid > 0 && is_transitional_leader(&name) {
+                    let refreshed = foreground::name_of(pgid);
+                    if refreshed != name {
+                        name = refreshed;
+                        name_changed = true;
+                    }
+                }
+                if pgid == last_pgid && cwd == last_cwd && !name_changed {
+                    continue;
                 }
                 last_pgid = pgid;
                 last_cwd = cwd.clone();
@@ -329,6 +341,38 @@ fn peer_is_owner(stream: &UnixStream) -> bool {
     {
         let _ = fd;
         true
+    }
+}
+
+/// Launchers that briefly own the TTY foreground pgid before `exec`ing into
+/// the real agent binary without changing the process group. While the
+/// cached leader is one of these, keep re-resolving argv0 every poll tick.
+fn is_transitional_leader(name: &str) -> bool {
+    let base = name.rsplit('/').next().unwrap_or(name);
+    matches!(
+        base,
+        "bash" | "sh" | "dash" | "zsh" | "env" | "python" | "python3"
+    )
+}
+
+#[cfg(test)]
+mod transitional_leader_tests {
+    use super::is_transitional_leader;
+
+    #[test]
+    fn recognises_common_launchers() {
+        assert!(is_transitional_leader("bash"));
+        assert!(is_transitional_leader("/bin/bash"));
+        assert!(is_transitional_leader("/usr/bin/env"));
+        assert!(is_transitional_leader("zsh"));
+    }
+
+    #[test]
+    fn rejects_settled_agents() {
+        assert!(!is_transitional_leader("cursor-agent"));
+        assert!(!is_transitional_leader("/Users/x/.local/bin/cursor-agent"));
+        assert!(!is_transitional_leader("claude"));
+        assert!(!is_transitional_leader("node"));
     }
 }
 

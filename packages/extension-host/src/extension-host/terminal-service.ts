@@ -20,7 +20,10 @@ import {
   getActiveTerminal,
   subscribeActiveTerminal,
 } from "./active-terminal-registry";
-import { focusCenterDock, getActiveDockApi } from "../docked/dock-api-registry";
+import {
+  focusPanelContent,
+  getActiveDockApi,
+} from "../docked/dock-api-registry";
 import { createHostChannel } from "./output-store";
 import {
   collectLivePtys,
@@ -132,6 +135,52 @@ function locate(
   return null;
 }
 
+/** Current live PTY session id for a terminal id, or `null` if none. */
+function sessionIdFor(terminalId: string): string | null {
+  for (const ws of Object.values(store.workspaces)) {
+    const rec = ws?.terminals.find((t) => t.id === terminalId);
+    if (rec?.sessionId) return rec.sessionId;
+  }
+  return null;
+}
+
+/**
+ * Subscribe to a terminal's *current* PTY session and keep that binding
+ * following the session across recreation. `bind(sessionId)` opens the
+ * underlying per-session listener and returns its teardown. This re-binds
+ * whenever the terminal's `sessionId` changes — first spawn, and every
+ * recreate (reboot / manual "Recreate terminal") that swaps in a new PTY
+ * session under the same terminal id. Without this, a listener captured at the
+ * original session goes silent after recreate even though the terminal id is
+ * unchanged (the bug: OSC/output agent-detection stopped for a resumed agent).
+ */
+function subscribeToSession(
+  terminalId: string,
+  bind: (sessionId: string) => () => void,
+): { dispose(): void } {
+  let currentSid: string | null = null;
+  let unbind: (() => void) | null = null;
+
+  const sync = () => {
+    const sid = sessionIdFor(terminalId);
+    if (sid === currentSid) return;
+    unbind?.();
+    unbind = null;
+    currentSid = sid;
+    if (sid) unbind = bind(sid);
+  };
+
+  sync();
+  const unsubscribeStore = subscribe(store, sync);
+  return {
+    dispose() {
+      unsubscribeStore();
+      unbind?.();
+      unbind = null;
+    },
+  };
+}
+
 // In-flight force-spawns, keyed by terminal id, so concurrent `sendText` calls
 // (or a call racing a normal mount) share one PTY rather than spawning several.
 const spawning = new Map<string, Promise<string | null>>();
@@ -238,8 +287,23 @@ export function getTerminalService(): TerminalService {
       if (!wsId) return;
 
       const activate = () => {
-        getActiveDockApi()?.getPanel(`terminal:${terminalId}`)?.api.setActive();
-        focusCenterDock();
+        const panel = getActiveDockApi()?.getPanel(`terminal:${terminalId}`);
+        panel?.api.setActive();
+        if (!panel) return;
+        // Defer the actual focus grab past this tick, and scope it to this
+        // specific panel's own content — not focusCenterDock()'s "whatever's
+        // visible in the active group" search. With two-plus terminal tabs in
+        // the same group, that generic search can win the race against
+        // dockview's own (async, not synchronous with setActive()) visibility
+        // toggle and land on the *previous* tab's still-visible content,
+        // which reads as "some textarea in the group is focused" and never
+        // retries again — confirmed live: clicking between two terminal rows
+        // in agent-inspector sometimes focused the wrong one. Scoping to
+        // panel.view.content.element removes every other panel from the
+        // search, so there's nothing left to grab but the right one.
+        requestAnimationFrame(() =>
+          focusPanelContent(panel.view.content.element),
+        );
       };
 
       if (store.activeWorkspaceId !== wsId) {
@@ -302,81 +366,18 @@ export function getTerminalService(): TerminalService {
       terminalTabDecorationRegistry,
     ),
     subscribeOsc(terminalId: string, handler: (event: OscEvent) => void) {
-      // Resolve the terminal record → its live sessionId. The sessionId may
-      // change if the terminal is recreated, so we re-resolve on each event
-      // rather than capturing it at subscribe time.
-      const getSessionId = () => {
-        for (const ws of Object.values(store.workspaces)) {
-          const rec = ws?.terminals.find((t) => t.id === terminalId);
-          if (rec?.sessionId) return rec.sessionId;
-        }
-        return null;
-      };
-
-      // We need to know the sessionId upfront to start the client listener. If
-      // the terminal hasn't spawned yet (sessionId is ""), wait briefly then
-      // retry. Most callers subscribe after the terminal is open, so this is
-      // typically a no-op.
-      let unsub: (() => void) | null = null;
-
-      const attach = () => {
-        const sid = getSessionId();
-        if (!sid) return;
-        unsub = tauriTerminalClient.onOsc(sid, handler);
-      };
-
-      attach();
-
-      // If the terminal wasn't ready yet, poll until it has a sessionId.
-      // Stop after 10 s to avoid leaking if the terminal never spawns.
-      let attempts = 0;
-      const poll = unsub
-        ? null
-        : window.setInterval(() => {
-            attach();
-            if (unsub || ++attempts > 100) window.clearInterval(poll!);
-          }, 100);
-
-      return {
-        dispose() {
-          if (poll !== null) window.clearInterval(poll);
-          unsub?.();
-        },
-      };
+      // Bound to the terminal's *current* PTY session and re-bound whenever
+      // that session changes — a terminal that hasn't spawned yet binds once
+      // its sessionId lands, and a recreated one (reboot) re-binds to the new
+      // session instead of going silent. See subscribeToSession.
+      return subscribeToSession(terminalId, (sid) =>
+        tauriTerminalClient.onOsc(sid, handler),
+      );
     },
     subscribeOutput(terminalId: string, handler: (data: string) => void) {
-      const getSessionId = () => {
-        for (const ws of Object.values(store.workspaces)) {
-          const rec = ws?.terminals.find((t) => t.id === terminalId);
-          if (rec?.sessionId) return rec.sessionId;
-        }
-        return null;
-      };
-
-      let unsub: (() => void) | null = null;
-
-      const attach = () => {
-        const sid = getSessionId();
-        if (!sid) return;
-        unsub = tauriTerminalClient.onOutput(sid, handler);
-      };
-
-      attach();
-
-      let attempts = 0;
-      const poll = unsub
-        ? null
-        : window.setInterval(() => {
-            attach();
-            if (unsub || ++attempts > 100) window.clearInterval(poll!);
-          }, 100);
-
-      return {
-        dispose() {
-          if (poll !== null) window.clearInterval(poll);
-          unsub?.();
-        },
-      };
+      return subscribeToSession(terminalId, (sid) =>
+        tauriTerminalClient.onOutput(sid, handler),
+      );
     },
   };
   return service;

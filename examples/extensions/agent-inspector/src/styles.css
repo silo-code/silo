@@ -1,0 +1,179 @@
+/* ---- panel shell --------------------------------------------------------- */
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ai-empty {
+  padding: 24px 16px;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-lo);
+  line-height: 1.6;
+}
+.ai-empty p {
+  margin: 0 0 6px;
+}
+
+/* ---- toolbar ------------------------------------------------------------- */
+.ai-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.ai-scope-select {
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+  background: var(--silo-color-bg-hover);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+/* ---- list ------------------------------------------------------------------ */
+.ai-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.ai-row {
+  padding: 9px 10px;
+  /* Transparent by default so ai-row--active's accent border doesn't shift
+     layout when a row toggles between the two — same reserved width either
+     way. */
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid var(--silo-color-border);
+  cursor: pointer;
+}
+.ai-row:last-child {
+  border-bottom: none;
+}
+.ai-row:hover {
+  background: var(--silo-color-bg-hover);
+}
+.ai-row--dead {
+  background: var(--silo-color-bg-active);
+}
+.ai-row--dead:hover {
+  background: var(--silo-color-bg-hover);
+}
+.ai-row--active {
+  border-left-color: var(--silo-color-accent);
+}
+
+.ai-row-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+}
+
+.ai-terminal-id {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.ai-activity {
+  font-weight: 500;
+}
+
+/* ---- status dot, colored per activity ------------------------------------- */
+.ai-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.ai-dot--working {
+  background: var(--silo-color-accent);
+}
+.ai-dot--idle {
+  background: var(--silo-color-ok);
+}
+.ai-dot--error {
+  background: var(--silo-color-error);
+}
+.ai-dot--dead {
+  background: var(--silo-color-warn);
+}
+.ai-dot--none {
+  background: var(--silo-color-text-lo);
+  opacity: 0.25;
+}
+
+/* ---- badges ---------------------------------------------------------------- */
+.ai-badge {
+  padding: 1px 6px;
+  border-radius: var(--silo-radius-sm);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+}
+.ai-badge--stale {
+  color: var(--silo-color-warn);
+  border: 1px solid var(--silo-color-warn);
+}
+.ai-badge--attention {
+  color: var(--silo-color-accent);
+  border: 1px solid var(--silo-color-accent);
+}
+
+.ai-ack-button {
+  padding: 1px 8px;
+  border-radius: var(--silo-radius-sm);
+  border: 1px solid var(--silo-color-accent);
+  background: var(--silo-color-accent);
+  color: var(--silo-color-bg);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.ai-ack-button:hover {
+  opacity: 0.85;
+}
+
+/* ---- secondary meta row ----------------------------------------------------- */
+.ai-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 3px;
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+/* ---- resume-hint callout ---------------------------------------------------- */
+.ai-resume {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: var(--silo-radius-sm);
+  border: 1px solid var(--silo-color-border);
+}
+.ai-resume--dead {
+  border-color: var(--silo-color-warn);
+}
+.ai-resume-callout {
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  font-weight: 500;
+  color: var(--silo-color-warn);
+  margin-bottom: 2px;
+}
+.ai-resume-line {
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+.ai-resume-mono {
+  font-family: var(--silo-font-mono);
+  color: var(--silo-color-text-hi);
+}

@@ -10,7 +10,9 @@
 //!
 //! The group leader's pid equals the pgid, so we resolve its name and cwd from
 //! that. `pgid`/`cwd_of` are cheap enough to poll every tick; `name_of` shells
-//! out, so callers resolve it only when the group actually changes.
+//! out, so the daemon re-resolves it when the group changes *or* the cached
+//! name is still a transitional launcher (`bash`/`env`/…) that may `exec`
+//! into the real agent without changing pgid (Cursor's `cursor-agent` shebang).
 
 use std::os::unix::io::RawFd;
 
@@ -39,9 +41,35 @@ pub fn query(master: RawFd, shell_pid: i32) -> Foreground {
     }
 }
 
-/// Resolve a pid to a program name. Shells out to `ps` (portable across
-/// macOS/Linux) — the slow part, so callers cache it across the group's life.
+/// Resolve a pid to a program name / argv0. Prefer the first token of
+/// `ps -o args=` over `comm=`: on macOS `comm` is truncated to 16 bytes
+/// (`MAXCOMLEN`), which turns a long path like
+/// `/Users/…/.local/bin/cursor-agent` into `/Users/dweaver/.` and breaks
+/// agent-leader matching in `ctx.agents` (confirmed live: Cursor CLI never
+/// stuck `agentPgid` / never got a resume hint because of that truncation).
+/// `args=` keeps the real argv0. Falls back to `comm=` when args is empty.
 pub fn name_of(pid: i32) -> String {
+    if let Some(argv0) = argv0_of(pid) {
+        return argv0;
+    }
+    comm_of(pid)
+}
+
+fn argv0_of(pid: i32) -> Option<String> {
+    let out = std::process::Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "args="])
+        .output()
+        .ok()?;
+    let line = String::from_utf8_lossy(&out.stdout);
+    let argv0 = line.split_whitespace().next()?.trim();
+    if argv0.is_empty() {
+        None
+    } else {
+        Some(argv0.to_string())
+    }
+}
+
+fn comm_of(pid: i32) -> String {
     let out = std::process::Command::new("ps")
         .args(["-p", &pid.to_string(), "-o", "comm="])
         .output();

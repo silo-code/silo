@@ -161,6 +161,7 @@ editor ops below — `monaco` is not a page global, so `eval` can't reach it.
 | `openWorkspace`     | `folder,name`                | create + activate (use a temp dir) → `{id}`                                                                |
 | `activateWorkspace` | `id`                         | switch active → `{active}`                                                                                 |
 | `addFolder`         | `id,folder`                  | attach a folder, bypassing the native OS picker ("Add Folder…" in Workspace Properties) → `{extraFolders}` |
+| `closeWorkspace`    | `id`                         | close (sets `closedAt`, doesn't remove) → `{closed,active}`                                                |
 | `deleteWorkspace`   | `id`                         | reap terminals + remove → `{deleted,active}`                                                               |
 | `splitActivePanel`  | `position?` (l/r/top/bottom) | split center group → `{groups}`                                                                            |
 | `activatePanel`     | `panelId`                    | focus a dock panel → `{activated}`                                                                         |
@@ -174,6 +175,7 @@ editor ops below — `monaco` is not a page global, so `eval` can't reach it.
 | `openDiff`      | `path,providerId,args?,title?,preview?` | open a diff tab via a content provider → `{diffId,panelId}`                 |
 | `listEditors`   | `workspaceId?`                          | `{previewEditorId, editors[{id,filePath,title,isPreview,mode,providerId}]}` |
 | `openTerminal`  | `cwd?`                                  | `ctx.terminals.create` → `{terminalId,panelId}`                             |
+| `sendText`      | `terminalId,text,addNewline?`           | write to a terminal's PTY (force-spawns if never mounted) → `{sent:true}`   |
 | `listTerminals` | `workspaceId?`                          | `{terminals[{id,title,sessionId,kind}]}`                                    |
 
 **Monaco introspection / drive** (authoritative — straight from Monaco's registry; `uri` matches by substring of the model URI)
@@ -266,3 +268,37 @@ webview reply"}` — but **the JS keeps running in the page regardless**, since
   ```
   This also composes with golden rule 2 — each fire/sleep/read trio is still
   cheap `curl` calls inside one `Bash` block, just no longer racing the 5s limit.
+- **`listWorkspaces` returns every real workspace on the machine, closed ones
+  included** — when picking one to "switch away to" (e.g. to try forcing a
+  remount), don't just grab the first non-sandbox id from the list. A closed
+  workspace has `closedAt` set; `activateWorkspace` on one **reopens it**
+  (clears `closedAt`), silently undoing a deliberate close the user made,
+  possibly weeks ago. Check `closedAt` first, or better, target a workspace
+  you already know is open. If you do this by mistake, `closeWorkspace` (not
+  `deleteWorkspace`) restores it.
+- **Bash variables never survive across separate `Bash` tool calls** — each is
+  a fresh shell. If a workspace/terminal id from one block is needed in a
+  later one, hardcode the literal id string (from what you echoed) at the top
+  of the new block; don't reference `$WS_ID` and assume it's still set. An
+  unset variable silently expands to `""`, so e.g. `activateWorkspace` with an
+  empty id fails quietly rather than erroring loudly — easy to misread as "it
+  worked" when it didn't do what you intended.
+- **Switching workspaces away and back does not remount a backgrounded
+  terminal panel** — Silo's entire premise is keeping background work alive,
+  so a terminal that's merely not-visible stays mounted and never re-triggers
+  its attach/reattach effect. There's no bridge op to force just one tab to
+  remount (no terminal-close-tab op, only whole-workspace `closeWorkspace`/
+  `deleteWorkspace`). To test something that only happens on that a real
+  panel mount (e.g. reattach-after-daemon-death), a full app restart is
+  required — which the golden-rule-1 sandbox discipline doesn't license doing
+  on an attached (not self-launched) instance. Report the limitation rather
+  than reaching for `eval`-driven DOM clicks on the user's live session to
+  work around it.
+- **In a dev build (`target/debug/silo`), the PTY session daemon is not a
+  separately-named process** — it's the same `silo` binary self-exec'd with
+  `--session-host <id> <folder> <cols> <rows> -- <shell>`, not a distinct
+  `pty-host` binary (that may differ in a release build). To kill just one
+  session's daemon for a death-transition test, match on `--session-host
+silo-<first 8 hex chars of the terminal's sessionId>` and its folder —
+  never a bare `pkill -f pty-host`-style pattern, which would hit every real
+  session-host process on the machine, not just the sandbox one.

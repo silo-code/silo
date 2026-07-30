@@ -30,6 +30,8 @@ import {
   onTerminalForeground,
   registerSelectionSource,
   contextMenuEntriesFor,
+  notifyTerminalSessionGone,
+  notifyTerminalSessionRecreated,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
 import { effectiveFontFamily } from "./terminal-font";
@@ -43,6 +45,7 @@ import {
   type TerminalLinkRange,
 } from "./terminal-link-policy";
 import { findTerminalOwnerId } from "./terminal-lifecycle";
+import { formatResumeBox } from "./resume-box";
 import { TerminalSearch } from "./TerminalSearch";
 import { Breadcrumb } from "../editor/Breadcrumb";
 import "@xterm/xterm/css/xterm.css";
@@ -593,6 +596,35 @@ export function TerminalPanel(
           if (restored.length > 0) {
             term.write(restored);
           }
+          // The replayed buffer is a snapshot of whatever the old session's
+          // live state was — if a full-screen program (e.g. Claude Code) had
+          // mouse tracking enabled and the process was killed abruptly rather
+          // than exiting cleanly, there's no matching disable sequence in the
+          // snapshot, so replaying it leaves this (reused, not fresh) xterm
+          // instance stuck in mouse-tracking mode: click-drag stops
+          // selecting text and instead sends tracking bytes to the PTY.
+          // Force these off explicitly rather than trusting the snapshot.
+          // Deliberately not touching alternate-screen-buffer mode (1049) —
+          // toggling that risks revealing/hiding content rather than just
+          // fixing input routing, and nothing observed here implicates it.
+          term.write("\x1b[?1000l\x1b[?1002l\x1b[?1003l\x1b[?1006l\x1b[?2004l");
+          // ctx.agents (RFC 0018): the resume hint notifyTerminalSessionGone
+          // resolved above, if any, appended as inert text before the fresh
+          // prompt — then clear "dead" back to a fresh state now that a live
+          // session has taken over this terminal id.
+          const agentInfo = ctx.agents.getByTerminalId(terminalId);
+          if (agentInfo?.activity === "dead" && agentInfo.resumeCommand) {
+            // Exact hint (a real `<agent> --resume <id>` command, gated on a
+            // captured sessionId) gets the two-line "resume with" form; the
+            // generic "was running … in …" hint has nothing to run, so it
+            // rides on the header line instead.
+            const header = "Terminal restarted, agent terminated.";
+            const lines = agentInfo.sessionId
+              ? [`${header} Resume with:`, agentInfo.resumeCommand]
+              : [`${header} ${agentInfo.resumeCommand}`];
+            term.write(formatResumeBox(lines));
+          }
+          notifyTerminalSessionRecreated(terminalId);
           replayed = true;
           for (const d of pendingLive) writeLive(d);
           pendingLive.length = 0;
@@ -700,6 +732,9 @@ export function TerminalPanel(
           // PTY daemon died (e.g. reboot). Save the old sessionId so the next
           // init() run can replay its persisted buffer after spawning a fresh shell.
           replayFromRef.current = tRec.sessionId;
+          // ctx.agents (RFC 0018): mark this terminal's agent activity "dead" —
+          // resolves/attaches the resume hint if one wasn't already live-resolved.
+          notifyTerminalSessionGone(terminalId);
           recreateTerminal(activeWsId!, terminalId);
           setLifecycle({ kind: "loading" });
           setVersion((v) => v + 1);

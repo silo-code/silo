@@ -206,6 +206,14 @@ All run from the repo root (pnpm workspace).
 - Docs under `docs/` use lowercase kebab-case filenames (`automation.md`,
   `ui-terminology.md`), not ALLCAPS. The only exception is the conventional
   `README.md`.
+- **All host-side logging goes to the Output panel, never `console.*`/devtools.**
+  Use `createHostChannel` (`packages/extension-host/src/extension-host/output-store.ts`)
+  to log from host code. Before adding a new channel, check whether an
+  existing one is a close fit (e.g. `silo:application`/"Application" for
+  core.\* extension activity, `silo:extension-host`/"Extension Host" for host
+  lifecycle) — only create a dedicated channel (e.g. `silo:agents`/"Agents")
+  when the thing being logged is genuinely a new subsystem with its own
+  diagnostic surface.
 - **Commit messages and PR titles are Conventional Commits**: `type(scope):
 summary` — e.g. `feat(git-explorer): add "View Commits" drill-down`,
   `fix(file-explorer): scope "View Commits" to the branch`. Check `git log`

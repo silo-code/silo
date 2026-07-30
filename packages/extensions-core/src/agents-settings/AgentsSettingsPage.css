@@ -1,0 +1,46 @@
+/* Agents settings uses the shared settings page chrome (`.es-page` /
+ * `.es-header` / `.es-scroll` from SettingsDialog.css) and SDK primitives
+ * (Section, Callout, Badge, Button). Keep this file for the unboxed WIP
+ * banner and the per-row docs link under the SettingRow hint. */
+
+.agents-settings-banner {
+  margin: 0;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text);
+  line-height: 1.5;
+}
+
+.agents-settings-docs-link {
+  display: inline-block;
+  /* No --silo-space-* token yet; half a sm font size keeps chrome spacing scaled. */
+  margin-top: calc(var(--silo-font-size-sm) * 0.5);
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.agents-settings-docs-link:hover {
+  color: var(--silo-color-text-hi);
+}
+
+/* Inline "Learn more" link within the WIP banner sentence — same link styling
+ * as the per-row docs link but no top margin, since it flows inline. */
+.agents-settings-banner-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.agents-settings-banner-link:hover {
+  color: var(--silo-color-text-hi);
+}

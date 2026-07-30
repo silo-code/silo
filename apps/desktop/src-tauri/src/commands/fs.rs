@@ -26,8 +26,16 @@ pub struct FileMeta {
 }
 
 #[tauri::command]
-pub fn fs_read_text(path: String) -> Result<String, String> {
-    std::fs::read_to_string(&path).map_err(|e| format!("{}: {}", path, e))
+pub async fn fs_read_text(path: String) -> Result<String, String> {
+    // spawn_blocking: must not run sync file I/O on the Tauri main/async
+    // thread. A sync `fs_read_text` was confirmed to wedge the webview's
+    // `invoke` pipeline while the page was `visibilityState === "hidden"`
+    // (agent-hook poller could not make progress without a restart).
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::read_to_string(&path).map_err(|e| format!("{}: {}", path, e))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

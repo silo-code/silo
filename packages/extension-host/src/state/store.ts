@@ -31,6 +31,7 @@ export const store = proxy<AppState>({
   sidePanelScrollPositions: {},
   extensionState: {},
   globalExtensionState: {},
+  agentState: {},
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,
   smallScreenModeEnabled: true,

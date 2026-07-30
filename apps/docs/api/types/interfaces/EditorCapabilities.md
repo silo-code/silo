@@ -1,6 +1,6 @@
 # Interface: EditorCapabilities
 
-Defined in: [packages/sdk/src/types.ts:154](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L154)
+Defined in: [packages/sdk/src/types.ts:155](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L155)
 
 Optional declarations about what an [Editor](Editor.md) can do, used by the host to
 decide routing (e.g. whether the editor can own an untitled buffer).
@@ -13,7 +13,7 @@ decide routing (e.g. whether the editor can own an untitled buffer).
 optional readonly?: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:160](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L160)
+Defined in: [packages/sdk/src/types.ts:161](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L161)
 
 The editor only displays, it can't edit or save (e.g. the image viewer, a
 future PDF/hex preview). Defaults to false — editors are editable unless
@@ -27,6 +27,6 @@ they opt out. Mirrors VS Code's read-only custom-editor variant.
 optional handlesUntitled?: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:162](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L162)
+Defined in: [packages/sdk/src/types.ts:163](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L163)
 
 The editor can render a never-saved (untitled) buffer. Defaults to false.
