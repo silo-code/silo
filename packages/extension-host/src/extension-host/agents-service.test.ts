@@ -758,3 +758,58 @@ describe("AgentsService — resumed session id from --resume argv", () => {
     expect(info?.sessionId).toBeUndefined();
   });
 });
+
+describe("AgentsService — foreground stream follows PTY session recreation", () => {
+  it("re-binds the foreground stream to the new session after a recreate so a resumed agent is still detected", async () => {
+    // A reboot kills the PTY; recreating the terminal spawns a *new* PTY
+    // session under the same terminal id. The foreground stream is keyed by
+    // the PTY session id (not the stable terminal id), so it must re-bind to
+    // the new session or a resumed agent is never seen (bug: inspector shows
+    // kind: shell / isAgent: false after resuming a killed agent).
+    const id = "t-recreate";
+    const oldSid = "sess-old";
+    const newSid = "sess-new";
+    const resumedId = "b6e2d4a1-1111-2222-3333-444455556666";
+
+    invoke.mockImplementation((cmd: string) => {
+      if (cmd === "process_exec") {
+        return Promise.resolve({
+          stdout: `/Users/x/.local/bin/cursor-agent -f --resume=${resumedId}\n`,
+        });
+      }
+      return Promise.resolve(null);
+    });
+
+    await attachTerminal(id, oldSid);
+    // Foreground stream bound to the original PTY session.
+    expect(fgCallbacks.has(oldSid)).toBe(true);
+
+    // Recreate: TerminalPanel swaps the new PTY session id onto the record
+    // (it does this before calling notifyTerminalSessionRecreated). The store
+    // mutation re-runs syncSessions, which must re-bind the foreground stream.
+    const wsId = `ws-${id}`;
+    store.workspaces[wsId]!.terminals[0]!.sessionId = newSid;
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Followed to the new session; the dead one is torn down.
+    expect(fgCallbacks.has(newSid)).toBe(true);
+    expect(fgCallbacks.has(oldSid)).toBe(false);
+
+    // The resumed agent takes over the new session — detection must fire on it.
+    foreground(newSid, {
+      pgid: 44004,
+      atPrompt: false,
+      leader: "cursor-agent",
+      cwd: "/tmp",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.agentId).toBe("cursor");
+    expect(info?.sessionId).toBe(resumedId);
+  });
+});

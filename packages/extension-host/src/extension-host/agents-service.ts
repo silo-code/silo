@@ -90,6 +90,17 @@ type TrackedAgent = {
    * first working→idle so a later real turn still flags attention normally.
    */
   suppressNextAttention: boolean;
+  /**
+   * PTY session id the foreground stream ({@link cleanupFg}) is currently
+   * subscribed to. Unlike the OSC/output subscriptions (keyed by the stable
+   * terminal id), `onTerminalForeground` is keyed by the *PTY* session id,
+   * which changes when a dead terminal is recreated (e.g. after a reboot).
+   * Tracking it lets {@link attachSession} notice the id changed under an
+   * already-tracked terminal and re-bind the stream to the new session — so a
+   * resumed agent's foreground leader is still detected. `null` before the
+   * first bind.
+   */
+  fgSessionId: string | null;
   cleanupOsc: () => void;
   cleanupFg: () => void;
   /** Raw-PTY-output subscription, for agents whose status isn't reliably
@@ -734,8 +745,51 @@ function noteForeground(
   checkPromptDemotion(terminalId, fg.atPrompt);
 }
 
+/**
+ * (Re)bind the foreground stream for a terminal to `sessionId`, tearing down
+ * any previous subscription first, then seed once from the Rust-side snapshot
+ * (a foreground that was already stable before this bind fires no change event,
+ * so the seed is how we catch it). Used both for the initial attach and to
+ * follow a PTY session that was recreated under an already-tracked terminal.
+ */
+function bindForeground(
+  entry: TrackedAgent,
+  terminalId: string,
+  sessionId: string,
+) {
+  entry.cleanupFg();
+  entry.fgSessionId = sessionId;
+  entry.cleanupFg = onTerminalForeground(sessionId, (fg) => {
+    noteForeground(entry, terminalId, fg);
+  });
+  void invoke<TerminalForeground | null>("terminal_foreground_snapshot", {
+    sessionId,
+  }).then((fg) => {
+    if (!fg) {
+      agentsChannel.debug(
+        `terminal ${terminalId} foreground seed: no snapshot available yet`,
+      );
+      return;
+    }
+    noteForeground(entry, terminalId, fg, "seed");
+  });
+}
+
 function attachSession(terminalId: string) {
-  if (trackedAgents.has(terminalId)) return;
+  const existing = trackedAgents.get(terminalId);
+  if (existing) {
+    // Already tracked — but the OSC/output subscriptions are keyed by the
+    // stable terminal id while the foreground stream is keyed by the PTY
+    // session id. A recreate (reboot, manual "Recreate terminal") swaps in a
+    // new PTY session under the same terminal id; re-bind the foreground
+    // stream to it so a resumed agent's leader is still detected. (Store
+    // mutations, including this sessionId swap, re-run syncSessions → here.)
+    const ctx = findTerminalContext(terminalId);
+    if (ctx?.rec.sessionId && ctx.rec.sessionId !== existing.fgSessionId) {
+      bindForeground(existing, terminalId, ctx.rec.sessionId);
+    }
+    return;
+  }
   const ctx = findTerminalContext(terminalId);
   if (!ctx?.rec.sessionId) return;
 
@@ -775,6 +829,7 @@ function attachSession(terminalId: string) {
     // needsAttention:true (never acked) or mid-working phase must still
     // surface attention on the next idle.
     suppressNextAttention: state.activity === "idle" && !state.needsAttention,
+    fgSessionId: null,
     cleanupOsc: () => {},
     cleanupFg: () => {},
     cleanupOutput: () => {},
@@ -811,26 +866,12 @@ function attachSession(terminalId: string) {
     },
   ).dispose;
 
-  entry.cleanupFg = onTerminalForeground(ctx.rec.sessionId, (fg) => {
-    noteForeground(entry, terminalId, fg);
-  });
-
-  // Seed from the Rust-side cache immediately — a terminal whose foreground
-  // was already stable *before* tracking started (e.g. Claude already
-  // running when the extension loaded) may never fire another change event,
-  // so onTerminalForeground alone would never trigger resume-hint
-  // resolution for it. Mirrors processes-service.ts's identical seeding step.
-  void invoke<TerminalForeground | null>("terminal_foreground_snapshot", {
-    sessionId: ctx.rec.sessionId,
-  }).then((fg) => {
-    if (!fg) {
-      agentsChannel.debug(
-        `terminal ${terminalId} foreground seed: no snapshot available yet`,
-      );
-      return;
-    }
-    noteForeground(entry, terminalId, fg, "seed");
-  });
+  // Bind the foreground stream (and seed it) to the current PTY session — a
+  // terminal whose foreground was already stable *before* tracking started
+  // (e.g. Claude already running when the extension loaded) may never fire
+  // another change event, so the seed inside bindForeground is how that case
+  // is caught. Mirrors processes-service.ts's identical seeding step.
+  bindForeground(entry, terminalId, ctx.rec.sessionId);
 
   if (state.activity !== "none")
     store.agentState[terminalId] ??= toPersisted(
