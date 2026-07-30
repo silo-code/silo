@@ -286,21 +286,29 @@ describe("agentByLeader", () => {
     expect(agentByLeader("claude")?.id).toBe("claude");
     expect(agentByLeader("codex")?.id).toBe("codex");
     expect(agentByLeader("cursor-agent")?.id).toBe("cursor");
-    expect(agentByLeader("agent")?.id).toBe("cursor");
     expect(agentByLeader("copilot")?.id).toBe("copilot");
     expect(agentByLeader("grok")?.id).toBe("grok");
+  });
+
+  it("does NOT map the bare `agent` shim to Cursor — it collides with Grok", () => {
+    // `~/.local/bin/agent` is Grok's shim on machines with both installed
+    // (confirmed live 2026-07-29). Mapping it to Cursor mis-detected Grok as
+    // Cursor and made Cursor's resume command invoke Grok. Cursor is matched
+    // only by its unambiguous `cursor-agent` argv0.
+    expect(agentByLeader("agent")).toBeUndefined();
+    expect(agentByLeader("/Users/x/.local/bin/agent")).toBeUndefined();
   });
 
   it("matches a known agent by full-path leader", () => {
     expect(agentByLeader("/opt/homebrew/bin/claude")?.id).toBe("claude");
     expect(agentByLeader("/usr/local/bin/cursor-agent")?.id).toBe("cursor");
-    expect(agentByLeader("/Users/x/.local/bin/agent")?.id).toBe("cursor");
+    expect(agentByLeader("/Users/x/.local/bin/grok")?.id).toBe("grok");
   });
 
   it("returns undefined for a plain shell / unknown program", () => {
     expect(agentByLeader("zsh")).toBeUndefined();
     expect(agentByLeader("/bin/bash")).toBeUndefined();
-    // "cursor" (the editor) is not "cursor-agent" / "agent" (the CLI).
+    // "cursor" (the editor) is not "cursor-agent" (the CLI).
     expect(agentByLeader("cursor")).toBeUndefined();
   });
 });
@@ -425,7 +433,11 @@ describe("buildResumeCommand", () => {
       expect(codex.resume.buildResumeCommand("x")).toBe("codex resume x");
     }
     if (cursor?.resume.kind === "hook") {
-      expect(cursor.resume.buildResumeCommand("x")).toBe("agent --resume x");
+      // `cursor-agent`, not the bare `agent` shim (which is Grok on machines
+      // with both installed).
+      expect(cursor.resume.buildResumeCommand("x")).toBe(
+        "cursor-agent --resume x",
+      );
     }
     if (copilot?.resume.kind === "hook") {
       expect(copilot.resume.buildResumeCommand("x")).toBe("copilot --resume=x");

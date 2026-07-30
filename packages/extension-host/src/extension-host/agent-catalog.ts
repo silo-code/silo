@@ -375,9 +375,14 @@ const codex: AgentDefinition = {
 const cursor: AgentDefinition = {
   id: "cursor",
   displayName: "Cursor Agent",
-  // `cursor-agent` is the binary basename on PATH installs; `agent` is the
-  // common shim name (`~/.local/bin/agent` → cursor-agent).
-  leaderNames: ["cursor-agent", "agent"],
+  // `cursor-agent` is Cursor's binary basename on PATH installs. Deliberately
+  // NOT the bare `agent` shim: it collides with Grok, which installs its own
+  // `~/.local/bin/agent` → `~/.grok/bin/agent` (confirmed live 2026-07-29). A
+  // bare `agent` is therefore ambiguous — mapping it to Cursor would mis-detect
+  // a Grok session launched as `agent`, and (worse) produce a Cursor resume
+  // command that actually invokes Grok. Cursor is identified only by its
+  // unambiguous `cursor-agent` argv0.
+  leaderNames: ["cursor-agent"],
   // OSC 0 title status (preferred), ported from silo-extensions/agent-monitor.
   // Only emitted when `display.showStatusIndicators` is true in
   // ~/.cursor/cli-config.json — the upstream *default is false* — so the raw
@@ -398,10 +403,13 @@ const cursor: AgentDefinition = {
     buildCommand: () => buildHookCommand("cursor"),
     // Confirmed live (2026-07-28, cursor-agent 2026.07.23): CLI help lists
     // `--resume [chatId]`; the sessionStart payload's `session_id` is the
-    // same UUID as `conversation_id` and works with `agent --resume <id>`.
-    // sessionStart fires when the first character is typed in the TUI — not
-    // at process start, and not after a sent message.
-    buildResumeCommand: (sessionId) => `agent --resume ${sessionId}`,
+    // same UUID as `conversation_id`. Use `cursor-agent` (NOT the bare `agent`
+    // shim, which is Grok on machines with both installed — confirmed live
+    // 2026-07-29: `agent --resume <cursor-id>` ran Grok and errored "No session
+    // found"). `cursor-agent --resume <id>` is unambiguous. sessionStart fires
+    // when the first character is typed in the TUI — not at process start, and
+    // not after a sent message.
+    buildResumeCommand: (sessionId) => `cursor-agent --resume ${sessionId}`,
   },
   docsUrl: "https://getsilo.dev/guide/agent-sessions#cursor-agent",
   contract:
@@ -416,8 +424,10 @@ const cursor: AgentDefinition = {
     "PPID to find the agent process and " +
     "records that process's pgid (raw PPID/getpgid(ppid) miss Cursor workers " +
     "that setpgrp); (4) " +
-    "`agent --resume <id>` (or `cursor-agent --resume <id>`) resumes by that " +
-    "id. Activity detection (ported from silo-extensions/agent-monitor, " +
+    "`cursor-agent --resume <id>` resumes by that id — NOT the bare `agent` " +
+    "shim, which collides with Grok's own `~/.local/bin/agent` (confirmed " +
+    "live 2026-07-29). Activity detection (ported from " +
+    "silo-extensions/agent-monitor, " +
     "2026-07-28): preferred signal is an OSC 0 title of the form " +
     "'<name> - <emoji?> <status>' — but only emitted when " +
     "`display.showStatusIndicators` is true in ~/.cursor/cli-config.json " +
