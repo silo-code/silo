@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.39.0](https://github.com/silo-code/silo/compare/silo-v0.38.0...silo-v0.39.0) (2026-07-30)
+
+
+### Features
+
+* **agents:** ctx.agents surface with multi-agent detection, resume, and reboot recovery ([#299](https://github.com/silo-code/silo/issues/299)) ([d125828](https://github.com/silo-code/silo/commit/d1258287b8478cee4ac502407d481bd658150845))
+* **docs:** add a favicon ([#297](https://github.com/silo-code/silo/issues/297)) ([e419a8d](https://github.com/silo-code/silo/commit/e419a8d3825965c095eea32ee1531893119c38ac))
+* **docs:** show a live GitHub star count in the nav ([#296](https://github.com/silo-code/silo/issues/296)) ([050e46c](https://github.com/silo-code/silo/commit/050e46c22e13f370f7b07029b04bbdea03854dc6))
+
+
+### Bug Fixes
+
+* **docs:** round the favicon's corners ([#298](https://github.com/silo-code/silo/issues/298)) ([79965e8](https://github.com/silo-code/silo/commit/79965e8dca626a789a555cfd9f16db13266e7c48))
+* **git-explorer:** keep the UI responsive when removing multiple worktrees ([#294](https://github.com/silo-code/silo/issues/294)) ([d130181](https://github.com/silo-code/silo/commit/d130181c3a531767bbbf1d23faf639d22cc82135))
+
 ## [0.38.0](https://github.com/silo-code/silo/compare/silo-v0.37.0...silo-v0.38.0) (2026-07-27)
 
 
