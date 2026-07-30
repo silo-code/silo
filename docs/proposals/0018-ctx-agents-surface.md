@@ -553,7 +553,8 @@ hook fires. So:
    only, via an in-memory line-count checkpoint — resets harmlessly on app
    restart). A short catch-up read also runs at startup and when a terminal's
    foreground first becomes a known agent (SessionStart can land a second or
-   two after `agentPgid` is set; Codex may fire on the first user message).
+   two after `agentPgid` is set; Cursor fires on the first typed character;
+   Codex may fire on the first user message).
    Delivery is **not** a periodic JS poll — polling through webview `invoke`
    stalled while the page was backgrounded and missed live writes.
 3. **Correlate** (`matchHookEventsToTerminals`, a pure function so the

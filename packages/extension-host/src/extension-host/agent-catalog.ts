@@ -399,6 +399,8 @@ const cursor: AgentDefinition = {
     // Confirmed live (2026-07-28, cursor-agent 2026.07.23): CLI help lists
     // `--resume [chatId]`; the sessionStart payload's `session_id` is the
     // same UUID as `conversation_id` and works with `agent --resume <id>`.
+    // sessionStart fires when the first character is typed in the TUI — not
+    // at process start, and not after a sent message.
     buildResumeCommand: (sessionId) => `agent --resume ${sessionId}`,
   },
   docsUrl: "https://getsilo.dev/guide/agent-sessions#cursor-agent",
@@ -408,8 +410,10 @@ const cursor: AgentDefinition = {
     "sessionStart: [{ command }] } }` (camelCase event, flat command " +
     "entries — NOT Claude's hooks.<Event>[].hooks[] shape); (2) CONFIRMED " +
     "live against cursor-agent 2026.07.23 (2026-07-28): CLI fires " +
-    "sessionStart with JSON stdin carrying `session_id` (= conversation_id); " +
-    "(3) the hook walks parents from its PPID to find the agent process and " +
+    "sessionStart when the first character is typed in the TUI (not at " +
+    "process start, not after a sent message) with JSON stdin carrying " +
+    "`session_id` (= conversation_id); (3) the hook walks parents from its " +
+    "PPID to find the agent process and " +
     "records that process's pgid (raw PPID/getpgid(ppid) miss Cursor workers " +
     "that setpgrp); (4) " +
     "`agent --resume <id>` (or `cursor-agent --resume <id>`) resumes by that " +

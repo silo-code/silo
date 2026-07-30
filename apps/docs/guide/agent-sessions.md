@@ -81,6 +81,10 @@ do, exact resume stays off for Codex.
 | Config | `~/.cursor/hooks.json` |
 | Resume | `agent --resume <id>`  |
 
+Cursor's `sessionStart` hook fires when the first character is typed in the
+TUI — not at process start, and not waiting for a sent message — so Silo's
+exact resume id usually appears right after you begin typing.
+
 ### GitHub Copilot CLI {#github-copilot-cli}
 
 |        |                                                 |
