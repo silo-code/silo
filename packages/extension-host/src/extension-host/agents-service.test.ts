@@ -244,6 +244,64 @@ describe("AgentsService — Grok session-file resume", () => {
     expect(info?.resumeCommand).toBe(`grok --resume ${grokSession}`);
   });
 
+  it("re-resolves for a new grok process in the same terminal (quit + rerun, pgid change)", async () => {
+    // Reproduces the reported flake: run grok, quit, run again fast enough that
+    // the foreground poll never saw the shell prompt in between — so the
+    // terminal never demoted and kept run 1's session id. Run 2's id must
+    // still be picked up (the stale id is cleared on the pgid change), not
+    // rejected as a duplicate.
+    const id = "t-grok-rerun";
+    const sessionId = "sess-grok-rerun";
+    const pgidA = 55501;
+    const pgidB = 55599; // a genuinely new grok process
+    const sA = "019faf38-1111-7f73-892d-ba57cd52a72e";
+    const sB = "019faf3b-2222-7723-b1c9-bc2b698c0748";
+
+    invoke.mockImplementation((cmd: string, args?: { path?: string }) => {
+      if (
+        cmd === "fs_read_text" &&
+        args?.path?.endsWith(".grok/active_sessions.json")
+      ) {
+        return Promise.resolve(
+          JSON.stringify([
+            { session_id: sA, pid: pgidA, cwd: "/tmp" },
+            { session_id: sB, pid: pgidB, cwd: "/tmp" },
+          ]),
+        );
+      }
+      return Promise.resolve(null);
+    });
+
+    await attachTerminal(id, sessionId);
+
+    // Run 1.
+    foreground(sessionId, {
+      pgid: pgidA,
+      atPrompt: false,
+      leader: "grok",
+      cwd: "/tmp",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(svc.getByTerminalId(id)?.sessionId).toBe(sA);
+
+    // Run 2 — new grok process (new pgid), no shell tick in between.
+    foreground(sessionId, {
+      pgid: pgidB,
+      atPrompt: false,
+      leader: "grok",
+      cwd: "/tmp",
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.sessionId).toBe(sB); // not the stale sA
+    expect(info?.resumeCommand).toBe(`grok --resume ${sB}`);
+  });
+
   it("resolves after a late first-message write via the session-file watch", async () => {
     // Grok only creates a session on the first typed character — the short
     // post-foreground retries finish empty; the ~/.grok watch must pick it up.

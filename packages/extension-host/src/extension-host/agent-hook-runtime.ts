@@ -15,6 +15,7 @@ import {
   resetHookEventsCheckpoint,
   disposeHookEventsRuntime,
   resolveAgentHooksDir,
+  hookEventCompatibleWithStickyAgent,
   type HookEvent,
   type PendingHookEvent,
 } from "./agent-hook-events";
@@ -27,6 +28,13 @@ export interface HookRuntimeTerminal {
   terminalId: string;
   pgid: number | null;
   agentPgid: number | null;
+  /** The terminal's sticky foreground-agent catalog id (`"claude"`, `"cursor"`,
+   * …), or `null` if not yet known. Used to drop a hook event whose `agent`
+   * doesn't match this terminal's actual agent — e.g. the Claude-tagged twin a
+   * Cursor session fires (a claude subprocess re-running Claude's SessionStart
+   * hook) shares Cursor's pgid, so it pgid-matches the Cursor terminal but must
+   * not be applied to it. */
+  agentCatalogId: string | null;
 }
 
 export interface HookRuntimeDeps {
@@ -105,7 +113,29 @@ export function createHookRuntime(deps: HookRuntimeDeps): HookRuntime {
           candidates.map((c) => c.event),
           terminals,
         );
-        const applied = pickEarliestMatchPerTerminal(matches);
+        // Drop matches whose event agent doesn't match the terminal's sticky
+        // agent BEFORE picking the earliest per terminal — otherwise a
+        // Claude-tagged twin (same pgid as a Cursor session) can be the
+        // earliest, win the pick, then get rejected downstream, discarding the
+        // real Cursor event entirely. The incompatible matches stay in
+        // `matches` (not `compatible`) so pruning still treats them as consumed
+        // rather than retrying them forever.
+        const agentByTerminal = new Map(
+          terminals.map((t) => [t.terminalId, t.agentCatalogId]),
+        );
+        const compatible = matches.filter((m) =>
+          hookEventCompatibleWithStickyAgent(
+            m.event.agent,
+            agentByTerminal.get(m.terminalId) ?? null,
+          ),
+        );
+        if (compatible.length < matches.length) {
+          agentsChannel.debug(
+            `Dropped ${matches.length - compatible.length} hook match(es) whose agent ` +
+              `didn't match the terminal's foreground agent (e.g. a Cursor session's Claude twin).`,
+          );
+        }
+        const applied = pickEarliestMatchPerTerminal(compatible);
         const matchedSessionIds = new Set<string>();
         for (const match of applied) {
           deps.applyHookMatch(match.terminalId, match.event);

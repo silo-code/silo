@@ -34,6 +34,12 @@ vi.mock("./agent-hook-events", () => ({
   pruneUnmatchedEvents,
   resetHookEventsCheckpoint,
   disposeHookEventsRuntime,
+  // Faithful to the real impl: null sticky agent allows any event; otherwise
+  // the event's agent must equal the terminal's sticky catalog id.
+  hookEventCompatibleWithStickyAgent: (
+    eventAgent: string,
+    sticky: string | null,
+  ) => sticky == null || eventAgent === sticky,
 }));
 
 vi.mock("./agents-channel", () => ({
@@ -82,7 +88,9 @@ describe("createHookRuntime — consume single-flight", () => {
     });
 
     const runtime = createHookRuntime({
-      listTerminals: () => [{ terminalId: "t1", pgid: 1, agentPgid: 1 }],
+      listTerminals: () => [
+        { terminalId: "t1", pgid: 1, agentPgid: 1, agentCatalogId: "cursor" },
+      ],
       applyHookMatch: vi.fn(),
     });
 
@@ -98,6 +106,63 @@ describe("createHookRuntime — consume single-flight", () => {
     await Promise.resolve();
 
     expect(calls).toBe(2);
+    runtime.dispose();
+  });
+
+  it("drops a hook match whose agent doesn't match the terminal, keeping the real one", async () => {
+    // A Cursor session fires both a cursor event and a Claude-tagged twin on
+    // the SAME pgid (a claude subprocess re-running Claude's SessionStart
+    // hook). Both pgid-match the Cursor terminal; only the cursor one must be
+    // applied — even if the claude twin is "earliest".
+    const claudeTwin = {
+      pid: 1,
+      sessionId: "claude-twin-id",
+      cwd: "",
+      agent: "claude",
+      timestamp: "2026-07-30T00:00:00Z",
+    };
+    const cursorEvent = {
+      pid: 1,
+      sessionId: "real-cursor-id",
+      cwd: "",
+      agent: "cursor",
+      timestamp: "2026-07-30T00:00:01Z", // later than the twin
+    };
+    readNewHookEvents.mockResolvedValue([claudeTwin, cursorEvent]);
+    // Both events pgid-match the one terminal.
+    matchHookEventsToTerminals.mockReturnValue([
+      { terminalId: "t1", event: claudeTwin },
+      { terminalId: "t1", event: cursorEvent },
+    ]);
+    // Faithful "earliest per terminal" — would pick the claude twin if it
+    // weren't filtered out first.
+    pickEarliestMatchPerTerminal.mockImplementation(
+      (ms: { terminalId: string; event: { timestamp: string } }[]) => {
+        const best = new Map<string, (typeof ms)[number]>();
+        for (const m of ms) {
+          const prev = best.get(m.terminalId);
+          if (!prev || m.event.timestamp < prev.event.timestamp)
+            best.set(m.terminalId, m);
+        }
+        return [...best.values()];
+      },
+    );
+
+    const applyHookMatch = vi.fn();
+    const runtime = createHookRuntime({
+      listTerminals: () => [
+        { terminalId: "t1", pgid: 1, agentPgid: 1, agentCatalogId: "cursor" },
+      ],
+      applyHookMatch,
+    });
+
+    await runtime.consumeHookEvents();
+
+    expect(applyHookMatch).toHaveBeenCalledTimes(1);
+    expect(applyHookMatch).toHaveBeenCalledWith(
+      "t1",
+      expect.objectContaining({ agent: "cursor", sessionId: "real-cursor-id" }),
+    );
     runtime.dispose();
   });
 });

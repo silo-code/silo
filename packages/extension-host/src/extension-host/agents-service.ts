@@ -481,6 +481,7 @@ const hookRuntime = createHookRuntime({
       terminalId,
       pgid: entry.currentPgid,
       agentPgid: entry.agentPgid,
+      agentCatalogId: entry.agentCatalogId,
     }));
   },
   applyHookMatch,
@@ -581,6 +582,35 @@ function applyDetection(terminalId: string, result: DetectionResult) {
 /** Update pgid / sticky agentPgid from a foreground snapshot and run the
  * resume-hint + demotion side effects. Shared by the live stream and the
  * one-shot seed so both paths keep the sticky pid in sync. */
+/** A new agent process (a different foreground pgid) has taken over this
+ * terminal — clear the *previous* run's resolved session identity so the new
+ * session's hook/session-file id isn't rejected as a stale-but-newer duplicate,
+ * and re-arm hint resolution so the fresh generic-then-exact hint re-attaches.
+ * Keeps `isAgent`/`activity` (the terminal is still an agent, just a new run).
+ * `agentName`/`agentId` are left in place — `maybeResolveResumeHint` (called
+ * right after this in `noteForeground`, now re-armed) refreshes them from the
+ * current leader, so there's no "unknown agent" flicker. */
+function resetSessionIdentityForNewInstance(
+  entry: TrackedAgent,
+  terminalId: string,
+) {
+  entry.hookSessionTimestamp = null;
+  entry.resumeHintResolved = false;
+  if (entry.state.sessionId == null && entry.state.resumeCommand == null) {
+    return; // nothing resolved yet — re-arming above is all that's needed
+  }
+  entry.state = { ...entry.state, sessionId: null, resumeCommand: null };
+  const ctx = findTerminalContext(terminalId);
+  const workspaceId = ctx?.wsId ?? entry.info.workspaceId;
+  entry.info = toAgentInfo(terminalId, workspaceId, entry.state);
+  store.agentState[terminalId] = toPersisted(
+    workspaceId,
+    entry.state,
+    entry.lastLiveAt,
+  );
+  notify();
+}
+
 function noteForeground(
   entry: TrackedAgent,
   terminalId: string,
@@ -593,7 +623,8 @@ function noteForeground(
   // SessionStart hook's Claude/Codex pid can no longer correlate.
   if (fg.pgid > 0 && isKnownAgentLeader(fg.leader)) {
     const agent = agentByLeader(fg.leader);
-    const becameAgent = entry.agentPgid !== fg.pgid;
+    const prevAgentPgid = entry.agentPgid;
+    const becameAgent = prevAgentPgid !== fg.pgid;
     entry.agentPgid = fg.pgid;
     entry.agentCatalogId = agent?.id ?? null;
     // SessionStart often lands *after* the first foreground tick (confirmed:
@@ -601,6 +632,18 @@ function noteForeground(
     // immediate poll missed it and the regular 3s ticker then failed to
     // consume the new line until reload). Catch up a few times.
     if (becameAgent) {
+      // A *different* agent pgid than we had means a NEW agent process took
+      // over this terminal. A fast quit+rerun (run cursor, exit, run again)
+      // can slip past the 750ms foreground poll that would otherwise see the
+      // shell at the prompt in between and demote the terminal — leaving the
+      // previous run's resolved session id stuck on it. That stale id then
+      // makes the new run's hook id get rejected as a "later duplicate"
+      // (earliest-wins). Clear it so the new session resolves cleanly. Gated
+      // on a *non-null* previous pgid so first detection and restart-restore
+      // (prevAgentPgid == null) never wipe a legitimately-restored id.
+      if (prevAgentPgid != null) {
+        resetSessionIdentityForNewInstance(entry, terminalId);
+      }
       hookRuntime.scheduleHookCatchupReads();
       // Session-file agents (Grok) resolve their exact id from their own
       // registry rather than a hook — read it now (and retry) against this
