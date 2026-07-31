@@ -129,6 +129,11 @@ export { workspacePropertyPageRegistry } from "./workspace-property-page-registr
 // menu and appends these). See context-menu-items.ts.
 export { contextMenuEntriesFor } from "./context-menu-items";
 
+// Toolbar contribution read side (RFC 0021) — write via ctx.registerToolbarItem;
+// core editor/terminal hosts enumerate with toolbarEntriesFor.
+export { toolbarEntriesFor, subscribeToolbarItems } from "./toolbar-items";
+export type { ToolbarEntry, ToolbarControlEntry } from "./toolbar-items";
+
 // Reading a command's menu placement back out (rather than registering one)
 // is a core-extension-only concern — today the sole caller is `core.keybindings`,
 // which uses it to group the shortcuts list by the same File/View/Window/Help
@@ -343,6 +348,15 @@ export type {
 // internal barrel. The component itself is now public (@silo-code/sdk); the
 // host component file re-exports from SDK and owns the CSS load.
 export { Tooltip } from "../components/Tooltip";
+
+// Phosphor name → glyph (toolbar bold / tab-decoration fill). Host-owned paint
+// so core chrome (`ContributedToolbar`) and host chrome (`DockTab`) share one
+// resolver; extensions pass {@link PhosphorIconName} strings only.
+export {
+  resolvePhosphorIcon,
+  PhosphorToolbarIcon,
+  PhosphorTabDecorationIcon,
+} from "../components/phosphor-icon";
 
 // Small-screen-mode settings (global on/off + width threshold) — read/write
 // for the `core.layout` settings page. The auto-hide/peek behavior itself is

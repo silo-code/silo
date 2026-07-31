@@ -1,18 +1,21 @@
 {
-  "name": "workspace-modify-demo",
-  "displayName": "Workspace Modify Demo",
+  "name": "decoration-demo",
+  "displayName": "Decorations",
   "version": "0.1.0",
-  "description": "Interactive demo panel for toggling workspace decorations, sections, and badges.",
+  "description": "Interactive demo panel for workspace decorations, sections, badges, tab decorations, and toolbar contributions.",
   "private": true,
   "type": "module",
   "silo": {
-    "id": "silo.workspace-modify-demo",
+    "id": "silo.decoration-demo",
     "engine": "^0.1",
     "main": "dist/index.js"
   },
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10"
   },
   "devDependencies": {
     "@silo-code/sdk": "workspace:*",

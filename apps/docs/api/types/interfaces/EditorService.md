@@ -1,11 +1,18 @@
 # Interface: EditorService
 
-Defined in: [packages/sdk/src/editor-service.ts:231](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L231)
+Defined in: [packages/sdk/src/editor-service.ts:235](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L235)
 
 The editor & document domain, exposed as [ExtensionContext.editors](ExtensionContext.md#editors).
 Open files into editor tabs, drive the active editor (save / close), and let
 editors register save handlers. The single entry point for opening editors —
 prefer it over reaching into workspace/editor state.
+
+Tab chrome adornments (`setIcon` / `setIndicator` / …) take an **editor id**
+as the target — see [TabAdornmentMethods](TabAdornmentMethods.md).
+
+## Extends
+
+- [`TabAdornmentMethods`](TabAdornmentMethods.md)
 
 ## Properties
 
@@ -15,7 +22,7 @@ prefer it over reaching into workspace/editor state.
 onDidSave: Event<EditorSaveEvent>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:327](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L327)
+Defined in: [packages/sdk/src/editor-service.ts:331](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L331)
 
 Fires after an editor tab's contents are saved to disk — a formatter,
 linter, or build-on-save extension's entry point. See [Event](../type-aliases/Event.md).
@@ -38,7 +45,7 @@ ctx.subscriptions.push(
 open(path, opts?): void;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:236](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L236)
+Defined in: [packages/sdk/src/editor-service.ts:240](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L240)
 
 Open a file in an editor tab. Promotes an existing preview, focuses an
 already-open tab, or opens a new one.
@@ -65,7 +72,7 @@ already-open tab, or opens a new one.
 openUntitled(opts?): void;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:238](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L238)
+Defined in: [packages/sdk/src/editor-service.ts:242](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L242)
 
 Open a fresh untitled editor.
 
@@ -87,7 +94,7 @@ Open a fresh untitled editor.
 openDiff(spec, opts?): void;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:243](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L243)
+Defined in: [packages/sdk/src/editor-service.ts:247](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L247)
 
 Open a diff view. The content is supplied by the [provider](OpenDiffSpec.md#providerid)
 named in `spec` — the editor itself is content-agnostic.
@@ -114,7 +121,7 @@ named in `spec` — the editor itself is content-agnostic.
 save(): boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:245](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L245)
+Defined in: [packages/sdk/src/editor-service.ts:249](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L249)
 
 Save the active editor. Returns false if there's no active saveable editor.
 
@@ -130,7 +137,7 @@ Save the active editor. Returns false if there's no active saveable editor.
 saveAs(): boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:247](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L247)
+Defined in: [packages/sdk/src/editor-service.ts:251](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L251)
 
 Save-as the active editor. Returns false if unavailable.
 
@@ -146,7 +153,7 @@ Save-as the active editor. Returns false if unavailable.
 closeActive(): boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:249](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L249)
+Defined in: [packages/sdk/src/editor-service.ts:253](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L253)
 
 Close the active dock panel. Returns false if there's nothing to close.
 
@@ -162,7 +169,7 @@ Close the active dock panel. Returns false if there's nothing to close.
 editorsFor(path): EditorViewInfo[];
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:258](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L258)
+Defined in: [packages/sdk/src/editor-service.ts:262](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L262)
 
 List the editor views that match `path` (or `null` for an untitled buffer),
 highest-priority first, each flagged whether it's the one the host resolves
@@ -192,7 +199,7 @@ setViewType(
    opts?): void;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:267](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L267)
+Defined in: [packages/sdk/src/editor-service.ts:271](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L271)
 
 Switch an already-open editor tab to a different view in place — without
 closing and reopening it — and persist the choice on the tab. No-op if the
@@ -229,7 +236,7 @@ presenter.
 registerSaveHandler(editorId, handlers): Disposable;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:277](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L277)
+Defined in: [packages/sdk/src/editor-service.ts:281](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L281)
 
 Register save handlers for an editor instance (by its `editorId`), so the
 active-editor `save` / `saveAs` dispatch to it while it's focused. Dispose
@@ -257,7 +264,7 @@ to unregister (do this when the editor unmounts).
 registerDiffContentProvider(providerId, provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:286](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L286)
+Defined in: [packages/sdk/src/editor-service.ts:290](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L290)
 
 Register a [DiffContentProvider](../type-aliases/DiffContentProvider.md) under `providerId`. A diff opened
 with that `providerId` (see [OpenDiffSpec](OpenDiffSpec.md)) resolves its two sides
@@ -285,7 +292,7 @@ through this provider, on every mount. Dispose to unregister.
 getText(editorId): Promise<string | undefined>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:307](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L307)
+Defined in: [packages/sdk/src/editor-service.ts:311](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L311)
 
 The current buffer text of an open editor tab, including unsaved edits.
 
@@ -322,7 +329,7 @@ if (text !== undefined) ctx.log.info(`${text.length} chars`);
 isDirty(editorId): boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:313](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L313)
+Defined in: [packages/sdk/src/editor-service.ts:317](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L317)
 
 Whether an open editor tab has unsaved changes. Returns `false` for an
 unknown id or a tab that isn't text-backed and has no retained dirty
@@ -346,7 +353,7 @@ buffer. Stays `true` across a dirty Text → Preview view switch.
 getState(): EditorsState;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:340](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L340)
+Defined in: [packages/sdk/src/editor-service.ts:344](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L344)
 
 Current frozen snapshot of editor state. The returned object is
 referentially stable between renders — `getState() === getState()` when
@@ -372,7 +379,7 @@ if (active) ctx.log.info(`Active file: ${active.filePath ?? "(untitled)"}`);
 subscribe(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:359](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L359)
+Defined in: [packages/sdk/src/editor-service.ts:363](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L363)
 
 Subscribe to changes in the active editor. The listener is called whenever
 `active` changes (tab focus moves, workspace switches, editor opens or
@@ -401,3 +408,421 @@ ctx.subscriptions.push(
   }),
 );
 ```
+
+***
+
+### setIcon()
+
+```ts
+setIcon(targetId, adornment): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:185](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L185)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornment
+
+[`TabIconAdornment`](TabIconAdornment.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setIcon`](TabAdornmentMethods.md#seticon)
+
+***
+
+### clearIcon()
+
+```ts
+clearIcon(targetId, adornmentId): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:186](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L186)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornmentId
+
+`string`
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearIcon`](TabAdornmentMethods.md#clearicon)
+
+***
+
+### bindIcon()
+
+```ts
+bindIcon(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:187](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L187)
+
+#### Parameters
+
+##### binder
+
+[`TabIconBinder`](TabIconBinder.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindIcon`](TabAdornmentMethods.md#bindicon)
+
+***
+
+### setIndicator()
+
+```ts
+setIndicator(targetId, adornment): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:189](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L189)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornment
+
+[`TabIndicatorAdornment`](TabIndicatorAdornment.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setIndicator`](TabAdornmentMethods.md#setindicator)
+
+***
+
+### clearIndicator()
+
+```ts
+clearIndicator(targetId, adornmentId): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:190](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L190)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornmentId
+
+`string`
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearIndicator`](TabAdornmentMethods.md#clearindicator)
+
+***
+
+### flashIndicator()
+
+```ts
+flashIndicator(targetId, flash): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:191](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L191)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### flash
+
+[`TabIndicatorFlash`](../type-aliases/TabIndicatorFlash.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`flashIndicator`](TabAdornmentMethods.md#flashindicator)
+
+***
+
+### bindIndicator()
+
+```ts
+bindIndicator(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:192](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L192)
+
+#### Parameters
+
+##### binder
+
+[`TabIndicatorBinder`](TabIndicatorBinder.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindIndicator`](TabAdornmentMethods.md#bindindicator)
+
+***
+
+### setActivity()
+
+```ts
+setActivity(targetId, adornment): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:194](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L194)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornment
+
+[`TabActivityAdornment`](TabActivityAdornment.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setActivity`](TabAdornmentMethods.md#setactivity)
+
+***
+
+### clearActivity()
+
+```ts
+clearActivity(targetId, adornmentId): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:195](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L195)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornmentId
+
+`string`
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearActivity`](TabAdornmentMethods.md#clearactivity)
+
+***
+
+### flashActivity()
+
+```ts
+flashActivity(targetId, flash): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:196](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L196)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### flash
+
+[`TabActivityFlash`](../type-aliases/TabActivityFlash.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`flashActivity`](TabAdornmentMethods.md#flashactivity)
+
+***
+
+### bindActivity()
+
+```ts
+bindActivity(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:197](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L197)
+
+#### Parameters
+
+##### binder
+
+[`TabActivityBinder`](TabActivityBinder.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindActivity`](TabAdornmentMethods.md#bindactivity)
+
+***
+
+### getIcons()
+
+```ts
+getIcons(targetId): TabIconAdornment[];
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:200](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L200)
+
+All leading icons for `targetId`, in set/bind order.
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+#### Returns
+
+[`TabIconAdornment`](TabIconAdornment.md)[]
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getIcons`](TabAdornmentMethods.md#geticons)
+
+***
+
+### getIndicators()
+
+```ts
+getIndicators(targetId): TabIndicatorAdornment[];
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:202](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L202)
+
+All trailing indicators for `targetId`, in set/bind/flash order.
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+#### Returns
+
+[`TabIndicatorAdornment`](TabIndicatorAdornment.md)[]
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getIndicators`](TabAdornmentMethods.md#getindicators)
+
+***
+
+### getActivities()
+
+```ts
+getActivities(targetId): TabActivityAdornment[];
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:204](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L204)
+
+All trailing activities for `targetId`, in set/bind/flash order.
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+#### Returns
+
+[`TabActivityAdornment`](TabActivityAdornment.md)[]
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getActivities`](TabAdornmentMethods.md#getactivities)
+
+***
+
+### invalidateTabAdornments()
+
+```ts
+invalidateTabAdornments(): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:206](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L206)
+
+Signal that binder data changed — re-query `provide` and re-render.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`invalidateTabAdornments`](TabAdornmentMethods.md#invalidatetabadornments)
+
+***
+
+### subscribeTabAdornments()
+
+```ts
+subscribeTabAdornments(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:207](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L207)
+
+#### Parameters
+
+##### listener
+
+() => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`subscribeTabAdornments`](TabAdornmentMethods.md#subscribetabadornments)

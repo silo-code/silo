@@ -17,7 +17,9 @@ import type {
   WorkspaceState,
   WorkspaceService,
   WorkspaceStatusProvider,
+  WorkspaceStatusRow,
   WorkspaceSectionProvider,
+  WorkspaceBadge,
   WorkspaceBadgeProvider,
   WorkspacePropertyPage,
 } from "@silo-code/sdk";
@@ -112,6 +114,15 @@ export function getWorkspaceService(): WorkspaceService {
     registerStatus(provider: WorkspaceStatusProvider) {
       return workspaceStatusRegistry.register(provider);
     },
+    bindStatus(binder: WorkspaceStatusProvider) {
+      return workspaceStatusRegistry.bind(binder);
+    },
+    setStatus(workspaceId: string, row: WorkspaceStatusRow) {
+      workspaceStatusRegistry.set(workspaceId, row);
+    },
+    clearStatus(workspaceId: string, rowId: string) {
+      workspaceStatusRegistry.clear(workspaceId, rowId);
+    },
     getStatus: workspaceStatusRegistry.getStatus.bind(workspaceStatusRegistry),
     invalidateStatus: workspaceStatusRegistry.invalidate.bind(
       workspaceStatusRegistry,
@@ -130,6 +141,15 @@ export function getWorkspaceService(): WorkspaceService {
     },
     registerBadge(provider: WorkspaceBadgeProvider) {
       return workspaceBadgeRegistry.register(provider);
+    },
+    bindBadge(binder: WorkspaceBadgeProvider) {
+      return workspaceBadgeRegistry.bind(binder);
+    },
+    setBadge(workspaceId: string, badge: WorkspaceBadge) {
+      workspaceBadgeRegistry.set(workspaceId, badge);
+    },
+    clearBadge(workspaceId: string, badgeId: string) {
+      workspaceBadgeRegistry.clear(workspaceId, badgeId);
     },
     getBadges: workspaceBadgeRegistry.getBadges.bind(workspaceBadgeRegistry),
     invalidateBadges: workspaceBadgeRegistry.invalidate.bind(

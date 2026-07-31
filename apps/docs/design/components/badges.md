@@ -47,7 +47,8 @@ import { Badge } from "@silo-code/sdk";
 
 These six are the whole vocabulary — **never invent a new status tint**. If no
 tone fits a _status_, that's a design-system conversation. The escape hatch is
-for _identity_, not status:
+for _identity_, not status. For busy/ready process dots, use
+[Activity](/design/components/activity) instead of a Badge.
 
 ## Arbitrary colors (`color`)
 

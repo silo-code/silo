@@ -63,33 +63,48 @@ from [`getState()`](/api/types/interfaces/WorkspaceService#getstate),
 
 ## Workspace status
 
-Extensions can contribute status rows below each workspace's path line in the
-Workspaces panel. Rows carry a semantic dot, a label, and an optional elapsed
-timestamp — useful for surfacing running tasks, agent sessions, CI status, etc.
+Ephemeral status rows below each workspace's path line (adorn verbs — see
+[ADR 0029](https://github.com/silo-code/silo/blob/main/docs/decisions/0029-adornments-vs-registration.md)
+/ [ADR 0030](https://github.com/silo-code/silo/blob/main/docs/decisions/0030-activity-chrome.md)).
+`bindStatus` returns an **array** of rows per workspace (unlike tab
+`bindActivity`, which returns a single adornment or `null`).
+
+Each row may include an [`Activity`](/api/types/type-aliases/Activity)
+(`working` | `ready` | `warn` | `error`). Omit `activity` for the neutral gray
+fallback.
 
 ```ts
 ctx.subscriptions.push(
-  ctx.workspaces.subscribe(() => ctx.workspaces.invalidateStatus()),
-  ctx.workspaces.registerStatus({
+  ctx.workspaces.bindStatus({
     id: "my-ext.status",
     provide(workspaceId) {
       return getRunningTasks(workspaceId).map((t) => ({
         id: t.id,
-        status: "busy",
+        activity: "working",
         label: t.name,
         startedAt: t.startedAt,
       }));
     },
   }),
 );
+
+// Or imperatively:
+ctx.workspaces.setStatus(workspaceId, {
+  id: "one-shot",
+  activity: "ready",
+  label: "Ready",
+});
+ctx.workspaces.clearStatus(workspaceId, "one-shot");
 ```
 
-| Method                                                                                | What it does                                                                                                                                                                       |
-| ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`registerStatus(provider)`](/api/types/interfaces/WorkspaceService#registerstatus)   | Register a provider that returns status rows per workspace. Returns a [`Disposable`](/api/types/interfaces/Disposable). Multiple providers are concatenated in registration order. |
-| [`getStatus(workspaceId)`](/api/types/interfaces/WorkspaceService#getstatus)          | Concatenate all registered providers' rows for one workspace (called during panel render).                                                                                         |
-| [`invalidateStatus()`](/api/types/interfaces/WorkspaceService#invalidatestatus)       | Signal that status data changed — triggers a panel re-render.                                                                                                                      |
-| [`subscribeStatus(listener)`](/api/types/interfaces/WorkspaceService#subscribestatus) | Subscribe to status invalidations. Returns a [`Disposable`](/api/types/interfaces/Disposable).                                                                                     |
+| Method                                                                        | What it does                                  |
+| ----------------------------------------------------------------------------- | --------------------------------------------- |
+| [`setStatus` / `clearStatus`](/api/types/interfaces/WorkspaceService)         | Imperative rows                               |
+| [`bindStatus`](/api/types/interfaces/WorkspaceService#bindstatus)             | Keep a projection in sync (`provide` → array) |
+| [`registerStatus`](/api/types/interfaces/WorkspaceService#registerstatus)     | **Deprecated** shim → `bindStatus`            |
+| [`getStatus`](/api/types/interfaces/WorkspaceService#getstatus)               | Imperative + binder rows                      |
+| [`invalidateStatus`](/api/types/interfaces/WorkspaceService#invalidatestatus) | Re-query binders                              |
+| [`subscribeStatus`](/api/types/interfaces/WorkspaceService#subscribestatus)   | Listen for changes                            |
 
 Each row is a [`WorkspaceStatusRow`](/api/types/interfaces/WorkspaceStatusRow).
 
@@ -129,14 +144,11 @@ The provider shape is [`WorkspaceSectionProvider`](/api/types/interfaces/Workspa
 
 ## Workspace badges
 
-Extensions can contribute small inline badges that appear next to the workspace
-name in the Workspaces panel header. Each badge has a short text label and an
-optional CSS color — useful for status indicators, environment labels, agent
-state, CI state, etc.
+Inline badges next to the workspace name (same adorn verbs as status).
 
 ```ts
 ctx.subscriptions.push(
-  ctx.workspaces.registerBadge({
+  ctx.workspaces.bindBadge({
     id: "my-ext.badges",
     provide(workspaceId) {
       const env = getEnv(workspaceId);
@@ -145,20 +157,25 @@ ctx.subscriptions.push(
     },
   }),
 );
+
+ctx.workspaces.setBadge(workspaceId, {
+  id: "ci",
+  text: "fail",
+  color: "#f87171",
+});
+ctx.workspaces.clearBadge(workspaceId, "ci");
 ```
 
-Call `invalidateBadges()` after any mutation to the data your `provide` function
-reads — this signals the Workspaces panel to re-query all badge providers and
-re-render the name row.
+| Method                                                                        | What it does                      |
+| ----------------------------------------------------------------------------- | --------------------------------- |
+| [`setBadge` / `clearBadge`](/api/types/interfaces/WorkspaceService)           | Imperative badges                 |
+| [`bindBadge`](/api/types/interfaces/WorkspaceService#bindbadge)               | Keep a projection in sync         |
+| [`registerBadge`](/api/types/interfaces/WorkspaceService#registerbadge)       | **Deprecated** shim → `bindBadge` |
+| [`getBadges`](/api/types/interfaces/WorkspaceService#getbadges)               | Imperative + binder badges        |
+| [`invalidateBadges`](/api/types/interfaces/WorkspaceService#invalidatebadges) | Re-query binders                  |
+| [`subscribeBadges`](/api/types/interfaces/WorkspaceService#subscribebadges)   | Listen for changes                |
 
-| Method                                                                                | What it does                                                                                                                                                                  |
-| ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`registerBadge(provider)`](/api/types/interfaces/WorkspaceService#registerbadge)     | Register a provider that returns badges per workspace. Returns a [`Disposable`](/api/types/interfaces/Disposable). Multiple providers are concatenated in registration order. |
-| [`getBadges(workspaceId)`](/api/types/interfaces/WorkspaceService#getbadges)          | Concatenate all registered providers' badges for one workspace (called during panel render).                                                                                  |
-| [`invalidateBadges()`](/api/types/interfaces/WorkspaceService#invalidatebadges)       | Signal that badge data changed — triggers a name-row re-render.                                                                                                               |
-| [`subscribeBadges(listener)`](/api/types/interfaces/WorkspaceService#subscribebadges) | Subscribe to badge invalidations. Returns a [`Disposable`](/api/types/interfaces/Disposable).                                                                                 |
-
-Each badge is a [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge); the provider shape is [`WorkspaceBadgeProvider`](/api/types/interfaces/WorkspaceBadgeProvider).
+Each badge is a [`WorkspaceBadge`](/api/types/interfaces/WorkspaceBadge).
 
 ## Workspace property pages
 

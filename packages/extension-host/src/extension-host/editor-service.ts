@@ -14,6 +14,7 @@ import { registerDiffContentProvider as registerDiffContentProviderImpl } from "
 import { editorRegistry, resolveEditor } from "./editor-registry";
 import { requestReveal } from "./editor-reveal";
 import { EventEmitter } from "./event-emitter";
+import { tabAdornmentMethodsFor } from "./tab-adornment-registry";
 import type {
   Disposable,
   EditorSaveEvent,
@@ -284,6 +285,7 @@ export function getEditorService(): EditorService {
         },
       };
     },
+    ...tabAdornmentMethodsFor("editor"),
   };
   return service;
 }

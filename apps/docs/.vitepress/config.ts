@@ -19,6 +19,7 @@ const registration = [
   ["registerKeybinding", "register-keybinding"],
   ["registerMenuItem", "register-menu-item"],
   ["registerContextMenuItem", "register-context-menu-item"],
+  ["registerToolbarItem", "register-toolbar-item"],
   ["registerFileType", "register-file-type"],
   ["registerDockPanelKind", "register-dock-panel-kind"],
   ["registerSettingsPage", "register-settings-page"],
@@ -48,6 +49,7 @@ const designSidebar = [
       { text: "Tabs", link: "/design/components/tabs" },
       { text: "Lists", link: "/design/components/lists" },
       { text: "Badges", link: "/design/components/badges" },
+      { text: "Activity", link: "/design/components/activity" },
       { text: "Feedback", link: "/design/components/feedback" },
       { text: "Structure", link: "/design/components/structure" },
     ],
@@ -80,6 +82,11 @@ const apiSidebar = [
       { text: "ctx.system", link: "/api/system/" },
       { text: "ctx.webview", link: "/api/webview/" },
     ],
+  },
+  {
+    text: "Chrome",
+    collapsed: false,
+    items: [{ text: "Tab adornments", link: "/api/state/tab-adornments" }],
   },
   {
     text: "Other",

@@ -59,7 +59,7 @@ Anchor element to hang the menu off (for a button dropdown).
 ### align?
 
 ```ts
-optional align?: "end" | "start";
+optional align?: "start" | "end";
 ```
 
 Defined in: [packages/sdk/src/ui-service.ts:253](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L253)

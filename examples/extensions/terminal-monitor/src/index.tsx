@@ -1,8 +1,8 @@
 import type {
+  Activity,
   Extension,
   ExtensionContext,
   WorkspaceStatusRow,
-  TerminalTabDecoration,
 } from "@silo-code/sdk";
 import { TerminalMonitorPanel } from "./TerminalMonitorPanel";
 import type { IconChoice } from "./types";
@@ -11,41 +11,20 @@ import styles from "./styles.css";
 
 const STYLE_ID = "silo-terminal-monitor-styles";
 
-function choiceToStatus(
+function choiceToActivity(
   choice: IconChoice | undefined,
-): WorkspaceStatusRow["status"] {
+): Activity | undefined {
   switch (choice) {
     case "working":
-      return "busy";
+      return "working";
     case "waiting":
       return "warn";
     case "done":
-      return "ok";
+      return "ready";
     case "error":
       return "error";
     default:
       return undefined;
-  }
-}
-
-function choiceToTabDecoration(
-  choice: IconChoice,
-): TerminalTabDecoration | null {
-  switch (choice) {
-    case "working":
-      return { icon: <SpinnerIcon />, color: "accent", tooltip: "Working" };
-    case "waiting":
-      return {
-        icon: <WaitingIcon />,
-        color: "warn",
-        tooltip: "Waiting for input",
-      };
-    case "done":
-      return { icon: <DoneIcon />, color: "ok", tooltip: "Done" };
-    case "error":
-      return { icon: <ErrorIcon />, color: "error", tooltip: "Error" };
-    default:
-      return null;
   }
 }
 
@@ -81,6 +60,11 @@ function activate(ctx: ExtensionContext) {
     );
   }
 
+  function bumpChrome() {
+    ctx.workspaces.invalidateStatus();
+    ctx.terminals.invalidateTabAdornments();
+  }
+
   function setIconChoice(terminalId: string, choice: IconChoice) {
     if (choice === "none") {
       iconChoices.delete(terminalId);
@@ -89,8 +73,7 @@ function activate(ctx: ExtensionContext) {
       iconChoices.set(terminalId, choice);
       manualOverrides.add(terminalId);
     }
-    ctx.workspaces.invalidateStatus();
-    ctx.terminals.invalidateTabDecorations();
+    bumpChrome();
   }
 
   function setAutoStatus(terminalId: string, choice: IconChoice | "none") {
@@ -100,8 +83,7 @@ function activate(ctx: ExtensionContext) {
     } else {
       iconChoices.set(terminalId, choice);
     }
-    ctx.workspaces.invalidateStatus();
-    ctx.terminals.invalidateTabDecorations();
+    bumpChrome();
   }
 
   function subscribeTerminalOsc(terminalId: string) {
@@ -156,7 +138,7 @@ function activate(ctx: ExtensionContext) {
   syncOscSubscriptions();
 
   ctx.subscriptions.push(
-    ctx.workspaces.registerStatus({
+    ctx.workspaces.bindStatus({
       id: "silo.terminal-monitor.status",
       provide(workspaceId): WorkspaceStatusRow[] {
         const ws = ctx.workspaces.get(workspaceId);
@@ -164,19 +146,19 @@ function activate(ctx: ExtensionContext) {
         return ws.terminals.map((t) => ({
           id: t.id,
           label: t.customName ?? t.title,
-          status: choiceToStatus(iconChoices.get(t.id)),
+          activity: choiceToActivity(iconChoices.get(t.id)),
         }));
       },
     }),
   );
 
   ctx.subscriptions.push(
-    ctx.terminals.registerTabDecoration({
+    ctx.terminals.bindActivity({
       id: "silo.terminal-monitor.tab",
-      provide(terminalId): TerminalTabDecoration | null {
-        const choice = iconChoices.get(terminalId);
-        if (!choice) return null;
-        return choiceToTabDecoration(choice);
+      provide(terminalId) {
+        const activity = choiceToActivity(iconChoices.get(terminalId));
+        if (!activity) return null;
+        return { activity, tooltip: activity };
       },
     }),
   );
@@ -211,51 +193,6 @@ function injectStyles() {
   style.id = STYLE_ID;
   style.textContent = styles;
   document.head.appendChild(style);
-}
-
-function SpinnerIcon() {
-  return <div className="tm-spinner" aria-hidden="true" />;
-}
-function WaitingIcon() {
-  return (
-    <div className="tm-waiting-icon" aria-hidden="true">
-      <span />
-      <span />
-    </div>
-  );
-}
-function DoneIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        d="M10 3L5 9 2 6"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
-  );
-}
-function ErrorIcon() {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 12 12"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M6 1a5 5 0 1 0 0 10A5 5 0 0 0 6 1zm-.5 2.5h1v4h-1v-4zm0 5h1v1h-1v-1z" />
-    </svg>
-  );
 }
 
 export const extension: Extension = {

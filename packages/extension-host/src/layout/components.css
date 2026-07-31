@@ -529,42 +529,215 @@
   color: var(--badge-color);
 }
 
+/* ── Activity (ADR 0030) ─────────────────────────────────────────────────
+ * Pinned light/dark palette (not `--silo-color-*`) so working/ready stay
+ * recognizably blue/green across theme presets. Same glyphs as the former
+ * workspace status dots; size via `.silo-activity-sm` / `-md`. */
+
+:root {
+  --silo-activity-working: #2563eb;
+  --silo-activity-ready: #22c55e;
+  --silo-activity-warn: #d97706;
+  --silo-activity-error: #dc2626;
+  --silo-activity-none: #b0b0b0;
+}
+
+[data-theme="dark"] {
+  --silo-activity-working: #60a5fa;
+  --silo-activity-ready: #4ade80;
+  --silo-activity-warn: #fbbf24;
+  --silo-activity-error: #f87171;
+  --silo-activity-none: #6b6b6b;
+}
+
+.silo-activity {
+  position: relative;
+  display: block;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--silo-activity-none);
+}
+
+.silo-activity-sm {
+  width: 6px;
+  height: 6px;
+}
+
+.silo-activity-md {
+  width: 8px;
+  height: 8px;
+}
+
+.silo-activity-working {
+  color: var(--silo-activity-working);
+  animation: silo-activity-pulse 1.4s ease-in-out infinite;
+  animation-delay: var(--silo-activity-jitter, 0s);
+}
+
+.silo-activity-working::before,
+.silo-activity-working::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  animation: silo-activity-wave 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+  animation-delay: var(--silo-activity-jitter, 0s);
+  pointer-events: none;
+}
+
+.silo-activity-working::after {
+  animation-delay: calc(var(--silo-activity-jitter, 0s) - 0.9s);
+}
+
+.silo-activity-ready {
+  color: var(--silo-activity-ready);
+  animation: silo-activity-pulse-subtle 1.4s ease-in-out infinite;
+  animation-delay: var(--silo-activity-jitter, 0s);
+}
+
+.silo-activity-warn {
+  color: var(--silo-activity-warn);
+}
+
+.silo-activity-error {
+  color: var(--silo-activity-error);
+}
+
+.silo-activity-none {
+  color: var(--silo-activity-none);
+}
+
+@keyframes silo-activity-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes silo-activity-pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes silo-activity-wave {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.4);
+  }
+}
+
 /* ── IconButton — two sizes ──────────────────────────────────────────────
  * Default: standalone (modal close, a toolbar button). -sm: tighter/inline
  * contexts wherever space is constrained — a ListRow's trailing slot is
  * one example, not the only one. */
 
+/* Hit targets are `em` of `--silo-font-size-base` so Zoom In/Out (uiFontSize)
+ * scales the button + glyph together. At default 13px: normal = 2.5em ≈ 32px,
+ * sm = 2em = 26px (local-web-viewer). Child SVGs are % of that em box so fixed
+ * Phosphor `size={13}` still zooms. */
 .silo-icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  box-sizing: border-box;
+  width: 2.5em;
+  height: 2.5em;
   padding: 0;
   background: transparent;
   border: none;
   border-radius: var(--silo-radius-sm);
   color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-base);
   transition:
     background 0.1s ease,
     transform 0.1s ease;
 }
 
-.silo-icon-button:hover {
+.silo-icon-button svg {
+  width: 1.25em;
+  height: 1.25em;
+  flex-shrink: 0;
+}
+
+/* `:not(:disabled)` matches the global `button:hover:not(:disabled)` /
+ * `:active` specificity (0,2,1). Without it, theme.css paints
+ * `--silo-button-hover-bg` (filled-control mix) over our surface hover. */
+.silo-icon-button:hover:not(:disabled) {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
 
 /* Pressed feedback — reuses the same "active surface" token the rail's
    current item and the switch's off-track use, plus a slight scale. */
-.silo-icon-button:active {
+.silo-icon-button:active:not(:disabled) {
   background: var(--silo-color-bg-active);
   transform: scale(0.92);
 }
 
 .silo-icon-button-sm {
-  width: 26px;
-  height: 26px;
+  width: 2em;
+  height: 2em;
+}
+
+.silo-icon-button-sm svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* Panel / breadcrumb toolbar tone — local-web-viewer `lwv-btn`: B/W
+ * toolbar-text icons, hover fill only, no press-scale. Checked/pressed
+ * uses the same accent wash as `lwv-btn-active`. */
+.silo-icon-button-toolbar {
+  color: var(--silo-color-toolbar-text);
+}
+
+.silo-icon-button-toolbar:hover:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-toolbar-text);
+}
+
+.silo-icon-button-toolbar:active:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  transform: none;
+}
+
+.silo-icon-button-toolbar[data-checked="true"],
+.silo-icon-button-toolbar[aria-pressed="true"] {
+  background: color-mix(
+    in srgb,
+    var(--silo-color-accent, #4f8ef7) 15%,
+    transparent
+  );
+  color: var(--silo-color-accent, #4f8ef7);
+}
+
+.silo-icon-button-toolbar[data-checked="true"]:hover:not(:disabled),
+.silo-icon-button-toolbar[aria-pressed="true"]:hover:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--silo-color-accent, #4f8ef7) 22%,
+    transparent
+  );
+  color: var(--silo-color-accent, #4f8ef7);
 }
 
 /* ── EmptyState ──────────────────────────────────────────────────────────

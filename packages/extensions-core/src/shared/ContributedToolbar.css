@@ -1,0 +1,129 @@
+/* Trailing contribution cluster — same chrome as local-web-viewer `.lwv-bar`.
+ * `font-size` + em-based min-height track UI zoom with the IconButton sm
+ * (2em) hit targets inside. */
+.contributed-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  font-size: var(--silo-font-size-base);
+  /* 2em button + 4+4 pad + 1px border */
+  min-height: calc(2em + 9px);
+  /* Flush to the path crumbs; trailing pad when this is the last chrome in
+   * the bar (no Text|Preview). Cleared below when a view-switcher follows. */
+  padding: 4px 8px 4px 0;
+  background: var(--silo-color-toolbar-bg);
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.contributed-toolbar:has(+ .view-switcher),
+.contributed-toolbar:has(+ .view-switcher-seg) {
+  padding-right: 0;
+}
+
+/* Force contribution glyphs to local-web-viewer toolbar size (1em),
+ * regardless of what size the extension baked into its Phosphor/`svg` props. */
+.contributed-toolbar__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  font-size: 1em;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.contributed-toolbar__glyph svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Text / icon+text / menu controls — same tone as `.silo-icon-button-toolbar`. */
+.contributed-toolbar__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: 2em;
+  padding: 0 5px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  background: transparent;
+  color: var(--silo-color-toolbar-text);
+  font-size: 1em;
+  font-family: var(--silo-font-ui);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.contributed-toolbar__btn:hover:not(:disabled),
+.contributed-toolbar__btn:active:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-toolbar-text);
+}
+
+.contributed-toolbar__btn[data-checked="true"],
+.contributed-toolbar__btn[aria-pressed="true"] {
+  background: color-mix(
+    in srgb,
+    var(--silo-color-accent, #4f8ef7) 15%,
+    transparent
+  );
+  color: var(--silo-color-accent, #4f8ef7);
+}
+
+.contributed-toolbar__btn[data-checked="true"]:hover:not(:disabled),
+.contributed-toolbar__btn[aria-pressed="true"]:hover:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--silo-color-accent, #4f8ef7) 22%,
+    transparent
+  );
+  color: var(--silo-color-accent, #4f8ef7);
+}
+
+.contributed-toolbar__title {
+  min-width: 0;
+}
+
+.contributed-toolbar__caret {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+/* Softer than the Text|Preview pipe (`toolbar-text-disabled`) — a faint
+ * hairline so groups read without competing with the view-switcher rule. */
+.contributed-toolbar__separator {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 1px;
+  height: 1em;
+  margin: 0 2px;
+  background: color-mix(
+    in srgb,
+    var(--silo-color-toolbar-text) 22%,
+    transparent
+  );
+}
+
+.contributed-toolbar__spacer {
+  flex: 0 0 auto;
+  height: 1px;
+}
+
+.contributed-toolbar__spacer[data-size="sm"] {
+  width: 0.25em;
+}
+
+.contributed-toolbar__spacer[data-size="md"] {
+  width: 0.5em;
+}
+
+.contributed-toolbar__spacer[data-size="lg"] {
+  width: 0.75em;
+}

@@ -1,6 +1,6 @@
 # Interface: OscEvent
 
-Defined in: [packages/sdk/src/terminal-service.ts:18](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L18)
+Defined in: [packages/sdk/src/terminal-service.ts:21](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L21)
 
 A parsed OSC (Operating System Command) escape sequence emitted by a
 terminal program. Delivered by [TerminalService.subscribeOsc](TerminalService.md#subscribeosc).
@@ -19,7 +19,7 @@ Common codes:
 code: number;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:20](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L20)
+Defined in: [packages/sdk/src/terminal-service.ts:23](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L23)
 
 The numeric OSC code (the integer before the first semicolon).
 
@@ -31,6 +31,6 @@ The numeric OSC code (the integer before the first semicolon).
 payload: string;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:22](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L22)
+Defined in: [packages/sdk/src/terminal-service.ts:25](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L25)
 
 The raw payload string after the code and its separating semicolon.

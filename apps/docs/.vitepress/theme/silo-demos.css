@@ -427,28 +427,49 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  box-sizing: border-box;
+  width: 2.5em;
+  height: 2.5em;
   padding: 0;
   background: transparent;
   border: none;
   border-radius: var(--silo-radius-sm);
   color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-base);
   transition:
     background 0.1s ease,
     transform 0.1s ease;
 }
-.silo-demo .silo-icon-button:hover {
+.silo-demo .silo-icon-button svg {
+  width: 1.25em;
+  height: 1.25em;
+}
+.silo-demo .silo-icon-button:hover:not(:disabled) {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
-.silo-demo .silo-icon-button:active {
+.silo-demo .silo-icon-button:active:not(:disabled) {
   background: var(--silo-color-bg-active);
   transform: scale(0.92);
 }
 .silo-demo .silo-icon-button-sm {
-  width: 26px;
-  height: 26px;
+  width: 2em;
+  height: 2em;
+}
+.silo-demo .silo-icon-button-sm svg {
+  width: 1em;
+  height: 1em;
+}
+.silo-demo .silo-icon-button-toolbar {
+  color: var(--silo-color-toolbar-text);
+}
+.silo-demo .silo-icon-button-toolbar:hover:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-toolbar-text);
+}
+.silo-demo .silo-icon-button-toolbar:active:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  transform: none;
 }
 
 /* ── inputs ── */
@@ -832,6 +853,101 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 .silo-demo .silo-badge-custom {
   background: color-mix(in srgb, var(--badge-color) 20%, transparent);
   color: var(--badge-color);
+}
+
+/* ── Activity (ADR 0030) — mirrors host components.css tokens ── */
+.silo-demo {
+  --silo-activity-working: #2563eb;
+  --silo-activity-ready: #22c55e;
+  --silo-activity-warn: #d97706;
+  --silo-activity-error: #dc2626;
+  --silo-activity-none: #b0b0b0;
+}
+html.dark .silo-demo {
+  --silo-activity-working: #60a5fa;
+  --silo-activity-ready: #4ade80;
+  --silo-activity-warn: #fbbf24;
+  --silo-activity-error: #f87171;
+  --silo-activity-none: #6b6b6b;
+}
+.silo-demo .silo-activity {
+  position: relative;
+  display: block;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  color: var(--silo-activity-none);
+}
+.silo-demo .silo-activity-sm {
+  width: 6px;
+  height: 6px;
+}
+.silo-demo .silo-activity-md {
+  width: 8px;
+  height: 8px;
+}
+.silo-demo .silo-activity-working {
+  color: var(--silo-activity-working);
+  animation: silo-demo-activity-pulse 1.4s ease-in-out infinite;
+}
+.silo-demo .silo-activity-working::before,
+.silo-demo .silo-activity-working::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  animation: silo-demo-activity-wave 1.8s cubic-bezier(0.2, 0.6, 0.4, 1)
+    infinite;
+  pointer-events: none;
+}
+.silo-demo .silo-activity-working::after {
+  animation-delay: -0.9s;
+}
+.silo-demo .silo-activity-ready {
+  color: var(--silo-activity-ready);
+  animation: silo-demo-activity-pulse-subtle 1.4s ease-in-out infinite;
+}
+.silo-demo .silo-activity-warn {
+  color: var(--silo-activity-warn);
+}
+.silo-demo .silo-activity-error {
+  color: var(--silo-activity-error);
+}
+.silo-demo .silo-activity-none {
+  color: var(--silo-activity-none);
+}
+@keyframes silo-demo-activity-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.2);
+  }
+}
+@keyframes silo-demo-activity-pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.25);
+  }
+}
+@keyframes silo-demo-activity-wave {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.4);
+  }
 }
 
 /* ── empty state ── */

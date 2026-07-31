@@ -1,6 +1,6 @@
 # Interface: TerminalService
 
-Defined in: [packages/sdk/src/terminal-service.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L98)
+Defined in: [packages/sdk/src/terminal-service.ts:89](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L89)
 
 Consumer API for the terminal domain, exposed as
 [ExtensionContext.terminals](ExtensionContext.md#terminals). The terminal is a core feature — a
@@ -11,7 +11,432 @@ for you; the primitive remains available for surgical reaping without
 deleting the workspace. The tab itself is rendered by the core dock from the
 workspace's terminal records.
 
+Tab chrome adornments (`setIcon` / `setIndicator` / …) take a **terminal
+session id** as the target — see [TabAdornmentMethods](TabAdornmentMethods.md).
+
+## Extends
+
+- [`TabAdornmentMethods`](TabAdornmentMethods.md)
+
 ## Methods
+
+### setIcon()
+
+```ts
+setIcon(targetId, adornment): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:185](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L185)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornment
+
+[`TabIconAdornment`](TabIconAdornment.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setIcon`](TabAdornmentMethods.md#seticon)
+
+***
+
+### clearIcon()
+
+```ts
+clearIcon(targetId, adornmentId): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:186](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L186)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornmentId
+
+`string`
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearIcon`](TabAdornmentMethods.md#clearicon)
+
+***
+
+### bindIcon()
+
+```ts
+bindIcon(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:187](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L187)
+
+#### Parameters
+
+##### binder
+
+[`TabIconBinder`](TabIconBinder.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindIcon`](TabAdornmentMethods.md#bindicon)
+
+***
+
+### setIndicator()
+
+```ts
+setIndicator(targetId, adornment): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:189](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L189)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornment
+
+[`TabIndicatorAdornment`](TabIndicatorAdornment.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setIndicator`](TabAdornmentMethods.md#setindicator)
+
+***
+
+### clearIndicator()
+
+```ts
+clearIndicator(targetId, adornmentId): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:190](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L190)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornmentId
+
+`string`
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearIndicator`](TabAdornmentMethods.md#clearindicator)
+
+***
+
+### flashIndicator()
+
+```ts
+flashIndicator(targetId, flash): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:191](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L191)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### flash
+
+[`TabIndicatorFlash`](../type-aliases/TabIndicatorFlash.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`flashIndicator`](TabAdornmentMethods.md#flashindicator)
+
+***
+
+### bindIndicator()
+
+```ts
+bindIndicator(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:192](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L192)
+
+#### Parameters
+
+##### binder
+
+[`TabIndicatorBinder`](TabIndicatorBinder.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindIndicator`](TabAdornmentMethods.md#bindindicator)
+
+***
+
+### setActivity()
+
+```ts
+setActivity(targetId, adornment): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:194](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L194)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornment
+
+[`TabActivityAdornment`](TabActivityAdornment.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setActivity`](TabAdornmentMethods.md#setactivity)
+
+***
+
+### clearActivity()
+
+```ts
+clearActivity(targetId, adornmentId): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:195](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L195)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### adornmentId
+
+`string`
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearActivity`](TabAdornmentMethods.md#clearactivity)
+
+***
+
+### flashActivity()
+
+```ts
+flashActivity(targetId, flash): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:196](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L196)
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+##### flash
+
+[`TabActivityFlash`](../type-aliases/TabActivityFlash.md)
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`flashActivity`](TabAdornmentMethods.md#flashactivity)
+
+***
+
+### bindActivity()
+
+```ts
+bindActivity(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:197](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L197)
+
+#### Parameters
+
+##### binder
+
+[`TabActivityBinder`](TabActivityBinder.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindActivity`](TabAdornmentMethods.md#bindactivity)
+
+***
+
+### getIcons()
+
+```ts
+getIcons(targetId): TabIconAdornment[];
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:200](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L200)
+
+All leading icons for `targetId`, in set/bind order.
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+#### Returns
+
+[`TabIconAdornment`](TabIconAdornment.md)[]
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getIcons`](TabAdornmentMethods.md#geticons)
+
+***
+
+### getIndicators()
+
+```ts
+getIndicators(targetId): TabIndicatorAdornment[];
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:202](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L202)
+
+All trailing indicators for `targetId`, in set/bind/flash order.
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+#### Returns
+
+[`TabIndicatorAdornment`](TabIndicatorAdornment.md)[]
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getIndicators`](TabAdornmentMethods.md#getindicators)
+
+***
+
+### getActivities()
+
+```ts
+getActivities(targetId): TabActivityAdornment[];
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:204](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L204)
+
+All trailing activities for `targetId`, in set/bind/flash order.
+
+#### Parameters
+
+##### targetId
+
+`string`
+
+#### Returns
+
+[`TabActivityAdornment`](TabActivityAdornment.md)[]
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getActivities`](TabAdornmentMethods.md#getactivities)
+
+***
+
+### invalidateTabAdornments()
+
+```ts
+invalidateTabAdornments(): void;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:206](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L206)
+
+Signal that binder data changed — re-query `provide` and re-render.
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`invalidateTabAdornments`](TabAdornmentMethods.md#invalidatetabadornments)
+
+***
+
+### subscribeTabAdornments()
+
+```ts
+subscribeTabAdornments(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/tab-adornment.ts:207](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L207)
+
+#### Parameters
+
+##### listener
+
+() => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`subscribeTabAdornments`](TabAdornmentMethods.md#subscribetabadornments)
+
+***
 
 ### create()
 
@@ -19,7 +444,7 @@ workspace's terminal records.
 create(input?): TerminalRecord | undefined;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:108](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L108)
+Defined in: [packages/sdk/src/terminal-service.ts:99](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L99)
 
 Open a new terminal in a workspace (defaults to the active one). Returns the
 created [TerminalRecord](TerminalRecord.md); the PTY session spawns lazily when its tab
@@ -47,7 +472,7 @@ happen because activating any workspace happens before extensions run.
 closeWorkspace(workspaceId): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:114](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L114)
+Defined in: [packages/sdk/src/terminal-service.ts:105](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L105)
 
 Close and kill every terminal in a workspace. [WorkspaceService.delete](WorkspaceService.md#delete)
 reaps terminals the same way automatically, so this is for reaping a
@@ -74,7 +499,7 @@ sendText(
    addNewline?): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L135)
+Defined in: [packages/sdk/src/terminal-service.ts:126](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L126)
 
 Write text to a terminal's PTY as if the user typed it. By default a
 carriage return is appended so the line executes; pass `addNewline: false`
@@ -123,7 +548,7 @@ if (term) ctx.terminals.sendText(term.id, "npm run build");
 close(terminalId): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:142](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L142)
+Defined in: [packages/sdk/src/terminal-service.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L133)
 
 Close one terminal tab and kill its PTY session. No-op if the id is unknown.
 To reap every terminal in a workspace at once use
@@ -147,7 +572,7 @@ To reap every terminal in a workspace at once use
 rename(terminalId, name): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:150](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L150)
+Defined in: [packages/sdk/src/terminal-service.ts:141](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L141)
 
 Set a terminal's user-facing name ([TerminalRecord.customName](TerminalRecord.md#customname)),
 shown on its tab and persisted across restarts. Passing an empty string
@@ -176,7 +601,7 @@ No-op for an unknown `terminalId`.
 focus(terminalId): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:156](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L156)
+Defined in: [packages/sdk/src/terminal-service.ts:147](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L147)
 
 Switch to the workspace containing this terminal and activate its tab in
 the center dock. No-ops if the terminal id is unknown.
@@ -193,18 +618,13 @@ the center dock. No-ops if the terminal id is unknown.
 
 ***
 
-### registerTabDecoration()
+### ~~registerTabDecoration()~~
 
 ```ts
 registerTabDecoration(provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L164)
-
-Register a decoration provider for terminal tabs. The first registered
-provider that returns a non-null decoration for a terminal wins; subsequent
-providers are not consulted. Returns a [Disposable](Disposable.md) that unregisters
-the provider.
+Defined in: [packages/sdk/src/terminal-service.ts:153](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L153)
 
 #### Parameters
 
@@ -216,18 +636,22 @@ the provider.
 
 [`Disposable`](Disposable.md)
 
+#### Deprecated
+
+Prefer [TerminalService.bindIndicator](TabAdornmentMethods.md#bindindicator). Thin shim that
+registers a trailing-indicator binder for terminal tabs only.
+
 ***
 
-### getTabDecoration()
+### ~~getTabDecoration()~~
 
 ```ts
-getTabDecoration(terminalId): TerminalTabDecoration | null;
+getTabDecoration(terminalId): 
+  | TabIndicatorContribution
+  | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:170](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L170)
-
-Get the current decoration for a terminal tab. Returns the first non-null
-result from registered providers, or `null` if none apply.
+Defined in: [packages/sdk/src/terminal-service.ts:159](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L159)
 
 #### Parameters
 
@@ -237,38 +661,41 @@ result from registered providers, or `null` if none apply.
 
 #### Returns
 
-[`TerminalTabDecoration`](TerminalTabDecoration.md) \| `null`
+  \| [`TabIndicatorContribution`](../type-aliases/TabIndicatorContribution.md)
+  \| `null`
+
+#### Deprecated
+
+Prefer [TerminalService.getIndicators](TabAdornmentMethods.md#getindicators). Returns the first
+trailing indicator for a terminal tab, or `null`.
 
 ***
 
-### invalidateTabDecorations()
+### ~~invalidateTabDecorations()~~
 
 ```ts
 invalidateTabDecorations(): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:177](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L177)
-
-Signal that tab decoration data has changed. Fires all listeners registered
-via [TerminalService.subscribeTabDecorations](#subscribetabdecorations), causing terminal tabs
-to re-query providers and re-render their decoration.
+Defined in: [packages/sdk/src/terminal-service.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L164)
 
 #### Returns
 
 `void`
 
+#### Deprecated
+
+Prefer [TerminalService.invalidateTabAdornments](TabAdornmentMethods.md#invalidatetabadornments).
+
 ***
 
-### subscribeTabDecorations()
+### ~~subscribeTabDecorations()~~
 
 ```ts
 subscribeTabDecorations(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:183](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L183)
-
-Subscribe to tab decoration invalidations. Returns a [Disposable](Disposable.md)
-that cancels the subscription.
+Defined in: [packages/sdk/src/terminal-service.ts:169](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L169)
 
 #### Parameters
 
@@ -280,6 +707,10 @@ that cancels the subscription.
 
 [`Disposable`](Disposable.md)
 
+#### Deprecated
+
+Prefer [TerminalService.subscribeTabAdornments](TabAdornmentMethods.md#subscribetabadornments).
+
 ***
 
 ### subscribeOsc()
@@ -288,7 +719,7 @@ that cancels the subscription.
 subscribeOsc(terminalId, handler): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:213](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L213)
+Defined in: [packages/sdk/src/terminal-service.ts:199](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L199)
 
 Subscribe to raw OSC (Operating System Command) escape sequences emitted
 by the terminal identified by `terminalId`. The handler is called once per
@@ -340,7 +771,7 @@ ctx.subscriptions.push(sub);
 subscribeOutput(terminalId, handler): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:246](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L246)
+Defined in: [packages/sdk/src/terminal-service.ts:232](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L232)
 
 Subscribe to the raw PTY output stream of the terminal identified by
 `terminalId`. The `handler` is called with every chunk of bytes the PTY
@@ -392,7 +823,7 @@ ctx.subscriptions.push(sub);
 getActive(): string | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:258](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L258)
+Defined in: [packages/sdk/src/terminal-service.ts:244](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L244)
 
 The record id of the terminal tab that is currently active in the active
 workspace's center dock, or `null` when an editor tab (or nothing) is
@@ -412,7 +843,7 @@ split does not count.
 subscribeActive(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:280](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L280)
+Defined in: [packages/sdk/src/terminal-service.ts:266](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L266)
 
 Subscribe to active-terminal changes. The listener receives the terminal
 record id whenever a terminal tab becomes the active center-dock panel,

@@ -1,6 +1,6 @@
 # Interface: CreateWorkspaceInput
 
-Defined in: [packages/sdk/src/workspace-service.ts:205](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L205)
+Defined in: [packages/sdk/src/workspace-service.ts:214](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L214)
 
 Input for [WorkspaceService.create](WorkspaceService.md#create).
 
@@ -12,7 +12,7 @@ Input for [WorkspaceService.create](WorkspaceService.md#create).
 folder: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:207](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L207)
+Defined in: [packages/sdk/src/workspace-service.ts:216](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L216)
 
 Absolute path of the workspace's primary folder.
 
@@ -24,6 +24,6 @@ Absolute path of the workspace's primary folder.
 name: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:209](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L209)
+Defined in: [packages/sdk/src/workspace-service.ts:218](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L218)
 
 Display name for the workspace.

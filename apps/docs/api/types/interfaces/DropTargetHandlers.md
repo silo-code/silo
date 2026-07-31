@@ -58,7 +58,7 @@ fall through to other targets (e.g. the center dock opening a new pane).
 ### onDragOver()?
 
 ```ts
-optional onDragOver(ctx): void | "none" | "copy" | "move";
+optional onDragOver(ctx): void | "copy" | "move" | "none";
 ```
 
 Defined in: [packages/sdk/src/dnd-service.ts:115](https://github.com/silo-code/silo/blob/main/packages/sdk/src/dnd-service.ts#L115)
@@ -75,7 +75,7 @@ calls `preventDefault()` so the drop is allowed.
 
 #### Returns
 
-`void` \| `"none"` \| `"copy"` \| `"move"`
+`void` \| `"copy"` \| `"move"` \| `"none"`
 
 ***
 

@@ -1,5 +1,6 @@
 import type { Disposable } from "./types";
 import type { Workspace } from "./domain-types";
+import type { Activity } from "./activity";
 
 // Re-export the workspace domain types so consumers can name them from the SDK.
 export type { Workspace, TerminalRecord } from "./domain-types";
@@ -14,8 +15,11 @@ export type { Workspace, TerminalRecord } from "./domain-types";
 export interface WorkspaceStatusRow {
   /** Stable key unique within this provider's results; used for reconciliation. */
   id: string;
-  /** Semantic status dot shown to the left of the label. */
-  status?: "ok" | "warn" | "busy" | "error";
+  /**
+   * Host-owned {@link Activity} glyph to the left of the label. Omit for the
+   * neutral gray fallback (same as today’s omitted `status`). See ADR 0030.
+   */
+  activity?: Activity;
   /** Short label — the host truncates with an ellipsis when space is tight. */
   label: string;
   /**
@@ -72,22 +76,23 @@ export interface WorkspaceBadge {
   /** Short text rendered inside the badge. */
   text: string;
   /**
-   * CSS color applied to both the badge border and text. Falls back to the
-   * muted text color (`--silo-color-text-lo`) when omitted.
+   * Solid chip fill color. Text paints white on top for contrast. Falls back
+   * to a muted solid background + hi text when omitted.
    */
   color?: string;
 }
 
 /**
- * A badge provider that contributes {@link WorkspaceBadge}s next to the
- * workspace name in the Workspaces side panel. Register via
- * {@link WorkspaceService.registerBadge}.
+ * A badge binder that contributes {@link WorkspaceBadge}s next to the
+ * workspace name in the Workspaces side panel. Prefer
+ * {@link WorkspaceService.bindBadge}; {@link WorkspaceService.registerBadge}
+ * remains as a deprecated alias.
  *
  * @category Consumer Services
  * @public
  */
 export interface WorkspaceBadgeProvider {
-  /** Unique id for this provider — conventionally `"<extension-id>.badges"`. */
+  /** Unique id for this binder — conventionally `"<extension-id>.badges"`. */
   id: string;
   /**
    * Called synchronously for each workspace during render. Return an empty
@@ -97,15 +102,19 @@ export interface WorkspaceBadgeProvider {
 }
 
 /**
- * A status provider that contributes {@link WorkspaceStatusRow}s to
- * workspace rows in the Workspaces side panel. Register via
- * {@link WorkspaceService.registerStatus}.
+ * A status binder that contributes {@link WorkspaceStatusRow}s to
+ * workspace rows in the Workspaces side panel. Prefer
+ * {@link WorkspaceService.bindStatus}; {@link WorkspaceService.registerStatus}
+ * remains as a deprecated alias.
+ *
+ * Unlike CenterDock tab `bindIndicator` (single adornment | null), status
+ * and badge binders return an **array** — one projection may emit many rows.
  *
  * @category Consumer Services
  * @public
  */
 export interface WorkspaceStatusProvider {
-  /** Unique id for this provider — conventionally `"<extension-id>.status"`. */
+  /** Unique id for this binder — conventionally `"<extension-id>.status"`. */
   id: string;
   /**
    * Called synchronously for each workspace during render. Return an empty
@@ -260,50 +269,62 @@ export interface WorkspaceService {
   delete(id: string): Promise<void>;
 
   /**
-   * Register a status provider that contributes status rows to workspace
-   * rows in the Workspaces side panel. Multiple providers may be registered;
-   * their rows are concatenated in registration order. Returns a
-   * {@link Disposable} that unregisters the provider.
+   * Imperatively adorn a workspace row with a status line. `row.id` is the
+   * adornment key for {@link WorkspaceService.clearStatus}.
+   */
+  setStatus(workspaceId: string, row: WorkspaceStatusRow): void;
+
+  /** Remove an imperative status row previously set via {@link WorkspaceService.setStatus}. */
+  clearStatus(workspaceId: string, rowId: string): void;
+
+  /**
+   * Keep a status projection in sync for every workspace. `provide` returns
+   * an array of rows (may be empty). Prefer this over repeatedly calling
+   * {@link WorkspaceService.setStatus}.
    *
    * @example
    * ```ts
    * ctx.subscriptions.push(
-   *   ctx.workspaces.registerStatus({
+   *   ctx.workspaces.bindStatus({
    *     id: "my-ext.status",
    *     provide(workspaceId) {
    *       const running = getRunningTasks(workspaceId);
-   *       return running.map(t => ({ id: t.id, status: "busy", label: t.name, startedAt: t.startedAt }));
+   *       return running.map(t => ({ id: t.id, activity: "working", label: t.name, startedAt: t.startedAt }));
    *     },
    *   }),
-   *   ctx.workspaces.subscribeStatus(() => ctx.workspaces.invalidateStatus()),
    * );
    * ```
+   */
+  bindStatus(binder: WorkspaceStatusProvider): Disposable;
+
+  /**
+   * @deprecated Prefer {@link WorkspaceService.bindStatus}.
    */
   registerStatus(provider: WorkspaceStatusProvider): Disposable;
 
   /**
-   * Concatenate all registered providers' rows for one workspace (in
-   * registration order). Called synchronously during panel render — providers
-   * must be fast and side-effect-free.
+   * Concatenate imperative rows and all binders' rows for one workspace (in
+   * binder registration order). Called synchronously during panel render —
+   * binders must be fast and side-effect-free.
    */
   getStatus(workspaceId: string): WorkspaceStatusRow[];
 
   /**
-   * Signal that status data has changed. Fires all listeners registered
+   * Signal that binder data has changed. Fires all listeners registered
    * via {@link WorkspaceService.subscribeStatus}, causing the Workspaces
-   * panel to re-query providers and re-render the status rows.
+   * panel to re-query binders and re-render the status rows.
    *
    * Call this after any mutation to the state your `provide` function reads.
+   * Imperative {@link WorkspaceService.setStatus} / {@link WorkspaceService.clearStatus}
+   * already notify listeners.
    */
   invalidateStatus(): void;
 
   /**
    * Subscribe to status invalidations. The listener is called whenever
-   * {@link WorkspaceService.invalidateStatus} is invoked. Returns a
-   * {@link Disposable} that cancels the subscription.
-   *
-   * The Workspaces panel subscribes internally; extensions may also subscribe
-   * to observe invalidations.
+   * {@link WorkspaceService.invalidateStatus} is invoked (or imperative
+   * set/clear runs). Returns a {@link Disposable} that cancels the
+   * subscription.
    */
   subscribeStatus(listener: () => void): Disposable;
 
@@ -374,15 +395,22 @@ export interface WorkspaceService {
   registerPropertyPage(page: WorkspacePropertyPage): Disposable;
 
   /**
-   * Register a badge provider that contributes {@link WorkspaceBadge}s next to
-   * the workspace name in the Workspaces side panel. Multiple providers may be
-   * registered; their badges are concatenated in registration order. Returns a
-   * {@link Disposable} that unregisters the provider.
+   * Imperatively adorn a workspace name with a badge. `badge.id` is the
+   * adornment key for {@link WorkspaceService.clearBadge}.
+   */
+  setBadge(workspaceId: string, badge: WorkspaceBadge): void;
+
+  /** Remove an imperative badge previously set via {@link WorkspaceService.setBadge}. */
+  clearBadge(workspaceId: string, badgeId: string): void;
+
+  /**
+   * Keep a badge projection in sync for every workspace. `provide` returns
+   * an array of badges (may be empty).
    *
    * @example
    * ```ts
    * ctx.subscriptions.push(
-   *   ctx.workspaces.registerBadge({
+   *   ctx.workspaces.bindBadge({
    *     id: "my-ext.badges",
    *     provide(workspaceId) {
    *       const status = getStatus(workspaceId);
@@ -393,28 +421,27 @@ export interface WorkspaceService {
    * );
    * ```
    */
+  bindBadge(binder: WorkspaceBadgeProvider): Disposable;
+
+  /**
+   * @deprecated Prefer {@link WorkspaceService.bindBadge}.
+   */
   registerBadge(provider: WorkspaceBadgeProvider): Disposable;
 
   /**
-   * Concatenate all registered providers' badges for one workspace (in
-   * registration order). Called synchronously during panel render — providers
-   * must be fast and side-effect-free.
+   * Concatenate imperative badges and all binders' badges for one workspace
+   * (in binder registration order).
    */
   getBadges(workspaceId: string): WorkspaceBadge[];
 
   /**
-   * Signal that badge data has changed. Fires all listeners registered via
-   * {@link WorkspaceService.subscribeBadges}, causing the Workspaces panel to
-   * re-query providers and re-render the name row.
-   *
-   * Call this after any mutation to the state your `provide` function reads.
+   * Signal that badge binder data has changed. Imperative set/clear already
+   * notify listeners.
    */
   invalidateBadges(): void;
 
   /**
-   * Subscribe to badge invalidations. The listener is called whenever
-   * {@link WorkspaceService.invalidateBadges} is invoked. Returns a
-   * {@link Disposable} that cancels the subscription.
+   * Subscribe to badge invalidations.
    */
   subscribeBadges(listener: () => void): Disposable;
 }

@@ -13,6 +13,7 @@ things:
 | --------------------------------- | ------------------------------------------------------------------------------------ |
 | **[Registration](#registration)** | add things to the app — editors, panels, commands, status items, menus, keybindings… |
 | **[Services](#services)**         | read &amp; drive the running app through typed domain services                       |
+| **[Chrome](#chrome)**             | ephemeral adornments on host chrome (CenterDock tabs, …)                             |
 | **[Other](#other)**               | invoke commands; consume other extensions' APIs; identity                            |
 
 New here? Start with the [guide](/guide/). Otherwise drill into a method below —
@@ -25,19 +26,20 @@ Add things to the app. Each method takes a typed object and returns a
 [`Disposable`](/api/types/interfaces/Disposable) (the host also tracks it on
 `ctx.subscriptions`, so teardown is automatic).
 
-| Method                                                                        | Adds                                  |
-| ----------------------------------------------------------------------------- | ------------------------------------- |
-| [`ctx.registerEditor`](/api/registration/register-editor)                     | an editor (presenter) for a file type |
-| [`ctx.registerSidePanel`](/api/registration/register-side-panel)              | a left/right column panel             |
-| [`ctx.registerStatusItem`](/api/registration/register-status-item)            | a status-bar widget                   |
-| [`ctx.registerCommand`](/api/registration/register-command)                   | a named, invokable action             |
-| [`ctx.registerKeybinding`](/api/registration/register-keybinding)             | a shortcut bound to a command         |
-| [`ctx.registerMenuItem`](/api/registration/register-menu-item)                | a command in an application menu      |
-| [`ctx.registerContextMenuItem`](/api/registration/register-context-menu-item) | a command in a surface's context menu |
-| [`ctx.registerFileType`](/api/registration/register-file-type)                | declarative file metadata             |
-| [`ctx.registerDockPanelKind`](/api/registration/register-dock-panel-kind)     | a center-dock tab kind                |
-| [`ctx.registerSettingsPage`](/api/registration/register-settings-page)        | a page in the Settings dialog         |
-| [`ctx.registerThemePreset`](/api/registration/register-theme-preset)          | a selectable theme in the picker      |
+| Method                                                                        | Adds                                                     |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------- |
+| [`ctx.registerEditor`](/api/registration/register-editor)                     | an editor (presenter) for a file type                    |
+| [`ctx.registerSidePanel`](/api/registration/register-side-panel)              | a left/right column panel                                |
+| [`ctx.registerStatusItem`](/api/registration/register-status-item)            | a status-bar widget                                      |
+| [`ctx.registerCommand`](/api/registration/register-command)                   | a named, invokable action                                |
+| [`ctx.registerKeybinding`](/api/registration/register-keybinding)             | a shortcut bound to a command                            |
+| [`ctx.registerMenuItem`](/api/registration/register-menu-item)                | a command in an application menu                         |
+| [`ctx.registerContextMenuItem`](/api/registration/register-context-menu-item) | a command in a surface's context menu                    |
+| [`ctx.registerToolbarItem`](/api/registration/register-toolbar-item)          | a control in an editor/terminal toolbar trailing cluster |
+| [`ctx.registerFileType`](/api/registration/register-file-type)                | declarative file metadata                                |
+| [`ctx.registerDockPanelKind`](/api/registration/register-dock-panel-kind)     | a center-dock tab kind                                   |
+| [`ctx.registerSettingsPage`](/api/registration/register-settings-page)        | a page in the Settings dialog                            |
+| [`ctx.registerThemePreset`](/api/registration/register-theme-preset)          | a selectable theme in the picker                         |
 
 ## Services
 
@@ -45,24 +47,34 @@ Read and drive the running app through typed domain services — never by
 importing the store or touching the platform directly. Opening files lives on
 `ctx.editors` (not `ctx.workspaces`).
 
-| Member                                    | Purpose                                                                                                                                                                                                            |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`ctx.editors`](/api/editors/)            | open files into editor tabs; `save` / `saveAs` / `closeActive`; `registerSaveHandler`; reactive active-editor state via `getState` / `subscribe` ([`EditorService`](/api/types/interfaces/EditorService))          |
-| [`ctx.terminals`](/api/state/terminals)   | open / reap terminal tabs; `registerTabDecoration` to add icon+color+tooltip badges to terminal tabs ([`TerminalService`](/api/types/interfaces/TerminalService))                                                  |
-| [`ctx.workspaces`](/api/state/workspaces) | workspaces &amp; editor tabs; `registerStatus` for status rows, `registerSection` to mount React components, `registerBadge` for inline name badges ([`WorkspaceService`](/api/types/interfaces/WorkspaceService)) |
-| [`ctx.layout`](/api/state/layout)         | side-panel collapse state ([`LayoutService`](/api/types/interfaces/LayoutService))                                                                                                                                 |
-| [`ctx.storage`](/api/storage/)            | persisted per-extension key/value storage, `global` &amp; `workspace` scopes ([`ExtensionStorageScopes`](/api/types/interfaces/ExtensionStorageScopes))                                                            |
-| [`ctx.files`](/api/files/)                | read / write / list / watch the filesystem, host-mediated ([`FileService`](/api/types/interfaces/FileService))                                                                                                     |
-| [`ctx.process`](/api/process/)            | persistent process / PTY sessions that survive restarts ([`ProcessService`](/api/types/interfaces/ProcessService))                                                                                                 |
-| [`ctx.processes`](/api/processes/)        | live foreground process view per terminal — leader, cwd, idle/busy, optional CPU+memory, surgical kill ([`ProcessesService`](/api/types/interfaces/ProcessesService))                                              |
-| [`ctx.agents`](/api/agents/)              | host-computed coding-agent activity + resume hints — sealed detection, exact-or-honest resume ([`AgentsService`](/api/types/interfaces/AgentsService)) <Badge type="warning" text="beta" />                        |
-| [`ctx.search`](/api/search/)              | cross-file content search over the workspace ([`SearchService`](/api/types/interfaces/SearchService))                                                                                                              |
-| [`ctx.theme`](/api/theme/)                | presets + active theme + custom themes ([`ThemeService`](/api/types/interfaces/ThemeService))                                                                                                                      |
-| [`ctx.dnd`](/api/dnd/)                    | drag sources + drop targets with typed payloads ([`DndService`](/api/types/interfaces/DndService))                                                                                                                 |
-| [`ctx.ui`](/api/ui/)                      | native pickers + toasts + menus + modals (`confirm` / `prompt` / `showModal`) ([`UiService`](/api/types/interfaces/UiService))                                                                                     |
-| [`ctx.net`](/api/net/)                    | server-side HTTP client — bypasses browser CORS, reads any response header ([`NetworkService`](/api/types/interfaces/NetworkService))                                                                              |
-| [`ctx.system`](/api/system/)              | static host-platform metadata — OS, CPU arch, and Silo version ([`SystemService`](/api/types/interfaces/SystemService))                                                                                            |
-| [`ctx.webview`](/api/webview/)            | cross-origin iframe bridge — DOM access, navigation, element picking, native pixel capture, permission-gated ([`WebviewService`](/api/types/interfaces/WebviewService))                                            |
+| Member                                    | Purpose                                                                                                                                                                                                   |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`ctx.editors`](/api/editors/)            | open files into editor tabs; `save` / `saveAs` / `closeActive`; `registerSaveHandler`; reactive active-editor state via `getState` / `subscribe` ([`EditorService`](/api/types/interfaces/EditorService)) |
+| [`ctx.terminals`](/api/state/terminals)   | open / reap terminal tabs; tab adornments via `setIndicator` / `bindIndicator` ([`TerminalService`](/api/types/interfaces/TerminalService)); see [tab adornments](/api/state/tab-adornments)              |
+| [`ctx.workspaces`](/api/state/workspaces) | workspaces &amp; editor tabs; status / badges via adorn `set`/`clear`/`bind` ([`WorkspaceService`](/api/types/interfaces/WorkspaceService)); `registerSection` for React sections                         |
+| [`ctx.layout`](/api/state/layout)         | side-panel collapse state ([`LayoutService`](/api/types/interfaces/LayoutService))                                                                                                                        |
+| [`ctx.storage`](/api/storage/)            | persisted per-extension key/value storage, `global` &amp; `workspace` scopes ([`ExtensionStorageScopes`](/api/types/interfaces/ExtensionStorageScopes))                                                   |
+| [`ctx.files`](/api/files/)                | read / write / list / watch the filesystem, host-mediated ([`FileService`](/api/types/interfaces/FileService))                                                                                            |
+| [`ctx.process`](/api/process/)            | persistent process / PTY sessions that survive restarts ([`ProcessService`](/api/types/interfaces/ProcessService))                                                                                        |
+| [`ctx.processes`](/api/processes/)        | live foreground process view per terminal — leader, cwd, idle/busy, optional CPU+memory, surgical kill ([`ProcessesService`](/api/types/interfaces/ProcessesService))                                     |
+| [`ctx.agents`](/api/agents/)              | host-computed coding-agent activity + resume hints — sealed detection, exact-or-honest resume ([`AgentsService`](/api/types/interfaces/AgentsService)) <Badge type="warning" text="beta" />               |
+| [`ctx.search`](/api/search/)              | cross-file content search over the workspace ([`SearchService`](/api/types/interfaces/SearchService))                                                                                                     |
+| [`ctx.theme`](/api/theme/)                | presets + active theme + custom themes ([`ThemeService`](/api/types/interfaces/ThemeService))                                                                                                             |
+| [`ctx.dnd`](/api/dnd/)                    | drag sources + drop targets with typed payloads ([`DndService`](/api/types/interfaces/DndService))                                                                                                        |
+| [`ctx.ui`](/api/ui/)                      | native pickers + toasts + menus + modals (`confirm` / `prompt` / `showModal`) ([`UiService`](/api/types/interfaces/UiService))                                                                            |
+| [`ctx.net`](/api/net/)                    | server-side HTTP client — bypasses browser CORS, reads any response header ([`NetworkService`](/api/types/interfaces/NetworkService))                                                                     |
+| [`ctx.system`](/api/system/)              | static host-platform metadata — OS, CPU arch, and Silo version ([`SystemService`](/api/types/interfaces/SystemService))                                                                                   |
+| [`ctx.webview`](/api/webview/)            | cross-origin iframe bridge — DOM access, navigation, element picking, native pixel capture, permission-gated ([`WebviewService`](/api/types/interfaces/WebviewService))                                   |
+
+## Chrome
+
+Pin ephemeral signals onto host chrome (not a `ctx.*` service of its own —
+verbs live on `ctx.editors` / `ctx.terminals` / `ctx.workspaces`).
+
+| Topic                                            | Purpose                                                                             |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| [Tab adornments](/api/state/tab-adornments)      | Leading icons, trailing indicators, and Activity on CenterDock editor/terminal tabs |
+| [Activity (Design)](/design/components/activity) | `ActivityGlyph` for the same dots in your own UI                                    |
 
 ## Other
 

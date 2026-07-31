@@ -4,8 +4,13 @@
   min-width: 0;
 }
 
-/* The path crumbs take the remaining width; the switcher pins to the far right. */
+/* Path crumbs grow; contributions + ViewSwitcher pin to the trailing edge. */
 .editor-breadcrumb .breadcrumb {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* Flush the contribution cluster up against the path crumbs. */
+.editor-breadcrumb .breadcrumb:has(+ .contributed-toolbar) {
+  padding-right: 0;
 }

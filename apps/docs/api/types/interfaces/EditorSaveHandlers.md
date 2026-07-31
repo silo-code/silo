@@ -1,6 +1,6 @@
 # Interface: EditorSaveHandlers
 
-Defined in: [packages/sdk/src/editor-service.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L78)
+Defined in: [packages/sdk/src/editor-service.ts:79](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L79)
 
 Save callbacks an editor registers via
 [EditorService.registerSaveHandler](EditorService.md#registersavehandler), so the active-editor `save` /
@@ -14,7 +14,7 @@ Save callbacks an editor registers via
 save: () => void | Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:80](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L80)
+Defined in: [packages/sdk/src/editor-service.ts:81](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L81)
 
 Save the editor's contents.
 
@@ -30,7 +30,7 @@ Save the editor's contents.
 optional saveAs?: () => void | Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:82](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L82)
+Defined in: [packages/sdk/src/editor-service.ts:83](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L83)
 
 Save-as (prompt for a new path). Optional.
 

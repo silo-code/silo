@@ -15,7 +15,10 @@ import type {
   TerminalTabDecorationProvider,
   OscEvent,
 } from "@silo-code/sdk";
-import { terminalTabDecorationRegistry } from "./terminal-tab-decoration-registry";
+import {
+  tabAdornmentMethodsFor,
+  tabAdornmentRegistry,
+} from "./tab-adornment-registry";
 import {
   getActiveTerminal,
   subscribeActiveTerminal,
@@ -353,18 +356,18 @@ export function getTerminalService(): TerminalService {
     },
     getActive: getActiveTerminal,
     subscribeActive: subscribeActiveTerminal,
+    ...tabAdornmentMethodsFor("terminal"),
     registerTabDecoration(provider: TerminalTabDecorationProvider) {
-      return terminalTabDecorationRegistry.register(provider);
+      return tabAdornmentRegistry.registerTerminalDecorationShim(provider);
     },
-    getTabDecoration: terminalTabDecorationRegistry.getTabDecoration.bind(
-      terminalTabDecorationRegistry,
-    ),
-    invalidateTabDecorations: terminalTabDecorationRegistry.invalidate.bind(
-      terminalTabDecorationRegistry,
-    ),
-    subscribeTabDecorations: terminalTabDecorationRegistry.subscribe.bind(
-      terminalTabDecorationRegistry,
-    ),
+    getTabDecoration:
+      tabAdornmentRegistry.getFirstTerminalIndicator.bind(tabAdornmentRegistry),
+    invalidateTabDecorations() {
+      tabAdornmentRegistry.invalidate();
+    },
+    subscribeTabDecorations(listener: () => void) {
+      return tabAdornmentRegistry.subscribe(listener);
+    },
     subscribeOsc(terminalId: string, handler: (event: OscEvent) => void) {
       // Bound to the terminal's *current* PTY session and re-bound whenever
       // that session changes — a terminal that hasn't spawned yet binds once

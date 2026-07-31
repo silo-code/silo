@@ -1,6 +1,6 @@
 # Interface: EditorViewInfo
 
-Defined in: [packages/sdk/src/editor-service.ts:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L61)
+Defined in: [packages/sdk/src/editor-service.ts:62](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L62)
 
 One editor view that can render a given file — its id, user-facing label, and
 whether it is the view the host would pick by default. Returned by
@@ -15,7 +15,7 @@ breadcrumb view-switcher.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:63](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L63)
+Defined in: [packages/sdk/src/editor-service.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L64)
 
 The editor's id (an [Editor.id](Editor.md#id)); pass back as `viewType`.
 
@@ -27,7 +27,7 @@ The editor's id (an [Editor.id](Editor.md#id)); pass back as `viewType`.
 label: string;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L65)
+Defined in: [packages/sdk/src/editor-service.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L66)
 
 Human-facing label (falls back to [EditorViewInfo.id](#id)).
 
@@ -39,6 +39,6 @@ Human-facing label (falls back to [EditorViewInfo.id](#id)).
 isDefault: boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L67)
+Defined in: [packages/sdk/src/editor-service.ts:68](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L68)
 
 True for the editor the host resolves by default (highest priority).

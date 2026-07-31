@@ -1,35 +1,38 @@
-# Interface: TerminalTabDecorationProvider
+# ~~Interface: TerminalTabDecorationProvider~~
 
-Defined in: [packages/sdk/src/terminal-service.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L59)
+Defined in: [packages/sdk/src/terminal-service.ts:48](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L48)
 
-A decoration provider for terminal tabs. Register via
-[TerminalService.registerTabDecoration](TerminalService.md#registertabdecoration).
+## Deprecated
+
+Prefer [TerminalService.bindIndicator](TabAdornmentMethods.md#bindindicator). Terminal-only
+trailing-indicator provider kept as a shim over the adornment registry.
 
 ## Properties
 
-### id
+### ~~id~~
 
 ```ts
 id: string;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L61)
+Defined in: [packages/sdk/src/terminal-service.ts:50](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L50)
 
 Unique id — conventionally `"<extension-id>.tab-decoration"`.
 
 ## Methods
 
-### provide()
+### ~~provide()~~
 
 ```ts
-provide(terminalId): TerminalTabDecoration | null;
+provide(terminalId): 
+  | TabIndicatorContribution
+  | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L67)
+Defined in: [packages/sdk/src/terminal-service.ts:55](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L55)
 
 Called synchronously for each terminal tab during render. Return `null`
-to contribute nothing for this terminal. When multiple providers are
-registered, the first non-null result wins.
+to contribute nothing for this terminal.
 
 #### Parameters
 
@@ -39,4 +42,5 @@ registered, the first non-null result wins.
 
 #### Returns
 
-[`TerminalTabDecoration`](TerminalTabDecoration.md) \| `null`
+  \| [`TabIndicatorContribution`](../type-aliases/TabIndicatorContribution.md)
+  \| `null`

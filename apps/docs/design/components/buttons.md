@@ -63,29 +63,43 @@ label is the accessible name.
 ```tsx
 import { IconButton } from "@silo-code/sdk";
 
-<IconButton aria-label="Refresh" onClick={refresh}><RefreshIcon /></IconButton>
+<IconButton aria-label="Refresh" onClick={refresh}>
+  <RefreshIcon size="1em" />
+</IconButton>
 
 // compact — e.g. in a ListRow's trailing slot (one common home, not the only one)
 <ListRow
   trailing={
     <>
-      <IconButton size="sm" aria-label="Pin" onClick={pin}><PinIcon /></IconButton>
-      <IconButton size="sm" aria-label="More options" onClick={menu}><MoreIcon /></IconButton>
+      <IconButton size="sm" aria-label="Pin" onClick={pin}>
+        <PinIcon size="1em" />
+      </IconButton>
+      <IconButton size="sm" aria-label="More options" onClick={menu}>
+        <MoreIcon size="1em" />
+      </IconButton>
     </>
   }
 >
   Agent Monitor
 </ListRow>
+
+// panel / breadcrumb toolbar (local-web-viewer tone)
+<IconButton size="sm" variant="toolbar" aria-label="Back">
+  <ArrowLeft size="1em" weight="bold" />
+</IconButton>
 ```
 
-| Prop         | Type               | Default    | Notes                                               |
-| ------------ | ------------------ | ---------- | --------------------------------------------------- |
-| `size`       | `"normal" \| "sm"` | `"normal"` | 32px standalone / 26px for tight or inline contexts |
-| `aria-label` | `string`           | —          | required                                            |
-| …rest        | button props       |            |                                                     |
+| Prop         | Type                    | Default    | Notes                                                               |
+| ------------ | ----------------------- | ---------- | ------------------------------------------------------------------- |
+| `size`       | `"normal" \| "sm"`      | `"normal"` | `2.5em` / `2em` of `--silo-font-size-base` (Zoom In/Out)            |
+| `variant`    | `"normal" \| "toolbar"` | `"normal"` | `toolbar` — B/W toolbar-text icons, hover fill only, no press-scale |
+| `aria-label` | `string`                | —          | required                                                            |
+| …rest        | button props            |            |                                                                     |
 
-States: transparent at rest (icon at `--silo-color-text-lo`), `bg-hover` fill +
-brighter icon on hover, `bg-active` fill + scale-down when pressed.
+States (`normal`): transparent at rest (icon at `--silo-color-text-lo`),
+`bg-hover` fill + brighter icon on hover, `bg-active` fill + scale-down when
+pressed. `toolbar` keeps toolbar-text on hover and uses an accent wash when
+`aria-pressed` / `data-checked` is set.
 
 ::: tip Multiple actions in one row
 A `ListRow`'s `trailing` slot takes several `IconButton size="sm"` side by

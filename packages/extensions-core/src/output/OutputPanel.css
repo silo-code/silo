@@ -16,12 +16,15 @@
   background: var(--silo-color-toolbar-bg);
   border-bottom: 1px solid var(--silo-color-border);
   flex-shrink: 0;
+  font-size: var(--silo-font-size-base);
 }
 
-/* Selects and inputs: 26px height, invisible border (matches bg) until focus */
+/* Selects and inputs: 2em height (scales with uiFontSize), invisible
+ * border (matches bg) until focus */
 .output-toolbar select,
 .output-toolbar input[type="search"] {
-  height: 26px;
+  /* Match .output-icon-btn (2em of toolbar base), not 2em of this control's sm font. */
+  height: calc(var(--silo-font-size-base) * 2);
   padding: 0 8px;
   font-size: var(--silo-font-size-sm);
   font-family: var(--silo-font-ui);
@@ -72,20 +75,28 @@
   width: 88px;
 }
 
-/* Icon-only toolbar buttons — matches the lwv-btn pattern */
+/* Icon-only toolbar buttons — matches the lwv-btn pattern; scales with zoom */
 .output-icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  box-sizing: border-box;
+  width: 2em;
+  height: 2em;
   padding: 0;
   flex-shrink: 0;
   border: 1px solid transparent;
   border-radius: var(--silo-radius-sm);
   background: transparent;
   color: var(--silo-color-toolbar-text);
+  font-size: 1em;
   cursor: pointer;
+}
+
+.output-icon-btn svg {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
 }
 
 .output-icon-btn:hover {

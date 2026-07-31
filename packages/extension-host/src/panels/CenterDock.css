@@ -244,11 +244,22 @@
 /* The label is wrapped in a `<Tooltip>` (`.silo-tooltip-host`) so the full name
  * shows on hover once the label is truncated — the host span is now the flex
  * child, so it carries the shrink + `min-width: 0` and the inner content span
- * keeps the ellipsis. */
-.editor-dock .dv-tabs-container .dv-tab .silo-tooltip-host {
+ * keeps the ellipsis. Scope to the *title* host only: decoration icons are also
+ * wrapped in Tooltip, and must not flex-shrink or they collapse when tabs
+ * compress. */
+.editor-dock
+  .dv-tabs-container
+  .dv-tab
+  .silo-tooltip-host:has(.dv-default-tab-content) {
   min-width: 0;
   flex: 1 1 auto;
   overflow: hidden;
+}
+.editor-dock
+  .dv-tabs-container
+  .dv-tab
+  .silo-tooltip-host:has(.dvi-tab-decoration) {
+  flex: 0 0 auto;
 }
 .editor-dock .dv-tabs-container .dv-tab .dv-default-tab-content {
   min-width: 0;
@@ -516,17 +527,48 @@
   color: var(--silo-color-accent);
 }
 
-/* Terminal tab decoration — icon + semantic color, contributed by extensions
- * via ctx.terminals.registerTabDecoration(). */
+/* Leading tab identity adornment (ReactNode from editors/terminals.setIcon). */
+.dv-default-tab-content .dvi-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 4px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.dv-default-tab-content .dvi-tab-icon svg,
+.dv-default-tab-content .dvi-tab-icon img {
+  width: 1em;
+  height: 1em;
+  display: block;
+}
+
+/* Tab decorations — Phosphor name + semantic color via
+ * ctx.editors / ctx.terminals setIndicator / bindIndicator. Glyph-only by
+ * default; `chip: true` adds a
+ * soft tinted background (same pattern as workspace badges). */
 .dvi-tab-decoration {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
-  margin-left: 4px;
+  box-sizing: border-box;
+  width: 1.35em;
+  height: 1.35em;
+  margin-left: 5px;
+  padding: 0.1em;
   flex-shrink: 0;
   vertical-align: middle;
+  font-size: calc(var(--silo-font-size-base) + 1px);
+  line-height: 1;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  background: transparent;
+}
+.dvi-tab-decoration svg {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+.dvi-tab-decoration[data-color="muted"] {
   color: var(--silo-color-text-lo);
 }
 .dvi-tab-decoration[data-color="accent"] {
@@ -540,6 +582,33 @@
 }
 .dvi-tab-decoration[data-color="error"] {
   color: var(--silo-color-err);
+}
+.dvi-tab-decoration[data-chip] {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+/* Tab Activity (ADR 0030) — SDK `<Activity size="md" />`. */
+.dvi-tab-activity {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 5px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  overflow: visible;
+}
+
+/* Let working rings paint outside the tab chip. */
+.editor-dock
+  .dv-tabs-container
+  .dv-tab:has(.dvi-tab-activity .silo-activity-working) {
+  overflow: visible;
+}
+.editor-dock
+  .dv-tabs-container
+  .dv-tab
+  .silo-tooltip-host:has(.silo-activity-working) {
+  overflow: visible;
 }
 
 /* Deleted-on-disk tab title — strikethrough + error color, mirroring VS

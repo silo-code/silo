@@ -16,6 +16,7 @@ import {
   partitionSavedEntries,
 } from "@silo-code/extension-host/internal";
 import {
+  ActivityGlyph,
   Tooltip,
   useFocusGroup,
   useServiceState,
@@ -79,19 +80,19 @@ function useHomeDir(): string {
   return useSyncExternalStore(subscribeHome, getHome);
 }
 
-// Deterministic per-row jitter so multiple animated status dots ("busy"'s
-// throb + wave, "ok"'s subtle pulse) don't move in lockstep — hashed from the
+// Deterministic per-row jitter so multiple animated activity glyphs
+// (working rings, ready throb) don't move in lockstep — hashed from the
 // stable row id (not Math.random()) so the offset doesn't jump around on
 // re-render. Expressed as a negative delay so the animation starts already in
 // progress rather than pausing on mount.
-function statusJitterStyle(id: string): React.CSSProperties {
+function activityJitterStyle(id: string): React.CSSProperties {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
     hash = (hash * 31 + id.charCodeAt(i)) | 0;
   }
   const delaySeconds = -(((hash >>> 0) % 1000) / 1000) * 1.8;
   return {
-    "--ws-status-jitter": `${delaySeconds.toFixed(3)}s`,
+    "--silo-activity-jitter": `${delaySeconds.toFixed(3)}s`,
   } as React.CSSProperties;
 }
 
@@ -107,17 +108,16 @@ function WorkspaceStatusRows({
     <>
       {rows.map((row) => (
         <div key={row.id} className="ws-status-row">
-          <span
-            className="ws-status-dot"
-            data-status={row.status ?? "none"}
-            aria-hidden="true"
+          <ActivityGlyph
+            activity={row.activity}
+            size="sm"
             style={
-              row.status === "busy" || row.status === "ok"
+              row.activity === "working" || row.activity === "ready"
                 ? // Providers commonly reuse the same row id across every
                   // workspace (e.g. a fixed "build-task" id) — fold in the
                   // workspace id too, or every workspace's dot would still
                   // land on the same delay and throb in lockstep.
-                  statusJitterStyle(`${workspaceId}:${row.id}`)
+                  activityJitterStyle(`${workspaceId}:${row.id}`)
                 : undefined
             }
           />
@@ -392,7 +392,12 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
               key={b.id}
               className="ws-badge"
               style={
-                b.color ? { color: b.color, borderColor: b.color } : undefined
+                b.color
+                  ? ({
+                      ["--ws-badge-bg" as string]: b.color,
+                      ["--ws-badge-fg" as string]: "#fff",
+                    } as React.CSSProperties)
+                  : undefined
               }
             >
               {b.text}

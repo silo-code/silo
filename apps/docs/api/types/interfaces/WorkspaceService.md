@@ -1,6 +1,6 @@
 # Interface: WorkspaceService
 
-Defined in: [packages/sdk/src/workspace-service.ts:222](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L222)
+Defined in: [packages/sdk/src/workspace-service.ts:231](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L231)
 
 Consumer API for workspace state, exposed as [ExtensionContext.workspaces](ExtensionContext.md#workspaces).
 Read via [getState](#getstate) /
@@ -16,7 +16,7 @@ not here.
 getState(): WorkspaceState;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:224](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L224)
+Defined in: [packages/sdk/src/workspace-service.ts:233](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L233)
 
 Current frozen view of workspace state.
 
@@ -32,7 +32,7 @@ Current frozen view of workspace state.
 subscribe(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:225](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L225)
+Defined in: [packages/sdk/src/workspace-service.ts:234](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L234)
 
 #### Parameters
 
@@ -52,7 +52,7 @@ Defined in: [packages/sdk/src/workspace-service.ts:225](https://github.com/silo-
 get(id): Workspace | undefined;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:230](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L230)
+Defined in: [packages/sdk/src/workspace-service.ts:239](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L239)
 
 The workspace with this id, or `undefined`. A one-shot lookup for event
 handlers; for reactive reads use [useServiceState](../functions/useServiceState.md) over the state.
@@ -75,7 +75,7 @@ handlers; for reactive reads use [useServiceState](../functions/useServiceState.
 createFromFolderPicker(): Promise<Workspace | null>;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:232](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L232)
+Defined in: [packages/sdk/src/workspace-service.ts:241](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L241)
 
 Show a folder picker and create a workspace from the chosen folder.
 
@@ -91,7 +91,7 @@ Show a folder picker and create a workspace from the chosen folder.
 create(input): Workspace;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:233](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L233)
+Defined in: [packages/sdk/src/workspace-service.ts:242](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L242)
 
 #### Parameters
 
@@ -111,7 +111,7 @@ Defined in: [packages/sdk/src/workspace-service.ts:233](https://github.com/silo-
 rename(id, name): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:234](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L234)
+Defined in: [packages/sdk/src/workspace-service.ts:243](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L243)
 
 #### Parameters
 
@@ -138,7 +138,7 @@ reorder(
    position): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:241](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L241)
+Defined in: [packages/sdk/src/workspace-service.ts:250](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L250)
 
 Move a workspace to a new position relative to a reference workspace.
 
@@ -158,7 +158,7 @@ Id of the reference workspace (the insertion anchor).
 
 ##### position
 
-`"after"` \| `"before"`
+`"before"` \| `"after"`
 
 Whether to place `from` before or after `to`.
 
@@ -174,7 +174,7 @@ Whether to place `from` before or after `to`.
 activate(id): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:243](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L243)
+Defined in: [packages/sdk/src/workspace-service.ts:252](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L252)
 
 Activate (and reopen if closed).
 
@@ -196,7 +196,7 @@ Activate (and reopen if closed).
 close(id): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:245](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L245)
+Defined in: [packages/sdk/src/workspace-service.ts:254](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L254)
 
 Soft close — workspace stays saved but is hidden from the active list.
 
@@ -218,7 +218,7 @@ Soft close — workspace stays saved but is hidden from the active list.
 reopen(id): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:247](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L247)
+Defined in: [packages/sdk/src/workspace-service.ts:256](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L256)
 
 Reverse of close.
 
@@ -240,7 +240,7 @@ Reverse of close.
 addFolder(id, folder): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:249](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L249)
+Defined in: [packages/sdk/src/workspace-service.ts:258](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L258)
 
 Add an extra folder to a workspace (no-op if already present or is the primary).
 
@@ -266,7 +266,7 @@ Add an extra folder to a workspace (no-op if already present or is the primary).
 removeFolder(id, folder): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:251](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L251)
+Defined in: [packages/sdk/src/workspace-service.ts:260](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L260)
 
 Remove an extra folder from a workspace.
 
@@ -292,7 +292,7 @@ Remove an extra folder from a workspace.
 delete(id): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:260](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L260)
+Defined in: [packages/sdk/src/workspace-service.ts:269](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L269)
 
 Hard delete — permanent removal. Also reaps every terminal in the
 workspace (removes records and kills live PTY sessions); callers do not
@@ -313,22 +313,74 @@ callers (e.g. tests) that need that guarantee. Most callers can ignore it.
 
 ***
 
-### registerStatus()
+### setStatus()
 
 ```ts
-registerStatus(provider): Disposable;
+setStatus(workspaceId, row): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:282](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L282)
+Defined in: [packages/sdk/src/workspace-service.ts:275](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L275)
 
-Register a status provider that contributes status rows to workspace
-rows in the Workspaces side panel. Multiple providers may be registered;
-their rows are concatenated in registration order. Returns a
-[Disposable](Disposable.md) that unregisters the provider.
+Imperatively adorn a workspace row with a status line. `row.id` is the
+adornment key for [WorkspaceService.clearStatus](#clearstatus).
 
 #### Parameters
 
-##### provider
+##### workspaceId
+
+`string`
+
+##### row
+
+[`WorkspaceStatusRow`](WorkspaceStatusRow.md)
+
+#### Returns
+
+`void`
+
+***
+
+### clearStatus()
+
+```ts
+clearStatus(workspaceId, rowId): void;
+```
+
+Defined in: [packages/sdk/src/workspace-service.ts:278](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L278)
+
+Remove an imperative status row previously set via [WorkspaceService.setStatus](#setstatus).
+
+#### Parameters
+
+##### workspaceId
+
+`string`
+
+##### rowId
+
+`string`
+
+#### Returns
+
+`void`
+
+***
+
+### bindStatus()
+
+```ts
+bindStatus(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/workspace-service.ts:298](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L298)
+
+Keep a status projection in sync for every workspace. `provide` returns
+an array of rows (may be empty). Prefer this over repeatedly calling
+[WorkspaceService.setStatus](#setstatus).
+
+#### Parameters
+
+##### binder
 
 [`WorkspaceStatusProvider`](WorkspaceStatusProvider.md)
 
@@ -340,16 +392,39 @@ their rows are concatenated in registration order. Returns a
 
 ```ts
 ctx.subscriptions.push(
-  ctx.workspaces.registerStatus({
+  ctx.workspaces.bindStatus({
     id: "my-ext.status",
     provide(workspaceId) {
       const running = getRunningTasks(workspaceId);
-      return running.map(t => ({ id: t.id, status: "busy", label: t.name, startedAt: t.startedAt }));
+      return running.map(t => ({ id: t.id, activity: "working", label: t.name, startedAt: t.startedAt }));
     },
   }),
-  ctx.workspaces.subscribeStatus(() => ctx.workspaces.invalidateStatus()),
 );
 ```
+
+***
+
+### ~~registerStatus()~~
+
+```ts
+registerStatus(provider): Disposable;
+```
+
+Defined in: [packages/sdk/src/workspace-service.ts:303](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L303)
+
+#### Parameters
+
+##### provider
+
+[`WorkspaceStatusProvider`](WorkspaceStatusProvider.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Deprecated
+
+Prefer [WorkspaceService.bindStatus](#bindstatus).
 
 ***
 
@@ -359,11 +434,11 @@ ctx.subscriptions.push(
 getStatus(workspaceId): WorkspaceStatusRow[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:289](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L289)
+Defined in: [packages/sdk/src/workspace-service.ts:310](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L310)
 
-Concatenate all registered providers' rows for one workspace (in
-registration order). Called synchronously during panel render — providers
-must be fast and side-effect-free.
+Concatenate imperative rows and all binders' rows for one workspace (in
+binder registration order). Called synchronously during panel render —
+binders must be fast and side-effect-free.
 
 #### Parameters
 
@@ -383,13 +458,15 @@ must be fast and side-effect-free.
 invalidateStatus(): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:298](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L298)
+Defined in: [packages/sdk/src/workspace-service.ts:321](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L321)
 
-Signal that status data has changed. Fires all listeners registered
+Signal that binder data has changed. Fires all listeners registered
 via [WorkspaceService.subscribeStatus](#subscribestatus), causing the Workspaces
-panel to re-query providers and re-render the status rows.
+panel to re-query binders and re-render the status rows.
 
 Call this after any mutation to the state your `provide` function reads.
+Imperative [WorkspaceService.setStatus](#setstatus) / [WorkspaceService.clearStatus](#clearstatus)
+already notify listeners.
 
 #### Returns
 
@@ -403,14 +480,12 @@ Call this after any mutation to the state your `provide` function reads.
 subscribeStatus(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:308](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L308)
+Defined in: [packages/sdk/src/workspace-service.ts:329](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L329)
 
 Subscribe to status invalidations. The listener is called whenever
-[WorkspaceService.invalidateStatus](#invalidatestatus) is invoked. Returns a
-[Disposable](Disposable.md) that cancels the subscription.
-
-The Workspaces panel subscribes internally; extensions may also subscribe
-to observe invalidations.
+[WorkspaceService.invalidateStatus](#invalidatestatus) is invoked (or imperative
+set/clear runs). Returns a [Disposable](Disposable.md) that cancels the
+subscription.
 
 #### Parameters
 
@@ -430,7 +505,7 @@ to observe invalidations.
 registerSection(provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:332](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L332)
+Defined in: [packages/sdk/src/workspace-service.ts:353](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L353)
 
 Register a section provider that mounts a React component inside workspace
 rows in the Workspaces side panel. Returns a [Disposable](Disposable.md) that
@@ -472,7 +547,7 @@ ctx.subscriptions.push(
 subscribeSection(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:349](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L349)
+Defined in: [packages/sdk/src/workspace-service.ts:370](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L370)
 
 Subscribe to section registration changes. The listener is called whenever
 a [WorkspaceSectionProvider](WorkspaceSectionProvider.md) is registered or unregistered. Returns a
@@ -506,7 +581,7 @@ update its own state directly.
 registerPropertyPage(page): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:374](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L374)
+Defined in: [packages/sdk/src/workspace-service.ts:395](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L395)
 
 Register a property page that adds a tab to the workspace properties
 modal. The host composes all registered pages into the modal's tab bar,
@@ -543,22 +618,73 @@ ctx.subscriptions.push(
 
 ***
 
-### registerBadge()
+### setBadge()
 
 ```ts
-registerBadge(provider): Disposable;
+setBadge(workspaceId, badge): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:396](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L396)
+Defined in: [packages/sdk/src/workspace-service.ts:401](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L401)
 
-Register a badge provider that contributes [WorkspaceBadge](WorkspaceBadge.md)s next to
-the workspace name in the Workspaces side panel. Multiple providers may be
-registered; their badges are concatenated in registration order. Returns a
-[Disposable](Disposable.md) that unregisters the provider.
+Imperatively adorn a workspace name with a badge. `badge.id` is the
+adornment key for [WorkspaceService.clearBadge](#clearbadge).
 
 #### Parameters
 
-##### provider
+##### workspaceId
+
+`string`
+
+##### badge
+
+[`WorkspaceBadge`](WorkspaceBadge.md)
+
+#### Returns
+
+`void`
+
+***
+
+### clearBadge()
+
+```ts
+clearBadge(workspaceId, badgeId): void;
+```
+
+Defined in: [packages/sdk/src/workspace-service.ts:404](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L404)
+
+Remove an imperative badge previously set via [WorkspaceService.setBadge](#setbadge).
+
+#### Parameters
+
+##### workspaceId
+
+`string`
+
+##### badgeId
+
+`string`
+
+#### Returns
+
+`void`
+
+***
+
+### bindBadge()
+
+```ts
+bindBadge(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/workspace-service.ts:424](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L424)
+
+Keep a badge projection in sync for every workspace. `provide` returns
+an array of badges (may be empty).
+
+#### Parameters
+
+##### binder
 
 [`WorkspaceBadgeProvider`](WorkspaceBadgeProvider.md)
 
@@ -570,7 +696,7 @@ registered; their badges are concatenated in registration order. Returns a
 
 ```ts
 ctx.subscriptions.push(
-  ctx.workspaces.registerBadge({
+  ctx.workspaces.bindBadge({
     id: "my-ext.badges",
     provide(workspaceId) {
       const status = getStatus(workspaceId);
@@ -583,17 +709,40 @@ ctx.subscriptions.push(
 
 ***
 
+### ~~registerBadge()~~
+
+```ts
+registerBadge(provider): Disposable;
+```
+
+Defined in: [packages/sdk/src/workspace-service.ts:429](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L429)
+
+#### Parameters
+
+##### provider
+
+[`WorkspaceBadgeProvider`](WorkspaceBadgeProvider.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Deprecated
+
+Prefer [WorkspaceService.bindBadge](#bindbadge).
+
+***
+
 ### getBadges()
 
 ```ts
 getBadges(workspaceId): WorkspaceBadge[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:403](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L403)
+Defined in: [packages/sdk/src/workspace-service.ts:435](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L435)
 
-Concatenate all registered providers' badges for one workspace (in
-registration order). Called synchronously during panel render — providers
-must be fast and side-effect-free.
+Concatenate imperative badges and all binders' badges for one workspace
+(in binder registration order).
 
 #### Parameters
 
@@ -613,13 +762,10 @@ must be fast and side-effect-free.
 invalidateBadges(): void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:412](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L412)
+Defined in: [packages/sdk/src/workspace-service.ts:441](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L441)
 
-Signal that badge data has changed. Fires all listeners registered via
-[WorkspaceService.subscribeBadges](#subscribebadges), causing the Workspaces panel to
-re-query providers and re-render the name row.
-
-Call this after any mutation to the state your `provide` function reads.
+Signal that badge binder data has changed. Imperative set/clear already
+notify listeners.
 
 #### Returns
 
@@ -633,11 +779,9 @@ Call this after any mutation to the state your `provide` function reads.
 subscribeBadges(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:419](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L419)
+Defined in: [packages/sdk/src/workspace-service.ts:446](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L446)
 
-Subscribe to badge invalidations. The listener is called whenever
-[WorkspaceService.invalidateBadges](#invalidatebadges) is invoked. Returns a
-[Disposable](Disposable.md) that cancels the subscription.
+Subscribe to badge invalidations.
 
 #### Parameters
 

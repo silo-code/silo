@@ -32,36 +32,35 @@ the full signature.
 | [`closeWorkspace(id)`](/api/types/interfaces/TerminalService#closeworkspace) | Close and kill every terminal in a workspace (e.g. on workspace delete).                                          |
 | [`focus(terminalId)`](/api/types/interfaces/TerminalService#focus)           | Switch to the workspace containing this terminal and activate its tab in the center dock. No-ops for unknown ids. |
 
-## Tab decoration
+## Tab adornments
 
-Extensions can attach a small icon badge — with an optional tooltip and semantic
-color — to terminal tabs. The first registered provider that returns a non-null
-decoration for a given terminal wins; subsequent providers are not consulted.
+Leading icons and trailing Phosphor indicators on terminal tabs. Prefer the
+adorn verbs (`setIndicator` / `bindIndicator` / …) — full guide:
+[Tab adornments](/api/state/tab-adornments).
+
+`registerTabDecoration` remains as a **deprecated shim** over `bindIndicator`.
 
 ```ts
 ctx.subscriptions.push(
-  ctx.terminals.registerTabDecoration({
+  ctx.terminals.bindActivity({
     id: "my-ext.tab",
     provide(terminalId) {
-      const status = getStatus(terminalId);
-      if (!status) return null;
-      return { icon: <StatusIcon />, color: "accent", tooltip: "Working" };
+      if (!isBusy(terminalId)) return null;
+      return { activity: "working", tooltip: "Working" };
     },
   }),
 );
 
-// after your data changes, trigger a re-render:
-ctx.terminals.invalidateTabDecorations();
+ctx.terminals.invalidateTabAdornments();
 ```
 
-| Method                                                                                               | What it does                                                                                                                             |
-| ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| [`registerTabDecoration(provider)`](/api/types/interfaces/TerminalService#registertabdecoration)     | Register a decoration provider. First non-null result across providers wins. Returns a [`Disposable`](/api/types/interfaces/Disposable). |
-| [`getTabDecoration(terminalId)`](/api/types/interfaces/TerminalService#gettabdecoration)             | Get the winning decoration for a terminal (null if none apply).                                                                          |
-| [`invalidateTabDecorations()`](/api/types/interfaces/TerminalService#invalidatetabdecorations)       | Signal that decoration data changed — triggers a tab re-render.                                                                          |
-| [`subscribeTabDecorations(listener)`](/api/types/interfaces/TerminalService#subscribetabdecorations) | Subscribe to decoration invalidations. Returns a [`Disposable`](/api/types/interfaces/Disposable).                                       |
-
-Each decoration is a [`TerminalTabDecoration`](/api/types/interfaces/TerminalTabDecoration).
+| Method                                                                                                          | What it does                        |
+| --------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| [`setActivity` / `clearActivity` / `flashActivity` / `bindActivity`](/api/types/interfaces/TerminalService)     | Host-owned Activity (ADR 0030)      |
+| [`setIndicator` / `clearIndicator` / `flashIndicator` / `bindIndicator`](/api/types/interfaces/TerminalService) | Trailing static Phosphor indicators |
+| [`setIcon` / `clearIcon` / `bindIcon`](/api/types/interfaces/TerminalService)                                   | Leading ReactNode icons             |
+| [`invalidateTabAdornments`](/api/types/interfaces/TerminalService#invalidatetabadornments)                      | Re-query binders                    |
+| `registerTabDecoration` (deprecated)                                                                            | Shim → `bindIndicator`              |
 
 ## OSC events
 
@@ -155,7 +154,7 @@ ctx.subscriptions.push(
 
 Pass [`TerminalService`](/api/types/interfaces/TerminalService).
 
-Related: [`CreateTerminalInput`](/api/types/interfaces/CreateTerminalInput) · [`TerminalRecord`](/api/types/interfaces/TerminalRecord) · [`TerminalKind`](/api/types/type-aliases/TerminalKind) · [`TerminalTabDecoration`](/api/types/interfaces/TerminalTabDecoration) · [`TerminalTabDecorationProvider`](/api/types/interfaces/TerminalTabDecorationProvider) · [`OscEvent`](/api/types/interfaces/OscEvent).
+Related: [`CreateTerminalInput`](/api/types/interfaces/CreateTerminalInput) · [`TerminalRecord`](/api/types/interfaces/TerminalRecord) · [`TerminalKind`](/api/types/type-aliases/TerminalKind) · [`TerminalTabDecoration`](/api/types/type-aliases/TerminalTabDecoration) · [`TerminalTabDecorationProvider`](/api/types/interfaces/TerminalTabDecorationProvider) · [`OscEvent`](/api/types/interfaces/OscEvent).
 
 ## See also
 

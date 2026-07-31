@@ -1,6 +1,6 @@
 # Interface: WorkspaceSectionProvider
 
-Defined in: [packages/sdk/src/workspace-service.ts:53](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L53)
+Defined in: [packages/sdk/src/workspace-service.ts:57](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L57)
 
 A section provider that mounts a React component inside workspace rows in the
 Workspaces side panel. Register via [WorkspaceService.registerSection](WorkspaceService.md#registersection).
@@ -18,7 +18,7 @@ should not appear — this produces no DOM node and no visual gap.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:55](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L55)
+Defined in: [packages/sdk/src/workspace-service.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L59)
 
 Unique id, conventionally `"<extension-id>.section"`.
 
@@ -30,7 +30,7 @@ Unique id, conventionally `"<extension-id>.section"`.
 component: ComponentType<WorkspaceSectionProps>;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:57](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L57)
+Defined in: [packages/sdk/src/workspace-service.ts:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L61)
 
 The React component mounted once per workspace row.
 
@@ -42,6 +42,6 @@ The React component mounted once per workspace row.
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L59)
+Defined in: [packages/sdk/src/workspace-service.ts:63](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L63)
 
 Sort order among sections. Lower values appear first. Defaults to `0`.

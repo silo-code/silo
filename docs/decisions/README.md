@@ -63,3 +63,5 @@ A small, obvious choice needs neither.
 | [0026](./0026-sdk-component-set.md)                     | A curated presentational component set joins the SDK | 2026-07-18 | accepted |
 | [0027](./0027-terminal-link-policy.md)                  | Unified terminal link policy: modifier-click to open | 2026-07-21 | accepted |
 | [0028](./0028-sealed-agent-detection.md)                | Sealed agent detection and honest resume             | 2026-07-29 | accepted |
+| [0029](./0029-adornments-vs-registration.md)            | Adornments vs registration                           | 2026-07-31 | accepted |
+| [0030](./0030-activity-chrome.md)                       | Activity as first-class chrome                       | 2026-07-31 | accepted |

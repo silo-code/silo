@@ -112,9 +112,12 @@
   grid-column: 2;
   grid-row: 1;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
   min-width: 0;
+  /* Reserve room for a chipped badge so the path below doesn't jump when
+   * badges appear (badge = smaller type + vertical padding). */
+  min-height: calc(1.4 * (1em - 3px));
 }
 
 /* Only reserve room for the close button while it's actually visible (on
@@ -135,15 +138,19 @@
 .ws-item .ws-badge {
   font-family: var(--silo-font-ui);
   font-size: calc(1em - 3px);
-  color: var(--silo-color-text-lo);
-  border: 1px solid var(--silo-color-text-lo);
-  border-radius: 3px;
-  padding: 0 4px;
+  font-weight: 600;
+  /* Solid fill from `--ws-badge-bg` (set inline when the contributor passes
+   * `color`); text is a fixed high-contrast ink so it stays readable on any
+   * saturated chip. Default (no color) uses a muted solid + hi text. */
+  color: var(--ws-badge-fg, var(--silo-color-text-hi));
+  background: var(--ws-badge-bg, var(--silo-color-button-bg));
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  padding: 0.15em 0.4em;
   line-height: 1.1;
   flex-shrink: 0;
   text-transform: lowercase;
-  background: color-mix(in srgb, currentColor 12%, transparent);
-  /* Nudge up so the bordered box optically aligns with the baseline-aligned name text. */
+  /* Optical nudge only — name-row min-height already reserves badge height. */
   position: relative;
   top: -1px;
 }
@@ -268,126 +275,8 @@
   min-width: 0;
 }
 
-/* Status-dot colors are fixed, not theme tokens: `--silo-color-ok/warn/err/
-   accent` vary a lot across presets (the "busy" dot in particular can land on
-   a teal or a neutral gray depending on the theme's accent, not the blue a
-   user expects "in progress" to mean). These four are meant to read as a
-   stable ok/warn/error/busy signal regardless of which theme is active, so
-   they're pinned to one semantic palette that only adapts to light vs. dark
-   (via `data-theme`, not the per-preset tokens).
-   `--ws-status-none` (the "unconfirmed" dot) replaces the previous
-   `--silo-color-text` fallback — that token is tuned for reading body text,
-   which in light theme sits at nearly the same perceived lightness as
-   `--ws-status-ok`, making the two dots hard to tell apart at 6px. Pairing a
-   lighter neutral with a brighter, more saturated green widens that gap. */
-:root {
-  --ws-status-ok: #22c55e;
-  --ws-status-warn: #d97706;
-  --ws-status-error: #dc2626;
-  --ws-status-busy: #2563eb;
-  --ws-status-none: #b0b0b0;
-}
-
-[data-theme="dark"] {
-  --ws-status-ok: #4ade80;
-  --ws-status-warn: #fbbf24;
-  --ws-status-error: #f87171;
-  --ws-status-busy: #60a5fa;
-  --ws-status-none: #6b6b6b;
-}
-
-.ws-status-dot {
-  position: relative;
-  flex-shrink: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  align-self: center;
-  color: var(--silo-color-text-lo);
-}
-
-.ws-status-dot[data-status="ok"] {
-  color: var(--ws-status-ok);
-  animation: ws-status-pulse-subtle 1.4s ease-in-out infinite;
-  /* Per-row jitter (set inline from row.id) keeps multiple ok dots from
-     pulsing in lockstep — see statusJitterStyle in WorkspacesPanel.tsx. */
-  animation-delay: var(--ws-status-jitter, 0s);
-}
-
-.ws-status-dot[data-status="warn"] {
-  color: var(--ws-status-warn);
-}
-
-.ws-status-dot[data-status="error"] {
-  color: var(--ws-status-error);
-}
-
-.ws-status-dot[data-status="busy"] {
-  color: var(--ws-status-busy);
-  animation: ws-status-pulse 1.4s ease-in-out infinite;
-  /* Per-row jitter (set inline from row.id) keeps multiple busy dots from
-     throbbing in lockstep — see statusJitterStyle in WorkspacesPanel.tsx. */
-  animation-delay: var(--ws-status-jitter, 0s);
-}
-
-.ws-status-dot[data-status="busy"]::before,
-.ws-status-dot[data-status="busy"]::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1px solid currentColor;
-  animation: ws-status-wave 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
-  animation-delay: var(--ws-status-jitter, 0s);
-  pointer-events: none;
-}
-
-.ws-status-dot[data-status="busy"]::after {
-  animation-delay: calc(var(--ws-status-jitter, 0s) - 0.9s);
-}
-
-.ws-status-dot[data-status="none"] {
-  color: var(--ws-status-none);
-}
-
-@keyframes ws-status-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.55;
-    transform: scale(1.2);
-  }
-}
-
-@keyframes ws-status-pulse-subtle {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 0.65;
-    transform: scale(1.25);
-  }
-}
-
-@keyframes ws-status-wave {
-  0% {
-    opacity: 0.7;
-    transform: scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: scale(3.4);
-  }
-}
+/* Activity glyph: shared `.silo-activity*` in extension-host components.css
+   (ADR 0030). Workspace rows use size `sm`. */
 
 .ws-status-label {
   flex: 1;
