@@ -52,6 +52,7 @@ function useWorkspaceState(ctx: ExtensionContext): WorkspaceState {
 }
 
 const SCOPE_STORAGE_KEY = "scope";
+const SHOW_ALL_TERMINALS_STORAGE_KEY = "showAllTerminals";
 
 export function AgentInspectorPanel({ ctx }: Props) {
   // A UI preference, not workspace-specific data — global scope, so it's
@@ -63,6 +64,16 @@ export function AgentInspectorPanel({ ctx }: Props) {
   function setScope(next: Scope) {
     setScopeState(next);
     ctx.storage.global.set(SCOPE_STORAGE_KEY, next);
+  }
+  // Off by default: `ctx.agents.getState` reports every tracked terminal,
+  // not just agent ones (see AgentInfo.isAgent's doc comment), so a plain
+  // shell would otherwise clutter a panel meant for watching agent activity.
+  const [showAllTerminals, setShowAllTerminalsState] = useState<boolean>(() =>
+    ctx.storage.global.get<boolean>(SHOW_ALL_TERMINALS_STORAGE_KEY, false),
+  );
+  function setShowAllTerminals(next: boolean) {
+    setShowAllTerminalsState(next);
+    ctx.storage.global.set(SHOW_ALL_TERMINALS_STORAGE_KEY, next);
   }
   const agents = useAgentState(ctx, scope);
   const workspaces = useWorkspaceState(ctx);
@@ -86,12 +97,19 @@ export function AgentInspectorPanel({ ctx }: Props) {
   }, [ctx]);
 
   const visible = useMemo(() => {
-    if (scope === "current" || scope === "all") return agents;
-    const ids = new Set(
-      (scope === "open" ? workspaces.open : workspaces.closed).map((w) => w.id),
-    );
-    return agents.filter((a) => ids.has(a.workspaceId));
-  }, [agents, workspaces, scope]);
+    let byWorkspace = agents;
+    if (scope === "open" || scope === "closed") {
+      const ids = new Set(
+        (scope === "open" ? workspaces.open : workspaces.closed).map(
+          (w) => w.id,
+        ),
+      );
+      byWorkspace = agents.filter((a) => ids.has(a.workspaceId));
+    }
+    return showAllTerminals
+      ? byWorkspace
+      : byWorkspace.filter((a) => a.isAgent);
+  }, [agents, workspaces, scope, showAllTerminals]);
 
   return (
     <div className="ai-panel">
@@ -107,6 +125,15 @@ export function AgentInspectorPanel({ ctx }: Props) {
           <option value="closed">Closed workspaces</option>
           <option value="all">All workspaces</option>
         </select>
+
+        <label className="ai-show-all-label">
+          <input
+            type="checkbox"
+            checked={showAllTerminals}
+            onChange={(e) => setShowAllTerminals(e.target.checked)}
+          />
+          Show all terminals
+        </label>
       </div>
 
       {visible.length === 0 ? (
