@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.32.0](https://github.com/silo-code/silo/compare/sdk-v0.31.0...sdk-v0.32.0) (2026-07-31)
+
+
+### Features
+
+* **sdk:** add Activity chrome and tab adornment APIs ([#310](https://github.com/silo-code/silo/issues/310)) ([78a82ae](https://github.com/silo-code/silo/commit/78a82ae2ea9866b176e03ba47c3064c7e35d6297))
+
 ## [0.31.0](https://github.com/silo-code/silo/compare/sdk-v0.30.0...sdk-v0.31.0) (2026-07-30)
 
 
