@@ -3,25 +3,24 @@
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
-  height: 30px;
-  padding: 0 10px;
+  box-sizing: border-box;
+  font-size: var(--silo-font-size-base);
+  min-height: calc(2em + 9px);
+  padding: 4px 8px 4px 2px;
   border: none;
   border-bottom: 1px solid var(--silo-color-border);
   background: var(--silo-color-toolbar-bg);
   color: var(--silo-color-toolbar-text-disabled);
-  font-size: var(--silo-font-size-base);
   font-family: var(--silo-font-ui);
   white-space: nowrap;
   cursor: pointer;
 }
 
-/* Stay flat on hover/active — the host's global `button:hover` paints a
-   background, and its specificity (0,2,1) outranks a plain `.view-switcher:hover`
-   (0,2,0), so we match its shape (`:not(:disabled)`) to win and pin the
-   background back to the bar. Only the text brightens as the hover affordance. */
+/* Same hover wash as toolbar IconButtons (`--silo-color-bg-hover`). Must use
+ * `:not(:disabled)` to outrank the global `button:hover` specificity. */
 .view-switcher:hover:not(:disabled),
 .view-switcher:active:not(:disabled) {
-  background: var(--silo-color-toolbar-bg);
+  background: var(--silo-color-bg-hover);
   color: var(--silo-color-toolbar-text);
 }
 
@@ -36,21 +35,25 @@
 .view-switcher-seg {
   display: inline-flex;
   align-items: center;
+  /* Wide enough that the centered pipe clears both hover chips (~4px each side). */
+  gap: 9px;
   flex: 0 0 auto;
-  height: 30px;
-  padding: 0 10px;
+  box-sizing: border-box;
+  font-size: var(--silo-font-size-base);
+  min-height: calc(2em + 9px);
+  padding: 4px 6px 4px 2px;
   background: var(--silo-color-toolbar-bg);
   border-bottom: 1px solid var(--silo-color-border);
 }
 
 .view-switcher-seg__btn {
-  /* Reset the host's global button chrome (padding/border/bg) — these are flat
-     bar segments, not standalone buttons. The class (0,1,0) out-specifies the
-     global `button` (0,0,1); the `:not(:disabled)` rules below out-rank the
-     global `button:hover`/`:active` (0,2,1). */
+  /* Reset the host's global button chrome. Hover wash matches toolbar
+   * IconButtons; `:not(:disabled)` outranks global `button:hover`. */
   position: relative;
-  padding: 0 10px;
+  padding: 0 5px;
+  height: 2em;
   border: none;
+  border-radius: var(--silo-radius-sm);
   background: transparent;
   color: var(--silo-color-toolbar-text-disabled);
   font-size: var(--silo-font-size-base);
@@ -59,29 +62,32 @@
   cursor: pointer;
 }
 
-/* Subtle pipe divider between segments — a fixed-height rule centered on the
-   seam, rather than a full-height border that reads faint. */
+/* Pipe centered in the gap — outside both buttons' hover backgrounds. */
 .view-switcher-seg__btn + .view-switcher-seg__btn::before {
   content: "";
   position: absolute;
-  left: 0;
+  left: -5px; /* half of 9px gap */
   top: 50%;
   transform: translateY(-50%);
   width: 1px;
-  height: 14px;
+  height: 1em;
   background: var(--silo-color-toolbar-text-disabled);
 }
 
 .view-switcher-seg__btn:hover:not(:disabled),
 .view-switcher-seg__btn:active:not(:disabled) {
-  background: transparent;
+  background: var(--silo-color-bg-hover);
   color: var(--silo-color-toolbar-text);
 }
 
-/* Active segment — no fill, just brighter/heavier text. */
-.view-switcher-seg__btn[aria-pressed="true"],
-.view-switcher-seg__btn[aria-pressed="true"]:hover:not(:disabled) {
-  background: transparent;
+/* Active segment — brighter/heavier text; same hover wash as siblings. */
+.view-switcher-seg__btn[aria-pressed="true"] {
   color: var(--silo-color-toolbar-text);
   font-weight: 600;
+}
+
+.view-switcher-seg__btn[aria-pressed="true"]:hover:not(:disabled),
+.view-switcher-seg__btn[aria-pressed="true"]:active:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-toolbar-text);
 }

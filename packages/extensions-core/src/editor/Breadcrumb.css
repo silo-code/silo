@@ -4,12 +4,15 @@
   flex-wrap: nowrap;
   overflow: hidden;
   flex: 0 0 auto;
-  height: 30px;
-  padding: 0 12px;
+  /* Match contributed-toolbar with sm IconButtons: 2em hit target + pad +
+   * border. em tracks uiFontSize via font-size below. */
+  box-sizing: border-box;
+  font-size: var(--silo-font-size-base);
+  min-height: calc(2em + 9px);
+  padding: 4px 8px;
   background: var(--silo-color-toolbar-bg);
   border-bottom: 1px solid var(--silo-color-border);
   color: var(--silo-color-toolbar-text-disabled);
-  font-size: var(--silo-font-size-base);
   font-family: var(--silo-font-ui);
   user-select: none;
   white-space: nowrap;

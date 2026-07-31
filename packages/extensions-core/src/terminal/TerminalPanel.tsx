@@ -48,6 +48,7 @@ import { findTerminalOwnerId } from "./terminal-lifecycle";
 import { formatResumeBox } from "./resume-box";
 import { TerminalSearch } from "./TerminalSearch";
 import { Breadcrumb } from "../editor/Breadcrumb";
+import { ContributedToolbar } from "../shared/ContributedToolbar";
 import "@xterm/xterm/css/xterm.css";
 import "./TerminalPanel.css";
 
@@ -1139,11 +1140,18 @@ export function TerminalPanel(
   return (
     <div className="terminal-panel" onContextMenu={onContextMenu}>
       {showBreadcrumb && (
-        <Breadcrumb
-          filePath={cwd || wsFolder || null}
-          workspaceFolder={wsFolder}
-          leafIcon="folder"
-        />
+        <div className="terminal-toolbar">
+          <Breadcrumb
+            filePath={cwd || wsFolder || null}
+            workspaceFolder={wsFolder}
+            leafIcon="folder"
+          />
+          <ContributedToolbar
+            surface="terminal"
+            target={{ terminalId }}
+            showMenu={ctx.ui.showMenu}
+          />
+        </div>
       )}
       <div className="terminal-panel__body">
         <div

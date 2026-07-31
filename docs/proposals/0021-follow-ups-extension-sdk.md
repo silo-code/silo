@@ -1,5 +1,5 @@
 ---
-status: draft
+status: accepted
 created: 2026-07-30
 # supersedes:
 # superseded-by:
@@ -228,8 +228,6 @@ keep compiling. Prefer documenting the top-level API as canonical going forward.
 
 ## Decision
 
-_Draft — locked by wayfinding map [#301](https://github.com/silo-code/silo/issues/301); not yet accepted for implementation._
-
-When accepted: flip roadmap entries for the new `ctx` members to `planned` (then
-`stable` on land), implement host prerequisites + SDK, then ship Follow-ups as
-an extension against the published surface.
+**Accepted** for implementation (wayfinding map
+[#301](https://github.com/silo-code/silo/issues/301)). SDK + host land in-tree;
+the Follow-ups product extension remains a separate effort against this surface.

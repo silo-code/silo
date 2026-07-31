@@ -65,13 +65,18 @@ describe("getBadges()", () => {
   });
 });
 
-describe("invalidate()", () => {
-  it("fires subscribe listeners", () => {
-    let calls = 0;
-    const sub = workspaceBadgeRegistry.subscribe(() => calls++);
-    disposables.push(sub);
-    workspaceBadgeRegistry.invalidate();
-    expect(calls).toBe(1);
+describe("set / clear", () => {
+  it("merges imperative badges ahead of binders", () => {
+    register(makeProvider("p", [{ id: "from-bind", text: "b" }]));
+    workspaceBadgeRegistry.set("ws1", { id: "imp", text: "a" });
+    expect(workspaceBadgeRegistry.getBadges("ws1")).toEqual([
+      { id: "imp", text: "a" },
+      { id: "from-bind", text: "b" },
+    ]);
+    workspaceBadgeRegistry.clear("ws1", "imp");
+    expect(workspaceBadgeRegistry.getBadges("ws1")).toEqual([
+      { id: "from-bind", text: "b" },
+    ]);
   });
 });
 

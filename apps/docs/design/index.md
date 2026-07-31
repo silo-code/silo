@@ -71,6 +71,7 @@ ctx.ui.showModal((close) => <MyPicker onDone={close} />, {
 | Switch between views of content              | `Tabs`, `SegmentedTabs`                                 | [Tabs](/design/components/tabs)                             |
 | Rows of selectable things                    | `List` / `ListRow`, `AddRow`                            | [Lists](/design/components/lists)                           |
 | A status/identity pill                       | `Badge`                                                 | [Badges](/design/components/badges)                         |
+| Busy / ready / warn / error dots             | `ActivityGlyph`                                         | [Activity](/design/components/activity)                     |
 | "Nothing here" / explanatory copy            | `EmptyState`, `Callout`                                 | [Feedback](/design/components/feedback)                     |
 | A hover label for an icon-only action        | `Tooltip`                                               | [Feedback](/design/components/feedback#tooltip)             |
 | Group settings, footer actions, scroll areas | `Section`, `SettingRow`, `ModalActions`, `.silo-scroll` | [Structure](/design/components/structure)                   |

@@ -1,6 +1,6 @@
 # Interface: DiffContentRequest
 
-Defined in: [packages/sdk/src/editor-service.ts:129](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L129)
+Defined in: [packages/sdk/src/editor-service.ts:130](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L130)
 
 The request a [DiffContentProvider](../type-aliases/DiffContentProvider.md) receives to resolve a diff's two
 sides — the [OpenDiffSpec](OpenDiffSpec.md)'s `filePath`/`args` plus the workspace
@@ -16,7 +16,7 @@ In a multi-root workspace this is the matching root (primary or an
 filePath: string;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:131](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L131)
+Defined in: [packages/sdk/src/editor-service.ts:132](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L132)
 
 The file the diff is OF (from [OpenDiffSpec.filePath](OpenDiffSpec.md#filepath)).
 
@@ -28,7 +28,7 @@ The file the diff is OF (from [OpenDiffSpec.filePath](OpenDiffSpec.md#filepath))
 optional args?: Record<string, unknown>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L133)
+Defined in: [packages/sdk/src/editor-service.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L134)
 
 The provider's args (from [OpenDiffSpec.args](OpenDiffSpec.md#args)).
 
@@ -40,7 +40,7 @@ The provider's args (from [OpenDiffSpec.args](OpenDiffSpec.md#args)).
 workspaceFolder: string | null;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:139](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L139)
+Defined in: [packages/sdk/src/editor-service.ts:140](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L140)
 
 Workspace root that contains [DiffContentRequest.filePath](#filepath), or
 `null` if none. Prefer this over the workspace primary folder when roots

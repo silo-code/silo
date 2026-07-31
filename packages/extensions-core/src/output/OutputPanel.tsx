@@ -222,7 +222,7 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
             onClick={() => activeKey && clearChannel(activeKey)}
             aria-label="Clear"
           >
-            <X size={14} />
+            <X size="1em" weight="bold" />
           </button>
         </Tooltip>
         <Tooltip
@@ -238,7 +238,7 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
             disabled={selectedIds.size === 0}
             aria-label="Copy selected rows"
           >
-            <CopySimple size={14} />
+            <CopySimple size="1em" weight="bold" />
           </button>
         </Tooltip>
         <Tooltip content={autoScroll ? "Auto-scroll on" : "Auto-scroll off"}>
@@ -248,7 +248,7 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
             aria-pressed={autoScroll}
             aria-label="Toggle auto-scroll"
           >
-            <ArrowLineDown size={14} />
+            <ArrowLineDown size="1em" weight="bold" />
           </button>
         </Tooltip>
       </div>

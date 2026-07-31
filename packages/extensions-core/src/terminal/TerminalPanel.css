@@ -9,6 +9,23 @@
   background: var(--silo-content-terminal-bg);
 }
 
+/* Path crumbs + trailing contribution cluster (RFC 0021). */
+.terminal-toolbar {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+.terminal-toolbar .breadcrumb {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Flush the contribution cluster up against the path crumbs. */
+.terminal-toolbar .breadcrumb:has(+ .contributed-toolbar) {
+  padding-right: 0;
+}
+
 /* Holds the xterm host + overlays below the breadcrumb; the absolutely
  * positioned host fills this box. */
 .terminal-panel__body {

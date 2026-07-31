@@ -63,4 +63,5 @@ never deleted** — "we considered X and rejected it" stops the debate recurring
 | [0018](./0018-ctx-agents-surface.md)                      | `ctx.agents` — host-computed agent activity + resume-hint surface | 2026-07-22 | draft       |
 | [0019](./0019-agent-hook-shell-runtime.md)                | Agent session hook — POSIX-shell runtime (replaces base64/Python) | 2026-07-29 | implemented |
 | [0020](./0020-agent-hook-activity-channel.md)             | Hooks as an authoritative agent-activity channel (over OSC)       | 2026-07-29 | draft       |
-| [0021](./0021-follow-ups-extension-sdk.md)                | Follow-ups extension — generic toolbar + tab-decoration SDK       | 2026-07-30 | draft       |
+| [0021](./0021-follow-ups-extension-sdk.md)                | Follow-ups extension — generic toolbar + tab-decoration SDK       | 2026-07-30 | accepted    |
+| [0022](./0022-side-panel-tab-adornments.md)               | Side-panel tab adornments — owner handle from registerSidePanel   | 2026-07-31 | draft       |

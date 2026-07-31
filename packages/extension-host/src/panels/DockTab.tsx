@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSnapshot } from "valtio";
 import type { IDockviewPanelHeaderProps } from "dockview";
-import type { TerminalTabDecoration } from "@silo-code/sdk";
+import type {
+  MenuEntry,
+  TabActivityAdornment,
+  TabIconAdornment,
+  TabIndicatorAdornment,
+} from "@silo-code/sdk";
+import { ActivityGlyph } from "@silo-code/sdk";
 import { store } from "../state/store";
 import {
   findTerminal,
@@ -9,8 +15,11 @@ import {
   renameTerminal,
 } from "../state/workspaces";
 import { prompt } from "../extension-host/modal-service";
-import { terminalTabDecorationRegistry } from "../extension-host/terminal-tab-decoration-registry";
+import { tabAdornmentRegistry } from "../extension-host/tab-adornment-registry";
+import { contextMenuEntriesFor } from "../extension-host/context-menu-items";
+import { openMenu } from "../extension-host/menu-controller";
 import { Tooltip } from "../components/Tooltip";
+import { TabIndicatorGlyph } from "./TabIndicatorGlyph";
 
 // Custom tab: mirrors dockview's default tab DOM, but renders the dirty marker
 // as its own styled span so we can size/color it independently. (DockviewDefaultTab
@@ -40,23 +49,51 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
   const contentRef = useRef<HTMLSpanElement>(null);
   const [isTruncated, setIsTruncated] = useState(false);
   const snap = useSnapshot(store);
-  const [tabDecoration, setTabDecoration] =
-    useState<TerminalTabDecoration | null>(() =>
-      terminalId
-        ? terminalTabDecorationRegistry.getTabDecoration(terminalId)
-        : null,
-    );
+  const adornKind =
+    editorId != null
+      ? ("editor" as const)
+      : terminalId != null
+        ? ("terminal" as const)
+        : null;
+  const adornTargetId = editorId ?? terminalId;
+  const [tabIcons, setTabIcons] = useState<TabIconAdornment[]>(() =>
+    adornKind && adornTargetId
+      ? tabAdornmentRegistry.getIcons(adornKind, adornTargetId)
+      : [],
+  );
+  const [tabIndicators, setTabIndicators] = useState<TabIndicatorAdornment[]>(
+    () =>
+      adornKind && adornTargetId
+        ? tabAdornmentRegistry.getIndicators(adornKind, adornTargetId)
+        : [],
+  );
+  const [tabActivities, setTabActivities] = useState<TabActivityAdornment[]>(
+    () =>
+      adornKind && adornTargetId
+        ? tabAdornmentRegistry.getActivities(adornKind, adornTargetId)
+        : [],
+  );
 
   useEffect(() => {
-    if (!terminalId) return;
-    const refresh = () =>
-      setTabDecoration(
-        terminalTabDecorationRegistry.getTabDecoration(terminalId),
+    if (!adornKind || !adornTargetId) {
+      setTabIcons([]);
+      setTabIndicators([]);
+      setTabActivities([]);
+      return;
+    }
+    const refresh = () => {
+      setTabIcons(tabAdornmentRegistry.getIcons(adornKind, adornTargetId));
+      setTabIndicators(
+        tabAdornmentRegistry.getIndicators(adornKind, adornTargetId),
       );
-    const sub = terminalTabDecorationRegistry.subscribe(refresh);
+      setTabActivities(
+        tabAdornmentRegistry.getActivities(adornKind, adornTargetId),
+      );
+    };
+    const sub = tabAdornmentRegistry.subscribe(refresh);
     refresh();
     return sub.dispose;
-  }, [terminalId]);
+  }, [adornKind, adornTargetId]);
 
   useEffect(() => {
     const sub = api.onDidTitleChange((e) => setTitle(e.title ?? ""));
@@ -159,31 +196,83 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
     event.preventDefault();
   }, []);
 
-  // Right-click a terminal tab → rename it. Opens the prompt directly (no
-  // intermediate menu). The name lives on the terminal record (customName) and
-  // overrides the PTY-derived title until renamed again or the terminal closes.
+  // Right-click → real menu: Rename (terminals) + extension contributions
+  // on editor/tab or terminal/tab (RFC 0021 / RFC 0013).
   const onTabContextMenu = useCallback(
-    async (event: React.MouseEvent) => {
-      if (!terminalId) return;
+    (event: React.MouseEvent) => {
+      if (!editorId && !terminalId) return;
       event.preventDefault();
       event.stopPropagation();
-      const wsId = store.activeWorkspaceId;
-      if (!wsId) return;
-      // Only offer "Reset" when the tab actually carries a custom name —
-      // resetting clears it and hands title control back to the terminal.
-      const renamed = !!findTerminal(wsId, terminalId)?.customName;
-      const next = await prompt({
-        title: "Rename Terminal",
-        label: "Terminal name",
-        initialValue: api.title ?? "",
-        placeholder: "Leave empty to use the automatic name",
-        resetLabel: renamed ? "Reset" : undefined,
+
+      const items: MenuEntry[] = [];
+
+      if (terminalId) {
+        const activeWsId = store.activeWorkspaceId;
+        items.push({
+          label: "Rename…",
+          run: () => {
+            void (async () => {
+              if (!activeWsId) return;
+              const renamed = !!findTerminal(activeWsId, terminalId)
+                ?.customName;
+              const next = await prompt({
+                title: "Rename Terminal",
+                label: "Terminal name",
+                initialValue: api.title ?? "",
+                placeholder: "Leave empty to use the automatic name",
+                resetLabel: renamed ? "Reset" : undefined,
+              });
+              if (next === null) return;
+              renameTerminal(activeWsId, terminalId, next);
+              if (next.trim()) api.setTitle(next.trim());
+            })();
+          },
+        });
+      }
+
+      if (editorId) {
+        const record = wsId
+          ? store.workspaces[wsId]?.editors.find((e) => e.id === editorId)
+          : undefined;
+        const contributed = contextMenuEntriesFor("editor/tab", {
+          editorId,
+          filePath: record?.filePath ?? null,
+          viewId: record?.viewType ?? "unknown",
+        });
+        if (contributed.length > 0) {
+          if (items.length > 0) items.push({ type: "separator" });
+          items.push(...contributed);
+        }
+      } else if (terminalId) {
+        let ownerWsId = wsId;
+        if (!ownerWsId || !findTerminal(ownerWsId, terminalId)) {
+          for (const id of Object.keys(store.workspaces)) {
+            if (findTerminal(id, terminalId)) {
+              ownerWsId = id;
+              break;
+            }
+          }
+        }
+        if (ownerWsId) {
+          const contributed = contextMenuEntriesFor("terminal/tab", {
+            terminalId,
+            workspaceId: ownerWsId,
+          });
+          if (contributed.length > 0) {
+            if (items.length > 0) items.push({ type: "separator" });
+            items.push(...contributed);
+          }
+        }
+      }
+
+      if (items.length === 0) return;
+      void openMenu({
+        items,
+        at: { x: event.clientX, y: event.clientY },
+        toggle: false,
       });
-      if (next === null) return; // cancelled
-      renameTerminal(wsId, terminalId, next);
-      if (next.trim()) api.setTitle(next.trim());
     },
-    [api, terminalId],
+    [api, editorId, terminalId, wsId],
   );
 
   return (
@@ -199,20 +288,42 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
           ref={contentRef}
           className={`dv-default-tab-content${isPreview ? " preview-title" : ""}${isDeleted ? " deleted-title" : ""}`}
         >
+          {tabIcons.map((icon) => (
+            <span key={icon.id} className="dvi-tab-icon" aria-hidden>
+              {icon.icon}
+            </span>
+          ))}
           {isDirty && <span className="dvi-dirty-indicator">●</span>}
           {title}
         </span>
       </Tooltip>
-      {tabDecoration && (
-        <span
-          className="dvi-tab-decoration"
-          data-color={tabDecoration.color ?? "muted"}
-          title={tabDecoration.tooltip}
-          aria-label={tabDecoration.tooltip}
+      {tabIndicators.map((indicator) => (
+        <Tooltip
+          key={indicator.id}
+          content={indicator.tooltip ?? ""}
+          disabled={!indicator.tooltip}
         >
-          {tabDecoration.icon}
-        </span>
-      )}
+          <span
+            className="dvi-tab-decoration"
+            data-color={indicator.color ?? "muted"}
+            data-chip={indicator.chip ? "" : undefined}
+            aria-label={indicator.tooltip}
+          >
+            <TabIndicatorGlyph indicator={indicator} />
+          </span>
+        </Tooltip>
+      ))}
+      {tabActivities.map((act) => (
+        <Tooltip
+          key={act.id}
+          content={act.tooltip ?? ""}
+          disabled={!act.tooltip}
+        >
+          <span className="dvi-tab-activity" aria-label={act.tooltip}>
+            <ActivityGlyph activity={act.activity} size="md" />
+          </span>
+        </Tooltip>
+      ))}
       <div
         className="dv-default-tab-action"
         onPointerDown={onBtnPointerDown}

@@ -15,9 +15,10 @@ data changes, and the panel re-renders.
 
 ## Status rows
 
-Status rows appear below the path line. Each row has a semantic dot
-(`ok`, `warn`, `busy`, `error`), a short label, and an optional `startedAt`
-timestamp rendered as elapsed time ("6h", "2d", "just now").
+Status rows appear below the path line. Each row has an optional
+[`Activity`](/api/types/type-aliases/Activity) glyph (`working`, `ready`,
+`warn`, `error` — omit for the neutral gray fallback), a short label, and an
+optional `startedAt` timestamp rendered as elapsed time ("6h", "2d", "just now").
 
 Use status rows for running background tasks, agent sessions, long-running
 processes, or any status that has a natural age.
@@ -32,7 +33,7 @@ function activate(ctx) {
       const tasks = getRunningTasks(workspaceId);
       return tasks.map((t) => ({
         id: t.id,
-        status: "busy",
+        activity: "working",
         label: t.name,
         startedAt: t.startedAt, // ISO timestamp
       }));
@@ -106,8 +107,10 @@ Badges appear inline next to the workspace name, before the workspace's other
 header controls. Use them for short, high-salience labels: environment names,
 mode flags, CI state, agent status.
 
-Each badge has a `text` field and an optional `color` (any CSS color). When
-`color` is omitted the badge uses the muted text color (`--silo-color-text-lo`).
+Each badge has a `text` field and an optional `color` (any CSS color). The host
+paints a soft tinted chip (text + background, no border) — the same pattern as
+tab decoration icons. When `color` is omitted the badge uses the muted text
+color (`--silo-color-text-lo`).
 
 ```ts
 import type { WorkspaceBadgeProvider } from "@silo-code/sdk";

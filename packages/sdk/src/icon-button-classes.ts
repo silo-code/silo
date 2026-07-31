@@ -7,13 +7,26 @@
 export type IconButtonSize = "normal" | "sm";
 
 /**
- * Resolve the host `.silo-icon-button*` class string for an IconButton's
- * `size`. Default is the 32px standalone size; `sm` adds the 26px modifier.
+ * Visual tone for {@link IconButton}. `"toolbar"` matches the local-web-viewer
+ * bar buttons (toolbar-text icons, hover fill only, no press-scale).
  *
  * @internal
  */
-export function iconButtonClass(size: IconButtonSize = "normal"): string {
-  return size === "sm"
-    ? "silo-icon-button silo-icon-button-sm"
-    : "silo-icon-button";
+export type IconButtonVariant = "normal" | "toolbar";
+
+/**
+ * Resolve the host `.silo-icon-button*` class string for an IconButton's
+ * `size` + `variant`. Default is the standalone size; `sm` adds the compact
+ * modifier; `toolbar` swaps in the breadcrumb/panel-toolbar tone.
+ *
+ * @internal
+ */
+export function iconButtonClass(
+  size: IconButtonSize = "normal",
+  variant: IconButtonVariant = "normal",
+): string {
+  const parts = ["silo-icon-button"];
+  if (size === "sm") parts.push("silo-icon-button-sm");
+  if (variant === "toolbar") parts.push("silo-icon-button-toolbar");
+  return parts.join(" ");
 }

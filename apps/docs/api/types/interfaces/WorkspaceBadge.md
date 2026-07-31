@@ -1,6 +1,6 @@
 # Interface: WorkspaceBadge
 
-Defined in: [packages/sdk/src/workspace-service.ts:69](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L69)
+Defined in: [packages/sdk/src/workspace-service.ts:73](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L73)
 
 A badge displayed next to the workspace name in the Workspaces side panel.
 Contributed by a [WorkspaceBadgeProvider](WorkspaceBadgeProvider.md).
@@ -13,7 +13,7 @@ Contributed by a [WorkspaceBadgeProvider](WorkspaceBadgeProvider.md).
 id: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:71](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L71)
+Defined in: [packages/sdk/src/workspace-service.ts:75](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L75)
 
 Stable key unique within this provider's results; used for reconciliation.
 
@@ -25,7 +25,7 @@ Stable key unique within this provider's results; used for reconciliation.
 text: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:73](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L73)
+Defined in: [packages/sdk/src/workspace-service.ts:77](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L77)
 
 Short text rendered inside the badge.
 
@@ -37,7 +37,7 @@ Short text rendered inside the badge.
 optional color?: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L78)
+Defined in: [packages/sdk/src/workspace-service.ts:82](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L82)
 
-CSS color applied to both the badge border and text. Falls back to the
-muted text color (`--silo-color-text-lo`) when omitted.
+Solid chip fill color. Text paints white on top for contrast. Falls back
+to a muted solid background + hi text when omitted.

@@ -3,6 +3,10 @@ import { dockPanelKindRegistry } from "./dock-panel-kinds";
 import { keybindingRegistry } from "./keybindings";
 import { menuItemRegistry } from "./menu-items";
 import { registerContextMenuItem } from "./context-menu-items";
+import {
+  invalidateToolbarItems as invalidateToolbarItemsRegistry,
+  registerToolbarItem,
+} from "./toolbar-items";
 import { sidePanelRegistry } from "./side-panels";
 import { statusItemRegistry } from "./status-items";
 import {
@@ -24,6 +28,8 @@ import type {
   SidePanel,
   StatusItem,
   Editor,
+  ToolbarItemContribution,
+  ToolbarSurface,
 } from "@silo-code/sdk";
 import { editorRegistry } from "./editor-registry";
 import { fileTypeRegistry } from "./file-types";
@@ -133,6 +139,14 @@ export function createContext(
       item: ContextMenuContribution<S>,
     ): Disposable {
       return track(registerContextMenuItem(item));
+    },
+    registerToolbarItem<S extends ToolbarSurface>(
+      item: ToolbarItemContribution<S>,
+    ): Disposable {
+      return track(registerToolbarItem(item));
+    },
+    invalidateToolbarItems(): void {
+      invalidateToolbarItemsRegistry();
     },
     registerKeybinding(binding: Keybinding): Disposable {
       return track(keybindingRegistry.register(binding));

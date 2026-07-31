@@ -1,6 +1,7 @@
 import type { Disposable } from "./types";
 import type { Event } from "./event";
 import type { EditorMode } from "./domain-types";
+import type { TabAdornmentMethods } from "./tab-adornment";
 
 // `ctx.editors` — the editor & document domain (public contract). Opening files
 // into editor tabs, the active-editor save/close commands, the diff-content
@@ -225,10 +226,13 @@ export interface EditorSaveEvent {
  * editors register save handlers. The single entry point for opening editors —
  * prefer it over reaching into workspace/editor state.
  *
+ * Tab chrome adornments (`setIcon` / `setIndicator` / …) take an **editor id**
+ * as the target — see {@link TabAdornmentMethods}.
+ *
  * @category Consumer Services
  * @public
  */
-export interface EditorService {
+export interface EditorService extends TabAdornmentMethods {
   /**
    * Open a file in an editor tab. Promotes an existing preview, focuses an
    * already-open tab, or opens a new one.

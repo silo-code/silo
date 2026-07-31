@@ -111,6 +111,37 @@ export type {
   OscEvent,
 } from "./terminal-service";
 export type {
+  TabAdornmentColor,
+  TabIconAdornment,
+  TabIndicatorAdornment,
+  TabIndicatorFlash,
+  TabActivityAdornment,
+  TabActivityFlash,
+  TabIconContribution,
+  TabIndicatorContribution,
+  TabActivityContribution,
+  TabIconBinder,
+  TabIndicatorBinder,
+  TabActivityBinder,
+  TabAdornmentMethods,
+} from "./tab-adornment";
+export type { Activity, ActivitySize } from "./activity";
+export { activityFromAgent } from "./activity";
+export { ActivityGlyph } from "./ActivityGlyph";
+export type { PhosphorIconName } from "./phosphor-icon";
+export type {
+  ToolbarSurface,
+  ToolbarItemContext,
+  ToolbarItemFields,
+  ToolbarCommandItemContribution,
+  ToolbarMenuItemContribution,
+  ToolbarChromeFields,
+  ToolbarSeparatorContribution,
+  ToolbarSpacerSize,
+  ToolbarSpacerContribution,
+  ToolbarItemContribution,
+} from "./toolbar-items";
+export type {
   FileService,
   FileMeta,
   FileChangeKind,
@@ -226,7 +257,7 @@ export { Tooltip } from "./Tooltip";
 export { Button } from "./Button";
 export type { ButtonVariant, ButtonSize } from "./Button";
 export { IconButton } from "./IconButton";
-export type { IconButtonSize } from "./IconButton";
+export type { IconButtonSize, IconButtonVariant } from "./IconButton";
 export { Input } from "./Input";
 export { Textarea } from "./Textarea";
 export { SearchInput } from "./SearchInput";

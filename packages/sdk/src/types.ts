@@ -47,6 +47,7 @@ import type {
   ExtensionStorage,
   ExtensionStorageScopes,
 } from "./extension-storage";
+import type { ToolbarItemContribution, ToolbarSurface } from "./toolbar-items";
 
 /**
  * The teardown handle returned by every `register*` call on
@@ -630,6 +631,22 @@ export interface ExtensionContext {
   registerContextMenuItem<S extends MenuSurface>(
     item: ContextMenuContribution<S>,
   ): Disposable;
+  /**
+   * Register a {@link ToolbarItemContribution} (icon-only, text-only,
+   * icon+text, or dropdown) in the trailing cluster of an editor or terminal
+   * toolbar. Independent of {@link ExtensionContext.registerContextMenuItem}
+   * — register either, both, or neither. Hosts only show items while that
+   * surface's breadcrumbs setting is on. See
+   * {@link ExtensionContext.invalidateToolbarItems}.
+   */
+  registerToolbarItem<S extends ToolbarSurface>(
+    item: ToolbarItemContribution<S>,
+  ): Disposable;
+  /**
+   * Signal that toolbar-item `when` / `checked` data changed. Causes editor
+   * and terminal toolbars to re-query contributions and re-render.
+   */
+  invalidateToolbarItems(): void;
   /** Register a {@link Keybinding} (bind a shortcut to a command). */
   registerKeybinding(binding: Keybinding): Disposable;
   /** Register a {@link SidePanel} (a left/right column panel). */

@@ -18,7 +18,7 @@ import is needed in the extension.
 
 ### \_\_namedParameters
 
-`object` & `Omit`\<`HTMLAttributes`\<`HTMLSpanElement`\>, `"children"` \| `"color"`\>
+`object` & `Omit`\<`HTMLAttributes`\<`HTMLSpanElement`\>, `"color"` \| `"children"`\>
 
 ## Returns
 

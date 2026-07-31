@@ -16,7 +16,7 @@ stylesheet import is needed in the extension.
 
 ### \_\_namedParameters
 
-`object` & `Omit`\<`InputHTMLAttributes`\<`HTMLInputElement`\>, `"children"` \| `"disabled"` \| `"type"` \| `"onChange"` \| `"checked"`\>
+`object` & `Omit`\<`InputHTMLAttributes`\<`HTMLInputElement`\>, `"children"` \| `"onChange"` \| `"disabled"` \| `"type"` \| `"checked"`\>
 
 ## Returns
 
