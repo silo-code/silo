@@ -51,6 +51,19 @@ The worker:
 - Fails closed: any internal error or upstream failure returns a non-2xx
   status. Per Tauri's updater contract, a non-2xx/204 response makes the
   client fall through to the next configured endpoint.
+- Reports hits with a **generic browser `user_agent` string**, not an honest
+  one. GoatCounter's server-side bot filter (`isbot`) rejects _any_
+  non-browser-shaped UA — including a self-identifying one like
+  `"SiloUpdater/1.0"` — before it ever reaches stats; their own FAQ states
+  "all bots and crawlers that identify themselves as such are ignored." A
+  hit with a real UA still gets a `202 {"status":"ok"}` from the API, which
+  is misleading — it's accepted and then silently discarded, not counted.
+  Confirmed by direct testing (2026-08-01): identical hits differing only in
+  `user_agent` landed in `/api/v0/stats/hits` with a browser-shaped UA and
+  never did with an honest one, even after 5+ minutes (GoatCounter's own docs
+  claim 10-second stats latency, so this isn't just processing lag). There is
+  no honest UA string that gets past this — the `path` field is what keeps
+  this legible in the dashboard despite the fake UA.
 
 Both `tauri.conf.json` and `tauri.nightly.conf.json` list the worker as the
 **first** endpoint and the direct GitHub manifest URL as a **second, fallback**

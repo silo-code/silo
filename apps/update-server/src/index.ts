@@ -104,9 +104,12 @@ async function reportUpdateCheck(
   check: UpdateCheck,
   rawIp: string | null,
 ): Promise<void> {
-  if (!env.GOATCOUNTER_TOKEN) return;
+  if (!env.GOATCOUNTER_TOKEN) {
+    console.error("reportUpdateCheck: GOATCOUNTER_TOKEN not set, skipping");
+    return;
+  }
   try {
-    await fetch(GOATCOUNTER_URL, {
+    const res = await fetch(GOATCOUNTER_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${env.GOATCOUNTER_TOKEN}`,
@@ -118,13 +121,26 @@ async function reportUpdateCheck(
             path: `/update-check/${check.channel}/${check.version}/${check.target}-${check.arch}`,
             title: `Update check [${check.channel}] ${check.version} (${check.target}-${check.arch})`,
             event: true,
-            user_agent: "Silo-Updater",
+            // GoatCounter's server-side bot filter (isbot) rejects any
+            // non-browser-shaped User-Agent outright — including honest,
+            // self-identifying ones ("all bots and crawlers that identify
+            // themselves as such are ignored" per their own FAQ). A generic
+            // browser UA is the only value that reliably lands in stats; the
+            // `path` still makes it obvious in the dashboard what this is.
+            user_agent:
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             ip: coarsenIp(rawIp),
           },
         ],
       }),
     });
-  } catch {
+    if (!res.ok) {
+      console.error(
+        `reportUpdateCheck: GoatCounter rejected hit: ${res.status} ${await res.text()}`,
+      );
+    }
+  } catch (err) {
+    console.error("reportUpdateCheck: request failed", err);
     // Swallowed on purpose — see reliability contract above.
   }
 }
