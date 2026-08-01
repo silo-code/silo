@@ -45,4 +45,36 @@ describe("matchFilePaths", () => {
     expect(texts(".git/config")).toEqual([]);
     expect(texts("1/2")).toEqual([]);
   });
+
+  it("matches paths with spaces when wrapped in a delimiter pair", () => {
+    expect(
+      texts(
+        "Write(~/.xerro/documents/Blog Posts/Workspaces Paradigm Shift.md)",
+      ),
+    ).toEqual(["~/.xerro/documents/Blog Posts/Workspaces Paradigm Shift.md"]);
+    expect(texts("[~/My Documents/notes.txt]")).toEqual([
+      "~/My Documents/notes.txt",
+    ]);
+    expect(texts('"/abs/path/with space/file.ts"')).toEqual([
+      "/abs/path/with space/file.ts",
+    ]);
+    expect(texts("'/abs/path/with space/file.ts'")).toEqual([
+      "/abs/path/with space/file.ts",
+    ]);
+  });
+
+  it("does not let a space-containing path run past its delimiter", () => {
+    expect(
+      texts("Write(~/Blog Posts/Shift.md) and also (some other note)"),
+    ).toEqual(["~/Blog Posts/Shift.md"]);
+  });
+
+  it("does not allow spaces in undelimited paths", () => {
+    // The space still breaks the match into two spans (pre-existing
+    // behavior for space-free path detection); it just no longer swallows
+    // trailing prose the way an unbounded space-inclusive class would.
+    expect(
+      texts("Wrote 97 lines to ~/Blog Posts/Shift.md successfully"),
+    ).toEqual(["~/Blog", "Posts/Shift.md"]);
+  });
 });
