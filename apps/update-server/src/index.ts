@@ -14,27 +14,40 @@ export interface Env {
   GOATCOUNTER_TOKEN: string;
 }
 
-const GITHUB_MANIFEST_URL =
-  "https://github.com/silo-code/silo/releases/latest/download/latest.json";
+const MANIFEST_URLS = {
+  stable:
+    "https://github.com/silo-code/silo/releases/latest/download/latest.json",
+  nightly:
+    "https://github.com/silo-code/silo/releases/download/nightly/latest.json",
+} as const;
+
+type Channel = keyof typeof MANIFEST_URLS;
+
 const GOATCOUNTER_URL = "https://silo.goatcounter.com/api/v0/count";
 const UPSTREAM_TIMEOUT_MS = 5000;
 const CACHE_TTL_SECONDS = 300;
 
 interface UpdateCheck {
+  channel: Channel;
   target: string;
   arch: string;
   version: string;
 }
 
+function isChannel(value: string): value is Channel {
+  return value === "stable" || value === "nightly";
+}
+
 function parsePath(pathname: string): UpdateCheck | null {
   const segments = pathname.split("/").filter(Boolean);
-  if (segments.length !== 3) return null;
-  const [target, arch, version] = segments;
+  if (segments.length !== 4) return null;
+  const [channel, target, arch, version] = segments;
+  if (!isChannel(channel)) return null;
   const token = /^[a-zA-Z0-9._-]+$/;
   if (!token.test(target) || !token.test(arch) || !token.test(version)) {
     return null;
   }
-  return { target, arch, version };
+  return { channel, target, arch, version };
 }
 
 /** Zero the parts of the address that identify a specific device, keeping
@@ -51,15 +64,17 @@ function coarsenIp(ip: string | null): string | undefined {
   return `${parts[0]}.${parts[1]}.${parts[2]}.0`;
 }
 
-async function fetchManifest(cacheKey: Request): Promise<Response> {
+async function fetchManifest(channel: Channel): Promise<Response> {
+  const manifestUrl = MANIFEST_URLS[channel];
   const cache = caches.default;
+  const cacheKey = new Request(manifestUrl);
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
   try {
-    const upstream = await fetch(GITHUB_MANIFEST_URL, {
+    const upstream = await fetch(manifestUrl, {
       signal: controller.signal,
       headers: { "User-Agent": "silo-update-server" },
     });
@@ -100,8 +115,8 @@ async function reportUpdateCheck(
       body: JSON.stringify({
         hits: [
           {
-            path: `/update-check/${check.version}/${check.target}-${check.arch}`,
-            title: `Update check ${check.version} (${check.target}-${check.arch})`,
+            path: `/update-check/${check.channel}/${check.version}/${check.target}-${check.arch}`,
+            title: `Update check [${check.channel}] ${check.version} (${check.target}-${check.arch})`,
             event: true,
             user_agent: "Silo-Updater",
             ip: coarsenIp(rawIp),
@@ -135,8 +150,7 @@ export default {
         return new Response(null, { status: 404 });
       }
 
-      const cacheKey = new Request(GITHUB_MANIFEST_URL, request);
-      const manifest = await fetchManifest(cacheKey);
+      const manifest = await fetchManifest(check.channel);
 
       const rawIp = request.headers.get("CF-Connecting-IP");
       ctx.waitUntil(reportUpdateCheck(env, check, rawIp));
