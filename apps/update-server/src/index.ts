@@ -23,7 +23,7 @@ const MANIFEST_URLS = {
 
 type Channel = keyof typeof MANIFEST_URLS;
 
-const GOATCOUNTER_URL = "https://silo.goatcounter.com/api/v0/count";
+const GOATCOUNTER_URL = "https://silo-updates.goatcounter.com/api/v0/count";
 const UPSTREAM_TIMEOUT_MS = 5000;
 const CACHE_TTL_SECONDS = 300;
 

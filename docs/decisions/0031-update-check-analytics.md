@@ -41,9 +41,19 @@ The worker:
 - Parses `/{channel}/{target}/{arch}/{version}` (`channel` is `stable` or
   `nightly`), proxies the matching upstream GitHub release manifest unchanged,
   and edge-caches it for 5 minutes.
-- Reports `channel`/`target`/`arch`/`version` to GoatCounter as a synthetic
-  event (`/update-check/<channel>/<version>/<target>-<arch>`), fired via
-  `ctx.waitUntil` so it can never block or fail the actual update check.
+- Reports `channel`/`target`/`arch`/`version` to a **dedicated GoatCounter
+  site, `silo-updates`** (not the `silo` site that tracks getsilo.dev), as a
+  synthetic event (`/update-check/<channel>/<version>/<target>-<arch>`),
+  fired via `ctx.waitUntil` so it can never block or fail the actual update
+  check. Originally posted to the `silo` site directly; split out
+  2026-08-01 once real traffic showed update-check events landing in the
+  same "Pages"/"Totals" widgets as getsilo.dev website visits, inflating and
+  muddying the docs site's own traffic numbers — same rationale as the
+  earlier `silo` → `silo-ext` split for the extensions registry. Count
+  (write) tokens are bound to the specific site they're created from, so this
+  needed a fresh `GOATCOUNTER_TOKEN` Worker secret scoped to `silo-updates`
+  (the existing read-side token for `/silo-metrics` needed no change — it was
+  created with account-wide "all sites" scope).
 - Coarsens the connecting IP before handing it to GoatCounter (last octet
   zeroed for IPv4, last 80 bits for IPv6) purely so GoatCounter's own session
   grouping can approximate distinct machines — the worker itself never stores,
@@ -76,8 +86,9 @@ without the analytics.
 **Easier:**
 
 - We finally have a rough signal for version/platform adoption and usage
-  volume, visible in the same GoatCounter dashboard already used for
-  getsilo.dev traffic — no new analytics account or dashboard to check.
+  volume, visible in the same GoatCounter account already used for
+  getsilo.dev traffic — a new **site** (`silo-updates`) within it, but no new
+  analytics account or tool to learn.
 - Both release channels (stable and nightly) are instrumented the same way,
   distinguished by the `channel` segment.
 
@@ -87,9 +98,13 @@ without the analytics.
   (`updates.getsilo.dev`), deployed independently via `wrangler deploy` from
   `apps/update-server` — not wired into CI/CD, since its logic changes rarely
   (see Alternatives).
-- The `GOATCOUNTER_TOKEN` Worker secret needs to be rotated by hand if the
-  underlying GoatCounter API token is ever rotated (`~/.config/goatcounter/token`
-  is today's source of truth for that value).
+- The Worker's `GOATCOUNTER_TOKEN` secret needs to be rotated by hand
+  (count-only, scoped to the `silo-updates` site specifically — GoatCounter
+  tokens are bound to the site they're created from — set via
+  `wrangler secret put`, not mirrored anywhere in this repo). The separate
+  read-side token at `~/.config/goatcounter/token` (used by `/silo-metrics`)
+  didn't need changing: it was created with "all sites" scope
+  (`"sites": [-1]` per `/api/v0/me`), so it already covers `silo-updates` too.
 - Adding a third release channel means adding an entry to `MANIFEST_URLS` in
   `apps/update-server/src/index.ts` — easy to forget if a future channel's
   `tauri.*.conf.json` isn't cross-checked against this file.
