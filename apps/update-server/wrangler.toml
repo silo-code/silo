@@ -1,0 +1,11 @@
+name = "silo-update-server"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# Auto-provisions the DNS record + TLS for this subdomain on first deploy
+# (getsilo.dev's zone already lives in this Cloudflare account). Wrangler
+# will prompt to confirm before creating it.
+routes = [{ pattern = "updates.getsilo.dev", custom_domain = true }]
+
+[observability]
+enabled = true
