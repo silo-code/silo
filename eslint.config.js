@@ -72,6 +72,9 @@ export default [
       "apps/desktop/src-tauri/**",
       // The docs site has its own toolchain (VitePress + generated TypeDoc).
       "apps/docs/**",
+      // The update-check worker is a standalone Cloudflare Workers project
+      // with its own runtime globals/toolchain (wrangler, not the app).
+      "apps/update-server/**",
       // Example extensions are self-contained mini-projects with their own
       // toolchain (own tsconfig/build, @silo-code/sdk as an external).
       "examples/**",
