@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.41.0](https://github.com/silo-code/silo/compare/silo-v0.40.0...silo-v0.41.0) (2026-08-01)
+
+
+### Features
+
+* **agent-inspector:** add show-all-terminals checkbox ([#313](https://github.com/silo-code/silo/issues/313)) ([8946f8b](https://github.com/silo-code/silo/commit/8946f8b4a9e76d27dec4428eabaf1047905a8ff5))
+* **update-server:** add analytics proxy in front of the updater endpoint ([#315](https://github.com/silo-code/silo/issues/315)) ([aef477e](https://github.com/silo-code/silo/commit/aef477ebe2bfde765cb82d36a18215c04d6c1b81))
+
+
+### Bug Fixes
+
+* **terminal:** detect delimited file paths that contain spaces ([#316](https://github.com/silo-code/silo/issues/316)) ([1a5d0bd](https://github.com/silo-code/silo/commit/1a5d0bd6eb7e1660b8cdfa9d88796773d881ecf3))
+
 ## [0.40.0](https://github.com/silo-code/silo/compare/silo-v0.39.0...silo-v0.40.0) (2026-07-31)
 
 
