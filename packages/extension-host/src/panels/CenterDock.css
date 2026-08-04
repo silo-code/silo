@@ -266,6 +266,77 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Whole-tab highlight — ctx.editors / ctx.terminals setHighlight /
+ * bindHighlight. `.dv-default-tab` only fills dockview's own `.dv-tab`
+ * *content* box (inset by `.dv-tab`'s own padding + border), so painting a
+ * background there leaves slivers of the tab strip showing at the edges.
+ * Paint `.dv-tab` itself instead — the same box its active/inactive
+ * background already fills edge to edge — via `:has()`, keyed off the
+ * `.dvi-tab-highlight` class + `data-color` we render on `.dv-default-tab`.
+ * That inner element contributes no styling of its own; it's just the
+ * `:has()` hook (dockview inserts a plain `.dv-react-part` wrapper between
+ * `.dv-tab` and `.dv-default-tab`, so this can't be a direct-child `>`
+ * selector).
+ *
+ * dockview's own base stylesheet sets `.dv-tab.dv-active-tab` /
+ * `.dv-tab.dv-inactive-tab` background+color with 6 chained classes
+ * (`.dv-groupview.dv-active-group > ... .dv-tab.dv-active-tab`, plus the
+ * mirror for inactive groups/tabs) — higher specificity than a plain
+ * `.dv-tab:has(...)` override. `:is()` folds the active/inactive-tab
+ * branches into one selector (its specificity is just its most specific
+ * branch, i.e. one class) while still padding our own count past 6, the
+ * same "match the library's specificity, skip `!important`" approach used
+ * for `.dv-default-tab-action` above. */
+.editor-dock
+  .dv-groupview
+  .dv-tabs-container
+  .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
+    .dv-default-tab.dvi-tab-highlight
+  ) {
+  background: color-mix(in srgb, currentColor 15%, transparent);
+}
+.editor-dock
+  .dv-groupview
+  .dv-tabs-container
+  .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
+    .dv-default-tab.dvi-tab-highlight[data-color="accent"]
+  ) {
+  color: var(--silo-color-accent);
+}
+.editor-dock
+  .dv-groupview
+  .dv-tabs-container
+  .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
+    .dv-default-tab.dvi-tab-highlight[data-color="warn"]
+  ) {
+  color: var(--silo-color-warn);
+}
+.editor-dock
+  .dv-groupview
+  .dv-tabs-container
+  .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
+    .dv-default-tab.dvi-tab-highlight[data-color="ok"]
+  ) {
+  color: var(--silo-color-ok);
+}
+.editor-dock
+  .dv-groupview
+  .dv-tabs-container
+  .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
+    .dv-default-tab.dvi-tab-highlight[data-color="error"]
+  ) {
+  color: var(--silo-color-err);
+}
+.editor-dock
+  .dv-groupview
+  .dv-tabs-container
+  .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
+    .dv-default-tab.dvi-tab-highlight[data-color="muted"]
+  ) {
+  color: var(--silo-color-text-lo);
+}
+
 .editor-dock .dv-tab.dv-inactive-tab {
   border-color: transparent;
   color: var(--silo-content-tab-text-inactive);

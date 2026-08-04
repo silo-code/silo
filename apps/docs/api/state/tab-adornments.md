@@ -33,6 +33,30 @@ ctx.subscriptions.push(
 );
 ```
 
+## Tab highlight
+
+Paint a soft tinted highlight across the **entire tab** — icon, title text,
+and every other adornment — via optional semantic `color`. Distinct from the
+leading icon and trailing indicator, which tint only their own glyph.
+Contributing one (via `set`, or a `bind` whose `provide` returns non-`null`)
+is itself the on/off signal — there's no separate boolean. At most one
+highlight renders per tab; if multiple extensions contribute one for the
+same target, the first found (`set`, then `bind`, in registration order)
+wins.
+
+```ts
+ctx.editors.setHighlight(editorId, { id: "acme.title", color: "warn" });
+ctx.editors.clearHighlight(editorId, "acme.title");
+
+ctx.subscriptions.push(
+  ctx.terminals.bindHighlight({
+    id: "acme.title",
+    provide: (terminalId) =>
+      acmeStore.isFlagged(terminalId) ? { color: "accent" } : null,
+  }),
+);
+```
+
 ## Trailing indicator (static Phosphor)
 
 You pick a [`PhosphorIconName`](/api/types/type-aliases/PhosphorIconName)
@@ -89,9 +113,11 @@ shipped against the older terminal-only API.
 ## Types
 
 [`TabIconAdornment`](/api/types/interfaces/TabIconAdornment) ·
+[`TabHighlightAdornment`](/api/types/interfaces/TabHighlightAdornment) ·
 [`TabIndicatorAdornment`](/api/types/interfaces/TabIndicatorAdornment) ·
 [`TabActivityAdornment`](/api/types/interfaces/TabActivityAdornment) ·
 [`TabIconBinder`](/api/types/interfaces/TabIconBinder) ·
+[`TabHighlightBinder`](/api/types/interfaces/TabHighlightBinder) ·
 [`TabIndicatorBinder`](/api/types/interfaces/TabIndicatorBinder) ·
 [`TabActivityBinder`](/api/types/interfaces/TabActivityBinder) ·
 [`TabAdornmentColor`](/api/types/type-aliases/TabAdornmentColor) ·

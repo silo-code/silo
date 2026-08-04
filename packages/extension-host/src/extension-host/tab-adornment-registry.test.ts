@@ -89,6 +89,52 @@ describe("tabAdornmentRegistry", () => {
     vi.useRealTimers();
   });
 
+  it("getHighlight returns null when nothing contributed", () => {
+    expect(tabAdornmentRegistry.getHighlight("editor", "e1")).toBeNull();
+  });
+
+  it("setHighlight / clearHighlight round-trip", () => {
+    tabAdornmentRegistry.setHighlight("editor", "e1", {
+      id: "acme.title",
+      color: "warn",
+    });
+    expect(tabAdornmentRegistry.getHighlight("editor", "e1")).toEqual({
+      id: "acme.title",
+      color: "warn",
+    });
+    tabAdornmentRegistry.clearHighlight("editor", "e1", "acme.title");
+    expect(tabAdornmentRegistry.getHighlight("editor", "e1")).toBeNull();
+  });
+
+  it("a direct setHighlight wins over a bindHighlight contribution", () => {
+    tabAdornmentRegistry.setHighlight("editor", "e1", {
+      id: "direct",
+      color: "ok",
+    });
+    tabAdornmentRegistry.bindHighlight("editor", {
+      id: "bound",
+      provide: () => ({ color: "error" }),
+    });
+    expect(tabAdornmentRegistry.getHighlight("editor", "e1")).toEqual({
+      id: "direct",
+      color: "ok",
+    });
+  });
+
+  it("bindHighlight is scoped by kind and disposes cleanly", () => {
+    const d = tabAdornmentRegistry.bindHighlight("terminal", {
+      id: "acme.title",
+      provide: (id) => (id === "t1" ? { color: "accent" } : null),
+    });
+    expect(tabAdornmentRegistry.getHighlight("terminal", "t1")).toEqual({
+      id: "acme.title",
+      color: "accent",
+    });
+    expect(tabAdornmentRegistry.getHighlight("editor", "t1")).toBeNull();
+    d.dispose();
+    expect(tabAdornmentRegistry.getHighlight("terminal", "t1")).toBeNull();
+  });
+
   it("notifies subscribers on set/bind/invalidate", () => {
     let n = 0;
     const sub = tabAdornmentRegistry.subscribe(() => {
