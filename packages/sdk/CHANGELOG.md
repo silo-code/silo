@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.33.0](https://github.com/silo-code/silo/compare/sdk-v0.32.0...sdk-v0.33.0) (2026-08-04)
+
+
+### Features
+
+* **sdk:** add whole-tab highlight adornment API ([#317](https://github.com/silo-code/silo/issues/317)) ([b98dd86](https://github.com/silo-code/silo/commit/b98dd86c035c7c52bd9bb0cd1591d7b52e6997fa))
+
 ## [0.32.0](https://github.com/silo-code/silo/compare/sdk-v0.31.0...sdk-v0.32.0) (2026-07-31)
 
 
