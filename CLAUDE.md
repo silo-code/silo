@@ -33,6 +33,25 @@ Orientation docs (read when relevant):
   extension (bundled or third-party): boundaries, permissions, styling,
   lifecycle, packaging, stability.
 
+## Engineering principles
+
+- Choose the simplest implementation that fully meets the current
+  requirements. Avoid speculative abstractions, configuration, and indirection
+  in implementation code. This doesn't apply to the public SDK surface
+  (`ctx`, `@silo-code/sdk`) — that's designed ahead of full usage on purpose
+  (see the roadmap's `planned` → `stable` flow above); the bar there is
+  deliberate API design, not premature abstraction.
+- Grow the system in layers. Start from the smallest version that works end
+  to end, and add each new capability on top of a product that already
+  works. Never trade a working product for unfinished complexity.
+- Keep components modular and concerns clearly separated.
+- Prefer established, well-maintained libraries over reimplementing common
+  functionality, and lean on dependencies already in the project before
+  adding new ones or writing your own. Don't assume a library lacks a
+  capability without checking its docs and types.
+- Make architectural decisions for the long term. Don't accept a stopgap
+  that only works for now and is meant to be replaced later.
+
 ## Self-documentation — keep docs in sync AS YOU BUILD
 
 The API reference is **generated from the source**, so touching the public
