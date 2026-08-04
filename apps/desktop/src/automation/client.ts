@@ -309,6 +309,24 @@ export class SiloAutomation {
   }
 
   /**
+   * Drive `ctx.terminals.focus(terminalId)` — the public API an extension's side
+   * panel calls. Unlike {@link activatePanel} this covers the cross-workspace
+   * jump (switch to the terminal's workspace, then land on its tab).
+   */
+  focusTerminal(terminalId: string): Promise<{ focused: string }> {
+    return this.call("focusTerminal", { terminalId });
+  }
+
+  /**
+   * The panel id the visible center dock is showing, straight from dockview —
+   * the ground truth for "which tab am I on", and for watching whether it stays
+   * put.
+   */
+  activePanel(): Promise<{ panelId: string | null }> {
+    return this.call("activePanel");
+  }
+
+  /**
    * Move the active center panel into a new split group (test driver), so a test
    * can build a multi-group center — e.g. open an editor + a terminal, then split
    * so they sit in two groups side by side. Returns the resulting group count.

@@ -29,17 +29,20 @@ import {
   getDockComponents,
 } from "../extension-host/dock-panel-kinds";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { setActiveDockApi } from "../docked/dock-api-registry";
+import {
+  setActiveDockApi,
+  focusPanelContent,
+} from "../docked/dock-api-registry";
+import {
+  peekPanelActivation,
+  clearPanelActivation,
+} from "../docked/panel-activation-requests";
 import { getDndService, resolveDndMode } from "../extension-host/dnd-service";
 import { DND_MIME } from "@silo-code/sdk";
 import { setActiveTerminal } from "../extension-host/active-terminal-registry";
 import { setContextKey } from "../extension-host/context-keys";
 import { resolveEditorForRecord } from "../extension-host/editor-registry";
-import {
-  retryFocus,
-  isTextareaFocusedWithin,
-  blurTextareaWithin,
-} from "../extension-host/use-focus-retry";
+import { blurTextareaWithin } from "../extension-host/use-focus-retry";
 import { confirm } from "../extension-host/modal-service";
 import { getThemeBase } from "../layout/presets";
 import { DockTab } from "./DockTab";
@@ -48,6 +51,7 @@ import { GroupAddMenu } from "./GroupAddMenu";
 import {
   findEditorTargetGroup,
   panelToReactivateOnClose,
+  resolveActivationTarget,
 } from "./dock-helpers";
 
 const dnd = getDndService();
@@ -202,27 +206,61 @@ export function WorkspaceDock({
 
   useEffect(() => {
     if (!active || !api) return;
-    setActiveDockApi(api);
-    const root = (api as unknown as { element?: HTMLElement }).element ?? null;
+    const liveApi = api;
+    setActiveDockApi(liveApi);
+    const root =
+      (liveApi as unknown as { element?: HTMLElement }).element ?? null;
 
-    // Restore the panel that was active when this workspace was last visited.
-    // If this is the first activation there is no saved state, so we fall back
-    // to whatever dockview considers active right now.
-    const savedId = lastActivePanelRef.current;
-    const targetPanel =
-      (savedId ? api.getPanel(savedId) : null) ?? api.activePanel;
-    if (targetPanel && targetPanel !== api.activePanel) {
-      targetPanel.api.setActive();
+    // This dock is the SINGLE authority over which panel is active in its
+    // workspace. Nothing outside it calls setActive() on a workspace switch:
+    // a caller that wants a specific panel (ctx.terminals.focus() for a
+    // terminal in another workspace) records a request
+    // (panel-activation-requests) and we apply it here, ahead of the
+    // last-visited restore. Two callers each firing their own setActive() on
+    // their own timing is what made the requested tab flash active and then
+    // flip back to the workspace's remembered tab.
+    //
+    // `applyTarget` returns whether it moved the active tab, so the focus
+    // fallback below knows whether focus is already being driven.
+    let movedActivePanel = false;
+    function applyTarget(): void {
+      const requestedId = peekPanelActivation(workspaceId);
+      const { targetId } = resolveActivationTarget(
+        requestedId,
+        lastActivePanelRef.current,
+        (id) => !!liveApi.getPanel(id),
+      );
+      if (!targetId) return; // nothing mounted to switch to (or still waiting)
+      if (targetId === requestedId) clearPanelActivation(workspaceId);
+      const panel = liveApi.getPanel(targetId);
+      if (!panel || panel === liveApi.activePanel) return;
+      panel.api.setActive();
+      movedActivePanel = true;
+      // Focus follows the tab switch, scoped to this panel's own content —
+      // never a group-wide search, which can land on the previous tab's
+      // still-visible content (see focusPanelContent).
+      focusPanelContent(panel.view.content.element);
     }
+    applyTarget();
 
-    // Delay the focus retry until after relayoutAndRefit (2 RAFs away) to
+    // A request can arrive before its panel exists: a workspace visited for the
+    // first time this session mounts its dock now, and restores its layout /
+    // reconciles its terminal+editor panels in later commits. Apply the pending
+    // request the moment the panel shows up — no timer, no guessed mount delay.
+    const addSub = liveApi.onDidAddPanel(() => {
+      if (peekPanelActivation(workspaceId)) applyTarget();
+    });
+
+    // Delay the focus fallback until after relayoutAndRefit (2 RAFs away) to
     // prevent a one-frame editor flash. layout(force=true) can briefly hand
-    // active status to Monaco; firing retryFocus immediately would land in
-    // the editor, get disrupted on RAF 2, and produce a visible focus flicker.
+    // active status to Monaco; firing it immediately would land in the editor,
+    // get disrupted on RAF 2, and produce a visible focus flicker.
     // useFocusOnActive inside each panel component drives focus from
-    // relayoutAndRefit's setActive() call; this retryFocus is a fallback for
-    // the case where the active panel didn't change (no onDidActiveChange
-    // fires, so useFocusOnActive never triggers).
+    // relayoutAndRefit's setActive() call; this is a fallback for the case
+    // where the active panel didn't change (no onDidActiveChange fires, so
+    // useFocusOnActive never triggers) — when applyTarget DID switch tabs it
+    // has already driven focus, and re-driving it here would be a second,
+    // competing focus intent.
     let cancelled = false;
     let rafId = 0;
     let frame = 0;
@@ -232,21 +270,21 @@ export function WorkspaceDock({
         if (!cancelled) rafId = requestAnimationFrame(step);
         return;
       }
-      if (cancelled) return;
-      const panel = (savedId ? api.getPanel(savedId) : null) ?? api.activePanel;
-      retryFocus(
-        () => (panel ?? api.activePanel)?.focus(),
-        () => isTextareaFocusedWithin(root),
-        () => !cancelled,
-      );
+      if (cancelled || movedActivePanel) return;
+      const panel = liveApi.activePanel;
+      if (panel) focusPanelContent(panel.view.content.element);
     };
     rafId = requestAnimationFrame(step);
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafId);
+      addSub.dispose();
+      // Drop any request that never became applicable (its panel never
+      // mounted) so it can't yank a tab on some later, unrelated visit.
+      clearPanelActivation(workspaceId);
       // Save which panel was active so we can restore it on the next visit.
-      lastActivePanelRef.current = api.activePanel?.id ?? null;
+      lastActivePanelRef.current = liveApi.activePanel?.id ?? null;
       // Dispatch synthetic blur/focusout to reset Monaco's _hasFocus tracker.
       // While the dock is invisible the real blur is often dropped, leaving
       // Monaco believing it still owns focus; without this it re-steals via
@@ -254,7 +292,7 @@ export function WorkspaceDock({
       blurTextareaWithin(root);
       setActiveDockApi(null);
     };
-  }, [active, api]);
+  }, [active, api, workspaceId]);
 
   // Push the active editor + editor-view ids into the extension context-keys so
   // menu items / keybindings with `when` clauses can react, and so that

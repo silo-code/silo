@@ -206,6 +206,8 @@ faithful. **Intended for a sandbox workspace; never point them at real files.**
 | `sendText`          | `{ terminalId, text, addNewline? }`                  | `{ sent }` — write to a PTY; force-spawns if the tab never mounted                     |
 | `openDiff`          | `{ path: string, mode?: "workingTree" \| "staged" }` | `{ diffId, panelId: "diff:<id>" }`                                                     |
 | `activatePanel`     | `{ panelId: string }`                                | `{ activated }`                                                                        |
+| `focusTerminal`     | `{ terminalId: string }`                             | `{ focused }` — drives `ctx.terminals.focus()`, including the cross-workspace jump     |
+| `activePanel`       | —                                                    | `{ panelId }` — the tab the visible center dock is showing, or `null`                  |
 | `showSidePanel`     | `{ id: string }`                                     | `{ shown, slot?, error? }` — expands the panel's slot and clicks its tab               |
 
 Notes:
@@ -237,6 +239,12 @@ Notes:
   string to `activatePanel`, which dispatches the `app:activate-panel`
   `CustomEvent` (`{ detail: { panelId } }`) on `window` — the same event the
   dock listens for.
+- `focusTerminal` is the cross-workspace counterpart of `activatePanel`: it
+  drives the real `ctx.terminals.focus()` (the API an extension's side panel
+  calls), so it also covers switching to the terminal's workspace first.
+  `activePanel` reads dockview's own active panel — the ground truth for "which
+  tab am I on", and what a test polls to watch a tab settle or catch it flipping
+  away (see `cross-workspace-terminal-focus.it.test.ts` and ADR 0032).
 - `openTerminal` opens a `"shell"` terminal; `args.cwd` is optional.
 
 ```bash
