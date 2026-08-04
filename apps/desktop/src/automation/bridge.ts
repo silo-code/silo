@@ -16,6 +16,7 @@ import {
   openDiff,
   openPreviewDiff,
   splitActivePanel,
+  getActiveDockApi,
   getOutputLogs,
 } from "@silo-code/extension-host";
 
@@ -488,6 +489,23 @@ async function handleOp(
         new CustomEvent("app:activate-panel", { detail: { panelId } }),
       );
       return { activated: panelId };
+    }
+
+    // Drive the real ctx.terminals.focus() path — including its cross-workspace
+    // branch (switch workspace, then land on the requested tab), which a test
+    // can't reach through activatePanel (that only talks to the dock already
+    // on screen).
+    case "focusTerminal": {
+      const terminalId = String(args.terminalId ?? "");
+      getTerminalService().focus(terminalId);
+      return { focused: terminalId };
+    }
+
+    // Which tab the visible center dock is actually showing. Read from
+    // dockview's own api (not the DOM), so a test can watch the active tab
+    // settle — or catch it flipping away a moment after it was set.
+    case "activePanel": {
+      return { panelId: getActiveDockApi()?.activePanel?.id ?? null };
     }
 
     // Bring a registered side panel into view: expand its slot, then activate

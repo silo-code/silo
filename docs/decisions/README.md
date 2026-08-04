@@ -65,3 +65,5 @@ A small, obvious choice needs neither.
 | [0028](./0028-sealed-agent-detection.md)                | Sealed agent detection and honest resume             | 2026-07-29 | accepted |
 | [0029](./0029-adornments-vs-registration.md)            | Adornments vs registration                           | 2026-07-31 | accepted |
 | [0030](./0030-activity-chrome.md)                       | Activity as first-class chrome                       | 2026-07-31 | accepted |
+| [0031](./0031-update-check-analytics.md)                | Update-check analytics via a Cloudflare Worker proxy | 2026-08-01 | accepted |
+| [0032](./0032-dock-active-panel-authority.md)           | One authority decides a dock's active panel          | 2026-08-04 | accepted |
