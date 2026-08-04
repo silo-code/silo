@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.42.0](https://github.com/silo-code/silo/compare/silo-v0.41.0...silo-v0.42.0) (2026-08-04)
+
+
+### Features
+
+* **sdk:** add whole-tab highlight adornment API ([#317](https://github.com/silo-code/silo/issues/317)) ([b98dd86](https://github.com/silo-code/silo/commit/b98dd86c035c7c52bd9bb0cd1591d7b52e6997fa))
+
+
+### Bug Fixes
+
+* **extension-host:** make WorkspaceDock the sole authority on its active panel ([#321](https://github.com/silo-code/silo/issues/321)) ([9492fdd](https://github.com/silo-code/silo/commit/9492fdd01ba544dee684f12fd5dad258051e1771)), closes [#320](https://github.com/silo-code/silo/issues/320)
+
 ## [0.41.0](https://github.com/silo-code/silo/compare/silo-v0.40.0...silo-v0.41.0) (2026-08-01)
 
 
