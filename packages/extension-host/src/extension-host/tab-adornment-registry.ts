@@ -11,6 +11,9 @@ import type {
   TabIndicatorBinder,
   TabIndicatorContribution,
   TabIndicatorFlash,
+  TabHighlightAdornment,
+  TabHighlightBinder,
+  TabHighlightContribution,
   TerminalTabDecorationProvider,
 } from "@silo-code/sdk";
 
@@ -27,12 +30,20 @@ function targetKey(kind: TabAdornmentKind, id: string): TargetKey {
 }
 
 const iconSets = new Map<TargetKey, Map<string, TabIconContribution>>();
+const highlightSets = new Map<
+  TargetKey,
+  Map<string, TabHighlightContribution>
+>();
 const indicatorSets = new Map<
   TargetKey,
   Map<string, TabIndicatorContribution>
 >();
 const activitySets = new Map<TargetKey, Map<string, TabActivityContribution>>();
 const iconBinders: TabIconBinder[] = [];
+const highlightBinders: {
+  kind: TabAdornmentKind | "both";
+  binder: TabHighlightBinder;
+}[] = [];
 const indicatorBinders: {
   kind: TabAdornmentKind | "both";
   binder: TabIndicatorBinder;
@@ -78,6 +89,25 @@ function collectIcons(
     if (c !== null) out.push({ id: b.id, ...c });
   }
   return out;
+}
+
+// At most one highlight renders per tab, so the first contribution found
+// (direct `set`, then binders, in registration order) wins — unlike icons/
+// indicators/activities, these don't stack.
+function collectHighlight(
+  kind: TabAdornmentKind,
+  targetId: string,
+): TabHighlightAdornment | null {
+  const set = highlightSets.get(targetKey(kind, targetId));
+  if (set) {
+    for (const [id, c] of set) return { id, ...c };
+  }
+  for (const entry of highlightBinders) {
+    if (entry.kind !== "both" && entry.kind !== kind) continue;
+    const c = entry.binder.provide(targetId);
+    if (c !== null) return { id: entry.binder.id, ...c };
+  }
+  return null;
 }
 
 function collectIndicators(
@@ -165,6 +195,39 @@ export const tabAdornmentRegistry = {
         const i = iconBinders.indexOf(binder);
         if (i !== -1) iconBinders.splice(i, 1);
         iconBinderKinds.delete(binder.id);
+        notify();
+      },
+    };
+  },
+
+  setHighlight(
+    kind: TabAdornmentKind,
+    targetId: string,
+    adornment: TabHighlightAdornment,
+  ): void {
+    const { id, ...rest } = adornment;
+    setContribution(highlightSets, kind, targetId, id, rest);
+  },
+
+  clearHighlight(
+    kind: TabAdornmentKind,
+    targetId: string,
+    adornmentId: string,
+  ): void {
+    clearContribution(highlightSets, kind, targetId, adornmentId);
+  },
+
+  bindHighlight(
+    kind: TabAdornmentKind | "both",
+    binder: TabHighlightBinder,
+  ): Disposable {
+    const entry = { kind, binder };
+    highlightBinders.push(entry);
+    notify();
+    return {
+      dispose() {
+        const i = highlightBinders.indexOf(entry);
+        if (i !== -1) highlightBinders.splice(i, 1);
         notify();
       },
     };
@@ -292,6 +355,13 @@ export const tabAdornmentRegistry = {
     return collectIcons(kind, targetId);
   },
 
+  getHighlight(
+    kind: TabAdornmentKind,
+    targetId: string,
+  ): TabHighlightAdornment | null {
+    return collectHighlight(kind, targetId);
+  },
+
   getIndicators(
     kind: TabAdornmentKind,
     targetId: string,
@@ -340,9 +410,11 @@ export const tabAdornmentRegistry = {
   /** @internal — test helper. */
   _resetForTests(): void {
     iconSets.clear();
+    highlightSets.clear();
     indicatorSets.clear();
     activitySets.clear();
     iconBinders.length = 0;
+    highlightBinders.length = 0;
     indicatorBinders.length = 0;
     activityBinders.length = 0;
     iconBinderKinds.clear();
@@ -363,6 +435,15 @@ export function tabAdornmentMethodsFor(kind: TabAdornmentKind) {
     },
     bindIcon(binder: TabIconBinder) {
       return tabAdornmentRegistry.bindIcon(kind, binder);
+    },
+    setHighlight(targetId: string, adornment: TabHighlightAdornment) {
+      tabAdornmentRegistry.setHighlight(kind, targetId, adornment);
+    },
+    clearHighlight(targetId: string, adornmentId: string) {
+      tabAdornmentRegistry.clearHighlight(kind, targetId, adornmentId);
+    },
+    bindHighlight(binder: TabHighlightBinder) {
+      return tabAdornmentRegistry.bindHighlight(kind, binder);
     },
     setIndicator(targetId: string, adornment: TabIndicatorAdornment) {
       tabAdornmentRegistry.setIndicator(kind, targetId, adornment);
@@ -390,6 +471,9 @@ export function tabAdornmentMethodsFor(kind: TabAdornmentKind) {
     },
     getIcons(targetId: string) {
       return tabAdornmentRegistry.getIcons(kind, targetId);
+    },
+    getHighlight(targetId: string) {
+      return tabAdornmentRegistry.getHighlight(kind, targetId);
     },
     getIndicators(targetId: string) {
       return tabAdornmentRegistry.getIndicators(kind, targetId);

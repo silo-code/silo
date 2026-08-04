@@ -28,6 +28,25 @@ export interface TabIconAdornment {
 }
 
 /**
+ * Soft tinted highlight across the entire CenterDock tab (icon, title, and
+ * every other adornment) — not just the label. Contributing one (via `set`
+ * or a `bind` that returns non-`null`) is itself the on/off signal; there's
+ * no separate boolean. At most one applies per tab — if multiple extensions
+ * contribute one for the same target, the first found wins.
+ *
+ * Set via {@link EditorService.setHighlight} / {@link TerminalService.setHighlight}.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface TabHighlightAdornment {
+  /** Extension-owned key; clear target. */
+  id: string;
+  /** Semantic color for the highlight fill. Defaults to `"accent"`. */
+  color?: TabAdornmentColor;
+}
+
+/**
  * Trailing status adornment on a CenterDock tab — static Phosphor glyph.
  * For busy/ready/warn/error chrome use {@link TabActivityAdornment} instead
  * (ADR 0030).
@@ -113,6 +132,14 @@ export type TabActivityFlash = TabActivityContribution & {
 export type TabIconContribution = Omit<TabIconAdornment, "id">;
 
 /**
+ * Fields contributed by a {@link TabHighlightBinder.provide} call.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export type TabHighlightContribution = Omit<TabHighlightAdornment, "id">;
+
+/**
  * Fields contributed by a {@link TabIndicatorBinder.provide} call.
  *
  * @category Consumer Services
@@ -143,6 +170,23 @@ export interface TabIconBinder {
    * nothing for this target id (editor id or terminal session id).
    */
   provide(targetId: string): TabIconContribution | null;
+}
+
+/**
+ * Keep a whole-tab highlight projection in sync for every editor/terminal
+ * tab.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface TabHighlightBinder {
+  /** Extension-owned key — conventionally `"<extension-id>.tab-highlight"`. */
+  id: string;
+  /**
+   * Called synchronously per tab during render. Return `null` to contribute
+   * no highlight for this target id.
+   */
+  provide(targetId: string): TabHighlightContribution | null;
 }
 
 /**
@@ -186,6 +230,10 @@ export interface TabAdornmentMethods {
   clearIcon(targetId: string, adornmentId: string): void;
   bindIcon(binder: TabIconBinder): Disposable;
 
+  setHighlight(targetId: string, adornment: TabHighlightAdornment): void;
+  clearHighlight(targetId: string, adornmentId: string): void;
+  bindHighlight(binder: TabHighlightBinder): Disposable;
+
   setIndicator(targetId: string, adornment: TabIndicatorAdornment): void;
   clearIndicator(targetId: string, adornmentId: string): void;
   flashIndicator(targetId: string, flash: TabIndicatorFlash): void;
@@ -198,6 +246,11 @@ export interface TabAdornmentMethods {
 
   /** All leading icons for `targetId`, in set/bind order. */
   getIcons(targetId: string): TabIconAdornment[];
+  /**
+   * The whole-tab highlight for `targetId`, or `null` if none. At most one
+   * applies — first found across `set`/`bind` order.
+   */
+  getHighlight(targetId: string): TabHighlightAdornment | null;
   /** All trailing indicators for `targetId`, in set/bind/flash order. */
   getIndicators(targetId: string): TabIndicatorAdornment[];
   /** All trailing activities for `targetId`, in set/bind/flash order. */

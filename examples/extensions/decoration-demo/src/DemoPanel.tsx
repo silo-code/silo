@@ -6,6 +6,7 @@ import type {
   ExtensionContext,
   MenuContext,
   PhosphorIconName,
+  TabAdornmentColor,
   ToolbarItemContext,
   WorkspaceSectionProps,
 } from "@silo-code/sdk";
@@ -309,6 +310,15 @@ const TAB_ACTIVITY_OPTIONS: {
   { id: "error", label: "error — red static" },
 ];
 
+const TAB_HIGHLIGHT_COLOR_OPTIONS: { id: TabAdornmentColor; label: string }[] =
+  [
+    { id: "accent", label: "accent" },
+    { id: "ok", label: "ok" },
+    { id: "warn", label: "warn" },
+    { id: "error", label: "error" },
+    { id: "muted", label: "muted" },
+  ];
+
 // ─── Main panel ──────────────────────────────────────────────────────────────
 
 export function DemoPanel({ ctx }: { ctx: ExtensionContext }) {
@@ -319,6 +329,9 @@ export function DemoPanel({ ctx }: { ctx: ExtensionContext }) {
   const [tabFilledOn, setTabFilledOn] = useState(false);
   const [tabChipOn, setTabChipOn] = useState(false);
   const [tabActivity, setTabActivity] = useState<"" | Activity>("");
+  const [tabHighlightOn, setTabHighlightOn] = useState(false);
+  const [tabHighlightColor, setTabHighlightColor] =
+    useState<TabAdornmentColor>("accent");
   const [toolbarOn, setToolbarOn] = useState(false);
   const [selectedSet, setSelectedSet] = useState(iconSetId);
   const [, setMarkTick] = useState(0);
@@ -470,6 +483,31 @@ export function DemoPanel({ ctx }: { ctx: ExtensionContext }) {
       invalidate();
     };
   }, [ctx, tabActivity]);
+
+  // Tab highlight — soft tinted background across the entire tab.
+  useEffect(() => {
+    if (!tabHighlightOn) return;
+    const contribution = { color: tabHighlightColor };
+    const disposables = [
+      ctx.editors.bindHighlight({
+        id: "silo.decoration-demo.tab-highlight",
+        provide: () => contribution,
+      }),
+      ctx.terminals.bindHighlight({
+        id: "silo.decoration-demo.tab-highlight",
+        provide: () => contribution,
+      }),
+    ];
+    const invalidate = () => {
+      ctx.editors.invalidateTabAdornments();
+      ctx.terminals.invalidateTabAdornments();
+    };
+    invalidate();
+    return () => {
+      for (const d of disposables) d.dispose();
+      invalidate();
+    };
+  }, [ctx, tabHighlightOn, tabHighlightColor]);
 
   // Toolbar toggles + context menus (independent contributions).
   // Re-register when the icon set changes — toolbar `icon` is a Phosphor name.
@@ -729,6 +767,43 @@ export function DemoPanel({ ctx }: { ctx: ExtensionContext }) {
           ))}
         </select>
       </div>
+
+      <div className="deco-row">
+        <div className="deco-label">
+          <span className="deco-label-name">Tab highlight</span>
+          <span className="deco-label-desc">
+            Tint the entire tab (icon, title, adornments)
+          </span>
+        </div>
+        <Toggle
+          id="tabhighlight"
+          checked={tabHighlightOn}
+          onChange={setTabHighlightOn}
+        />
+      </div>
+
+      {tabHighlightOn && (
+        <div className="deco-row">
+          <div className="deco-label">
+            <span className="deco-label-name">Tab highlight color</span>
+            <span className="deco-label-desc">Semantic color for the tint</span>
+          </div>
+          <select
+            className="deco-select"
+            value={tabHighlightColor}
+            aria-label="Tab highlight color"
+            onChange={(e) =>
+              setTabHighlightColor(e.target.value as TabAdornmentColor)
+            }
+          >
+            {TAB_HIGHLIGHT_COLOR_OPTIONS.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="deco-row">
         <div className="deco-label">

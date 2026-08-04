@@ -4,6 +4,7 @@ import type { IDockviewPanelHeaderProps } from "dockview";
 import type {
   MenuEntry,
   TabActivityAdornment,
+  TabHighlightAdornment,
   TabIconAdornment,
   TabIndicatorAdornment,
 } from "@silo-code/sdk";
@@ -61,6 +62,12 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
       ? tabAdornmentRegistry.getIcons(adornKind, adornTargetId)
       : [],
   );
+  const [tabHighlight, setTabHighlight] =
+    useState<TabHighlightAdornment | null>(() =>
+      adornKind && adornTargetId
+        ? tabAdornmentRegistry.getHighlight(adornKind, adornTargetId)
+        : null,
+    );
   const [tabIndicators, setTabIndicators] = useState<TabIndicatorAdornment[]>(
     () =>
       adornKind && adornTargetId
@@ -77,12 +84,16 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
   useEffect(() => {
     if (!adornKind || !adornTargetId) {
       setTabIcons([]);
+      setTabHighlight(null);
       setTabIndicators([]);
       setTabActivities([]);
       return;
     }
     const refresh = () => {
       setTabIcons(tabAdornmentRegistry.getIcons(adornKind, adornTargetId));
+      setTabHighlight(
+        tabAdornmentRegistry.getHighlight(adornKind, adornTargetId),
+      );
       setTabIndicators(
         tabAdornmentRegistry.getIndicators(adornKind, adornTargetId),
       );
@@ -277,8 +288,9 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
 
   return (
     <div
-      className="dv-default-tab"
+      className={`dv-default-tab${tabHighlight ? " dvi-tab-highlight" : ""}`}
       data-testid="dockview-dv-default-tab"
+      data-color={tabHighlight ? (tabHighlight.color ?? "accent") : undefined}
       onMouseDown={onTabMouseDown}
       onDoubleClick={onTabDoubleClick}
       onContextMenu={onTabContextMenu}
