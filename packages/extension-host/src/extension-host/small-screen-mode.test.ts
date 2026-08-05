@@ -28,8 +28,8 @@ function setInnerWidth(px: number): void {
 function resetStore(): void {
   store.leftPanelCollapsed = false;
   store.rightPanelCollapsed = false;
-  store.leftPanelAutoHidden = false;
-  store.rightPanelAutoHidden = false;
+  store.smallScreenActive = false;
+  store.inactiveModeCollapsed = null;
   store.leftPanelPeeking = false;
   store.rightPanelPeeking = false;
   store.leftPanelPeekDragging = false;
@@ -102,25 +102,28 @@ describe("installSmallScreenMode", () => {
     vi.useRealTimers();
   });
 
-  it("auto-hides open panels immediately when launched already small", () => {
+  it("switches to small-screen mode's own layout immediately when launched already small", () => {
     setInnerWidth(1200);
     dispose = installSmallScreenMode();
 
+    expect(store.smallScreenActive).toBe(true);
+    // Nothing recorded for this workspace yet → both columns out of the way.
     expect(store.leftPanelCollapsed).toBe(true);
-    expect(store.leftPanelAutoHidden).toBe(true);
     expect(store.rightPanelCollapsed).toBe(true);
-    expect(store.rightPanelAutoHidden).toBe(true);
+    // ...with the normal-width layout waiting off screen.
+    expect(store.inactiveModeCollapsed).toEqual({ left: false, right: false });
   });
 
   it("does nothing when launched already large", () => {
     setInnerWidth(1800);
     dispose = installSmallScreenMode();
 
+    expect(store.smallScreenActive).toBe(false);
     expect(store.leftPanelCollapsed).toBe(false);
-    expect(store.leftPanelAutoHidden).toBe(false);
+    expect(store.inactiveModeCollapsed).toBeNull();
   });
 
-  it("auto-hides on a debounced resize below threshold", () => {
+  it("switches modes on a debounced resize below threshold", () => {
     setInnerWidth(1800);
     dispose = installSmallScreenMode();
     expect(store.leftPanelCollapsed).toBe(false);
@@ -131,11 +134,11 @@ describe("installSmallScreenMode", () => {
     expect(store.leftPanelCollapsed).toBe(false);
 
     vi.advanceTimersByTime(250);
+    expect(store.smallScreenActive).toBe(true);
     expect(store.leftPanelCollapsed).toBe(true);
-    expect(store.leftPanelAutoHidden).toBe(true);
   });
 
-  it("restores auto-hidden panels to prior collapsed/autoHidden=false once the screen grows past the hysteresis band", () => {
+  it("restores the normal-width layout once the screen grows past the hysteresis band", () => {
     setInnerWidth(1000);
     dispose = installSmallScreenMode();
     expect(store.leftPanelCollapsed).toBe(true);
@@ -143,69 +146,73 @@ describe("installSmallScreenMode", () => {
     setInnerWidth(1440); // exactly at threshold — inside the hysteresis dead zone
     window.dispatchEvent(new Event("resize"));
     vi.advanceTimersByTime(250);
-    expect(store.leftPanelCollapsed).toBe(true); // still hidden — hasn't cleared threshold+hysteresis
+    expect(store.leftPanelCollapsed).toBe(true); // hasn't cleared threshold+hysteresis
 
     setInnerWidth(1600); // clears threshold + 80px hysteresis
     window.dispatchEvent(new Event("resize"));
     vi.advanceTimersByTime(250);
+    expect(store.smallScreenActive).toBe(false);
     expect(store.leftPanelCollapsed).toBe(false);
-    expect(store.leftPanelAutoHidden).toBe(false);
   });
 
-  it("never touches a panel the user manually collapsed", () => {
+  it("keeps a panel the user collapsed on a wide window collapsed when it comes back", () => {
     setInnerWidth(1800);
-    setLeftPanelCollapsed(true); // manual collapse, unrelated to screen size
+    setLeftPanelCollapsed(true); // part of the normal-width layout
     dispose = installSmallScreenMode();
-    expect(store.leftPanelAutoHidden).toBe(false);
 
     setInnerWidth(1000);
     window.dispatchEvent(new Event("resize"));
     vi.advanceTimersByTime(250);
-    // Stays collapsed, but small-screen mode never claimed it.
     expect(store.leftPanelCollapsed).toBe(true);
-    expect(store.leftPanelAutoHidden).toBe(false);
 
     setInnerWidth(1800);
     window.dispatchEvent(new Event("resize"));
     vi.advanceTimersByTime(250);
-    // Growing back doesn't force it open — it was never small-screen mode's.
     expect(store.leftPanelCollapsed).toBe(true);
   });
 
-  it("a manual reopen while auto-hidden sticks until a fresh large-small round trip", () => {
-    setInnerWidth(1000);
+  it("keeps what the user did on the narrow window out of the wide layout", () => {
+    setInnerWidth(1800);
     dispose = installSmallScreenMode();
-    expect(store.leftPanelCollapsed).toBe(true);
-    expect(store.leftPanelAutoHidden).toBe(true);
 
-    setRightPanelCollapsed(store.rightPanelCollapsed); // no-op sanity call
-    setLeftPanelCollapsed(false); // the manual toggle command's path
-    expect(store.leftPanelAutoHidden).toBe(false);
-    expect(store.leftPanelCollapsed).toBe(false);
-
-    // Still small, but nothing re-hides it since no new edge/workspace change fired.
-    vi.advanceTimersByTime(1000);
-    expect(store.leftPanelCollapsed).toBe(false);
-  });
-
-  it("re-hides a newly active workspace's open panels while still small-screen", async () => {
     setInnerWidth(1000);
-    dispose = installSmallScreenMode();
-    expect(store.leftPanelCollapsed).toBe(true);
+    window.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(250);
+    // Reopen one column and close the other — both narrow-window decisions.
+    setLeftPanelCollapsed(false);
+    setRightPanelCollapsed(true);
 
-    // A workspace switch (per-workspace collapsed state loaded fresh) reopens
-    // it; the re-hide runs off valtio's (microtask-batched) subscribe, so the
-    // effect lands one tick after the raw store mutation.
-    store.activeWorkspaceId = "ws-2";
-    store.leftPanelCollapsed = false;
-    store.leftPanelAutoHidden = false;
-    await Promise.resolve();
-
-    expect(store.leftPanelCollapsed).toBe(true);
-    expect(store.leftPanelAutoHidden).toBe(true);
+    setInnerWidth(1800);
+    window.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(250);
+    expect(store.leftPanelCollapsed).toBe(false);
+    expect(store.rightPanelCollapsed).toBe(false);
   });
 
-  it("restores auto-hidden panels immediately when the feature is disabled", async () => {
+  it("brings the small-screen layout back the next time the window is narrow", () => {
+    setInnerWidth(1800);
+    dispose = installSmallScreenMode();
+
+    setInnerWidth(1000);
+    window.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(250);
+    setLeftPanelCollapsed(false); // "I want the left panel open on the laptop"
+
+    setInnerWidth(1800);
+    window.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(250);
+    expect(store.leftPanelCollapsed).toBe(false); // wide layout, untouched
+
+    setInnerWidth(1000);
+    window.dispatchEvent(new Event("resize"));
+    vi.advanceTimersByTime(250);
+    // ...and the narrow window picks up exactly where it left off, rather
+    // than starting over from "hide everything".
+    expect(store.leftPanelCollapsed).toBe(false);
+    expect(store.rightPanelCollapsed).toBe(true);
+  });
+
+  it("leaves small-screen mode immediately when the feature is disabled", async () => {
     setInnerWidth(1000);
     dispose = installSmallScreenMode();
     expect(store.leftPanelCollapsed).toBe(true);
@@ -213,14 +220,14 @@ describe("installSmallScreenMode", () => {
     store.smallScreenModeEnabled = false;
     await Promise.resolve(); // subscribe's notification is microtask-batched
 
+    expect(store.smallScreenActive).toBe(false);
     expect(store.leftPanelCollapsed).toBe(false);
-    expect(store.leftPanelAutoHidden).toBe(false);
   });
 
-  it("peeks an auto-hidden left panel after a dwell at the edge, and hides it again after the mouse leaves", () => {
+  it("peeks a collapsed left panel after a dwell at the edge, and hides it again after the mouse leaves", () => {
     setInnerWidth(1000);
     dispose = installSmallScreenMode();
-    expect(store.leftPanelAutoHidden).toBe(true);
+    expect(store.leftPanelCollapsed).toBe(true);
 
     moveMouse(2); // within the edge hotspot
     vi.advanceTimersByTime(100);
@@ -255,15 +262,32 @@ describe("installSmallScreenMode", () => {
     expect(store.leftPanelPeeking).toBe(true);
   });
 
-  it("never peeks a manually-collapsed panel", () => {
+  it("peeks a panel the user collapsed themselves, on a full-size window", () => {
+    // Peek isn't small-screen mode's alone: any collapsed side panel is one
+    // edge-hover away, however it got collapsed and at any window size.
     setInnerWidth(1800);
     setLeftPanelCollapsed(true);
     dispose = installSmallScreenMode();
-    expect(store.leftPanelAutoHidden).toBe(false);
+    expect(store.smallScreenActive).toBe(false);
 
     moveMouse(2);
     vi.advanceTimersByTime(1000);
-    expect(store.leftPanelPeeking).toBe(false);
+    expect(store.leftPanelPeeking).toBe(true);
+  });
+
+  it("peeks a panel closed by hand while narrow, and never peeks an open one", () => {
+    setInnerWidth(1000);
+    dispose = installSmallScreenMode();
+    setLeftPanelCollapsed(false); // opened on the narrow window...
+
+    moveMouse(2);
+    vi.advanceTimersByTime(1000);
+    expect(store.leftPanelPeeking).toBe(false); // nothing to peek, it's open
+
+    setLeftPanelCollapsed(true); // ...then closed again by hand
+    moveMouse(2);
+    vi.advanceTimersByTime(1000);
+    expect(store.leftPanelPeeking).toBe(true);
   });
 
   it("keeps peeking through a resize drag even once the cursor leaves the pre-drag peek-host bounds", () => {
@@ -273,7 +297,7 @@ describe("installSmallScreenMode", () => {
     // as "left the peek" mid-drag and hide it out from under the user.
     setInnerWidth(1000);
     dispose = installSmallScreenMode();
-    expect(store.leftPanelAutoHidden).toBe(true); // already small at launch
+    expect(store.leftPanelCollapsed).toBe(true); // already small at launch
     store.leftPanelPeeking = true; // as if already peeking
 
     const dragDispose = beginPeekResize("left", 280);
@@ -374,7 +398,7 @@ describe("installSmallScreenMode: iframe crossing", () => {
   it("does not force-close mid-drag just because the cursor grazes an iframe", () => {
     setInnerWidth(1000);
     dispose = installSmallScreenMode();
-    expect(store.leftPanelAutoHidden).toBe(true);
+    expect(store.leftPanelCollapsed).toBe(true);
     store.leftPanelPeeking = true;
     beginPeekResize("left", 280);
 

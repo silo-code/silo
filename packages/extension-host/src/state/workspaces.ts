@@ -3,6 +3,7 @@ import { basename } from "@tauri-apps/api/path";
 import { path } from "@silo-code/sdk";
 import { store } from "./store";
 import { clearEditorBackup } from "./editor-backups";
+import { applyPanelState, capturePanelState } from "./panel-state";
 import type {
   EditorRecord,
   EditorSettingsOverride,
@@ -60,32 +61,12 @@ export function createWorkspace(input: {
 export function savePanelStateToWorkspace(wsId: string): void {
   const ws = store.workspaces[wsId];
   if (!ws) return;
-  ws.sidePanelLocations = { ...store.sidePanelLocations };
-  ws.sidePanelOrder = { ...store.sidePanelOrder };
-  ws.activeSidePanelTabs = { ...store.activeSidePanelTabs };
-  ws.sidePanelScrollPositions = { ...store.sidePanelScrollPositions };
-  ws.sidePanelVisibility = { ...store.sidePanelVisibility };
-  ws.leftPanelCollapsed = store.leftPanelCollapsed;
-  ws.rightPanelCollapsed = store.rightPanelCollapsed;
-  const ext: Record<string, Record<string, unknown>> = {};
-  for (const k of Object.keys(store.extensionState))
-    ext[k] = { ...store.extensionState[k] };
-  ws.extensionState = ext;
+  Object.assign(ws, capturePanelState());
 }
 
 /** Restore the global panel state from a workspace object. */
 export function loadPanelStateFromWorkspace(ws: WorkspaceInternal): void {
-  store.sidePanelLocations = { ...(ws.sidePanelLocations ?? {}) };
-  store.sidePanelOrder = { ...(ws.sidePanelOrder ?? {}) };
-  store.activeSidePanelTabs = { ...(ws.activeSidePanelTabs ?? {}) };
-  store.sidePanelScrollPositions = { ...(ws.sidePanelScrollPositions ?? {}) };
-  store.sidePanelVisibility = { ...(ws.sidePanelVisibility ?? {}) };
-  store.leftPanelCollapsed = ws.leftPanelCollapsed ?? false;
-  store.rightPanelCollapsed = ws.rightPanelCollapsed ?? false;
-  const ext: Record<string, Record<string, unknown>> = {};
-  for (const k of Object.keys(ws.extensionState ?? {}))
-    ext[k] = { ...ws.extensionState![k] };
-  store.extensionState = ext;
+  applyPanelState(ws);
 }
 
 export function activateWorkspace(id: string): void {

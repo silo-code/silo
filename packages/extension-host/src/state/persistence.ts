@@ -11,6 +11,7 @@ import {
 } from "./types";
 import type { WorkspaceInternal } from "./types";
 import { loadPanelStateFromWorkspace } from "./workspaces";
+import { capturePanelState } from "./panel-state";
 import { setBackupDir, sweepEditorBackups } from "./editor-backups";
 import {
   buildIndex,
@@ -22,7 +23,6 @@ import {
   splitPersistedState,
   withActivePanelState,
   type LegacyPersisted,
-  type PanelState,
   type PersistedIndex,
 } from "./persistence-model";
 
@@ -207,18 +207,19 @@ export async function hydrate(configDir: string): Promise<void> {
     Object.entries(workspaces).map(([id, ws]) => [id, JSON.stringify(ws)]),
   );
 
-  // Hydrate the global panel-state fields from the active workspace.
+  // Hydrate the global panel-state fields from the active workspace. Side-dock
+  // collapse state is per-workspace; back-fill it from the index first for a
+  // one-time migration carry-over from installs that stored it globally, so
+  // the load below (which picks the live layout mode — small-screen mode may
+  // already be active by now) sees a complete record.
   const activeWs = store.activeWorkspaceId
     ? workspaces[store.activeWorkspaceId]
     : null;
-  if (activeWs) loadPanelStateFromWorkspace(activeWs);
-
-  // Side-dock collapse state is per-workspace. Fall back to the index for a
-  // one-time migration carry-over from installs that stored it globally.
-  store.leftPanelCollapsed =
-    activeWs?.leftPanelCollapsed ?? index?.leftPanelCollapsed ?? false;
-  store.rightPanelCollapsed =
-    activeWs?.rightPanelCollapsed ?? index?.rightPanelCollapsed ?? false;
+  if (activeWs) {
+    activeWs.leftPanelCollapsed ??= index?.leftPanelCollapsed ?? false;
+    activeWs.rightPanelCollapsed ??= index?.rightPanelCollapsed ?? false;
+    loadPanelStateFromWorkspace(activeWs);
+  }
 
   // Side-panel visibility is per-workspace, restored from the active workspace
   // by loadPanelStateFromWorkspace above (defaults to all-visible when absent).
@@ -227,26 +228,13 @@ export async function hydrate(configDir: string): Promise<void> {
   subscribe(store, schedulePersist);
 }
 
-function snapshotPanelState(): PanelState {
-  return {
-    sidePanelLocations: { ...store.sidePanelLocations },
-    sidePanelOrder: { ...store.sidePanelOrder },
-    activeSidePanelTabs: { ...store.activeSidePanelTabs },
-    sidePanelScrollPositions: { ...store.sidePanelScrollPositions },
-    sidePanelVisibility: { ...store.sidePanelVisibility },
-    extensionState: cloneExtensionState(store.extensionState),
-    leftPanelCollapsed: store.leftPanelCollapsed,
-    rightPanelCollapsed: store.rightPanelCollapsed,
-  };
-}
-
 async function doPersist(): Promise<void> {
   if (!indexStore) return;
 
   // Build each workspace's record, merging the active workspace's live panel
   // state (it isn't mirrored onto the workspace object until save time).
   const activeId = store.activeWorkspaceId;
-  const panel = snapshotPanelState();
+  const panel = capturePanelState();
   const records = new Map<string, WorkspaceInternal>();
   const next = new Map<string, string>();
   for (const [id, ws] of Object.entries(store.workspaces)) {

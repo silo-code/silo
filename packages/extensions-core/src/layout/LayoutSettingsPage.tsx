@@ -42,7 +42,7 @@ export function LayoutSettingsPage() {
         <Section label="Laptop Mode">
           <SettingRow
             label="Enable Laptop Mode"
-            hint="Auto-hide side panels when the window narrows past the threshold below, and peek a hidden panel by hovering the window's edge."
+            hint="Give a narrow window its own layout: side panels hide when the window narrows past the threshold below, and each workspace remembers what you show, hide, and resize while it's narrow. Your full-size layout is untouched, and comes back with the wider window. (Hovering the window's edge peeks a collapsed panel at any size.)"
           >
             <Switch
               checked={snap.smallScreenModeEnabled}

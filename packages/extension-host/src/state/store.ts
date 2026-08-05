@@ -1,11 +1,12 @@
 import { proxy } from "valtio";
-import type { AppState, SidePanelSlot } from "./types";
+import type { AppState, SideCollapseState, SidePanelSlot } from "./types";
 import {
   DEFAULT_UI_FONT_SIZE,
   MIN_UI_FONT_SIZE,
   MAX_UI_FONT_SIZE,
   DEFAULT_EDITOR_SETTINGS,
   DEFAULT_TERMINAL_SETTINGS,
+  DEFAULT_PANEL_STATE,
   DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
   MIN_SMALL_SCREEN_THRESHOLD_PX,
   DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
@@ -25,26 +26,23 @@ export const store = proxy<AppState>({
   editorSettings: { ...DEFAULT_EDITOR_SETTINGS },
   terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS },
   customThemes: [],
-  sidePanelLocations: {},
-  sidePanelOrder: {},
-  activeSidePanelTabs: {},
-  sidePanelScrollPositions: {},
-  extensionState: {},
+  // Every per-workspace panel field, from its one declaration — a new one
+  // needs no edit here (see `SharedPanelState` in types.ts).
+  ...structuredClone(DEFAULT_PANEL_STATE),
   globalExtensionState: {},
   agentState: {},
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,
   smallScreenModeEnabled: true,
   smallScreenThresholdPx: DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
-  leftPanelAutoHidden: false,
-  rightPanelAutoHidden: false,
+  smallScreenActive: false,
+  inactiveModeCollapsed: null,
   leftPanelPeeking: false,
   rightPanelPeeking: false,
   leftPanelPeekDragging: false,
   rightPanelPeekDragging: false,
   smallScreenPeekWidthLeftPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
   smallScreenPeekWidthRightPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
-  sidePanelVisibility: {},
   groups: {},
   panelOrder: [],
 });
@@ -76,22 +74,18 @@ export function reorderSidePanels(orderedIds: string[]) {
 }
 
 /**
- * Explicit collapse setters for the manual/public path (commands, the status
- * bar, `ctx.layout`). Always clear the corresponding `*PanelAutoHidden` flag —
- * an explicit call is by definition not small-screen mode's doing, so it
- * "promotes" the panel to a manual state that auto-hide/auto-restore leaves
- * alone until the next full large→small→large round-trip. Small-screen mode
- * itself (`small-screen-mode.ts`) bypasses these and mutates the collapsed +
- * autoHidden fields together directly.
+ * Collapse setters for the manual/public path (commands, the status bar,
+ * `ctx.layout`). They write the *live* layout mode's state — on a narrow
+ * window that's small-screen mode's own layout, which is remembered for the
+ * next narrow window rather than folded into the normal-width one (see
+ * `small-screen-mode.ts`).
  */
 export function setLeftPanelCollapsed(collapsed: boolean) {
   store.leftPanelCollapsed = collapsed;
-  store.leftPanelAutoHidden = false;
 }
 
 export function setRightPanelCollapsed(collapsed: boolean) {
   store.rightPanelCollapsed = collapsed;
-  store.rightPanelAutoHidden = false;
 }
 
 export function toggleLeftPanel() {
@@ -100,6 +94,39 @@ export function toggleLeftPanel() {
 
 export function toggleRightPanel() {
   setRightPanelCollapsed(!store.rightPanelCollapsed);
+}
+
+/** The live (on-screen) collapse pair, as one value. */
+export function liveCollapseState(): SideCollapseState {
+  return { left: store.leftPanelCollapsed, right: store.rightPanelCollapsed };
+}
+
+/**
+ * Both layout modes' collapse state, sorted into the slots a workspace record
+ * stores them in. Which one is live depends on `smallScreenActive`, so every
+ * writer (workspace switch, persist) goes through this rather than reading the
+ * live fields and guessing.
+ */
+export function collapseStateByMode(): {
+  normal: SideCollapseState;
+  smallScreen: SideCollapseState | null;
+} {
+  const live = liveCollapseState();
+  return store.smallScreenActive
+    ? { normal: store.inactiveModeCollapsed ?? live, smallScreen: live }
+    : { normal: live, smallScreen: store.inactiveModeCollapsed };
+}
+
+/**
+ * Swap the live layout mode with the inactive one — the single move that both
+ * entering and leaving small-screen mode are made of. `fallback` is the layout
+ * to switch *to* when the mode being entered has nothing recorded yet.
+ */
+export function swapCollapseMode(fallback: SideCollapseState): void {
+  const incoming = store.inactiveModeCollapsed ?? fallback;
+  store.inactiveModeCollapsed = liveCollapseState();
+  store.leftPanelCollapsed = incoming.left;
+  store.rightPanelCollapsed = incoming.right;
 }
 
 export function setSmallScreenModeEnabled(enabled: boolean) {
@@ -113,10 +140,9 @@ export function setSmallScreenThresholdPx(px: number) {
   );
 }
 
-/** Set the small-screen peek overlay's width for one side — global (not
- * per-workspace) and independent of the panel's normal (large-screen) width.
- * Clamped to a sane, usable range regardless of caller (a drag gesture or a
- * future settings-page field). */
+/** Set the peek overlay's width for one side — global (not per-workspace) and
+ * independent of either layout mode's column width. Clamped to a sane, usable
+ * range regardless of caller (a drag gesture or a future settings-page field). */
 export function setSmallScreenPeekWidthPx(side: SideLocation, px: number) {
   const clamped = Math.max(
     MIN_SMALL_SCREEN_PEEK_WIDTH_PX,

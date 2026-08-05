@@ -30,8 +30,8 @@ afterEach(() => {
   document.body.innerHTML = "";
   vi.clearAllMocks();
   for (const dispose of sidePaneDisposers.splice(0)) dispose();
-  store.leftPanelAutoHidden = false;
-  store.rightPanelAutoHidden = false;
+  store.leftPanelCollapsed = false;
+  store.rightPanelCollapsed = false;
 });
 
 // ── DOM builders (jsdom has no layout, so side-pane visibility is stubbed via a
@@ -182,14 +182,14 @@ describe("cycleRegionFocus", () => {
     expect(document.activeElement).toBe(editor);
   });
 
-  it("skips a side dock that small-screen mode auto-hid, even though it's rendered at full width (a peek)", () => {
-    // Full clientWidth (200) — as if genuinely peeking — but flagged
-    // autoHidden, which alone must be enough to exclude it: peek is a
-    // mouse-only affordance with no keyboard gesture to invoke it.
+  it("skips a collapsed side dock even though it's rendered at full width (a peek)", () => {
+    // Full clientWidth (200) — as if genuinely peeking — but collapsed, which
+    // alone must be enough to exclude it: peek is a mouse-only affordance with
+    // no keyboard gesture to invoke it.
     sidePane("left");
     const editor = document.createElement("textarea");
     centerWith(editor);
-    store.leftPanelAutoHidden = true;
+    store.leftPanelCollapsed = true;
 
     editor.focus();
     expect(cycleRegionFocus(-1)).toBe(false);
@@ -260,10 +260,10 @@ describe("installRegionTabHandoff", () => {
     expect(document.activeElement).toBe(editor);
   });
 
-  it("never hands off out of a small-screen-auto-hidden dock, even from its last tabbable", () => {
+  it("never hands off out of a collapsed (peeking) dock, even from its last tabbable", () => {
     const left = sidePane("left");
     centerWith(document.createElement("textarea"));
-    store.leftPanelAutoHidden = true;
+    store.leftPanelCollapsed = true;
 
     left.focus(); // its only (so "last") tabbable
     const e = pressTab();

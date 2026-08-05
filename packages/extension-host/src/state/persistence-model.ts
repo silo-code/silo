@@ -10,6 +10,7 @@
 
 import type {
   EditorSettings,
+  PanelStateSnapshot,
   SidePanelSlot,
   TerminalSettings,
   WorkspaceInternal,
@@ -30,8 +31,8 @@ export interface PersistedIndex {
   // `small-screen-mode.ts`. Absent in older indexes: defaults applied at hydrate.
   smallScreenModeEnabled?: boolean;
   smallScreenThresholdPx?: number;
-  // Small-screen peek overlay width — also global, independent of the
-  // panel's normal (large-screen) width. See `small-screen-mode.ts`.
+  // Peek overlay width — also global, independent of either layout mode's
+  // column width. See `small-screen-mode.ts`.
   smallScreenPeekWidthLeftPx?: number;
   smallScreenPeekWidthRightPx?: number;
   // Per-extension global storage (`ctx.storage.global`), keyed by extension id.
@@ -72,17 +73,9 @@ export interface LegacyPersisted {
 }
 
 /** The active-workspace panel-state snapshot merged in at save time (the live
- * global store fields, which aren't mirrored onto the workspace until then). */
-export interface PanelState {
-  sidePanelLocations: Record<string, SidePanelSlot>;
-  sidePanelOrder: Record<string, number>;
-  activeSidePanelTabs: Record<string, string>;
-  sidePanelScrollPositions: Record<string, number>;
-  sidePanelVisibility: Record<string, boolean>;
-  extensionState: Record<string, Record<string, unknown>>;
-  leftPanelCollapsed: boolean;
-  rightPanelCollapsed: boolean;
-}
+ * global store fields, which aren't mirrored onto the workspace until then).
+ * Declared with the store shape it's captured from — see `state/types.ts`. */
+export type PanelState = PanelStateSnapshot;
 
 /** Deep-clone the two-level extension-state bag so a stored snapshot can't alias
  * (and later mutate via) the live store. */
@@ -230,17 +223,11 @@ export function withActivePanelState(
   ws: WorkspaceInternal,
   panel: PanelState,
 ): WorkspaceInternal {
-  return {
-    ...ws,
-    sidePanelLocations: { ...panel.sidePanelLocations },
-    sidePanelOrder: { ...panel.sidePanelOrder },
-    activeSidePanelTabs: { ...panel.activeSidePanelTabs },
-    sidePanelScrollPositions: { ...panel.sidePanelScrollPositions },
-    sidePanelVisibility: { ...panel.sidePanelVisibility },
-    extensionState: cloneExtensionState(panel.extensionState),
-    leftPanelCollapsed: panel.leftPanelCollapsed,
-    rightPanelCollapsed: panel.rightPanelCollapsed,
-  };
+  // `PanelState` is by definition the record's panel fields, so the merge is
+  // the spread — no field list to keep in step. The containers are already
+  // copies (`capturePanelState` clones them off the live store), so the result
+  // can't alias state anyone still mutates.
+  return { ...ws, ...panel };
 }
 
 /**

@@ -1,28 +1,43 @@
-// Small screen mode: when the app window's own logical width drops below a
-// threshold (e.g. a MacBook loses its external monitor), auto-collapse the
-// side panels that are currently open, and auto-restore them once the window
-// grows back. While a panel is auto-hidden, hovering the cursor at the
-// window's edge "peeks" it (a transient overlay — see AppShell.tsx's
-// `--peek-width` CSS), which self-hides again once the cursor leaves. The
-// overlay's width is its own global (not per-workspace) preference, resizable
-// by dragging its handle (`beginPeekResize`) — independent of whatever width
-// the panel normally has on a large screen.
+// Small screen mode ("Laptop Mode"): when the app window's own logical width
+// drops below a threshold (e.g. a MacBook loses its external monitor), the app
+// switches to a **second layout mode** — its own collapse state and its own
+// column widths — and switches back once the window grows again.
 //
-// Centralized here so the resize/hysteresis/debounce/peek-timer logic lives
-// in one place: AppShell only reads the store fields this module writes
-// (`*PanelAutoHidden`, `*PanelPeeking`) to drive collapse/expand and the peek
-// overlay's CSS, and `focus-regions.ts` reads `*PanelAutoHidden` to exclude an
-// auto-hidden panel from Tab order. The manual/public collapse path
-// (`setLeftPanelCollapsed`/`setRightPanelCollapsed` in state/store.ts, used by
-// commands and `ctx.layout`) always clears `*PanelAutoHidden` — that's what
-// makes a manual reopen "stick" instead of being re-hidden by this module.
+// The two modes are independent layouts, not a temporary tweak of one layout.
+// Collapsing or reopening a side column on a narrow window is remembered for
+// the *next* narrow window and never disturbs the normal-width layout, and vice
+// versa. The live pair is `leftPanelCollapsed`/`rightPanelCollapsed`; the mode
+// that isn't on screen sits in `inactiveModeCollapsed`, and a mode change is
+// just a swap of the two (`swapCollapseMode`). Both are per-workspace: the
+// workspace record stores them in `leftPanelCollapsed`/`rightPanelCollapsed`
+// and `smallScreenCollapsed`, and a workspace switch loads both
+// (`loadPanelStateFromWorkspace`). The column *widths* work the same way —
+// AppShell owns that half, through `layout/column-widths.ts`.
+//
+// Peek: hovering the cursor at the window's edge reveals a collapsed side panel
+// as a transient overlay (see AppShell.tsx's `--peek-width` CSS), which
+// self-hides once the cursor leaves. It applies to *any* collapsed side panel
+// at any window size — small-screen mode makes it load-bearing but doesn't own
+// it. The overlay's width is its own global preference, resizable by dragging
+// its handle (`beginPeekResize`), independent of either mode's column width.
+//
+// Centralized here so the resize/hysteresis/debounce/peek-timer logic lives in
+// one place: AppShell only reads the store fields this module writes
+// (`smallScreenActive`, `*PanelPeeking`) to drive collapse/expand and the peek
+// overlay's CSS, and `focus-regions.ts` keeps a collapsed (or peeking) column
+// out of Tab order.
 
 import { subscribe } from "valtio";
-import { store, setSmallScreenPeekWidthPx } from "../state/store";
+import {
+  store,
+  setSmallScreenPeekWidthPx,
+  swapCollapseMode,
+} from "../state/store";
 import {
   SMALL_SCREEN_HYSTERESIS_PX,
   MIN_SMALL_SCREEN_PEEK_WIDTH_PX,
   MAX_SMALL_SCREEN_PEEK_WIDTH_PX,
+  DEFAULT_SMALL_SCREEN_COLLAPSE,
 } from "../state/types";
 
 const RESIZE_DEBOUNCE_MS = 200;
@@ -52,11 +67,6 @@ function collapsedKey(
 ): "leftPanelCollapsed" | "rightPanelCollapsed" {
   return side === "left" ? "leftPanelCollapsed" : "rightPanelCollapsed";
 }
-function autoHiddenKey(
-  side: Side,
-): "leftPanelAutoHidden" | "rightPanelAutoHidden" {
-  return side === "left" ? "leftPanelAutoHidden" : "rightPanelAutoHidden";
-}
 function peekingKey(side: Side): "leftPanelPeeking" | "rightPanelPeeking" {
   return side === "left" ? "leftPanelPeeking" : "rightPanelPeeking";
 }
@@ -75,30 +85,32 @@ function peekWidthKey(
 
 const SIDES: readonly Side[] = ["left", "right"];
 
-/** Collapse whichever panels are currently open, marking them auto-hidden.
- * Idempotent — a panel that's already collapsed (manually or already
- * auto-hidden) is left alone, so this is safe to call on every workspace
- * switch while small-screen mode is active, not just on the resize edge. */
-function hideOpenPanels(): void {
+/** What the normal-width layout falls back to when we leave small-screen mode
+ * with nothing recorded to go back to (it was already active at launch and no
+ * workspace has loaded yet). Small-screen mode's own default lives in
+ * `state/types.ts` — `loadPanelStateFromWorkspace` needs it too. */
+const DEFAULT_NORMAL_COLLAPSE = { left: false, right: false };
+
+function clearPeek(): void {
   for (const side of SIDES) {
-    if (!store[collapsedKey(side)]) {
-      store[autoHiddenKey(side)] = true;
-      store[collapsedKey(side)] = true;
-    }
+    store[peekingKey(side)] = false;
+    store[peekDraggingKey(side)] = false;
   }
 }
 
-/** Restore whichever panels small-screen mode itself hid. Manually-collapsed
- * panels (`autoHidden === false`) are left alone. */
-function restoreAutoHiddenPanels(): void {
-  for (const side of SIDES) {
-    if (store[autoHiddenKey(side)]) {
-      store[autoHiddenKey(side)] = false;
-      store[collapsedKey(side)] = false;
-      store[peekingKey(side)] = false;
-      store[peekDraggingKey(side)] = false;
-    }
-  }
+/** Switch the live layout to small-screen mode's own — the one this workspace
+ * was last left in on a narrow window, or "both collapsed" the first time. */
+function enterSmallScreenMode(): void {
+  store.smallScreenActive = true;
+  swapCollapseMode(DEFAULT_SMALL_SCREEN_COLLAPSE);
+  clearPeek();
+}
+
+/** ...and back to the normal-width layout, exactly as the user left it. */
+function exitSmallScreenMode(): void {
+  store.smallScreenActive = false;
+  swapCollapseMode(DEFAULT_NORMAL_COLLAPSE);
+  clearPeek();
 }
 
 /** Whether `target` sits inside the peek wrapper for `side` (AppShell's
@@ -116,49 +128,34 @@ function isWithinPeekHost(side: Side, target: EventTarget | null): boolean {
 }
 
 /**
- * Edge-triggered: `hideOpenPanels`/`restoreAutoHiddenPanels` only run exactly
- * once per genuine large↔small transition (or a workspace switch while
- * already small), never re-derived from steady state — that's what lets a
- * manual reopen (Q14: `setLeftPanelCollapsed`/`setRightPanelCollapsed`
- * clearing `autoHidden`) stick until the next real round-trip, instead of
- * being immediately re-hidden by the next unrelated store change.
+ * Edge-triggered: the mode swap runs exactly once per genuine large↔small
+ * transition, never re-derived from steady state — that's what lets the user's
+ * own collapse/reopen inside a mode stand, instead of being overwritten by the
+ * next unrelated store change. A workspace switch needs nothing from here:
+ * `loadPanelStateFromWorkspace` loads both of the incoming workspace's layout
+ * modes and picks the live one by `smallScreenActive`.
  */
 function createResizeWatcher() {
-  let active = false;
-
   function evaluate(widthPx: number): void {
     if (!store.smallScreenModeEnabled) {
-      if (active) {
-        active = false;
-        restoreAutoHiddenPanels();
-      }
+      if (store.smallScreenActive) exitSmallScreenMode();
       return;
     }
     const next = computeSmallScreenActive(
-      active,
+      store.smallScreenActive,
       widthPx,
       store.smallScreenThresholdPx,
     );
-    if (next === active) return;
-    active = next;
-    if (active) hideOpenPanels();
-    else restoreAutoHiddenPanels();
+    if (next === store.smallScreenActive) return;
+    if (next) enterSmallScreenMode();
+    else exitSmallScreenMode();
   }
 
   function reevaluateForCurrentWidth(): void {
     evaluate(window.innerWidth);
   }
 
-  /** Called whenever `smallScreenModeEnabled`, `smallScreenThresholdPx`, or
-   * `activeWorkspaceId` change — re-runs the width check, and (per the
-   * "applies uniformly across workspaces" decision) re-hides a newly-active
-   * workspace's currently-open panels if the screen is already small. */
-  function onWorkspaceOrSettingChange(): void {
-    reevaluateForCurrentWidth();
-    if (active) hideOpenPanels();
-  }
-
-  return { evaluate, reevaluateForCurrentWidth, onWorkspaceOrSettingChange };
+  return { reevaluateForCurrentWidth };
 }
 
 function debounce(fn: () => void, ms: number): () => void {
@@ -172,9 +169,10 @@ function debounce(fn: () => void, ms: number): () => void {
   };
 }
 
-/** Cursor-at-edge dwell-to-peek / leave-to-hide for one side. Only engages
- * while that side is small-screen-auto-hidden; a manually-collapsed panel
- * never peeks (Q7). */
+/** Cursor-at-edge dwell-to-peek / leave-to-hide for one side. Engages whenever
+ * that side is collapsed — however it got that way and whatever the window
+ * size, so reaching a panel you closed yourself is the same gesture as reaching
+ * one small-screen mode closed for you. */
 function createEdgeTracker(side: Side) {
   let dwellTimer: number | null = null;
   let graceTimer: number | null = null;
@@ -220,8 +218,7 @@ function createEdgeTracker(side: Side) {
   }
 
   function onMouseMove(x: number, w: number, target: EventTarget | null): void {
-    const autoHidden = store[autoHiddenKey(side)];
-    if (!store.smallScreenModeEnabled || !autoHidden) {
+    if (!store[collapsedKey(side)]) {
       clearDwell();
       if (store[peekingKey(side)]) {
         clearGrace();
@@ -274,8 +271,8 @@ function createEdgeTracker(side: Side) {
 /**
  * Wire up small-screen mode: a debounced window-resize listener, an
  * immediate check on mount (so launching already-small applies right away),
- * a subscription that re-checks on workspace switch / settings changes, and
- * the edge-hover peek trackers. Call once from AppShell; returns a disposer.
+ * a subscription that re-checks when its settings change, and the edge-hover
+ * peek trackers. Call once from AppShell; returns a disposer.
  */
 export function installSmallScreenMode(): () => void {
   const watcher = createResizeWatcher();
@@ -290,18 +287,17 @@ export function installSmallScreenMode(): () => void {
   );
   window.addEventListener("resize", onResize);
 
-  let prevWorkspaceId = store.activeWorkspaceId;
+  // Toggling the feature or editing the threshold in Settings can cross the
+  // boundary without the window ever resizing — run the same edge check.
   let prevEnabled = store.smallScreenModeEnabled;
   let prevThreshold = store.smallScreenThresholdPx;
   const unsubscribe = subscribe(store, () => {
     const changed =
-      store.activeWorkspaceId !== prevWorkspaceId ||
       store.smallScreenModeEnabled !== prevEnabled ||
       store.smallScreenThresholdPx !== prevThreshold;
-    prevWorkspaceId = store.activeWorkspaceId;
     prevEnabled = store.smallScreenModeEnabled;
     prevThreshold = store.smallScreenThresholdPx;
-    if (changed) watcher.onWorkspaceOrSettingChange();
+    if (changed) watcher.reevaluateForCurrentWidth();
   });
 
   function onMouseMove(e: MouseEvent): void {
