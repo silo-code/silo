@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import type { WorkspaceInternal } from "./types";
 
 // removeEditor fire-and-forgets a backup clear; mock the backup module so the
@@ -99,6 +99,87 @@ describe("side-panel visibility is per-workspace", () => {
     // And w2 kept its own.
     activateWorkspace("w2");
     expect(store.sidePanelVisibility).toEqual({ git: false });
+  });
+});
+
+describe("the two side-column layout modes are per-workspace", () => {
+  beforeEach(() => {
+    store.leftPanelCollapsed = false;
+    store.rightPanelCollapsed = false;
+    store.smallScreenActive = false;
+    store.inactiveModeCollapsed = null;
+  });
+
+  afterEach(() => {
+    store.smallScreenActive = false;
+    store.inactiveModeCollapsed = null;
+  });
+
+  it("saves the live state as the normal-width layout on a normal-width window", () => {
+    store.leftPanelCollapsed = true;
+    savePanelStateToWorkspace("w");
+    expect(store.workspaces.w.leftPanelCollapsed).toBe(true);
+    expect(store.workspaces.w.rightPanelCollapsed).toBe(false);
+    // Nothing recorded for small-screen mode yet — the key stays absent.
+    expect(store.workspaces.w.smallScreenCollapsed).toBeUndefined();
+  });
+
+  it("saves the live state as the small-screen layout while narrow, leaving the other alone", () => {
+    store.smallScreenActive = true;
+    store.inactiveModeCollapsed = { left: false, right: false };
+    store.leftPanelCollapsed = false;
+    store.rightPanelCollapsed = true;
+
+    savePanelStateToWorkspace("w");
+    expect(store.workspaces.w.leftPanelCollapsed).toBe(false);
+    expect(store.workspaces.w.rightPanelCollapsed).toBe(false);
+    expect(store.workspaces.w.smallScreenCollapsed).toEqual({
+      left: false,
+      right: true,
+    });
+  });
+
+  it("loads the live mode's layout and parks the other one", () => {
+    store.workspaces.w.leftPanelCollapsed = true;
+    store.workspaces.w.rightPanelCollapsed = false;
+    store.workspaces.w.smallScreenCollapsed = { left: false, right: true };
+
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.leftPanelCollapsed).toBe(true); // normal-width layout
+    expect(store.inactiveModeCollapsed).toEqual({ left: false, right: true });
+
+    store.smallScreenActive = true;
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.leftPanelCollapsed).toBe(false); // small-screen layout
+    expect(store.rightPanelCollapsed).toBe(true);
+    expect(store.inactiveModeCollapsed).toEqual({ left: true, right: false });
+  });
+
+  it("starts a workspace that has never been narrow with both columns hidden", () => {
+    store.smallScreenActive = true;
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.leftPanelCollapsed).toBe(true);
+    expect(store.rightPanelCollapsed).toBe(true);
+  });
+
+  it("keeps each workspace's small-screen layout across a switch and back", () => {
+    store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
+    store.workspaceOrder = ["w", "w2"];
+    store.activeWorkspaceId = "w";
+    store.smallScreenActive = true;
+    store.inactiveModeCollapsed = { left: false, right: false };
+    store.leftPanelCollapsed = true;
+    store.rightPanelCollapsed = true;
+
+    // Open the left column on the narrow window, then go look at w2...
+    store.leftPanelCollapsed = false;
+    activateWorkspace("w2");
+    expect(store.leftPanelCollapsed).toBe(true); // w2's own (fresh) layout
+
+    // ...and back: w's narrow-window layout is exactly as it was left.
+    activateWorkspace("w");
+    expect(store.leftPanelCollapsed).toBe(false);
+    expect(store.rightPanelCollapsed).toBe(true);
   });
 });
 

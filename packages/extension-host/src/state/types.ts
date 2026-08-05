@@ -46,8 +46,23 @@ export interface WorkspaceInternal extends Workspace {
   sidePanelVisibility?: Record<string, boolean>;
   extensionState?: Record<string, Record<string, unknown>>;
   previewEditorId?: string | null;
+  /** The side columns' collapse state on a **normal-width** window. */
   leftPanelCollapsed?: boolean;
   rightPanelCollapsed?: boolean;
+  /**
+   * The same, for **small-screen (Laptop) mode** — a second, independent layout
+   * this workspace returns to whenever the window is narrow (see
+   * `small-screen-mode.ts`). Absent until small-screen mode has applied to this
+   * workspace, in which case it starts from "both collapsed".
+   */
+  smallScreenCollapsed?: SideCollapseState;
+}
+
+/** Collapse state of the two side columns, as one value — the unit both layout
+ * modes (normal / small-screen) are remembered in. */
+export interface SideCollapseState {
+  left: boolean;
+  right: boolean;
 }
 
 // ── Host-only state types (not part of the public surface) ──
@@ -172,15 +187,30 @@ export interface AppState {
   smallScreenModeEnabled: boolean;
   smallScreenThresholdPx: number;
   /**
-   * True while the respective side panel is collapsed *because* small-screen
-   * mode hid it, as opposed to a manual collapse. Drives auto-restore on a
-   * large screen, edge-hover peek eligibility, and Tab-order exclusion.
-   * Ephemeral — recomputed on launch/resize, never persisted.
+   * True while small-screen mode is actually applying — the feature is on *and*
+   * the window is inside the small band. Ephemeral (re-derived from the window
+   * width on launch), never persisted.
+   *
+   * It selects which of the **two layout modes** is on screen. Each side of the
+   * app keeps both: `leftPanelCollapsed`/`rightPanelCollapsed` above are the
+   * *live* pair and `inactiveModeCollapsed` below is the other one; the column
+   * *widths* work the same way (`layout/column-widths.ts`). Switching
+   * modes swaps them, so what the user does to the side columns on a narrow
+   * window is remembered for the next narrow window and never disturbs the
+   * normal-width layout.
    */
-  leftPanelAutoHidden: boolean;
-  rightPanelAutoHidden: boolean;
+  smallScreenActive: boolean;
   /**
-   * True while an auto-hidden panel is temporarily revealed by an edge-hover
+   * The collapse state of the layout mode that is *not* on screen: the
+   * normal-width one while small-screen mode is active, the small-screen one
+   * while it isn't. `null` when that mode has nothing recorded yet (a workspace
+   * that has never been narrow). Swapped in on every mode change, loaded and
+   * saved per-workspace alongside the live pair. Ephemeral itself — the
+   * *persisted* copy is `WorkspaceInternal.smallScreenCollapsed`.
+   */
+  inactiveModeCollapsed: SideCollapseState | null;
+  /**
+   * True while a collapsed side panel is temporarily revealed by an edge-hover
    * peek. Ephemeral UI state, never persisted.
    */
   leftPanelPeeking: boolean;
@@ -195,9 +225,11 @@ export interface AppState {
   rightPanelPeekDragging: boolean;
   /**
    * The peek overlay's width — global (not per-workspace) and independent of
-   * the panel's normal (large-screen) width, since it's a separate, small-
-   * screen-only sizing the user tunes by dragging the peek's own resize
-   * handle. Persisted in the global index, like `smallScreenThresholdPx`.
+   * either layout mode's column width, since it's a separate sizing the user
+   * tunes by dragging the peek's own resize handle. Persisted in the global
+   * index, like `smallScreenThresholdPx`. (The `smallScreen` prefix is
+   * historical: peek started out small-screen-only and now works at any window
+   * size — see `small-screen-mode.ts`.)
    */
   smallScreenPeekWidthLeftPx: number;
   smallScreenPeekWidthRightPx: number;
@@ -247,6 +279,14 @@ export const MIN_SMALL_SCREEN_THRESHOLD_PX = 200;
 /** Width above `threshold` a panel must regain before small-screen mode exits
  * — prevents hide/show flicker right at the boundary. */
 export const SMALL_SCREEN_HYSTERESIS_PX = 80;
+
+/** What a workspace's small-screen layout starts as, the first time the window
+ * is narrow: both side columns out of the way. From then on the workspace
+ * remembers whatever the user leaves it in on a narrow window. */
+export const DEFAULT_SMALL_SCREEN_COLLAPSE: SideCollapseState = {
+  left: true,
+  right: true,
+};
 
 /** Default width for the small-screen peek overlay — independent of, and
  * usually narrower than, the panel's normal (large-screen) width. Drag the

@@ -1,7 +1,7 @@
 import { load, Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import { subscribe } from "valtio";
-import { store } from "./store";
+import { store, collapseStateByMode } from "./store";
 import {
   DEFAULT_UI_FONT_SIZE,
   DEFAULT_EDITOR_SETTINGS,
@@ -207,18 +207,19 @@ export async function hydrate(configDir: string): Promise<void> {
     Object.entries(workspaces).map(([id, ws]) => [id, JSON.stringify(ws)]),
   );
 
-  // Hydrate the global panel-state fields from the active workspace.
+  // Hydrate the global panel-state fields from the active workspace. Side-dock
+  // collapse state is per-workspace; back-fill it from the index first for a
+  // one-time migration carry-over from installs that stored it globally, so
+  // the load below (which picks the live layout mode — small-screen mode may
+  // already be active by now) sees a complete record.
   const activeWs = store.activeWorkspaceId
     ? workspaces[store.activeWorkspaceId]
     : null;
-  if (activeWs) loadPanelStateFromWorkspace(activeWs);
-
-  // Side-dock collapse state is per-workspace. Fall back to the index for a
-  // one-time migration carry-over from installs that stored it globally.
-  store.leftPanelCollapsed =
-    activeWs?.leftPanelCollapsed ?? index?.leftPanelCollapsed ?? false;
-  store.rightPanelCollapsed =
-    activeWs?.rightPanelCollapsed ?? index?.rightPanelCollapsed ?? false;
+  if (activeWs) {
+    activeWs.leftPanelCollapsed ??= index?.leftPanelCollapsed ?? false;
+    activeWs.rightPanelCollapsed ??= index?.rightPanelCollapsed ?? false;
+    loadPanelStateFromWorkspace(activeWs);
+  }
 
   // Side-panel visibility is per-workspace, restored from the active workspace
   // by loadPanelStateFromWorkspace above (defaults to all-visible when absent).
@@ -228,6 +229,7 @@ export async function hydrate(configDir: string): Promise<void> {
 }
 
 function snapshotPanelState(): PanelState {
+  const collapse = collapseStateByMode();
   return {
     sidePanelLocations: { ...store.sidePanelLocations },
     sidePanelOrder: { ...store.sidePanelOrder },
@@ -235,8 +237,9 @@ function snapshotPanelState(): PanelState {
     sidePanelScrollPositions: { ...store.sidePanelScrollPositions },
     sidePanelVisibility: { ...store.sidePanelVisibility },
     extensionState: cloneExtensionState(store.extensionState),
-    leftPanelCollapsed: store.leftPanelCollapsed,
-    rightPanelCollapsed: store.rightPanelCollapsed,
+    leftPanelCollapsed: collapse.normal.left,
+    rightPanelCollapsed: collapse.normal.right,
+    smallScreenCollapsed: collapse.smallScreen,
   };
 }
 

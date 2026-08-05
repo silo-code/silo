@@ -30,14 +30,12 @@ import {
   tabbablesIn,
 } from "./focus-dom";
 
-/** Small-screen mode excludes an auto-hidden panel from Tab order entirely —
- * peeking or not, since peek is a mouse-only affordance with no keyboard
- * gesture to invoke it. A manual toggle clears the flag and restores normal
- * tabbing (see `state/store.ts` `setLeftPanelCollapsed`/`setRightPanelCollapsed`). */
-function isAutoHidden(side: "left" | "right"): boolean {
-  return side === "left"
-    ? store.leftPanelAutoHidden
-    : store.rightPanelAutoHidden;
+/** A collapsed side column is out of Tab order entirely — including while it's
+ * revealed by an edge-hover peek, since peek is a mouse-only affordance with no
+ * keyboard gesture to invoke it (a peeking column has real width, so the
+ * `clientWidth` check below wouldn't catch it on its own). */
+function isCollapsed(side: "left" | "right"): boolean {
+  return side === "left" ? store.leftPanelCollapsed : store.rightPanelCollapsed;
 }
 
 /**
@@ -64,10 +62,10 @@ interface FocusRegion {
   tabbables?(): HTMLElement[];
 }
 
-/** The visible side-pane element for a side, or null when collapsed/empty/
- * small-screen-auto-hidden (peeking or not — see `isAutoHidden`). */
+/** The visible side-pane element for a side, or null when collapsed (peeking
+ * or not — see `isCollapsed`) or empty. */
 function sidePane(side: "left" | "right"): HTMLElement | null {
-  if (isAutoHidden(side)) return null;
+  if (isCollapsed(side)) return null;
   for (const p of document.querySelectorAll<HTMLElement>(
     `.side-pane[data-slot^="${side}"]`,
   )) {
@@ -104,9 +102,9 @@ function sideRegion(side: "left" | "right", order: number): FocusRegion {
       return focusFirstOrContainer(active);
     },
     tabbables() {
-      // Small-screen-auto-hidden: excluded from the handoff entirely, peeking
-      // or not (see `isAutoHidden`).
-      if (isAutoHidden(side)) return [];
+      // Collapsed: excluded from the handoff entirely, peeking or not (see
+      // `isCollapsed`).
+      if (isCollapsed(side)) return [];
       // Only the ACTIVE panel's tabbables in each pane — a side dock keeps its
       // inactive panels mounted but hidden, and their (unfocusable) tabbables
       // would otherwise be picked as the "last", breaking the handoff.

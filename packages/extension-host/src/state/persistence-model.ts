@@ -10,6 +10,7 @@
 
 import type {
   EditorSettings,
+  SideCollapseState,
   SidePanelSlot,
   TerminalSettings,
   WorkspaceInternal,
@@ -30,8 +31,8 @@ export interface PersistedIndex {
   // `small-screen-mode.ts`. Absent in older indexes: defaults applied at hydrate.
   smallScreenModeEnabled?: boolean;
   smallScreenThresholdPx?: number;
-  // Small-screen peek overlay width — also global, independent of the
-  // panel's normal (large-screen) width. See `small-screen-mode.ts`.
+  // Peek overlay width — also global, independent of either layout mode's
+  // column width. See `small-screen-mode.ts`.
   smallScreenPeekWidthLeftPx?: number;
   smallScreenPeekWidthRightPx?: number;
   // Per-extension global storage (`ctx.storage.global`), keyed by extension id.
@@ -80,8 +81,12 @@ export interface PanelState {
   sidePanelScrollPositions: Record<string, number>;
   sidePanelVisibility: Record<string, boolean>;
   extensionState: Record<string, Record<string, unknown>>;
+  /** The normal-width layout's collapse state... */
   leftPanelCollapsed: boolean;
   rightPanelCollapsed: boolean;
+  /** ...and small-screen mode's own, `null` until that mode has applied to
+   * this workspace. See `small-screen-mode.ts`. */
+  smallScreenCollapsed: SideCollapseState | null;
 }
 
 /** Deep-clone the two-level extension-state bag so a stored snapshot can't alias
@@ -240,6 +245,11 @@ export function withActivePanelState(
     extensionState: cloneExtensionState(panel.extensionState),
     leftPanelCollapsed: panel.leftPanelCollapsed,
     rightPanelCollapsed: panel.rightPanelCollapsed,
+    // Keep the key absent (rather than null) while the workspace has never
+    // been narrow, matching how the rest of the record omits unset state.
+    ...(panel.smallScreenCollapsed
+      ? { smallScreenCollapsed: { ...panel.smallScreenCollapsed } }
+      : {}),
   };
 }
 

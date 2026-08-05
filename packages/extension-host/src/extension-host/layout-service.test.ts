@@ -86,39 +86,40 @@ describe("LayoutService.openPanel", () => {
   });
 });
 
-// These three are the public (command/`ctx.layout`) collapse path, which must
-// always clear the corresponding `*PanelAutoHidden` flag — that's what makes
-// an explicit call "stick" instead of being re-hidden by small-screen mode's
-// next auto-hide pass (see extension-host/small-screen-mode.ts).
-describe("LayoutService manual collapse path clears autoHidden", () => {
+// These three are the public (command/`ctx.layout`) collapse path. It writes
+// the *live* layout mode — on a narrow window that's small-screen mode's own
+// layout, which is remembered for the next narrow window rather than folded
+// into the normal-width one (see extension-host/small-screen-mode.ts).
+describe("LayoutService collapse path writes the live layout mode", () => {
   beforeEach(() => {
     store.leftPanelCollapsed = true;
     store.rightPanelCollapsed = true;
-    store.leftPanelAutoHidden = true;
-    store.rightPanelAutoHidden = true;
+    store.smallScreenActive = true;
+    store.inactiveModeCollapsed = { left: false, right: false };
   });
 
   afterEach(() => {
     store.leftPanelCollapsed = false;
     store.rightPanelCollapsed = false;
-    store.leftPanelAutoHidden = false;
-    store.rightPanelAutoHidden = false;
+    store.smallScreenActive = false;
+    store.inactiveModeCollapsed = null;
   });
 
-  it("setSidePanelCollapsed clears autoHidden for the given side only", () => {
+  it("setSidePanelCollapsed expands the given side only, leaving the other mode alone", () => {
     layout.setSidePanelCollapsed("left", false);
     expect(store.leftPanelCollapsed).toBe(false);
-    expect(store.leftPanelAutoHidden).toBe(false);
-    expect(store.rightPanelAutoHidden).toBe(true); // untouched
+    expect(store.rightPanelCollapsed).toBe(true); // untouched
+    // The normal-width layout is untouched by a change made while narrow.
+    expect(store.inactiveModeCollapsed).toEqual({ left: false, right: false });
   });
 
-  it("toggleSidePanel clears autoHidden", () => {
+  it("toggleSidePanel flips the live mode's state", () => {
     layout.toggleSidePanel("right"); // currently collapsed → expands
     expect(store.rightPanelCollapsed).toBe(false);
-    expect(store.rightPanelAutoHidden).toBe(false);
+    expect(store.inactiveModeCollapsed).toEqual({ left: false, right: false });
   });
 
-  it("revealSidePanel clears autoHidden for the panel's column", () => {
+  it("revealSidePanel expands the panel's column", () => {
     const dispose = sidePanelRegistry.register({
       id: "test.panel",
       location: "left",
@@ -128,7 +129,6 @@ describe("LayoutService manual collapse path clears autoHidden", () => {
     try {
       layout.revealSidePanel("test.panel");
       expect(store.leftPanelCollapsed).toBe(false);
-      expect(store.leftPanelAutoHidden).toBe(false);
     } finally {
       dispose.dispose();
     }
