@@ -6,6 +6,7 @@ import {
   MAX_UI_FONT_SIZE,
   DEFAULT_EDITOR_SETTINGS,
   DEFAULT_TERMINAL_SETTINGS,
+  DEFAULT_PANEL_STATE,
   DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
   MIN_SMALL_SCREEN_THRESHOLD_PX,
   DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
@@ -25,11 +26,9 @@ export const store = proxy<AppState>({
   editorSettings: { ...DEFAULT_EDITOR_SETTINGS },
   terminalSettings: { ...DEFAULT_TERMINAL_SETTINGS },
   customThemes: [],
-  sidePanelLocations: {},
-  sidePanelOrder: {},
-  activeSidePanelTabs: {},
-  sidePanelScrollPositions: {},
-  extensionState: {},
+  // Every per-workspace panel field, from its one declaration — a new one
+  // needs no edit here (see `SharedPanelState` in types.ts).
+  ...structuredClone(DEFAULT_PANEL_STATE),
   globalExtensionState: {},
   agentState: {},
   leftPanelCollapsed: false,
@@ -44,7 +43,6 @@ export const store = proxy<AppState>({
   rightPanelPeekDragging: false,
   smallScreenPeekWidthLeftPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
   smallScreenPeekWidthRightPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
-  sidePanelVisibility: {},
   groups: {},
   panelOrder: [],
 });

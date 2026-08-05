@@ -1,9 +1,9 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { basename } from "@tauri-apps/api/path";
 import { path } from "@silo-code/sdk";
-import { store, collapseStateByMode } from "./store";
+import { store } from "./store";
 import { clearEditorBackup } from "./editor-backups";
-import { DEFAULT_SMALL_SCREEN_COLLAPSE } from "./types";
+import { applyPanelState, capturePanelState } from "./panel-state";
 import type {
   EditorRecord,
   EditorSettingsOverride,
@@ -61,53 +61,12 @@ export function createWorkspace(input: {
 export function savePanelStateToWorkspace(wsId: string): void {
   const ws = store.workspaces[wsId];
   if (!ws) return;
-  ws.sidePanelLocations = { ...store.sidePanelLocations };
-  ws.sidePanelOrder = { ...store.sidePanelOrder };
-  ws.activeSidePanelTabs = { ...store.activeSidePanelTabs };
-  ws.sidePanelScrollPositions = { ...store.sidePanelScrollPositions };
-  ws.sidePanelVisibility = { ...store.sidePanelVisibility };
-  // Both layout modes travel with the workspace — the live one plus the one
-  // waiting off screen (see `small-screen-mode.ts`).
-  const collapse = collapseStateByMode();
-  ws.leftPanelCollapsed = collapse.normal.left;
-  ws.rightPanelCollapsed = collapse.normal.right;
-  if (collapse.smallScreen)
-    ws.smallScreenCollapsed = { ...collapse.smallScreen };
-  const ext: Record<string, Record<string, unknown>> = {};
-  for (const k of Object.keys(store.extensionState))
-    ext[k] = { ...store.extensionState[k] };
-  ws.extensionState = ext;
+  Object.assign(ws, capturePanelState());
 }
 
 /** Restore the global panel state from a workspace object. */
 export function loadPanelStateFromWorkspace(ws: WorkspaceInternal): void {
-  store.sidePanelLocations = { ...(ws.sidePanelLocations ?? {}) };
-  store.sidePanelOrder = { ...(ws.sidePanelOrder ?? {}) };
-  store.activeSidePanelTabs = { ...(ws.activeSidePanelTabs ?? {}) };
-  store.sidePanelScrollPositions = { ...(ws.sidePanelScrollPositions ?? {}) };
-  store.sidePanelVisibility = { ...(ws.sidePanelVisibility ?? {}) };
-  // Whichever layout mode is on screen becomes live; the other one waits in
-  // `inactiveModeCollapsed` for the next mode switch. A workspace that has
-  // never been narrow has no small-screen layout yet — small-screen mode's
-  // default (both collapsed) stands in, which is what it would have done to
-  // this workspace on arrival anyway.
-  const normal = {
-    left: ws.leftPanelCollapsed ?? false,
-    right: ws.rightPanelCollapsed ?? false,
-  };
-  const smallScreen = ws.smallScreenCollapsed
-    ? { ...ws.smallScreenCollapsed }
-    : null;
-  const live = store.smallScreenActive
-    ? (smallScreen ?? { ...DEFAULT_SMALL_SCREEN_COLLAPSE })
-    : normal;
-  store.leftPanelCollapsed = live.left;
-  store.rightPanelCollapsed = live.right;
-  store.inactiveModeCollapsed = store.smallScreenActive ? normal : smallScreen;
-  const ext: Record<string, Record<string, unknown>> = {};
-  for (const k of Object.keys(ws.extensionState ?? {}))
-    ext[k] = { ...ws.extensionState![k] };
-  store.extensionState = ext;
+  applyPanelState(ws);
 }
 
 export function activateWorkspace(id: string): void {

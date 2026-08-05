@@ -1,7 +1,7 @@
 import { load, Store } from "@tauri-apps/plugin-store";
 import { invoke } from "@tauri-apps/api/core";
 import { subscribe } from "valtio";
-import { store, collapseStateByMode } from "./store";
+import { store } from "./store";
 import {
   DEFAULT_UI_FONT_SIZE,
   DEFAULT_EDITOR_SETTINGS,
@@ -11,6 +11,7 @@ import {
 } from "./types";
 import type { WorkspaceInternal } from "./types";
 import { loadPanelStateFromWorkspace } from "./workspaces";
+import { capturePanelState } from "./panel-state";
 import { setBackupDir, sweepEditorBackups } from "./editor-backups";
 import {
   buildIndex,
@@ -22,7 +23,6 @@ import {
   splitPersistedState,
   withActivePanelState,
   type LegacyPersisted,
-  type PanelState,
   type PersistedIndex,
 } from "./persistence-model";
 
@@ -228,28 +228,13 @@ export async function hydrate(configDir: string): Promise<void> {
   subscribe(store, schedulePersist);
 }
 
-function snapshotPanelState(): PanelState {
-  const collapse = collapseStateByMode();
-  return {
-    sidePanelLocations: { ...store.sidePanelLocations },
-    sidePanelOrder: { ...store.sidePanelOrder },
-    activeSidePanelTabs: { ...store.activeSidePanelTabs },
-    sidePanelScrollPositions: { ...store.sidePanelScrollPositions },
-    sidePanelVisibility: { ...store.sidePanelVisibility },
-    extensionState: cloneExtensionState(store.extensionState),
-    leftPanelCollapsed: collapse.normal.left,
-    rightPanelCollapsed: collapse.normal.right,
-    smallScreenCollapsed: collapse.smallScreen,
-  };
-}
-
 async function doPersist(): Promise<void> {
   if (!indexStore) return;
 
   // Build each workspace's record, merging the active workspace's live panel
   // state (it isn't mirrored onto the workspace object until save time).
   const activeId = store.activeWorkspaceId;
-  const panel = snapshotPanelState();
+  const panel = capturePanelState();
   const records = new Map<string, WorkspaceInternal>();
   const next = new Map<string, string>();
   for (const [id, ws] of Object.entries(store.workspaces)) {

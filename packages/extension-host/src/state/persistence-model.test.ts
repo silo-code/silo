@@ -124,23 +124,16 @@ describe("withActivePanelState", () => {
     expect(merged.rightPanelCollapsed).toBe(false);
   });
 
-  it("isolates the visibility bag from the source panel state", () => {
-    const merged = withActivePanelState(makeWorkspace("a"), PANEL);
-    merged.sidePanelVisibility!.explorer = false;
-    expect(PANEL.sidePanelVisibility.explorer).toBeUndefined();
+  it("does not mutate the source workspace", () => {
+    const ws = makeWorkspace("a");
+    withActivePanelState(ws, PANEL);
+    expect(ws.sidePanelLocations).toBeUndefined();
   });
 
-  it("does not mutate the source workspace and isolates the extension-state bag", () => {
-    const ws = makeWorkspace("a");
-    const merged = withActivePanelState(ws, PANEL);
-    expect(ws.sidePanelLocations).toBeUndefined();
-    // Two-level isolation: adding/replacing entries in the merged bag (or a
-    // per-extension object) must not bleed back into PANEL's bag.
-    merged.extensionState!["silo.new"] = { added: true };
-    merged.extensionState!["silo.explorer"] = { replaced: true };
-    expect(PANEL.extensionState["silo.new"]).toBeUndefined();
-    expect(PANEL.extensionState["silo.explorer"]).toEqual({ expanded: ["/a"] });
-  });
+  // Isolation from the *live store* — the property that actually protects a
+  // saved record — is `capturePanelState`'s, and is covered in
+  // panel-state.test.ts. The merge itself is a spread of an already-copied
+  // snapshot, so there is nothing left here to alias.
 });
 
 describe("diffWorkspaceWrites", () => {

@@ -30,7 +30,8 @@ import type {
  *
  * Not exported from `@silo-code/sdk` — host-only.
  */
-export interface WorkspaceInternal extends Workspace {
+export interface WorkspaceInternal
+  extends Workspace, Partial<PanelStateSnapshot> {
   terminals: TerminalRecord[];
   editors: EditorRecord[];
   dockLayout: unknown | null;
@@ -38,24 +39,7 @@ export interface WorkspaceInternal extends Workspace {
   editorViewStates?: Record<string, unknown>;
   /** Per-tab word-wrap/minimap overrides, toggled from the editor's context menu. */
   editorSettingsOverrides?: Record<string, EditorSettingsOverride>;
-  sidePanelLocations?: Record<string, SidePanelSlot>;
-  sidePanelOrder?: Record<string, number>;
-  activeSidePanelTabs?: Record<string, string>;
-  sidePanelScrollPositions?: Record<string, number>;
-  /** Absent key = visible (default); only explicit `false` is stored. */
-  sidePanelVisibility?: Record<string, boolean>;
-  extensionState?: Record<string, Record<string, unknown>>;
   previewEditorId?: string | null;
-  /** The side columns' collapse state on a **normal-width** window. */
-  leftPanelCollapsed?: boolean;
-  rightPanelCollapsed?: boolean;
-  /**
-   * The same, for **small-screen (Laptop) mode** — a second, independent layout
-   * this workspace returns to whenever the window is narrow (see
-   * `small-screen-mode.ts`). Absent until small-screen mode has applied to this
-   * workspace, in which case it starts from "both collapsed".
-   */
-  smallScreenCollapsed?: SideCollapseState;
 }
 
 /** Collapse state of the two side columns, as one value — the unit both layout
@@ -63,6 +47,81 @@ export interface WorkspaceInternal extends Workspace {
 export interface SideCollapseState {
   left: boolean;
   right: boolean;
+}
+
+/**
+ * The per-workspace panel fields the live store and a workspace record hold
+ * **under the same name and shape** — declared once here so adding one adds it
+ * to both {@link AppState} (required, always present) and
+ * {@link WorkspaceInternal} (optional, absent in older records).
+ *
+ * The mapping between the two lives in `state/panel-state.ts`. Anything whose
+ * live shape *differs* from its stored shape stays out of here and is handled
+ * explicitly there — today that's the collapse state, which the store keys by
+ * which layout mode is on screen and the record keys by which mode it is (see
+ * `extension-host/small-screen-mode.ts`).
+ */
+export interface SharedPanelState {
+  /**
+   * User-chosen slot overrides, keyed by side-panel id.
+   * Possible values: "left" | "right" | "left-bottom" | "right-bottom".
+   * If a key is absent the panel renders at its registered default location.
+   */
+  sidePanelLocations: Record<string, SidePanelSlot>;
+  /**
+   * Sort order within each slot, keyed by side-panel id.
+   * Lower numbers appear first. Missing entries sort as 0.
+   */
+  sidePanelOrder: Record<string, number>;
+  /**
+   * Last-active panel id per slot, keyed by SidePanelSlot string.
+   * Restored on reload so the same tab is visible after restart.
+   */
+  activeSidePanelTabs: Record<string, string>;
+  /**
+   * Scroll positions for side panels, keyed by panel id.
+   * Stores the scrollTop of the panel's content area.
+   */
+  sidePanelScrollPositions: Record<string, number>;
+  /**
+   * Side-panel visibility, keyed by panel id. Absent = visible (default); only
+   * an explicit `false` (hidden) is stored.
+   */
+  sidePanelVisibility: Record<string, boolean>;
+  /**
+   * Per-extension/side-panel namespaced state, keyed first by panel id then
+   * by key. This is the **workspace** scope: it is snapshotted into the active
+   * workspace and swapped when the active workspace changes. Backs
+   * `SidePanelProps.storage` (keyed by panel id) and `ctx.storage.workspace`
+   * (keyed by extension id).
+   */
+  extensionState: Record<string, Record<string, unknown>>;
+}
+
+/** What every {@link SharedPanelState} field starts as — spread into the store's
+ * initial value, so a new field needs no separate edit there. */
+export const DEFAULT_PANEL_STATE: SharedPanelState = {
+  sidePanelLocations: {},
+  sidePanelOrder: {},
+  activeSidePanelTabs: {},
+  sidePanelScrollPositions: {},
+  sidePanelVisibility: {},
+  extensionState: {},
+};
+
+/**
+ * A workspace's complete panel state: the shared fields plus both layout
+ * modes' collapse state. This is exactly the set of panel fields a workspace
+ * record carries, which is what lets the record merge be a plain spread (see
+ * `withActivePanelState`).
+ */
+export interface PanelStateSnapshot extends SharedPanelState {
+  /** The normal-width layout's collapse state... */
+  leftPanelCollapsed: boolean;
+  rightPanelCollapsed: boolean;
+  /** ...and small-screen mode's own. Absent until that mode has applied to
+   * this workspace. */
+  smallScreenCollapsed?: SideCollapseState;
 }
 
 // ── Host-only state types (not part of the public surface) ──
@@ -120,7 +179,7 @@ export interface PersistedAgentInfo {
   lastLiveAt: string;
 }
 
-export interface AppState {
+export interface AppState extends SharedPanelState {
   workspaces: Record<string, WorkspaceInternal>;
   workspaceOrder: string[];
   activeWorkspaceId: string | null;
@@ -133,35 +192,6 @@ export interface AppState {
   terminalSettings: TerminalSettings;
   /** Loaded from disk at startup; not persisted in the Tauri store. */
   customThemes: CustomTheme[];
-  /**
-   * User-chosen slot overrides, keyed by side-panel id.
-   * Possible values: "left" | "right" | "left-bottom" | "right-bottom".
-   * If a key is absent the panel renders at its registered default location.
-   */
-  sidePanelLocations: Record<string, SidePanelSlot>;
-  /**
-   * Sort order within each slot, keyed by side-panel id.
-   * Lower numbers appear first. Missing entries sort as 0.
-   */
-  sidePanelOrder: Record<string, number>;
-  /**
-   * Last-active panel id per slot, keyed by SidePanelSlot string.
-   * Restored on reload so the same tab is visible after restart.
-   */
-  activeSidePanelTabs: Record<string, string>;
-  /**
-   * Scroll positions for side panels, keyed by panel id.
-   * Stores the scrollTop of the panel's content area.
-   */
-  sidePanelScrollPositions: Record<string, number>;
-  /**
-   * Per-extension/side-panel namespaced state, keyed first by panel id then
-   * by key. This is the **workspace** scope: it is snapshotted into the active
-   * workspace and swapped when the active workspace changes. Backs
-   * `SidePanelProps.storage` (keyed by panel id) and `ctx.storage.workspace`
-   * (keyed by extension id).
-   */
-  extensionState: Record<string, Record<string, unknown>>;
   /**
    * Per-extension namespaced state shared across **all** workspaces. This is
    * the **global** scope (`ctx.storage.global`), keyed first by extension id
@@ -176,6 +206,13 @@ export interface AppState {
    * each `PersistedAgentInfo` carries its own `workspaceId`.
    */
   agentState: Record<string, PersistedAgentInfo>;
+  /**
+   * The **live** (on-screen) collapse state — small-screen mode's own layout
+   * while it's active, the normal-width one otherwise. Which is which is
+   * `smallScreenActive` below; the other mode's pair sits in
+   * `inactiveModeCollapsed`. (A workspace record keys the same two pairs by
+   * *mode* instead — see `PanelStateSnapshot`.)
+   */
   leftPanelCollapsed: boolean;
   rightPanelCollapsed: boolean;
   /**
@@ -233,13 +270,6 @@ export interface AppState {
    */
   smallScreenPeekWidthLeftPx: number;
   smallScreenPeekWidthRightPx: number;
-  /**
-   * Side-panel visibility, keyed by panel id. Per-workspace: snapshotted into
-   * the active workspace and swapped when the active workspace changes (like
-   * the other panel-state fields). Absent = visible (default); only an explicit
-   * `false` (hidden) is stored.
-   */
-  sidePanelVisibility: Record<string, boolean>;
   /**
    * Named collapsible groups in the Workspaces panel, keyed by group id. A
    * group's `workspaceOrder` is the single source of truth for membership — a

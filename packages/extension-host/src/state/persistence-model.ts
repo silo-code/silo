@@ -10,7 +10,7 @@
 
 import type {
   EditorSettings,
-  SideCollapseState,
+  PanelStateSnapshot,
   SidePanelSlot,
   TerminalSettings,
   WorkspaceInternal,
@@ -73,21 +73,9 @@ export interface LegacyPersisted {
 }
 
 /** The active-workspace panel-state snapshot merged in at save time (the live
- * global store fields, which aren't mirrored onto the workspace until then). */
-export interface PanelState {
-  sidePanelLocations: Record<string, SidePanelSlot>;
-  sidePanelOrder: Record<string, number>;
-  activeSidePanelTabs: Record<string, string>;
-  sidePanelScrollPositions: Record<string, number>;
-  sidePanelVisibility: Record<string, boolean>;
-  extensionState: Record<string, Record<string, unknown>>;
-  /** The normal-width layout's collapse state... */
-  leftPanelCollapsed: boolean;
-  rightPanelCollapsed: boolean;
-  /** ...and small-screen mode's own, `null` until that mode has applied to
-   * this workspace. See `small-screen-mode.ts`. */
-  smallScreenCollapsed: SideCollapseState | null;
-}
+ * global store fields, which aren't mirrored onto the workspace until then).
+ * Declared with the store shape it's captured from — see `state/types.ts`. */
+export type PanelState = PanelStateSnapshot;
 
 /** Deep-clone the two-level extension-state bag so a stored snapshot can't alias
  * (and later mutate via) the live store. */
@@ -235,22 +223,11 @@ export function withActivePanelState(
   ws: WorkspaceInternal,
   panel: PanelState,
 ): WorkspaceInternal {
-  return {
-    ...ws,
-    sidePanelLocations: { ...panel.sidePanelLocations },
-    sidePanelOrder: { ...panel.sidePanelOrder },
-    activeSidePanelTabs: { ...panel.activeSidePanelTabs },
-    sidePanelScrollPositions: { ...panel.sidePanelScrollPositions },
-    sidePanelVisibility: { ...panel.sidePanelVisibility },
-    extensionState: cloneExtensionState(panel.extensionState),
-    leftPanelCollapsed: panel.leftPanelCollapsed,
-    rightPanelCollapsed: panel.rightPanelCollapsed,
-    // Keep the key absent (rather than null) while the workspace has never
-    // been narrow, matching how the rest of the record omits unset state.
-    ...(panel.smallScreenCollapsed
-      ? { smallScreenCollapsed: { ...panel.smallScreenCollapsed } }
-      : {}),
-  };
+  // `PanelState` is by definition the record's panel fields, so the merge is
+  // the spread — no field list to keep in step. The containers are already
+  // copies (`capturePanelState` clones them off the live store), so the result
+  // can't alias state anyone still mutates.
+  return { ...ws, ...panel };
 }
 
 /**
