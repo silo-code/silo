@@ -67,3 +67,4 @@ A small, obvious choice needs neither.
 | [0030](./0030-activity-chrome.md)                       | Activity as first-class chrome                       | 2026-07-31 | accepted |
 | [0031](./0031-update-check-analytics.md)                | Update-check analytics via a Cloudflare Worker proxy | 2026-08-01 | accepted |
 | [0032](./0032-dock-active-panel-authority.md)           | One authority decides a dock's active panel          | 2026-08-04 | accepted |
+| [0033](./0033-laptop-mode-independent-layout.md)        | Laptop Mode is a second independent layout           | 2026-08-06 | accepted |

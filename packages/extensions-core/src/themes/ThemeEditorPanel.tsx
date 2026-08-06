@@ -97,6 +97,14 @@ const VAR_GROUPS: { label: string; keys: (keyof ThemeVars)[] }[] = [
     keys: ["--silo-notify-bg", "--silo-notify-text", "--silo-notify-text-hi"],
   },
   {
+    label: "Lists",
+    keys: [
+      "--silo-list-hover-bg",
+      "--silo-list-active-bg",
+      "--silo-list-active-outline",
+    ],
+  },
+  {
     label: "Editor & Terminal",
     keys: [
       "--silo-content-terminal-bg",

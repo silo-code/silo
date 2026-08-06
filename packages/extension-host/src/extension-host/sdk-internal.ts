@@ -123,6 +123,30 @@ export { workspaceSectionRegistry } from "./workspace-section-registry";
 // *write* side (registerPropertyPage) is public via ctx.workspaces.
 export { workspacePropertyPageRegistry } from "./workspace-property-page-registry";
 
+// Navigator view registry (RFC 0023) — same rationale again: the *write* side
+// (ctx.registerNavigatorView) is public; enumerating the registered views,
+// React component refs and all, is what core.navigator needs to paint its view
+// selector and mount the active body. Unlike sections, the subscribe side is
+// internal too — only the Navigator panel ever observes registrations.
+export { navigatorViewRegistry } from "./navigator-view-registry";
+
+// Workspace context-menu builder + the shared close-confirm — the *write* side
+// of the menu is public (ctx.workspaces.getWorkspaceMenuItems); core gets the
+// extra-rows overload so the Workspaces view can slot its group actions into
+// the shared menu instead of keeping a second copy of Properties/Close/
+// contributions. Close itself is exported so the × button, status item, and
+// close command share the same dialog + dontShowAgain bag as the menu row.
+export {
+  buildWorkspaceMenuItems,
+  confirmAndCloseWorkspace,
+} from "./workspace-menu";
+
+// Error boundary — core.navigator hosts third-party view components (RFC 0023)
+// and must isolate a crash in one the same way PanelPane isolates a crashing
+// side panel. Core-only: extensions render inside a boundary the host already
+// provides, they don't wrap other extensions' components.
+export { ErrorBoundary } from "../components/ErrorBoundary";
+
 // Context-menu contribution read side (RFC 0013) — the *write* side
 // (registerContextMenuItem) is public via ctx; building the merged menu rows
 // for a surface is a core-extension concern (the built-in surface owns its

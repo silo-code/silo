@@ -13,15 +13,26 @@ export type BadgeTone =
   | "outline";
 
 /**
+ * Size axis for {@link Badge}. `"md"` is the default text chip; `"sm"` is the
+ * tighter counter chip.
+ *
+ * @internal
+ */
+export type BadgeSize = "sm" | "md";
+
+/**
  * Resolve the host `.silo-badge*` class string. An arbitrary `color` wins over
- * `tone` and selects `.silo-badge-custom` (fed via `--badge-color`).
+ * `tone` and selects `.silo-badge-custom` (fed via `--badge-color`). The
+ * default `"md"` size adds no class, so existing markup is unchanged.
  *
  * @internal
  */
 export function badgeClass(
   tone: BadgeTone = "neutral",
   color?: string,
+  size: BadgeSize = "md",
 ): string {
-  if (color != null) return "silo-badge silo-badge-custom";
-  return `silo-badge silo-badge-${tone}`;
+  const toneClass = color != null ? "silo-badge-custom" : `silo-badge-${tone}`;
+  const sizeClass = size === "sm" ? " silo-badge-sm" : "";
+  return `silo-badge ${toneClass}${sizeClass}`;
 }

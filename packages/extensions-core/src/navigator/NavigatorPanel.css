@@ -1,0 +1,84 @@
+/* The Navigator is a column of [sticky header][one visible view]. It only sets
+   a min-height — the host `.tab-pane` above it stays the sole scroller, which
+   is what its scroll persistence and every registered view assume. */
+.nav-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.nav-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--silo-color-border);
+  /* Stays put while the active view scrolls under it; opaque so rows don't
+     show through. */
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--silo-color-bg);
+}
+
+.nav-header__actions {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* ContributedToolbar ships the editor breadcrumb's bar chrome — its own
+   background and bottom rule. Inside the Navigator header that reads as a bar
+   within a bar, so the cluster is flattened to just its buttons here; the
+   header is already the bar. */
+.nav-header .contributed-toolbar {
+  min-height: 0;
+  padding: 0;
+  background: none;
+  border-bottom: none;
+}
+
+/* The view selector. Disabled (and caret-less) when only one view is
+   registered — there'd be nothing to switch to. */
+.nav-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 2px 5px;
+  border: none;
+  background: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-ui);
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.nav-view-btn:disabled {
+  cursor: default;
+}
+
+.nav-view-btn:hover:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+
+.nav-view-btn__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One registered view per container; all mounted ones stay in the DOM so they
+   keep scroll position and local state, but only the active one shows. */
+.nav-view {
+  flex: 1;
+  min-height: 0;
+}
+
+.nav-view[data-active="false"] {
+  display: none;
+}

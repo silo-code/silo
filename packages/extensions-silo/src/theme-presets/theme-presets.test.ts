@@ -38,7 +38,7 @@ describe("theme-presets extension", () => {
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
   });
 
-  it("keeps High Contrast Dark on the dark base/color-scheme with only text tokens overridden", () => {
+  it("keeps High Contrast Dark on the dark base with brighter text and selection fills", () => {
     const highContrastDark = activateAndCollect().find(
       (p) => p.id === "high-contrast-dark",
     );
@@ -47,9 +47,15 @@ describe("theme-presets extension", () => {
     expect(highContrastDark!.colorScheme).toBe("dark");
     expect(highContrastDark!.vars["--silo-color-bg"]).toBeUndefined();
     expect(highContrastDark!.vars["--silo-color-accent"]).toBeUndefined();
+    expect(highContrastDark!.vars["--silo-color-bg-hover"]).toBe("#2a3144");
+    expect(highContrastDark!.vars["--silo-color-bg-active"]).toBe("#343c52");
+    expect(
+      highContrastDark!.vars["--silo-list-active-outline"],
+    ).toBeUndefined();
+    expect(highContrastDark!.vars["--silo-color-text-hi"]).toBe("#e4e6ec");
   });
 
-  it("keeps High Contrast Light on the light base/color-scheme with only text tokens overridden", () => {
+  it("keeps High Contrast Light on the light base with darker text and selection fills", () => {
     const highContrastLight = activateAndCollect().find(
       (p) => p.id === "high-contrast-light",
     );
@@ -58,6 +64,12 @@ describe("theme-presets extension", () => {
     expect(highContrastLight!.colorScheme).toBe("light");
     expect(highContrastLight!.vars["--silo-color-bg"]).toBeUndefined();
     expect(highContrastLight!.vars["--silo-color-accent"]).toBeUndefined();
+    expect(highContrastLight!.vars["--silo-color-bg-hover"]).toBe("#d8d8d8");
+    expect(highContrastLight!.vars["--silo-color-bg-active"]).toBe("#b8d4f0");
+    expect(
+      highContrastLight!.vars["--silo-list-active-outline"],
+    ).toBeUndefined();
+    expect(highContrastLight!.vars["--silo-color-text-hi"]).toBe("#1a1a1a");
   });
 
   it("gives Solarized Dark a dark base matching its light sibling's structure", () => {

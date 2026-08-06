@@ -53,6 +53,7 @@
   --silo-modal-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
   --silo-list-hover-bg: var(--silo-color-bg-hover);
   --silo-list-active-bg: var(--silo-color-bg-active);
+  --silo-list-active-outline: transparent;
   --silo-list-radius: var(--silo-radius-sm);
   --silo-font-ui:
     -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui,
@@ -130,8 +131,8 @@ html[data-silo-demo-theme="gruvbox-dark"] .silo-demo {
 html[data-silo-demo-theme="high-contrast-dark"] .silo-demo {
   /* tokens — High Contrast Dark */
   --silo-color-bg: #161922;
-  --silo-color-bg-hover: #1c2030;
-  --silo-color-bg-active: #282d3a;
+  --silo-color-bg-hover: #2a3144;
+  --silo-color-bg-active: #343c52;
   --silo-color-button-bg: #232839;
   --silo-color-text-hi: #e4e6ec;
   --silo-color-text: #a0a0a0;
@@ -153,8 +154,8 @@ html[data-silo-demo-theme="high-contrast-dark"] .silo-demo {
 html[data-silo-demo-theme="high-contrast-light"] .silo-demo {
   /* tokens — High Contrast Light */
   --silo-color-bg: #e5e5e5;
-  --silo-color-bg-hover: #ececec;
-  --silo-color-bg-active: #cce4ff;
+  --silo-color-bg-hover: #d8d8d8;
+  --silo-color-bg-active: #b8d4f0;
   --silo-color-button-bg: #e0e0e0;
   --silo-color-text-hi: #1a1a1a;
   --silo-color-text: #3a3a3a;
@@ -200,7 +201,7 @@ html[data-silo-demo-theme="solarized-light"] .silo-demo {
   /* tokens — Solarized Light */
   --silo-color-bg: #eee8d5;
   --silo-color-bg-hover: #e8e2d0;
-  --silo-color-bg-active: #cdc8ae;
+  --silo-color-bg-active: #ddd8c0;
   --silo-color-button-bg: #d6cfbd;
   --silo-color-text-hi: #839496;
   --silo-color-text: #738a8a;
@@ -768,6 +769,8 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 }
 .silo-demo .silo-list-row[data-selected="true"] {
   background: var(--silo-list-active-bg);
+  outline: var(--silo-list-active-outline);
+  outline-offset: -1px;
 }
 .silo-demo .silo-list-row .leading {
   color: var(--silo-color-text-lo);
@@ -861,14 +864,14 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   --silo-activity-ready: #22c55e;
   --silo-activity-warn: #d97706;
   --silo-activity-error: #dc2626;
-  --silo-activity-none: #b0b0b0;
+  --silo-activity-none: #c4c4c4;
 }
 html.dark .silo-demo {
   --silo-activity-working: #60a5fa;
   --silo-activity-ready: #4ade80;
   --silo-activity-warn: #fbbf24;
   --silo-activity-error: #f87171;
-  --silo-activity-none: #6b6b6b;
+  --silo-activity-none: #808080;
 }
 .silo-demo .silo-activity {
   position: relative;

@@ -65,3 +65,4 @@ never deleted** — "we considered X and rejected it" stops the debate recurring
 | [0020](./0020-agent-hook-activity-channel.md)             | Hooks as an authoritative agent-activity channel (over OSC)       | 2026-07-29 | draft       |
 | [0021](./0021-follow-ups-extension-sdk.md)                | Follow-ups extension — generic toolbar + tab-decoration SDK       | 2026-07-30 | accepted    |
 | [0022](./0022-side-panel-tab-adornments.md)               | Side-panel tab adornments — owner handle from registerSidePanel   | 2026-07-31 | draft       |
+| [0023](./0023-workspace-panel-views.md)                   | The Navigator — a side panel of contributed views                 | 2026-08-06 | accepted    |

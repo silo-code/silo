@@ -50,7 +50,7 @@ deliberate behavior change, not an incidental regression.
 - Closing on **selection or Esc** restores focus to the element that opened the
   menu; closing by **clicking outside** leaves focus where you clicked.
 
-## Left side dock / Workspaces panel (reference panel)
+## Left side dock / Navigator — Workspaces view (reference panel)
 
 - **Click the dock background** OR **region-cycle in** → focus lands on the
   **currently-selected workspace** row, with a focus ring.

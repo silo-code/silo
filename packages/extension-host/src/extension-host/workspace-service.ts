@@ -28,6 +28,8 @@ import { workspaceSectionRegistry } from "./workspace-section-registry";
 import { workspaceBadgeRegistry } from "./workspace-badge-registry";
 import { workspacePropertyPageRegistry } from "./workspace-property-page-registry";
 import { reapWorkspaceTerminals } from "./terminal-service";
+import { resolveOpenWorkspaceMenuItems } from "./open-workspace-menu";
+import { buildWorkspaceMenuItems } from "./workspace-menu";
 
 // `ctx.workspaces` — the public contract lives in @silo-code/sdk
 // (workspace-service.ts); this is the host implementation.
@@ -138,6 +140,12 @@ export function getWorkspaceService(): WorkspaceService {
     ),
     registerPropertyPage(page: WorkspacePropertyPage) {
       return workspacePropertyPageRegistry.register(page);
+    },
+    getOpenWorkspaceMenuItems() {
+      return resolveOpenWorkspaceMenuItems(buildSnapshot().closed);
+    },
+    getWorkspaceMenuItems(workspaceId: string) {
+      return buildWorkspaceMenuItems(workspaceId);
     },
     registerBadge(provider: WorkspaceBadgeProvider) {
       return workspaceBadgeRegistry.register(provider);

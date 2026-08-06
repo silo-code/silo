@@ -1,6 +1,6 @@
 # Interface: WorkspacePropertyPage
 
-Defined in: [packages/sdk/src/workspace-service.ts:162](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L162)
+Defined in: [packages/sdk/src/workspace-service.ts:163](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L163)
 
 A tab contributed by an extension inside the workspace properties modal.
 Register via [WorkspaceService.registerPropertyPage](WorkspaceService.md#registerpropertypage).
@@ -17,7 +17,7 @@ folders) is first, followed by registered pages sorted by
 id: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L164)
+Defined in: [packages/sdk/src/workspace-service.ts:165](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L165)
 
 Unique id, conventionally `"<extension-id>.properties"`.
 
@@ -29,7 +29,7 @@ Unique id, conventionally `"<extension-id>.properties"`.
 title: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:166](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L166)
+Defined in: [packages/sdk/src/workspace-service.ts:167](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L167)
 
 Tab label shown in the tab bar.
 
@@ -41,7 +41,7 @@ Tab label shown in the tab bar.
 optional icon?: ReactNode;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:168](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L168)
+Defined in: [packages/sdk/src/workspace-service.ts:169](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L169)
 
 Optional icon rendered to the left of the tab label.
 
@@ -53,7 +53,7 @@ Optional icon rendered to the left of the tab label.
 component: ComponentType<WorkspacePropertyPageProps>;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:174](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L174)
+Defined in: [packages/sdk/src/workspace-service.ts:175](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L175)
 
 The React component rendered as the tab's content. Receives the
 workspace being edited and the workspace service
@@ -67,7 +67,7 @@ workspace being edited and the workspace service
 optional visible?: (ws) => boolean;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:180](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L180)
+Defined in: [packages/sdk/src/workspace-service.ts:181](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L181)
 
 Whether this tab should appear for this workspace. Defaults to `true`
 (always visible); return `false` to hide it for workspaces where the
@@ -91,7 +91,7 @@ extension is not relevant (e.g. a workspace with no git repo).
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:185](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L185)
+Defined in: [packages/sdk/src/workspace-service.ts:186](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L186)
 
 Sort order within this extension's contributions. Lower values appear
 first. Defaults to `0`.

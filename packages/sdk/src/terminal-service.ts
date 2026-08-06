@@ -1,4 +1,5 @@
 import type { Disposable } from "./types";
+import type { MenuEntry } from "./ui-service";
 import type { TerminalKind, TerminalRecord } from "./domain-types";
 import type {
   TabAdornmentMethods,
@@ -144,6 +145,30 @@ export interface TerminalService extends TabAdornmentMethods {
    * Switch to the workspace containing this terminal and activate its tab in
    * the center dock. No-ops if the terminal id is unknown.
    */
+  /**
+   * The rows of this terminal's tab context menu — **Rename…**, then whatever
+   * extensions contributed on the `"terminal/tab"`
+   * {@link MenuSurface | surface}.
+   *
+   * Use it when your own UI lists terminals (an agent list, a session picker)
+   * so right-clicking a row offers the same actions as right-clicking the tab,
+   * contributions included, instead of a menu that drifts from it. Returns an
+   * empty array for a terminal no workspace owns.
+   *
+   * @example
+   * ```ts
+   * ctx.ui.showMenu({
+   *   items: [
+   *     { label: "Mark as seen", run: () => ctx.agents.acknowledge(id) },
+   *     { type: "separator" },
+   *     ...ctx.terminals.getTabMenuItems(id),
+   *   ],
+   *   at: { x: e.clientX, y: e.clientY },
+   * });
+   * ```
+   */
+  getTabMenuItems(terminalId: string): MenuEntry[];
+
   focus(terminalId: string): void;
 
   /**

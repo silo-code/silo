@@ -136,7 +136,7 @@ export function worktreeActions(
   pendingRemove = false,
 ): WorktreeAction[] {
   if (pendingRemove) return [];
-  // Orphan open folders aren't real git worktrees — Close view only.
+  // Orphan open folders aren't real git worktrees — Close worktree view only.
   if (row.isOrphan) {
     return row.isOpen && !row.isPrimary ? ["close"] : [];
   }

@@ -8,6 +8,7 @@ import {
   registerToolbarItem,
 } from "./toolbar-items";
 import { sidePanelRegistry } from "./side-panels";
+import { navigatorViewRegistry } from "./navigator-view-registry";
 import { statusItemRegistry } from "./status-items";
 import {
   settingsPageRegistry,
@@ -26,6 +27,7 @@ import type {
   Permission,
   SettingsPage,
   SidePanel,
+  NavigatorView,
   StatusItem,
   Editor,
   ToolbarItemContribution,
@@ -153,6 +155,9 @@ export function createContext(
     },
     registerSidePanel(panel: SidePanel): Disposable {
       return track(sidePanelRegistry.register(panel));
+    },
+    registerNavigatorView(view: NavigatorView): Disposable {
+      return track(navigatorViewRegistry.register(view));
     },
     registerDockPanelKind<T extends object>(
       kind: DockPanelKind<T>,

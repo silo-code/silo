@@ -10,14 +10,10 @@ import type {
 } from "@silo-code/sdk";
 import { ActivityGlyph } from "@silo-code/sdk";
 import { store } from "../state/store";
-import {
-  findTerminal,
-  promotePreviewEditor,
-  renameTerminal,
-} from "../state/workspaces";
-import { prompt } from "../extension-host/modal-service";
+import { promotePreviewEditor } from "../state/workspaces";
 import { tabAdornmentRegistry } from "../extension-host/tab-adornment-registry";
 import { contextMenuEntriesFor } from "../extension-host/context-menu-items";
+import { buildTerminalTabMenuItems } from "../extension-host/terminal-tab-menu";
 import { openMenu } from "../extension-host/menu-controller";
 import { Tooltip } from "../components/Tooltip";
 import { TabIndicatorGlyph } from "./TabIndicatorGlyph";
@@ -217,30 +213,6 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
 
       const items: MenuEntry[] = [];
 
-      if (terminalId) {
-        const activeWsId = store.activeWorkspaceId;
-        items.push({
-          label: "Rename…",
-          run: () => {
-            void (async () => {
-              if (!activeWsId) return;
-              const renamed = !!findTerminal(activeWsId, terminalId)
-                ?.customName;
-              const next = await prompt({
-                title: "Rename Terminal",
-                label: "Terminal name",
-                initialValue: api.title ?? "",
-                placeholder: "Leave empty to use the automatic name",
-                resetLabel: renamed ? "Reset" : undefined,
-              });
-              if (next === null) return;
-              renameTerminal(activeWsId, terminalId, next);
-              if (next.trim()) api.setTitle(next.trim());
-            })();
-          },
-        });
-      }
-
       if (editorId) {
         const record = wsId
           ? store.workspaces[wsId]?.editors.find((e) => e.id === editorId)
@@ -250,30 +222,17 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
           filePath: record?.filePath ?? null,
           viewId: record?.viewType ?? "unknown",
         });
-        if (contributed.length > 0) {
-          if (items.length > 0) items.push({ type: "separator" });
-          items.push(...contributed);
-        }
+        items.push(...contributed);
       } else if (terminalId) {
-        let ownerWsId = wsId;
-        if (!ownerWsId || !findTerminal(ownerWsId, terminalId)) {
-          for (const id of Object.keys(store.workspaces)) {
-            if (findTerminal(id, terminalId)) {
-              ownerWsId = id;
-              break;
-            }
-          }
-        }
-        if (ownerWsId) {
-          const contributed = contextMenuEntriesFor("terminal/tab", {
-            terminalId,
-            workspaceId: ownerWsId,
-          });
-          if (contributed.length > 0) {
-            if (items.length > 0) items.push({ type: "separator" });
-            items.push(...contributed);
-          }
-        }
+        // Shared with every other surface that lists this terminal — see
+        // extension-host/terminal-tab-menu.ts. `onRenamed` is the one bit only
+        // a dock tab needs: pushing the label into its dockview panel api.
+        items.push(
+          ...buildTerminalTabMenuItems(terminalId, {
+            workspaceId: wsId ?? undefined,
+            onRenamed: (name) => api.setTitle(name),
+          }),
+        );
       }
 
       if (items.length === 0) return;
