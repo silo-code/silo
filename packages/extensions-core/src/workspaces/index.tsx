@@ -3,13 +3,13 @@ import {
   store,
   groupIdForWorkspace,
   homeDir,
+  confirmAndCloseWorkspace,
 } from "@silo-code/extension-host/internal";
 import { WorkspacesView } from "./WorkspacesView";
 import { WorkspaceStatusItem } from "./WorkspaceStatusItem";
 import { registerWorkspaceCycle } from "./workspace-cycle";
 import { openNewGroup } from "./group-properties";
 import { openWorkspaceProperties } from "./workspace-properties";
-import { confirmAndCloseWorkspace } from "./workspace-add-menu";
 import { checkMissingExtraFolders } from "./missing-folder-notify";
 
 export const extension: Extension = {
@@ -61,7 +61,9 @@ export const extension: Extension = {
       order: 0,
       // Inject ctx so the view reaches workspaces/terminals/files through the
       // public primitives, not host getters (see silo.file-explorer, 6662dcc).
-      component: () => <WorkspacesView ctx={ctx} />,
+      // Forward NavigatorViewProps (incl. `active`) so the first Adapter
+      // exercises the same contract a third-party view sees.
+      component: (props) => <WorkspacesView ctx={ctx} {...props} />,
     });
 
     // "Add workspace" in the Navigator header. A toolbar contribution rather
@@ -136,7 +138,7 @@ export const extension: Extension = {
         const { activeId, all } = ctx.workspaces.getState();
         if (!activeId) return;
         const ws = all.find((w) => w.id === activeId);
-        if (ws) void confirmAndCloseWorkspace(ctx, activeId, ws.name);
+        if (ws) void confirmAndCloseWorkspace(activeId, ws.name);
       },
     });
 

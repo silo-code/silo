@@ -12,6 +12,10 @@ import {
   ungroupWorkspace,
   toggleGroupCollapsed,
   workspaceGroupMap,
+  buildWorkspaceMenuItems,
+  homeDir,
+  workspaceSectionRegistry,
+  confirmAndCloseWorkspace,
 } from "@silo-code/extension-host/internal";
 import {
   ActivityGlyph,
@@ -20,13 +24,9 @@ import {
   useServiceState,
   type ExtensionContext,
   type MenuEntry,
+  type NavigatorViewProps,
   type WorkspaceStatusRow,
 } from "@silo-code/sdk";
-import {
-  buildWorkspaceMenuItems,
-  homeDir,
-  workspaceSectionRegistry,
-} from "@silo-code/extension-host/internal";
 import {
   fullPath,
   FrontTruncatedPath,
@@ -36,9 +36,8 @@ import {
 } from "./workspace-helpers";
 import {
   confirmAndCloseGroup,
-  confirmAndCloseWorkspace,
   confirmAndDeleteGroup,
-} from "./workspace-add-menu";
+} from "./workspace-confirms";
 import { openWorkspaceProperties } from "./workspace-properties";
 import { openGroupProperties, type GroupSnapshot } from "./group-properties";
 import { useWorkspaceDnd } from "./use-workspace-dnd";
@@ -129,7 +128,10 @@ function WorkspaceStatusRows({
   );
 }
 
-export function WorkspacesView({ ctx }: { ctx: ExtensionContext }) {
+export function WorkspacesView({
+  ctx,
+  active: _active,
+}: { ctx: ExtensionContext } & NavigatorViewProps) {
   const service = ctx.workspaces;
   const snap = useServiceState(service);
   const storeSnap = useSnapshot(store);
@@ -374,7 +376,7 @@ export function WorkspacesView({ ctx }: { ctx: ExtensionContext }) {
           aria-label="Close workspace"
           onClick={(e) => {
             e.stopPropagation();
-            void confirmAndCloseWorkspace(ctx, ws.id, ws.name);
+            void confirmAndCloseWorkspace(ws.id, ws.name);
           }}
         >
           ×

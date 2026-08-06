@@ -43,6 +43,22 @@ describe("register / unregister", () => {
     expect(() => d.dispose()).not.toThrow();
     expect(navigatorViewRegistry.list()).not.toContain(v);
   });
+
+  it("throws on duplicate view id", () => {
+    register(makeView("dup"));
+    expect(() => navigatorViewRegistry.register(makeView("dup"))).toThrow(
+      /duplicate id "dup"/,
+    );
+  });
+
+  it("allows re-registering the same id after dispose", () => {
+    const d = navigatorViewRegistry.register(makeView("reuse"));
+    d.dispose();
+    const idx = disposables.indexOf(d);
+    if (idx !== -1) disposables.splice(idx, 1);
+    expect(() => register(makeView("reuse"))).not.toThrow();
+    expect(navigatorViewRegistry.list().map((v) => v.id)).toContain("reuse");
+  });
 });
 
 describe("list() ordering", () => {

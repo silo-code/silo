@@ -1,11 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { MenuItem } from "@silo-code/sdk";
 import { store } from "../state/store";
-import { buildWorkspaceMenuItems } from "./workspace-menu";
+import {
+  buildWorkspaceMenuItems,
+  confirmAndCloseWorkspace,
+} from "./workspace-menu";
 import { commandRegistry } from "./commands";
 import { registerContextMenuItem } from "./context-menu-items";
+import { getGlobalExtensionStorage } from "./extension-storage";
+import { getUiService } from "./ui-service";
 
 const disposables: { dispose(): void }[] = [];
+const workspacesStorage = getGlobalExtensionStorage("core.workspaces");
 
 function addWorkspace(id: string, over: Record<string, unknown> = {}) {
   store.workspaces[id] = {
@@ -37,6 +43,8 @@ beforeEach(() => {
 afterEach(() => {
   for (const d of disposables.splice(0)) d.dispose();
   for (const id of Object.keys(store.workspaces)) delete store.workspaces[id];
+  workspacesStorage.set("closeWorkspace.dontShowAgain", undefined);
+  vi.restoreAllMocks();
 });
 
 describe("buildWorkspaceMenuItems", () => {
@@ -118,5 +126,27 @@ describe("contributions", () => {
       "--separator--",
       "Clear Alerts",
     ]);
+  });
+});
+
+describe("confirmAndCloseWorkspace", () => {
+  it("closes without a dialog once dontShowAgain is set", async () => {
+    addWorkspace("ws_1");
+    workspacesStorage.set("closeWorkspace.dontShowAgain", true);
+    const showModal = vi.spyOn(getUiService(), "showModal");
+
+    await confirmAndCloseWorkspace("ws_1", "ws_1");
+
+    expect(showModal).not.toHaveBeenCalled();
+    expect(store.workspaces.ws_1?.closedAt).toBeTruthy();
+  });
+
+  it("leaves the workspace open when the dialog is cancelled", async () => {
+    addWorkspace("ws_1");
+    vi.spyOn(getUiService(), "showModal").mockResolvedValue(false);
+
+    await confirmAndCloseWorkspace("ws_1", "ws_1");
+
+    expect(store.workspaces.ws_1?.closedAt).toBeFalsy();
   });
 });

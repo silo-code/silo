@@ -130,11 +130,16 @@ export { workspacePropertyPageRegistry } from "./workspace-property-page-registr
 // internal too — only the Navigator panel ever observes registrations.
 export { navigatorViewRegistry } from "./navigator-view-registry";
 
-// Workspace context-menu builder — the *write* side is public
-// (ctx.workspaces.getWorkspaceMenuItems); core gets the extra-rows overload so
-// the Workspaces view can slot its group actions into the shared menu instead
-// of keeping a second copy of Properties/Close/contributions.
-export { buildWorkspaceMenuItems } from "./workspace-menu";
+// Workspace context-menu builder + the shared close-confirm — the *write* side
+// of the menu is public (ctx.workspaces.getWorkspaceMenuItems); core gets the
+// extra-rows overload so the Workspaces view can slot its group actions into
+// the shared menu instead of keeping a second copy of Properties/Close/
+// contributions. Close itself is exported so the × button, status item, and
+// close command share the same dialog + dontShowAgain bag as the menu row.
+export {
+  buildWorkspaceMenuItems,
+  confirmAndCloseWorkspace,
+} from "./workspace-menu";
 
 // Error boundary — core.navigator hosts third-party view components (RFC 0023)
 // and must isolate a crash in one the same way PanelPane isolates a crashing

@@ -18,6 +18,9 @@ function notify(): void {
 
 export const navigatorViewRegistry = {
   register(view: NavigatorView): { dispose(): void } {
+    if (views.some((v) => v.id === view.id)) {
+      throw new Error(`navigatorViewRegistry: duplicate id "${view.id}"`);
+    }
     views.push(view);
     notify();
     return {

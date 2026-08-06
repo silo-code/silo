@@ -26,8 +26,16 @@ const workspacesStorage = getGlobalExtensionStorage("core.workspaces");
  * property-page tabs it renders — owned by the extension that owns them. */
 const PROPERTIES_COMMAND = "workspace.properties";
 
-/** Show the educational "closing keeps terminals alive" popup, then close. */
-async function confirmAndClose(id: string, name: string): Promise<void> {
+/**
+ * Show the educational "closing keeps terminals alive" popup, then close.
+ * The **one** close-confirm for a workspace — context menus, the × button,
+ * the status-bar item, and the close command all go through here so the copy
+ * and the `closeWorkspace.dontShowAgain` bag can't drift.
+ */
+export async function confirmAndCloseWorkspace(
+  id: string,
+  name: string,
+): Promise<void> {
   const ok = await confirmWithDontShowAgain(getUiService(), workspacesStorage, {
     storageKey: "closeWorkspace.dontShowAgain",
     title: "Close workspace",
@@ -68,7 +76,7 @@ export function buildWorkspaceMenuItems(
   if (!ws.closedAt) {
     items.push({
       label: "Close",
-      run: () => void confirmAndClose(ws.id, ws.name),
+      run: () => void confirmAndCloseWorkspace(ws.id, ws.name),
     });
   }
 

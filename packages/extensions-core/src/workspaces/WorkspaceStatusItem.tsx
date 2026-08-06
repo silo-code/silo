@@ -5,8 +5,11 @@ import {
   type ExtensionContext,
   type MenuEntry,
 } from "@silo-code/sdk";
-import { homeDir, Tooltip } from "@silo-code/extension-host/internal";
-import { confirmAndCloseWorkspace } from "./workspace-add-menu";
+import {
+  homeDir,
+  Tooltip,
+  confirmAndCloseWorkspace,
+} from "@silo-code/extension-host/internal";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { openWorkspaceProperties } from "./workspace-properties";
 import "./WorkspaceStatusItem.css";
@@ -81,7 +84,7 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
     });
     items.push({
       label: "Close",
-      run: () => void confirmAndCloseWorkspace(ctx, activeId, active.name),
+      run: () => void confirmAndCloseWorkspace(activeId, active.name),
     });
     void ctx.ui.showMenu({ items, anchor: buttonRef.current });
   }
