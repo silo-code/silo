@@ -10,6 +10,7 @@ import {
   DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
 } from "./types";
 import type { WorkspaceInternal } from "./types";
+import { migratePanelIds } from "./panel-id-migration";
 import { loadPanelStateFromWorkspace } from "./workspaces";
 import { capturePanelState } from "./panel-state";
 import { setBackupDir, sweepEditorBackups } from "./editor-backups";
@@ -164,7 +165,7 @@ export async function hydrate(configDir: string): Promise<void> {
           const s = await load(e.path, STORE_OPTS);
           const ws = await s.get<WorkspaceInternal>(WORKSPACE_KEY);
           if (ws && typeof ws.id === "string") {
-            workspaces[ws.id] = ws;
+            workspaces[ws.id] = migratePanelIds(ws);
             wsStores.set(ws.id, s);
           } else {
             await s.close();

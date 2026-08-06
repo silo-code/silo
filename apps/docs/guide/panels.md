@@ -41,8 +41,8 @@ the tooltip shows the count. On a **linked** worktree view the icon is omitted
 - **Open a worktree alongside** the current folders (click its row). It appears
   as an extra root in both the Files panel and the Git panel — the same
   multi-root convention as [workspaces](/guide/workspaces) with several
-  folders — with its own branch, commit box, and changes. **Close view** later
-  removes just that root; the worktree on disk is untouched.
+  folders — with its own branch, commit box, and changes. **Close worktree
+  view** later removes just that root; the worktree on disk is untouched.
 - **Create a worktree** on a new or existing branch. The suggested location is
   a sibling directory named `<repo>-<branch>`, which keeps the checkout out of
   the main repo's file watcher and git status; the path is editable. (If you
@@ -118,5 +118,5 @@ The center area can hold multiple tab groups, split horizontally or vertically.
 ## See also
 
 - [Extensions](/guide/extensions) — install panels contributed by extensions
-- [Workspaces](/guide/workspaces) — the Workspaces panel in detail
+- [Workspaces](/guide/workspaces) — the Navigator's Workspaces view in detail
 - [Keyboard navigation](/guide/keyboard-navigation) — building keyboard-navigable panels (extension authors)

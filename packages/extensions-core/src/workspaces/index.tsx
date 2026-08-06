@@ -1,9 +1,14 @@
 import type { Extension } from "@silo-code/sdk";
-import { store, groupIdForWorkspace } from "@silo-code/extension-host/internal";
-import { WorkspacesPanel } from "./WorkspacesPanel";
+import {
+  store,
+  groupIdForWorkspace,
+  homeDir,
+} from "@silo-code/extension-host/internal";
+import { WorkspacesView } from "./WorkspacesView";
 import { WorkspaceStatusItem } from "./WorkspaceStatusItem";
 import { registerWorkspaceCycle } from "./workspace-cycle";
 import { openNewGroup } from "./group-properties";
+import { openWorkspaceProperties } from "./workspace-properties";
 import { confirmAndCloseWorkspace } from "./workspace-add-menu";
 import { checkMissingExtraFolders } from "./missing-folder-notify";
 
@@ -46,14 +51,31 @@ export const extension: Extension = {
       }),
     );
 
-    ctx.registerSidePanel({
+    // The workspace list is a view *of the Navigator* (core.navigator), not a
+    // panel of its own — registered through the same public API a third-party
+    // view uses, so there is exactly one way to add a way to navigate. `order: 0`
+    // makes it the view the Navigator opens with.
+    ctx.registerNavigatorView({
       id: "workspaces",
-      location: "left",
       title: "Workspaces",
-      // Inject ctx so the panel reaches workspaces/terminals/files through the
+      order: 0,
+      // Inject ctx so the view reaches workspaces/terminals/files through the
       // public primitives, not host getters (see silo.file-explorer, 6662dcc).
-      component: () => <WorkspacesPanel ctx={ctx} />,
-      order: 1,
+      component: () => <WorkspacesView ctx={ctx} />,
+    });
+
+    // "Add workspace" in the Navigator header. A toolbar contribution rather
+    // than panel chrome, which is what lets core.navigator stay ignorant of
+    // workspaces — and it is deliberately *unscoped* (no `when`), so opening
+    // or creating a workspace stays one click away from whichever view the
+    // user is in.
+    ctx.registerToolbarItem({
+      id: "core.workspaces.add",
+      surface: "navigator",
+      icon: "Plus",
+      label: "Add workspace",
+      tooltip: "Add workspace",
+      menu: () => ctx.workspaces.getOpenWorkspaceMenuItems(),
     });
 
     // Active-workspace name at the bottom-left of the status bar; click pops a
@@ -83,6 +105,27 @@ export const extension: Extension = {
       label: "New Group…",
       run: () => {
         void openNewGroup(ctx);
+      },
+    });
+
+    // Backs the Properties… row the host publishes in
+    // `ctx.workspaces.getWorkspaceMenuItems()`. Dispatching a command is what
+    // lets the host offer the row while this extension keeps owning the modal
+    // (and the property-page tabs registered into it).
+    ctx.registerCommand({
+      id: "workspace.properties",
+      label: "Workspace Properties…",
+      run: (workspaceId) => {
+        const id =
+          typeof workspaceId === "string"
+            ? workspaceId
+            : ctx.workspaces.getState().activeId;
+        if (!id) return;
+        const ws = ctx.workspaces.get(id);
+        if (!ws) return;
+        void homeDir()
+          .catch(() => "")
+          .then((home) => openWorkspaceProperties(ctx, home, ws));
       },
     });
 

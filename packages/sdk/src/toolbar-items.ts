@@ -3,13 +3,19 @@ import type { PhosphorIconName } from "./phosphor-icon";
 import type { MenuEntry } from "./ui-service";
 
 /**
- * Built-in CenterDock surfaces that accept
- * {@link ToolbarItemContribution}s. One surface per registration.
+ * Built-in surfaces that accept {@link ToolbarItemContribution}s. One surface
+ * per registration.
+ *
+ * `"editor"` and `"terminal"` are CenterDock breadcrumb toolbars; `"navigator"`
+ * is the header of the Navigator side panel, where contributions become that
+ * panel's action buttons. A navigator item's `when` receives the active
+ * {@link NavigatorView | view}'s id, so an action can be scoped to one view or
+ * left unscoped to appear across all of them.
  *
  * @category Registration
  * @public
  */
-export type ToolbarSurface = "editor" | "terminal";
+export type ToolbarSurface = "editor" | "terminal" | "navigator";
 
 /**
  * The typed target each {@link ToolbarSurface} passes to an invoked command
@@ -21,6 +27,7 @@ export type ToolbarSurface = "editor" | "terminal";
 export interface ToolbarItemContext {
   editor: { editorId: string };
   terminal: { terminalId: string };
+  navigator: { viewId: string };
 }
 
 /**

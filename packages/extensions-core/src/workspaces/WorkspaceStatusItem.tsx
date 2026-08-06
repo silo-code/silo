@@ -1,22 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useSnapshot } from "valtio";
+import { useEffect, useRef, useState } from "react";
 import { SquaresFour } from "@phosphor-icons/react";
 import {
   useServiceState,
   type ExtensionContext,
   type MenuEntry,
 } from "@silo-code/sdk";
-import {
-  homeDir,
-  store,
-  Tooltip,
-  partitionSavedEntries,
-} from "@silo-code/extension-host/internal";
-import { useFolderExistence } from "./workspace-helpers";
-import {
-  buildAddWorkspaceItems,
-  confirmAndCloseWorkspace,
-} from "./workspace-add-menu";
+import { homeDir, Tooltip } from "@silo-code/extension-host/internal";
+import { confirmAndCloseWorkspace } from "./workspace-add-menu";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { openWorkspaceProperties } from "./workspace-properties";
 import "./WorkspaceStatusItem.css";
@@ -24,16 +14,15 @@ import "./WorkspaceStatusItem.css";
 /**
  * Bottom-left status-bar entry: the active workspace's name. Clicking it pops a
  * menu to switch between open workspaces, cascade out to add one (the same
- * "Add workspace" menu as the workspaces panel), open Properties, or Close.
+ * "Add workspace" menu as the Navigator's + button), open Properties, or Close.
  * This component is always mounted (the status bar renders unconditionally,
- * unlike the collapsible side panel). The workspaces panel and this item both
+ * unlike the collapsible side panel). The Workspaces view and this item both
  * open the one Workspace Properties dialog through `openWorkspaceProperties`,
  * which pops it via `ctx.ui.showModal`.
  */
 export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
   const service = ctx.workspaces;
   const snap = useServiceState(service);
-  const storeSnap = useSnapshot(store);
   const [home, setHome] = useState("");
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
@@ -43,25 +32,9 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
       .catch(() => {});
   }, []);
 
-  const savedEntries = useMemo(
-    () => partitionSavedEntries(snap.closed, storeSnap.groups),
-    [snap.closed, storeSnap.groups],
-  );
-  const closedFolders = useMemo(
-    () => savedEntries.workspaces.map((ws) => ws.folder),
-    [savedEntries.workspaces],
-  );
-  const folderExistence = useFolderExistence(closedFolders, ctx.files);
-
   const active = snap.all.find((w) => w.id === snap.activeId) ?? null;
 
-  function onNew() {
-    void service.createFromFolderPicker().catch((err) => {
-      console.error("create workspace failed", err);
-    });
-  }
-
-  function openMenu() {
+  async function openMenu() {
     if (!active) return;
     const activeId = active.id;
     const items: MenuEntry[] = [];
@@ -90,19 +63,11 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
     });
     // 3. ── divider ──
     items.push({ type: "separator" });
-    // 4. Open — cascades to the panel's add menu.
+    // 4. Open — cascades to the same menu the Navigator's + button opens,
+    // built once by the host so the two can't drift.
     items.push({
       label: "Open",
-      submenu: buildAddWorkspaceItems({
-        ctx,
-        closed: savedEntries.workspaces,
-        closedGroups: savedEntries.groupEntries,
-        folderExistence,
-        onNew,
-        onNewGroup: () => {
-          void ctx.executeCommand("workspace.newGroup");
-        },
-      }),
+      submenu: await ctx.workspaces.getOpenWorkspaceMenuItems(),
     });
     // 5. ── divider ──
     items.push({ type: "separator" });
@@ -125,7 +90,11 @@ export function WorkspaceStatusItem({ ctx }: { ctx: ExtensionContext }) {
     <>
       {active && (
         <Tooltip content="Workspaces — ⌘` to cycle">
-          <button ref={buttonRef} className="ws-status-item" onClick={openMenu}>
+          <button
+            ref={buttonRef}
+            className="ws-status-item"
+            onClick={() => void openMenu()}
+          >
             <SquaresFour
               size="1.15em"
               weight="duotone"

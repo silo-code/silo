@@ -6,6 +6,53 @@ Workspaces keep terminals, agents, and layout intact; switch instantly.
 
 ## Language
 
+### Workspaces
+
+**Workspace**:
+The unit Silo switches between. Each keeps its terminals, editors, side-panel
+layout, and session state alive while another is active.
+_Avoid_: Project (too vague), session (the PTY/process sense), window
+
+**Workspaces view**:
+The default Navigator view — the list of open workspaces (with groups, badges,
+and status rows). Contributed by `core.workspaces` like any other view.
+_Avoid_: Workspaces panel (the old name for the Navigator itself)
+
+### Navigator
+
+**Navigator**:
+The side panel you navigate the app from. A container: its body is one View at
+a time; its header holds the view selector and toolbar actions. Owned by
+`core.navigator`.
+_Avoid_: Workspaces panel, sidebar (OS/VS Code sense), activity bar
+
+**View**:
+One projection inside the Navigator — another way to answer "where can I go",
+rendered as the whole panel body. Distinct from a Side Panel: a new way to
+navigate is a new View, not a second competing panel.
+_Avoid_: Side Panel (when the intent is navigation), tab, mode (prefer View),
+editor view (the CenterDock `viewType` sense)
+
+**Open Workspace menu**:
+The shared "saved workspaces / New workspace…" menu offered from the Navigator
+header, the workspace status-bar item, and the empty CenterDock.
+_Avoid_: Add workspace menu, reopen picker (that's the closed-workspace path)
+
+### Layout
+
+**Laptop Mode**:
+A second, independent layout mode used when the app window is narrow. Collapse
+state and column widths for Laptop Mode are remembered separately from the
+normal-width layout, per workspace.
+_Avoid_: Small-screen mode (code name only), compact mode, responsive layout
+(implies one layout that reflows)
+
+**Peek**:
+A transient overlay that reveals a collapsed side panel while the cursor sits
+at that window edge. Available whenever a side is collapsed — not only in
+Laptop Mode.
+_Avoid_: Drawer, flyout, temporary expand
+
 ### Worktrees
 
 **Worktree**:
@@ -27,10 +74,11 @@ Add a worktree's path as another folder in the current workspace so Files, Git,
 and terminals see it next to existing folders — without switching workspaces.
 _Avoid_: Open, attach, mount
 
-**Close view**:
+**Close worktree view**:
 Remove a worktree's folder from the workspace only. The worktree and its branch
-stay on disk.
-_Avoid_: Close worktree (ambiguous with Remove), detach, unload
+stay on disk. "View" here means the open-alongside folder — not a Navigator
+View. Distinct from Remove worktree (which deletes the directory).
+_Avoid_: Close view, Close worktree (ambiguous with Remove), detach, unload
 
 **Remove worktree**:
 Delete a linked worktree's directory and git bookkeeping; the branch itself is

@@ -18,12 +18,12 @@ That persistence pays off when you treat terminal tabs as dedicated slots for sp
 
 ## Opening a workspace
 
-Click the **+** button at the top of the Workspaces panel to open a folder
+Click the **+** button in the Navigator's header to open a folder
 picker. Select a folder (or multiple folders for a multi-root workspace) and
 Silo creates a new workspace and activates it. If a workspace for that folder
 already exists, Silo brings it to the foreground instead.
 
-<img src="/img/guide/workspaces-open.png" alt="Workspaces panel showing the + button to open a new workspace" width="400" />
+<img src="/img/guide/workspaces-open.png" alt="Navigator showing the + button to open a new workspace" width="400" />
 
 You can also open a workspace from the terminal using the `silo` command:
 
@@ -44,16 +44,16 @@ to switch immediately.
 <kbd>⌘~</kbd> to cycle backward. A small popup floats above the status bar while
 the modifier is held — release to land on the highlighted workspace.
 
-**Workspaces panel** — click the workspace icon in the left dock to open the
-Workspaces panel. The panel lists every open workspace; click a row or press
+**Navigator** — open the Navigator in the left dock; its **Workspaces** view
+lists every open workspace. Click a row or press
 Enter on the focused row to activate it.
 
-<img src="/img/guide/workspaces-panel.png" alt="Workspaces panel showing several open workspaces, with the active one highlighted" width="400" />
+<img src="/img/guide/workspaces-panel.png" alt="The Navigator's Workspaces view showing several open workspaces, with the active one highlighted" width="400" />
 
 ## Closing and reopening
 
 **Close** hides a workspace without losing its state. Closed workspaces appear
-in the Workspaces panel's closed list and in the **Open** submenu of the status
+in the Navigator's **+** menu and in the **Open** submenu of the status
 bar menu. Reopen one to bring it back exactly as you left it — terminals,
 editors, and all.
 

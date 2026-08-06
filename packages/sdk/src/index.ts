@@ -35,6 +35,8 @@ export type {
   Keybinding,
   SidePanelProps,
   SidePanel,
+  NavigatorView,
+  NavigatorViewProps,
   DockPanelKind,
   StatusItem,
   SettingsPage,
@@ -281,7 +283,7 @@ export { List, ListRow } from "./List";
 export type { ListRowProps, ListRowTruncate } from "./List";
 export { AddRow } from "./AddRow";
 export { Badge } from "./Badge";
-export type { BadgeTone } from "./Badge";
+export type { BadgeSize, BadgeTone } from "./Badge";
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateTone } from "./EmptyState";
 export { Callout } from "./Callout";

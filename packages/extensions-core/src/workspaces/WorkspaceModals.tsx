@@ -211,7 +211,7 @@ function GeneralTab({
 }: GeneralTabProps) {
   const extraFolders = ws.extraFolders ?? [];
   const { linked, missing } = useWorktreeExtras(extraFolders, files);
-  // Missing-on-disk extras belong under Worktrees (Close view) — they were
+  // Missing-on-disk extras belong under Worktrees (Close worktree view) — they were
   // opened via the worktree manager and Folders would hide them among roots.
   const worktreeExtras = useMemo(() => {
     const set = new Set(linked);

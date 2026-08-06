@@ -9,6 +9,7 @@ import {
 } from "../state/workspaces";
 import { tauriTerminalClient } from "../services/tauri-terminal-client";
 import { getProcessService } from "./process-service";
+import { buildTerminalTabMenuItems } from "./terminal-tab-menu";
 import type { TerminalRecord } from "../state/types";
 import type {
   TerminalService,
@@ -282,6 +283,9 @@ export function getTerminalService(): TerminalService {
       const workspaceId = input?.workspaceId ?? store.activeWorkspaceId;
       if (!workspaceId) return undefined;
       return addTerminal(workspaceId, input?.kind ?? "shell", input?.cwd);
+    },
+    getTabMenuItems(terminalId) {
+      return buildTerminalTabMenuItems(terminalId);
     },
     focus(terminalId) {
       // Find which workspace owns this terminal.

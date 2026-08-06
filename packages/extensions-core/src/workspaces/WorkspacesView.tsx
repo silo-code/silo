@@ -1,11 +1,10 @@
 import React, {
   useEffect,
   useMemo,
-  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-import { CaretRight, Plus, SquaresFour } from "@phosphor-icons/react";
+import { CaretRight, SquaresFour } from "@phosphor-icons/react";
 import { useSnapshot } from "valtio";
 import {
   store,
@@ -13,11 +12,10 @@ import {
   ungroupWorkspace,
   toggleGroupCollapsed,
   workspaceGroupMap,
-  partitionSavedEntries,
 } from "@silo-code/extension-host/internal";
 import {
   ActivityGlyph,
-  Tooltip,
+  Badge,
   useFocusGroup,
   useServiceState,
   type ExtensionContext,
@@ -25,7 +23,7 @@ import {
   type WorkspaceStatusRow,
 } from "@silo-code/sdk";
 import {
-  contextMenuEntriesFor,
+  buildWorkspaceMenuItems,
   homeDir,
   workspaceSectionRegistry,
 } from "@silo-code/extension-host/internal";
@@ -34,11 +32,9 @@ import {
   FrontTruncatedPath,
   formatElapsed,
   useNow,
-  useFolderExistence,
   type Workspace,
 } from "./workspace-helpers";
 import {
-  buildAddWorkspaceItems,
   confirmAndCloseGroup,
   confirmAndCloseWorkspace,
   confirmAndDeleteGroup,
@@ -47,7 +43,7 @@ import { openWorkspaceProperties } from "./workspace-properties";
 import { openGroupProperties, type GroupSnapshot } from "./group-properties";
 import { useWorkspaceDnd } from "./use-workspace-dnd";
 import { buildNavItems } from "./workspace-nav";
-import "./WorkspacesPanel.css";
+import "./WorkspacesView.css";
 
 const WorkspaceIcon = SquaresFour;
 
@@ -133,7 +129,7 @@ function WorkspaceStatusRows({
   );
 }
 
-export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
+export function WorkspacesView({ ctx }: { ctx: ExtensionContext }) {
   const service = ctx.workspaces;
   const snap = useServiceState(service);
   const storeSnap = useSnapshot(store);
@@ -154,7 +150,6 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     return service.subscribeBadges(() => setBadgeTick((t) => t + 1)).dispose;
   }, [service]);
 
-  const addWrapRef = useRef<HTMLDivElement | null>(null);
   // 1s so formatElapsed's seconds-resolution display (< 1 minute) ticks live;
   // rows past a minute don't need it but the tick is cheap for a side panel.
   useNow(1_000);
@@ -231,60 +226,24 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
     },
   });
 
-  const savedEntries = useMemo(
-    () => partitionSavedEntries(snap.closed, storeSnap.groups),
-    [snap.closed, storeSnap.groups],
-  );
-  const closedFolders = useMemo(
-    () => savedEntries.workspaces.map((ws) => ws.folder),
-    [savedEntries.workspaces],
-  );
-  const folderExistence = useFolderExistence(closedFolders, ctx.files);
-
-  async function onNew() {
-    try {
-      await service.createFromFolderPicker();
-    } catch (err) {
-      console.error("create workspace failed", err);
-    }
-  }
-
-  function onNewGroup() {
-    void ctx.executeCommand("workspace.newGroup");
-  }
-
-  function openClosedMenu() {
-    const items = buildAddWorkspaceItems({
-      ctx,
-      closed: savedEntries.workspaces,
-      closedGroups: savedEntries.groupEntries,
-      folderExistence,
-      onNew,
-      onNewGroup,
-    });
-    void ctx.ui.showMenu({ items, anchor: addWrapRef.current });
-  }
-
   function workspaceMenuItems(ws: Workspace): MenuEntry[] {
-    const items: MenuEntry[] = [
-      {
-        label: "Properties…",
-        run: () => openWorkspaceProperties(ctx, home, ws),
-      },
-    ];
-
-    // Group membership actions
+    // Group membership — the only rows unique to this view, since group state
+    // is core-only (ADR 0023). Everything else (Properties…, Close, the
+    // "workspace"-surface contributions) comes from the shared builder that
+    // also backs ctx.workspaces.getWorkspaceMenuItems, so the workspace row and
+    // any extension surface naming a workspace can't drift apart.
+    const groupItems: MenuEntry[] = [];
     const currentGroupId = groupMap.get(ws.id);
     const groups = storeSnap.panelOrder
       .map((id) => storeSnap.groups[id])
       .filter((g) => g && !g.closedAt);
     if (currentGroupId) {
-      items.push({
+      groupItems.push({
         label: "Remove from Group",
         run: () => ungroupWorkspace(ws.id),
       });
     } else if (groups.length > 0) {
-      items.push({
+      groupItems.push({
         label: "Move to Group",
         submenu: groups.map((group) => ({
           label: group.name,
@@ -292,21 +251,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
         })),
       });
     }
-
-    if (!ws.closedAt) {
-      items.push({
-        label: "Close",
-        run: () => void confirmAndCloseWorkspace(ctx, ws.id, ws.name),
-      });
-    }
-
-    // Extension contributions on the "workspace" surface (RFC 0013), grouped
-    // and separated below the built-in rows.
-    const contributed = contextMenuEntriesFor("workspace", ws);
-    if (contributed.length > 0) {
-      items.push({ type: "separator" }, ...contributed);
-    }
-    return items;
+    return buildWorkspaceMenuItems(ws.id, groupItems);
   }
 
   function openWorkspaceMenu(
@@ -410,9 +355,7 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
             text={fullPath(ws.folder, home)}
           />
           {(ws.extraFolders?.length ?? 0) > 0 && (
-            <span className="ws-folder-extra-count">
-              +{ws.extraFolders!.length}
-            </span>
+            <Badge size="sm">+{ws.extraFolders!.length}</Badge>
           )}
         </div>
         <WorkspaceStatusRows
@@ -517,45 +460,28 @@ export function WorkspacesPanel({ ctx }: { ctx: ExtensionContext }) {
   }
 
   return (
-    <>
-      <div
-        className="panel-body workspaces-body"
-        {...dnd.ungroupedZoneProps(firstEntryId, lastEntryId)}
-      >
-        {!snap.hydrated && <div className="placeholder">Loading…</div>}
-        {snap.hydrated &&
-          (snap.open.length > 0 || storeSnap.panelOrder.length > 0) && (
-            <ul
-              className="ws-list"
-              role="listbox"
-              aria-label="Open workspaces"
-              {...roving.containerProps}
-            >
-              {storeSnap.panelOrder.map((entryId) => {
-                const group = storeSnap.groups[entryId];
-                if (group)
-                  return group.closedAt ? null : renderGroupCard(group);
-                const ws = openById.get(entryId);
-                if (!ws) return null; // closed or stale ungrouped workspace
-                return renderWorkspaceItem(ws);
-              })}
-            </ul>
-          )}
-        {snap.hydrated && (
-          <div className="ws-add-wrap" ref={addWrapRef}>
-            <Tooltip content="Add workspace">
-              <button
-                className="ws-add-btn"
-                type="button"
-                onClick={openClosedMenu}
-                aria-label="Add workspace"
-              >
-                <Plus weight="bold" size={14} />
-              </button>
-            </Tooltip>
-          </div>
+    <div
+      className="workspaces-body"
+      {...dnd.ungroupedZoneProps(firstEntryId, lastEntryId)}
+    >
+      {!snap.hydrated && <div className="placeholder">Loading…</div>}
+      {snap.hydrated &&
+        (snap.open.length > 0 || storeSnap.panelOrder.length > 0) && (
+          <ul
+            className="ws-list"
+            role="listbox"
+            aria-label="Open workspaces"
+            {...roving.containerProps}
+          >
+            {storeSnap.panelOrder.map((entryId) => {
+              const group = storeSnap.groups[entryId];
+              if (group) return group.closedAt ? null : renderGroupCard(group);
+              const ws = openById.get(entryId);
+              if (!ws) return null; // closed or stale ungrouped workspace
+              return renderWorkspaceItem(ws);
+            })}
+          </ul>
         )}
-      </div>
-    </>
+    </div>
   );
 }

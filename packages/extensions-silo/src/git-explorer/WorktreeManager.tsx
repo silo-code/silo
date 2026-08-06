@@ -191,18 +191,18 @@ export function WorktreeManager({
     ctx.ui.notify("info", `Opened ${path.basename(row.wt.path)} alongside`);
   }
 
-  // Close the view only — the worktree itself is untouched.
-  function closeView(row: WorktreeRow) {
+  // Close worktree view: drop the folder from the workspace; leave disk alone.
+  function closeWorktreeView(row: WorktreeRow) {
     if (isWorktreeRemovePending(row.wt.path)) return;
     ctx.workspaces.removeFolder(workspaceId, row.wt.path);
   }
 
-  // Clicking a row toggles its view: open it alongside if closed, close it if
-  // open. The primary folder and stale (prune-only) rows toggle nothing.
-  function toggleView(row: WorktreeRow) {
+  // Clicking a row toggles open-alongside: open if closed, close if open.
+  // The primary folder and stale (prune-only) rows toggle nothing.
+  function toggleOpenAlongside(row: WorktreeRow) {
     const acts = worktreeActions(row, isWorktreeRemovePending(row.wt.path));
     if (acts.includes("open")) void open(row);
-    else if (acts.includes("close")) closeView(row);
+    else if (acts.includes("close")) closeWorktreeView(row);
   }
 
   async function create() {
@@ -356,12 +356,12 @@ export function WorktreeManager({
       parts.push(
         <Tooltip
           key="close"
-          content="Close this view (folder is missing on disk)"
+          content="Close worktree view (folder is missing on disk)"
         >
           <IconButton
             size="sm"
-            aria-label={`Close view ${path.basename(row.wt.path)}`}
-            onClick={() => closeView(row)}
+            aria-label={`Close worktree view ${path.basename(row.wt.path)}`}
+            onClick={() => closeWorktreeView(row)}
           >
             <X size={14} />
           </IconButton>
@@ -426,7 +426,7 @@ export function WorktreeManager({
                       )
                     }
                     trailing={rowTrailing(row)}
-                    onSelect={() => toggleView(row)}
+                    onSelect={() => toggleOpenAlongside(row)}
                   >
                     {label}
                   </ListRow>

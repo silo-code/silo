@@ -1,6 +1,6 @@
 # Interface: WorkspacePropertyPageProps
 
-Defined in: [packages/sdk/src/workspace-service.ts:132](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L132)
+Defined in: [packages/sdk/src/workspace-service.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L133)
 
 Props passed to a [WorkspacePropertyPage](WorkspacePropertyPage.md) component.
 
@@ -12,7 +12,7 @@ Props passed to a [WorkspacePropertyPage](WorkspacePropertyPage.md) component.
 ws: Workspace;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L134)
+Defined in: [packages/sdk/src/workspace-service.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L135)
 
 The workspace whose properties are being edited.
 
@@ -24,7 +24,7 @@ The workspace whose properties are being edited.
 workspaces: WorkspaceService;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:141](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L141)
+Defined in: [packages/sdk/src/workspace-service.ts:142](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L142)
 
 The workspace service — read workspace state and subscribe to changes.
 Persist the page's own settings via `ctx.storage.workspace`, applying
@@ -39,7 +39,7 @@ every field persists as it changes).
 optional refresh?: () => void;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:148](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L148)
+Defined in: [packages/sdk/src/workspace-service.ts:149](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L149)
 
 Force a re-render of this tab's content. The host never persists
 extension state — the extension owns that via `ctx.storage.workspace` —

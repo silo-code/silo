@@ -134,13 +134,19 @@ function ToolbarControl({
     </>
   );
 
-  if (iconOnly && entry.kind === "command") {
+  // Icon-only controls are IconButtons whether they run a command or open a
+  // menu. A caret next to a lone glyph is noise — the icon is the affordance,
+  // and `aria-haspopup` is what actually announces the dropdown. Menu controls
+  // that paint a *title* keep the caret below, where it disambiguates a label
+  // that would otherwise look like plain text.
+  if (iconOnly) {
     return (
       <Tooltip content={entry.tooltip}>
         <IconButton
           size="sm"
           variant="toolbar"
           aria-label={entry.label}
+          aria-haspopup={entry.kind === "menu" ? "menu" : undefined}
           aria-pressed={entry.checked}
           data-checked={entry.checked ? "true" : undefined}
           onClick={onClick}

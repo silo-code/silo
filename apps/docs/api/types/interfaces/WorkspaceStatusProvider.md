@@ -1,6 +1,6 @@
 # Interface: WorkspaceStatusProvider
 
-Defined in: [packages/sdk/src/workspace-service.ts:116](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L116)
+Defined in: [packages/sdk/src/workspace-service.ts:117](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L117)
 
 A status binder that contributes [WorkspaceStatusRow](WorkspaceStatusRow.md)s to
 workspace rows in the Workspaces side panel. Prefer
@@ -18,7 +18,7 @@ and badge binders return an **array** — one projection may emit many rows.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:118](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L118)
+Defined in: [packages/sdk/src/workspace-service.ts:119](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L119)
 
 Unique id for this binder — conventionally `"<extension-id>.status"`.
 
@@ -30,7 +30,7 @@ Unique id for this binder — conventionally `"<extension-id>.status"`.
 provide(workspaceId): WorkspaceStatusRow[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:123](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L123)
+Defined in: [packages/sdk/src/workspace-service.ts:124](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L124)
 
 Called synchronously for each workspace during render. Return an empty
 array to contribute nothing for this workspace.

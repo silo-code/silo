@@ -53,10 +53,12 @@ const PRESETS: ThemePreset[] = [
     name: "High Contrast Dark",
     base: "dark",
     colorScheme: "dark",
-    // Same surfaces/borders/accent as core Dark (only unset vars inherit it) —
-    // every override here brightens a text/foreground token for legibility,
-    // nothing else moves.
+    // Inherit Dark's panel/accent palette; brighten text for legibility, and
+    // lift hover/active fills a step above core Dark (#282d3a) so selected
+    // rows read clearly against #161922 without jumping far from Dark's slate.
     vars: {
+      "--silo-color-bg-hover": "#2a3144",
+      "--silo-color-bg-active": "#343c52",
       "--silo-color-button-text": "#e4e6ec",
       "--silo-color-text-hi": "#e4e6ec",
       "--silo-color-text": "#a0a0a0",
@@ -75,6 +77,7 @@ const PRESETS: ThemePreset[] = [
       "--silo-statusbar-text": "#e4e6ec",
       "--silo-tab-text-active": "#f5f5f5",
       "--silo-tab-text": "#a8a8a8",
+      "--silo-tab-bg-hover": "#2a3144",
       "--silo-notify-text": "#e4e7ee",
       "--silo-notify-text-hi": "#ffffff",
     },
@@ -84,9 +87,11 @@ const PRESETS: ThemePreset[] = [
     name: "High Contrast Light",
     base: "light",
     colorScheme: "light",
-    // The light counterpart to High Contrast Dark — same surfaces/borders/accent
-    // as core Light, every override darkens a text/foreground token toward black.
+    // Light counterpart: inherit Light's panel/accent, darken text, and deepen
+    // hover/active fills so selection reads against #e5e5e5.
     vars: {
+      "--silo-color-bg-hover": "#d8d8d8",
+      "--silo-color-bg-active": "#b8d4f0",
       "--silo-color-button-text": "#1a1a1a",
       "--silo-color-text-hi": "#1a1a1a",
       "--silo-color-text": "#3a3a3a",
@@ -105,6 +110,7 @@ const PRESETS: ThemePreset[] = [
       "--silo-statusbar-text": "#1a1a1a",
       "--silo-tab-text-active": "#000000",
       "--silo-tab-text": "#1a1a1a",
+      "--silo-tab-bg-hover": "#d8d8d8",
       "--silo-notify-text": "#1a1a1a",
       "--silo-notify-text-hi": "#000000",
     },
@@ -158,7 +164,7 @@ const PRESETS: ThemePreset[] = [
     vars: {
       "--silo-color-bg": "#eee8d5",
       "--silo-color-bg-hover": "#e8e2d0",
-      "--silo-color-bg-active": "#cdc8ae",
+      "--silo-color-bg-active": "#ddd8c0",
       "--silo-color-button-bg": "#d6cfbd",
       "--silo-color-button-text": "#657b83",
       "--silo-color-text-hi": "#839496",

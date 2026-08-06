@@ -477,6 +477,68 @@ export interface SidePanel {
 }
 
 /**
+ * Props passed to a {@link NavigatorView} component.
+ *
+ * @category Registration
+ * @public
+ */
+export interface NavigatorViewProps {
+  /**
+   * Whether this view is the one currently on screen. A view mounts the first
+   * time it is selected and then stays mounted — hidden, not unmounted — so it
+   * keeps its scroll position and local state. Use this to throttle work while
+   * the view is off screen.
+   */
+  active: boolean;
+}
+
+/**
+ * A view in the **Navigator** — the side panel you navigate the app from. The
+ * Navigator is a container: each registered view is one projection of "where
+ * can I go", and the user switches between them from the selector in its
+ * header. The built-in **Workspaces** view (the workspace list) is itself
+ * registered this way, through this same API.
+ *
+ * Reach for a view rather than {@link ExtensionContext.registerSidePanel} when
+ * what you'd be adding is *another way to navigate the app*. Two navigators
+ * side by side leave the user with no rule for which one to trust; a view keeps
+ * one place to navigate from and changes only how it is projected.
+ *
+ * A view owns the whole panel body. Header **actions** are contributed
+ * separately, as toolbar items on the `"navigator"`
+ * {@link ToolbarSurface} — that way an action can be scoped to one view (via
+ * `when`) or shown across all of them, and it gets the host's button and
+ * dropdown chrome for free.
+ *
+ * @example
+ * ```tsx
+ * ctx.registerNavigatorView({
+ *   id: "my-ext.by-status",
+ *   title: "Agents by status",
+ *   component: ({ active }) => <AgentList paused={!active} />,
+ * });
+ * ```
+ *
+ * @category Registration
+ * @public
+ */
+export interface NavigatorView {
+  /** Unique id, conventionally `"<extension-id>.<view-name>"`. */
+  id: string;
+  /** Name shown in the Navigator's header and its view menu. */
+  title: string;
+  /** Optional icon rendered to the left of the title in the view menu. */
+  icon?: React.ReactNode;
+  /** The React component rendered as the whole panel body when active. */
+  component: React.ComponentType<NavigatorViewProps>;
+  /**
+   * Sort order among views. Lower values appear first in the view menu.
+   * Defaults to `0`; the built-in Workspaces view registers at `0`.
+   */
+  order?: number;
+}
+
+/**
  * Registers a kind of dock panel (a tab that can live in the center dock area,
  * e.g. the terminal). Workspaces open panels of registered kinds by id. The
  * optional generic `T` is the shape of the params this kind's panels are
@@ -643,14 +705,21 @@ export interface ExtensionContext {
     item: ToolbarItemContribution<S>,
   ): Disposable;
   /**
-   * Signal that toolbar-item `when` / `checked` data changed. Causes editor
-   * and terminal toolbars to re-query contributions and re-render.
+   * Signal that toolbar-item `when` / `checked` data changed. Causes every
+   * toolbar surface — editor, terminal, and the Navigator header — to re-query
+   * contributions and re-render.
    */
   invalidateToolbarItems(): void;
   /** Register a {@link Keybinding} (bind a shortcut to a command). */
   registerKeybinding(binding: Keybinding): Disposable;
   /** Register a {@link SidePanel} (a left/right column panel). */
   registerSidePanel(panel: SidePanel): Disposable;
+  /**
+   * Register a {@link NavigatorView} — a projection the user can switch the
+   * Navigator panel to. Prefer this over a second side panel when your surface
+   * is another way to navigate the app.
+   */
+  registerNavigatorView(view: NavigatorView): Disposable;
   /**
    * Register a {@link DockPanelKind} (a center-dock tab kind). The params
    * generic `T` is inferred from the component's {@link DockPanelProps}

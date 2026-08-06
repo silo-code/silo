@@ -6,6 +6,7 @@ import {
   output,
   editor,
   layout,
+  navigator,
   workspaces,
   themes,
   keybindings,
@@ -48,6 +49,9 @@ const builtins: Extension[] = [
   layout,
   imageViewer,
   markdownPreview,
+  // The Navigator panel registers before any extension that contributes a view
+  // to it, so the panel exists the first time a view lands in its registry.
+  navigator,
   workspaces,
   fileExplorer,
   fileSearch,
