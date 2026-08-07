@@ -32,6 +32,14 @@ if (!available) {
   );
 }
 
+// vitest's expect.poll defaults to a 1000ms budget — comfortably enough on a
+// warm local dev app, but every poll here waits on a Monaco editor's FIRST
+// mount, which can be materially slower on a cold CI boot (fresh language-
+// service workers, first-ever file open in the process). Explicit, generous
+// budget everywhere in this file rather than per-call, since every poll here
+// shares that same "first mount" dependency.
+const POLL = { timeout: 8000, interval: 50 };
+
 describe.skipIf(!available)("diff viewer characterization", () => {
   let folder: string;
   let priorActive: string | null;
@@ -70,10 +78,16 @@ describe.skipIf(!available)("diff viewer characterization", () => {
       args: { mode: "workingTree" },
     });
     await expect
-      .poll(async () => (await silo.editorContent(`${diffId}/original`))?.value)
+      .poll(
+        async () => (await silo.editorContent(`${diffId}/original`))?.value,
+        POLL,
+      )
       .toBe("const v = 1;\n");
     await expect
-      .poll(async () => (await silo.editorContent(`${diffId}/modified`))?.value)
+      .poll(
+        async () => (await silo.editorContent(`${diffId}/modified`))?.value,
+        POLL,
+      )
       .toBe("const v = 2;\n// changed\n");
   });
 
@@ -86,6 +100,7 @@ describe.skipIf(!available)("diff viewer characterization", () => {
     await expect
       .poll(
         async () => (await silo.editorOptions(`${diffId}/modified`))?.readOnly,
+        POLL,
       )
       .toBe(true);
     const original = await silo.editorOptions(`${diffId}/original`);
@@ -103,7 +118,7 @@ describe.skipIf(!available)("diff viewer characterization", () => {
     // (different font, ignored wrap/minimap/whitespace) fails here.
     const { editorId } = await silo.openFile(join(folder, "main.ts"));
     await expect
-      .poll(async () => (await silo.editorOptions(editorId))?.fontSize)
+      .poll(async () => (await silo.editorOptions(editorId))?.fontSize, POLL)
       .toBeGreaterThan(0);
     const text = await silo.editorOptions(editorId);
 
@@ -115,6 +130,7 @@ describe.skipIf(!available)("diff viewer characterization", () => {
     await expect
       .poll(
         async () => (await silo.editorOptions(`${diffId}/modified`))?.fontSize,
+        POLL,
       )
       .toBeGreaterThan(0);
     const diff = await silo.editorOptions(`${diffId}/modified`);
@@ -148,7 +164,7 @@ describe.skipIf(!available)("diff viewer characterization", () => {
     expect(panelId).toBe(`editor:${diffId}`);
 
     await expect
-      .poll(async () => (await silo.listEditors()).previewEditorId)
+      .poll(async () => (await silo.listEditors()).previewEditorId, POLL)
       .toBe(diffId);
     const rec = (await silo.listEditors()).editors.find((e) => e.id === diffId);
     expect(rec).toMatchObject({ mode: "diff", isPreview: true });
@@ -156,7 +172,10 @@ describe.skipIf(!available)("diff viewer characterization", () => {
 
     // It actually mounts and renders the diff content (a real preview tab).
     await expect
-      .poll(async () => (await silo.editorContent(`${diffId}/modified`))?.value)
+      .poll(
+        async () => (await silo.editorContent(`${diffId}/modified`))?.value,
+        POLL,
+      )
       .toBe("const a = 2;\n");
   });
 
@@ -178,13 +197,16 @@ describe.skipIf(!available)("diff viewer characterization", () => {
       .poll(async () => {
         const list = await silo.listEditors();
         return list.editors.filter((e) => e.isPreview).length;
-      })
+      }, POLL)
       .toBe(1); // still exactly one preview tab
     const rec = (await silo.listEditors()).editors.find((e) => e.id === second);
     expect(rec?.filePath?.endsWith("b.ts")).toBe(true);
     // And the content followed the slot to b.ts.
     await expect
-      .poll(async () => (await silo.editorContent(`${second}/modified`))?.value)
+      .poll(
+        async () => (await silo.editorContent(`${second}/modified`))?.value,
+        POLL,
+      )
       .toBe("const b = 2;\n");
   });
 
@@ -202,7 +224,7 @@ describe.skipIf(!available)("diff viewer characterization", () => {
     expect(diffId).toBe(previewId);
 
     await expect
-      .poll(async () => (await silo.listEditors()).previewEditorId)
+      .poll(async () => (await silo.listEditors()).previewEditorId, POLL)
       .toBeNull();
     const rec = (await silo.listEditors()).editors.find((e) => e.id === diffId);
     expect(rec).toMatchObject({ mode: "diff", isPreview: false });
