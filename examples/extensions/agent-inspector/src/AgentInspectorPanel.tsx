@@ -176,15 +176,15 @@ function AgentRow({
     agent.terminalId,
   )?.sessionId;
 
-  // ctx.workspaces.activate reopens a closed workspace too (its own doc
-  // comment: "Activate (and reopen if closed)"), so this works uniformly
-  // regardless of which scope filter found this row — including the
-  // "Closed workspaces" case. ctx.terminals.focus then switches to that
-  // workspace *and* activates the terminal's own tab in one call; calling
-  // activate() first just makes the reopen-if-closed step explicit rather
-  // than relying on focus() to also handle it.
+  // ctx.terminals.focus reopens a closed workspace, switches to it, and
+  // activates the terminal's own tab, all in one call — its cross-workspace
+  // path calls the same activate() (reopen-if-closed included) internally, so
+  // a separate pre-call here is redundant. It used to be load-bearing for a
+  // different reason: calling activate() first, then focus() in the same
+  // tick, raced WorkspaceDock's dock-mount commit and silently dropped the
+  // cross-workspace activation request (see ADR 0034) — the fix there means
+  // this single call is both simpler and correct regardless of ordering.
   function openAndFocus() {
-    ctx.workspaces.activate(agent.workspaceId);
     ctx.terminals.focus(agent.terminalId);
   }
 

@@ -57,6 +57,8 @@ export interface ActiveElement {
   isTextarea: boolean;
   inMonaco: boolean;
   inXterm: boolean;
+  /** False when focus is on a backgrounded workspace's (hidden) dock content. */
+  inActiveDockHost: boolean;
 }
 
 /** A single serialisable log entry from the `outputLogs` op. */
@@ -240,8 +242,16 @@ export class SiloAutomation {
     return this.call("openDiff", spec);
   }
 
-  openTerminal(cwd?: string): Promise<{ terminalId: string; panelId: string }> {
-    return this.call("openTerminal", { cwd });
+  /**
+   * `workspaceId` defaults to the active workspace; pass another one to add a
+   * terminal to a *backgrounded* workspace (e.g. simulating an agent spawning
+   * a terminal in a workspace the user isn't looking at).
+   */
+  openTerminal(
+    cwd?: string,
+    workspaceId?: string,
+  ): Promise<{ terminalId: string; panelId: string }> {
+    return this.call("openTerminal", { cwd, workspaceId });
   }
 
   /**
@@ -318,12 +328,39 @@ export class SiloAutomation {
   }
 
   /**
+   * Reproduce an extension calling `ctx.workspaces.activate(workspaceId)`
+   * immediately followed by `ctx.terminals.focus(terminalId)` — the ordering
+   * agent-inspector's Navigator row click (and, per RFC 0023, the real
+   * agent-monitor extension) uses. This is the shape that drops the
+   * cross-workspace activation request when the two calls race with
+   * `WorkspaceDock`'s own dock-mount commit. See ADR 0034.
+   */
+  activateThenFocusTerminal(
+    workspaceId: string,
+    terminalId: string,
+  ): Promise<{ focused: string }> {
+    return this.call("activateThenFocusTerminal", { workspaceId, terminalId });
+  }
+
+  /**
    * The panel id the visible center dock is showing, straight from dockview —
    * the ground truth for "which tab am I on", and for watching whether it stays
    * put.
    */
   activePanel(): Promise<{ panelId: string | null }> {
     return this.call("activePanel");
+  }
+
+  /**
+   * Simulate the window regaining OS focus by calling the same
+   * `restoreRegionFocus()` Tauri's real `onFocusChanged` handler calls.
+   * Returns what focus landed on afterward plus which panel the active dock
+   * now shows, so a test can catch it dragging the active tab along with it.
+   */
+  restoreRegionFocus(): Promise<
+    (ActiveElement & { activePanelId: string | null }) | null
+  > {
+    return this.call("restoreRegionFocus");
   }
 
   /**

@@ -53,6 +53,10 @@ export { ensureMonaco } from "./docked/monaco-setup";
 // Test-driver only (the dev automation bridge uses it to set up a center split,
 // and to read which tab the center dock is actually showing).
 export { splitActivePanel, getActiveDockApi } from "./docked/dock-api-registry";
+// Test-driver only — lets the automation bridge simulate "window regained OS
+// focus" (Tauri's onFocusChanged) without a real window blur/refocus, which
+// automation can't drive.
+export { restoreRegionFocus } from "./extension-host/focus-restore";
 // Output log query — lets the automation bridge surface logs to external tools.
 export {
   getOutputLogs,

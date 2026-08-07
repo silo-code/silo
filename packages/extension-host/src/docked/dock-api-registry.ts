@@ -4,6 +4,7 @@ import { retryFocus } from "../extension-host/use-focus-retry";
 import { TABBABLE, focusFirstOrContainer } from "../extension-host/focus-dom";
 
 let activeApi: DockviewApi | null = null;
+let activeApiWorkspaceId: string | null = null;
 
 // Monotonic "focus intent" counter. Every region/group/tab focus bumps it; the
 // center dock's async retry (focusContentIn) captures the current value and
@@ -12,12 +13,29 @@ let activeApi: DockviewApi | null = null;
 // "skips" the side dock when chording quickly through the center.
 let focusGen = 0;
 
-export function setActiveDockApi(api: DockviewApi | null) {
+export function setActiveDockApi(
+  api: DockviewApi | null,
+  workspaceId: string | null = null,
+) {
   activeApi = api;
+  activeApiWorkspaceId = api ? workspaceId : null;
 }
 
 export function getActiveDockApi(): DockviewApi | null {
   return activeApi;
+}
+
+/**
+ * The workspace id whose dock is currently the live authority — i.e. whose
+ * `WorkspaceDock` authority effect has actually committed `setActiveDockApi`.
+ * NOT the same as `store.activeWorkspaceId`: a caller can flip that store flag
+ * synchronously (`ctx.workspaces.activate()`) before React has committed the
+ * new dock as live. Callers that need to know "is the dock actually up for
+ * this workspace" (`ctx.terminals.focus()`) should check dock identity here
+ * instead of trusting store state alone. See ADR 0034.
+ */
+export function getActiveDockWorkspaceId(): string | null {
+  return activeApiWorkspaceId;
 }
 
 export function closeActivePanel(): boolean {

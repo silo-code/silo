@@ -207,7 +207,7 @@ export function WorkspaceDock({
   useEffect(() => {
     if (!active || !api) return;
     const liveApi = api;
-    setActiveDockApi(liveApi);
+    setActiveDockApi(liveApi, workspaceId);
     const root =
       (liveApi as unknown as { element?: HTMLElement }).element ?? null;
 
