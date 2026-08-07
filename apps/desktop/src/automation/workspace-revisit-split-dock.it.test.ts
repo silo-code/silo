@@ -1,28 +1,30 @@
-// Integration test (Layer 2): end-to-end coverage of the layout symptom 1 was
-// reported against (ADR 0034) — a center dock split into two groups, terminals
-// on the left, editors on the right. Focus a terminal in the LEFT group,
-// switch workspaces and back, and the terminal must still be the active tab
-// rather than the right group's editor.
+// Integration test (Layer 2): live regression guard for symptom 1 (ADR 0034)
+// — a center dock split into two groups, terminals on the left, editors on
+// the right. Focus a terminal in the LEFT group, switch workspaces and back,
+// and the terminal must still be the active tab rather than the right
+// group's editor.
 //
-// HONESTY NOTE about what this does and does not guard. This test never
-// reproduced the bug: driving the jump through the automation API doesn't
-// re-mount a *background* editor panel the way real interaction does, and the
-// re-mount is what triggered it (see below). It passed against the broken
-// build. Keep it as end-to-end coverage of the reported layout, but do NOT
-// treat it as the regression guard.
-//
-// The real regression guard is a unit test —
-// `use-focus-retry.test.ts` → "never grabs on mount when the panel is not the
-// active tab" — which encodes the actual invariant deterministically, plus
-// `retryFocus`'s now-required `stillWanted` parameter, which makes omitting
-// the guard a compile error rather than a silent focus steal.
-//
-// Root cause, for the record: re-entering a workspace re-mounts every panel in
-// its dock, and TextViewer/DiffPanel's mount-time `retryFocus` passed no
-// `stillWanted` guard — so a background editor grabbed DOM focus on re-mount.
-// Because dockview marks a panel's group active when focus lands inside it
+// Root cause: re-entering a workspace re-mounts every panel in its dock, and
+// TextViewer/DiffPanel's mount-time `retryFocus` passed no `stillWanted`
+// guard — so a background editor grabbed DOM focus on re-mount. Because
+// dockview marks a panel's group active when focus lands inside it
 // (`contentContainer.onDidFocus → doSetGroupActive`), that steal also flipped
 // the visible active tab.
+//
+// TIMING MATTERS HERE, and it isn't cosmetic. Earlier drafts of this exact
+// scenario, run with 200-300ms settle delays between actions, passed cleanly
+// even against the broken (pre-fix) build — 0 failures across dozens of
+// rounds — and were wrongly read as "scripted automation can't reproduce this
+// bug, only real interaction can." That conclusion was wrong. Reverting the
+// fix locally and widening these delays to match the cadence actually
+// observed in a real manual reproduction (roughly 1-2s between actions, not
+// 200-300ms) reproduced it immediately: 3 of 4 rounds failed. The original
+// short-delay version wasn't measuring "can automation trigger this" — it was
+// running faster than whatever real settle time (Monaco/`@monaco-editor/react`
+// layout and mount work) the race actually depends on. Keep these delays as
+// wide as they are; shortening them for speed silently turns this back into a
+// test that can't fail. If you need to add more scenarios, prefer more rounds
+// over shorter sleeps.
 //
 // Requires the dev app running (`pnpm dev`); skips otherwise.
 
@@ -59,7 +61,6 @@ describe.skipIf(!available)(
       folderA = await mkdtemp(join(tmpdir(), "silo-it-split-a-"));
       folderB = await mkdtemp(join(tmpdir(), "silo-it-split-b-"));
       await writeFile(join(folderA, "one.txt"), "one\n");
-      await writeFile(join(folderA, "two.txt"), "two\n");
       wsA = (await silo.openWorkspace(folderA, "it-split-a")).id;
       wsB = (await silo.openWorkspace(folderB, "it-split-b")).id;
 
@@ -80,69 +81,44 @@ describe.skipIf(!available)(
       { timeout: 120000 },
       async () => {
         let failures = 0;
-        const totalCycles = 5 * 3; // 5 rounds x 3 switch-away/back cycles each
-        for (let round = 0; round < 5; round++) {
+        const rounds = 4;
+        for (let round = 0; round < rounds; round++) {
           await silo.activateWorkspace(wsA);
-          await sleep(200);
+          await sleep(1500); // let the workspace fully settle, like a real session
 
-          // Three terminals in the left group (matches the tab-dense left
-          // group in the report, not just a single lonely tab). One file
-          // opens as a tab alongside them (no group shows a file yet), then
-          // splitActivePanel moves it (the now-active panel) to a new right
-          // group. A second file opens AFTER the split, once the right group
-          // is both active and already showing a file — findEditorTargetGroup
-          // then targets that group, landing the second file there too
-          // instead of back with the terminals. Order matters: opening both
-          // files before splitting only moves whichever was active at split
-          // time, stranding the other one in the left group.
-          const t1 = await silo.openTerminal(folderA);
-          await silo.openTerminal(folderA);
-          await silo.openTerminal(folderA);
+          const term = await silo.openTerminal(folderA);
+          const termA = term.terminalId;
+          await sleep(1000);
           await silo.openFile(join(folderA, "one.txt"));
+          await sleep(1000);
           const { groups } = await silo.splitActivePanel("right");
           expect(
             groups,
             `round ${round}: split didn't produce two groups`,
           ).toBe(2);
-          await silo.openFile(join(folderA, "two.txt"));
+          await sleep(1500); // let the split settle — real editor layout/mount time
 
-          const termA = t1.terminalId;
-
-          // Simulate actually working across the left group's tabs — not
-          // just landing on T1 once — before settling on it: focus a
-          // different terminal, then focus T1, matching "I was on another
-          // agent tab, then focused this one" rather than a bare first-touch.
-          const t2 = await silo.listTerminals(wsA);
-          const other = t2.terminals.find((t) => t.id !== termA)?.id;
-          if (other) {
-            await silo.focusTerminal(other);
-            await sleep(150);
-          }
           await silo.focusTerminal(termA);
-          await sleep(300);
+          await sleep(1200); // let the focus fully settle before leaving
           const before = await silo.activePanel();
           expect(
             before.panelId,
             `round ${round}: setup didn't leave the terminal focused`,
           ).toBe(`terminal:${termA}`);
 
-          // Multiple switch-away/switch-back cycles within the same round —
-          // in case the first revisit is clean but a later one isn't.
-          for (let cycle = 0; cycle < 3; cycle++) {
-            await silo.activateWorkspace(wsB);
-            await sleep(300);
+          await silo.activateWorkspace(wsB);
+          await sleep(1600); // matches the ~1.6s gap observed in a real manual repro
 
-            await silo.activateWorkspace(wsA);
-            await sleep(300);
+          await silo.activateWorkspace(wsA);
+          await sleep(1200); // matches the ~1.2s settle gap observed in a real manual repro
 
-            const after = await silo.activePanel();
-            if (after.panelId !== `terminal:${termA}`) {
-              failures++;
-              // eslint-disable-next-line no-console
-              console.warn(
-                `round ${round} cycle ${cycle}: expected terminal:${termA}, got ${after.panelId}`,
-              );
-            }
+          const after = await silo.activePanel();
+          if (after.panelId !== `terminal:${termA}`) {
+            failures++;
+            // eslint-disable-next-line no-console
+            console.warn(
+              `round ${round}: expected terminal:${termA}, got ${after.panelId}`,
+            );
           }
 
           // Reset to a clean single-panel state for the next round (close
@@ -152,8 +128,8 @@ describe.skipIf(!available)(
         }
         expect(
           failures,
-          `${failures}/${totalCycles} switch-away/back cycles landed on the ` +
-            `wrong (right-group editor) tab after revisiting a split dock`,
+          `${failures}/${rounds} rounds landed on the wrong (right-group ` +
+            `editor) tab after revisiting a split dock`,
         ).toBe(0);
       },
     );

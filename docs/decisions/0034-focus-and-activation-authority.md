@@ -72,9 +72,29 @@ Results:
   terminal) landing first, then the unguarded mount grab overriding it 33ms
   later.
 
-  This is why it only surfaced with a split dock and only under real
-  interaction: automation drives `ctx.terminals.focus()` without re-mounting a
-  background editor alongside an active terminal.
+  A wrong conclusion was drawn at this point and later corrected: the split-dock
+  scenario, scripted with 200-300ms settle delays between actions, still passed
+  cleanly against the (confirmed, via source-reading and a live manual repro)
+  broken build — 0 failures across dozens of rounds. That read as "scripted
+  automation structurally can't reproduce this, only real interaction can,"
+  which is false. Reverting the fix locally and widening the delays to match the
+  cadence of an actual manual reproduction (~1-2s between actions, not 200-300ms)
+  reproduced it immediately — 3 of 4 rounds failed — and passed clean again once
+  the fix was restored. The short-delay version wasn't measuring "can automation
+  trigger this behavior"; it was running faster than the real settle time
+  (Monaco's own layout/mount work) the race depends on. `workspace-revisit-split-dock.it.test.ts`
+  now uses the realistic delays and is a working live regression guard, not just
+  end-to-end scenario coverage.
+
+  The generalizable lesson, corrected: this codebase's automation bridge calls
+  the same underlying functions a real user interaction reaches (confirmed
+  separately for symptom 2 — `activateWorkspace()` + `terminals.focus()` are
+  exactly what a real click's SDK calls resolve to), so it is not structurally
+  blind to this class of bug. What matters is whether the _timing_ between
+  scripted actions matches the real timing the race depends on — an automated
+  scenario that "can't reproduce" a mount/timing-sensitive bug should be
+  suspected of running too fast before being trusted as evidence the bug
+  doesn't reproduce under automation at all.
 
 - **Symptom 3's mechanism is confirmed by reading the source**, but live
   numeric reproduction wasn't obtainable in the environment this was built in
@@ -155,14 +175,18 @@ Concretely:
   stole my tab" bugs. The tradeoff: a panel that legitimately wants focus on
   mount while _not_ active can no longer get it — correct by construction
   here, but it means new panel kinds must activate first and focus second.
-- Scripted UI automation could not reproduce symptom 1 at all (three separate
-  harnesses, ~75 rounds). The generalizable lesson: automation that drives
-  behavior through service APIs bypasses React mount/unmount cycles that real
-  interaction triggers, so it is blind to mount-effect bugs. When a
-  user-reported bug resists scripted reproduction, instrument the primitive
-  itself (here, patching `HTMLElement.prototype.focus` to capture calling
-  stacks) rather than adding more scenarios — three hypotheses were disproved
-  by reading source, and the fourth was found in one traced reproduction.
+- Scripted UI automation initially seemed unable to reproduce symptom 1 (three
+  separate harnesses, ~75 rounds, all with 200-300ms settle delays). That was a
+  false negative from running faster than the real settle time the race
+  depends on, not a structural limit of the automation approach — see the
+  timing note under symptom 1 above. The generalizable lesson: when a
+  user-reported, timing-sensitive bug resists scripted reproduction, suspect
+  the _pacing_ of the script before concluding automation can't reach it, and
+  instrument the primitive itself (here, patching `HTMLElement.prototype.focus`
+  to capture calling stacks) to find the actual mechanism — three hypotheses
+  were disproved by reading source, and the fourth was found in one traced
+  reproduction and then confirmed reproducible under automation once the
+  timing matched reality.
 
 ## Alternatives considered
 
@@ -191,13 +215,24 @@ Concretely:
 - `apps/desktop/src/automation/cross-workspace-activate-then-focus.it.test.ts`
   — the live regression guard for the confirmed, deterministic symptom 2.
 - `packages/extension-host/src/extension-host/use-focus-retry.test.ts` →
-  "never grabs on mount when the panel is not the active tab" — the real
-  regression guard for symptom 1 (deterministic; the integration harnesses
-  never reproduced it).
-- `apps/desktop/src/automation/workspace-revisit-active-tab.it.test.ts`,
-  `workspace-revisit-split-dock.it.test.ts`, `window-focus-restore.it.test.ts`
-  — end-to-end coverage of the reported scenarios. Useful, but each passed
-  against the broken build; see the honesty note in the split-dock file.
+  "never grabs on mount when the panel is not the active tab" — the
+  deterministic unit-level regression guard for symptom 1, independent of
+  timing.
+- `apps/desktop/src/automation/workspace-revisit-split-dock.it.test.ts` — the
+  live regression guard for symptom 1's reported scenario (a split dock).
+  Confirmed to actually catch it: fails 3/4 rounds against a locally-reverted
+  pre-fix build, passes clean against the fix. Its settle delays (~1-2s) are
+  load-bearing — see the timing note in the file's own header before touching
+  them.
+- `apps/desktop/src/automation/workspace-revisit-active-tab.it.test.ts` — the
+  bare-revisit and background-terminal-add hypotheses, both disproved. Unlike
+  the split-dock scenario these were never re-tested with widened timing after
+  the real root cause was found — not expected to be timing-sensitive, since
+  neither scenario opens an editor panel at all (the confirmed bug is specific
+  to `TextViewer`/`DiffPanel`'s mount-time focus, and `TerminalPanel` already
+  had the guard), but that's an inference, not something re-verified live.
+- `window-focus-restore.it.test.ts` — symptom 3's live numeric baseline,
+  blocked on window focus in this environment (see Consequences above).
 - `packages/extension-host/src/extension-host/terminal-service.ts` (`focus()`),
   `packages/extension-host/src/docked/dock-api-registry.ts`
   (`getActiveDockWorkspaceId`), `packages/extension-host/src/extension-host/focus-restore.ts`
