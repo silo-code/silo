@@ -132,7 +132,7 @@ describe.skipIf(!canFocus)(
           const finalEl = await silo.activeElement();
           if (
             finalPanel.panelId !== `terminal:${termB}` ||
-            finalEl?.inActiveDockHost === false
+            finalEl?.inBackgroundDockHost === true
           ) {
             failures++;
           }
@@ -160,10 +160,14 @@ describe.skipIf(!canFocus)(
 
           const result = await silo.restoreRegionFocus();
 
+          // inActiveDockHost alone is ambiguous here: it's false both when
+          // focus wrongly lands in backgrounded A AND when it correctly
+          // stays on nothing (document.body, since C has nothing to focus).
+          // inBackgroundDockHost is the actual failure signature.
           expect(
-            result?.inActiveDockHost,
+            result?.inBackgroundDockHost,
             `round ${round}: window-regain restored focus into backgrounded workspace A`,
-          ).not.toBe(false);
+          ).not.toBe(true);
         }
       },
     );

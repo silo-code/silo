@@ -772,9 +772,18 @@ function describeActiveElement() {
     isTextarea: el instanceof HTMLTextAreaElement,
     inMonaco: !!el.closest(".monaco-editor"),
     inXterm: !!el.closest(".xterm"),
-    // False when focus landed on content belonging to a backgrounded
-    // workspace's dock — CenterDock.tsx keeps every visited workspace's dock
+    // False both when focus landed on a backgrounded workspace's dock AND
+    // when focus isn't inside any dock at all (e.g. document.body) — those
+    // are very different outcomes (one's the bug, one's often fine), so
+    // don't assert on this field alone. Use inBackgroundDockHost below to
+    // tell them apart. CenterDock.tsx keeps every visited workspace's dock
     // mounted as a sibling `.dock-host`, toggling `data-active`.
     inActiveDockHost: !!el.closest('.dock-host[data-active="true"]'),
+    // True specifically when focus landed inside a BACKGROUNDED dock-host —
+    // the actual failure signature for the window-refocus bug (ADR 0034).
+    // false here (not just inActiveDockHost) is the meaningful "focus didn't
+    // land somewhere wrong" signal; it's true equally whether focus is on
+    // nothing or correctly inside the active dock.
+    inBackgroundDockHost: !!el.closest('.dock-host[data-active="false"]'),
   };
 }
