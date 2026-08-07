@@ -9,10 +9,12 @@ name: integration
 # reason, which is the exact failure mode docs/automation.md says this whole
 # RPC-driven layer exists to avoid.
 #
-# Not a required status check (that's a branch-protection setting, not
-# something this file controls) — booting a full Tauri app adds real time on
-# top of tests that already run tens of seconds each, so this starts as
-# informational-on-PR rather than blocking every merge.
+# Nightly, not on-PR: booting a full Tauri app adds real time on top of tests
+# that already run tens of seconds each, and this suite has genuine
+# timing-sensitivity (see ADR 0034 / the split-dock symptom-1 guard's settle
+# delays) — running it on every PR risked noisy, unrelated-looking failures on
+# unrelated changes. Nightly gives a steady signal without that cost; revisit
+# once we've watched it run clean for a while.
 #
 # window-focus-restore.it.test.ts self-gates on real OS window focus
 # (`document.hasFocus()`), which a CI runner has no interactive session to
@@ -21,14 +23,8 @@ name: integration
 # workflow.
 
 on:
-  pull_request:
-    paths:
-      - "apps/desktop/**"
-      - "packages/extension-host/**"
-      - "packages/extensions-core/**"
-      - "packages/extensions-silo/**"
-      - "packages/sdk/**"
-      - ".github/workflows/integration.yml"
+  schedule:
+    - cron: "0 4 * * *" # 4am UTC daily — an hour after release-nightly's 3am build
   workflow_dispatch:
 
 permissions:
