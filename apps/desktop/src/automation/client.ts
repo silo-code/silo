@@ -57,8 +57,15 @@ export interface ActiveElement {
   isTextarea: boolean;
   inMonaco: boolean;
   inXterm: boolean;
-  /** False when focus is on a backgrounded workspace's (hidden) dock content. */
+  /**
+   * False both when focus is on a backgrounded workspace's (hidden) dock
+   * content AND when focus isn't inside any dock at all — those are very
+   * different outcomes. Use {@link ActiveElement.inBackgroundDockHost} to
+   * tell them apart rather than asserting on this field alone.
+   */
   inActiveDockHost: boolean;
+  /** True specifically when focus landed inside a backgrounded dock-host. */
+  inBackgroundDockHost: boolean;
 }
 
 /** A single serialisable log entry from the `outputLogs` op. */

@@ -1,0 +1,87 @@
+name: integration
+
+# The integration layer (apps/desktop/src/**/*.it.test.ts) drives a live dev
+# app over the automation RPC (docs/automation.md) — real WKWebView + dockview
+# + Monaco + xterm. That's why this runs on macOS, not the Linux runner `ci.yml`
+# uses: Silo ships on WKWebView, and focus/DOM behavior differs across WebKit
+# ports (WKWebView vs. Linux's WebKitGTK) the same way it differs from
+# Chromium — running these on the wrong engine risks passing for the wrong
+# reason, which is the exact failure mode docs/automation.md says this whole
+# RPC-driven layer exists to avoid.
+#
+# Not a required status check (that's a branch-protection setting, not
+# something this file controls) — booting a full Tauri app adds real time on
+# top of tests that already run tens of seconds each, so this starts as
+# informational-on-PR rather than blocking every merge.
+#
+# window-focus-restore.it.test.ts self-gates on real OS window focus
+# (`document.hasFocus()`), which a CI runner has no interactive session to
+# reliably grant — expect it to skip here, same as it can on a real machine
+# with no window frontmost. That's a known, accepted gap, not a bug in this
+# workflow.
+
+on:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "packages/extension-host/**"
+      - "packages/extensions-core/**"
+      - "packages/extensions-silo/**"
+      - "packages/sdk/**"
+      - ".github/workflows/integration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./apps/desktop/src-tauri -> target"
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start the dev app (with automation RPC)
+        run: |
+          nohup pnpm dev > dev-app.log 2>&1 &
+          echo $! > dev-app.pid
+
+      - name: Wait for the automation port
+        run: |
+          for i in $(seq 1 150); do
+            reply=$(curl -s -X POST http://127.0.0.1:7878 \
+              -H "X-Silo-Automation: 1" -d '{"op":"ping"}' --max-time 2 || true)
+            if echo "$reply" | grep -q "pong"; then
+              echo "automation RPC ready after ${i}x2s"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::automation RPC never came up — dumping dev-app.log"
+          cat dev-app.log
+          exit 1
+
+      - name: Run integration tests
+        run: pnpm --filter silo test:it
+
+      - name: Dump dev app log
+        if: always()
+        run: cat dev-app.log || true
+
+      - name: Stop the dev app
+        if: always()
+        run: |
+          if [ -f dev-app.pid ]; then kill "$(cat dev-app.pid)" 2>/dev/null || true; fi
+          pkill -f "tauri dev" 2>/dev/null || true
+          pkill -f "target/debug/silo" 2>/dev/null || true
+          exit 0
