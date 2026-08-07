@@ -1,0 +1,117 @@
+{
+  "kind": "agent",
+  "agent": {
+    "agentId": "cursor",
+    "agentName": "Cursor",
+    "version": "v1.4.2",
+    "model": "Composer 1",
+    "plan": "Cursor Pro",
+    "cwd": "~/projects/website"
+  },
+  "loopPauseMs": 6000,
+  "entries": [
+    {
+      "type": "command",
+      "text": "› add a dark mode toggle to the navbar",
+      "delayMs": 1800
+    },
+    {
+      "type": "agent-text",
+      "text": "Reading Header.tsx and Hero.tsx to see how theme state is currently handled.",
+      "delayMs": 2600
+    },
+    {
+      "type": "tool",
+      "text": "Read(Header.tsx)",
+      "detail": "68 lines",
+      "delayMs": 1800
+    },
+    {
+      "type": "tool",
+      "text": "Read(Hero.tsx)",
+      "detail": "51 lines",
+      "delayMs": 1600
+    },
+    {
+      "type": "agent-text",
+      "text": "No theme state exists yet. Creating `ThemeToggle.tsx` with a persisted light/dark preference, then wiring it into the header.",
+      "delayMs": 2800
+    },
+    {
+      "type": "tool",
+      "text": "Write(ThemeToggle.tsx)",
+      "detail": "+34 lines",
+      "delayMs": 2400
+    },
+    {
+      "type": "tool",
+      "text": "Update(Header.tsx)",
+      "detail": "Added 1 import, 1 line",
+      "diff": [
+        {
+          "kind": "ctx",
+          "ln": 3,
+          "text": "import { Nav } from \"./Nav\";"
+        },
+        {
+          "kind": "add",
+          "ln": 4,
+          "text": "import { ThemeToggle } from \"./ThemeToggle\";"
+        },
+        {
+          "kind": "ctx",
+          "ln": 5,
+          "text": ""
+        }
+      ],
+      "delayMs": 2600
+    },
+    {
+      "type": "tool",
+      "text": "Update(Hero.tsx)",
+      "detail": "Removed 1 line",
+      "diff": [
+        {
+          "kind": "ctx",
+          "ln": 11,
+          "text": "  return ("
+        },
+        {
+          "kind": "del",
+          "ln": 12,
+          "text": "    <section className=\"hero\">"
+        },
+        {
+          "kind": "add",
+          "ln": 12,
+          "text": "    <section className={`hero ${theme}`}>"
+        },
+        {
+          "kind": "ctx",
+          "ln": 13,
+          "text": "      <h1>Build with your team.</h1>"
+        }
+      ],
+      "delayMs": 2800
+    },
+    {
+      "type": "success",
+      "text": "Updated 2 files, added 1 file (+58 -3)",
+      "delayMs": 1800
+    },
+    {
+      "type": "heading",
+      "text": "What changed:",
+      "delayMs": 1600
+    },
+    {
+      "type": "list",
+      "items": [
+        "**ThemeToggle.tsx** — new toggle button, persists to `localStorage`",
+        "**Header.tsx** — renders the toggle next to the nav links",
+        "**Hero.tsx** — reads the active theme class"
+      ],
+      "delayMs": 2400
+    }
+  ]
+}

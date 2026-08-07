@@ -1,0 +1,191 @@
+{
+  "id": "docs",
+  "order": 2,
+  "name": "docs",
+  "path": "~/projects/docs",
+  "branch": "main",
+  "color": "#8cc8ff",
+  "status": "waiting",
+  "summary": "Fixing broken links in the API reference",
+  "panels": {
+    "left": [
+      {
+        "id": "navigator",
+        "label": "Navigator",
+        "kind": "navigator"
+      }
+    ],
+    "right": [
+      {
+        "id": "files",
+        "label": "Files",
+        "kind": "files"
+      },
+      {
+        "id": "search",
+        "label": "Search",
+        "kind": "search"
+      },
+      {
+        "id": "issues",
+        "label": "Issues",
+        "kind": "issues",
+        "count": 1
+      }
+    ]
+  },
+  "splitPanels": {
+    "right": [
+      {
+        "id": "git",
+        "label": "Git",
+        "kind": "git",
+        "count": 3
+      },
+      {
+        "id": "system",
+        "label": "System",
+        "kind": "system"
+      }
+    ]
+  },
+  "activePanels": {
+    "left": "navigator",
+    "right": "issues"
+  },
+  "activeSplitPanels": {
+    "right": "git"
+  },
+  "collapsed": {
+    "left": false,
+    "right": true
+  },
+  "files": ["Sidebar.tsx", "docs.config.ts", "getting-started.mdx"],
+  "activeFile": "Sidebar.tsx",
+  "changes": [
+    {
+      "status": "M",
+      "path": "guide/getting-started.md"
+    },
+    {
+      "status": "M",
+      "path": "guide/extensions.md"
+    },
+    {
+      "status": "U",
+      "path": "public/img/guide/panels.png"
+    }
+  ],
+  "issues": [
+    {
+      "number": 27,
+      "title": "Extension checklist is missing the packaging step",
+      "author": "davideweaver",
+      "labels": [
+        {
+          "name": "documentation",
+          "color": "0075ca"
+        },
+        {
+          "name": "good first issue",
+          "color": "7057ff"
+        }
+      ],
+      "updated": "5h ago"
+    }
+  ],
+  "prs": [],
+  "system": {
+    "memory": [
+      {
+        "label": "App",
+        "gb": 5.2
+      },
+      {
+        "label": "Wired",
+        "gb": 4.1
+      },
+      {
+        "label": "Cache",
+        "gb": 11.4
+      },
+      {
+        "label": "Free",
+        "gb": 11.3
+      }
+    ],
+    "cpu": {
+      "user": 8,
+      "sys": 4
+    },
+    "processes": {
+      "procs": 2,
+      "rows": [
+        {
+          "title": "fix the broken links in the API reference",
+          "childCount": 1,
+          "leader": "claude",
+          "cpu": 1,
+          "memoryMb": 96
+        },
+        {
+          "title": "zsh",
+          "cpu": 0,
+          "memoryMb": 12,
+          "idle": true
+        }
+      ]
+    }
+  },
+  "docks": [
+    {
+      "id": "terminal",
+      "kind": "terminal",
+      "activeTab": "claude",
+      "tabs": [
+        {
+          "id": "dev",
+          "label": "dev",
+          "terminal": "dev.json"
+        },
+        {
+          "id": "claude",
+          "label": "claude",
+          "terminal": "claude.json"
+        }
+      ]
+    },
+    {
+      "id": "editor",
+      "kind": "editor"
+    }
+  ],
+  "ahead": 0,
+  "behind": 3,
+  "search": {
+    "query": "extension",
+    "includes": "*.md",
+    "files": [
+      {
+        "path": "guide/extensions.md",
+        "matches": [
+          "# Building an extension",
+          "An extension touches the app only through `ctx` and the SDK types.",
+          "  extension.contributes.panels \u2014 one entry per docked view",
+          "Run through the extension checklist before publishing."
+        ]
+      },
+      {
+        "path": "guide/getting-started.md",
+        "matches": [
+          "Silo ships first-party extensions built on the same public SDK.",
+          "  extension search is available from the Browse tab"
+        ]
+      },
+      {
+        "path": "api/theming.md",
+        "matches": ["An extension's CSS may consume only the design tokens."]
+      }
+    ]
+  }
+}

@@ -1,0 +1,3724 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,500&display=swap");
+
+:root {
+  font-family: Manrope, sans-serif;
+  color: #f2f4ea;
+  background: #11120f;
+  font-synthesis: none;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  min-width: 1100px;
+  background:
+    radial-gradient(circle at 72% 8%, #242916 0, #11120f 32rem), #11120f;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.page-shell {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 54px 100px;
+}
+.site-header {
+  height: 84px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #30332a;
+  gap: 22px;
+}
+.brand {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-size: 19px;
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #d5f56f;
+  color: #d5f56f;
+  border-radius: 7px;
+  font-size: 19px;
+  transform: rotate(-18deg);
+}
+.prototype-label {
+  margin-left: auto;
+  color: #91958a;
+  font:
+    11px "DM Mono",
+    monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.live-pulse,
+.status-dot,
+.idle-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d5f56f;
+  box-shadow: 0 0 0 3px #d5f56f1c;
+  margin-right: 7px;
+}
+.header-cta {
+  background: transparent;
+  border: 1px solid #4b5040;
+  border-radius: 999px;
+  padding: 10px 15px 10px 17px;
+  font-size: 12px;
+  margin-left: 12px;
+}
+.header-cta span {
+  color: #d5f56f;
+  margin-left: 8px;
+}
+.intro {
+  padding: 94px 0 64px;
+  max-width: 700px;
+}
+.eyebrow {
+  color: #b6c783;
+  font:
+    11px "DM Mono",
+    monospace;
+  letter-spacing: 0.16em;
+}
+h1 {
+  font-size: clamp(68px, 8vw, 120px);
+  line-height: 0.88;
+  letter-spacing: -0.09em;
+  margin: 22px 0 30px;
+  font-weight: 800;
+}
+h1 em {
+  font-family: Newsreader, serif;
+  font-weight: 500;
+  letter-spacing: -0.07em;
+  color: #d5f56f;
+}
+.intro-copy {
+  color: #9a9d92;
+  font-size: 16px;
+  line-height: 1.6;
+  max-width: 415px;
+}
+.demo-wrap {
+  border: 1px solid #404538;
+  border-radius: 15px;
+  overflow: hidden;
+  background: #171914;
+  box-shadow:
+    0 30px 80px #0008,
+    0 0 0 9px #1d2018;
+  position: relative;
+}
+.demo-toolbar {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 0 17px;
+  background: #252921;
+  border-bottom: 1px solid #3b4035;
+  color: #afb5a6;
+  font:
+    11px "DM Mono",
+    monospace;
+}
+.traffic-lights {
+  display: flex;
+  gap: 6px;
+  width: 160px;
+}
+.traffic-lights i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #697060;
+}
+.traffic-lights i:first-child {
+  background: #db7d64;
+}
+.traffic-lights i:nth-child(2) {
+  background: #d8bd68;
+}
+.traffic-lights i:nth-child(3) {
+  background: #83b66a;
+}
+.toolbar-title {
+  color: #e5e8dc;
+}
+.toolbar-symbol {
+  color: #d5f56f;
+  margin-right: 8px;
+}
+.toolbar-divider {
+  color: #60665a;
+  padding: 0 9px;
+}
+.toolbar-meta {
+  margin-left: auto;
+  color: #777d70;
+}
+.keyboard-key {
+  border: 1px solid #4d5346;
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin-right: 3px;
+  color: #b3b9a9;
+}
+.demo-body {
+  display: flex;
+  height: 585px;
+}
+.side-column {
+  display: flex;
+  background: #1b1e18;
+  transition: width 0.3s ease;
+  min-width: 0;
+}
+.left-column {
+  width: 276px;
+  border-right: 1px solid #363b31;
+}
+.right-column {
+  width: 295px;
+  border-left: 1px solid #363b31;
+}
+.side-column.is-collapsed {
+  width: 0;
+  overflow: hidden;
+}
+.column-rail {
+  width: 42px;
+  background: #20231c;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding-top: 12px;
+  flex: 0 0 auto;
+}
+.collapse-btn,
+.rail-tab {
+  border: 0;
+  background: transparent;
+  color: #7e8678;
+  width: 32px;
+  height: 31px;
+  border-radius: 6px;
+}
+.collapse-btn {
+  color: #9fa793;
+  margin-bottom: 8px;
+  font-size: 16px;
+}
+.rail-tab {
+  font-size: 15px;
+  margin: 2px 0;
+}
+.rail-tab.is-active {
+  background: #39442d;
+  color: #d5f56f;
+}
+.panel-content {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.panel-header {
+  height: 43px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 8px;
+  border-bottom: 1px solid #343930;
+  overflow: auto;
+}
+.panel-tab {
+  white-space: nowrap;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #7f8879;
+  padding: 13px 8px 11px;
+  font-size: 10px;
+}
+.panel-tab.is-active {
+  color: #edf1e5;
+  border-color: #d5f56f;
+}
+.glyph {
+  display: inline-block;
+  color: #8b9584;
+  margin-right: 6px;
+  font:
+    13px "DM Mono",
+    monospace;
+}
+.panel-tab.is-active .glyph {
+  color: #d5f56f;
+}
+.navigator-panel {
+  padding: 14px 12px;
+  font:
+    11px "DM Mono",
+    monospace;
+}
+.nav-title {
+  color: #e9ede1;
+  font-size: 12px;
+  padding-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+}
+.nav-title span {
+  color: #7c8476;
+}
+.nav-title button {
+  border: 0;
+  background: transparent;
+  color: #b7bccc;
+  padding: 0 2px;
+  font:
+    16px "DM Mono",
+    monospace;
+}
+.nav-title button:hover {
+  color: #bb9af7;
+}
+.nav-section-label {
+  color: #6f796c;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  margin: 8px 0;
+}
+.nav-file,
+.activity-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 7px;
+  border-radius: 4px;
+  color: #a5ad9c;
+}
+.nav-file.is-active {
+  color: #f0f3e9;
+  background: #2d3528;
+}
+.file-icon {
+  color: #c2d27b;
+}
+.activity-row {
+  margin-top: 2px;
+  color: #c5cbbd;
+}
+.activity-row small {
+  margin-left: auto;
+  color: #788270;
+  font-size: 9px;
+}
+.status-waiting {
+  background: #ecb968;
+  box-shadow: 0 0 0 3px #ecb9681c;
+}
+.status-ready {
+  background: #86c998;
+  box-shadow: 0 0 0 3px #86c9981c;
+}
+.idle-dot {
+  background: #626a5d;
+  box-shadow: none;
+}
+.center-column {
+  flex: 1;
+  min-width: 0;
+  background: #151713;
+  display: flex;
+  flex-direction: column;
+}
+.workspace-strip {
+  height: 38px;
+  border-bottom: 1px solid #2b3028;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  color: #899184;
+  font:
+    10px "DM Mono",
+    monospace;
+}
+.branch-mark {
+  color: #b0c86e;
+  margin-right: 5px;
+}
+.branch-name {
+  margin-left: 12px;
+  color: #d5f56f;
+}
+.workspace-actions {
+  color: #729873;
+}
+.sync-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #82bf91;
+  margin-right: 5px;
+}
+.editor-tabs {
+  display: flex;
+  height: 36px;
+  align-items: stretch;
+  border-bottom: 1px solid #2b3028;
+  padding-left: 10px;
+  overflow: hidden;
+}
+.editor-tab,
+.new-tab {
+  border: 0;
+  border-right: 1px solid #292e26;
+  background: transparent;
+  padding: 0 13px;
+  color: #777f73;
+  font:
+    10px "DM Mono",
+    monospace;
+  white-space: nowrap;
+}
+.editor-tab.is-active {
+  color: #e9eee1;
+  background: #1e221b;
+  box-shadow: inset 0 -2px #d5f56f;
+}
+.new-tab {
+  color: #8c9686;
+  font-size: 15px;
+}
+.editor-area {
+  display: flex;
+  flex: 1;
+  min-height: 280px;
+  position: relative;
+  padding-top: 22px;
+  overflow: hidden;
+}
+.line-numbers {
+  width: 48px;
+  text-align: right;
+  padding-right: 16px;
+  color: #4d554b;
+  font:
+    9px/1.9 "DM Mono",
+    monospace;
+}
+.code-content {
+  font:
+    10px/1.9 "DM Mono",
+    monospace;
+  color: #c9d0bf;
+}
+.code-line {
+  min-height: 21px;
+  padding: 0 20px 0 10px;
+  white-space: pre;
+}
+.line-highlight {
+  background: linear-gradient(90deg, #293427, transparent);
+  border-left: 2px solid #c5e66a;
+}
+.syntax-keyword {
+  color: #d4a6ff;
+}
+.syntax-fn {
+  color: #8ed5ff;
+}
+.syntax-string {
+  color: #9ece6a;
+}
+.syntax-comment {
+  color: #6d7593;
+  font-style: italic;
+}
+.syntax-number {
+  color: #e0af68;
+}
+.minimap {
+  margin-left: auto;
+  width: 52px;
+  padding: 25px 10px;
+  opacity: 0.4;
+}
+.minimap span {
+  display: block;
+  height: 3px;
+  margin-bottom: 4px;
+  background: #829b72;
+  border-radius: 2px;
+}
+.minimap span:nth-child(2) {
+  width: 80%;
+}
+.minimap span:nth-child(3) {
+  width: 92%;
+}
+.minimap span:nth-child(4) {
+  width: 64%;
+}
+.minimap span:nth-child(5) {
+  width: 84%;
+}
+.terminal-dock {
+  height: 174px;
+  border-top: 1px solid #343930;
+  background: #11130f;
+  font:
+    10px/1.65 "DM Mono",
+    monospace;
+}
+.terminal-head {
+  height: 37px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-bottom: 1px solid #292e27;
+  color: #aab3a2;
+}
+.terminal-prompt {
+  color: #d5f56f;
+  margin-right: 7px;
+}
+.terminal-status {
+  margin-left: 10px;
+  color: #849080;
+  font-size: 9px;
+}
+.terminal-status .status-dot {
+  width: 5px;
+  height: 5px;
+  margin-right: 4px;
+}
+.terminal-tabs {
+  color: #656e62;
+}
+.terminal-lines {
+  padding: 12px 15px;
+  color: #7e897a;
+}
+.terminal-success {
+  color: #9ed6a2;
+}
+.agents-panel {
+  padding: 12px;
+  font:
+    10px "DM Mono",
+    monospace;
+}
+.agent-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #3a4633;
+  background: #293325;
+  border-radius: 6px;
+  padding: 10px;
+}
+.agent-avatar {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: #d5f56f;
+  color: #283421;
+}
+.agent-card strong,
+.agent-card small {
+  display: block;
+}
+.agent-card strong {
+  color: #e7eddd;
+  font-weight: 500;
+}
+.agent-card small {
+  color: #91a086;
+  margin-top: 4px;
+  font-size: 9px;
+}
+.agent-card .status-dot {
+  margin-left: auto;
+}
+.agent-log {
+  padding: 18px 5px;
+  color: #93a18d;
+}
+.agent-log div {
+  padding: 7px 0;
+  border-bottom: 1px solid #293028;
+}
+.agent-log span {
+  color: #d5f56f;
+  margin-right: 7px;
+}
+.agent-footer {
+  border-top: 1px solid #323a2f;
+  color: #65715f;
+  padding-top: 11px;
+  display: flex;
+  justify-content: space-between;
+}
+.simple-panel {
+  padding: 16px 13px;
+  font:
+    10px "DM Mono",
+    monospace;
+}
+.panel-stat {
+  padding-bottom: 18px;
+  border-bottom: 1px solid #32372e;
+}
+.panel-stat strong {
+  font-size: 27px;
+  color: #e4e9dc;
+  display: block;
+}
+.panel-stat span {
+  color: #788273;
+}
+.change-row,
+.output-line {
+  padding: 12px 2px;
+  border-bottom: 1px solid #2c332a;
+  color: #c7cec1;
+}
+.change-row small,
+.output-line small {
+  float: right;
+  color: #71806f;
+}
+.change-added {
+  color: #9fd398;
+  margin-right: 5px;
+}
+.change-removed {
+  color: #f7768e;
+  margin-right: 5px;
+}
+.change-modified {
+  color: #e0af68;
+  margin-right: 5px;
+}
+.item-number {
+  color: #6d7593;
+  margin-right: 6px;
+  font-weight: 600;
+}
+.panel-action {
+  margin-top: 20px;
+  border: 1px solid #536442;
+  background: #344229;
+  border-radius: 4px;
+  padding: 8px 10px;
+  color: #d5f56f;
+  font:
+    10px "DM Mono",
+    monospace;
+}
+.browser-chrome {
+  height: 25px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0 9px;
+  color: #727c70;
+  font:
+    8px "DM Mono",
+    monospace;
+}
+.browser-chrome span {
+  width: 5px;
+  height: 5px;
+  background: #747e6e;
+  border-radius: 50%;
+}
+.preview-frame {
+  height: 175px;
+  overflow: hidden;
+}
+.demo-footer {
+  height: 30px;
+  border-top: 1px solid #363b31;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  color: #7f8a78;
+  font:
+    9px "DM Mono",
+    monospace;
+}
+.demo-footer .status-dot {
+  width: 5px;
+  height: 5px;
+  margin-right: 5px;
+}
+.status-workspace {
+  color: #939bb1;
+}
+.workspace-status-icon {
+  color: #6d7593;
+  margin-right: 5px;
+}
+.status-items {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  color: #6d7593;
+}
+.status-items .status-dot {
+  margin-right: 3px;
+}
+.status-action {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+}
+.status-action + .status-action {
+  margin-left: -6px;
+}
+.status-action:hover {
+  background: #1c2030;
+  color: #b7bccc;
+}
+.status-action[aria-pressed="false"] {
+  color: #4b5168;
+}
+.status-actions-failed {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #f7768e;
+  font: inherit;
+}
+.status-actions-failed:hover {
+  color: #ff96ab;
+}
+.status-actions-normal {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.status-theme {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #939bb1;
+}
+.theme-swatch {
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
+}
+.theme-swatch span {
+  display: inline-block;
+  width: 7px;
+  height: 9px;
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+.footer-hint {
+  color: #5f695b;
+}
+.workspace-dock {
+  border-top: 1px solid #3a4034;
+  background: #20241d;
+  padding: 18px;
+}
+.dock-heading {
+  display: flex;
+  justify-content: space-between;
+  color: #858f7e;
+  font:
+    9px "DM Mono",
+    monospace;
+  letter-spacing: 0.12em;
+}
+.dock-heading button {
+  border: 0;
+  background: transparent;
+  color: #d5f56f;
+  font:
+    10px "DM Mono",
+    monospace;
+  letter-spacing: 0;
+}
+.workspace-list {
+  display: flex;
+  gap: 8px;
+  margin-top: 11px;
+}
+.workspace-card {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-align: left;
+  border: 1px solid #363d31;
+  border-radius: 6px;
+  background: #181b16;
+  padding: 12px;
+}
+.workspace-card:hover,
+.workspace-card.is-selected {
+  border-color: #71874e;
+  background: #293225;
+}
+.workspace-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.workspace-card-copy {
+  min-width: 0;
+  flex: 1;
+}
+.workspace-card strong,
+.workspace-card small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-card strong {
+  font:
+    11px "DM Mono",
+    monospace;
+  color: #dce4d3;
+}
+.workspace-card small {
+  color: #707b6d;
+  font:
+    9px "DM Mono",
+    monospace;
+  margin-top: 4px;
+}
+.workspace-card-status {
+  color: #7e8a77;
+  font:
+    9px "DM Mono",
+    monospace;
+  white-space: nowrap;
+}
+.workspace-card-status .status-dot {
+  width: 5px;
+  height: 5px;
+}
+.workspace-arrow {
+  color: #d5f56f;
+  opacity: 0;
+}
+.workspace-card:hover .workspace-arrow,
+.workspace-card.is-selected .workspace-arrow {
+  opacity: 1;
+}
+@media (max-width: 1180px) {
+  .page-shell {
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+  .left-column {
+    width: 200px;
+  }
+  .right-column {
+    width: 250px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Silo chrome pass: keep the prototype's interaction model, but use the
+   desktop application's actual neutral/navy surfaces, compact typography,
+   thin separators, and restrained selection treatment. */
+body {
+  background:
+    radial-gradient(ellipse at 78% 8%, #3b294f 0%, transparent 38%),
+    radial-gradient(ellipse at 12% 72%, #173b4a 0%, transparent 42%),
+    linear-gradient(135deg, #0b1422 0%, #10121f 48%, #0b0d17 100%);
+  background-attachment: fixed;
+  color: #b7bccc;
+}
+.site-header {
+  border-bottom-color: #2b3148;
+}
+.brand-mark,
+.eyebrow,
+.intro h1 em,
+.header-cta span,
+.live-pulse,
+.dock-heading button {
+  color: #bb9af7;
+  border-color: #bb9af7;
+}
+.intro-copy,
+.prototype-label {
+  color: #7a8099;
+}
+.demo-wrap {
+  border: 0;
+  border-radius: 6px;
+  background: #0f1115;
+  box-shadow: 0 24px 70px #0006;
+}
+.demo-toolbar,
+.workspace-dock {
+  background: #161922;
+  border: 0;
+}
+.demo-toolbar {
+  height: 24px;
+}
+.toolbar-title,
+.workspace-strip,
+.editor-tab.is-active,
+.panel-tab.is-active {
+  color: #c0c0c0;
+}
+.toolbar-symbol,
+.branch-name,
+.terminal-prompt,
+.workspace-arrow,
+.syntax-fn {
+  color: #bb9af7;
+}
+.demo-body,
+.center-column {
+  background: #0f1115;
+}
+.side-column,
+.column-rail {
+  background: #161922;
+}
+.left-column,
+.right-column,
+.panel-header,
+.editor-tabs,
+.terminal-dock,
+.demo-footer {
+  border-color: transparent;
+}
+.demo-toolbar,
+.demo-footer {
+  border: 0;
+}
+.demo-footer {
+  font-size: 11px;
+}
+.left-column,
+.right-column {
+  border: 0;
+}
+.terminal-dock {
+  background: #0f1115;
+}
+.column-rail {
+  width: 36px;
+}
+.rail-tab.is-active {
+  background: #232839;
+  color: #bb9af7;
+}
+.panel-tab.is-active {
+  border-color: #bb9af7;
+}
+.panel-tab,
+.rail-tab,
+.collapse-btn,
+.nav-section-label,
+.footer-hint {
+  color: #6d7593;
+}
+.panel-tab .glyph,
+.glyph {
+  color: #7a8099;
+}
+.panel-tab.is-active .glyph {
+  color: #bb9af7;
+}
+.nav-file.is-active,
+.workspace-row.is-active {
+  background: #1e222b;
+}
+.workspace-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #939bb1;
+  padding: 7px;
+  text-align: left;
+  font:
+    11px "DM Mono",
+    monospace;
+}
+.workspace-row:hover {
+  background: #1c2030;
+}
+.workspace-row > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.workspace-row strong,
+.workspace-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workspace-row strong {
+  color: #b7bccc;
+  font-weight: 400;
+}
+.workspace-row small {
+  color: #5a5959;
+  margin-top: 3px;
+  font-size: 9px;
+}
+.workspace-row .status-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+}
+.add-workspace {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #7a8099;
+  text-align: left;
+  padding: 8px 7px;
+  font:
+    10px "DM Mono",
+    monospace;
+}
+.add-workspace:hover {
+  color: #bb9af7;
+}
+.workspace-color {
+  width: 7px;
+  height: 7px;
+}
+.status-working {
+  position: relative;
+  background: #60a5fa;
+  box-shadow: 0 0 0 3px #60a5fa1c;
+  animation: dockTabPulse 1.4s ease-in-out infinite;
+}
+.status-working::before,
+.status-working::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid #60a5fa;
+  animation: dockTabWave 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+  pointer-events: none;
+}
+.status-working::after {
+  animation-delay: -0.9s;
+}
+.status-waiting {
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px #fbbf241c;
+}
+.status-ready {
+  position: relative;
+  background: #4ade80;
+  box-shadow: 0 0 0 3px #4ade801c;
+  animation: dockTabPulseSubtle 1.4s ease-in-out infinite;
+}
+.status-failed {
+  background: #f7768e;
+  box-shadow: 0 0 0 3px #f7768e1c;
+}
+.editor-area,
+.terminal-lines,
+.code-content,
+.line-numbers {
+  font-family: "DM Mono", monospace;
+}
+.line-highlight {
+  background: linear-gradient(90deg, #1e222b, transparent);
+  border-left-color: #bb9af7;
+}
+.agent-card,
+.panel-action {
+  background: #1c2030;
+  border-color: #2b3148;
+}
+.agent-avatar {
+  background: #bb9af7;
+  color: #161922;
+}
+.webview-pane .preview-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* The address row is this pane's header, so it carries the same separator and
+   height as .editor-breadcrumb / .terminal-head — the rules line up across a split. */
+.webview-pane .browser-chrome {
+  height: 30px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #252b3d;
+}
+/* The iframe renders at a fixed desktop viewport and is scaled to fit the pane
+   (the webview's `viewportWidth` in config sizes and scales it), so the preview keeps
+   the site's real desktop layout instead of collapsing to its mobile breakpoint. */
+.preview-frame {
+  flex: 1;
+  height: auto;
+  background: #232839;
+  position: relative;
+  overflow: hidden;
+}
+/* Inert: the preview is scenery for a scripted demo, so clicks must not navigate it away from the home page. */
+.preview-frame iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 0;
+  pointer-events: none;
+  transform-origin: top left;
+}
+.workspace-menu {
+  position: absolute;
+  top: 100%;
+  right: 8px;
+  z-index: 20;
+  min-width: 190px;
+  margin-top: 6px;
+  padding: 8px 6px;
+  background: #1b1f2be6;
+  backdrop-filter: blur(16px);
+  border: 1px solid #2b3148;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px #000a;
+}
+.workspace-menu-label {
+  padding: 2px 9px 8px;
+  color: #6d7593;
+  font:
+    9px "DM Mono",
+    monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.workspace-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 5px;
+  padding: 10px 9px;
+  margin-bottom: 4px;
+  text-align: left;
+  color: #b7bccc;
+}
+.workspace-menu-item:last-of-type {
+  margin-bottom: 0;
+}
+.workspace-menu-item:hover {
+  background: #1c2030;
+}
+.workspace-menu-icon {
+  display: grid;
+  grid-template-columns: repeat(2, 5px);
+  gap: 2px;
+  width: 12px;
+  flex: 0 0 auto;
+  color: #7a8099;
+}
+.workspace-menu-icon i {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border: 1px solid currentColor;
+  border-radius: 1px;
+}
+.workspace-menu-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font:
+    11px "DM Mono",
+    monospace;
+}
+.workspace-menu-trash {
+  display: flex;
+  flex: 0 0 auto;
+  color: #5a6178;
+}
+.workspace-menu-item:hover .workspace-menu-trash {
+  color: #6d7593;
+}
+.workspace-menu-trash:hover {
+  color: #f7768e;
+}
+.workspace-menu-empty {
+  padding: 10px 9px 14px;
+  color: #6d7593;
+  font:
+    10px "DM Mono",
+    monospace;
+}
+.workspace-menu-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: #2b3148;
+}
+.workspace-menu-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 9px;
+  border-radius: 5px;
+  color: #939bb1;
+  font:
+    11px "DM Mono",
+    monospace;
+}
+.workspace-menu-action:hover {
+  background: #1c2030;
+  color: #b7bccc;
+}
+.workspace-menu-action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  flex: 0 0 auto;
+  color: #6d7593;
+  font-size: 12px;
+}
+.workspace-menu-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+}
+.file-tree {
+  padding: 14px 9px;
+  color: #939bb1;
+  font:
+    11px "DM Mono",
+    monospace;
+}
+.tree-root {
+  padding: 5px 4px 12px;
+  color: #b7bccc;
+  font-size: 10px;
+}
+.tree-row {
+  display: flex;
+  gap: 8px;
+  padding: 6px 6px;
+  border-radius: 3px;
+}
+.tree-row:hover {
+  background: #1c2030;
+}
+.tree-row > span:first-child {
+  color: #6d7593;
+}
+.tree-child {
+  padding-left: 29px;
+  color: #7a8099;
+  font-size: 10px;
+}
+.search-box {
+  background: #1c2030;
+  border: 1px solid #2b3148;
+  border-radius: 4px;
+  padding: 9px;
+  color: #939bb1;
+  margin-bottom: 18px;
+}
+
+/* Navigator fidelity pass: mirrors WorkspacesView's actual three-row grid. */
+.left-column .column-rail {
+  display: none;
+}
+.left-column .panel-header {
+  display: none;
+}
+.left-column {
+  width: 230px;
+}
+.left-column .panel-content {
+  width: 100%;
+}
+.navigator-panel {
+  padding: 0;
+  min-height: 100%;
+  font-family: var(
+    --silo-font-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif
+  );
+}
+.navigator-panel-title {
+  height: 32px;
+  padding: 10px 10px 0;
+  color: #b7bccc;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.navigator-panel-rule {
+  height: 1px;
+  margin: 0 10px;
+  background: #2b3148;
+}
+.navigator-panel .nav-title {
+  position: relative;
+  height: 42px;
+  padding: 12px 10px 10px;
+  color: #939bb1;
+  font-size: 12px;
+  font-weight: 400;
+}
+.navigator-panel .nav-title button {
+  font-size: 18px;
+  line-height: 12px;
+}
+
+/* The Workspaces⌄/Agents⌄ view switcher — a real button (not the old inert
+   span) that opens an anchored menu, mirroring agent-monitor's `ctx.ui.showMenu`
+   popover rather than a native <select>. */
+.nav-view-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  color: #939bb1;
+}
+.nav-view-btn:hover {
+  color: #bb9af7;
+}
+.nav-view-btn svg {
+  flex: 0 0 auto;
+  color: #6d7593;
+}
+.nav-view-btn:hover svg {
+  color: #bb9af7;
+}
+.nav-view-menu {
+  position: absolute;
+  top: 100%;
+  left: 8px;
+  z-index: 20;
+  min-width: 168px;
+  margin-top: -6px;
+  padding: 6px;
+  background: #1b1f2be6;
+  backdrop-filter: blur(16px);
+  border: 1px solid #2b3148;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px #000a;
+}
+.nav-view-menu-header {
+  padding: 6px 9px 3px 31px;
+  color: #6d7593;
+  font:
+    9px "DM Mono",
+    monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.nav-view-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 5px;
+  padding: 14px 9px;
+  margin-bottom: 6px;
+  text-align: left;
+  color: #b7bccc;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+}
+.nav-view-menu-item:last-of-type {
+  margin-bottom: 0;
+}
+.nav-view-menu-item:hover {
+  background: #1c2030;
+}
+.nav-view-menu-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  flex: 0 0 auto;
+  color: #bb9af7;
+  font-size: 11px;
+}
+
+/* The Agents view — agent-monitor's "by status" list, recreated: three
+   always-shown sections (Ready/Working/Idle) of flat rows spanning every
+   open workspace, each with a status dot, brand icon, title, and a
+   workspace · elapsed subtitle. */
+.ap-list {
+  padding: 6px 0 14px;
+}
+.ap-section + .ap-section {
+  margin-top: 14px;
+}
+.ap-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  margin: 0 4px;
+  color: #6d7593;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.ap-section-count {
+  color: #4d5568;
+  font-weight: 400;
+}
+.ap-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 12px;
+  margin: 0 4px 2px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ap-row:hover {
+  background: #1c2030;
+}
+.ap-row.active {
+  background: #262c3c;
+}
+.ap-row-dot {
+  margin-top: 4px;
+  flex: 0 0 auto;
+}
+/* Wins over .status-working/.status-ready (same 1-class specificity, later
+   in the cascade) wherever `idle-dot` is paired onto a live status dot: a
+   long-idle Agents-view row, or a "ready" tab/row you're already looking at
+   (see `isSeenReady` in App.tsx) — both read as the same neutral, static dot. */
+.status-dot.idle-dot {
+  background: #626a5d !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+.status-dot.idle-dot::before,
+.status-dot.idle-dot::after {
+  display: none;
+}
+.ap-row-body {
+  min-width: 0;
+  flex: 1;
+}
+.ap-row-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  color: #e3e6f0;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ap-row-title svg {
+  flex: 0 0 auto;
+}
+.ap-row-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 2px;
+  min-width: 0;
+  color: #6d7593;
+  font-size: 10px;
+}
+.ap-row-workspace {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* PRs / Issues panel fidelity pass: mirrors the github-prs and github-issues
+   extensions' list views (their .ghpr-* / .ghi-* rules), with this prototype's
+   literal palette standing in for the --silo-color-* tokens the real
+   stylesheets consume. The two panels are near-identical by design, so the
+   shared shape is expressed once as a grouped selector rather than duplicated;
+   only what genuinely differs (the PR check trail, the Issues label chips) gets
+   its own rule. `gh-*` are the shared state colors both panels' icons use. */
+/* Both panels own their scrolling: the filter/refresh header is pinned and only
+   the list below it scrolls, so a long list can't push past the pane and paint
+   over the status bar. */
+.ghpr,
+.ghi {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #939bb1;
+  font: 11px
+    var(
+      --silo-font-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif
+    );
+}
+.ghpr-header,
+.ghi-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #2b3148;
+  flex-shrink: 0;
+}
+.ghpr-body,
+.ghi-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.ghpr-filter-btn,
+.ghi-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  color: #b7bccc;
+  font-weight: 500;
+}
+.ghpr-filter-btn:hover,
+.ghi-filter-btn:hover {
+  background: #1c2030;
+}
+/* The real header pushes refresh to the trailing edge via :has() on the tooltip host. */
+.ghpr-icon-btn,
+.ghi-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  border-radius: 4px;
+  color: #6d7593;
+}
+.ghpr-icon-btn:hover,
+.ghi-icon-btn:hover {
+  background: #1c2030;
+  color: #e3e6f0;
+}
+/* Small horizontal inset so a row's hover fill floats off the panel edges. */
+.ghpr-list,
+.ghi-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 16px;
+}
+.ghpr-row,
+.ghi-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.ghpr-row:hover,
+.ghi-row:hover {
+  background: #1c2030;
+}
+.ghpr-row-icon,
+.ghi-row-icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  display: inline-flex;
+  line-height: 1;
+}
+.gh-ok {
+  color: #86c998;
+}
+.gh-err {
+  color: #f7768e;
+}
+.gh-warn {
+  color: #e0af68;
+}
+.gh-accent {
+  color: #bb9af7;
+}
+.gh-muted {
+  color: #6d7593;
+  opacity: 0.7;
+}
+.ghpr-row-main,
+.ghi-row-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ghpr-row-title,
+.ghi-row-title {
+  overflow-wrap: break-word;
+  font-weight: 500;
+  color: #e3e6f0;
+}
+.ghpr-row-meta,
+.ghi-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+  color: #6d7593;
+  font-size: 10px;
+}
+.ghpr-row-num,
+.ghi-row-num {
+  font-family: "DM Mono", monospace;
+  opacity: 0.85;
+}
+.ghpr-row-trail {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+}
+.ghpr-chip,
+.ghi-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 8em;
+  overflow: hidden;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #ffffff14;
+  color: #6d7593;
+  font-size: 9px;
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ghpr-chip-err {
+  background: #f7768e1f;
+  border: 1px solid #f7768e4d;
+  color: #f7768e;
+}
+.ghpr-chip-muted,
+.ghi-chip-muted {
+  opacity: 0.75;
+}
+/* A GitHub label chip gets its background and text color inline (the label's
+   own hex, plus labelTextColor's contrast pick) — this only supplies weight. */
+.ghi-chip-label {
+  font-weight: 500;
+}
+.ghpr-empty,
+.ghi-empty {
+  padding: 24px 14px;
+  color: #6d7593;
+  line-height: 1.6;
+}
+.ghpr-empty-title,
+.ghi-empty-title {
+  margin-bottom: 4px;
+  color: #b7bccc;
+  font-weight: 600;
+}
+.ghpr-pulse {
+  animation: ghpr-spin 0.8s linear infinite;
+  transform-origin: center;
+}
+
+/* Git panel fidelity pass: mirrors the git-explorer extension's GitView
+   (GitExplorerPanel.css), with this prototype's literal palette standing in for
+   the --silo-color-* tokens. The panel itself doesn't scroll — like the real
+   one, it's a plain flex column and the enclosing pane provides the scroll. */
+.git-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 4px 12px;
+  font: 11px
+    var(
+      --silo-font-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif
+    );
+  color: #939bb1;
+}
+.git-branch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 8px;
+}
+.git-branch-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: #e3e6f0;
+}
+/* The ↑/↓ counts double as the Sync button, so they get the icon buttons' height. */
+.git-branch-sync {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 5px;
+  border-radius: 4px;
+  color: #6d7593;
+  white-space: nowrap;
+}
+.git-branch-sync:hover,
+.git-branch-action:hover {
+  background: #1c2030;
+  color: #e3e6f0;
+}
+.git-branch-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  color: #6d7593;
+}
+.git-branch-action-accent {
+  color: #bb9af7;
+}
+.git-commit-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 6px 6px;
+}
+.git-commit-area textarea {
+  resize: vertical;
+  min-height: 56px;
+  padding: 6px 8px;
+  border: 1px solid #2b3148;
+  border-radius: 4px;
+  background: #1c2030;
+  color: #c8cedf;
+  font: inherit;
+}
+.git-commit-area textarea::placeholder {
+  color: #6d7593;
+}
+/* Blue, not the panel accent: the real .commit-btn rides `.silo-button-primary`
+   with white text, which reads as a distinct primary action rather than more
+   of the purple used for links and icons throughout the panel. */
+.git-commit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: #7aa2f7;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+}
+.git-commit-btn:hover {
+  background: #6b92e8;
+}
+.git-commit-count {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ffffff38;
+  font-size: 10px;
+}
+.git-section {
+  display: flex;
+  flex-direction: column;
+}
+.git-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #939bb1;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.git-section-head:hover {
+  background: #1c2030;
+  color: #e3e6f0;
+}
+.git-section-chev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  color: #6d7593;
+}
+.git-section-title {
+  flex: 0;
+  white-space: nowrap;
+}
+.git-section-count {
+  margin-left: auto;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #262b3b;
+  color: #939bb1;
+  font-size: 9px;
+  font-weight: 600;
+}
+.git-section-body {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0;
+}
+.git-section-empty {
+  padding: 4px 12px;
+  color: #6d7593;
+  font-style: italic;
+}
+.git-file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 2px 8px 3px;
+  min-height: calc(1.85em - 4px);
+}
+.git-file-row:hover {
+  background: #1c2030;
+}
+.git-file-ico {
+  flex: 0 0 1.25em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6d7593;
+}
+.git-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #c8cedf;
+}
+.git-file-dir {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #6d7593;
+}
+.git-status-glyph {
+  display: inline-block;
+  min-width: 14px;
+  margin-left: 4px;
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: right;
+}
+.git-status-M {
+  color: #e0af68;
+}
+.git-status-A,
+.git-status-U {
+  color: #86c998;
+}
+.git-status-D {
+  color: #f7768e;
+}
+.git-status-R,
+.git-status-C {
+  color: #bb9af7;
+}
+
+/* Search panel fidelity pass: mirrors the file-search extension's
+   FileSearchView (FileSearchPanel.css), with this prototype's literal palette
+   standing in for the --silo-color-* tokens. The view owns its scroll — the
+   controls and summary are pinned and only `.fsearch-results` scrolls. */
+.fsearch-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  font: 11px
+    var(
+      --silo-font-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif
+    );
+  color: #939bb1;
+}
+.fsearch-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+.fsearch-input-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.fsearch-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #2b3148;
+  border-radius: 4px;
+  background: #1c2030;
+  color: #c8cedf;
+  font: inherit;
+}
+.fsearch-input::placeholder {
+  color: #6d7593;
+}
+/* Reserve room on the right for the toggles overlaid in the query box. */
+.fsearch-input-row .fsearch-input {
+  padding-right: 78px;
+}
+.fsearch-toggles {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+}
+.fsearch-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #6d7593;
+  font-family: "DM Mono", monospace;
+  font-size: 9px;
+}
+.fsearch-toggle:hover {
+  background: #1c2030;
+  color: #939bb1;
+}
+.fsearch-toggle.on {
+  background: #bb9af729;
+  border-color: #bb9af7;
+  color: #bb9af7;
+}
+.fsearch-field-label {
+  margin-top: 2px;
+  color: #939bb1;
+  font-size: 9px;
+}
+.fsearch-glob {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+}
+.fsearch-status {
+  flex-shrink: 0;
+  padding: 2px 10px 6px;
+  margin-bottom: 8px;
+  color: #e3e6f0;
+  font-size: 10px;
+}
+/* Breathing room between file groups, plus a horizontal inset so a row's hover
+   fill floats off the panel edges instead of sitting flush against them. */
+.fsearch-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 6px 6px;
+}
+.fsearch-file-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 3px 8px;
+  border-radius: 4px;
+  color: #939bb1;
+  text-align: left;
+}
+.fsearch-file-head:hover {
+  background: #1c2030;
+}
+.fsearch-chev,
+.fsearch-file-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: #e3e6f0;
+}
+.fsearch-file-name {
+  flex-shrink: 0;
+  color: #e3e6f0;
+}
+.fsearch-file-dir {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #939bb1;
+  font-size: 10px;
+}
+.fsearch-file-count {
+  margin-left: auto;
+  flex-shrink: 0;
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #262b3b;
+  color: #939bb1;
+  font-size: 9px;
+  text-align: center;
+}
+.fsearch-match {
+  padding: 2px 8px 2px 24px;
+  border-radius: 4px;
+  color: #939bb1;
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+}
+.fsearch-match:hover {
+  background: #1c2030;
+}
+.fsearch-match-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fsearch-hit {
+  background: #e0af6861;
+  border-radius: 2px;
+  color: #e3e6f0;
+}
+
+/* System panel fidelity pass: mirrors the system-monitor extension's card stack
+   (its .sm-* rules). The memory/CPU series colors are literal hexes in that
+   extension too, so they carry over unchanged rather than being re-themed. */
+.sm-panels {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font: 11px
+    var(
+      --silo-font-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif
+    );
+  color: #939bb1;
+}
+.sm-card {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  padding: 11px 13px;
+  border-bottom: 1px solid #2b3148;
+}
+.sm-card-cpu {
+  height: 200px;
+}
+.sm-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 9px;
+  flex-shrink: 0;
+}
+.sm-title {
+  color: #939bb1;
+  font-size: 0.83em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.sm-headline {
+  color: #e3e6f0;
+  font-size: 0.92em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sm-mem-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+/* The donut's readout is centered in the ring's hole. */
+.sm-donut {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+}
+.sm-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.sm-donut-value {
+  color: #e3e6f0;
+  font-size: 1.14em;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sm-donut-unit {
+  margin-top: 2px;
+  color: #939bb1;
+  font-size: 0.64em;
+  line-height: 1;
+}
+.sm-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+.sm-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.83em;
+  line-height: 1;
+}
+.sm-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sm-leg-label {
+  flex: 1;
+  color: #939bb1;
+}
+.sm-leg-val {
+  color: #e3e6f0;
+  font-variant-numeric: tabular-nums;
+}
+.sm-chart-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #1c2030;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+.sm-cpu-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+.sm-cpu-leg {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #939bb1;
+  font-size: 0.83em;
+}
+.sm-cpu-pct {
+  margin-left: 2px;
+  color: #e3e6f0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sm-card-processes {
+  height: auto;
+}
+.sm-proc-empty {
+  color: #6d7593;
+  font-style: italic;
+}
+.sm-proc-rows {
+  display: flex;
+  flex-direction: column;
+}
+/* Fixed leader column (not `auto`): each row is its own grid, so an auto track
+   would size to that row's text alone and drift between rows. */
+.sm-proc-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 64px 34px 46px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 0;
+  position: relative;
+}
+.sm-proc-chevron {
+  display: flex;
+  align-items: center;
+  justify-self: start;
+  width: 14px;
+  color: #e3e6f0;
+}
+.sm-proc-leaf-dot {
+  justify-self: start;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #e3e6f0;
+  opacity: 0.65;
+}
+.sm-proc-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  margin-left: -8px;
+  overflow: hidden;
+}
+.sm-proc-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #e3e6f0;
+}
+.sm-proc-child-count {
+  color: #939bb1;
+  font-variant-numeric: tabular-nums;
+}
+.sm-proc-leader {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #e3e6f0;
+  font-size: 0.92em;
+}
+.sm-proc-stat {
+  color: #e3e6f0;
+  font-size: 0.92em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.sm-proc-stat-warn {
+  color: #e3b341;
+}
+.sm-proc-stat-danger {
+  color: #f47067;
+}
+.sm-proc-idle-pill {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #1c2030;
+  color: #e3e6f0;
+  font-size: 0.7em;
+  line-height: 1.5;
+}
+
+/* Settings dialog + Extensions page: mirrors the host's SettingsDialog.css and
+   the core extensions page's ExtensionsPage.css. A mock — the rail lists every
+   page but only Extensions is selected, and nothing inside acts; only the
+   backdrop, ✕ and Esc do anything. */
+.settings-status-btn {
+  position: relative;
+}
+/* Presence dot for pending extension updates, same 6px corner dot the real
+   status-bar gear uses — no count, the page carries that. */
+.settings-status-badge {
+  position: absolute;
+  top: 0;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #7aa2f7;
+}
+.settings-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #05070ba8;
+  backdrop-filter: blur(2px);
+}
+.settings-dialog {
+  position: relative;
+  display: flex;
+  width: min(860px, 92%);
+  height: min(620px, 92%);
+  overflow: hidden;
+  border: 1px solid #2b3148;
+  border-radius: 8px;
+  background: #161922;
+  box-shadow: 0 24px 70px #000a;
+  font: 12px
+    var(
+      --silo-font-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif
+    );
+  color: #939bb1;
+}
+.ghactions-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(480px, 92%);
+  max-height: min(560px, 88%);
+  overflow: hidden;
+  border: 1px solid #2b3148;
+  border-radius: 8px;
+  background: #161922;
+  box-shadow: 0 24px 70px #000a;
+  font: 12px
+    var(
+      --silo-font-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif
+    );
+  color: #939bb1;
+}
+.ghactions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+  flex-shrink: 0;
+}
+.ghactions-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #e3e6f0;
+}
+.ghactions-close {
+  border: 0;
+  background: transparent;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  color: #6d7593;
+  font-size: 16px;
+  line-height: 1;
+}
+.ghactions-close:hover {
+  background: #1c2030;
+  color: #e3e6f0;
+}
+.ghactions-repo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 18px;
+  color: #b7bccc;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.ghactions-branchrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px 14px;
+  color: #6d7593;
+  font-size: 10px;
+  flex-shrink: 0;
+}
+.ghactions-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid #2b3148;
+  border-radius: 4px;
+  background: #ffffff0a;
+  color: #b7bccc;
+}
+.ghactions-updated {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.ghactions-divider {
+  height: 1px;
+  background: #2b3148;
+  margin: 0 18px;
+  flex-shrink: 0;
+}
+.ghactions-statusrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  flex-shrink: 0;
+}
+.ghactions-failed-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #e3e6f0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ghactions-failed-label .status-dot {
+  margin: 0;
+}
+.ghactions-failed-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #f7768e;
+  color: #161922;
+  font-size: 10px;
+  font-weight: 700;
+}
+.ghactions-clear {
+  border: 1px solid #2b3148;
+  border-radius: 5px;
+  background: #1c2030;
+  color: #b7bccc;
+  padding: 5px 10px;
+  font-size: 10px;
+}
+.ghactions-clear:hover {
+  background: #232838;
+}
+.ghactions-runs {
+  list-style: none;
+  margin: 0;
+  padding: 0 18px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ghactions-run {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #2b3148;
+  border-radius: 6px;
+  background: #12141c;
+}
+.ghactions-run-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #f7768e;
+}
+.ghactions-run-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ghactions-run-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ghactions-run-title {
+  color: #e3e6f0;
+  font-weight: 500;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ghactions-run-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.ghactions-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: transparent;
+  color: #6d7593;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+.ghactions-action-btn:hover {
+  background: #1c2030;
+  color: #b7bccc;
+}
+.ghactions-rerun-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #f7768e4d;
+  background: #f7768e14;
+  color: #f7768e;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+}
+.ghactions-rerun-btn:hover {
+  background: #f7768e26;
+}
+.ghactions-run-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  color: #6d7593;
+  font-size: 10px;
+}
+.ghactions-run-tag {
+  font-family: "DM Mono", monospace;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #ffffff0f;
+  color: #8a90a3;
+}
+.settings-rail {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 8px;
+  border-right: 1px solid #2b3148;
+  overflow-y: auto;
+}
+.settings-rail-title {
+  margin-top: 16px;
+  padding: 4px 8px 8px;
+  color: #6d7593;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.settings-rail-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 8px;
+  border-radius: 4px;
+  color: #939bb1;
+}
+.settings-rail-item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-rail-item.active {
+  background: #262b3b;
+  color: #e3e6f0;
+  font-weight: 600;
+}
+/* A divider centered in the gap above each group's first item. */
+.settings-rail-item.group-start {
+  position: relative;
+  margin-top: 9px;
+}
+.settings-rail-item.group-start::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -5px;
+  border-top: 1px solid #2b3148;
+  opacity: 0.5;
+}
+.settings-rail-item.group-start:first-of-type::before {
+  content: none;
+}
+/* Right padding reserves the top-right gutter for the close button. */
+.settings-pane {
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding: 20px 48px 20px 24px;
+  color: #939bb1;
+}
+.settings-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #6d7593;
+}
+.settings-close:hover {
+  background: #1c2030;
+  color: #e3e6f0;
+}
+.ext-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+}
+.ext-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ext-header h2 {
+  margin: 0;
+  color: #e3e6f0;
+  font-size: 1.1em;
+}
+.ext-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.silo-segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 4px;
+  background: #0f1115;
+}
+.silo-segmented-tab {
+  padding: 3px 10px;
+  border-radius: 4px;
+  color: #6d7593;
+  font-size: 11px;
+}
+.silo-segmented-tab[data-active="true"] {
+  background: #262b3b;
+  color: #e3e6f0;
+}
+.ext-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: #6d7593;
+}
+.ext-icon-btn-sm {
+  width: 20px;
+  height: 20px;
+}
+.silo-search-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.silo-search-input-icon {
+  position: absolute;
+  left: 8px;
+  display: flex;
+  color: #6d7593;
+  pointer-events: none;
+}
+.silo-search-input input {
+  width: 100%;
+  padding: 6px 28px;
+  border: 1px solid #2b3148;
+  border-radius: 4px;
+  background: #1c2030;
+  color: #c8cedf;
+  font: inherit;
+}
+.silo-search-input input::placeholder {
+  color: #6d7593;
+}
+.ext-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ext-cat {
+  padding: 1px 8px;
+  border: 1px solid #2b3148;
+  border-radius: 999px;
+  color: #6d7593;
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+}
+.ext-cat-active {
+  border-color: #bb9af7;
+  color: #bb9af7;
+}
+/* Bleed rows to the pane's left edge so the separators run full-width. */
+.ext-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  margin-left: -24px;
+}
+.ext-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 8px 7px 24px;
+  border-bottom: 1px solid #2b3148;
+}
+.ext-row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.ext-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ext-label {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #e3e6f0;
+}
+.ext-brand {
+  padding: 0 5px;
+  border: 1px solid #bb9af759;
+  border-radius: 4px;
+  background: #bb9af724;
+  color: #bb9af7;
+  font-size: 10px;
+}
+.ext-version {
+  color: #6d7593;
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+}
+.ext-badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.ext-badge-ok {
+  background: #86c99829;
+  color: #86c998;
+}
+.ext-badge-warn {
+  background: #e0af6829;
+  color: #e0af68;
+}
+.ext-hint {
+  color: #6d7593;
+  font-size: 10px;
+  line-height: 1.35;
+}
+/* Brighter than the surrounding dim meta line so "not from the registry" stands out. */
+.ext-source-note {
+  color: #e3e6f0;
+}
+.ext-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ext-btn {
+  padding: 4px 8px;
+  border: 1px solid #2b3148;
+  border-radius: 4px;
+  background: #262b3b;
+  color: #c8cedf;
+  font-size: 10px;
+}
+.ext-btn-primary {
+  border-color: transparent;
+  background: #7aa2f7;
+  color: #fff;
+  font-weight: 600;
+}
+@keyframes ghpr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.ap-row-sep {
+  flex: 0 0 auto;
+  color: #454c63;
+}
+.ap-row-elapsed {
+  flex: 0 0 auto;
+}
+.navigator-panel .ws-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 24px;
+}
+.navigator-panel .ws-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  grid-template-rows: auto auto auto;
+  column-gap: 3px;
+  align-items: center;
+  padding: 8px 10px;
+  margin: 0 4px 2px;
+  border-radius: 4px;
+  color: #939bb1;
+  cursor: pointer;
+}
+.navigator-panel .ws-item:hover {
+  background: #1c2030;
+}
+.navigator-panel .ws-item.active {
+  background: #262c3c;
+}
+.navigator-panel .ws-icon {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  align-self: start;
+  display: grid;
+  grid-template-columns: repeat(2, 5px);
+  gap: 2px;
+  width: 12px;
+  margin-top: 2px;
+  color: #7a8099;
+}
+.navigator-panel .ws-icon i {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border: 1px solid currentColor;
+  border-radius: 1px;
+}
+.navigator-panel .ws-item.active .ws-icon {
+  color: #bb9af7;
+}
+.navigator-panel .ws-name-row {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 16px;
+}
+.navigator-panel .ws-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #6d7593;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+}
+.navigator-panel .ws-item:hover .ws-close {
+  display: flex;
+}
+.navigator-panel .ws-close:hover {
+  background: #2b3148;
+  color: #f7768e;
+}
+.navigator-panel .ws-name {
+  min-width: 0;
+  overflow: hidden;
+  color: #b7bccc;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.navigator-panel .ws-badge {
+  color: #fff;
+  background: #f7768e;
+  border-radius: 4px;
+  padding: 1px 4px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 11px;
+}
+.navigator-panel .ws-folder {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  margin-top: 2px;
+  color: #5a5959;
+  font-size: 10px;
+}
+.navigator-panel .ws-folder-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.navigator-panel .ws-status-row {
+  grid-column: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  margin-top: 3px;
+  color: #666f84;
+  font-size: 10px;
+}
+.navigator-panel .ws-status-row .status-dot {
+  width: 6px;
+  height: 6px;
+  margin: 0;
+  box-shadow: none;
+  flex: 0 0 auto;
+}
+.navigator-panel .ws-status-label {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: #b7bccc;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.navigator-panel .ws-status-elapsed {
+  color: #6d7593;
+  flex: 0 0 auto;
+}
+/* Both columns support Silo's vertically split side-dock: independent tab
+   bars and active panels above and below a 1px resize seam. */
+.demo-side-split {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.demo-side-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 0 0 60%;
+  overflow: hidden;
+}
+/* General sibling, not adjacent: `.demo-split-handle` sits between the two
+   panes, so `+` never matched and the lower pane also took the 60% basis —
+   a 120%-tall split that hung below the column and painted over the status bar. */
+.demo-side-pane ~ .demo-side-pane {
+  flex: 1 1 40%;
+}
+.demo-side-pane:only-child {
+  flex: 1 1 auto;
+}
+.demo-side-pane-empty {
+  background: #161922;
+}
+.demo-side-content {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+}
+.demo-side-pane .panel-header {
+  height: 42px;
+  flex: 0 0 42px;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+  background: #161922;
+  border-bottom: 0;
+}
+.demo-side-pane .panel-tab {
+  height: 42px;
+  display: flex;
+  align-items: flex-end;
+  flex: 0 0 auto;
+  padding: 0 14px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #6d7593;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.demo-side-pane .panel-tab:hover {
+  background: #1c2030;
+}
+.demo-side-pane .panel-tab.is-active {
+  color: #969696;
+  border-bottom-color: #636363;
+  background: transparent;
+  font-weight: 600;
+}
+.demo-split-handle {
+  height: 1px;
+  flex: 0 0 1px;
+  background: #2b3148;
+  cursor: ns-resize;
+}
+.right-column .demo-split-handle {
+  background: transparent;
+}
+.demo-wrap * {
+  scrollbar-width: thin;
+  scrollbar-color: #2b3148 transparent;
+}
+.demo-wrap *::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+.demo-wrap *::-webkit-scrollbar-track {
+  background: transparent;
+}
+.demo-wrap *::-webkit-scrollbar-thumb {
+  background: #2b3148;
+  border-radius: 4px;
+}
+.demo-wrap *::-webkit-scrollbar-thumb:hover {
+  background: #3a4258;
+}
+.demo-wrap *::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.left-column .demo-side-pane:first-child .panel-header {
+  display: flex;
+}
+.left-column .demo-side-pane:not(:first-child) .panel-header {
+  display: flex;
+}
+.left-column .demo-side-pane:not(:first-child) .demo-side-content {
+  background: #0f1115;
+}
+body[data-focus="demo"] {
+  min-width: 0;
+  overflow: hidden;
+}
+body[data-focus="demo"] .site-header,
+body[data-focus="demo"] .intro {
+  display: none;
+}
+body[data-focus="demo"] .page-shell {
+  max-width: none;
+  padding: 0;
+}
+body[data-focus="demo"] .demo-wrap {
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  box-shadow: none;
+  border-left: 0;
+  border-right: 0;
+  height: 100vh;
+}
+body[data-focus="demo"] .demo-body {
+  flex: 1;
+  min-height: 0;
+}
+.terminal-head {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9px;
+  border-bottom: 1px solid #252b3d;
+  color: #6d7593;
+  font:
+    9px "DM Mono",
+    monospace;
+}
+.terminal-breadcrumb {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.editor-breadcrumb {
+  padding-left: 9px;
+  padding-right: 9px;
+}
+.line-numbers span {
+  display: block;
+  min-height: 21px;
+}
+.editor-pane .minimap {
+  display: none;
+}
+.terminal-pane .terminal-lines {
+  font-size: 10px;
+}
+.center-docks {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.dock-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #0f1115;
+}
+.dock-pane + .dock-pane {
+  border-left: 1px solid #1a1e2b;
+}
+.terminal-pane {
+  flex: 0 0 32%;
+}
+.editor-pane,
+.webview-pane {
+  flex: 1;
+}
+.dock-tabs {
+  height: 30px;
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #161922;
+}
+.dock-tab,
+.dock-tab-action {
+  border: 0;
+  background: transparent;
+  color: #585858;
+  white-space: nowrap;
+  font:
+    11px/1 -apple-system,
+    BlinkMacSystemFont,
+    "SF Pro Text",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+}
+.dock-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  flex-shrink: 0;
+}
+.dock-tab-label {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dock-tab.is-active {
+  color: #969696;
+  background: #0f1115;
+}
+.dock-tab:not(.is-active):hover {
+  background: #1c2030;
+  color: #8a90a3;
+}
+.dock-tab:hover .dock-tab-close {
+  color: #b7bccc;
+}
+.dock-tab:not(.is-active) .dock-tab-close {
+  visibility: hidden;
+}
+.dock-tab:not(.is-active):hover .dock-tab-close {
+  visibility: visible;
+}
+.dock-tab-close {
+  color: inherit;
+  margin-left: 2px;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1;
+}
+.dock-tab-action {
+  display: grid;
+  place-items: center;
+  align-self: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  color: #969696;
+  font-size: 13px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.dock-tab-action:hover {
+  background: #1c2030;
+  color: #b7bccc;
+}
+.dock-tab-action:last-child {
+  width: 22px;
+  margin: 0 5px 0 1px;
+  background: transparent;
+}
+.editor-breadcrumb {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  border-bottom: 1px solid #252b3d;
+  color: #6d7593;
+  font:
+    9px "DM Mono",
+    monospace;
+}
+.editor-pane .editor-area {
+  padding-top: 12px;
+}
+.agent-terminal {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.terminal-command {
+  color: #c8cedf;
+  padding: 9px 0;
+  background: #1e222b;
+}
+.terminal-agent-text {
+  color: #d4a6ff;
+  white-space: pre-wrap;
+}
+.terminal-error {
+  color: #f7768e;
+}
+.terminal-status-line {
+  color: #6d7593;
+  font-style: italic;
+}
+.terminal-pane .terminal-head {
+  border-bottom: 1px solid #252b3d;
+}
+.terminal-pane .terminal-lines {
+  padding: 15px;
+}
+.nav-special-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 7px;
+  color: #939bb1;
+}
+.nav-special-row > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+.nav-special-row strong,
+.nav-special-row small {
+  display: block;
+}
+.nav-special-row strong {
+  font-weight: 500;
+}
+.nav-special-row small {
+  color: #5a5959;
+  font-size: 9px;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nav-special-row b {
+  background: #f7768e;
+  color: #161922;
+  border-radius: 7px;
+  font-size: 8px;
+  padding: 1px 4px;
+  margin-left: 3px;
+}
+.special-glyph {
+  color: #7a8099;
+}
+.nav-group-label {
+  margin: 8px -12px 3px;
+  padding: 7px 12px;
+  background: #1e222b;
+  color: #939bb1;
+  font-size: 10px;
+}
+
+/* Scripted playback cursor: glides between targets, pulses a ripple on click. */
+.demo-script-cursor {
+  position: absolute;
+  z-index: 70;
+  pointer-events: none;
+  transform: translate(-2px, -2px);
+  transition:
+    left 0.65s cubic-bezier(0.22, 0.68, 0.31, 1),
+    top 0.65s cubic-bezier(0.22, 0.68, 0.31, 1);
+  animation: cursorIn 0.22s ease;
+}
+.demo-script-pointer {
+  display: block;
+  fill: #f2f4ea;
+  stroke: #11121a;
+  stroke-width: 1.2;
+  filter: drop-shadow(0 2px 6px #000a);
+  transition: transform 0.12s ease;
+  transform-origin: 4px 2px;
+}
+.demo-script-cursor.is-clicking .demo-script-pointer {
+  transform: scale(0.86);
+}
+.demo-script-ripple {
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid #bb9af7;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.4);
+}
+.demo-script-cursor.is-clicking .demo-script-ripple {
+  animation: cursorRipple 0.55s ease-out;
+}
+@keyframes cursorIn {
+  from {
+    opacity: 0;
+    transform: translate(-2px, -2px) scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-2px, -2px) scale(1);
+  }
+}
+@keyframes cursorRipple {
+  0% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(3.2);
+  }
+}
+
+/* Agent-terminal activity indicator — same working/ready palette and
+   "radar ping" motion as the real app's ctx.agents-driven tab badge
+   (packages/extension-host/src/layout/components.css .silo-activity-*),
+   shown only for the active tab when it's a coding-agent terminal. */
+.dock-tab-agent-icon {
+  display: flex;
+  align-items: center;
+}
+/* Sizing/position only — color, ring, and motion come from the shared
+   .status-working/.status-ready rules, so the tab dot and every workspace-row
+   dot share one definition and can't drift out of sync. */
+.dock-tab-agent-dot {
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  margin-right: 0;
+  box-shadow: none;
+}
+@keyframes dockTabPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.2);
+  }
+}
+@keyframes dockTabPulseSubtle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.25);
+  }
+}
+@keyframes dockTabWave {
+  0% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+
+/* Claude Code terminal fidelity pass — the persistent banner an agent
+   terminal opens with (scrolls away with the log, like a real terminal),
+   the pinned bottom prompt/status chrome (stays put, like the real CLI),
+   and the richer scripted-output kinds (tool calls + diffs, sub-agent
+   trees, tables, task checklists) that make a session read like an actual
+   transcript instead of a flat log. */
+.claude-banner {
+  padding: 2px 0 14px;
+}
+.claude-banner-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.claude-banner-copy {
+  min-width: 0;
+}
+.claude-banner-title {
+  color: #e3e6f0;
+  font-weight: 600;
+  font-size: 11px;
+}
+.claude-banner-meta {
+  color: #939bb1;
+  margin-top: 3px;
+}
+.claude-banner-cwd {
+  color: #6d7593;
+  margin-top: 2px;
+}
+.claude-banner-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 13px;
+  color: #dba956;
+}
+.claude-banner-warning svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.claude-chrome {
+  flex: 0 0 auto;
+  border-top: 1px solid #252b3d;
+}
+.claude-prompt-row {
+  padding: 7px 15px;
+  border-bottom: 1px solid #1c2030;
+}
+.claude-prompt-caret {
+  color: #bb9af7;
+}
+.claude-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 15px;
+  color: #6d7593;
+  font-size: 9px;
+  overflow: hidden;
+}
+.claude-status-left {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.claude-branch {
+  color: #4d5568;
+}
+.claude-status-right {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+.claude-status-right .status-dot {
+  width: 5px;
+  height: 5px;
+  margin: 0;
+}
+.claude-model {
+  color: #e0af68;
+  text-transform: capitalize;
+}
+
+.terminal-heading {
+  color: #e3e6f0;
+  font-weight: 600;
+  margin: 9px 0 3px;
+}
+.terminal-shell-line {
+  color: #6d7593;
+  padding: 3px 0;
+}
+.terminal-shell-prefix {
+  color: #4d5568;
+  margin-right: 6px;
+}
+.terminal-list {
+  margin: 5px 0;
+  padding-left: 17px;
+  color: #b7bccc;
+}
+.terminal-list li {
+  padding: 2px 0;
+}
+
+.terminal-tool {
+  margin: 7px 0;
+}
+.terminal-tool-head {
+  color: #8ed5ff;
+  font-weight: 600;
+}
+.terminal-tool-detail {
+  color: #6d7593;
+  padding-left: 14px;
+  margin-top: 2px;
+}
+.terminal-diff {
+  margin: 6px 0 3px 13px;
+  padding-left: 10px;
+  border-left: 2px solid #2b3148;
+  font-size: 9px;
+}
+.diff-line {
+  display: flex;
+  gap: 8px;
+  padding: 1px 0;
+  white-space: pre;
+}
+.diff-gutter {
+  flex: 0 0 auto;
+  width: 22px;
+  text-align: right;
+  color: #454c63;
+}
+.diff-marker {
+  flex: 0 0 auto;
+  width: 8px;
+}
+.diff-text {
+  min-width: 0;
+}
+.diff-ctx {
+  color: #7a8099;
+}
+.diff-add {
+  background: #122318;
+  color: #9ece6a;
+}
+.diff-add .diff-marker {
+  color: #6bbf59;
+}
+.diff-del {
+  background: #291720;
+  color: #f7768e;
+}
+.diff-del .diff-marker {
+  color: #e0637b;
+}
+
+.terminal-table {
+  border-collapse: collapse;
+  margin: 7px 0;
+  font-size: 9px;
+  color: #b7bccc;
+}
+.terminal-table th,
+.terminal-table td {
+  border: 1px solid #2b3148;
+  padding: 5px 9px;
+  text-align: left;
+}
+.terminal-table th {
+  color: #939bb1;
+  font-weight: 600;
+  background: #161922;
+}
+
+.terminal-subagents {
+  margin: 7px 0;
+}
+.terminal-subagents-lead {
+  color: #b7bccc;
+}
+.terminal-subagents-tree {
+  margin-top: 5px;
+}
+.subagent-line {
+  display: flex;
+  gap: 5px;
+  color: #939bb1;
+}
+.subagent-branch {
+  flex: 0 0 auto;
+  color: #454c63;
+}
+.subagent-label.is-running {
+  color: #bb9af7;
+  font-weight: 600;
+}
+.subagent-meta {
+  color: #4d5568;
+}
+.subagent-detail-line {
+  display: flex;
+  gap: 5px;
+  padding: 1px 0 3px;
+  color: #4d5568;
+}
+.terminal-subagents-note {
+  margin-top: 5px;
+  color: #454c63;
+}
+
+.terminal-tasklist {
+  margin: 7px 0;
+}
+.tasklist-title {
+  color: #e0af68;
+}
+.tasklist-bullet {
+  color: #e0af68;
+}
+.tasklist-meta {
+  color: #6d7593;
+}
+.tasklist-items {
+  margin: 5px 0 0 15px;
+}
+.tasklist-item {
+  display: flex;
+  gap: 7px;
+  color: #6d7593;
+}
+.tasklist-check {
+  flex: 0 0 auto;
+  color: #454c63;
+}
+.tasklist-item.is-done .tasklist-check {
+  color: #6bbf59;
+}
+.tasklist-item.is-done .tasklist-text {
+  color: #545b70;
+  text-decoration: line-through;
+}
+.tasklist-more {
+  margin-top: 3px;
+  padding-left: 22px;
+  color: #454c63;
+}
+
+.rich-bold {
+  color: #e3e6f0;
+  font-weight: 600;
+}
+.rich-code {
+  color: #8ed5ff;
+  background: #1c2030;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.rich-file-ref {
+  color: #7dabf8;
+}

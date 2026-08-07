@@ -1,0 +1,280 @@
+{
+  "id": "api",
+  "order": 3,
+  "name": "api",
+  "path": "~/projects/api",
+  "branch": "feat/rate-limiting",
+  "color": "#f0a7ff",
+  "status": "working",
+  "summary": "Adding rate limiting middleware",
+  "panels": {
+    "left": [
+      {
+        "id": "navigator",
+        "label": "Navigator",
+        "kind": "navigator"
+      }
+    ],
+    "right": [
+      {
+        "id": "files",
+        "label": "Files",
+        "kind": "files"
+      },
+      {
+        "id": "search",
+        "label": "Search",
+        "kind": "search"
+      },
+      {
+        "id": "git",
+        "label": "Git",
+        "kind": "git",
+        "count": 5
+      },
+      {
+        "id": "system",
+        "label": "System",
+        "kind": "system"
+      }
+    ]
+  },
+  "splitPanels": {
+    "right": [
+      {
+        "id": "prs",
+        "label": "PRs",
+        "kind": "prs",
+        "count": 2
+      },
+      {
+        "id": "issues",
+        "label": "Issues",
+        "kind": "issues",
+        "count": 3
+      }
+    ]
+  },
+  "activePanels": {
+    "left": "navigator",
+    "right": "files"
+  },
+  "activeSplitPanels": {
+    "right": "prs"
+  },
+  "splitSize": {
+    "right": 60
+  },
+  "collapsed": {
+    "left": false,
+    "right": false
+  },
+  "files": ["server.ts", "rate-limit.ts", "routes.test.ts"],
+  "activeFile": "rate-limit.ts",
+  "changes": [
+    {
+      "status": "M",
+      "path": "src/middleware/rate-limit.ts",
+      "staged": true
+    },
+    {
+      "status": "M",
+      "path": "src/routes/auth.ts"
+    },
+    {
+      "status": "R",
+      "path": "src/services/token-refresh.ts"
+    },
+    {
+      "status": "U",
+      "path": "src/middleware/rate-limit.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "README.md"
+    }
+  ],
+  "issues": [
+    {
+      "number": 96,
+      "title": "Rate limiter should return Retry-After on 429",
+      "author": "davideweaver",
+      "labels": [
+        {
+          "name": "enhancement",
+          "color": "a2eeef"
+        }
+      ],
+      "assignees": ["marcus-lee", "priya-n"],
+      "updated": "18m ago"
+    },
+    {
+      "number": 91,
+      "title": "Token refresh races when two requests expire together",
+      "author": "marcus-lee",
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a"
+        },
+        {
+          "name": "help wanted",
+          "color": "008672"
+        },
+        {
+          "name": "performance",
+          "color": "5319e7"
+        }
+      ],
+      "updated": "6h ago"
+    },
+    {
+      "number": 84,
+      "title": "Drop the legacy /v1 auth shim",
+      "author": "davideweaver",
+      "state": "closed-not-planned",
+      "updated": "12d ago"
+    }
+  ],
+  "prs": [
+    {
+      "number": 33,
+      "title": "feat(api): add rate limiting middleware",
+      "author": "davideweaver",
+      "review": "review-required",
+      "checks": "pending",
+      "labels": ["enhancement"],
+      "updated": "12m ago"
+    },
+    {
+      "number": 30,
+      "title": "refactor(auth): extract token refresh into its own service",
+      "author": "marcus-lee",
+      "review": "changes-requested",
+      "checks": "failing",
+      "failing": 2,
+      "updated": "5h ago"
+    }
+  ],
+  "system": {
+    "memory": [
+      {
+        "label": "App",
+        "gb": 9.8
+      },
+      {
+        "label": "Wired",
+        "gb": 4.9
+      },
+      {
+        "label": "Cache",
+        "gb": 13.1
+      },
+      {
+        "label": "Free",
+        "gb": 4.2
+      }
+    ],
+    "cpu": {
+      "user": 31,
+      "sys": 12
+    },
+    "processes": {
+      "procs": 7,
+      "rows": [
+        {
+          "title": "add rate limiting middleware to the API",
+          "childCount": 3,
+          "leader": "claude",
+          "cpu": 82,
+          "memoryMb": 2410
+        },
+        {
+          "title": "add structured request logging",
+          "childCount": 1,
+          "leader": "claude",
+          "cpu": 27,
+          "memoryMb": 640
+        },
+        {
+          "title": "zsh",
+          "cpu": 0,
+          "memoryMb": 11,
+          "idle": true
+        }
+      ]
+    }
+  },
+  "docks": [
+    {
+      "id": "terminal",
+      "kind": "terminal",
+      "activeTab": "claude",
+      "size": 50,
+      "tabs": [
+        {
+          "id": "test",
+          "label": "test",
+          "terminal": "test.json"
+        },
+        {
+          "id": "claude",
+          "label": "claude",
+          "terminal": "claude.json"
+        },
+        {
+          "id": "cursor",
+          "label": "cursor",
+          "terminal": "cursor.json"
+        }
+      ]
+    },
+    {
+      "id": "editor",
+      "kind": "editor",
+      "size": 50
+    }
+  ],
+  "ahead": 1,
+  "behind": 0,
+  "search": {
+    "query": "rateLimit",
+    "files": [
+      {
+        "path": "src/middleware/rate-limit.ts",
+        "matches": [
+          "  rateLimit, rateLimitEnabled, resetRateLimit,",
+          "export function rateLimit(options: RateLimitOptions): Middleware {",
+          "  if (!rateLimitEnabled(req)) return next();",
+          "  res.setHeader(\"X-RateLimit-Remaining\", String(bucket.remaining));"
+        ]
+      },
+      {
+        "path": "src/routes/auth.ts",
+        "matches": [
+          "import { rateLimit } from \"../middleware/rate-limit\";",
+          "router.post(\"/login\", rateLimit({ windowMs: 60_000, max: 5 }), login);",
+          "  rateLimit({ windowMs: 60_000, max: 20 }),"
+        ]
+      },
+      {
+        "path": "src/middleware/rate-limit.test.ts",
+        "matches": [
+          "import { rateLimit, rateLimitEnabled } from \"./rate-limit\";",
+          "  const mw = rateLimit({ windowMs: 1000, max: 2 });",
+          "  it(\"rejects once the rateLimit window is exhausted\", async () => {"
+        ]
+      },
+      {
+        "path": "src/config/defaults.ts",
+        "matches": ["  rateLimit: { windowMs: 60_000, max: 100 },"]
+      },
+      {
+        "path": "README.md",
+        "matches": [
+          "Every public route is wrapped in `rateLimit` \u2014 see the middleware docs."
+        ]
+      }
+    ]
+  }
+}
