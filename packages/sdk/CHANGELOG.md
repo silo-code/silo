@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.34.0](https://github.com/silo-code/silo/compare/sdk-v0.33.0...sdk-v0.34.0) (2026-08-06)
+
+
+### Features
+
+* **navigator:** turn Workspaces panel into contributed Navigator views ([#325](https://github.com/silo-code/silo/issues/325)) ([0d3b7f8](https://github.com/silo-code/silo/commit/0d3b7f81b593bba68467a1a9652d201daa72eeed))
+
 ## [0.33.0](https://github.com/silo-code/silo/compare/sdk-v0.32.0...sdk-v0.33.0) (2026-08-04)
 
 
