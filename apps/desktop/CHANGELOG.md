@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.43.1](https://github.com/silo-code/silo/compare/silo-v0.43.0...silo-v0.43.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* **extension-host:** fix cross-workspace, split-dock, and window-refocus tab-focus bugs ([#328](https://github.com/silo-code/silo/issues/328)) ([e0edbff](https://github.com/silo-code/silo/commit/e0edbff758df146a287479a5d92e0e385b2bfca8))
+
 ## [0.43.0](https://github.com/silo-code/silo/compare/silo-v0.42.0...silo-v0.43.0) (2026-08-07)
 
 
