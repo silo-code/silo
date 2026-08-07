@@ -33,15 +33,27 @@ function focusInMenu(active: Element | null): boolean {
  * Repeatedly call `focus()` on successive animation frames until `isFocused()`
  * returns true, `stillWanted()` returns false, or `cap` frames have elapsed.
  *
- * Use directly for one-shot focus (e.g. on editor mount). For focusing a panel
- * whenever its dock tab becomes active, prefer {@link useFocusOnActive}.
+ * `stillWanted` is **required**, and must express "this panel is still the one
+ * that should hold focus" — normally `() => api.isActive`, or the center
+ * dock's focus-intent token (`focusGen`). It is deliberately not optional: a
+ * retry loop without it keeps grabbing focus for its entire frame budget no
+ * matter what else happened meanwhile. That matters most on *mount*, because
+ * re-entering a workspace re-mounts its panels — so an unguarded mount-time
+ * grab in a background tab yanks focus away from the tab the user actually
+ * left active. And because DOM focus landing inside a dockview panel makes
+ * dockview mark that panel's group active
+ * (`contentContainer.onDidFocus → doSetGroupActive`), stealing focus silently
+ * changes the visible active tab too. That was symptom 1 in ADR 0034.
+ *
+ * For focusing a panel whenever its dock tab becomes active, prefer
+ * {@link useFocusOnActive}, which supplies the guard for you.
  *
  * @internal
  */
 export function retryFocus(
   focus: () => void,
   isFocused: () => boolean,
-  stillWanted: () => boolean = () => true,
+  stillWanted: () => boolean,
   cap = DEFAULT_CAP,
 ): void {
   let attempts = 0;

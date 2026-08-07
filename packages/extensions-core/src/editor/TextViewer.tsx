@@ -544,9 +544,19 @@ export function TextViewer({
     //
     // `editor.focus()` only takes effect after Monaco's internal textarea is
     // laid out with non-zero dimensions, so retry across frames until it lands.
+    //
+    // Gated on this panel actually being the active tab, both up front and for
+    // the life of the retry: mount is NOT only "the user just created this
+    // editor". Re-entering a workspace re-mounts every panel in its dock, so
+    // an unguarded grab here fires for background editors too and yanks focus
+    // off the tab the user actually left active — which dockview then treats
+    // as a real focus, flipping the visible active tab to this editor. Same
+    // guard TerminalPanel uses for its own post-spawn focus. See ADR 0034.
+    if (!dockApi.isActive) return;
     retryFocus(
       () => editor.focus(),
       () => isTextareaFocusedWithin(editor.getDomNode()),
+      () => dockApi.isActive,
     );
   };
 

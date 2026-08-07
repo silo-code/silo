@@ -15,16 +15,22 @@ vi.mock("./process-service", () => ({
 
 // Mock dockview's own registry so `focus()`'s call sequence/timing is
 // observable without a real dockview instance.
-const { setActive, getPanel, getActiveDockApi, focusPanelContent } = vi.hoisted(
-  () => ({
-    setActive: vi.fn(),
-    getPanel: vi.fn(),
-    getActiveDockApi: vi.fn(),
-    focusPanelContent: vi.fn(),
-  }),
-);
+const {
+  setActive,
+  getPanel,
+  getActiveDockApi,
+  getActiveDockWorkspaceId,
+  focusPanelContent,
+} = vi.hoisted(() => ({
+  setActive: vi.fn(),
+  getPanel: vi.fn(),
+  getActiveDockApi: vi.fn(),
+  getActiveDockWorkspaceId: vi.fn(),
+  focusPanelContent: vi.fn(),
+}));
 vi.mock("../docked/dock-api-registry", () => ({
   getActiveDockApi,
+  getActiveDockWorkspaceId,
   focusPanelContent,
 }));
 
@@ -79,6 +85,11 @@ beforeEach(() => {
     view: { content: { element: PANEL_CONTENT_ELEMENT } },
   });
   getActiveDockApi.mockReset().mockReturnValue({ getPanel });
+  // Default: the live dock is workspace "w" — matches store.activeWorkspaceId
+  // below for the common "same workspace, dock already up" case. Tests that
+  // exercise the cross-workspace path don't need to touch this — "w" simply
+  // isn't the target workspace id they focus into.
+  getActiveDockWorkspaceId.mockReset().mockReturnValue("w");
   focusPanelContent.mockReset();
   rafCallbacks = [];
   vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback): number => {

@@ -137,9 +137,17 @@ export function DiffViewer({
       diffEditor.getModifiedEditor(),
     ]);
 
+    // Gated on this panel actually being the active tab — mount is not only
+    // "the user just opened this diff": re-entering a workspace re-mounts
+    // every panel in its dock, and an unguarded grab would steal focus from
+    // the tab the user actually left active (and, via dockview's
+    // focus-follows-active wiring, change the visible tab). Mirrors
+    // TextViewer's text-mode guard. See ADR 0034.
+    if (!dockApi.isActive) return;
     retryFocus(
       () => diffEditor.focus(),
       () => isTextareaFocusedWithin(diffEditor.getContainerDomNode()),
+      () => dockApi.isActive,
     );
   };
 
