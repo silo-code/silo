@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.43.0](https://github.com/silo-code/silo/compare/silo-v0.42.0...silo-v0.43.0) (2026-08-07)
+
+
+### Features
+
+* **layout:** give Laptop Mode its own layout and size side columns in px ([#323](https://github.com/silo-code/silo/issues/323)) ([b1f049d](https://github.com/silo-code/silo/commit/b1f049d8c7c84b42dd46ffb3be14a9e86c34b337))
+* **navigator:** turn Workspaces panel into contributed Navigator views ([#325](https://github.com/silo-code/silo/issues/325)) ([0d3b7f8](https://github.com/silo-code/silo/commit/0d3b7f81b593bba68467a1a9652d201daa72eeed))
+
 ## [0.42.0](https://github.com/silo-code/silo/compare/silo-v0.41.0...silo-v0.42.0) (2026-08-04)
 
 
