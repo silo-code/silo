@@ -237,7 +237,11 @@ export function splitActivePanel(
 ): number {
   const panel = activeApi?.activePanel;
   if (!activeApi || !panel) return 0;
-  panel.api.moveTo({ position });
+  // dockview's moveTo forces `position` to "center" (a no-op move within the
+  // same group) whenever `group` is omitted — only an explicit `group`
+  // (here, the panel's own current group) makes it honor `position` and
+  // actually split off a new one beside it. See DockviewPanelApiImpl.moveTo.
+  panel.api.moveTo({ group: panel.group, position });
   return activeApi.groups.length;
 }
 
