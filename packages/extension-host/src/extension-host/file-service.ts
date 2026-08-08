@@ -13,6 +13,7 @@ import {
   fsCopy,
 } from "../services/tauri-fs";
 import { startWatch, stopWatch, onFileChange } from "../services/tauri-watch";
+import { retargetEditorsForRename } from "../state/workspaces";
 import { resolvePath } from "./security/resolve-path";
 import type { PathScope } from "./security/resolve-path";
 import type {
@@ -64,7 +65,10 @@ export function getFileService(): FileService {
     writeBytes: fsWriteBytes,
     createDir: fsCreateDir,
     copy: fsCopy,
-    rename: fsRename,
+    rename: async (oldPath, newPath) => {
+      await fsRename(oldPath, newPath);
+      retargetEditorsForRename(oldPath, newPath);
+    },
     delete: fsDelete,
     reveal: fsReveal,
     // Subscribe to changes under `path`, sharing one backend watcher per path
