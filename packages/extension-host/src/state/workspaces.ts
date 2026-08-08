@@ -668,6 +668,39 @@ export function setEditorFilePath(
   return rec;
 }
 
+/**
+ * Retarget every open text editor pointed at `oldPath` (or nested under it, for
+ * a renamed/moved directory) to `newPath`, across all workspaces — called after
+ * a successful `ctx.files.rename` so an open tab follows its file instead of
+ * reading as deleted once the old path stops existing on disk. Fires
+ * "app:update-editor-title" per retargeted editor so the dockview tab (whose
+ * title is set once at panel-creation time, not read reactively) picks up the
+ * new name — the record's `title` field alone only updates the breadcrumb.
+ */
+export function retargetEditorsForRename(
+  oldPath: string,
+  newPath: string,
+): void {
+  for (const ws of Object.values(store.workspaces)) {
+    for (const rec of ws.editors) {
+      if (!isTextRecord(rec) || rec.filePath === null) continue;
+      if (rec.filePath === oldPath) {
+        rec.filePath = newPath;
+      } else if (rec.filePath.startsWith(oldPath + "/")) {
+        rec.filePath = newPath + rec.filePath.slice(oldPath.length);
+      } else {
+        continue;
+      }
+      rec.title = baseName(rec.filePath);
+      window.dispatchEvent(
+        new CustomEvent("app:update-editor-title", {
+          detail: { editorId: rec.id, title: rec.title },
+        }),
+      );
+    }
+  }
+}
+
 export function removeEditor(
   workspaceId: string,
   editorId: string,
@@ -808,7 +841,7 @@ export function openPreviewDiff(
     currentPreview.providerId = spec.providerId;
     currentPreview.args = spec.args;
     window.dispatchEvent(
-      new CustomEvent("app:update-preview-title", {
+      new CustomEvent("app:update-editor-title", {
         detail: { editorId: currentPreview.id, title },
       }),
     );
@@ -835,7 +868,7 @@ export function openPreviewDiff(
  * - If the file is already the current preview → just activate it.
  * - If there is an existing preview → reuse its slot (mutate filePath/title in
  *   place so the tab stays in the same position) and fire
- *   "app:update-preview-title" so CenterDock can update the dockview panel
+ *   "app:update-editor-title" so CenterDock can update the dockview panel
  *   title.
  * - Otherwise → create a new preview editor record.
  */
@@ -891,7 +924,7 @@ export function openPreviewEditor(
     if (viewType !== undefined) currentPreview.viewType = viewType;
     else delete currentPreview.viewType;
     window.dispatchEvent(
-      new CustomEvent("app:update-preview-title", {
+      new CustomEvent("app:update-editor-title", {
         detail: { editorId: currentPreview.id, title: currentPreview.title },
       }),
     );

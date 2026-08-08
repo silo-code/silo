@@ -143,6 +143,11 @@ export function DirNode({
             spellCheck={false}
             onBlur={(e) => onRenameCommit(path, e.target.value)}
             onKeyDown={(e) => {
+              // Stop every key here from bubbling to the row's onKeyDown —
+              // otherwise ArrowLeft/ArrowRight (and ↑/↓) reach handleRowKey /
+              // useFocusGroup and get treated as tree navigation instead of
+              // normal cursor movement inside the input.
+              e.stopPropagation();
               if (e.key === "Enter") {
                 e.currentTarget.blur();
               } else if (e.key === "Escape") {
@@ -395,6 +400,11 @@ export function FileLeaf({
           spellCheck={false}
           onBlur={(e) => onRenameCommit(path, e.target.value)}
           onKeyDown={(e) => {
+            // Stop every key here from bubbling to the row's onKeyDown —
+            // otherwise ArrowLeft/ArrowRight (and ↑/↓) reach handleRowKey /
+            // useFocusGroup and get treated as tree navigation instead of
+            // normal cursor movement inside the input.
+            e.stopPropagation();
             if (e.key === "Enter") {
               e.currentTarget.blur();
             } else if (e.key === "Escape") {

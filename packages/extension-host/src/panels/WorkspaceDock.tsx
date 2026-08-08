@@ -545,9 +545,8 @@ export function WorkspaceDock({
       const panel = apiRef.current?.getPanel(`editor:${editorId}`);
       if (panel) panel.api.setTitle(title);
     }
-    window.addEventListener("app:update-preview-title", handler);
-    return () =>
-      window.removeEventListener("app:update-preview-title", handler);
+    window.addEventListener("app:update-editor-title", handler);
+    return () => window.removeEventListener("app:update-editor-title", handler);
   }, []);
 
   useEffect(() => {

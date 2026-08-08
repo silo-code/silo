@@ -59,6 +59,12 @@ export function Tree({
   const [selected, setSelected] = useState<string | null>(
     () => initialSelected ?? null,
   );
+  // Path whose row should take keyboard focus once it (re)appears in the
+  // flattened list — set after a rename commits. The renamed row unmounts and
+  // remounts under its new path when the fs-watch reload refreshes the
+  // listing, which would otherwise strand DOM focus (or leave it wherever the
+  // browser default-focuses on node removal) instead of following the file.
+  const pendingFocusPath = useRef<string | null>(null);
   // Whether `root` is itself a linked git worktree — drives the header badge
   // (mirrors the Git panel's; consumes `silo.git` directly, same as
   // git-explorer does, rather than reaching into that extension's internals).
@@ -112,6 +118,17 @@ export function Tree({
       if (n) openFileMenu(n.path, n.isDir, { anchor });
     },
   });
+
+  // Consume a pending post-rename focus target as soon as its row exists in
+  // the flattened list (see `pendingFocusPath` above and `commitRename` below).
+  useEffect(() => {
+    const path = pendingFocusPath.current;
+    if (!path) return;
+    const idx = indexOfPath.get(path);
+    if (idx === undefined) return;
+    pendingFocusPath.current = null;
+    group.focusItem(idx);
+  }, [indexOfPath, group.focusItem]);
 
   // The tree-specific keys, run before useFocusGroup sees the event. Returns
   // true when it owns the key (the group then skips it); false to defer to the
@@ -487,9 +504,18 @@ export function Tree({
     const dir = dirOf(oldPath);
     const newPath = dir + "/" + trimmed;
     if (newPath === oldPath) return;
-    await files
-      .rename(oldPath, newPath)
-      .catch((e) => console.warn("rename failed", e));
+    try {
+      await files.rename(oldPath, newPath);
+    } catch (e) {
+      console.warn("rename failed", e);
+      return;
+    }
+    // Follow the rename: keep selection on the renamed row, and once the
+    // listing reload remounts it under the new path, restore keyboard focus
+    // there too (see the pendingFocusPath effect above) instead of leaving
+    // focus stranded or moving to whatever row happens to fill the gap.
+    selectPath(newPath);
+    pendingFocusPath.current = newPath;
   }
 
   async function handleDrop(draggedPath: string, targetDir: string) {

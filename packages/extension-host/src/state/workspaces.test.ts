@@ -10,7 +10,9 @@ vi.mock("./editor-backups", () => ({
 import { store } from "./store";
 import {
   openEditor,
+  openDiff,
   removeEditor,
+  retargetEditorsForRename,
   savePanelStateToWorkspace,
   loadPanelStateFromWorkspace,
   activateWorkspace,
@@ -52,6 +54,69 @@ describe("removeEditor", () => {
   it("does nothing for an unknown editor id", () => {
     expect(removeEditor("w", "nope")).toBeNull();
     expect(clearEditorBackup).not.toHaveBeenCalled();
+  });
+});
+
+describe("retargetEditorsForRename", () => {
+  it("repoints an open editor at the renamed file, updating its title", () => {
+    const rec = openEditor("w", "/ws/w/a.ts");
+    retargetEditorsForRename("/ws/w/a.ts", "/ws/w/b.ts");
+    expect(rec.filePath).toBe("/ws/w/b.ts");
+    expect(rec.title).toBe("b.ts");
+  });
+
+  it("repoints every editor nested under a renamed directory", () => {
+    const inner = openEditor("w", "/ws/w/old-dir/nested/c.ts");
+    const direct = openEditor("w", "/ws/w/old-dir/d.ts");
+    retargetEditorsForRename("/ws/w/old-dir", "/ws/w/new-dir");
+    expect(inner.filePath).toBe("/ws/w/new-dir/nested/c.ts");
+    expect(direct.filePath).toBe("/ws/w/new-dir/d.ts");
+  });
+
+  it("leaves editors for unrelated paths untouched", () => {
+    const rec = openEditor("w", "/ws/w/other.ts");
+    retargetEditorsForRename("/ws/w/a.ts", "/ws/w/b.ts");
+    expect(rec.filePath).toBe("/ws/w/other.ts");
+  });
+
+  it("does not retarget a diff-mode editor pinned to the old path", () => {
+    const diffRec = openDiff("w", {
+      filePath: "/ws/w/a.ts",
+      providerId: "silo.git",
+    });
+    retargetEditorsForRename("/ws/w/a.ts", "/ws/w/b.ts");
+    expect(diffRec.filePath).toBe("/ws/w/a.ts");
+  });
+
+  it("fires app:update-editor-title so the dockview tab picks up the new name", () => {
+    const rec = openEditor("w", "/ws/w/a.ts");
+    const seen: { editorId: string; title: string }[] = [];
+    const listener = (e: Event) =>
+      seen.push((e as CustomEvent<{ editorId: string; title: string }>).detail);
+    window.addEventListener("app:update-editor-title", listener);
+    try {
+      retargetEditorsForRename("/ws/w/a.ts", "/ws/w/b.ts");
+    } finally {
+      window.removeEventListener("app:update-editor-title", listener);
+    }
+    expect(seen).toEqual([{ editorId: rec.id, title: "b.ts" }]);
+  });
+
+  it("spans workspaces", () => {
+    store.workspaces = {
+      ...store.workspaces,
+      w2: (() => {
+        const ws = { ...(store.workspaces.w as WorkspaceInternal) };
+        ws.id = "w2";
+        ws.folder = "/ws/w2";
+        ws.editors = [];
+        return ws;
+      })(),
+    };
+    store.workspaceOrder = ["w", "w2"];
+    const rec = openEditor("w2", "/ws/w2/a.ts");
+    retargetEditorsForRename("/ws/w2/a.ts", "/ws/w2/b.ts");
+    expect(rec.filePath).toBe("/ws/w2/b.ts");
   });
 });
 
