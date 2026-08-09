@@ -1,3 +1,9 @@
 # VitePress build artifacts (the generated API markdown under api/ IS committed)
 .vitepress/cache/
 .vitepress/dist/
+
+# Changelog pages copied from CHANGELOG.md at build time (scripts/copy-changelog.mjs).
+# Unlike the API reference, Context7 doesn't need these indexed and a committed
+# copy would go stale between releases, so they're regenerated fresh each build.
+changelog.md
+api/sdk-changelog.md

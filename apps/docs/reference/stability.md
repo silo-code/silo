@@ -78,3 +78,4 @@ against the SDK version your `engine` range allows.
 - [Roadmap](/roadmap) — what's stable, what's planned.
 - [Publishing an extension](/guide/publishing-an-extension) — the manifest,
   including `engine`.
+- [SDK changelog](/api/sdk-changelog) — what changed, release by release.
