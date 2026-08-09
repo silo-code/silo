@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { store } from "./store";
-import { capturePanelState, applyPanelState } from "./panel-state";
+import {
+  capturePanelState,
+  applyPanelState,
+  captureGlobalPanelLayout,
+  applyGlobalPanelLayout,
+} from "./panel-state";
 import { DEFAULT_PANEL_STATE } from "./types";
 import type { WorkspaceInternal } from "./types";
 
@@ -101,5 +106,55 @@ describe("capturePanelState / applyPanelState", () => {
     expect(store.extensionState).toEqual({});
     expect(store.leftPanelCollapsed).toBe(false);
     expect(store.inactiveModeCollapsed).toBeNull();
+  });
+});
+
+describe("captureGlobalPanelLayout / applyGlobalPanelLayout", () => {
+  it("round-trips every arrangement field — capture, apply, capture is identity", () => {
+    seedLiveState();
+    const first = captureGlobalPanelLayout();
+
+    applyGlobalPanelLayout(first);
+    expect(captureGlobalPanelLayout()).toEqual(first);
+  });
+
+  it("does not carry activeSidePanelTabs, sidePanelScrollPositions, or extensionState", () => {
+    seedLiveState();
+    const g = captureGlobalPanelLayout();
+    expect(g).not.toHaveProperty("activeSidePanelTabs");
+    expect(g).not.toHaveProperty("sidePanelScrollPositions");
+    expect(g).not.toHaveProperty("extensionState");
+  });
+
+  it("round-trips the small-screen layout too", () => {
+    seedLiveState();
+    store.smallScreenActive = true;
+    store.inactiveModeCollapsed = { left: false, right: true };
+    const first = captureGlobalPanelLayout();
+    expect(first.smallScreenCollapsed).toEqual({ left: true, right: false });
+
+    applyGlobalPanelLayout(first);
+    expect(captureGlobalPanelLayout()).toEqual(first);
+  });
+
+  it("copies out of the live store, so a captured record can't be rewritten by later edits", () => {
+    seedLiveState();
+    const snapshot = captureGlobalPanelLayout();
+
+    store.sidePanelVisibility.explorer = false;
+    store.sidePanelLocations.explorer = "right";
+
+    expect(snapshot.sidePanelVisibility).toEqual({ themes: false });
+    expect(snapshot.sidePanelLocations).toEqual({ explorer: "left" });
+  });
+
+  it("copies out of the record, so the live store isn't aliased to it", () => {
+    const g = captureGlobalPanelLayout(); // empty, pre-seed
+    seedLiveState();
+    applyGlobalPanelLayout(g); // overwrites live back to empty
+
+    store.sidePanelVisibility.themes = false;
+
+    expect(g.sidePanelVisibility).toEqual({});
   });
 });

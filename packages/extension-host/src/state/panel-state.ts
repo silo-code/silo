@@ -14,10 +14,17 @@
 
 import { store, collapseStateByMode } from "./store";
 import { DEFAULT_SMALL_SCREEN_COLLAPSE } from "./types";
-import type { PanelStateSnapshot, WorkspaceInternal } from "./types";
+import type {
+  GlobalPanelLayout,
+  PanelStateSnapshot,
+  WorkspaceInternal,
+} from "./types";
 
-/** Deep-clone the two-level extension-state bag (the one field that isn't flat). */
-function cloneExtensionState(
+/** Deep-clone the two-level extension-state bag (the one field that isn't
+ * flat). Exported: also used by `workspaces.ts` when the global panel layout
+ * is enabled, since `loadPanelStateFromWorkspace` then applies extensionState
+ * from the workspace record without going through the full `applyPanelState`. */
+export function cloneExtensionState(
   src: Record<string, Record<string, unknown>>,
 ): Record<string, Record<string, unknown>> {
   const out: Record<string, Record<string, unknown>> = {};
@@ -77,6 +84,48 @@ export function applyPanelState(ws: WorkspaceInternal): void {
   };
   const smallScreen = ws.smallScreenCollapsed
     ? { ...ws.smallScreenCollapsed }
+    : null;
+  const live = store.smallScreenActive
+    ? (smallScreen ?? { ...DEFAULT_SMALL_SCREEN_COLLAPSE })
+    : normal;
+  store.leftPanelCollapsed = live.left;
+  store.rightPanelCollapsed = live.right;
+  store.inactiveModeCollapsed = store.smallScreenActive ? normal : smallScreen;
+}
+
+/**
+ * The live arrangement, in the shape the shared "Global Side Panel Layout"
+ * record stores it (ADR 0035) — the same fields as {@link capturePanelState},
+ * minus `activeSidePanelTabs`/`sidePanelScrollPositions`/`extensionState`,
+ * which stay per-workspace even when the global flag is on.
+ */
+export function captureGlobalPanelLayout(): GlobalPanelLayout {
+  const collapse = collapseStateByMode();
+  return {
+    sidePanelLocations: { ...store.sidePanelLocations },
+    sidePanelOrder: { ...store.sidePanelOrder },
+    sidePanelVisibility: { ...store.sidePanelVisibility },
+    leftPanelCollapsed: collapse.normal.left,
+    rightPanelCollapsed: collapse.normal.right,
+    ...(collapse.smallScreen
+      ? { smallScreenCollapsed: { ...collapse.smallScreen } }
+      : {}),
+  };
+}
+
+/** The reverse: make `g` the live arrangement. Mirrors `applyPanelState`'s
+ * collapse resolution against the currently-live layout mode. */
+export function applyGlobalPanelLayout(g: GlobalPanelLayout): void {
+  store.sidePanelLocations = { ...g.sidePanelLocations };
+  store.sidePanelOrder = { ...g.sidePanelOrder };
+  store.sidePanelVisibility = { ...g.sidePanelVisibility };
+
+  const normal = {
+    left: g.leftPanelCollapsed,
+    right: g.rightPanelCollapsed,
+  };
+  const smallScreen = g.smallScreenCollapsed
+    ? { ...g.smallScreenCollapsed }
     : null;
   const live = store.smallScreenActive
     ? (smallScreen ?? { ...DEFAULT_SMALL_SCREEN_COLLAPSE })

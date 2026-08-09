@@ -10,6 +10,7 @@
 
 import type {
   EditorSettings,
+  GlobalPanelLayout,
   PanelStateSnapshot,
   SidePanelSlot,
   TerminalSettings,
@@ -52,6 +53,13 @@ export interface PersistedIndex {
   // top-level list (ungrouped workspace ids + group ids).
   groups?: Record<string, WorkspaceGroup>;
   panelOrder?: string[];
+  // "Global Side Panel Layout" (ADR 0035) — global (not per-workspace), so it
+  // lives in the index like `smallScreenModeEnabled`. Absent in older
+  // indexes: defaults (both off, empty layout) applied at hydrate.
+  globalPanelLayoutEnabled?: boolean;
+  globalActiveTabEnabled?: boolean;
+  globalPanelLayout?: GlobalPanelLayout;
+  globalActiveSidePanelTabs?: Record<string, string>;
 }
 
 /** The legacy monolithic blob (one `"state"` key in the app-data store) we
@@ -169,6 +177,32 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
       : undefined,
     groups: snapshot.groups ? cloneGroups(snapshot.groups) : undefined,
     panelOrder: snapshot.panelOrder ? [...snapshot.panelOrder] : undefined,
+    globalPanelLayoutEnabled: snapshot.globalPanelLayoutEnabled,
+    globalActiveTabEnabled: snapshot.globalActiveTabEnabled,
+    globalPanelLayout: snapshot.globalPanelLayout
+      ? cloneGlobalPanelLayout(snapshot.globalPanelLayout)
+      : undefined,
+    globalActiveSidePanelTabs: snapshot.globalActiveSidePanelTabs
+      ? { ...snapshot.globalActiveSidePanelTabs }
+      : undefined,
+  };
+}
+
+/** Deep-clone a {@link GlobalPanelLayout} record so a stored snapshot can't
+ * alias (and later mutate via) the live store. Exported: also used by
+ * `persistence.ts` to hydrate `store.globalPanelLayout` from the index. */
+export function cloneGlobalPanelLayout(
+  g: GlobalPanelLayout,
+): GlobalPanelLayout {
+  return {
+    sidePanelLocations: { ...g.sidePanelLocations },
+    sidePanelOrder: { ...g.sidePanelOrder },
+    sidePanelVisibility: { ...g.sidePanelVisibility },
+    leftPanelCollapsed: g.leftPanelCollapsed,
+    rightPanelCollapsed: g.rightPanelCollapsed,
+    ...(g.smallScreenCollapsed
+      ? { smallScreenCollapsed: { ...g.smallScreenCollapsed } }
+      : {}),
   };
 }
 
@@ -228,6 +262,30 @@ export function withActivePanelState(
   // copies (`capturePanelState` clones them off the live store), so the result
   // can't alias state anyone still mutates.
   return { ...ws, ...panel };
+}
+
+/**
+ * Like {@link withActivePanelState}, but for when "Global Side Panel Layout"
+ * (ADR 0035) is on: merges only the fields that stay per-workspace even
+ * then — `extensionState`, `sidePanelScrollPositions`, and
+ * `activeSidePanelTabs` (unless its own sub-flag is also global). The
+ * workspace's arrangement fields (locations/order/visibility/collapse) are
+ * left exactly as they are on disk — the frozen snapshot from before the
+ * flag was enabled — since `store.globalPanelLayout` governs them instead.
+ */
+export function withActiveNonGlobalPanelState(
+  ws: WorkspaceInternal,
+  panel: PanelState,
+  activeTabIsGlobal: boolean,
+): WorkspaceInternal {
+  return {
+    ...ws,
+    extensionState: panel.extensionState,
+    sidePanelScrollPositions: panel.sidePanelScrollPositions,
+    ...(activeTabIsGlobal
+      ? {}
+      : { activeSidePanelTabs: panel.activeSidePanelTabs }),
+  };
 }
 
 /**

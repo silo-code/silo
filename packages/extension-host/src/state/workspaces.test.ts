@@ -20,8 +20,13 @@ import {
   getEditorSettingOverride,
   addExtraFolder,
   removeExtraFolder,
+  setGlobalPanelLayoutEnabled,
+  setGlobalActiveTabEnabled,
+  hasSavedGlobalPanelLayout,
+  enableGlobalPanelLayout,
 } from "./workspaces";
 import { clearEditorBackup } from "./editor-backups";
+import { DEFAULT_GLOBAL_PANEL_LAYOUT } from "./types";
 
 function makeWorkspace(id: string): WorkspaceInternal {
   return {
@@ -299,6 +304,173 @@ describe("extra folders", () => {
   it("no-ops for an unknown workspace", () => {
     expect(() => addExtraFolder("nope", "/x")).not.toThrow();
     expect(() => removeExtraFolder("nope", "/x")).not.toThrow();
+  });
+});
+
+describe("global side panel layout (ADR 0035)", () => {
+  beforeEach(() => {
+    store.sidePanelLocations = {};
+    store.sidePanelVisibility = {};
+    store.activeSidePanelTabs = {};
+    store.leftPanelCollapsed = false;
+    store.rightPanelCollapsed = false;
+    store.globalPanelLayoutEnabled = false;
+    store.globalActiveTabEnabled = false;
+    store.globalPanelLayout = structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT);
+    store.globalActiveSidePanelTabs = {};
+  });
+
+  it("enabling seeds the global layout from what's currently live", () => {
+    store.sidePanelLocations = { explorer: "left" };
+    store.sidePanelVisibility = { themes: false };
+    store.leftPanelCollapsed = true;
+
+    setGlobalPanelLayoutEnabled(true);
+
+    expect(store.globalPanelLayout.sidePanelLocations).toEqual({
+      explorer: "left",
+    });
+    expect(store.globalPanelLayout.sidePanelVisibility).toEqual({
+      themes: false,
+    });
+    expect(store.globalPanelLayout.leftPanelCollapsed).toBe(true);
+  });
+
+  it("disabling restores the active workspace's own frozen arrangement, unaffected by edits made while global was on", () => {
+    store.sidePanelLocations = { explorer: "left" };
+    savePanelStateToWorkspace("w"); // freeze w's arrangement before enabling
+
+    setGlobalPanelLayoutEnabled(true);
+    store.sidePanelLocations = { explorer: "right" }; // live edit while shared
+
+    setGlobalPanelLayoutEnabled(false);
+    expect(store.sidePanelLocations).toEqual({ explorer: "left" });
+    expect(store.workspaces.w.sidePanelLocations).toEqual({
+      explorer: "left",
+    });
+  });
+
+  it("disabling seeds a workspace created while the flag was on from the global record", () => {
+    setGlobalPanelLayoutEnabled(true);
+    store.sidePanelLocations = { explorer: "right" };
+
+    // A workspace created while global mode is on has no arrangement yet.
+    store.workspaces.w2 = makeWorkspace("w2");
+    store.workspaceOrder.push("w2");
+    expect(store.workspaces.w2.sidePanelLocations).toBeUndefined();
+
+    setGlobalPanelLayoutEnabled(false);
+
+    expect(store.workspaces.w2.sidePanelLocations).toEqual({
+      explorer: "right",
+    });
+  });
+
+  it("shares live arrangement edits across every workspace while enabled", () => {
+    store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
+    store.workspaceOrder = ["w", "w2"];
+    store.activeWorkspaceId = "w";
+    store.workspaces.w.sidePanelLocations = { explorer: "left" };
+    store.workspaces.w2.sidePanelLocations = { explorer: "right" };
+
+    setGlobalPanelLayoutEnabled(true);
+    store.sidePanelLocations = { explorer: "right" }; // a live edit
+
+    activateWorkspace("w2");
+    // w2 shows the shared edit, not its own (now-frozen, unused) arrangement.
+    expect(store.sidePanelLocations).toEqual({ explorer: "right" });
+  });
+
+  it("the active-tab sub-setting only takes effect while the main flag is on, and keeps its stored value when the main flag is disabled", () => {
+    store.activeSidePanelTabs = { left: "explorer" };
+    setGlobalPanelLayoutEnabled(true);
+    setGlobalActiveTabEnabled(true);
+    expect(store.globalActiveSidePanelTabs).toEqual({ left: "explorer" });
+
+    setGlobalPanelLayoutEnabled(false);
+    expect(store.globalActiveTabEnabled).toBe(true); // preserved, just inert
+
+    setGlobalPanelLayoutEnabled(true);
+    expect(store.globalActiveTabEnabled).toBe(true); // re-takes effect, no re-opt-in
+  });
+
+  it("shares activeSidePanelTabs across workspaces only when its sub-setting is also on", () => {
+    store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
+    store.workspaceOrder = ["w", "w2"];
+    store.activeWorkspaceId = "w";
+    store.workspaces.w.activeSidePanelTabs = { left: "explorer" };
+    store.workspaces.w2.activeSidePanelTabs = { left: "search" };
+
+    setGlobalPanelLayoutEnabled(true);
+    // Not shared yet — each workspace keeps its own active tab.
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.activeSidePanelTabs).toEqual({ left: "explorer" });
+    loadPanelStateFromWorkspace(store.workspaces.w2);
+    expect(store.activeSidePanelTabs).toEqual({ left: "search" });
+
+    setGlobalActiveTabEnabled(true); // seeds from what's currently live (w2's)
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.activeSidePanelTabs).toEqual({ left: "search" });
+  });
+
+  describe("hasSavedGlobalPanelLayout", () => {
+    it("is false for a fresh/default record", () => {
+      expect(hasSavedGlobalPanelLayout()).toBe(false);
+    });
+
+    it("is true once a previous enable/disable cycle has left something behind", () => {
+      store.sidePanelLocations = { explorer: "left" };
+      setGlobalPanelLayoutEnabled(true);
+      setGlobalPanelLayoutEnabled(false);
+      expect(hasSavedGlobalPanelLayout()).toBe(true);
+    });
+  });
+
+  describe("enableGlobalPanelLayout", () => {
+    it('"current" captures fresh from live, discarding any previously-saved layout', () => {
+      store.sidePanelLocations = { explorer: "left" };
+      setGlobalPanelLayoutEnabled(true);
+      setGlobalPanelLayoutEnabled(false); // saves { explorer: "left" } as the shared record
+
+      store.sidePanelLocations = { explorer: "right" }; // a different arrangement now
+      enableGlobalPanelLayout("current");
+      expect(store.globalPanelLayout.sidePanelLocations).toEqual({
+        explorer: "right",
+      });
+      expect(store.sidePanelLocations).toEqual({ explorer: "right" });
+    });
+
+    it('"previous" applies the saved record to live without re-capturing it', () => {
+      store.sidePanelLocations = { explorer: "left" };
+      setGlobalPanelLayoutEnabled(true);
+      setGlobalPanelLayoutEnabled(false); // saves { explorer: "left" }
+
+      store.sidePanelLocations = { explorer: "right" }; // live has since changed
+      enableGlobalPanelLayout("previous");
+      expect(store.sidePanelLocations).toEqual({ explorer: "left" });
+      expect(store.globalPanelLayout.sidePanelLocations).toEqual({
+        explorer: "left",
+      });
+    });
+
+    it('"previous" also restores the saved active-tab map when the sub-setting is on', () => {
+      store.sidePanelLocations = { explorer: "left" };
+      store.activeSidePanelTabs = { left: "explorer" };
+      setGlobalActiveTabEnabled(true);
+      setGlobalPanelLayoutEnabled(true);
+      setGlobalPanelLayoutEnabled(false); // saves globalActiveSidePanelTabs too
+
+      store.activeSidePanelTabs = { left: "search" }; // live has since changed
+      enableGlobalPanelLayout("previous");
+      expect(store.activeSidePanelTabs).toEqual({ left: "explorer" });
+    });
+
+    it("is a no-op if already enabled", () => {
+      setGlobalPanelLayoutEnabled(true);
+      store.sidePanelLocations = { explorer: "left" };
+      enableGlobalPanelLayout("current"); // should not re-seed while already on
+      expect(store.globalPanelLayout.sidePanelLocations).toEqual({});
+    });
   });
 });
 

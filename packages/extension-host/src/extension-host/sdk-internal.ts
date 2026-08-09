@@ -394,3 +394,16 @@ export {
   DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
   MIN_SMALL_SCREEN_THRESHOLD_PX,
 } from "../state/types";
+
+// "Global Side Panel Layout" settings (ADR 0035) — same seam as above, for
+// the `core.layout` settings page's two switches. `hasSavedGlobalPanelLayout`
+// / `enableGlobalPanelLayout` back the settings page's confirmation dialog
+// (whether to reuse or overwrite a previously-saved shared layout);
+// `setGlobalPanelLayoutEnabled` covers the plain on/off case (disabling, and
+// enabling for callers that don't need that choice).
+export {
+  setGlobalPanelLayoutEnabled,
+  setGlobalActiveTabEnabled,
+  hasSavedGlobalPanelLayout,
+  enableGlobalPanelLayout,
+} from "../state/workspaces";
