@@ -46,8 +46,6 @@ available whenever a side is collapsed, not only in Laptop Mode.
 
 - **One layout, temporarily collapsed on narrow windows** — rejected: the
   narrow choices leak into the wide layout and are lost on workspace switch.
-- **Global (not per-workspace) Laptop Mode layout** — rejected: workspaces
-  already own panel layout; a second mode should follow the same ownership.
 - **Keep percentage column widths** — rejected: sides rescale with the
   window instead of holding the px size the user set.
 
@@ -55,3 +53,10 @@ available whenever a side is collapsed, not only in Laptop Mode.
 
 - Glossary: `CONTEXT.md` (Laptop Mode, Peek).
 - Related: [0022](./0022-on-disk-storage-layout.md) (where layout prefs live).
+- Related: [0035](./0035-global-side-panel-layout.md) — an opt-in, off-by-default
+  flag that shares side-panel arrangement (including both of this ADR's layout
+  modes) across every workspace. An earlier version of this ADR rejected a
+  _global_ Laptop Mode layout outright; 0035 supersedes that specific point —
+  per-workspace remains the default, but sharing is now available as a
+  deliberate opt-in built for that purpose, which the original alternative
+  never considered.

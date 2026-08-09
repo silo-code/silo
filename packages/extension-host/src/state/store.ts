@@ -12,6 +12,7 @@ import {
   DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
   MIN_SMALL_SCREEN_PEEK_WIDTH_PX,
   MAX_SMALL_SCREEN_PEEK_WIDTH_PX,
+  DEFAULT_GLOBAL_PANEL_LAYOUT,
 } from "./types";
 import type { SideLocation } from "@silo-code/sdk";
 
@@ -43,6 +44,10 @@ export const store = proxy<AppState>({
   rightPanelPeekDragging: false,
   smallScreenPeekWidthLeftPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
   smallScreenPeekWidthRightPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
+  globalPanelLayoutEnabled: false,
+  globalActiveTabEnabled: false,
+  globalPanelLayout: structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT),
+  globalActiveSidePanelTabs: {},
   groups: {},
   panelOrder: [],
 });

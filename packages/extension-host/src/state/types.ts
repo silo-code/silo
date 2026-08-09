@@ -124,6 +124,35 @@ export interface PanelStateSnapshot extends SharedPanelState {
   smallScreenCollapsed?: SideCollapseState;
 }
 
+/**
+ * The shared "Global Side Panel Layout" record — the same arrangement fields
+ * a workspace normally owns for itself (`PanelStateSnapshot`), minus the
+ * fields that stay per-workspace even when the flag is on:
+ * `activeSidePanelTabs` (has its own dependent opt-in, see
+ * `globalActiveTabEnabled`), `sidePanelScrollPositions`, and `extensionState`
+ * (a panel's own instance data, not its arrangement). Applies to both layout
+ * modes, mirroring `PanelStateSnapshot`'s own normal/small-screen split — see
+ * ADR 0035.
+ */
+export interface GlobalPanelLayout {
+  sidePanelLocations: Record<string, SidePanelSlot>;
+  sidePanelOrder: Record<string, number>;
+  sidePanelVisibility: Record<string, boolean>;
+  leftPanelCollapsed: boolean;
+  rightPanelCollapsed: boolean;
+  smallScreenCollapsed?: SideCollapseState;
+}
+
+/** What {@link GlobalPanelLayout} starts as before the flag has ever been
+ * enabled. */
+export const DEFAULT_GLOBAL_PANEL_LAYOUT: GlobalPanelLayout = {
+  sidePanelLocations: {},
+  sidePanelOrder: {},
+  sidePanelVisibility: {},
+  leftPanelCollapsed: false,
+  rightPanelCollapsed: false,
+};
+
 // ── Host-only state types (not part of the public surface) ──
 
 /**
@@ -270,6 +299,32 @@ export interface AppState extends SharedPanelState {
    */
   smallScreenPeekWidthLeftPx: number;
   smallScreenPeekWidthRightPx: number;
+  /**
+   * "Global Side Panel Layout" (ADR 0035): opt-in, off by default. When true,
+   * side-panel arrangement (`sidePanelLocations`/`sidePanelOrder`/
+   * `sidePanelVisibility`/collapse, for both layout modes) is shared across
+   * every workspace instead of per-workspace — the live fields above read
+   * from and write to {@link globalPanelLayout} rather than being
+   * captured/applied per workspace. Each workspace's own arrangement is
+   * frozen (untouched) while this is on, and restored exactly when it's
+   * turned back off. See `setGlobalPanelLayoutEnabled` in `workspaces.ts`.
+   */
+  globalPanelLayoutEnabled: boolean;
+  /**
+   * Dependent sub-setting of {@link globalPanelLayoutEnabled}: also share
+   * `activeSidePanelTabs` globally (via {@link globalActiveSidePanelTabs}).
+   * Meaningless while the main flag is off — the settings page disables its
+   * control in that state — but its own stored value survives the main flag
+   * being toggled off, so re-enabling brings it back as the user left it.
+   * Off by default.
+   */
+  globalActiveTabEnabled: boolean;
+  /** The shared arrangement itself, live while {@link globalPanelLayoutEnabled}
+   * is on. Frozen (last known value) while it's off. */
+  globalPanelLayout: GlobalPanelLayout;
+  /** The shared active-tab-per-slot map, live while
+   * {@link globalActiveTabEnabled} is on. */
+  globalActiveSidePanelTabs: Record<string, string>;
   /**
    * Named collapsible groups in the Workspaces panel, keyed by group id. A
    * group's `workspaceOrder` is the single source of truth for membership — a
