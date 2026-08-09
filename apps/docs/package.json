@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "docs:api": "typedoc",
-    "dev": "pnpm docs:api && vitepress dev",
-    "build": "pnpm docs:api && vitepress build",
+    "docs:changelog": "node scripts/copy-changelog.mjs",
+    "dev": "pnpm docs:api && pnpm docs:changelog && vitepress dev",
+    "build": "pnpm docs:api && pnpm docs:changelog && vitepress build",
     "preview": "vitepress preview"
   },
   "dependencies": {

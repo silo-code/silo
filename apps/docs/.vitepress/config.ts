@@ -108,6 +108,7 @@ const apiSidebar = [
   },
   { text: "Design tokens", link: "/api/theming" },
   { text: "Stability & versioning", link: "/reference/stability" },
+  { text: "SDK changelog", link: "/api/sdk-changelog" },
   { text: "Type reference", collapsed: true, items: typeReference },
 ];
 
@@ -193,6 +194,7 @@ export default withMermaid(
           text: "Download",
           link: "https://github.com/silo-code/silo/releases/latest",
         },
+        { text: "Changelog", link: "/changelog" },
         { text: "Guides", link: "/guide/" },
         { text: "Design", link: "/design/" },
         { text: "API Reference", link: "/api/" },
