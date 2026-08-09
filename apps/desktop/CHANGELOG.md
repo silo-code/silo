@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.44.0](https://github.com/silo-code/silo/compare/silo-v0.43.1...silo-v0.44.0) (2026-08-09)
+
+
+### Features
+
+* **docs:** show app and SDK changelogs on the docs site ([#335](https://github.com/silo-code/silo/issues/335)) ([7f51c06](https://github.com/silo-code/silo/commit/7f51c06374dce098a486fe7379c5cca0f43cf809))
+* **layout:** add global side panel layout option ([#334](https://github.com/silo-code/silo/issues/334)) ([6beca68](https://github.com/silo-code/silo/commit/6beca6818075d5b7e04e346b533803e65d26f6df))
+
+
+### Bug Fixes
+
+* **file-explorer:** fix rename arrow-key focus loss and follow renamed file in open editors ([#332](https://github.com/silo-code/silo/issues/332)) ([87b64f4](https://github.com/silo-code/silo/commit/87b64f498c7a7d646475a1d38c3a0ed0f141e3bb)), closes [#327](https://github.com/silo-code/silo/issues/327)
+
 ## [0.43.1](https://github.com/silo-code/silo/compare/silo-v0.43.0...silo-v0.43.1) (2026-08-07)
 
 
