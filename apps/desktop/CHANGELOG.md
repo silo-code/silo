@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.44.1](https://github.com/silo-code/silo/compare/silo-v0.44.0...silo-v0.44.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **pty-host:** reap PTY sessions whose workspace no longer exists ([#336](https://github.com/silo-code/silo/issues/336)) ([a3337cd](https://github.com/silo-code/silo/commit/a3337cd22c3416d6b258f768383ad1f3e804f30b))
+* **pty-host:** stop the maintenance sweep's timer from firing during CI ([#338](https://github.com/silo-code/silo/issues/338)) ([69817be](https://github.com/silo-code/silo/commit/69817be84904fdd5dfa9040f69c671c098acda2a))
+
 ## [0.44.0](https://github.com/silo-code/silo/compare/silo-v0.43.1...silo-v0.44.0) (2026-08-09)
 
 
