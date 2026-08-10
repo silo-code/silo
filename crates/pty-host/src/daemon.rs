@@ -4,7 +4,8 @@
 
 use std::collections::VecDeque;
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::sync::{Arc, Mutex};
+use std::path::Path;
+use std::sync::{Arc, Mutex, Once};
 use std::time::Duration;
 
 use crate::foreground;
@@ -111,6 +112,7 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
         let clients = clients.clone();
         let ring = ring.clone();
         let path = path.clone();
+        let name = name.to_string();
         std::thread::spawn(move || {
             let mut buf = [0u8; 8192];
             loop {
@@ -135,9 +137,7 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
                 });
             }
             // Shell gone: tear the session down.
-            log("shell exited; removing socket and exiting");
-            let _ = std::fs::remove_file(&path);
-            unsafe { libc::_exit(0) };
+            teardown_and_exit(&name, &path, "shell exited");
         });
     }
 
@@ -277,6 +277,16 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
                     Ok(_) => {}
                     Err(_) => {
                         log("client detached");
+                        // Actively prune this client rather than relying on
+                        // the master-reader thread's write-triggered retain
+                        // (daemon.rs's other pruning path): a session with no
+                        // PTY output — the common case, a shell idle at a
+                        // prompt — would otherwise never see that write path
+                        // run at all, so dead entries (and their socket fds)
+                        // would accumulate in `clients` for the session's
+                        // whole life, one per detach, unbounded.
+                        clients_r.lock().unwrap().retain(|c| !Arc::ptr_eq(c, &wh));
+                        fg_clients_r.lock().unwrap().retain(|c| !Arc::ptr_eq(c, &wh));
                         break; // disconnected (detach) — session lives on
                     }
                 }
@@ -376,6 +386,20 @@ mod transitional_leader_tests {
     }
 }
 
+/// Tear the session down: remove its socket and log files and terminate the
+/// process. Guarded by `Once` so any future second exit path shares the same
+/// exactly-once cleanup; `_exit` itself terminates the whole process
+/// atomically. Never returns.
+fn teardown_and_exit(name: &str, sock_path: &Path, reason: &str) -> ! {
+    static TEARDOWN: Once = Once::new();
+    TEARDOWN.call_once(|| {
+        log(&format!("{reason}; removing socket and log"));
+        let _ = std::fs::remove_file(sock_path);
+        let _ = std::fs::remove_file(paths::log_path(name));
+    });
+    unsafe { libc::_exit(0) };
+}
+
 /// Force-terminate the session even mid-foreground-program (Proof 1, P5).
 /// Signals the shell's process group, escalating TERM -> KILL.
 fn kill_group(shell_pid: i32) {
@@ -386,4 +410,171 @@ fn kill_group(shell_pid: i32) {
     unsafe {
         libc::kill(-shell_pid, libc::SIGKILL);
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::discovery;
+    use std::path::{Path, PathBuf};
+    use std::time::Instant;
+
+    // `spawn_detached` double-forks the calling process without an
+    // intervening exec (unlike production, which always calls it from a
+    // freshly re-exec'd, still-single-threaded binary — see main.rs's
+    // `--session-host` branch). Forking a multithreaded process is only
+    // safe if the child sticks to async-signal-safe work until it execs,
+    // which `redirect_std_to_log`/`run_daemon` don't (they touch `std::fs`,
+    // allocate, etc.). Cargo's test harness runs `#[test]`s on multiple
+    // threads by default, so two of *our own* forks racing each other is an
+    // avoidable extra source of exactly that hazard — serialize them here.
+    // Every wait below still has an explicit deadline, so even a genuinely
+    // wedged child fails the test instead of hanging the run.
+    static SPAWN_GUARD: Mutex<()> = Mutex::new(());
+
+    /// Connect to `sock`, retrying briefly — mirrors `client.rs`'s connect
+    /// helper (the daemon may still be finishing its `UnixListener::bind`).
+    fn connect_retry(sock: &Path) -> UnixStream {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            match UnixStream::connect(sock) {
+                Ok(s) => return s,
+                Err(_) if Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(20));
+                }
+                Err(e) => panic!("connect {sock:?}: {e}"),
+            }
+        }
+    }
+
+    /// Consume the daemon's initial `T_HELLO`, then request and read back the
+    /// live foreground pgid. For a bare `sleep` test command (no shell
+    /// wrapping it) this is the command's own pid — `forkpty`'s child is
+    /// always a fresh session/group leader.
+    fn query_pgid(s: &mut UnixStream) -> i32 {
+        let (tag, _) = read_frame(s).expect("hello frame");
+        assert_eq!(tag, T_HELLO, "daemon's first frame must be T_HELLO");
+        write_frame(s, T_FG_REQ, &[]).expect("send fg req");
+        loop {
+            let (tag, payload) = read_frame(s).expect("fg reply");
+            if tag == T_FG_REP {
+                return foreground::decode(&payload).expect("decode fg").pgid;
+            }
+        }
+    }
+
+    /// Spawns a real detached daemon via the actual `spawn_detached`
+    /// production path, and force-kills it on drop so a panicking assertion
+    /// still can't leak the exact kind of process this project exists to
+    /// stop leaking.
+    struct TestDaemon {
+        sock: PathBuf,
+    }
+
+    impl TestDaemon {
+        fn spawn(name: &str, cmd: Vec<String>) -> Self {
+            let _g = SPAWN_GUARD.lock().unwrap_or_else(|e| e.into_inner());
+            spawn_detached(name, cmd, "/tmp".to_string(), 80, 24).expect("spawn_detached");
+            let sock = paths::sock_path(name);
+            let deadline = Instant::now() + Duration::from_secs(2);
+            while Instant::now() < deadline && !discovery::is_live(&sock) {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            assert!(discovery::is_live(&sock), "daemon did not come up in time");
+            TestDaemon { sock }
+        }
+    }
+
+    impl Drop for TestDaemon {
+        fn drop(&mut self) {
+            // Best-effort: if it's already gone (e.g. the test itself killed
+            // the shell), connect fails and there's nothing to do.
+            if let Ok(mut s) = UnixStream::connect(&self.sock) {
+                let _ = write_frame(&mut s, T_KILL, &[]);
+            }
+            let deadline = Instant::now() + Duration::from_secs(1);
+            while Instant::now() < deadline && discovery::is_live(&self.sock) {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+
+    /// Resolves RFC 0010 §3.7 (an unverified open question, not an assumed
+    /// fact): does the daemon's only production exit path actually work?
+    /// If this fails, that is a P0 bug ahead of anything else — the daemon's
+    /// sole self-exit mechanism would be broken, and nothing later in this
+    /// plan should be built on top of it blind.
+    #[test]
+    fn shell_death_triggers_daemon_self_exit_and_removes_socket() {
+        crate::test_support::with_temp_dir("shell-death", |_dir| {
+            let daemon = TestDaemon::spawn("t-shell-death", vec!["sleep".into(), "600".into()]);
+            let mut s = connect_retry(&daemon.sock);
+            let pgid = query_pgid(&mut s);
+            drop(s);
+
+            unsafe {
+                libc::kill(pgid, libc::SIGKILL);
+            }
+
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while Instant::now() < deadline && discovery::is_live(&daemon.sock) {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            assert!(
+                !discovery::is_live(&daemon.sock),
+                "daemon should self-exit once its shell dies"
+            );
+            assert!(
+                !daemon.sock.exists(),
+                "daemon should remove its socket file on exit"
+            );
+        });
+    }
+
+    /// Pins the deliberate `daemon.rs` contract (see the accept loop's
+    /// `Err(_) => { ... break; }` arm): a client disconnecting must NOT tear
+    /// the session down. Detached survival is the feature this whole crate
+    /// exists to provide — this guards it against regressing while Phase 3
+    /// adds a second, legitimate exit path alongside it.
+    #[test]
+    fn client_detach_does_not_kill_daemon_or_shell() {
+        crate::test_support::with_temp_dir("client-detach", |_dir| {
+            let daemon = TestDaemon::spawn("t-client-detach", vec!["sleep".into(), "600".into()]);
+            let mut s = connect_retry(&daemon.sock);
+            let pgid = query_pgid(&mut s);
+            drop(s); // detach: no T_KILL sent
+
+            std::thread::sleep(Duration::from_millis(300));
+            assert!(
+                discovery::is_live(&daemon.sock),
+                "daemon must survive a client detach"
+            );
+            assert_eq!(
+                unsafe { libc::kill(pgid, 0) },
+                0,
+                "shell must still be alive after a mere detach"
+            );
+        });
+    }
+
+    #[test]
+    fn t_kill_from_a_connected_client_exits_the_daemon() {
+        crate::test_support::with_temp_dir("t-kill", |_dir| {
+            let daemon = TestDaemon::spawn("t-t-kill", vec!["sleep".into(), "600".into()]);
+            let mut s = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut s).expect("hello frame");
+            assert_eq!(tag, T_HELLO);
+            write_frame(&mut s, T_KILL, &[]).expect("send kill");
+
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while Instant::now() < deadline && discovery::is_live(&daemon.sock) {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            assert!(
+                !discovery::is_live(&daemon.sock),
+                "T_KILL from a connected client should terminate the daemon"
+            );
+        });
+    }
+
 }

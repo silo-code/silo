@@ -16,6 +16,9 @@ pub mod session_backend;
 // Self-owned PTY session host backend (RFC 0010). Unix-only.
 #[cfg(unix)]
 pub mod session_host;
+// Membership-based orphan reaping for PTY session daemons. Unix-only.
+#[cfg(unix)]
+pub mod session_maintenance;
 // ConPTY daemon backend. Windows-only.
 #[cfg(windows)]
 pub mod session_windows;
