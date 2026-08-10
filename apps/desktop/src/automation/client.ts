@@ -196,6 +196,27 @@ export class SiloAutomation {
     return this.call("processAlive", { sessionId });
   }
 
+  /**
+   * Run one PTY-session maintenance pass immediately, bypassing the real
+   * hourly timer — answered host-side, no webview round-trip. Lets a test
+   * exercise the real membership-based reap (a session with no workspace
+   * referencing it is killed after being seen unreferenced on two
+   * consecutive sweeps) deterministically instead of waiting out the real
+   * cadence.
+   */
+  triggerMaintenanceSweep(): Promise<{ triggered: boolean }> {
+    return this.call("triggerMaintenanceSweep");
+  }
+
+  /**
+   * This process's resolved `SILO_DATA_DIR` / `SILO_CONFIG_ROOT` — answered
+   * host-side. Lets a test locate the session registry / workspace files on
+   * disk without re-deriving the identity → folder mapping itself.
+   */
+  debugPaths(): Promise<{ dataDir: string; configRoot: string }> {
+    return this.call("debugPaths");
+  }
+
   /** Terminal tab records for a workspace (defaults to the active one). */
   listTerminals(workspaceId?: string): Promise<{
     terminals: {

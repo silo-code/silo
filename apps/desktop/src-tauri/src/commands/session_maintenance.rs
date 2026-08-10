@@ -26,6 +26,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 use super::session_backend::{active_backend, log_event};
@@ -142,7 +143,23 @@ fn confirm_orphans(
     confirmed
 }
 
-fn run_sweep(suspects: &mut HashSet<(String, String)>) {
+/// The two-strike suspect set, shared between the periodic background sweep
+/// and an on-demand trigger (`trigger_sweep_now`, exposed to the dev-only
+/// automation RPC for integration tests) — both must drive the *same* state,
+/// or a manual trigger interleaved with the timer could see a candidate as
+/// "first time" twice in a row and never confirm it, or double-count it.
+fn suspects_state() -> &'static Mutex<HashSet<(String, String)>> {
+    static STATE: OnceLock<Mutex<HashSet<(String, String)>>> = OnceLock::new();
+    STATE.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+/// Run one sweep pass. Safe to call concurrently (from the background timer
+/// and an on-demand trigger both) — serialized on `suspects_state()`'s lock
+/// for the pass's full duration, so two passes can't interleave and
+/// double-confirm or double-kill the same candidate.
+fn run_sweep() {
+    let mut suspects = suspects_state().lock().unwrap_or_else(|e| e.into_inner());
+
     // File-level cleanup first: dead sockets and orphaned sidecar files.
     discovery::reap_stale();
 
@@ -161,7 +178,8 @@ fn run_sweep(suspects: &mut HashSet<(String, String)>) {
     let live: HashSet<String> = discovery::list_sessions().into_iter().collect();
     let registry = session_registry::all();
 
-    let confirmed = confirm_orphans(suspects, orphan_candidates(&live, &registry, &referenced));
+    let confirmed =
+        confirm_orphans(&mut suspects, orphan_candidates(&live, &registry, &referenced));
     for (session_id, handle) in confirmed {
         log_event(
             "maintenance_reap",
@@ -170,6 +188,14 @@ fn run_sweep(suspects: &mut HashSet<(String, String)>) {
         let _ = active_backend().kill(&handle);
         session_registry::remove(&session_id);
     }
+}
+
+/// Run one sweep pass immediately, outside the normal timer. Exposed to the
+/// dev-only automation RPC (`triggerMaintenanceSweep`) so integration tests
+/// can exercise the real membership-based reap deterministically instead of
+/// waiting out the real hourly cadence.
+pub fn trigger_sweep_now() {
+    run_sweep();
 }
 
 /// Test-only seam: `SILO_TEST_MAINT_SWEEP_MS` collapses all three delays to
@@ -191,12 +217,11 @@ fn sweep_delay(tick: usize) -> Duration {
 /// Spawn the maintenance sweep. Call once, at app startup.
 pub fn spawn_maintenance_sweep() {
     std::thread::spawn(|| {
-        let mut suspects: HashSet<(String, String)> = HashSet::new();
         let mut tick = 0usize;
         loop {
             std::thread::sleep(sweep_delay(tick));
             tick += 1;
-            run_sweep(&mut suspects);
+            run_sweep();
         }
     });
 }
