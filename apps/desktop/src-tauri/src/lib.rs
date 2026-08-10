@@ -41,6 +41,30 @@ pub fn run() {
         );
     }
 
+    // The TS-owned user-config root (~/.config/silo[-suffix], or the
+    // SILO_CONFIG_DIR override — same resolution as user-config.ts). The
+    // session-maintenance sweep reads workspace files from here to decide
+    // which PTY sessions are still owned by a known workspace.
+    #[cfg(unix)]
+    {
+        let config_root = std::env::var("SILO_CONFIG_DIR")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .map(std::path::PathBuf::from)
+            .or_else(|| {
+                dirs::home_dir().map(|h| {
+                    h.join(".config").join(
+                        commands::session_maintenance::config_root_name(
+                            context.config().identifier.as_str(),
+                        ),
+                    )
+                })
+            });
+        if let Some(root) = config_root {
+            std::env::set_var("SILO_CONFIG_ROOT", root);
+        }
+    }
+
     let builder = tauri::Builder::default();
 
     // Single-instance must be the FIRST plugin (per its docs). A second `silo
@@ -124,6 +148,13 @@ pub fn run() {
             std::thread::spawn(|| {
                 let _ = commands::terminal_buffer::cleanup_stale_buffers();
             });
+
+            // Periodic PTY-session maintenance: reaps daemons whose owning
+            // workspace was deleted (membership-based, never time-based —
+            // sessions in existing workspaces, open or closed, are never
+            // touched no matter how long they sit idle).
+            #[cfg(unix)]
+            commands::session_maintenance::spawn_maintenance_sweep();
 
             // The application menu is constructed in JS (src/extensions/menu-items.ts)
             // and installed via setAsAppMenu() after extensions activate. That lets

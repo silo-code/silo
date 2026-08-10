@@ -75,9 +75,9 @@ pub fn remove(session_id: &str) {
     write_map(&map);
 }
 
-/// All known session_id -> handle mappings. Reconciliation (matching persisted
-/// tabs against live backend sessions) will consume this.
-#[allow(dead_code)]
+/// All known session_id -> handle mappings. Consumed by the maintenance
+/// sweep (`session_maintenance`) to know which sessions this app instance
+/// owns — anything absent from here is not ours to reap.
 pub fn all() -> HashMap<String, String> {
     let _g = guard().lock();
     read_map()

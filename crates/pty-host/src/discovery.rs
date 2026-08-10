@@ -30,13 +30,24 @@ pub fn list_sessions() -> Vec<String> {
     out
 }
 
-/// Remove socket files whose daemon is gone. Returns how many were reaped.
+/// Remove socket files whose daemon is gone, plus any `.log`/`.lease`
+/// sidecar files left behind with no matching live socket. Returns how many
+/// files were reaped. Normally a daemon removes its own sidecars on exit
+/// (`teardown_and_exit`); this catches the case it never got the chance to
+/// (`SIGKILL`, a crash) — the exact mirror of a daemon's socket outliving it.
+/// (`.lease` files were written by interim builds of the abandonment-lease
+/// design; nothing writes them anymore, this just sweeps the leftovers.)
 pub fn reap_stale() -> usize {
     let mut reaped = 0;
     if let Ok(entries) = std::fs::read_dir(paths::sock_dir()) {
         for e in entries.flatten() {
             let p = e.path();
-            if is_session_socket(&p) && !is_live(&p) && std::fs::remove_file(&p).is_ok() {
+            let sock = match p.extension().and_then(|s| s.to_str()) {
+                Some("sock") => p.clone(),
+                Some("log") | Some("lease") => p.with_extension("sock"),
+                _ => continue,
+            };
+            if !is_live(&sock) && std::fs::remove_file(&p).is_ok() {
                 reaped += 1;
             }
         }
@@ -51,40 +62,8 @@ fn is_session_socket(p: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::with_temp_dir;
     use std::os::unix::net::UnixListener;
-    use std::path::PathBuf;
-
-    // These tests bind real sockets but in a private temp dir, overriding the
-    // session dir via XDG_RUNTIME_DIR. They serialize on a guard, recovering
-    // from a poisoned lock so one failure doesn't cascade into the others. We
-    // also neutralize SILO_PTY_NS for the duration: if it's set in the ambient
-    // environment (e.g. a dev shell exports SILO_PTY_NS=prod), `sock_dir()`
-    // would append that namespace subdir and miss the sockets these tests write
-    // at the un-namespaced base.
-    fn with_temp_dir<T>(tag: &str, f: impl FnOnce(&Path) -> T) -> T {
-        use std::sync::Mutex;
-        static GUARD: Mutex<()> = Mutex::new(());
-        let _g = GUARD.lock().unwrap_or_else(|e| e.into_inner());
-        // Short base under /tmp — Unix socket paths are capped (~104 bytes on
-        // macOS), so the deeper `std::env::temp_dir()` can overflow `sun_path`.
-        let dir = PathBuf::from("/tmp").join(format!("ph-{}-{}", std::process::id(), tag));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(dir.join("silo-pty")).unwrap();
-        let prev_xdg = std::env::var("XDG_RUNTIME_DIR").ok();
-        let prev_ns = std::env::var("SILO_PTY_NS").ok();
-        std::env::set_var("XDG_RUNTIME_DIR", &dir);
-        std::env::remove_var("SILO_PTY_NS");
-        let out = f(&dir.join("silo-pty"));
-        match prev_xdg {
-            Some(v) => std::env::set_var("XDG_RUNTIME_DIR", v),
-            None => std::env::remove_var("XDG_RUNTIME_DIR"),
-        }
-        if let Some(v) = prev_ns {
-            std::env::set_var("SILO_PTY_NS", v);
-        }
-        let _ = std::fs::remove_dir_all(&dir);
-        out
-    }
 
     #[test]
     fn is_live_true_for_bound_socket_false_for_missing() {
@@ -114,6 +93,37 @@ mod tests {
             assert_eq!(reap_stale(), 1);
             assert!(dir.join("live.sock").exists());
             assert!(!dir.join("dead.sock").exists());
+        });
+    }
+
+    #[test]
+    fn reap_stale_removes_orphaned_log_with_no_socket() {
+        with_temp_dir("reap-log", |dir| {
+            std::fs::write(dir.join("dead.log"), b"").unwrap();
+            assert_eq!(reap_stale(), 1);
+            assert!(!dir.join("dead.log").exists());
+        });
+    }
+
+    #[test]
+    fn reap_stale_removes_orphaned_lease_with_no_socket() {
+        with_temp_dir("reap-lease", |dir| {
+            std::fs::write(dir.join("dead.lease"), b"").unwrap();
+            assert_eq!(reap_stale(), 1);
+            assert!(!dir.join("dead.lease").exists());
+        });
+    }
+
+    #[test]
+    fn reap_stale_keeps_sidecars_for_a_live_socket() {
+        with_temp_dir("reap-keep", |dir| {
+            let _live = UnixListener::bind(dir.join("live.sock")).unwrap();
+            std::fs::write(dir.join("live.log"), b"").unwrap();
+            std::fs::write(dir.join("live.lease"), b"").unwrap();
+            assert_eq!(reap_stale(), 0);
+            assert!(dir.join("live.sock").exists());
+            assert!(dir.join("live.log").exists());
+            assert!(dir.join("live.lease").exists());
         });
     }
 }
