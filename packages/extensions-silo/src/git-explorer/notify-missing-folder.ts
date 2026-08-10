@@ -23,9 +23,16 @@ function notifyKey(workspaceId: string, folder: string): string {
 /**
  * Called from `GitView`'s status refresh with the folder's freshly-fetched
  * `GitStatus.missing`. Notifies once per workspace per missing folder, with a
- * one-click "Remove folder" action. Never fires for the workspace's primary
- * folder — {@link WorkspaceService.removeFolder} no-ops there, so there'd be
- * nothing to offer.
+ * one-click "Remove folder" action. Only fires for a folder still in the
+ * workspace's `extraFolders` — never the primary folder ({@link
+ * WorkspaceService.removeFolder} no-ops there), and never a folder that's
+ * already been removed by the time this fires (e.g. the status fetch that
+ * produced `missing` was in flight when the user removed this same folder
+ * via the Worktree Manager's own Remove action, which drops it from the
+ * workspace before the disk delete even finishes — re-checking live
+ * membership here, the same way {@link notifyNewWorktrees} re-derives
+ * `allFolders` fresh, avoids re-offering to remove a folder that's already
+ * gone).
  */
 export function notifyMissingFolder(
   ctx: ExtensionContext,
@@ -35,7 +42,11 @@ export function notifyMissingFolder(
 ): void {
   if (!missing) return;
   const ws = ctx.workspaces.get(workspaceId);
-  if (!ws || samePath(folder, ws.folder)) return;
+  if (!ws) return;
+  const isExtraFolder = (ws.extraFolders ?? []).some((f) =>
+    samePath(f, folder),
+  );
+  if (!isExtraFolder) return;
 
   const key = notifyKey(workspaceId, folder);
   if (notifiedMissingFolders.has(key)) return;

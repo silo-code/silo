@@ -258,6 +258,17 @@ describe("newlyCreatedWorktrees", () => {
     );
   });
 
+  it("excludes prunable entries — a directory that's already gone isn't offered for opening", () => {
+    const gone = wt({
+      path: "/w/repo-gone",
+      branch: "gone",
+      prunable: "gitdir gone",
+    });
+    expect(newlyCreatedWorktrees([main], [main, gone], ["/w/repo"])).toEqual(
+      [],
+    );
+  });
+
   it("reports several newly created worktrees at once", () => {
     const alpha = wt({ path: "/w/repo-alpha", branch: "alpha" });
     expect(
