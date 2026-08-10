@@ -12,6 +12,7 @@ import {
   managerWorktreeCount,
   shouldShowWorktreeManagerButton,
   worktreeManagerButtonTooltip,
+  newlyCreatedWorktrees,
 } from "./worktree-model";
 
 function wt(overrides: Partial<GitWorktree>): GitWorktree {
@@ -225,6 +226,54 @@ describe("worktreeActions", () => {
     expect(worktreeActions({ ...base, isCurrent: true, wt: wt({}) })).toEqual([
       "remove",
     ]);
+  });
+});
+
+describe("newlyCreatedWorktrees", () => {
+  const main = wt({ path: "/w/repo", isMain: true, branch: "main" });
+  const feat = wt({ path: "/w/repo-feat", branch: "feat" });
+
+  it("reports a worktree that appeared since the last check", () => {
+    expect(newlyCreatedWorktrees([main], [main, feat], ["/w/repo"])).toEqual([
+      feat,
+    ]);
+  });
+
+  it("excludes a worktree already open as a workspace folder", () => {
+    expect(
+      newlyCreatedWorktrees([main], [main, feat], ["/w/repo", "/w/repo-feat"]),
+    ).toEqual([]);
+  });
+
+  it("excludes a worktree present in both prev and current", () => {
+    expect(
+      newlyCreatedWorktrees([main, feat], [main, feat], ["/w/repo"]),
+    ).toEqual([]);
+  });
+
+  it("excludes bare entries", () => {
+    const bare = wt({ path: "/w/repo.git", bare: true });
+    expect(newlyCreatedWorktrees([main], [main, bare], ["/w/repo"])).toEqual(
+      [],
+    );
+  });
+
+  it("excludes prunable entries — a directory that's already gone isn't offered for opening", () => {
+    const gone = wt({
+      path: "/w/repo-gone",
+      branch: "gone",
+      prunable: "gitdir gone",
+    });
+    expect(newlyCreatedWorktrees([main], [main, gone], ["/w/repo"])).toEqual(
+      [],
+    );
+  });
+
+  it("reports several newly created worktrees at once", () => {
+    const alpha = wt({ path: "/w/repo-alpha", branch: "alpha" });
+    expect(
+      newlyCreatedWorktrees([main], [main, feat, alpha], ["/w/repo"]),
+    ).toEqual([feat, alpha]);
   });
 });
 
