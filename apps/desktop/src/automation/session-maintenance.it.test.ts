@@ -111,12 +111,40 @@ async function forgetSession(
   }
 }
 
+/**
+ * Does the *persisted* workspace file (not the in-memory state `listTerminals`
+ * reads) reference this session yet? The sweep reads straight off disk, and
+ * the frontend persists on a 250ms debounce — `listTerminals` can see a
+ * terminal's sessionId well before its workspace file is flushed. Triggering
+ * a sweep inside that gap would see the session as unreferenced, exactly the
+ * race the two-strike rule exists to guard against — so a test that wants to
+ * assert "sweeps never touch this" has to wait on the same signal the sweep
+ * itself reads, not a faster in-memory proxy for it.
+ */
+async function workspaceFileReferences(
+  configRoot: string,
+  workspaceId: string,
+  sessionId: string,
+): Promise<boolean> {
+  const raw = await readFile(
+    join(configRoot, "workspaces", `${workspaceId}.json`),
+    "utf8",
+  ).catch(() => null);
+  if (raw === null) return false;
+  const terminals = JSON.parse(raw)?.workspace?.terminals as
+    | { sessionId?: string }[]
+    | undefined;
+  return (terminals ?? []).some((t) => t.sessionId === sessionId);
+}
+
 describe.skipIf(!available)("PTY session maintenance sweep", () => {
   let dataDir: string;
+  let configRoot: string;
 
   beforeAll(async () => {
     const paths = await silo.debugPaths();
     dataDir = paths.dataDir;
+    configRoot = paths.configRoot;
   });
 
   it(
@@ -181,6 +209,18 @@ describe.skipIf(!available)("PTY session maintenance sweep", () => {
           .not.toBe("");
 
         expect((await silo.processAlive(sessionId)).alive).toBe(true);
+
+        // Wait for the workspace file itself (not just in-memory state) to
+        // carry this session before sweeping — otherwise both triggers below
+        // could land inside the persistence debounce and see it as
+        // unreferenced, which is a test-timing bug, not the sweep's.
+        await expect
+          .poll(() => workspaceFileReferences(configRoot, wsId, sessionId), {
+            timeout: 5000,
+            interval: 50,
+          })
+          .toBe(true);
+
         await silo.triggerMaintenanceSweep();
         await silo.triggerMaintenanceSweep();
         expect((await silo.processAlive(sessionId)).alive).toBe(true);

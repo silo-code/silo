@@ -214,8 +214,27 @@ fn sweep_delay(tick: usize) -> Duration {
     }
 }
 
-/// Spawn the maintenance sweep. Call once, at app startup.
+/// Pure: should the automatic timer be disabled? Factored out from
+/// `spawn_maintenance_sweep` so the "empty string doesn't count as set"
+/// nuance (a shell `export FOO=` some CI step forgot to unset) is unit
+/// testable without spawning a real thread.
+fn auto_sweep_disabled(env_value: Option<String>) -> bool {
+    env_value.is_some_and(|v| !v.is_empty())
+}
+
+/// Spawn the maintenance sweep. Call once, at app startup. A no-op when
+/// `SILO_DISABLE_MAINTENANCE_SWEEP` is set: the automatic timer's first tick
+/// (90s after startup, by default) has no way to know a test suite is mid-run
+/// against the same app instance, and a sweep firing at an unpredictable
+/// moment can reap a test's in-flight, not-yet-persisted session out from
+/// under it — found in CI when it disrupted an unrelated integration test.
+/// Set by `integration.yml`'s app-launch step; `triggerMaintenanceSweep`
+/// (the automation RPC op) stays fully available regardless, so tests that
+/// want a sweep still get one, deterministically, on their own terms.
 pub fn spawn_maintenance_sweep() {
+    if auto_sweep_disabled(std::env::var("SILO_DISABLE_MAINTENANCE_SWEEP").ok()) {
+        return;
+    }
     std::thread::spawn(|| {
         let mut tick = 0usize;
         loop {
@@ -270,6 +289,16 @@ mod tests {
             Some(v) => std::env::set_var("SILO_TEST_MAINT_SWEEP_MS", v),
             None => std::env::remove_var("SILO_TEST_MAINT_SWEEP_MS"),
         }
+    }
+
+    #[test]
+    fn auto_sweep_disabled_only_when_set_and_non_empty() {
+        assert!(!auto_sweep_disabled(None), "unset must not disable it");
+        assert!(
+            !auto_sweep_disabled(Some(String::new())),
+            "an empty value (e.g. a forgotten `export FOO=`) must not disable it either"
+        );
+        assert!(auto_sweep_disabled(Some("1".to_string())));
     }
 
     #[test]

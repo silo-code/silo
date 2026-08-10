@@ -48,8 +48,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Start the dev app (with automation RPC)
+        # SILO_DISABLE_MAINTENANCE_SWEEP: the PTY session-maintenance sweep's
+        # automatic timer fires on its own schedule (first tick 90s after
+        # startup) with no way to know a test suite is mid-run against this
+        # same app instance — a sweep firing at an unpredictable moment can
+        # reap a test's in-flight, not-yet-persisted session out from under
+        # it. Seen here: it disrupted keyboard-nav.it.test.ts on an earlier
+        # run. Tests that want a sweep call the triggerMaintenanceSweep RPC
+        # op explicitly instead (see session-maintenance.it.test.ts).
         run: |
-          nohup pnpm dev > dev-app.log 2>&1 &
+          SILO_DISABLE_MAINTENANCE_SWEEP=1 nohup pnpm dev > dev-app.log 2>&1 &
           echo $! > dev-app.pid
 
       - name: Wait for the automation port
