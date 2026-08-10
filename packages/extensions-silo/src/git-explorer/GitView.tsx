@@ -39,6 +39,8 @@ import {
 } from "./worktree-model";
 import { showWorktreeManager } from "./open-worktree-manager";
 import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
+import { notifyNewWorktrees } from "./notify-new-worktree";
+import { notifyMissingFolder } from "./notify-missing-folder";
 import {
   isWorktreeRemovePending,
   subscribePendingWorktreeRemoves,
@@ -208,6 +210,7 @@ export function GitView({
         .then((s) => {
           statusCache.set(cacheKey, s);
           setStatus(s);
+          notifyMissingFolder(ctx, workspaceId, folder, s.missing ?? false);
         })
         .catch((err) => notifyError("Git status failed", err, true))
         .finally(() => min.then(() => setBusy(false)));
@@ -217,12 +220,25 @@ export function GitView({
       api
         .worktrees(folder)
         .then((wts) => {
+          const prevWts = worktreeCache.get(cacheKey);
           worktreeCache.set(cacheKey, wts);
           setWorktrees(wts);
+          // Only diff against a *previous* fetch, never the first one for
+          // this cacheKey — otherwise every pre-existing linked worktree
+          // that just isn't open yet would toast on cold start.
+          if (prevWts) notifyNewWorktrees(ctx, workspaceId, prevWts, wts);
         })
         .catch(() => undefined);
     }, 50);
-  }, [pendingRefresh, folder, workspaceId, cacheKey, notifyError, removing]);
+  }, [
+    pendingRefresh,
+    folder,
+    workspaceId,
+    cacheKey,
+    notifyError,
+    removing,
+    ctx,
+  ]);
 
   useEffect(() => {
     if (!pendingPush) return;
