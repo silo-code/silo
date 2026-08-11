@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.45.0](https://github.com/silo-code/silo/compare/silo-v0.44.1...silo-v0.45.0) (2026-08-11)
+
+
+### Features
+
+* **git-explorer:** notify when a worktree is created or its folder goes missing ([#339](https://github.com/silo-code/silo/issues/339)) ([f65bd1c](https://github.com/silo-code/silo/commit/f65bd1ccc74d6531b6c54b37cec8823c30c481d0))
+* **updates:** unify update UI, add in-app changelog and skip-version ([#341](https://github.com/silo-code/silo/issues/341)) ([fd19c10](https://github.com/silo-code/silo/commit/fd19c106342160cf8ab8d9e1bdc393692c6223ec))
+
 ## [0.44.1](https://github.com/silo-code/silo/compare/silo-v0.44.0...silo-v0.44.1) (2026-08-10)
 
 
