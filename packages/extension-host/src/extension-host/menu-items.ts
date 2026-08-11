@@ -16,7 +16,6 @@ import {
   toTauriAccelerator,
 } from "./keymap";
 import type { Disposable, MenuId, MenuItemContribution } from "@silo-code/sdk";
-import { checkForUpdatesInteractive } from "./update-service";
 import { openSettings } from "./settings-dialog";
 import { getExtensionManager } from "./extension-manager";
 
@@ -143,8 +142,11 @@ async function buildAppSubmenu(): Promise<Submenu> {
     MenuItem.new({
       id: "app:check-for-updates",
       text: "Check for Updates…",
+      // Dispatches to core.updates's unified command (ADR 0036) — the same
+      // command the palette and the Help-menu equivalent below use, so all
+      // three entry points share one presentation policy.
       action: () => {
-        void checkForUpdatesInteractive();
+        executeCommand("core.updates.check");
       },
     }),
     PredefinedMenuItem.new({ item: "Separator" }),
@@ -212,7 +214,7 @@ async function buildHelpSubmenu(
         id: "help:check-for-updates",
         text: "Check for Updates…",
         action: () => {
-          void checkForUpdatesInteractive();
+          executeCommand("core.updates.check");
         },
       }),
     );

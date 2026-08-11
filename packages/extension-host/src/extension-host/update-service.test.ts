@@ -1,7 +1,7 @@
-// Unit test for the host UpdateService: the Tauri seam (services/updater) and
-// the native-dialog plugin are mocked, so this stays a fast, app-free unit. The
-// service is a module singleton, so each test re-imports it fresh
-// (`vi.resetModules`) to get clean state.
+// Unit test for the host UpdateService: the Tauri seam (services/updater),
+// the changelog client, and the analytics reporter are mocked, so this stays
+// a fast, app-free unit. The service is a module singleton, so each test
+// re-imports it fresh (`vi.resetModules`) to get clean state.
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
@@ -11,32 +11,35 @@ const seam = vi.hoisted(() => ({
   installUpdate: vi.fn(),
 }));
 
-// update-service.ts imports these for its interactive (menu) path. Hoisted +
-// stable so assertions survive `vi.resetModules()`.
-const dialog = vi.hoisted(() => ({
-  ask: vi.fn(),
-  message: vi.fn(),
+const changelogSeam = vi.hoisted(() => ({
+  fetchChangelog: vi.fn(),
+}));
+
+const analyticsSeam = vi.hoisted(() => ({
+  reportUpdateAction: vi.fn(),
 }));
 
 vi.mock("../services/updater", () => seam);
-vi.mock("@tauri-apps/plugin-dialog", () => dialog);
+// Real changelogRange (pure logic, already covered by changelog-client.test.ts)
+// stays in play; only the network call is mocked.
+vi.mock("./changelog-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./changelog-client")>();
+  return { ...actual, fetchChangelog: changelogSeam.fetchChangelog };
+});
+vi.mock("../services/update-analytics", () => analyticsSeam);
 
 beforeEach(() => {
   vi.resetModules();
   seam.isStableApp.mockReset();
   seam.checkForUpdate.mockReset();
   seam.installUpdate.mockReset();
-  dialog.ask.mockReset();
-  dialog.message.mockReset();
+  changelogSeam.fetchChangelog.mockReset();
+  analyticsSeam.reportUpdateAction.mockReset().mockResolvedValue(undefined);
 });
 
 async function freshService() {
   const mod = await import("./update-service");
   return mod.getUpdateService();
-}
-
-async function freshModule() {
-  return import("./update-service");
 }
 
 describe("UpdateService.check", () => {
@@ -164,54 +167,125 @@ describe("UpdateService.installAndRelaunch", () => {
   });
 });
 
-describe("checkForUpdatesInteractive (menu path)", () => {
-  it("reports 'latest version' in dev / non-stable builds (no silent no-op)", async () => {
-    seam.isStableApp.mockResolvedValue(false);
-    const { checkForUpdatesInteractive } = await freshModule();
+describe("UpdateService.getChangelog", () => {
+  const availableUpdate = {
+    version: "2.0.0",
+    currentVersion: "1.0.0",
+    date: "2026-08-10",
+    body: "fallback notes for 2.0.0",
+  };
 
-    await checkForUpdatesInteractive();
-
-    expect(dialog.message).toHaveBeenCalledWith(
-      "You're on the latest version.",
-      expect.anything(),
-    );
-  });
-
-  it("reports 'latest version' when up to date", async () => {
+  it("returns [] when no update is available", async () => {
     seam.isStableApp.mockResolvedValue(true);
     seam.checkForUpdate.mockResolvedValue(null);
-    const { checkForUpdatesInteractive } = await freshModule();
+    const svc = await freshService();
+    await svc.check();
 
-    await checkForUpdatesInteractive();
+    expect(await svc.getChangelog()).toEqual([]);
+    expect(changelogSeam.fetchChangelog).not.toHaveBeenCalled();
+  });
 
-    expect(dialog.message).toHaveBeenCalledWith(
-      "You're on the latest version.",
-      expect.anything(),
+  it("returns the installed→available range on success", async () => {
+    seam.isStableApp.mockResolvedValue(true);
+    seam.checkForUpdate.mockResolvedValue(availableUpdate);
+    changelogSeam.fetchChangelog.mockResolvedValue([
+      { version: "2.0.0", date: "2026-08-10", body: "b2" },
+      { version: "1.5.0", date: "2026-08-05", body: "b1.5" },
+      { version: "1.0.0", date: "2026-08-01", body: "b1" }, // installed — excluded
+    ]);
+    const svc = await freshService();
+    await svc.check();
+
+    expect((await svc.getChangelog()).map((e) => e.version)).toEqual([
+      "2.0.0",
+      "1.5.0",
+    ]);
+  });
+
+  it("falls back to the manifest's own notes when the fetch fails", async () => {
+    seam.isStableApp.mockResolvedValue(true);
+    seam.checkForUpdate.mockResolvedValue(availableUpdate);
+    changelogSeam.fetchChangelog.mockRejectedValue(new Error("network"));
+    const svc = await freshService();
+    await svc.check();
+
+    expect(await svc.getChangelog()).toEqual([
+      {
+        version: "2.0.0",
+        date: "2026-08-10",
+        body: "fallback notes for 2.0.0",
+      },
+    ]);
+  });
+
+  it("falls back to the manifest's own notes when the range comes back empty", async () => {
+    seam.isStableApp.mockResolvedValue(true);
+    seam.checkForUpdate.mockResolvedValue(availableUpdate);
+    // Range fetch succeeds but has nothing between 1.0.0 and 2.0.0.
+    changelogSeam.fetchChangelog.mockResolvedValue([
+      { version: "1.0.0", date: "2026-08-01", body: "b1" },
+    ]);
+    const svc = await freshService();
+    await svc.check();
+
+    expect(await svc.getChangelog()).toEqual([
+      {
+        version: "2.0.0",
+        date: "2026-08-10",
+        body: "fallback notes for 2.0.0",
+      },
+    ]);
+  });
+
+  it("returns [] when the fetch fails and there is no fallback body", async () => {
+    seam.isStableApp.mockResolvedValue(true);
+    seam.checkForUpdate.mockResolvedValue({
+      ...availableUpdate,
+      body: undefined,
+    });
+    changelogSeam.fetchChangelog.mockRejectedValue(new Error("network"));
+    const svc = await freshService();
+    await svc.check();
+
+    expect(await svc.getChangelog()).toEqual([]);
+  });
+});
+
+describe("UpdateService.reportAction", () => {
+  it("reports the action with the available version", async () => {
+    seam.isStableApp.mockResolvedValue(true);
+    seam.checkForUpdate.mockResolvedValue({ version: "9.9.9" });
+    const svc = await freshService();
+    await svc.check();
+
+    svc.reportAction("skipped-version");
+
+    expect(analyticsSeam.reportUpdateAction).toHaveBeenCalledWith(
+      "skipped-version",
+      "9.9.9",
     );
   });
 
-  it("surfaces the underlying error detail when the check fails", async () => {
-    seam.isStableApp.mockResolvedValue(true);
-    seam.checkForUpdate.mockRejectedValue(new Error("network down"));
-    const { checkForUpdatesInteractive } = await freshModule();
+  it("is a no-op when there is no available version", async () => {
+    const svc = await freshService();
 
-    await checkForUpdatesInteractive();
+    svc.reportAction("skipped-later");
 
-    const [text] = dialog.message.mock.calls[0];
-    expect(text).toContain("Couldn't check for updates.");
-    expect(text).toContain("network down");
+    expect(analyticsSeam.reportUpdateAction).not.toHaveBeenCalled();
   });
 
-  it("prompts to install when a release is available", async () => {
+  it("reports 'installed' from installAndRelaunch before the install call", async () => {
     seam.isStableApp.mockResolvedValue(true);
     seam.checkForUpdate.mockResolvedValue({ version: "9.9.9" });
-    dialog.ask.mockResolvedValue(false); // user declines
-    const { checkForUpdatesInteractive } = await freshModule();
+    seam.installUpdate.mockResolvedValue(undefined);
+    const svc = await freshService();
+    await svc.check();
 
-    await checkForUpdatesInteractive();
+    await svc.installAndRelaunch();
 
-    const [text] = dialog.ask.mock.calls[0];
-    expect(text).toContain("Silo 9.9.9");
-    expect(seam.installUpdate).not.toHaveBeenCalled();
+    expect(analyticsSeam.reportUpdateAction).toHaveBeenCalledWith(
+      "installed",
+      "9.9.9",
+    );
   });
 });

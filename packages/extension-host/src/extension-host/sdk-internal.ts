@@ -69,7 +69,12 @@ export { installCliShim } from "../services/tauri-cli";
 // app (download + install a binary, relaunch) is a host/platform capability only
 // `core.updates` (and the app's "Check for Updates…" menu item) needs; not a
 // public-surface capability. See update-service.ts for the rationale.
-export type { UpdateService, UpdateState, UpdatePhase } from "./update-service";
+export type {
+  UpdateService,
+  UpdateState,
+  UpdatePhase,
+  ChangelogEntry,
+} from "./update-service";
 export { getUpdateService } from "./update-service";
 
 // The extension manager — install / uninstall / enable / disable / load runtime
@@ -98,6 +103,12 @@ export {
   fetchRegistryIndex,
   registryReadmeUrl,
 } from "./registry-client";
+// String-based version comparator (ADR 0036) — reused by core.updates to
+// decide whether a skipped version has been superseded by a newer release.
+// NOT the same function as engine-compat.ts's compareVersions (numeric
+// [major,minor,patch] triples, used only for engine-constraint checks) —
+// that one is deliberately not exported here to avoid a same-name collision.
+export { compareVersions } from "./registry-client";
 // The rail group the manager page shares with all non-core settings pages, so
 // the manager declares the same key the host forces non-core pages into.
 export { EXTENSIONS_SETTINGS_GROUP } from "./settings-pages";
