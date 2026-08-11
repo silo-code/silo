@@ -15,7 +15,8 @@ navbar: false
 sidebar: false
 footer: false
 aside: false
-title: Silo
+title: Silo — One window — every project, every agent
+titleTemplate: false
 description: One window — every project, every agent. Terminals, agents, and layout stay intact — switch between them instantly. 100% open source, free forever.
 ---
 

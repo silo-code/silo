@@ -63,6 +63,11 @@ export function buildSoftwareApplicationJsonLd() {
     downloadUrl: "https://github.com/silo-code/silo/releases/latest",
     license: "https://github.com/silo-code/silo/blob/main/LICENSE",
     image: OG_IMAGE_URL,
+    sameAs: [
+      "https://github.com/silo-code/silo",
+      "https://x.com/silo_code",
+      "https://extensions.getsilo.dev",
+    ],
   };
 }
 

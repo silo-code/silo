@@ -45,6 +45,11 @@ describe("homepage SEO helpers", () => {
       price: "0",
       priceCurrency: "USD",
     });
+    expect(ld.sameAs).toEqual([
+      "https://github.com/silo-code/silo",
+      "https://x.com/silo_code",
+      "https://extensions.getsilo.dev",
+    ]);
   });
 
   it("includes canonical, OG/Twitter image tags, and both JSON-LD scripts", () => {
