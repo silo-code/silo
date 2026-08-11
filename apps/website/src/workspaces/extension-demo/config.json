@@ -1,0 +1,84 @@
+{
+  "id": "extension-demo",
+  "order": 6,
+  "name": "my-project",
+  "path": "~/projects/my-project",
+  "branch": "feat/todos-panel",
+  "color": "#c4a5ff",
+  "status": "working",
+  "summary": "Building a TODOs side-panel extension",
+  "panels": {
+    "left": [
+      {
+        "id": "navigator",
+        "label": "Navigator",
+        "kind": "navigator"
+      }
+    ],
+    "right": [
+      {
+        "id": "files",
+        "label": "Files",
+        "kind": "files"
+      }
+    ]
+  },
+  "activePanels": {
+    "left": "navigator",
+    "right": "files"
+  },
+  "collapsed": {
+    "left": true,
+    "right": false
+  },
+  "files": ["TODOS.md", "README.md"],
+  "activeFile": "TODOS.md",
+  "changes": [],
+  "issues": [],
+  "prs": [],
+  "system": {
+    "memory": [
+      { "label": "App", "gb": 6.2 },
+      { "label": "Wired", "gb": 4.1 },
+      { "label": "Cache", "gb": 10.0 },
+      { "label": "Free", "gb": 11.7 }
+    ],
+    "cpu": { "user": 24, "sys": 9 },
+    "processes": {
+      "procs": 2,
+      "rows": [
+        {
+          "title": "build a TODOs panel from the project checklist",
+          "childCount": 1,
+          "leader": "claude",
+          "cpu": 61,
+          "memoryMb": 1520
+        }
+      ]
+    }
+  },
+  "search": {
+    "query": "",
+    "files": []
+  },
+  "docks": [
+    {
+      "id": "editor",
+      "kind": "editor",
+      "size": 50
+    },
+    {
+      "id": "terminal",
+      "kind": "terminal",
+      "activeTab": "claude",
+      "size": 50,
+      "tabs": [
+        {
+          "id": "claude",
+          "label": "claude",
+          "terminal": "claude.json"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "kind": "agent",
+  "loop": false,
+  "agent": {
+    "agentId": "codex",
+    "agentName": "Codex CLI",
+    "version": "v0.144.5",
+    "model": "gpt-5",
+    "plan": "ChatGPT Plus",
+    "cwd": "~/projects/api"
+  },
+  "entries": [
+    {
+      "type": "command",
+      "text": "› add a /healthz endpoint with build sha",
+      "delayMs": 600
+    },
+    {
+      "type": "agent-text",
+      "text": "Exposing a lightweight health check that returns ok + the git sha from env.",
+      "delayMs": 1100
+    },
+    {
+      "type": "tool",
+      "text": "Write(src/routes/healthz.ts)",
+      "detail": "+22 lines",
+      "delayMs": 900
+    },
+    {
+      "type": "tool",
+      "text": "Update(src/server.ts)",
+      "detail": "mounted /healthz",
+      "delayMs": 700
+    },
+    {
+      "type": "success",
+      "text": "/healthz returns { ok: true, sha } — ready for probes",
+      "delayMs": 500
+    }
+  ]
+}

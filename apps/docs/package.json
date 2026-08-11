@@ -5,23 +5,28 @@
   "type": "module",
   "scripts": {
     "docs:api": "typedoc",
-    "dev": "pnpm docs:api && vitepress dev",
-    "build": "pnpm docs:api && vitepress build",
+    "docs:changelog": "node scripts/copy-changelog.mjs",
+    "dev": "pnpm docs:api && pnpm docs:changelog && vitepress dev",
+    "build": "pnpm docs:api && pnpm docs:changelog && vitepress build",
     "preview": "vitepress preview"
   },
   "dependencies": {
-    "@silo-code/sdk": "workspace:*"
+    "@silo-code/website": "workspace:*",
+    "@silo-code/sdk": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@braintree/sanitize-url": "^7.1.1",
     "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.6.0",
     "cytoscape": "^3.33.1",
     "cytoscape-cose-bilkent": "^4.1.0",
     "dayjs": "^1.11.19",
     "debug": "^4.4.3",
     "dockview": "~6.3.0",
     "mermaid": "^11.15.0",
-    "react": "^19.1.0",
     "typedoc": "^0.28.19",
     "typedoc-plugin-markdown": "^4.11.0",
     "typedoc-vitepress-theme": "^1.1.2",

@@ -1,0 +1,104 @@
+{
+  "id": "terminals-demo",
+  "order": 7,
+  "name": "api",
+  "path": "~/projects/api",
+  "branch": "feat/rate-limits",
+  "color": "#8cc8ff",
+  "status": "working",
+  "summary": "Agents running side by side",
+  "panels": {
+    "left": [
+      {
+        "id": "navigator",
+        "label": "Navigator",
+        "kind": "navigator"
+      }
+    ],
+    "right": [
+      {
+        "id": "files",
+        "label": "Files",
+        "kind": "files"
+      }
+    ]
+  },
+  "activePanels": {
+    "left": "navigator",
+    "right": "files"
+  },
+  "collapsed": {
+    "left": false,
+    "right": false
+  },
+  "files": ["README.md"],
+  "activeFile": "README.md",
+  "changes": [],
+  "issues": [],
+  "prs": [],
+  "system": {
+    "memory": [
+      { "label": "App", "gb": 7.1 },
+      { "label": "Wired", "gb": 4.4 },
+      { "label": "Cache", "gb": 11.2 },
+      { "label": "Free", "gb": 9.3 }
+    ],
+    "cpu": { "user": 48, "sys": 14 },
+    "processes": {
+      "procs": 3,
+      "rows": [
+        {
+          "title": "wire structured request logging",
+          "childCount": 1,
+          "leader": "cursor-agent",
+          "cpu": 41,
+          "memoryMb": 920
+        },
+        {
+          "title": "add rate limiting middleware",
+          "childCount": 1,
+          "leader": "claude",
+          "cpu": 55,
+          "memoryMb": 1480
+        }
+      ]
+    }
+  },
+  "search": {
+    "query": "",
+    "files": []
+  },
+  "docks": [
+    {
+      "id": "agents-left",
+      "kind": "terminal",
+      "activeTab": "cursor",
+      "size": 50,
+      "tabs": [
+        {
+          "id": "cursor",
+          "label": "cursor",
+          "terminal": "cursor.json"
+        },
+        {
+          "id": "codex",
+          "label": "codex",
+          "terminal": "codex.json"
+        }
+      ]
+    },
+    {
+      "id": "agents-right",
+      "kind": "terminal",
+      "activeTab": "claude",
+      "size": 50,
+      "tabs": [
+        {
+          "id": "claude",
+          "label": "claude",
+          "terminal": "claude.json"
+        }
+      ]
+    }
+  ]
+}

@@ -1,8 +1,50 @@
 <script setup>
 import DefaultTheme from "vitepress/theme";
-import { onMounted, onBeforeUnmount } from "vue";
+import { Content, useRoute } from "vitepress";
+import { computed, nextTick, onBeforeUnmount, onMounted, watch } from "vue";
 import GitHubStars from "./GitHubStars.vue";
+import "./home-shell.css";
+
 const { Layout } = DefaultTheme;
+const route = useRoute();
+
+const isHome = computed(
+  () => route.path === "/" || route.path === "/index.html",
+);
+
+/** @type {null | (() => void)} */
+let unmountHome = null;
+
+async function mountHome() {
+  unmountHome?.();
+  unmountHome = null;
+  await nextTick();
+  const el = document.getElementById("silo-home");
+  if (!el) return;
+  // Dynamic import keeps React + the demo out of the docs-route graph and
+  // off the VitePress SSR path.
+  const { mountHomepage } = await import("@silo-code/website");
+  unmountHome = mountHomepage(el);
+}
+
+function teardownHome() {
+  unmountHome?.();
+  unmountHome = null;
+}
+
+watch(
+  isHome,
+  (home) => {
+    if (typeof window === "undefined") return;
+    if (home) void mountHome();
+    else teardownHome();
+  },
+  { flush: "post" },
+);
+
+onMounted(() => {
+  if (isHome.value) void mountHome();
+});
 
 // Theme picker for the live `.silo-demo` component examples (Design System
 // docs). Independent of VitePress's own site dark/light toggle: one shared
@@ -162,12 +204,28 @@ function scheduleInject() {
 }
 
 onMounted(() => {
+  if (isHome.value) return;
   injectToggles();
   observer = new MutationObserver(scheduleInject);
   observer.observe(document.body, { childList: true, subtree: true });
 });
 
+watch(isHome, (home) => {
+  if (home) {
+    observer?.disconnect();
+    observer = undefined;
+    closeMenu();
+    return;
+  }
+  injectToggles();
+  if (!observer) {
+    observer = new MutationObserver(scheduleInject);
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+});
+
 onBeforeUnmount(() => {
+  teardownHome();
   observer?.disconnect();
   closeMenu();
   menuEl?.remove();
@@ -176,14 +234,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Layout>
-    <template #home-features-before>
-      <div class="demo-video">
-        <video autoplay loop muted playsinline>
-          <source src="/demo.mp4" type="video/mp4" />
-        </video>
-      </div>
-    </template>
+  <div v-if="isHome" class="silo-marketing-home">
+    <Content />
+  </div>
+  <Layout v-else>
     <template #nav-bar-content-after>
       <GitHubStars />
     </template>
@@ -194,64 +248,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
-/* Standout "★ Star on GitHub" hero button — targeted by href so it stays
-   styled regardless of its position in the actions list. */
-.VPHero .actions a.VPButton[href="https://github.com/silo-code/silo"] {
-  border-color: transparent;
-  color: #fff;
-  background: linear-gradient(135deg, #8957e5 0%, #d2367a 100%);
-  transition:
-    filter 0.2s,
-    transform 0.2s,
-    box-shadow 0.2s;
-}
-.VPHero .actions a.VPButton[href="https://github.com/silo-code/silo"]:hover {
-  border-color: transparent;
-  color: #fff;
-  filter: brightness(1.08);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(137, 87, 229, 0.4);
-}
-
-/* De-emphasize secondary destinations: render them as plain text links
-   rather than buttons. Targeted by href so they stay styled if reordered. */
-.VPHero .actions a.VPButton[href="https://extensions.getsilo.dev"],
-.VPHero .actions a.VPButton[href="https://x.com/silo_code"] {
-  border-color: transparent;
-  background: transparent;
-  color: var(--vp-c-text-2);
-  font-weight: 500;
-  padding-left: 8px;
-  padding-right: 8px;
-}
-.VPHero .actions a.VPButton[href="https://extensions.getsilo.dev"]:hover,
-.VPHero .actions a.VPButton[href="https://x.com/silo_code"]:hover {
-  border-color: transparent;
-  background: transparent;
-  color: var(--vp-c-brand-1);
-  text-decoration: underline;
-}
-
-.demo-video {
-  padding: 0 24px;
-  margin: 2rem 0 3.5rem;
-  box-sizing: border-box;
-}
-@media (min-width: 640px) {
-  .demo-video {
-    padding: 0 48px;
-  }
-}
-@media (min-width: 960px) {
-  .demo-video {
-    padding: 0 64px;
-  }
-}
-.demo-video video {
-  max-width: 1152px;
-  width: 100%;
-  display: block;
-  margin: 0 auto;
-  border-radius: 8px;
-}
+/* Standout "★ Star on GitHub" styles used to live on the VitePress home
+   hero; the marketing homepage is now React. Kept empty of home-only rules
+   so docs chrome stays untouched. */
 </style>

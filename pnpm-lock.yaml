@@ -171,6 +171,15 @@ importers:
       '@silo-code/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@silo-code/website':
+        specifier: workspace:*
+        version: link:../website
+      react:
+        specifier: ^19.1.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.7(react@19.2.7)
     devDependencies:
       '@braintree/sanitize-url':
         specifier: ^7.1.1
@@ -178,6 +187,12 @@ importers:
       '@types/react':
         specifier: ^19.1.8
         version: 19.2.16
+      '@types/react-dom':
+        specifier: ^19.1.0
+        version: 19.2.3(@types/react@19.2.16)
+      '@vitejs/plugin-react':
+        specifier: ^4.6.0
+        version: 4.7.0(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
       cytoscape:
         specifier: ^3.33.1
         version: 3.34.0
@@ -196,9 +211,6 @@ importers:
       mermaid:
         specifier: ^11.15.0
         version: 11.15.0
-      react:
-        specifier: ^19.1.0
-        version: 19.2.7
       typedoc:
         specifier: ^0.28.19
         version: 0.28.19(typescript@5.8.3)
@@ -213,12 +225,24 @@ importers:
         version: 5.8.3
       vitepress:
         specifier: ^1.6.4
-        version: 1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3)
+        version: 1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3)
       vitepress-plugin-mermaid:
         specifier: ^2.0.17
-        version: 2.0.17(mermaid@11.15.0)(vitepress@1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3))
+        version: 2.0.17(mermaid@11.15.0)(vitepress@1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3))
 
-  apps/hero-prototype:
+  apps/update-server:
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^5.20260730.1
+        version: 5.20260801.1
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
+      wrangler:
+        specifier: ^4.0.0
+        version: 4.118.0(@cloudflare/workers-types@5.20260801.1)
+
+  apps/website:
     dependencies:
       '@vitejs/plugin-react':
         specifier: ^4.6.0
@@ -242,18 +266,46 @@ importers:
       vite:
         specifier: ^7.0.4
         version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.8(@types/node@25.9.1)(jsdom@29.1.1)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
-  apps/update-server:
+  apps/website-recorder:
+    dependencies:
+      '@silo-code/website':
+        specifier: workspace:*
+        version: link:../website
+      '@vitejs/plugin-react':
+        specifier: ^4.6.0
+        version: 4.7.0(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
+      modern-screenshot:
+        specifier: ^4.7.0
+        version: 4.7.0
+      react:
+        specifier: ^19.1.0
+        version: 19.2.7
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.2.7(react@19.2.7)
     devDependencies:
-      '@cloudflare/workers-types':
-        specifier: ^5.20260730.1
-        version: 5.20260801.1
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.2.16
+      '@types/react-dom':
+        specifier: ^19.1.0
+        version: 19.2.3(@types/react@19.2.16)
+      playwright:
+        specifier: ^1.52.0
+        version: 1.62.1
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
-      wrangler:
-        specifier: ^4.0.0
-        version: 4.118.0(@cloudflare/workers-types@5.20260801.1)
+      vite:
+        specifier: ^7.0.4
+        version: 7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0)
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.8(@types/node@25.9.1)(jsdom@29.1.1)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   examples/extensions/agent-inspector:
     devDependencies:
@@ -3539,6 +3591,11 @@ packages:
     resolution: {integrity: sha512-yhlQgA6mnOJUKOsRUFsgJdQCvkKhcz8tlZG5HBQfReYZy46OwLcY+Zia0mtdHsOo9y/hP+CxMN0TU9QxoOtG4g==}
     engines: {node: '>=6 <7 || >=8'}
 
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -4118,6 +4175,9 @@ packages:
   mitt@3.0.1:
     resolution: {integrity: sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==}
 
+  modern-screenshot@4.7.0:
+    resolution: {integrity: sha512-9YxN+ddPSMMlhylOv25VHzXrl9u67QRxoh7+SEewGtgUw7t6hHTrjptSDJUSne9oG4Xk/h2cwG15nIt4Hc9ujg==}
+
   monaco-editor@0.55.1:
     resolution: {integrity: sha512-jz4x+TJNFHwHtwuV9vA9rMujcZRb0CEilTEwG2rRSpe/A7Jdkuj8xPKttCgOh+v/lkHy7HsZ64oj+q3xoAFl9A==}
 
@@ -4254,6 +4314,16 @@ packages:
   pify@4.0.1:
     resolution: {integrity: sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g==}
     engines: {node: '>=6'}
+
+  playwright-core@1.62.1:
+    resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.62.1:
+    resolution: {integrity: sha512-0M+L3LAD8/nm554LOla9Ayx0j0tmFZ0FBcoQ7F1VuVHpM/XpiC8RcDzBQB8W5+hA8L22THxELzeF+2WcUzvcLg==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   points-on-curve@0.2.0:
     resolution: {integrity: sha512-0mYKnYYe9ZcqMCWhUjItv/oHjvgEsfKvnUTg8sAtnHr3GVy7rGkXCb6d5cSyqrWqL4k81b9CPg3urd+T7aop3A==}
@@ -5637,9 +5707,9 @@ snapshots:
 
   '@docsearch/css@3.8.2': {}
 
-  '@docsearch/js@3.8.2(@algolia/client-search@5.53.0)(@types/react@19.2.16)(react@19.2.7)(search-insights@2.17.3)':
+  '@docsearch/js@3.8.2(@algolia/client-search@5.53.0)(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(search-insights@2.17.3)':
     dependencies:
-      '@docsearch/react': 3.8.2(@algolia/client-search@5.53.0)(@types/react@19.2.16)(react@19.2.7)(search-insights@2.17.3)
+      '@docsearch/react': 3.8.2(@algolia/client-search@5.53.0)(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(search-insights@2.17.3)
       preact: 10.29.2
     transitivePeerDependencies:
       - '@algolia/client-search'
@@ -5648,7 +5718,7 @@ snapshots:
       - react-dom
       - search-insights
 
-  '@docsearch/react@3.8.2(@algolia/client-search@5.53.0)(@types/react@19.2.16)(react@19.2.7)(search-insights@2.17.3)':
+  '@docsearch/react@3.8.2(@algolia/client-search@5.53.0)(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(search-insights@2.17.3)':
     dependencies:
       '@algolia/autocomplete-core': 1.17.7(@algolia/client-search@5.53.0)(algoliasearch@5.53.0)(search-insights@2.17.3)
       '@algolia/autocomplete-preset-algolia': 1.17.7(@algolia/client-search@5.53.0)(algoliasearch@5.53.0)
@@ -5657,6 +5727,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.16
       react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
       search-insights: 2.17.3
     transitivePeerDependencies:
       - '@algolia/client-search'
@@ -7761,6 +7832,9 @@ snapshots:
       jsonfile: 4.0.0
       universalify: 0.1.2
 
+  fsevents@2.3.2:
+    optional: true
+
   fsevents@2.3.3:
     optional: true
 
@@ -8598,6 +8672,8 @@ snapshots:
 
   mitt@3.0.1: {}
 
+  modern-screenshot@4.7.0: {}
+
   monaco-editor@0.55.1:
     dependencies:
       dompurify: 3.2.7
@@ -8721,6 +8797,14 @@ snapshots:
   picomatch@4.0.4: {}
 
   pify@4.0.1: {}
+
+  playwright-core@1.62.1: {}
+
+  playwright@1.62.1:
+    dependencies:
+      playwright-core: 1.62.1
+    optionalDependencies:
+      fsevents: 2.3.2
 
   points-on-curve@0.2.0: {}
 
@@ -9349,17 +9433,17 @@ snapshots:
       jiti: 2.6.1
       yaml: 2.9.0
 
-  vitepress-plugin-mermaid@2.0.17(mermaid@11.15.0)(vitepress@1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3)):
+  vitepress-plugin-mermaid@2.0.17(mermaid@11.15.0)(vitepress@1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3)):
     dependencies:
       mermaid: 11.15.0
-      vitepress: 1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3)
+      vitepress: 1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3)
     optionalDependencies:
       '@mermaid-js/mermaid-mindmap': 9.3.0
 
-  vitepress@1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3):
+  vitepress@1.6.4(@algolia/client-search@5.53.0)(@types/node@25.9.1)(@types/react@19.2.16)(postcss@8.5.15)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(search-insights@2.17.3)(typescript@5.8.3):
     dependencies:
       '@docsearch/css': 3.8.2
-      '@docsearch/js': 3.8.2(@algolia/client-search@5.53.0)(@types/react@19.2.16)(react@19.2.7)(search-insights@2.17.3)
+      '@docsearch/js': 3.8.2(@algolia/client-search@5.53.0)(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(search-insights@2.17.3)
       '@iconify-json/simple-icons': 1.2.85
       '@shikijs/core': 2.5.0
       '@shikijs/transformers': 2.5.0

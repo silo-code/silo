@@ -1,5 +1,10 @@
 import { defineConfig } from "vitepress";
 import { withMermaid } from "vitepress-plugin-mermaid";
+import react from "@vitejs/plugin-react";
+import {
+  SITE_DESCRIPTION as HOME_DESCRIPTION,
+  buildHomepageSeoHead,
+} from "@silo-code/website/seo";
 import typedocSidebar from "../api/types/typedoc-sidebar.json";
 
 // The generated type reference is the LEAF layer (drill-down from the
@@ -107,6 +112,7 @@ const apiSidebar = [
   },
   { text: "Design tokens", link: "/api/theming" },
   { text: "Stability & versioning", link: "/reference/stability" },
+  { text: "SDK changelog", link: "/api/sdk-changelog" },
   { text: "Type reference", collapsed: true, items: typeReference },
 ];
 
@@ -125,12 +131,25 @@ const apiSidebar = [
 export default withMermaid(
   defineConfig({
     title: "Silo",
-    description:
-      "Terminal-first workspace manager built for the multi-agent workflow. Switch between projects like browser tabs — each tab is a full workspace with live terminals and preserved state.",
+    // Align site-wide default description with the marketing homepage.
+    description: HOME_DESCRIPTION,
     // Served from the custom domain https://getsilo.dev/ (root).
     base: "/",
+    // Dark-only, site-wide — no toggle. (Independent of the Design System
+    // pages' own .silo-demo theme picker, which keeps working regardless —
+    // see theme/Layout.vue.)
+    appearance: "force-dark",
     cleanUrls: true,
     lastUpdated: true,
+    sitemap: {
+      hostname: "https://getsilo.dev",
+    },
+    // Homepage Open Graph / Twitter / canonical / JSON-LD — kept out of
+    // index.md frontmatter so one shared module owns the social + schema tags.
+    transformHead({ pageData }) {
+      if (pageData.relativePath !== "index.md") return [];
+      return buildHomepageSeoHead();
+    },
     head: [
       // Favicon set, generated from the shipping app-icon art
       // (apps/desktop/src-tauri/icon-source-square.png).
@@ -192,6 +211,7 @@ export default withMermaid(
           text: "Download",
           link: "https://github.com/silo-code/silo/releases/latest",
         },
+        { text: "Changelog", link: "/changelog" },
         { text: "Guides", link: "/guide/" },
         { text: "Design", link: "/design/" },
         { text: "API Reference", link: "/api/" },
@@ -300,6 +320,24 @@ export default withMermaid(
       // slot) instead of a plain socialLinks icon.
 
       search: { provider: "local" },
+    },
+
+    // React marketing homepage (@silo-code/website) mounts on `/`
+    // via theme/Layout.vue. Keep React off the VitePress SSR graph.
+    vite: {
+      plugins: [react()],
+      optimizeDeps: {
+        include: [
+          "react",
+          "react-dom",
+          "react/jsx-runtime",
+          "react/jsx-dev-runtime",
+          "react-dom/client",
+        ],
+      },
+      ssr: {
+        noExternal: ["@silo-code/website"],
+      },
     },
   }),
 );
