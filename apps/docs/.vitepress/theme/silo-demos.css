@@ -25,7 +25,8 @@
   --silo-color-bg: #e5e5e5;
   --silo-color-bg-hover: #ececec;
   --silo-color-bg-active: #cce4ff;
-  --silo-color-button-bg: #d4d4d4;
+  --silo-color-button-bg: #e0e0e0;
+  --silo-color-button-text: #6b6b6b;
   --silo-color-text-hi: #6b6b6b;
   --silo-color-text: #808080;
   --silo-color-text-lo: #aaaaaa;
@@ -39,7 +40,7 @@
   --silo-color-warn: #b08800;
   --silo-color-err: #cf222e;
   --silo-color-content-bg: #ffffff;
-  --silo-button-bg: var(--silo-color-button-bg);
+  --silo-button-bg: #d4d4d4;
   --silo-button-text: var(--silo-color-text-hi);
   --silo-button-border: transparent;
   --silo-button-primary-bg: var(--silo-color-accent);
@@ -88,6 +89,7 @@ html[data-silo-demo-theme="dark"] .silo-demo {
   --silo-color-bg-hover: #1c2030;
   --silo-color-bg-active: #282d3a;
   --silo-color-button-bg: #232839;
+  --silo-color-button-text: #939bb1;
   --silo-color-text-hi: #818181;
   --silo-color-text: #5a5959;
   --silo-color-text-lo: #575757;
@@ -101,6 +103,7 @@ html[data-silo-demo-theme="dark"] .silo-demo {
   --silo-color-warn: #e0af68;
   --silo-color-err: #f7768e;
   --silo-color-content-bg: #0f1115;
+  --silo-button-bg: var(--silo-color-button-bg);
   --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
   --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
 }
@@ -111,6 +114,7 @@ html[data-silo-demo-theme="gruvbox-dark"] .silo-demo {
   --silo-color-bg-hover: #3c3836;
   --silo-color-bg-active: #665c5466;
   --silo-color-button-bg: #504945;
+  --silo-color-button-text: #a89984;
   --silo-color-text-hi: #a89984;
   --silo-color-text: #928374;
   --silo-color-text-lo: #5f564d;
@@ -123,7 +127,8 @@ html[data-silo-demo-theme="gruvbox-dark"] .silo-demo {
   --silo-color-ok: #b8bb26;
   --silo-color-warn: #fabd2f;
   --silo-color-err: #fb4934;
-  --silo-color-content-bg: #1d2021;
+  --silo-color-content-bg: #0f1115;
+  --silo-button-bg: var(--silo-color-button-bg);
   --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
   --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
 }
@@ -134,12 +139,13 @@ html[data-silo-demo-theme="high-contrast-dark"] .silo-demo {
   --silo-color-bg-hover: #2a3144;
   --silo-color-bg-active: #343c52;
   --silo-color-button-bg: #232839;
+  --silo-color-button-text: #e4e6ec;
   --silo-color-text-hi: #e4e6ec;
   --silo-color-text: #a0a0a0;
   --silo-color-text-lo: #6b6b6b;
   --silo-color-input-bg: #1c2030;
   --silo-color-input-text: #f5f6fa;
-  --silo-color-border: #222222;
+  --silo-color-border: transparent;
   --silo-color-border-strong: #2b3148;
   --silo-color-accent: #a0a0a0;
   --silo-color-accent-2: #bb9af7;
@@ -147,6 +153,7 @@ html[data-silo-demo-theme="high-contrast-dark"] .silo-demo {
   --silo-color-warn: #e0af68;
   --silo-color-err: #f7768e;
   --silo-color-content-bg: #0f1115;
+  --silo-button-bg: var(--silo-color-button-bg);
   --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
   --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
 }
@@ -157,6 +164,7 @@ html[data-silo-demo-theme="high-contrast-light"] .silo-demo {
   --silo-color-bg-hover: #d8d8d8;
   --silo-color-bg-active: #b8d4f0;
   --silo-color-button-bg: #e0e0e0;
+  --silo-color-button-text: #1a1a1a;
   --silo-color-text-hi: #1a1a1a;
   --silo-color-text: #3a3a3a;
   --silo-color-text-lo: #5a5a5a;
@@ -170,6 +178,7 @@ html[data-silo-demo-theme="high-contrast-light"] .silo-demo {
   --silo-color-warn: #b08800;
   --silo-color-err: #cf222e;
   --silo-color-content-bg: #ffffff;
+  --silo-button-bg: #d4d4d4;
   --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #fff);
   --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #fff);
 }
@@ -180,6 +189,7 @@ html[data-silo-demo-theme="solarized-dark"] .silo-demo {
   --silo-color-bg-hover: #073642;
   --silo-color-bg-active: #586e7566;
   --silo-color-button-bg: #073642;
+  --silo-color-button-text: #839496;
   --silo-color-text-hi: #93a1a1;
   --silo-color-text: #839496;
   --silo-color-text-lo: #586e75;
@@ -192,7 +202,8 @@ html[data-silo-demo-theme="solarized-dark"] .silo-demo {
   --silo-color-ok: #859900;
   --silo-color-warn: #b58900;
   --silo-color-err: #dc322f;
-  --silo-color-content-bg: #002b36;
+  --silo-color-content-bg: #0f1115;
+  --silo-button-bg: var(--silo-color-button-bg);
   --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
   --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
 }
@@ -203,6 +214,7 @@ html[data-silo-demo-theme="solarized-light"] .silo-demo {
   --silo-color-bg-hover: #e8e2d0;
   --silo-color-bg-active: #ddd8c0;
   --silo-color-button-bg: #d6cfbd;
+  --silo-color-button-text: #657b83;
   --silo-color-text-hi: #839496;
   --silo-color-text: #738a8a;
   --silo-color-text-lo: #a3b1b1;
@@ -210,12 +222,13 @@ html[data-silo-demo-theme="solarized-light"] .silo-demo {
   --silo-color-input-text: #657b83;
   --silo-color-border: #eee8d5;
   --silo-color-border-strong: #93a1a1;
-  --silo-color-accent: #d25f26;
+  --silo-color-accent: #d25f26ff;
   --silo-color-accent-2: #6c71c4;
   --silo-color-ok: #859900;
   --silo-color-warn: #b58900;
   --silo-color-err: #dc322f;
-  --silo-color-content-bg: #eee8d5;
+  --silo-color-content-bg: #ffffff;
+  --silo-button-bg: #d4d4d4;
   --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #fff);
   --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #fff);
 }
@@ -226,6 +239,7 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   --silo-color-bg-hover: #1f2335;
   --silo-color-bg-active: #364a8266;
   --silo-color-button-bg: #24283b;
+  --silo-color-button-text: #787c99;
   --silo-color-text-hi: #787c99;
   --silo-color-text: #6b7099;
   --silo-color-text-lo: #434a6b;
@@ -238,7 +252,8 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   --silo-color-ok: #9ece6a;
   --silo-color-warn: #e0af68;
   --silo-color-err: #f7768e;
-  --silo-color-content-bg: #16161e;
+  --silo-color-content-bg: #0f1115;
+  --silo-button-bg: var(--silo-color-button-bg);
   --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
   --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
 }
@@ -444,6 +459,7 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 .silo-demo .silo-icon-button svg {
   width: 1.25em;
   height: 1.25em;
+  flex-shrink: 0;
 }
 .silo-demo .silo-icon-button:hover:not(:disabled) {
   background: var(--silo-color-bg-hover);
@@ -591,6 +607,9 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   padding: 0;
   cursor: pointer;
   flex-shrink: 0;
+  transition:
+    background 0.1s ease,
+    border-color 0.1s ease;
 }
 .silo-demo .silo-switch-track::after {
   content: "";
@@ -601,6 +620,7 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   height: 14px;
   border-radius: 50%;
   background: #fff;
+  transition: transform 0.1s ease;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 .silo-demo .silo-switch-track[data-checked="true"] {
@@ -653,6 +673,7 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 .silo-demo .silo-tabs {
   display: flex;
   gap: 4px;
+  margin-top: 4px;
   padding: 6px 0 0 8px;
   background: var(--silo-color-input-bg);
   border-radius: var(--silo-radius-sm) var(--silo-radius-sm) 0 0;
@@ -763,14 +784,14 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   cursor: pointer;
   width: 100%;
   min-width: 0;
+  outline: var(--silo-list-active-outline, none);
+  outline-offset: -1px;
 }
 .silo-demo .silo-list-row:hover {
   background: var(--silo-list-hover-bg);
 }
 .silo-demo .silo-list-row[data-selected="true"] {
   background: var(--silo-list-active-bg);
-  outline: var(--silo-list-active-outline);
-  outline-offset: -1px;
 }
 .silo-demo .silo-list-row .leading {
   color: var(--silo-color-text-lo);
@@ -828,9 +849,21 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   line-height: 1.6;
   flex-shrink: 0;
 }
+.silo-demo .silo-badge-sm {
+  font-size: calc(1em - 2px);
+  padding: 0 5px;
+  line-height: 1.5;
+}
 .silo-demo .silo-badge-neutral {
-  background: var(--silo-color-button-bg);
-  color: var(--silo-color-text);
+  background: var(
+    --silo-badge-neutral-bg,
+    color-mix(
+      in srgb,
+      var(--silo-color-button-text, var(--silo-color-text)) 22%,
+      var(--silo-color-bg)
+    )
+  );
+  color: var(--silo-badge-neutral-fg, var(--silo-color-button-text));
 }
 .silo-demo .silo-badge-accent {
   background: color-mix(in srgb, var(--silo-color-accent) 20%, transparent);
@@ -879,6 +912,7 @@ html.dark .silo-demo {
   border-radius: 50%;
   background: currentColor;
   flex-shrink: 0;
+  align-self: center;
   color: var(--silo-activity-none);
 }
 .silo-demo .silo-activity-sm {
@@ -962,6 +996,7 @@ html.dark .silo-demo {
   padding: 32px 20px;
   gap: 4px;
   flex: 1;
+  width: 100%;
 }
 .silo-demo .silo-empty-state .icon {
   width: 40px;
@@ -1003,7 +1038,7 @@ html.dark .silo-demo {
 .silo-demo .silo-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
 }
 .silo-demo .silo-section-header {
@@ -1112,6 +1147,8 @@ html.dark .silo-demo {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--silo-color-text) 28%, transparent)
     transparent;
+  padding-inline-end: 10px;
+  box-sizing: border-box;
 }
 .silo-demo .silo-scroll::-webkit-scrollbar {
   width: 8px;

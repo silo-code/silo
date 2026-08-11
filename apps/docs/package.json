@@ -8,7 +8,8 @@
     "docs:changelog": "node scripts/copy-changelog.mjs",
     "dev": "pnpm docs:api && pnpm docs:changelog && vitepress dev",
     "build": "pnpm docs:api && pnpm docs:changelog && vitepress build",
-    "preview": "vitepress preview"
+    "preview": "vitepress preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "@silo-code/website": "workspace:*",
@@ -32,6 +33,7 @@
     "typedoc-vitepress-theme": "^1.1.2",
     "typescript": "~5.8.3",
     "vitepress": "^1.6.4",
-    "vitepress-plugin-mermaid": "^2.0.17"
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "vitest": "^4.1.7"
   }
 }
