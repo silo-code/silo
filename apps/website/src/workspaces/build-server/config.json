@@ -1,0 +1,176 @@
+{
+  "id": "build-server",
+  "order": 4,
+  "name": "build-server",
+  "path": "~/projects/build-server",
+  "branch": "chore/docker-cache",
+  "color": "#ffb37e",
+  "status": "waiting",
+  "summary": "Speeding up Docker layer caching",
+  "panels": {
+    "left": [
+      {
+        "id": "navigator",
+        "label": "Navigator",
+        "kind": "navigator"
+      }
+    ],
+    "right": [
+      {
+        "id": "files",
+        "label": "Files",
+        "kind": "files"
+      },
+      {
+        "id": "git",
+        "label": "Git",
+        "kind": "git",
+        "count": 2
+      },
+      {
+        "id": "system",
+        "label": "System",
+        "kind": "system"
+      }
+    ]
+  },
+  "splitPanels": {
+    "right": [
+      {
+        "id": "issues",
+        "label": "Issues",
+        "kind": "issues",
+        "count": 2
+      }
+    ]
+  },
+  "activePanels": {
+    "left": "navigator",
+    "right": "system"
+  },
+  "activeSplitPanels": {
+    "right": "issues"
+  },
+  "collapsed": {
+    "left": false,
+    "right": false
+  },
+  "files": ["Dockerfile", "pipeline.yml", "deploy.sh"],
+  "activeFile": "pipeline.yml",
+  "changes": [
+    {
+      "status": "M",
+      "path": "Dockerfile"
+    },
+    {
+      "status": "M",
+      "path": ".github/workflows/ci.yml"
+    }
+  ],
+  "issues": [
+    {
+      "number": 41,
+      "title": "Docker build re-installs node_modules on every source change",
+      "author": "davideweaver",
+      "labels": [
+        {
+          "name": "performance",
+          "color": "5319e7"
+        }
+      ],
+      "updated": "31m ago"
+    },
+    {
+      "number": 38,
+      "title": "CI cache key ignores the lockfile",
+      "author": "sofia-r",
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a"
+        },
+        {
+          "name": "good first issue",
+          "color": "7057ff"
+        }
+      ],
+      "assignees": ["davideweaver"],
+      "updated": "3d ago"
+    }
+  ],
+  "prs": [
+    {
+      "number": 12,
+      "title": "chore(docker): cache node_modules layer separately",
+      "author": "davideweaver",
+      "review": "open",
+      "checks": "pending",
+      "labels": ["ci", "performance", "infra"],
+      "updated": "2m ago"
+    }
+  ],
+  "system": {
+    "memory": [
+      {
+        "label": "App",
+        "gb": 3.1
+      },
+      {
+        "label": "Wired",
+        "gb": 3.8
+      },
+      {
+        "label": "Cache",
+        "gb": 6.6
+      },
+      {
+        "label": "Free",
+        "gb": 18.5
+      }
+    ],
+    "cpu": {
+      "user": 3,
+      "sys": 2
+    },
+    "processes": {
+      "procs": 1,
+      "rows": [
+        {
+          "title": "zsh",
+          "cpu": 0,
+          "memoryMb": 10,
+          "idle": true
+        }
+      ]
+    }
+  },
+  "docks": [
+    {
+      "id": "terminal",
+      "kind": "terminal",
+      "activeTab": "claude",
+      "tabs": [
+        {
+          "id": "build",
+          "label": "build",
+          "terminal": "build.json"
+        },
+        {
+          "id": "claude",
+          "label": "claude",
+          "terminal": "claude.json"
+        }
+      ]
+    },
+    {
+      "id": "editor",
+      "kind": "editor"
+    }
+  ],
+  "ahead": 0,
+  "behind": 0,
+  "search": {
+    "query": "",
+    "files": []
+  }
+}

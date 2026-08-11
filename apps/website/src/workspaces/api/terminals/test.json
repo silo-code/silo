@@ -1,0 +1,17 @@
+{
+  "kind": "shell",
+  "entries": [
+    { "type": "command", "text": "npm test", "delayMs": 0 },
+    { "type": "output", "text": "", "delayMs": 200 },
+    { "type": "output", "text": " RUN  v1.6.0", "delayMs": 300 },
+    { "type": "output", "text": "", "delayMs": 400 },
+    { "type": "success", "text": " ✓ routes.test.ts (3)", "delayMs": 900 },
+    {
+      "type": "output",
+      "text": "   ✓ rateLimit > blocks the request once the window fills up",
+      "delayMs": 200
+    },
+    { "type": "success", "text": " Test Files  1 passed (1)", "delayMs": 500 },
+    { "type": "output", "text": "      Tests  3 passed (3)", "delayMs": 200 }
+  ]
+}

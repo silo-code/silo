@@ -1,108 +1,109 @@
 ---
-layout: home
-
-hero:
-  name: "Silo"
-  text: "All your projects, alive at once"
-  tagline: "For developers juggling coding agents across many projects. Terminals, agents, and layout stay intact — switch between them instantly. 100% open source, free forever."
-  actions:
-    - theme: alt
-      text: ★ Star on GitHub
-      link: https://github.com/silo-code/silo
-    - theme: brand
-      text: Download →
-      link: https://github.com/silo-code/silo/releases/latest
-    - theme: alt
-      text: Get started
-      link: /guide/
-    - theme: alt
-      text: Extensions
-      link: https://extensions.getsilo.dev
-    - theme: alt
-      text: Follow on X
-      link: https://x.com/silo_code
-
-features:
-  - icon: ⚡
-    title: Instant switching, zero reload
-    details: Every workspace stays live in the background. Switch projects and land exactly where you left off — running terminals, open editors, active agents, all intact. Nothing reloads.
-  - icon: 🌱
-    title: Free and open source, forever
-    details: MIT licensed — no subscription, no trial, no enterprise tier. Fork it, contribute to it, build on it. Every first-party feature ships as an extension against the same SDK you get, so the codebase is genuinely open, not just open-licensed.
-  - icon: 🔒
-    title: Local-first
-    details: Everything runs on your machine. No cloud sync, no telemetry, no account required. Your workspaces, terminals, and files stay on your hardware.
-  - icon: 🗂️
-    title: Layout that sticks
-    details: Each workspace remembers its exact terminal tab arrangement. Name a tab "dev build", another "claude", a third "docs" — they're waiting exactly where you left them, every time you return.
-  - icon: ">_"
-    title: Terminals and editors as equals
-    details: A terminal tab and an editor tab are the same thing — arrange them side by side, stack them, name them. Span a workspace across multiple folders for monorepos or paired projects, and the file tree, git panel, and search cover all roots automatically.
-  - icon: 🧩
-    title: Open extension SDK
-    details: Every built-in feature — terminal, files, git, themes — ships as an extension against the same public API you get. Browse and install from the catalog (extensions.getsilo.dev) or Settings → Extensions.
+# Full React marketing homepage (mounted by theme/Layout.vue). This HTML is
+# the SSG SEO shell — crawlers and no-JS clients see it; React replaces
+# #silo-home on mount. Keep copy aligned with
+# apps/website/src/homepage-copy.ts.
+#
+# Canonical / Open Graph / Twitter / JSON-LD head tags come from
+# `@silo-code/website/seo` via transformHead in .vitepress/config.ts
+# (not here) so they stay in sync with the shared copy helpers.
+#
+# IMPORTANT: no blank lines inside the root HTML block — CommonMark ends a
+# <div> HTML block on a blank line and would escape the rest as markdown.
+layout: page
+navbar: false
+sidebar: false
+footer: false
+aside: false
+title: Silo
+description: One window — every project, every agent. Terminals, agents, and layout stay intact — switch between them instantly. 100% open source, free forever.
 ---
 
-## Built for developers juggling coding agents
-
-You're driving a Claude session in one project while a dev build grinds in another, keeping a third open for quick fixes. Traditional editors weren't built for this. Every time you switch context, you lose your terminal state. Agents get interrupted. You spend half your time reconstructing what you had.
-
-Silo flips the model: **every workspace runs all the time.** Open your projects, set each one up however you like, and tab between them instantly. The dev build keeps running. The agent keeps working. Your layout is exactly where you left it.
-
-**What that looks like in practice:** one workspace might have four terminal tabs — one running the dev build, one for docs, one for a plain shell, one where Claude is filing GitHub issues. Switch away for an hour, come back: all four tabs are right there, doing exactly what they were doing.
-
-That's not a setting to configure. That's just how Silo works. And it's completely free — MIT licensed, no account, no subscription, no enterprise tier.
-
-## Download
-
-**macOS:**
-
-| Build                    | Link                                                                       |
-| ------------------------ | -------------------------------------------------------------------------- |
-| Apple Silicon (M1/M2/M3) | [Download .dmg](https://github.com/silo-code/silo/releases/latest)         |
-| Intel Mac                | [Download .dmg (Intel)](https://github.com/silo-code/silo/releases/latest) |
-
-**Linux:**
-
-| Build         | Link                                                                    |
-| ------------- | ----------------------------------------------------------------------- |
-| AppImage      | [Download .AppImage](https://github.com/silo-code/silo/releases/latest) |
-| Debian/Ubuntu | [Download .deb](https://github.com/silo-code/silo/releases/latest)      |
-
-**Windows:** Experimental builds are attached to every [GitHub Release](https://github.com/silo-code/silo/releases) — they may not work correctly yet.
-
-Or build from source — see the [GitHub repo](https://github.com/silo-code/silo).
-
----
-
-## Extend Silo with Claude Code
-
-Describe what you want. Claude builds it.
-
-The `silo-extension-builder` skill takes a plain-English description and returns a working Silo extension — scaffolded from scratch, written in TypeScript against the real SDK, compiled, and hot-installed into the running app. No SDK knowledge required. No config files to wire up. You describe what you want, and it's there.
-
-Some things people have shipped this way in a single session:
-
-- **Git branch status bar** — branch name + dirty indicator, updates on workspace switch
-- **GitHub Issues panel** — lists open issues for the active repo via `gh`, with a refresh button
-- **Scratch pad** — a persisted notes panel that survives restarts
-- **Todo manager** — reads and writes `TODO.md` in the active workspace, with checkboxes and inline add
-
-The result is a first-class extension — installs and uninstalls live, no restart needed — built on the same SDK Silo's own built-ins use.
-
-**[Build your first extension →](/guide/claude-skill)**
-
----
-
-## Building extensions
-
-Silo has a public extension SDK (`@silo-code/sdk`), modeled on VS Code and Obsidian. Every first-party feature — terminal, file explorer, git, themes — is built as an extension against the same API you get. If a built-in can do it, so can you.
-
-Browse what's already available at **[extensions.getsilo.dev](https://extensions.getsilo.dev)**, or install from **Settings → Extensions → Browse** in the app.
-
-- **[What is an extension?](/guide/what-is-an-extension)** — start here
-- **[Your first extension](/guide/getting-started)** — 5-minute walkthrough
-- **[Build with Claude Code](/guide/claude-skill)** — scaffold and install via AI
-- **[Sharing & publishing](/guide/sharing-extensions)** — list on the catalog
-- **[API Reference](/api/)** — the full `ctx` surface
-- **[Roadmap](/roadmap)** — what's stable, what's planned
+<div id="silo-home" class="silo-home silo-home-shell">
+<header class="silo-home-shell-header">
+<a class="silo-home-shell-brand" href="/"><img src="/silo-icon.png" alt="" width="44" height="44" />Silo</a>
+<nav class="silo-home-shell-nav" aria-label="Primary">
+<a href="https://extensions.getsilo.dev">Extensions</a>
+<a href="/guide/">Docs</a>
+<a href="/changelog">Changelog</a>
+<a href="https://github.com/silo-code/silo">GitHub</a>
+<a class="silo-home-shell-download" href="https://github.com/silo-code/silo/releases/latest">Download</a>
+</nav>
+</header>
+<main>
+<p>FOR DEVELOPERS JUGGLING CODING AGENTS</p>
+<h1>One window —<br />every project, every agent</h1>
+<p class="silo-home-shell-tagline">Terminals, agents, and layout stay intact — switch between them instantly. 100% open source, free forever.</p>
+<p class="silo-home-shell-actions">
+<a href="https://github.com/silo-code/silo/releases/latest" data-primary>Download</a>
+<a href="https://github.com/silo-code/silo">Star on GitHub</a>
+</p>
+<section aria-label="Product">
+<article>
+<p>Workspaces</p>
+<h2>Each project a click away</h2>
+<p>Switch with a keystroke. Terminals keep running, agents keep working, layout stays put — nothing reloads.</p>
+<p>Close a workspace and come back weeks later; everything is still in its place.</p>
+</article>
+<article>
+<p>Git</p>
+<h2>Worktrees without leaving the workspace</h2>
+<p>Create a worktree on a branch, open it alongside your main folder, remove it when you're done — the branch stays. Stage, commit, and manage worktrees from the same Git panel.</p>
+</article>
+<article>
+<p>Terminals</p>
+<h2>Agents and terminals come first</h2>
+<p>Most editors are file-first — the terminal is a drawer, the agent a side panel. Silo flips it: coding agents and terminals are the main surface; the editor shares the stage when you need it.</p>
+</article>
+<article>
+<p>Extensions</p>
+<h2>Build the tool this project needs</h2>
+<p>Notice a friction, ask Claude to scaffold an extension, use it minutes later. Same public SDK the first-party features use — optional, uninstallable, shareable via the registry.</p>
+</article>
+</section>
+<section>
+<h2>100% open source. Free forever.</h2>
+<p>MIT licensed. No account. No telemetry. Nothing to lose by trying it.</p>
+</section>
+<section>
+<h2>Common questions</h2>
+<details>
+<summary>Is Silo really free?</summary>
+<p>Yes. MIT licensed, free forever — no subscription, no trial, no enterprise tier. Fork it, read the source, build on it.</p>
+</details>
+<details>
+<summary>Do I need an account?</summary>
+<p>No. Download it and run. Everything stays on your machine — no cloud sync, no sign-in, no telemetry.</p>
+</details>
+<details>
+<summary>How is this different from VS Code or Cursor?</summary>
+<p>Those are file-first editors built around one active workspace. Silo is built around many workspaces that stay alive at once — terminals, agents, and layout intact when you switch. You don't rebuild context every time you change projects.</p>
+</details>
+<details>
+<summary>How is this different from agent orchestrators?</summary>
+<p>Orchestrators organize agent tasks (often one worktree per task). Silo organizes your whole project — agents, terminals, editors, panels — as a workspace you can switch, close, and resurrect. Worktrees are git tooling inside that model, not the unit of work.</p>
+</details>
+<details>
+<summary>Is the editor as good as Zed or VS Code?</summary>
+<p>Not yet — and that's intentional honesty. The workspace layer is the point today. Editor and terminal keep improving in the open; you pick Silo so you never rebuild context, not for the best single-buffer editing.</p>
+</details>
+</section>
+</main>
+<footer>
+<a href="/">Silo</a>
+<nav aria-label="Silo">
+<a href="https://github.com/silo-code/silo/releases/latest">Download</a>
+<a href="https://extensions.getsilo.dev">Extensions</a>
+<a href="/roadmap">Roadmap</a>
+<a href="https://github.com/silo-code/silo">GitHub</a>
+</nav>
+<nav aria-label="Docs">
+<a href="/guide/">Getting started</a>
+<a href="/api/">API reference</a>
+<a href="/design/">Design system</a>
+<a href="/guide/claude-skill">Build with Claude</a>
+</nav>
+<p>Silo © 2026 · <a href="https://github.com/silo-code/silo/blob/main/LICENSE">MIT License</a></p>
+<p><a href="https://github.com/silo-code/silo">GitHub</a> · <a href="https://x.com/silo_code">X</a></p>
+</footer>
+</div>

@@ -1,0 +1,113 @@
+{
+  "kind": "agent",
+  "loop": false,
+  "agent": {
+    "agentId": "claude",
+    "agentName": "Claude Code",
+    "version": "v2.1.223",
+    "model": "Sonnet 5 (1M context)",
+    "plan": "Claude Max",
+    "cwd": "~/projects/my-project"
+  },
+  "entries": [
+    {
+      "type": "command",
+      "text": "› Read TODOS.md and build a side-panel extension that shows those tasks in Silo",
+      "delayMs": 600
+    },
+    {
+      "type": "agent-text",
+      "text": "Looking at `TODOS.md` — five open items. I'll scaffold a `silo.todos` panel that parses the checklist and install it in this workspace.",
+      "delayMs": 1600
+    },
+    {
+      "type": "tasklist",
+      "title": "TODOs panel extension",
+      "meta": "0/4",
+      "items": [
+        { "text": "Scaffold silo.todos package" },
+        { "text": "Create TODOs side panel" },
+        { "text": "Build extension bundle" },
+        { "text": "Install into this workspace" }
+      ],
+      "delayMs": 700
+    },
+    {
+      "type": "tool",
+      "text": "Write(extensions/silo.todos/package.json)",
+      "detail": "Scaffolded extension package",
+      "delayMs": 650
+    },
+    {
+      "type": "tasklist",
+      "title": "TODOs panel extension",
+      "meta": "1/4",
+      "items": [
+        { "text": "Scaffold silo.todos package", "done": true },
+        { "text": "Create TODOs side panel" },
+        { "text": "Build extension bundle" },
+        { "text": "Install into this workspace" }
+      ],
+      "delayMs": 350
+    },
+    {
+      "type": "tool",
+      "text": "Write(extensions/silo.todos/src/panel.tsx)",
+      "detail": "Panel reads TODOS.md checklist",
+      "delayMs": 700
+    },
+    {
+      "type": "tasklist",
+      "title": "TODOs panel extension",
+      "meta": "2/4",
+      "items": [
+        { "text": "Scaffold silo.todos package", "done": true },
+        { "text": "Create TODOs side panel", "done": true },
+        { "text": "Build extension bundle" },
+        { "text": "Install into this workspace" }
+      ],
+      "delayMs": 350
+    },
+    {
+      "type": "tool",
+      "text": "Bash(pnpm --filter silo.todos build)",
+      "detail": "Bundle ready",
+      "delayMs": 600
+    },
+    {
+      "type": "tasklist",
+      "title": "TODOs panel extension",
+      "meta": "3/4",
+      "items": [
+        { "text": "Scaffold silo.todos package", "done": true },
+        { "text": "Create TODOs side panel", "done": true },
+        { "text": "Build extension bundle", "done": true },
+        { "text": "Install into this workspace" }
+      ],
+      "delayMs": 350
+    },
+    {
+      "type": "tool",
+      "text": "Bash(silo ext install ./extensions/silo.todos)",
+      "detail": "Installed silo.todos",
+      "delayMs": 600
+    },
+    {
+      "type": "tasklist",
+      "title": "TODOs panel extension",
+      "meta": "4/4",
+      "items": [
+        { "text": "Scaffold silo.todos package", "done": true },
+        { "text": "Create TODOs side panel", "done": true },
+        { "text": "Build extension bundle", "done": true },
+        { "text": "Install into this workspace", "done": true }
+      ],
+      "delayMs": 400
+    },
+    {
+      "type": "success",
+      "text": "TODOs panel is live — open the TODOs tab in the right rail",
+      "delayMs": 500
+    }
+  ]
+}

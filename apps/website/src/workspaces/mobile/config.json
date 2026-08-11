@@ -1,0 +1,211 @@
+{
+  "id": "mobile",
+  "order": 5,
+  "name": "mobile-app",
+  "path": "~/projects/mobile-app",
+  "branch": "fix/cold-start-crash",
+  "color": "#7ee0c3",
+  "status": "waiting",
+  "summary": "Fixing a cold start crash on Android",
+  "panels": {
+    "left": [
+      {
+        "id": "navigator",
+        "label": "Navigator",
+        "kind": "navigator"
+      }
+    ],
+    "right": [
+      {
+        "id": "files",
+        "label": "Files",
+        "kind": "files"
+      },
+      {
+        "id": "git",
+        "label": "Git",
+        "kind": "git",
+        "count": 5
+      },
+      {
+        "id": "prs",
+        "label": "PRs",
+        "kind": "prs",
+        "count": 2
+      }
+    ]
+  },
+  "splitPanels": {
+    "right": [
+      {
+        "id": "issues",
+        "label": "Issues",
+        "kind": "issues",
+        "count": 2
+      },
+      {
+        "id": "system",
+        "label": "System",
+        "kind": "system"
+      }
+    ]
+  },
+  "activePanels": {
+    "left": "navigator",
+    "right": "prs"
+  },
+  "activeSplitPanels": {
+    "right": "issues"
+  },
+  "collapsed": {
+    "left": false,
+    "right": false
+  },
+  "files": ["App.tsx", "HomeScreen.tsx", "navigation.ts"],
+  "activeFile": "HomeScreen.tsx",
+  "changes": [
+    {
+      "status": "M",
+      "path": "android/app/src/main/MainActivity.kt"
+    },
+    {
+      "status": "A",
+      "path": "src/offline/queue.ts",
+      "staged": true
+    },
+    {
+      "status": "U",
+      "path": "src/offline/queue.test.ts"
+    },
+    {
+      "status": "M",
+      "path": "src/api/client.ts"
+    },
+    {
+      "status": "C",
+      "path": "src/api/client.legacy.ts"
+    }
+  ],
+  "issues": [
+    {
+      "number": 63,
+      "title": "Cold start crashes on Android 14 first launch",
+      "author": "sofia-r",
+      "labels": [
+        {
+          "name": "bug",
+          "color": "d73a4a"
+        }
+      ],
+      "assignees": ["sofia-r"],
+      "updated": "1h ago"
+    },
+    {
+      "number": 59,
+      "title": "Queue mutations while the device is offline",
+      "author": "davideweaver",
+      "labels": [
+        {
+          "name": "enhancement",
+          "color": "a2eeef"
+        },
+        {
+          "name": "help wanted",
+          "color": "008672"
+        }
+      ],
+      "updated": "2d ago"
+    }
+  ],
+  "prs": [
+    {
+      "number": 21,
+      "title": "fix(android): cold start crash on first launch",
+      "author": "sofia-r",
+      "review": "approved",
+      "checks": "passing",
+      "labels": ["bug"],
+      "updated": "1h ago"
+    },
+    {
+      "number": 19,
+      "title": "feat(offline): queue mutations while the device is offline",
+      "author": "davideweaver",
+      "review": "draft",
+      "checks": "failing",
+      "failing": 3,
+      "updated": "2d ago"
+    }
+  ],
+  "system": {
+    "memory": [
+      {
+        "label": "App",
+        "gb": 8.4
+      },
+      {
+        "label": "Wired",
+        "gb": 5.1
+      },
+      {
+        "label": "Cache",
+        "gb": 12.0
+      },
+      {
+        "label": "Free",
+        "gb": 6.5
+      }
+    ],
+    "cpu": {
+      "user": 18,
+      "sys": 8
+    },
+    "processes": {
+      "procs": 4,
+      "rows": [
+        {
+          "title": "fix the cold start crash on Android",
+          "childCount": 2,
+          "leader": "claude",
+          "cpu": 51,
+          "memoryMb": 1180
+        },
+        {
+          "title": "metro",
+          "leader": "node",
+          "cpu": 8,
+          "memoryMb": 478
+        }
+      ]
+    }
+  },
+  "docks": [
+    {
+      "id": "terminal",
+      "kind": "terminal",
+      "activeTab": "claude",
+      "tabs": [
+        {
+          "id": "metro",
+          "label": "metro",
+          "terminal": "metro.json"
+        },
+        {
+          "id": "claude",
+          "label": "claude",
+          "terminal": "claude.json"
+        }
+      ]
+    },
+    {
+      "id": "editor",
+      "kind": "editor"
+    }
+  ],
+  "ahead": 4,
+  "behind": 1,
+  "search": {
+    "query": "",
+    "files": []
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "kind": "shell",
+  "entries": [
+    {
+      "type": "command",
+      "text": "docker build -t acme/app:latest .",
+      "delayMs": 0
+    },
+    {
+      "type": "output",
+      "text": "[+] Building 42.1s (14/14) FINISHED",
+      "delayMs": 400
+    },
+    {
+      "type": "output",
+      "text": " => [deps 1/3] FROM node:20-slim",
+      "delayMs": 500
+    },
+    {
+      "type": "output",
+      "text": " => [deps 2/3] COPY package.json package-lock.json ./",
+      "delayMs": 700
+    },
+    { "type": "output", "text": " => [deps 3/3] RUN npm ci", "delayMs": 1600 },
+    { "type": "output", "text": " => [build 1/2] COPY . .", "delayMs": 800 },
+    {
+      "type": "output",
+      "text": " => [build 2/2] RUN npm run build",
+      "delayMs": 1900
+    },
+    { "type": "success", "text": " => exporting to image", "delayMs": 700 },
+    {
+      "type": "success",
+      "text": " => naming to acme/app:latest",
+      "delayMs": 300
+    }
+  ]
+}

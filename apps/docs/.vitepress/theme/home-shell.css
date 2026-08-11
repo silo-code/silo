@@ -1,0 +1,149 @@
+/**
+ * Minimal styles for the SSG SEO shell in apps/docs/index.md — visible
+ * before (or without) the React homepage hydrating. Kept intentionally
+ * small; the full marketing look lives in @silo-code/website CSS.
+ */
+.silo-marketing-home {
+  min-height: 100vh;
+  background: #0b0d17;
+  color: #b7bccc;
+}
+
+.silo-home-shell {
+  font-family:
+    Manrope,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 54px 80px;
+  box-sizing: border-box;
+}
+
+.silo-home-shell a {
+  color: #c5c9d2;
+}
+
+.silo-home-shell-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+  align-items: center;
+  margin-bottom: 48px;
+}
+
+.silo-home-shell-brand {
+  display: inline-flex;
+  gap: 9px;
+  align-items: center;
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: -0.04em;
+  color: #f2f4ea;
+  text-decoration: none;
+}
+
+.silo-home-shell-brand img {
+  display: block;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+
+.silo-home-shell-nav {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  align-items: center;
+}
+
+.silo-home-shell-nav a {
+  color: #7a8099;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.silo-home-shell-download {
+  color: #0b0d17 !important;
+  background: #f2f4ea;
+  border-radius: 999px;
+  padding: 9px 16px;
+}
+
+.silo-home-shell h1 {
+  font-size: clamp(40px, 7vw, 72px);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+  color: #f2f4ea;
+  margin: 0 0 20px;
+}
+
+.silo-home-shell .silo-home-shell-tagline {
+  max-width: 36rem;
+  color: #7a8099;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.silo-home-shell-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 28px 0 48px;
+}
+
+.silo-home-shell-actions a {
+  display: inline-flex;
+  align-items: center;
+  color: #f2f4ea;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid #3a4158;
+  border-radius: 999px;
+  padding: 11px 18px;
+}
+
+.silo-home-shell-actions a[data-primary] {
+  color: #0b0d17;
+  background: #f2f4ea;
+  border-color: transparent;
+}
+
+.silo-home-shell h2 {
+  color: #f2f4ea;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+  margin: 48px 0 16px;
+}
+
+.silo-home-shell h3 {
+  color: #f2f4ea;
+  font-size: 18px;
+  margin: 24px 0 8px;
+}
+
+.silo-home-shell p {
+  max-width: 42rem;
+  line-height: 1.65;
+  color: #7a8099;
+}
+
+.silo-home-shell footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid #2b3148;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+}
+
+.silo-home-shell footer a {
+  color: #7a8099;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}

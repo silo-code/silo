@@ -1,0 +1,769 @@
+html.vignette-recorder-page,
+body.vignette-recorder-page {
+  height: 100%;
+  overflow: hidden;
+  background: #0b0d12;
+}
+
+body.vignette-recorder-page {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0d12;
+}
+
+body.vignette-recorder-page #root.silo-home {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #0b0d12;
+  /* Homepage radial gradient would show as a light edge under the shell. */
+  background-image: none;
+}
+
+.vignette-recorder {
+  --vr-bg: #0b0d12;
+  --vr-panel: #12151c;
+  --vr-panel-2: #181c26;
+  --vr-border: #2a3140;
+  --vr-text: #e8ebf2;
+  --vr-muted: #8b93a7;
+  --vr-accent: #c5c9d2;
+  --nle-playhead: #e8e8e8;
+  --nle-selection: #3d4a63;
+  --nle-rec: #c44;
+  height: 100%;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: var(--vr-bg);
+  color: var(--vr-text);
+  font-family: Manrope, system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * NLE chrome only — never match buttons inside `.vignette-stage-demo` or the
+ * DemoWorkspace dock tabs pick up bordered Manrope pills instead of the
+ * homepage demo chrome. Also skip timeline handles (`.nle-io`, playhead, zoom).
+ */
+.vignette-recorder .nle-topbar button,
+.vignette-recorder .nle-monitor button,
+.vignette-recorder .nle-transport button,
+.vignette-recorder .nle-zoom-tools button,
+.vignette-recorder .vignette-crop-mask button {
+  border: 1px solid var(--vr-border);
+  border-radius: 4px;
+  background: #1a2030;
+  color: var(--vr-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.vignette-recorder .nle-topbar button:disabled,
+.vignette-recorder .nle-monitor button:disabled,
+.vignette-recorder .nle-transport button:disabled,
+.vignette-recorder .nle-zoom-tools button:disabled,
+.vignette-recorder .vignette-crop-mask button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.vignette-recorder .nle-topbar button.is-primary,
+.vignette-recorder .nle-monitor button.is-primary,
+.vignette-recorder .nle-transport button.is-primary,
+.vignette-recorder .nle-zoom-tools button.is-primary {
+  background: var(--vr-accent);
+  border-color: transparent;
+  color: #0b0d12;
+}
+
+.vignette-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--vr-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.vignette-field select,
+.vignette-field input {
+  min-width: 5.5rem;
+  border: 1px solid var(--vr-border);
+  border-radius: 4px;
+  background: #0f1219;
+  color: var(--vr-text);
+  font: inherit;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: normal;
+  padding: 6px 8px;
+}
+
+.vignette-field-wide {
+  flex: 1;
+  min-width: 14rem;
+}
+
+.vignette-field-wide input {
+  width: 100%;
+  min-width: 0;
+  font-family: "DM Mono", ui-monospace, monospace;
+}
+
+.vignette-status {
+  margin: 8px 0 0;
+  color: var(--vr-muted);
+  font-size: 12px;
+}
+
+.vignette-error {
+  margin: 8px 0 0;
+  color: #f0a0a0;
+  font-size: 12px;
+}
+
+/* —— Top bar —— */
+.nle-topbar {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px 14px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--vr-border);
+  background: var(--vr-panel);
+}
+
+.nle-brand {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-size: 14px;
+  padding-bottom: 6px;
+  margin-right: 4px;
+}
+
+.nle-topbar-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  padding-bottom: 1px;
+}
+
+.nle-project-actions {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+/* —— Main viewer + program monitor —— */
+.nle-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  flex: 1;
+  min-height: 0;
+}
+
+.nle-viewer {
+  min-width: 0;
+  min-height: 0;
+  background: #080a0e;
+  overflow: hidden;
+}
+
+.vignette-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.vignette-stage-demo {
+  position: relative;
+  min-width: 1100px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.vignette-stage-zoom {
+  width: 100%;
+  will-change: transform;
+}
+
+.vignette-stage-demo .demo-wrap {
+  min-width: 1100px;
+  width: 100%;
+}
+
+.vignette-crop-mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 80;
+}
+
+.vignette-crop-mask .vignette-crop-rect {
+  pointer-events: auto;
+}
+
+.vignette-crop-shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: rgb(0 0 0 / 45%);
+}
+
+.vignette-crop-shade-left,
+.vignette-crop-shade-right {
+  right: auto;
+}
+
+.vignette-crop-rect {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px solid #e8ebf2;
+  box-shadow: 0 0 0 1px #0008;
+  cursor: move;
+}
+
+.vignette-crop-rect.is-disabled {
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.vignette-crop-label {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #000c;
+  color: #fff;
+  font:
+    11px/1.3 "DM Mono",
+    ui-monospace,
+    monospace;
+  pointer-events: none;
+}
+
+.vignette-crop-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #e8ebf2;
+  border: 1px solid #111;
+  border-radius: 1px;
+}
+
+.vignette-crop-handle-n {
+  top: -5px;
+  left: 50%;
+  margin-left: -5px;
+  cursor: ns-resize;
+}
+.vignette-crop-handle-s {
+  bottom: -5px;
+  left: 50%;
+  margin-left: -5px;
+  cursor: ns-resize;
+}
+.vignette-crop-handle-e {
+  right: -5px;
+  top: 50%;
+  margin-top: -5px;
+  cursor: ew-resize;
+}
+.vignette-crop-handle-w {
+  left: -5px;
+  top: 50%;
+  margin-top: -5px;
+  cursor: ew-resize;
+}
+.vignette-crop-handle-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+.vignette-crop-handle-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+.vignette-crop-handle-se {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+.vignette-crop-handle-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.nle-monitor {
+  border-left: 1px solid var(--vr-border);
+  background: var(--vr-panel);
+  padding: 12px;
+  overflow: auto;
+}
+
+.nle-monitor-head {
+  margin: 0 0 10px;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vr-muted);
+}
+
+.vignette-preview-video {
+  display: block;
+  width: 100%;
+  border-radius: 4px;
+  background: #000;
+  border: 1px solid var(--vr-border);
+}
+
+.vignette-preview-empty {
+  padding: 24px 14px;
+  border: 1px dashed var(--vr-border);
+  border-radius: 4px;
+  color: var(--vr-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.vignette-preview-poster {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 4px;
+  border: 1px solid var(--vr-border);
+}
+
+.vignette-preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* —— Editor bay (transport + timeline) —— */
+.nle-bay {
+  flex: none;
+  border-top: 1px solid var(--vr-border);
+  background: var(--vr-panel-2);
+  padding: 6px 12px 8px;
+}
+
+.nle-transport {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-bottom: 6px;
+  overflow-x: auto;
+}
+
+.nle-transport-btn {
+  min-width: 36px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.nle-transport-btn.is-play {
+  min-width: 44px;
+  background: #243049;
+}
+
+.nle-transport-btn.is-rec {
+  min-width: 64px;
+  background: #2a1818;
+  border-color: #5a3030;
+  color: #f0c0c0;
+  letter-spacing: 0.04em;
+}
+
+.nle-transport-btn.is-rec.is-armed {
+  background: var(--nle-rec);
+  border-color: transparent;
+  color: #fff;
+}
+
+.nle-timecode {
+  margin-left: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: #0c0e14;
+  border: 1px solid var(--vr-border);
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.nle-timecode span {
+  color: var(--vr-muted);
+  font-size: 12px;
+}
+
+.nle-io-readout {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--vr-muted);
+}
+
+.nle-io-dur {
+  color: var(--vr-text);
+}
+
+/* —— Timeline —— */
+.nle-timeline.is-disabled {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.nle-ruler {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  height: 22px;
+  margin-bottom: 2px;
+}
+
+.nle-ruler-gutter {
+  border-bottom: 1px solid var(--vr-border);
+}
+
+.nle-ruler-scale {
+  position: relative;
+  border-bottom: 1px solid var(--vr-border);
+  background: #10131a;
+}
+
+.nle-ruler-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px solid #2e3548;
+}
+
+.nle-ruler-tick.is-major {
+  border-left-color: #4a5568;
+}
+
+.nle-ruler-tick em {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-style: normal;
+  font-size: 9px;
+  color: var(--vr-muted);
+  font-family: "DM Mono", ui-monospace, monospace;
+  white-space: nowrap;
+}
+
+.nle-ruler-marker {
+  position: absolute;
+  top: 14px;
+  width: 0;
+  height: 6px;
+  border-left: 1px solid #6a7388;
+  transform: translateX(-0.5px);
+}
+
+.nle-track-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  min-height: 56px;
+}
+
+.nle-track-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border-right: 1px solid var(--vr-border);
+  background: #141820;
+  font-size: 11px;
+}
+
+.nle-track-badge {
+  flex: none;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #2a3348;
+  font-family: "DM Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.nle-track-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--vr-muted);
+}
+
+.nle-track {
+  position: relative;
+  background: #0e1118;
+  border-bottom: 1px solid var(--vr-border);
+  overflow: hidden;
+}
+
+.nle-track-film {
+  position: absolute;
+  inset: 8px 0;
+  background: repeating-linear-gradient(
+    90deg,
+    #161b26 0 10px,
+    #12161f 10px 12px
+  );
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.nle-selection {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--nle-selection) 85%, transparent);
+  border: 1px solid #7a8bab;
+  border-radius: 3px;
+  cursor: grab;
+  z-index: 2;
+}
+
+.nle-selection:active {
+  cursor: grabbing;
+}
+
+.vignette-recorder .nle-io {
+  position: absolute;
+  top: 4px;
+  z-index: 4;
+  box-sizing: border-box;
+  width: 3px;
+  min-width: 0;
+  height: calc(100% - 8px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 1px;
+  background: #d8dde8;
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
+  cursor: ew-resize;
+  transform: translateX(-50%);
+}
+
+.vignette-recorder .nle-io-in {
+  border-radius: 1px 0 0 1px;
+}
+
+.vignette-recorder .nle-io-out {
+  border-radius: 0 1px 1px 0;
+}
+
+.vignette-recorder .nle-zoom-mark {
+  position: absolute;
+  top: 4px;
+  z-index: 4;
+  box-sizing: border-box;
+  width: 3px;
+  min-width: 0;
+  height: calc(100% - 8px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 1px;
+  background: #c9a227;
+  color: transparent;
+  font-size: 0;
+  line-height: 0;
+  cursor: ew-resize;
+  transform: translateX(-50%);
+}
+
+.vignette-recorder .nle-zoom-mark-end {
+  background: #e0b84a;
+  width: 3px;
+}
+
+.vignette-recorder .nle-zoom-span {
+  position: absolute;
+  top: 6px;
+  z-index: 3;
+  box-sizing: border-box;
+  height: calc(100% - 12px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(
+    90deg,
+    #c9a22733 0%,
+    #c9a22755 50%,
+    #c9a22733 100%
+  );
+  border-top: 1px solid #c9a22788;
+  border-bottom: 1px solid #c9a22788;
+  color: transparent;
+  font-size: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.vignette-recorder .nle-zoom-span.is-selected {
+  background: linear-gradient(
+    90deg,
+    #c9a22755 0%,
+    #e0b84a88 50%,
+    #c9a22755 100%
+  );
+  border-top-color: #f0d56a;
+  border-bottom-color: #f0d56a;
+  box-shadow: inset 0 0 0 1px #f0d56a66;
+}
+
+.nle-zoom-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.nle-zoom-tools .vignette-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.nle-zoom-tools .vignette-field input,
+.nle-zoom-tools .vignette-field select {
+  width: 3.5rem;
+  min-width: 0;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 8px;
+}
+
+.nle-zoom-tools .vignette-field select {
+  width: 5.5rem;
+}
+
+.vignette-zoom-focus {
+  position: absolute;
+  z-index: 90;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 1.5px solid #f0d56a;
+  border-radius: 50%;
+  background: #f0d56a33;
+  box-shadow:
+    0 0 0 1px #000a,
+    inset 0 0 0 1px #0006;
+  transform: translate(-50%, -50%);
+  cursor: move;
+  pointer-events: auto;
+}
+
+.vignette-zoom-focus::before,
+.vignette-zoom-focus::after {
+  content: "";
+  position: absolute;
+  background: #f0d56a;
+}
+
+.vignette-zoom-focus::before {
+  left: 50%;
+  top: -6px;
+  bottom: -6px;
+  width: 1px;
+  transform: translateX(-50%);
+}
+
+.vignette-zoom-focus::after {
+  top: 50%;
+  left: -6px;
+  right: -6px;
+  height: 1px;
+  transform: translateY(-50%);
+}
+
+.vignette-recorder .nle-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+  box-sizing: border-box;
+  width: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: transparent;
+  font-size: 0;
+  transform: translateX(-50%);
+  cursor: ew-resize;
+  pointer-events: auto;
+}
+
+.nle-playhead::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  border-left: 1px solid var(--nle-playhead);
+  transform: translateX(-0.5px);
+}
+
+.nle-playhead i {
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid var(--nle-playhead);
+  pointer-events: none;
+}
+
+@media (max-width: 1100px) {
+  .nle-main {
+    grid-template-columns: 1fr;
+  }
+  .nle-monitor {
+    border-left: 0;
+    border-top: 1px solid var(--vr-border);
+  }
+  .nle-ruler,
+  .nle-track-row {
+    grid-template-columns: 88px 1fr;
+  }
+}

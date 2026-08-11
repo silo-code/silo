@@ -1,0 +1,49 @@
+{
+  "kind": "agent",
+  "agent": {
+    "agentId": "cursor",
+    "agentName": "Cursor",
+    "version": "v1.4.2",
+    "model": "Composer 1",
+    "plan": "Cursor Pro",
+    "cwd": "~/projects/api"
+  },
+  "loopPauseMs": 15000,
+  "entries": [
+    {
+      "type": "command",
+      "text": "› add structured request logging",
+      "delayMs": 1600
+    },
+    {
+      "type": "tasklist",
+      "title": "Add structured request logging to the public API",
+      "meta": "4m 12s · ↓ 18.4k tokens",
+      "items": [
+        {
+          "text": "Add logging middleware capturing method/path/status/latency",
+          "done": true
+        },
+        { "text": "Wire it in ahead of the rate limiter", "done": true },
+        {
+          "text": "Redact Authorization header from logged output",
+          "done": true
+        },
+        { "text": "Add a test for the 500 path", "done": false }
+      ],
+      "delayMs": 3200
+    },
+    {
+      "type": "tool",
+      "text": "Write(logging.ts)",
+      "detail": "+38 lines",
+      "delayMs": 2600
+    },
+    { "type": "shell", "text": "npm test -- logging", "delayMs": 2400 },
+    {
+      "type": "success",
+      "text": "Added logging.ts, updated server.ts — tests passing (+38 -2)",
+      "delayMs": 1800
+    }
+  ]
+}

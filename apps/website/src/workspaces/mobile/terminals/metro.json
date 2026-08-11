@@ -1,0 +1,20 @@
+{
+  "kind": "shell",
+  "entries": [
+    { "type": "command", "text": "npx react-native start", "delayMs": 0 },
+    { "type": "output", "text": "", "delayMs": 200 },
+    { "type": "output", "text": "Welcome to Metro v0.80.9", "delayMs": 400 },
+    {
+      "type": "success",
+      "text": "Fast - Scalable - Integrated",
+      "delayMs": 300
+    },
+    { "type": "output", "text": "", "delayMs": 900 },
+    { "type": "output", "text": "BUNDLE  ./index.js", "delayMs": 1200 },
+    {
+      "type": "success",
+      "text": "Bundled 1834ms index.js (612 modules)",
+      "delayMs": 1400
+    }
+  ]
+}

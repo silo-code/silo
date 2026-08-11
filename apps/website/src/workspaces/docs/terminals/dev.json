@@ -1,0 +1,33 @@
+{
+  "kind": "shell",
+  "entries": [
+    { "type": "command", "text": "npm run dev", "delayMs": 0 },
+    { "type": "output", "text": "", "delayMs": 200 },
+    {
+      "type": "output",
+      "text": "astro  v4.11.0 started in 421ms",
+      "delayMs": 400
+    },
+    {
+      "type": "success",
+      "text": "  ┃ Local    http://localhost:4321/",
+      "delayMs": 250
+    },
+    {
+      "type": "output",
+      "text": "  ┃ Network  use --host to expose",
+      "delayMs": 300
+    },
+    { "type": "output", "text": "", "delayMs": 1100 },
+    {
+      "type": "output",
+      "text": "watching for file changes...",
+      "delayMs": 1300
+    },
+    {
+      "type": "output",
+      "text": "12:02:18 PM  [content] api-reference.mdx updated",
+      "delayMs": 1600
+    }
+  ]
+}

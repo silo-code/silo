@@ -1,0 +1,85 @@
+{
+  "kind": "agent",
+  "agent": {
+    "agentId": "claude",
+    "agentName": "Claude Code",
+    "version": "v2.1.223",
+    "model": "Sonnet 5 (1M context)",
+    "plan": "Claude Max",
+    "cwd": "~/projects/build-server"
+  },
+  "loopPauseMs": 6000,
+  "entries": [
+    {
+      "type": "command",
+      "text": "› speed up the Docker build by caching node_modules separately",
+      "delayMs": 1800
+    },
+    {
+      "type": "agent-text",
+      "text": "Reading the Dockerfile — `node_modules` gets rebuilt on every source change since deps and source are copied together.",
+      "delayMs": 3000
+    },
+    {
+      "type": "tool",
+      "text": "Update(Dockerfile)",
+      "detail": "Split the deps stage",
+      "diff": [
+        {
+          "kind": "ctx",
+          "ln": 3,
+          "text": "FROM node:20-slim AS deps"
+        },
+        {
+          "kind": "add",
+          "ln": 4,
+          "text": "COPY package.json package-lock.json ./"
+        },
+        {
+          "kind": "add",
+          "ln": 5,
+          "text": "RUN npm ci"
+        },
+        {
+          "kind": "del",
+          "ln": 6,
+          "text": "COPY . ."
+        }
+      ],
+      "delayMs": 3200
+    },
+    {
+      "type": "tool",
+      "text": "Update(pipeline.yml)",
+      "detail": "Added cache-from/cache-to",
+      "diff": [
+        {
+          "kind": "ctx",
+          "ln": 12,
+          "text": "  - name: Build"
+        },
+        {
+          "kind": "add",
+          "ln": 13,
+          "text": "    cache-from: type=gha"
+        },
+        {
+          "kind": "add",
+          "ln": 14,
+          "text": "    cache-to: type=gha,mode=max"
+        }
+      ],
+      "delayMs": 3000
+    },
+    {
+      "type": "shell",
+      "text": "docker build -t acme/app:latest .",
+      "delayMs": 2400
+    },
+    {
+      "type": "success",
+      "text": "Updated Dockerfile and pipeline.yml — cold build 6m40s → 42s",
+      "delayMs": 2000
+    }
+  ]
+}

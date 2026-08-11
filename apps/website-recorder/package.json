@@ -1,0 +1,29 @@
+{
+  "name": "@silo-code/website-recorder",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --open /recorder.html",
+    "recorder": "vite --open /recorder.html",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "capture:feature-git": "node scripts/capture-feature-git.mjs"
+  },
+  "dependencies": {
+    "@silo-code/website": "workspace:*",
+    "@vitejs/plugin-react": "^4.6.0",
+    "modern-screenshot": "^4.7.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.0",
+    "playwright": "^1.52.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4",
+    "vitest": "^4.1.7"
+  }
+}

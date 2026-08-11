@@ -1,0 +1,40 @@
+{
+  "kind": "shell",
+  "loop": false,
+  "entries": [
+    { "type": "command", "text": "npm run dev", "delayMs": 0 },
+    { "type": "output", "text": "", "delayMs": 200 },
+    {
+      "type": "output",
+      "text": "  VITE v5.4.2  ready in 312 ms",
+      "delayMs": 400
+    },
+    { "type": "output", "text": "", "delayMs": 150 },
+    {
+      "type": "success",
+      "text": "  ➜  Local:   http://localhost:3000/",
+      "delayMs": 200
+    },
+    {
+      "type": "output",
+      "text": "  ➜  Network: use --host to expose",
+      "delayMs": 300
+    },
+    { "type": "output", "text": "", "delayMs": 900 },
+    {
+      "type": "output",
+      "text": "10:41:02 PM [vite] hmr update /src/Hero.tsx",
+      "delayMs": 1400
+    },
+    {
+      "type": "output",
+      "text": "10:41:14 PM [vite] hmr update /src/ThemeToggle.tsx",
+      "delayMs": 1600
+    },
+    {
+      "type": "output",
+      "text": "10:41:26 PM [vite] hmr update /src/Hero.tsx",
+      "delayMs": 1500
+    }
+  ]
+}
