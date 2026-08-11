@@ -69,3 +69,5 @@ A small, obvious choice needs neither.
 | [0032](./0032-dock-active-panel-authority.md)           | One authority decides a dock's active panel                | 2026-08-04 | accepted |
 | [0033](./0033-laptop-mode-independent-layout.md)        | Laptop Mode is a second independent layout                 | 2026-08-06 | accepted |
 | [0034](./0034-focus-and-activation-authority.md)        | Focus/activation: the live dock, and only the active panel | 2026-08-07 | proposed |
+| [0035](./0035-global-side-panel-layout.md)              | Global Side Panel Layout is an opt-in shared arrangement   | 2026-08-08 | accepted |
+| [0036](./0036-unified-update-ui-and-changelog.md)       | Unified update UI, in-app changelog, and skip-version      | 2026-08-10 | accepted |

@@ -23,10 +23,55 @@ export function isUpdateActionable(phase: UpdatePhase): boolean {
 
 /**
  * Lead sentence for the pre-install prompt — names the release when known, else
- * a generic fallback. The "save your work" warning is rendered separately (and
- * emphasized) by the prompt component, so it isn't part of this string.
+ * a generic fallback. The restart-reassurance callout is rendered separately by
+ * the prompt component, so it isn't part of this string.
  */
 export function buildUpdateLead(version: string | null): string {
   const release = version ? `Silo ${version}` : "A new version of Silo";
   return `${release} is ready to install.`;
+}
+
+/**
+ * Whether `version` should be suppressed on the passive status-bar link
+ * because the user already dismissed it via "Skip this version" (or a
+ * version at least as new — ADR 0036). Only applies to the passive surface —
+ * a manual "Check for Updates" always bypasses this and shows the real result.
+ */
+export function isVersionSkipped(
+  version: string | null,
+  skippedVersion: string | null,
+  compare: (a: string, b: string) => number,
+): boolean {
+  if (!version || !skippedVersion) return false;
+  return compare(version, skippedVersion) <= 0;
+}
+
+/** What the unified "Check for Updates" command (menu + palette) should do for a given phase. */
+export type CheckOutcome =
+  | { kind: "prompt" }
+  | { kind: "toast"; level: "info" | "error"; message: string }
+  | { kind: "none" };
+
+/**
+ * Maps a check's resulting phase to a presentation action: `available` opens
+ * the update modal; `upToDate`/`error` show a toast; everything else (e.g.
+ * `checking`, transiently) does nothing.
+ */
+export function describeCheckOutcome(phase: UpdatePhase): CheckOutcome {
+  if (phase === "available") return { kind: "prompt" };
+  if (phase === "upToDate") {
+    return {
+      kind: "toast",
+      level: "info",
+      message: "You're on the latest version.",
+    };
+  }
+  if (phase === "error") {
+    return {
+      kind: "toast",
+      level: "error",
+      message: "Couldn't check for updates.",
+    };
+  }
+  return { kind: "none" };
 }

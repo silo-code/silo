@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import Markdown from "react-markdown";
 import { ArrowLeft, SealCheck } from "@phosphor-icons/react";
 import type { ExtensionContext } from "@silo-code/sdk";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@silo-code/extension-host/internal";
 import { describeSource, localInstallSource } from "./extensions-list-model";
 import { SOURCE_ICON, sourceOriginLabel } from "./source-meta";
+import { TrustedExternalMarkdown } from "../shared/TrustedExternalMarkdown";
 
 const mgr = getExtensionManager();
 
@@ -201,30 +201,7 @@ export function ExtensionDetail({
         ) : readme === null ? (
           <span className="ext-hint">No README available.</span>
         ) : (
-          <Markdown
-            components={{
-              // READMEs are untrusted: raw HTML is already not rendered by
-              // react-markdown; links route through the host's opener rather
-              // than navigating the webview.
-              a: ({ href, children }) => (
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (href) void ctx.ui.openExternal(href);
-                  }}
-                >
-                  {children}
-                </a>
-              ),
-              img: ({ src, alt }) =>
-                typeof src === "string" && /^https?:\/\//.test(src) ? (
-                  <img src={src} alt={alt ?? ""} />
-                ) : null,
-            }}
-          >
-            {readme}
-          </Markdown>
+          <TrustedExternalMarkdown ctx={ctx}>{readme}</TrustedExternalMarkdown>
         )}
       </div>
     </div>

@@ -1,19 +1,31 @@
-// `core.updates` — surfaces Silo's auto-updater in the status bar. When a new
-// release is available it shows a small "Update" link; clicking it warns the
-// user to save work, then installs and restarts. Checks run in the background
-// (on activation + on a long interval), gated to the packaged stable app inside
-// the host's UpdateService — so this is inert in `pnpm dev` and the "Silo Dev"
-// build.
+// `core.updates` — surfaces Silo's auto-updater in the status bar, the
+// "Check for Updates…" app/Help menu items, and the command palette (ADR
+// 0036: all three share one presentation). When a new release is available
+// it shows a small "Update" link; clicking it (or running the command) opens
+// a modal with the changelog and Install/Skip/Later choices. Checks run in
+// the background (on activation + on a long interval), gated to the packaged
+// stable app inside the host's UpdateService — so this is inert in `pnpm dev`
+// and the "Silo Dev" build.
 //
 // Like `core.about`, this is a core extension: it reaches the host-owned update
 // capability through the privileged `@silo-code/extension-host/internal` barrel
 // (self-updating a binary is not a public-SDK capability), and touches the
 // running app only through `ctx`.
 
+import { useEffect, useState } from "react";
 import type { Extension } from "@silo-code/sdk";
 import { useServiceState } from "@silo-code/sdk";
-import { getUpdateService, Tooltip } from "@silo-code/extension-host/internal";
-import { updateLinkLabel, isUpdateActionable } from "./model";
+import {
+  compareVersions,
+  getUpdateService,
+  Tooltip,
+} from "@silo-code/extension-host/internal";
+import {
+  updateLinkLabel,
+  isUpdateActionable,
+  isVersionSkipped,
+  describeCheckOutcome,
+} from "./model";
 import { UpdatePrompt } from "./UpdatePrompt";
 import "./updates.css";
 
@@ -23,39 +35,73 @@ const updates = getUpdateService();
 // still notices a release without a restart.
 const RECHECK_INTERVAL_MS = 3 * 60 * 60 * 1000;
 
+const SKIPPED_VERSION_KEY = "skippedVersion";
+
 export const extension: Extension = {
   id: "core.updates",
   activate(ctx) {
+    // Shared by the status-bar link's click and the unified "Check for
+    // Updates" command (menu + palette, see below) — always shows the real
+    // result, bypassing any skip (skip only ever hides the passive
+    // status-bar link, never a check the user explicitly asked for).
+    async function promptAndInstall(): Promise<void> {
+      const { version } = updates.getState();
+      const outcome = await ctx.ui.showModal<"install" | "skip" | "later">(
+        (close) => (
+          <UpdatePrompt
+            ctx={ctx}
+            version={version}
+            loadChangelog={() => updates.getChangelog()}
+            onLater={() => close("later")}
+            onSkipVersion={() => close("skip")}
+            onInstall={() => close("install")}
+          />
+        ),
+        { size: "lg", dismissible: true, ariaLabel: "Update Silo" },
+      );
+      if (outcome === "skip") {
+        if (version) ctx.storage.global.set(SKIPPED_VERSION_KEY, version);
+        updates.reportAction("skipped-version");
+        return;
+      }
+      if (outcome === "later") {
+        updates.reportAction("skipped-later");
+        return;
+      }
+      if (outcome !== "install") return; // dismissed (Escape/backdrop) — nothing to report
+      try {
+        await updates.installAndRelaunch();
+      } catch {
+        // The service reverts to "available" so the link returns for a retry;
+        // tell the user the install didn't take (it otherwise relaunches).
+        ctx.ui.notify(
+          "error",
+          "Couldn't install the update. Please try again.",
+        );
+      }
+    }
+
     // The component closes over `ctx`; identity is stable (activate runs once).
     function UpdateLink() {
       const snap = useServiceState(updates);
-      const label = updateLinkLabel(snap.phase);
-      if (!label) return null;
-      const actionable = isUpdateActionable(snap.phase);
-
-      async function promptAndInstall(): Promise<void> {
-        const ok = await ctx.ui.showModal<boolean>(
-          (close) => (
-            <UpdatePrompt
-              version={snap.version}
-              onLater={() => close(false)}
-              onInstall={() => close(true)}
-            />
-          ),
-          { size: "sm", dismissible: true, ariaLabel: "Update Silo" },
-        );
-        if (!ok) return;
-        try {
-          await updates.installAndRelaunch();
-        } catch {
-          // The service reverts to "available" so the link returns for a retry;
-          // tell the user the install didn't take (it otherwise relaunches).
-          ctx.ui.notify(
-            "error",
-            "Couldn't install the update. Please try again.",
+      const [skippedVersion, setSkippedVersion] = useState(
+        () => ctx.storage.global.get<string>(SKIPPED_VERSION_KEY) ?? null,
+      );
+      useEffect(() => {
+        const sub = ctx.storage.global.subscribe(() => {
+          setSkippedVersion(
+            ctx.storage.global.get<string>(SKIPPED_VERSION_KEY) ?? null,
           );
-        }
-      }
+        });
+        return () => sub.dispose();
+      }, []);
+
+      const label = updateLinkLabel(snap.phase);
+      const skipped =
+        snap.phase === "available" &&
+        isVersionSkipped(snap.version, skippedVersion, compareVersions);
+      if (!label || skipped) return null;
+      const actionable = isUpdateActionable(snap.phase);
 
       // Wrapped so the nested `.update-status .update-link` selector outweighs
       // the host's `.status-bar button { color }` rule — letting the link keep
@@ -91,21 +137,21 @@ export const extension: Extension = {
       component: UpdateLink,
     });
 
-    // User-invoked check (palette / future menu): reports the outcome via a
-    // toast, where the background check stays silent.
+    // Unified manual check (ADR 0036): the command palette, the macOS "Silo"
+    // submenu, and the Windows/Linux "Help" submenu all dispatch here by id
+    // (see menu-items.ts) — one code path, one presentation policy. Opens the
+    // modal when a release is available, toasts for everything else.
     ctx.registerCommand({
       id: "core.updates.check",
       label: "Check for Updates",
       run: () => {
         void (async () => {
           await updates.check();
-          const { phase, version } = updates.getState();
-          if (phase === "available") {
-            ctx.ui.notify("info", `Silo ${version} is available.`);
-          } else if (phase === "upToDate") {
-            ctx.ui.notify("info", "You're on the latest version.");
-          } else if (phase === "error") {
-            ctx.ui.notify("error", "Couldn't check for updates.");
+          const outcome = describeCheckOutcome(updates.getState().phase);
+          if (outcome.kind === "prompt") {
+            await promptAndInstall();
+          } else if (outcome.kind === "toast") {
+            ctx.ui.notify(outcome.level, outcome.message);
           }
         })();
       },

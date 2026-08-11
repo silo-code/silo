@@ -27,6 +27,52 @@
   margin: 0;
 }
 
+/* Changelog section (ADR 0036) — the range between the installed and
+   available version. Scrolls independently so a long multi-version range
+   doesn't blow out the modal; .silo-scroll is the host's shared modal
+   scrollbar treatment. */
+.update-changelog {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+.update-changelog-entry + .update-changelog-entry {
+  padding-top: 12px;
+  border-top: 1px solid var(--silo-color-border-strong);
+}
+.update-changelog-heading {
+  font-size: var(--silo-font-size-sm);
+  font-weight: 600;
+  color: var(--silo-color-text-lo);
+  margin-bottom: 4px;
+}
+.update-changelog-full-link {
+  align-self: flex-start;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+/* De-emphasized "Skip this version" — a persisted, harder-to-reverse choice
+   (ADR 0036), so it's a small muted text link, not an equal-weight button
+   next to Install & Restart. */
+.update-skip-link {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.update-skip-link:hover {
+  color: var(--silo-color-text);
+}
+
 .update-status .update-link {
   display: inline-flex;
   align-items: center;
