@@ -44,6 +44,9 @@ export default defineConfig({
           // must not run in parallel — concurrent files would step on each
           // other's workspaces and focus. One file at a time.
           fileParallelism: false,
+          // Backstop for PTY sessions a crashed/interrupted test file never
+          // got to clean up in its own afterAll — see global-teardown.ts.
+          globalSetup: ["./src/automation/global-teardown.ts"],
         },
       },
     ],

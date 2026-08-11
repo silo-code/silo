@@ -18,6 +18,9 @@ pub mod paths;
 pub mod proto;
 pub mod pty;
 
+#[cfg(test)]
+mod test_support;
+
 /// Daemonize and serve a session host for `name`, running `cmd` in `cwd` at the
 /// given size. Forks the long-lived daemon (reparented to init) and returns in
 /// the spawning process — which should then exit. The Silo app calls this when

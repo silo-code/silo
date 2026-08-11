@@ -15,9 +15,21 @@ function inRegion(el: Element | null): el is HTMLElement {
   return el instanceof HTMLElement && el.closest(REGION) !== null;
 }
 
+// True when `el` isn't inside a workspace dock at all (side-pane, status-bar —
+// always "live"), or is inside the currently-foreground one. False for an
+// element belonging to a backgrounded workspace's (hidden) dock — CenterDock
+// keeps every visited workspace mounted as a sibling `.dock-host` inside the
+// same shared `.center-body`, only toggling `data-active`, so REGION's own
+// selector can't tell them apart on its own. See ADR 0034.
+function inLiveDockScope(el: Element): boolean {
+  const host = el.closest(".dock-host");
+  return !host || host.getAttribute("data-active") === "true";
+}
+
 function record(): void {
-  if (inRegion(document.activeElement)) {
-    lastFocused = document.activeElement as HTMLElement;
+  const el = document.activeElement;
+  if (inRegion(el) && inLiveDockScope(el)) {
+    lastFocused = el;
   }
 }
 
@@ -26,14 +38,19 @@ function record(): void {
  * focus as-is. Returns `null` when focus already sits on a real region element
  * (the activating click landed somewhere — don't override the user), and
  * otherwise the last region element focused before the app lost focus, if it's
- * still in the DOM. Pure, for testing.
+ * still in the DOM and still inside the live (foreground) dock. Pure, for
+ * testing — `inLiveScope` defaults to the real dock-liveness check and is
+ * injectable so unit tests don't need a real dockview DOM.
  */
 export function restoreTarget(
   active: Element | null,
   last: HTMLElement | null,
+  inLiveScope: (el: Element) => boolean = inLiveDockScope,
 ): HTMLElement | null {
   if (inRegion(active)) return null;
-  if (last && last.isConnected && inRegion(last)) return last;
+  if (last && last.isConnected && inRegion(last) && inLiveScope(last)) {
+    return last;
+  }
   return null;
 }
 

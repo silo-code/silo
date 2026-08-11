@@ -7,6 +7,7 @@ import {
   reconcileWorkspaceListing,
   splitPersistedState,
   withActivePanelState,
+  withActiveNonGlobalPanelState,
   type LegacyPersisted,
   type PanelState,
   type PersistedIndex,
@@ -124,22 +125,50 @@ describe("withActivePanelState", () => {
     expect(merged.rightPanelCollapsed).toBe(false);
   });
 
-  it("isolates the visibility bag from the source panel state", () => {
-    const merged = withActivePanelState(makeWorkspace("a"), PANEL);
-    merged.sidePanelVisibility!.explorer = false;
-    expect(PANEL.sidePanelVisibility.explorer).toBeUndefined();
+  it("does not mutate the source workspace", () => {
+    const ws = makeWorkspace("a");
+    withActivePanelState(ws, PANEL);
+    expect(ws.sidePanelLocations).toBeUndefined();
   });
 
-  it("does not mutate the source workspace and isolates the extension-state bag", () => {
-    const ws = makeWorkspace("a");
-    const merged = withActivePanelState(ws, PANEL);
-    expect(ws.sidePanelLocations).toBeUndefined();
-    // Two-level isolation: adding/replacing entries in the merged bag (or a
-    // per-extension object) must not bleed back into PANEL's bag.
-    merged.extensionState!["silo.new"] = { added: true };
-    merged.extensionState!["silo.explorer"] = { replaced: true };
-    expect(PANEL.extensionState["silo.new"]).toBeUndefined();
-    expect(PANEL.extensionState["silo.explorer"]).toEqual({ expanded: ["/a"] });
+  // Isolation from the *live store* — the property that actually protects a
+  // saved record — is `capturePanelState`'s, and is covered in
+  // panel-state.test.ts. The merge itself is a spread of an already-copied
+  // snapshot, so there is nothing left here to alias.
+});
+
+describe("withActiveNonGlobalPanelState", () => {
+  it("merges only extensionState/sidePanelScrollPositions/activeSidePanelTabs, leaving arrangement fields alone", () => {
+    const ws = makeWorkspace("a", {
+      sidePanelLocations: { explorer: "right" },
+      sidePanelOrder: { explorer: 3 },
+      sidePanelVisibility: { themes: true },
+      leftPanelCollapsed: false,
+      rightPanelCollapsed: true,
+    });
+    const merged = withActiveNonGlobalPanelState(ws, PANEL, false);
+
+    // Arrangement fields are untouched — they stay whatever `ws` already had.
+    expect(merged.sidePanelLocations).toEqual({ explorer: "right" });
+    expect(merged.sidePanelOrder).toEqual({ explorer: 3 });
+    expect(merged.sidePanelVisibility).toEqual({ themes: true });
+    expect(merged.leftPanelCollapsed).toBe(false);
+    expect(merged.rightPanelCollapsed).toBe(true);
+
+    // These three merge in from the live panel snapshot.
+    expect(merged.extensionState).toEqual({
+      "silo.explorer": { expanded: ["/a"] },
+    });
+    expect(merged.sidePanelScrollPositions).toEqual({ explorer: 12 });
+    expect(merged.activeSidePanelTabs).toEqual({ left: "explorer" });
+  });
+
+  it("omits activeSidePanelTabs from the merge when it's global too", () => {
+    const ws = makeWorkspace("a", {
+      activeSidePanelTabs: { left: "search" },
+    });
+    const merged = withActiveNonGlobalPanelState(ws, PANEL, true);
+    expect(merged.activeSidePanelTabs).toEqual({ left: "search" }); // ws's own, untouched
   });
 });
 
@@ -258,6 +287,10 @@ describe("buildIndex", () => {
     expect(index.uiFontSize).toBeUndefined();
     expect(index.smallScreenModeEnabled).toBeUndefined();
     expect(index.smallScreenThresholdPx).toBeUndefined();
+    expect(index.globalPanelLayoutEnabled).toBeUndefined();
+    expect(index.globalActiveTabEnabled).toBeUndefined();
+    expect(index.globalPanelLayout).toBeUndefined();
+    expect(index.globalActiveSidePanelTabs).toBeUndefined();
   });
 
   it("round-trips small-screen-mode settings when provided", () => {
@@ -273,6 +306,34 @@ describe("buildIndex", () => {
     expect(index.smallScreenThresholdPx).toBe(1600);
     expect(index.smallScreenPeekWidthLeftPx).toBe(320);
     expect(index.smallScreenPeekWidthRightPx).toBe(260);
+  });
+
+  it("round-trips global panel layout settings when provided, copying the layout container", () => {
+    const globalPanelLayout = {
+      sidePanelLocations: { explorer: "left" as const },
+      sidePanelOrder: { explorer: 0 },
+      sidePanelVisibility: { themes: false },
+      leftPanelCollapsed: true,
+      rightPanelCollapsed: false,
+    };
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      globalPanelLayoutEnabled: true,
+      globalActiveTabEnabled: true,
+      globalPanelLayout,
+      globalActiveSidePanelTabs: { left: "explorer" },
+    });
+    expect(index.globalPanelLayoutEnabled).toBe(true);
+    expect(index.globalActiveTabEnabled).toBe(true);
+    expect(index.globalPanelLayout).toEqual(globalPanelLayout);
+    expect(index.globalPanelLayout).not.toBe(globalPanelLayout);
+    expect(index.globalActiveSidePanelTabs).toEqual({ left: "explorer" });
+
+    globalPanelLayout.sidePanelVisibility.themes = true;
+    expect(index.globalPanelLayout!.sidePanelVisibility).toEqual({
+      themes: false,
+    });
   });
 
   it("round-trips group fields when provided", () => {

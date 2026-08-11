@@ -136,7 +136,7 @@ export function worktreeActions(
   pendingRemove = false,
 ): WorktreeAction[] {
   if (pendingRemove) return [];
-  // Orphan open folders aren't real git worktrees — Close view only.
+  // Orphan open folders aren't real git worktrees — Close worktree view only.
   if (row.isOrphan) {
     return row.isOpen && !row.isPrimary ? ["close"] : [];
   }
@@ -148,6 +148,32 @@ export function worktreeActions(
     actions.push("remove");
   }
   return actions;
+}
+
+/**
+ * Worktrees present in `current` but absent from `prev` and not already open
+ * as a workspace folder — i.e. created on disk since the last check (e.g.
+ * `git worktree add` run outside the app, such as by a coding agent). Bare
+ * and prunable entries are excluded — a prunable entry's directory is already
+ * gone (e.g. `rm -rf`'d without `git worktree remove` in the same window it
+ * was created), so there's nothing to open; {@link worktreeActions} makes the
+ * same call, offering only `prune` for those, never `open`. The reverse of
+ * {@link orphanCandidateFolders}: that finds open folders missing from the
+ * worktree list, this finds worktree-list entries missing from the open
+ * folders.
+ */
+export function newlyCreatedWorktrees(
+  prev: readonly GitWorktree[],
+  current: readonly GitWorktree[],
+  allFolders: readonly string[],
+): GitWorktree[] {
+  return current.filter(
+    (wt) =>
+      !wt.bare &&
+      wt.prunable == null &&
+      !prev.some((p) => samePath(p.path, wt.path)) &&
+      !allFolders.some((f) => samePath(f, wt.path)),
+  );
 }
 
 /** Sanitize a branch name into a filesystem-friendly directory suffix. */

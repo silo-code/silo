@@ -1,6 +1,6 @@
 # Interface: WorkspaceBadgeProvider
 
-Defined in: [packages/sdk/src/workspace-service.ts:94](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L94)
+Defined in: [packages/sdk/src/workspace-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L95)
 
 A badge binder that contributes [WorkspaceBadge](WorkspaceBadge.md)s next to the
 workspace name in the Workspaces side panel. Prefer
@@ -15,7 +15,7 @@ remains as a deprecated alias.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L96)
+Defined in: [packages/sdk/src/workspace-service.ts:97](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L97)
 
 Unique id for this binder — conventionally `"<extension-id>.badges"`.
 
@@ -27,7 +27,7 @@ Unique id for this binder — conventionally `"<extension-id>.badges"`.
 provide(workspaceId): WorkspaceBadge[];
 ```
 
-Defined in: [packages/sdk/src/workspace-service.ts:101](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L101)
+Defined in: [packages/sdk/src/workspace-service.ts:102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/workspace-service.ts#L102)
 
 Called synchronously for each workspace during render. Return an empty
 array to contribute nothing for this workspace.

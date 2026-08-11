@@ -9,6 +9,7 @@ import {
 } from "../state/workspaces";
 import { tauriTerminalClient } from "../services/tauri-terminal-client";
 import { getProcessService } from "./process-service";
+import { buildTerminalTabMenuItems } from "./terminal-tab-menu";
 import type { TerminalRecord } from "../state/types";
 import type {
   TerminalService,
@@ -26,7 +27,9 @@ import {
 import {
   focusPanelContent,
   getActiveDockApi,
+  getActiveDockWorkspaceId,
 } from "../docked/dock-api-registry";
+import { requestPanelActivation } from "../docked/panel-activation-requests";
 import { createHostChannel } from "./output-store";
 import {
   collectLivePtys,
@@ -282,6 +285,9 @@ export function getTerminalService(): TerminalService {
       if (!workspaceId) return undefined;
       return addTerminal(workspaceId, input?.kind ?? "shell", input?.cwd);
     },
+    getTabMenuItems(terminalId) {
+      return buildTerminalTabMenuItems(terminalId);
+    },
     focus(terminalId) {
       // Find which workspace owns this terminal.
       const wsId = Object.values(store.workspaces).find((ws) =>
@@ -289,33 +295,54 @@ export function getTerminalService(): TerminalService {
       )?.id;
       if (!wsId) return;
 
-      const activate = () => {
-        const panel = getActiveDockApi()?.getPanel(`terminal:${terminalId}`);
-        panel?.api.setActive();
-        if (!panel) return;
-        // Defer the actual focus grab past this tick, and scope it to this
-        // specific panel's own content — not focusCenterDock()'s "whatever's
-        // visible in the active group" search. With two-plus terminal tabs in
-        // the same group, that generic search can win the race against
-        // dockview's own (async, not synchronous with setActive()) visibility
-        // toggle and land on the *previous* tab's still-visible content,
-        // which reads as "some textarea in the group is focused" and never
-        // retries again — confirmed live: clicking between two terminal rows
-        // in agent-inspector sometimes focused the wrong one. Scoping to
-        // panel.view.content.element removes every other panel from the
-        // search, so there's nothing left to grab but the right one.
-        requestAnimationFrame(() =>
-          focusPanelContent(panel.view.content.element),
-        );
-      };
+      const panelId = `terminal:${terminalId}`;
 
-      if (store.activeWorkspaceId !== wsId) {
+      if (getActiveDockWorkspaceId() !== wsId) {
+        // Cross-workspace — or same-workspace-on-paper-but-not-live-yet: check
+        // dock identity, not store.activeWorkspaceId. A caller that already
+        // flipped store.activeWorkspaceId itself (e.g. ctx.workspaces.activate()
+        // immediately followed by this call — see agent-inspector's
+        // openAndFocus(), and per RFC 0023 the real agent-monitor extension's
+        // Navigator row click) can win the store check before WorkspaceDock's
+        // authority effect has actually committed the new dock as live,
+        // making `store.activeWorkspaceId === wsId` true while the dock behind
+        // it is still the old one. Trusting that would silently no-op here
+        // (the old dock has no panel for this terminal) and drop the request
+        // entirely — the tab never activates at all, not even a flash. Do NOT
+        // reach for the dock from here either way: the target workspace's dock
+        // may not be mounted yet, and the moment it becomes active it runs its
+        // own active-panel restore — a setActive() fired on a timer here is
+        // racing that restore, and whichever call lands last wins (the
+        // requested tab flashes active, then flips back). Record the intent
+        // instead and let WorkspaceDock, the single authority over its own
+        // active panel, apply it — and drive focus — once its dock is up.
+        // activateWorkspace() is a no-op if wsId is already store.activeWorkspaceId
+        // (see state/workspaces.ts), so this is safe to call unconditionally.
+        // See ADR 0034.
+        requestPanelActivation(wsId, panelId);
         activateWorkspace(wsId);
-        // Defer until the new workspace's dock has mounted.
-        setTimeout(activate, 80);
-      } else {
-        activate();
+        return;
       }
+
+      // Same workspace, dock confirmed live — nothing else is deciding its
+      // active panel right now, so activate the tab directly.
+      const panel = getActiveDockApi()?.getPanel(panelId);
+      panel?.api.setActive();
+      if (!panel) return;
+      // Defer the actual focus grab past this tick, and scope it to this
+      // specific panel's own content — not focusCenterDock()'s "whatever's
+      // visible in the active group" search. With two-plus terminal tabs in
+      // the same group, that generic search can win the race against
+      // dockview's own (async, not synchronous with setActive()) visibility
+      // toggle and land on the *previous* tab's still-visible content,
+      // which reads as "some textarea in the group is focused" and never
+      // retries again — confirmed live: clicking between two terminal rows
+      // in agent-inspector sometimes focused the wrong one. Scoping to
+      // panel.view.content.element removes every other panel from the
+      // search, so there's nothing left to grab but the right one.
+      requestAnimationFrame(() =>
+        focusPanelContent(panel.view.content.element),
+      );
     },
     closeWorkspace(workspaceId) {
       void reapWorkspaceTerminals(workspaceId);

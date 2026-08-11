@@ -552,3 +552,55 @@ Defined in: [packages/sdk/src/domain-types.ts:217](https://github.com/silo-code/
 ```
 
 Defined in: [packages/sdk/src/domain-types.ts:218](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L218)
+
+***
+
+### --silo-list-radius
+
+```ts
+--silo-list-radius: string;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L220)
+
+***
+
+### --silo-list-inset
+
+```ts
+--silo-list-inset: string;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:221](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L221)
+
+***
+
+### --silo-list-hover-bg
+
+```ts
+--silo-list-hover-bg: string;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:222](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L222)
+
+***
+
+### --silo-list-active-bg
+
+```ts
+--silo-list-active-bg: string;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:223](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L223)
+
+***
+
+### --silo-list-active-outline
+
+```ts
+--silo-list-active-outline: string;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:225](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L225)
+
+Selected-row outline — use a bordered selection instead of (or with) a fill.

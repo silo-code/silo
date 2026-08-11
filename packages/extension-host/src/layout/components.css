@@ -475,9 +475,15 @@
 }
 
 /* ── Badge ────────────────────────────────────────────────────────────────
- * Every tone tint is a `color-mix()` derived from a generic color, not a
- * dedicated token — see RFC 0016's open follow-up on promoting these to
- * `--silo-badge-*` tokens if a theme ever needs to override just tints. */
+ * The chromatic tones tint a `color-mix()` from a generic color. `neutral` has
+ * no hue to tint from, so the only thing separating it from the surface is
+ * lightness — and it has to move in opposite directions per theme (lighter on
+ * dark, darker on light). Mixing the *button ink* into the page background
+ * does that on its own: that ink is always a mid-contrast tone against its own
+ * background, whichever way round the theme is. Deriving beats pinning a value
+ * per shipped theme, which every custom theme would then inherit regardless of
+ * its palette. `--silo-badge-neutral-bg` / `-fg` stay as override hooks for a
+ * theme that wants to pin them anyway (RFC 0016's `--silo-badge-*` route). */
 
 .silo-badge {
   display: inline-flex;
@@ -490,9 +496,28 @@
   flex-shrink: 0;
 }
 
+/* Tighter counter chip (`<Badge size="sm">`) — for a row count or a "+2"
+ * sitting beside a label rather than standing alone. Sized in `em` so it
+ * tracks whatever text it sits next to, including a side column's own font
+ * scaling, which the `md` chrome-relative size does not. */
+.silo-badge-sm {
+  font-size: calc(1em - 2px);
+  padding: 0 5px;
+  line-height: 1.5;
+}
+
 .silo-badge-neutral {
-  background: var(--silo-color-button-bg);
-  color: var(--silo-color-text);
+  background: var(
+    --silo-badge-neutral-bg,
+    color-mix(
+      in srgb,
+      var(--silo-color-button-text, var(--silo-color-text)) 22%,
+      var(--silo-color-bg)
+    )
+  );
+  /* The button ink rather than body text: neutral is a chip on a button-like
+   * fill, and body text is too low-contrast against it in both themes. */
+  color: var(--silo-badge-neutral-fg, var(--silo-color-button-text));
 }
 
 .silo-badge-accent {
@@ -539,7 +564,7 @@
   --silo-activity-ready: #22c55e;
   --silo-activity-warn: #d97706;
   --silo-activity-error: #dc2626;
-  --silo-activity-none: #b0b0b0;
+  --silo-activity-none: #c4c4c4;
 }
 
 [data-theme="dark"] {
@@ -547,7 +572,7 @@
   --silo-activity-ready: #4ade80;
   --silo-activity-warn: #fbbf24;
   --silo-activity-error: #f87171;
-  --silo-activity-none: #6b6b6b;
+  --silo-activity-none: #808080;
 }
 
 .silo-activity {
@@ -616,6 +641,7 @@
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.55;
     transform: scale(1.2);
@@ -628,6 +654,7 @@
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.65;
     transform: scale(1.25);
@@ -639,6 +666,7 @@
     opacity: 0.7;
     transform: scale(1);
   }
+
   100% {
     opacity: 0;
     transform: scale(3.4);
@@ -801,7 +829,7 @@
 .silo-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
 }
 

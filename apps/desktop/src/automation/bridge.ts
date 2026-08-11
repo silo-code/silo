@@ -16,7 +16,9 @@ import {
   openDiff,
   openPreviewDiff,
   splitActivePanel,
+  getActiveDockApi,
   getOutputLogs,
+  restoreRegionFocus,
 } from "@silo-code/extension-host";
 
 // --- Monaco introspection (source of truth, not DOM scraping) ---------------
@@ -400,9 +402,15 @@ async function handleOp(
 
     case "openTerminal": {
       // Drive the real ctx.terminals.create path (not addTerminal directly), so
-      // the bridge exercises the same public API the menu does.
+      // the bridge exercises the same public API the menu does. workspaceId
+      // defaults to the active workspace, but a test can pass another one
+      // explicitly to add a terminal to a *backgrounded* workspace — e.g.
+      // simulating an agent spawning a terminal in a workspace the user isn't
+      // looking at.
       const rec = getTerminalService().create({
-        workspaceId: requireActiveWorkspace(),
+        workspaceId: args.workspaceId
+          ? String(args.workspaceId)
+          : requireActiveWorkspace(),
         cwd: args.cwd ? String(args.cwd) : undefined,
       });
       if (!rec) throw new Error("openTerminal: no active workspace");
@@ -488,6 +496,49 @@ async function handleOp(
         new CustomEvent("app:activate-panel", { detail: { panelId } }),
       );
       return { activated: panelId };
+    }
+
+    // Drive the real ctx.terminals.focus() path — including its cross-workspace
+    // branch (switch workspace, then land on the requested tab), which a test
+    // can't reach through activatePanel (that only talks to the dock already
+    // on screen).
+    case "focusTerminal": {
+      const terminalId = String(args.terminalId ?? "");
+      getTerminalService().focus(terminalId);
+      return { focused: terminalId };
+    }
+
+    // Reproduces the exact call shape agent-inspector's openAndFocus() (and,
+    // per RFC 0023, the closed-source agent-monitor extension's Navigator row
+    // click) makes: activate the target workspace, THEN focus a terminal
+    // inside it, back to back in one tick — without needing that extension
+    // built/installed. See ADR 0034 / terminal-service.ts's focus().
+    case "activateThenFocusTerminal": {
+      const workspaceId = String(args.workspaceId ?? "");
+      const terminalId = String(args.terminalId ?? "");
+      activateWorkspace(workspaceId);
+      getTerminalService().focus(terminalId);
+      return { focused: terminalId };
+    }
+
+    // Which tab the visible center dock is actually showing. Read from
+    // dockview's own api (not the DOM), so a test can watch the active tab
+    // settle — or catch it flipping away a moment after it was set.
+    case "activePanel": {
+      return { panelId: getActiveDockApi()?.activePanel?.id ?? null };
+    }
+
+    // Simulate the window regaining OS focus by calling the same
+    // restoreRegionFocus() Tauri's real onFocusChanged handler calls
+    // (AppShell.tsx), at a moment the test controls. Returns what focus
+    // landed on afterward plus which panel the active dock now shows, so a
+    // test can catch it dragging the active TAB along with DOM focus.
+    case "restoreRegionFocus": {
+      restoreRegionFocus();
+      return {
+        ...describeActiveElement(),
+        activePanelId: getActiveDockApi()?.activePanel?.id ?? null,
+      };
     }
 
     // Bring a registered side panel into view: expand its slot, then activate
@@ -721,5 +772,18 @@ function describeActiveElement() {
     isTextarea: el instanceof HTMLTextAreaElement,
     inMonaco: !!el.closest(".monaco-editor"),
     inXterm: !!el.closest(".xterm"),
+    // False both when focus landed on a backgrounded workspace's dock AND
+    // when focus isn't inside any dock at all (e.g. document.body) — those
+    // are very different outcomes (one's the bug, one's often fine), so
+    // don't assert on this field alone. Use inBackgroundDockHost below to
+    // tell them apart. CenterDock.tsx keeps every visited workspace's dock
+    // mounted as a sibling `.dock-host`, toggling `data-active`.
+    inActiveDockHost: !!el.closest('.dock-host[data-active="true"]'),
+    // True specifically when focus landed inside a BACKGROUNDED dock-host —
+    // the actual failure signature for the window-refocus bug (ADR 0034).
+    // false here (not just inActiveDockHost) is the meaningful "focus didn't
+    // land somewhere wrong" signal; it's true equally whether focus is on
+    // nothing or correctly inside the active dock.
+    inBackgroundDockHost: !!el.closest('.dock-host[data-active="false"]'),
   };
 }

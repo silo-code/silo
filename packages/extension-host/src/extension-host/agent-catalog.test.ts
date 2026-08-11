@@ -183,7 +183,11 @@ describe("buildTrackSessionScript", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+    // Three sequential script runs, each forking ~8 short-lived processes
+    // (sh, ps, and their command-substitution subshells) — past vitest's
+    // default 5s under the full-monorepo parallel test load the pre-commit
+    // hook runs under (confirmed flaky there, not on the logic).
+  }, 20000);
 
   it("resolves the real agent's pgid past a setpgrp worker that only references it (Cursor regression)", () => {
     // Confirmed live: a fresh Cursor session runs the hook from a worker that

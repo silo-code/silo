@@ -43,3 +43,41 @@ describe("restoreTarget", () => {
     expect(restoreTarget(document.body, null)).toBeNull();
   });
 });
+
+// Build a `.dock-host` (as CenterDock.tsx renders one per visited workspace,
+// toggling `data-active`) with a focusable button inside it, nested in a
+// shared `.center-body` the way every dock-host actually is.
+function dockHostButton(active: boolean): HTMLButtonElement {
+  const centerBody = document.createElement("div");
+  centerBody.className = "center-body";
+  const host = document.createElement("div");
+  host.className = "dock-host";
+  host.dataset.active = String(active);
+  const btn = document.createElement("button");
+  host.appendChild(btn);
+  centerBody.appendChild(host);
+  document.body.appendChild(centerBody);
+  return btn;
+}
+
+describe("restoreTarget — dock-host scoping", () => {
+  it("does not restore an element inside a backgrounded dock-host", () => {
+    const last = dockHostButton(false);
+    expect(restoreTarget(document.body, last)).toBeNull();
+  });
+
+  it("restores an element inside the active dock-host", () => {
+    const last = dockHostButton(true);
+    expect(restoreTarget(document.body, last)).toBe(last);
+  });
+
+  it("restores a side-pane element unaffected by dock-host scoping", () => {
+    const last = regionButton(); // not inside any .dock-host
+    expect(restoreTarget(document.body, last)).toBe(last);
+  });
+
+  it("honors an injected scope predicate over the real dock-liveness check", () => {
+    const last = dockHostButton(true); // live per the real DOM check
+    expect(restoreTarget(document.body, last, () => false)).toBeNull();
+  });
+});

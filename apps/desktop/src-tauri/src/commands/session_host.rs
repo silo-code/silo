@@ -37,6 +37,19 @@ const KILL_TIMEOUT: Duration = Duration::from_millis(1000);
 // from this build's view, unreachable — i.e. effectively gone.
 const SESSION_GONE: &str = "SESSION_GONE";
 
+// Well above realistic legitimate usage (a handful to a couple dozen tabs
+// across workspaces), well below the 84-113 the leaked-daemon investigation
+// found. A backstop signal, not a real limit — see `should_warn_concurrency_cap`.
+const CONCURRENCY_WARN_THRESHOLD: usize = 40;
+
+/// Should a concurrency-cap warning fire for a spawn, given the count of live
+/// sessions *before* this one is added? Warn-only: a runaway caller (e.g. a
+/// leaky test harness) surfaces immediately in the log instead of silently
+/// piling up for days, but legitimate heavy usage is never blocked.
+fn should_warn_concurrency_cap(live_count: usize, threshold: usize) -> bool {
+    live_count >= threshold
+}
+
 pub struct SessionHostBackend;
 
 impl SessionHostBackend {
@@ -49,6 +62,14 @@ impl SessionHostBackend {
         size: PtySize,
         command: Option<&[String]>,
     ) -> Result<(), String> {
+        let live = discovery::list_sessions().len();
+        if should_warn_concurrency_cap(live, CONCURRENCY_WARN_THRESHOLD) {
+            log_event(
+                "host_cap_warning",
+                &format!("live={live} threshold={CONCURRENCY_WARN_THRESHOLD} spawning_handle={handle}"),
+            );
+        }
+
         let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
         let mut cmd = std::process::Command::new(exe);
         cmd.arg("--session-host")
@@ -314,5 +335,17 @@ struct SocketChild(UnixStream);
 impl SessionChild for SocketChild {
     fn kill(&mut self) -> Result<(), String> {
         self.0.shutdown(Shutdown::Both).map_err(|e| e.to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn warns_at_and_above_threshold_not_below() {
+        assert!(!should_warn_concurrency_cap(39, 40));
+        assert!(should_warn_concurrency_cap(40, 40));
+        assert!(should_warn_concurrency_cap(50, 40));
     }
 }

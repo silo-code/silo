@@ -1,6 +1,6 @@
 # Interface: ToolbarMenuItemContribution\<S\>
 
-Defined in: [packages/sdk/src/toolbar-items.ts:103](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L103)
+Defined in: [packages/sdk/src/toolbar-items.ts:110](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L110)
 
 Menu-backed toolbar control — click opens a host dropdown via
 [UiService.showMenu](UiService.md#showmenu) with entries from
@@ -24,7 +24,7 @@ Menu-backed toolbar control — click opens a host dropdown via
 id: string;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:45](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L45)
+Defined in: [packages/sdk/src/toolbar-items.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L52)
 
 Unique id for this contribution.
 
@@ -40,7 +40,7 @@ Unique id for this contribution.
 surface: S;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:47](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L47)
+Defined in: [packages/sdk/src/toolbar-items.ts:54](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L54)
 
 Which toolbar to contribute to.
 
@@ -56,7 +56,7 @@ Which toolbar to contribute to.
 optional icon?: string;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L52)
+Defined in: [packages/sdk/src/toolbar-items.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L59)
 
 Leading glyph as a [PhosphorIconName](../type-aliases/PhosphorIconName.md) (e.g. `"Flag"`). Omit for a
 text-only control (requires [title](ToolbarItemFields.md#title)).
@@ -73,7 +73,7 @@ text-only control (requires [title](ToolbarItemFields.md#title)).
 optional title?: string;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:57](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L57)
+Defined in: [packages/sdk/src/toolbar-items.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L64)
 
 Visible label painted in the control. Omit for icon-only. When both
 `icon` and `title` are set, the host renders icon + text.
@@ -90,7 +90,7 @@ Visible label painted in the control. Omit for icon-only. When both
 optional tooltip?: string;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L59)
+Defined in: [packages/sdk/src/toolbar-items.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L66)
 
 Hover tooltip (falls back to title / label / command label).
 
@@ -106,7 +106,7 @@ Hover tooltip (falls back to title / label / command label).
 optional label?: string;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L65)
+Defined in: [packages/sdk/src/toolbar-items.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L72)
 
 Accessible name (falls back to title / the command's label). Always used
 for `aria-label`; not painted unless [title](ToolbarItemFields.md#title)
@@ -124,7 +124,7 @@ is also set.
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L67)
+Defined in: [packages/sdk/src/toolbar-items.ts:74](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L74)
 
 Ordering within the trailing cluster; lower sorts first.
 
@@ -140,7 +140,7 @@ Ordering within the trailing cluster; lower sorts first.
 optional when?: (ctx, target) => boolean;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:71](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L71)
+Defined in: [packages/sdk/src/toolbar-items.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L78)
 
 Visibility predicate. Returning false hides the item for this target.
 
@@ -170,7 +170,7 @@ Visibility predicate. Returning false hides the item for this target.
 optional checked?: (ctx, target) => boolean;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:77](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L77)
+Defined in: [packages/sdk/src/toolbar-items.ts:84](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L84)
 
 Toggle-state predicate for command items. When provided, the host renders
 the control in a pressed/checked visual state whenever this returns true.
@@ -204,7 +204,7 @@ menu: (target) =>
 | Promise<MenuEntry[]>;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:110](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L110)
+Defined in: [packages/sdk/src/toolbar-items.ts:117](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L117)
 
 Build the dropdown for this target. May be sync or async. The host
 anchors the menu on the toolbar control (`align: "end"`, toggle on).
@@ -228,7 +228,7 @@ anchors the menu on the toolbar control (`align: "end"`, toggle on).
 optional command?: undefined;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:111](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L111)
+Defined in: [packages/sdk/src/toolbar-items.ts:118](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L118)
 
 ***
 
@@ -238,4 +238,4 @@ Defined in: [packages/sdk/src/toolbar-items.ts:111](https://github.com/silo-code
 optional type?: undefined;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:112](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L112)
+Defined in: [packages/sdk/src/toolbar-items.ts:119](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L119)

@@ -212,6 +212,63 @@ ctx.subscriptions.push(
 
 The page shape is [`WorkspacePropertyPage`](/api/types/interfaces/WorkspacePropertyPage); component props are [`WorkspacePropertyPageProps`](/api/types/interfaces/WorkspacePropertyPageProps).
 
+## Open Workspace menu
+
+The rows behind the Navigator's `+` button — saved groups to restore, closed
+workspaces to reopen (a missing folder is flagged), then **New workspace…** and
+**New Group…**. Offer workspace switching from your own UI without rebuilding
+the list:
+
+```ts
+ctx.ui.showMenu({
+  items: [
+    { label: "Refresh", run: refresh },
+    { type: "separator" },
+    {
+      label: "Workspace",
+      submenu: await ctx.workspaces.getOpenWorkspaceMenuItems(),
+    },
+  ],
+  anchor,
+});
+```
+
+The entries are ordinary [`MenuEntry`](/api/types/type-aliases/MenuEntry) rows,
+so they drop straight into `showMenu` — as the whole menu, or as a `submenu` of
+one of your own rows. It's async because the closed-workspace rows check whether
+each folder still exists on disk before deciding which to flag.
+
+| Method                                                                                            | What it does                                                           |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| [`getOpenWorkspaceMenuItems()`](/api/types/interfaces/WorkspaceService#getopenworkspacemenuitems) | The Open Workspace menu rows, ready for `ctx.ui.showMenu`.             |
+| [`getWorkspaceMenuItems(id)`](/api/types/interfaces/WorkspaceService#getworkspacemenuitems)       | One workspace's context-menu rows — Properties…, Close, contributions. |
+
+## Workspace context menu
+
+`getWorkspaceMenuItems(workspaceId)` returns the rows you get by right-clicking
+a row in the Navigator's Workspaces view: **Properties…**, **Close**, then any
+`"workspace"`-surface [contributions](/api/registration/register-context-menu-item).
+
+Reach for it when your UI _names_ a workspace without being the workspace list
+— an agent row showing which workspace its terminal lives in, a search result
+grouped by workspace. The actions are then one right-click away there too, and
+they can't drift from the list's own menu.
+
+```ts
+ctx.ui.showMenu({
+  items: [
+    { label: "Mark as seen", run: acknowledge },
+    { type: "separator" },
+    { label: ws.name, submenu: ctx.workspaces.getWorkspaceMenuItems(ws.id) },
+  ],
+  at: { x: e.clientX, y: e.clientY },
+});
+```
+
+Group membership actions (Move to Group, Remove from Group) are **not**
+included — group state is host-internal (ADR 0023), so the Workspaces view
+appends those itself.
+
 ## Types
 
 Pass [`WorkspaceService`](/api/types/interfaces/WorkspaceService).

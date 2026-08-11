@@ -1,7 +1,9 @@
 # Workspace status, sections, and badges
 
-The Workspaces panel is extensible. Three independent APIs let you add
-information to any workspace row — without reaching into the host's internals.
+The Navigator's **Workspaces** view is extensible. Three independent APIs let
+you add information to any workspace row — without reaching into the host's
+internals. (To add a whole new view rather than decorate this one, see
+[`ctx.registerNavigatorView`](/api/registration/register-navigator-view).)
 
 | API          | Where it appears           | What you provide                                          |
 | ------------ | -------------------------- | --------------------------------------------------------- |

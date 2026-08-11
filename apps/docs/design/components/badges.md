@@ -1,9 +1,12 @@
 # Badges
 
 A small pill for status or identity — on a `ListRow`'s trailing slot, in a
-`SettingRow`'s control slot, next to a title. Text at chrome−1/600; the
-background is always a derived tint of the text color, never picked
-separately.
+`SettingRow`'s control slot, next to a title. Text at chrome−1/600; a
+chromatic tone's background is always a derived tint of its text color, never
+picked separately. `neutral` has no hue to tint from, so it mixes the button
+ink into the page background instead — which lightens on a dark theme and
+darkens on a light one without either being hard-coded, so custom themes track
+their own palette.
 
 <div class="silo-demo">
   <span class="silo-badge silo-badge-neutral">primary</span>
@@ -32,7 +35,31 @@ import { Badge } from "@silo-code/sdk";
 | Prop    | Type                                                            | Default                                      |
 | ------- | --------------------------------------------------------------- | -------------------------------------------- |
 | `tone`  | `"neutral" \| "accent" \| "ok" \| "warn" \| "err" \| "outline"` | `"neutral"`                                  |
+| `size`  | `"sm" \| "md"`                                                  | `"md"`                                       |
 | `color` | `string?`                                                       | overrides `tone` with an arbitrary CSS color |
+
+## Sizes
+
+`md` is the default text chip. `sm` is a tighter counter chip — for a number
+sitting beside a label rather than a badge standing on its own: a section's row
+count, a workspace's extra-folder count. It is sized in `em`, so unlike `md` it
+tracks the text it sits next to, including a side column's own font scaling.
+
+<div class="silo-demo">
+  <span class="silo-badge silo-badge-neutral">3</span>
+  <span class="silo-badge silo-badge-neutral silo-badge-sm">3</span>
+  <span style="width:14px"></span>
+  <span class="silo-badge silo-badge-accent">12</span>
+  <span class="silo-badge silo-badge-accent silo-badge-sm">12</span>
+</div>
+
+```tsx
+<Badge>3</Badge>              {/* md — a badge in its own right */}
+<Badge size="sm">3</Badge>    {/* sm — a count attached to a heading */}
+```
+
+Reach for `sm` when the chip is _part of_ another line of text, `md` when it
+stands alone in a row or cell.
 
 ## Choosing a tone
 

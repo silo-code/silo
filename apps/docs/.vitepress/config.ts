@@ -19,6 +19,7 @@ const typeReference = (typedocSidebar as { text: string }[]).filter(
 const registration = [
   ["registerEditor", "register-editor"],
   ["registerSidePanel", "register-side-panel"],
+  ["registerNavigatorView", "register-navigator-view"],
   ["registerStatusItem", "register-status-item"],
   ["registerCommand", "register-command"],
   ["registerKeybinding", "register-keybinding"],

@@ -26,11 +26,36 @@ ctx.terminals.create({ kind: "claude", workspaceId });
 On [`ctx.terminals`](/api/types/interfaces/TerminalService). Method names link to
 the full signature.
 
-| Method                                                                       | What it does                                                                                                      |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| [`create(input?)`](/api/types/interfaces/TerminalService#create)             | Open a new terminal in a workspace (defaults to the active one). Returns its record.                              |
-| [`closeWorkspace(id)`](/api/types/interfaces/TerminalService#closeworkspace) | Close and kill every terminal in a workspace (e.g. on workspace delete).                                          |
-| [`focus(terminalId)`](/api/types/interfaces/TerminalService#focus)           | Switch to the workspace containing this terminal and activate its tab in the center dock. No-ops for unknown ids. |
+| Method                                                                                 | What it does                                                                                                      |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| [`create(input?)`](/api/types/interfaces/TerminalService#create)                       | Open a new terminal in a workspace (defaults to the active one). Returns its record.                              |
+| [`closeWorkspace(id)`](/api/types/interfaces/TerminalService#closeworkspace)           | Close and kill every terminal in a workspace (e.g. on workspace delete).                                          |
+| [`focus(terminalId)`](/api/types/interfaces/TerminalService#focus)                     | Switch to the workspace containing this terminal and activate its tab in the center dock. No-ops for unknown ids. |
+| [`getTabMenuItems(terminalId)`](/api/types/interfaces/TerminalService#gettabmenuitems) | The terminal's tab context-menu rows — Rename… plus `terminal/tab` contributions.                                 |
+
+## Tab context menu
+
+`getTabMenuItems(terminalId)` returns the rows of that terminal's tab context
+menu — **Rename…**, then any `"terminal/tab"`-surface
+[contributions](/api/registration/register-context-menu-item).
+
+Use it when your own UI lists terminals (an agent list, a session picker) so
+right-clicking a row offers the same actions as right-clicking the tab,
+contributions included, instead of a menu that drifts from it.
+
+```ts
+ctx.ui.showMenu({
+  items: [
+    { label: "Mark as seen", run: () => ctx.agents.acknowledge(id) },
+    { type: "separator" },
+    ...ctx.terminals.getTabMenuItems(id),
+  ],
+  at: { x: e.clientX, y: e.clientY },
+});
+```
+
+Returns an empty array for a terminal no workspace owns. The owner is resolved
+for you, so a surface spanning every workspace can pass any terminal id.
 
 ## Tab adornments
 

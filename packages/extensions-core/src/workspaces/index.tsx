@@ -1,31 +1,30 @@
 import type { Extension } from "@silo-code/sdk";
-import { store, groupIdForWorkspace } from "@silo-code/extension-host/internal";
-import { WorkspacesPanel } from "./WorkspacesPanel";
+import {
+  store,
+  groupIdForWorkspace,
+  homeDir,
+  confirmAndCloseWorkspace,
+} from "@silo-code/extension-host/internal";
+import { WorkspacesView } from "./WorkspacesView";
 import { WorkspaceStatusItem } from "./WorkspaceStatusItem";
 import { registerWorkspaceCycle } from "./workspace-cycle";
 import { openNewGroup } from "./group-properties";
-import { confirmAndCloseWorkspace } from "./workspace-add-menu";
-import { checkMissingExtraFolders } from "./missing-folder-notify";
+import { openWorkspaceProperties } from "./workspace-properties";
 
 export const extension: Extension = {
   id: "core.workspaces",
   activate(ctx) {
-    // Log workspace lifecycle events to the Application output channel, and
-    // (session-lifetime, de-duped per folder) notify if an extra folder no
-    // longer exists on disk — see missing-folder-notify.ts.
+    // Log workspace lifecycle events to the Application output channel.
+    // Missing-extra-folder detection moved to silo.git-explorer (see
+    // notify-missing-folder.ts) — it rides GitView's per-folder status
+    // refresh, which fires far more often than a workspace-activation-only
+    // check ever could.
     let prev = ctx.workspaces.getState();
-    const notifiedMissingFolders = new Set<string>();
-    const initialWs = prev.all.find((w) => w.id === prev.activeId);
-    if (initialWs) {
-      void checkMissingExtraFolders(ctx, initialWs, notifiedMissingFolders);
-    }
     ctx.subscriptions.push(
       ctx.workspaces.subscribe((state) => {
         if (state.activeId !== prev.activeId && state.activeId) {
           const ws = state.all.find((w) => w.id === state.activeId);
           ctx.log.info(`Workspace activated: ${ws?.name ?? state.activeId}`);
-          if (ws)
-            void checkMissingExtraFolders(ctx, ws, notifiedMissingFolders);
         }
         for (const ws of state.all) {
           if (!prev.all.find((p) => p.id === ws.id)) {
@@ -46,14 +45,33 @@ export const extension: Extension = {
       }),
     );
 
-    ctx.registerSidePanel({
+    // The workspace list is a view *of the Navigator* (core.navigator), not a
+    // panel of its own — registered through the same public API a third-party
+    // view uses, so there is exactly one way to add a way to navigate. `order: 0`
+    // makes it the view the Navigator opens with.
+    ctx.registerNavigatorView({
       id: "workspaces",
-      location: "left",
       title: "Workspaces",
-      // Inject ctx so the panel reaches workspaces/terminals/files through the
+      order: 0,
+      // Inject ctx so the view reaches workspaces/terminals/files through the
       // public primitives, not host getters (see silo.file-explorer, 6662dcc).
-      component: () => <WorkspacesPanel ctx={ctx} />,
-      order: 1,
+      // Forward NavigatorViewProps (incl. `active`) so the first Adapter
+      // exercises the same contract a third-party view sees.
+      component: (props) => <WorkspacesView ctx={ctx} {...props} />,
+    });
+
+    // "Add workspace" in the Navigator header. A toolbar contribution rather
+    // than panel chrome, which is what lets core.navigator stay ignorant of
+    // workspaces — and it is deliberately *unscoped* (no `when`), so opening
+    // or creating a workspace stays one click away from whichever view the
+    // user is in.
+    ctx.registerToolbarItem({
+      id: "core.workspaces.add",
+      surface: "navigator",
+      icon: "Plus",
+      label: "Add workspace",
+      tooltip: "Add workspace",
+      menu: () => ctx.workspaces.getOpenWorkspaceMenuItems(),
     });
 
     // Active-workspace name at the bottom-left of the status bar; click pops a
@@ -86,6 +104,27 @@ export const extension: Extension = {
       },
     });
 
+    // Backs the Properties… row the host publishes in
+    // `ctx.workspaces.getWorkspaceMenuItems()`. Dispatching a command is what
+    // lets the host offer the row while this extension keeps owning the modal
+    // (and the property-page tabs registered into it).
+    ctx.registerCommand({
+      id: "workspace.properties",
+      label: "Workspace Properties…",
+      run: (workspaceId) => {
+        const id =
+          typeof workspaceId === "string"
+            ? workspaceId
+            : ctx.workspaces.getState().activeId;
+        if (!id) return;
+        const ws = ctx.workspaces.get(id);
+        if (!ws) return;
+        void homeDir()
+          .catch(() => "")
+          .then((home) => openWorkspaceProperties(ctx, home, ws));
+      },
+    });
+
     ctx.registerCommand({
       id: "workspace.close",
       label: "Close Workspace",
@@ -93,7 +132,7 @@ export const extension: Extension = {
         const { activeId, all } = ctx.workspaces.getState();
         if (!activeId) return;
         const ws = all.find((w) => w.id === activeId);
-        if (ws) void confirmAndCloseWorkspace(ctx, activeId, ws.name);
+        if (ws) void confirmAndCloseWorkspace(activeId, ws.name);
       },
     });
 

@@ -253,8 +253,8 @@ function makePage(ctx: ExtensionContext) {
     const sortedGroups = groupCommands(rows, menuFor);
 
     return (
-      <div className="kb-page">
-        <div className="kb-header">
+      <div className="es-page">
+        <div className="es-header">
           <h2>Keyboard Shortcuts</h2>
           <Tooltip content="More options">
             <IconButton
@@ -271,7 +271,7 @@ function makePage(ctx: ExtensionContext) {
           placeholder="Search commands or keys…"
           autoFocus
         />
-        <div className="kb-list silo-scroll">
+        <div className="es-scroll silo-scroll">
           {sortedGroups.map(([group, cmds]) => (
             <Section key={group} label={group}>
               {cmds.map((c) => {

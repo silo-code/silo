@@ -1,37 +1,8 @@
-.kb-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 12px;
-}
-
-.kb-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: var(--settings-header-height);
-}
-.kb-header h2 {
-  margin: 0;
-  font-size: 1.1em;
-  color: var(--silo-color-text-hi);
-}
-
-/* SearchInput (SDK) spans the page width. */
-.kb-page > .silo-search-input {
-  width: 100%;
-}
-
-.kb-list {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  /* Space between groups; the gap itself separates each Section from the one
-     before it, so no group needs its own top margin. */
-  gap: 20px;
-}
+/* Page chrome (header, search width, scroll/group gap) is the shared
+   `.es-page`/`.es-header`/`.es-scroll` from SettingsDialog.css — this page
+   used to carry its own duplicate copy (`.kb-page`/`.kb-header`/`.kb-list`),
+   which is why its spacing drifted out of sync with every other settings
+   page. Only what's genuinely bespoke to a keybinding row lives here. */
 
 .kb-row {
   display: flex;

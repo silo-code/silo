@@ -218,6 +218,31 @@ fn dispatch<R: Runtime>(app: &AppHandle<R>, body: Value) -> Value {
         return json!({ "ok": true, "result": "pong" });
     }
 
+    // Run one PTY-session maintenance pass immediately, bypassing the real
+    // hourly timer. Pure Rust (`commands::session_maintenance`) — no webview
+    // involved. Exists so integration tests can exercise the real
+    // membership-based reap deterministically instead of waiting out the
+    // real cadence.
+    #[cfg(unix)]
+    if op == "triggerMaintenanceSweep" {
+        crate::commands::session_maintenance::trigger_sweep_now();
+        return json!({ "ok": true, "result": { "triggered": true } });
+    }
+
+    // The already-resolved SILO_DATA_DIR / SILO_CONFIG_ROOT env vars this
+    // process is using (see lib.rs::run()) — lets a test locate the session
+    // registry / workspace files on disk without re-deriving the identity ->
+    // folder mapping a third time in TypeScript.
+    if op == "debugPaths" {
+        return json!({
+            "ok": true,
+            "result": {
+                "dataDir": std::env::var("SILO_DATA_DIR").unwrap_or_default(),
+                "configRoot": std::env::var("SILO_CONFIG_ROOT").unwrap_or_default(),
+            }
+        });
+    }
+
     // Host-side: the webview can't rasterize itself, so we grab the OS window.
     // Returns a base64 PNG the caller can decode and view.
     if op == "screenshot" {

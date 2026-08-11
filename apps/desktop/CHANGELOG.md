@@ -1,5 +1,61 @@
 # Changelog
 
+## [0.45.0](https://github.com/silo-code/silo/compare/silo-v0.44.1...silo-v0.45.0) (2026-08-11)
+
+
+### Features
+
+* **git-explorer:** notify when a worktree is created or its folder goes missing ([#339](https://github.com/silo-code/silo/issues/339)) ([f65bd1c](https://github.com/silo-code/silo/commit/f65bd1ccc74d6531b6c54b37cec8823c30c481d0))
+* **updates:** unify update UI, add in-app changelog and skip-version ([#341](https://github.com/silo-code/silo/issues/341)) ([fd19c10](https://github.com/silo-code/silo/commit/fd19c106342160cf8ab8d9e1bdc393692c6223ec))
+
+## [0.44.1](https://github.com/silo-code/silo/compare/silo-v0.44.0...silo-v0.44.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **pty-host:** reap PTY sessions whose workspace no longer exists ([#336](https://github.com/silo-code/silo/issues/336)) ([a3337cd](https://github.com/silo-code/silo/commit/a3337cd22c3416d6b258f768383ad1f3e804f30b))
+* **pty-host:** stop the maintenance sweep's timer from firing during CI ([#338](https://github.com/silo-code/silo/issues/338)) ([69817be](https://github.com/silo-code/silo/commit/69817be84904fdd5dfa9040f69c671c098acda2a))
+
+## [0.44.0](https://github.com/silo-code/silo/compare/silo-v0.43.1...silo-v0.44.0) (2026-08-09)
+
+
+### Features
+
+* **docs:** show app and SDK changelogs on the docs site ([#335](https://github.com/silo-code/silo/issues/335)) ([7f51c06](https://github.com/silo-code/silo/commit/7f51c06374dce098a486fe7379c5cca0f43cf809))
+* **layout:** add global side panel layout option ([#334](https://github.com/silo-code/silo/issues/334)) ([6beca68](https://github.com/silo-code/silo/commit/6beca6818075d5b7e04e346b533803e65d26f6df))
+
+
+### Bug Fixes
+
+* **file-explorer:** fix rename arrow-key focus loss and follow renamed file in open editors ([#332](https://github.com/silo-code/silo/issues/332)) ([87b64f4](https://github.com/silo-code/silo/commit/87b64f498c7a7d646475a1d38c3a0ed0f141e3bb)), closes [#327](https://github.com/silo-code/silo/issues/327)
+
+## [0.43.1](https://github.com/silo-code/silo/compare/silo-v0.43.0...silo-v0.43.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* **extension-host:** fix cross-workspace, split-dock, and window-refocus tab-focus bugs ([#328](https://github.com/silo-code/silo/issues/328)) ([e0edbff](https://github.com/silo-code/silo/commit/e0edbff758df146a287479a5d92e0e385b2bfca8))
+
+## [0.43.0](https://github.com/silo-code/silo/compare/silo-v0.42.0...silo-v0.43.0) (2026-08-07)
+
+
+### Features
+
+* **layout:** give Laptop Mode its own layout and size side columns in px ([#323](https://github.com/silo-code/silo/issues/323)) ([b1f049d](https://github.com/silo-code/silo/commit/b1f049d8c7c84b42dd46ffb3be14a9e86c34b337))
+* **navigator:** turn Workspaces panel into contributed Navigator views ([#325](https://github.com/silo-code/silo/issues/325)) ([0d3b7f8](https://github.com/silo-code/silo/commit/0d3b7f81b593bba68467a1a9652d201daa72eeed))
+
+## [0.42.0](https://github.com/silo-code/silo/compare/silo-v0.41.0...silo-v0.42.0) (2026-08-04)
+
+
+### Features
+
+* **sdk:** add whole-tab highlight adornment API ([#317](https://github.com/silo-code/silo/issues/317)) ([b98dd86](https://github.com/silo-code/silo/commit/b98dd86c035c7c52bd9bb0cd1591d7b52e6997fa))
+
+
+### Bug Fixes
+
+* **extension-host:** make WorkspaceDock the sole authority on its active panel ([#321](https://github.com/silo-code/silo/issues/321)) ([9492fdd](https://github.com/silo-code/silo/commit/9492fdd01ba544dee684f12fd5dad258051e1771)), closes [#320](https://github.com/silo-code/silo/issues/320)
+
 ## [0.41.0](https://github.com/silo-code/silo/compare/silo-v0.40.0...silo-v0.41.0) (2026-08-01)
 
 

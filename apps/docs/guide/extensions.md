@@ -73,7 +73,8 @@ nothing on disk to remove).
 
 | Extension        | What it adds                                                                           |
 | ---------------- | -------------------------------------------------------------------------------------- |
-| Workspaces       | Workspaces side panel                                                                  |
+| Navigator        | Navigator side panel — the container its views render in                               |
+| Workspaces       | The Workspaces view in the Navigator, plus workspace commands and status               |
 | Terminal         | Terminal tabs in the center dock                                                       |
 | File Explorer    | Files side panel with a file tree                                                      |
 | File Search      | Search side panel for cross-file content search                                        |

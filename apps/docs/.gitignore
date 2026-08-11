@@ -7,3 +7,7 @@
 # copy would go stale between releases, so they're regenerated fresh each build.
 changelog.md
 api/sdk-changelog.md
+
+# Structured JSON copy of the desktop changelog (ADR 0036), consumed by the
+# in-app update modal at https://getsilo.dev/changelog.json. Same rationale.
+public/changelog.json

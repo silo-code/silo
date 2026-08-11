@@ -39,7 +39,13 @@ pub fn cleanup_stale_buffers() -> Result<(), String> {
         Err(_) => return Ok(()), // Dir doesn't exist yet, nothing to clean
     };
 
-    let seven_days_secs = 7 * 24 * 60 * 60;
+    // 90 days, not a week: these buffers are the only way terminal tabs
+    // restore their scrollback after a reboot (a live daemon replays its own
+    // ring, but a reboot kills every daemon). A workspace parked for a month
+    // must come back with its scrollback intact — that persistence is the
+    // product promise, so retention here has to comfortably outlast any
+    // realistic absence.
+    let max_age_secs = 90 * 24 * 60 * 60;
 
     for entry in fs::read_dir(&dir).map_err(|e| format!("Failed to read dir: {}", e))? {
         let entry = entry.map_err(|e| format!("Dir entry error: {}", e))?;
@@ -52,7 +58,7 @@ pub fn cleanup_stale_buffers() -> Result<(), String> {
             if let Ok(metadata) = fs::metadata(&path) {
                 if let Ok(modified) = metadata.modified() {
                     if let Ok(elapsed) = modified.elapsed() {
-                        if elapsed.as_secs() > seven_days_secs {
+                        if elapsed.as_secs() > max_age_secs {
                             let _ = fs::remove_file(&path);
                         }
                     }
@@ -83,6 +89,78 @@ mod tests {
         save_buffer("s1", "scrollback\x1b[0m").unwrap();
         assert!(root.join("terminal-buffers/s1.term").exists());
         assert_eq!(load_buffer("s1").as_deref(), Ok("scrollback\x1b[0m"));
+
+        std::env::remove_var("SILO_DATA_DIR");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Backdate `path`'s mtime by `ago`. Raw `libc::utimes` rather than a new
+    /// dependency for one call — same approach used elsewhere in this repo
+    /// for exactly this (`crates/pty-host`'s daemon tests).
+    fn backdate_mtime(path: &std::path::Path, ago: std::time::Duration) {
+        let target = std::time::SystemTime::now() - ago;
+        let epoch = target
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap();
+        let tv = libc::timeval {
+            tv_sec: epoch.as_secs() as libc::time_t,
+            tv_usec: epoch.subsec_micros() as libc::suseconds_t,
+        };
+        let times = [tv, tv];
+        let c_path = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).unwrap();
+        let rc = unsafe { libc::utimes(c_path.as_ptr(), times.as_ptr()) };
+        assert_eq!(rc, 0, "utimes({path:?})");
+    }
+
+    #[test]
+    fn cleanup_retains_90_days_but_purges_older() {
+        let _g = super::super::app_paths::env_lock();
+        let mut root = std::env::temp_dir();
+        root.push(format!("silo-buffer-cleanup-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        std::env::set_var("SILO_DATA_DIR", &root);
+
+        save_buffer("fresh", "still watching this one").unwrap();
+        save_buffer("month-old", "a month\x1b[0m of\x1b[0m idle").unwrap();
+        save_buffer("ancient", "predates the fix").unwrap();
+        save_buffer("ancient-legacy", "old raw-capture format").unwrap();
+
+        let dir = root.join("terminal-buffers");
+        // Within the 90-day retention (the exact scenario this change exists
+        // for: a workspace parked for a month, not touched).
+        backdate_mtime(
+            &dir.join("month-old.term"),
+            std::time::Duration::from_secs(30 * 24 * 60 * 60),
+        );
+        // Past the new 90-day threshold — must still be purged, not kept
+        // forever just because the threshold grew.
+        backdate_mtime(
+            &dir.join("ancient.term"),
+            std::time::Duration::from_secs(91 * 24 * 60 * 60),
+        );
+        let legacy_bin = dir.join("ancient-legacy.term");
+        let legacy_bin = {
+            let renamed = dir.join("ancient-legacy.bin");
+            fs::rename(&legacy_bin, &renamed).unwrap();
+            renamed
+        };
+        backdate_mtime(&legacy_bin, std::time::Duration::from_secs(91 * 24 * 60 * 60));
+
+        cleanup_stale_buffers().unwrap();
+
+        assert!(dir.join("fresh.term").exists(), "fresh buffer must survive");
+        assert!(
+            dir.join("month-old.term").exists(),
+            "a month-old buffer must survive the new 90-day retention"
+        );
+        assert!(
+            !dir.join("ancient.term").exists(),
+            "a 91-day-old buffer must still be purged"
+        );
+        assert!(
+            !legacy_bin.exists(),
+            "legacy .bin buffers are purged by the same threshold"
+        );
 
         std::env::remove_var("SILO_DATA_DIR");
         let _ = fs::remove_dir_all(&root);

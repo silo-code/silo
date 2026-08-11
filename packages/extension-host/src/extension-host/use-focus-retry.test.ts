@@ -45,7 +45,11 @@ describe("retryFocus", () => {
   it("re-grabs each frame until focus lands, then stops grabbing", () => {
     const focus = vi.fn();
     let focused = false;
-    retryFocus(focus, () => focused);
+    retryFocus(
+      focus,
+      () => focused,
+      () => true,
+    );
 
     flushFrame(); // not focused → grab
     flushFrame(); // still not focused → grab
@@ -54,6 +58,32 @@ describe("retryFocus", () => {
     focused = true;
     flushFrame(); // landed → no further grab
     expect(focus).toHaveBeenCalledTimes(2);
+  });
+
+  // Regression guard for symptom 1 (ADR 0034): a panel that merely re-mounts
+  // in the background — which happens to every panel of a workspace whose dock
+  // becomes visible again — must not grab focus from the tab the user actually
+  // left active. `stillWanted` is required precisely so a mount-time caller
+  // can't silently omit it and grab unconditionally.
+  it("never grabs on mount when the panel is not the active tab", () => {
+    const focus = vi.fn();
+    let isActive = false; // this panel re-mounted in the background
+    retryFocus(
+      focus,
+      () => false, // never reports focused → would grab every frame if unguarded
+      () => isActive,
+    );
+
+    flushFrame();
+    flushFrame();
+    expect(focus).not.toHaveBeenCalled();
+
+    // …and it stays bailed even if the panel becomes active later: the loop
+    // ended, so activation focus is the active tab's own concern, not a
+    // stale mount-time retry's.
+    isActive = true;
+    flushFrame();
+    expect(focus).not.toHaveBeenCalled();
   });
 
   it("never grabs when superseded before the first frame", () => {

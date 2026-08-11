@@ -39,11 +39,17 @@ jobs:
           components: clippy
       - uses: swatinem/rust-cache@v2
         with:
-          workspaces: "./apps/desktop/src-tauri -> target"
+          workspaces: |
+            ./apps/desktop/src-tauri -> target
+            ./crates/pty-host -> target
       - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
       # Informational for now — pre-existing warnings are cleaned in the
       # module-decomposition pass. Not `-D warnings` yet.
       - run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets
+      # crates/pty-host is a standalone crate (own Cargo.lock, no root
+      # workspace), so it needs its own test/clippy invocation.
+      - run: cargo test --manifest-path crates/pty-host/Cargo.toml
+      - run: cargo clippy --manifest-path crates/pty-host/Cargo.toml --all-targets
 
   pr-title:
     if: github.event_name == 'pull_request'

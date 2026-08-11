@@ -18,6 +18,10 @@ ctx.registerSidePanel({
 });
 ```
 
+If your panel would be _another way to navigate the app_, register a
+[Navigator view](/api/registration/register-navigator-view) instead — two
+navigators side by side leave the user with no rule for which one to trust.
+
 ## Types
 
 Pass [`SidePanel`](/api/types/interfaces/SidePanel).

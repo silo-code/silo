@@ -8,21 +8,29 @@ import {
   DEFAULT_TERMINAL_SETTINGS,
   DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
   DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
+  DEFAULT_GLOBAL_PANEL_LAYOUT,
 } from "./types";
 import type { WorkspaceInternal } from "./types";
+import { migratePanelIds } from "./panel-id-migration";
 import { loadPanelStateFromWorkspace } from "./workspaces";
+import {
+  capturePanelState,
+  captureGlobalPanelLayout,
+  applyGlobalPanelLayout,
+} from "./panel-state";
 import { setBackupDir, sweepEditorBackups } from "./editor-backups";
 import {
   buildIndex,
   cloneExtensionState,
   cloneAgentState,
+  cloneGlobalPanelLayout,
   diffWorkspaceWrites,
   reconcilePanelOrder,
   reconcileWorkspaceListing,
   splitPersistedState,
   withActivePanelState,
+  withActiveNonGlobalPanelState,
   type LegacyPersisted,
-  type PanelState,
   type PersistedIndex,
 } from "./persistence-model";
 
@@ -150,6 +158,14 @@ export async function hydrate(configDir: string): Promise<void> {
     store.agentState = index.agentState
       ? cloneAgentState(index.agentState)
       : {};
+    store.globalPanelLayoutEnabled = index.globalPanelLayoutEnabled ?? false;
+    store.globalActiveTabEnabled = index.globalActiveTabEnabled ?? false;
+    store.globalPanelLayout = index.globalPanelLayout
+      ? cloneGlobalPanelLayout(index.globalPanelLayout)
+      : structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT);
+    store.globalActiveSidePanelTabs = index.globalActiveSidePanelTabs
+      ? { ...index.globalActiveSidePanelTabs }
+      : {};
   }
 
   // One file per workspace. Invalid files are skipped (like the theme loader),
@@ -164,7 +180,7 @@ export async function hydrate(configDir: string): Promise<void> {
           const s = await load(e.path, STORE_OPTS);
           const ws = await s.get<WorkspaceInternal>(WORKSPACE_KEY);
           if (ws && typeof ws.id === "string") {
-            workspaces[ws.id] = ws;
+            workspaces[ws.id] = migratePanelIds(ws);
             wsStores.set(ws.id, s);
           } else {
             await s.close();
@@ -207,37 +223,34 @@ export async function hydrate(configDir: string): Promise<void> {
     Object.entries(workspaces).map(([id, ws]) => [id, JSON.stringify(ws)]),
   );
 
-  // Hydrate the global panel-state fields from the active workspace.
+  // Hydrate the global panel-state fields from the active workspace. Side-dock
+  // collapse state is per-workspace; back-fill it from the index first for a
+  // one-time migration carry-over from installs that stored it globally, so
+  // the load below (which picks the live layout mode — small-screen mode may
+  // already be active by now) sees a complete record.
   const activeWs = store.activeWorkspaceId
     ? workspaces[store.activeWorkspaceId]
     : null;
-  if (activeWs) loadPanelStateFromWorkspace(activeWs);
-
-  // Side-dock collapse state is per-workspace. Fall back to the index for a
-  // one-time migration carry-over from installs that stored it globally.
-  store.leftPanelCollapsed =
-    activeWs?.leftPanelCollapsed ?? index?.leftPanelCollapsed ?? false;
-  store.rightPanelCollapsed =
-    activeWs?.rightPanelCollapsed ?? index?.rightPanelCollapsed ?? false;
+  if (activeWs) {
+    activeWs.leftPanelCollapsed ??= index?.leftPanelCollapsed ?? false;
+    activeWs.rightPanelCollapsed ??= index?.rightPanelCollapsed ?? false;
+    loadPanelStateFromWorkspace(activeWs);
+  }
 
   // Side-panel visibility is per-workspace, restored from the active workspace
   // by loadPanelStateFromWorkspace above (defaults to all-visible when absent).
 
+  // Global Side Panel Layout (ADR 0035): loadPanelStateFromWorkspace above
+  // deliberately leaves arrangement fields alone when the flag is on (an
+  // ordinary switch mustn't clobber a live edit against a stale snapshot —
+  // see its doc comment), so seed them once here, at startup, from the
+  // record just read out of the index.
+  if (store.globalPanelLayoutEnabled) {
+    applyGlobalPanelLayout(store.globalPanelLayout);
+  }
+
   store.hydrated = true;
   subscribe(store, schedulePersist);
-}
-
-function snapshotPanelState(): PanelState {
-  return {
-    sidePanelLocations: { ...store.sidePanelLocations },
-    sidePanelOrder: { ...store.sidePanelOrder },
-    activeSidePanelTabs: { ...store.activeSidePanelTabs },
-    sidePanelScrollPositions: { ...store.sidePanelScrollPositions },
-    sidePanelVisibility: { ...store.sidePanelVisibility },
-    extensionState: cloneExtensionState(store.extensionState),
-    leftPanelCollapsed: store.leftPanelCollapsed,
-    rightPanelCollapsed: store.rightPanelCollapsed,
-  };
 }
 
 async function doPersist(): Promise<void> {
@@ -246,11 +259,23 @@ async function doPersist(): Promise<void> {
   // Build each workspace's record, merging the active workspace's live panel
   // state (it isn't mirrored onto the workspace object until save time).
   const activeId = store.activeWorkspaceId;
-  const panel = snapshotPanelState();
+  const panel = capturePanelState();
   const records = new Map<string, WorkspaceInternal>();
   const next = new Map<string, string>();
   for (const [id, ws] of Object.entries(store.workspaces)) {
-    const rec = id === activeId ? withActivePanelState(ws, panel) : { ...ws };
+    // While the global panel layout is on, the active workspace's own
+    // arrangement fields must stay exactly as they are on disk (frozen) —
+    // only merge in the fields that stay per-workspace regardless.
+    const rec =
+      id === activeId
+        ? store.globalPanelLayoutEnabled
+          ? withActiveNonGlobalPanelState(
+              ws,
+              panel,
+              store.globalActiveTabEnabled,
+            )
+          : withActivePanelState(ws, panel)
+        : { ...ws };
     records.set(id, rec);
     next.set(id, JSON.stringify(rec));
   }
@@ -299,6 +324,17 @@ async function doPersist(): Promise<void> {
       agentState: store.agentState,
       groups: store.groups,
       panelOrder: [...store.panelOrder],
+      globalPanelLayoutEnabled: store.globalPanelLayoutEnabled,
+      globalActiveTabEnabled: store.globalActiveTabEnabled,
+      // While the flag is on, live state is the source of truth; while off,
+      // `store.globalPanelLayout`/`globalActiveSidePanelTabs` already hold
+      // the frozen value from when it was last turned off.
+      globalPanelLayout: store.globalPanelLayoutEnabled
+        ? captureGlobalPanelLayout()
+        : store.globalPanelLayout,
+      globalActiveSidePanelTabs: store.globalActiveTabEnabled
+        ? { ...store.activeSidePanelTabs }
+        : store.globalActiveSidePanelTabs,
     }),
   );
   await indexStore.save();

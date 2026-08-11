@@ -4,7 +4,7 @@
 type TerminalTabDecoration = TabIndicatorContribution;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:39](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L39)
+Defined in: [packages/sdk/src/terminal-service.ts:40](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L40)
 
 ## Deprecated
 

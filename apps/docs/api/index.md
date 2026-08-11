@@ -30,6 +30,7 @@ Add things to the app. Each method takes a typed object and returns a
 | ----------------------------------------------------------------------------- | -------------------------------------------------------- |
 | [`ctx.registerEditor`](/api/registration/register-editor)                     | an editor (presenter) for a file type                    |
 | [`ctx.registerSidePanel`](/api/registration/register-side-panel)              | a left/right column panel                                |
+| [`ctx.registerNavigatorView`](/api/registration/register-navigator-view)      | a view in the Navigator panel                            |
 | [`ctx.registerStatusItem`](/api/registration/register-status-item)            | a status-bar widget                                      |
 | [`ctx.registerCommand`](/api/registration/register-command)                   | a named, invokable action                                |
 | [`ctx.registerKeybinding`](/api/registration/register-keybinding)             | a shortcut bound to a command                            |

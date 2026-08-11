@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import type { WorkspaceInternal } from "./types";
 
 // removeEditor fire-and-forgets a backup clear; mock the backup module so the
@@ -10,7 +10,9 @@ vi.mock("./editor-backups", () => ({
 import { store } from "./store";
 import {
   openEditor,
+  openDiff,
   removeEditor,
+  retargetEditorsForRename,
   savePanelStateToWorkspace,
   loadPanelStateFromWorkspace,
   activateWorkspace,
@@ -18,8 +20,13 @@ import {
   getEditorSettingOverride,
   addExtraFolder,
   removeExtraFolder,
+  setGlobalPanelLayoutEnabled,
+  setGlobalActiveTabEnabled,
+  hasSavedGlobalPanelLayout,
+  enableGlobalPanelLayout,
 } from "./workspaces";
 import { clearEditorBackup } from "./editor-backups";
+import { DEFAULT_GLOBAL_PANEL_LAYOUT } from "./types";
 
 function makeWorkspace(id: string): WorkspaceInternal {
   return {
@@ -52,6 +59,69 @@ describe("removeEditor", () => {
   it("does nothing for an unknown editor id", () => {
     expect(removeEditor("w", "nope")).toBeNull();
     expect(clearEditorBackup).not.toHaveBeenCalled();
+  });
+});
+
+describe("retargetEditorsForRename", () => {
+  it("repoints an open editor at the renamed file, updating its title", () => {
+    const rec = openEditor("w", "/ws/w/a.ts");
+    retargetEditorsForRename("/ws/w/a.ts", "/ws/w/b.ts");
+    expect(rec.filePath).toBe("/ws/w/b.ts");
+    expect(rec.title).toBe("b.ts");
+  });
+
+  it("repoints every editor nested under a renamed directory", () => {
+    const inner = openEditor("w", "/ws/w/old-dir/nested/c.ts");
+    const direct = openEditor("w", "/ws/w/old-dir/d.ts");
+    retargetEditorsForRename("/ws/w/old-dir", "/ws/w/new-dir");
+    expect(inner.filePath).toBe("/ws/w/new-dir/nested/c.ts");
+    expect(direct.filePath).toBe("/ws/w/new-dir/d.ts");
+  });
+
+  it("leaves editors for unrelated paths untouched", () => {
+    const rec = openEditor("w", "/ws/w/other.ts");
+    retargetEditorsForRename("/ws/w/a.ts", "/ws/w/b.ts");
+    expect(rec.filePath).toBe("/ws/w/other.ts");
+  });
+
+  it("does not retarget a diff-mode editor pinned to the old path", () => {
+    const diffRec = openDiff("w", {
+      filePath: "/ws/w/a.ts",
+      providerId: "silo.git",
+    });
+    retargetEditorsForRename("/ws/w/a.ts", "/ws/w/b.ts");
+    expect(diffRec.filePath).toBe("/ws/w/a.ts");
+  });
+
+  it("fires app:update-editor-title so the dockview tab picks up the new name", () => {
+    const rec = openEditor("w", "/ws/w/a.ts");
+    const seen: { editorId: string; title: string }[] = [];
+    const listener = (e: Event) =>
+      seen.push((e as CustomEvent<{ editorId: string; title: string }>).detail);
+    window.addEventListener("app:update-editor-title", listener);
+    try {
+      retargetEditorsForRename("/ws/w/a.ts", "/ws/w/b.ts");
+    } finally {
+      window.removeEventListener("app:update-editor-title", listener);
+    }
+    expect(seen).toEqual([{ editorId: rec.id, title: "b.ts" }]);
+  });
+
+  it("spans workspaces", () => {
+    store.workspaces = {
+      ...store.workspaces,
+      w2: (() => {
+        const ws = { ...(store.workspaces.w as WorkspaceInternal) };
+        ws.id = "w2";
+        ws.folder = "/ws/w2";
+        ws.editors = [];
+        return ws;
+      })(),
+    };
+    store.workspaceOrder = ["w", "w2"];
+    const rec = openEditor("w2", "/ws/w2/a.ts");
+    retargetEditorsForRename("/ws/w2/a.ts", "/ws/w2/b.ts");
+    expect(rec.filePath).toBe("/ws/w2/b.ts");
   });
 });
 
@@ -99,6 +169,87 @@ describe("side-panel visibility is per-workspace", () => {
     // And w2 kept its own.
     activateWorkspace("w2");
     expect(store.sidePanelVisibility).toEqual({ git: false });
+  });
+});
+
+describe("the two side-column layout modes are per-workspace", () => {
+  beforeEach(() => {
+    store.leftPanelCollapsed = false;
+    store.rightPanelCollapsed = false;
+    store.smallScreenActive = false;
+    store.inactiveModeCollapsed = null;
+  });
+
+  afterEach(() => {
+    store.smallScreenActive = false;
+    store.inactiveModeCollapsed = null;
+  });
+
+  it("saves the live state as the normal-width layout on a normal-width window", () => {
+    store.leftPanelCollapsed = true;
+    savePanelStateToWorkspace("w");
+    expect(store.workspaces.w.leftPanelCollapsed).toBe(true);
+    expect(store.workspaces.w.rightPanelCollapsed).toBe(false);
+    // Nothing recorded for small-screen mode yet — the key stays absent.
+    expect(store.workspaces.w.smallScreenCollapsed).toBeUndefined();
+  });
+
+  it("saves the live state as the small-screen layout while narrow, leaving the other alone", () => {
+    store.smallScreenActive = true;
+    store.inactiveModeCollapsed = { left: false, right: false };
+    store.leftPanelCollapsed = false;
+    store.rightPanelCollapsed = true;
+
+    savePanelStateToWorkspace("w");
+    expect(store.workspaces.w.leftPanelCollapsed).toBe(false);
+    expect(store.workspaces.w.rightPanelCollapsed).toBe(false);
+    expect(store.workspaces.w.smallScreenCollapsed).toEqual({
+      left: false,
+      right: true,
+    });
+  });
+
+  it("loads the live mode's layout and parks the other one", () => {
+    store.workspaces.w.leftPanelCollapsed = true;
+    store.workspaces.w.rightPanelCollapsed = false;
+    store.workspaces.w.smallScreenCollapsed = { left: false, right: true };
+
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.leftPanelCollapsed).toBe(true); // normal-width layout
+    expect(store.inactiveModeCollapsed).toEqual({ left: false, right: true });
+
+    store.smallScreenActive = true;
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.leftPanelCollapsed).toBe(false); // small-screen layout
+    expect(store.rightPanelCollapsed).toBe(true);
+    expect(store.inactiveModeCollapsed).toEqual({ left: true, right: false });
+  });
+
+  it("starts a workspace that has never been narrow with both columns hidden", () => {
+    store.smallScreenActive = true;
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.leftPanelCollapsed).toBe(true);
+    expect(store.rightPanelCollapsed).toBe(true);
+  });
+
+  it("keeps each workspace's small-screen layout across a switch and back", () => {
+    store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
+    store.workspaceOrder = ["w", "w2"];
+    store.activeWorkspaceId = "w";
+    store.smallScreenActive = true;
+    store.inactiveModeCollapsed = { left: false, right: false };
+    store.leftPanelCollapsed = true;
+    store.rightPanelCollapsed = true;
+
+    // Open the left column on the narrow window, then go look at w2...
+    store.leftPanelCollapsed = false;
+    activateWorkspace("w2");
+    expect(store.leftPanelCollapsed).toBe(true); // w2's own (fresh) layout
+
+    // ...and back: w's narrow-window layout is exactly as it was left.
+    activateWorkspace("w");
+    expect(store.leftPanelCollapsed).toBe(false);
+    expect(store.rightPanelCollapsed).toBe(true);
   });
 });
 
@@ -153,6 +304,173 @@ describe("extra folders", () => {
   it("no-ops for an unknown workspace", () => {
     expect(() => addExtraFolder("nope", "/x")).not.toThrow();
     expect(() => removeExtraFolder("nope", "/x")).not.toThrow();
+  });
+});
+
+describe("global side panel layout (ADR 0035)", () => {
+  beforeEach(() => {
+    store.sidePanelLocations = {};
+    store.sidePanelVisibility = {};
+    store.activeSidePanelTabs = {};
+    store.leftPanelCollapsed = false;
+    store.rightPanelCollapsed = false;
+    store.globalPanelLayoutEnabled = false;
+    store.globalActiveTabEnabled = false;
+    store.globalPanelLayout = structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT);
+    store.globalActiveSidePanelTabs = {};
+  });
+
+  it("enabling seeds the global layout from what's currently live", () => {
+    store.sidePanelLocations = { explorer: "left" };
+    store.sidePanelVisibility = { themes: false };
+    store.leftPanelCollapsed = true;
+
+    setGlobalPanelLayoutEnabled(true);
+
+    expect(store.globalPanelLayout.sidePanelLocations).toEqual({
+      explorer: "left",
+    });
+    expect(store.globalPanelLayout.sidePanelVisibility).toEqual({
+      themes: false,
+    });
+    expect(store.globalPanelLayout.leftPanelCollapsed).toBe(true);
+  });
+
+  it("disabling restores the active workspace's own frozen arrangement, unaffected by edits made while global was on", () => {
+    store.sidePanelLocations = { explorer: "left" };
+    savePanelStateToWorkspace("w"); // freeze w's arrangement before enabling
+
+    setGlobalPanelLayoutEnabled(true);
+    store.sidePanelLocations = { explorer: "right" }; // live edit while shared
+
+    setGlobalPanelLayoutEnabled(false);
+    expect(store.sidePanelLocations).toEqual({ explorer: "left" });
+    expect(store.workspaces.w.sidePanelLocations).toEqual({
+      explorer: "left",
+    });
+  });
+
+  it("disabling seeds a workspace created while the flag was on from the global record", () => {
+    setGlobalPanelLayoutEnabled(true);
+    store.sidePanelLocations = { explorer: "right" };
+
+    // A workspace created while global mode is on has no arrangement yet.
+    store.workspaces.w2 = makeWorkspace("w2");
+    store.workspaceOrder.push("w2");
+    expect(store.workspaces.w2.sidePanelLocations).toBeUndefined();
+
+    setGlobalPanelLayoutEnabled(false);
+
+    expect(store.workspaces.w2.sidePanelLocations).toEqual({
+      explorer: "right",
+    });
+  });
+
+  it("shares live arrangement edits across every workspace while enabled", () => {
+    store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
+    store.workspaceOrder = ["w", "w2"];
+    store.activeWorkspaceId = "w";
+    store.workspaces.w.sidePanelLocations = { explorer: "left" };
+    store.workspaces.w2.sidePanelLocations = { explorer: "right" };
+
+    setGlobalPanelLayoutEnabled(true);
+    store.sidePanelLocations = { explorer: "right" }; // a live edit
+
+    activateWorkspace("w2");
+    // w2 shows the shared edit, not its own (now-frozen, unused) arrangement.
+    expect(store.sidePanelLocations).toEqual({ explorer: "right" });
+  });
+
+  it("the active-tab sub-setting only takes effect while the main flag is on, and keeps its stored value when the main flag is disabled", () => {
+    store.activeSidePanelTabs = { left: "explorer" };
+    setGlobalPanelLayoutEnabled(true);
+    setGlobalActiveTabEnabled(true);
+    expect(store.globalActiveSidePanelTabs).toEqual({ left: "explorer" });
+
+    setGlobalPanelLayoutEnabled(false);
+    expect(store.globalActiveTabEnabled).toBe(true); // preserved, just inert
+
+    setGlobalPanelLayoutEnabled(true);
+    expect(store.globalActiveTabEnabled).toBe(true); // re-takes effect, no re-opt-in
+  });
+
+  it("shares activeSidePanelTabs across workspaces only when its sub-setting is also on", () => {
+    store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
+    store.workspaceOrder = ["w", "w2"];
+    store.activeWorkspaceId = "w";
+    store.workspaces.w.activeSidePanelTabs = { left: "explorer" };
+    store.workspaces.w2.activeSidePanelTabs = { left: "search" };
+
+    setGlobalPanelLayoutEnabled(true);
+    // Not shared yet — each workspace keeps its own active tab.
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.activeSidePanelTabs).toEqual({ left: "explorer" });
+    loadPanelStateFromWorkspace(store.workspaces.w2);
+    expect(store.activeSidePanelTabs).toEqual({ left: "search" });
+
+    setGlobalActiveTabEnabled(true); // seeds from what's currently live (w2's)
+    loadPanelStateFromWorkspace(store.workspaces.w);
+    expect(store.activeSidePanelTabs).toEqual({ left: "search" });
+  });
+
+  describe("hasSavedGlobalPanelLayout", () => {
+    it("is false for a fresh/default record", () => {
+      expect(hasSavedGlobalPanelLayout()).toBe(false);
+    });
+
+    it("is true once a previous enable/disable cycle has left something behind", () => {
+      store.sidePanelLocations = { explorer: "left" };
+      setGlobalPanelLayoutEnabled(true);
+      setGlobalPanelLayoutEnabled(false);
+      expect(hasSavedGlobalPanelLayout()).toBe(true);
+    });
+  });
+
+  describe("enableGlobalPanelLayout", () => {
+    it('"current" captures fresh from live, discarding any previously-saved layout', () => {
+      store.sidePanelLocations = { explorer: "left" };
+      setGlobalPanelLayoutEnabled(true);
+      setGlobalPanelLayoutEnabled(false); // saves { explorer: "left" } as the shared record
+
+      store.sidePanelLocations = { explorer: "right" }; // a different arrangement now
+      enableGlobalPanelLayout("current");
+      expect(store.globalPanelLayout.sidePanelLocations).toEqual({
+        explorer: "right",
+      });
+      expect(store.sidePanelLocations).toEqual({ explorer: "right" });
+    });
+
+    it('"previous" applies the saved record to live without re-capturing it', () => {
+      store.sidePanelLocations = { explorer: "left" };
+      setGlobalPanelLayoutEnabled(true);
+      setGlobalPanelLayoutEnabled(false); // saves { explorer: "left" }
+
+      store.sidePanelLocations = { explorer: "right" }; // live has since changed
+      enableGlobalPanelLayout("previous");
+      expect(store.sidePanelLocations).toEqual({ explorer: "left" });
+      expect(store.globalPanelLayout.sidePanelLocations).toEqual({
+        explorer: "left",
+      });
+    });
+
+    it('"previous" also restores the saved active-tab map when the sub-setting is on', () => {
+      store.sidePanelLocations = { explorer: "left" };
+      store.activeSidePanelTabs = { left: "explorer" };
+      setGlobalActiveTabEnabled(true);
+      setGlobalPanelLayoutEnabled(true);
+      setGlobalPanelLayoutEnabled(false); // saves globalActiveSidePanelTabs too
+
+      store.activeSidePanelTabs = { left: "search" }; // live has since changed
+      enableGlobalPanelLayout("previous");
+      expect(store.activeSidePanelTabs).toEqual({ left: "explorer" });
+    });
+
+    it("is a no-op if already enabled", () => {
+      setGlobalPanelLayoutEnabled(true);
+      store.sidePanelLocations = { explorer: "left" };
+      enableGlobalPanelLayout("current"); // should not re-seed while already on
+      expect(store.globalPanelLayout.sidePanelLocations).toEqual({});
+    });
   });
 });
 

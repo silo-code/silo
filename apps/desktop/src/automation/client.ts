@@ -57,6 +57,15 @@ export interface ActiveElement {
   isTextarea: boolean;
   inMonaco: boolean;
   inXterm: boolean;
+  /**
+   * False both when focus is on a backgrounded workspace's (hidden) dock
+   * content AND when focus isn't inside any dock at all — those are very
+   * different outcomes. Use {@link ActiveElement.inBackgroundDockHost} to
+   * tell them apart rather than asserting on this field alone.
+   */
+  inActiveDockHost: boolean;
+  /** True specifically when focus landed inside a backgrounded dock-host. */
+  inBackgroundDockHost: boolean;
 }
 
 /** A single serialisable log entry from the `outputLogs` op. */
@@ -187,6 +196,27 @@ export class SiloAutomation {
     return this.call("processAlive", { sessionId });
   }
 
+  /**
+   * Run one PTY-session maintenance pass immediately, bypassing the real
+   * hourly timer — answered host-side, no webview round-trip. Lets a test
+   * exercise the real membership-based reap (a session with no workspace
+   * referencing it is killed after being seen unreferenced on two
+   * consecutive sweeps) deterministically instead of waiting out the real
+   * cadence.
+   */
+  triggerMaintenanceSweep(): Promise<{ triggered: boolean }> {
+    return this.call("triggerMaintenanceSweep");
+  }
+
+  /**
+   * This process's resolved `SILO_DATA_DIR` / `SILO_CONFIG_ROOT` — answered
+   * host-side. Lets a test locate the session registry / workspace files on
+   * disk without re-deriving the identity → folder mapping itself.
+   */
+  debugPaths(): Promise<{ dataDir: string; configRoot: string }> {
+    return this.call("debugPaths");
+  }
+
   /** Terminal tab records for a workspace (defaults to the active one). */
   listTerminals(workspaceId?: string): Promise<{
     terminals: {
@@ -240,8 +270,16 @@ export class SiloAutomation {
     return this.call("openDiff", spec);
   }
 
-  openTerminal(cwd?: string): Promise<{ terminalId: string; panelId: string }> {
-    return this.call("openTerminal", { cwd });
+  /**
+   * `workspaceId` defaults to the active workspace; pass another one to add a
+   * terminal to a *backgrounded* workspace (e.g. simulating an agent spawning
+   * a terminal in a workspace the user isn't looking at).
+   */
+  openTerminal(
+    cwd?: string,
+    workspaceId?: string,
+  ): Promise<{ terminalId: string; panelId: string }> {
+    return this.call("openTerminal", { cwd, workspaceId });
   }
 
   /**
@@ -306,6 +344,51 @@ export class SiloAutomation {
 
   activatePanel(panelId: string): Promise<{ activated: string }> {
     return this.call("activatePanel", { panelId });
+  }
+
+  /**
+   * Drive `ctx.terminals.focus(terminalId)` — the public API an extension's side
+   * panel calls. Unlike {@link activatePanel} this covers the cross-workspace
+   * jump (switch to the terminal's workspace, then land on its tab).
+   */
+  focusTerminal(terminalId: string): Promise<{ focused: string }> {
+    return this.call("focusTerminal", { terminalId });
+  }
+
+  /**
+   * Reproduce an extension calling `ctx.workspaces.activate(workspaceId)`
+   * immediately followed by `ctx.terminals.focus(terminalId)` — the ordering
+   * agent-inspector's Navigator row click (and, per RFC 0023, the real
+   * agent-monitor extension) uses. This is the shape that drops the
+   * cross-workspace activation request when the two calls race with
+   * `WorkspaceDock`'s own dock-mount commit. See ADR 0034.
+   */
+  activateThenFocusTerminal(
+    workspaceId: string,
+    terminalId: string,
+  ): Promise<{ focused: string }> {
+    return this.call("activateThenFocusTerminal", { workspaceId, terminalId });
+  }
+
+  /**
+   * The panel id the visible center dock is showing, straight from dockview —
+   * the ground truth for "which tab am I on", and for watching whether it stays
+   * put.
+   */
+  activePanel(): Promise<{ panelId: string | null }> {
+    return this.call("activePanel");
+  }
+
+  /**
+   * Simulate the window regaining OS focus by calling the same
+   * `restoreRegionFocus()` Tauri's real `onFocusChanged` handler calls.
+   * Returns what focus landed on afterward plus which panel the active dock
+   * now shows, so a test can catch it dragging the active tab along with it.
+   */
+  restoreRegionFocus(): Promise<
+    (ActiveElement & { activePanelId: string | null }) | null
+  > {
+    return this.call("restoreRegionFocus");
   }
 
   /**

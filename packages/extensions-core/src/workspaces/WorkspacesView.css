@@ -1,11 +1,15 @@
+/* The Workspaces view — the workspace list rendered inside the Navigator
+   (core.navigator owns the panel shell, its header and the view switching).
+   Deliberately not its own scroll container: the host `.tab-pane` above the
+   Navigator stays the sole scroller. */
 .workspaces-body {
-  padding: 0;
-  /* Fill the scrolling tab-pane so the panel's empty area (below the last
-     entry, down to the add button) is part of this element — it carries the
-     "drop at the end" drag handler, so a drop anywhere below the list still
-     lands. Without this the body is only content-tall and drops fall through
-     to the host tab-pane, which has no drop handler. */
+  /* Fill the height the Navigator hands this view so the empty area below the
+     last entry still belongs to it — that area carries the "drop at the end"
+     drag handler, so a drop anywhere below the list still lands. Without it the
+     body is only content-tall and drops fall through to the host tab-pane,
+     which has no drop handler. */
   min-height: 100%;
+  padding: 0;
 }
 
 .workspaces-body .placeholder.empty {
@@ -15,35 +19,15 @@
   align-items: flex-start;
 }
 
-.ws-add-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin: 6px 8px 10px;
-  padding: 6px 10px;
-  background: transparent;
-  border: 1px dashed var(--silo-color-border);
-  border-radius: var(--silo-radius-sm);
-  color: var(--silo-color-text);
-  font-family: var(--silo-font-ui);
-  cursor: pointer;
-}
-
-.ws-add-btn:hover {
-  background: var(--silo-color-bg-hover);
-  color: var(--silo-color-text-hi);
-  border-color: transparent;
-}
-
 .ws-list {
   list-style: none;
   margin: 0;
-  /* Top padding gives the "drop before the first entry" line room so it isn't
-     clipped by the pane top (a group's line sits at -7px), and doubles as the
-     top catch-all zone. Bottom padding is the always-present drop-at-the-end
-     strip below the last entry. */
-  padding: 12px 0 24px;
+  /* Small top padding is the "drop before the first entry" catch-all zone (a
+     group's line sits at -7px, which the Navigator header above absorbs — it
+     no longer risks clipping against the pane top, so this doesn't need the
+     12px it carried when the list was the whole panel). Bottom padding is the
+     always-present drop-at-the-end strip below the last entry. */
+  padding: 4px 0 24px;
 }
 
 .ws-item {
@@ -183,16 +167,6 @@
   white-space: nowrap;
 }
 
-.ws-item .ws-folder-extra-count {
-  flex-shrink: 0;
-  font-size: calc(1em - 2px);
-  color: var(--silo-color-text-lo);
-  background: var(--silo-color-button-bg);
-  border-radius: 10px;
-  padding: 0 5px;
-  line-height: 1.5;
-}
-
 .ws-item .ws-close,
 .ws-group-header .ws-close {
   position: absolute;
@@ -227,10 +201,6 @@
 .ws-group-header .ws-close:hover {
   color: var(--silo-color-text-hi);
   background: var(--silo-color-button-bg);
-}
-
-.ws-add-wrap {
-  position: relative;
 }
 
 /* Workspace properties dialog — fixed-height card (via ModalOptions.className)

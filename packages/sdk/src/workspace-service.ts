@@ -1,4 +1,5 @@
 import type { Disposable } from "./types";
+import type { MenuEntry } from "./ui-service";
 import type { Workspace } from "./domain-types";
 import type { Activity } from "./activity";
 
@@ -393,6 +394,60 @@ export interface WorkspaceService {
    * ```
    */
   registerPropertyPage(page: WorkspacePropertyPage): Disposable;
+
+  /**
+   * The rows of the **Open Workspace** menu — the same menu the Navigator's
+   * `+` button opens: any saved groups, then closed workspaces to reopen (a
+   * missing folder is flagged), a separator, then "New workspace…" and
+   * "New Group…".
+   *
+   * Use it to offer workspace switching from your own UI without rebuilding
+   * the list — the returned {@link MenuEntry | entries} drop straight into
+   * {@link UiService.showMenu}, including as a `submenu` of one of your own
+   * rows. Async because the closed-workspace rows check whether each folder
+   * still exists on disk.
+   *
+   * @example
+   * ```ts
+   * ctx.ui.showMenu({
+   *   items: [
+   *     { label: "Refresh", run: refresh },
+   *     { type: "separator" },
+   *     { label: "Workspace", submenu: await ctx.workspaces.getOpenWorkspaceMenuItems() },
+   *   ],
+   *   anchor,
+   * });
+   * ```
+   */
+  getOpenWorkspaceMenuItems(): Promise<MenuEntry[]>;
+
+  /**
+   * The rows of one workspace's context menu — **Properties…**, **Close**, then
+   * whatever extensions contributed on the `"workspace"`
+   * {@link MenuSurface | surface}.
+   *
+   * Use it when your own UI names a workspace without *being* the workspace
+   * list — an agent row showing which workspace its terminal lives in, a
+   * search result grouped by workspace — so the same actions are one
+   * right-click away there too. Returns an empty array for an unknown id.
+   *
+   * Group membership actions (Move to Group, Remove from Group) are **not**
+   * included: group state is host-internal (ADR 0023), so the Workspaces view
+   * appends those itself.
+   *
+   * @example
+   * ```ts
+   * ctx.ui.showMenu({
+   *   items: [
+   *     { label: "Mark as seen", run: acknowledge },
+   *     { type: "separator" },
+   *     { label: ws.name, submenu: ctx.workspaces.getWorkspaceMenuItems(ws.id) },
+   *   ],
+   *   at: { x: e.clientX, y: e.clientY },
+   * });
+   * ```
+   */
+  getWorkspaceMenuItems(workspaceId: string): MenuEntry[];
 
   /**
    * Imperatively adorn a workspace name with a badge. `badge.id` is the

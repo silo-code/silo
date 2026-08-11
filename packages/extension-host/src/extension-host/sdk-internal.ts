@@ -69,7 +69,12 @@ export { installCliShim } from "../services/tauri-cli";
 // app (download + install a binary, relaunch) is a host/platform capability only
 // `core.updates` (and the app's "Check for Updates…" menu item) needs; not a
 // public-surface capability. See update-service.ts for the rationale.
-export type { UpdateService, UpdateState, UpdatePhase } from "./update-service";
+export type {
+  UpdateService,
+  UpdateState,
+  UpdatePhase,
+  ChangelogEntry,
+} from "./update-service";
 export { getUpdateService } from "./update-service";
 
 // The extension manager — install / uninstall / enable / disable / load runtime
@@ -98,6 +103,12 @@ export {
   fetchRegistryIndex,
   registryReadmeUrl,
 } from "./registry-client";
+// String-based version comparator (ADR 0036) — reused by core.updates to
+// decide whether a skipped version has been superseded by a newer release.
+// NOT the same function as engine-compat.ts's compareVersions (numeric
+// [major,minor,patch] triples, used only for engine-constraint checks) —
+// that one is deliberately not exported here to avoid a same-name collision.
+export { compareVersions } from "./registry-client";
 // The rail group the manager page shares with all non-core settings pages, so
 // the manager declares the same key the host forces non-core pages into.
 export { EXTENSIONS_SETTINGS_GROUP } from "./settings-pages";
@@ -122,6 +133,30 @@ export { workspaceSectionRegistry } from "./workspace-section-registry";
 // render the properties-modal tab bar is a core-extension-only concern. The
 // *write* side (registerPropertyPage) is public via ctx.workspaces.
 export { workspacePropertyPageRegistry } from "./workspace-property-page-registry";
+
+// Navigator view registry (RFC 0023) — same rationale again: the *write* side
+// (ctx.registerNavigatorView) is public; enumerating the registered views,
+// React component refs and all, is what core.navigator needs to paint its view
+// selector and mount the active body. Unlike sections, the subscribe side is
+// internal too — only the Navigator panel ever observes registrations.
+export { navigatorViewRegistry } from "./navigator-view-registry";
+
+// Workspace context-menu builder + the shared close-confirm — the *write* side
+// of the menu is public (ctx.workspaces.getWorkspaceMenuItems); core gets the
+// extra-rows overload so the Workspaces view can slot its group actions into
+// the shared menu instead of keeping a second copy of Properties/Close/
+// contributions. Close itself is exported so the × button, status item, and
+// close command share the same dialog + dontShowAgain bag as the menu row.
+export {
+  buildWorkspaceMenuItems,
+  confirmAndCloseWorkspace,
+} from "./workspace-menu";
+
+// Error boundary — core.navigator hosts third-party view components (RFC 0023)
+// and must isolate a crash in one the same way PanelPane isolates a crashing
+// side panel. Core-only: extensions render inside a boundary the host already
+// provides, they don't wrap other extensions' components.
+export { ErrorBoundary } from "../components/ErrorBoundary";
 
 // Context-menu contribution read side (RFC 0013) — the *write* side
 // (registerContextMenuItem) is public via ctx; building the merged menu rows
@@ -370,3 +405,16 @@ export {
   DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
   MIN_SMALL_SCREEN_THRESHOLD_PX,
 } from "../state/types";
+
+// "Global Side Panel Layout" settings (ADR 0035) — same seam as above, for
+// the `core.layout` settings page's two switches. `hasSavedGlobalPanelLayout`
+// / `enableGlobalPanelLayout` back the settings page's confirmation dialog
+// (whether to reuse or overwrite a previously-saved shared layout);
+// `setGlobalPanelLayoutEnabled` covers the plain on/off case (disabling, and
+// enabling for callers that don't need that choice).
+export {
+  setGlobalPanelLayoutEnabled,
+  setGlobalActiveTabEnabled,
+  hasSavedGlobalPanelLayout,
+  enableGlobalPanelLayout,
+} from "../state/workspaces";

@@ -3,6 +3,13 @@ import { basename } from "@tauri-apps/api/path";
 import { path } from "@silo-code/sdk";
 import { store } from "./store";
 import { clearEditorBackup } from "./editor-backups";
+import {
+  applyPanelState,
+  capturePanelState,
+  applyGlobalPanelLayout,
+  captureGlobalPanelLayout,
+  cloneExtensionState,
+} from "./panel-state";
 import type {
   EditorRecord,
   EditorSettingsOverride,
@@ -56,36 +63,158 @@ export function createWorkspace(input: {
   return ws;
 }
 
-/** Copy the global panel state into a workspace object. */
+/**
+ * Copy the live panel state into a workspace object. When "Global Side Panel
+ * Layout" (ADR 0035) is on, the workspace's own arrangement fields
+ * (locations/order/visibility/collapse) are left untouched — frozen — since
+ * they're governed by `store.globalPanelLayout` instead; only the fields that
+ * stay per-workspace regardless (`extensionState`, `sidePanelScrollPositions`,
+ * and `activeSidePanelTabs` unless its own sub-flag is also on) get captured.
+ */
 export function savePanelStateToWorkspace(wsId: string): void {
   const ws = store.workspaces[wsId];
   if (!ws) return;
-  ws.sidePanelLocations = { ...store.sidePanelLocations };
-  ws.sidePanelOrder = { ...store.sidePanelOrder };
-  ws.activeSidePanelTabs = { ...store.activeSidePanelTabs };
-  ws.sidePanelScrollPositions = { ...store.sidePanelScrollPositions };
-  ws.sidePanelVisibility = { ...store.sidePanelVisibility };
-  ws.leftPanelCollapsed = store.leftPanelCollapsed;
-  ws.rightPanelCollapsed = store.rightPanelCollapsed;
-  const ext: Record<string, Record<string, unknown>> = {};
-  for (const k of Object.keys(store.extensionState))
-    ext[k] = { ...store.extensionState[k] };
-  ws.extensionState = ext;
+  if (store.globalPanelLayoutEnabled) {
+    const full = capturePanelState();
+    ws.extensionState = full.extensionState;
+    ws.sidePanelScrollPositions = full.sidePanelScrollPositions;
+    if (!store.globalActiveTabEnabled) {
+      ws.activeSidePanelTabs = full.activeSidePanelTabs;
+    }
+  } else {
+    Object.assign(ws, capturePanelState());
+  }
 }
 
-/** Restore the global panel state from a workspace object. */
+/**
+ * Restore the live panel state from a workspace object — the reverse of
+ * {@link savePanelStateToWorkspace}. When the global flag is on, the
+ * arrangement fields are left untouched: they already show the current
+ * shared layout, and nothing workspace-specific should reset them on an
+ * ordinary switch (`store.globalPanelLayout` itself is only synced from live
+ * state at hydrate, disable, and persist time — applying it here on every
+ * switch would clobber a live edit made since the last sync). Only the
+ * fields that stay per-workspace regardless get restored from `ws`.
+ */
 export function loadPanelStateFromWorkspace(ws: WorkspaceInternal): void {
-  store.sidePanelLocations = { ...(ws.sidePanelLocations ?? {}) };
-  store.sidePanelOrder = { ...(ws.sidePanelOrder ?? {}) };
-  store.activeSidePanelTabs = { ...(ws.activeSidePanelTabs ?? {}) };
-  store.sidePanelScrollPositions = { ...(ws.sidePanelScrollPositions ?? {}) };
-  store.sidePanelVisibility = { ...(ws.sidePanelVisibility ?? {}) };
-  store.leftPanelCollapsed = ws.leftPanelCollapsed ?? false;
-  store.rightPanelCollapsed = ws.rightPanelCollapsed ?? false;
-  const ext: Record<string, Record<string, unknown>> = {};
-  for (const k of Object.keys(ws.extensionState ?? {}))
-    ext[k] = { ...ws.extensionState![k] };
-  store.extensionState = ext;
+  if (store.globalPanelLayoutEnabled) {
+    store.extensionState = cloneExtensionState(ws.extensionState ?? {});
+    store.sidePanelScrollPositions = { ...(ws.sidePanelScrollPositions ?? {}) };
+    store.activeSidePanelTabs = store.globalActiveTabEnabled
+      ? { ...store.globalActiveSidePanelTabs }
+      : { ...(ws.activeSidePanelTabs ?? {}) };
+  } else {
+    applyPanelState(ws);
+  }
+}
+
+/**
+ * Whether there's a previously-saved shared layout worth asking the user
+ * about before overwriting it (ADR 0035). "Saved" means the flag has been
+ * enabled at least once before and left something behind in
+ * `store.globalPanelLayout` — an empty/default record (never used, or a
+ * fresh install) isn't worth warning about.
+ */
+export function hasSavedGlobalPanelLayout(): boolean {
+  const g = store.globalPanelLayout;
+  return (
+    Object.keys(g.sidePanelLocations).length > 0 ||
+    Object.keys(g.sidePanelOrder).length > 0 ||
+    Object.keys(g.sidePanelVisibility).length > 0 ||
+    g.leftPanelCollapsed ||
+    g.rightPanelCollapsed ||
+    !!g.smallScreenCollapsed
+  );
+}
+
+/**
+ * Turn "Global Side Panel Layout" on, choosing how to seed the shared
+ * record: `"current"` captures it fresh from what's currently live (the
+ * active workspace's arrangement, discarding any previously-saved shared
+ * layout); `"previous"` instead re-applies whatever was last frozen in
+ * `store.globalPanelLayout` (from an earlier enable/disable cycle) to live
+ * state, leaving the saved record itself untouched. The settings page
+ * confirms this choice with the user first — see
+ * `hasSavedGlobalPanelLayout`/`confirmEnableGlobalPanelLayout`. No-op if
+ * already on.
+ */
+export function enableGlobalPanelLayout(mode: "current" | "previous"): void {
+  if (store.globalPanelLayoutEnabled) return;
+  if (mode === "current") {
+    store.globalPanelLayout = captureGlobalPanelLayout();
+    if (store.globalActiveTabEnabled) {
+      store.globalActiveSidePanelTabs = { ...store.activeSidePanelTabs };
+    }
+  } else {
+    applyGlobalPanelLayout(store.globalPanelLayout);
+    if (store.globalActiveTabEnabled) {
+      store.activeSidePanelTabs = { ...store.globalActiveSidePanelTabs };
+    }
+  }
+  store.globalPanelLayoutEnabled = true;
+}
+
+/**
+ * Turn "Global Side Panel Layout" on or off (ADR 0035). Enabling always
+ * seeds from what's currently live — equivalent to
+ * `enableGlobalPanelLayout("current")` — for callers that don't need the
+ * "reuse the previous saved layout" choice (e.g. tests, programmatic use).
+ * The settings page instead calls `enableGlobalPanelLayout` directly once
+ * the user has picked "current" or "previous" from the confirmation dialog.
+ * Disabling freezes the final shared value, seeds any workspace created
+ * while the flag was on (never captured, so it has no arrangement of its
+ * own) from it, then restores the active workspace's own arrangement as
+ * live.
+ */
+export function setGlobalPanelLayoutEnabled(enabled: boolean): void {
+  if (enabled === store.globalPanelLayoutEnabled) return;
+  if (enabled) {
+    enableGlobalPanelLayout("current");
+    return;
+  }
+  const activeId = store.activeWorkspaceId;
+  // Fresh-capture the active workspace's non-global fields before flipping
+  // the flag, so no live edit made since its last switch is lost.
+  if (activeId) savePanelStateToWorkspace(activeId);
+  store.globalPanelLayout = captureGlobalPanelLayout();
+  for (const ws of Object.values(store.workspaces)) {
+    if (ws.sidePanelLocations === undefined) {
+      // Created while the flag was on — give it the shared arrangement as
+      // its own starting point rather than snapping to bare defaults.
+      Object.assign(ws, {
+        sidePanelLocations: { ...store.globalPanelLayout.sidePanelLocations },
+        sidePanelOrder: { ...store.globalPanelLayout.sidePanelOrder },
+        sidePanelVisibility: { ...store.globalPanelLayout.sidePanelVisibility },
+        leftPanelCollapsed: store.globalPanelLayout.leftPanelCollapsed,
+        rightPanelCollapsed: store.globalPanelLayout.rightPanelCollapsed,
+        ...(store.globalPanelLayout.smallScreenCollapsed
+          ? {
+              smallScreenCollapsed: {
+                ...store.globalPanelLayout.smallScreenCollapsed,
+              },
+            }
+          : {}),
+      });
+    }
+  }
+  store.globalPanelLayoutEnabled = false;
+  const activeWs = activeId ? store.workspaces[activeId] : null;
+  if (activeWs) applyPanelState(activeWs);
+}
+
+/**
+ * Turn the "also share the active tab" sub-setting on or off — dependent on
+ * {@link setGlobalPanelLayoutEnabled}, meaningless while the main flag is
+ * off. Enabling seeds the shared record from what's currently live; on
+ * disable there's nothing to freeze or seed, since `activeSidePanelTabs`
+ * simply resumes being captured/applied per-workspace like it always was.
+ */
+export function setGlobalActiveTabEnabled(enabled: boolean): void {
+  if (enabled === store.globalActiveTabEnabled) return;
+  if (enabled) {
+    store.globalActiveSidePanelTabs = { ...store.activeSidePanelTabs };
+  }
+  store.globalActiveTabEnabled = enabled;
 }
 
 export function activateWorkspace(id: string): void {
@@ -687,6 +816,39 @@ export function setEditorFilePath(
   return rec;
 }
 
+/**
+ * Retarget every open text editor pointed at `oldPath` (or nested under it, for
+ * a renamed/moved directory) to `newPath`, across all workspaces — called after
+ * a successful `ctx.files.rename` so an open tab follows its file instead of
+ * reading as deleted once the old path stops existing on disk. Fires
+ * "app:update-editor-title" per retargeted editor so the dockview tab (whose
+ * title is set once at panel-creation time, not read reactively) picks up the
+ * new name — the record's `title` field alone only updates the breadcrumb.
+ */
+export function retargetEditorsForRename(
+  oldPath: string,
+  newPath: string,
+): void {
+  for (const ws of Object.values(store.workspaces)) {
+    for (const rec of ws.editors) {
+      if (!isTextRecord(rec) || rec.filePath === null) continue;
+      if (rec.filePath === oldPath) {
+        rec.filePath = newPath;
+      } else if (rec.filePath.startsWith(oldPath + "/")) {
+        rec.filePath = newPath + rec.filePath.slice(oldPath.length);
+      } else {
+        continue;
+      }
+      rec.title = baseName(rec.filePath);
+      window.dispatchEvent(
+        new CustomEvent("app:update-editor-title", {
+          detail: { editorId: rec.id, title: rec.title },
+        }),
+      );
+    }
+  }
+}
+
 export function removeEditor(
   workspaceId: string,
   editorId: string,
@@ -827,7 +989,7 @@ export function openPreviewDiff(
     currentPreview.providerId = spec.providerId;
     currentPreview.args = spec.args;
     window.dispatchEvent(
-      new CustomEvent("app:update-preview-title", {
+      new CustomEvent("app:update-editor-title", {
         detail: { editorId: currentPreview.id, title },
       }),
     );
@@ -854,7 +1016,7 @@ export function openPreviewDiff(
  * - If the file is already the current preview → just activate it.
  * - If there is an existing preview → reuse its slot (mutate filePath/title in
  *   place so the tab stays in the same position) and fire
- *   "app:update-preview-title" so CenterDock can update the dockview panel
+ *   "app:update-editor-title" so CenterDock can update the dockview panel
  *   title.
  * - Otherwise → create a new preview editor record.
  */
@@ -910,7 +1072,7 @@ export function openPreviewEditor(
     if (viewType !== undefined) currentPreview.viewType = viewType;
     else delete currentPreview.viewType;
     window.dispatchEvent(
-      new CustomEvent("app:update-preview-title", {
+      new CustomEvent("app:update-editor-title", {
         detail: { editorId: currentPreview.id, title: currentPreview.title },
       }),
     );

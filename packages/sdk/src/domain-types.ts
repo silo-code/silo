@@ -216,6 +216,13 @@ export interface ThemeVars {
   "--silo-notify-bg": string;
   "--silo-notify-text": string;
   "--silo-notify-text-hi": string;
+  // ── Design tokens — list row treatment (hover/selection surfaces) ──
+  "--silo-list-radius": string;
+  "--silo-list-inset": string;
+  "--silo-list-hover-bg": string;
+  "--silo-list-active-bg": string;
+  /** Selected-row outline — use a bordered selection instead of (or with) a fill. */
+  "--silo-list-active-outline": string;
 }
 
 /**

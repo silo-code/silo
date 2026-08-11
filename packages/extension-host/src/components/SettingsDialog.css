@@ -82,24 +82,29 @@
   cursor: pointer;
   font: inherit;
 }
+
 .settings-rail-item-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .settings-rail-item:hover {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
 }
+
 .settings-rail-item.active {
   background: var(--silo-color-bg-active);
   color: var(--silo-color-text-hi);
   font-weight: 600;
 }
+
 .settings-rail-item.group-start {
   margin-top: 9px;
   position: relative;
 }
+
 /* A divider line marks each group boundary, centered in the gap above the
    group's first item. */
 .settings-rail-item.group-start::before {
@@ -113,6 +118,7 @@
   border-top: 1px solid var(--silo-modal-border);
   opacity: 0.5;
 }
+
 /* …except the very first group, which sits directly under the rail title. */
 .settings-rail-item.group-start:first-of-type::before {
   content: none;
@@ -164,6 +170,7 @@
   color: var(--silo-color-text-lo);
   cursor: pointer;
 }
+
 /* Scoped under .settings-dialog (specificity 0,3,0) so it beats the global
    `button:hover` rule (0,2,1) — otherwise the close would pick up the darker
    filled-button hover mix instead of this subtle ghost highlight. This is the
@@ -183,7 +190,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: 12px;
+  gap: 20px;
 }
 
 .es-header {
@@ -193,6 +200,7 @@
   gap: 12px;
   min-height: var(--settings-header-height);
 }
+
 .es-header h2 {
   margin: 0;
   font-size: 1.1em;
@@ -209,7 +217,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 26px;
 }
 
 /* Font family picker (Terminal) — bespoke; out of scope for the SDK kit. */
@@ -236,6 +244,7 @@
   width: 100%;
   padding-right: 30px;
 }
+
 .es-font-picker--has-value .es-font-picker-input {
   padding-right: 54px;
 }
@@ -256,6 +265,7 @@
   padding: 0;
   font-size: 15px;
 }
+
 .es-font-picker-clear:hover {
   color: var(--silo-color-text-hi);
 }
@@ -278,6 +288,7 @@
   font-size: 20px;
   border-radius: 0 var(--silo-radius-sm) var(--silo-radius-sm) 0;
 }
+
 .es-font-picker-arrow:hover {
   color: var(--silo-color-text-hi);
   background: var(--silo-color-bg-active);
@@ -306,6 +317,7 @@
   color: var(--silo-color-text-hi);
   font-size: var(--settings-font);
 }
+
 .es-font-picker-item:hover,
 .es-font-picker-item--selected {
   background: var(--silo-color-bg-active);

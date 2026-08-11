@@ -44,6 +44,46 @@ export function panelToReactivateOnClose(
   return preCloseActivePanelId;
 }
 
+/** What a dock should do about its active panel — see {@link resolveActivationTarget}. */
+export type ActivationTarget = {
+  /** Panel to make active, or null to leave dockview's current pick alone. */
+  targetId: string | null;
+  /** True while a requested panel exists but hasn't mounted yet — keep waiting. */
+  pending: boolean;
+};
+
+// Decide which panel a workspace's dock should make active — the single place
+// that answers "which tab shows when this workspace becomes active", so no two
+// callers can disagree about it.
+//
+// Precedence:
+//  1. An explicit cross-workspace request (`ctx.terminals.focus()` for a
+//     terminal in another workspace — see panel-activation-requests).
+//  2. The panel that was active when this workspace was last visited.
+//  3. Nothing — leave whatever dockview considers active.
+//
+// A requested panel that isn't mounted yet reports `pending` rather than
+// falling through to (2): a fresh dock restores its layout and reconciles its
+// terminal/editor panels in later commits, so the request arrives before the
+// panel exists. Activating the remembered panel meanwhile would produce exactly
+// the flip-flop this whole mechanism removes — better to leave the tab alone
+// for a frame or two and switch once, when the requested panel appears.
+export function resolveActivationTarget(
+  requestedId: string | null,
+  lastActiveId: string | null,
+  hasPanel: (panelId: string) => boolean,
+): ActivationTarget {
+  if (requestedId) {
+    return hasPanel(requestedId)
+      ? { targetId: requestedId, pending: false }
+      : { targetId: null, pending: true };
+  }
+  if (lastActiveId && hasPanel(lastActiveId)) {
+    return { targetId: lastActiveId, pending: false };
+  }
+  return { targetId: null, pending: false };
+}
+
 // Shared action helper — used by both the per-group + menu and the empty
 // workspace watermark. Resolves the workspace folder, then opens a file picker.
 export async function pickFileForWorkspace(
