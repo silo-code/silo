@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.46.0](https://github.com/silo-code/silo/compare/silo-v0.45.0...silo-v0.46.0) (2026-08-12)
+
+
+### Features
+
+* **docs:** ship React marketing homepage as @silo-code/website ([#342](https://github.com/silo-code/silo/issues/342)) ([fd36921](https://github.com/silo-code/silo/commit/fd36921c4d18fea7a731510e0e55072cdc7134ba))
+
+
+### Bug Fixes
+
+* **agents:** detect Claude's new circle spinner and hide status glyphs in titles ([#345](https://github.com/silo-code/silo/issues/345)) ([a92f08c](https://github.com/silo-code/silo/commit/a92f08cc0522d6e35d8469dd8f22f66885790c13))
+* **docs:** disambiguate homepage title and add sameAs for branded search ([#344](https://github.com/silo-code/silo/issues/344)) ([6c7609c](https://github.com/silo-code/silo/commit/6c7609cac556a3d2ca618452172db5f762ba32d3))
+* **docs:** fix badge/theme-preset drift in silo-demos.css and add a sync check ([76f66b7](https://github.com/silo-code/silo/commit/76f66b723a7269829add00f94fa03c205efebbe9))
+* **website:** resume feature videos on mobile Safari after they stop ([#347](https://github.com/silo-code/silo/issues/347)) ([544b1ed](https://github.com/silo-code/silo/commit/544b1ed6fcf441537d5c9de81de0e42deb640670))
+
 ## [0.45.0](https://github.com/silo-code/silo/compare/silo-v0.44.1...silo-v0.45.0) (2026-08-11)
 
 
