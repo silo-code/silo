@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.46.1](https://github.com/silo-code/silo/compare/silo-v0.46.0...silo-v0.46.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* **updates:** re-check for stale handle before installing ([#348](https://github.com/silo-code/silo/issues/348)) ([8184825](https://github.com/silo-code/silo/commit/81848259412ff91b346c83965d03710d37804d25))
+
 ## [0.46.0](https://github.com/silo-code/silo/compare/silo-v0.45.0...silo-v0.46.0) (2026-08-12)
 
 
