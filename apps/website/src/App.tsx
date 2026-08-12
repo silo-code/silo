@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AsciiBackdrop } from "./AsciiBackdrop";
 import { DemoWorkspace } from "./DemoWorkspace";
+import { StoryVideo } from "./StoryVideo";
 import { DOWNLOAD_FALLBACK_HREF, fetchLatestDownloadUrl } from "./download-url";
 import {
   EYEBROW,
@@ -301,17 +302,11 @@ export function App() {
                         decoding="async"
                       />
                     ) : visual?.kind === "video" ? (
-                      <video
-                        className="home-story-visual-video"
-                        autoPlay
-                        muted
-                        loop
-                        playsInline
+                      <StoryVideo
+                        webm={visual.webm}
                         poster={visual.poster}
-                        aria-label={section.visualAlt ?? section.title}
-                      >
-                        <source src={visual.webm} type="video/webm" />
-                      </video>
+                        label={section.visualAlt ?? section.title}
+                      />
                     ) : (
                       <span className="home-story-visual-hint">
                         {section.visualHint}
