@@ -207,16 +207,23 @@ export interface TerminalService extends TabAdornmentMethods {
    *
    * @example
    * ```ts
-   * // Detect Claude Code busy/idle state from OSC 0 title sequences.
-   * const BRAILLE_START = 0x2800;
-   * const BRAILLE_END   = 0x28FF;
+   * // Detect Claude Code busy/idle state from OSC 0 title sequences: it
+   * // prefixes the title with an animated spinner glyph while busy, and with
+   * // the idle char below when awaiting input. Accept both spinner ranges —
+   * // current builds animate the half-filled circles ◐/◑, older ones used
+   * // braille (which Codex CLI still does).
+   * const SPINNERS = [
+   *   [0x25d0, 0x25d3], // ◐ ◑ ◒ ◓
+   *   [0x2800, 0x28ff], // ⠋ ⠙ ⠏ …
+   * ];
    * const IDLE_CHAR     = '\u2733'; // ✳
    *
    * const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
    *   if (code !== 0) return;
    *   const first = payload.charCodeAt(0);
-   *   if (first >= BRAILLE_START && first <= BRAILLE_END) setStatus('busy');
-   *   else if (payload.startsWith(IDLE_CHAR))              setStatus('idle');
+   *   const spinning = SPINNERS.some(([lo, hi]) => first >= lo && first <= hi);
+   *   if (spinning)                           setStatus('busy');
+   *   else if (payload.startsWith(IDLE_CHAR)) setStatus('idle');
    * });
    * ctx.subscriptions.push(sub);
    * ```

@@ -476,6 +476,20 @@ describe("detectFromOsc", () => {
     });
   });
 
+  it("detects Claude's circle spinner as working through the full dispatch", () => {
+    // Real titles observed from claude-code 2.1.228, which prefixes the
+    // conversation title with ◐/◑ instead of the braille frames above. Asserted
+    // at the dispatch level (not just detectClaudeCode) so a Cursor/Codex/
+    // Copilot detector earlier in catalog order can't quietly swallow them.
+    for (const title of ["◐ Design event bus", "◑ Debug OSC detection"]) {
+      expect(detectFromOsc(0, title)).toEqual({
+        status: "working",
+        source: "agent",
+        timer: "schedule",
+      });
+    }
+  });
+
   it("detects Claude's idle marker as idle", () => {
     const result = detectFromOsc(0, "✳ awaiting");
     expect(result).toEqual({ status: "idle", source: "agent", timer: "clear" });

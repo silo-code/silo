@@ -865,7 +865,7 @@ Prefer [TerminalService.subscribeTabAdornments](TabAdornmentMethods.md#subscribe
 subscribeOsc(terminalId, handler): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:224](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L224)
+Defined in: [packages/sdk/src/terminal-service.ts:231](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L231)
 
 Subscribe to raw OSC (Operating System Command) escape sequences emitted
 by the terminal identified by `terminalId`. The handler is called once per
@@ -895,16 +895,23 @@ Returns a [Disposable](Disposable.md) that cancels the subscription.
 #### Example
 
 ```ts
-// Detect Claude Code busy/idle state from OSC 0 title sequences.
-const BRAILLE_START = 0x2800;
-const BRAILLE_END   = 0x28FF;
+// Detect Claude Code busy/idle state from OSC 0 title sequences: it
+// prefixes the title with an animated spinner glyph while busy, and with
+// the idle char below when awaiting input. Accept both spinner ranges —
+// current builds animate the half-filled circles ◐/◑, older ones used
+// braille (which Codex CLI still does).
+const SPINNERS = [
+  [0x25d0, 0x25d3], // ◐ ◑ ◒ ◓
+  [0x2800, 0x28ff], // ⠋ ⠙ ⠏ …
+];
 const IDLE_CHAR     = '\u2733'; // ✳
 
 const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
   if (code !== 0) return;
   const first = payload.charCodeAt(0);
-  if (first >= BRAILLE_START && first <= BRAILLE_END) setStatus('busy');
-  else if (payload.startsWith(IDLE_CHAR))              setStatus('idle');
+  const spinning = SPINNERS.some(([lo, hi]) => first >= lo && first <= hi);
+  if (spinning)                           setStatus('busy');
+  else if (payload.startsWith(IDLE_CHAR)) setStatus('idle');
 });
 ctx.subscriptions.push(sub);
 ```
@@ -917,7 +924,7 @@ ctx.subscriptions.push(sub);
 subscribeOutput(terminalId, handler): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:257](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L257)
+Defined in: [packages/sdk/src/terminal-service.ts:264](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L264)
 
 Subscribe to the raw PTY output stream of the terminal identified by
 `terminalId`. The `handler` is called with every chunk of bytes the PTY
@@ -969,7 +976,7 @@ ctx.subscriptions.push(sub);
 getActive(): string | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:269](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L269)
+Defined in: [packages/sdk/src/terminal-service.ts:276](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L276)
 
 The record id of the terminal tab that is currently active in the active
 workspace's center dock, or `null` when an editor tab (or nothing) is
@@ -989,7 +996,7 @@ split does not count.
 subscribeActive(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:291](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L291)
+Defined in: [packages/sdk/src/terminal-service.ts:298](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L298)
 
 Subscribe to active-terminal changes. The listener receives the terminal
 record id whenever a terminal tab becomes the active center-dock panel,

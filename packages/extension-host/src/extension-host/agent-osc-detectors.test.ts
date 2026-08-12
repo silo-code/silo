@@ -7,6 +7,7 @@ import {
   detectCodexCLI,
   detectCodexIdleAfterWorking,
   detectShellIntegration,
+  stripAgentStatusMarkers,
   CURSOR_SPINNER_FRAMES,
 } from "./agent-osc-detectors";
 
@@ -130,7 +131,9 @@ describe("detectCursorAgentOutput", () => {
 // ---------------------------------------------------------------------------
 describe("detectClaudeCode", () => {
   it("returns working+schedule for braille spinner frames", () => {
-    // ⠋ U+280B, ⠙ U+2819, ⠏ U+280F — sample Codex/Claude spinner frames
+    // ⠋ U+280B, ⠙ U+2819, ⠏ U+280F — Codex/Grok frames, and Claude's own
+    // before claude-code 2.1.228 switched to the circles below. Range ends
+    // (U+2800, U+28FF) included so a regression to a narrower test is caught.
     for (const ch of ["⠋", "⠙", "⠏", "⠀", "⣿"]) {
       expect(detectClaudeCode(0, `${ch} my-project`)).toEqual({
         status: "working",
@@ -138,6 +141,27 @@ describe("detectClaudeCode", () => {
         timer: "schedule",
       });
     }
+  });
+
+  it("returns working+schedule for Claude's circle spinner frames", () => {
+    // Regression: claude-code 2.1.228 replaced the braille title spinner with
+    // ◐/◑ (its own frames), which the braille-only range check missed — the
+    // terminal stayed "never working" while idle detection kept working. The
+    // full U+25D0–25D3 block is accepted, so ◒/◓ are covered too.
+    for (const ch of ["◐", "◑", "◒", "◓"]) {
+      expect(detectClaudeCode(0, `${ch} Design event bus`)).toEqual({
+        status: "working",
+        source: "agent",
+        timer: "schedule",
+      });
+    }
+  });
+
+  it("returns null for circle glyphs just outside the spinner block", () => {
+    // U+25CF ● and U+25D4 ◔ both appear in Claude's glyph table but are not
+    // title spinner frames — the range must not creep.
+    expect(detectClaudeCode(0, "● my-project")).toBeNull();
+    expect(detectClaudeCode(0, "◔ my-project")).toBeNull();
   });
 
   it("returns idle+clear for the ✳ idle char", () => {
@@ -287,8 +311,17 @@ describe("detectCodexIdleAfterWorking", () => {
     expect(detectCodexIdleAfterWorking(0, "my-project", false)).toBeNull();
   });
 
-  it("returns null for braille / Claude idle / empty / action-required (other detectors)", () => {
+  it("returns null for any spinner frame / Claude idle / empty / action-required (other detectors)", () => {
     expect(detectCodexIdleAfterWorking(0, "⠋ my-project", true)).toBeNull();
+    // Circle frames must be excluded for the same reason braille is: this
+    // fallback reads "title with no spinner glyph" as the agent having
+    // finished, so treating a live ◐/◑ frame as idle would flip Claude back to
+    // idle on every 960ms tick of its own spinner.
+    for (const ch of ["◐", "◑", "◒", "◓"]) {
+      expect(
+        detectCodexIdleAfterWorking(0, `${ch} my-project`, true),
+      ).toBeNull();
+    }
     expect(detectCodexIdleAfterWorking(0, "✳ waiting…", true)).toBeNull();
     expect(detectCodexIdleAfterWorking(0, "", true)).toBeNull();
     expect(
@@ -343,5 +376,73 @@ describe("detectShellIntegration", () => {
   it("returns null for non-OSC-133 codes", () => {
     expect(detectShellIntegration(0, "C")).toBeNull();
     expect(detectShellIntegration(9, "C")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Stripping markers back out for display
+// ---------------------------------------------------------------------------
+describe("stripAgentStatusMarkers", () => {
+  it("strips Claude's circle spinner frames and the ✳ idle marker", () => {
+    for (const ch of ["◐", "◑", "◒", "◓", "✳"]) {
+      expect(stripAgentStatusMarkers(`${ch} Design event bus`)).toBe(
+        "Design event bus",
+      );
+    }
+  });
+
+  it("strips braille spinner frames (Codex / Grok / older Claude)", () => {
+    for (const ch of ["⠋", "⠙", "⠀", "⣿"]) {
+      expect(stripAgentStatusMarkers(`${ch} my-project`)).toBe("my-project");
+    }
+  });
+
+  it("strips Codex's action-required markers", () => {
+    expect(stripAgentStatusMarkers("[ ! ] Action Required - x")).toBe(
+      "Action Required - x",
+    );
+    expect(stripAgentStatusMarkers("[ . ] my-project")).toBe("my-project");
+  });
+
+  it("strips Cursor's trailing status suffix, with and without emoji", () => {
+    // The emoji cases are the ones a naive emoji character class gets wrong:
+    // 📤 is a surrogate pair and ⌨️ carries a variation selector.
+    expect(stripAgentStatusMarkers("my-chat - ⏳ Working ...")).toBe("my-chat");
+    expect(stripAgentStatusMarkers("my-chat - 📤 Moving to cloud")).toBe(
+      "my-chat",
+    );
+    expect(
+      stripAgentStatusMarkers("Cursor Agent - ⌨️ Running shell command"),
+    ).toBe("Cursor Agent");
+    expect(stripAgentStatusMarkers("my-chat - Working ···")).toBe("my-chat");
+    expect(stripAgentStatusMarkers("my-chat - ✅ Ready (feature)")).toBe(
+      "my-chat",
+    );
+  });
+
+  it('returns "" for a marker-only title so callers can fall back', () => {
+    // Claude emits a bare ✳ before any conversation title exists; the caller
+    // must show the program name, not an empty tab.
+    expect(stripAgentStatusMarkers("✳")).toBe("");
+    expect(stripAgentStatusMarkers("◐ ")).toBe("");
+  });
+
+  it("leaves an ordinary title untouched", () => {
+    expect(stripAgentStatusMarkers("my-project")).toBe("my-project");
+    expect(stripAgentStatusMarkers("~/src/silo — zsh")).toBe(
+      "~/src/silo — zsh",
+    );
+    expect(stripAgentStatusMarkers("")).toBe("");
+  });
+
+  it("does not strip a bare Cursor idle title (no status segment)", () => {
+    expect(stripAgentStatusMarkers("Cursor Agent")).toBe("Cursor Agent");
+  });
+
+  it("does not eat a hyphenated title that isn't a Cursor status", () => {
+    expect(stripAgentStatusMarkers("silo - main")).toBe("silo - main");
+    expect(stripAgentStatusMarkers("notes - Workingham")).toBe(
+      "notes - Workingham",
+    );
   });
 });

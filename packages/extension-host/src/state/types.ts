@@ -454,6 +454,19 @@ export const MAX_TERMINAL_FONT_SIZE_OFFSET = 10;
 export interface TerminalSettings {
   /** Show the working-directory breadcrumb bar at the top of terminals. */
   breadcrumbs: boolean;
+  /**
+   * Strip agent status markers (Claude's `◐`/`✳`, Codex's braille spinner and
+   * `[ ! ]`, Cursor's ` - Working …` suffix) out of a terminal's title, so the
+   * tab shows just the conversation name. The status itself is not lost — it's
+   * what drives the tab's activity dot and the Workspaces status row, which is
+   * exactly why repeating it as a glyph is noise. Off shows titles verbatim.
+   *
+   * A terminal-display setting, but surfaced on the **Agents** settings page,
+   * since that's where a user looks for agent presentation. Applies to the tab
+   * title and {@link TerminalRecord.title}; agent *detection* reads the raw OSC
+   * stream and is unaffected either way.
+   */
+  hideAgentStatusGlyphs: boolean;
   /** xterm cursor shape. */
   cursorStyle: TerminalCursorStyle;
   /** Copy the selection to the clipboard as soon as it's made. */
@@ -493,6 +506,7 @@ export const DEFAULT_TERMINAL_FAST_SCROLL_SENSITIVITY = 5;
 
 export const DEFAULT_TERMINAL_SETTINGS: TerminalSettings = {
   breadcrumbs: true,
+  hideAgentStatusGlyphs: true,
   cursorStyle: "block",
   copyOnSelect: false,
   pasteOnRightClick: false,

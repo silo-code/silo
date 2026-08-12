@@ -32,6 +32,7 @@ import {
   contextMenuEntriesFor,
   notifyTerminalSessionGone,
   notifyTerminalSessionRecreated,
+  stripAgentStatusMarkers,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
 import { effectiveFontFamily } from "./terminal-font";
@@ -801,9 +802,20 @@ export function TerminalPanel(
     const { term } = live;
     let lastTitle = "";
     // Most recent title the program pushed via an OSC escape sequence ("" =
-    // none yet). Set by onTitleChange; consulted by read() ahead of the tmux
-    // scrape but behind any user-assigned customName.
+    // none yet), stored RAW. Set by onTitleChange; consulted by read() ahead of
+    // the tmux scrape but behind any user-assigned customName.
     let oscTitle = "";
+
+    // The OSC title with agent status markers removed (see
+    // `stripAgentStatusMarkers`), or verbatim when the user turned the setting
+    // off. Read per-call rather than stripped once at onTitleChange time so
+    // toggling the setting takes effect on the next read() tick instead of
+    // waiting for the agent to push another title. Returns "" when the title
+    // was nothing but a marker, which callers treat as "no title yet".
+    const displayOscTitle = () =>
+      store.terminalSettings.hideAgentStatusGlyphs
+        ? stripAgentStatusMarkers(oscTitle)
+        : oscTitle;
     // Foreground process, from the host (RFC 0010 N1). `fgKnown` stays false
     // until the first update so we fall back to legacy behavior if the signal
     // never arrives. At a prompt, a program's stale OSC title is dropped (N1a);
@@ -836,12 +848,14 @@ export function TerminalPanel(
       // 1. A user-assigned name wins over any auto-derived title for the tab
       // display. We still persist the live OSC title to rec.title so extensions
       // can observe actual activity in custom-named terminals.
+      const shown = displayOscTitle();
+
       if (rec?.customName) {
         if (rec.customName !== lastTitle) {
           lastTitle = rec.customName;
           props.api.setTitle(rec.customName);
         }
-        if (oscTitle && rec.title !== oscTitle) rec.title = oscTitle;
+        if (shown && rec.title !== shown) rec.title = shown;
         return;
       }
 
@@ -850,9 +864,10 @@ export function TerminalPanel(
 
       // 2. A title the program set via an OSC escape sequence (e.g. Claude Code).
       //    Drop it once we KNOW we're back at a prompt (N1a — stale title fix);
-      //    otherwise trust it.
-      if (oscTitle && !knownPrompt) {
-        apply(oscTitle, rec);
+      //    otherwise trust it. A marker-only title strips to "" and falls
+      //    through to the program name below rather than showing "Terminal".
+      if (shown && !knownPrompt) {
+        apply(shown, rec);
         return;
       }
 

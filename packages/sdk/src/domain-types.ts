@@ -26,6 +26,18 @@ export interface TerminalRecord {
   id: string;
   sessionId: string;
   kind: TerminalKind;
+  /**
+   * The auto-derived tab title: the window title the running program pushed via
+   * an OSC escape sequence, else its process name, else the tmux status line.
+   *
+   * Agent **status markers are stripped** from this (Claude's `◐`/`✳`, Codex's
+   * braille spinner and `[ ! ]`, Cursor's trailing ` - Working …`) unless the
+   * user turns off "Hide status glyphs in tab titles" in Settings → Agents — the
+   * status is already available as structured state via `ctx.agents`, so the
+   * glyph would be redundant here. Don't parse this field to detect agent
+   * activity; use `ctx.agents`, or `ctx.terminals.subscribeOsc` for the raw
+   * (never-stripped) sequences.
+   */
   title: string;
   /**
    * A user-assigned name (via the tab's "Rename…" menu). When set, it wins over

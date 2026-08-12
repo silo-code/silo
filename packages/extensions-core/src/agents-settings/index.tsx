@@ -23,13 +23,23 @@
  * self-heal), since a shell hook can neither run nor correlate there.
  */
 import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useSnapshot } from "valtio";
 import type { Extension, ExtensionContext } from "@silo-code/sdk";
-import { Badge, Section, Callout, Button } from "@silo-code/sdk";
+import {
+  Badge,
+  Section,
+  Callout,
+  Button,
+  SettingRow,
+  Switch,
+} from "@silo-code/sdk";
 import {
   hookInstallableAgents,
   sessionFileAgents,
   buildTrackSessionScript,
   TRACK_SCRIPT_REL,
+  store,
+  setTerminalSetting,
   type AgentDefinition,
   type AgentHookResume,
 } from "@silo-code/extension-host/internal";
@@ -157,6 +167,9 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
   // correlate against (RFC 0019 / RFC 0010's ConPTY gap) — the toggles are
   // hidden there and the page is detection-only.
   const [windows, setWindows] = useState(false);
+  // A terminal-display setting, surfaced here because this is where a user
+  // looks for how agents present themselves (see TerminalSettings).
+  const hideGlyphs = useSnapshot(store).terminalSettings.hideAgentStatusGlyphs;
 
   const load = useCallback(async () => {
     const agents = hookInstallableAgents();
@@ -275,8 +288,28 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
       </div>
 
       <div className="es-scroll silo-scroll">
+        <Section label="Display">
+          <SettingRow
+            label="Hide status glyphs in tab titles"
+            hint="Strips agent status markers (Claude's ◐/✳, Codex's spinner, Cursor's “ - Working…”) from terminal tab titles."
+          >
+            <Switch
+              checked={hideGlyphs}
+              onChange={(checked) =>
+                setTerminalSetting("hideAgentStatusGlyphs", checked)
+              }
+              aria-label="Hide status glyphs in tab titles"
+            />
+          </SettingRow>
+        </Section>
+
+        {/* Both of these scope to session hooks specifically — the WIP caveat is
+            about hook-based exact resume, and the Windows gap is that a
+            POSIX-shell hook can't run there. Kept adjacent to the hooks section
+            rather than at the top of the page, where they read as applying to
+            every agent setting. */}
         <p className="agents-settings-banner">
-          <Badge tone="warn">Work in progress</Badge> Agent detection and exact
+          <Badge tone="warn">Work in progress</Badge> Session hooks and exact
           resume are still evolving. Expect rough edges — feedback welcome.{" "}
           <button
             type="button"
