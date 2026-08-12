@@ -20,6 +20,23 @@ describe("detectClaudeCode", () => {
     }
   });
 
+  it("returns working+schedule for Claude's circle spinner frames", () => {
+    // ◐ U+25D0, ◑ U+25D1 — the frames current Claude Code animates in its
+    // title (2.1.228); ◒/◓ complete the accepted U+25D0–25D3 block.
+    for (const ch of ["◐", "◑", "◒", "◓"]) {
+      expect(detectClaudeCode(0, `${ch} my-project`)).toEqual({
+        status: "working",
+        timer: "schedule",
+      });
+    }
+  });
+
+  it("returns null for circle glyphs outside the spinner block", () => {
+    // ● U+25CF and ◔ U+25D4 bracket the block but are not spinner frames.
+    expect(detectClaudeCode(0, "● my-project")).toBeNull();
+    expect(detectClaudeCode(0, "◔ my-project")).toBeNull();
+  });
+
   it("returns waiting+clear for the ✳ idle char", () => {
     expect(detectClaudeCode(0, "\u2733 waiting…")).toEqual({
       status: "waiting",

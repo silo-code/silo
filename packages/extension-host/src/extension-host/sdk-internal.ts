@@ -379,6 +379,12 @@ export type {
   HookInstallStrategy,
 } from "./agent-catalog";
 
+// Presentation-side counterpart to detection: strip the status markers agents
+// encode into their OSC 0 title, so `core.terminal` can show a clean tab title
+// (gated by the `hideAgentStatusGlyphs` setting). Detection itself reads the raw
+// OSC stream, so stripping here can't affect it.
+export { stripAgentStatusMarkers } from "./agent-osc-detectors";
+
 // Tooltip — re-exported here so core.* extensions can still import it from the
 // internal barrel. The component itself is now public (@silo-code/sdk); the
 // host component file re-exports from SDK and owns the CSS load.

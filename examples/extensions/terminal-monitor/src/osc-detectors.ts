@@ -23,23 +23,36 @@ export interface DetectionResult {
 // ---------------------------------------------------------------------------
 // Claude Code  (OSC 0 title encoding)
 // ---------------------------------------------------------------------------
-// Uses braille block characters (U+2800–U+28FF) as a spinner while busy, and
+// Prefixes its OSC 0 title with an animated spinner glyph while busy, and with
 // ✳ (U+2733) as an explicit idle signal when waiting for input.
-// Note: Codex CLI uses the same braille spinner range, so the braille → working
-// branch covers both. The ✳ idle signal and debounce timer handle the difference:
-// Claude emits ✳ immediately; Codex relies on the timer after silence.
+//
+// Two spinner ranges are accepted, because the glyph changed: current Claude
+// Code (confirmed 2.1.228) animates the half-filled circles ◐/◑
+// (U+25D0–U+25D3), while older builds — and Codex CLI, which shares this
+// detector — use braille block characters (U+2800–U+28FF). The ✳ idle signal
+// and debounce timer handle the Claude/Codex difference: Claude emits ✳
+// immediately; Codex relies on the timer after silence.
 const BRAILLE_START = 0x2800;
 const BRAILLE_END = 0x28ff;
+const CIRCLE_SPINNER_START = 0x25d0;
+const CIRCLE_SPINNER_END = 0x25d3;
 const CLAUDE_IDLE_CHAR = "\u2733"; // ✳
+
+function startsWithSpinnerGlyph(payload: string): boolean {
+  const first = payload.charCodeAt(0);
+  return (
+    (first >= BRAILLE_START && first <= BRAILLE_END) ||
+    (first >= CIRCLE_SPINNER_START && first <= CIRCLE_SPINNER_END)
+  );
+}
 
 export function detectClaudeCode(
   code: number,
   payload: string,
 ): DetectionResult | null {
   if (code !== 0) return null;
-  const first = payload.charCodeAt(0);
-  if (first >= BRAILLE_START && first <= BRAILLE_END) {
-    // Braille spinner: agent is busy. Schedule idle timer as a fallback for
+  if (startsWithSpinnerGlyph(payload)) {
+    // Spinner frame: agent is busy. Schedule idle timer as a fallback for
     // Codex (which doesn't emit an explicit done signal).
     return { status: "working", timer: "schedule" };
   }

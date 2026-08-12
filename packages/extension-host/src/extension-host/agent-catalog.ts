@@ -287,24 +287,31 @@ const claude: AgentDefinition = {
     "process and records that process's pgid (used to correlate against the " +
     "terminal's foreground pgid — raw PPID alone misses Cursor workers that " +
     "setpgrp). Activity detection " +
-    "depends on Claude emitting a braille-spinner glyph (U+2800–28FF) while " +
-    "working and a '✳' marker when awaiting input.",
+    "depends on Claude prefixing its OSC 0 title with an animated spinner " +
+    "glyph while working and a '✳' marker when awaiting input. CONFIRMED " +
+    "against claude-code 2.1.228 (2026-08-11): the spinner glyphs are now the " +
+    "half-filled circles ◐/◑ (U+25D0–U+25D3 accepted) — they were braille " +
+    "(U+2800–28FF) in earlier builds, and Silo accepts BOTH ranges so old " +
+    "installs (and Codex/Grok, which still use braille) keep working. The " +
+    "title itself is '<glyph> <conversation title>'; the '✳' idle marker is " +
+    "unchanged. A future glyph change here silently breaks 'working' only — " +
+    "idle detection would keep working, so the symptom is an agent terminal " +
+    "that never lights up as busy.",
   upstreamRefs: [
     "https://docs.claude.com/en/docs/claude-code/hooks",
     "https://docs.claude.com/en/docs/claude-code/settings",
   ],
-  lastVerified: "2026-07-27",
-  // Left undefined until the first audit-skill run pins the current version.
-  verifiedAgainstVersion: undefined,
+  lastVerified: "2026-08-11",
+  verifiedAgainstVersion: "claude-code@2.1.228",
 };
 
 const codex: AgentDefinition = {
   id: "codex",
   displayName: "Codex CLI",
   leaderNames: ["codex"],
-  // "Working" is the shared Claude/Codex braille-spinner detector (Codex uses
-  // the same range); detectCodexCLI covers its own explicit "idle" signals
-  // (empty title, action-required markers, specific OSC 9 notifications).
+  // "Working" is the shared spinner detector in `detectClaudeCode` (Codex uses
+  // the braille range Claude used to); detectCodexCLI covers its own explicit
+  // "idle" signals (empty title, action-required markers, OSC 9 notifications).
   // Neither covers the common case — a normal turn finishing with no
   // approval needed, where Codex just sets a plain project/dir title — so
   // idleAfterWorking below handles that contextually.
@@ -356,8 +363,9 @@ const codex: AgentDefinition = {
     "group (Silo installs without one) fires on both startup and resume once " +
     "trusted — blocked on completing the trust step to test. Activity " +
     "detection (ported from silo-extensions/agent-monitor, 2026-07-28): " +
-    "'working' shares Claude's braille-spinner OSC 0 detector (same glyph " +
-    "range, confirmed shared upstream); 'idle' comes from either an empty " +
+    "'working' shares Claude's spinner OSC 0 detector, on its braille branch " +
+    "(U+2800–28FF — the range Claude itself used until claude-code 2.1.228); " +
+    "'idle' comes from either an empty " +
     "OSC 0 title, '[ ! ]'/'[ . ]' (awaiting approval), specific OSC 9 iTerm " +
     "notifications, OR — the common case, a normal turn finishing with no " +
     "approval needed — a contextual fallback: any other non-empty OSC 0 " +
@@ -489,12 +497,13 @@ const grok: AgentDefinition = {
   id: "grok",
   displayName: "Grok",
   leaderNames: ["grok"],
-  // "Working" shares the braille-spinner OSC 0 detector — Grok's TUI uses the
-  // same U+2800–28FF glyph range as Claude/Codex (confirmed live: Grok shows as
-  // an agent via this shared detector before any Grok-specific entry existed).
-  // Idle is the shared contextual fallback (a non-braille OSC 0 title after an
-  // agent-sourced working phase), reused from Codex — provisional until a
-  // Grok-specific idle signal is observed.
+  // "Working" shares the spinner OSC 0 detector, on its braille branch — Grok's
+  // TUI uses the U+2800–28FF glyph range Claude used until 2.1.228 (confirmed
+  // live: Grok shows as an agent via this shared detector before any
+  // Grok-specific entry existed). Idle is the shared contextual fallback (an
+  // OSC 0 title with no spinner glyph after an agent-sourced working phase),
+  // reused from Codex — provisional until a Grok-specific idle signal is
+  // observed.
   activityDetectors: [detectClaudeCode],
   idleAfterWorking: detectCodexIdleAfterWorking,
   resume: {
@@ -540,9 +549,10 @@ const grok: AgentDefinition = {
     "→ pid to attach the exact session id; (3) `grok --resume <SESSION_ID>` " +
     "resumes by id (UUID-shaped values are always treated as ids, per " +
     "`grok --resume --help`); session ids are UUIDv7. Activity: 'working' " +
-    "shares the Claude/Codex braille-spinner OSC 0 detector (same glyph " +
-    "range, confirmed shared); idle is the shared contextual fallback (a " +
-    "non-braille OSC 0 title after an agent-sourced working phase) — " +
+    "shares the spinner OSC 0 detector on its braille branch (U+2800–28FF — " +
+    "the range Claude itself used until claude-code 2.1.228, confirmed " +
+    "shared); idle is the shared contextual fallback (an OSC 0 title with no " +
+    "spinner glyph after an agent-sourced working phase) — " +
     "PROVISIONAL, pending observation of a Grok-specific idle signal. Note: " +
     "Grok ALSO supports [[hooks.SessionStart]] hooks, but only in TOML " +
     "config.toml (no global JSON hooks dir) and behind a folder-trust step, so " +

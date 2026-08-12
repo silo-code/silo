@@ -42,7 +42,18 @@ Defined in: [packages/sdk/src/domain-types.ts:28](https://github.com/silo-code/s
 title: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:29](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L29)
+Defined in: [packages/sdk/src/domain-types.ts:41](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L41)
+
+The auto-derived tab title: the window title the running program pushed via
+an OSC escape sequence, else its process name, else the tmux status line.
+
+Agent **status markers are stripped** from this (Claude's `◐`/`✳`, Codex's
+braille spinner and `[ ! ]`, Cursor's trailing ` - Working …`) unless the
+user turns off "Hide status glyphs in tab titles" in Settings → Agents — the
+status is already available as structured state via `ctx.agents`, so the
+glyph would be redundant here. Don't parse this field to detect agent
+activity; use `ctx.agents`, or `ctx.terminals.subscribeOsc` for the raw
+(never-stripped) sequences.
 
 ***
 
@@ -52,7 +63,7 @@ Defined in: [packages/sdk/src/domain-types.ts:29](https://github.com/silo-code/s
 optional customName?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:36](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L36)
+Defined in: [packages/sdk/src/domain-types.ts:48](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L48)
 
 A user-assigned name (via the tab's "Rename…" menu). When set, it wins over
 the PTY-derived [TerminalRecord.title](#title) and stays put until the user
@@ -67,7 +78,7 @@ string, which hands the title back to PTY auto-derivation.
 optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:38](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L38)
+Defined in: [packages/sdk/src/domain-types.ts:50](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L50)
 
 Working directory override. Falls back to ws.folder when absent.
 
@@ -79,6 +90,6 @@ Working directory override. Falls back to ws.folder when absent.
 optional lastActiveAt?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:40](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L40)
+Defined in: [packages/sdk/src/domain-types.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L52)
 
 ISO timestamp of the last output we observed; used to pick a workspace's "primary" terminal.

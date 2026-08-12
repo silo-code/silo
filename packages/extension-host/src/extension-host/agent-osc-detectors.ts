@@ -35,13 +35,41 @@ export interface DetectionResult {
 
 const BRAILLE_START = 0x2800;
 const BRAILLE_END = 0x28ff;
+/**
+ * Claude Code's *current* title spinner: the half/quarter-filled circles
+ * U+25D0–U+25D3 (`◐ ◑ ◒ ◓`). Confirmed against claude-code 2.1.228, whose
+ * title component animates `["◐", "◑"]` and falls back to the idle marker when
+ * not animating — i.e. the OSC 0 title is `"<glyph> <conversation title>"`.
+ * Claude *used* to use the braille range here; the braille branch stays because
+ * Codex CLI and Grok still emit braille frames (and older Claude builds do
+ * too). The whole U+25D0–U+25D3 block is accepted, not just the two frames
+ * currently in rotation, so another frame added to that set still reads as
+ * working.
+ */
+const CIRCLE_SPINNER_START = 0x25d0;
+const CIRCLE_SPINNER_END = 0x25d3;
 const CLAUDE_IDLE_CHAR = "✳";
 
 /**
- * Claude Code's braille spinner (working) + `✳` idle marker (idle).
- * Note: Codex CLI uses the *same* braille spinner range for "working", so
- * the braille → working branch covers both — that's why this function is
- * also attached to Codex's `activityDetectors` in the catalog, not just
+ * Does this OSC 0 title lead with a known agent spinner frame — i.e. is the
+ * agent mid-turn? Shared by `detectClaudeCode` (spinner → working) and
+ * `detectCodexIdleAfterWorking` (spinner → *not* the "spinner cleared to a
+ * plain title" idle signal), so the two can never disagree about which glyphs
+ * mean "still working". An empty payload yields `NaN` and is correctly false.
+ */
+function startsWithSpinnerGlyph(payload: string): boolean {
+  const first = payload.charCodeAt(0);
+  return (
+    (first >= BRAILLE_START && first <= BRAILLE_END) ||
+    (first >= CIRCLE_SPINNER_START && first <= CIRCLE_SPINNER_END)
+  );
+}
+
+/**
+ * Claude Code's title spinner (working) + `✳` idle marker (idle).
+ * Note: Codex CLI and Grok use the *same* braille spinner range for "working",
+ * so the spinner → working branch covers all three — that's why this function is
+ * also attached to their `activityDetectors` in the catalog, not just
  * Claude's. Codex has no `✳` of its own though; its idle transitions are
  * handled separately by `detectCodexCLI`/`detectCodexIdleAfterWorking`.
  */
@@ -50,8 +78,7 @@ export function detectClaudeCode(
   payload: string,
 ): DetectionResult | null {
   if (code !== 0) return null;
-  const first = payload.charCodeAt(0);
-  if (first >= BRAILLE_START && first <= BRAILLE_END) {
+  if (startsWithSpinnerGlyph(payload)) {
     return { status: "working", source: "agent", timer: "schedule" };
   }
   if (payload.startsWith(CLAUDE_IDLE_CHAR)) {
@@ -208,8 +235,9 @@ export function detectCodexCLI(
 /**
  * Codex idle fallback: while an agent-sourced working phase is active (almost
  * always from the shared Claude/Codex braille spinner), a non-empty OSC 0
- * title that is not Claude's ✳ and not another braille frame means Codex
- * cleared the spinner to its plain project title — treat as idle.
+ * title that is not Claude's ✳ and not another spinner frame (see
+ * `startsWithSpinnerGlyph`) means Codex cleared the spinner to its plain
+ * project title — treat as idle.
  *
  * Gated on `wasAgentWorking` so ordinary programs that set a window title are
  * not promoted to agents. Not used as a silence timer: backgrounded tabs
@@ -225,11 +253,68 @@ export function detectCodexIdleAfterWorking(
   wasAgentWorking: boolean,
 ): DetectionResult | null {
   if (code !== 0 || !wasAgentWorking || payload === "") return null;
-  const first = payload.charCodeAt(0);
-  if (first >= BRAILLE_START && first <= BRAILLE_END) return null;
+  if (startsWithSpinnerGlyph(payload)) return null;
   if (payload.startsWith(CLAUDE_IDLE_CHAR)) return null;
   if (CODEX_ACTION_REQUIRED.some((p) => payload.startsWith(p))) return null;
   return { status: "idle", source: "agent", timer: "clear" };
+}
+
+// ---------------------------------------------------------------------------
+// Presentation: stripping status markers back out of a title
+// ---------------------------------------------------------------------------
+
+/** Leading marker an OSC 0 title may carry: a spinner frame (either range),
+ * Claude's `✳`, or Codex's action-required marker — plus trailing whitespace.
+ * Built from the same constants the detectors match on, so a glyph Silo can
+ * *detect* is always a glyph Silo can *strip*. */
+const LEADING_MARKER_RE = new RegExp(
+  `^(?:[\\u2800-\\u28ff\\u25d0-\\u25d3]|${CLAUDE_IDLE_CHAR}|\\[ [!.] \\])\\s*`,
+);
+
+/** Cursor Agent encodes status as a trailing `" - <emoji?> <status>"` segment
+ * (optionally followed by a `" (worktree)"` suffix) rather than a leading
+ * glyph. Assembled from the detector's own status tables — the whole point of
+ * deriving it here is that adding a status to those tables can't leave this
+ * regex behind.
+ *
+ * The emoji is skipped as `[^A-Za-z]*` rather than an emoji character class,
+ * matching what `cursorStatusMatches` already does. A class would be wrong:
+ * Cursor's status emoji include astral-plane codepoints (`📤` = a surrogate
+ * pair) and one with a variation selector (`⌨️` = U+2328 U+FE0F), and a
+ * character class decomposes both into separate single-unit members — so it
+ * would match half a glyph and then fail to reach the status text. */
+const CURSOR_STATUS_SUFFIX_RE = new RegExp(
+  ` - [^A-Za-z]*` +
+    `(?:${[...CURSOR_WORKING_STATUSES, ...CURSOR_IDLE_STATUSES].join("|")})` +
+    // The status must END here, not merely start here: the trailing `[^)]*`
+    // absorbs Cursor's animated ellipsis ("Working ...", "Working ···"), and
+    // without this lookahead it would just as happily absorb the rest of a real
+    // word — stripping "notes - Workingham" down to "notes".
+    `(?![A-Za-z])[^)]*(?: \\([^)]+\\))?$`,
+);
+
+/**
+ * Strip agent status markers out of a terminal title, for display.
+ *
+ * Agents encode their status *into* the OSC 0 window title — that's what the
+ * detectors above read. Once the host has turned that into real
+ * `ctx.agents` state (rendered as a tab activity dot and a Workspaces status
+ * row), the raw glyph is redundant and visually noisy next to those, so the
+ * tab title and `TerminalRecord.title` show the cleaned text instead. Gated by
+ * the `hideAgentStatusGlyphs` terminal setting (Settings → Agents).
+ *
+ * Detection is unaffected: it reads the raw OSC stream via
+ * `subscribeOsc`, never a title. Stripping is purely presentational.
+ *
+ * Returns `""` when the title was *nothing but* a marker (Claude emits a bare
+ * `✳` before its first conversation title exists) — callers should treat that
+ * as "no title" and fall back rather than showing an empty tab.
+ */
+export function stripAgentStatusMarkers(title: string): string {
+  return title
+    .replace(CURSOR_STATUS_SUFFIX_RE, "")
+    .replace(LEADING_MARKER_RE, "")
+    .trim();
 }
 
 // ---------------------------------------------------------------------------
