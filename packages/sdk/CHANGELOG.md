@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.34.1](https://github.com/silo-code/silo/compare/sdk-v0.34.0...sdk-v0.34.1) (2026-08-12)
+
+
+### Bug Fixes
+
+* **agents:** detect Claude's new circle spinner and hide status glyphs in titles ([#345](https://github.com/silo-code/silo/issues/345)) ([a92f08c](https://github.com/silo-code/silo/commit/a92f08cc0522d6e35d8469dd8f22f66885790c13))
+
 ## [0.34.0](https://github.com/silo-code/silo/compare/sdk-v0.33.0...sdk-v0.34.0) (2026-08-06)
 
 
