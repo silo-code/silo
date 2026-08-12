@@ -165,6 +165,59 @@ describe("UpdateService.installAndRelaunch", () => {
     await svc.installAndRelaunch();
     expect(seam.installUpdate).toHaveBeenCalledTimes(2);
   });
+
+  it("re-checks before downloading and installs the freshest handle, not the cached one", async () => {
+    // A stale `pending` from an earlier check shouldn't be trusted blindly —
+    // the status-bar link can sit actionable for a long time before it's
+    // clicked, so the handle it captured may no longer be good.
+    const stale = { version: "9.9.9" };
+    const fresh = { version: "9.9.9" };
+    seam.isStableApp.mockResolvedValue(true);
+    seam.checkForUpdate
+      .mockResolvedValueOnce(stale)
+      .mockResolvedValueOnce(fresh);
+    seam.installUpdate.mockResolvedValue(undefined);
+    const svc = await freshService();
+
+    await svc.check(); // caches `stale`
+    await svc.installAndRelaunch(); // re-checks -> `fresh`, installs that
+
+    expect(seam.checkForUpdate).toHaveBeenCalledTimes(2);
+    expect(seam.installUpdate).toHaveBeenCalledWith(fresh);
+  });
+
+  it("treats a fresh re-check finding no release as up to date, without installing", async () => {
+    const stale = { version: "9.9.9" };
+    seam.isStableApp.mockResolvedValue(true);
+    seam.checkForUpdate
+      .mockResolvedValueOnce(stale)
+      .mockResolvedValueOnce(null);
+    const svc = await freshService();
+
+    await svc.check();
+    await svc.installAndRelaunch();
+
+    expect(seam.installUpdate).not.toHaveBeenCalled();
+    expect(svc.getState()).toEqual({ phase: "upToDate", version: null });
+  });
+
+  it("logs install failures to the Output panel", async () => {
+    seam.isStableApp.mockResolvedValue(true);
+    seam.checkForUpdate.mockResolvedValue({ version: "9.9.9" });
+    seam.installUpdate.mockRejectedValue(new Error("download failed"));
+    const svc = await freshService();
+    const { outputStore } = await import("./output-store");
+
+    await svc.check();
+    await expect(svc.installAndRelaunch()).rejects.toThrow("download failed");
+
+    const entries = outputStore.channels["silo:updates"]?.entries ?? [];
+    expect(
+      entries.some(
+        (e) => e.level === "warn" && e.message.includes("install failed"),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("UpdateService.getChangelog", () => {

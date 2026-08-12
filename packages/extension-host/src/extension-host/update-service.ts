@@ -15,6 +15,9 @@ import {
   fetchChangelog,
   type ChangelogEntry,
 } from "./changelog-client";
+import { createHostChannel } from "./output-store";
+
+const channel = createHostChannel("silo:updates", "Updates");
 
 export type { ChangelogEntry };
 
@@ -82,12 +85,18 @@ export interface UpdateService {
    */
   check(): Promise<void>;
   /**
-   * Download + install the release found by the last {@link UpdateService.check}
-   * and relaunch into it. No-op when no update is pending or an install is
-   * already in flight (guards against a double-click). Moves `phase` to
-   * `"installing"` for the duration; on failure it reverts to `"available"` and
-   * re-throws so the caller can report it (a successful install never returns —
-   * the app relaunches).
+   * Download + install the newest release and relaunch into it. No-op when no
+   * update is pending or an install is already in flight (guards against a
+   * double-click). Moves `phase` to `"installing"` for the duration.
+   *
+   * Re-checks immediately before downloading rather than trusting the release
+   * found by the last {@link UpdateService.check} — that check can be
+   * significantly stale (e.g. the status-bar link stays actionable across a
+   * long background re-check interval, so a click can fire against an
+   * `Update` handle that's hours old). If the re-check finds nothing newer,
+   * the state reverts to `"upToDate"` without installing. On any other
+   * failure it reverts to `"available"` and re-throws so the caller can
+   * report it (a successful install never returns — the app relaunches).
    */
   installAndRelaunch(): Promise<void>;
   /**
@@ -155,7 +164,7 @@ export function getUpdateService(): UpdateService {
           state.phase = "upToDate";
         }
       } catch (err) {
-        console.warn("[updater] check failed", err);
+        channel.warn("[updater] check failed", err);
         state.phase = "error";
       }
     },
@@ -167,11 +176,23 @@ export function getUpdateService(): UpdateService {
       // returns (the app relaunches), so this is the only chance to report it.
       if (state.version) void reportUpdateAction("installed", state.version);
       try {
-        await installUpdate(pending);
+        // `pending` may be from a background check up to RECHECK_INTERVAL_MS
+        // old — re-check right before downloading so we never install a
+        // stale `Update` handle (see the interface doc above).
+        const fresh = await checkForUpdate();
+        if (!fresh) {
+          pending = null;
+          state.version = null;
+          state.phase = "upToDate";
+          return;
+        }
+        pending = fresh;
+        state.version = fresh.version;
+        await installUpdate(fresh);
         // On success the app relaunches into the new version — control never
         // returns here.
       } catch (err) {
-        console.warn("[updater] install failed", err);
+        channel.warn("[updater] install failed", err);
         // Revert so the link reappears and the user can retry.
         state.phase = "available";
         throw err;
@@ -186,7 +207,7 @@ export function getUpdateService(): UpdateService {
         const range = changelogRange(all, installed, available);
         if (range.length > 0) return range;
       } catch (err) {
-        console.warn("[updater] changelog fetch failed", err);
+        channel.warn("[updater] changelog fetch failed", err);
       }
       // Fall back to the manifest's own single-version notes, if present.
       return pending.body
