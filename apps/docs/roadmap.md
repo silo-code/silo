@@ -77,13 +77,13 @@ designed. As a primitive ships, its badge flips from
 Features that ship built-in but are implemented as **extensions** on the
 primitives above — so a third party could build the same.
 
-| Feature                | Status                             | Built on                        | Publishes |
-| ---------------------- | ---------------------------------- | ------------------------------- | --------- |
-| Git                    | <Badge type="tip" text="stable" /> | `process.exec` + `files`        | `GitAPI`  |
-| Markdown Preview       | <Badge type="tip" text="stable" /> | `registerEditor` + `files`      | —         |
-| Terminal               | <Badge type="tip" text="stable" /> | `process` sessions + dock panel | —         |
-| Theme management       | <Badge type="tip" text="stable" /> | `theme` + `files` + `ui`        | —         |
-| Search (find-in-files) | <Badge type="tip" text="stable" /> | `search` + `editors`            | —         |
+| Feature                | Status                             | Built on                                | Publishes                                                                                             |
+| ---------------------- | ---------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Git                    | <Badge type="tip" text="stable" /> | `process.exec` + `files` + `workspaces` | `GitAPI` (`@silo-code/git-api`) — one-shot reads/mutations plus a live `watchRepo` session (ADR 0037) |
+| Markdown Preview       | <Badge type="tip" text="stable" /> | `registerEditor` + `files`              | —                                                                                                     |
+| Terminal               | <Badge type="tip" text="stable" /> | `process` sessions + dock panel         | —                                                                                                     |
+| Theme management       | <Badge type="tip" text="stable" /> | `theme` + `files` + `ui`                | —                                                                                                     |
+| Search (find-in-files) | <Badge type="tip" text="stable" /> | `search` + `editors`                    | —                                                                                                     |
 
 > Each ships as a real extension package (`core.*` / `silo.*`) that touches the
 > app only through `ctx` — the same surface a third party gets. The core
