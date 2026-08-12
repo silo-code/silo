@@ -8,7 +8,7 @@ import {
   resetPendingWorktreeRemovesForTests,
   subscribeWorktreeListDirty,
 } from "./pending-worktree-remove";
-import type { GitAPI } from "../git/git-api";
+import type { GitRepoStore } from "@silo-code/git-api";
 
 function mockCtx(opts: {
   confirms: boolean[];
@@ -28,6 +28,12 @@ function mockCtx(opts: {
   return ctx;
 }
 
+function fakeStore(
+  removeWorktree: (path: string, force?: boolean) => Promise<void>,
+): GitRepoStore {
+  return { removeWorktree } as unknown as GitRepoStore;
+}
+
 describe("confirmAndRemoveWorktree", () => {
   beforeEach(() => {
     resetPendingWorktreeRemovesForTests();
@@ -38,8 +44,7 @@ describe("confirmAndRemoveWorktree", () => {
     const ctx = mockCtx({ confirms: [false] });
     await confirmAndRemoveWorktree({
       ctx,
-      api: { removeWorktree } as unknown as GitAPI,
-      cwd: "/w/repo",
+      store: fakeStore(removeWorktree),
       worktreePath: "/w/repo-feat",
       workspaceId: "ws1",
       isOpen: true,
@@ -61,12 +66,11 @@ describe("confirmAndRemoveWorktree", () => {
       await new Promise<void>((r) => gates.push(r));
       active -= 1;
     });
-    const api = { removeWorktree } as unknown as GitAPI;
+    const store = fakeStore(removeWorktree);
     const start = (worktreePath: string) =>
       confirmAndRemoveWorktree({
         ctx: mockCtx({ confirms: [true] }),
-        api,
-        cwd: "/w/repo",
+        store,
         worktreePath,
         workspaceId: "ws1",
         isOpen: false,
@@ -101,8 +105,7 @@ describe("confirmAndRemoveWorktree", () => {
     });
     await confirmAndRemoveWorktree({
       ctx,
-      api: { removeWorktree } as unknown as GitAPI,
-      cwd: "/w/repo",
+      store: fakeStore(removeWorktree),
       worktreePath: "/w/repo-feat",
       workspaceId: "ws1",
       isOpen: true,
@@ -114,7 +117,7 @@ describe("confirmAndRemoveWorktree", () => {
       "ws1",
       "/w/repo-feat",
     );
-    expect(removeWorktree).toHaveBeenCalledWith("/w/repo", "/w/repo-feat");
+    expect(removeWorktree).toHaveBeenCalledWith("/w/repo-feat");
     expect(getPendingWorktreeRemoves()).toHaveLength(0);
     expect(ctx.ui.notify).toHaveBeenCalledWith(
       "info",
@@ -129,8 +132,7 @@ describe("confirmAndRemoveWorktree", () => {
     expect(isWorktreeManagerOpen()).toBe(true);
     await confirmAndRemoveWorktree({
       ctx,
-      api: { removeWorktree: vi.fn(async () => {}) } as unknown as GitAPI,
-      cwd: "/w/repo",
+      store: fakeStore(vi.fn(async () => {})),
       worktreePath: "/w/repo-feat",
       workspaceId: "ws1",
       isOpen: false,
@@ -146,8 +148,7 @@ describe("confirmAndRemoveWorktree", () => {
     const ctx = mockCtx({ confirms: [true, false] });
     await confirmAndRemoveWorktree({
       ctx,
-      api: { removeWorktree } as unknown as GitAPI,
-      cwd: "/w/repo",
+      store: fakeStore(removeWorktree),
       worktreePath: "/w/repo-feat",
       workspaceId: "ws1",
       isOpen: true,
@@ -168,18 +169,13 @@ describe("confirmAndRemoveWorktree", () => {
     const ctx = mockCtx({ confirms: [true, true] });
     await confirmAndRemoveWorktree({
       ctx,
-      api: { removeWorktree } as unknown as GitAPI,
-      cwd: "/w/repo",
+      store: fakeStore(removeWorktree),
       worktreePath: "/w/repo-feat",
       workspaceId: "ws1",
       isOpen: false,
       notifyError: vi.fn(),
     });
-    expect(removeWorktree).toHaveBeenLastCalledWith(
-      "/w/repo",
-      "/w/repo-feat",
-      true,
-    );
+    expect(removeWorktree).toHaveBeenLastCalledWith("/w/repo-feat", true);
     expect(getPendingWorktreeRemoves()).toHaveLength(0);
   });
 
@@ -196,8 +192,7 @@ describe("confirmAndRemoveWorktree", () => {
     });
     await confirmAndRemoveWorktree({
       ctx,
-      api: { removeWorktree } as unknown as GitAPI,
-      cwd: "/w/repo",
+      store: fakeStore(removeWorktree),
       worktreePath: "/w/repo-feat",
       workspaceId: "ws1",
       isOpen: true,
@@ -221,12 +216,11 @@ describe("confirmAndRemoveWorktree", () => {
     const ctx = mockCtx({ confirms: [true] });
     await confirmAndRemoveWorktree({
       ctx,
-      api: {
-        removeWorktree: vi.fn(async () => {
+      store: fakeStore(
+        vi.fn(async () => {
           throw new Error("disk full");
         }),
-      } as unknown as GitAPI,
-      cwd: "/w/repo",
+      ),
       worktreePath: "/w/repo-feat",
       workspaceId: "ws1",
       isOpen: false,

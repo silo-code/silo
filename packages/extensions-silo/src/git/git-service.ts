@@ -1,4 +1,4 @@
-import type { GitAPI, GitLogEntry, GitStatus } from "./git-api";
+import type { GitAPI, GitLogEntry, GitStatus } from "@silo-code/git-api";
 import { parseGitStatus } from "./parse-status";
 import { parseBranches } from "./parse-branches";
 import { parseWorktrees } from "./parse-worktrees";
@@ -91,7 +91,9 @@ function parseLog(raw: string): GitLogEntry[] {
 }
 
 /** Build a {@link GitAPI} backed by the given one-shot `exec`. */
-export function createGitService(exec: ExecFn): GitAPI {
+// watchRepo (ADR 0037) is composed on top of this by git/index.ts, not
+// implemented here — this stays the pure one-shot GitAPI implementation.
+export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
   // `--no-optional-locks` keeps background reads (status/log/diff/branches),
   // which the panel polls on a file-watch, from taking git's *optional* index
   // lock — so a poll mid-commit can't collide with the lock the commit (and its

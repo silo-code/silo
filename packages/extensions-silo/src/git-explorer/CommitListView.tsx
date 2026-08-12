@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Check, CopySimple } from "@phosphor-icons/react";
-import { Tooltip } from "@silo-code/sdk";
-import type { GitLogEntry, GitStatus } from "../git/git-api";
-import { getGitApi } from "./git-runtime";
+import { Tooltip, type ExtensionContext } from "@silo-code/sdk";
+import type { GitAPI, GitLogEntry, GitStatus } from "@silo-code/git-api";
 import {
   dividerIndex,
   displayDividerIndex,
@@ -23,12 +22,14 @@ const PAGE_SIZE = 50;
  * when the view opened), so a branch switch underfoot just re-fetches in
  * place. */
 export function CommitListView({
+  ctx,
   folder,
   status,
   order,
   onTotalCountChange,
   onSelectCommit,
 }: {
+  ctx: ExtensionContext;
   folder: string;
   status: GitStatus;
   order: CommitOrder;
@@ -57,7 +58,7 @@ export function CommitListView({
   // see GitAPI.branchBase — before the first fetch, so the list never briefly
   // shows the default branch's shared history and then narrows.
   useEffect(() => {
-    const api = getGitApi();
+    const api = ctx.getExtension<GitAPI>("silo.git")?.api;
     if (!api || !status.branch) {
       setBranchBase(null);
       setBaseResolved(true);
@@ -73,12 +74,12 @@ export function CommitListView({
     return () => {
       cancelled = true;
     };
-  }, [folder, status.branch]);
+  }, [ctx, folder, status.branch]);
 
   // Exact total for the parent's "Commits (N)" header — a single cheap
   // `rev-list --count` call, independent of pagination (`limit`).
   useEffect(() => {
-    const api = getGitApi();
+    const api = ctx.getExtension<GitAPI>("silo.git")?.api;
     if (!api || !baseResolved) return;
     let cancelled = false;
     api.commitCount(folder, branchBase ?? undefined).then((count) => {
@@ -87,10 +88,10 @@ export function CommitListView({
     return () => {
       cancelled = true;
     };
-  }, [folder, branchBase, baseResolved, onTotalCountChange]);
+  }, [ctx, folder, branchBase, baseResolved, onTotalCountChange]);
 
   useEffect(() => {
-    const api = getGitApi();
+    const api = ctx.getExtension<GitAPI>("silo.git")?.api;
     if (!api) {
       setError("Git provider (silo.git) unavailable.");
       setLoading(false);
@@ -126,7 +127,15 @@ export function CommitListView({
     return () => {
       cancelled = true;
     };
-  }, [folder, limit, status.branch, status.upstream, branchBase, baseResolved]);
+  }, [
+    ctx,
+    folder,
+    limit,
+    status.branch,
+    status.upstream,
+    branchBase,
+    baseResolved,
+  ]);
 
   function copyHash(hash: string) {
     void navigator.clipboard.writeText(hash);

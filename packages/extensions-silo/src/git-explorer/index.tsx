@@ -1,9 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { ArrowsClockwise } from "@phosphor-icons/react";
 import type { Extension } from "@silo-code/sdk";
-import type { GitAPI } from "../git/git-api";
 import { GitExplorerPanel } from "./GitExplorerPanel";
-import { setGitApiResolver } from "./git-runtime";
 import {
   MANAGE_WORKTREES_COMMAND,
   resolveManageWorktreesTarget,
@@ -43,20 +41,16 @@ export const extension: Extension = {
     description: "Git status and history in a side panel.",
   },
   activate(ctx) {
-    setGitApiResolver(() => ctx.getExtension<GitAPI>("silo.git")?.api);
     ctx.registerSidePanel({
       id: "git-explorer",
       location: "right",
       title: "Git",
       // Inject ctx so the panel/view reach workspaces/editors/files through
-      // the public primitives, not host getters.
-      component: ({ active, storage, hydrated }) => (
-        <GitExplorerPanel
-          ctx={ctx}
-          storage={storage}
-          paused={!active}
-          hydrated={hydrated}
-        />
+      // the public primitives, not host getters. No `paused`/`active` wiring
+      // needed here (ADR 0037) — GitAPI.watchRepo's lifecycle is ambient and
+      // workspace-activation-driven, not tied to this panel's own visibility.
+      component: ({ storage, hydrated }) => (
+        <GitExplorerPanel ctx={ctx} storage={storage} hydrated={hydrated} />
       ),
       order: 2,
       lazyMount: true,

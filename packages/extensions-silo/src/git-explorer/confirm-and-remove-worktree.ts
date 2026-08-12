@@ -1,5 +1,5 @@
 import type { ExtensionContext } from "@silo-code/sdk";
-import type { GitAPI } from "../git/git-api";
+import type { GitRepoStore } from "@silo-code/git-api";
 import {
   beginPendingWorktreeRemove,
   endPendingWorktreeRemove,
@@ -18,12 +18,12 @@ const NOT_A_WORKTREE_RE = /is not a working tree/i;
 
 export interface RemoveWorktreeParams {
   ctx: ExtensionContext;
-  api: GitAPI;
   /**
-   * Directory git should run in (main worktree — git refuses to remove the
-   * worktree it's invoked from).
+   * The live store for the directory git should run in (main worktree — git
+   * refuses to remove the worktree it's invoked from). Callers resolve this
+   * via `ctx.getExtension<GitAPI>("silo.git")?.api?.watchRepo(cwd)`.
    */
-  cwd: string;
+  store: GitRepoStore;
   /** Linked worktree path to remove. */
   worktreePath: string;
   workspaceId: string;
@@ -44,8 +44,7 @@ export async function confirmAndRemoveWorktree(
 ): Promise<void> {
   const {
     ctx,
-    api,
-    cwd,
+    store,
     worktreePath,
     workspaceId,
     isOpen,
@@ -70,7 +69,13 @@ export async function confirmAndRemoveWorktree(
   try {
     let alreadyGone = false;
     try {
-      await enqueueWorktreeRemoval(() => api.removeWorktree(cwd, worktreePath));
+      // Still funneled through the global enqueueWorktreeRemoval queue, not
+      // just the store's own per-tracker serialization — removing several
+      // worktrees across *different* repos at once is what caused the
+      // multi-worktree freeze (ADR 0025); the store only serializes calls
+      // that land on the same tracker (e.g. several linked worktrees of one
+      // repo, which all run from the same main-worktree store anyway).
+      await enqueueWorktreeRemoval(() => store.removeWorktree(worktreePath));
     } catch (err) {
       if (NOT_A_WORKTREE_RE.test(String(err))) {
         // The row was stale — this worktree is already gone at the git
@@ -92,7 +97,7 @@ export async function confirmAndRemoveWorktree(
 
         beginPendingWorktreeRemove(worktreePath);
         await enqueueWorktreeRemoval(() =>
-          api.removeWorktree(cwd, worktreePath, true),
+          store.removeWorktree(worktreePath, true),
         );
       } else {
         throw err;

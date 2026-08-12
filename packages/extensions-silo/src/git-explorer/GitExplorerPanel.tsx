@@ -22,12 +22,10 @@ const EMPTY_COLLAPSED: CollapsedMap = {};
 export function GitExplorerPanel({
   ctx,
   storage,
-  paused = false,
   hydrated = true,
 }: {
   ctx: ExtensionContext;
   storage: ExtensionStorage;
-  paused?: boolean;
   hydrated?: boolean;
 }) {
   const wsState = useServiceState(ctx.workspaces);
@@ -76,7 +74,6 @@ export function GitExplorerPanel({
             workspaceId={ws.id}
             folder={folder}
             rootLabel={showLabel ? rootName(folder) : undefined}
-            paused={paused}
             storage={storage}
             hydrated={hydrated}
             collapsed={showLabel && (collapsedMap[folder] ?? false)}
