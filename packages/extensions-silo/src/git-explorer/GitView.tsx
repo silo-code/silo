@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  ArrowsClockwise,
-  CaretDown,
-  CaretRight,
-  CloudArrowUp,
-  DotsThreeVertical,
-  TreeStructure,
-} from "@phosphor-icons/react";
+import { ArrowsClockwise, CaretDown, CaretRight } from "@phosphor-icons/react";
 import {
   Badge,
   Tooltip,
@@ -21,6 +14,7 @@ import {
 import type { GitAPI, GitFileStatus } from "@silo-code/git-api";
 import { NULL_GIT_REPO_STORE } from "@silo-code/git-api";
 import { Section, FileRow } from "./git-rows";
+import { GitSyncOrPublishButton, GitHeaderActions } from "./git-header";
 import { buildGitNavItems, navItemKey } from "./git-nav";
 import { ICON_CHECK, ICON_PLUS, ICON_MINUS, ICON_UNDO } from "./git-icons";
 import { summarizeGitError } from "./notify-error";
@@ -591,63 +585,28 @@ export function GitView({
                 className="git-root-remote"
                 onClick={(e) => e.stopPropagation()}
               >
-                {status?.upstream ? (
-                  <Tooltip content="Sync (pull, then push)">
-                    <button
-                      className={`branch-tracking branch-sync${syncing ? " working" : ""}`}
-                      onClick={syncing ? undefined : sync}
-                    >
-                      {syncing && (
-                        <ArrowsClockwise
-                          className="git-branch-spin"
-                          size={12}
-                        />
-                      )}
-                      ↑{status.ahead} ↓{status.behind}
-                    </button>
-                  </Tooltip>
-                ) : status.branch ? (
-                  <Tooltip content="Publish branch">
-                    <button
-                      className={`branch-action branch-publish push-btn${pushing ? " working" : ""}`}
-                      onClick={pushing ? undefined : push}
-                    >
-                      <CloudArrowUp size={16} />
-                    </button>
-                  </Tooltip>
-                ) : null}
+                <GitSyncOrPublishButton
+                  status={status}
+                  syncing={syncing}
+                  pushing={pushing}
+                  onSync={sync}
+                  onPublish={push}
+                />
               </span>
               <span
                 className="git-root-actions"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Tooltip content="Refresh">
-                  <button
-                    className={`branch-action refresh-btn${busy ? " working" : ""}`}
-                    onClick={busy ? undefined : refresh}
-                  >
-                    <ArrowsClockwise size={14} />
-                  </button>
-                </Tooltip>
-                {showWorktreeButton && (
-                  <Tooltip content={worktreeManagerButtonTooltip(worktrees)}>
-                    <button
-                      className="branch-action git-wt-btn"
-                      onClick={openWorktreeManager}
-                      aria-label={worktreeManagerButtonTooltip(worktrees)}
-                    >
-                      <TreeStructure size={14} />
-                    </button>
-                  </Tooltip>
-                )}
-                <Tooltip content="More actions">
-                  <button
-                    className="branch-action git-menu-btn"
-                    onClick={(e) => openGitMenu(e.currentTarget)}
-                  >
-                    <DotsThreeVertical size={18} weight="bold" />
-                  </button>
-                </Tooltip>
+                <GitHeaderActions
+                  size={14}
+                  busy={busy}
+                  onRefresh={refresh}
+                  showWorktreeButton={showWorktreeButton}
+                  worktreeTooltip={worktreeManagerButtonTooltip(worktrees)}
+                  onOpenWorktreeManager={openWorktreeManager}
+                  showMenu // already inside a status?.inRepo guard one level up
+                  onOpenMenu={openGitMenu}
+                />
               </span>
             </span>
           )}
@@ -673,57 +632,23 @@ export function GitView({
           {worktreePill}
           {/* Where the remote state lives: published → the ↑/↓ counts double as
               a Sync button; not yet published → a Publish-branch button. */}
-          {status?.upstream ? (
-            <Tooltip content="Sync (pull, then push)">
-              <button
-                className={`branch-tracking branch-sync${syncing ? " working" : ""}`}
-                onClick={syncing ? undefined : sync}
-              >
-                {syncing && (
-                  <ArrowsClockwise className="git-branch-spin" size={12} />
-                )}
-                ↑{status.ahead} ↓{status.behind}
-              </button>
-            </Tooltip>
-          ) : status?.inRepo && status.branch ? (
-            <Tooltip content="Publish branch">
-              <button
-                className={`branch-action branch-publish push-btn${pushing ? " working" : ""}`}
-                onClick={pushing ? undefined : push}
-              >
-                <CloudArrowUp size={16} />
-              </button>
-            </Tooltip>
-          ) : null}
-          <Tooltip content="Refresh">
-            <button
-              className={`branch-action refresh-btn${busy ? " working" : ""}`}
-              onClick={busy ? undefined : refresh}
-            >
-              <ArrowsClockwise size={16} />
-            </button>
-          </Tooltip>
-          {showWorktreeButton && (
-            <Tooltip content={worktreeManagerButtonTooltip(worktrees)}>
-              <button
-                className="branch-action git-wt-btn"
-                onClick={openWorktreeManager}
-                aria-label={worktreeManagerButtonTooltip(worktrees)}
-              >
-                <TreeStructure size={16} />
-              </button>
-            </Tooltip>
-          )}
-          {status?.inRepo && (
-            <Tooltip content="More actions">
-              <button
-                className="branch-action git-menu-btn"
-                onClick={(e) => openGitMenu(e.currentTarget)}
-              >
-                <DotsThreeVertical size={18} weight="bold" />
-              </button>
-            </Tooltip>
-          )}
+          <GitSyncOrPublishButton
+            status={status}
+            syncing={syncing}
+            pushing={pushing}
+            onSync={sync}
+            onPublish={push}
+          />
+          <GitHeaderActions
+            size={16}
+            busy={busy}
+            onRefresh={refresh}
+            showWorktreeButton={showWorktreeButton}
+            worktreeTooltip={worktreeManagerButtonTooltip(worktrees)}
+            onOpenWorktreeManager={openWorktreeManager}
+            showMenu={!!status?.inRepo} // hidden while status is still loading
+            onOpenMenu={openGitMenu}
+          />
         </div>
       )}
       {!collapsed && (
