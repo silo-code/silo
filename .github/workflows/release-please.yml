@@ -96,6 +96,18 @@ jobs:
       # action exposes the aggregate `releases_created` (plural) — NOT the bare
       # `release_created`, which is only set in legacy single-package mode and is
       # always empty here (the per-path output is `apps/desktop--release_created`).
+      #
+      # The silo app release-please config sets `draft: true` (soak-test the
+      # signed build on real production data before it goes public) plus
+      # `force-tag-creation: true` — GitHub otherwise defers creating a draft
+      # release's tag until it's published, which would leave this trigger firing
+      # against a tag that doesn't exist yet. `release_created` still fires for a
+      # draft, and release.yml's `tauri-action` (also configured with
+      # `releaseDraft: true`) finds the pre-tagged draft by tag name and uploads
+      # the installers onto it rather than creating a second release. The release
+      # stays private until someone runs
+      # `gh release edit silo-vX.Y.Z --draft=false` — see
+      # apps/docs/guide/release-channels.md.
       - name: trigger installer build
         if: ${{ steps.release.outputs['.--release_created'] }}
         env:

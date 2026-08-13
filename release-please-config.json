@@ -21,6 +21,8 @@
       "package-name": "silo",
       "component": "silo",
       "changelog-path": "apps/desktop/CHANGELOG.md",
+      "draft": true,
+      "force-tag-creation": true,
       "extra-files": [
         {
           "type": "json",
