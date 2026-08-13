@@ -8,7 +8,17 @@ applications and share no data by default.
 
 The default. Stable releases go through the full release cycle — conventional
 commits feed a version-bump PR, maintainers review and merge it, and the tag
-triggers a signed build. New stable releases land roughly monthly.
+triggers a signed, notarized build. New stable releases land roughly monthly.
+
+Merging the release PR does not make the release public. The build lands as a
+**draft** GitHub release — a deliberate checkpoint to soak-test it on real
+production data first: install the draft over your existing Silo (same bundle
+identifier, so the same workspaces, terminal sessions, and settings carry over
+automatically) and run it for a few days. When you're satisfied, publish the
+draft — `gh release edit silo-vX.Y.Z --draft=false`, or "Publish release" on
+GitHub — and it immediately becomes "Latest": every existing install's
+auto-updater, the website's download button, and the docs download links all
+pick it up with no further steps.
 
 Download from the [GitHub Releases](https://github.com/silo-code/silo/releases/latest) page.
 
