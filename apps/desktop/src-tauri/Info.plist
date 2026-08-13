@@ -4,5 +4,13 @@
   <dict>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
+    <!--
+      Required on macOS 15+ for Silo (and the terminals, agents, and dev servers
+      it spawns) to reach devices and services on the local network. Without this
+      key macOS cannot show the Local Network prompt and silently denies the
+      access, surfacing as EHOSTUNREACH rather than a permission request.
+    -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Silo needs local network access so terminals, agents, and dev servers you run inside it can reach services on your network.</string>
   </dict>
 </plist>
