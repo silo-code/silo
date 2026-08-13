@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.47.0](https://github.com/silo-code/silo/compare/silo-v0.46.1...silo-v0.47.0) (2026-08-13)
+
+
+### Features
+
+* **git:** publish a live GitAPI.watchRepo session (ADR 0037) ([#353](https://github.com/silo-code/silo/issues/353)) ([40b486c](https://github.com/silo-code/silo/commit/40b486c83750cf9bc2161b9f8f133085a143f436))
+
+
+### Bug Fixes
+
+* **docs:** eliminate homepage load flicker and defer story WebMs ([#350](https://github.com/silo-code/silo/issues/350)) ([bdc87cd](https://github.com/silo-code/silo/commit/bdc87cdb96df10363ce4fced110951148e54d73f))
+* **macos:** declare NSLocalNetworkUsageDescription in Info.plist ([#357](https://github.com/silo-code/silo/issues/357)) ([6981149](https://github.com/silo-code/silo/commit/6981149f32d7ce40d0a2d497708e3873f67a3508))
+* **terminal:** stop reattach from clobbering an agent tab's persisted title ([#352](https://github.com/silo-code/silo/issues/352)) ([b4804ae](https://github.com/silo-code/silo/commit/b4804ae6ea35ed17bb7a76abf1ff4f65d7be5ba5))
+
 ## [0.46.1](https://github.com/silo-code/silo/compare/silo-v0.46.0...silo-v0.46.1) (2026-08-12)
 
 
