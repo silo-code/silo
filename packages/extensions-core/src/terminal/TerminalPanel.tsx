@@ -28,11 +28,13 @@ import {
   retryFocus,
   useFocusOnActive,
   onTerminalForeground,
+  terminalForegroundSnapshot,
   registerSelectionSource,
   contextMenuEntriesFor,
   notifyTerminalSessionGone,
   notifyTerminalSessionRecreated,
   stripAgentStatusMarkers,
+  type TerminalForeground,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
 import { effectiveFontFamily } from "./terminal-font";
@@ -46,6 +48,7 @@ import {
   type TerminalLinkRange,
 } from "./terminal-link-policy";
 import { findTerminalOwnerId } from "./terminal-lifecycle";
+import { deriveTitle, formatTitle, tmuxStatusTitle } from "./terminal-title";
 import { formatResumeBox } from "./resume-box";
 import { TerminalSearch } from "./TerminalSearch";
 import { Breadcrumb } from "../editor/Breadcrumb";
@@ -784,13 +787,9 @@ export function TerminalPanel(
     // Recreate flow uses the explicit `version` bump instead.
   }, [terminalId, version]);
 
-  // Derive the dockview tab title, in priority order:
-  //   1. a user-assigned name (right-click → Rename) — always wins;
-  //   2. a title the program pushed via an OSC 0/1/2 escape sequence (e.g.
-  //      Claude Code updating its title as its activity changes) — xterm
-  //      surfaces these through onTitleChange;
-  //   3. the tmux status line (last visible row) as a fallback for programs
-  //      that don't emit an OSC title.
+  // Derive the dockview tab title. The rules (and why a restored title outranks
+  // a running program's name) live in `terminal-title.ts`; this effect is the
+  // glue that feeds them live signals and writes the result out.
   // Reacts to PTY writes and also polls as a fallback (hidden panels still
   // render to the buffer but onWriteParsed may not fire if the panel is in a
   // detached group).
@@ -801,6 +800,11 @@ export function TerminalPanel(
 
     const { term } = live;
     let lastTitle = "";
+    // The title this mount inherited from persisted state, held until a live
+    // signal supersedes it (see `deriveTitle`). Seeded on the first read(),
+    // which is also where the terminal record is first in hand.
+    let restoredTitle = "";
+    let seeded = false;
     // Most recent title the program pushed via an OSC escape sequence ("" =
     // none yet), stored RAW. Set by onTitleChange; consulted by read() ahead of
     // the tmux scrape but behind any user-assigned customName.
@@ -816,24 +820,27 @@ export function TerminalPanel(
       store.terminalSettings.hideAgentStatusGlyphs
         ? stripAgentStatusMarkers(oscTitle)
         : oscTitle;
-    // Foreground process, from the host (RFC 0010 N1). `fgKnown` stays false
-    // until the first update so we fall back to legacy behavior if the signal
-    // never arrives. At a prompt, a program's stale OSC title is dropped (N1a);
-    // a running program with no OSC title shows its own name (N1b).
-    let fgKnown = false;
-    let fgAtPrompt = true;
-    let fgLeader = "";
-    const progName = (s: string) =>
-      (s.replace(/^-/, "").split("/").pop() ?? s).trim();
+    // Foreground process, from the host (RFC 0010 N1). `fg` stays null until the
+    // first update so we fall back to legacy behavior if the signal never
+    // arrives. At a prompt, a program's stale OSC title is dropped (N1a); a
+    // running program with no OSC title shows its own name (N1b).
+    let fg: TerminalForeground | null = null;
 
     function apply(text: string, rec: TerminalRecord | null) {
-      if (!text) text = "Terminal";
-      else if (text.length > 32) text = text.slice(0, 31) + "…";
-      if (text === lastTitle) return;
-      lastTitle = text;
-      props.api.setTitle(text);
+      const formatted = formatTitle(text);
+      if (formatted === lastTitle) return;
+      lastTitle = formatted;
+      props.api.setTitle(formatted);
       // Persist to workspace state so the tab title survives reload.
-      if (rec) rec.title = text;
+      if (rec) rec.title = formatted;
+    }
+
+    /** The tmux status line: quoted text on the last buffer row. */
+    function tmuxLine() {
+      const buffer = term.buffer.active;
+      const bottom = Math.max(0, buffer.length - 1);
+      const line = buffer.getLine(bottom);
+      return tmuxStatusTitle(line ? line.translateToString(true) : "");
     }
 
     function read() {
@@ -845,54 +852,39 @@ export function TerminalPanel(
       const ws = wsId ? store.workspaces[wsId] : null;
       const rec = ws?.terminals.find((t) => t.id === terminalId) ?? null;
 
-      // 1. A user-assigned name wins over any auto-derived title for the tab
-      // display. We still persist the live OSC title to rec.title so extensions
-      // can observe actual activity in custom-named terminals.
+      if (!seeded) {
+        seeded = true;
+        // What dockview already shows for this tab (it restores panels with the
+        // persisted `rec.title`), so `apply` can no-op when nothing changed —
+        // and so the reattach rule has something to hold onto.
+        lastTitle = rec?.customName ?? rec?.title ?? "";
+        restoredTitle = rec?.customName ? "" : (rec?.title ?? "");
+      }
+
       const shown = displayOscTitle();
+      const derived = deriveTitle({
+        customName: rec?.customName,
+        oscTitle: shown,
+        fg,
+        tmuxLine,
+        restoredTitle,
+      });
+      if (!derived) return;
 
-      if (rec?.customName) {
-        if (rec.customName !== lastTitle) {
-          lastTitle = rec.customName;
-          props.api.setTitle(rec.customName);
+      // A user-assigned name is shown verbatim (no truncation) and never
+      // written to rec.title. We still persist the live OSC title there so
+      // extensions can observe actual activity in custom-named terminals.
+      if (derived.source === "custom") {
+        if (derived.text !== lastTitle) {
+          lastTitle = derived.text;
+          props.api.setTitle(derived.text);
         }
-        if (shown && rec.title !== shown) rec.title = shown;
+        if (rec && shown && rec.title !== shown) rec.title = shown;
         return;
       }
 
-      const knownPrompt = fgKnown && fgAtPrompt; // host says: at a prompt
-      const knownRunning = fgKnown && !fgAtPrompt; // host says: program running
-
-      // 2. A title the program set via an OSC escape sequence (e.g. Claude Code).
-      //    Drop it once we KNOW we're back at a prompt (N1a — stale title fix);
-      //    otherwise trust it. A marker-only title strips to "" and falls
-      //    through to the program name below rather than showing "Terminal".
-      if (shown && !knownPrompt) {
-        apply(shown, rec);
-        return;
-      }
-
-      // 3. A running program with no OSC title of its own → show its name (N1b).
-      if (knownRunning && fgLeader) {
-        apply(progName(fgLeader), rec);
-        return;
-      }
-
-      // 4. The tmux status line (quoted text on the last row).
-      const buffer = term.buffer.active;
-      const bottom = Math.max(0, buffer.length - 1);
-      const line = buffer.getLine(bottom);
-      const raw = line ? line.translateToString(true) : "";
-      const match = raw.match(/"([^"]*)"/);
-      if (match) {
-        apply(match[1].trim(), rec);
-        return;
-      }
-
-      // 5. Back at a prompt with nothing better → the shell name (the visible
-      //    half of N1a: replace the stale program title). Otherwise leave as-is.
-      if (knownPrompt && fgLeader) {
-        apply(progName(fgLeader), rec);
-      }
+      restoredTitle = ""; // superseded by live evidence
+      apply(derived.text, rec);
     }
 
     const offTitle = term.onTitleChange((title) => {
@@ -900,20 +892,32 @@ export function TerminalPanel(
       read();
     });
     const offWrite = term.onWriteParsed(() => read());
-    const offForeground = onTerminalForeground(live.sessionId, (fg) => {
-      fgKnown = true;
-      fgAtPrompt = fg.atPrompt;
-      fgLeader = fg.leader;
-      if (fg.cwd) {
-        cwdRef.current = fg.cwd;
-        setCwd(fg.cwd);
+    const updateForeground = (next: TerminalForeground) => {
+      fg = next;
+      if (next.cwd) {
+        cwdRef.current = next.cwd;
+        setCwd(next.cwd);
       }
       read();
+    };
+    const offForeground = onTerminalForeground(
+      live.sessionId,
+      updateForeground,
+    );
+    // Seed from the host's cache: `onTerminalForeground` only fires on *change*,
+    // and the daemon's one push at attach time can land before this subscriber
+    // exists — so a reattached session that then sits idle (an agent waiting for
+    // input) would otherwise never report its foreground state at all. A live
+    // event that beat the snapshot back wins: it's the newer value.
+    let disposed = false;
+    void terminalForegroundSnapshot(live.sessionId).then((snapshot) => {
+      if (!disposed && snapshot && !fg) updateForeground(snapshot);
     });
     read();
     const interval = window.setInterval(read, 500);
 
     return () => {
+      disposed = true;
       offTitle.dispose();
       offWrite.dispose();
       offForeground();

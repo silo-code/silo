@@ -348,7 +348,10 @@ export {
 
 // Foreground-process updates for a terminal session (RFC 0010 N1) — consumed by
 // the built-in terminal for tab titles. Core-only; not public SDK surface.
-export { onTerminalForeground } from "./terminal-foreground";
+export {
+  onTerminalForeground,
+  terminalForegroundSnapshot,
+} from "./terminal-foreground";
 export type { TerminalForeground } from "./terminal-foreground";
 
 // `ctx.agents`'s death/reset hooks (RFC 0018) — called by the built-in
