@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
 // Foreground-process updates for a terminal session (RFC 0010 N1), forwarded by
@@ -41,4 +42,24 @@ export function onTerminalForeground(
     unlisten?.();
     unlisten = null;
   };
+}
+
+/**
+ * The host's last known foreground state for a session, or `null` if it has
+ * none yet.
+ *
+ * {@link onTerminalForeground} only fires on *change*, and the daemon's one
+ * push at attach time can land before a subscriber exists — so a consumer that
+ * needs the value *now* (rather than the next change) seeds from here. Without
+ * it, a session that reattaches and then sits idle — an agent waiting for input,
+ * a shell at a prompt — never reports its foreground state at all.
+ */
+export async function terminalForegroundSnapshot(
+  sessionId: string,
+): Promise<TerminalForeground | null> {
+  return (
+    (await invoke<TerminalForeground | null>("terminal_foreground_snapshot", {
+      sessionId,
+    })) ?? null
+  );
 }
