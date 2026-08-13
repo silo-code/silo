@@ -135,3 +135,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run release-sdk.yml --ref main -R ${{ github.repository }} -f publish=true
+
+      - name: publish git-api to npm
+        if: ${{ steps.release.outputs['packages/git-api--release_created'] }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run release-git-api.yml --ref main -R ${{ github.repository }} -f publish=true
