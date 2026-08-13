@@ -248,6 +248,10 @@ export default withMermaid(
                     link: "/guide/what-is-an-extension",
                   },
                   {
+                    text: "Extension-to-extension APIs",
+                    link: "/guide/extension-apis",
+                  },
+                  {
                     text: "Your first extension",
                     link: "/guide/getting-started",
                   },

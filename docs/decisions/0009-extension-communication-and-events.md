@@ -16,7 +16,9 @@ becomes a god-object.
 - **APIs:** an extension's `activate()` returns (publishes) a typed API object; a
   consumer declares a dependency (for activation order) and retrieves it via
   `ctx.getExtension(id)?.api`, tolerating absence; providers ship a types package
-  (e.g. `@silo-code/git-api`). Mirrors VS Code's `extensions.getExtension(id).exports`.
+  (`@silo-code/git-api` is the worked example — ADR 0037; see also the
+  [Extension-to-extension APIs](https://github.com/silo-code/silo/tree/main/apps/docs/guide/extension-apis.md)
+  guide). Mirrors VS Code's `extensions.getExtension(id).exports`.
 - **Events:** typed `Event<T>` emitters **owned by each domain**
   (`editors.onDidChangeActive`, `workspaces.onDidChange`, …) plus one small SDK
   `EventEmitter` helper. **No** global string-keyed bus.
@@ -36,3 +38,5 @@ becomes a god-object.
 ## References
 
 - Originally captured during the early architecture work (2026).
+- ADR 0037 — the first extension to actually carry out the "providers ship a
+  types package" half of this decision (`@silo-code/git-api`).

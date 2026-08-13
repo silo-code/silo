@@ -63,11 +63,12 @@ invoking a command (`ctx.executeCommand`) — never by importing the app's store
 
 Everything `ctx` offers falls into three groups:
 
-| Group            | What it's for                                                                                                                                                                                                                     |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Registration** | `register*` methods that add things to the app — viewers, side panels, status items, commands, keybindings, menu items, file types, dock panels, settings pages. Each returns a [`Disposable`](/api/types/interfaces/Disposable). |
-| **State**        | typed services that read & drive app state — [`ctx.workspaces`](/api/state/workspaces) (workspaces and editor tabs) and [`ctx.layout`](/api/state/layout) (side-panel collapse) — so you never reach into the store.              |
-| **Other**        | [`ctx.executeCommand(id)`](/api/other/execute-command) to invoke any registered command, plus `ctx.extensionId` and `ctx.subscriptions`.                                                                                          |
+| Group              | What it's for                                                                                                                                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Registration**   | `register*` methods that add things to the app — viewers, side panels, status items, commands, keybindings, menu items, file types, dock panels, settings pages. Each returns a [`Disposable`](/api/types/interfaces/Disposable).                             |
+| **State**          | typed services that read & drive app state — [`ctx.workspaces`](/api/state/workspaces) (workspaces and editor tabs) and [`ctx.layout`](/api/state/layout) (side-panel collapse) — so you never reach into the store.                                          |
+| **Extension APIs** | [`ctx.getExtension(id)`](/api/other/get-extension) to consume another extension's published API — how features that live outside core (git, terminal, themes) expose capabilities to everyone else. See [Extension-to-extension APIs](/guide/extension-apis). |
+| **Other**          | [`ctx.executeCommand(id)`](/api/other/execute-command) to invoke any registered command, plus `ctx.extensionId` and `ctx.subscriptions`.                                                                                                                      |
 
 The **[API Reference](/api/)** walks through every member of each group, with
 signatures, examples, and links to the type definitions.
@@ -77,6 +78,10 @@ signatures, examples, and links to the type definitions.
 **Build one** — [Your first extension](/guide/getting-started) walks through a
 complete, working status-bar clock step by step. Prefer to describe what you
 want and let an AI do the scaffolding? See [Build with Claude Code](/guide/claude-skill).
+
+**Depend on another extension, or let others depend on yours** — extensions
+aren't only UI. A provider extension can register nothing at all and just
+publish a typed API — see [Extension-to-extension APIs](/guide/extension-apis).
 
 **Polish the UI** — [Styling your extension](/guide/styling),
 [Workspace status, sections & badges](/guide/workspace-status),
