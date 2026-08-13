@@ -31,6 +31,10 @@ import type { GitAPI } from "@silo-code/git-api";
 import { NULL_GIT_REPO_STORE } from "@silo-code/git-api";
 import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
 import {
+  clearSuppressedNewWorktreeNotification,
+  suppressNewWorktreeNotification,
+} from "./notify-new-worktree";
+import {
   getPendingWorktreeRemoves,
   isWorktreeRemovePending,
   subscribePendingWorktreeRemoves,
@@ -109,7 +113,9 @@ export function WorktreeManager({
   useEffect(() => {
     let active = true;
     const unsubscribe = subscribeWorktreeListDirty(() => {
-      if (active) void store.refresh();
+      // The null store (no `silo.git` provider) always rejects; nothing more
+      // to surface here than the modal's own "Loading worktrees…" state.
+      if (active) void store.refresh().catch(() => {});
     });
     return () => {
       active = false;
@@ -212,6 +218,12 @@ export function WorktreeManager({
     );
     if (!isWorktreeCreateResult(result)) return;
     setBusy(true);
+    // The store's own trailing refresh fires onWorktreeAdded (and thus the
+    // "new worktree detected" toast) synchronously as part of the awaited
+    // addWorktree() below — before this function ever reaches the
+    // ctx.workspaces.addFolder() call that would otherwise suppress it via
+    // the "already open" check. Mark it here instead, up front.
+    suppressNewWorktreeNotification(result.path);
     try {
       await store.addWorktree(
         result.path,
@@ -226,6 +238,10 @@ export function WorktreeManager({
       );
       onChanged();
     } catch (err) {
+      // The worktree was never created, so onWorktreeAdded never fired to
+      // consume the suppression above — clear it so a later, genuinely
+      // external creation at this same path isn't silently swallowed.
+      clearSuppressedNewWorktreeNotification(result.path);
       notifyError("Create worktree failed", err);
     } finally {
       setBusy(false);

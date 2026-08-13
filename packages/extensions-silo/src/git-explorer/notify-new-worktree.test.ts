@@ -1,7 +1,11 @@
 import type { ExtensionContext } from "@silo-code/sdk";
 import { describe, it, expect, vi } from "vitest";
 import type { GitWorktree } from "@silo-code/git-api";
-import { notifyNewWorktree } from "./notify-new-worktree";
+import {
+  clearSuppressedNewWorktreeNotification,
+  notifyNewWorktree,
+  suppressNewWorktreeNotification,
+} from "./notify-new-worktree";
 
 function wt(overrides: Partial<GitWorktree>): GitWorktree {
   return {
@@ -128,5 +132,36 @@ describe("notifyNewWorktree", () => {
 
     notifyNewWorktree(ctx, id, feat);
     expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("suppresses a self-initiated creation (e.g. WorktreeManager.create()) once, then resumes for the next one", () => {
+    // WorktreeManager.create() calls this before its own await store.addWorktree()
+    // returns — the mutator's trailing refresh fires onWorktreeAdded (and thus
+    // this function) before the caller's own ctx.workspaces.addFolder() line
+    // ever runs, so the "already open" check below can't suppress it in time.
+    const id = wsId();
+    const feat = wt({ path: "/w/repo-feat", branch: "feat" });
+    const { ctx, notify } = mockCtx({ folder: "/w/repo" }, { activeId: id });
+
+    suppressNewWorktreeNotification("/w/repo-feat");
+    notifyNewWorktree(ctx, id, feat);
+    expect(notify).not.toHaveBeenCalled();
+
+    // The suppression is consumed, not sticky — a later, genuinely external
+    // creation at the same path (a different call, same session) still fires.
+    notifyNewWorktree(ctx, id, feat);
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("clearSuppressedNewWorktreeNotification undoes a suppression that never fired (e.g. the create failed)", () => {
+    const id = wsId();
+    const feat = wt({ path: "/w/repo-feat", branch: "feat" });
+    const { ctx, notify } = mockCtx({ folder: "/w/repo" }, { activeId: id });
+
+    suppressNewWorktreeNotification("/w/repo-feat");
+    clearSuppressedNewWorktreeNotification("/w/repo-feat");
+
+    notifyNewWorktree(ctx, id, feat);
+    expect(notify).toHaveBeenCalledTimes(1);
   });
 });

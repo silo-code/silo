@@ -30,8 +30,9 @@ function mockCtx(opts: {
 
 function fakeStore(
   removeWorktree: (path: string, force?: boolean) => Promise<void>,
+  dispose: () => void = vi.fn(),
 ): GitRepoStore {
-  return { removeWorktree } as unknown as GitRepoStore;
+  return { removeWorktree, dispose } as unknown as GitRepoStore;
 }
 
 describe("confirmAndRemoveWorktree", () => {
@@ -228,5 +229,51 @@ describe("confirmAndRemoveWorktree", () => {
     });
     expect(notifyError).toHaveBeenCalled();
     expect(getPendingWorktreeRemoves()).toHaveLength(0);
+  });
+
+  it("disposes the store on every exit path — cancel, success, and failure", async () => {
+    // GitView's "Remove worktree…" resolves a fresh watchRepo() store just for
+    // this call and relies on confirmAndRemoveWorktree to release it — dispose()
+    // is a safe no-op for a store still owned elsewhere (see repo-tracker.ts).
+    const cancelDispose = vi.fn();
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [false] }),
+      store: fakeStore(vi.fn(), cancelDispose),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: true,
+      notifyError: vi.fn(),
+    });
+    expect(cancelDispose).toHaveBeenCalledTimes(1);
+
+    const successDispose = vi.fn();
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [true] }),
+      store: fakeStore(
+        vi.fn(async () => {}),
+        successDispose,
+      ),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: true,
+      notifyError: vi.fn(),
+    });
+    expect(successDispose).toHaveBeenCalledTimes(1);
+
+    const failureDispose = vi.fn();
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [true] }),
+      store: fakeStore(
+        vi.fn(async () => {
+          throw new Error("disk full");
+        }),
+        failureDispose,
+      ),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      notifyError: vi.fn(),
+    });
+    expect(failureDispose).toHaveBeenCalledTimes(1);
   });
 });

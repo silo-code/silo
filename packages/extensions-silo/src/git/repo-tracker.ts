@@ -5,7 +5,7 @@ import type {
   GitRepoStore,
   GitWorktree,
 } from "@silo-code/git-api";
-import { samePath } from "./worktree-utils";
+import { normalizeFolderPath, samePath } from "./worktree-utils";
 import { realClock, type ClockPort } from "./clock";
 
 /** The narrow slice of `ctx.workspaces` the tracker registry actually reads —
@@ -47,12 +47,13 @@ const EMPTY_SNAPSHOT: GitRepoSnapshot = {
 };
 
 /** The narrow slice of `ctx.log` the registry needs, for tracker-lifecycle
- *  diagnostics — reuses `silo.git`'s existing Output channel rather than a
- *  new one. */
+ *  diagnostics and autofetch failures — reuses `silo.git`'s existing Output
+ *  channel rather than a new one. */
 export interface DebugLog {
   debug(message: string): void;
+  warn(message: string): void;
 }
-const noopLog: DebugLog = { debug: () => {} };
+const noopLog: DebugLog = { debug: () => {}, warn: () => {} };
 
 /** One tracker's live state, for `debugSnapshot()` — answers "how many repos
  *  are actually being watched right now, and why is each one still alive." */
@@ -83,8 +84,11 @@ interface Tracker {
   suppressCount: number;
   inFlightRead: Promise<void> | null;
   /** A refresh was requested while one was already in flight — run once more
-   *  after the in-flight one settles, instead of stacking concurrent reads. */
-  queuedRead: boolean;
+   *  after the in-flight one settles, instead of stacking concurrent reads.
+   *  Holds the promise every coalesced caller is handed, so `await
+   *  store.refresh()` resolves only once the queued (fresh) read actually
+   *  completes, not the stale one that was already in flight. */
+  queuedRead: Promise<void> | null;
   /** Serializes mutating calls on this tracker — one `git` write at a time. */
   mutationTail: Promise<unknown>;
   workspaceOwned: boolean;
@@ -148,9 +152,19 @@ export function createGitRepoTrackerRegistry(deps: {
   function runRead(tracker: Tracker): Promise<void> {
     if (pendingRemoval.has(tracker.cwd)) return Promise.resolve();
     if (tracker.inFlightRead) {
-      tracker.queuedRead = true;
-      return tracker.inFlightRead;
+      // Coalesce: every caller landing here while a read is already in
+      // flight shares one queued follow-up, and all of them await its
+      // completion — not the stale read that was already running.
+      tracker.queuedRead ??= tracker.inFlightRead.then(() => {
+        tracker.queuedRead = null;
+        return performRead(tracker);
+      });
+      return tracker.queuedRead;
     }
+    return performRead(tracker);
+  }
+
+  function performRead(tracker: Tracker): Promise<void> {
     tracker.snapshot = { ...tracker.snapshot, loading: true };
     notify(tracker);
     const read = Promise.allSettled([
@@ -199,10 +213,6 @@ export function createGitRepoTrackerRegistry(deps: {
     });
     tracker.inFlightRead = read.finally(() => {
       tracker.inFlightRead = null;
-      if (tracker.queuedRead) {
-        tracker.queuedRead = false;
-        void runRead(tracker);
-      }
     });
     return tracker.inFlightRead;
   }
@@ -275,13 +285,25 @@ export function createGitRepoTrackerRegistry(deps: {
     tracker.fsWatch = null;
     if (tracker.debounceId != null) clock.clearTimeout(tracker.debounceId);
     if (tracker.autofetchId != null) clock.clearInterval(tracker.autofetchId);
-    trackers.delete(tracker.cwd);
+    // Only remove the registry entry if it's still *this* tracker — a
+    // deferred teardown (queued via a subscriber's dispose or a workspace
+    // reconcile) can otherwise fire after the same cwd was already closed
+    // and reopened, deleting the fresh tracker's live entry instead of this
+    // stale one's.
+    if (trackers.get(tracker.cwd) === tracker) {
+      trackers.delete(tracker.cwd);
+    }
     log.debug(
       `[watch] stopped tracking ${tracker.cwd} (${trackers.size} total)`,
     );
   }
 
-  function getOrCreateTracker(cwd: string): Tracker {
+  function getOrCreateTracker(rawCwd: string): Tracker {
+    // Normalize so the same physical repo reached via two path spellings
+    // (e.g. a realpath'd worktree list vs. a symlinked workspace folder —
+    // see normalizeFolderPath) resolves to one tracker, not two independent
+    // fs-watchers on the same directory.
+    const cwd = normalizeFolderPath(rawCwd);
     const existing = trackers.get(cwd);
     if (existing) return existing;
 
@@ -299,7 +321,7 @@ export function createGitRepoTrackerRegistry(deps: {
       autofetchId: null,
       suppressCount: 0,
       inFlightRead: null,
-      queuedRead: false,
+      queuedRead: null,
       mutationTail: Promise.resolve(),
       workspaceOwned: false,
       store: null as unknown as GitRepoStore, // assigned immediately below
@@ -363,7 +385,7 @@ export function createGitRepoTrackerRegistry(deps: {
             try {
               await api.removeWorktree(cwd, path, force);
             } finally {
-              pendingRemoval.delete(path);
+              pendingRemoval.delete(normalizeFolderPath(path));
             }
           },
         );
@@ -371,8 +393,11 @@ export function createGitRepoTrackerRegistry(deps: {
         // same reasoning as suppressCount in makeMutator — so a refresh
         // racing this call (even one issued on the very next microtask,
         // e.g. by another tracker for the same path) is already guarded.
+        // Normalized so it matches every tracker's own normalized `cwd` —
+        // pendingRemoval is checked against *other* trackers' cwd (a linked
+        // worktree can have its own tracker), so spelling has to agree.
         return (path: string, force?: boolean) => {
-          pendingRemoval.add(path);
+          pendingRemoval.add(normalizeFolderPath(path));
           return mutator(path, force);
         };
       })(),
@@ -392,9 +417,14 @@ export function createGitRepoTrackerRegistry(deps: {
   }
 
   function workspaceFolders(state: WorkspaceActivationState) {
+    // Normalized so every consumer (reconcile's `desired`, recomputeAutofetch's
+    // `activeFolders`) compares against the same spelling getOrCreateTracker
+    // stores on `tracker.cwd` — otherwise a raw/symlinked workspace folder
+    // never matches its own (normalized) tracker and gets torn down the
+    // instant it's created.
     return state.open.map((ws) => ({
       workspaceId: ws.id,
-      folders: [ws.folder, ...(ws.extraFolders ?? [])],
+      folders: [ws.folder, ...(ws.extraFolders ?? [])].map(normalizeFolderPath),
     }));
   }
 
@@ -408,9 +438,15 @@ export function createGitRepoTrackerRegistry(deps: {
       const isAutofetching = tracker.autofetchId != null;
       if (shouldAutofetch && !isAutofetching) {
         tracker.autofetchId = clock.setInterval(() => {
+          // Same guard `runRead` applies to its own reads — a worktree mid
+          // `git worktree remove` (its own tracker, removed from a *different*
+          // tracker's store) must not have `git fetch` spawned against it too.
+          if (pendingRemoval.has(tracker.cwd)) return;
           void api
             .fetch(tracker.cwd)
-            .catch(() => {})
+            .catch((err: unknown) => {
+              log.warn(`[autofetch] ${tracker.cwd} failed: ${String(err)}`);
+            })
             .then(() => runRead(tracker));
         }, AUTOFETCH_INTERVAL_MS);
       } else if (!shouldAutofetch && isAutofetching) {

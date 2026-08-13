@@ -7,11 +7,15 @@ import type {
   WorkspaceActivationState,
 } from "./repo-tracker";
 
-/** Captures debug log lines instead of discarding them, for asserting on
- *  tracker-lifecycle diagnostics. */
+/** Captures debug and warn log lines instead of discarding them, for
+ *  asserting on tracker-lifecycle diagnostics and autofetch failures. */
 export function createFakeLog(): DebugLog & { lines: string[] } {
   const lines: string[] = [];
-  return { debug: (message) => lines.push(message), lines };
+  return {
+    debug: (message) => lines.push(message),
+    warn: (message) => lines.push(message),
+    lines,
+  };
 }
 
 /** Virtual-time clock: no real timers, `advance(ms)` fires everything due,

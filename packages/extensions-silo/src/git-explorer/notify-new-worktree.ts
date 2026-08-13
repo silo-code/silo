@@ -1,7 +1,7 @@
 import type { ExtensionContext } from "@silo-code/sdk";
 import { path } from "@silo-code/sdk";
 import type { GitWorktree } from "@silo-code/git-api";
-import { samePath } from "../git/worktree-utils";
+import { normalizeFolderPath, samePath } from "../git/worktree-utils";
 
 // The reverse of notify-missing-folder.ts: instead of noticing a workspace
 // folder that vanished on disk, this notices a linked worktree that
@@ -20,6 +20,30 @@ function notifyKey(workspaceId: string, worktreePath: string): string {
   return `${workspaceId}::${worktreePath}`;
 }
 
+// A caller that both creates a worktree *and* adds it to the workspace right
+// after (WorktreeManager's `create()`) can't rely on `allFolders` below to
+// suppress this notification for its own creation: the tracker's trailing
+// refresh fires `onWorktreeAdded` — and thus this function — synchronously,
+// before the `await store.addWorktree(...)` that triggered it ever returns
+// control to the caller's own `ctx.workspaces.addFolder(...)` line. Such a
+// caller marks the path here first instead.
+const suppressedOnce = new Set<string>();
+
+/** Suppress the next `notifyNewWorktree` call for `worktreePath` — call this
+ *  immediately before creating a worktree you're about to add to the
+ *  workspace yourself, so the toast doesn't fire for your own creation. */
+export function suppressNewWorktreeNotification(worktreePath: string): void {
+  suppressedOnce.add(normalizeFolderPath(worktreePath));
+}
+
+/** Undo a suppression that never got consumed (e.g. the create failed, so
+ *  `onWorktreeAdded` never fired for this path). */
+export function clearSuppressedNewWorktreeNotification(
+  worktreePath: string,
+): void {
+  suppressedOnce.delete(normalizeFolderPath(worktreePath));
+}
+
 /**
  * Notify once per workspace per newly appeared worktree, with a one-click
  * "Add to workspace" action.
@@ -29,6 +53,8 @@ export function notifyNewWorktree(
   workspaceId: string,
   wt: GitWorktree,
 ): void {
+  if (suppressedOnce.delete(normalizeFolderPath(wt.path))) return;
+
   const ws = ctx.workspaces.get(workspaceId);
   if (!ws) return;
   const allFolders = [ws.folder, ...(ws.extraFolders ?? [])];

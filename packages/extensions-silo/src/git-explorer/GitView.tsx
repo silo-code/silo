@@ -80,7 +80,7 @@ export function GitView({
   // if this panel was never opened before now.
   const gitApi = ctx.getExtension<GitAPI>("silo.git")?.api;
   const store = gitApi?.watchRepo(folder) ?? NULL_GIT_REPO_STORE;
-  const { status, worktrees, loading: busy } = useServiceState(store);
+  const { status, worktrees, loading: busy, error } = useServiceState(store);
 
   const [message, setMessage] = useState(
     () => messageCache.get(cacheKey) ?? "",
@@ -93,7 +93,9 @@ export function GitView({
   const [changesOpen, setChangesOpen] = useState(true);
 
   const refresh = useCallback(() => {
-    void store.refresh();
+    // The null store (no `silo.git` provider) always rejects; nothing more
+    // to surface here than the "Not a git repository" placeholder already shows.
+    void store.refresh().catch(() => {});
   }, [store]);
 
   // Surface a git failure as a toast: a short summary, plus a "View details"
@@ -124,6 +126,19 @@ export function GitView({
     },
     [ctx],
   );
+
+  // Surface a background status/worktrees read failure (fs-watch debounce,
+  // autofetch, or the tracker's own initial read) — the only path that ever
+  // sees these, since every foreground action (stage/commit/push/…) already
+  // catches and toasts its own error.
+  useEffect(() => {
+    if (!error) return;
+    notifyError(
+      error.op === "status" ? "Git status failed" : "Reading worktrees failed",
+      error.cause,
+      true,
+    );
+  }, [error, notifyError]);
 
   useEffect(() => {
     messageCache.set(cacheKey, message);
