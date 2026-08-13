@@ -10,6 +10,12 @@
       "component": "sdk",
       "paths": ["packages/sdk"]
     },
+    "packages/git-api": {
+      "release-type": "node",
+      "package-name": "@silo-code/git-api",
+      "component": "git-api",
+      "paths": ["packages/git-api"]
+    },
     ".": {
       "release-type": "simple",
       "package-name": "silo",
