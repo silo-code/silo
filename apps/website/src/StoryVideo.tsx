@@ -1,4 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  STORY_VIDEO_PRELOAD,
+  STORY_VIDEO_ROOT_MARGIN,
+  nextStoryVideoLoadState,
+  shouldAttachStoryVideoSource,
+  type StoryVideoLoadState,
+} from "./story-video-load";
 
 interface StoryVideoProps {
   webm: string;
@@ -14,26 +21,44 @@ interface StoryVideoProps {
  * playback that "stops at some point" while scrolling. Re-asserting `.play()`
  * via IntersectionObserver whenever a video re-enters the viewport (or the
  * tab regains visibility) works around it.
+ *
+ * WebMs are also gated on near-viewport: `preload="none"` and no `<source>`
+ * until the observer fires, so the homepage doesn't pull ~7MB of video on
+ * first paint.
  */
 export function StoryVideo({ webm, poster, label }: StoryVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [loadState, setLoadState] = useState<StoryVideoLoadState>("idle");
+  const loadStateRef = useRef(loadState);
+  const inViewRef = useRef(false);
+  loadStateRef.current = loadState;
+
+  const attachSource = shouldAttachStoryVideoSource(loadState);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    let inView = false;
     const resume = () => {
-      if (inView && video.paused) void video.play().catch(() => {});
+      if (
+        inViewRef.current &&
+        video.paused &&
+        shouldAttachStoryVideoSource(loadStateRef.current)
+      ) {
+        void video.play().catch(() => {});
+      }
     };
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        inView = entry.isIntersecting;
-        if (inView) resume();
+        inViewRef.current = entry.isIntersecting;
+        setLoadState((current) =>
+          nextStoryVideoLoadState(current, entry.isIntersecting),
+        );
+        if (entry.isIntersecting) resume();
         else video.pause();
       },
-      { threshold: 0.25 },
+      { threshold: 0.15, rootMargin: STORY_VIDEO_ROOT_MARGIN },
     );
     observer.observe(video);
 
@@ -46,6 +71,16 @@ export function StoryVideo({ webm, poster, label }: StoryVideoProps) {
     };
   }, []);
 
+  // After the source is attached, kick the element so preload=none still
+  // fetches and autoplay can start once near-viewport.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || loadState !== "pending") return;
+    video.load();
+    setLoadState("ready");
+    if (inViewRef.current) void video.play().catch(() => {});
+  }, [loadState, webm]);
+
   return (
     <video
       ref={videoRef}
@@ -53,11 +88,11 @@ export function StoryVideo({ webm, poster, label }: StoryVideoProps) {
       muted
       loop
       playsInline
-      preload="auto"
+      preload={STORY_VIDEO_PRELOAD}
       poster={poster}
       aria-label={label}
     >
-      <source src={webm} type="video/webm" />
+      {attachSource ? <source src={webm} type="video/webm" /> : null}
     </video>
   );
 }

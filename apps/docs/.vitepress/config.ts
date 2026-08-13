@@ -152,6 +152,15 @@ export default withMermaid(
       return buildHomepageSeoHead();
     },
     head: [
+      // First paint: never flash the browser default white while VitePress /
+      // the marketing homepage boot (dev SPA shell is an empty #app).
+      // Also force .dark before theme CSS — vars.css defaults :root to white.
+      ["style", {}, "html,body,#app{background:#11120f;color:#f2f4ea}"],
+      [
+        "script",
+        {},
+        `document.documentElement.classList.add("dark","silo-js")`,
+      ],
       // Favicon set, generated from the shipping app-icon art
       // (apps/desktop/src-tauri/icon-source-square.png).
       ["link", { rel: "icon", href: "/favicon.ico", sizes: "any" }],
@@ -326,7 +335,31 @@ export default withMermaid(
     // React marketing homepage (@silo-code/website) mounts on `/`
     // via theme/Layout.vue. Keep React off the VitePress SSR graph.
     vite: {
-      plugins: [react()],
+      plugins: [
+        react(),
+        // VitePress's config.head is applied late in docs:dev (empty SPA
+        // shell). Inject first-paint dark fill + .silo-js into the HTML
+        // Vite serves so reload never flashes browser-default white, and
+        // below-fold SEO shell stays hidden as soon as home-shell.css loads.
+        {
+          name: "silo-first-paint",
+          transformIndexHtml(html: string) {
+            if (html.includes("silo-first-paint")) return html;
+            // VitePress vars.css sets :root { --vp-c-bg: #fff } and only
+            // switches to dark under html.dark. appearance:force-dark adds
+            // .dark late (client), so body flashes white once theme CSS
+            // loads. Seed .dark + a solid fill in the HTML Vite serves.
+            return html.replace(
+              /<head[^>]*>/i,
+              `<head>
+    <style data-silo-first-paint>
+      html,body,#app{background:#11120f;color:#f2f4ea}
+    </style>
+    <script data-silo-first-paint>document.documentElement.classList.add("dark","silo-js")</script>`,
+            );
+          },
+        },
+      ],
       optimizeDeps: {
         include: [
           "react",

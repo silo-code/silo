@@ -19,6 +19,31 @@ export const OG_IMAGE_URL = `${SITE_ORIGIN}${OG_IMAGE_PATH}`;
 export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
 
+/** VitePress `HeadConfig` tuples for the marketing homepage only. */
+export type SeoHeadTuple =
+  | [string, Record<string, string>]
+  | [string, Record<string, string>, string];
+
+/** Marketing homepage typefaces — linked from `<head>`, not via CSS `@import`. */
+export const HOME_FONTS_STYLESHEET =
+  "https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap";
+
+/** Preconnect + stylesheet tuples shared by SSG head and the VitePress theme. */
+export function buildHomeFontHead(): SeoHeadTuple[] {
+  return [
+    ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
+    [
+      "link",
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossorigin: "",
+      },
+    ],
+    ["link", { rel: "stylesheet", href: HOME_FONTS_STYLESHEET }],
+  ];
+}
+
 /** Shorter social blurb — leads with audience, then the product promise. */
 export const OG_DESCRIPTION =
   "For developers juggling coding agents. Terminals, agents, and layout stay intact — switch between them instantly. 100% open source, free forever.";
@@ -71,14 +96,12 @@ export function buildSoftwareApplicationJsonLd() {
   };
 }
 
-/** VitePress `HeadConfig` tuples for the marketing homepage only. */
-export type SeoHeadTuple =
-  | [string, Record<string, string>]
-  | [string, Record<string, string>, string];
-
 export function buildHomepageSeoHead(): SeoHeadTuple[] {
   const ogTitle = homeOgTitle();
   return [
+    // Start font CSS early so the shell + React mount don't FOUT after
+    // styles.css arrives. Keep these on the homepage only (transformHead).
+    ...buildHomeFontHead(),
     ["link", { rel: "canonical", href: HOME_CANONICAL }],
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:site_name", content: SITE_NAME }],

@@ -1,12 +1,15 @@
 /**
  * Minimal styles for the SSG SEO shell in apps/docs/index.md — visible
- * before (or without) the React homepage hydrating. Kept intentionally
- * small; the full marketing look lives in @silo-code/website CSS.
+ * before (or without) the React homepage hydrating. Background matches
+ * marketing `.silo-home` so the handoff doesn't flash a different fill.
+ * Full marketing chrome still lives in @silo-code/website CSS (preloaded
+ * on `/` before mount).
  */
 .silo-marketing-home {
   min-height: 100vh;
-  background: #0b0d17;
-  color: #b7bccc;
+  background:
+    radial-gradient(circle at 72% 8%, #242830 0, #11120f 32rem), #11120f;
+  color: #f2f4ea;
 }
 
 .silo-home-shell {
@@ -17,8 +20,24 @@
     sans-serif;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 28px 54px 80px;
+  padding: 0 54px 48px;
   box-sizing: border-box;
+  background:
+    radial-gradient(circle at 72% 8%, #242830 0, #11120f 32rem), #11120f;
+  color: #f2f4ea;
+  min-height: 100vh;
+}
+
+/*
+ * JS path (html.silo-js from a blocking head script): keep the SEO shell to
+ * hero-only until React replaces #silo-home. Without this, below-fold copy
+ * flashes at boot (styles.css still pending) and again if the shell class is
+ * dropped before React commits. No-JS clients never get .silo-js, so they
+ * still see the full shell.
+ */
+html.silo-js .silo-home-shell > footer,
+html.silo-js .silo-home-shell > main > section {
+  display: none;
 }
 
 .silo-home-shell a {
@@ -30,7 +49,8 @@
   flex-wrap: wrap;
   gap: 12px 22px;
   align-items: center;
-  margin-bottom: 48px;
+  height: 84px;
+  margin-bottom: 0;
 }
 
 .silo-home-shell-brand {
@@ -74,25 +94,40 @@
 }
 
 .silo-home-shell h1 {
-  font-size: clamp(40px, 7vw, 72px);
-  line-height: 0.95;
-  letter-spacing: -0.06em;
+  font-size: clamp(40px, 4.8vw, 68px);
+  line-height: 0.88;
+  letter-spacing: -0.09em;
   color: #f2f4ea;
-  margin: 0 0 20px;
+  margin: 22px 0 30px;
+  font-weight: 800;
+}
+
+.silo-home-shell .silo-home-shell-eyebrow {
+  color: #8b909e;
+  font:
+    11px "DM Mono",
+    monospace;
+  letter-spacing: 0.16em;
+  margin: 0;
 }
 
 .silo-home-shell .silo-home-shell-tagline {
-  max-width: 36rem;
-  color: #7a8099;
+  max-width: 415px;
+  color: #9a9d92;
   font-size: 16px;
   line-height: 1.6;
+}
+
+.silo-home-shell-intro {
+  padding: 94px 0 64px;
+  max-width: 700px;
 }
 
 .silo-home-shell-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin: 28px 0 48px;
+  margin: 26px 0 0;
 }
 
 .silo-home-shell-actions a {

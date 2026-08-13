@@ -32,13 +32,15 @@ description: One window — every project, every agent. Terminals, agents, and l
 </nav>
 </header>
 <main>
-<p>FOR DEVELOPERS JUGGLING CODING AGENTS</p>
+<div class="silo-home-shell-intro">
+<p class="silo-home-shell-eyebrow">FOR DEVELOPERS JUGGLING CODING AGENTS</p>
 <h1>One window —<br />every project, every agent</h1>
 <p class="silo-home-shell-tagline">Terminals, agents, and layout stay intact — switch between them instantly. 100% open source, free forever.</p>
 <p class="silo-home-shell-actions">
 <a href="https://github.com/silo-code/silo/releases/latest" data-primary>Download</a>
 <a href="https://github.com/silo-code/silo">Star on GitHub</a>
 </p>
+</div>
 <section aria-label="Product">
 <article>
 <p>Workspaces</p>
