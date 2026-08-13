@@ -9,6 +9,7 @@ import { registerSidePane } from "./side-pane-registry";
 import { enterRegionOnPointer } from "../extension-host/focus-regions";
 import { TabBar } from "./TabBar";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { resolveActiveSidePanelId } from "./active-side-panel-tab";
 
 interface PanelPaneProps {
   panels: SidePanel[];
@@ -168,28 +169,21 @@ export function PanelPane({
       ? "top"
       : null;
 
+  // Read through the snapshot so a workspace switch that rewrites
+  // `activeSidePanelTabs` (ADR 0035 — per-workspace when the sub-setting is
+  // off) re-runs this effect; reading `store.*` directly would not.
+  const savedActiveTab = snap.activeSidePanelTabs[slot];
   useEffect(() => {
-    if (panels.length === 0) {
-      if (activeId !== null) setActiveId(null);
-      return;
-    }
-    const saved = store.activeSidePanelTabs[slot];
-    if (!activeId || !panels.some((p) => p.id === activeId)) {
-      // No valid active tab yet — prefer saved, fall back to first
-      const preferred =
-        saved && panels.some((p) => p.id === saved) ? saved : panels[0].id;
-      setActiveId(preferred);
-    } else if (
-      saved &&
-      saved !== activeId &&
-      panels.some((p) => p.id === saved)
-    ) {
-      // Hydration completed after we already picked a default — switch to saved
-      setActiveId(saved);
-    }
-    // snap.hydrated ensures this re-runs after hydration loads saved tabs
+    const next = resolveActiveSidePanelId(
+      panels.map((p) => p.id),
+      activeId,
+      savedActiveTab,
+    );
+    if (next !== activeId) setActiveId(next);
+    // snap.hydrated: re-run after hydration loads saved tabs (first paint may
+    // have picked a default before the store was ready).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [panels, activeId, slot, snap.hydrated]);
+  }, [panels, activeId, slot, snap.hydrated, savedActiveTab]);
 
   useEffect(() => {
     if (!activeId) return;
