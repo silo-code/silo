@@ -1,7 +1,11 @@
 import type { ExtensionContext } from "@silo-code/sdk";
 import { describe, it, expect, vi } from "vitest";
-import type { GitWorktree } from "../git/git-api";
-import { notifyNewWorktrees } from "./notify-new-worktree";
+import type { GitWorktree } from "@silo-code/git-api";
+import {
+  clearSuppressedNewWorktreeNotification,
+  notifyNewWorktree,
+  suppressNewWorktreeNotification,
+} from "./notify-new-worktree";
 
 function wt(overrides: Partial<GitWorktree>): GitWorktree {
   return {
@@ -17,7 +21,10 @@ function wt(overrides: Partial<GitWorktree>): GitWorktree {
   };
 }
 
-function mockCtx(ws: { folder: string; extraFolders?: string[] } | undefined): {
+function mockCtx(
+  ws: { folder: string; extraFolders?: string[]; name?: string } | undefined,
+  opts: { activeId?: string | null } = {},
+): {
   ctx: ExtensionContext;
   notify: ReturnType<typeof vi.fn>;
   addFolder: ReturnType<typeof vi.fn>;
@@ -26,7 +33,11 @@ function mockCtx(ws: { folder: string; extraFolders?: string[] } | undefined): {
   const addFolder = vi.fn();
   const ctx = {
     ui: { notify },
-    workspaces: { get: () => ws, addFolder },
+    workspaces: {
+      get: () => (ws ? { name: "Test Workspace", ...ws } : undefined),
+      addFolder,
+      getState: () => ({ activeId: opts.activeId ?? null }),
+    },
   } as unknown as ExtensionContext;
   return { ctx, notify, addFolder };
 }
@@ -39,16 +50,18 @@ function wsId(): string {
   return `ws${wsCounter}`;
 }
 
-describe("notifyNewWorktrees", () => {
-  const main = wt({ path: "/w/repo", isMain: true, branch: "main" });
-
-  it("notifies for a worktree created since the last check, offering to add it", () => {
+describe("notifyNewWorktree", () => {
+  it("notifies for a newly appeared worktree in the active workspace, offering to add it", () => {
     const id = wsId();
     const feat = wt({ path: "/w/repo-feat", branch: "feat" });
-    const { ctx, notify, addFolder } = mockCtx({ folder: "/w/repo" });
+    const { ctx, notify, addFolder } = mockCtx(
+      { folder: "/w/repo" },
+      { activeId: id },
+    );
 
-    notifyNewWorktrees(ctx, id, [main], [main, feat]);
+    notifyNewWorktree(ctx, id, feat);
 
+    // Active workspace — no name suffix needed, it's unambiguous.
     expect(notify).toHaveBeenCalledWith(
       "info",
       '"repo-feat" (feat) was created. Add it to your workspace?',
@@ -60,6 +73,23 @@ describe("notifyNewWorktrees", () => {
     expect(addFolder).toHaveBeenCalledWith(id, "/w/repo-feat");
   });
 
+  it("names the workspace when it isn't the active one, so 'Add to workspace' isn't ambiguous", () => {
+    const id = wsId();
+    const feat = wt({ path: "/w/repo-feat", branch: "feat" });
+    const { ctx, notify } = mockCtx(
+      { folder: "/w/repo", name: "Backend API" },
+      { activeId: "some-other-workspace" },
+    );
+
+    notifyNewWorktree(ctx, id, feat);
+
+    expect(notify).toHaveBeenCalledWith(
+      "info",
+      '"repo-feat" (feat) was created in "Backend API". Add it to your workspace?',
+      expect.objectContaining({ title: "New worktree detected" }),
+    );
+  });
+
   it("skips a worktree already open as a workspace folder", () => {
     const id = wsId();
     const feat = wt({ path: "/w/repo-feat", branch: "feat" });
@@ -68,26 +98,17 @@ describe("notifyNewWorktrees", () => {
       extraFolders: ["/w/repo-feat"],
     });
 
-    notifyNewWorktrees(ctx, id, [main], [main, feat]);
-    expect(notify).not.toHaveBeenCalled();
-  });
-
-  it("skips a worktree that was already present in the previous check", () => {
-    const id = wsId();
-    const feat = wt({ path: "/w/repo-feat", branch: "feat" });
-    const { ctx, notify } = mockCtx({ folder: "/w/repo" });
-
-    notifyNewWorktrees(ctx, id, [main, feat], [main, feat]);
+    notifyNewWorktree(ctx, id, feat);
     expect(notify).not.toHaveBeenCalled();
   });
 
   it("does not re-notify the same worktree twice in a session", () => {
     const id = wsId();
     const feat = wt({ path: "/w/repo-feat", branch: "feat" });
-    const { ctx, notify } = mockCtx({ folder: "/w/repo" });
+    const { ctx, notify } = mockCtx({ folder: "/w/repo" }, { activeId: id });
 
-    notifyNewWorktrees(ctx, id, [main], [main, feat]);
-    notifyNewWorktrees(ctx, id, [main], [main, feat]);
+    notifyNewWorktree(ctx, id, feat);
+    notifyNewWorktree(ctx, id, feat);
     expect(notify).toHaveBeenCalledTimes(1);
   });
 
@@ -96,22 +117,12 @@ describe("notifyNewWorktrees", () => {
     const idB = wsId();
     const feat = wt({ path: "/w/repo-feat", branch: "feat" });
 
-    const a = mockCtx({ folder: "/w/repo" });
-    notifyNewWorktrees(a.ctx, idA, [main], [main, feat]);
+    const a = mockCtx({ folder: "/w/repo" }, { activeId: idA });
+    notifyNewWorktree(a.ctx, idA, feat);
 
-    const b = mockCtx({ folder: "/w/repo" });
-    notifyNewWorktrees(b.ctx, idB, [main], [main, feat]);
+    const b = mockCtx({ folder: "/w/repo" }, { activeId: idB });
+    notifyNewWorktree(b.ctx, idB, feat);
     expect(b.notify).toHaveBeenCalledTimes(1);
-  });
-
-  it("notifies once per new worktree when several appear at once", () => {
-    const id = wsId();
-    const feat = wt({ path: "/w/repo-feat", branch: "feat" });
-    const alpha = wt({ path: "/w/repo-alpha", branch: "alpha" });
-    const { ctx, notify } = mockCtx({ folder: "/w/repo" });
-
-    notifyNewWorktrees(ctx, id, [main], [main, feat, alpha]);
-    expect(notify).toHaveBeenCalledTimes(2);
   });
 
   it("does nothing when the workspace is unknown", () => {
@@ -119,7 +130,38 @@ describe("notifyNewWorktrees", () => {
     const feat = wt({ path: "/w/repo-feat", branch: "feat" });
     const { ctx, notify } = mockCtx(undefined);
 
-    notifyNewWorktrees(ctx, id, [main], [main, feat]);
+    notifyNewWorktree(ctx, id, feat);
     expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("suppresses a self-initiated creation (e.g. WorktreeManager.create()) once, then resumes for the next one", () => {
+    // WorktreeManager.create() calls this before its own await store.addWorktree()
+    // returns — the mutator's trailing refresh fires onWorktreeAdded (and thus
+    // this function) before the caller's own ctx.workspaces.addFolder() line
+    // ever runs, so the "already open" check below can't suppress it in time.
+    const id = wsId();
+    const feat = wt({ path: "/w/repo-feat", branch: "feat" });
+    const { ctx, notify } = mockCtx({ folder: "/w/repo" }, { activeId: id });
+
+    suppressNewWorktreeNotification("/w/repo-feat");
+    notifyNewWorktree(ctx, id, feat);
+    expect(notify).not.toHaveBeenCalled();
+
+    // The suppression is consumed, not sticky — a later, genuinely external
+    // creation at the same path (a different call, same session) still fires.
+    notifyNewWorktree(ctx, id, feat);
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("clearSuppressedNewWorktreeNotification undoes a suppression that never fired (e.g. the create failed)", () => {
+    const id = wsId();
+    const feat = wt({ path: "/w/repo-feat", branch: "feat" });
+    const { ctx, notify } = mockCtx({ folder: "/w/repo" }, { activeId: id });
+
+    suppressNewWorktreeNotification("/w/repo-feat");
+    clearSuppressedNewWorktreeNotification("/w/repo-feat");
+
+    notifyNewWorktree(ctx, id, feat);
+    expect(notify).toHaveBeenCalledTimes(1);
   });
 });

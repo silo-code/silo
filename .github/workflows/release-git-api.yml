@@ -1,0 +1,65 @@
+name: release-git-api
+
+# Publish @silo-code/git-api to npm via changesets. Mirrors release-sdk.yml.
+#
+# MANUALLY GATED: runs only on workflow_dispatch and defaults to a DRY-RUN.
+# Nothing is published until someone dispatches it with `publish: true`. The
+# build + dry-run path is safe to run any time to verify the publishable artifact.
+#
+# Auth is OIDC TRUSTED PUBLISHING — there is no NPM_TOKEN secret. One-time setup
+# on npm: npmjs.com/package/@silo-code/git-api/access → add a GitHub Actions
+# trusted publisher for owner `silo-code`, repo `silo`, workflow
+# `release-git-api.yml`. The job mints a short-lived OIDC credential
+# (id-token: write) at publish time and npm verifies it against that config;
+# provenance is attached automatically.
+#
+# npm cannot do a package's FIRST publish over OIDC (npm/cli#8544), and the
+# trusted-publisher settings page doesn't exist until the package does. So the
+# listing was created by hand-publishing a throwaway 0.0.0 placeholder, the
+# trusted publisher was configured against that, and 0.1.0 — the first real
+# version — was published by this workflow. Note a `--dry-run` never
+# authenticates, so it proves the built artifact but says nothing about whether
+# the trusted-publisher config is correct; only a real publish tests that.
+#
+# NOT YET WIRED into release-please.yml's auto-trigger (unlike release-sdk.yml,
+# which release-please dispatches automatically on every SDK release) — do that
+# once a real publish through here has succeeded at least once.
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Actually publish to npm (leave unchecked for a dry-run)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for trusted publishing (also drives provenance)
+
+jobs:
+  release-git-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing (OIDC) needs npm >= 11.5.1; pnpm shells out to the
+      # system npm for the credential exchange, so upgrade it.
+      - run: npm install -g npm@latest
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @silo-code/git-api build
+
+      # Default path: prove the artifact without going live.
+      - name: Publish (dry-run)
+        if: ${{ !inputs.publish }}
+        run: pnpm publish --filter @silo-code/git-api --dry-run --no-git-checks
+
+      # Gated path: real publish via OIDC trusted publishing (no token in env).
+      - name: Publish to npm
+        if: ${{ inputs.publish }}
+        run: pnpm publish --filter @silo-code/git-api --no-git-checks

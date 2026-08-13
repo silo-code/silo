@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -28,9 +27,13 @@ import {
   useServiceState,
   type ExtensionContext,
 } from "@silo-code/sdk";
-import type { GitWorktree } from "../git/git-api";
-import { getGitApi } from "./git-runtime";
+import type { GitAPI } from "@silo-code/git-api";
+import { NULL_GIT_REPO_STORE } from "@silo-code/git-api";
 import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
+import {
+  clearSuppressedNewWorktreeNotification,
+  suppressNewWorktreeNotification,
+} from "./notify-new-worktree";
 import {
   getPendingWorktreeRemoves,
   isWorktreeRemovePending,
@@ -78,7 +81,6 @@ export function WorktreeManager({
   onChanged,
   notifyError,
 }: WorktreeManagerProps) {
-  const [worktrees, setWorktrees] = useState<GitWorktree[] | null>(null);
   const [busy, setBusy] = useState(false);
   // Pending removes outlive this modal — subscribe so rows flip to Removing…
   // if the user dismissed and reopened mid-delete.
@@ -97,35 +99,29 @@ export function WorktreeManager({
     [ws, folder],
   );
 
-  const reload = useCallback(async () => {
-    const api = getGitApi();
-    if (!api) {
-      notifyError("Worktrees", "Git provider (silo.git) unavailable.");
-      return;
-    }
-    try {
-      setWorktrees(await api.worktrees(folder));
-    } catch (err) {
-      notifyError("Listing worktrees failed", err);
-    }
-  }, [folder, notifyError]);
+  // ADR 0037: live worktree list, ambient/shared with any other consumer of
+  // this same folder (e.g. an open Git view) — a create/remove from either
+  // place updates both, no manual reload bus needed for that case.
+  const gitApi = ctx.getExtension<GitAPI>("silo.git")?.api;
+  const store = gitApi?.watchRepo(folder) ?? NULL_GIT_REPO_STORE;
+  const { worktrees } = useServiceState(store);
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
-
-  // Reload when a remove succeeds from any entry point (e.g. Git view ⋯ while
-  // this modal stays open). Unsubscribe on unmount / reload identity change.
+  // Still needed for a remove that runs from a *different* folder's store
+  // (Git view's "Remove worktree…" resolves the main worktree's cwd, which
+  // may differ from this modal's own `folder` — see confirmAndRemoveWorktree
+  // callers) — that store's own auto-refresh doesn't touch this one.
   useEffect(() => {
     let active = true;
     const unsubscribe = subscribeWorktreeListDirty(() => {
-      if (active) void reload();
+      // The null store (no `silo.git` provider) always rejects; nothing more
+      // to surface here than the modal's own "Loading worktrees…" state.
+      if (active) void store.refresh().catch(() => {});
     });
     return () => {
       active = false;
       unsubscribe();
     };
-  }, [reload]);
+  }, [store]);
 
   const rows = useMemo(
     () => buildWorktreeRows(worktrees ?? [], folder, wsFolder, allFolders),
@@ -175,13 +171,6 @@ export function WorktreeManager({
   );
   const anyPrunable = displayRows.some((r) => r.wt.prunable != null);
 
-  // The live provider, or a notify + null so handlers can bail gracefully.
-  function api() {
-    const a = getGitApi();
-    if (!a) notifyError("Worktrees", "Git provider (silo.git) unavailable.");
-    return a;
-  }
-
   // Open alongside: the worktree becomes another workspace folder, so File
   // Explorer and the Git panel grow an extra root. The scope roots follow the
   // folder list, so files/terminals in the worktree work immediately.
@@ -206,12 +195,11 @@ export function WorktreeManager({
   }
 
   async function create() {
-    const a = api();
-    if (!a || busy) return;
+    if (busy) return;
     const used = branchesInUse(worktrees ?? []);
     let available: string[] = [];
     try {
-      available = (await a.branches(folder))
+      available = (await store.api.branches(folder))
         .filter((b) => !b.remote && !used.has(b.name))
         .map((b) => b.name);
     } catch {
@@ -230,9 +218,14 @@ export function WorktreeManager({
     );
     if (!isWorktreeCreateResult(result)) return;
     setBusy(true);
+    // The store's own trailing refresh fires onWorktreeAdded (and thus the
+    // "new worktree detected" toast) synchronously as part of the awaited
+    // addWorktree() below — before this function ever reaches the
+    // ctx.workspaces.addFolder() call that would otherwise suppress it via
+    // the "already open" check. Mark it here instead, up front.
+    suppressNewWorktreeNotification(result.path);
     try {
-      await a.addWorktree(
-        folder,
+      await store.addWorktree(
         result.path,
         "existing" in result.branch
           ? { branch: result.branch.existing }
@@ -243,9 +236,12 @@ export function WorktreeManager({
         "info",
         `Created worktree ${path.basename(result.path)} and opened it alongside`,
       );
-      await reload();
       onChanged();
     } catch (err) {
+      // The worktree was never created, so onWorktreeAdded never fired to
+      // consume the suppression above — clear it so a later, genuinely
+      // external creation at this same path isn't silently swallowed.
+      clearSuppressedNewWorktreeNotification(result.path);
       notifyError("Create worktree failed", err);
     } finally {
       setBusy(false);
@@ -253,36 +249,29 @@ export function WorktreeManager({
   }
 
   async function remove(row: WorktreeRow) {
-    const a = api();
-    if (!a || busy || isWorktreeRemovePending(row.wt.path)) return;
+    if (busy || isWorktreeRemovePending(row.wt.path)) return;
     await confirmAndRemoveWorktree({
       ctx,
-      api: a,
-      cwd: folder,
+      store,
       worktreePath: row.wt.path,
       workspaceId,
       isOpen: row.isOpen,
       notifyError,
-      onSuccess: () => {
-        void reload();
-        onChanged();
-      },
+      onSuccess: onChanged,
     });
   }
 
   async function prune() {
-    const a = api();
-    if (!a || busy) return;
+    if (busy) return;
     setBusy(true);
     try {
-      await a.pruneWorktrees(folder);
+      await store.pruneWorktrees();
       // Drop workspace folders that pointed at now-pruned directories.
       for (const row of rows) {
         if (row.wt.prunable != null && row.isOpen) {
           ctx.workspaces.removeFolder(workspaceId, row.wt.path);
         }
       }
-      await reload();
       onChanged();
     } catch (err) {
       notifyError("Prune failed", err);

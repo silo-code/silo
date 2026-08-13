@@ -1,0 +1,54 @@
+{
+  "name": "@silo-code/git-api",
+  "version": "0.1.0",
+  "description": "Published types for Silo's silo.git provider — GitAPI plus the live GitRepoStore watch session, consumed via ctx.getExtension(\"silo.git\").",
+  "license": "MIT",
+  "author": "Dave Weaver",
+  "homepage": "https://github.com/silo-code/silo/tree/main/packages/git-api#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/silo-code/silo.git",
+    "directory": "packages/git-api"
+  },
+  "keywords": [
+    "silo",
+    "silo-code",
+    "extension",
+    "git"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/fix-esm-extensions.mjs",
+    "prepack": "pnpm build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      }
+    },
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "peerDependencies": {
+    "@silo-code/sdk": ">=0.34.0"
+  },
+  "devDependencies": {
+    "@silo-code/sdk": "workspace:*",
+    "typescript": "~5.8.3",
+    "vitest": "^4.1.7"
+  }
+}

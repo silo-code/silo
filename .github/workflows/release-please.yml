@@ -102,14 +102,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run release.yml --ref main -R ${{ github.repository }}
 
-      # SDK releases must not steal the "Latest" slot from Silo app releases
-      # (the auto-updater endpoint uses /releases/latest/download/latest.json).
+      # Package releases must not steal the "Latest" slot from Silo app releases
+      # (the auto-updater endpoint uses /releases/latest/download/latest.json,
+      # and GitHub's "Latest" is simply the newest non-prerelease release).
       # Mark them as pre-releases immediately so GitHub never promotes them.
       - name: mark SDK release as pre-release
         if: ${{ steps.release.outputs['packages/sdk--release_created'] }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release edit "${{ steps.release.outputs['packages/sdk--tag_name'] }}" --prerelease -R ${{ github.repository }}
+
+      - name: mark git-api release as pre-release
+        if: ${{ steps.release.outputs['packages/git-api--release_created'] }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ steps.release.outputs['packages/git-api--tag_name'] }}" --prerelease -R ${{ github.repository }}
 
       - name: publish SDK to npm
         if: ${{ steps.release.outputs['packages/sdk--release_created'] }}

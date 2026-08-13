@@ -1,32 +1,20 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
-import {
-  ArrowsClockwise,
-  CaretDown,
-  CaretRight,
-  CloudArrowUp,
-  DotsThreeVertical,
-  TreeStructure,
-} from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowsClockwise, CaretDown, CaretRight } from "@phosphor-icons/react";
 import {
   Badge,
   Tooltip,
   useFocusGroup,
+  useServiceState,
   type ExtensionContext,
   type ExtensionStorage,
   type FocusGroupItemProps,
   type MenuEntry,
   type NotifyOptions,
 } from "@silo-code/sdk";
-import type { GitFileStatus, GitStatus, GitWorktree } from "../git/git-api";
-import { getGitApi } from "./git-runtime";
+import type { GitAPI, GitFileStatus } from "@silo-code/git-api";
+import { NULL_GIT_REPO_STORE } from "@silo-code/git-api";
 import { Section, FileRow } from "./git-rows";
+import { GitSyncOrPublishButton, GitHeaderActions } from "./git-header";
 import { buildGitNavItems, navItemKey } from "./git-nav";
 import { ICON_CHECK, ICON_PLUS, ICON_MINUS, ICON_UNDO } from "./git-icons";
 import { summarizeGitError } from "./notify-error";
@@ -39,23 +27,11 @@ import {
 } from "./worktree-model";
 import { showWorktreeManager } from "./open-worktree-manager";
 import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
-import { notifyNewWorktrees } from "./notify-new-worktree";
-import { notifyMissingFolder } from "./notify-missing-folder";
-import {
-  isWorktreeRemovePending,
-  subscribePendingWorktreeRemoves,
-} from "./pending-worktree-remove";
 import { useViewStack } from "./use-view-stack";
 import { CommitsTakeover } from "./CommitsTakeover";
 import { shouldExitTakeover, shouldPushCommitsOnOpen } from "./takeover-model";
 
-const REFRESH_DEBOUNCE_MS = 400;
-// How often the panel fetches in the background so ↑ahead/↓behind stay roughly
-// accurate without the user acting (matches VS Code's git.autofetchPeriod).
-const AUTOFETCH_INTERVAL_MS = 180_000;
-const statusCache = new Map<string, GitStatus>();
 const messageCache = new Map<string, string>();
-const worktreeCache = new Map<string, GitWorktree[]>();
 
 export function GitView({
   ctx,
@@ -63,7 +39,6 @@ export function GitView({
   workspaceId,
   folder,
   rootLabel,
-  paused,
   collapsed,
   onToggleCollapsed,
   storage,
@@ -77,7 +52,6 @@ export function GitView({
   workspaceId: string;
   folder: string;
   rootLabel?: string;
-  paused: boolean;
   collapsed: boolean;
   onToggleCollapsed?: () => void;
   storage: ExtensionStorage;
@@ -98,49 +72,31 @@ export function GitView({
   }, [isTakeoverActive, viewStack.view, onExitTakeover]);
   // Public primitives, read through ctx (stable per extension).
   const editors = ctx.editors;
-  const files = ctx.files;
-  const [status, setStatus] = useState<GitStatus | null>(
-    () => statusCache.get(cacheKey) ?? null,
-  );
-  const [worktrees, setWorktrees] = useState<GitWorktree[] | null>(
-    () => worktreeCache.get(cacheKey) ?? null,
-  );
+
+  // ADR 0037: the live watch session. Safe to call every render — watchRepo
+  // is idempotent by cwd, and lifecycle is tied to this subscription (via
+  // useServiceState), not to how many times watchRepo() is called. Ambient
+  // and workspace-activation-driven: this repo's data is already fresh even
+  // if this panel was never opened before now.
+  const gitApi = ctx.getExtension<GitAPI>("silo.git")?.api;
+  const store = gitApi?.watchRepo(folder) ?? NULL_GIT_REPO_STORE;
+  const { status, worktrees, loading: busy, error } = useServiceState(store);
+
   const [message, setMessage] = useState(
     () => messageCache.get(cacheKey) ?? "",
   );
-  const [busy, setBusy] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [pulling, setPulling] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [committing, setCommitting] = useState(false);
-  // Mirror `committing` into a ref so the file-watch callback (a stable closure)
-  // can skip refreshes while a commit runs — commit() does the final refresh.
-  const committingRef = useRef(false);
-  useEffect(() => {
-    committingRef.current = committing;
-  }, [committing]);
-  const [pendingRefresh, setPendingRefresh] = useState(false);
-  const [pendingPush, setPendingPush] = useState(false);
-  const [pendingPull, setPendingPull] = useState(false);
   const [stagedOpen, setStagedOpen] = useState(true);
   const [changesOpen, setChangesOpen] = useState(true);
 
   const refresh = useCallback(() => {
-    setBusy(true);
-    setPendingRefresh(true);
-  }, []);
-
-  // True while *this* folder is being removed (its worktree is deleted from
-  // disk). `beginPendingWorktreeRemove` fires before the folder leaves the
-  // workspace, so subscribing here lets this view stop watching and refreshing
-  // the instant removal starts — a `git status` against a directory mid-`rm -rf`
-  // returns thousands of "deleted" entries and blocks the UI thread, which is
-  // what made removing several open worktrees at once freeze the app.
-  const removing = useSyncExternalStore(
-    subscribePendingWorktreeRemoves,
-    useCallback(() => isWorktreeRemovePending(folder), [folder]),
-    useCallback(() => isWorktreeRemovePending(folder), [folder]),
-  );
+    // The null store (no `silo.git` provider) always rejects; nothing more
+    // to surface here than the "Not a git repository" placeholder already shows.
+    void store.refresh().catch(() => {});
+  }, [store]);
 
   // Surface a git failure as a toast: a short summary, plus a "View details"
   // action that opens the full output in a modal when there's more to show.
@@ -171,174 +127,22 @@ export function GitView({
     [ctx],
   );
 
+  // Surface a background status/worktrees read failure (fs-watch debounce,
+  // autofetch, or the tracker's own initial read) — the only path that ever
+  // sees these, since every foreground action (stage/commit/push/…) already
+  // catches and toasts its own error.
   useEffect(() => {
-    setStatus(statusCache.get(cacheKey) ?? null);
-    setMessage(messageCache.get(cacheKey) ?? "");
-    setWorktrees(worktreeCache.get(cacheKey) ?? null);
-    if (!paused) refresh();
-  }, [cacheKey, paused, refresh]);
+    if (!error) return;
+    notifyError(
+      error.op === "status" ? "Git status failed" : "Reading worktrees failed",
+      error.cause,
+      true,
+    );
+  }, [error, notifyError]);
 
   useEffect(() => {
     messageCache.set(cacheKey, message);
   }, [cacheKey, message]);
-
-  // useEffect runs after paint. The extra setTimeout gives the compositor one
-  // tick to start the CSS animation before invoke() can block the JS thread.
-  useEffect(() => {
-    if (!pendingRefresh) return;
-    setPendingRefresh(false);
-    // Skip refreshing a folder that's being removed — its directory is being
-    // deleted, so `git status` would race the `rm -rf` (see `removing`).
-    if (removing) {
-      setBusy(false);
-      return;
-    }
-    const min = new Promise<void>((r) => setTimeout(r, 600));
-    setTimeout(() => {
-      const api = getGitApi();
-      if (!api) {
-        notifyError(
-          "Git unavailable",
-          "Git provider (silo.git) unavailable.",
-          true,
-        );
-        min.then(() => setBusy(false));
-        return;
-      }
-      api
-        .status(folder)
-        .then((s) => {
-          statusCache.set(cacheKey, s);
-          setStatus(s);
-          notifyMissingFolder(ctx, workspaceId, folder, s.missing ?? false);
-        })
-        .catch((err) => notifyError("Git status failed", err, true))
-        .finally(() => min.then(() => setBusy(false)));
-      // Worktree list drives the linked-worktree header pill and the Manage
-      // worktrees shortcut. Cheap read; on failure keep the last good cache
-      // so a transient error doesn't flicker the button away.
-      api
-        .worktrees(folder)
-        .then((wts) => {
-          const prevWts = worktreeCache.get(cacheKey);
-          worktreeCache.set(cacheKey, wts);
-          setWorktrees(wts);
-          // Only diff against a *previous* fetch, never the first one for
-          // this cacheKey — otherwise every pre-existing linked worktree
-          // that just isn't open yet would toast on cold start.
-          if (prevWts) notifyNewWorktrees(ctx, workspaceId, prevWts, wts);
-        })
-        .catch(() => undefined);
-    }, 50);
-  }, [
-    pendingRefresh,
-    folder,
-    workspaceId,
-    cacheKey,
-    notifyError,
-    removing,
-    ctx,
-  ]);
-
-  useEffect(() => {
-    if (!pendingPush) return;
-    setPendingPush(false);
-    const min = new Promise<void>((r) => setTimeout(r, 600));
-    setTimeout(() => {
-      const api = getGitApi();
-      if (!api) {
-        notifyError("Push failed", "Git provider (silo.git) unavailable.");
-        min.then(() => setPushing(false));
-        return;
-      }
-      // No upstream yet → first push publishes the branch and sets tracking.
-      const opts = status?.upstream ? undefined : { setUpstream: true };
-      api
-        .push(folder, opts)
-        .then(() => {
-          setBusy(true);
-          setPendingRefresh(true);
-        })
-        .catch((err) => notifyError("Push failed", err))
-        .finally(() => min.then(() => setPushing(false)));
-    }, 50);
-  }, [pendingPush, folder, notifyError, status?.upstream]);
-
-  useEffect(() => {
-    if (!pendingPull) return;
-    setPendingPull(false);
-    const min = new Promise<void>((r) => setTimeout(r, 600));
-    setTimeout(() => {
-      const api = getGitApi();
-      if (!api) {
-        notifyError("Pull failed", "Git provider (silo.git) unavailable.");
-        min.then(() => setPulling(false));
-        return;
-      }
-      api
-        .pull(folder)
-        .then(() => {
-          setBusy(true);
-          setPendingRefresh(true);
-        })
-        .catch((err) => {
-          // --ff-only aborts when the branch has diverged; there's no in-panel
-          // conflict resolution, so point the user at a terminal rather than
-          // surfacing git's raw "Not possible to fast-forward".
-          if (/fast-forward|diverged|non-fast-forward/i.test(String(err))) {
-            notifyError(
-              "Pull failed — branch has diverged",
-              "Your branch and its upstream have diverged. Reconcile them in a terminal (e.g. `git pull --rebase`), then refresh.",
-            );
-          } else {
-            notifyError("Pull failed", err);
-          }
-        })
-        .finally(() => min.then(() => setPulling(false)));
-    }, 50);
-  }, [pendingPull, folder, notifyError]);
-
-  useEffect(() => {
-    // Stop watching a folder that's paused (background workspace) or being
-    // removed — its `rm -rf` would otherwise spam change events straight into a
-    // refresh against the vanishing directory.
-    if (paused || removing) return;
-    let timer: number | null = null;
-    const sub = files.watch(folder, () => {
-      // Don't poll mid-commit — the commit (and its pre-commit hooks) churn
-      // `.git`, and commit() refreshes once when it's done.
-      if (committingRef.current) return;
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(refresh, REFRESH_DEBOUNCE_MS);
-    });
-    return () => {
-      if (timer) window.clearTimeout(timer);
-      sub.dispose();
-    };
-  }, [folder, refresh, paused, removing]);
-
-  // Background autofetch: periodically `git fetch` so ↑ahead/↓behind trend
-  // toward accurate without the user acting. Fetch is read-only on the working
-  // tree (it only updates remote-tracking refs), so it's safe to run unattended;
-  // re-read status quietly (no spinner) so the counts update in place. Failures
-  // (offline, no remote) are swallowed — autofetch must stay silent.
-  useEffect(() => {
-    if (paused || removing) return;
-    const id = window.setInterval(() => {
-      if (committingRef.current) return;
-      const api = getGitApi();
-      if (!api) return;
-      api
-        .fetch(folder)
-        .then(() => api.status(folder))
-        .then((s) => {
-          statusCache.set(cacheKey, s);
-          setStatus(s);
-        })
-        .catch((err) => console.warn("git autofetch failed", err));
-    }, AUTOFETCH_INTERVAL_MS);
-    return () => window.clearInterval(id);
-  }, [folder, cacheKey, paused, removing]);
 
   const stagedFiles = useMemo(
     () => status?.files.filter((f) => f.isStaged) ?? [],
@@ -392,20 +196,11 @@ export function GitView({
     return idx === undefined ? undefined : group.getItemProps(idx);
   }
 
-  // The live git provider, or a thrown error the handlers' catch turns into an
-  // error toast — keeps "provider absent" from crashing an action.
-  function requireGit() {
-    const api = getGitApi();
-    if (!api) throw new Error("Git provider (silo.git) unavailable.");
-    return api;
-  }
-
   async function stageAll() {
     const paths = changedFiles.map((f) => f.path);
     if (paths.length === 0) return;
     try {
-      await requireGit().stage(folder, paths);
-      refresh();
+      await store.stage(paths);
     } catch (err) {
       notifyError("Stage failed", err);
     }
@@ -413,16 +208,14 @@ export function GitView({
 
   async function stage(file: GitFileStatus) {
     try {
-      await requireGit().stage(folder, [file.path]);
-      refresh();
+      await store.stage([file.path]);
     } catch (err) {
       notifyError("Stage failed", err);
     }
   }
   async function unstage(file: GitFileStatus) {
     try {
-      await requireGit().unstage(folder, [file.path]);
-      refresh();
+      await store.unstage([file.path]);
     } catch (err) {
       notifyError("Unstage failed", err);
     }
@@ -431,8 +224,7 @@ export function GitView({
     const paths = stagedFiles.map((f) => f.path);
     if (paths.length === 0) return;
     try {
-      await requireGit().unstage(folder, paths);
-      refresh();
+      await store.unstage(paths);
     } catch (err) {
       notifyError("Unstage failed", err);
     }
@@ -455,9 +247,8 @@ export function GitView({
     });
     if (!ok) return;
     try {
-      if (untracked) await requireGit().clean(folder, [file.path]);
-      else await requireGit().revertFile(folder, [file.path]);
-      refresh();
+      if (untracked) await store.clean([file.path]);
+      else await store.revertFile([file.path]);
     } catch (err) {
       notifyError("Discard failed", err);
     }
@@ -484,9 +275,8 @@ export function GitView({
     });
     if (!ok) return;
     try {
-      if (tracked.length > 0) await requireGit().revertFile(folder, tracked);
-      if (untracked.length > 0) await requireGit().clean(folder, untracked);
-      refresh();
+      if (tracked.length > 0) await store.revertFile(tracked);
+      if (untracked.length > 0) await store.clean(untracked);
     } catch (err) {
       notifyError("Discard failed", err);
     }
@@ -513,14 +303,36 @@ export function GitView({
     );
   }
 
-  function push() {
+  async function push() {
     setPushing(true);
-    setPendingPush(true);
+    try {
+      await store.push(status?.upstream ? undefined : { setUpstream: true });
+    } catch (err) {
+      notifyError("Push failed", err);
+    } finally {
+      setPushing(false);
+    }
   }
 
-  function pull() {
+  async function pull() {
     setPulling(true);
-    setPendingPull(true);
+    try {
+      await store.pull();
+    } catch (err) {
+      // --ff-only aborts when the branch has diverged; there's no in-panel
+      // conflict resolution, so point the user at a terminal rather than
+      // surfacing git's raw "Not possible to fast-forward".
+      if (/fast-forward|diverged|non-fast-forward/i.test(String(err))) {
+        notifyError(
+          "Pull failed — branch has diverged",
+          "Your branch and its upstream have diverged. Reconcile them in a terminal (e.g. `git pull --rebase`), then refresh.",
+        );
+      } else {
+        notifyError("Pull failed", err);
+      }
+    } finally {
+      setPulling(false);
+    }
   }
 
   // Sync = bring remote work in, then send ours. Pull is fast-forward only, so a
@@ -530,10 +342,8 @@ export function GitView({
     if (syncing) return;
     setSyncing(true);
     try {
-      const api = requireGit();
-      await api.pull(folder);
-      await api.push(folder);
-      refresh();
+      await store.pull();
+      await store.push();
     } catch (err) {
       if (/fast-forward|diverged|non-fast-forward/i.test(String(err))) {
         notifyError(
@@ -551,8 +361,7 @@ export function GitView({
   // Update remote-tracking refs (and thus ↑/↓) without touching the branch.
   async function fetchRemote() {
     try {
-      await requireGit().fetch(folder);
-      refresh();
+      await store.fetch();
     } catch (err) {
       notifyError("Fetch failed", err);
     }
@@ -638,13 +447,11 @@ export function GitView({
   // then closes this view's root. Dirty trees get a force-remove confirm.
   // Pending-remove UX (StatusBar + close-on-start) lives in confirmAndRemoveWorktree.
   async function removeThisWorktree() {
-    const api = getGitApi();
-    if (!api) return;
+    if (!gitApi) return;
     const mainPath = worktrees?.find((w) => w.isMain)?.path ?? folder;
     await confirmAndRemoveWorktree({
       ctx,
-      api,
-      cwd: mainPath,
+      store: gitApi.watchRepo(mainPath),
       worktreePath: folder,
       workspaceId,
       isOpen: true,
@@ -659,15 +466,12 @@ export function GitView({
     // while, so disable the inputs and show progress until it resolves.
     setCommitting(true);
     try {
-      await requireGit().commit(folder, message.trim());
+      await store.commit(message.trim());
       setMessage("");
     } catch (err) {
       notifyError("Commit failed", err);
     } finally {
       setCommitting(false);
-      // Refresh once, after the commit settles — both to show the result and to
-      // catch any working-tree changes a (failed) pre-commit hook left behind.
-      refresh();
     }
   }
 
@@ -796,63 +600,28 @@ export function GitView({
                 className="git-root-remote"
                 onClick={(e) => e.stopPropagation()}
               >
-                {status?.upstream ? (
-                  <Tooltip content="Sync (pull, then push)">
-                    <button
-                      className={`branch-tracking branch-sync${syncing ? " working" : ""}`}
-                      onClick={syncing ? undefined : sync}
-                    >
-                      {syncing && (
-                        <ArrowsClockwise
-                          className="git-branch-spin"
-                          size={12}
-                        />
-                      )}
-                      ↑{status.ahead} ↓{status.behind}
-                    </button>
-                  </Tooltip>
-                ) : status.branch ? (
-                  <Tooltip content="Publish branch">
-                    <button
-                      className={`branch-action branch-publish push-btn${pushing ? " working" : ""}`}
-                      onClick={pushing ? undefined : push}
-                    >
-                      <CloudArrowUp size={16} />
-                    </button>
-                  </Tooltip>
-                ) : null}
+                <GitSyncOrPublishButton
+                  status={status}
+                  syncing={syncing}
+                  pushing={pushing}
+                  onSync={sync}
+                  onPublish={push}
+                />
               </span>
               <span
                 className="git-root-actions"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Tooltip content="Refresh">
-                  <button
-                    className={`branch-action refresh-btn${busy ? " working" : ""}`}
-                    onClick={busy ? undefined : refresh}
-                  >
-                    <ArrowsClockwise size={14} />
-                  </button>
-                </Tooltip>
-                {showWorktreeButton && (
-                  <Tooltip content={worktreeManagerButtonTooltip(worktrees)}>
-                    <button
-                      className="branch-action git-wt-btn"
-                      onClick={openWorktreeManager}
-                      aria-label={worktreeManagerButtonTooltip(worktrees)}
-                    >
-                      <TreeStructure size={14} />
-                    </button>
-                  </Tooltip>
-                )}
-                <Tooltip content="More actions">
-                  <button
-                    className="branch-action git-menu-btn"
-                    onClick={(e) => openGitMenu(e.currentTarget)}
-                  >
-                    <DotsThreeVertical size={18} weight="bold" />
-                  </button>
-                </Tooltip>
+                <GitHeaderActions
+                  size={14}
+                  busy={busy}
+                  onRefresh={refresh}
+                  showWorktreeButton={showWorktreeButton}
+                  worktreeTooltip={worktreeManagerButtonTooltip(worktrees)}
+                  onOpenWorktreeManager={openWorktreeManager}
+                  showMenu // already inside a status?.inRepo guard one level up
+                  onOpenMenu={openGitMenu}
+                />
               </span>
             </span>
           )}
@@ -878,57 +647,23 @@ export function GitView({
           {worktreePill}
           {/* Where the remote state lives: published → the ↑/↓ counts double as
               a Sync button; not yet published → a Publish-branch button. */}
-          {status?.upstream ? (
-            <Tooltip content="Sync (pull, then push)">
-              <button
-                className={`branch-tracking branch-sync${syncing ? " working" : ""}`}
-                onClick={syncing ? undefined : sync}
-              >
-                {syncing && (
-                  <ArrowsClockwise className="git-branch-spin" size={12} />
-                )}
-                ↑{status.ahead} ↓{status.behind}
-              </button>
-            </Tooltip>
-          ) : status?.inRepo && status.branch ? (
-            <Tooltip content="Publish branch">
-              <button
-                className={`branch-action branch-publish push-btn${pushing ? " working" : ""}`}
-                onClick={pushing ? undefined : push}
-              >
-                <CloudArrowUp size={16} />
-              </button>
-            </Tooltip>
-          ) : null}
-          <Tooltip content="Refresh">
-            <button
-              className={`branch-action refresh-btn${busy ? " working" : ""}`}
-              onClick={busy ? undefined : refresh}
-            >
-              <ArrowsClockwise size={16} />
-            </button>
-          </Tooltip>
-          {showWorktreeButton && (
-            <Tooltip content={worktreeManagerButtonTooltip(worktrees)}>
-              <button
-                className="branch-action git-wt-btn"
-                onClick={openWorktreeManager}
-                aria-label={worktreeManagerButtonTooltip(worktrees)}
-              >
-                <TreeStructure size={16} />
-              </button>
-            </Tooltip>
-          )}
-          {status?.inRepo && (
-            <Tooltip content="More actions">
-              <button
-                className="branch-action git-menu-btn"
-                onClick={(e) => openGitMenu(e.currentTarget)}
-              >
-                <DotsThreeVertical size={18} weight="bold" />
-              </button>
-            </Tooltip>
-          )}
+          <GitSyncOrPublishButton
+            status={status}
+            syncing={syncing}
+            pushing={pushing}
+            onSync={sync}
+            onPublish={push}
+          />
+          <GitHeaderActions
+            size={16}
+            busy={busy}
+            onRefresh={refresh}
+            showWorktreeButton={showWorktreeButton}
+            worktreeTooltip={worktreeManagerButtonTooltip(worktrees)}
+            onOpenWorktreeManager={openWorktreeManager}
+            showMenu={!!status?.inRepo} // hidden while status is still loading
+            onOpenMenu={openGitMenu}
+          />
         </div>
       )}
       {!collapsed && (

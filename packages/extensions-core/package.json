@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@silo-code/git-api": "workspace:*",
     "@silo-code/sdk": "workspace:*",
     "@silo-code/extension-host": "workspace:*",
     "@monaco-editor/react": "^4.7.0",

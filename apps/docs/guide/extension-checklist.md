@@ -58,6 +58,15 @@ doesn't repeat the reasoning, just the list.
       `deactivate`. See
       [Lifecycle & cleanup](/guide/publishing-an-extension#lifecycle-cleanup).
 
+## Publishing an API
+
+- [ ] If `activate()` returns an API for other extensions to consume, its
+      types ship in their own dedicated npm package — never bundled into the
+      extension itself. See [`@silo-code/git-api`](https://github.com/silo-code/silo/tree/main/packages/git-api)
+      for a worked example and
+      [Extension-to-extension APIs](/guide/extension-apis) for the full
+      pattern.
+
 ## Packaging
 
 - [ ] `package.json`'s `silo` manifest is correct: `id` matches the

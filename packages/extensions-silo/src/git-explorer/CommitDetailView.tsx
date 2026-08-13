@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { File as FileIcon } from "@phosphor-icons/react";
 import { Tooltip, type ExtensionContext } from "@silo-code/sdk";
-import type { CommitDetail, CommitFileChange } from "../git/git-api";
+import type {
+  CommitDetail,
+  CommitFileChange,
+  GitAPI,
+} from "@silo-code/git-api";
 import { resolveDiffBase } from "../git/parse-commit-files";
-import { getGitApi } from "./git-runtime";
 import { ICON_OPEN } from "./git-icons";
 
 function statusGlyph(status: CommitFileChange["status"]): string {
@@ -35,7 +38,7 @@ export function CommitDetailView({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const api = getGitApi();
+    const api = ctx.getExtension<GitAPI>("silo.git")?.api;
     if (!api) {
       setError("Git provider (silo.git) unavailable.");
       return;
@@ -50,7 +53,7 @@ export function CommitDetailView({
     return () => {
       cancelled = true;
     };
-  }, [folder, hash]);
+  }, [ctx, folder, hash]);
 
   if (error) return <div className="placeholder">{error}</div>;
   if (detail === undefined) {

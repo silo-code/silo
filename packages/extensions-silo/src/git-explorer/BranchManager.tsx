@@ -26,8 +26,8 @@ import {
   Tooltip,
   type ExtensionContext,
 } from "@silo-code/sdk";
-import type { GitBranch, GitLogEntry } from "../git/git-api";
-import { getGitApi } from "./git-runtime";
+import type { GitAPI, GitBranch, GitLogEntry } from "@silo-code/git-api";
+import { NULL_GIT_REPO_STORE } from "@silo-code/git-api";
 import {
   filterBranches,
   isPublished,
@@ -71,18 +71,19 @@ export function BranchManager({
   const [fetching, setFetching] = useState(false);
   const [pushing, setPushing] = useState<string | null>(null);
 
+  // ADR 0037. Branches aren't part of the store's live snapshot (they only
+  // change via the mutators below, all of which live here) — reload() stays
+  // a manual, explicit fetch through the one-shot `.api` escape hatch.
+  const gitApi = ctx.getExtension<GitAPI>("silo.git")?.api;
+  const store = gitApi?.watchRepo(folder) ?? NULL_GIT_REPO_STORE;
+
   const reload = useCallback(async () => {
-    const api = getGitApi();
-    if (!api) {
-      notifyError("Branches", "Git provider (silo.git) unavailable.");
-      return;
-    }
     try {
-      setBranches(await api.branches(folder));
+      setBranches(await store.api.branches(folder));
     } catch (err) {
       notifyError("Listing branches failed", err);
     }
-  }, [folder, notifyError]);
+  }, [store, folder, notifyError]);
 
   useEffect(() => {
     void reload();
@@ -99,24 +100,16 @@ export function BranchManager({
     [branches],
   );
 
-  // The live provider, or a notify + null so handlers can bail gracefully.
-  function api() {
-    const a = getGitApi();
-    if (!a) notifyError("Branches", "Git provider (silo.git) unavailable.");
-    return a;
-  }
-
   // Push a local branch. With no upstream this is a first push that publishes
   // the branch and sets tracking (`-u`); otherwise it pushes to its upstream's
   // remote (defaulting to origin).
   async function pushBranch(b: GitBranch) {
-    const a = api();
-    if (!a || pushing) return;
+    if (pushing) return;
     setPushing(b.name);
     try {
       const published = isPublished(b, remoteNames);
       const remote = b.upstream ? b.upstream.split("/")[0] : "origin";
-      await a.push(folder, {
+      await store.push({
         branch: b.name,
         remote,
         // Re-establish tracking when the branch isn't actually published (never
@@ -135,11 +128,10 @@ export function BranchManager({
   // Fetch + prune: reconciles the list with the remote, dropping stale
   // remote-tracking branches (deleted upstream) that would otherwise linger.
   async function runFetch() {
-    const a = api();
-    if (!a || fetching) return;
+    if (fetching) return;
     setFetching(true);
     try {
-      await a.fetch(folder, true);
+      await store.fetch(true);
       await reload();
     } catch (err) {
       notifyError("Fetch failed", err);
@@ -178,11 +170,10 @@ export function BranchManager({
       placeholder: "feature/my-branch",
       confirmLabel: "Create",
     });
-    const a = api();
-    if (!name || !a || busy) return;
+    if (!name || busy) return;
     setBusy(true);
     try {
-      await a.createBranch(folder, name);
+      await store.createBranch(name);
       onSwitched();
       close();
     } catch (err) {
@@ -192,12 +183,11 @@ export function BranchManager({
   }
 
   async function switchTo(b: GitBranch) {
-    const a = api();
-    if (b.current || !a || busy) return;
+    if (b.current || busy) return;
     setBusy(true);
     try {
-      if (b.remote) await a.createBranch(folder, localNameFor(b.name), b.name);
-      else await a.switchBranch(folder, b.name);
+      if (b.remote) await store.createBranch(localNameFor(b.name), b.name);
+      else await store.switchBranch(b.name);
       onSwitched();
       close();
     } catch (err) {
@@ -213,12 +203,11 @@ export function BranchManager({
       initialValue: b.name,
       confirmLabel: "Rename",
     });
-    const a = api();
-    if (!next || !a) return;
+    if (!next) return;
     const trimmed = next.trim();
     if (!trimmed || trimmed === b.name) return;
     try {
-      await a.renameBranch(folder, b.name, trimmed);
+      await store.renameBranch(b.name, trimmed);
       if (b.current) onSwitched();
       await reload();
     } catch (err) {
@@ -245,16 +234,13 @@ export function BranchManager({
   }
 
   async function del(b: GitBranch) {
-    const a = api();
-    if (!a) return;
-
     // Detect up front whether the branch is fully merged. If not, the same
     // commits `git branch -d` would refuse to discard become a preview in a
     // single force-delete confirmation — no second dialog. Merged → a simple
     // confirm.
     let unmerged: GitLogEntry[] = [];
     try {
-      unmerged = await a.unmergedCommits(folder, b.name, b.upstream);
+      unmerged = await store.api.unmergedCommits(folder, b.name, b.upstream);
     } catch {
       // Couldn't compute the range — fall back to a plain delete; the safety
       // net below still catches git's own `-d` refusal.
@@ -270,7 +256,7 @@ export function BranchManager({
     if (!confirmed) return;
 
     try {
-      await a.deleteBranch(folder, b.name, force);
+      await store.deleteBranch(b.name, force);
       await reload();
     } catch (err) {
       // Safety net: if a plain `-d` still trips git's "not fully merged" guard
@@ -279,13 +265,13 @@ export function BranchManager({
       if (!force && /not fully merged/i.test(String(err))) {
         let commits: GitLogEntry[] = [];
         try {
-          commits = await a.unmergedCommits(folder, b.name, b.upstream);
+          commits = await store.api.unmergedCommits(folder, b.name, b.upstream);
         } catch {
           // The dialog handles an empty list.
         }
         if (!(await confirmForceDelete(b, commits))) return;
         try {
-          await a.deleteBranch(folder, b.name, true);
+          await store.deleteBranch(b.name, true);
           await reload();
         } catch (forceErr) {
           notifyError(`Delete "${b.name}" failed`, forceErr);

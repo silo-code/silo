@@ -134,6 +134,7 @@ export function CommitsTakeover({
         >
           {status ? (
             <CommitListView
+              ctx={ctx}
               folder={folder}
               status={status}
               order={commitOrder}
