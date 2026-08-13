@@ -413,6 +413,29 @@ describe("global side panel layout (ADR 0035)", () => {
     expect(store.activeSidePanelTabs).toEqual({ left: "search" });
   });
 
+  it("activateWorkspace round-trips per-workspace active tabs while layout is shared but the sub-setting is off", () => {
+    store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
+    store.workspaceOrder = ["w", "w2"];
+    store.activeWorkspaceId = "w";
+    store.activeSidePanelTabs = { left: "explorer" };
+    store.workspaces.w.activeSidePanelTabs = { left: "explorer" };
+    store.workspaces.w2.activeSidePanelTabs = { left: "search" };
+
+    setGlobalPanelLayoutEnabled(true);
+    // globalActiveTabEnabled stays false — tabs must stay per-workspace.
+
+    activateWorkspace("w2");
+    expect(store.activeSidePanelTabs).toEqual({ left: "search" });
+    expect(store.workspaces.w.activeSidePanelTabs).toEqual({
+      left: "explorer",
+    });
+
+    store.activeSidePanelTabs = { left: "git" };
+    activateWorkspace("w");
+    expect(store.activeSidePanelTabs).toEqual({ left: "explorer" });
+    expect(store.workspaces.w2.activeSidePanelTabs).toEqual({ left: "git" });
+  });
+
   describe("hasSavedGlobalPanelLayout", () => {
     it("is false for a fresh/default record", () => {
       expect(hasSavedGlobalPanelLayout()).toBe(false);

@@ -89,7 +89,7 @@ export function makeLayoutSettingsPage(ctx: ExtensionContext) {
                 </div>
                 <div style={{ marginTop: "8px", marginBottom: "12px" }}>
                   <CheckboxRow
-                    label="Also maintain active tab"
+                    label="Also maintain active tab(s)"
                     checked={snap.globalActiveTabEnabled}
                     onChange={setGlobalActiveTabEnabled}
                     disabled={!snap.globalPanelLayoutEnabled}
