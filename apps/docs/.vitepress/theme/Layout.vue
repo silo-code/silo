@@ -2,6 +2,10 @@
 import DefaultTheme from "vitepress/theme";
 import { Content, useRoute } from "vitepress";
 import { computed, nextTick, onBeforeUnmount, onMounted, watch } from "vue";
+import {
+  HOME_FONTS_STYLESHEET,
+  buildHomeFontHead,
+} from "@silo-code/website/seo";
 import GitHubStars from "./GitHubStars.vue";
 import "./home-shell.css";
 
@@ -10,6 +14,33 @@ const route = useRoute();
 
 const isHome = computed(
   () => route.path === "/" || route.path === "/index.html",
+);
+
+/**
+ * transformHead only runs at SSG build time. In `docs:dev` the SPA shell has
+ * an empty <head>, and we removed the styles.css @import — so inject the
+ * homepage font links as soon as we know we're on `/`.
+ */
+function ensureHomeFonts() {
+  if (typeof document === "undefined") return;
+  if (document.querySelector(`link[href="${HOME_FONTS_STYLESHEET}"]`)) return;
+  for (const tuple of buildHomeFontHead()) {
+    const [, attrs] = tuple;
+    const link = document.createElement("link");
+    for (const [key, value] of Object.entries(attrs)) {
+      if (value === "") link.setAttribute(key, "");
+      else link.setAttribute(key, value);
+    }
+    document.head.appendChild(link);
+  }
+}
+
+watch(
+  isHome,
+  (home) => {
+    if (home) ensureHomeFonts();
+  },
+  { immediate: true },
 );
 
 /** @type {null | (() => void)} */
@@ -21,8 +52,10 @@ async function mountHome() {
   await nextTick();
   const el = document.getElementById("silo-home");
   if (!el) return;
-  // Dynamic import keeps React + the demo out of the docs-route graph and
-  // off the VitePress SSR path.
+  // CSS first (hero background + hide below-fold shell), then the React
+  // chunk — keeps first paint styled and avoids bundling React into docs
+  // routes / the VitePress SSR graph.
+  await import("@silo-code/website/styles.css");
   const { mountHomepage } = await import("@silo-code/website");
   unmountHome = mountHomepage(el);
 }

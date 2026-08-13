@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { FAQ_ITEMS, SITE_DESCRIPTION, SITE_NAME } from "./homepage-copy";
 import {
   HOME_CANONICAL,
+  HOME_FONTS_STYLESHEET,
   OG_DESCRIPTION,
   OG_IMAGE_URL,
   buildFaqPageJsonLd,
+  buildHomeFontHead,
   buildHomepageSeoHead,
   buildSoftwareApplicationJsonLd,
   homeHeadline,
@@ -52,6 +54,21 @@ describe("homepage SEO helpers", () => {
     ]);
   });
 
+  it("buildHomeFontHead returns preconnects + Manrope/DM Mono stylesheet", () => {
+    expect(buildHomeFontHead()).toEqual([
+      ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
+      [
+        "link",
+        {
+          rel: "preconnect",
+          href: "https://fonts.gstatic.com",
+          crossorigin: "",
+        },
+      ],
+      ["link", { rel: "stylesheet", href: HOME_FONTS_STYLESHEET }],
+    ]);
+  });
+
   it("includes canonical, OG/Twitter image tags, and both JSON-LD scripts", () => {
     const head = buildHomepageSeoHead();
     const metas = Object.fromEntries(
@@ -63,12 +80,30 @@ describe("homepage SEO helpers", () => {
           (t[1] as Record<string, string>).content,
         ]),
     );
-    const canonical = head.find(
-      (t) => t[0] === "link" && (t[1] as { rel?: string }).rel === "canonical",
+    const links = head.filter((t) => t[0] === "link");
+    const canonical = links.find(
+      (t) => (t[1] as { rel?: string }).rel === "canonical",
+    );
+    const fontStylesheet = links.find(
+      (t) =>
+        (t[1] as { rel?: string }).rel === "stylesheet" &&
+        (t[1] as { href?: string }).href === HOME_FONTS_STYLESHEET,
+    );
+    const preconnects = links.filter(
+      (t) => (t[1] as { rel?: string }).rel === "preconnect",
     );
     const scripts = head.filter((t) => t[0] === "script");
 
     expect(canonical?.[1]).toEqual({ rel: "canonical", href: HOME_CANONICAL });
+    expect(preconnects.map((t) => (t[1] as { href: string }).href)).toEqual([
+      "https://fonts.googleapis.com",
+      "https://fonts.gstatic.com",
+    ]);
+    expect(fontStylesheet).toBeDefined();
+    // Fonts precede SEO tags so the browser discovers them first.
+    expect(head.indexOf(fontStylesheet!)).toBeLessThan(
+      head.indexOf(canonical!),
+    );
     expect(metas["og:image"]).toBe(OG_IMAGE_URL);
     expect(metas["og:image"]).toMatch(/^https:\/\//);
     expect(metas["twitter:image"]).toBe(OG_IMAGE_URL);

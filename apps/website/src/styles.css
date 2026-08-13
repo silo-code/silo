@@ -1,4 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap");
+/* Fonts (Manrope / DM Mono) are loaded from <head> via
+   buildHomepageSeoHead / apps/website/index.html — not @import here —
+   so they start before the React CSS chunk and don't block parsing. */
 
 /* Scoped under .silo-home so these rules don't leak onto VitePress docs
    routes after the homepage CSS chunk has been loaded. */
@@ -13,6 +15,18 @@
   background:
     radial-gradient(circle at 72% 8%, #242830 0, #11120f 32rem), #11120f;
 }
+
+/*
+ * Once marketing CSS is on the page (JS path), collapse the SEO shell's
+ * below-fold blocks so the handoff is hero→hero+demo — not a full text
+ * page→React. No-JS clients never load this file, so they still see the
+ * full shell from home-shell.css.
+ */
+.silo-home.silo-home-shell > footer,
+.silo-home.silo-home-shell > main > section {
+  display: none;
+}
+
 .silo-home *,
 .silo-home *::before,
 .silo-home *::after {
