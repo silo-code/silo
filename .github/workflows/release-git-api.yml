@@ -13,10 +13,17 @@ name: release-git-api
 # (id-token: write) at publish time and npm verifies it against that config;
 # provenance is attached automatically.
 #
+# npm cannot do a package's FIRST publish over OIDC (npm/cli#8544), and the
+# trusted-publisher settings page doesn't exist until the package does. So the
+# listing was created by hand-publishing a throwaway 0.0.0 placeholder, the
+# trusted publisher was configured against that, and 0.1.0 — the first real
+# version — was published by this workflow. Note a `--dry-run` never
+# authenticates, so it proves the built artifact but says nothing about whether
+# the trusted-publisher config is correct; only a real publish tests that.
+#
 # NOT YET WIRED into release-please.yml's auto-trigger (unlike release-sdk.yml,
 # which release-please dispatches automatically on every SDK release) — do that
-# once the npm-side trusted-publisher setup above is confirmed working via a
-# manual dry-run + a first manual real publish.
+# once a real publish through here has succeeded at least once.
 
 on:
   workflow_dispatch:

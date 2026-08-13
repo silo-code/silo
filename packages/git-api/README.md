@@ -18,6 +18,13 @@ Mark `@silo-code/git-api` (alongside `@silo-code/sdk` and `react`) as
 extension at runtime, this package is types only (plus one small runtime
 fallback, `NULL_GIT_REPO_STORE`).
 
+`@silo-code/sdk` is a **peer** dependency (`>=0.34.0`, a floor only — the same
+additive-only shape `silo.engine` uses), not a hard one: the only thing this
+package takes from the SDK is two types (`Disposable`, `Event`). Depending on
+it directly would pin an exact SDK version into every consumer's tree and give
+them a second, older nested copy to resolve those types out of. You already
+depend on the SDK yourself, and that copy is the one that gets used.
+
 ## Usage
 
 ```ts

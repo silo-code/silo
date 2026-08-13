@@ -43,10 +43,11 @@
     "module": "./dist/index.js",
     "types": "./dist/index.d.ts"
   },
-  "dependencies": {
-    "@silo-code/sdk": "workspace:*"
+  "peerDependencies": {
+    "@silo-code/sdk": ">=0.34.0"
   },
   "devDependencies": {
+    "@silo-code/sdk": "workspace:*",
     "typescript": "~5.8.3",
     "vitest": "^4.1.7"
   }

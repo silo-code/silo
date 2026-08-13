@@ -756,11 +756,10 @@ importers:
         version: 4.1.8(@types/node@25.9.1)(jsdom@29.1.1)(vite@7.3.5(@types/node@25.9.1)(jiti@2.6.1)(yaml@2.9.0))
 
   packages/git-api:
-    dependencies:
+    devDependencies:
       '@silo-code/sdk':
         specifier: workspace:*
         version: link:../sdk
-    devDependencies:
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
