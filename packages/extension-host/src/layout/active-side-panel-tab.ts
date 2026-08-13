@@ -4,7 +4,7 @@
  * slot (`store.activeSidePanelTabs[slot]`).
  *
  * Used when the pane mounts, after hydration, and whenever the saved tab
- * changes (e.g. workspace switch while "Also maintain active tab" is off —
+ * changes (e.g. workspace switch while "Also maintain active tab(s)" is off —
  * ADR 0035). Prefer the saved id when it's still a member of the pane; fall
  * back to the first panel; keep the local selection when it already matches
  * (or when nothing is saved).
