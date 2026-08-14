@@ -12,7 +12,17 @@
   color: #f2f4ea;
 }
 
-.silo-home-shell {
+/*
+ * `.silo-home.silo-home-shell` (not just `.silo-home-shell`): #silo-home
+ * carries both classes throughout the handoff, and marketing styles.css's
+ * `.silo-home { margin: 0 }` is loaded *after* this stylesheet — at equal
+ * specificity the later rule wins the cascade, silently dropping this
+ * `margin: 0 auto` and left-justifying the 1440px-capped shell on wide
+ * viewports for a frame. The compound selector outranks it regardless of
+ * load order (repro: visible jump on wide windows, invisible under 1440px
+ * since there's no centering to lose).
+ */
+.silo-home.silo-home-shell {
   font-family:
     Manrope,
     system-ui,
