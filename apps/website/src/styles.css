@@ -350,6 +350,72 @@ h1 em {
 .demo-wrap {
   min-width: 1100px;
 }
+.home-agents {
+  margin: 56px 0 8px;
+  padding: 40px 0;
+  border-top: 1px solid #1c2030;
+  border-bottom: 1px solid #1c2030;
+  text-align: center;
+}
+.home-agents h2 {
+  margin: 0 0 10px;
+  color: #f2f4ea;
+  font-size: clamp(20px, 2.4vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.home-agents p {
+  margin: 0 auto 26px;
+  max-width: 34rem;
+  color: #9aa1b5;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.home-agents-row {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+.home-agents-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 13px 24px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #91958a;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+.home-agents-chip svg {
+  width: 21px;
+  height: 21px;
+  color: #7d8296;
+  transition: color 0.15s ease;
+}
+.home-agents-chip:hover {
+  color: #f2f4ea;
+  background: rgb(242 244 234 / 6%);
+}
+.home-agents-chip:hover svg {
+  color: var(--home-accent);
+}
+.home-agents-chip.is-more {
+  color: #565b6b;
+  font-weight: 500;
+}
+.home-agents-chip.is-more:hover {
+  color: #8b909e;
+  background: none;
+}
+
 .home-trust {
   margin: 24px 0 72px;
   padding: 48px 0;
