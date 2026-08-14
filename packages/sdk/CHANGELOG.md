@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.35.0](https://github.com/silo-code/silo/compare/sdk-v0.34.1...sdk-v0.35.0) (2026-08-14)
+
+
+### Features
+
+* **navigator:** list every view instead of hiding them in a dropdown ([#360](https://github.com/silo-code/silo/issues/360)) ([49b7478](https://github.com/silo-code/silo/commit/49b74781ac5e0c92fb280e8f0aa8f32a64cb8f80))
+
 ## [0.34.1](https://github.com/silo-code/silo/compare/sdk-v0.34.0...sdk-v0.34.1) (2026-08-12)
 
 
