@@ -41,6 +41,10 @@ description: One window — every project, every agent. Terminals, agents, and l
 <a href="https://github.com/silo-code/silo">Star on GitHub</a>
 </p>
 </div>
+<section aria-labelledby="home-agents-title">
+<h2 id="home-agents-title">Runs the agents you already use.</h2>
+<p>Claude, Cursor, Codex, Copilot, Grok, and anything else that talks to a terminal.</p>
+</section>
 <section aria-label="Product">
 <article>
 <p>Workspaces</p>

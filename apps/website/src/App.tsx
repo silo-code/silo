@@ -4,6 +4,9 @@ import { DemoWorkspace } from "./DemoWorkspace";
 import { StoryVideo } from "./StoryVideo";
 import { DOWNLOAD_FALLBACK_HREF, fetchLatestDownloadUrl } from "./download-url";
 import {
+  AGENTS,
+  AGENTS_LINE,
+  AGENTS_TITLE,
   EYEBROW,
   FOOTER_COLUMNS,
   FOOTER_COPYRIGHT,
@@ -20,6 +23,7 @@ import {
   TRUST_LINE,
   TRUST_TITLE,
   FAQ_ITEMS,
+  type AgentIconId,
 } from "./homepage-copy";
 import siloIcon from "./silo-icon.png";
 import featureWorkspacesPoster from "./assets/feature-workspaces.png";
@@ -130,6 +134,116 @@ function ActionIcon({
   if (icon === "platform") return <PlatformIcon platform={platform} />;
   if (icon === "github") return <GitHubIcon />;
   return null;
+}
+
+function ClaudeIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      fill="none"
+      aria-hidden="true"
+    >
+      <line x1="12" y1="3" x2="12" y2="9" />
+      <line x1="12" y1="15" x2="12" y2="21" />
+      <line x1="3" y1="12" x2="9" y2="12" />
+      <line x1="15" y1="12" x2="21" y2="12" />
+      <line x1="5.6" y1="5.6" x2="9.6" y2="9.6" />
+      <line x1="14.4" y1="14.4" x2="18.4" y2="18.4" />
+      <line x1="18.4" y1="5.6" x2="14.4" y2="9.6" />
+      <line x1="9.6" y1="14.4" x2="5.6" y2="18.4" />
+    </svg>
+  );
+}
+
+function CursorIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M5 3 L19 12.2 L12.4 13.6 L16 20 L13.4 21.3 L9.8 14.9 L5 19.4 Z" />
+    </svg>
+  );
+}
+
+function CodexIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8.2" r="4.1" />
+      <circle cx="8" cy="14.6" r="4.1" />
+      <circle cx="16" cy="14.6" r="4.1" />
+    </svg>
+  );
+}
+
+function CopilotIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="8.4" />
+      <path d="M12 3.6 L12 8.4 M12 15.6 L12 20.4 M3.6 12 L8.4 12 M15.6 12 L20.4 12" />
+    </svg>
+  );
+}
+
+function GrokIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <rect
+        x="10.9"
+        y="1.5"
+        width="2.2"
+        height="21"
+        rx="1.1"
+        transform="rotate(24 12 12)"
+      />
+      <rect
+        x="10.9"
+        y="1.5"
+        width="2.2"
+        height="21"
+        rx="1.1"
+        transform="rotate(-24 12 12)"
+      />
+    </svg>
+  );
+}
+
+function AgentIcon({ icon }: { icon: AgentIconId }) {
+  if (icon === "claude") return <ClaudeIcon />;
+  if (icon === "cursor") return <CursorIcon />;
+  if (icon === "codex") return <CodexIcon />;
+  if (icon === "copilot") return <CopilotIcon />;
+  return <GrokIcon />;
 }
 
 function XIcon() {
@@ -270,6 +384,20 @@ export function App() {
         <div className="demo-scroll">
           <DemoWorkspace scene={heroScene} focusable />
         </div>
+
+        <section className="home-agents" aria-labelledby="home-agents-title">
+          <h2 id="home-agents-title">{AGENTS_TITLE}</h2>
+          <p>{AGENTS_LINE}</p>
+          <ul className="home-agents-row">
+            {AGENTS.map((agent) => (
+              <li key={agent.name} className="home-agents-chip">
+                <AgentIcon icon={agent.icon} />
+                {agent.name}
+              </li>
+            ))}
+            <li className="home-agents-chip is-more">+ more</li>
+          </ul>
+        </section>
 
         <section className="home-stories" aria-label="Product">
           {STORY_SECTIONS.map((section, index) => {
