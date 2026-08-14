@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.48.0](https://github.com/silo-code/silo/compare/silo-v0.47.0...silo-v0.48.0) (2026-08-14)
+
+
+### Features
+
+* **navigator:** list every view instead of hiding them in a dropdown ([#360](https://github.com/silo-code/silo/issues/360)) ([49b7478](https://github.com/silo-code/silo/commit/49b74781ac5e0c92fb280e8f0aa8f32a64cb8f80))
+
+
+### Bug Fixes
+
+* **layout:** sync side panel active tab on workspace switch ([#358](https://github.com/silo-code/silo/issues/358)) ([0730aa6](https://github.com/silo-code/silo/commit/0730aa6836265be8ff1ef9f2f7a9892333cc91db))
+
 ## [0.47.0](https://github.com/silo-code/silo/compare/silo-v0.46.1...silo-v0.47.0) (2026-08-13)
 
 
