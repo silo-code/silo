@@ -2,8 +2,8 @@ import type { NavigatorView } from "@silo-code/sdk";
 
 // Host-side registry for Navigator views (RFC 0023).
 // Extensions register views via the public ctx.registerNavigatorView(); the
-// read side (list/subscribe) is core-only, since painting the view selector
-// and mounting the active body needs the React component references.
+// read side (list/subscribe) is core-only, since painting the view list and
+// mounting the active view's body needs the React component references.
 //
 // The Workspaces view is in here like any other — core.workspaces registers it
 // through the same public API, so first-party and third-party views are the

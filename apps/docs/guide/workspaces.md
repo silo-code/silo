@@ -18,8 +18,7 @@ That persistence pays off when you treat terminal tabs as dedicated slots for sp
 
 ## Opening a workspace
 
-Click the **+** button in the Navigator's header to open a folder
-picker. Select a folder (or multiple folders for a multi-root workspace) and
+Click the **+** button in the Navigator's view header to open a folder picker. Select a folder (or multiple folders for a multi-root workspace) and
 Silo creates a new workspace and activates it. If a workspace for that folder
 already exists, Silo brings it to the foreground instead.
 

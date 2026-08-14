@@ -9,8 +9,9 @@ import { NavigatorPanel } from "./NavigatorPanel";
  * {@link NavigatorView} registered through the public
  * `ctx.registerNavigatorView`, including the workspace list, which
  * `core.workspaces` contributes exactly the way a third-party extension would.
- * Everything in its header is either the view selector or a toolbar
- * contribution on the `"navigator"` surface. So this extension holds no
+ * Its chrome is the view list (every registered view, named) and the view
+ * header, whose actions are toolbar contributions on the `"navigator"`
+ * surface. So this extension holds no
  * workspace code, no agent code, and no knowledge of what any view shows —
  * which is the point: a new way to navigate is a new view, not a competing
  * side panel.

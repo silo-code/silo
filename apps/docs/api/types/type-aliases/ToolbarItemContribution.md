@@ -8,7 +8,7 @@ type ToolbarItemContribution<S> =
 | ToolbarSpacerContribution<S>;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:193](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L193)
+Defined in: [packages/sdk/src/toolbar-items.ts:194](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L194)
 
 Adds a control or chrome element to the trailing cluster of a built-in
 editor or terminal toolbar. Register via

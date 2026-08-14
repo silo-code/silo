@@ -71,3 +71,5 @@ A small, obvious choice needs neither.
 | [0034](./0034-focus-and-activation-authority.md)        | Focus/activation: the live dock, and only the active panel | 2026-08-07 | proposed |
 | [0035](./0035-global-side-panel-layout.md)              | Global Side Panel Layout is an opt-in shared arrangement   | 2026-08-08 | accepted |
 | [0036](./0036-unified-update-ui-and-changelog.md)       | Unified update UI, in-app changelog, and skip-version      | 2026-08-10 | accepted |
+| [0037](./0037-git-repo-watch-session.md)                | A published, live git-state session (`GitAPI.watchRepo`)   | 2026-08-12 | accepted |
+| [0038](./0038-navigator-view-list.md)                   | The Navigator lists its views instead of hiding them       | 2026-08-13 | accepted |

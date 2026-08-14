@@ -1,6 +1,6 @@
 # Interface: SettingsPage
 
-Defined in: [packages/sdk/src/types.ts:624](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L624)
+Defined in: [packages/sdk/src/types.ts:628](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L628)
 
 A page in the Settings dialog, listed in the left rail.
 
@@ -12,7 +12,7 @@ A page in the Settings dialog, listed in the left rail.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:626](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L626)
+Defined in: [packages/sdk/src/types.ts:630](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L630)
 
 Unique id for this settings page.
 
@@ -24,7 +24,7 @@ Unique id for this settings page.
 title: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:628](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L628)
+Defined in: [packages/sdk/src/types.ts:632](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L632)
 
 Label shown in the Settings left rail.
 
@@ -36,7 +36,7 @@ Label shown in the Settings left rail.
 optional group?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:635](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L635)
+Defined in: [packages/sdk/src/types.ts:639](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L639)
 
 Optional grouping key for the left rail (groups sorted lexically, separated
 by a divider). Honored only for `core.*` pages; a page contributed by any
@@ -51,7 +51,7 @@ ignored for those.
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:637](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L637)
+Defined in: [packages/sdk/src/types.ts:641](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L641)
 
 Sort order within the group. Lower sorts first. Defaults to 0.
 
@@ -63,7 +63,7 @@ Sort order within the group. Lower sorts first. Defaults to 0.
 component: ComponentType;
 ```
 
-Defined in: [packages/sdk/src/types.ts:639](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L639)
+Defined in: [packages/sdk/src/types.ts:643](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L643)
 
 Renders the right-hand pane when this page is selected.
 
@@ -76,7 +76,7 @@ optional badge?: ComponentType<{
 }>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:646](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L646)
+Defined in: [packages/sdk/src/types.ts:650](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L650)
 
 Optional small indicator rendered after the title in the left rail (e.g.
 an update-available count). Rendered as its own component — separate from

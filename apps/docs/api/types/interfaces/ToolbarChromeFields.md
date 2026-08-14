@@ -1,6 +1,6 @@
 # Interface: ToolbarChromeFields\<S\>
 
-Defined in: [packages/sdk/src/toolbar-items.ts:129](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L129)
+Defined in: [packages/sdk/src/toolbar-items.ts:130](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L130)
 
 Shared placement fields for non-interactive toolbar chrome
 ([ToolbarSeparatorContribution](ToolbarSeparatorContribution.md) / [ToolbarSpacerContribution](ToolbarSpacerContribution.md)).
@@ -24,7 +24,7 @@ Shared placement fields for non-interactive toolbar chrome
 id: string;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:132](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L132)
+Defined in: [packages/sdk/src/toolbar-items.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L133)
 
 ***
 
@@ -34,7 +34,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:132](https://github.com/silo-code
 surface: S;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L133)
+Defined in: [packages/sdk/src/toolbar-items.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L134)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:133](https://github.com/silo-code
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L134)
+Defined in: [packages/sdk/src/toolbar-items.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L135)
 
 ***
 
@@ -54,7 +54,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:134](https://github.com/silo-code
 optional when?: (ctx, target) => boolean;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L135)
+Defined in: [packages/sdk/src/toolbar-items.ts:136](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L136)
 
 #### Parameters
 

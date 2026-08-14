@@ -7,10 +7,11 @@ import type { MenuEntry } from "./ui-service";
  * per registration.
  *
  * `"editor"` and `"terminal"` are CenterDock breadcrumb toolbars; `"navigator"`
- * is the header of the Navigator side panel, where contributions become that
- * panel's action buttons. A navigator item's `when` receives the active
+ * is the header naming the Navigator's active view — the bar between its view
+ * list and the view body — where contributions become that view's action
+ * buttons. A navigator item's `when` receives the active
  * {@link NavigatorView | view}'s id, so an action can be scoped to one view or
- * left unscoped to appear across all of them.
+ * left unscoped to follow the user across all of them.
  *
  * @category Registration
  * @public

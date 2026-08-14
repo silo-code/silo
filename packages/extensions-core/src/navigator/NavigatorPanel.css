@@ -1,75 +1,147 @@
-/* The Navigator is a column of [sticky header][one visible view]. It only sets
-   a min-height — the host `.tab-pane` above it stays the sole scroller, which
-   is what its scroll persistence and every registered view assume. */
+/* The Navigator is a column of [sticky view list][view header][one visible
+   view]. It only sets a min-height — the host `.tab-pane` above it stays the
+   sole scroller, which is what its scroll persistence and every registered
+   view assume. */
 .nav-panel {
   display: flex;
   flex-direction: column;
   min-height: 100%;
 }
 
-.nav-header {
+/* Every registered view, always on screen, one click each. Stays put while the
+   active view scrolls under it; opaque so rows don't show through. */
+/* Rows sit tight against each other; the breathing room goes around the block
+   instead, weighted toward the bottom so the list reads as separated from the
+   view header under it rather than floating between the two. */
+.nav-views {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--silo-color-border);
-  /* Stays put while the active view scrolls under it; opaque so rows don't
-     show through. */
+  flex-direction: column;
+  gap: 0;
+  padding: 15px 6px 18px;
   position: sticky;
   top: 0;
   z-index: 1;
   background: var(--silo-color-bg);
 }
 
-.nav-header__actions {
-  display: inline-flex;
+/* Deliberately unhighlighted when selected — `.nav-view-header` below names
+   the open view instead. Hover is the only row state, so the list reads as a
+   set of destinations rather than a segmented control. */
+.nav-view-row {
+  display: flex;
   align-items: center;
-  margin-left: auto;
+  gap: 9px;
   min-width: 0;
+  min-height: 26px;
+  padding: 3px 8px;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-hi);
+  font-family: var(--silo-font-ui);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Already the panel's brightest text, so hover moves the background only. */
+.nav-view-row:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+/* Fixed width so titles line up whether or not a given view supplies an icon.
+   Only rendered at all when at least one view has one. */
+.nav-view-row__icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+}
+
+.nav-view-row__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Names the open view and hosts its contributed actions. Reads as a section
+   heading over the view body — the same uppercase treatment the views use for
+   their own section headings, so the hierarchy is [destinations][you are
+   here][content]. */
+.nav-view-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  /* --silo-color-border is transparent in dark theme (theme.css), so it reads
+     as no border at all there — the seam under the list needs an actually
+     visible (if subtle) line, which is what -strong is for. */
+  border-top: 1px solid var(--silo-color-border-strong);
+  border-bottom: 1px solid var(--silo-color-border);
+  background: var(--silo-color-bg);
+}
+
+.nav-view-header__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--silo-color-text);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 /* ContributedToolbar ships the editor breadcrumb's bar chrome — its own
-   background and bottom rule. Inside the Navigator header that reads as a bar
-   within a bar, so the cluster is flattened to just its buttons here; the
-   header is already the bar. */
-.nav-header .contributed-toolbar {
+   background and bottom rule. Inside this header that reads as a bar within a
+   bar, so the cluster is flattened to just its buttons here; the header is
+   already the bar. */
+.nav-view-header .contributed-toolbar {
   min-height: 0;
   padding: 0;
   background: none;
   border-bottom: none;
 }
 
-/* The view selector. Disabled (and caret-less) when only one view is
-   registered — there'd be nothing to switch to. */
-.nav-view-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-  padding: 2px 5px;
-  border: none;
-  background: none;
-  border-radius: var(--silo-radius-sm);
+/* Actions read as part of the header line rather than as controls sitting on
+   it, so they take the title's color instead of the toolbar surface's. Both
+   control shapes are covered: text / icon+text / menu controls are
+   `.contributed-toolbar__btn`, while icon-only ones are SDK IconButtons
+   (`.silo-icon-button-toolbar`) — the workspaces + is one of those.
+
+   Each selector below excludes `[data-checked="true"]`/`[aria-pressed="true"]`
+   rather than relying on a specificity win over ContributedToolbar.css's
+   checked-state rule — that rule is the same specificity as this one, so
+   without the exclusion, load order (not intent) would decide whether the
+   accent color survives. Excluding by selector means it always does. */
+.nav-view-header
+  .contributed-toolbar__btn:not([data-checked="true"]):not(
+    [aria-pressed="true"]
+  ),
+.nav-view-header
+  .contributed-toolbar__btn:hover:not(:disabled):not([data-checked="true"]):not(
+    [aria-pressed="true"]
+  ),
+.nav-view-header
+  .contributed-toolbar__btn:active:not(:disabled):not(
+    [data-checked="true"]
+  ):not([aria-pressed="true"]),
+.nav-view-header
+  .silo-icon-button-toolbar:not([data-checked="true"]):not(
+    [aria-pressed="true"]
+  ),
+.nav-view-header
+  .silo-icon-button-toolbar:hover:not(:disabled):not([data-checked="true"]):not(
+    [aria-pressed="true"]
+  ),
+.nav-view-header
+  .silo-icon-button-toolbar:active:not(:disabled):not(
+    [data-checked="true"]
+  ):not([aria-pressed="true"]) {
   color: var(--silo-color-text);
-  font-family: var(--silo-font-ui);
-  font-size: 1em;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.nav-view-btn:disabled {
-  cursor: default;
-}
-
-.nav-view-btn:hover:not(:disabled) {
-  background: var(--silo-color-bg-hover);
-  color: var(--silo-color-text-hi);
-}
-
-.nav-view-btn__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* One registered view per container; all mounted ones stay in the DOM so they

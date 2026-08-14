@@ -1,4 +1,5 @@
 import type { Extension } from "@silo-code/sdk";
+import { SquaresFour } from "@phosphor-icons/react";
 import {
   store,
   groupIdForWorkspace,
@@ -53,6 +54,9 @@ export const extension: Extension = {
       id: "workspaces",
       title: "Workspaces",
       order: 0,
+      // Same glyph the workspace rows themselves carry, so the entry in the
+      // Navigator's view list and the rows it leads to read as one thing.
+      icon: <SquaresFour size={16} weight="duotone" />,
       // Inject ctx so the view reaches workspaces/terminals/files through the
       // public primitives, not host getters (see silo.file-explorer, 6662dcc).
       // Forward NavigatorViewProps (incl. `active`) so the first Adapter
