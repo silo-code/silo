@@ -1,9 +1,10 @@
-import type { MenuEntry, NavigatorView } from "@silo-code/sdk";
+import type { NavigatorView } from "@silo-code/sdk";
 
-// Pure model for the Navigator's view selector (RFC 0023). The panel renders
-// one registered view at a time; nothing here is special-cased for the
-// Workspaces view — it is registered through the same public API as any other,
-// and only named below as the fallback the panel opens on.
+// Pure model for the Navigator's view list (RFC 0023). The panel names every
+// registered view in a list at the top and renders one of them below; nothing
+// here is special-cased for the Workspaces view — it is registered through the
+// same public API as any other, and only named below as the fallback the panel
+// opens on.
 
 /**
  * The view the Navigator opens with when the user hasn't chosen one — the
@@ -31,30 +32,46 @@ export function resolveActiveView(
   return views[0]?.id;
 }
 
-/** The active view's title, for the header selector. */
-export function activeViewTitle(
+/**
+ * Where roving focus parks when it enters the view list — the active row, so
+ * arrowing starts from what's on screen. `findIndex`'s `-1` (no active view,
+ * e.g. nothing registered yet) is passed through rather than clamped here:
+ * the sole caller feeds this straight to `useFocusGroup`'s `start`, which
+ * already clamps a negative index to the first row, so a second clamp here
+ * would just be the same guarantee asserted twice.
+ */
+export function activeViewIndex(
   views: readonly NavigatorView[],
   activeId: string | undefined,
-): string {
-  return views.find((v) => v.id === activeId)?.title ?? "Navigator";
+): number {
+  return views.findIndex((v) => v.id === activeId);
+}
+
+/** One row of the view list, as the panel renders it. */
+export interface ViewRow {
+  id: string;
+  title: string;
+  icon: NavigatorView["icon"];
+  /** Whether this is the active view — the row's `aria-selected`. Not painted
+   * (ADR 0038: the view header names the active view instead), but still the
+   * one place "which row is the active one" is decided. */
+  selected: boolean;
 }
 
 /**
- * Rows for the header's view menu — every registered view in registry order,
- * with a check on the active one.
+ * Rows for the view list — every registered view in registry order. Pulled
+ * out as data, mirroring the pre-ADR-0038 `buildViewMenuItems`, so "exactly
+ * the active view is selected" is a unit test rather than something only
+ * exercised by clicking through the running app.
  */
-export function buildViewMenuItems(
+export function buildViewRows(
   views: readonly NavigatorView[],
   activeId: string | undefined,
-  onPick: (viewId: string) => void,
-): MenuEntry[] {
-  return [
-    { type: "header", label: "View" },
-    ...views.map((v) => ({
-      label: v.title,
-      icon: v.icon,
-      checked: activeId === v.id,
-      run: () => onPick(v.id),
-    })),
-  ];
+): ViewRow[] {
+  return views.map((v) => ({
+    id: v.id,
+    title: v.title,
+    icon: v.icon,
+    selected: v.id === activeId,
+  }));
 }

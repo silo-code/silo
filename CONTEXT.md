@@ -21,8 +21,7 @@ _Avoid_: Workspaces panel (the old name for the Navigator itself)
 ### Navigator
 
 **Navigator**:
-The side panel you navigate the app from. A container: its body is one View at
-a time; its header holds the view selector and toolbar actions. Owned by
+The side panel you navigate the app from. A container of Views, owned by
 `core.navigator`.
 _Avoid_: Workspaces panel, sidebar (OS/VS Code sense), activity bar
 
@@ -33,9 +32,27 @@ navigate is a new View, not a second competing panel.
 _Avoid_: Side Panel (when the intent is navigation), tab, mode (prefer View),
 editor view (the CenterDock `viewType` sense)
 
+**Active View**:
+The one View currently rendered in the Navigator. A persisted, global user
+choice — unrelated to the focus/activation sense "active" carries for
+workspaces, docks, and panels.
+_Avoid_: Open view, current view, selected view, visible view
+
+**View List**:
+The rows at the top of the Navigator, one per registered View — how you reach a
+View, and what tells you which Views exist. Hidden when only one is registered.
+_Avoid_: View selector, view menu, view switcher, view picker (none of these are
+a dropdown any more), tab bar
+
+**View Header**:
+The bar between the View List and the panel body. Names the Active View and
+hosts its toolbar actions.
+_Avoid_: Navigator header (ambiguous with the View List above it), panel header,
+title bar
+
 **Open Workspace menu**:
-The shared "saved workspaces / New workspace…" menu offered from the Navigator
-header, the workspace status-bar item, and the empty CenterDock.
+The shared "saved workspaces / New workspace…" menu offered from the Navigator's
+View Header, the workspace status-bar item, and the empty CenterDock.
 _Avoid_: Add workspace menu, reopen picker (that's the closed-workspace path)
 
 ### Layout

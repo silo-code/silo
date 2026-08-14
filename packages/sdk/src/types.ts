@@ -495,14 +495,18 @@ export interface NavigatorViewProps {
 /**
  * A view in the **Navigator** — the side panel you navigate the app from. The
  * Navigator is a container: each registered view is one projection of "where
- * can I go", and the user switches between them from the selector in its
- * header. The built-in **Workspaces** view (the workspace list) is itself
- * registered this way, through this same API.
+ * can I go". Every registered view is listed by name at the top of the panel
+ * and is one click away; the built-in **Workspaces** view (the workspace list)
+ * is itself registered this way, through this same API.
  *
  * Reach for a view rather than {@link ExtensionContext.registerSidePanel} when
  * what you'd be adding is *another way to navigate the app*. Two navigators
  * side by side leave the user with no rule for which one to trust; a view keeps
  * one place to navigate from and changes only how it is projected.
+ *
+ * Register **one** view per projection, not one per way of sorting it — a
+ * grouping or filter your view supports is a control *inside* that view
+ * (contribute it as a toolbar item, see below), not a second entry in the list.
  *
  * A view owns the whole panel body. Header **actions** are contributed
  * separately, as toolbar items on the `"navigator"`
@@ -513,8 +517,8 @@ export interface NavigatorViewProps {
  * @example
  * ```tsx
  * ctx.registerNavigatorView({
- *   id: "my-ext.by-status",
- *   title: "Agents by status",
+ *   id: "my-ext.agents",
+ *   title: "Agents",
  *   component: ({ active }) => <AgentList paused={!active} />,
  * });
  * ```
@@ -525,14 +529,14 @@ export interface NavigatorViewProps {
 export interface NavigatorView {
   /** Unique id, conventionally `"<extension-id>.<view-name>"`. */
   id: string;
-  /** Name shown in the Navigator's header and its view menu. */
+  /** Name shown for this view in the Navigator's view list. */
   title: string;
-  /** Optional icon rendered to the left of the title in the view menu. */
+  /** Optional icon rendered to the left of the title in the view list. */
   icon?: React.ReactNode;
   /** The React component rendered as the whole panel body when active. */
   component: React.ComponentType<NavigatorViewProps>;
   /**
-   * Sort order among views. Lower values appear first in the view menu.
+   * Sort order among views. Lower values appear first in the view list.
    * Defaults to `0`; the built-in Workspaces view registers at `0`.
    */
   order?: number;

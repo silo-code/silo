@@ -1,14 +1,18 @@
-import { describe, it, expect, vi } from "vitest";
-import type { MenuItem, NavigatorView } from "@silo-code/sdk";
+import { describe, it, expect } from "vitest";
+import type { NavigatorView } from "@silo-code/sdk";
 import {
   DEFAULT_VIEW_ID,
-  activeViewTitle,
-  buildViewMenuItems,
+  activeViewIndex,
+  buildViewRows,
   resolveActiveView,
 } from "./navigator-views";
 
-function view(id: string, title = id): NavigatorView {
-  return { id, title, component: () => null };
+function view(
+  id: string,
+  title = id,
+  icon?: NavigatorView["icon"],
+): NavigatorView {
+  return { id, title, icon, component: () => null };
 }
 
 const views = [
@@ -41,49 +45,59 @@ describe("resolveActiveView", () => {
   });
 });
 
-describe("activeViewTitle", () => {
-  it("names the active view", () => {
-    expect(activeViewTitle(views, "ext.status")).toBe("Agents by status");
+describe("activeViewIndex", () => {
+  it("points at the active row so focus enters on what's on screen", () => {
+    expect(activeViewIndex(views, DEFAULT_VIEW_ID)).toBe(0);
+    expect(activeViewIndex(views, "ext.ws")).toBe(2);
   });
 
-  it("falls back to the panel name for an unknown or absent id", () => {
-    expect(activeViewTitle(views, "gone.view")).toBe("Navigator");
-    expect(activeViewTitle([], undefined)).toBe("Navigator");
+  // -1 isn't clamped here — the sole caller passes this straight to
+  // useFocusGroup's `start`, which already treats a negative index as "park
+  // on the first row" (see the doc comment on activeViewIndex).
+  it("returns -1 when the active view isn't in the list", () => {
+    expect(activeViewIndex(views, "gone.view")).toBe(-1);
+    expect(activeViewIndex(views, undefined)).toBe(-1);
+  });
+
+  it("returns -1 when nothing is registered", () => {
+    expect(activeViewIndex([], undefined)).toBe(-1);
   });
 });
 
-describe("buildViewMenuItems", () => {
-  const items = (activeId: string | undefined, onPick = () => {}) =>
-    buildViewMenuItems(views, activeId, onPick);
-
-  it("leads with a header, then every view in registry order", () => {
-    const rows = items(DEFAULT_VIEW_ID);
-    expect(rows[0]).toEqual({ type: "header", label: "View" });
-    expect(rows.slice(1).map((r) => (r as MenuItem).label)).toEqual([
-      "Workspaces",
-      "Agents by status",
-      "Agents by workspace",
+describe("buildViewRows", () => {
+  it("returns one row per view, in registry order", () => {
+    const rows = buildViewRows(views, DEFAULT_VIEW_ID);
+    expect(rows.map((r) => r.id)).toEqual([
+      DEFAULT_VIEW_ID,
+      "ext.status",
+      "ext.ws",
     ]);
   });
 
-  it("checks exactly the active row", () => {
-    const checked = items("ext.ws")
-      .filter((r): r is MenuItem => "label" in r && Boolean(r.checked))
-      .map((r) => r.label);
-    expect(checked).toEqual(["Agents by workspace"]);
+  it("selects exactly the active row", () => {
+    const rows = buildViewRows(views, "ext.ws");
+    expect(rows.map((r) => r.selected)).toEqual([false, false, true]);
   });
 
-  it("checks nothing when no view is active", () => {
-    const checked = items(undefined).filter(
-      (r) => "label" in r && Boolean(r.checked),
-    );
-    expect(checked).toEqual([]);
+  it("selects nothing when no view is active", () => {
+    const rows = buildViewRows(views, undefined);
+    expect(rows.every((r) => !r.selected)).toBe(true);
   });
 
-  it("passes the picked view's id to onPick", () => {
-    const onPick = vi.fn();
-    const rows = items(DEFAULT_VIEW_ID, onPick) as MenuItem[];
-    rows[2].run?.();
-    expect(onPick).toHaveBeenCalledWith("ext.status");
+  it("selects nothing when the active id isn't registered", () => {
+    // The extension that owned it was disabled or uninstalled — same case
+    // resolveActiveView falls back for; this just confirms the row list
+    // doesn't strand a stale checkmark on some other row.
+    const rows = buildViewRows(views, "gone.view");
+    expect(rows.every((r) => !r.selected)).toBe(true);
+  });
+
+  it("passes each view's own title and icon through unchanged", () => {
+    // A plain string stands in for a React node here — this file has no JSX,
+    // and buildViewRows never inspects the icon, only forwards it.
+    const withIcon = view("acme.x", "Acme", "🔧");
+    const [row] = buildViewRows([withIcon], undefined);
+    expect(row.title).toBe("Acme");
+    expect(row.icon).toBe("🔧");
   });
 });

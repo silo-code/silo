@@ -1,6 +1,6 @@
 # Interface: ToolbarItemContext
 
-Defined in: [packages/sdk/src/toolbar-items.ts:27](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L27)
+Defined in: [packages/sdk/src/toolbar-items.ts:28](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L28)
 
 The typed target each [ToolbarSurface](../type-aliases/ToolbarSurface.md) passes to an invoked command
 and to `when` / `checked` / [ToolbarMenuItemContribution.menu](ToolbarMenuItemContribution.md#menu) builders.
@@ -13,7 +13,7 @@ and to `when` / `checked` / [ToolbarMenuItemContribution.menu](ToolbarMenuItemCo
 editor: object;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:28](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L28)
+Defined in: [packages/sdk/src/toolbar-items.ts:29](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L29)
 
 #### editorId
 
@@ -29,7 +29,7 @@ editorId: string;
 terminal: object;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:29](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L29)
+Defined in: [packages/sdk/src/toolbar-items.ts:30](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L30)
 
 #### terminalId
 
@@ -45,7 +45,7 @@ terminalId: string;
 navigator: object;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:30](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L30)
+Defined in: [packages/sdk/src/toolbar-items.ts:31](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L31)
 
 #### viewId
 

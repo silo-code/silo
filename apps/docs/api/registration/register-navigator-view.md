@@ -7,21 +7,34 @@ ctx.registerNavigatorView(view: NavigatorView): Disposable
 ```
 
 The Navigator is a container. Each registered view is one projection of "where
-can I go", and the user picks between them from the selector in its header. The
-built-in **Workspaces** view (the workspace list) is registered through this
-same API by `core.workspaces` — first-party and third-party views are the same
-kind of thing.
+can I go". Every registered view is listed by name at the top of the panel, so
+switching is a single click and your view is visible to the user whether or not
+it's the one on screen. The built-in **Workspaces** view (the workspace list) is
+registered through this same API by `core.workspaces` — first-party and
+third-party views are the same kind of thing.
 
 ## Example
 
 ```tsx
 ctx.registerNavigatorView({
-  id: "acme.by-status",
-  title: "Agents by status",
-  order: 1, // lower sorts first in the view menu; Workspaces registers at 0
+  id: "acme.agents",
+  title: "Agents",
+  order: 1, // lower sorts first in the view list; Workspaces registers at 0
   component: ({ active }) => <AgentList paused={!active} />,
 });
 ```
+
+## One view per projection
+
+Register one view for each genuinely different destination — not one per way of
+sorting or filtering the same list. Every view costs a permanent row in the
+Navigator's list, and two rows that render the same rows two ways read as two
+places to go when they aren't.
+
+If your view supports grouping, filtering or a display mode, make it a control
+_inside_ that view — a menu-backed [header action](#header-actions) is usually
+the right shape, since it costs no panel height and the choice can persist in
+your own [storage](/api/storage/).
 
 ## Prefer this over a second side panel
 
@@ -53,7 +66,8 @@ workspace) across workspace switches and restarts.
 A view's buttons are **toolbar items** on the `"navigator"`
 [surface](/api/registration/register-toolbar-item), not part of the view
 itself — so they get the host's button, dropdown, tooltip and ordering chrome,
-and can be either command-backed or menu-backed:
+and can be either command-backed or menu-backed. They render in the header that
+names the active view, between the view list and the view body:
 
 ```ts
 ctx.registerToolbarItem({
@@ -62,7 +76,7 @@ ctx.registerToolbarItem({
   icon: "ArrowsClockwise",
   tooltip: "Refresh",
   // Scope to your view; omit `when` to appear in every view.
-  when: (_keys, target) => target.viewId === "acme.by-status",
+  when: (_keys, target) => target.viewId === "acme.agents",
   command: "acme.refresh",
 });
 ```
@@ -70,6 +84,31 @@ ctx.registerToolbarItem({
 The target is `{ viewId }` — the view currently on screen. The workspaces `+`
 button is exactly this: a menu-backed item registered with no `when`, which is
 why adding a workspace stays one click away from whichever view you're in.
+
+A menu-backed item is also how a view offers its own display options. To let the
+user regroup your list without spending a second view on it:
+
+```ts
+ctx.registerToolbarItem({
+  id: "acme.group-by",
+  surface: "navigator",
+  title: "Group by",
+  when: (_keys, target) => target.viewId === "acme.agents",
+  menu: () => [
+    { type: "header", label: "Group by" },
+    {
+      label: "Status",
+      checked: groupBy === "status",
+      run: () => setGroupBy("status"),
+    },
+    {
+      label: "Workspace",
+      checked: groupBy === "workspace",
+      run: () => setGroupBy("workspace"),
+    },
+  ],
+});
+```
 
 ## Types
 

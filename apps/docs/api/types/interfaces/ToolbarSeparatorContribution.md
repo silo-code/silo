@@ -1,6 +1,6 @@
 # Interface: ToolbarSeparatorContribution\<S\>
 
-Defined in: [packages/sdk/src/toolbar-items.ts:146](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L146)
+Defined in: [packages/sdk/src/toolbar-items.ts:147](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L147)
 
 A light vertical rule between toolbar controls. Softer than the Text |
 Preview pipe — host paints it with a low-opacity mix of toolbar text, not
@@ -24,7 +24,7 @@ Preview pipe — host paints it with a low-opacity mix of toolbar text, not
 id: string;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:132](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L132)
+Defined in: [packages/sdk/src/toolbar-items.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L133)
 
 #### Inherited from
 
@@ -38,7 +38,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:132](https://github.com/silo-code
 surface: S;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L133)
+Defined in: [packages/sdk/src/toolbar-items.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L134)
 
 #### Inherited from
 
@@ -52,7 +52,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:133](https://github.com/silo-code
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L134)
+Defined in: [packages/sdk/src/toolbar-items.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L135)
 
 #### Inherited from
 
@@ -66,7 +66,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:134](https://github.com/silo-code
 optional when?: (ctx, target) => boolean;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L135)
+Defined in: [packages/sdk/src/toolbar-items.ts:136](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L136)
 
 #### Parameters
 
@@ -94,4 +94,4 @@ Defined in: [packages/sdk/src/toolbar-items.ts:135](https://github.com/silo-code
 type: "separator";
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:149](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L149)
+Defined in: [packages/sdk/src/toolbar-items.ts:150](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L150)
