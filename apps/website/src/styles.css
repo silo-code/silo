@@ -1761,7 +1761,12 @@ h1 em {
   color: #f2f4ea;
 }
 .demo-wrap {
-  border: 0;
+  /* #0f1115 sits almost on top of the page's own near-black background
+     (#11120f), so with no border the demo used to just fade into the page —
+     border-strong is the same edge tone the demo already uses for its own
+     internal seams (Navigator view header, panel dividers), so the outer
+     frame reads as one more edge of the same chrome rather than a new color. */
+  border: 1px solid #2b3148;
   border-radius: 6px;
   background: #0f1115;
   box-shadow: 0 24px 70px #0006;

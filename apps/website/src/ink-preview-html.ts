@@ -7,7 +7,7 @@ export const INK_PREVIEW_HTML = `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>ink</title>
+    <title>My Site</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       * { box-sizing: border-box; }
@@ -25,10 +25,30 @@ export const INK_PREVIEW_HTML = `<!doctype html>
         border-bottom: 1px solid #26283333;
       }
       .logo {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         font-weight: 800;
         font-size: 18px;
         letter-spacing: -0.02em;
         margin-right: auto;
+      }
+      /* Same dashed/diagonal-stripe placeholder language as .hero-art below,
+         just logomark-sized — the wordmark's icon hasn't been designed yet
+         either. */
+      .logo-mark {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        border: 1.5px dashed #33364d;
+        border-radius: 5px;
+        background: repeating-linear-gradient(
+          135deg,
+          #16171f,
+          #16171f 4px,
+          #1a1c24 4px,
+          #1a1c24 8px
+        );
       }
       nav a {
         color: #9a9daa;
@@ -53,6 +73,10 @@ export const INK_PREVIEW_HTML = `<!doctype html>
         margin: 0 auto;
         padding: 56px 28px 80px;
       }
+      /* Full size — the headline stays a real hero. What keeps it from
+         competing with the page's actual hero above it is that the copy
+         itself unmistakably reads as a placeholder nobody has replaced yet,
+         not that it's been shrunk into insignificance. */
       h1 {
         font-size: 44px;
         line-height: 1.1;
@@ -131,17 +155,19 @@ export const INK_PREVIEW_HTML = `<!doctype html>
   </head>
   <body>
     <nav>
-      <span class="logo">ink</span>
+      <span class="logo">
+        <span class="logo-mark" aria-hidden="true"></span>
+        My Site
+      </span>
       <a href="#">Product</a>
       <a href="#">Docs</a>
       <a href="#">Pricing</a>
       <span class="theme-toggle" title="dark mode toggle — in progress">◐</span>
     </nav>
     <main>
-      <h1>From idea to sketch<br />in seconds.</h1>
+      <h1>Hero headline goes here</h1>
       <p class="lede">
-        The zero-friction way to visualize your thoughts on macOS. Just open,
-        draw, and share.
+        Replace this paragraph with real copy before launch.
       </p>
       <div class="cta-row">
         <button class="cta">Download for Mac</button>
