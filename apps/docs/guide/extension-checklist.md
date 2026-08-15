@@ -89,6 +89,6 @@ third-party packages don't:
 
 - [ ] Any new or changed public `ctx` surface has TSDoc, a `@category` tag, a
       barrel export from `packages/sdk/src/index.ts`, and a hand-authored page
-      — see the Self-documentation section of `CLAUDE.md`.
+      — see the Self-documentation section of `AGENTS.md`.
 - [ ] Any new behavior has unit tests co-located as `*.test.ts` — see the
-      Testing section of `CLAUDE.md`.
+      Testing section of `AGENTS.md`.
