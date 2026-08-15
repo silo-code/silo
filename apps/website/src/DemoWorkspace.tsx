@@ -442,6 +442,42 @@ function CaretDownIcon({ size = 12 }: { size?: number }) {
   );
 }
 
+/** Phosphor's SquaresFour — the Navigator view list's Workspaces row. */
+function WorkspacesViewIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <rect x="3" y="3" width="8" height="8" rx="1.6" fill="currentColor" />
+      <rect x="13" y="3" width="8" height="8" rx="1.6" fill="currentColor" />
+      <rect x="3" y="13" width="8" height="8" rx="1.6" fill="currentColor" />
+      <rect x="13" y="13" width="8" height="8" rx="1.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Phosphor's Robot — the Navigator view list's Agents row. */
+function AgentsViewIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="4" y="8" width="16" height="12" rx="3" />
+      <path d="M12 8V5" />
+      <circle cx="12" cy="4" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="13.5" r="1.3" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="13.5" r="1.3" fill="currentColor" stroke="none" />
+      <path d="M9 17h6" />
+    </svg>
+  );
+}
+
 /** Phosphor's TreeStructure — the git panel's worktree-manager button. */
 function TreeStructureIcon({ size = 16 }: { size?: number }) {
   return (
@@ -2239,7 +2275,6 @@ export function DemoWorkspace({
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false);
   const [navigatorView, setNavigatorView] =
     useState<NavigatorView>("workspaces");
-  const [showViewMenu, setShowViewMenu] = useState(false);
   const [playback, setPlayback] = useState({
     playing: scripting,
     index: 0,
@@ -2377,7 +2412,6 @@ export function DemoWorkspace({
     setActiveIdState(initialOpenIds[0]);
     setShowWorkspaceMenu(false);
     setNavigatorView("workspaces");
-    setShowViewMenu(false);
     setShowSettings(false);
     setShowGithubActions(false);
     setShowWorktreeToast(false);
@@ -2409,7 +2443,6 @@ export function DemoWorkspace({
       setActiveIdState(initialOpenIds[0]);
       setShowWorkspaceMenu(false);
       setNavigatorView("workspaces");
-      setShowViewMenu(false);
       setShowSettings(false);
       setShowGithubActions(false);
     }
@@ -2509,7 +2542,6 @@ export function DemoWorkspace({
       setActiveIdState(initialOpenIds[0]);
       setShowWorkspaceMenu(false);
       setNavigatorView("workspaces");
-      setShowViewMenu(false);
       setShowSettings(false);
       setShowGithubActions(false);
     }
@@ -2567,7 +2599,6 @@ export function DemoWorkspace({
         setActiveIdState(initialOpenIds[0]);
         setShowWorkspaceMenu(false);
         setNavigatorView("workspaces");
-        setShowViewMenu(false);
         setShowWorktreeToast(false);
         setRevealTodosPanel(false);
         setClaudeTerminalOriginMs(null);
@@ -2874,20 +2905,17 @@ export function DemoWorkspace({
 
   function toggleWorkspaceMenu() {
     pausePlayback();
-    setShowViewMenu(false);
     setShowWorkspaceMenu((current) => !current);
   }
 
-  function toggleViewMenu() {
-    pausePlayback();
-    setShowWorkspaceMenu(false);
-    setShowViewMenu((current) => !current);
-  }
-
+  // No open/close state of its own any more — clicking a view list row picks
+  // it directly (ADR 0038: the Navigator lists every view instead of hiding
+  // them behind a dropdown), so this just switches and closes whatever else
+  // was open.
   function selectNavigatorView(view: NavigatorView) {
     pausePlayback();
     setNavigatorView(view);
-    setShowViewMenu(false);
+    setShowWorkspaceMenu(false);
   }
 
   const rightPanels =
@@ -2937,8 +2965,6 @@ export function DemoWorkspace({
                 onOpenWorkspace={openWorkspace}
                 liveStates={liveStates}
                 navigatorView={navigatorView}
-                showViewMenu={showViewMenu}
-                onToggleViewMenu={toggleViewMenu}
                 onSelectNavigatorView={selectNavigatorView}
                 onSelectAgent={selectAgentRow}
                 size={
@@ -3197,13 +3223,10 @@ export function DemoWorkspace({
           onClose={() => setShowGithubActions(false)}
         />
       )}
-      {(showWorkspaceMenu || showViewMenu) && (
+      {showWorkspaceMenu && (
         <div
           className="workspace-menu-backdrop"
-          onClick={() => {
-            setShowWorkspaceMenu(false);
-            setShowViewMenu(false);
-          }}
+          onClick={() => setShowWorkspaceMenu(false)}
         />
       )}
     </section>
@@ -3250,8 +3273,6 @@ function DemoSidePane({
   onOpenWorkspace,
   liveStates,
   navigatorView,
-  showViewMenu,
-  onToggleViewMenu,
   onSelectNavigatorView,
   onSelectAgent,
   size,
@@ -3271,8 +3292,6 @@ function DemoSidePane({
   /** Live activity status for every open workspace's agent tabs, composite-keyed `${workspaceId}:${tabId}` — overrides a row's static config status. */
   liveStates?: Record<string, TerminalTabState>;
   navigatorView?: NavigatorView;
-  showViewMenu?: boolean;
-  onToggleViewMenu?: () => void;
   onSelectNavigatorView?: (view: NavigatorView) => void;
   /** Agents-view row pick: switches to that row's workspace *and* focuses its own tab, unlike `onWorkspaceSelect` which only does the former. */
   onSelectAgent?: (workspaceId: string, tabId: string) => void;
@@ -3304,8 +3323,6 @@ function DemoSidePane({
           onOpenWorkspace={onOpenWorkspace}
           liveStates={liveStates}
           navigatorView={navigatorView}
-          showViewMenu={showViewMenu}
-          onToggleViewMenu={onToggleViewMenu}
           onSelectNavigatorView={onSelectNavigatorView}
           onSelectAgent={onSelectAgent}
         />
@@ -3643,8 +3660,6 @@ function SidePanelContent({
   onOpenWorkspace,
   liveStates = {},
   navigatorView = "workspaces",
-  showViewMenu,
-  onToggleViewMenu,
   onSelectNavigatorView,
   onSelectAgent,
 }: {
@@ -3660,8 +3675,6 @@ function SidePanelContent({
   onOpenWorkspace?: (id: string) => void;
   liveStates?: Record<string, TerminalTabState>;
   navigatorView?: NavigatorView;
-  showViewMenu?: boolean;
-  onToggleViewMenu?: () => void;
   onSelectNavigatorView?: (view: NavigatorView) => void;
   onSelectAgent?: (workspaceId: string, tabId: string) => void;
 }) {
@@ -3669,59 +3682,49 @@ function SidePanelContent({
   if (selected.kind === "navigator")
     return (
       <div className="navigator-panel">
-        <div className="nav-title">
+        {/* Every view named and one click away — no dropdown (silo-code/silo
+            ADR 0038: the Navigator lists its views instead of hiding them
+            behind a menu). Deliberately unhighlighted when active — the
+            header below names the open view instead, same as the real app. */}
+        <div className="nav-views" role="tablist" aria-label="Navigator views">
           <button
             type="button"
-            className="nav-view-btn"
-            data-demo-target="nav-view-btn"
-            onClick={onToggleViewMenu}
-            aria-haspopup="menu"
-            aria-expanded={showViewMenu}
+            role="tab"
+            aria-selected={navigatorView === "workspaces"}
+            className="nav-view-row"
+            data-demo-target="nav-view:workspaces"
+            onClick={() => onSelectNavigatorView?.("workspaces")}
           >
-            <span>{navigatorView === "agents" ? "Agents" : "Workspaces"}</span>
-            <CaretDownIcon />
+            <WorkspacesViewIcon />
+            <span>Workspaces</span>
           </button>
-          {navigatorView === "workspaces" && (
-            <button
-              type="button"
-              data-demo-target="add-workspace"
-              onClick={onToggleWorkspaceMenu}
-              aria-label="Open a workspace"
-            >
-              +
-            </button>
-          )}
-          {showViewMenu && (
-            <div className="nav-view-menu" role="menu">
-              <div className="nav-view-menu-header">View</div>
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={navigatorView === "workspaces"}
-                className="nav-view-menu-item"
-                data-demo-target="nav-view:workspaces"
-                onClick={() => onSelectNavigatorView?.("workspaces")}
-              >
-                <span className="nav-view-menu-check">
-                  {navigatorView === "workspaces" ? "✓" : ""}
-                </span>
-                Workspaces
-              </button>
-              <button
-                type="button"
-                role="menuitemradio"
-                aria-checked={navigatorView === "agents"}
-                className="nav-view-menu-item"
-                data-demo-target="nav-view:agents"
-                onClick={() => onSelectNavigatorView?.("agents")}
-              >
-                <span className="nav-view-menu-check">
-                  {navigatorView === "agents" ? "✓" : ""}
-                </span>
-                Agents
-              </button>
-            </div>
-          )}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={navigatorView === "agents"}
+            className="nav-view-row"
+            data-demo-target="nav-view:agents"
+            onClick={() => onSelectNavigatorView?.("agents")}
+          >
+            <AgentsViewIcon />
+            <span>Agents</span>
+          </button>
+        </div>
+        <div className="nav-view-header">
+          <span className="nav-view-header-title">
+            {navigatorView === "agents" ? "Agents" : "Workspaces"}
+          </span>
+          {/* Unscoped in the real app (core.workspaces.add has no `when`), so
+              it rides the header regardless of which view is open. */}
+          <button
+            type="button"
+            className="nav-view-header-add"
+            data-demo-target="add-workspace"
+            onClick={onToggleWorkspaceMenu}
+            aria-label="Open a workspace"
+          >
+            +
+          </button>
           {showWorkspaceMenu && (
             <div className="workspace-menu">
               <div className="workspace-menu-label">Saved</div>

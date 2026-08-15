@@ -2241,91 +2241,74 @@ h1 em {
   margin: 0 10px;
   background: #2b3148;
 }
-.navigator-panel .nav-title {
-  position: relative;
-  height: 42px;
-  padding: 12px 10px 10px;
-  color: #939bb1;
-  font-size: 12px;
-  font-weight: 400;
+/* The Navigator view list and view header — silo-code/silo ADR 0038. Every
+   registered view is named up top, one click each (no dropdown); the header
+   below names whichever one is open and hosts its actions (here, just the
+   workspace + menu, which is unscoped in the real app and so appears
+   regardless of which view is active). */
+.nav-views {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 8px 12px;
 }
-.navigator-panel .nav-title button {
-  font-size: 18px;
-  line-height: 12px;
-}
-
-/* The Workspaces⌄/Agents⌄ view switcher — a real button (not the old inert
-   span) that opens an anchored menu, mirroring agent-monitor's `ctx.ui.showMenu`
-   popover rather than a native <select>. */
-.nav-view-btn {
+.nav-view-row {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px !important;
-  line-height: 1 !important;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  border-radius: 5px;
+  padding: 5px 8px;
+  text-align: left;
   color: #939bb1;
+  font-size: 12px !important;
+  line-height: 1.3 !important;
 }
-.nav-view-btn:hover {
-  color: var(--home-accent);
-}
-.nav-view-btn svg {
+.nav-view-row svg {
   flex: 0 0 auto;
   color: #6d7593;
 }
-.nav-view-btn:hover svg {
+.nav-view-row:hover {
   color: var(--home-accent);
 }
-.nav-view-menu {
-  position: absolute;
-  top: 100%;
-  left: 8px;
-  z-index: 20;
-  min-width: 168px;
-  margin-top: -6px;
-  padding: 6px;
-  background: #1b1f2be6;
-  backdrop-filter: blur(16px);
-  border: 1px solid #2b3148;
-  border-radius: 8px;
-  box-shadow: 0 16px 40px #000a;
+.nav-view-row:hover svg {
+  color: var(--home-accent);
 }
-.nav-view-menu-header {
-  padding: 6px 9px 3px 31px;
+.navigator-panel .nav-view-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-top: 1px solid #2b3148;
+}
+.nav-view-header-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
   color: #6d7593;
   font:
     9px "DM Mono",
     monospace;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.nav-view-menu-item {
-  display: flex;
-  align-items: center;
-  width: 100%;
+.nav-view-header-add {
+  flex: 0 0 auto;
   border: 0;
   background: transparent;
-  border-radius: 5px;
-  padding: 14px 9px;
-  margin-bottom: 6px;
-  text-align: left;
-  color: #b7bccc;
-  font-size: 12px !important;
-  line-height: 1.4 !important;
+  color: #939bb1;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 2px;
 }
-.nav-view-menu-item:last-of-type {
-  margin-bottom: 0;
-}
-.nav-view-menu-item:hover {
-  background: #1c2030;
-}
-.nav-view-menu-check {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  flex: 0 0 auto;
+.nav-view-header-add:hover {
   color: var(--home-accent);
-  font-size: 11px;
 }
 
 /* The Agents view — agent-monitor's "by status" list, recreated: three

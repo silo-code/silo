@@ -387,8 +387,11 @@ export const demoScript: DemoScriptStep[] = [
   { afterMs: 2200, selector: '[data-demo-target="panel:system"]' },
   { afterMs: 2600, selector: '[data-demo-target="add-workspace"]' },
   { afterMs: 900, selector: '[data-demo-target="open-workspace:mobile"]' },
-  { afterMs: 2400, selector: '[data-demo-target="nav-view-btn"]' },
-  { afterMs: 900, selector: '[data-demo-target="nav-view:agents"]' },
+  // The view list (silo-code/silo ADR 0038) puts every view one click away —
+  // no menu to open first, so this is a single click straight onto the
+  // Agents row rather than the two-step "open the dropdown, then pick" it
+  // used to be.
+  { afterMs: 2400, selector: '[data-demo-target="nav-view:agents"]' },
   // Click through a few agents from different workspaces so a visitor sees
   // the Agents view isn't just a status list — each row jumps you straight
   // into that agent's workspace. Paced slower than the panel-switching steps
@@ -398,8 +401,7 @@ export const demoScript: DemoScriptStep[] = [
   { afterMs: 2800, selector: '[data-demo-target="agent-row:docs:claude"]' },
   { afterMs: 2800, selector: '[data-demo-target="agent-row:api:claude"]' },
   { afterMs: 2800, selector: '[data-demo-target="agent-row:website:cursor"]' },
-  { afterMs: 2400, selector: '[data-demo-target="nav-view-btn"]' },
-  { afterMs: 900, selector: '[data-demo-target="nav-view:workspaces"]' },
+  { afterMs: 2400, selector: '[data-demo-target="nav-view:workspaces"]' },
   // Close the workspace opened mid-demo so the loop hands back the same
   // three-workspace list (website/docs/api) it started with.
   { afterMs: 1400, selector: '[data-demo-target="close-workspace:mobile"]' },
