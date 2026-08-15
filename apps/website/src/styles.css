@@ -390,6 +390,12 @@ h1 em {
   font-size: 16px;
   font-weight: 600;
   color: #91958a;
+  /* Permanent — this used to be the :hover-only background; now hover is a
+     step up from it instead of an on/off toggle. Tinted with the hero's own
+     second-line blue (.intro h1 em, #7a8099 / 122 128 153) rather than a
+     neutral white overlay, just at background-appropriate opacity instead of
+     that line's full text lightness. */
+  background: rgb(122 128 153 / 14%);
   transition:
     color 0.15s ease,
     background 0.15s ease;
@@ -402,7 +408,7 @@ h1 em {
 }
 .home-agents-chip:hover {
   color: #f2f4ea;
-  background: rgb(242 244 234 / 6%);
+  background: rgb(122 128 153 / 24%);
 }
 .home-agents-chip:hover svg {
   color: var(--home-accent);
@@ -410,6 +416,9 @@ h1 em {
 .home-agents-chip.is-more {
   color: #565b6b;
   font-weight: 500;
+  /* The trailing "+ more" chip stays quiet rather than picking up the real
+     pills' permanent shading — it isn't one of the named agents. */
+  background: none;
 }
 .home-agents-chip.is-more:hover {
   color: #8b909e;
