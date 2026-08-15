@@ -73,3 +73,4 @@ A small, obvious choice needs neither.
 | [0036](./0036-unified-update-ui-and-changelog.md)       | Unified update UI, in-app changelog, and skip-version      | 2026-08-10 | accepted |
 | [0037](./0037-git-repo-watch-session.md)                | A published, live git-state session (`GitAPI.watchRepo`)   | 2026-08-12 | accepted |
 | [0038](./0038-navigator-view-list.md)                   | The Navigator lists its views instead of hiding them       | 2026-08-13 | accepted |
+| [0039](./0039-self-contained-agent-docs.md)             | Self-contained agent docs, no external skill dependency    | 2026-08-15 | accepted |

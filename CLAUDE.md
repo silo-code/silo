@@ -16,7 +16,9 @@ Orientation docs (read when relevant):
 
 - `docs/decisions/` — ADRs: the architecture decisions of record (the durable "why").
 - `docs/proposals/` — RFCs: forward-looking designs not yet decided.
-- `docs/ui-terminology.md` — high-level UI component naming.
+- `docs/domain-language.md` — the domain glossary: ubiquitous language for the
+  product, including UI component naming (Panels & Docking, Navigator, …).
+  Kept current via the **`silo-domain-modeling`** skill.
 - `docs/silo-extensions-repo.md` — the **external** `silo-code/silo-extensions`
   repo (cloned at `../silo-extensions`): how its third-party extensions relate to
   this repo — published-SDK lag, npm (not pnpm) build commands, runtime trust /
@@ -69,6 +71,19 @@ and proposals (`docs/proposals/`). Design a new primitive by adding it to the
 roadmap as `planned` (with its sketched surface) _first_, then implement it and
 flip it to `stable`. Expanding `ExtensionContext` (`ctx`) is the main ongoing
 work — and the moment to run `silo-docs-sync`.
+
+## Domain language — keep the glossary in sync AS YOU BUILD
+
+When you introduce or resolve domain vocabulary — a new concept worth naming,
+a naming collision, a term that needs sharpening — update
+`docs/domain-language.md` in the **same change**, not as a follow-up. Prefer
+terms already there over inventing synonyms. When the change is also a
+candidate for a durable decision record, write the ADR (`docs/decisions/`) or
+RFC (`docs/proposals/`) alongside it — see `docs/decisions/README.md` /
+`docs/proposals/README.md` for which one and the format. Use the
+**`silo-domain-modeling`** skill to do this actively: challenge fuzzy terms,
+work through edge-case scenarios, and write the result down the moment it
+crystallizes, not after the fact.
 
 ## Architecture boundaries — enforced, don't regress
 
@@ -175,7 +190,7 @@ All run from the repo root (pnpm workspace).
   a new one done.
 - No legacy/internal brand names in source — the product is `Silo`.
 - Docs under `docs/` use lowercase kebab-case filenames (`automation.md`,
-  `ui-terminology.md`), not ALLCAPS. The only exception is the conventional
+  `domain-language.md`), not ALLCAPS. The only exception is the conventional
   `README.md`.
 - **All host-side logging goes to the Output panel, never `console.*`/devtools.**
   Use `createHostChannel` (`packages/extension-host/src/extension-host/output-store.ts`)
@@ -209,31 +224,32 @@ contract-and-edges coverage bar — use the **`silo-testing`** skill.
 ### Issue tracker
 
 Issues live as GitHub issues in `silo-code/silo`, via the `gh` CLI. See
-`docs/agents/issue-tracker.md`.
+`docs/issue-tracker.md`.
 
 ### Triage labels
 
 Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`,
-`ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+`ready-for-human`, `wontfix`). See `docs/triage-labels.md`.
 
-### Domain docs
+### Domain modeling
 
-Single-context, mapped to this repo's existing `docs/decisions/` (ADRs) and
-`docs/proposals/` (RFCs). See `docs/agents/domain.md`.
+See "Domain language" above. `silo-domain-modeling` is a repo-local fork of
+the personal `domain-modeling` skill, adapted to this repo's actual doc
+layout and format (`docs/domain-language.md`, `docs/decisions/`,
+`docs/proposals/`), rather than that skill's generic `CONTEXT.md`/`docs/adr/`
+defaults.
+
+**Other externally-installed skills**: `improve-codebase-architecture` and
+`grill-with-docs` (from `mattpocock/skills`) still hardcode `CONTEXT.md` and
+`docs/adr/` in their own instructions and have no concept of `docs/proposals/`
+(RFCs). When running them: treat `docs/adr/` as `docs/decisions/` (read/write
+there, continuing the existing numbering — never create a separate `docs/adr/`
+directory), and `CONTEXT.md` as `docs/domain-language.md`. Don't expect either
+skill to read or write `docs/proposals/`.
 
 ### Modal & extension UI design
 
 Decision table for building modal content, settings pages, or workspace
 property tabs with the [Design System](https://getsilo.dev/design/) kit —
 which surface, which component, and the forbidden list. See
-`docs/agents/modal-design.md`.
-
-**Path mismatch note**: the installed `domain-modeling`, `improve-codebase-architecture`,
-and `grill-with-docs` skills (from mattpocock/skills) hardcode `CONTEXT.md` and
-`docs/adr/` in their own instructions — they don't read `docs/agents/domain.md`.
-When running them: treat any `docs/adr/` reference as `docs/decisions/` (read
-existing ADRs from there; write new ones there, continuing the existing numbering
-— don't create a separate `docs/adr/` directory); `CONTEXT.md` at the repo root
-has no existing equivalent, so create it fresh if one of these skills needs it.
-These skills have no concept of `docs/proposals/` (RFCs) — that tier is outside
-their vocabulary, so don't expect them to read or write there.
+`docs/modal-design.md`.
