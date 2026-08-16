@@ -18,7 +18,7 @@ Orientation docs (read when relevant):
 - `docs/proposals/` — RFCs: forward-looking designs not yet decided.
 - `docs/domain-language.md` — the domain glossary: ubiquitous language for the
   product, including UI component naming (Panels & Docking, Navigator, …).
-  Kept current via the workflow in `.claude/skills/silo-domain-modeling/SKILL.md`.
+  Kept current via the workflow in `.agents/skills/silo-domain-modeling/SKILL.md`.
 - `docs/silo-extensions-repo.md` — the **external** `silo-code/silo-extensions`
   repo (cloned at `../silo-extensions`): how its third-party extensions relate to
   this repo — published-SDK lag, npm (not pnpm) build commands, runtime trust /
@@ -63,7 +63,7 @@ a follow-up. When you add or change a public symbol — a new `ctx` method, type
 or field — run the full workflow (TSDoc, `@public`/`@internal` + `@category`
 tags, barrel re-export, the hand-authored `ctx` member page, `pnpm docs:api`,
 flipping the roadmap badge) and the Context7 indexing contract for
-`context7.json` — documented in `.claude/skills/silo-docs-sync/SKILL.md`.
+`context7.json` — documented in `.agents/skills/silo-docs-sync/SKILL.md`.
 
 **Docs-driven development:** the public **Roadmap** (`apps/docs/roadmap.md`) is the
 source of truth for what's real; design decisions live as ADRs (`docs/decisions/`)
@@ -83,7 +83,7 @@ RFC (`docs/proposals/`) alongside it — see `docs/decisions/README.md` /
 `docs/proposals/README.md` for which one and the format. Do this actively —
 challenge fuzzy terms, work through edge-case scenarios, and write the result
 down the moment it crystallizes, not after the fact — per the workflow in
-`.claude/skills/silo-domain-modeling/SKILL.md`.
+`.agents/skills/silo-domain-modeling/SKILL.md`.
 
 ## Architecture boundaries — enforced, don't regress
 
@@ -217,7 +217,7 @@ change.** Tests are part of the work, not a follow-up — the same way docs are
 green with coverage for what you added. For the repo's conventions — co-located
 Vitest, the pure-logic (no `@testing-library/react`) style and how to extract
 testable helpers, driving host state via the `store` proxy, and the
-contract-and-edges coverage bar — see `.claude/skills/silo-testing/SKILL.md`.
+contract-and-edges coverage bar — see `.agents/skills/silo-testing/SKILL.md`.
 
 ## Reference docs
 

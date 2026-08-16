@@ -32,7 +32,7 @@ externally-installed skill package. The domain glossary is
 `docs/domain-language.md` (merged with the former `docs/ui-terminology.md`),
 always present and versioned with the code it describes. Where the repo
 genuinely depends on a skill's _behavior_, not just its vocabulary, the
-skill is forked into `.claude/skills/` and adapted to this repo's actual
+skill is forked into the repo and adapted to this repo's actual
 conventions — starting with `silo-domain-modeling` (forked from the personal
 `domain-modeling` skill), which now reads/writes
 `docs/domain-language.md` and this repo's real `docs/decisions/`/
@@ -73,7 +73,9 @@ needed.
 - Superseded: the former `docs/agents/domain.md`, `docs/agents/triage-labels.md`,
   `docs/agents/issue-tracker.md` (relocated to `docs/`, skill-specific glue
   removed), `docs/ui-terminology.md` (merged into `docs/domain-language.md`).
-- `.claude/skills/silo-domain-modeling/SKILL.md` — the forked skill, named
+- `.agents/skills/silo-domain-modeling/SKILL.md` — the forked skill, named
   distinctly from its `domain-modeling` source to avoid shadowing it in other
-  repos.
+  repos. (Its canonical location and the `.claude/skills/` symlink are ADR
+  [0040](./0040-skills-canonical-location-symlink.md)'s concern, not this
+  ADR's.)
 - `docs/domain-language.md` — the merged glossary.

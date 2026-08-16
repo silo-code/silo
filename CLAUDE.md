@@ -2,11 +2,15 @@
 
 ## Claude Code
 
-- The workflows referenced above under `.claude/skills/*/SKILL.md`
+- The workflows referenced above under `.agents/skills/*/SKILL.md`
   (`silo-testing`, `silo-docs-sync`, `silo-domain-modeling`) are registered
   Claude Code skills — invoke them via the Skill tool rather than reading
   them manually; Claude Code also surfaces them proactively when a task
-  matches their description.
+  matches their description. Claude Code only discovers skills under
+  `.claude/skills/`, not the canonical `.agents/skills/` (the Codex-native,
+  `agentskills.io`-spec-aligned location) — each skill's real content lives
+  in `.agents/skills/<name>/`, and `.claude/skills/<name>` is a symlink to
+  it, so both tools read the same file with nothing to keep in sync.
 - `silo-domain-modeling` is a repo-local fork of the personal
   `domain-modeling` skill, adapted to this repo's actual doc layout and
   format (`docs/domain-language.md`, `docs/decisions/`, `docs/proposals/`),
