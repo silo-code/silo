@@ -179,7 +179,7 @@ that share one string (`"claude"`) but otherwise don't line up:
   values exist; `"pi"` is Dave's own local-model CLI and has no Catalog Agent
   counterpart (see gap note below).
 - **Catalog Agent** (`AgentDefinition.id` in `AGENT_CATALOG`: `"claude" |
-  "codex" | "cursor" | "copilot" | "grok"`): a **detected-identity**
+"codex" | "cursor" | "copilot" | "grok"`): a **detected-identity**
   classification, computed live from OSC/output signals against the sealed
   catalog. A Codex/Cursor/Copilot/Grok terminal is always launched at Terminal
   Kind `"shell"` and only later upgraded to `isAgent: true` once detected —
