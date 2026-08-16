@@ -22,7 +22,7 @@ group CRUD/reorder operations, by contrast, are imported by the bundled
 live in the same panel reach the store through different channels.
 
 The repo's standing rule is "if an extension needs a capability the SDK lacks,
-add it to `ctx`" (see CLAUDE.md, ADR 0004). Taken naively that argues for
+add it to `ctx`" (see AGENTS.md, ADR 0004). Taken naively that argues for
 promoting groups to the public service. But ADR 0007's core-primitive test asks
 whether a capability is a _platform primitive third parties build on_ or a
 _first-party feature_. Group layout is the latter: it is the `core.workspaces`

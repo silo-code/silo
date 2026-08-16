@@ -64,7 +64,7 @@ the invariant #4 burn-down _and_ the docs site growing. They are the same act.
 `/silo-code/silo`) so coding agents can pull Silo's docs directly. What gets
 indexed and how the project is described there is controlled by the root
 `context7.json` — keep its `description` in sync with `README.md` /
-`apps/docs/index.md`, and keep the root `CLAUDE.md` opening + `CONTEXT.md` aligned
-with that same positioning (do not reintroduce older taglines). The
+`apps/docs/index.md`, and keep `AGENTS.md`'s opening + `docs/domain-language.md`
+aligned with that same positioning (do not reintroduce older taglines). The
 `context7-refresh` job in `.github/workflows/docs.yml` re-triggers indexing on
 every push to `main`.

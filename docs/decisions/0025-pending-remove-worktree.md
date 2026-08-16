@@ -62,6 +62,6 @@ justifies generalizing (or `ctx.ui.progress` lands).
 
 ## References
 
-- Glossary: `CONTEXT.md` (Remove worktree, Pending remove, Close worktree view).
+- Glossary: `docs/domain-language.md` (Remove worktree, Pending remove, Close worktree view).
 - Related: [0018](./0018-host-owned-chrome.md) (host chrome; progress still planned).
 - Deferred: [RFC 0001](../proposals/0001-ctx-ui-slice-2.md) (`ctx.ui.progress`).

@@ -42,7 +42,7 @@ what it declares as a dependency, so `@silo-code/extensions-silo` (which depends
 ban (no raw `@tauri-apps`/`node:` in extensions) and the design-token-only CSS
 rule. If an extension needs a capability the SDK lacks, that's a signal to add it
 to `ctx` and document it — not to reach into internals. See
-[`CLAUDE.md`](CLAUDE.md) and [`docs/`](docs/).
+[`AGENTS.md`](AGENTS.md) and [`docs/`](docs/).
 
 ## Commits & pull requests
 

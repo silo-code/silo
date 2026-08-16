@@ -33,43 +33,45 @@ A small, obvious choice needs neither.
 
 ## Index
 
-| ADR                                                     | Title                                                      | Date       | Status   |
-| ------------------------------------------------------- | ---------------------------------------------------------- | ---------- | -------- |
-| [0001](./0001-in-process-extension-architecture.md)     | In-process, registry-based extension architecture          | 2026-05-23 | accepted |
-| [0002](./0002-imperative-registration-no-manifest.md)   | Imperative registration; no static manifest (v1)           | 2026-05-23 | accepted |
-| [0003](./0003-monorepo-pnpm.md)                         | Monorepo with pnpm workspaces                              | 2026-05-29 | accepted |
-| [0004](./0004-sdk-types-first.md)                       | Public `@silo-code/sdk` is types-first                     | 2026-05-29 | accepted |
-| [0005](./0005-ui-library-internal.md)                   | Component library (`@silo-code/ui`) stays internal         | 2026-05-29 | accepted |
-| [0006](./0006-open-platform-licensing.md)               | Open-platform MIT licensing                                | 2026-05-30 | accepted |
-| [0007](./0007-core-primitive-vs-extension-test.md)      | Core-primitive vs extension-feature test                   | 2026-05-31 | accepted |
-| [0008](./0008-extension-decomposition-provider-view.md) | Extension decomposition; provider/view split               | 2026-05-31 | accepted |
-| [0009](./0009-extension-communication-and-events.md)    | Extension communication: typed APIs + domain events        | 2026-05-31 | accepted |
-| [0010](./0010-persistent-process-sessions.md)           | Persistent process sessions as a core primitive            | 2026-05-31 | accepted |
-| [0011](./0011-editor-and-terminal-are-core.md)          | Editor and terminal are core surfaces                      | 2026-05-31 | accepted |
-| [0012](./0012-dev-automation-rpc.md)                    | Dev-only automation RPC                                    | 2026-06-01 | accepted |
-| [0013](./0013-trust-tiers-two-barrel-sdk.md)            | Extension trust tiers + two-barrel SDK                     | 2026-06-02 | accepted |
-| [0014](./0014-per-extension-enablement.md)              | Per-extension enablement config (Obsidian-style)           | 2026-06-02 | accepted |
-| [0015](./0015-phased-security-model.md)                 | Phased security model for privileged primitives            | 2026-06-02 | accepted |
-| [0016](./0016-ctx-dnd-primitive.md)                     | First-class drag-and-drop primitive (`ctx.dnd`)            | 2026-06-02 | accepted |
-| [0017](./0017-css-theming-contract.md)                  | CSS theming contract (`--silo-*` token tiers)              | 2026-06-02 | accepted |
-| [0018](./0018-host-owned-chrome.md)                     | Host-owned UI chrome: modals + unified menu                | 2026-06-03 | accepted |
-| [0019](./0019-runtime-extension-loading.md)             | Runtime extension loading + manifest validation            | 2026-06-04 | accepted |
-| [0020](./0020-silo-extensions-bundled.md)               | Ship `silo.*` bundled, surfaced as disable-able            | 2026-06-04 | accepted |
-| [0021](./0021-keyboard-navigation-architecture.md)      | Keyboard nav: headless focus-group + region model          | 2026-06-08 | accepted |
-| [0022](./0022-on-disk-storage-layout.md)                | On-disk storage layout: config / app-state / runtime       | 2026-06-10 | accepted |
-| [0023](./0023-workspace-groups-host-internal.md)        | Workspace panel groups are host-internal                   | 2026-06-30 | accepted |
-| [0024](./0024-release-channels.md)                      | Two release channels: stable and nightly                   | 2026-07-01 | accepted |
-| [0025](./0025-pending-remove-worktree.md)               | Pending remove worktree: close folder on start             | 2026-07-17 | accepted |
-| [0026](./0026-sdk-component-set.md)                     | A curated presentational component set joins the SDK       | 2026-07-18 | accepted |
-| [0027](./0027-terminal-link-policy.md)                  | Unified terminal link policy: modifier-click to open       | 2026-07-21 | accepted |
-| [0028](./0028-sealed-agent-detection.md)                | Sealed agent detection and honest resume                   | 2026-07-29 | accepted |
-| [0029](./0029-adornments-vs-registration.md)            | Adornments vs registration                                 | 2026-07-31 | accepted |
-| [0030](./0030-activity-chrome.md)                       | Activity as first-class chrome                             | 2026-07-31 | accepted |
-| [0031](./0031-update-check-analytics.md)                | Update-check analytics via a Cloudflare Worker proxy       | 2026-08-01 | accepted |
-| [0032](./0032-dock-active-panel-authority.md)           | One authority decides a dock's active panel                | 2026-08-04 | accepted |
-| [0033](./0033-laptop-mode-independent-layout.md)        | Laptop Mode is a second independent layout                 | 2026-08-06 | accepted |
-| [0034](./0034-focus-and-activation-authority.md)        | Focus/activation: the live dock, and only the active panel | 2026-08-07 | proposed |
-| [0035](./0035-global-side-panel-layout.md)              | Global Side Panel Layout is an opt-in shared arrangement   | 2026-08-08 | accepted |
-| [0036](./0036-unified-update-ui-and-changelog.md)       | Unified update UI, in-app changelog, and skip-version      | 2026-08-10 | accepted |
-| [0037](./0037-git-repo-watch-session.md)                | A published, live git-state session (`GitAPI.watchRepo`)   | 2026-08-12 | accepted |
-| [0038](./0038-navigator-view-list.md)                   | The Navigator lists its views instead of hiding them       | 2026-08-13 | accepted |
+| ADR                                                     | Title                                                        | Date       | Status   |
+| ------------------------------------------------------- | ------------------------------------------------------------ | ---------- | -------- |
+| [0001](./0001-in-process-extension-architecture.md)     | In-process, registry-based extension architecture            | 2026-05-23 | accepted |
+| [0002](./0002-imperative-registration-no-manifest.md)   | Imperative registration; no static manifest (v1)             | 2026-05-23 | accepted |
+| [0003](./0003-monorepo-pnpm.md)                         | Monorepo with pnpm workspaces                                | 2026-05-29 | accepted |
+| [0004](./0004-sdk-types-first.md)                       | Public `@silo-code/sdk` is types-first                       | 2026-05-29 | accepted |
+| [0005](./0005-ui-library-internal.md)                   | Component library (`@silo-code/ui`) stays internal           | 2026-05-29 | accepted |
+| [0006](./0006-open-platform-licensing.md)               | Open-platform MIT licensing                                  | 2026-05-30 | accepted |
+| [0007](./0007-core-primitive-vs-extension-test.md)      | Core-primitive vs extension-feature test                     | 2026-05-31 | accepted |
+| [0008](./0008-extension-decomposition-provider-view.md) | Extension decomposition; provider/view split                 | 2026-05-31 | accepted |
+| [0009](./0009-extension-communication-and-events.md)    | Extension communication: typed APIs + domain events          | 2026-05-31 | accepted |
+| [0010](./0010-persistent-process-sessions.md)           | Persistent process sessions as a core primitive              | 2026-05-31 | accepted |
+| [0011](./0011-editor-and-terminal-are-core.md)          | Editor and terminal are core surfaces                        | 2026-05-31 | accepted |
+| [0012](./0012-dev-automation-rpc.md)                    | Dev-only automation RPC                                      | 2026-06-01 | accepted |
+| [0013](./0013-trust-tiers-two-barrel-sdk.md)            | Extension trust tiers + two-barrel SDK                       | 2026-06-02 | accepted |
+| [0014](./0014-per-extension-enablement.md)              | Per-extension enablement config (Obsidian-style)             | 2026-06-02 | accepted |
+| [0015](./0015-phased-security-model.md)                 | Phased security model for privileged primitives              | 2026-06-02 | accepted |
+| [0016](./0016-ctx-dnd-primitive.md)                     | First-class drag-and-drop primitive (`ctx.dnd`)              | 2026-06-02 | accepted |
+| [0017](./0017-css-theming-contract.md)                  | CSS theming contract (`--silo-*` token tiers)                | 2026-06-02 | accepted |
+| [0018](./0018-host-owned-chrome.md)                     | Host-owned UI chrome: modals + unified menu                  | 2026-06-03 | accepted |
+| [0019](./0019-runtime-extension-loading.md)             | Runtime extension loading + manifest validation              | 2026-06-04 | accepted |
+| [0020](./0020-silo-extensions-bundled.md)               | Ship `silo.*` bundled, surfaced as disable-able              | 2026-06-04 | accepted |
+| [0021](./0021-keyboard-navigation-architecture.md)      | Keyboard nav: headless focus-group + region model            | 2026-06-08 | accepted |
+| [0022](./0022-on-disk-storage-layout.md)                | On-disk storage layout: config / app-state / runtime         | 2026-06-10 | accepted |
+| [0023](./0023-workspace-groups-host-internal.md)        | Workspace panel groups are host-internal                     | 2026-06-30 | accepted |
+| [0024](./0024-release-channels.md)                      | Two release channels: stable and nightly                     | 2026-07-01 | accepted |
+| [0025](./0025-pending-remove-worktree.md)               | Pending remove worktree: close folder on start               | 2026-07-17 | accepted |
+| [0026](./0026-sdk-component-set.md)                     | A curated presentational component set joins the SDK         | 2026-07-18 | accepted |
+| [0027](./0027-terminal-link-policy.md)                  | Unified terminal link policy: modifier-click to open         | 2026-07-21 | accepted |
+| [0028](./0028-sealed-agent-detection.md)                | Sealed agent detection and honest resume                     | 2026-07-29 | accepted |
+| [0029](./0029-adornments-vs-registration.md)            | Adornments vs registration                                   | 2026-07-31 | accepted |
+| [0030](./0030-activity-chrome.md)                       | Activity as first-class chrome                               | 2026-07-31 | accepted |
+| [0031](./0031-update-check-analytics.md)                | Update-check analytics via a Cloudflare Worker proxy         | 2026-08-01 | accepted |
+| [0032](./0032-dock-active-panel-authority.md)           | One authority decides a dock's active panel                  | 2026-08-04 | accepted |
+| [0033](./0033-laptop-mode-independent-layout.md)        | Laptop Mode is a second independent layout                   | 2026-08-06 | accepted |
+| [0034](./0034-focus-and-activation-authority.md)        | Focus/activation: the live dock, and only the active panel   | 2026-08-07 | proposed |
+| [0035](./0035-global-side-panel-layout.md)              | Global Side Panel Layout is an opt-in shared arrangement     | 2026-08-08 | accepted |
+| [0036](./0036-unified-update-ui-and-changelog.md)       | Unified update UI, in-app changelog, and skip-version        | 2026-08-10 | accepted |
+| [0037](./0037-git-repo-watch-session.md)                | A published, live git-state session (`GitAPI.watchRepo`)     | 2026-08-12 | accepted |
+| [0038](./0038-navigator-view-list.md)                   | The Navigator lists its views instead of hiding them         | 2026-08-13 | accepted |
+| [0039](./0039-self-contained-agent-docs.md)             | Self-contained agent docs, no external skill dependency      | 2026-08-15 | accepted |
+| [0040](./0040-skills-canonical-location-symlink.md)     | Skills live in `.agents/skills/`, `.claude/skills/` symlinks | 2026-08-16 | accepted |

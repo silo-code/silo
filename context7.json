@@ -6,7 +6,7 @@
   "description": "All your projects, alive at once — for developers juggling coding agents across many projects. Terminals, agents, and layout stay intact when switching. 100% open source, free forever.",
   "folders": ["apps/docs"],
   "excludeFolders": ["apps/docs/node_modules"],
-  "excludeFiles": ["CLAUDE.md"],
+  "excludeFiles": ["CLAUDE.md", "AGENTS.md"],
   "rules": [
     "Extensions touch the app only through ctx and @silo-code/sdk types — never host internals (state/services/layout/panels/docked/components)",
     "No raw @tauri-apps/* or node:* imports in extension code — route platform access through ctx",

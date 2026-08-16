@@ -166,7 +166,7 @@ and via **Silo → Check for Updates…**.
 
 ## Architecture
 
-- Extensions touch the app **only** through `ctx` and `@silo-code/sdk` types. The boundary is enforced by the package graph and lint (platform ban + design-token CSS rule). See [`CLAUDE.md`](CLAUDE.md) and [`docs/`](docs/).
+- Extensions touch the app **only** through `ctx` and `@silo-code/sdk` types. The boundary is enforced by the package graph and lint (platform ban + design-token CSS rule). See [`AGENTS.md`](AGENTS.md) and [`docs/`](docs/).
 - The API reference is generated from source: `pnpm docs:api` → [getsilo.dev](https://getsilo.dev/)
 
 ## License

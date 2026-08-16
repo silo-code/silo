@@ -40,7 +40,7 @@ available whenever a side is collapsed, not only in Laptop Mode.
 - Persistence and the live store must keep both modes in sync on every
   workspace switch (captured in `SharedPanelState` / `panel-state.ts`).
 - "Small-screen mode" remains the code name; user-facing language is Laptop
-  Mode (`CONTEXT.md`).
+  Mode (`docs/domain-language.md`).
 
 ## Alternatives considered
 
@@ -51,7 +51,7 @@ available whenever a side is collapsed, not only in Laptop Mode.
 
 ## References
 
-- Glossary: `CONTEXT.md` (Laptop Mode, Peek).
+- Glossary: `docs/domain-language.md` (Laptop Mode, Peek).
 - Related: [0022](./0022-on-disk-storage-layout.md) (where layout prefs live).
 - Related: [0035](./0035-global-side-panel-layout.md) — an opt-in, off-by-default
   flag that shares side-panel arrangement (including both of this ADR's layout
