@@ -64,6 +64,9 @@ export {
   type OutputLogEntry,
 } from "./extension-host/output-store";
 
+// Test-driver only — busy-status registry (RFC 0026 StatusBar slot).
+export { setBusyStatus, clearBusyStatus } from "./extension-host/busy-status";
+
 export { store, setExtensionsReady } from "./state/store";
 export {
   createWorkspace,

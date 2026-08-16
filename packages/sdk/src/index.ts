@@ -211,6 +211,9 @@ export type {
   ModalOptions,
   NotifyAction,
   NotifyOptions,
+  BusyStatusUrgency,
+  BusyStatusEntry,
+  BusyStatusApi,
 } from "./ui-service";
 
 // Server-side HTTP client — bypasses CORS, readable response headers.

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Disposable } from "./types";
 
 // `ctx.ui` — the user-interaction domain (public contract). The host renders the
 // chrome; extensions ask. Native OS dialogs, toast notifications, themed menus,
@@ -499,4 +500,47 @@ export interface UiService {
    * ```
    */
   getActiveSelectionText(): string | null;
+  /**
+   * Host StatusBar **busy status** aggregate (RFC 0026) — multi-writer in-flight
+   * phrases with a numbered badge when more than one is active.
+   *
+   * @internal Unstable. For bundled first-party extensions proving the UX;
+   * not a documented public API. Third parties must not rely on it until a
+   * graduation RFC. Prefer {@link UiService.notify} for errors / outcomes.
+   */
+  readonly busyStatus: BusyStatusApi;
+}
+
+/**
+ * One in-flight busy-status entry (RFC 0026).
+ *
+ * @internal
+ */
+export type BusyStatusUrgency = "normal" | "high";
+
+/**
+ * @internal
+ */
+export interface BusyStatusEntry {
+  /** Stable id for update/clear — namespaced by owner, e.g. `terminals.restore`. */
+  id: string;
+  /** Single-line StatusBar / popover title. */
+  label: string;
+  /** Optional detail shown as the menu row tooltip. */
+  detail?: string;
+  /**
+   * Summary-line ranking when several entries are active. Default `"normal"`.
+   * `"high"` always outranks `"normal"`; within a tier, most-recently-updated wins.
+   */
+  urgency?: BusyStatusUrgency;
+}
+
+/**
+ * @internal Unstable busy-status writer API on {@link UiService.busyStatus}.
+ */
+export interface BusyStatusApi {
+  /** Push or replace by id. Disposable clears this id. */
+  set(entry: BusyStatusEntry): Disposable;
+  /** Remove one entry by id. */
+  clear(id: string): void;
 }

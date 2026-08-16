@@ -36,7 +36,7 @@ export interface RemoveWorktreeParams {
 
 /**
  * Confirm and run Remove worktree with pending-remove UX (ADR 0025): after
- * confirms, mark pending, close the folder if open, show StatusBar progress,
+ * confirms, mark pending, close the folder if open, show busy-status progress,
  * toast on success only when the manager is dismissed.
  */
 export async function confirmAndRemoveWorktree(

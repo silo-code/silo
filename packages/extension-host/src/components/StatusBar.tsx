@@ -4,6 +4,7 @@ import { enterRegionOnPointer } from "../extension-host/focus-regions";
 import type { StatusItem } from "@silo-code/sdk";
 import { Tooltip } from "./Tooltip";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { BusyStatusSlot } from "./BusyStatusSlot";
 import "./StatusBar.css";
 
 function useStatusItems(): StatusItem[] {
@@ -127,6 +128,7 @@ export function StatusBar() {
   return (
     <div className="status-bar" ref={ref}>
       {left.map((item) => renderItem(item))}
+      <BusyStatusSlot />
       <span className="spacer" />
       {right.map((item) => renderItem(item))}
     </div>

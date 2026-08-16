@@ -48,6 +48,10 @@ import {
   type TerminalLinkRange,
 } from "./terminal-link-policy";
 import { findTerminalOwnerId } from "./terminal-lifecycle";
+import {
+  beginTerminalRestoreAttach,
+  endTerminalRestoreAttach,
+} from "./terminal-restore-busy";
 import { deriveTitle, formatTitle, tmuxStatusTitle } from "./terminal-title";
 import { formatResumeBox } from "./resume-box";
 import { TerminalSearch } from "./TerminalSearch";
@@ -501,18 +505,36 @@ export function TerminalPanel(
       const rows = Math.max(5, term.rows);
       try {
         const needsCreate = !tRec.sessionId;
-        const session = needsCreate
-          ? await ctx.process.spawn({
-              cwd: tRec.cwd ?? ws.folder,
-              cols,
-              rows,
-            })
-          : await ctx.process.attach(tRec.sessionId, { cols, rows });
-        const sessionId = session.id;
-
+        if (!needsCreate) beginTerminalRestoreAttach();
+        let restoreEnded = needsCreate;
+        const endRestore = (ok: boolean) => {
+          if (restoreEnded) return;
+          restoreEnded = true;
+          endTerminalRestoreAttach(ok);
+        };
+        let session;
+        try {
+          session = needsCreate
+            ? await ctx.process.spawn({
+                cwd: tRec.cwd ?? ws.folder,
+                cols,
+                rows,
+              })
+            : await ctx.process.attach(tRec.sessionId, { cols, rows });
+        } catch (err) {
+          // Session gone → recreate path below is recovery, not a user-facing
+          // reconnect failure. Other attach errors do count toward the notify.
+          const e = err as Error & { status?: number };
+          endRestore(e.status === 404);
+          throw err;
+        }
         if (cancelled) {
+          endRestore(true);
           return;
         }
+        endRestore(true);
+        const sessionId = session.id;
+
         if (needsCreate) tRec.sessionId = sessionId;
 
         liveRef.current = {

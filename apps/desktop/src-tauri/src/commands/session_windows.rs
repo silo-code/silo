@@ -304,6 +304,10 @@ impl SessionWindowsBackend {
         let r = stream.try_clone().map_err(|e| e.to_string())?;
         let w = stream.try_clone().map_err(|e| e.to_string())?;
         let m = stream.try_clone().map_err(|e| e.to_string())?;
+        // RFC 0026: bound socket writes so a stalled session host becomes an
+        // error on the writer thread instead of an unbounded sleep.
+        w.set_write_timeout(Some(Duration::from_secs(1)))
+            .map_err(|e| e.to_string())?;
         Ok(Connection {
             reader: Box::new(TcpReader::new(r)),
             writer: Box::new(TcpWriter(w)),

@@ -72,6 +72,17 @@ The horizontal bar at the very bottom for global status items and quick
 toggles.
 _Avoid_: Footer, bottom bar
 
+**Busy status**:
+Ephemeral, multi-source phrases in the StatusBar that describe **in-flight**
+work (e.g. restoring terminals, removing a worktree). The host owns one
+aggregated slot: a single summary line, and when more than one source is active
+a trailing numbered badge with the count — click opens a host popover listing
+every active entry. Errors and “needs attention” outcomes use notifications
+(`ctx.ui.notify`), not sticky busy status.
+_Avoid_: Context (overloaded — ExtensionContext, context keys, focus context),
+progress alone (see `ctx.ui.progress` / RFC 0001 — task-scoped, not this slot),
+toast for in-flight work (toasts are for outcomes / errors, not ambient busy)
+
 **SideDock**:
 One of the two collapsible vertical containers (left/right) on either side of
 the center area. Hosts the Navigator and other Side Panels.

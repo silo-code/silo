@@ -18,6 +18,7 @@ import {
   settingsButton,
   updates,
   webviewBridgeTest,
+  busyStatusTest,
 } from "@silo-code/extensions-core";
 import {
   imageViewer,
@@ -75,6 +76,9 @@ const builtins: Extension[] = [
   // (no addMenuItem/toolbar entry). Delete this line + the extension once
   // Phase 2 ships ctx.webview publicly and local-web-viewer is the real consumer.
   webviewBridgeTest,
+  // Scratch panel for StatusBar busy status (RFC 0026) — Window → Busy Status
+  // Test in DEV only. Remove once restore + pending-remove migrate onto the API.
+  busyStatusTest,
 ];
 
 /**

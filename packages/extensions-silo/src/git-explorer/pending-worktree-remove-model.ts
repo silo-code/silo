@@ -10,8 +10,8 @@ export interface PendingWorktreeRemove {
 }
 
 /**
- * StatusBar label for the current pending-remove set. One path → name; several
- * → a count. Empty → `null` (hide the item).
+ * StatusBar / busy-status label for the current pending-remove set. One path →
+ * name; several → a count. Empty → `null` (hide the entry).
  */
 export function pendingRemoveStatusLabel(
   pending: readonly PendingWorktreeRemove[],
