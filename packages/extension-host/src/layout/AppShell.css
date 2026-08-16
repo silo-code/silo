@@ -85,6 +85,16 @@
   position: absolute;
   top: 0;
   bottom: 0;
+  /* Drop the base rule's `height: 100%` — it must not survive into the
+   * absolutely-positioned state. With `top`, `height` and `bottom` all set the
+   * box is over-constrained, so CSS discards `bottom` and solves from
+   * top + height. And `height: 100%` resolves against the containing block's
+   * *padding* box, which on macOS includes `.app-col`'s 36px traffic-light
+   * reservation — so the overlay ended up 36px taller than the column and hung
+   * that far below it, clipped away by the panel group. The hidden strip cost
+   * the panel its last row of content and cut the bottom off its scrollbar
+   * thumb. `auto` lets top/bottom drive the height again. */
+  height: auto;
   width: var(--peek-width, 400px);
   background: var(--silo-color-bg);
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.3);
