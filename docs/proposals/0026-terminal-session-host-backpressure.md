@@ -395,9 +395,15 @@ Depends on Phase 1 (UI can paint during restore/stalls).
        `@internal` `ctx.ui.busyStatus` for builtins — not a stable public API).
        DEV scratch panel: **Window → Busy Status Test** (`core.busy-status-test`).
 2. [x] **Terminal restore** as first writer (`Restoring terminals…` → clear on
-       settle; failures via **notify**, not sticky status).
+       settle; failures via **notify**, not sticky status). During **cold start**,
+       the host **startup status** sequence owns the StatusBar line; terminal
+       restore feeds that cohort instead of a second entry.
 3. [x] **Migrate pending-remove worktree** (ADR 0025) onto the same slot — proves
        multi-writer (restore + remove overlapping). Badge shows `2` when both run.
+       3b. [x] **Startup status** — host-owned sequence: Starting / Loading workspaces /
+       Loading extensions / Restoring workspace / Restoring terminals (busy status)
+       → brief host **status flash** “Silo is ready” (not busy status; not a toast).
+       Busy status stays in-flight-only; `flashStatus` is host-internal.
 4. Per-terminal chrome when input soft/hard timeouts fire (tab adornment or
    in-panel banner): e.g. `Session not accepting input` with **Reconnect** /
    **Restart session**.

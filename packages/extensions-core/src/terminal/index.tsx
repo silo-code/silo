@@ -1,4 +1,9 @@
 import type { DockPanelProps, Extension } from "@silo-code/sdk";
+import {
+  isStartupStatusActive,
+  startupTerminalRestoreBegin,
+  startupTerminalRestoreEnd,
+} from "@silo-code/extension-host/internal";
 import { TerminalPanel, type TerminalPanelParams } from "./TerminalPanel";
 import { TerminalSettingsPage } from "./TerminalSettingsPage";
 import { bindTerminalRestoreBusy } from "./terminal-restore-busy";
@@ -6,7 +11,11 @@ import { bindTerminalRestoreBusy } from "./terminal-restore-busy";
 export const extension: Extension = {
   id: "core.terminal",
   activate(ctx) {
-    bindTerminalRestoreBusy(ctx);
+    bindTerminalRestoreBusy(ctx, {
+      isStartupActive: isStartupStatusActive,
+      onRestoreBegin: startupTerminalRestoreBegin,
+      onRestoreEnd: startupTerminalRestoreEnd,
+    });
     ctx.registerDockPanelKind({
       id: "terminal",
       // Inject ctx so the panel drives PTY sessions (ctx.process), opens files

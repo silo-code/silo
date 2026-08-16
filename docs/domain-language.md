@@ -78,10 +78,23 @@ work (e.g. restoring terminals, removing a worktree). The host owns one
 aggregated slot: a single summary line, and when more than one source is active
 a trailing numbered badge with the count — click opens a host popover listing
 every active entry. Errors and “needs attention” outcomes use notifications
-(`ctx.ui.notify`), not sticky busy status.
+(`ctx.ui.notify`), not sticky busy status. Brief non-busy phrases (e.g. “Silo
+is ready”) use a host **status flash** on the same chrome, not busy status.
 _Avoid_: Context (overloaded — ExtensionContext, context keys, focus context),
 progress alone (see `ctx.ui.progress` / RFC 0001 — task-scoped, not this slot),
 toast for in-flight work (toasts are for outcomes / errors, not ambient busy)
+
+**Status flash**:
+A host-only, single-shot StatusBar phrase that is **not** in-flight work — e.g.
+“Silo is ready” after startup. Auto-clears after a short dwell; not multi-writer
+and not exposed on `ctx.ui.busyStatus`.
+_Avoid_: Busy status (in-flight only), toast (notify), splash screen
+
+**Startup status**:
+The host-owned StatusBar sequence while Silo boots — workspaces and extensions
+loading, workspace layout and terminals restoring (busy status) — ending with a
+brief status flash “Silo is ready”.
+_Avoid_: Splash screen, loading screen, boot toast
 
 **SideDock**:
 One of the two collapsible vertical containers (left/right) on either side of

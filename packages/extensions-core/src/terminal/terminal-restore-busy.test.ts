@@ -61,4 +61,25 @@ describe("terminal-restore-busy", () => {
     expect(clear).toHaveBeenCalledWith(TERMINAL_RESTORE_BUSY_ID);
     expect(notify).toHaveBeenCalledWith("error", "1 terminal needs reconnect");
   });
+
+  it("suppresses its own StatusBar entry while startup is active", () => {
+    const onBegin = vi.fn();
+    const onEnd = vi.fn();
+    bindTerminalRestoreBusy(
+      {
+        ui: { busyStatus: { set, clear }, notify },
+      } as unknown as ExtensionContext,
+      {
+        isStartupActive: () => true,
+        onRestoreBegin: onBegin,
+        onRestoreEnd: onEnd,
+      },
+    );
+    beginTerminalRestoreAttach();
+    expect(set).not.toHaveBeenCalled();
+    expect(onBegin).toHaveBeenCalledTimes(1);
+    endTerminalRestoreAttach(true);
+    expect(onEnd).toHaveBeenCalledTimes(1);
+    expect(clear).toHaveBeenCalledWith(TERMINAL_RESTORE_BUSY_ID);
+  });
 });

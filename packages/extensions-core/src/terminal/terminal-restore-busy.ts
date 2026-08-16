@@ -6,10 +6,18 @@ export const TERMINAL_RESTORE_BUSY_ID = "core.terminal.restore";
 /** Wall-clock budget before the label softens to "Still restoring…" (RFC 0026). */
 const COHORT_SOFT_MS = 10_000;
 
+export interface TerminalRestoreBusyHooks {
+  /** Cold-start host sequence still owns the StatusBar. */
+  isStartupActive?: () => boolean;
+  onRestoreBegin?: () => void;
+  onRestoreEnd?: () => void;
+}
+
 let busy: ExtensionContext["ui"]["busyStatus"] | null = null;
 let notify:
   | ((level: "info" | "warn" | "error", message: string) => void)
   | null = null;
+let hooks: TerminalRestoreBusyHooks = {};
 
 let inFlight = 0;
 let failed = 0;
@@ -20,16 +28,23 @@ let softTimer: ReturnType<typeof setTimeout> | null = null;
  * Bind the terminal extension's `ctx` so restore attaches can drive busy status
  * + failure toasts. Call once from `activate`.
  */
-export function bindTerminalRestoreBusy(ctx: ExtensionContext): void {
+export function bindTerminalRestoreBusy(
+  ctx: ExtensionContext,
+  nextHooks: TerminalRestoreBusyHooks = {},
+): void {
   busy = ctx.ui.busyStatus;
   notify = (level, message) => {
     ctx.ui.notify(level, message);
   };
+  hooks = nextHooks;
 }
 
 /** One restore attach started (`process.attach`, not a fresh spawn). */
 export function beginTerminalRestoreAttach(): void {
   inFlight += 1;
+  if (hooks.isStartupActive?.()) {
+    hooks.onRestoreBegin?.();
+  }
   if (inFlight === 1) {
     failed = 0;
     stillRestoring = false;
@@ -51,6 +66,9 @@ export function beginTerminalRestoreAttach(): void {
 export function endTerminalRestoreAttach(ok: boolean): void {
   if (!ok) failed += 1;
   inFlight = Math.max(0, inFlight - 1);
+  if (hooks.isStartupActive?.()) {
+    hooks.onRestoreEnd?.();
+  }
   if (inFlight === 0) {
     if (softTimer) {
       clearTimeout(softTimer);
@@ -76,7 +94,8 @@ export function endTerminalRestoreAttach(ok: boolean): void {
 }
 
 function publish(): void {
-  if (!busy || inFlight === 0) return;
+  // During cold start the host startup sequence owns the StatusBar line.
+  if (!busy || inFlight === 0 || hooks.isStartupActive?.()) return;
   const label = stillRestoring
     ? "Still restoring terminals…"
     : inFlight === 1
@@ -101,4 +120,5 @@ export function resetTerminalRestoreBusyForTests(): void {
   stillRestoring = false;
   busy = null;
   notify = null;
+  hooks = {};
 }

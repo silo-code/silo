@@ -9,6 +9,9 @@ import {
   initUserKeybindings,
   setExtensionsReady,
   initGlobalErrorCapture,
+  beginStartupStatus,
+  markStartupHydrated,
+  markStartupExtensionsReady,
 } from "@silo-code/extension-host";
 import { activateBuiltins } from "./builtins";
 import { initCliOpenHandler } from "./cli";
@@ -16,6 +19,9 @@ import { initCliOpenHandler } from "./cli";
 // Install global error/rejection capture before anything else runs so boot
 // errors and extension errors are routed to the silo:errors Output channel.
 initGlobalErrorCapture();
+
+// StatusBar startup sequence (RFC 0026) — before hydrate / extension races.
+beginStartupStatus();
 
 // Activate built-ins synchronously, before render — the dock needs their panel
 // kinds present when it deserializes the saved layout.
@@ -35,6 +41,7 @@ mgr
       .catch((err) => console.error("loadInstalled failed", err))
       .finally(() => {
         setExtensionsReady();
+        markStartupExtensionsReady();
         // Kick off one background update check so the status bar / settings
         // rail can show a badge without anyone having opened the Extensions
         // page first (which does its own check on mount).
@@ -46,10 +53,15 @@ mgr
 
 userConfigDir()
   .then(hydrate)
-  // After hydration so a `silo <dir>` open matches an existing workspace
-  // instead of creating a duplicate (warm re-launches also funnel through here).
-  .then(() => initCliOpenHandler())
-  .catch((err) => console.error("hydrate / cli handler failed", err));
+  .then(() => {
+    markStartupHydrated();
+    return initCliOpenHandler();
+  })
+  .catch((err) => {
+    // Unblock the StatusBar sequence even if hydrate/cli fails.
+    markStartupHydrated();
+    console.error("hydrate / cli handler failed", err);
+  });
 
 // Best-effort flush of unsaved-edit backups + workspace/layout state when the
 // window is being hidden or torn down. We deliberately do NOT intercept the close

@@ -16,6 +16,7 @@ import {
   type DockviewWillDropEvent,
 } from "dockview";
 import { store } from "../state/store";
+import { markStartupLayoutReady } from "../extension-host/startup-status";
 import {
   openEditor,
   removeEditor,
@@ -109,6 +110,9 @@ export function WorkspaceDock({
       }
     }
     layoutRestoredRef.current = true;
+    // Cold-start StatusBar: how many tabs will attach an existing session?
+    const restorable = (ws.terminals ?? []).filter((t) => !!t.sessionId).length;
+    markStartupLayoutReady(restorable);
   }, [api, ws, snap.extensionsReady]);
 
   useEffect(() => {

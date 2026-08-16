@@ -6,18 +6,27 @@ import {
   getBusyStatusSnapshot,
   subscribeBusyStatus,
 } from "../extension-host/busy-status";
+import {
+  getStatusFlash,
+  subscribeStatusFlash,
+} from "../extension-host/status-flash";
 import type { BusyStatusEntry } from "../extension-host/busy-status-model";
 import { useMenuDismiss, useMenuPlacement } from "./use-menu-dismiss";
 import "./BusyStatusSlot.css";
 
 /**
- * Host-owned StatusBar aggregate for in-flight work (RFC 0026 busy status).
- * Not a contributed StatusItem — one slot, many writers.
+ * Host-owned StatusBar ambient region (RFC 0026):
+ * - **Busy status** — multi-writer in-flight work (spinner + optional badge)
+ * - **Status flash** — host-only ephemeral non-busy phrase (e.g. "Silo is ready")
  *
- * The expand UI is a dedicated informational popover (not `showMenu`) so rows
- * don't look clickable.
+ * Flash takes the slot when active; otherwise the busy aggregate shows.
  */
 export function BusyStatusSlot() {
+  const flash = useSyncExternalStore(
+    useCallback((cb) => subscribeStatusFlash(cb).dispose, []),
+    getStatusFlash,
+    getStatusFlash,
+  );
   const snap = useSyncExternalStore(
     useCallback((cb) => subscribeBusyStatus(cb).dispose, []),
     getBusyStatusSnapshot,
@@ -26,6 +35,18 @@ export function BusyStatusSlot() {
   const btnRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const { primary, count } = snap.summary;
+
+  if (flash) {
+    return (
+      <span
+        className="busy-status-slot busy-status-slot--flash"
+        aria-live="polite"
+      >
+        <span className="busy-status-slot__label">{flash.label}</span>
+      </span>
+    );
+  }
+
   if (!primary) return null;
 
   const toggle = () => setOpen((v) => !v);

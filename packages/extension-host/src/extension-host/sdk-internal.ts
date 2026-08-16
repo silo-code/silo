@@ -427,3 +427,12 @@ export {
   hasSavedGlobalPanelLayout,
   enableGlobalPanelLayout,
 } from "../state/workspaces";
+
+// Cold-start StatusBar sequence — core.terminal reports restore attaches into
+// the host-owned startup narrative (RFC 0026).
+export {
+  isStartupStatusActive,
+  startupTerminalRestoreBegin,
+  startupTerminalRestoreEnd,
+  resetStartupStatusForTests,
+} from "./startup-status";

@@ -18,6 +18,7 @@ import {
   useFolderExistence,
 } from "./open-workspace-menu";
 import { installDockFocusTracking } from "./dock-focus-tracking";
+import { markStartupLayoutReady } from "../extension-host/startup-status";
 import "dockview/dist/styles/dockview.css";
 import "./CenterDock.css";
 
@@ -78,6 +79,13 @@ export function CenterDock() {
       return next;
     });
   }, [activeId]);
+
+  // No open workspace: layout restore is a no-op — finish the startup sequence.
+  useEffect(() => {
+    if (activeId) return;
+    if (!snap.hydrated || !snap.extensionsReady) return;
+    markStartupLayoutReady(0);
+  }, [activeId, snap.hydrated, snap.extensionsReady]);
 
   if (!activeId) {
     return (
