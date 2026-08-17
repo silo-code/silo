@@ -406,6 +406,14 @@ pub fn terminal_start_stream(
     }
 }
 
+/// Append a frontend attach/restore diagnostic line to `terminal.log` (same
+/// file as host_create / host_attach). Fire-and-forget from the webview so a
+/// stalled disk write cannot block restore. Event names use the `ui_` prefix.
+#[tauri::command]
+pub fn terminal_diag_log(event: String, detail: String) {
+    log_event(&event, &detail);
+}
+
 /// Persist the frontend's serialized terminal buffer (xterm.js SerializeAddon
 /// output) to disk. Called on a throttle and on teardown so a restart can
 /// restore the screen + scrollback.

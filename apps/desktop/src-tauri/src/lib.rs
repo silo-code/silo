@@ -144,6 +144,22 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             commands::finder_drop::install_drag_swizzle();
 
+            // Durable attach trail: one line at UI process start so post-mortems
+            // can correlate proto / pid with later ui_* / host_* events in
+            // terminal.log (see terminal_diag_log + logTerminalAttachTrace).
+            {
+                use pty_host::proto::PROTO_VERSION;
+                commands::session_backend::log_event(
+                    "app_boot",
+                    &format!(
+                        "pid={} proto={} identifier={}",
+                        std::process::id(),
+                        PROTO_VERSION,
+                        app.config().identifier
+                    ),
+                );
+            }
+
             // Cleanup stale terminal buffers on startup
             std::thread::spawn(|| {
                 let _ = commands::terminal_buffer::cleanup_stale_buffers();
@@ -196,6 +212,7 @@ pub fn run() {
             commands::terminal::terminal_start_stream,
             commands::terminal::terminal_get_buffer,
             commands::terminal::terminal_save_buffer,
+            commands::terminal::terminal_diag_log,
             commands::terminal::terminal_foreground_snapshot,
             commands::network::net_fetch,
             commands::network::net_fetch_bytes,

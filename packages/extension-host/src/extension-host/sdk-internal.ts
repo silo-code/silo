@@ -272,11 +272,16 @@ export { registerDocumentProvider, emitDidSave } from "./editor-service";
 export {
   recreateTerminal,
   tauriTerminalClient,
+  logTerminalAttachTrace,
   getThemeBase,
   getTerminalSettings,
   setTerminalSetting,
 } from "./terminal-core";
-export type { TerminalSettings, TerminalCursorStyle } from "./terminal-core";
+export type {
+  TerminalSettings,
+  TerminalCursorStyle,
+  TerminalAttachTraceEvent,
+} from "./terminal-core";
 export {
   MIN_TERMINAL_SCROLL_SENSITIVITY,
   MAX_TERMINAL_SCROLL_SENSITIVITY,
