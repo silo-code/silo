@@ -262,7 +262,7 @@ export default withMermaid(
                   },
                   {
                     text: "Your first extension",
-                    link: "/guide/getting-started",
+                    link: "/guide/your-first-extension",
                   },
                   {
                     text: "Build with Claude Code",

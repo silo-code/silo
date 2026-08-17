@@ -114,7 +114,7 @@ const changes = await ctx.ui.showModal<Changes>(
 if (changes) apply(changes);
 
 // open a link out in the browser / mail client (scheme-guarded to http(s)/mailto)
-await ctx.ui.openExternal("https://silo.dev/docs");
+await ctx.ui.openExternal("https://getsilo.dev/docs");
 
 // read whatever the user has selected in the focused editor or terminal
 const selected = ctx.ui.getActiveSelectionText();

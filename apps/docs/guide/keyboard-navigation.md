@@ -405,7 +405,7 @@ type links.
 
 ## See also
 
-- [Your first extension](/guide/getting-started) — the registration basics this
+- [Your first extension](/guide/your-first-extension) — the registration basics this
   builds on (`ctx.registerSidePanel`).
 - [Styling your extension](/guide/styling) and [Design tokens](/api/theming) —
   the token rules your CSS must follow.

@@ -4,7 +4,7 @@ The minimal Silo extension and the recommended **starting point for your own**:
 one command and one status-bar item, in ~40 lines. It requests no permissions,
 so it installs without a consent prompt.
 
-Pair it with the guides: [Your first extension](../../../apps/docs/guide/getting-started.md)
+Pair it with the guides: [Your first extension](../../../apps/docs/guide/your-first-extension.md)
 walks through the concepts; [Publishing an extension](../../../apps/docs/guide/publishing-an-extension.md)
 covers the manifest and build.
 
