@@ -95,9 +95,12 @@ fn spawn_session_writer(
                         &format!("session={sid} err={e}"),
                     );
                     *err_slot.lock() = Some(e);
-                    // Keep draining so a transient stall does not leave a
-                    // forever-full queue; subsequent writes will likely fail
-                    // the same way until the session is reattached.
+                    // Stop. A timed-out write_frame can leave a half-frame on
+                    // the wire; writing further frames desyncs the daemon
+                    // (tag/len bytes become PTY payload, misread T_KILL, …).
+                    // SocketWriter/TcpWriter shut the socket down on error so
+                    // the reader loop sees EOF and the UI can recover.
+                    break;
                 }
             }
         }

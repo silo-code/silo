@@ -172,8 +172,13 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
                     ErrorKind::Interrupted => continue,
                     ErrorKind::WouldBlock => {
                         // Wait for more PTY output (master is O_NONBLOCK).
-                        let _ = poll_fd(master, libc::POLLIN, Duration::from_secs(3600));
-                        continue;
+                        // Treat hangup/error as shell gone — otherwise a
+                        // POLLHUP-only wake with no POLLIN can busy-spin.
+                        match poll_fd_revents(master, libc::POLLIN, Duration::from_secs(3600)) {
+                            None => continue, // timeout
+                            Some(re) if re & (libc::POLLHUP | libc::POLLERR) != 0 => break,
+                            Some(_) => continue,
+                        }
                     }
                     _ => break,
                 }
@@ -379,6 +384,9 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
 
             let snapshot: Vec<u8> = ring_f.lock().unwrap().iter().copied().collect();
             if !replay_ring_chunked(&write_half_f, &snapshot) {
+                if let Ok(w) = write_half_f.lock() {
+                    let _ = w.shutdown(std::net::Shutdown::Both);
+                }
                 clients_f
                     .lock()
                     .unwrap()
@@ -403,6 +411,11 @@ fn broadcast_frame(clients: &Clients, tag: u8, payload: &[u8]) {
             write_frame(&mut *w, tag, payload).is_ok()
         };
         if !ok {
+            // Shut down so the app reader sees EOF (not a silent hung attach
+            // parked mid-frame after a write-timeout desync).
+            if let Ok(w) = c.lock() {
+                let _ = w.shutdown(std::net::Shutdown::Both);
+            }
             dead.push(Arc::clone(c));
         }
     }
@@ -456,6 +469,12 @@ fn set_fd_nonblocking(fd: RawFd) {
 }
 
 fn poll_fd(fd: RawFd, events: i16, timeout: Duration) -> bool {
+    poll_fd_revents(fd, events, timeout).is_some_and(|re| (re & events) != 0)
+}
+
+/// Like [`poll_fd`], but returns the raw `revents` (or `None` on timeout /
+/// poll error) so callers can distinguish hangup from readable.
+fn poll_fd_revents(fd: RawFd, events: i16, timeout: Duration) -> Option<i16> {
     let mut pfd = libc::pollfd {
         fd,
         events,
@@ -463,7 +482,11 @@ fn poll_fd(fd: RawFd, events: i16, timeout: Duration) -> bool {
     };
     let ms = timeout.as_millis().min(i32::MAX as u128) as i32;
     let rc = unsafe { libc::poll(&mut pfd, 1, ms) };
-    rc > 0 && (pfd.revents & events) != 0
+    if rc > 0 {
+        Some(pfd.revents)
+    } else {
+        None
+    }
 }
 
 /// Timed non-blocking write to the PTY master. Drops remaining bytes on

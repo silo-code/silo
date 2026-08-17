@@ -35,6 +35,11 @@ const NAME_PREFIX: &str = "silo";
 const WRITE_DEADLINE: Duration = Duration::from_secs(1);
 const REPLAY_CHUNK: usize = 8 * 1024;
 const MAX_DATA_CLIENTS: usize = 1;
+/// Wait this long for a first client frame before treating the connection as
+/// a silent data client. Connect-and-drop probes (`exists`) disconnect sooner
+/// and must not join `clients` (that would evict the live UI under
+/// `MAX_DATA_CLIENTS=1` — same class of bug as Unix discovery probes).
+const CLIENT_CLASSIFY_TIMEOUT: Duration = Duration::from_millis(100);
 /// Soft cap on queued stdin chunks when ConPTY write blocks.
 const INPUT_QUEUE_CAP: usize = 64;
 
@@ -219,6 +224,30 @@ pub fn run_daemon(
         let ppath = ppath.clone();
 
         thread::spawn(move || {
+            let mut cmd_stream = match stream.try_clone() {
+                Ok(s) => s,
+                Err(_) => return,
+            };
+            let _ = cmd_stream.set_read_timeout(Some(CLIENT_CLASSIFY_TIMEOUT));
+
+            // Classify before joining `clients`: a probe disconnects with no
+            // frame; a real attach usually sends T_RESIZE immediately; a fresh
+            // create may stay silent past the timeout (still a data client).
+            let first = match read_frame(&mut cmd_stream) {
+                Ok(frame) => Some(frame),
+                Err(e)
+                    if e.kind() == io::ErrorKind::WouldBlock
+                        || e.kind() == io::ErrorKind::TimedOut =>
+                {
+                    None
+                }
+                Err(_) => {
+                    let _ = stream.shutdown(Shutdown::Both);
+                    return;
+                }
+            };
+            let _ = cmd_stream.set_read_timeout(None);
+
             let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
 
             // Cap data clients on reattach so fds / forwarders cannot climb.
@@ -230,8 +259,35 @@ pub fn run_daemon(
                 senders.push(tx);
             }
 
+            if let Some((tag, payload)) = first {
+                match tag {
+                    T_DATA => {
+                        let _ = input_tx.try_send(payload);
+                    }
+                    T_RESIZE if payload.len() >= 4 => {
+                        let cols = u16::from_be_bytes([payload[0], payload[1]]);
+                        let rows = u16::from_be_bytes([payload[2], payload[3]]);
+                        let _ = master.lock().resize(PtySize {
+                            rows,
+                            cols,
+                            pixel_width: 0,
+                            pixel_height: 0,
+                        });
+                    }
+                    T_KILL => {
+                        let pid = child_pid.load(Ordering::Acquire);
+                        if pid != 0 {
+                            kill_child(pid);
+                        }
+                        let _ = std::fs::remove_file(&ppath);
+                        std::process::exit(0);
+                    }
+                    _ => {}
+                }
+            }
+
             // Per-client command reader *before* ring replay (RFC 0026 Phase 2.1).
-            if let Ok(mut cmd_stream) = stream.try_clone() {
+            {
                 let input_tx = input_tx.clone();
                 let master = master.clone();
                 let child_pid = child_pid.clone();
@@ -239,7 +295,6 @@ pub fn run_daemon(
                 thread::spawn(move || loop {
                     match read_frame(&mut cmd_stream) {
                         Ok((T_DATA, data)) => {
-                            // Drop on full queue rather than parking this reader.
                             let _ = input_tx.try_send(data);
                         }
                         Ok((T_RESIZE, p)) if p.len() >= 4 => {
@@ -275,13 +330,14 @@ pub fn run_daemon(
                 }
             }
 
-            // Forward live output.
+            // Forward live output; shut down on exit so the app reader gets EOF.
             let mut s = stream;
             for chunk in rx {
                 if write_frame(&mut s, T_DATA, &chunk).is_err() {
                     break;
                 }
             }
+            let _ = s.shutdown(Shutdown::Both);
         });
     }
 
@@ -500,8 +556,14 @@ struct TcpWriter(TcpStream);
 
 impl Write for TcpWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        write_frame(&mut self.0, T_DATA, buf)?;
-        Ok(buf.len())
+        match write_frame(&mut self.0, T_DATA, buf) {
+            Ok(()) => Ok(buf.len()),
+            Err(e) => {
+                // Partial frame under write_timeout → desync if we keep writing.
+                let _ = self.0.shutdown(Shutdown::Both);
+                Err(e)
+            }
+        }
     }
     fn flush(&mut self) -> io::Result<()> {
         self.0.flush()
@@ -516,7 +578,13 @@ impl SessionMaster for TcpMaster {
         let mut p = Vec::with_capacity(4);
         p.extend_from_slice(&size.cols.to_be_bytes());
         p.extend_from_slice(&size.rows.to_be_bytes());
-        write_frame(&mut s, T_RESIZE, &p).map_err(|e| e.to_string())
+        match write_frame(&mut s, T_RESIZE, &p) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                let _ = self.0.shutdown(Shutdown::Both);
+                Err(e.to_string())
+            }
+        }
     }
 }
 

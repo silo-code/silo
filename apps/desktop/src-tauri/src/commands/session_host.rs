@@ -317,8 +317,14 @@ struct SocketWriter(UnixStream);
 
 impl Write for SocketWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        write_frame(&mut self.0, T_DATA, buf)?;
-        Ok(buf.len())
+        match write_frame(&mut self.0, T_DATA, buf) {
+            Ok(()) => Ok(buf.len()),
+            Err(e) => {
+                // Partial frame under write_timeout → desync if we keep writing.
+                let _ = self.0.shutdown(Shutdown::Both);
+                Err(e)
+            }
+        }
     }
     fn flush(&mut self) -> io::Result<()> {
         self.0.flush()
@@ -331,8 +337,13 @@ struct SocketMaster(UnixStream);
 impl SessionMaster for SocketMaster {
     fn resize(&self, size: PtySize) -> Result<(), String> {
         let mut s = &self.0;
-        write_frame(&mut s, T_RESIZE, &resize_payload(size.cols, size.rows))
-            .map_err(|e| e.to_string())
+        match write_frame(&mut s, T_RESIZE, &resize_payload(size.cols, size.rows)) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                let _ = self.0.shutdown(Shutdown::Both);
+                Err(e.to_string())
+            }
+        }
     }
 }
 

@@ -178,6 +178,14 @@ Signature in logs: `ui_spawn_start` for workspace N+1 at the same ms as
 `exit … reason=eof` for workspace N; host log shows `evicted prior client (cap)`
 with no matching `kill` / shell teardown.
 
+### Write-timeout mid-frame (Phase 1 hardening)
+
+A 1 s socket `write_timeout` can fail `write_frame` after a partial send. Continuing
+to write (or pruning a client without `shutdown`) desyncs the framed protocol or
+leaves the app reader hung with no EOF. On write failure the app writer **stops**
+and shuts the socket down; the daemon **shutdown**s pruned broadcast/replay
+clients so the UI sees a clean exit/reattach path.
+
 ### What this does _not_ cover yet
 
 | Scenario                              | Covered by SIGSTOP harness?                                        | When         |
