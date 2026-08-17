@@ -131,6 +131,36 @@ If you want to _see_ the window freeze rather than trust `eval`:
 
 Prefer the script for verification — it is objective and cleans up.
 
+### Durable attach / restart trace (dogfood)
+
+After a cold UI restart (or any “terminals look wrong” report), do **not** rely
+on Output alone — the webview buffer is gone. Grep the durable log:
+
+```bash
+# Dev identity
+rg 'app_boot|ui_|host_attach|host_incompatible|attach_gone|host_create' \
+  ~/Library/Application\ Support/com.silo.desktop.dev/logs/terminal.log | tail -80
+```
+
+| Event                              | Source                   | Meaning                                                 |
+| ---------------------------------- | ------------------------ | ------------------------------------------------------- |
+| `app_boot`                         | Rust UI process          | `pid`, `proto`, bundle `identifier`                     |
+| `ui_attach_start` / `ui_attach_ok` | `logTerminalAttachTrace` | Panel reattach path                                     |
+| `ui_spawn_start` / `ui_spawn_ok`   | same                     | New shell (empty `sessionId` or recreate)               |
+| `ui_init_miss`                     | same                     | “Terminal record not found” (active vs owner workspace) |
+| `ui_attach_gone` / `ui_recreate`   | same (+ client)          | `SESSION_GONE` → clear `sessionId` / spawn              |
+| `ui_attach_fail`                   | same                     | Non-404 attach error                                    |
+| `host_attach` / `attach`           | Rust                     | Daemon connect succeeded                                |
+| `host_incompatible`                | Rust                     | HELLO proto mismatch (often surfaces as gone)           |
+
+Healthy restart: `app_boot` → `ui_attach_start` → `host_attach`/`attach` →
+`ui_attach_ok`. Trouble: `ui_init_miss`, or `ui_attach_gone`→`ui_recreate`→
+`ui_spawn_*` when attach was expected. Per-host daemon lines live under
+`$TMPDIR/silo-pty/<ns>/silo-<handle>.log` (`client attached` / `detached`).
+
+Implementation: `terminal-attach-trace.ts`, `terminal_diag_log`, `log_event` →
+`terminal.log`. Live mirror: Output → **Terminals** (`silo:terminals`).
+
 ### What this does _not_ cover yet
 
 | Scenario                              | Covered by SIGSTOP harness?                                        | When         |
