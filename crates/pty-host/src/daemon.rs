@@ -3,10 +3,12 @@
 //! master, and serves a per-session Unix socket.
 
 use std::collections::VecDeque;
+use std::io::{Error, ErrorKind};
+use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::Path;
 use std::sync::{Arc, Mutex, Once};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::foreground;
 use crate::paths;
@@ -14,9 +16,34 @@ use crate::proto::*;
 use crate::pty;
 
 const RING_CAP: usize = 256 * 1024;
+/// Steady-state max for the data-plane list. Silo's app opens a *second* socket
+/// for `T_SUBSCRIBE_FG` (see `session_host::subscribe_foreground`); that conn
+/// must not count against this cap or it will evict the live data client on
+/// every attach (Phase 2 regression: OSC color replies / ring replay land on
+/// the wrong peer and show up as `10;rgb:…` garbage in the shell).
+const MAX_DATA_CLIENTS: usize = 1;
+/// Max simultaneous foreground-subscribe clients.
+const MAX_FG_CLIENTS: usize = 2;
+/// How long to wait after HELLO for `T_SUBSCRIBE_FG` before treating the
+/// connection as a data client (ring replay + broadcast).
+const FG_CLASSIFY_TIMEOUT: Duration = Duration::from_millis(100);
+/// Chunk size for ring replay and live broadcast frames (keeps each socket
+/// write within the write-timeout budget).
+const REPLAY_CHUNK: usize = 8 * 1024;
+/// Bound every client-socket and PTY-master write so a stalled peer / full
+/// stdin queue cannot park a daemon thread forever (RFC 0026).
+const WRITE_DEADLINE: Duration = Duration::from_secs(1);
 
 type Clients = Arc<Mutex<Vec<Arc<Mutex<UnixStream>>>>>;
 
+/// How an accepted socket is used after the HELLO handshake.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ClientRole {
+    /// Receives ring replay + live `T_DATA` (and may later convert via subscribe).
+    Data,
+    /// `T_SUBSCRIBE_FG` arrived before we registered it as data — fg pushes only.
+    Foreground,
+}
 /// Fork off a detached daemon for `name`. Returns in the *original* process so
 /// the caller can attach as a client; the daemon runs in a grandchild.
 pub fn spawn_detached(
@@ -94,6 +121,9 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
     let pty = pty::fork_pty(cmd, cwd, cols, rows)?;
     let master = pty.master;
     let shell_pid = pty.child;
+    // Shared with the master reader: O_NONBLOCK so timed PTY stdin writes never
+    // park forever when the child stops reading. The reader polls POLLIN on EAGAIN.
+    set_fd_nonblocking(master);
 
     paths::ensure_dir().map_err(|e| e.to_string())?;
     let path = paths::sock_path(name);
@@ -116,25 +146,36 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
         std::thread::spawn(move || {
             let mut buf = [0u8; 8192];
             loop {
-                let n = unsafe { libc::read(master, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
-                if n <= 0 {
+                let n =
+                    unsafe { libc::read(master, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
+                if n > 0 {
+                    let slice = &buf[..n as usize];
+                    {
+                        let mut r = ring.lock().unwrap();
+                        for &b in slice {
+                            if r.len() == RING_CAP {
+                                r.pop_front();
+                            }
+                            r.push_back(b);
+                        }
+                    }
+                    // Snapshot → write outside the lock → prune (RFC 0026 §Phase 2).
+                    broadcast_frame(&clients, T_DATA, slice);
+                    continue;
+                }
+                if n == 0 {
                     break; // shell exited / EOF
                 }
-                let slice = &buf[..n as usize];
-                {
-                    let mut r = ring.lock().unwrap();
-                    for &b in slice {
-                        if r.len() == RING_CAP {
-                            r.pop_front();
-                        }
-                        r.push_back(b);
+                let err = Error::last_os_error();
+                match err.kind() {
+                    ErrorKind::Interrupted => continue,
+                    ErrorKind::WouldBlock => {
+                        // Wait for more PTY output (master is O_NONBLOCK).
+                        let _ = poll_fd(master, libc::POLLIN, Duration::from_secs(3600));
+                        continue;
                     }
+                    _ => break,
                 }
-                let mut cs = clients.lock().unwrap();
-                cs.retain(|c| {
-                    let mut w = c.lock().unwrap();
-                    write_frame(&mut *w, T_DATA, slice).is_ok()
-                });
             }
             // Shell gone: tear the session down.
             teardown_and_exit(&name, &path, "shell exited");
@@ -196,10 +237,7 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
                     leader: name.clone(),
                     cwd,
                 });
-                fg_clients.lock().unwrap().retain(|c| {
-                    let mut w = c.lock().unwrap();
-                    write_frame(&mut *w, T_FG_REP, &payload).is_ok()
-                });
+                broadcast_frame(&fg_clients, T_FG_REP, &payload);
             }
         });
     }
@@ -215,6 +253,7 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
             log("rejected connection: foreign peer uid");
             continue;
         }
+        let _ = stream.set_write_timeout(Some(WRITE_DEADLINE));
         let read_half = match stream.try_clone() {
             Ok(s) => s,
             Err(_) => continue,
@@ -228,43 +267,48 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
             let _ = write_frame(&mut *w, T_HELLO, &hello_payload());
         }
 
-        // Replay the ring so a reattaching client sees recent output.
-        {
-            let snapshot: Vec<u8> = ring.lock().unwrap().iter().copied().collect();
-            if !snapshot.is_empty() {
-                let mut w = write_half.lock().unwrap();
-                let _ = write_frame(&mut *w, T_DATA, &snapshot);
-            }
-        }
-        clients.lock().unwrap().push(write_half.clone());
-        log("client attached");
+        // Classify before registering as a data client: Silo's FG subscriber
+        // connects and immediately sends T_SUBSCRIBE_FG. If we eagerly push it
+        // onto `clients` under MAX_DATA_CLIENTS=1 we evict the real data
+        // connection (and replay the ring onto the FG socket, which ignores it).
+        let (role_tx, role_rx) = std::sync::mpsc::sync_channel::<ClientRole>(1);
 
-        // Per-client reader: client frames -> master / control actions.
         let wh = write_half.clone();
         let clients_r = clients.clone();
         let fg_clients_r = fg_clients.clone();
         std::thread::spawn(move || {
             let mut s = read_half;
+            let mut role_tx = Some(role_tx);
+            let mut announce = |role: ClientRole| {
+                if let Some(tx) = role_tx.take() {
+                    let _ = tx.send(role);
+                }
+            };
             loop {
                 match read_frame(&mut s) {
-                    Ok((T_DATA, p)) => unsafe {
-                        libc::write(master, p.as_ptr() as *const libc::c_void, p.len());
-                    },
+                    Ok((T_DATA, p)) => {
+                        announce(ClientRole::Data);
+                        write_master_timed(master, &p);
+                    }
                     Ok((T_RESIZE, p)) => {
+                        announce(ClientRole::Data);
                         if let Some((c, r)) = parse_resize(&p) {
                             pty::set_winsize(master, c, r);
                         }
                     }
                     Ok((T_KILL, _)) => {
+                        announce(ClientRole::Data);
                         kill_group(shell_pid);
                     }
                     Ok((T_FG_REQ, _)) => {
+                        announce(ClientRole::Data);
                         let fg = foreground::query(master, shell_pid);
                         let mut w = wh.lock().unwrap();
                         let _ = write_frame(&mut *w, T_FG_REP, &foreground::encode(&fg));
                     }
                     Ok((T_SUBSCRIBE_FG, _)) => {
-                        // Convert to a foreground subscriber: stop receiving data,
+                        announce(ClientRole::Foreground);
+                        // Stop receiving data (no-op if we never joined `clients`),
                         // start receiving fg pushes, and get the current value now.
                         clients_r.lock().unwrap().retain(|c| !Arc::ptr_eq(c, &wh));
                         let fg = foreground::query(master, shell_pid);
@@ -272,6 +316,7 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
                             let mut w = wh.lock().unwrap();
                             let _ = write_frame(&mut *w, T_FG_REP, &foreground::encode(&fg));
                         }
+                        evict_clients_to_cap(&fg_clients_r, keep_before_push(MAX_FG_CLIENTS));
                         fg_clients_r.lock().unwrap().push(wh.clone());
                     }
                     Ok(_) => {}
@@ -292,8 +337,184 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
                 }
             }
         });
+
+        // Classify in a side thread so the accept loop stays responsive.
+        // Data clients are registered after a short wait (or sooner if they
+        // send a non-subscribe frame); FG clients never join `clients`.
+        let clients_f = clients.clone();
+        let ring_f = ring.clone();
+        let write_half_f = write_half.clone();
+        std::thread::spawn(move || {
+            let role = role_rx
+                .recv_timeout(FG_CLASSIFY_TIMEOUT)
+                .unwrap_or(ClientRole::Data);
+            if role == ClientRole::Foreground {
+                log("fg client attached");
+                return;
+            }
+
+            // Cap data clients before registering this one (close previous on reattach).
+            evict_clients_to_cap(&clients_f, keep_before_push(MAX_DATA_CLIENTS));
+
+            // Register for live broadcast *before* chunked replay so output that
+            // arrives during replay still reaches this client (write_half Mutex
+            // serializes with the master-reader broadcast).
+            clients_f.lock().unwrap().push(write_half_f.clone());
+            log("client attached");
+
+            let snapshot: Vec<u8> = ring_f.lock().unwrap().iter().copied().collect();
+            if !replay_ring_chunked(&write_half_f, &snapshot) {
+                clients_f
+                    .lock()
+                    .unwrap()
+                    .retain(|c| !Arc::ptr_eq(c, &write_half_f));
+                log("client dropped during ring replay");
+            }
+        });
     }
     Ok(())
+}
+
+/// Snapshot clients, write each frame outside the list lock, prune failures.
+fn broadcast_frame(clients: &Clients, tag: u8, payload: &[u8]) {
+    let snapshot: Vec<Arc<Mutex<UnixStream>>> = {
+        let cs = clients.lock().unwrap();
+        cs.clone()
+    };
+    let mut dead: Vec<Arc<Mutex<UnixStream>>> = Vec::new();
+    for c in &snapshot {
+        let ok = {
+            let mut w = c.lock().unwrap();
+            write_frame(&mut *w, tag, payload).is_ok()
+        };
+        if !ok {
+            dead.push(Arc::clone(c));
+        }
+    }
+    if dead.is_empty() {
+        return;
+    }
+    let mut cs = clients.lock().unwrap();
+    cs.retain(|c| !dead.iter().any(|d| Arc::ptr_eq(d, c)));
+}
+
+/// Close and drop the oldest clients until `len() <= keep`.
+fn evict_clients_to_cap(clients: &Clients, keep: usize) {
+    let evicted: Vec<Arc<Mutex<UnixStream>>> = {
+        let mut cs = clients.lock().unwrap();
+        if cs.len() <= keep {
+            return;
+        }
+        let drop_n = cs.len() - keep;
+        cs.drain(0..drop_n).collect()
+    };
+    for c in evicted {
+        if let Ok(w) = c.lock() {
+            let _ = w.shutdown(std::net::Shutdown::Both);
+        }
+        log("evicted prior client (cap)");
+    }
+}
+
+/// Replay the ring as `REPLAY_CHUNK`-sized T_DATA frames. Returns false if a
+/// write failed (caller should prune the client).
+fn replay_ring_chunked(write_half: &Arc<Mutex<UnixStream>>, snapshot: &[u8]) -> bool {
+    if snapshot.is_empty() {
+        return true;
+    }
+    for chunk in snapshot.chunks(REPLAY_CHUNK) {
+        let mut w = write_half.lock().unwrap();
+        if write_frame(&mut *w, T_DATA, chunk).is_err() {
+            return false;
+        }
+    }
+    true
+}
+
+fn set_fd_nonblocking(fd: RawFd) {
+    unsafe {
+        let flags = libc::fcntl(fd, libc::F_GETFL);
+        if flags >= 0 {
+            let _ = libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK);
+        }
+    }
+}
+
+fn poll_fd(fd: RawFd, events: i16, timeout: Duration) -> bool {
+    let mut pfd = libc::pollfd {
+        fd,
+        events,
+        revents: 0,
+    };
+    let ms = timeout.as_millis().min(i32::MAX as u128) as i32;
+    let rc = unsafe { libc::poll(&mut pfd, 1, ms) };
+    rc > 0 && (pfd.revents & events) != 0
+}
+
+/// Timed non-blocking write to the PTY master. Drops remaining bytes on
+/// deadline expiry rather than parking the client-reader forever.
+fn write_master_timed(master: RawFd, data: &[u8]) {
+    if data.is_empty() {
+        return;
+    }
+    let deadline = Instant::now() + WRITE_DEADLINE;
+    let mut off = 0usize;
+    while off < data.len() {
+        let n = unsafe {
+            libc::write(
+                master,
+                data[off..].as_ptr() as *const libc::c_void,
+                data.len() - off,
+            )
+        };
+        if n > 0 {
+            off += n as usize;
+            continue;
+        }
+        if n == 0 {
+            log("write_master: EOF");
+            return;
+        }
+        let err = Error::last_os_error();
+        match err.kind() {
+            ErrorKind::Interrupted => continue,
+            ErrorKind::WouldBlock => {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if remaining.is_zero() {
+                    log(&format!(
+                        "write_master: timeout after {off}/{} bytes",
+                        data.len()
+                    ));
+                    return;
+                }
+                if !poll_fd(master, libc::POLLOUT, remaining) {
+                    log(&format!(
+                        "write_master: timeout after {off}/{} bytes",
+                        data.len()
+                    ));
+                    return;
+                }
+            }
+            _ => {
+                log(&format!("write_master: {err}"));
+                return;
+            }
+        }
+    }
+}
+
+/// How many clients to keep when adding one more under `max` (pure helper for tests).
+fn keep_before_push(max: usize) -> usize {
+    max.saturating_sub(1)
+}
+
+/// Number of REPLAY_CHUNK frames a ring of `len` bytes needs (pure helper for tests).
+#[cfg(test)]
+fn replay_frame_count(len: usize, chunk: usize) -> usize {
+    if len == 0 || chunk == 0 {
+        return 0;
+    }
+    len.div_ceil(chunk)
 }
 
 /// Verify the connecting peer shares our uid. Peer-credential lookup differs by
@@ -301,7 +522,6 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
 /// split by `cfg`. If it can't be determined we allow (best-effort — the `0700`
 /// socket dir is the primary guard).
 fn peer_is_owner(stream: &UnixStream) -> bool {
-    use std::os::unix::io::AsRawFd;
     let fd = stream.as_raw_fd();
 
     #[cfg(any(
@@ -383,6 +603,36 @@ mod transitional_leader_tests {
         assert!(!is_transitional_leader("/Users/x/.local/bin/cursor-agent"));
         assert!(!is_transitional_leader("claude"));
         assert!(!is_transitional_leader("node"));
+    }
+}
+
+#[cfg(test)]
+mod backpressure_helpers_tests {
+    use super::{keep_before_push, replay_frame_count, MAX_DATA_CLIENTS, REPLAY_CHUNK, RING_CAP};
+
+    #[test]
+    fn keep_before_push_leaves_room_for_one() {
+        assert_eq!(keep_before_push(MAX_DATA_CLIENTS), 0);
+        assert_eq!(keep_before_push(2), 1);
+        assert_eq!(keep_before_push(0), 0);
+    }
+
+    #[test]
+    fn fg_classify_timeout_is_sub_second() {
+        assert!(super::FG_CLASSIFY_TIMEOUT < std::time::Duration::from_secs(1));
+        assert!(super::FG_CLASSIFY_TIMEOUT > std::time::Duration::ZERO);
+    }
+
+    #[test]
+    fn replay_frame_count_chunks_full_ring() {
+        assert_eq!(replay_frame_count(0, REPLAY_CHUNK), 0);
+        assert_eq!(replay_frame_count(1, REPLAY_CHUNK), 1);
+        assert_eq!(replay_frame_count(REPLAY_CHUNK, REPLAY_CHUNK), 1);
+        assert_eq!(replay_frame_count(REPLAY_CHUNK + 1, REPLAY_CHUNK), 2);
+        assert_eq!(
+            replay_frame_count(RING_CAP, REPLAY_CHUNK),
+            RING_CAP / REPLAY_CHUNK
+        );
     }
 }
 

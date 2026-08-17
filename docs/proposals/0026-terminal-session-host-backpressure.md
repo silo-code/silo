@@ -371,17 +371,22 @@ failure.
 
 #### Phase 2 — Bound stalls in the session host (daemon)
 
-1. **Spawn the client input reader before ring replay** (or otherwise ensure
-   client→daemon is always being read while replay runs).
-2. Chunk ring replay; every socket write uses the **1 s** deadline; failed
-   clients are pruned.
-3. Replace blocking `libc::write(master, …)` with non-blocking / timed writes
+1. [x] **Spawn the client input reader before ring replay** (or otherwise ensure
+       client→daemon is always being read while replay runs).
+2. [x] Chunk ring replay; every socket write uses the **1 s** deadline; failed
+       clients are pruned.
+3. [x] Replace blocking `libc::write(master, …)` with non-blocking / timed writes
    - a small input queue; never park the client-reader forever on a full
-     stdin queue.
-4. **Do not hold `clients` across blocking writes** — snapshot the list,
-   write outside the lock, prune failures.
-5. Cap clients per session (data + foreground subscribe); on reattach,
-   close the previous data connection so fds cannot climb indefinitely.
+     stdin queue. (Windows: dedicated ConPTY writer thread + bounded
+     `sync_channel` / `try_send`.)
+4. [x] **Do not hold `clients` across blocking writes** — snapshot the list,
+       write outside the lock, prune failures.
+5. [x] Cap clients per session (data + foreground subscribe); on reattach,
+       close the previous data connection so fds cannot climb indefinitely.
+       **Note:** classify `T_SUBSCRIBE_FG` sockets _before_ they join the data
+       list — Silo opens a second socket for fg events; treating it as data under
+       a cap of 1 evicted the live data client on every restore (visible as
+       `10;rgb:…` / OSC color-query garbage in the shell).
 
 **Exit:** full-ring reattach under SIGSTOP-style peer stall fails the
 session within the attach budget; host remains responsive to other clients;
@@ -419,7 +424,9 @@ reconnect within ~10 s; pending-remove no longer uses a private StatusItem.
 - Metrics or Output summaries: attach p50/p99, write-timeout counts, client
   cap hits.
 - Consider warm vs cold attach timeout split if Phase 0/1 data warrants it.
-- Windows ConPTY path: same deadlines and off-UI-thread rules.
+- Windows ConPTY path: same deadlines and off-UI-thread rules (daemon-side
+  deadlines landed with Phase 2 in `session_windows.rs`; app write-path
+  parity was Phase 1).
 - If the busy-status interface held up: draft graduation RFC (or extend
   RFC 0001) before exposing to third parties.
 

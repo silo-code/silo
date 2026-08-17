@@ -31,6 +31,12 @@ const T_KILL: u8 = 2;
 const RING_CAPACITY: usize = 256 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(3000);
 const NAME_PREFIX: &str = "silo";
+/// Bound client TCP writes and PTY stdin drains (RFC 0026 Phase 2).
+const WRITE_DEADLINE: Duration = Duration::from_secs(1);
+const REPLAY_CHUNK: usize = 8 * 1024;
+const MAX_DATA_CLIENTS: usize = 1;
+/// Soft cap on queued stdin chunks when ConPTY write blocks.
+const INPUT_QUEUE_CAP: usize = 64;
 
 fn write_frame<W: Write>(w: &mut W, tag: u8, payload: &[u8]) -> io::Result<()> {
     w.write_all(&[tag])?;
@@ -117,7 +123,42 @@ pub fn run_daemon(
         .try_clone_reader()
         .map_err(|e| format!("clone_reader: {e}"))?;
     let master = Arc::new(Mutex::new(pty_pair.master));
-    let pty_writer = Arc::new(Mutex::new(pty_writer));
+
+    // Dedicated PTY stdin writer: bounded queue so client readers never park
+    // forever when ConPTY's stdin queue is full (RFC 0026 Phase 2).
+    let (input_tx, input_rx) = std::sync::mpsc::sync_channel::<Vec<u8>>(INPUT_QUEUE_CAP);
+    {
+        let mut writer = pty_writer;
+        thread::spawn(move || {
+            while let Ok(data) = input_rx.recv() {
+                let deadline = Instant::now() + WRITE_DEADLINE;
+                let mut off = 0usize;
+                while off < data.len() {
+                    if Instant::now() >= deadline {
+                        log_event(
+                            "write_master_timeout",
+                            &format!("wrote={off}/{}", data.len()),
+                        );
+                        break;
+                    }
+                    match writer.write(&data[off..]) {
+                        Ok(0) => break,
+                        Ok(n) => off += n,
+                        Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                        Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
+                            thread::sleep(Duration::from_millis(5));
+                            continue;
+                        }
+                        Err(e) => {
+                            log_event("write_master_err", &e.to_string());
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+    }
+    let input_tx = Arc::new(input_tx);
 
     let ring: Arc<Mutex<VecDeque<u8>>> =
         Arc::new(Mutex::new(VecDeque::with_capacity(RING_CAPACITY)));
@@ -125,6 +166,8 @@ pub fn run_daemon(
         Arc::new(Mutex::new(Vec::new()));
 
     // PTY reader → ring + broadcast to all connected clients.
+    // Channel send is non-blocking when the peer is alive; retain under the lock
+    // is fine (the bounded stall is on the TCP write in the per-client forwarder).
     {
         let ring = ring.clone();
         let clients = clients.clone();
@@ -166,10 +209,11 @@ pub fn run_daemon(
     log_event("daemon_port_written", &format!("handle={handle} port={port}"));
 
     for incoming in listener.incoming() {
-        let Ok(stream) = incoming else { continue };
+        let Ok(mut stream) = incoming else { continue };
+        let _ = stream.set_write_timeout(Some(WRITE_DEADLINE));
         let ring = ring.clone();
         let clients = clients.clone();
-        let pty_writer = pty_writer.clone();
+        let input_tx = input_tx.clone();
         let master = master.clone();
         let child_pid = child_pid.clone();
         let ppath = ppath.clone();
@@ -177,19 +221,26 @@ pub fn run_daemon(
         thread::spawn(move || {
             let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
 
-            // Register sender BEFORE ring replay so we don't miss live data.
-            clients.lock().push(tx);
+            // Cap data clients on reattach so fds / forwarders cannot climb.
+            {
+                let mut senders = clients.lock();
+                while senders.len() >= MAX_DATA_CLIENTS {
+                    let _ = senders.remove(0);
+                }
+                senders.push(tx);
+            }
 
-            // Per-client command reader.
+            // Per-client command reader *before* ring replay (RFC 0026 Phase 2.1).
             if let Ok(mut cmd_stream) = stream.try_clone() {
-                let pty_writer = pty_writer.clone();
+                let input_tx = input_tx.clone();
                 let master = master.clone();
                 let child_pid = child_pid.clone();
                 let ppath = ppath.clone();
                 thread::spawn(move || loop {
                     match read_frame(&mut cmd_stream) {
                         Ok((T_DATA, data)) => {
-                            let _ = pty_writer.lock().write_all(&data);
+                            // Drop on full queue rather than parking this reader.
+                            let _ = input_tx.try_send(data);
                         }
                         Ok((T_RESIZE, p)) if p.len() >= 4 => {
                             let cols = u16::from_be_bytes([p[0], p[1]]);
@@ -214,11 +265,14 @@ pub fn run_daemon(
                 });
             }
 
-            // Replay ring.
+            // Chunked ring replay under the TCP write timeout.
             let ring_data: Vec<u8> = ring.lock().iter().copied().collect();
-            if !ring_data.is_empty() {
+            for chunk in ring_data.chunks(REPLAY_CHUNK) {
                 let mut s = &stream;
-                let _ = write_frame(&mut s, T_DATA, &ring_data);
+                if write_frame(&mut s, T_DATA, chunk).is_err() {
+                    let _ = stream.shutdown(Shutdown::Both);
+                    return;
+                }
             }
 
             // Forward live output.
