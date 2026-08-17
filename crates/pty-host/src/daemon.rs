@@ -7,6 +7,7 @@ use std::io::{Error, ErrorKind};
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Once};
 use std::time::{Duration, Instant};
 
@@ -272,10 +273,16 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
         // onto `clients` under MAX_DATA_CLIENTS=1 we evict the real data
         // connection (and replay the ring onto the FG socket, which ignores it).
         let (role_tx, role_rx) = std::sync::mpsc::sync_channel::<ClientRole>(1);
+        // `discovery::is_live` / `list_sessions` connect-and-drop to probe.
+        // Without this flag, those probes time out as Data under
+        // MAX_DATA_CLIENTS=1 and evict the real UI client — shells stay alive
+        // but the app reader sees EOF and shows a false "Process exited".
+        let client_gone = Arc::new(AtomicBool::new(false));
 
         let wh = write_half.clone();
         let clients_r = clients.clone();
         let fg_clients_r = fg_clients.clone();
+        let gone_r = client_gone.clone();
         std::thread::spawn(move || {
             let mut s = read_half;
             let mut role_tx = Some(role_tx);
@@ -321,6 +328,7 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
                     }
                     Ok(_) => {}
                     Err(_) => {
+                        gone_r.store(true, Ordering::SeqCst);
                         log("client detached");
                         // Actively prune this client rather than relying on
                         // the master-reader thread's write-triggered retain
@@ -344,10 +352,17 @@ fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Re
         let clients_f = clients.clone();
         let ring_f = ring.clone();
         let write_half_f = write_half.clone();
+        let gone_f = client_gone;
         std::thread::spawn(move || {
             let role = role_rx
                 .recv_timeout(FG_CLASSIFY_TIMEOUT)
                 .unwrap_or(ClientRole::Data);
+            // Connect-and-drop probes disconnect before any role frame; do not
+            // register them as Data (that would evict the live UI client).
+            if gone_f.load(Ordering::SeqCst) {
+                log("ignoring disconnect before classify");
+                return;
+            }
             if role == ClientRole::Foreground {
                 log("fg client attached");
                 return;
@@ -804,6 +819,53 @@ mod tests {
                 0,
                 "shell must still be alive after a mere detach"
             );
+        });
+    }
+
+    /// `discovery::is_live` / `list_sessions` connect-and-drop. Under
+    /// `MAX_DATA_CLIENTS=1`, classifying those probes as Data used to evict
+    /// the real UI client — multi-workspace "New Terminal" then showed a false
+    /// "Process exited" on every prior tab. A live data client must survive
+    /// a storm of probes.
+    #[test]
+    fn discovery_probe_does_not_evict_data_client() {
+        crate::test_support::with_temp_dir("probe-evict", |_dir| {
+            let daemon = TestDaemon::spawn("t-probe-evict", vec!["sleep".into(), "600".into()]);
+            let mut data = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut data).expect("hello");
+            assert_eq!(tag, T_HELLO);
+            // Announce as Data immediately (same as app attach's T_RESIZE).
+            write_frame(&mut data, T_RESIZE, &resize_payload(80, 24)).expect("resize");
+            // Past FG_CLASSIFY_TIMEOUT so the data client is registered.
+            std::thread::sleep(FG_CLASSIFY_TIMEOUT + Duration::from_millis(50));
+
+            for _ in 0..8 {
+                assert!(
+                    discovery::is_live(&daemon.sock),
+                    "probe must see a live daemon"
+                );
+            }
+            let _ = discovery::list_sessions();
+            // Let probe classify threads time out / observe disconnect.
+            std::thread::sleep(FG_CLASSIFY_TIMEOUT + Duration::from_millis(100));
+
+            // If the data client was evicted, the daemon shut the socket down
+            // and this control round-trip fails.
+            write_frame(&mut data, T_FG_REQ, &[]).expect("fg req after probes");
+            data.set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("read timeout");
+            let mut saw_fg = false;
+            for _ in 0..8 {
+                match read_frame(&mut data) {
+                    Ok((T_FG_REP, _)) => {
+                        saw_fg = true;
+                        break;
+                    }
+                    Ok(_) => continue,
+                    Err(e) => panic!("data client died after discovery probes: {e}"),
+                }
+            }
+            assert!(saw_fg, "data client must still receive T_FG_REP after probes");
         });
     }
 

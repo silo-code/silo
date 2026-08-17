@@ -62,7 +62,10 @@ impl SessionHostBackend {
         size: PtySize,
         command: Option<&[String]>,
     ) -> Result<(), String> {
-        let live = discovery::list_sessions().len();
+        // Count socket files only — do not `list_sessions()`/`is_live` probe
+        // every existing host on spawn (connect-and-drop was falsely exiting
+        // prior terminals' UI attaches under MAX_DATA_CLIENTS=1).
+        let live = discovery::sock_file_count();
         if should_warn_concurrency_cap(live, CONCURRENCY_WARN_THRESHOLD) {
             log_event(
                 "host_cap_warning",

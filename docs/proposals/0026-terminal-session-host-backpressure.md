@@ -161,6 +161,23 @@ Healthy restart: `app_boot` → `ui_attach_start` → `host_attach`/`attach` →
 Implementation: `terminal-attach-trace.ts`, `terminal_diag_log`, `log_event` →
 `terminal.log`. Live mirror: Output → **Terminals** (`silo:terminals`).
 
+### Multi-workspace create → false “Process exited”
+
+Symptom: create one terminal per open workspace back-to-back; only the last
+stays “alive” in the UI; earlier tabs show `Process exited (code 0)` while
+`session-host` shells are still running.
+
+Cause: `spawn_daemon` used to call `discovery::list_sessions()` (connect-and-drop
+`is_live` on every `*.sock`). Those probes timed out as Data under
+`MAX_DATA_CLIENTS=1` and evicted the real UI client → app reader EOF → false
+exit. Fix: daemon ignores disconnect-before-classify; spawn concurrency warning
+uses `sock_file_count()` (no probe). Regression:
+`discovery_probe_does_not_evict_data_client` in `pty-host`.
+
+Signature in logs: `ui_spawn_start` for workspace N+1 at the same ms as
+`exit … reason=eof` for workspace N; host log shows `evicted prior client (cap)`
+with no matching `kill` / shell teardown.
+
 ### What this does _not_ cover yet
 
 | Scenario                              | Covered by SIGSTOP harness?                                        | When         |
