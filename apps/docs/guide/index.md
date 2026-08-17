@@ -21,7 +21,7 @@ Download the latest release for your platform and open a folder to create your f
 Silo has a public extension SDK modeled on VS Code and Obsidian. Every built-in feature ships as an extension against the same API you get.
 
 **[What is an extension?](/guide/what-is-an-extension)** — start here for the mental model.
-**[Your first extension](/guide/getting-started)** — build a working extension step by step.
+**[Your first extension](/guide/your-first-extension)** — build a working extension step by step.
 **[Build with Claude Code](/guide/claude-skill)** — describe what you want; Claude scaffolds and installs it.
 
 ## API Reference

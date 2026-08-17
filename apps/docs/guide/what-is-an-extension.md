@@ -75,7 +75,7 @@ signatures, examples, and links to the type definitions.
 
 ## Next
 
-**Build one** — [Your first extension](/guide/getting-started) walks through a
+**Build one** — [Your first extension](/guide/your-first-extension) walks through a
 complete, working status-bar clock step by step. Prefer to describe what you
 want and let an AI do the scaffolding? See [Build with Claude Code](/guide/claude-skill).
 

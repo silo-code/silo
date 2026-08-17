@@ -406,7 +406,7 @@ If `url` has any other scheme (or is unparseable).
 
 ```ts
 // open a docs link in the browser
-await ctx.ui.openExternal("https://silo.dev/docs");
+await ctx.ui.openExternal("https://getsilo.dev/docs");
 
 // route a clicked Markdown link safely — bad schemes just reject
 try {

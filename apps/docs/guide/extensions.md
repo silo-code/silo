@@ -99,7 +99,7 @@ The **[Building Extensions](/guide/what-is-an-extension)** section of these
 guides covers everything from the mental model to publishing:
 
 - **[What is an extension?](/guide/what-is-an-extension)** — the `activate(ctx)` model
-- **[Your first extension](/guide/getting-started)** — step-by-step tutorial
+- **[Your first extension](/guide/your-first-extension)** — step-by-step tutorial
 - **[Build with Claude Code](/guide/claude-skill)** — describe what you want; get a working extension
 - **[Sharing extensions](/guide/sharing-extensions)** — publish to the registry (or sideload)
 

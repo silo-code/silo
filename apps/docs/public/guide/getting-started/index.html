@@ -1,0 +1,32 @@
+<!doctype html>
+<!--
+  Redirect stub for the old /guide/getting-started URL.
+
+  That path used to serve the build-your-first-extension tutorial, which was a
+  misnomer — the actual getting-started content lives at /guide/. The tutorial
+  moved to /guide/your-first-extension; this stub keeps existing inbound links
+  (the published @silo-code/sdk README, blog posts, anything already indexed)
+  from 404ing.
+
+  GitHub Pages serves static files only, so a real 301 isn't available — the
+  canonical link tag is what tells search engines where the page actually went.
+  Safe to delete once the old URL stops showing up in Search Console.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Moved — Your first extension | Silo</title>
+    <link
+      rel="canonical"
+      href="https://getsilo.dev/guide/your-first-extension"
+    />
+    <meta name="robots" content="noindex, follow" />
+    <meta http-equiv="refresh" content="0; url=/guide/your-first-extension" />
+  </head>
+  <body>
+    <p>
+      This page moved to
+      <a href="/guide/your-first-extension">Your first extension</a>.
+    </p>
+  </body>
+</html>
