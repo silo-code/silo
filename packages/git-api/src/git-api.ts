@@ -274,9 +274,24 @@ export interface GitAPI {
   /**
    * Remove a worktree's directory and its bookkeeping (`git worktree remove`).
    * The branch it had checked out is kept. Without `force`, git refuses to
-   * remove a worktree with modified or untracked files.
+   * remove a worktree with modified or untracked files; a **locked** worktree
+   * ({@link GitWorktree.locked}) is refused regardless of `force` — clear the
+   * lock with {@link GitAPI.unlockWorktree} first.
    */
   removeWorktree(cwd: string, path: string, force?: boolean): Promise<void>;
+  /**
+   * Lock a worktree (`git worktree lock`), so git refuses to remove or prune
+   * it — the convention for a checkout on removable media, or one another tool
+   * depends on. `reason` is surfaced back as {@link GitWorktree.locked} and in
+   * git's own refusal. Rejects when the worktree is already locked.
+   */
+  lockWorktree(cwd: string, path: string, reason?: string): Promise<void>;
+  /**
+   * Clear a worktree's lock (`git worktree unlock`), so it can be removed or
+   * pruned again. Rejects when the worktree isn't locked. See
+   * {@link GitWorktree.locked} for the lock's reason.
+   */
+  unlockWorktree(cwd: string, path: string): Promise<void>;
   /**
    * Drop bookkeeping for worktrees whose directories no longer exist
    * (`git worktree prune`) — the entries {@link GitWorktree.prunable} flags.

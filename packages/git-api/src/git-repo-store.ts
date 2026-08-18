@@ -89,6 +89,8 @@ export interface GitRepoStore {
    * generic to any caller instead of one wired through git-explorer's UI.
    */
   removeWorktree(path: string, force?: boolean): Promise<void>;
+  lockWorktree(path: string, reason?: string): Promise<void>;
+  unlockWorktree(path: string): Promise<void>;
   pruneWorktrees(): Promise<void>;
 
   /**
@@ -157,6 +159,8 @@ const NULL_GIT_API: GitAPI = {
   worktrees: unavailable,
   addWorktree: unavailable,
   removeWorktree: unavailable,
+  lockWorktree: unavailable,
+  unlockWorktree: unavailable,
   pruneWorktrees: unavailable,
   watchRepo: () => NULL_GIT_REPO_STORE,
 };
@@ -198,6 +202,8 @@ export const NULL_GIT_REPO_STORE: GitRepoStore = {
   renameBranch: unavailable,
   addWorktree: unavailable,
   removeWorktree: unavailable,
+  lockWorktree: unavailable,
+  unlockWorktree: unavailable,
   pruneWorktrees: unavailable,
   api: NULL_GIT_API,
   cwd: "",

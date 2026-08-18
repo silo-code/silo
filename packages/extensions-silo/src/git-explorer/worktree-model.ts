@@ -127,8 +127,10 @@ export type WorktreeAction = "open" | "close" | "remove" | "prune";
  * worktree as a workspace folder; `close` removes that folder (the worktree
  * itself is untouched); `remove` deletes the worktree via git. A **prunable**
  * row (directory already gone) only offers `prune`; the **main** worktree and
- * the workspace's **primary** folder can't be removed, and a **locked**
- * worktree can't be removed either. A **pending remove** (disk delete in
+ * the workspace's **primary** folder can't be removed. A **locked** worktree
+ * does offer `remove`: rather than hiding the action, the remove flow states
+ * the lock in its confirm and clears it (`confirmAndRemoveWorktree`). A
+ * **pending remove** (disk delete in
  * flight — ADR 0025) offers nothing until it finishes.
  */
 export function worktreeActions(
@@ -144,9 +146,7 @@ export function worktreeActions(
   const actions: WorktreeAction[] = [];
   if (!row.isOpen && !row.isCurrent) actions.push("open");
   if (row.isOpen && !row.isPrimary) actions.push("close");
-  if (!row.wt.isMain && !row.isPrimary && row.wt.locked == null) {
-    actions.push("remove");
-  }
+  if (!row.wt.isMain && !row.isPrimary) actions.push("remove");
   return actions;
 }
 

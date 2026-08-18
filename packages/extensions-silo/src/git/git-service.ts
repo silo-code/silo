@@ -446,6 +446,19 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
       ]);
     },
 
+    lockWorktree(cwd, path, reason) {
+      return run(cwd, [
+        "worktree",
+        "lock",
+        ...(reason ? ["--reason", reason] : []),
+        path,
+      ]);
+    },
+
+    unlockWorktree(cwd, path) {
+      return run(cwd, ["worktree", "unlock", path]);
+    },
+
     pruneWorktrees(cwd) {
       return run(cwd, ["worktree", "prune"]);
     },
