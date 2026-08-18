@@ -14,6 +14,7 @@ export type {
   CommitFileChange,
   CommitDetail,
   GitBranch,
+  GitRemote,
   GitWorktree,
 } from "./git-api";
 export type { GitRepoSnapshot, GitRepoStore } from "./git-repo-store";

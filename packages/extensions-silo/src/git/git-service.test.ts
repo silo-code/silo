@@ -864,6 +864,60 @@ describe(
       writeFileSync(join(repo, "a.txt"), "v2\n");
       expect(await git.isBinaryDiff(repo, "a.txt", "workingTree")).toBe(false);
     });
+
+    it("remotes reads back what `git remote add` configured", async () => {
+      await realExec(
+        "git",
+        ["remote", "add", "origin", "git@github.com:silo-code/silo.git"],
+        { cwd: repo },
+      );
+      expect(await git.remotes(repo)).toEqual([
+        {
+          name: "origin",
+          fetchUrl: "git@github.com:silo-code/silo.git",
+          pushUrl: "git@github.com:silo-code/silo.git",
+        },
+      ]);
+    });
+
+    it("remotes separates a configured pushurl from the fetch url", async () => {
+      await realExec(
+        "git",
+        ["remote", "add", "origin", "https://github.com/silo-code/silo.git"],
+        { cwd: repo },
+      );
+      await realExec(
+        "git",
+        [
+          "remote",
+          "set-url",
+          "--push",
+          "origin",
+          "git@github.com:silo-code/silo.git",
+        ],
+        { cwd: repo },
+      );
+      expect(await git.remotes(repo)).toEqual([
+        {
+          name: "origin",
+          fetchUrl: "https://github.com/silo-code/silo.git",
+          pushUrl: "git@github.com:silo-code/silo.git",
+        },
+      ]);
+    });
+
+    it("remotes resolves to an empty array with no remotes configured", async () => {
+      expect(await git.remotes(repo)).toEqual([]);
+    });
+
+    it("remotes resolves to an empty array outside a repository", async () => {
+      const plain = mkdtempSync(join(tmpdir(), "silo-nonrepo-"));
+      try {
+        expect(await git.remotes(plain)).toEqual([]);
+      } finally {
+        rmSync(plain, { recursive: true, force: true });
+      }
+    });
   },
 );
 

@@ -1,7 +1,8 @@
 # @silo-code/git-api
 
 Published types for [Silo](https://github.com/silo-code/silo)'s `silo.git`
-provider: the one-shot `GitAPI` (status, diff, commit, branches, worktrees, …)
+provider: the one-shot `GitAPI` (status, diff, commit, branches, remotes,
+worktrees, …)
 and the live `GitRepoStore` watch session (`GitAPI.watchRepo`). Import types
 from this package at build time; retrieve the live implementation at runtime
 through `@silo-code/sdk`'s `ctx.getExtension`.
@@ -35,6 +36,45 @@ import { useServiceState } from "@silo-code/sdk";
 const git = ctx.getExtension<GitAPI>("silo.git")?.api;
 const repo = git?.watchRepo(folder) ?? NULL_GIT_REPO_STORE;
 const { status, worktrees } = useServiceState(repo);
+```
+
+## Which Silo version ships which member
+
+`GitAPI` is implemented by `silo.git`, which is **bundled into the Silo app** —
+so the version that matters at runtime is the _host's_, not this package's. A
+newer `@silo-code/git-api` in your `devDependencies` will happily typecheck
+against a member the running host has never heard of; the failure lands at
+runtime as `api.newThing is not a function`.
+
+Declare the floor in your extension's manifest so Silo can warn the user:
+
+```json
+{ "silo": { "id": "you.your-extension", "engine": "^0.49.0" } }
+```
+
+| `@silo-code/git-api` | First Silo release | Added                                              |
+| -------------------- | ------------------ | -------------------------------------------------- |
+| 0.4.0                | 0.49.0             | `remotes`, `GitRemote`                             |
+| 0.3.0                | 0.49.0             | `lockWorktree`, `unlockWorktree`                   |
+| 0.2.0                | 0.47.0             | `watchRepo`, `GitRepoStore`, `NULL_GIT_REPO_STORE` |
+
+This package releases independently of the app, so a version can sit on npm
+for a while before any Silo release implements it — 0.3.0 published ahead of
+0.49.0 exactly that way. Check this table, not npm's "latest", when picking
+your `engine` floor.
+
+Note what `silo.engine` does and doesn't do: it's **advisory**. An
+incompatible extension shows a warning at install and in the extensions list,
+but the user can still install it, and the host still loads it. If you want a
+newer member without hard-breaking users on an older host, feature-detect it
+and keep a fallback:
+
+```ts
+const git = ctx.getExtension<GitAPI>("silo.git")?.api;
+const remotes =
+  typeof git?.remotes === "function"
+    ? await git.remotes(folder)
+    : await legacyRemotesViaExec(folder);
 ```
 
 See ADR 0009 and ADR 0037 in `silo-code/silo` for the rationale.
