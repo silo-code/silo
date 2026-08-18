@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.35.1](https://github.com/silo-code/silo/compare/sdk-v0.35.0...sdk-v0.35.1) (2026-08-18)
+
+
+### Bug Fixes
+
+* **docs:** move the extension tutorial off the /guide/getting-started URL ([#369](https://github.com/silo-code/silo/issues/369)) ([ba91e37](https://github.com/silo-code/silo/commit/ba91e37020b5829174b3d579ce72926fcf59565e))
+
 ## [0.35.0](https://github.com/silo-code/silo/compare/sdk-v0.34.1...sdk-v0.35.0) (2026-08-14)
 
 
