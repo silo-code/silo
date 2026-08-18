@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.36.0](https://github.com/silo-code/silo/compare/sdk-v0.35.1...sdk-v0.36.0) (2026-08-18)
+
+
+### Features
+
+* **terminal:** statusbar startup + session-host backpressure (phase 1–2) ([#368](https://github.com/silo-code/silo/issues/368)) ([87a340b](https://github.com/silo-code/silo/commit/87a340b6b52525c485a4a98c189d89e5b18d76a5))
+
 ## [0.35.1](https://github.com/silo-code/silo/compare/sdk-v0.35.0...sdk-v0.35.1) (2026-08-18)
 
 
