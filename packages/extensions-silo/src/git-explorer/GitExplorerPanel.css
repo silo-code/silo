@@ -1102,3 +1102,78 @@
 .git-file-stat.binary {
   color: var(--silo-color-text-lo);
 }
+
+/* Remove worktree dialog (ctx.ui.showModal content) — the obstacles git would
+   refuse over, stated once. Design tokens only, per the theming contract. */
+
+.git-wt-remove {
+  display: flex;
+  flex-direction: column;
+  /* Roomy on purpose: this dialog asks for an irreversible decision, so the
+     effects, the file list, and the button tray each get their own air rather
+     than reading as one dense block. Spacing lives on this container (the kit
+     components keep their own styles untouched). */
+  gap: 20px;
+  padding: 6px 0 2px;
+}
+
+.git-wt-remove-effects {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.git-wt-remove-effect {
+  /* Two columns — icon, then text — so an effect's own detail list (the
+     uncommitted files) can sit in the text column beneath it, aligned with
+     the sentence it belongs to rather than the icon gutter. */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
+  color: var(--silo-color-text);
+  overflow-wrap: anywhere;
+}
+
+.git-wt-remove-effect svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--silo-color-text-lo);
+}
+
+.git-wt-remove-effect-destructive svg {
+  color: var(--silo-color-err);
+}
+
+/* A row with a nested file list owns more vertical space than a bare one —
+   otherwise its own detail visually belongs to whatever comes next. */
+.git-wt-remove-effect-detailed {
+  padding-bottom: 6px;
+}
+
+.git-wt-remove-effect-text {
+  min-width: 0;
+}
+
+.git-wt-remove-files {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  /* Full text color, not the dimmed `-lo`: these are the files about to be
+     destroyed, so they read as the point of the row, not as a caption. */
+  color: var(--silo-color-text);
+  overflow-wrap: anywhere;
+}
+
+.git-wt-remove-files-more {
+  font-family: var(--silo-font-ui);
+}

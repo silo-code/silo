@@ -256,6 +256,7 @@ export function WorktreeManager({
       worktreePath: row.wt.path,
       workspaceId,
       isOpen: row.isOpen,
+      locked: row.wt.locked,
       notifyError,
       onSuccess: onChanged,
     });
@@ -359,7 +360,14 @@ export function WorktreeManager({
     }
     if (acts.includes("remove")) {
       parts.push(
-        <Tooltip key="remove" content="Remove worktree">
+        <Tooltip
+          key="remove"
+          content={
+            row.wt.locked != null
+              ? "Remove worktree (unlocks it first)"
+              : "Remove worktree"
+          }
+        >
           <IconButton
             size="sm"
             aria-label={`Remove worktree ${path.basename(row.wt.path)}`}

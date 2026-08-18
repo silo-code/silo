@@ -399,13 +399,13 @@ export function GitView({
           run: () => ctx.workspaces.removeFolder(workspaceId, folder),
         });
       }
-      if (linkedWorktree.locked == null) {
-        items.push({
-          label: "Remove worktree…",
-          danger: true,
-          run: () => void removeThisWorktree(),
-        });
-      }
+      // Offered for a locked worktree too — the remove flow confirms clearing
+      // the lock rather than the action silently going missing.
+      items.push({
+        label: "Remove worktree…",
+        danger: true,
+        run: () => void removeThisWorktree(),
+      });
     }
     return items;
   }
@@ -455,6 +455,7 @@ export function GitView({
       worktreePath: folder,
       workspaceId,
       isOpen: true,
+      locked: linkedWorktree?.locked ?? null,
       notifyError,
       onSuccess: refresh,
     });

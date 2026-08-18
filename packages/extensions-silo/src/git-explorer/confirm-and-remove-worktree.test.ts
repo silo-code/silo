@@ -19,6 +19,9 @@ function mockCtx(opts: {
   const removeFolder = vi.fn();
   const ctx = {
     ui: {
+      // The primary Remove dialog (rich content) and the fallback confirms
+      // draw from one queue, in call order, so a test reads top to bottom.
+      showModal: vi.fn(async () => opts.confirms[confirmIdx++] ?? false),
       confirm: vi.fn(async () => opts.confirms[confirmIdx++] ?? false),
       notify,
     },
@@ -31,9 +34,39 @@ function mockCtx(opts: {
 function fakeStore(
   removeWorktree: (path: string, force?: boolean) => Promise<void>,
   dispose: () => void = vi.fn(),
+  unlockWorktree: (path: string) => Promise<void> = vi.fn(async () => {}),
+  lockWorktree: (path: string, reason?: string) => Promise<void> = vi.fn(
+    async () => {},
+  ),
+  // The pre-confirm `git status` on the worktree being removed; clean unless a
+  // test says otherwise.
+  status: (
+    path: string,
+  ) => Promise<{ files: { path: string }[] }> = async () => ({
+    files: [],
+  }),
 ): GitRepoStore {
-  return { removeWorktree, dispose } as unknown as GitRepoStore;
+  return {
+    removeWorktree,
+    unlockWorktree,
+    lockWorktree,
+    dispose,
+    api: { status },
+  } as unknown as GitRepoStore;
 }
+
+const dirtyStatus = async () => ({ files: [{ path: "scratch.txt" }] });
+/** A status read that fails — the dialog then knows nothing about changes. */
+const unreadableStatus = async () => {
+  throw new Error("not a git repository");
+};
+
+const lockedError = (reason?: string) =>
+  new Error(
+    reason
+      ? `fatal: cannot remove a locked working tree, lock reason: ${reason}`
+      : "fatal: cannot remove a locked working tree",
+  );
 
 describe("confirmAndRemoveWorktree", () => {
   beforeEach(() => {
@@ -177,6 +210,341 @@ describe("confirmAndRemoveWorktree", () => {
       notifyError: vi.fn(),
     });
     expect(removeWorktree).toHaveBeenLastCalledWith("/w/repo-feat", true);
+    expect(getPendingWorktreeRemoves()).toHaveLength(0);
+  });
+
+  it("removes a known-locked worktree on one confirm, unlocking without asking again", async () => {
+    const removeWorktree = vi
+      .fn()
+      .mockRejectedValueOnce(lockedError("pinned by CI"))
+      .mockResolvedValueOnce(undefined);
+    const unlockWorktree = vi.fn(async () => {});
+    const ctx = mockCtx({ confirms: [true] });
+    await confirmAndRemoveWorktree({
+      ctx,
+      store: fakeStore(removeWorktree, vi.fn(), unlockWorktree),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      locked: "pinned by CI",
+      notifyError: vi.fn(),
+    });
+    // The whole point: the lock costs no extra prompt. One dialog, and no
+    // fallback confirm behind it. (What that dialog *says* is the model's
+    // job — see remove-worktree-model.test.ts.)
+    expect(ctx.ui.showModal).toHaveBeenCalledTimes(1);
+    expect(ctx.ui.confirm).not.toHaveBeenCalled();
+    expect(unlockWorktree).toHaveBeenCalledWith("/w/repo-feat");
+    // Unlocking is not itself a reason to force — the retry is a plain remove.
+    expect(removeWorktree).toHaveBeenCalledTimes(2);
+    expect(removeWorktree).toHaveBeenLastCalledWith("/w/repo-feat");
+    expect(getPendingWorktreeRemoves()).toHaveLength(0);
+  });
+
+  it("never unlocks when the row's lock is stale and git doesn't refuse", async () => {
+    // `locked` came from a list read before someone else unlocked it. Waiting
+    // for git's refusal means the flow writes nothing it doesn't have to.
+    const removeWorktree = vi.fn(async () => {});
+    const unlockWorktree = vi.fn(async () => {});
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [true] }),
+      store: fakeStore(removeWorktree, vi.fn(), unlockWorktree),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      locked: "pinned by CI",
+      notifyError: vi.fn(),
+    });
+    expect(unlockWorktree).not.toHaveBeenCalled();
+    expect(removeWorktree).toHaveBeenCalledExactlyOnceWith("/w/repo-feat");
+  });
+
+  it("touches nothing when the locked worktree's confirm is declined", async () => {
+    const removeWorktree = vi.fn(async () => {});
+    const unlockWorktree = vi.fn(async () => {});
+    const notifyError = vi.fn();
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [false] }),
+      store: fakeStore(removeWorktree, vi.fn(), unlockWorktree),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: true,
+      locked: "pinned by CI",
+      notifyError,
+    });
+    expect(unlockWorktree).not.toHaveBeenCalled();
+    expect(removeWorktree).not.toHaveBeenCalled();
+    expect(notifyError).not.toHaveBeenCalled();
+    expect(getPendingWorktreeRemoves()).toHaveLength(0);
+  });
+
+  it("removes a locked, dirty worktree with one dialog and no force prompt", async () => {
+    const removeWorktree = vi
+      .fn()
+      .mockRejectedValueOnce(lockedError("pinned by CI"))
+      .mockResolvedValueOnce(undefined);
+    const unlockWorktree = vi.fn(async () => {});
+    const ctx = mockCtx({ confirms: [true] });
+    await confirmAndRemoveWorktree({
+      ctx,
+      store: fakeStore(
+        removeWorktree,
+        vi.fn(),
+        unlockWorktree,
+        undefined,
+        dirtyStatus,
+      ),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      locked: "pinned by CI",
+      notifyError: vi.fn(),
+    });
+    // The file list was on screen when they confirmed, so the removal starts
+    // forced — asking again would be asking twice for the same answer.
+    expect(ctx.ui.showModal).toHaveBeenCalledTimes(1);
+    expect(ctx.ui.confirm).not.toHaveBeenCalled();
+    expect(removeWorktree).toHaveBeenCalledTimes(2);
+    expect(removeWorktree).toHaveBeenNthCalledWith(1, "/w/repo-feat", true);
+    expect(unlockWorktree).toHaveBeenCalledTimes(1);
+    expect(getPendingWorktreeRemoves()).toHaveLength(0);
+  });
+
+  it("still force-prompts for changes the dialog couldn't see", async () => {
+    // Unreadable status (or work saved after the dialog opened) — git's
+    // refusal is the first anyone hears of the changes, so it asks.
+    const removeWorktree = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new Error("contains modified or untracked files, use --force"),
+      )
+      .mockResolvedValueOnce(undefined);
+    const ctx = mockCtx({ confirms: [true, true] });
+    await confirmAndRemoveWorktree({
+      ctx,
+      store: fakeStore(
+        removeWorktree,
+        vi.fn(),
+        undefined,
+        undefined,
+        unreadableStatus,
+      ),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      notifyError: vi.fn(),
+    });
+    expect(ctx.ui.showModal).toHaveBeenCalledTimes(1);
+    expect(ctx.ui.confirm).toHaveBeenCalledTimes(1);
+    expect(removeWorktree).toHaveBeenLastCalledWith("/w/repo-feat", true);
+  });
+
+  it("restores the lock, reason and all, when the force confirm is declined", async () => {
+    // git checks the lock before the working tree, so a locked+dirty worktree
+    // can only reach the force confirm unlocked. Backing out there must not
+    // cost the lock — nobody agreed to leave the worktree behind unprotected.
+    const removeWorktree = vi
+      .fn()
+      .mockRejectedValueOnce(lockedError("pinned by CI"))
+      .mockRejectedValueOnce(
+        new Error("contains modified or untracked files, use --force"),
+      );
+    const lockWorktree = vi.fn(async () => {});
+    let dirty = 0;
+    const stop = subscribeWorktreeListDirty(() => {
+      dirty += 1;
+    });
+    const notifyError = vi.fn();
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [true, false] }),
+      store: fakeStore(
+        removeWorktree,
+        vi.fn(),
+        vi.fn(async () => {}),
+        lockWorktree,
+      ),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      locked: "pinned by CI",
+      notifyError,
+    });
+    stop();
+    expect(lockWorktree).toHaveBeenCalledExactlyOnceWith(
+      "/w/repo-feat",
+      "pinned by CI",
+    );
+    expect(notifyError).not.toHaveBeenCalled();
+    // Once for the unlock, once for the restore — the badge goes and comes back.
+    expect(dirty).toBe(2);
+    expect(getPendingWorktreeRemoves()).toHaveLength(0);
+  });
+
+  it("restores a reasonless lock without inventing a reason", async () => {
+    const removeWorktree = vi
+      .fn()
+      .mockRejectedValueOnce(lockedError())
+      .mockRejectedValueOnce(
+        new Error("contains modified or untracked files, use --force"),
+      );
+    const lockWorktree = vi.fn(async () => {});
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [true, false] }),
+      store: fakeStore(
+        removeWorktree,
+        vi.fn(),
+        vi.fn(async () => {}),
+        lockWorktree,
+      ),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      locked: "",
+      notifyError: vi.fn(),
+    });
+    expect(lockWorktree).toHaveBeenCalledExactlyOnceWith("/w/repo-feat");
+  });
+
+  it("restores the lock when the removal fails outright", async () => {
+    const removeWorktree = vi
+      .fn()
+      .mockRejectedValueOnce(lockedError("pinned by CI"))
+      .mockRejectedValueOnce(new Error("disk full"));
+    const lockWorktree = vi.fn(async () => {});
+    const notifyError = vi.fn();
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [true] }),
+      store: fakeStore(
+        removeWorktree,
+        vi.fn(),
+        vi.fn(async () => {}),
+        lockWorktree,
+      ),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      locked: "pinned by CI",
+      notifyError,
+    });
+    expect(lockWorktree).toHaveBeenCalledExactlyOnceWith(
+      "/w/repo-feat",
+      "pinned by CI",
+    );
+    // The removal failure is reported; the restore is silent when it works.
+    expect(notifyError).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the lock off after a successful removal", async () => {
+    const removeWorktree = vi
+      .fn()
+      .mockRejectedValueOnce(lockedError("pinned by CI"))
+      .mockResolvedValueOnce(undefined);
+    const lockWorktree = vi.fn(async () => {});
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [true] }),
+      store: fakeStore(
+        removeWorktree,
+        vi.fn(),
+        vi.fn(async () => {}),
+        lockWorktree,
+      ),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      locked: "pinned by CI",
+      notifyError: vi.fn(),
+    });
+    expect(lockWorktree).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed restore — the worktree is left unlocked either way", async () => {
+    const removeWorktree = vi
+      .fn()
+      .mockRejectedValueOnce(lockedError("pinned by CI"))
+      .mockRejectedValueOnce(
+        new Error("contains modified or untracked files, use --force"),
+      );
+    const lockWorktree = vi.fn(async () => {
+      throw new Error("fatal: '/w/repo-feat' is already locked");
+    });
+    const notifyError = vi.fn();
+    await confirmAndRemoveWorktree({
+      ctx: mockCtx({ confirms: [true, false] }),
+      store: fakeStore(
+        removeWorktree,
+        vi.fn(),
+        vi.fn(async () => {}),
+        lockWorktree,
+      ),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      locked: "pinned by CI",
+      notifyError,
+    });
+    expect(notifyError).toHaveBeenCalledExactlyOnceWith(
+      'Could not restore the lock on "repo-feat"',
+      expect.any(Error),
+    );
+  });
+
+  it("reports why the unlock failed, not git's refusal to remove", async () => {
+    const removeWorktree = vi.fn(async () => {
+      throw lockedError("pinned by CI");
+    });
+    const unlockError = new Error("EACCES: .git/worktrees/repo-feat/locked");
+    const unlockWorktree = vi.fn(async () => {
+      throw unlockError;
+    });
+    const notifyError = vi.fn();
+    const ctx = mockCtx({ confirms: [true] });
+    await confirmAndRemoveWorktree({
+      ctx,
+      store: fakeStore(removeWorktree, vi.fn(), unlockWorktree),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      locked: "pinned by CI",
+      notifyError,
+    });
+    // The unlock was already authorized, so a still-locked tree is reported —
+    // never re-prompted for the same decision — and the toast names the step
+    // that actually broke rather than its downstream symptom.
+    expect(ctx.ui.showModal).toHaveBeenCalledTimes(1);
+    expect(ctx.ui.confirm).not.toHaveBeenCalled();
+    expect(removeWorktree).toHaveBeenCalledTimes(2);
+    expect(notifyError).toHaveBeenCalledExactlyOnceWith(
+      'Remove "repo-feat" failed',
+      unlockError,
+    );
+    expect(getPendingWorktreeRemoves()).toHaveLength(0);
+  });
+
+  it("falls back to a confirm for a lock applied after the list was read", async () => {
+    // No `locked` — the row was drawn before someone locked the worktree, so
+    // git's refusal is the first anyone hears of it.
+    const removeWorktree = vi
+      .fn()
+      .mockRejectedValueOnce(lockedError("pinned by CI"))
+      .mockResolvedValueOnce(undefined);
+    const unlockWorktree = vi.fn(async () => {});
+    const ctx = mockCtx({ confirms: [true, true] });
+    await confirmAndRemoveWorktree({
+      ctx,
+      store: fakeStore(removeWorktree, vi.fn(), unlockWorktree),
+      worktreePath: "/w/repo-feat",
+      workspaceId: "ws1",
+      isOpen: false,
+      notifyError: vi.fn(),
+    });
+    expect(ctx.ui.confirm).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        title: '"repo-feat" is locked',
+        body: expect.stringContaining("pinned by CI"),
+      }),
+    );
+    expect(unlockWorktree).toHaveBeenCalledWith("/w/repo-feat");
+    expect(removeWorktree).toHaveBeenCalledTimes(2);
     expect(getPendingWorktreeRemoves()).toHaveLength(0);
   });
 
