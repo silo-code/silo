@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.49.0](https://github.com/silo-code/silo/compare/silo-v0.48.0...silo-v0.49.0) (2026-08-18)
+
+
+### Features
+
+* **git-explorer:** remove a locked worktree in one confirmation ([#372](https://github.com/silo-code/silo/issues/372)) ([7fd141f](https://github.com/silo-code/silo/commit/7fd141f94d17fe204fe593b16be4a4b4b73121e0))
+* **terminal:** statusbar startup + session-host backpressure (phase 1–2) ([#368](https://github.com/silo-code/silo/issues/368)) ([87a340b](https://github.com/silo-code/silo/commit/87a340b6b52525c485a4a98c189d89e5b18d76a5))
+* **website:** add agent trust band under hero demo ([#364](https://github.com/silo-code/silo/issues/364)) ([ef0b7a4](https://github.com/silo-code/silo/commit/ef0b7a4628d43614ddd6a293de73826de7a31182))
+* **website:** update homepage demo's Navigator to the new view list ([#365](https://github.com/silo-code/silo/issues/365)) ([b9e4d1d](https://github.com/silo-code/silo/commit/b9e4d1d6fdad38001727c1fb3b86127422edd0d0))
+
+
+### Bug Fixes
+
+* **docs:** move the extension tutorial off the /guide/getting-started URL ([#369](https://github.com/silo-code/silo/issues/369)) ([ba91e37](https://github.com/silo-code/silo/commit/ba91e37020b5829174b3d579ce72926fcf59565e))
+* **docs:** win the shell-vs-marketing CSS cascade on wide viewports ([#362](https://github.com/silo-code/silo/issues/362)) ([0555347](https://github.com/silo-code/silo/commit/05553478c7843b5c16e100195b4eb07cf6fd6fd7))
+* **layout:** stop the peeked side panel hanging 36px below the column ([#367](https://github.com/silo-code/silo/issues/367)) ([3357962](https://github.com/silo-code/silo/commit/3357962ee1659aa8c6c62a57b8ff952a153adc87))
+
 ## [0.48.0](https://github.com/silo-code/silo/compare/silo-v0.47.0...silo-v0.48.0) (2026-08-14)
 
 
