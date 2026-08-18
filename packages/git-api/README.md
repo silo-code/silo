@@ -55,19 +55,19 @@ runtime as `api.newThing is not a function`.
 Declare the floor in your extension's manifest so Silo can warn the user:
 
 ```json
-{ "silo": { "id": "you.your-extension", "engine": "^0.49.0" } }
+{ "silo": { "id": "you.your-extension", "engine": "^0.50.0" } }
 ```
 
 | `@silo-code/git-api` | First Silo release | Added                                              |
 | -------------------- | ------------------ | -------------------------------------------------- |
-| 0.4.0                | 0.49.0             | `remotes`, `GitRemote`                             |
+| 0.4.0                | 0.50.0             | `remotes`, `GitRemote`                             |
 | 0.3.0                | 0.49.0             | `lockWorktree`, `unlockWorktree`                   |
 | 0.2.0                | 0.47.0             | `watchRepo`, `GitRepoStore`, `NULL_GIT_REPO_STORE` |
 
 This package releases independently of the app, so a version can sit on npm
-for a while before any Silo release implements it — 0.3.0 published ahead of
-0.49.0 exactly that way. Check this table, not npm's "latest", when picking
-your `engine` floor.
+for a while before any Silo release implements it — 0.3.0 sat on npm from
+0.48.0 until 0.49.0 exactly that way. Check this table, not npm's
+"latest", when picking your `engine` floor.
 
 Note what `silo.engine` does and doesn't do: it's **advisory**. An
 incompatible extension shows a warning at install and in the extensions list,
