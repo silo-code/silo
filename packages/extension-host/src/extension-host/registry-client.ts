@@ -11,6 +11,7 @@
  */
 import type { Permission } from "@silo-code/sdk";
 import type { InstalledExtension } from "./extension-manager";
+import { isEngineCompatible } from "./engine-compat";
 
 /** The official registry. Federated/private registries (P3) are other base URLs. */
 export const DEFAULT_REGISTRY_URL = "https://registry.getsilo.dev";
@@ -241,6 +242,15 @@ export function compareVersions(a: string, b: string): number {
  * Diff installed registry-sourced extensions against the index. Only rows
  * installed from the registry are considered (folder/URL installs have no
  * upstream; npm installs re-resolve through npm in `update()`).
+ *
+ * An update whose `engine` floor is above the running host is **skipped**, not
+ * offered: everything downstream of this list is an invitation to act (the
+ * Update button, the page's count badge, the status bar's update dot), and
+ * updating into a build this host can't run is a downgrade, not an upgrade.
+ * The user sees it again once they update Silo itself. An entry with no
+ * `engine`, or a host version that won't parse, is unconstrained and still
+ * offered — same "no data means no constraint" default `isEngineCompatible`
+ * uses everywhere else.
  */
 export function findUpdates(
   extensions: readonly InstalledExtension[],
@@ -253,6 +263,8 @@ export function findUpdates(
     const latest = entry?.latest;
     if (!latest) continue;
     if (compareVersions(latest.version, ext.version) <= 0) continue;
+    if (!isEngineCompatible(latest.engine ?? undefined, ext.hostVersion))
+      continue;
     updates.push({
       id: ext.id,
       name: ext.name,
