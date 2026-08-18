@@ -21,7 +21,7 @@ surface at a time.
 
 - **Building your first extension?** Copy **hello** — it's the permission-free
   starter (it's also the basis of the GitHub "use this template" repo). Then read
-  [Your first extension](../../apps/docs/guide/getting-started.md).
+  [Your first extension](../../apps/docs/guide/your-first-extension.md).
 - **Need persistent state or a settings page?** See **clock**.
 - **Need to talk to the user** (notifications, dialogs, menus)? See
   **notify-demo**.

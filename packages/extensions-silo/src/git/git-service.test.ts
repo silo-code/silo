@@ -595,6 +595,90 @@ describe(
       }
     });
 
+    it("refuses to remove a locked worktree until it is unlocked", async () => {
+      await seedCommit();
+      const wtPath = join(tmpdir(), `silo-gitwt-${Date.now()}`);
+      try {
+        await git.addWorktree(repo, wtPath, { newBranch: "locked-branch" });
+        await realExec(
+          "git",
+          ["worktree", "lock", "--reason", "pinned by CI", wtPath],
+          { cwd: repo },
+        );
+        expect((await git.worktrees(repo)).find((w) => !w.isMain)?.locked).toBe(
+          "pinned by CI",
+        );
+
+        // Pins the message confirmAndRemoveWorktree's LOCKED_RE matches on —
+        // and that `force` alone doesn't get past a lock.
+        await expect(git.removeWorktree(repo, wtPath, true)).rejects.toThrow(
+          /locked working tree/i,
+        );
+        expect(existsSync(wtPath)).toBe(true);
+
+        await git.unlockWorktree(repo, wtPath);
+        expect((await git.worktrees(repo)).find((w) => !w.isMain)?.locked).toBe(
+          null,
+        );
+        await git.removeWorktree(repo, wtPath);
+        expect(existsSync(wtPath)).toBe(false);
+      } finally {
+        rmSync(wtPath, { recursive: true, force: true });
+      }
+    });
+
+    it("reports a lock ahead of uncommitted changes on the same worktree", async () => {
+      await seedCommit();
+      const wtPath = join(tmpdir(), `silo-gitwt-${Date.now()}`);
+      try {
+        await git.addWorktree(repo, wtPath, { newBranch: "locked-dirty" });
+        writeFileSync(join(wtPath, "scratch.txt"), "dirty\n");
+        await realExec("git", ["worktree", "lock", wtPath], { cwd: repo });
+
+        // Why confirmAndRemoveWorktree can't clear the lock only once it knows
+        // the removal will otherwise succeed: git stops at the lock and never
+        // gets as far as looking at the working tree, so "is it also dirty?"
+        // is unanswerable until the lock is off.
+        await expect(git.removeWorktree(repo, wtPath)).rejects.toThrow(
+          /locked working tree/i,
+        );
+        await git.unlockWorktree(repo, wtPath);
+        await expect(git.removeWorktree(repo, wtPath)).rejects.toThrow(
+          /contains modified or untracked files|use --force/i,
+        );
+
+        // …which is why the remove flow can put the lock back: same reason,
+        // same refusal, as if the abandoned removal had never run.
+        await git.lockWorktree(repo, wtPath, "pinned by CI");
+        expect((await git.worktrees(repo)).find((w) => !w.isMain)?.locked).toBe(
+          "pinned by CI",
+        );
+        await expect(git.removeWorktree(repo, wtPath)).rejects.toThrow(
+          /locked working tree/i,
+        );
+      } finally {
+        rmSync(wtPath, { recursive: true, force: true });
+      }
+    });
+
+    it("locks a worktree with no reason at all", async () => {
+      await seedCommit();
+      const wtPath = join(tmpdir(), `silo-gitwt-${Date.now()}`);
+      try {
+        await git.addWorktree(repo, wtPath, { newBranch: "lock-noreason" });
+        await git.lockWorktree(repo, wtPath);
+        // `""`, not null: locked, but without a reason to show.
+        expect((await git.worktrees(repo)).find((w) => !w.isMain)?.locked).toBe(
+          "",
+        );
+        await expect(git.lockWorktree(repo, wtPath)).rejects.toThrow(
+          /already locked/i,
+        );
+      } finally {
+        rmSync(wtPath, { recursive: true, force: true });
+      }
+    });
+
     it("flags a deleted worktree as prunable and prunes it", async () => {
       await seedCommit();
       const wtPath = join(tmpdir(), `silo-gitwt-${Date.now()}`);

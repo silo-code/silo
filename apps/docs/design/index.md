@@ -38,7 +38,7 @@ component can't do what you need, that's a gap to report, not CSS to write.
 
 Extensions already externalize `react`, `react/jsx-runtime`, and
 `@silo-code/sdk` in their build (see
-[Your first extension](/guide/getting-started)), so the components resolve to
+[Your first extension](/guide/your-first-extension)), so the components resolve to
 the host's own copy at runtime — nothing new to configure.
 
 ```tsx

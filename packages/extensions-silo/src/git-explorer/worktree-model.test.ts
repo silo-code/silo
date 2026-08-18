@@ -194,13 +194,14 @@ describe("worktreeActions", () => {
     ).toEqual([]);
   });
 
-  it("withholds remove from a locked worktree", () => {
+  it("still offers remove for a locked worktree (the flow confirms unlocking)", () => {
     expect(worktreeActions({ ...base, wt: wt({ locked: "" }) })).toEqual([
       "open",
+      "remove",
     ]);
     expect(
       worktreeActions({ ...base, wt: wt({ locked: "pinned by CI" }) }),
-    ).toEqual(["open"]);
+    ).toEqual(["open", "remove"]);
   });
 
   it("offers only prune for a prunable row", () => {

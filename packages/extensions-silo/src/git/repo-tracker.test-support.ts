@@ -192,6 +192,8 @@ export function createFakeGitApi(): GitAPI & {
     isBinaryDiff: unimplemented,
     addWorktree: async () => {},
     removeWorktree: async () => {},
+    lockWorktree: async () => {},
+    unlockWorktree: async () => {},
     pruneWorktrees: async () => {},
     watchRepo: () => {
       throw new Error("not stubbed");

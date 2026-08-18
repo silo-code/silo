@@ -293,8 +293,30 @@ _Avoid_: Close view, Close worktree (ambiguous with Remove), detach, unload
 
 **Remove worktree**:
 Delete a linked worktree's directory and git bookkeeping; the branch itself is
-kept. Irreversible for uncommitted work when force-confirmed.
+kept. Irreversible for uncommitted work when force-confirmed. The first confirm
+states everything known up front — the lock (cleared as part of removing) and
+whether there are uncommitted changes — but only **discarding** that work earns
+a second confirm, because it's the one step nothing can undo.
 _Avoid_: Delete worktree, destroy worktree
+
+**Locked worktree**:
+A worktree git has been told not to remove or prune (`git worktree lock`),
+usually with a reason — the convention for a checkout on removable media or one
+another tool depends on. Shown as a "locked" badge, with the reason as its
+tooltip. Silo never locks a worktree on its own initiative — it reports locks,
+and clears (then restores) one only in service of a Remove worktree the user
+asked for.
+_Avoid_: Pinned, protected, frozen
+
+**Unlock worktree**:
+Clear a worktree's lock so it can be removed or pruned again. Not a standalone
+action: it's folded into Remove worktree, which states the lock in its single
+confirm and names the button "Unlock and Remove". Unlocking is a step on the
+way to removing, not a state users manage on its own — and not a second
+decision to prompt for. If the removal it cleared the way for doesn't happen
+(declined force confirm, failure), the lock and its reason are **restored** —
+Silo never leaves a worktree it didn't remove unlocked.
+_Avoid_: Release, force unlock
 
 **Prune stale**:
 Clear git bookkeeping for worktrees whose directories are already gone.

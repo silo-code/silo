@@ -1,6 +1,6 @@
 # Interface: UiService
 
-Defined in: [packages/sdk/src/ui-service.ts:291](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L291)
+Defined in: [packages/sdk/src/ui-service.ts:292](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L292)
 
 The user-interaction domain, exposed as [ExtensionContext.ui](ExtensionContext.md#ui). The host
 renders the chrome; an extension only asks. Interactions today:
@@ -33,7 +33,7 @@ progress) is planned — see the roadmap.
 pickFolder(opts?): Promise<string | null>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:298](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L298)
+Defined in: [packages/sdk/src/ui-service.ts:299](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L299)
 
 Show the native folder picker. Resolves to the chosen absolute path, or
 `null` if the user cancelled.
@@ -60,7 +60,7 @@ Absolute path to open the dialog at.
 pickFile(opts?): Promise<string | null>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:306](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L306)
+Defined in: [packages/sdk/src/ui-service.ts:307](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L307)
 
 Show the native open-file picker (single selection). Resolves to the chosen
 absolute path, or `null` if the user cancelled.
@@ -93,7 +93,7 @@ Restrict the selectable file types (see [FileFilter](FileFilter.md)).
 savePath(opts?): Promise<string | null>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:317](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L317)
+Defined in: [packages/sdk/src/ui-service.ts:318](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L318)
 
 Show the native save dialog. Resolves to the chosen destination's absolute
 path, or `null` if the user cancelled.
@@ -129,7 +129,7 @@ notify(
    options?): void;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:352](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L352)
+Defined in: [packages/sdk/src/ui-service.ts:353](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L353)
 
 Show a transient toast notification to the user. Fire-and-forget — the host
 renders it (and, for `info` / `warn` without actions, auto-dismisses it).
@@ -188,7 +188,7 @@ ctx.ui.notify("error", String(err), {
 showMenu(opts): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:387](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L387)
+Defined in: [packages/sdk/src/ui-service.ts:388](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L388)
 
 Pop a menu — the same themed primitive behind every context menu and
 dropdown in Silo. Supply the [rows](../type-aliases/MenuEntry.md) and where to place it
@@ -238,7 +238,7 @@ ctx.ui.showMenu({ items, anchor: buttonEl });
 confirm(opts): Promise<boolean>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:406](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L406)
+Defined in: [packages/sdk/src/ui-service.ts:407](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L407)
 
 Pop a host-rendered confirm dialog and resolve to the user's choice —
 `true` for confirm, `false` for cancel. Always dismissible: `Escape` and
@@ -276,7 +276,7 @@ if (await ctx.ui.confirm({
 prompt(opts): Promise<string | null>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:417](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L417)
+Defined in: [packages/sdk/src/ui-service.ts:418](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L418)
 
 Pop a host-rendered single-line input dialog and resolve to the entered
 string, or `null` if the user cancelled (`Escape` / backdrop / Cancel).
@@ -306,7 +306,7 @@ if (name !== null) rename(name);
 showModal<T>(render, options?): Promise<T | undefined>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:454](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L454)
+Defined in: [packages/sdk/src/ui-service.ts:455](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L455)
 
 Pop a host-rendered modal around your **own custom content** — the escape
 hatch beyond [confirm](#confirm) / [UiService.prompt \| prompt](#prompt) when you need a form or bespoke layout. The host owns the hard parts
@@ -373,7 +373,7 @@ if (changes) apply(changes);
 openExternal(url): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:486](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L486)
+Defined in: [packages/sdk/src/ui-service.ts:487](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L487)
 
 Hand a URL to the operating system — open an `http`/`https` link in the
 user's default browser, or a `mailto:` link in their mail client. The host
@@ -406,7 +406,7 @@ If `url` has any other scheme (or is unparseable).
 
 ```ts
 // open a docs link in the browser
-await ctx.ui.openExternal("https://silo.dev/docs");
+await ctx.ui.openExternal("https://getsilo.dev/docs");
 
 // route a clicked Markdown link safely — bad schemes just reject
 try {
@@ -424,7 +424,7 @@ try {
 getActiveSelectionText(): string | null;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:501](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L501)
+Defined in: [packages/sdk/src/ui-service.ts:502](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L502)
 
 The text currently selected in the **focused surface** — the active editor
 or a focused terminal — or `null` when nothing is selected. Reads the

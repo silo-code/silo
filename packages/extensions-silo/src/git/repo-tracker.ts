@@ -401,6 +401,12 @@ export function createGitRepoTrackerRegistry(deps: {
           return mutator(path, force);
         };
       })(),
+      lockWorktree: makeMutator(tracker, (path: string, reason?: string) =>
+        api.lockWorktree(cwd, path, reason),
+      ),
+      unlockWorktree: makeMutator(tracker, (path: string) =>
+        api.unlockWorktree(cwd, path),
+      ),
       pruneWorktrees: makeMutator(tracker, () => api.pruneWorktrees(cwd)),
       api,
       cwd,

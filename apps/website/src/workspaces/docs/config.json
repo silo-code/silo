@@ -65,7 +65,7 @@
   "changes": [
     {
       "status": "M",
-      "path": "guide/getting-started.md"
+      "path": "guide/your-first-extension.md"
     },
     {
       "status": "M",
@@ -176,7 +176,7 @@
         ]
       },
       {
-        "path": "guide/getting-started.md",
+        "path": "guide/your-first-extension.md",
         "matches": [
           "Silo ships first-party extensions built on the same public SDK.",
           "  extension search is available from the Browse tab"

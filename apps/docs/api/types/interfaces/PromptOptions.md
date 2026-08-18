@@ -1,6 +1,6 @@
 # Interface: PromptOptions
 
-Defined in: [packages/sdk/src/ui-service.ts:113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L113)
+Defined in: [packages/sdk/src/ui-service.ts:114](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L114)
 
 Options for [UiService.prompt](UiService.md#prompt) — a host-rendered single-line text input
 dialog. Always dismissible (`Escape` and backdrop-click both resolve to
@@ -14,7 +14,7 @@ dialog. Always dismissible (`Escape` and backdrop-click both resolve to
 title: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:115](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L115)
+Defined in: [packages/sdk/src/ui-service.ts:116](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L116)
 
 The dialog's heading.
 
@@ -26,7 +26,7 @@ The dialog's heading.
 optional label?: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:117](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L117)
+Defined in: [packages/sdk/src/ui-service.ts:118](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L118)
 
 Optional label shown above the input.
 
@@ -38,7 +38,7 @@ Optional label shown above the input.
 optional initialValue?: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:119](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L119)
+Defined in: [packages/sdk/src/ui-service.ts:120](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L120)
 
 Pre-fills the input (and is selected for easy replacement).
 
@@ -50,7 +50,7 @@ Pre-fills the input (and is selected for easy replacement).
 optional placeholder?: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:121](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L121)
+Defined in: [packages/sdk/src/ui-service.ts:122](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L122)
 
 Placeholder shown when the input is empty.
 
@@ -62,7 +62,7 @@ Placeholder shown when the input is empty.
 optional confirmLabel?: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:123](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L123)
+Defined in: [packages/sdk/src/ui-service.ts:124](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L124)
 
 Label for the confirm button. Default `"OK"`.
 
@@ -74,6 +74,6 @@ Label for the confirm button. Default `"OK"`.
 optional cancelLabel?: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:125](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L125)
+Defined in: [packages/sdk/src/ui-service.ts:126](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L126)
 
 Label for the cancel button. Default `"Cancel"`.

@@ -2,7 +2,7 @@
 
 An extension is a **standalone package** that anyone installs into Silo from a
 folder — no rebuild of the app required. If you've followed [Your first
-extension](/guide/getting-started) you've already written one; this page is the
+extension](/guide/your-first-extension) you've already written one; this page is the
 full packaging contract: the manifest, the build, and how the host loads it.
 
 ::: tip Distribution
