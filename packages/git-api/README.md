@@ -13,11 +13,17 @@ through `@silo-code/sdk`'s `ctx.getExtension`.
 npm i -D @silo-code/git-api
 ```
 
-Install it as a **devDependency**: an extension never bundles this package.
-Mark `@silo-code/git-api` (alongside `@silo-code/sdk` and `react`) as
-**external** at build time — the Silo host provides the real `silo.git`
-extension at runtime, this package is types only (plus one small runtime
-fallback, `NULL_GIT_REPO_STORE`).
+Install it as a **devDependency** — you need it to compile, not to ship.
+
+**Do not mark it external.** Unlike `@silo-code/sdk` and `react`, this package
+is _not_ one of the modules the Silo host hands to a loaded extension
+(`SHARED_DEPS` is `react`, `react/jsx-runtime`, `@silo-code/sdk` — nothing
+else). An external bare `import … from "@silo-code/git-api"` survives into
+your bundle with nothing to resolve it, and the extension fails to load. Leave
+it bundled: the type-only imports erase to nothing, and the one runtime export
+(`NULL_GIT_REPO_STORE`, a small null-object literal) inlines. The real
+implementation still arrives at runtime through `ctx.getExtension("silo.git")`
+— that's unaffected either way.
 
 `@silo-code/sdk` is a **peer** dependency (`>=0.34.0`, a floor only — the same
 additive-only shape `silo.engine` uses), not a hard one: the only thing this
