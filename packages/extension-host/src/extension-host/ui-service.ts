@@ -13,6 +13,7 @@ import {
 import { getActiveSelectionText } from "./active-selection";
 import type { NotifyAction, NotifyOptions, UiService } from "@silo-code/sdk";
 import { createHostChannel } from "./output-store";
+import { clearBusyStatus, setBusyStatus } from "./busy-status";
 
 // All notifications are also mirrored into the Output panel's "Notifications"
 // channel so users can review them after the toast has dismissed.
@@ -216,6 +217,10 @@ export function getUiService(): UiService {
     },
     getActiveSelectionText() {
       return getActiveSelectionText();
+    },
+    busyStatus: {
+      set: setBusyStatus,
+      clear: clearBusyStatus,
     },
   };
   return service;

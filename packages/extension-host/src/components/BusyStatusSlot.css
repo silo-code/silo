@@ -1,0 +1,114 @@
+.busy-status-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 28rem;
+  height: 100%;
+  padding: 0 8px;
+  margin: 0;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.busy-status-slot--flash {
+  cursor: default;
+  pointer-events: none;
+}
+
+.busy-status-slot__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.busy-status-slot__spin,
+.busy-status-popover__spin {
+  flex-shrink: 0;
+  animation: busy-status-spin 1s linear infinite;
+}
+
+.busy-status-slot__badge {
+  flex-shrink: 0;
+}
+
+@keyframes busy-status-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Informational card — not a menu. No hover “selectable row” treatment. */
+.busy-status-popover {
+  position: fixed;
+  z-index: 9998;
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 0;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-notify-text);
+  background: var(--silo-notify-bg);
+  border: 1px solid var(--silo-notify-border);
+  border-radius: var(--silo-radius-md);
+  box-shadow: var(--silo-notify-shadow);
+  overflow: hidden;
+}
+
+.busy-status-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--silo-notify-border);
+}
+
+.busy-status-popover__title {
+  font-weight: 600;
+  font-size: var(--silo-font-size-sm);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--silo-notify-text-hi);
+  opacity: 0.85;
+}
+
+.busy-status-popover__list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  max-height: min(280px, 50vh);
+  overflow-y: auto;
+}
+
+.busy-status-popover__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: default;
+  user-select: text;
+}
+
+.busy-status-popover__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.busy-status-popover__label {
+  color: var(--silo-notify-text-hi);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.busy-status-popover__detail {
+  margin-top: 2px;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-notify-text);
+  opacity: 0.55;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}

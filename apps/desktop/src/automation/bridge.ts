@@ -19,6 +19,8 @@ import {
   getActiveDockApi,
   getOutputLogs,
   restoreRegionFocus,
+  setBusyStatus,
+  clearBusyStatus,
 } from "@silo-code/extension-host";
 
 // --- Monaco introspection (source of truth, not DOM scraping) ---------------
@@ -295,6 +297,29 @@ async function handleOp(
     // Snapshot the host context-keys (activeEditorId / activeViewerId / ...).
     case "contextKeys":
       return { ...contextKeys };
+
+    // RFC 0026 / freeze-repro: push a StatusBar busy-status entry so a human
+    // (or script) can see when a stall probe starts/ends. Paint-only — does
+    // not affect terminal I/O.
+    case "setBusyStatus": {
+      const id = String(args.id ?? "automation.busy");
+      const label = String(args.label ?? "Busy…");
+      const detail =
+        args.detail === undefined || args.detail === null
+          ? undefined
+          : String(args.detail);
+      const urgency =
+        args.urgency === "high" || args.urgency === "normal"
+          ? args.urgency
+          : undefined;
+      setBusyStatus({ id, label, detail, urgency });
+      return { id, set: true };
+    }
+    case "clearBusyStatus": {
+      const id = String(args.id ?? "automation.busy");
+      clearBusyStatus(id);
+      return { id, cleared: true };
+    }
 
     // Dev escape hatch: evaluate an expression in the page. Powerful and
     // unsafe — which is exactly why the whole surface is triple-gated.

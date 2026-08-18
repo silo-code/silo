@@ -8,7 +8,7 @@ import {
 
 // Extension-scoped pending Remove worktree set (ADR 0025). Outlives the
 // worktree manager modal so dismiss-and-reopen still shows Removing… rows and
-// the StatusBar item stays accurate.
+// busy status stays accurate (RFC 0026 host slot).
 
 let pending: PendingWorktreeRemove[] = [];
 /** Nested showModal depth for the worktree manager (usually 0 or 1). */
@@ -104,7 +104,7 @@ export function markWorktreeManagerOpen(): () => void {
   };
 }
 
-/** Begin a pending remove (StatusBar + row chrome). Idempotent per path. */
+/** Begin a pending remove (busy status + row chrome). Idempotent per path. */
 export function beginPendingWorktreeRemove(worktreePath: string): void {
   if (isPathPendingRemove(worktreePath, pending)) return;
   pending = [

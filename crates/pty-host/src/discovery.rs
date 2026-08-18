@@ -9,8 +9,26 @@ use std::path::Path;
 /// A session is live iff its socket accepts a connection. A leftover socket
 /// file from a crashed daemon refuses (`ECONNREFUSED`), so this also
 /// distinguishes live from stale.
+///
+/// This is a connect-and-drop probe: the daemon must not register such
+/// connections as data clients (`MAX_DATA_CLIENTS=1` would otherwise evict the
+/// real UI attach). See the accept-loop classify guard in `daemon.rs`.
 pub fn is_live(sock: &Path) -> bool {
     UnixStream::connect(sock).is_ok()
+}
+
+/// Count `*.sock` files in the session dir without connecting. Used for the
+/// soft concurrency warning on spawn — probing every live session via
+/// [`is_live`] on each create was enough load (and, before the daemon classify
+/// guard, enough damage) to falsely kill every prior terminal's UI attach.
+pub fn sock_file_count() -> usize {
+    let Ok(entries) = std::fs::read_dir(paths::sock_dir()) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .filter(|e| is_session_socket(&e.path()))
+        .count()
 }
 
 /// Live session names (socket stems) in the session dir.
@@ -82,6 +100,16 @@ mod tests {
             // A stale socket file with no listener behind it.
             std::fs::write(dir.join("dead.sock"), b"").unwrap();
             assert_eq!(list_sessions(), vec!["live".to_string()]);
+        });
+    }
+
+    #[test]
+    fn sock_file_count_includes_stale_socks_without_connecting() {
+        with_temp_dir("sock-count", |dir| {
+            let _live = UnixListener::bind(dir.join("live.sock")).unwrap();
+            std::fs::write(dir.join("dead.sock"), b"").unwrap();
+            std::fs::write(dir.join("ignore.txt"), b"").unwrap();
+            assert_eq!(sock_file_count(), 2);
         });
     }
 

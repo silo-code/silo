@@ -1,5 +1,3 @@
-import { useSyncExternalStore } from "react";
-import { ArrowsClockwise } from "@phosphor-icons/react";
 import type { Extension } from "@silo-code/sdk";
 import { GitExplorerPanel } from "./GitExplorerPanel";
 import {
@@ -10,25 +8,12 @@ import {
 } from "./open-worktree-manager";
 import {
   getPendingRemoveStatusLabel,
+  getPendingWorktreeRemoves,
   subscribePendingWorktreeRemoves,
 } from "./pending-worktree-remove";
 import "./GitExplorerPanel.css";
 
-/** Informational StatusBar item while Remove worktree runs (ADR 0025). */
-function PendingWorktreeRemoveStatus() {
-  const label = useSyncExternalStore(
-    subscribePendingWorktreeRemoves,
-    getPendingRemoveStatusLabel,
-    getPendingRemoveStatusLabel,
-  );
-  if (!label) return null;
-  return (
-    <span className="git-pending-remove-status" aria-live="polite">
-      <ArrowsClockwise size={14} className="git-pending-remove-spin" />
-      <span>{label}</span>
-    </span>
-  );
-}
+const PENDING_REMOVE_BUSY_ID = "silo.git-explorer.pending-remove";
 
 // `silo.git-explorer` — the git panel (view). Consumes the `silo.git` provider's
 // GitAPI via getExtension; resolves it at use time so the provider can activate
@@ -56,14 +41,29 @@ export const extension: Extension = {
       lazyMount: true,
     });
 
-    ctx.registerStatusItem({
-      id: "git-pending-worktree-remove",
-      alignment: "left",
-      // After the workspace name; extension zone (priority ≥ 0).
-      priority: 0,
-      tooltip: "A worktree is being removed",
-      component: PendingWorktreeRemoveStatus,
-    });
+    // ADR 0025 pending-remove → host busy-status slot (RFC 0026). Keep the
+    // extension-scoped pending set as source of truth for modal chrome; only
+    // the StatusBar presentation moved off a private StatusItem.
+    const syncPendingRemoveBusy = () => {
+      const label = getPendingRemoveStatusLabel();
+      if (!label) {
+        ctx.ui.busyStatus.clear(PENDING_REMOVE_BUSY_ID);
+        return;
+      }
+      const pending = getPendingWorktreeRemoves();
+      ctx.ui.busyStatus.set({
+        id: PENDING_REMOVE_BUSY_ID,
+        label,
+        detail:
+          pending.length > 1
+            ? pending.map((p) => p.name).join(", ")
+            : pending[0]?.path,
+        urgency: "normal",
+      });
+    };
+    const stopBusy = subscribePendingWorktreeRemoves(syncPendingRemoveBusy);
+    syncPendingRemoveBusy();
+    ctx.subscriptions.push({ dispose: stopBusy });
 
     // Workspace properties (and anything else) open the same Worktrees modal
     // the Git panel menu uses — one implementation, two entry points.

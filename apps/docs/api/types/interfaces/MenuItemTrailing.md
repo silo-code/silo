@@ -1,6 +1,6 @@
 # Interface: MenuItemTrailing
 
-Defined in: [packages/sdk/src/ui-service.ts:31](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L31)
+Defined in: [packages/sdk/src/ui-service.ts:32](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L32)
 
 A secondary control rendered at the trailing edge of a [MenuItem](MenuItem.md) —
 e.g. a delete button on a row whose primary click does something else
@@ -15,7 +15,7 @@ the row's [MenuItem.run](MenuItem.md#run).
 icon: ReactNode;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:33](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L33)
+Defined in: [packages/sdk/src/ui-service.ts:34](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L34)
 
 The control's glyph (e.g. a Phosphor icon element).
 
@@ -27,7 +27,7 @@ The control's glyph (e.g. a Phosphor icon element).
 optional title?: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:35](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L35)
+Defined in: [packages/sdk/src/ui-service.ts:36](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L36)
 
 Native tooltip for the control.
 
@@ -39,7 +39,7 @@ Native tooltip for the control.
 onClick: () => void;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:37](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L37)
+Defined in: [packages/sdk/src/ui-service.ts:38](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L38)
 
 Invoked when the control is clicked; the menu closes first.
 

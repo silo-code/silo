@@ -3,6 +3,7 @@ use parking_lot::Mutex;
 use portable_pty::PtySize;
 use std::io::{Read, Write};
 use std::sync::atomic::AtomicBool;
+use std::sync::mpsc::{sync_channel, SyncSender, TrySendError};
 use std::sync::Arc;
 use std::thread;
 use uuid::Uuid;
@@ -20,11 +21,21 @@ use super::terminal_io::{run_foreground_loop, run_reader_loop};
 // reattach — never re-derived — so a future rename or backend swap can't strand
 // live sessions.
 
+/// Cap on queued write chunks per session (RFC 0026 Phase 1). Each
+/// `terminal_write` is one chunk; a large paste is a single enqueue. When full,
+/// the invoke returns immediately with an error instead of blocking the UI
+/// thread on the socket.
+const WRITE_QUEUE_CAP: usize = 64;
+
 struct PtySession {
     handle: String,
     master: Arc<Mutex<Box<dyn SessionMaster>>>,
     reader: Arc<Mutex<Box<dyn Read + Send>>>,
-    writer: Arc<Mutex<Box<dyn Write + Send>>>,
+    /// Ordered off-main writer (RFC 0026): `terminal_write` only enqueues.
+    write_tx: SyncSender<Vec<u8>>,
+    /// Last socket write failure observed by the writer thread (for Phase 3 UX).
+    #[allow(dead_code)] // recorded now; surfaced to JS in a follow-up
+    last_write_error: Arc<Mutex<Option<String>>>,
     child: Option<Arc<Mutex<Box<dyn SessionChild>>>>,
     // On Windows, reader thread is deferred until terminal_start_stream to avoid
     // the blank-canvas race (cmd.exe emits its banner in ~5 ms, before JS
@@ -58,13 +69,54 @@ impl Default for TerminalState {
     }
 }
 
+/// Spawn the per-session writer thread that owns the socket/PTY write half.
+/// Dropping all `SyncSender` clones ends the thread (recv disconnects).
+fn spawn_session_writer(
+    mut writer: Box<dyn Write + Send>,
+    session_id: &str,
+) -> (SyncSender<Vec<u8>>, Arc<Mutex<Option<String>>>) {
+    let (tx, rx) = sync_channel::<Vec<u8>>(WRITE_QUEUE_CAP);
+    let last_write_error = Arc::new(Mutex::new(None));
+    let err_slot = last_write_error.clone();
+    let sid = session_id.to_string();
+    thread::spawn(move || {
+        while let Ok(data) = rx.recv() {
+            let result = writer
+                .write_all(&data)
+                .and_then(|_| writer.flush())
+                .map_err(|e| e.to_string());
+            match result {
+                Ok(()) => {
+                    *err_slot.lock() = None;
+                }
+                Err(e) => {
+                    log_event(
+                        "write_failed",
+                        &format!("session={sid} err={e}"),
+                    );
+                    *err_slot.lock() = Some(e);
+                    // Stop. A timed-out write_frame can leave a half-frame on
+                    // the wire; writing further frames desyncs the daemon
+                    // (tag/len bytes become PTY payload, misread T_KILL, …).
+                    // SocketWriter/TcpWriter shut the socket down on error so
+                    // the reader loop sees EOF and the UI can recover.
+                    break;
+                }
+            }
+        }
+    });
+    (tx, last_write_error)
+}
+
 /// Wrap a freshly-opened backend connection in a tracked `PtySession`.
-fn build_session(handle: &str, conn: Connection) -> Arc<PtySession> {
+fn build_session(handle: &str, session_id: &str, conn: Connection) -> Arc<PtySession> {
+    let (write_tx, last_write_error) = spawn_session_writer(conn.writer, session_id);
     Arc::new(PtySession {
         handle: handle.to_string(),
         master: Arc::new(Mutex::new(conn.master)),
         reader: Arc::new(Mutex::new(conn.reader)),
-        writer: Arc::new(Mutex::new(conn.writer)),
+        write_tx,
+        last_write_error,
         child: Some(Arc::new(Mutex::new(conn.child))),
         #[cfg(windows)]
         streaming: Arc::new(AtomicBool::new(false)),
@@ -99,7 +151,7 @@ pub fn terminal_create(
         &format!("session={} handle={} cwd={}", session_id, handle, cwd),
     );
 
-    let session = build_session(&handle, conn);
+    let session = build_session(&handle, &session_id, conn);
     state.sessions.insert(session_id.clone(), session.clone());
 
     // On Unix, start the reader thread immediately. On Windows it is deferred to
@@ -152,17 +204,14 @@ pub fn terminal_write(
     sessionId: String,
     data: Vec<u8>,
 ) -> Result<(), String> {
+    // Enqueue only — never block the UI thread on the session socket
+    // (RFC 0026 Phase 1). Ordering is preserved by the per-session writer thread.
     let session = state.sessions.get(&sessionId).ok_or("Session not found")?;
-
-    let mut writer = session.writer.lock();
-    writer
-        .write_all(&data)
-        .map_err(|e| format!("Failed to write: {}", e))?;
-    writer
-        .flush()
-        .map_err(|e| format!("Failed to flush: {}", e))?;
-
-    Ok(())
+    match session.write_tx.try_send(data) {
+        Ok(()) => Ok(()),
+        Err(TrySendError::Full(_)) => Err("Write queue full".into()),
+        Err(TrySendError::Disconnected(_)) => Err("Session writer gone".into()),
+    }
 }
 
 #[tauri::command]
@@ -298,7 +347,7 @@ pub fn terminal_attach(
         &format!("session={} handle={}", sessionId, handle),
     );
 
-    let session = build_session(&handle, conn);
+    let session = build_session(&handle, &sessionId, conn);
     state.sessions.insert(sessionId.clone(), session.clone());
 
     #[cfg(unix)]
@@ -358,6 +407,14 @@ pub fn terminal_start_stream(
         });
         Ok(())
     }
+}
+
+/// Append a frontend attach/restore diagnostic line to `terminal.log` (same
+/// file as host_create / host_attach). Fire-and-forget from the webview so a
+/// stalled disk write cannot block restore. Event names use the `ui_` prefix.
+#[tauri::command]
+pub fn terminal_diag_log(event: String, detail: String) {
+    log_event(&event, &detail);
 }
 
 /// Persist the frontend's serialized terminal buffer (xterm.js SerializeAddon
@@ -438,15 +495,16 @@ mod tests {
     /// A tracked-in-memory session with no real backend behind it — enough to
     /// populate `state.sessions` for a test.
     fn fake_session(handle: &str) -> Arc<PtySession> {
+        let (write_tx, last_write_error) =
+            spawn_session_writer(Box::new(std::io::sink()), "fake");
         Arc::new(PtySession {
             handle: handle.to_string(),
             master: Arc::new(Mutex::new(Box::new(NoopMaster) as Box<dyn SessionMaster>)),
             reader: Arc::new(Mutex::new(
                 Box::new(std::io::empty()) as Box<dyn Read + Send>
             )),
-            writer: Arc::new(Mutex::new(
-                Box::new(std::io::sink()) as Box<dyn Write + Send>
-            )),
+            write_tx,
+            last_write_error,
             child: None,
             #[cfg(windows)]
             streaming: Arc::new(AtomicBool::new(false)),

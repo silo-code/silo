@@ -70,12 +70,25 @@ export class TauriTerminalClient {
       // exists. Normalize it to a 404-style error so the panel shows the clear
       // "session no longer exists" state instead of a fabricated process exit.
       if (typeof err === "string" && err.includes("SESSION_GONE")) {
+        // Durable breadcrumb before the panel's ui_attach_gone / recreate path.
+        void invoke("terminal_diag_log", {
+          event: "ui_attach_gone",
+          detail: `sessionId=${sessionId} source=tauri-client err=SESSION_GONE`,
+        }).catch(() => {});
         const e = new Error("Terminal session no longer exists.") as Error & {
           status?: number;
         };
         e.status = 404;
         throw e;
       }
+      void invoke("terminal_diag_log", {
+        event: "ui_attach_fail",
+        detail: `sessionId=${sessionId} source=tauri-client err=${
+          typeof err === "string"
+            ? err
+            : ((err as Error)?.message ?? String(err))
+        }`,
+      }).catch(() => {});
       throw err;
     }
   }

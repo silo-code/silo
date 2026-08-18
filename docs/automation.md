@@ -140,16 +140,18 @@ Every op below is implemented in `handleOp` (`src/automation/bridge.ts`), except
 
 ### Core
 
-| op              | args                  | result                                                                           |
-| --------------- | --------------------- | -------------------------------------------------------------------------------- |
-| `ping`          | —                     | `"pong"` (answered host-side; no webview round-trip)                             |
-| `screenshot`    | —                     | `{ png_base64, width, height, app, title }` — host-side OS window capture (xcap) |
-| `exec`          | `{ command: string }` | `{ ran: boolean }` — runs a registered command id via the command registry       |
-| `eval`          | `{ expr: string }`    | the value of evaluating `expr` in the page (awaited if it returns a `Promise`)   |
-| `activeElement` | —                     | `{ tag, className, id, isTextarea, inMonaco, inXterm }`, or `null`               |
-| `contextKeys`   | —                     | snapshot of host context keys (`activeEditorId`, `activeViewerId`, …)            |
-| `themeState`    | —                     | `{ activeId, presets:[{id,name,base}], customThemes:[…] }` (via `ctx.theme`)     |
-| `setTheme`      | `{ id: string }`      | `{ activeId }` — switch the active theme via `ctx.theme.setActive`               |
+| op                | args                                | result                                                                           |
+| ----------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
+| `ping`            | —                                   | `"pong"` (answered host-side; no webview round-trip)                             |
+| `screenshot`      | —                                   | `{ png_base64, width, height, app, title }` — host-side OS window capture (xcap) |
+| `exec`            | `{ command: string }`               | `{ ran: boolean }` — runs a registered command id via the command registry       |
+| `eval`            | `{ expr: string }`                  | the value of evaluating `expr` in the page (awaited if it returns a `Promise`)   |
+| `setBusyStatus`   | `{ id?, label, detail?, urgency? }` | `{ id, set }` — StatusBar busy-status entry (RFC 0026; freeze-repro marker)      |
+| `clearBusyStatus` | `{ id? }`                           | `{ id, cleared }` — remove a busy-status entry (default id `automation.busy`)    |
+| `activeElement`   | —                                   | `{ tag, className, id, isTextarea, inMonaco, inXterm }`, or `null`               |
+| `contextKeys`     | —                                   | snapshot of host context keys (`activeEditorId`, `activeViewerId`, …)            |
+| `themeState`      | —                                   | `{ activeId, presets:[{id,name,base}], customThemes:[…] }` (via `ctx.theme`)     |
+| `setTheme`        | `{ id: string }`                    | `{ activeId }` — switch the active theme via `ctx.theme.setActive`               |
 
 `screenshot` is host-side (the webview can't rasterize itself); it captures the
 app's OS window via the `xcap` crate. On macOS the first call needs Screen

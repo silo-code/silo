@@ -24,6 +24,7 @@ import {
   store,
   recreateTerminal,
   tauriTerminalClient,
+  logTerminalAttachTrace,
   getThemeBase,
   retryFocus,
   useFocusOnActive,
@@ -48,6 +49,10 @@ import {
   type TerminalLinkRange,
 } from "./terminal-link-policy";
 import { findTerminalOwnerId } from "./terminal-lifecycle";
+import {
+  beginTerminalRestoreAttach,
+  endTerminalRestoreAttach,
+} from "./terminal-restore-busy";
 import { deriveTitle, formatTitle, tmuxStatusTitle } from "./terminal-title";
 import { formatResumeBox } from "./resume-box";
 import { TerminalSearch } from "./TerminalSearch";
@@ -185,6 +190,12 @@ export function TerminalPanel(
       (t) => t.id === terminalId,
     );
     if (!rec) return;
+    logTerminalAttachTrace("ui_recreate", {
+      terminalId,
+      workspaceId: wsId,
+      priorSessionId: rec.sessionId || undefined,
+      reason: "user-button",
+    });
     recreateTerminal(wsId, terminalId);
     setLifecycle({ kind: "loading" });
     // Force re-initialize by bumping version.
@@ -478,6 +489,17 @@ export function TerminalPanel(
 
     async function init() {
       if (!ws || !tRec) {
+        const ownerWsId = findTerminalOwnerId(
+          Object.values(store.workspaces),
+          terminalId,
+        );
+        logTerminalAttachTrace("ui_init_miss", {
+          terminalId,
+          activeWorkspaceId: activeWsId,
+          ownerWorkspaceId: ownerWsId,
+          activeHasWorkspace: Boolean(ws),
+          reason: !ws ? "no-active-workspace" : "terminal-not-in-active-ws",
+        });
         setLifecycle({
           kind: "stale",
           sessionId: "",
@@ -501,18 +523,59 @@ export function TerminalPanel(
       const rows = Math.max(5, term.rows);
       try {
         const needsCreate = !tRec.sessionId;
-        const session = needsCreate
-          ? await ctx.process.spawn({
-              cwd: tRec.cwd ?? ws.folder,
-              cols,
-              rows,
-            })
-          : await ctx.process.attach(tRec.sessionId, { cols, rows });
-        const sessionId = session.id;
-
+        logTerminalAttachTrace(
+          needsCreate ? "ui_spawn_start" : "ui_attach_start",
+          {
+            terminalId,
+            workspaceId: activeWsId,
+            sessionId: tRec.sessionId || undefined,
+            kind: tRec.kind,
+            cols,
+            rows,
+          },
+        );
+        if (!needsCreate) beginTerminalRestoreAttach();
+        let restoreEnded = needsCreate;
+        const endRestore = (ok: boolean) => {
+          if (restoreEnded) return;
+          restoreEnded = true;
+          endTerminalRestoreAttach(ok);
+        };
+        let session;
+        try {
+          session = needsCreate
+            ? await ctx.process.spawn({
+                cwd: tRec.cwd ?? ws.folder,
+                cols,
+                rows,
+              })
+            : await ctx.process.attach(tRec.sessionId, { cols, rows });
+        } catch (err) {
+          // Session gone → recreate path below is recovery, not a user-facing
+          // reconnect failure. Other attach errors do count toward the notify.
+          const e = err as Error & { status?: number };
+          endRestore(e.status === 404);
+          throw err;
+        }
         if (cancelled) {
+          endRestore(true);
+          logTerminalAttachTrace("ui_init_cancelled", {
+            terminalId,
+            workspaceId: activeWsId,
+            sessionId: session.id,
+            needsCreate,
+          });
           return;
         }
+        endRestore(true);
+        const sessionId = session.id;
+        logTerminalAttachTrace(needsCreate ? "ui_spawn_ok" : "ui_attach_ok", {
+          terminalId,
+          workspaceId: activeWsId,
+          sessionId,
+          kind: tRec.kind,
+        });
+
         if (needsCreate) tRec.sessionId = sessionId;
 
         liveRef.current = {
@@ -736,14 +799,32 @@ export function TerminalPanel(
         if (e.status === 404) {
           // PTY daemon died (e.g. reboot). Save the old sessionId so the next
           // init() run can replay its persisted buffer after spawning a fresh shell.
+          logTerminalAttachTrace("ui_attach_gone", {
+            terminalId,
+            workspaceId: activeWsId,
+            sessionId: tRec.sessionId,
+            message: e.message,
+          });
           replayFromRef.current = tRec.sessionId;
           // ctx.agents (RFC 0018): mark this terminal's agent activity "dead" —
           // resolves/attaches the resume hint if one wasn't already live-resolved.
           notifyTerminalSessionGone(terminalId);
+          logTerminalAttachTrace("ui_recreate", {
+            terminalId,
+            workspaceId: activeWsId,
+            priorSessionId: tRec.sessionId,
+            reason: "session-gone",
+          });
           recreateTerminal(activeWsId!, terminalId);
           setLifecycle({ kind: "loading" });
           setVersion((v) => v + 1);
         } else {
+          logTerminalAttachTrace("ui_attach_fail", {
+            terminalId,
+            workspaceId: activeWsId,
+            sessionId: tRec.sessionId,
+            message: e.message ?? "Failed to attach terminal.",
+          });
           setLifecycle({
             kind: "stale",
             sessionId: tRec.sessionId,

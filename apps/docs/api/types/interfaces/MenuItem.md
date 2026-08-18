@@ -1,6 +1,6 @@
 # Interface: MenuItem
 
-Defined in: [packages/sdk/src/ui-service.ts:47](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L47)
+Defined in: [packages/sdk/src/ui-service.ts:48](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L48)
 
 One actionable row in a menu shown by [UiService.showMenu](UiService.md#showmenu). The host
 renders and themes the chrome; the extension supplies the data and an action.
@@ -13,7 +13,7 @@ renders and themes the chrome; the extension supplies the data and an action.
 label: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:49](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L49)
+Defined in: [packages/sdk/src/ui-service.ts:50](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L50)
 
 The row's text.
 
@@ -25,7 +25,7 @@ The row's text.
 optional accelerator?: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:55](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L55)
+Defined in: [packages/sdk/src/ui-service.ts:56](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L56)
 
 A pre-formatted shortcut hint shown right-aligned, e.g. `"⌘C"` or
 `"Ctrl+C"`. Display only — it does not bind the key. Format it for the
@@ -39,7 +39,7 @@ platform yourself.
 optional icon?: ReactNode;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:57](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L57)
+Defined in: [packages/sdk/src/ui-service.ts:58](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L58)
 
 Leading glyph (e.g. a Phosphor icon element).
 
@@ -51,7 +51,7 @@ Leading glyph (e.g. a Phosphor icon element).
 optional checked?: boolean;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L59)
+Defined in: [packages/sdk/src/ui-service.ts:60](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L60)
 
 Show a check in the leading gutter — for toggle / current-selection rows.
 
@@ -63,7 +63,7 @@ Show a check in the leading gutter — for toggle / current-selection rows.
 optional disabled?: boolean;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L61)
+Defined in: [packages/sdk/src/ui-service.ts:62](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L62)
 
 Render the row dimmed and inert.
 
@@ -75,7 +75,7 @@ Render the row dimmed and inert.
 optional danger?: boolean;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:63](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L63)
+Defined in: [packages/sdk/src/ui-service.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L64)
 
 Style the row as destructive (e.g. Delete).
 
@@ -87,7 +87,7 @@ Style the row as destructive (e.g. Delete).
 optional title?: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L65)
+Defined in: [packages/sdk/src/ui-service.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L66)
 
 Native tooltip for the row.
 
@@ -99,7 +99,7 @@ Native tooltip for the row.
 optional trailing?: MenuItemTrailing;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L67)
+Defined in: [packages/sdk/src/ui-service.ts:68](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L68)
 
 A secondary trailing control (see [MenuItemTrailing](MenuItemTrailing.md)).
 
@@ -111,7 +111,7 @@ A secondary trailing control (see [MenuItemTrailing](MenuItemTrailing.md)).
 optional submenu?: MenuEntry[];
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:75](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L75)
+Defined in: [packages/sdk/src/ui-service.ts:76](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L76)
 
 A nested menu that cascades open to the side when this row is hovered or
 clicked. A row with a `submenu` is a *parent*: it shows a trailing caret and
@@ -127,7 +127,7 @@ action. Give a row a `submenu` **or** a [run](#run), not both
 optional run?: () => void | Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:81](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L81)
+Defined in: [packages/sdk/src/ui-service.ts:82](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L82)
 
 Invoked when the row is chosen; the menu closes first. Optional only for
 submenu parents (rows with a [submenu](#submenu)); every leaf

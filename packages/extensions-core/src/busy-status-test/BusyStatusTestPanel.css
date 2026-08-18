@@ -1,0 +1,55 @@
+.busy-status-test {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  height: 100%;
+  box-sizing: border-box;
+  font-family: var(--silo-font-ui);
+  color: var(--silo-color-text);
+}
+
+.busy-status-test__blurb {
+  margin: 0;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  line-height: 1.4;
+}
+
+.busy-status-test__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--silo-font-size-sm);
+}
+
+.busy-status-test__urgency,
+.busy-status-test__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.busy-status-test__list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.busy-status-test__empty {
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+
+.busy-status-test__row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.busy-status-test__meta {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  opacity: 0.7;
+}

@@ -738,25 +738,6 @@
   background: color-mix(in srgb, var(--silo-color-accent) 32%, transparent);
 }
 
-.git-pending-remove-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  /* Inherit status-bar font-size + --silo-statusbar-text (SDK StatusItem contract). */
-  font: inherit;
-  color: inherit;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.git-pending-remove-spin {
-  flex-shrink: 0;
-  opacity: 0.85;
-  -webkit-animation: branch-spin 0.8s linear infinite;
-  animation: branch-spin 0.8s linear infinite;
-}
-
 /* Create-worktree dialog: the new/existing branch choice. */
 .git-wt-mode {
   display: flex;

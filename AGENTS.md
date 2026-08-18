@@ -200,6 +200,15 @@ All run from the repo root (pnpm workspace).
   lifecycle) — only create a dedicated channel (e.g. `silo:agents`/"Agents")
   when the thing being logged is genuinely a new subsystem with its own
   diagnostic surface.
+- **Terminal attach / restart post-mortems:** durable trail is
+  `~/Library/Application Support/com.silo.desktop.dev/logs/terminal.log`
+  (prod: `com.silo.desktop`). Rust writes `app_boot`, `host_*`, `attach*`;
+  the UI mirrors attach decisions as `ui_*` via `logTerminalAttachTrace`
+  (`packages/extension-host/src/extension-host/terminal-attach-trace.ts`) into
+  both that file and Output → **Terminals** (`silo:terminals`). After a weird
+  restart, grep `app_boot|ui_|host_attach|host_incompatible|attach_gone` —
+  see RFC 0026 verification. Do not diagnose reattach from Output alone (it
+  clears with the webview).
 - **Commit messages and PR titles are Conventional Commits**: `type(scope):
 summary` — e.g. `feat(git-explorer): add "View Commits" drill-down`,
   `fix(file-explorer): scope "View Commits" to the branch`. Check `git log`

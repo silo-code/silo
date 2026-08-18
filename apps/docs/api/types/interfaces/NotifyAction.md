@@ -1,6 +1,6 @@
 # Interface: NotifyAction
 
-Defined in: [packages/sdk/src/ui-service.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L135)
+Defined in: [packages/sdk/src/ui-service.ts:136](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L136)
 
 One action button rendered in a toast — see [NotifyOptions.actions](NotifyOptions.md#actions).
 The host themes the button; the extension supplies the label and what to do.
@@ -13,7 +13,7 @@ The host themes the button; the extension supplies the label and what to do.
 label: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L137)
+Defined in: [packages/sdk/src/ui-service.ts:138](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L138)
 
 The button's text.
 
@@ -25,7 +25,7 @@ The button's text.
 run: () => void | Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:143](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L143)
+Defined in: [packages/sdk/src/ui-service.ts:144](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L144)
 
 Invoked when the button is clicked. The toast then dismisses unless
 [NotifyAction.keepOpen](#keepopen) is set — so a "View details" action that opens
@@ -43,6 +43,6 @@ a modal can close the toast behind it.
 optional keepOpen?: boolean;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:145](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L145)
+Defined in: [packages/sdk/src/ui-service.ts:146](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L146)
 
 Keep the toast open after [NotifyAction.run](#run) (default: dismiss it).
