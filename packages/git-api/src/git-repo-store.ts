@@ -156,6 +156,7 @@ const NULL_GIT_API: GitAPI = {
   branchBase: unavailable,
   commitDetail: unavailable,
   isBinaryDiff: unavailable,
+  remotes: unavailable,
   worktrees: unavailable,
   addWorktree: unavailable,
   removeWorktree: unavailable,

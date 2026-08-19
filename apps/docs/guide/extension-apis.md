@@ -87,13 +87,20 @@ your-api/               ← published to npm: just the types (+ maybe a tiny hel
 
 A consumer adds your types package as a **devDependency** — never a regular
 dependency, since they only need it for compile-time types; the real
-implementation arrives at runtime via `getExtension`, not a bundled import —
-and marks it `external` in their bundler config, exactly how every extension
-already treats `@silo-code/sdk` and `react`:
+implementation arrives at runtime via `getExtension`, not a bundled import:
 
 ```sh
 npm i -D @you/your-api
 ```
+
+**Do not mark it `external`**, even though that's what an extension does for
+`@silo-code/sdk` and `react`. Those two work as externals because the host
+hands them to every loaded extension; your API package isn't on that list, so
+an external bare specifier survives into the consumer's bundle with nothing to
+resolve it and their extension fails to load. Leaving it bundled costs nothing
+— `import type` erases entirely, and a small runtime helper (like
+`@silo-code/git-api`'s `NULL_GIT_REPO_STORE`) inlines. The live implementation
+still comes from `getExtension` either way.
 
 ```ts
 import type { YourAPI } from "@you/your-api";

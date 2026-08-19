@@ -113,6 +113,19 @@ export interface GitWorktree {
   prunable: string | null;
 }
 
+/** One configured remote, as listed by {@link GitAPI.remotes}. */
+export interface GitRemote {
+  /** Remote name, e.g. `origin`. */
+  name: string;
+  /** URL git fetches from. */
+  fetchUrl: string;
+  /**
+   * URL git pushes to — identical to {@link GitRemote.fetchUrl} unless a
+   * separate `remote.<name>.pushurl` is configured.
+   */
+  pushUrl: string;
+}
+
 /**
  * The typed API the `silo.git` provider publishes. All one-shot methods take
  * the repo working directory (`cwd`) as their first argument and run `git`
@@ -254,6 +267,20 @@ export interface GitAPI {
     mode: "workingTree" | "staged" | "commit",
     ref?: { commit: string; parent: string },
   ): Promise<boolean>;
+  /**
+   * The repo's configured remotes (`git remote -v`), in git's own order —
+   * `origin` is the convention, not a guarantee, so resolve by
+   * {@link GitRemote.name} rather than taking the first entry. Resolves to an
+   * empty array outside a repo or when no remote is configured.
+   *
+   * This is the seam for "which forge does this checkout belong to" — a
+   * GitHub/GitLab/… extension parses `owner/repo` out of
+   * {@link GitRemote.fetchUrl} instead of shelling out to
+   * `git config --get remote.origin.url` itself. Deliberately kept off the
+   * watch session's snapshot: remotes are effectively static, and that
+   * snapshot is re-read on every file change.
+   */
+  remotes(cwd: string): Promise<GitRemote[]>;
   /**
    * All working trees of the repo containing `cwd` (`git worktree list
    * --porcelain`), main worktree first — git lists the whole family from any

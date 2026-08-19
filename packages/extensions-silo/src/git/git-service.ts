@@ -1,6 +1,7 @@
 import type { GitAPI, GitLogEntry, GitStatus } from "@silo-code/git-api";
 import { parseGitStatus } from "./parse-status";
 import { parseBranches } from "./parse-branches";
+import { parseRemotes } from "./parse-remotes";
 import { parseWorktrees } from "./parse-worktrees";
 import {
   mergeCommitFiles,
@@ -404,6 +405,13 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
       const { stdout, code } = await git(cwd, args);
       if (code !== 0) return false;
       return /^-\t-\t/.test(stdout);
+    },
+
+    async remotes(cwd) {
+      const { stdout, code } = await git(cwd, ["remote", "-v"]);
+      // Any error (e.g. not a git repository) → no remotes.
+      if (code !== 0) return [];
+      return parseRemotes(stdout);
     },
 
     async worktrees(cwd) {
