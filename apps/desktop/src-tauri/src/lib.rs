@@ -147,14 +147,20 @@ pub fn run() {
             // Durable attach trail: one line at UI process start so post-mortems
             // can correlate proto / pid with later ui_* / host_* events in
             // terminal.log (see terminal_diag_log + logTerminalAttachTrace).
+            // `proto` is the pty-host unix-socket wire version; the Windows
+            // ConPTY backend (session_windows) has no equivalent, so it logs
+            // a fixed "conpty" label instead.
             {
-                use pty_host::proto::PROTO_VERSION;
+                #[cfg(unix)]
+                let proto = pty_host::proto::PROTO_VERSION.to_string();
+                #[cfg(windows)]
+                let proto = "conpty".to_string();
                 commands::session_backend::log_event(
                     "app_boot",
                     &format!(
                         "pid={} proto={} identifier={}",
                         std::process::id(),
-                        PROTO_VERSION,
+                        proto,
                         app.config().identifier
                     ),
                 );
