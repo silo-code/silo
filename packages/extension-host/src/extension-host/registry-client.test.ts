@@ -217,6 +217,45 @@ describe("findUpdates", () => {
     // Registry row that the index no longer lists → nothing to offer.
     expect(findUpdates([row({})], index([]))).toEqual([]);
   });
+
+  it("skips an update whose engine floor is above the running host", () => {
+    const idx = index([
+      entry("acme.weather", { latest: latest("2.0.0", { engine: "^0.50.0" }) }),
+    ]);
+    expect(findUpdates([row({ hostVersion: "0.49.0" })], idx)).toEqual([]);
+  });
+
+  it("offers that same update once the host meets the floor", () => {
+    const idx = index([
+      entry("acme.weather", { latest: latest("2.0.0", { engine: "^0.50.0" }) }),
+    ]);
+    expect(
+      findUpdates([row({ hostVersion: "0.50.0" })], idx).map(
+        (u) => u.latestVersion,
+      ),
+    ).toEqual(["2.0.0"]);
+  });
+
+  it("treats a missing engine as unconstrained", () => {
+    const idx = index([
+      entry("acme.weather", { latest: latest("2.0.0", { engine: null }) }),
+    ]);
+    expect(
+      findUpdates([row({ hostVersion: "0.1.0" })], idx).map(
+        (u) => u.latestVersion,
+      ),
+    ).toEqual(["2.0.0"]);
+  });
+
+  it("treats an unparsable host version as unconstrained", () => {
+    // appVersion() failing leaves hostVersion "" — don't hide updates over it.
+    const idx = index([
+      entry("acme.weather", { latest: latest("2.0.0", { engine: "^0.50.0" }) }),
+    ]);
+    expect(
+      findUpdates([row({ hostVersion: "" })], idx).map((u) => u.latestVersion),
+    ).toEqual(["2.0.0"]);
+  });
 });
 
 describe("registryReadmeUrl", () => {
