@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/silo-code/silo/compare/git-api-v0.3.0...git-api-v0.4.0) (2026-08-19)
+
+
+### Features
+
+* **git:** publish GitAPI.remotes for forge-aware extensions ([#381](https://github.com/silo-code/silo/issues/381)) ([2799d55](https://github.com/silo-code/silo/commit/2799d557fdcad3683c1a642538e82f4df14c3ace))
+
 ## [0.3.0](https://github.com/silo-code/silo/compare/git-api-v0.2.0...git-api-v0.3.0) (2026-08-18)
 
 
