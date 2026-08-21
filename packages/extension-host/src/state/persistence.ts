@@ -9,6 +9,7 @@ import {
   DEFAULT_SMALL_SCREEN_THRESHOLD_PX,
   DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
   DEFAULT_GLOBAL_PANEL_LAYOUT,
+  DEFAULT_SHARED_COLUMN_WIDTHS,
 } from "./types";
 import type { WorkspaceInternal } from "./types";
 import { migratePanelIds } from "./panel-id-migration";
@@ -158,6 +159,9 @@ export async function hydrate(configDir: string): Promise<void> {
     store.agentState = index.agentState
       ? cloneAgentState(index.agentState)
       : {};
+    // Absent in an older index: widths were global, which is this flag on.
+    store.sharedColumnWidthsEnabled =
+      index.sharedColumnWidthsEnabled ?? DEFAULT_SHARED_COLUMN_WIDTHS;
     store.globalPanelLayoutEnabled = index.globalPanelLayoutEnabled ?? false;
     store.globalActiveTabEnabled = index.globalActiveTabEnabled ?? false;
     store.globalPanelLayout = index.globalPanelLayout
@@ -324,6 +328,7 @@ async function doPersist(): Promise<void> {
       agentState: store.agentState,
       groups: store.groups,
       panelOrder: [...store.panelOrder],
+      sharedColumnWidthsEnabled: store.sharedColumnWidthsEnabled,
       globalPanelLayoutEnabled: store.globalPanelLayoutEnabled,
       globalActiveTabEnabled: store.globalActiveTabEnabled,
       // While the flag is on, live state is the source of truth; while off,

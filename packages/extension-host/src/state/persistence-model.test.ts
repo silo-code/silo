@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { DEFAULT_SHARED_COLUMN_WIDTHS } from "./types";
 import type { WorkspaceInternal } from "./types";
 import {
   buildIndex,
@@ -476,5 +477,34 @@ describe("reconcilePanelOrder", () => {
     expect(
       reconcilePanelOrder(["ws_a", "grp_1"], closedGroups, ["ws_a", "ws_b"]),
     ).toEqual(["ws_a", "grp_1"]);
+  });
+});
+
+describe("sharedColumnWidthsEnabled in the index", () => {
+  // The setting is on unless an index explicitly says otherwise: widths were
+  // global before it existed, so an upgraded install must not silently switch
+  // to per-workspace widths.
+  it("is absent from an index written before the setting existed", () => {
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+    });
+    expect(index.sharedColumnWidthsEnabled).toBeUndefined();
+    expect(
+      index.sharedColumnWidthsEnabled ?? DEFAULT_SHARED_COLUMN_WIDTHS,
+    ).toBe(true);
+  });
+
+  it("defaults to on, and round-trips an explicit off", () => {
+    expect(DEFAULT_SHARED_COLUMN_WIDTHS).toBe(true);
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      sharedColumnWidthsEnabled: false,
+    });
+    expect(index.sharedColumnWidthsEnabled).toBe(false);
+    expect(
+      index.sharedColumnWidthsEnabled ?? DEFAULT_SHARED_COLUMN_WIDTHS,
+    ).toBe(false);
   });
 });

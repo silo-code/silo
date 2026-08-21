@@ -14,6 +14,7 @@ import {
   removeEditor,
   retargetEditorsForRename,
   savePanelStateToWorkspace,
+  setSharedColumnWidthsEnabled,
   loadPanelStateFromWorkspace,
   activateWorkspace,
   setEditorSettingOverride,
@@ -524,5 +525,93 @@ describe("editor settings override (per-tab word wrap / minimap)", () => {
   it("is a no-op for a workspace id that doesn't exist", () => {
     setEditorSettingOverride("missing", "ed1", "wordWrap", true);
     expect(getEditorSettingOverride("missing", "ed1")).toEqual({});
+  });
+});
+
+describe("shared side panel widths", () => {
+  beforeEach(() => {
+    store.workspaces = { w: makeWorkspace("w"), other: makeWorkspace("other") };
+    store.workspaceOrder = ["w", "other"];
+    store.activeWorkspaceId = "w";
+    store.globalPanelLayoutEnabled = false;
+    store.sharedColumnWidthsEnabled = true;
+    store.columnWidths = {
+      normal: { left: 260, right: 340 },
+      smallScreen: { left: 220, right: 260 },
+    };
+  });
+
+  it("ignores a set to the value it already has", () => {
+    setSharedColumnWidthsEnabled(true);
+    expect(store.workspaces.w.columnWidths).toBeUndefined();
+  });
+
+  // Turning it off must not move anything on screen: the workspace that is
+  // showing takes ownership of the widths that are already showing.
+  it("gives the active workspace the live widths when turned off", () => {
+    store.columnWidths.normal = { left: 300, right: 900 };
+    setSharedColumnWidthsEnabled(false);
+    expect(store.sharedColumnWidthsEnabled).toBe(false);
+    expect(store.workspaces.w.columnWidths?.normal).toEqual({
+      left: 300,
+      right: 900,
+    });
+    expect(store.columnWidths.normal).toEqual({ left: 300, right: 900 });
+  });
+
+  it("lets two workspaces hold different widths", () => {
+    setSharedColumnWidthsEnabled(false);
+    store.columnWidths.normal = { left: 300, right: 900 };
+    savePanelStateToWorkspace("w");
+
+    store.activeWorkspaceId = "other";
+    store.columnWidths.normal = { left: 260, right: 340 };
+    savePanelStateToWorkspace("other");
+
+    expect(store.workspaces.w.columnWidths?.normal).toEqual({
+      left: 300,
+      right: 900,
+    });
+    expect(store.workspaces.other.columnWidths?.normal).toEqual({
+      left: 260,
+      right: 340,
+    });
+  });
+
+  // Mirrors ADR 0035: turning sharing back on freezes each workspace's own
+  // widths rather than discarding them, so turning it off again restores them.
+  it("freezes per-workspace widths when turned back on", () => {
+    setSharedColumnWidthsEnabled(false);
+    store.columnWidths.normal = { left: 300, right: 900 };
+    savePanelStateToWorkspace("w");
+
+    setSharedColumnWidthsEnabled(true);
+    store.columnWidths.normal = { left: 260, right: 340 };
+    savePanelStateToWorkspace("w");
+    expect(store.workspaces.w.columnWidths?.normal).toEqual({
+      left: 300,
+      right: 900,
+    });
+  });
+
+  // Sharing the arrangement while sizing each dock per workspace is the whole
+  // point of two switches, so the global-layout save path must still carry
+  // widths through — it drops every other arrangement field on purpose.
+  it("is independent of the global panel layout flag", () => {
+    store.globalPanelLayoutEnabled = true;
+    setSharedColumnWidthsEnabled(false);
+    expect(store.globalPanelLayoutEnabled).toBe(true);
+    expect(store.sharedColumnWidthsEnabled).toBe(false);
+    expect(store.workspaces.w.columnWidths?.normal).toEqual({
+      left: 260,
+      right: 340,
+    });
+
+    store.columnWidths.normal = { left: 300, right: 900 };
+    savePanelStateToWorkspace("w");
+    expect(store.workspaces.w.columnWidths?.normal).toEqual({
+      left: 300,
+      right: 900,
+    });
   });
 });

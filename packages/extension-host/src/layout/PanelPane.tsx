@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSnapshot } from "valtio";
 import type { SidePanel } from "@silo-code/sdk";
-import type { SidePanelSlot } from "../state/types";
 import { getWorkspaceExtensionStorage } from "../extension-host/extension-storage";
 import { store } from "../state/store";
 import { useSideTabDrag } from "./side-column-helpers";
@@ -13,18 +12,13 @@ import { resolveActiveSidePanelId } from "./active-side-panel-tab";
 
 interface PanelPaneProps {
   panels: SidePanel[];
-  slot: SidePanelSlot;
+  /** The pane this renders — an opaque id, and the key every per-pane map
+   * (`activeSidePanelTabs`, the side-pane registry) is stored under. */
+  slot: string;
   location: "left" | "right";
-  /** When true this pane can be split by dropping on its bottom half */
-  canSplit: boolean;
 }
 
-export function PanelPane({
-  panels,
-  slot,
-  location,
-  canSplit,
-}: PanelPaneProps) {
+export function PanelPane({ panels, slot, location }: PanelPaneProps) {
   const activeDrag = useSideTabDrag();
   const snap = useSnapshot(store);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -146,27 +140,17 @@ export function PanelPane({
     return () => d.dispose();
   }, [slot]);
 
-  const isCrossColumn =
-    activeDrag !== null &&
-    activeDrag.sourceSlot !== location &&
-    activeDrag.sourceSlot !== `${location}-bottom`;
+  // Every pane accepts every panel: joining its tabs, or splitting it. Which
+  // one is the pane's business, not the source's — so there is nothing to
+  // qualify here beyond "a drag is in progress".
+  const dragEligible = activeDrag !== null;
 
-  const isSameColumn =
-    activeDrag !== null &&
-    (activeDrag.sourceSlot === location ||
-      activeDrag.sourceSlot === `${location}-bottom`);
-
-  const dragEligible = isSameColumn || isCrossColumn;
-
-  // Read hover zone from global drag state; normalise for non-splittable panes
-  const rawHoverZone =
+  // The zone of *this* pane the pointer is over, if any. `getDropInfo` already
+  // refuses an edge a split wouldn't fit in, so whatever arrives here is what
+  // the drop will do — the overlay never promises a split that can't happen.
+  const hoverZone =
     activeDrag?.hoverSlot === slot && activeDrag.hoverZone != null
       ? activeDrag.hoverZone
-      : null;
-  const hoverZone = canSplit
-    ? rawHoverZone
-    : rawHoverZone !== null
-      ? "top"
       : null;
 
   // Read through the snapshot so a workspace switch that rewrites
@@ -219,7 +203,7 @@ export function PanelPane({
   }, []);
 
   return (
-    <div className="side-pane" data-slot={slot}>
+    <div className="side-pane" data-slot={slot} data-location={location}>
       <TabBar
         panels={panels}
         slot={slot}

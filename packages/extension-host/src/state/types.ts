@@ -14,9 +14,10 @@ export type {
   ThemeExport,
 } from "@silo-code/sdk";
 
+import { defaultTrees, type SideDockTrees } from "./side-dock-tree";
+import type { ColumnWidthsByMode } from "./column-widths";
 import type {
   Workspace,
-  SidePanelSlot,
   CustomTheme,
   TerminalRecord,
   EditorRecord,
@@ -63,11 +64,26 @@ export interface SideCollapseState {
  */
 export interface SharedPanelState {
   /**
-   * User-chosen slot overrides, keyed by side-panel id.
-   * Possible values: "left" | "right" | "left-bottom" | "right-bottom".
-   * If a key is absent the panel renders at its registered default location.
+   * The geometry of both side docks: how each one is divided into panes and in
+   * what proportions (RFC 0027). Membership — which panel is in which pane —
+   * stays in {@link sidePanelLocations}; this says only where the panes are.
+   *
+   * **One copy, shared by both layout modes**, unlike collapse state and column
+   * widths (ADR 0033). A tree decides which pane *ids exist*, and
+   * `sidePanelLocations` is itself single-copy, so forking the tree per mode
+   * would let a panel's recorded pane exist in one mode and not the other —
+   * membership can't follow a fork that its own map has no way to express. What
+   * genuinely needs to differ on a narrow window is how wide a dock is and
+   * whether it's open, and both of those already are per-mode.
    */
-  sidePanelLocations: Record<string, SidePanelSlot>;
+  sideDockTrees: SideDockTrees;
+  /**
+   * User-chosen placement overrides, keyed by side-panel id. The value is a
+   * **pane id** — opaque, and meaningful only against {@link sideDockTrees}.
+   * Absent means the panel renders in the dock it registered with, and so does
+   * an id no longer present in the tree (see `layout/side-panel-slots.ts`).
+   */
+  sidePanelLocations: Record<string, string>;
   /**
    * Sort order within each slot, keyed by side-panel id.
    * Lower numbers appear first. Missing entries sort as 0.
@@ -101,6 +117,7 @@ export interface SharedPanelState {
 /** What every {@link SharedPanelState} field starts as — spread into the store's
  * initial value, so a new field needs no separate edit there. */
 export const DEFAULT_PANEL_STATE: SharedPanelState = {
+  sideDockTrees: defaultTrees(),
   sidePanelLocations: {},
   sidePanelOrder: {},
   activeSidePanelTabs: {},
@@ -116,6 +133,16 @@ export const DEFAULT_PANEL_STATE: SharedPanelState = {
  * `withActivePanelState`).
  */
 export interface PanelStateSnapshot extends SharedPanelState {
+  /**
+   * This workspace's own side-dock widths, both layout modes' worth.
+   *
+   * Present only while {@link AppState.sharedColumnWidthsEnabled} is **off** —
+   * with it on, widths are global and a record's copy is left frozen exactly as
+   * ADR 0035 freezes a workspace's arrangement, so turning the flag back off
+   * restores what the user last had. Absent on a workspace that has never been
+   * width-customized, which then starts from whatever is live.
+   */
+  columnWidths?: ColumnWidthsByMode;
   /** The normal-width layout's collapse state... */
   leftPanelCollapsed: boolean;
   rightPanelCollapsed: boolean;
@@ -135,7 +162,11 @@ export interface PanelStateSnapshot extends SharedPanelState {
  * ADR 0035.
  */
 export interface GlobalPanelLayout {
-  sidePanelLocations: Record<string, SidePanelSlot>;
+  /** Absent in an index written before RFC 0027 — `applyGlobalPanelLayout`
+   * then derives the trees from `sidePanelLocations`, like a workspace record
+   * that predates them. */
+  sideDockTrees?: SideDockTrees;
+  sidePanelLocations: Record<string, string>;
   sidePanelOrder: Record<string, number>;
   sidePanelVisibility: Record<string, boolean>;
   leftPanelCollapsed: boolean;
@@ -146,6 +177,7 @@ export interface GlobalPanelLayout {
 /** What {@link GlobalPanelLayout} starts as before the flag has ever been
  * enabled. */
 export const DEFAULT_GLOBAL_PANEL_LAYOUT: GlobalPanelLayout = {
+  sideDockTrees: defaultTrees(),
   sidePanelLocations: {},
   sidePanelOrder: {},
   sidePanelVisibility: {},
@@ -300,6 +332,24 @@ export interface AppState extends SharedPanelState {
   smallScreenPeekWidthLeftPx: number;
   smallScreenPeekWidthRightPx: number;
   /**
+   * The live side-dock widths — the pair the on-screen layout mode is using,
+   * plus the other mode's (see {@link ColumnWidthsByMode}). Seeded
+   * synchronously from localStorage at store creation so the very first paint
+   * already has the right columns; see `state/column-widths.ts`.
+   */
+  columnWidths: ColumnWidthsByMode;
+  /**
+   * Whether side-dock **widths** are shared across workspaces. On by default,
+   * which is how widths have always behaved.
+   *
+   * Separate from {@link globalPanelLayoutEnabled}, and deliberately so: a
+   * workspace that splits its right dock into two columns needs that dock much
+   * wider, and forcing every other workspace to the same width to get it is the
+   * whole reason this exists. Sharing the *arrangement* and not the widths (or
+   * the reverse) are both coherent, so the two flags are independent.
+   */
+  sharedColumnWidthsEnabled: boolean;
+  /**
    * "Global Side Panel Layout" (ADR 0035): opt-in, off by default. When true,
    * side-panel arrangement (`sidePanelLocations`/`sidePanelOrder`/
    * `sidePanelVisibility`/collapse, for both layout modes) is shared across
@@ -351,6 +401,10 @@ export interface AppState extends SharedPanelState {
    */
   extensionsReady: boolean;
 }
+
+/** Side-dock widths start out shared across workspaces — the only behavior
+ * they had before the setting existed, so an upgrade changes nothing. */
+export const DEFAULT_SHARED_COLUMN_WIDTHS = true;
 
 export const DEFAULT_UI_FONT_SIZE = 13;
 export const MIN_UI_FONT_SIZE = 9;

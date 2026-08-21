@@ -45,32 +45,32 @@
   opacity: 0.4;
 }
 
-/* Drop overlay — appears only while hovering over the panel body mid-drag */
+/* Drop overlay — appears only while hovering over the panel body mid-drag.
+   The base rule covers the whole body ("center": join this pane's tabs); each
+   edge modifier pulls one side in to the half the new pane would take, so what
+   is shaded is what the drop produces. */
 .side-drop-overlay {
   position: absolute;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  inset: 0;
   pointer-events: none;
   z-index: 10;
+  background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
 }
 
 .side-drop-overlay--top {
-  top: 0;
-  bottom: 0;
-  background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
+  bottom: 50%;
 }
 
 .side-drop-overlay--bottom {
   top: 50%;
-  bottom: 0;
-  background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
 }
 
-.side-drop-overlay-label {
-  display: none;
+.side-drop-overlay--left {
+  right: 50%;
+}
+
+.side-drop-overlay--right {
+  left: 50%;
 }
 
 /* Column with split panes */
@@ -88,26 +88,11 @@
   overflow: hidden;
 }
 
-/* Vertical resize handle between split panes */
-.side-resize-handle {
-  background: transparent;
-  position: relative;
-  flex: 0 0 0;
-  height: 0;
-  cursor: ns-resize;
-}
-.side-resize-handle::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -3px;
-  bottom: -3px;
-  cursor: ns-resize;
-}
-/* The hover/drag accent line is drawn by the shared rrp ::before rule in
-   theme.css (the split handle is a vertical rrp handle), so it stays a single
-   1px line and matches the center dock — no element-level highlight here. */
+/* The handle between panes needs no rules of its own: it is an rrp handle, so
+   the shared `[data-panel-resize-handle-enabled]` rules in theme.css give it
+   the hairline, the widened hit area, the cursor for its direction, and the
+   hover/drag accent — the same divider the main columns and the CenterDock
+   use. */
 
 /* Empty column — invisible but accepts drops to restore panels */
 .side-empty-column {
@@ -119,22 +104,28 @@
   background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
 }
 
-/* Ghost element shown while dragging a side panel tab */
+/* The tab that follows the cursor while dragging. It holds a *clone of the real
+   tab* (see createGhost), so everything inside it is drawn by the tab rules
+   above — this only supplies the lifted-off-the-bar treatment: a card behind it
+   and a shadow. Sized inline to the source tab's own box. */
 .side-tab-drag-ghost {
   position: fixed;
   pointer-events: none;
-  background: var(--silo-color-bg-hover);
+  z-index: 9999;
+  opacity: 0.9;
+  overflow: hidden;
+  background: var(--silo-color-bg);
   border: 1px solid var(--silo-color-accent);
   border-radius: var(--silo-radius-sm, 3px);
-  padding: 2px 10px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--silo-color-text-hi);
-  z-index: 9999;
-  transform: translate(-50%, -50%);
-  opacity: 0.9;
-  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Neutralize the bar's own box: here it exists only so the tab's descendant
+   selectors match, not to lay anything out. */
+.side-tab-drag-ghost .panel-header.tabs {
+  height: 100%;
+  padding: 0;
+  background: transparent;
 }
 
 /* Disable touch scrolling on tab buttons so pointer events fire cleanly */
@@ -151,14 +142,16 @@
 }
 
 /* The column owns its panel font size (theming-contract.md › the sizing rule):
-   the slot sets it here and panel content inherits + sizes relatively (em), so
+   the dock sets it here and panel content inherits + sizes relatively (em), so
    panels never name the internal token and a panel adopts its column's scale
-   wherever it's docked. Left/right are intentionally different scales; data-slot
-   carries the column (left / left-bottom / right / right-bottom). */
-.side-pane[data-slot^="left"] {
+   wherever it's docked. Left/right are intentionally different scales.
+   Keyed off `data-location`, not `data-slot`: a pane id is opaque (RFC 0027),
+   so a prefix match on the slot would silently stop applying the moment a pane
+   is named anything but the legacy left*/
+right* strings. */ .side-pane[data-location="left"] {
   font-size: var(--silo-internal-font-size-left-panel);
 }
-.side-pane[data-slot^="right"] {
+.side-pane[data-location="right"] {
   font-size: var(--silo-internal-font-size-right-panel);
 }
 

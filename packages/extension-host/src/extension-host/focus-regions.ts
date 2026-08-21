@@ -66,17 +66,23 @@ interface FocusRegion {
  * or not — see `isCollapsed`) or empty. */
 function sidePane(side: "left" | "right"): HTMLElement | null {
   if (isCollapsed(side)) return null;
-  for (const p of document.querySelectorAll<HTMLElement>(
-    `.side-pane[data-slot^="${side}"]`,
-  )) {
+  for (const p of document.querySelectorAll<HTMLElement>(paneSelector(side))) {
     if (p.clientWidth > 0) return p;
   }
   return null;
 }
 
+/** Every pane of one dock. Matches on `data-location`, not a `data-slot`
+ * prefix: a pane id is opaque (RFC 0027), so `[data-slot^="left"]` would stop
+ * matching the moment a user splits a dock and lands a panel in a new pane —
+ * silently dropping that pane out of the keyboard region. */
+function paneSelector(side: "left" | "right"): string {
+  return `.side-pane[data-location="${side}"]`;
+}
+
 /** Build a side-dock region (left/right) — they share entry + tabbable logic. */
 function sideRegion(side: "left" | "right", order: number): FocusRegion {
-  const sel = `.side-pane[data-slot^="${side}"]`;
+  const sel = paneSelector(side);
   return {
     id: side,
     order,

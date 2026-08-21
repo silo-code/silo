@@ -8,6 +8,7 @@
 // fan-out from the legacy monolithic blob, the index shape, the active-workspace
 // panel-state merge, and the write/delete reconciliation.
 
+import { cloneTrees } from "./side-dock-tree";
 import type {
   EditorSettings,
   GlobalPanelLayout,
@@ -56,6 +57,9 @@ export interface PersistedIndex {
   // "Global Side Panel Layout" (ADR 0035) — global (not per-workspace), so it
   // lives in the index like `smallScreenModeEnabled`. Absent in older
   // indexes: defaults (both off, empty layout) applied at hydrate.
+  // Whether side-dock widths are shared across workspaces. Absent in an older
+  // index, where widths were always global — so it defaults to true at hydrate.
+  sharedColumnWidthsEnabled?: boolean;
   globalPanelLayoutEnabled?: boolean;
   globalActiveTabEnabled?: boolean;
   globalPanelLayout?: GlobalPanelLayout;
@@ -177,6 +181,7 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
       : undefined,
     groups: snapshot.groups ? cloneGroups(snapshot.groups) : undefined,
     panelOrder: snapshot.panelOrder ? [...snapshot.panelOrder] : undefined,
+    sharedColumnWidthsEnabled: snapshot.sharedColumnWidthsEnabled,
     globalPanelLayoutEnabled: snapshot.globalPanelLayoutEnabled,
     globalActiveTabEnabled: snapshot.globalActiveTabEnabled,
     globalPanelLayout: snapshot.globalPanelLayout
@@ -195,6 +200,9 @@ export function cloneGlobalPanelLayout(
   g: GlobalPanelLayout,
 ): GlobalPanelLayout {
   return {
+    // Left absent when absent, so a pre-RFC-0027 index still migrates from
+    // `sidePanelLocations` instead of silently adopting a default tree.
+    ...(g.sideDockTrees ? { sideDockTrees: cloneTrees(g.sideDockTrees) } : {}),
     sidePanelLocations: { ...g.sidePanelLocations },
     sidePanelOrder: { ...g.sidePanelOrder },
     sidePanelVisibility: { ...g.sidePanelVisibility },
@@ -285,6 +293,12 @@ export function withActiveNonGlobalPanelState(
     ...(activeTabIsGlobal
       ? {}
       : { activeSidePanelTabs: panel.activeSidePanelTabs }),
+    // Widths have their own sharing flag, so they stay per-workspace even while
+    // the *layout* is global — sharing an arrangement while sizing each dock
+    // separately is exactly what the two independent switches are for.
+    // `capturePanelState` already omits this while widths are shared, so the
+    // spread leaves the frozen value alone in that case.
+    ...(panel.columnWidths ? { columnWidths: panel.columnWidths } : {}),
   };
 }
 

@@ -432,7 +432,7 @@ describe.skipIf(!canFocus)("keyboard navigation", () => {
       .poll(
         async () =>
           silo.eval<boolean>(
-            '!!(document.activeElement && document.activeElement.closest(`.side-pane[data-slot^="left"]`))',
+            '!!(document.activeElement && document.activeElement.closest(`.side-pane[data-location="left"]`))',
           ),
         { timeout: 3000, interval: 50 },
       )

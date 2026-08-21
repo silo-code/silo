@@ -133,4 +133,31 @@ describe("LayoutService collapse path writes the live layout mode", () => {
       dispose.dispose();
     }
   });
+
+  // A slot written by a build with free-form pane ids (RFC 0027). Resolving it
+  // back to the registered column is what keeps reveal pointing somewhere real
+  // — `"pane_7f3a".startsWith("left")` is false, so the unresolved value used
+  // to expand the *right* column and stash the active tab under a key no pane
+  // would ever read.
+  it("revealSidePanel resolves a slot this build cannot render", () => {
+    const dispose = sidePanelRegistry.register({
+      id: "test.panel",
+      location: "left",
+      title: "Test",
+      component: () => null,
+    });
+    store.sidePanelLocations["test.panel"] = "pane_7f3a" as never;
+    try {
+      layout.revealSidePanel("test.panel");
+      expect(store.leftPanelCollapsed).toBe(false);
+      expect(store.rightPanelCollapsed).toBe(true); // untouched
+      expect(store.activeSidePanelTabs.left).toBe("test.panel");
+      // Non-destructive: the override survives for the build that wrote it.
+      expect(store.sidePanelLocations["test.panel"]).toBe("pane_7f3a");
+    } finally {
+      delete store.sidePanelLocations["test.panel"];
+      delete store.activeSidePanelTabs.left;
+      dispose.dispose();
+    }
+  });
 });

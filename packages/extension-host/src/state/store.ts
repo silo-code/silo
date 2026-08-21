@@ -1,5 +1,17 @@
 import { proxy } from "valtio";
-import type { AppState, SideCollapseState, SidePanelSlot } from "./types";
+import {
+  readColumnWidths,
+  writeColumnWidths,
+  type ColumnWidths,
+} from "./column-widths";
+import {
+  dockOfPane,
+  insertPane,
+  pruneUnreferenced,
+  setSizes,
+  type InsertSide,
+} from "./side-dock-tree";
+import type { AppState, SideCollapseState } from "./types";
 import {
   DEFAULT_UI_FONT_SIZE,
   MIN_UI_FONT_SIZE,
@@ -13,6 +25,7 @@ import {
   MIN_SMALL_SCREEN_PEEK_WIDTH_PX,
   MAX_SMALL_SCREEN_PEEK_WIDTH_PX,
   DEFAULT_GLOBAL_PANEL_LAYOUT,
+  DEFAULT_SHARED_COLUMN_WIDTHS,
 } from "./types";
 import type { SideLocation } from "@silo-code/sdk";
 
@@ -44,6 +57,11 @@ export const store = proxy<AppState>({
   rightPanelPeekDragging: false,
   smallScreenPeekWidthLeftPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
   smallScreenPeekWidthRightPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
+  // Read synchronously so the first paint has the right columns — the app-state
+  // index loads from disk asynchronously, and painting defaults first would
+  // make the columns visibly jump. See `column-widths.ts`.
+  columnWidths: readColumnWidths(),
+  sharedColumnWidthsEnabled: DEFAULT_SHARED_COLUMN_WIDTHS,
   globalPanelLayoutEnabled: false,
   globalActiveTabEnabled: false,
   globalPanelLayout: structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT),
@@ -52,12 +70,96 @@ export const store = proxy<AppState>({
   panelOrder: [],
 });
 
-export function setSidePanelSlot(panelId: string, slot: SidePanelSlot | null) {
-  if (slot === null) {
+/**
+ * Record the sizes a resize-handle drag produced for one split in a dock's
+ * tree (RFC 0027). `path` is the index route from the dock's root to that
+ * split — see `layout/SideColumn.tsx`.
+ *
+ * This replaces react-resizable-panels' `autoSaveId`, which kept the one split's
+ * percentages in a single global localStorage key: not per workspace and not per
+ * layout mode, so a stint at a narrow window silently re-proportioned the
+ * normal-width dock.
+ */
+export function setSideDockSizes(
+  location: "left" | "right",
+  path: readonly number[],
+  anchors: readonly string[],
+  sizes: number[],
+) {
+  const next = setSizes(store.sideDockTrees[location], path, anchors, sizes);
+  if (next !== store.sideDockTrees[location]) {
+    store.sideDockTrees[location] = next;
+  }
+}
+
+let paneSeq = 0;
+
+/**
+ * Split `targetPaneId` and return the id of the pane created on `side`, or
+ * `null` when the target isn't in either dock.
+ *
+ * The caller then places a panel in the new pane — a pane nothing is placed in
+ * is pruned right back out by {@link setSidePanelSlot}, so the two steps belong
+ * together.
+ */
+export function splitSideDock(
+  targetPaneId: string,
+  side: InsertSide,
+): string | null {
+  const location = dockOfPane(store.sideDockTrees, targetPaneId);
+  if (location === null) return null;
+  const newPaneId = `pane_${Date.now().toString(36)}_${paneSeq++}`;
+  store.sideDockTrees[location] = insertPane(
+    store.sideDockTrees[location],
+    targetPaneId,
+    newPaneId,
+    side,
+  );
+  return newPaneId;
+}
+
+/** Drop panes nothing is placed in from both docks — see `pruneUnreferenced`. */
+function pruneSideDocks() {
+  const referenced = new Set(Object.values(store.sidePanelLocations));
+  for (const location of ["left", "right"] as const) {
+    const next = pruneUnreferenced(store.sideDockTrees[location], referenced);
+    if (next !== store.sideDockTrees[location]) {
+      store.sideDockTrees[location] = next;
+    }
+  }
+}
+
+/** Place a side panel in a pane, or clear the override so it falls back to the
+ * dock it registered with. `paneId` is opaque — see `SharedPanelState`. */
+/**
+ * Record the widths a column drag produced, for whichever layout mode is on
+ * screen.
+ *
+ * The localStorage copy is always written, in both sharing modes: it is what
+ * the *next launch's first paint* uses, before the index or any workspace has
+ * loaded. That keeps first paint correct without it having to know which
+ * workspace is about to be restored or whether widths are shared — it simply
+ * repaints what was last on screen.
+ */
+export function setColumnWidths(
+  mode: "normal" | "smallScreen",
+  widths: ColumnWidths,
+) {
+  store.columnWidths[mode] = { ...widths };
+  writeColumnWidths({
+    normal: { ...store.columnWidths.normal },
+    smallScreen: { ...store.columnWidths.smallScreen },
+  });
+}
+
+export function setSidePanelSlot(panelId: string, paneId: string | null) {
+  if (paneId === null) {
     delete store.sidePanelLocations[panelId];
   } else {
-    store.sidePanelLocations[panelId] = slot;
+    store.sidePanelLocations[panelId] = paneId;
   }
+  // Moving the last panel out of a pane is what retires that pane.
+  pruneSideDocks();
 }
 
 /** Convenience alias kept for existing callers. */

@@ -194,7 +194,7 @@ the published reference is exactly this surface — no more, no less.
 - [TerminalRecord](interfaces/TerminalRecord.md)
 - [EditorMode](type-aliases/EditorMode.md)
 - [EditorRecord](interfaces/EditorRecord.md)
-- [SidePanelSlot](type-aliases/SidePanelSlot.md)
+- [~~SidePanelSlot~~](type-aliases/SidePanelSlot.md)
 - [Workspace](interfaces/Workspace.md)
 - [ThemeBase](type-aliases/ThemeBase.md)
 - [ThemeVars](interfaces/ThemeVars.md)
