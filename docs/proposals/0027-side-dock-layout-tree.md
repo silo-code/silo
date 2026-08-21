@@ -1,5 +1,5 @@
 ---
-status: draft
+status: implemented
 created: 2026-08-21
 ---
 
@@ -431,4 +431,23 @@ Suggested sequencing:
 
 ## Decision
 
-_Pending._
+**Accepted and implemented.** Built as described, with three changes made during
+implementation and folded back into the text above:
+
+1. **Non-destructive resolution.** The first draft had the unknown-pane-id rule
+   _prune_ the stale `sidePanelLocations` entry. That is wrong: it makes a
+   panel's placement lossy across exactly the downgrade/upgrade round trip the
+   rule exists to protect, and across uninstalling and reinstalling the
+   extension that owns the panel. Resolution is a pure read.
+2. **One tree per scope, not one per layout mode.** See _Persistence_ — a tree
+   decides which pane ids exist and `sidePanelLocations` names them, so a
+   per-mode fork has no way for membership to follow it.
+3. **The model lives in `state/`, not `layout/`.** The trees are store state,
+   and `state/` is a lint-enforced leaf that cannot import from `layout/`.
+
+Three places had to stop parsing meaning out of a pane id, all of which would
+have silently answered "the right dock" for every user-created pane: the drop
+hit-test, the panel font-size CSS rule, and the keyboard focus regions. Each now
+reads a `data-location` attribute. That is the practical cost of the term
+change, and the reason **Pane Id** is now in the glossary with "carries no
+positional meaning" written into its definition.

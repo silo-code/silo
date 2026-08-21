@@ -1,16 +1,16 @@
 import { useMemo, useRef, useState } from "react";
-import { sidePanelRegistry } from "../extension-host/side-panels";
 import { openMenu } from "../extension-host/menu-controller";
 import type { MenuEntry } from "@silo-code/sdk";
 import type { SidePanel } from "@silo-code/sdk";
-import { store, setSidePanelSlot, reorderSidePanels } from "../state/store";
+import {
+  setSidePanelSlot,
+  reorderSidePanels,
+  splitSideDock,
+} from "../state/store";
+import type { InsertSide } from "../state/side-dock-tree";
 import { sideTabDrag } from "./drag-state";
-import { resolveSidePanelSlot } from "./side-panel-slots";
 import {
   topSlot,
-  bottomSlot,
-  isTopSlot,
-  isTopSlotOfColumn,
   getDropInfo,
   createGhost,
   moveGhost,
@@ -60,15 +60,6 @@ export function TabBar({
     return tabEls.length;
   }
 
-  /** Returns true if the target column has no bottom panel (can be split). */
-  function canSplitColumn(targetLocation: "left" | "right"): boolean {
-    const bSlot = bottomSlot(targetLocation);
-    const overrides = store.sidePanelLocations;
-    return !sidePanelRegistry
-      .list()
-      .some((p) => resolveSidePanelSlot(overrides[p.id], p.location) === bSlot);
-  }
-
   function commitDrop(x: number, y: number, draggedPanelId: string) {
     const dropInfo = getDropInfo(x, y);
     if (!dropInfo) {
@@ -77,19 +68,17 @@ export function TabBar({
       return;
     }
 
-    const { slot: targetSlot, location: targetLocation, zone } = dropInfo;
-    const targetIsTop = isTopSlotOfColumn(targetSlot);
+    const { slot: targetSlot, zone } = dropInfo;
 
-    if (
-      targetSlot === slot &&
-      zone === "bottom" &&
-      targetIsTop &&
-      canSplitColumn(targetLocation)
-    ) {
-      // Dropped on bottom half of own unsplit slot → create vertical split
-      setSidePanelSlot(draggedPanelId, bottomSlot(targetLocation));
+    if (zone !== "center") {
+      // An edge: split the target pane and land in the new one. `getDropInfo`
+      // only reports an edge a split actually fits in, so there is nothing to
+      // re-check here. Works the same whichever dock the target is in — pane
+      // ids are unique across both, so this stays one placement write.
+      const newPaneId = splitSideDock(targetSlot, zone);
+      if (newPaneId) setSidePanelSlot(draggedPanelId, newPaneId);
     } else if (targetSlot === slot) {
-      // Same-slot reorder
+      // Same pane: a reorder.
       const withoutDragged = panels.filter((p) => p.id !== draggedPanelId);
       const idx = Math.min(
         insertIdx ?? withoutDragged.length,
@@ -98,13 +87,6 @@ export function TabBar({
       withoutDragged.splice(idx, 0, { id: draggedPanelId } as SidePanel);
       setSidePanelSlot(draggedPanelId, slot);
       reorderSidePanels(withoutDragged.map((p) => p.id));
-    } else if (
-      zone === "bottom" &&
-      targetIsTop &&
-      canSplitColumn(targetLocation)
-    ) {
-      // Bottom half of unsplit column → create vertical split
-      setSidePanelSlot(draggedPanelId, bottomSlot(targetLocation));
     } else {
       setSidePanelSlot(draggedPanelId, targetSlot);
     }
@@ -211,22 +193,20 @@ export function TabBar({
     if (panel) {
       const oppositeColumn: "left" | "right" =
         location === "left" ? "right" : "left";
-      const isTop = isTopSlot(slot, location);
       items.push({
         label: `Move to ${oppositeColumn === "left" ? "Left" : "Right"} Panel`,
         run: () => setSidePanelSlot(panel.id, topSlot(oppositeColumn)),
       });
-      if (isTop && panels.length > 1) {
-        items.push({
-          label: "Move to Bottom Pane",
-          run: () => setSidePanelSlot(panel.id, bottomSlot(location)),
-        });
-      }
-      if (!isTop) {
-        items.push({
-          label: "Move to Top Pane",
-          run: () => setSidePanelSlot(panel.id, topSlot(location)),
-        });
+      // Splitting needs somewhere for the panel to come *from*: peeling the
+      // only tab out of a pane into a new pane beside it would leave the
+      // original empty, which prunes it straight back.
+      if (panels.length > 1) {
+        const splitInto = (side: InsertSide) => () => {
+          const newPaneId = splitSideDock(slot, side);
+          if (newPaneId) setSidePanelSlot(panel.id, newPaneId);
+        };
+        items.push({ label: "Split Right", run: splitInto("right") });
+        items.push({ label: "Split Down", run: splitInto("bottom") });
       }
       items.push({ type: "separator" });
     }

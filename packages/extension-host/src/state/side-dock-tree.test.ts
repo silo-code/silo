@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  childAnchors,
   cloneTrees,
   dockOfPane,
   defaultTrees,
@@ -12,6 +13,7 @@ import {
   normalizeTrees,
   pane,
   paneIds,
+  pruneUnreferenced,
   removePane,
   retainPanes,
   setSizes,
@@ -292,8 +294,8 @@ describe("movePane", () => {
 describe("setSizes", () => {
   it("writes the root split's sizes, rescaled", () => {
     const tree = split("row", [pane("a"), pane("b")], [50, 50]);
-    expect(sizesOf(setSizes(tree, [], [1, 1]))).toEqual([50, 50]);
-    expect(sizesOf(setSizes(tree, [], [30, 70]))).toEqual([30, 70]);
+    expect(sizesOf(setSizes(tree, [], ["a", "b"], [1, 1]))).toEqual([50, 50]);
+    expect(sizesOf(setSizes(tree, [], ["a", "b"], [30, 70]))).toEqual([30, 70]);
   });
 
   it("writes a nested split by path", () => {
@@ -302,15 +304,64 @@ describe("setSizes", () => {
       [pane("a"), split("row", [pane("b"), pane("c")], [50, 50])],
       [50, 50],
     );
-    const out = asSplit(setSizes(tree, [1], [80, 20]));
+    const out = asSplit(setSizes(tree, [1], ["b", "c"], [80, 20]));
     expect(sizesOf(out.children[1])).toEqual([80, 20]);
     expect(out.sizes).toEqual([50, 50]); // parent untouched
   });
 
   it("ignores a wrong-length sizes array and an unreachable path", () => {
     const tree = split("row", [pane("a"), pane("b")], [50, 50]);
-    expect(setSizes(tree, [], [100])).toBe(tree);
-    expect(setSizes(tree, [9], [50, 50])).toBe(tree);
+    expect(setSizes(tree, [], ["a", "b"], [100])).toBe(tree);
+    expect(setSizes(tree, [9], ["a", "b"], [50, 50])).toBe(tree);
+  });
+
+  // The rendered tree is the stored tree minus the panes with nothing visible
+  // in them, so a rendered path can name a stored split with different
+  // children. Writing there would re-proportion panes the user never touched.
+  it("refuses a write whose children are not the ones that were on screen", () => {
+    const tree = split(
+      "column",
+      [pane("a"), pane("b"), pane("c")],
+      [50, 25, 25],
+    );
+    // Two panes were on screen; the stored split has three.
+    expect(setSizes(tree, [], ["a", "c"], [70, 30])).toBe(tree);
+    // Right count, wrong panes.
+    expect(setSizes(tree, [], ["a", "b", "zz"], [50, 25, 25])).toBe(tree);
+    // Matching anchors go through.
+    expect(sizesOf(setSizes(tree, [], ["a", "b", "c"], [60, 20, 20]))).toEqual([
+      60, 20, 20,
+    ]);
+  });
+
+  it("identifies a child subtree by its first pane", () => {
+    const tree = split(
+      "row",
+      [split("column", [pane("a"), pane("b")]), pane("c")],
+      [50, 50],
+    );
+    expect(childAnchors(tree)).toEqual(["a", "c"]);
+    expect(sizesOf(setSizes(tree, [], ["a", "c"], [30, 70]))).toEqual([30, 70]);
+  });
+});
+
+describe("pruneUnreferenced", () => {
+  it("drops a pane nothing is placed in any more", () => {
+    const tree = split("column", [pane("left"), pane("p2")], [60, 40]);
+    expect(pruneUnreferenced(tree, new Set(["left"]))).toEqual(pane("left"));
+  });
+
+  it("keeps a pane that is still referenced", () => {
+    const tree = split("column", [pane("left"), pane("p2")], [60, 40]);
+    expect(pruneUnreferenced(tree, new Set(["p2"]))).toEqual(tree);
+  });
+
+  it("always keeps the dock's first pane, even unreferenced", () => {
+    // Panels with no override live in the dock root, which no
+    // `sidePanelLocations` entry names.
+    expect(pruneUnreferenced(pane("right"), new Set())).toEqual(pane("right"));
+    const tree = split("row", [pane("right"), pane("p2")], [50, 50]);
+    expect(pruneUnreferenced(tree, new Set())).toEqual(pane("right"));
   });
 });
 

@@ -10,6 +10,7 @@ import {
 } from "../state/store";
 import { sideTabDrag } from "./drag-state";
 import { resolveSidePanelSlot, slotToLocation } from "./side-panel-slots";
+import { dropZoneAt, type DropZone } from "./side-dock-drop";
 
 // ─── slot helpers ──────────────────────────────────────────────────────────
 
@@ -69,7 +70,7 @@ export function getDropInfo(
 ): {
   slot: string;
   location: "left" | "right";
-  zone: "top" | "bottom";
+  zone: DropZone;
 } | null {
   const el = document.elementFromPoint(x, y);
   if (!el) return null;
@@ -77,13 +78,15 @@ export function getDropInfo(
   if (!pane) return null;
   const slot = pane.dataset.slot as string;
   const location = pane.dataset.location === "left" ? "left" : "right";
+  // Zones are measured against the pane's *body*, not its whole box, so the tab
+  // bar isn't a top edge — dragging onto the tabs means "join this pane".
   const body = pane.querySelector<HTMLElement>(".panel-body");
-  let zone: "top" | "bottom" = "top";
-  if (body) {
-    const rect = body.getBoundingClientRect();
-    if (y > rect.top + rect.height / 2) zone = "bottom";
-  }
-  return { slot, location, zone };
+  if (!body) return { slot, location, zone: "center" };
+  return {
+    slot,
+    location,
+    zone: dropZoneAt(body.getBoundingClientRect(), x, y),
+  };
 }
 
 // ─── hooks ───────────────────────────────────────────────────────────────────

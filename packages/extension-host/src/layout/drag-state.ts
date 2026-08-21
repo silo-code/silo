@@ -1,10 +1,12 @@
+import type { DropZone } from "./side-dock-drop";
+
 export interface SideTabDrag {
   panelId: string;
   sourceSlot: string;
   /** Slot currently under the pointer (updated during pointer move) */
   hoverSlot?: string;
-  /** Vertical zone within the hovered slot's body */
-  hoverZone?: "top" | "bottom";
+  /** Which zone of the hovered pane: its tab bar, or one of the four edges. */
+  hoverZone?: DropZone;
 }
 
 let current: SideTabDrag | null = null;

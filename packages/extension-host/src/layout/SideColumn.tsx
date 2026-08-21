@@ -11,6 +11,7 @@ import {
 import { openMenu } from "../extension-host/menu-controller";
 import { store, setSideDockSizes } from "../state/store";
 import {
+  childAnchors,
   isPane,
   paneIds,
   retainPanes,
@@ -24,12 +25,8 @@ import "./SideColumn.css";
 function EmptyColumn({ location }: { location: "left" | "right" }) {
   const activeDrag = useSideTabDrag();
 
-  const eligible =
-    activeDrag !== null &&
-    activeDrag.sourceSlot !== location &&
-    activeDrag.sourceSlot !== `${location}-bottom`;
-
-  const over = eligible && activeDrag?.hoverSlot === topSlot(location);
+  const over =
+    activeDrag !== null && activeDrag.hoverSlot === topSlot(location);
 
   return (
     <div
@@ -53,21 +50,12 @@ function EmptyColumn({ location }: { location: "left" | "right" }) {
 function PaneLeaf({
   paneId,
   location,
-  canSplit,
 }: {
   paneId: string;
   location: "left" | "right";
-  canSplit: boolean;
 }) {
   const panels = usePanelsForSlot(paneId);
-  return (
-    <PanelPane
-      panels={panels}
-      slot={paneId}
-      location={location}
-      canSplit={canSplit}
-    />
-  );
+  return <PanelPane panels={panels} slot={paneId} location={location} />;
 }
 
 /**
@@ -80,14 +68,10 @@ function TreeNode({
   node,
   location,
   path,
-  onlyPane,
 }: {
   node: SideDockNode;
   location: "left" | "right";
   path: readonly number[];
-  /** True when this dock renders exactly one pane — the only shape the
-   * drop-on-the-bottom-half split gesture still applies to. */
-  onlyPane: boolean;
 }) {
   // `onLayout` also fires for mount and for the library's own re-validation
   // against new constraints, and recording those would let a stint at a narrow
@@ -96,19 +80,21 @@ function TreeNode({
   const dragging = useRef(false);
 
   if (isPane(node)) {
-    return (
-      <PaneLeaf paneId={node.id} location={location} canSplit={onlyPane} />
-    );
+    return <PaneLeaf paneId={node.id} location={location} />;
   }
 
   const isRow = node.direction === "row";
+  // What the split's children look like *on screen*. A dock hides the panes
+  // whose panels are all hidden, so the rendered tree can be a subset of the
+  // stored one — the anchors let the write refuse a split it isn't aimed at.
+  const anchors = childAnchors(node);
 
   return (
     <PanelGroup
       direction={isRow ? "horizontal" : "vertical"}
       className="side-column"
       onLayout={(sizes) => {
-        if (dragging.current) setSideDockSizes(location, path, sizes);
+        if (dragging.current) setSideDockSizes(location, path, anchors, sizes);
       }}
     >
       {node.children.flatMap((child, i) => {
@@ -120,12 +106,7 @@ function TreeNode({
             minSize={isRow ? 20 : 15}
             className="side-panel-segment"
           >
-            <TreeNode
-              node={child}
-              location={location}
-              path={[...path, i]}
-              onlyPane={false}
-            />
+            <TreeNode node={child} location={location} path={[...path, i]} />
           </Panel>
         );
         if (i === 0) return [panel];
@@ -183,7 +164,6 @@ export function SideColumn({ location }: { location: "left" | "right" }) {
       node={visible}
       location={location}
       path={EMPTY_PATH}
-      onlyPane={isPane(visible)}
     />
   );
 }

@@ -45,32 +45,32 @@
   opacity: 0.4;
 }
 
-/* Drop overlay — appears only while hovering over the panel body mid-drag */
+/* Drop overlay — appears only while hovering over the panel body mid-drag.
+   The base rule covers the whole body ("center": join this pane's tabs); each
+   edge modifier pulls one side in to the half the new pane would take, so what
+   is shaded is what the drop produces. */
 .side-drop-overlay {
   position: absolute;
-  left: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  inset: 0;
   pointer-events: none;
   z-index: 10;
+  background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
 }
 
 .side-drop-overlay--top {
-  top: 0;
-  bottom: 0;
-  background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
+  bottom: 50%;
 }
 
 .side-drop-overlay--bottom {
   top: 50%;
-  bottom: 0;
-  background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
 }
 
-.side-drop-overlay-label {
-  display: none;
+.side-drop-overlay--left {
+  right: 50%;
+}
+
+.side-drop-overlay--right {
+  left: 50%;
 }
 
 /* Column with split panes */

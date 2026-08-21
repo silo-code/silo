@@ -1,5 +1,11 @@
 import { proxy } from "valtio";
-import { setSizes } from "./side-dock-tree";
+import {
+  dockOfPane,
+  insertPane,
+  pruneUnreferenced,
+  setSizes,
+  type InsertSide,
+} from "./side-dock-tree";
 import type { AppState, SideCollapseState } from "./types";
 import {
   DEFAULT_UI_FONT_SIZE,
@@ -66,11 +72,49 @@ export const store = proxy<AppState>({
 export function setSideDockSizes(
   location: "left" | "right",
   path: readonly number[],
+  anchors: readonly string[],
   sizes: number[],
 ) {
-  const next = setSizes(store.sideDockTrees[location], path, sizes);
+  const next = setSizes(store.sideDockTrees[location], path, anchors, sizes);
   if (next !== store.sideDockTrees[location]) {
     store.sideDockTrees[location] = next;
+  }
+}
+
+let paneSeq = 0;
+
+/**
+ * Split `targetPaneId` and return the id of the pane created on `side`, or
+ * `null` when the target isn't in either dock.
+ *
+ * The caller then places a panel in the new pane — a pane nothing is placed in
+ * is pruned right back out by {@link setSidePanelSlot}, so the two steps belong
+ * together.
+ */
+export function splitSideDock(
+  targetPaneId: string,
+  side: InsertSide,
+): string | null {
+  const location = dockOfPane(store.sideDockTrees, targetPaneId);
+  if (location === null) return null;
+  const newPaneId = `pane_${Date.now().toString(36)}_${paneSeq++}`;
+  store.sideDockTrees[location] = insertPane(
+    store.sideDockTrees[location],
+    targetPaneId,
+    newPaneId,
+    side,
+  );
+  return newPaneId;
+}
+
+/** Drop panes nothing is placed in from both docks — see `pruneUnreferenced`. */
+function pruneSideDocks() {
+  const referenced = new Set(Object.values(store.sidePanelLocations));
+  for (const location of ["left", "right"] as const) {
+    const next = pruneUnreferenced(store.sideDockTrees[location], referenced);
+    if (next !== store.sideDockTrees[location]) {
+      store.sideDockTrees[location] = next;
+    }
   }
 }
 
@@ -82,6 +126,8 @@ export function setSidePanelSlot(panelId: string, paneId: string | null) {
   } else {
     store.sidePanelLocations[panelId] = paneId;
   }
+  // Moving the last panel out of a pane is what retires that pane.
+  pruneSideDocks();
 }
 
 /** Convenience alias kept for existing callers. */

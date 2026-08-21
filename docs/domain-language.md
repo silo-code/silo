@@ -101,10 +101,18 @@ One of the two collapsible vertical containers (left/right) on either side of
 the center area. Hosts the Navigator and other Side Panels.
 _Avoid_: Sidebar (OS/VS Code sense — see Navigator), side column
 
-**Slot**:
-A specific region within a SideDock. A SideDock splits into a Top Slot and a
-Bottom Slot.
-_Avoid_: Region, zone
+**Side Pane**:
+A leaf of a SideDock's layout tree — one tab bar over an ordered set of Side
+Panels. A SideDock holds one or more, arranged by nested row/column Splits, and
+always has at least one.
+_Avoid_: Slot (the retired positional term — a SideDock used to divide into a
+fixed Top Slot and Bottom Slot), region, zone
+
+**Pane Id**:
+The opaque, stable identifier of a Side Pane, unique across both SideDocks. It
+is what a Side Panel's placement is recorded against, and it carries no
+positional meaning — never parse a dock out of it.
+_Avoid_: Slot name, pane index
 
 **CenterDock**:
 The primary, high-focus area in the middle of the app. Workspace-aware —
@@ -118,8 +126,9 @@ _Avoid_: Panel group (see Group, a narrower thing inside a Dock)
 
 **Group**:
 A collection of Panels sharing a single tab bar within a Dock. Groups can be
-split horizontally or vertically.
-_Avoid_: Tab group, pane
+split horizontally or vertically. A CenterDock concept — the SideDock
+equivalent is a Side Pane.
+_Avoid_: Tab group, pane (see Side Pane, which is the SideDock's own term)
 
 **Panel**:
 The fundamental unit of UI content — a Terminal, File Explorer, or Editor. A
@@ -163,7 +172,8 @@ the Active Panel may take focus (ADR 0034).
 _Avoid_: Treating "focused" and "active" as interchangeable
 
 **Split**:
-Dividing a Slot or Group into two or more sections.
+Dividing a Side Pane or Group into two or more sections, in a row (side by
+side) or a column (stacked).
 _Avoid_: Divide, subdivide
 
 **Collapsed / Expanded**:

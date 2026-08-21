@@ -37,10 +37,11 @@ afterEach(() => {
 // ── DOM builders (jsdom has no layout, so side-pane visibility is stubbed via a
 // defined clientWidth, matching the `clientWidth > 0` check the model uses) ──
 
-function sidePane(slot: "left" | "right" | "left-bottom"): HTMLButtonElement {
+function sidePane(slot: string): HTMLButtonElement {
   const pane = document.createElement("div");
   pane.className = "side-pane";
   pane.dataset.slot = slot;
+  pane.dataset.location = slot.startsWith("left") ? "left" : "right";
   Object.defineProperty(pane, "clientWidth", {
     value: 200,
     configurable: true,
@@ -62,6 +63,7 @@ function collapsedSidePane(side: "left" | "right", panelId = "p"): void {
   const pane = document.createElement("div");
   pane.className = "side-pane";
   pane.dataset.slot = side;
+  pane.dataset.location = side;
   Object.defineProperty(pane, "clientWidth", { value: 0, configurable: true });
   const tab = document.createElement("button");
   tab.className = "tab";
@@ -363,5 +365,18 @@ describe("enterRegionOnPointer (unified click-to-enter)", () => {
     const stray = document.createElement("div");
     document.body.appendChild(stray);
     expect(enterRegionOnPointer(stray)).toBe(false);
+  });
+});
+
+describe("panes created by a split (RFC 0027)", () => {
+  it("counts an opaque pane id as part of its dock's region", () => {
+    // The pane id says nothing about which dock it is in — only
+    // `data-location` does. A selector that prefix-matched the slot would drop
+    // this pane out of the region entirely.
+    const item = sidePane("pane_7f3a");
+    document.querySelector<HTMLElement>(
+      '[data-slot="pane_7f3a"]',
+    )!.dataset.location = "right";
+    expect(regionOf(item)?.id).toBe("right");
   });
 });

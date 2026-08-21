@@ -401,24 +401,66 @@ export function movePane(
   return insertPane(without, targetPaneId, paneId, side);
 }
 
-/** Replace the sizes of the split that owns `paneIdInSplit`'s level — the write
- * a resize-handle drag makes. Sizes are rescaled to sum to 100. */
+/** Each child's first pane id, in order — a split's identity, and the check
+ * that a resize is aimed at the split the user actually dragged. */
+export function childAnchors(node: SideDockNode): string[] {
+  return isPane(node) ? [] : node.children.map(firstPaneId);
+}
+
+/**
+ * Replace one split's sizes — the write a resize-handle drag makes.
+ *
+ * `splitPath` is the index route to the split; `anchors` is what its children
+ * looked like on screen. Both are needed because **the tree that renders is not
+ * always the tree that is stored**: a dock hides the panes whose panels are all
+ * hidden (see {@link retainPanes}), so a rendered path can point at a stored
+ * split with a different set of children. Writing sizes there would re-proportion
+ * panes the user wasn't touching, so a mismatch is skipped instead — the drag is
+ * lost, nothing is corrupted. With nothing hidden (the ordinary case) the two
+ * trees are identical and the check always passes.
+ */
 export function setSizes(
   node: SideDockNode,
   splitPath: readonly number[],
+  anchors: readonly string[],
   sizes: number[],
 ): SideDockNode {
   if (isPane(node)) return node;
   if (splitPath.length === 0) {
     if (sizes.length !== node.children.length) return node;
+    const actual = childAnchors(node);
+    if (actual.length !== anchors.length) return node;
+    if (actual.some((id, i) => id !== anchors[i])) return node;
     return { ...node, sizes: rescale(sizes) };
   }
   const [head, ...rest] = splitPath;
   const child = node.children[head];
   if (child === undefined) return node;
+  const next = setSizes(child, rest, anchors, sizes);
+  if (next === child) return node;
   const children = [...node.children];
-  children[head] = setSizes(child, rest, sizes);
+  children[head] = next;
   return { ...node, children, sizes: [...node.sizes] };
+}
+
+/**
+ * Drop the panes nothing is placed in any more, so an abandoned pane doesn't
+ * linger in the stored tree after the last panel is dragged out of it.
+ *
+ * Keyed on `sidePanelLocations` — what the user *placed* — not on what is
+ * currently visible or currently registered. Hiding a panel from the visibility
+ * menu, or disabling the extension that owns it, leaves the placement intact, so
+ * the pane survives and the panel comes back to it. A dock always keeps at least
+ * its first pane, which is what renders as the empty column.
+ */
+export function pruneUnreferenced(
+  node: SideDockNode,
+  referenced: ReadonlySet<string>,
+): SideDockNode {
+  const root = firstPaneId(node);
+  return (
+    retainPanes(node, (id) => id === root || referenced.has(id)) ?? pane(root)
+  );
 }
 
 // ─── migration ──────────────────────────────────────────────────────────────

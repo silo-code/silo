@@ -23,7 +23,10 @@
 /** A side column narrower than this collapses instead — the drag-to-close
  * gesture react-resizable-panels gives us for a `collapsible` panel. */
 export const MIN_COLUMN_PX = 200;
-export const MAX_COLUMN_PX = 800;
+/** Wide enough for two panes side by side (RFC 0027): a `row` split needs
+ * 2 × `MIN_PANE_WIDTH_PX` plus the handle before the drop is even offered, and
+ * a dock capped at the old 800 could hold one but never comfortably. */
+export const MAX_COLUMN_PX = 1200;
 /** The center column never gives up more than this, whatever the side columns
  * would like — the guard for a window too narrow to satisfy everyone. */
 export const MIN_CENTER_PX = 240;
