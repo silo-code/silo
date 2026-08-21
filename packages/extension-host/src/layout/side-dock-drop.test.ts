@@ -83,6 +83,19 @@ describe("dropZoneAt", () => {
     expect(dropZoneAt(narrow, 2, 6)).toBe("top");
   });
 
+  // The reorder gesture: dragging along a pane's tab bar, which sits above its
+  // body. Anything outside the body is the pane itself, never one of its edges.
+  it("treats a point outside the rect as center, not the nearest edge", () => {
+    expect(dropZoneAt(roomy, 300, -12)).toBe("center"); // over the tab bar
+    expect(dropZoneAt(roomy, 300, 640)).toBe("center");
+    expect(dropZoneAt(roomy, -20, 300)).toBe("center");
+    expect(dropZoneAt(roomy, 640, 300)).toBe("center");
+  });
+
+  it("still reads the very first row inside the body as the top edge", () => {
+    expect(dropZoneAt(roomy, 300, 0)).toBe("top");
+  });
+
   it("caps the band so a tall pane does not become mostly edge", () => {
     const tall: DOMRectLike = { left: 0, top: 0, width: 600, height: 2000 };
     // A quarter of 2000 would be 500px of edge; the cap keeps it at 80.

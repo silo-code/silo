@@ -55,6 +55,13 @@ export interface DOMRectLike {
 export function dropZoneAt(rect: DOMRectLike, x: number, y: number): DropZone {
   const dx = x - rect.left;
   const dy = y - rect.top;
+
+  // Outside the body entirely — which is where the tab bar is, sitting above
+  // it. Without this a point over the tabs has a negative `dy`, that clears the
+  // `dy <= vBand` test, and every attempt to reorder a tab reads as a split off
+  // the top edge instead.
+  if (dx < 0 || dy < 0 || dx > rect.width || dy > rect.height) return "center";
+
   const hBand = band(rect.width);
   const vBand = band(rect.height);
 
