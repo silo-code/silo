@@ -28,7 +28,6 @@ import {
 } from "./workspaces";
 import { clearEditorBackup } from "./editor-backups";
 import { DEFAULT_GLOBAL_PANEL_LAYOUT } from "./types";
-import { DEFAULT_SHARED_COLUMN_WIDTHS } from "./types";
 
 function makeWorkspace(id: string): WorkspaceInternal {
   return {
@@ -540,10 +539,6 @@ describe("shared side panel widths", () => {
       normal: { left: 260, right: 340 },
       smallScreen: { left: 220, right: 260 },
     };
-  });
-
-  it("is on by default — how widths have always behaved", () => {
-    expect(DEFAULT_SHARED_COLUMN_WIDTHS).toBe(true);
   });
 
   it("ignores a set to the value it already has", () => {

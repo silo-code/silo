@@ -75,6 +75,16 @@ export function makeLayoutSettingsPage(ctx: ExtensionContext) {
         </div>
         <div className="es-scroll silo-scroll">
           <Section label="Side Panel Layout">
+            <SettingRow
+              label="Share side panel widths across workspaces"
+              hint="Turn this off to give each workspace its own side panel widths — useful when one workspace splits a side panel into columns and needs it much wider than the rest."
+            >
+              <Switch
+                checked={snap.sharedColumnWidthsEnabled}
+                onChange={setSharedColumnWidthsEnabled}
+                aria-label="Share side panel widths across workspaces"
+              />
+            </SettingRow>
             {/* Hand-rolled instead of <SettingRow> (whose `hint` is a plain
                 string) so the sub-setting checkbox can sit inside the same
                 row's text column, directly under the hint, rather than as
@@ -105,16 +115,6 @@ export function makeLayoutSettingsPage(ctx: ExtensionContext) {
                 />
               </div>
             </div>
-            <SettingRow
-              label="Share side panel widths across workspaces"
-              hint="Turn this off to give each workspace its own side panel widths — useful when one workspace splits a side panel into columns and needs it much wider than the rest."
-            >
-              <Switch
-                checked={snap.sharedColumnWidthsEnabled}
-                onChange={setSharedColumnWidthsEnabled}
-                aria-label="Share side panel widths across workspaces"
-              />
-            </SettingRow>
           </Section>
           <Section label="Laptop Mode">
             <SettingRow
