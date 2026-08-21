@@ -223,6 +223,61 @@ export function isNormalized(node: SideDockNode): boolean {
   );
 }
 
+/**
+ * Keep only the panes `keep` accepts, collapsing what that empties exactly as
+ * {@link removePane} does. `null` when nothing survives.
+ *
+ * This is how a dock renders: the stored tree is the user's arrangement, and
+ * what's on screen is that tree minus the panes with nothing visible in them.
+ * Filtering at render rather than pruning the stored tree is deliberate —
+ * hiding a panel from the visibility menu makes its segment disappear and
+ * un-hiding brings it back at the same size, which is the behavior the fixed
+ * Top/Bottom slots had for free.
+ */
+export function retainPanes(
+  node: SideDockNode,
+  keep: (paneId: string) => boolean,
+): SideDockNode | null {
+  if (isPane(node)) return keep(node.id) ? node : null;
+
+  const children: SideDockNode[] = [];
+  const sizes: number[] = [];
+  node.children.forEach((child, i) => {
+    const kept = retainPanes(child, keep);
+    if (kept === null) return;
+    children.push(kept);
+    sizes.push(node.sizes[i] ?? 0);
+  });
+
+  if (children.length === 0) return null;
+  if (children.length === 1) return children[0];
+  return normalizeNode({
+    type: "split",
+    direction: node.direction,
+    children,
+    sizes: rescale(sizes),
+  });
+}
+
+// ─── cloning ────────────────────────────────────────────────────────────────
+
+/** A structural copy — the store's trees must never alias a workspace record's
+ * (or vice versa), the same rule every other panel-state container follows. */
+export function cloneNode(node: SideDockNode): SideDockNode {
+  return isPane(node)
+    ? { type: "pane", id: node.id }
+    : {
+        type: "split",
+        direction: node.direction,
+        children: node.children.map(cloneNode),
+        sizes: [...node.sizes],
+      };
+}
+
+export function cloneTrees(trees: SideDockTrees): SideDockTrees {
+  return { left: cloneNode(trees.left), right: cloneNode(trees.right) };
+}
+
 // ─── mutation ───────────────────────────────────────────────────────────────
 
 /**

@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { cloneNode, pane, split } from "./side-dock-tree";
 import {
   store,
   isSidePanelVisible,
   toggleSidePanelVisibility,
   collapseStateByMode,
   swapCollapseMode,
+  setSideDockSizes,
 } from "./store";
 
 describe("side-panel visibility", () => {
@@ -86,5 +88,43 @@ describe("the two side-column layout modes", () => {
     expect(store.leftPanelCollapsed).toBe(true);
     expect(store.rightPanelCollapsed).toBe(true);
     expect(store.inactiveModeCollapsed).toEqual({ left: false, right: false });
+  });
+});
+
+describe("setSideDockSizes", () => {
+  beforeEach(() => {
+    store.sideDockTrees = {
+      left: split("column", [pane("left"), pane("left-bottom")], [55, 45]),
+      right: pane("right"),
+    };
+  });
+
+  it("records what a drag produced, rescaled to sum to 100", () => {
+    setSideDockSizes("left", [], [70.5, 29.5]);
+    const left = store.sideDockTrees.left;
+    expect(left.type === "split" && left.sizes).toEqual([70.5, 29.5]);
+  });
+
+  it("writes a nested split by path, leaving the parent alone", () => {
+    store.sideDockTrees.right = split(
+      "row",
+      [pane("right"), split("column", [pane("p2"), pane("p3")], [50, 50])],
+      [60, 40],
+    );
+    setSideDockSizes("right", [1], [25, 75]);
+    const root = store.sideDockTrees.right;
+    expect(root.type === "split" && root.sizes).toEqual([60, 40]);
+    const nested = root.type === "split" ? root.children[1] : null;
+    expect(nested?.type === "split" && nested.sizes).toEqual([25, 75]);
+  });
+
+  it("ignores a resize aimed at a pane or a path that is not there", () => {
+    const before = cloneNode(store.sideDockTrees.right);
+    setSideDockSizes("right", [], [50, 50]); // right is a lone pane
+    expect(store.sideDockTrees.right).toEqual(before);
+
+    const leftBefore = cloneNode(store.sideDockTrees.left);
+    setSideDockSizes("left", [7], [50, 50]);
+    expect(store.sideDockTrees.left).toEqual(leftBefore);
   });
 });

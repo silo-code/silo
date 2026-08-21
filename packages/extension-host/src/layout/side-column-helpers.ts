@@ -19,10 +19,10 @@ export function topSlot(location: "left" | "right"): SidePanelSlot {
 export function bottomSlot(location: "left" | "right"): SidePanelSlot {
   return `${location}-bottom`;
 }
-export function isTopSlot(slot: SidePanelSlot, location: "left" | "right") {
+export function isTopSlot(slot: string, location: "left" | "right") {
   return slot === location;
 }
-export function isTopSlotOfColumn(slot: SidePanelSlot): boolean {
+export function isTopSlotOfColumn(slot: string): boolean {
   return slot === "left" || slot === "right";
 }
 // Re-exported so the slot algebra has one home (`side-panel-slots.ts`, pure and
@@ -58,27 +58,37 @@ export function removeGhost() {
 
 // ─── drop-target detection ────────────────────────────────────────────────────
 
+/** The pane under the pointer, the dock it belongs to, and which half of it.
+ *
+ * The dock comes off the element's own `data-location` rather than being parsed
+ * out of the pane id: an id is opaque (RFC 0027), so a `startsWith("left")` test
+ * would quietly answer "right" for every pane the user creates. */
 export function getDropInfo(
   x: number,
   y: number,
-): { slot: SidePanelSlot; zone: "top" | "bottom" } | null {
+): {
+  slot: string;
+  location: "left" | "right";
+  zone: "top" | "bottom";
+} | null {
   const el = document.elementFromPoint(x, y);
   if (!el) return null;
   const pane = (el as HTMLElement).closest<HTMLElement>("[data-slot]");
   if (!pane) return null;
-  const slot = pane.dataset.slot as SidePanelSlot;
+  const slot = pane.dataset.slot as string;
+  const location = pane.dataset.location === "left" ? "left" : "right";
   const body = pane.querySelector<HTMLElement>(".panel-body");
   let zone: "top" | "bottom" = "top";
   if (body) {
     const rect = body.getBoundingClientRect();
     if (y > rect.top + rect.height / 2) zone = "bottom";
   }
-  return { slot, zone };
+  return { slot, location, zone };
 }
 
 // ─── hooks ───────────────────────────────────────────────────────────────────
 
-function useRegistryTick() {
+export function useRegistryTick() {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const sub = sidePanelRegistry.onChange(() => setTick((n) => n + 1));
@@ -87,7 +97,9 @@ function useRegistryTick() {
   return tick;
 }
 
-export function usePanelsForSlot(slot: SidePanelSlot): SidePanel[] {
+/** The visible panels in one pane, in order. `paneId` is opaque — a legacy slot
+ * string today, any pane id once RFC 0027's splits land. */
+export function usePanelsForSlot(paneId: string): SidePanel[] {
   const snap = useSnapshot(store);
   const tick = useRegistryTick();
   return useMemo(() => {
@@ -99,7 +111,7 @@ export function usePanelsForSlot(slot: SidePanelSlot): SidePanel[] {
       // registers `left`/`right`), so the single comparison covers both
       // segments — and routes an override this build can't render back to the
       // panel's own column instead of dropping it. See `resolveSidePanelSlot`.
-      return resolveSidePanelSlot(overrides[p.id], p.location) === slot;
+      return resolveSidePanelSlot(overrides[p.id], p.location) === paneId;
     });
     filtered.sort(
       (a, b) => (order[a.id] ?? a.order ?? 0) - (order[b.id] ?? b.order ?? 0),
@@ -107,7 +119,7 @@ export function usePanelsForSlot(slot: SidePanelSlot): SidePanel[] {
     return filtered;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    slot,
+    paneId,
     tick,
     snap.sidePanelLocations,
     snap.sidePanelOrder,

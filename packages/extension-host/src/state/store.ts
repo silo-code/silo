@@ -1,5 +1,6 @@
 import { proxy } from "valtio";
-import type { AppState, SideCollapseState, SidePanelSlot } from "./types";
+import { setSizes } from "./side-dock-tree";
+import type { AppState, SideCollapseState } from "./types";
 import {
   DEFAULT_UI_FONT_SIZE,
   MIN_UI_FONT_SIZE,
@@ -52,11 +53,34 @@ export const store = proxy<AppState>({
   panelOrder: [],
 });
 
-export function setSidePanelSlot(panelId: string, slot: SidePanelSlot | null) {
-  if (slot === null) {
+/**
+ * Record the sizes a resize-handle drag produced for one split in a dock's
+ * tree (RFC 0027). `path` is the index route from the dock's root to that
+ * split — see `layout/SideColumn.tsx`.
+ *
+ * This replaces react-resizable-panels' `autoSaveId`, which kept the one split's
+ * percentages in a single global localStorage key: not per workspace and not per
+ * layout mode, so a stint at a narrow window silently re-proportioned the
+ * normal-width dock.
+ */
+export function setSideDockSizes(
+  location: "left" | "right",
+  path: readonly number[],
+  sizes: number[],
+) {
+  const next = setSizes(store.sideDockTrees[location], path, sizes);
+  if (next !== store.sideDockTrees[location]) {
+    store.sideDockTrees[location] = next;
+  }
+}
+
+/** Place a side panel in a pane, or clear the override so it falls back to the
+ * dock it registered with. `paneId` is opaque — see `SharedPanelState`. */
+export function setSidePanelSlot(panelId: string, paneId: string | null) {
+  if (paneId === null) {
     delete store.sidePanelLocations[panelId];
   } else {
-    store.sidePanelLocations[panelId] = slot;
+    store.sidePanelLocations[panelId] = paneId;
   }
 }
 

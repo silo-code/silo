@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSnapshot } from "valtio";
 import type { SidePanel } from "@silo-code/sdk";
-import type { SidePanelSlot } from "../state/types";
 import { getWorkspaceExtensionStorage } from "../extension-host/extension-storage";
 import { store } from "../state/store";
 import { useSideTabDrag } from "./side-column-helpers";
@@ -13,7 +12,9 @@ import { resolveActiveSidePanelId } from "./active-side-panel-tab";
 
 interface PanelPaneProps {
   panels: SidePanel[];
-  slot: SidePanelSlot;
+  /** The pane this renders — an opaque id, and the key every per-pane map
+   * (`activeSidePanelTabs`, the side-pane registry) is stored under. */
+  slot: string;
   location: "left" | "right";
   /** When true this pane can be split by dropping on its bottom half */
   canSplit: boolean;
@@ -219,7 +220,7 @@ export function PanelPane({
   }, []);
 
   return (
-    <div className="side-pane" data-slot={slot}>
+    <div className="side-pane" data-slot={slot} data-location={location}>
       <TabBar
         panels={panels}
         slot={slot}

@@ -105,6 +105,20 @@
   bottom: -3px;
   cursor: ns-resize;
 }
+/* The handle between side-by-side panes (a `row` split): the same hairline,
+   turned 90 degrees. */
+.side-resize-handle--row {
+  width: 0;
+  height: auto;
+  cursor: ew-resize;
+}
+.side-resize-handle--row::after {
+  left: -3px;
+  right: -3px;
+  top: 0;
+  bottom: 0;
+  cursor: ew-resize;
+}
 /* The hover/drag accent line is drawn by the shared rrp ::before rule in
    theme.css (the split handle is a vertical rrp handle), so it stays a single
    1px line and matches the center dock — no element-level highlight here. */
@@ -151,14 +165,16 @@
 }
 
 /* The column owns its panel font size (theming-contract.md › the sizing rule):
-   the slot sets it here and panel content inherits + sizes relatively (em), so
+   the dock sets it here and panel content inherits + sizes relatively (em), so
    panels never name the internal token and a panel adopts its column's scale
-   wherever it's docked. Left/right are intentionally different scales; data-slot
-   carries the column (left / left-bottom / right / right-bottom). */
-.side-pane[data-slot^="left"] {
+   wherever it's docked. Left/right are intentionally different scales.
+   Keyed off `data-location`, not `data-slot`: a pane id is opaque (RFC 0027),
+   so a prefix match on the slot would silently stop applying the moment a pane
+   is named anything but the legacy left*/
+right* strings. */ .side-pane[data-location="left"] {
   font-size: var(--silo-internal-font-size-left-panel);
 }
-.side-pane[data-slot^="right"] {
+.side-pane[data-location="right"] {
   font-size: var(--silo-internal-font-size-right-panel);
 }
 

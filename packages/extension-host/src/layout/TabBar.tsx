@@ -3,7 +3,6 @@ import { sidePanelRegistry } from "../extension-host/side-panels";
 import { openMenu } from "../extension-host/menu-controller";
 import type { MenuEntry } from "@silo-code/sdk";
 import type { SidePanel } from "@silo-code/sdk";
-import type { SidePanelSlot } from "../state/types";
 import { store, setSidePanelSlot, reorderSidePanels } from "../state/store";
 import { sideTabDrag } from "./drag-state";
 import { resolveSidePanelSlot } from "./side-panel-slots";
@@ -11,7 +10,6 @@ import {
   topSlot,
   bottomSlot,
   isTopSlot,
-  slotToLocation,
   isTopSlotOfColumn,
   getDropInfo,
   createGhost,
@@ -23,7 +21,7 @@ import {
 
 interface TabBarProps {
   panels: SidePanel[];
-  slot: SidePanelSlot;
+  slot: string;
   location: "left" | "right";
   activeId: string | null;
   onActivate: (id: string) => void;
@@ -79,8 +77,7 @@ export function TabBar({
       return;
     }
 
-    const { slot: targetSlot, zone } = dropInfo;
-    const targetLocation = slotToLocation(targetSlot);
+    const { slot: targetSlot, location: targetLocation, zone } = dropInfo;
     const targetIsTop = isTopSlotOfColumn(targetSlot);
 
     if (

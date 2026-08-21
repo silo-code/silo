@@ -8,6 +8,7 @@
 // fan-out from the legacy monolithic blob, the index shape, the active-workspace
 // panel-state merge, and the write/delete reconciliation.
 
+import { cloneTrees } from "./side-dock-tree";
 import type {
   EditorSettings,
   GlobalPanelLayout,
@@ -195,6 +196,9 @@ export function cloneGlobalPanelLayout(
   g: GlobalPanelLayout,
 ): GlobalPanelLayout {
   return {
+    // Left absent when absent, so a pre-RFC-0027 index still migrates from
+    // `sidePanelLocations` instead of silently adopting a default tree.
+    ...(g.sideDockTrees ? { sideDockTrees: cloneTrees(g.sideDockTrees) } : {}),
     sidePanelLocations: { ...g.sidePanelLocations },
     sidePanelOrder: { ...g.sidePanelOrder },
     sidePanelVisibility: { ...g.sidePanelVisibility },

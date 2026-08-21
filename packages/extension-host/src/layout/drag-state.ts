@@ -1,10 +1,8 @@
-import type { SidePanelSlot } from "../state/types";
-
 export interface SideTabDrag {
   panelId: string;
-  sourceSlot: SidePanelSlot;
+  sourceSlot: string;
   /** Slot currently under the pointer (updated during pointer move) */
-  hoverSlot?: SidePanelSlot;
+  hoverSlot?: string;
   /** Vertical zone within the hovered slot's body */
   hoverZone?: "top" | "bottom";
 }

@@ -14,9 +14,9 @@ export type {
   ThemeExport,
 } from "@silo-code/sdk";
 
+import { defaultTrees, type SideDockTrees } from "./side-dock-tree";
 import type {
   Workspace,
-  SidePanelSlot,
   CustomTheme,
   TerminalRecord,
   EditorRecord,
@@ -63,11 +63,26 @@ export interface SideCollapseState {
  */
 export interface SharedPanelState {
   /**
-   * User-chosen slot overrides, keyed by side-panel id.
-   * Possible values: "left" | "right" | "left-bottom" | "right-bottom".
-   * If a key is absent the panel renders at its registered default location.
+   * The geometry of both side docks: how each one is divided into panes and in
+   * what proportions (RFC 0027). Membership — which panel is in which pane —
+   * stays in {@link sidePanelLocations}; this says only where the panes are.
+   *
+   * **One copy, shared by both layout modes**, unlike collapse state and column
+   * widths (ADR 0033). A tree decides which pane *ids exist*, and
+   * `sidePanelLocations` is itself single-copy, so forking the tree per mode
+   * would let a panel's recorded pane exist in one mode and not the other —
+   * membership can't follow a fork that its own map has no way to express. What
+   * genuinely needs to differ on a narrow window is how wide a dock is and
+   * whether it's open, and both of those already are per-mode.
    */
-  sidePanelLocations: Record<string, SidePanelSlot>;
+  sideDockTrees: SideDockTrees;
+  /**
+   * User-chosen placement overrides, keyed by side-panel id. The value is a
+   * **pane id** — opaque, and meaningful only against {@link sideDockTrees}.
+   * Absent means the panel renders in the dock it registered with, and so does
+   * an id no longer present in the tree (see `layout/side-panel-slots.ts`).
+   */
+  sidePanelLocations: Record<string, string>;
   /**
    * Sort order within each slot, keyed by side-panel id.
    * Lower numbers appear first. Missing entries sort as 0.
@@ -101,6 +116,7 @@ export interface SharedPanelState {
 /** What every {@link SharedPanelState} field starts as — spread into the store's
  * initial value, so a new field needs no separate edit there. */
 export const DEFAULT_PANEL_STATE: SharedPanelState = {
+  sideDockTrees: defaultTrees(),
   sidePanelLocations: {},
   sidePanelOrder: {},
   activeSidePanelTabs: {},
@@ -135,7 +151,11 @@ export interface PanelStateSnapshot extends SharedPanelState {
  * ADR 0035.
  */
 export interface GlobalPanelLayout {
-  sidePanelLocations: Record<string, SidePanelSlot>;
+  /** Absent in an index written before RFC 0027 — `applyGlobalPanelLayout`
+   * then derives the trees from `sidePanelLocations`, like a workspace record
+   * that predates them. */
+  sideDockTrees?: SideDockTrees;
+  sidePanelLocations: Record<string, string>;
   sidePanelOrder: Record<string, number>;
   sidePanelVisibility: Record<string, boolean>;
   leftPanelCollapsed: boolean;
@@ -146,6 +166,7 @@ export interface GlobalPanelLayout {
 /** What {@link GlobalPanelLayout} starts as before the flag has ever been
  * enabled. */
 export const DEFAULT_GLOBAL_PANEL_LAYOUT: GlobalPanelLayout = {
+  sideDockTrees: defaultTrees(),
   sidePanelLocations: {},
   sidePanelOrder: {},
   sidePanelVisibility: {},

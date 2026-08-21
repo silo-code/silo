@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  cloneTrees,
   dockOfPane,
   defaultTrees,
   firstPaneId,
@@ -12,6 +13,7 @@ import {
   pane,
   paneIds,
   removePane,
+  retainPanes,
   setSizes,
   split,
   treesFromLegacySlots,
@@ -349,5 +351,66 @@ describe("treesFromLegacySlots", () => {
     const trees = treesFromLegacySlots({ a: "left-bottom", b: "right-bottom" });
     expect(isNormalized(trees.left)).toBe(true);
     expect(isNormalized(trees.right)).toBe(true);
+  });
+});
+
+describe("retainPanes", () => {
+  it("keeps the panes the predicate accepts, collapsing the rest", () => {
+    const tree = split("column", [pane("a"), pane("b")], [70, 30]);
+    expect(retainPanes(tree, (id) => id === "a")).toEqual(pane("a"));
+  });
+
+  it("returns null when nothing is kept", () => {
+    const tree = split("row", [pane("a"), pane("b")]);
+    expect(retainPanes(tree, () => false)).toBeNull();
+  });
+
+  it("keeps the survivors' proportions relative to each other", () => {
+    const tree = split(
+      "column",
+      [pane("a"), pane("b"), pane("c")],
+      [50, 25, 25],
+    );
+    const out = asSplit(retainPanes(tree, (id) => id !== "a")!);
+    expect(paneIds(out)).toEqual(["b", "c"]);
+    expect(out.sizes).toEqual([50, 50]);
+  });
+
+  // The filter is a *view*: it never touches the stored tree, which is what
+  // makes hiding a panel and un-hiding it restore the same layout.
+  it("leaves the input untouched, so hiding is reversible", () => {
+    const tree = split("column", [pane("a"), pane("b")], [70, 30]);
+    const snapshot = structuredClone(tree);
+    retainPanes(tree, (id) => id === "a");
+    expect(tree).toEqual(snapshot);
+    expect(retainPanes(tree, () => true)).toEqual(snapshot);
+  });
+
+  it("flattens nesting a filter exposes", () => {
+    const tree = split(
+      "row",
+      [pane("a"), split("row", [pane("b"), pane("c")], [50, 50])],
+      [50, 50],
+    );
+    const out = asSplit(retainPanes(tree, (id) => id !== "b")!);
+    expect(paneIds(out)).toEqual(["a", "c"]);
+    expect(isNormalized(out)).toBe(true);
+  });
+});
+
+describe("cloneTrees", () => {
+  it("copies deeply enough that a mutation cannot leak between copies", () => {
+    const trees = {
+      left: split("column", [pane("a"), pane("b")], [60, 40]),
+      right: pane("right"),
+    };
+    const copy = cloneTrees(trees);
+    expect(copy).toEqual(trees);
+
+    const original = asSplit(trees.left);
+    original.sizes[0] = 10;
+    original.children.push(pane("c"));
+    expect(asSplit(copy.left).sizes).toEqual([60, 40]);
+    expect(paneIds(copy.left)).toEqual(["a", "b"]);
   });
 });

@@ -7,6 +7,7 @@ import {
   applyGlobalPanelLayout,
 } from "./panel-state";
 import { DEFAULT_PANEL_STATE } from "./types";
+import { pane, paneIds, split } from "./side-dock-tree";
 import type { WorkspaceInternal } from "./types";
 
 function makeWorkspace(id: string): WorkspaceInternal {
@@ -25,6 +26,10 @@ function makeWorkspace(id: string): WorkspaceInternal {
 /** A live store with every panel field set to something distinctive, so a
  * field dropped from either half of the mapping shows up as a difference. */
 function seedLiveState(): void {
+  store.sideDockTrees = {
+    left: split("column", [pane("left"), pane("left-bottom")], [70, 30]),
+    right: pane("right"),
+  };
   store.sidePanelLocations = { explorer: "left" };
   store.sidePanelOrder = { explorer: 2 };
   store.activeSidePanelTabs = { left: "explorer" };
@@ -156,5 +161,71 @@ describe("captureGlobalPanelLayout / applyGlobalPanelLayout", () => {
     store.sidePanelVisibility.themes = false;
 
     expect(g.sidePanelVisibility).toEqual({});
+  });
+});
+
+describe("side dock trees", () => {
+  it("does not alias the record's trees into the live store", () => {
+    seedLiveState();
+    const snapshot = capturePanelState();
+    // Mutating the live tree after capture must not reach the snapshot.
+    store.sideDockTrees.right = split("row", [pane("right"), pane("p2")]);
+    expect(paneIds(snapshot.sideDockTrees.right)).toEqual(["right"]);
+
+    applyPanelState({ ...makeWorkspace("a"), ...snapshot });
+    store.sideDockTrees.left = pane("left");
+    expect(paneIds(snapshot.sideDockTrees.left)).toEqual([
+      "left",
+      "left-bottom",
+    ]);
+  });
+
+  // RFC 0027: a record written before the tree existed carries only
+  // sidePanelLocations, and the arrangement it implies is recoverable from it.
+  it("derives the trees for a record that predates them", () => {
+    applyPanelState({
+      ...makeWorkspace("legacy"),
+      sidePanelLocations: { explorer: "left", git: "right-bottom" },
+    });
+    expect(paneIds(store.sideDockTrees.left)).toEqual(["left"]);
+    expect(paneIds(store.sideDockTrees.right)).toEqual([
+      "right",
+      "right-bottom",
+    ]);
+  });
+
+  it("gives a record with no panel state at all the default docks", () => {
+    applyPanelState(makeWorkspace("fresh"));
+    expect(store.sideDockTrees).toEqual({
+      left: pane("left"),
+      right: pane("right"),
+    });
+  });
+
+  it("normalizes a stored tree rather than trusting it", () => {
+    applyPanelState({
+      ...makeWorkspace("hand-edited"),
+      sidePanelLocations: {},
+      // A one-child split and a sizes array that sums to nothing like 100.
+      sideDockTrees: {
+        left: split("row", [pane("left")], [100]),
+        right: split("column", [pane("right"), pane("right-bottom")], [3, 1]),
+      },
+    });
+    expect(store.sideDockTrees.left).toEqual(pane("left"));
+    const right = store.sideDockTrees.right;
+    expect(right.type).toBe("split");
+    expect(right.type === "split" && right.sizes).toEqual([75, 25]);
+  });
+
+  it("derives the global layout's trees when the index predates them", () => {
+    applyGlobalPanelLayout({
+      sidePanelLocations: { git: "left-bottom" },
+      sidePanelOrder: {},
+      sidePanelVisibility: {},
+      leftPanelCollapsed: false,
+      rightPanelCollapsed: false,
+    });
+    expect(paneIds(store.sideDockTrees.left)).toEqual(["left", "left-bottom"]);
   });
 });

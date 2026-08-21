@@ -13,6 +13,12 @@
 // rewrite the workspace we last saved.
 
 import { store, collapseStateByMode } from "./store";
+import {
+  cloneTrees,
+  normalizeTrees,
+  treesFromLegacySlots,
+} from "./side-dock-tree";
+import type { SideDockTrees } from "./side-dock-tree";
 import { DEFAULT_SMALL_SCREEN_COLLAPSE } from "./types";
 import type {
   GlobalPanelLayout,
@@ -33,6 +39,28 @@ export function cloneExtensionState(
 }
 
 /**
+ * The dock trees to make live for a record that may predate them (RFC 0027).
+ *
+ * A record written before the tree existed carries only `sidePanelLocations`,
+ * and the arrangement it implies is recoverable from exactly that: a dock had a
+ * second, stacked pane iff some panel named its `-bottom` slot. Deriving it here
+ * — rather than migrating workspace files up front — means an install that rolls
+ * back and forward again re-derives cleanly each time, and a record that has
+ * never been opened on a tree build is never rewritten.
+ *
+ * A stored tree is normalized on the way in, so a hand-edited or half-written
+ * file costs the user proportions rather than panes.
+ */
+function resolveTrees(
+  stored: SideDockTrees | undefined,
+  legacyLocations: Readonly<Record<string, string>> | undefined,
+): SideDockTrees {
+  return stored
+    ? normalizeTrees(cloneTrees(stored))
+    : treesFromLegacySlots(legacyLocations ?? {});
+}
+
+/**
  * The live panel state, in the shape a workspace record stores it.
  *
  * The collapse fields are the one place the two shapes differ: the store holds
@@ -43,6 +71,7 @@ export function cloneExtensionState(
 export function capturePanelState(): PanelStateSnapshot {
   const collapse = collapseStateByMode();
   return {
+    sideDockTrees: cloneTrees(store.sideDockTrees),
     sidePanelLocations: { ...store.sidePanelLocations },
     sidePanelOrder: { ...store.sidePanelOrder },
     activeSidePanelTabs: { ...store.activeSidePanelTabs },
@@ -71,6 +100,7 @@ export function capturePanelState(): PanelStateSnapshot {
  * workspace on arrival anyway.
  */
 export function applyPanelState(ws: WorkspaceInternal): void {
+  store.sideDockTrees = resolveTrees(ws.sideDockTrees, ws.sidePanelLocations);
   store.sidePanelLocations = { ...(ws.sidePanelLocations ?? {}) };
   store.sidePanelOrder = { ...(ws.sidePanelOrder ?? {}) };
   store.activeSidePanelTabs = { ...(ws.activeSidePanelTabs ?? {}) };
@@ -102,6 +132,7 @@ export function applyPanelState(ws: WorkspaceInternal): void {
 export function captureGlobalPanelLayout(): GlobalPanelLayout {
   const collapse = collapseStateByMode();
   return {
+    sideDockTrees: cloneTrees(store.sideDockTrees),
     sidePanelLocations: { ...store.sidePanelLocations },
     sidePanelOrder: { ...store.sidePanelOrder },
     sidePanelVisibility: { ...store.sidePanelVisibility },
@@ -116,6 +147,7 @@ export function captureGlobalPanelLayout(): GlobalPanelLayout {
 /** The reverse: make `g` the live arrangement. Mirrors `applyPanelState`'s
  * collapse resolution against the currently-live layout mode. */
 export function applyGlobalPanelLayout(g: GlobalPanelLayout): void {
+  store.sideDockTrees = resolveTrees(g.sideDockTrees, g.sidePanelLocations);
   store.sidePanelLocations = { ...g.sidePanelLocations };
   store.sidePanelOrder = { ...g.sidePanelOrder };
   store.sidePanelVisibility = { ...g.sidePanelVisibility };

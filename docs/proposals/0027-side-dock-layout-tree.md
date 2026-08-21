@@ -221,20 +221,28 @@ dock's first pane") and replaces `Move to Top/Bottom Pane` with `Split Right` /
 
 ### Persistence
 
-The tree is per workspace and, like every other layout field, needs one copy per
-**layout mode** (ADR 0033) and one in the shared **Global Side Panel Layout**
-(ADR 0035):
+The tree is per workspace, and it belongs with `sidePanelLocations` /
+`sidePanelOrder` / `sidePanelVisibility` on the arrangement side of ADR 0035 —
+so it appears twice:
 
-- `WorkspaceInternal.sideDockTrees` — the normal-width pair
-- `WorkspaceInternal.laptopModeSideDockTrees` — Laptop Mode's own, absent until
-  that mode has applied (mirroring `smallScreenCollapsed`)
-- `GlobalPanelLayout.sideDockTrees` (+ its Laptop Mode counterpart) — the tree
-  is arrangement, so it belongs with `sidePanelLocations` / `sidePanelOrder` /
-  `sidePanelVisibility` on the global side of ADR 0035, not with
-  `activeSidePanelTabs` or `extensionState`
+- `SharedPanelState.sideDockTrees` — the per-workspace copy, which
+  `WorkspaceInternal` picks up as an optional field like every other panel field
+- `GlobalPanelLayout.sideDockTrees` — the shared copy, live while the "Global
+  Side Panel Layout" flag is on
 
-This is the honest cost of the proposal: the tree is not one field, it is four,
-and `panel-state.ts` / `persistence-model.ts` carry all of them.
+**One copy per scope, not one per layout mode.** An earlier draft of this
+proposal gave the tree a Laptop Mode counterpart, matching collapse state and
+column widths (ADR 0033). That is wrong, and the reason is worth recording: a
+tree determines _which pane ids exist_, and `sidePanelLocations` — which names
+those ids — is itself single-copy. Forking the tree per mode would let a panel's
+recorded pane exist in one mode and not the other, and membership has no way to
+express the fork that would follow. What genuinely needs to differ on a narrow
+window is how wide a dock is and whether it's open, and ADR 0033 already makes
+both of those per-mode.
+
+So the tree is two fields, not four, and no mode-swap path is needed. If a `row`
+split turns out to be too cramped on a narrow window, the fix is the minimum-size
+rule flattening it at render — not a second persisted arrangement.
 
 ### Public SDK surface
 
@@ -387,9 +395,11 @@ what is proposed. Both edits land with the implementation.
 
 New:
 
-- `packages/extension-host/src/layout/side-dock-tree.ts` — the model, plus
+- `packages/extension-host/src/state/side-dock-tree.ts` — the model, plus
   `normalize`, `paneIds`, `findPane`, `insertPane`, `removePane`,
-  `resize`, and `treesFromLegacySlots`; all pure, all unit-tested
+  `resize`, `retainPanes`, and `treesFromLegacySlots`; all pure, all
+  unit-tested. It lives in `state/`, not `layout/`: the trees are store state,
+  and `state/` is a lint-enforced leaf that cannot import from `layout/`
 - `.../layout/side-dock-drop.ts` — five-zone hit testing, pure given a rect
 
 Changed:
@@ -403,7 +413,7 @@ Changed:
   queries, widen `getDropInfo`
 - `layout/drag-state.ts` — widen `hoverZone`
 - `state/types.ts`, `state/panel-state.ts`, `state/persistence-model.ts` — the
-  four tree fields, clone + migration
+  two tree fields, clone + migration
 - `extension-host/layout-service.ts` — `revealSidePanel` pane lookup
 - `extension-host/focus-regions.ts` — enumerate panes per dock
 - `extension-host/small-screen-mode.ts` — per-mode tree swap
