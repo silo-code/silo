@@ -2,7 +2,6 @@ import { useMemo, useRef } from "react";
 import { useSnapshot } from "valtio";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
-  topSlot,
   usePanelsForSlot,
   useRegistryTick,
   useSideTabDrag,
@@ -12,26 +11,34 @@ import { openMenu } from "../extension-host/menu-controller";
 import { store, setSideDockSizes } from "../state/store";
 import {
   childAnchors,
+  firstPaneId,
   isPane,
   paneIds,
+  resolvePaneId,
   retainPanes,
   type SideDockNode,
+  type SideDockTrees,
 } from "../state/side-dock-tree";
 import { sidePanelRegistry } from "../extension-host/side-panels";
-import { resolveSidePanelSlot } from "./side-panel-slots";
 import { PanelPane } from "./PanelPane";
 import "./SideColumn.css";
 
-function EmptyColumn({ location }: { location: "left" | "right" }) {
+function EmptyColumn({
+  location,
+  paneId,
+}: {
+  location: "left" | "right";
+  /** The dock's first pane — the one a drop here lands in. Not the literal
+   * "left"/"right": a split can put a minted pane in front of it. */
+  paneId: string;
+}) {
   const activeDrag = useSideTabDrag();
-
-  const over =
-    activeDrag !== null && activeDrag.hoverSlot === topSlot(location);
+  const over = activeDrag !== null && activeDrag.hoverSlot === paneId;
 
   return (
     <div
       className={`side-empty-column${over ? " over" : ""}`}
-      data-slot={topSlot(location)}
+      data-slot={paneId}
       data-location={location}
       onContextMenu={(e) => {
         // The only entry point back when every panel is hidden — the tab bar
@@ -129,7 +136,8 @@ function TreeNode({
 export function SideColumn({ location }: { location: "left" | "right" }) {
   const snap = useSnapshot(store);
   const tick = useRegistryTick();
-  const tree = snap.sideDockTrees[location] as SideDockNode;
+  const trees = snap.sideDockTrees as SideDockTrees;
+  const tree = trees[location];
 
   // Which panes have something to show. A panel counts toward the pane it
   // *resolves* to, so an override this build can't render keeps its panel in
@@ -138,11 +146,11 @@ export function SideColumn({ location }: { location: "left" | "right" }) {
     const ids = new Set<string>();
     for (const p of sidePanelRegistry.list()) {
       if (snap.sidePanelVisibility[p.id] === false) continue;
-      ids.add(resolveSidePanelSlot(snap.sidePanelLocations[p.id], p.location));
+      ids.add(resolvePaneId(trees, snap.sidePanelLocations[p.id], p.location));
     }
     return ids;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tick, snap.sidePanelVisibility, snap.sidePanelLocations]);
+  }, [tick, trees, snap.sidePanelVisibility, snap.sidePanelLocations]);
 
   // What's on screen is the stored arrangement minus the panes with nothing
   // visible in them. Filtering here rather than pruning the stored tree is what
@@ -153,7 +161,8 @@ export function SideColumn({ location }: { location: "left" | "right" }) {
     [tree, occupied],
   );
 
-  if (visible === null) return <EmptyColumn location={location} />;
+  if (visible === null)
+    return <EmptyColumn location={location} paneId={firstPaneId(tree)} />;
 
   return (
     <TreeNode

@@ -3,14 +3,14 @@ import { openMenu } from "../extension-host/menu-controller";
 import type { MenuEntry } from "@silo-code/sdk";
 import type { SidePanel } from "@silo-code/sdk";
 import {
+  store,
   setSidePanelSlot,
   reorderSidePanels,
   splitSideDock,
 } from "../state/store";
-import type { InsertSide } from "../state/side-dock-tree";
+import { firstPaneId, type InsertSide } from "../state/side-dock-tree";
 import { sideTabDrag } from "./drag-state";
 import {
-  topSlot,
   getDropInfo,
   createGhost,
   moveGhost,
@@ -70,7 +70,13 @@ export function TabBar({
 
     const { slot: targetSlot, zone } = dropInfo;
 
-    if (zone !== "center") {
+    // Splitting a pane with the only tab it has would empty the pane it came
+    // from, which retires it right back — a no-op that leaves a stray pane in
+    // the tree on the way. Same rule the Split Right / Split Down menu items
+    // follow.
+    const wouldEmptySource = targetSlot === slot && panels.length < 2;
+
+    if (zone !== "center" && !wouldEmptySource) {
       // An edge: split the target pane and land in the new one. `getDropInfo`
       // only reports an edge a split actually fits in, so there is nothing to
       // re-check here. Works the same whichever dock the target is in — pane
@@ -195,7 +201,14 @@ export function TabBar({
         location === "left" ? "right" : "left";
       items.push({
         label: `Move to ${oppositeColumn === "left" ? "Left" : "Right"} Panel`,
-        run: () => setSidePanelSlot(panel.id, topSlot(oppositeColumn)),
+        // The dock's *first* pane, read at run time — not the literal string
+        // "left"/"right". Splitting a dock's root pane to its left or top puts
+        // a minted pane in front, so the two stopped being the same thing.
+        run: () =>
+          setSidePanelSlot(
+            panel.id,
+            firstPaneId(store.sideDockTrees[oppositeColumn]),
+          ),
       });
       // Splitting needs somewhere for the panel to come *from*: peeling the
       // only tab out of a pane into a new pane beside it would leave the

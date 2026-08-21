@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { cloneNode, pane, paneIds, split } from "./side-dock-tree";
+import {
+  cloneNode,
+  pane,
+  paneIds,
+  resolvePaneId,
+  split,
+} from "./side-dock-tree";
 import {
   store,
   isSidePanelVisible,
@@ -160,6 +166,41 @@ describe("splitSideDock", () => {
     setSidePanelSlot("git", newPaneId);
     expect(store.sidePanelLocations.git).toBe(newPaneId);
     expect(paneIds(store.sideDockTrees.left)).toContain(newPaneId);
+  });
+});
+
+describe("a panel placed in a pane a split created", () => {
+  beforeEach(() => {
+    store.sideDockTrees = { left: pane("left"), right: pane("right") };
+    store.sidePanelLocations = {};
+  });
+
+  // The bug this pins: a minted pane id is not one of the four legacy slot
+  // strings, so a resolver that validated against a fixed list sent the panel
+  // straight back to its registered dock. The pane then had no occupants, the
+  // dock filtered it out, and dropping a tab on an edge did nothing at all.
+  it("resolves into the new pane, not back to its registered dock", () => {
+    const newPaneId = splitSideDock("right", "right")!;
+    setSidePanelSlot("git", newPaneId);
+    expect(resolvePaneId(store.sideDockTrees, newPaneId, "right")).toBe(
+      newPaneId,
+    );
+  });
+
+  it("resolves across docks — a pane id names a pane, not a side", () => {
+    const newPaneId = splitSideDock("left", "bottom")!;
+    setSidePanelSlot("git", newPaneId);
+    // Registered right, placed in a left-dock pane: the placement wins.
+    expect(resolvePaneId(store.sideDockTrees, newPaneId, "right")).toBe(
+      newPaneId,
+    );
+  });
+
+  it("falls back to the registered dock's first pane for an unknown id", () => {
+    expect(resolvePaneId(store.sideDockTrees, "gone", "left")).toBe("left");
+    expect(resolvePaneId(store.sideDockTrees, undefined, "right")).toBe(
+      "right",
+    );
   });
 });
 

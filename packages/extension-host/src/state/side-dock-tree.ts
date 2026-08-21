@@ -142,6 +142,37 @@ export function dockOfPane(
   return null;
 }
 
+/**
+ * The pane a side panel actually renders in: its recorded placement when that
+ * still names a pane in either dock, otherwise the first pane of the dock it
+ * registered with.
+ *
+ * The fallback is the whole point. `sidePanelLocations` is written by whichever
+ * build last touched the workspace file and outlives the panes it names — a
+ * pane retired when its last panel moved out, an id minted by a newer build, a
+ * hand-edited file. Without this a stale id matches no pane at all and the panel
+ * renders *nowhere* while the visibility menu still lists it as visible.
+ *
+ * Checked against both docks, not the one the panel registered with: a pane id
+ * names a pane, not a side, which is what keeps a cross-dock move a single
+ * placement write.
+ *
+ * Deliberately **non-destructive** — the stale id is read past, never rewritten.
+ * Pruning it would make placement lossy across a downgrade/upgrade round trip
+ * and across uninstalling and reinstalling the extension that owns the panel,
+ * for no gain: a stale entry is one inert map key.
+ */
+export function resolvePaneId(
+  trees: SideDockTrees,
+  override: string | undefined,
+  registered: "left" | "right",
+): string {
+  if (override !== undefined && dockOfPane(trees, override) !== null) {
+    return override;
+  }
+  return firstPaneId(trees[registered]);
+}
+
 // ─── normalize ──────────────────────────────────────────────────────────────
 
 /**

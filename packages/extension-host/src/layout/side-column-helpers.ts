@@ -2,33 +2,15 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSnapshot } from "valtio";
 import { sidePanelRegistry } from "../extension-host/side-panels";
 import type { MenuEntry, SidePanel } from "@silo-code/sdk";
-import type { SidePanelSlot } from "../state/types";
+import type { SideDockTrees } from "../state/side-dock-tree";
 import {
   store,
   isSidePanelVisible,
   toggleSidePanelVisibility,
 } from "../state/store";
 import { sideTabDrag } from "./drag-state";
-import { resolveSidePanelSlot, slotToLocation } from "./side-panel-slots";
+import { resolvePaneId } from "../state/side-dock-tree";
 import { dropZoneAt, type DropZone } from "./side-dock-drop";
-
-// ─── slot helpers ──────────────────────────────────────────────────────────
-
-export function topSlot(location: "left" | "right"): SidePanelSlot {
-  return location;
-}
-export function bottomSlot(location: "left" | "right"): SidePanelSlot {
-  return `${location}-bottom`;
-}
-export function isTopSlot(slot: string, location: "left" | "right") {
-  return slot === location;
-}
-export function isTopSlotOfColumn(slot: string): boolean {
-  return slot === "left" || slot === "right";
-}
-// Re-exported so the slot algebra has one home (`side-panel-slots.ts`, pure and
-// React-free) while existing importers keep reaching for it here.
-export { slotToLocation };
 
 // ─── drag ghost element ──────────────────────────────────────────────────────
 
@@ -108,13 +90,13 @@ export function usePanelsForSlot(paneId: string): SidePanel[] {
   return useMemo(() => {
     const overrides = snap.sidePanelLocations;
     const order = snap.sidePanelOrder;
+    const trees = snap.sideDockTrees as SideDockTrees;
     const filtered = sidePanelRegistry.list().filter((p) => {
       if (snap.sidePanelVisibility[p.id] === false) return false;
-      // A bottom slot is only ever reached through an override (a panel
-      // registers `left`/`right`), so the single comparison covers both
-      // segments — and routes an override this build can't render back to the
-      // panel's own column instead of dropping it. See `resolveSidePanelSlot`.
-      return resolveSidePanelSlot(overrides[p.id], p.location) === paneId;
+      // Resolved against the live tree, so a panel dropped into a pane a split
+      // just minted lands there — and one whose pane has since been retired
+      // falls back to its own dock rather than vanishing. See `resolvePaneId`.
+      return resolvePaneId(trees, overrides[p.id], p.location) === paneId;
     });
     filtered.sort(
       (a, b) => (order[a.id] ?? a.order ?? 0) - (order[b.id] ?? b.order ?? 0),
@@ -124,6 +106,7 @@ export function usePanelsForSlot(paneId: string): SidePanel[] {
   }, [
     paneId,
     tick,
+    snap.sideDockTrees,
     snap.sidePanelLocations,
     snap.sidePanelOrder,
     snap.sidePanelVisibility,

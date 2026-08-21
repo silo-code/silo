@@ -15,6 +15,7 @@ import {
   paneIds,
   pruneUnreferenced,
   removePane,
+  resolvePaneId,
   retainPanes,
   setSizes,
   split,
@@ -463,5 +464,50 @@ describe("cloneTrees", () => {
     original.children.push(pane("c"));
     expect(asSplit(copy.left).sizes).toEqual([60, 40]);
     expect(paneIds(copy.left)).toEqual(["a", "b"]);
+  });
+});
+
+describe("resolvePaneId", () => {
+  const trees = {
+    left: split("column", [pane("left"), pane("pane_a")], [60, 40]),
+    right: pane("right"),
+  };
+
+  it("honors a placement that still names a live pane", () => {
+    expect(resolvePaneId(trees, "pane_a", "left")).toBe("pane_a");
+  });
+
+  // A pane id names a pane, not a side — which is what keeps a cross-dock move
+  // a single placement write with no notion of a source dock.
+  it("looks in both docks, not just the registered one", () => {
+    expect(resolvePaneId(trees, "pane_a", "right")).toBe("pane_a");
+    expect(resolvePaneId(trees, "right", "left")).toBe("right");
+  });
+
+  it("falls back to the registered dock's first pane", () => {
+    expect(resolvePaneId(trees, undefined, "left")).toBe("left");
+    expect(resolvePaneId(trees, undefined, "right")).toBe("right");
+  });
+
+  it("falls back for a pane that no longer exists", () => {
+    // Retired when its last panel moved out, minted by a newer build, or
+    // hand-edited. Without the fallback the panel matches no pane and renders
+    // nowhere while the visibility menu still calls it visible.
+    expect(resolvePaneId(trees, "pane_gone", "right")).toBe("right");
+  });
+
+  it("returns the dock's first pane even when that is a minted id", () => {
+    // Splitting a root pane to its left puts the new pane in front of it.
+    const shifted = {
+      left: split("row", [pane("pane_new"), pane("left")], [50, 50]),
+      right: pane("right"),
+    };
+    expect(resolvePaneId(shifted, undefined, "left")).toBe("pane_new");
+  });
+
+  it("does not rewrite the placement it read past", () => {
+    const locations: Record<string, string> = { git: "pane_gone" };
+    resolvePaneId(trees, locations.git, "right");
+    expect(locations.git).toBe("pane_gone");
   });
 });
