@@ -87,6 +87,13 @@ initUserKeybindings().catch((err) =>
   console.error("initUserKeybindings failed", err),
 );
 
+// UI freeze probe (rAF hitch detector). Bundled in release too — Prod stays
+// off until Help → "Toggle UI Freeze Probe" (persists in localStorage). Dev
+// defaults on.
+import("./dev/ui-freeze-probe")
+  .then((m) => m.initUiFreezeProbe())
+  .catch((err) => console.error("ui freeze probe failed", err));
+
 // Dev-only automation bridge (paired with the Cargo `automation` feature on the
 // Rust side). The static `import.meta.env.DEV` guard keeps this dynamic import
 // out of release bundles entirely.

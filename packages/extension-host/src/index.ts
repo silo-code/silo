@@ -46,7 +46,7 @@ export { getThemeService } from "./extension-host/theme-service";
 export { getProcessService } from "./extension-host/process-service";
 export { getTerminalService } from "./extension-host/terminal-service";
 export { getWorkspaceService } from "./extension-host/workspace-service";
-export { executeCommand } from "./extension-host/commands";
+export { executeCommand, commandRegistry } from "./extension-host/commands";
 export { contextKeys } from "./extension-host/context-keys";
 export { sidePanelRegistry } from "./extension-host/side-panels";
 export { ensureMonaco } from "./docked/monaco-setup";
@@ -58,8 +58,10 @@ export { splitActivePanel, getActiveDockApi } from "./docked/dock-api-registry";
 // automation can't drive.
 export { restoreRegionFocus } from "./extension-host/focus-restore";
 // Output log query — lets the automation bridge surface logs to external tools.
+// `createHostChannel` is for app-owned diagnostics (e.g. the Dev UI freeze probe).
 export {
   getOutputLogs,
+  createHostChannel,
   type OutputLogsResult,
   type OutputLogEntry,
 } from "./extension-host/output-store";
