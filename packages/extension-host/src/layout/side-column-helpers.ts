@@ -9,6 +9,7 @@ import {
   toggleSidePanelVisibility,
 } from "../state/store";
 import { sideTabDrag } from "./drag-state";
+import { resolveSidePanelSlot, slotToLocation } from "./side-panel-slots";
 
 // ─── slot helpers ──────────────────────────────────────────────────────────
 
@@ -21,12 +22,12 @@ export function bottomSlot(location: "left" | "right"): SidePanelSlot {
 export function isTopSlot(slot: SidePanelSlot, location: "left" | "right") {
   return slot === location;
 }
-export function slotToLocation(slot: SidePanelSlot): "left" | "right" {
-  return slot.startsWith("left") ? "left" : "right";
-}
 export function isTopSlotOfColumn(slot: SidePanelSlot): boolean {
   return slot === "left" || slot === "right";
 }
+// Re-exported so the slot algebra has one home (`side-panel-slots.ts`, pure and
+// React-free) while existing importers keep reaching for it here.
+export { slotToLocation };
 
 // ─── drag ghost element ──────────────────────────────────────────────────────
 
@@ -92,14 +93,13 @@ export function usePanelsForSlot(slot: SidePanelSlot): SidePanel[] {
   return useMemo(() => {
     const overrides = snap.sidePanelLocations;
     const order = snap.sidePanelOrder;
-    const isBottom = slot === "left-bottom" || slot === "right-bottom";
     const filtered = sidePanelRegistry.list().filter((p) => {
       if (snap.sidePanelVisibility[p.id] === false) return false;
-      const effective = overrides[p.id] ?? p.location;
-      if (isBottom) {
-        return overrides[p.id] === slot;
-      }
-      return effective === slot;
+      // A bottom slot is only ever reached through an override (a panel
+      // registers `left`/`right`), so the single comparison covers both
+      // segments — and routes an override this build can't render back to the
+      // panel's own column instead of dropping it. See `resolveSidePanelSlot`.
+      return resolveSidePanelSlot(overrides[p.id], p.location) === slot;
     });
     filtered.sort(
       (a, b) => (order[a.id] ?? a.order ?? 0) - (order[b.id] ?? b.order ?? 0),

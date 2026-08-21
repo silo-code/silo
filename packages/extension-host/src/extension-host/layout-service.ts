@@ -8,6 +8,10 @@ import {
 } from "../state/store";
 import { sidePanelRegistry } from "./side-panels";
 import { activateSidePaneTab } from "../layout/side-pane-registry";
+import {
+  resolveSidePanelSlot,
+  slotToLocation,
+} from "../layout/side-panel-slots";
 import { getActiveDockApi } from "../docked/dock-api-registry";
 import type { LayoutState, LayoutService } from "@silo-code/sdk";
 
@@ -79,8 +83,11 @@ export function getLayoutService(): LayoutService {
       if (!panel) return;
       // The panel's effective slot — a user may have dragged it to another
       // column/segment; fall back to its registered location.
-      const slot = store.sidePanelLocations[id] ?? panel.location;
-      const location = slot.startsWith("left") ? "left" : "right";
+      const slot = resolveSidePanelSlot(
+        store.sidePanelLocations[id],
+        panel.location,
+      );
+      const location = slotToLocation(slot);
       // Un-hide it (visibility defaults to visible; `false` means hidden).
       if (store.sidePanelVisibility[id] === false) {
         delete store.sidePanelVisibility[id];

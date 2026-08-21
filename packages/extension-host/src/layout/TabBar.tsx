@@ -6,6 +6,7 @@ import type { SidePanel } from "@silo-code/sdk";
 import type { SidePanelSlot } from "../state/types";
 import { store, setSidePanelSlot, reorderSidePanels } from "../state/store";
 import { sideTabDrag } from "./drag-state";
+import { resolveSidePanelSlot } from "./side-panel-slots";
 import {
   topSlot,
   bottomSlot,
@@ -67,7 +68,7 @@ export function TabBar({
     const overrides = store.sidePanelLocations;
     return !sidePanelRegistry
       .list()
-      .some((p) => (overrides[p.id] ?? p.location) === bSlot);
+      .some((p) => resolveSidePanelSlot(overrides[p.id], p.location) === bSlot);
   }
 
   function commitDrop(x: number, y: number, draggedPanelId: string) {
