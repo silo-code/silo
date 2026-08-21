@@ -81,6 +81,9 @@ export function savePanelStateToWorkspace(wsId: string): void {
     if (!store.globalActiveTabEnabled) {
       ws.activeSidePanelTabs = full.activeSidePanelTabs;
     }
+    // Widths are governed by their own flag, not this one — see
+    // `withActiveNonGlobalPanelState`. Absent while widths are shared.
+    if (full.columnWidths) ws.columnWidths = full.columnWidths;
   } else {
     Object.assign(ws, capturePanelState());
   }
@@ -200,6 +203,33 @@ export function setGlobalPanelLayoutEnabled(enabled: boolean): void {
   store.globalPanelLayoutEnabled = false;
   const activeWs = activeId ? store.workspaces[activeId] : null;
   if (activeWs) applyPanelState(activeWs);
+}
+
+/**
+ * Turn "Share side panel widths across workspaces" on or off.
+ *
+ * Enabling freezes each workspace's own widths on disk (they simply stop being
+ * captured) and keeps the current live widths as the shared ones, so nothing
+ * moves on screen. Disabling captures the live widths onto the active workspace
+ * immediately, so it owns what is already on screen; every other workspace
+ * either restores what it had from before the flag was last turned on, or —
+ * having never been width-customized — adopts whatever is live when you switch
+ * to it, and only diverges once you drag a column there.
+ *
+ * Independent of {@link setGlobalPanelLayoutEnabled}: sharing the arrangement
+ * while sizing each dock per workspace is exactly the case this exists for — a
+ * workspace whose right dock is split into two columns needs it far wider than
+ * one showing a single column of panels.
+ */
+export function setSharedColumnWidthsEnabled(enabled: boolean): void {
+  if (enabled === store.sharedColumnWidthsEnabled) return;
+  store.sharedColumnWidthsEnabled = enabled;
+  const activeId = store.activeWorkspaceId;
+  if (!enabled && activeId) {
+    // Capture now rather than waiting for the next switch, so the workspace
+    // that is on screen owns the widths that are on screen.
+    savePanelStateToWorkspace(activeId);
+  }
 }
 
 /**

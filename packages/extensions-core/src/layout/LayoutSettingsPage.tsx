@@ -20,6 +20,7 @@ import {
   setGlobalActiveTabEnabled,
   hasSavedGlobalPanelLayout,
   enableGlobalPanelLayout,
+  setSharedColumnWidthsEnabled,
 } from "@silo-code/extension-host/internal";
 import { confirmEnableGlobalPanelLayout } from "./GlobalPanelLayoutConfirm";
 
@@ -104,6 +105,16 @@ export function makeLayoutSettingsPage(ctx: ExtensionContext) {
                 />
               </div>
             </div>
+            <SettingRow
+              label="Share side panel widths across workspaces"
+              hint="Turn this off to give each workspace its own side panel widths — useful when one workspace splits a side panel into columns and needs it much wider than the rest."
+            >
+              <Switch
+                checked={snap.sharedColumnWidthsEnabled}
+                onChange={setSharedColumnWidthsEnabled}
+                aria-label="Share side panel widths across workspaces"
+              />
+            </SettingRow>
           </Section>
           <Section label="Laptop Mode">
             <SettingRow

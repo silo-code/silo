@@ -189,6 +189,13 @@ normal-width layout, per workspace.
 _Avoid_: Small-screen mode (code name only), compact mode, responsive layout
 (implies one layout that reflows)
 
+**Shared Side Panel Widths**:
+The setting governing whether SideDock widths are global or per-workspace. On
+by default. Independent of Shared Side Panel Layout — a workspace that splits a
+dock into columns needs it far wider than one showing a single column, so the
+arrangement and the sizing are shared separately.
+_Avoid_: Global panel widths (the layout setting is the "global" one), dock size
+
 **Peek**:
 A transient overlay that reveals a collapsed side panel while the cursor sits
 at that window edge. Available whenever a side is collapsed — not only in

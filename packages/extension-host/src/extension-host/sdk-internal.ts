@@ -431,6 +431,9 @@ export {
   setGlobalActiveTabEnabled,
   hasSavedGlobalPanelLayout,
   enableGlobalPanelLayout,
+  // Sibling switch on the same page, independent of the three above: whether
+  // side-dock *widths* are shared across workspaces rather than the layout.
+  setSharedColumnWidthsEnabled,
 } from "../state/workspaces";
 
 // Cold-start StatusBar sequence — core.terminal reports restore attaches into

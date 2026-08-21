@@ -229,3 +229,83 @@ describe("side dock trees", () => {
     expect(paneIds(store.sideDockTrees.left)).toEqual(["left", "left-bottom"]);
   });
 });
+
+describe("side dock widths", () => {
+  beforeEach(() => {
+    store.sharedColumnWidthsEnabled = true;
+    store.columnWidths = {
+      normal: { left: 260, right: 340 },
+      smallScreen: { left: 220, right: 260 },
+    };
+  });
+
+  it("keeps widths out of the record while they are shared", () => {
+    expect(capturePanelState().columnWidths).toBeUndefined();
+  });
+
+  // Absent, not null — the record merge is a spread, so omitting the field is
+  // what leaves a workspace's own widths frozen on disk while sharing is on.
+  it("leaves a workspace's frozen widths alone while sharing is on", () => {
+    const ws: WorkspaceInternal = {
+      ...makeWorkspace("a"),
+      columnWidths: {
+        normal: { left: 500, right: 700 },
+        smallScreen: { left: 220, right: 260 },
+      },
+    };
+    const merged = { ...ws, ...capturePanelState() };
+    expect(merged.columnWidths?.normal).toEqual({ left: 500, right: 700 });
+    // …and applying it doesn't move the live widths either.
+    applyPanelState(ws);
+    expect(store.columnWidths.normal).toEqual({ left: 260, right: 340 });
+  });
+
+  it("captures and restores per-workspace widths once sharing is off", () => {
+    store.sharedColumnWidthsEnabled = false;
+    store.columnWidths.normal = { left: 300, right: 800 };
+    const captured = capturePanelState();
+    expect(captured.columnWidths?.normal).toEqual({ left: 300, right: 800 });
+
+    store.columnWidths.normal = { left: 260, right: 340 };
+    applyPanelState({ ...makeWorkspace("a"), ...captured });
+    expect(store.columnWidths.normal).toEqual({ left: 300, right: 800 });
+  });
+
+  it("keeps both layout modes' widths apart", () => {
+    store.sharedColumnWidthsEnabled = false;
+    store.columnWidths = {
+      normal: { left: 300, right: 800 },
+      smallScreen: { left: 210, right: 240 },
+    };
+    const captured = capturePanelState();
+    store.columnWidths = {
+      normal: { left: 260, right: 340 },
+      smallScreen: { left: 260, right: 340 },
+    };
+    applyPanelState({ ...makeWorkspace("a"), ...captured });
+    expect(store.columnWidths).toEqual({
+      normal: { left: 300, right: 800 },
+      smallScreen: { left: 210, right: 240 },
+    });
+  });
+
+  // Switching to a workspace that has never been width-customized shouldn't
+  // resize anything — it adopts what is live and only diverges once dragged.
+  it("leaves live widths alone for a workspace with none of its own", () => {
+    store.sharedColumnWidthsEnabled = false;
+    store.columnWidths.normal = { left: 300, right: 800 };
+    applyPanelState(makeWorkspace("fresh"));
+    expect(store.columnWidths.normal).toEqual({ left: 300, right: 800 });
+  });
+
+  it("does not alias the record's widths into the live store", () => {
+    store.sharedColumnWidthsEnabled = false;
+    const captured = capturePanelState();
+    store.columnWidths.normal.left = 999;
+    expect(captured.columnWidths?.normal.left).toBe(260);
+
+    applyPanelState({ ...makeWorkspace("a"), ...captured });
+    store.columnWidths.normal.left = 111;
+    expect(captured.columnWidths?.normal.left).toBe(260);
+  });
+});

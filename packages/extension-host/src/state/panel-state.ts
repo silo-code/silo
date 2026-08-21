@@ -12,7 +12,7 @@
 // live store's containers, or a later edit to a panel's state would silently
 // rewrite the workspace we last saved.
 
-import { store, collapseStateByMode } from "./store";
+import { store, collapseStateByMode, setColumnWidths } from "./store";
 import {
   cloneTrees,
   normalizeTrees,
@@ -85,6 +85,18 @@ export function capturePanelState(): PanelStateSnapshot {
     ...(collapse.smallScreen
       ? { smallScreenCollapsed: { ...collapse.smallScreen } }
       : {}),
+    // Omitted while widths are shared, so the record merge (a spread) leaves
+    // whatever this workspace last owned frozen on disk — the same treatment
+    // ADR 0035 gives arrangement, and what makes turning the flag back off
+    // restore the user's per-workspace widths instead of today's global one.
+    ...(store.sharedColumnWidthsEnabled
+      ? {}
+      : {
+          columnWidths: {
+            normal: { ...store.columnWidths.normal },
+            smallScreen: { ...store.columnWidths.smallScreen },
+          },
+        }),
   };
 }
 
@@ -121,6 +133,15 @@ export function applyPanelState(ws: WorkspaceInternal): void {
   store.leftPanelCollapsed = live.left;
   store.rightPanelCollapsed = live.right;
   store.inactiveModeCollapsed = store.smallScreenActive ? normal : smallScreen;
+
+  // Widths follow the workspace only while they aren't shared. A workspace that
+  // has never been width-customized keeps whatever is live rather than snapping
+  // to defaults, so turning the flag off doesn't visibly resize anything until
+  // the user actually drags a column somewhere.
+  if (!store.sharedColumnWidthsEnabled && ws.columnWidths) {
+    setColumnWidths("normal", ws.columnWidths.normal);
+    setColumnWidths("smallScreen", ws.columnWidths.smallScreen);
+  }
 }
 
 /**

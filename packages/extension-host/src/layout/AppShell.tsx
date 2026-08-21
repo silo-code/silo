@@ -10,7 +10,7 @@ import { CenterDock } from "../panels/CenterDock";
 import { SideColumn } from "./SideColumn";
 import { StatusBar } from "../components/StatusBar";
 import { ErrorBoundary } from "../components/ErrorBoundary";
-import { store } from "../state/store";
+import { store, setColumnWidths } from "../state/store";
 import {
   restoreRegionFocus,
   trackRegionFocus,
@@ -23,10 +23,8 @@ import {
 import {
   columnConstraints,
   columnLayout,
-  readColumnWidths,
   widthsFromLayout,
-  writeColumnWidths,
-} from "./column-widths";
+} from "../state/column-widths";
 import "./AppShell.css";
 
 // On macOS, `titleBarStyle: "Overlay"` causes the webview to extend under the
@@ -89,12 +87,6 @@ function markPanelDragging(isDragging: boolean) {
   document.body.classList.toggle("panel-resizing", isDragging);
 }
 
-// The column-width half of small-screen mode's two layout modes (the collapse
-// half lives in small-screen-mode.ts). Both modes' widths — in px, see
-// column-widths.ts — are read once here so the very first paint already has the
-// right columns, and written back as the user drags.
-const columnWidths = readColumnWidths();
-
 export function AppShell() {
   const snap = useSnapshot(store);
   const leftRef = useRef<ImperativePanelHandle>(null);
@@ -137,8 +129,8 @@ export function AppShell() {
     const group = groupRef.current;
     if (!group) return;
     const widths = snap.smallScreenActive
-      ? columnWidths.smallScreen
-      : columnWidths.normal;
+      ? store.columnWidths.smallScreen
+      : store.columnWidths.normal;
     group.setLayout(
       columnLayout(
         widths,
@@ -154,6 +146,9 @@ export function AppShell() {
     snap.smallScreenActive,
     snap.leftPanelCollapsed,
     snap.rightPanelCollapsed,
+    // Switching workspaces can bring different widths with it while
+    // "Share side panel widths" is off.
+    snap.columnWidths,
   ]);
 
   // Record what a drag produced, for whichever mode is on screen. **Only** a
@@ -171,14 +166,10 @@ export function AppShell() {
     (layout: number[]) => {
       if (!dragging.current) return;
       const mode = store.smallScreenActive ? "smallScreen" : "normal";
-      const next = widthsFromLayout(layout, containerPx, columnWidths[mode]);
-      if (
-        next.left === columnWidths[mode].left &&
-        next.right === columnWidths[mode].right
-      )
-        return;
-      columnWidths[mode] = next;
-      writeColumnWidths(columnWidths);
+      const current = store.columnWidths[mode];
+      const next = widthsFromLayout(layout, containerPx, current);
+      if (next.left === current.left && next.right === current.right) return;
+      setColumnWidths(mode, next);
     },
     [containerPx],
   );
@@ -221,7 +212,9 @@ export function AppShell() {
   // for *this* window width and are recomputed as it changes.
   const { sideMin, sideMax, centerMin } = columnConstraints(containerPx);
   const initial = columnLayout(
-    snap.smallScreenActive ? columnWidths.smallScreen : columnWidths.normal,
+    snap.smallScreenActive
+      ? snap.columnWidths.smallScreen
+      : snap.columnWidths.normal,
     { left: snap.leftPanelCollapsed, right: snap.rightPanelCollapsed },
     containerPx,
   );

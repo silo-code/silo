@@ -1,5 +1,10 @@
 import { proxy } from "valtio";
 import {
+  readColumnWidths,
+  writeColumnWidths,
+  type ColumnWidths,
+} from "./column-widths";
+import {
   dockOfPane,
   insertPane,
   pruneUnreferenced,
@@ -20,6 +25,7 @@ import {
   MIN_SMALL_SCREEN_PEEK_WIDTH_PX,
   MAX_SMALL_SCREEN_PEEK_WIDTH_PX,
   DEFAULT_GLOBAL_PANEL_LAYOUT,
+  DEFAULT_SHARED_COLUMN_WIDTHS,
 } from "./types";
 import type { SideLocation } from "@silo-code/sdk";
 
@@ -51,6 +57,11 @@ export const store = proxy<AppState>({
   rightPanelPeekDragging: false,
   smallScreenPeekWidthLeftPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
   smallScreenPeekWidthRightPx: DEFAULT_SMALL_SCREEN_PEEK_WIDTH_PX,
+  // Read synchronously so the first paint has the right columns — the app-state
+  // index loads from disk asynchronously, and painting defaults first would
+  // make the columns visibly jump. See `column-widths.ts`.
+  columnWidths: readColumnWidths(),
+  sharedColumnWidthsEnabled: DEFAULT_SHARED_COLUMN_WIDTHS,
   globalPanelLayoutEnabled: false,
   globalActiveTabEnabled: false,
   globalPanelLayout: structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT),
@@ -120,6 +131,27 @@ function pruneSideDocks() {
 
 /** Place a side panel in a pane, or clear the override so it falls back to the
  * dock it registered with. `paneId` is opaque — see `SharedPanelState`. */
+/**
+ * Record the widths a column drag produced, for whichever layout mode is on
+ * screen.
+ *
+ * The localStorage copy is always written, in both sharing modes: it is what
+ * the *next launch's first paint* uses, before the index or any workspace has
+ * loaded. That keeps first paint correct without it having to know which
+ * workspace is about to be restored or whether widths are shared — it simply
+ * repaints what was last on screen.
+ */
+export function setColumnWidths(
+  mode: "normal" | "smallScreen",
+  widths: ColumnWidths,
+) {
+  store.columnWidths[mode] = { ...widths };
+  writeColumnWidths({
+    normal: { ...store.columnWidths.normal },
+    smallScreen: { ...store.columnWidths.smallScreen },
+  });
+}
+
 export function setSidePanelSlot(panelId: string, paneId: string | null) {
   if (paneId === null) {
     delete store.sidePanelLocations[panelId];
