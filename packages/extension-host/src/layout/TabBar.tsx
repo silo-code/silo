@@ -39,7 +39,8 @@ export function TabBar({
   const [insertIdx, setInsertIdx] = useState<number | null>(null);
   const pointerRef = useRef<{
     panelId: string;
-    panelTitle: string;
+    /** The tab the drag started on — cloned as the drag ghost. */
+    tabEl: HTMLElement;
     pointerId: number;
     startX: number;
     startY: number;
@@ -116,7 +117,7 @@ export function TabBar({
     e.preventDefault(); // prevent click from firing (we fire activate ourselves)
     pointerRef.current = {
       panelId: panel.id,
-      panelTitle: panel.title,
+      tabEl: button,
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
@@ -135,7 +136,7 @@ export function TabBar({
       if (Math.sqrt(dx * dx + dy * dy) < 5) return;
       drag.isDragging = true;
       sideTabDrag.set({ panelId: drag.panelId, sourceSlot: slot });
-      createGhost(drag.panelTitle, e.clientX, e.clientY);
+      createGhost(drag.tabEl, drag.startX, drag.startY);
     }
 
     moveGhost(e.clientX, e.clientY);

@@ -15,21 +15,53 @@ import { dropZoneAt, type DropZone } from "./side-dock-drop";
 // ─── drag ghost element ──────────────────────────────────────────────────────
 
 let ghostEl: HTMLDivElement | null = null;
+/** Where inside the tab the pointer went down — the ghost keeps that spot under
+ * the cursor, so the tab feels picked up rather than re-centred on it. */
+let grabOffsetX = 0;
+let grabOffsetY = 0;
 
-export function createGhost(title: string, x: number, y: number) {
+/**
+ * Build the thing that follows the cursor: a **clone of the tab itself**, at
+ * the tab's own size.
+ *
+ * The clone is wrapped in a `panel-header tabs` element because that is the
+ * ancestor the tab's CSS selects through (`.panel-header.tabs .tab`). Rebuilding
+ * the chain rather than restyling the clone means the ghost is drawn by exactly
+ * the rules the real tab uses — including its active underline — and stays
+ * right when those rules change.
+ */
+export function createGhost(source: HTMLElement, x: number, y: number) {
+  const rect = source.getBoundingClientRect();
+  grabOffsetX = x - rect.left;
+  grabOffsetY = y - rect.top;
+
+  const clone = source.cloneNode(true) as HTMLElement;
+  clone.classList.remove("tab-dragging");
+  clone.removeAttribute("data-panel-id");
+
+  const bar = document.createElement("div");
+  bar.className = "panel-header tabs";
+  bar.appendChild(clone);
+
   ghostEl = document.createElement("div");
   ghostEl.className = "side-tab-drag-ghost";
-  ghostEl.textContent = title;
-  ghostEl.style.left = `${x}px`;
-  ghostEl.style.top = `${y}px`;
+  ghostEl.style.width = `${rect.width}px`;
+  ghostEl.style.height = `${rect.height}px`;
+  // Each dock sets its own panel font size on `.side-pane`, an ancestor the
+  // ghost doesn't have (it hangs off <body> to escape the dock's overflow
+  // clipping). Copy the resolved value so the clone measures the same.
+  ghostEl.style.fontSize = getComputedStyle(source).fontSize;
+  ghostEl.appendChild(bar);
+
   document.body.appendChild(ghostEl);
+  moveGhost(x, y);
   document.body.style.cursor = "grabbing";
 }
 
 export function moveGhost(x: number, y: number) {
   if (ghostEl) {
-    ghostEl.style.left = `${x}px`;
-    ghostEl.style.top = `${y}px`;
+    ghostEl.style.left = `${x - grabOffsetX}px`;
+    ghostEl.style.top = `${y - grabOffsetY}px`;
   }
 }
 

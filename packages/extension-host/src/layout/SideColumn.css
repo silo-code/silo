@@ -133,22 +133,28 @@
   background: color-mix(in srgb, var(--silo-color-accent) 14%, transparent);
 }
 
-/* Ghost element shown while dragging a side panel tab */
+/* The tab that follows the cursor while dragging. It holds a *clone of the real
+   tab* (see createGhost), so everything inside it is drawn by the tab rules
+   above — this only supplies the lifted-off-the-bar treatment: a card behind it
+   and a shadow. Sized inline to the source tab's own box. */
 .side-tab-drag-ghost {
   position: fixed;
   pointer-events: none;
-  background: var(--silo-color-bg-hover);
+  z-index: 9999;
+  opacity: 0.9;
+  overflow: hidden;
+  background: var(--silo-color-bg);
   border: 1px solid var(--silo-color-accent);
   border-radius: var(--silo-radius-sm, 3px);
-  padding: 2px 10px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--silo-color-text-hi);
-  z-index: 9999;
-  transform: translate(-50%, -50%);
-  opacity: 0.9;
-  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* Neutralize the bar's own box: here it exists only so the tab's descendant
+   selectors match, not to lay anything out. */
+.side-tab-drag-ghost .panel-header.tabs {
+  height: 100%;
+  padding: 0;
+  background: transparent;
 }
 
 /* Disable touch scrolling on tab buttons so pointer events fire cleanly */
