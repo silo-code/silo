@@ -88,40 +88,11 @@
   overflow: hidden;
 }
 
-/* Vertical resize handle between split panes */
-.side-resize-handle {
-  background: transparent;
-  position: relative;
-  flex: 0 0 0;
-  height: 0;
-  cursor: ns-resize;
-}
-.side-resize-handle::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -3px;
-  bottom: -3px;
-  cursor: ns-resize;
-}
-/* The handle between side-by-side panes (a `row` split): the same hairline,
-   turned 90 degrees. */
-.side-resize-handle--row {
-  width: 0;
-  height: auto;
-  cursor: ew-resize;
-}
-.side-resize-handle--row::after {
-  left: -3px;
-  right: -3px;
-  top: 0;
-  bottom: 0;
-  cursor: ew-resize;
-}
-/* The hover/drag accent line is drawn by the shared rrp ::before rule in
-   theme.css (the split handle is a vertical rrp handle), so it stays a single
-   1px line and matches the center dock — no element-level highlight here. */
+/* The handle between panes needs no rules of its own: it is an rrp handle, so
+   the shared `[data-panel-resize-handle-enabled]` rules in theme.css give it
+   the hairline, the widened hit area, the cursor for its direction, and the
+   hover/drag accent — the same divider the main columns and the CenterDock
+   use. */
 
 /* Empty column — invisible but accepts drops to restore panels */
 .side-empty-column {

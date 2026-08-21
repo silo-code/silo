@@ -120,7 +120,7 @@ function TreeNode({
         return [
           <PanelResizeHandle
             key={`handle:${key}`}
-            className={`side-resize-handle${isRow ? " side-resize-handle--row" : ""}`}
+            className="side-resize-handle"
             onDragging={(d) => {
               dragging.current = d;
               document.body.classList.toggle("panel-resizing", d);

@@ -647,6 +647,29 @@ a {
   cursor: ns-resize;
 }
 
+/* Hover / drag highlight, matching the CenterDock's dockview sash: the divider
+   goes accent while the pointer is on it or a drag is under way. Applies to
+   every resize handle in the app — the main columns and the side docks' own
+   splits are all rrp handles, so they behave alike from one rule.
+
+   Entering is delayed so the line doesn't strobe as the cursor crosses a
+   divider on its way somewhere else; leaving and dragging are immediate, since
+   by then the user is looking at it. Specificity ties the direction-specific
+   rules above, so these must stay below them to win. */
+[data-panel-resize-handle-enabled="true"]::before {
+  transition: background-color 100ms ease;
+}
+
+[data-panel-resize-handle-enabled="true"]:hover::before {
+  background: var(--silo-color-accent);
+  transition-delay: 250ms;
+}
+
+[data-panel-resize-handle-enabled="true"][data-resize-handle-active]::before {
+  background: var(--silo-color-accent);
+  transition-delay: 0ms;
+}
+
 /* Disable pointer events on all content during active resize drag so that
    canvas-based elements (terminals, Monaco editors) can't steal pointer
    capture and interrupt the resize. The class is toggled via onDragging. */
