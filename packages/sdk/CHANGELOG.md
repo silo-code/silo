@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.37.0](https://github.com/silo-code/silo/compare/sdk-v0.36.0...sdk-v0.37.0) (2026-08-21)
+
+
+### Features
+
+* **side-panels:** SideDock layout tree with free-form splits ([#388](https://github.com/silo-code/silo/issues/388)) ([a11492e](https://github.com/silo-code/silo/commit/a11492e50e9f12eb44412007a026ec3f101eec46))
+
 ## [0.36.0](https://github.com/silo-code/silo/compare/sdk-v0.35.1...sdk-v0.36.0) (2026-08-18)
 
 
