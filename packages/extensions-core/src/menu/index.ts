@@ -342,6 +342,17 @@ export const extension: Extension = {
       order: -10,
     });
 
+    // Dogfood: rAF hitch detector (apps/desktop ui-freeze-probe). Command is
+    // registered from the app composition root; this menu item ships in release
+    // so Prod can enable Output → UI Freeze correlation without a Dev build.
+    ctx.registerMenuItem({
+      id: "core.help.toggleUiFreezeProbe",
+      menu: "help",
+      command: "core.toggleUiFreezeProbe",
+      group: "9_diag",
+      order: -10,
+    });
+
     // Dev-only Window items. Silo suppresses the webview's native context menu
     // app-wide, so the Reload / Inspect Element it used to offer live here while
     // developing. Gated on the dev build — they don't ship in release.

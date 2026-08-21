@@ -1,0 +1,62 @@
+/* Dev-only rAF freeze probe — design tokens only. */
+
+.ui-freeze-probe {
+  position: fixed;
+  right: 10px;
+  bottom: 28px; /* above status bar */
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 4px;
+  border-radius: var(--silo-radius-md);
+  border: 1px solid var(--silo-color-border-strong);
+  background: color-mix(in srgb, var(--silo-color-bg) 92%, transparent);
+  color: var(--silo-color-text);
+  font: 11px/1.2 var(--silo-font-mono);
+  pointer-events: none;
+  user-select: none;
+  box-shadow: 0 1px 4px color-mix(in srgb, #000 35%, transparent);
+}
+
+.ui-freeze-probe__dial {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--silo-color-border-strong);
+  background: var(--silo-color-bg-hover);
+  flex-shrink: 0;
+}
+
+.ui-freeze-probe__hand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1.5px;
+  height: 6px;
+  margin-left: -0.75px;
+  margin-top: -6px;
+  border-radius: 1px;
+  background: var(--silo-color-accent);
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+
+.ui-freeze-probe__label {
+  min-width: 3.5em;
+}
+
+.ui-freeze-probe--hit {
+  border-color: var(--silo-color-err);
+  color: var(--silo-color-err);
+  background: color-mix(
+    in srgb,
+    var(--silo-color-err) 18%,
+    var(--silo-color-bg)
+  );
+}
+
+.ui-freeze-probe--hit .ui-freeze-probe__hand {
+  background: var(--silo-color-err);
+}
