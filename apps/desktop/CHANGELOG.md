@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.50.0](https://github.com/silo-code/silo/compare/silo-v0.49.0...silo-v0.50.0) (2026-08-21)
+
+
+### Features
+
+* **desktop:** add optional UI freeze probe for Prod dogfood ([#387](https://github.com/silo-code/silo/issues/387)) ([46d141f](https://github.com/silo-code/silo/commit/46d141f6b89763b98c66b094a3ee42e1fdb30617))
+* **docs:** replace the OG/Twitter card with a branded banner ([#386](https://github.com/silo-code/silo/issues/386)) ([52c93ad](https://github.com/silo-code/silo/commit/52c93ad79f9ca6edbc0cfa03335ee8c4f868cec8))
+* **git:** publish GitAPI.remotes for forge-aware extensions ([#381](https://github.com/silo-code/silo/issues/381)) ([2799d55](https://github.com/silo-code/silo/commit/2799d557fdcad3683c1a642538e82f4df14c3ace))
+* **navigator:** scale up the view list type, icons, and row padding ([#385](https://github.com/silo-code/silo/issues/385)) ([34b3b62](https://github.com/silo-code/silo/commit/34b3b62c9036fb9f2b5874269745f45e7dff08ce))
+* **side-panels:** SideDock layout tree with free-form splits ([#388](https://github.com/silo-code/silo/issues/388)) ([a11492e](https://github.com/silo-code/silo/commit/a11492e50e9f12eb44412007a026ec3f101eec46))
+
+
+### Bug Fixes
+
+* **extensions:** don't offer an update the running host can't run ([#382](https://github.com/silo-code/silo/issues/382)) ([8f4f4e3](https://github.com/silo-code/silo/commit/8f4f4e3b968865605309ae7f9e19e109b5bbe37c))
+* **terminal:** gate PROTO_VERSION app_boot log to unix, fix Windows release build ([#380](https://github.com/silo-code/silo/issues/380)) ([6e033ba](https://github.com/silo-code/silo/commit/6e033babd6200bea7832fe0040187eb0044be458))
+
 ## [0.49.0](https://github.com/silo-code/silo/compare/silo-v0.48.0...silo-v0.49.0) (2026-08-18)
 
 
