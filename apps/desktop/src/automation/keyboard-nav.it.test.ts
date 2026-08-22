@@ -257,18 +257,12 @@ describe.skipIf(!canFocus)("keyboard navigation", () => {
   });
 
   it("hands Tab off from the dock to the center editor", async () => {
-    // The list is one Tab stop and the per-row close (×) is out of tab order, so
-    // the dock's last tabbable is the + Add button. Tab there hands off to the
-    // center (skipping the splitter + dock chrome) — the cursor, ready to type.
-    await silo.eval('document.querySelector(".ws-add-btn")?.focus()');
-    await expect
-      .poll(
-        async () =>
-          (await silo.activeElement())?.className.includes("ws-add-btn") ??
-          false,
-        { timeout: 2000, interval: 50 },
-      )
-      .toBe(true);
+    // The list is one Tab stop, the per-row close (×) is out of tab order, and
+    // the Navigator's header toolbar is entry-chrome (skipped by region entry,
+    // not by Tab) but comes BEFORE the list in DOM order — so the list's roving
+    // row is the dock's last tabbable. Tab from there hands off to the center
+    // (skipping the splitter + dock chrome) — the cursor, ready to type.
+    await enterWorkspaceList();
     await silo.key("Tab");
     await expect
       .poll(

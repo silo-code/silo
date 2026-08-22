@@ -150,7 +150,11 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
           panel knows about, which is how the workspaces + button gets here
           without core.navigator importing a line of workspace code. */}
       {activeView && (
-        <div className="nav-view-header">
+        // `data-focus-chrome`: header controls (the contributed toolbar), not
+        // content — keyboard region-entry skips past this to land in the
+        // active view itself (see `focusActivePaneContent`), the same way it
+        // already skips a row's own out-of-order close button.
+        <div className="nav-view-header" data-focus-chrome>
           <span className="nav-view-header__title">{activeView.title}</span>
           <ContributedToolbar
             surface="navigator"
