@@ -10,6 +10,8 @@ Download the latest release for your platform and open a folder to create your f
 
 **[Workspaces](/guide/workspaces)** — the core model: what a workspace is, how to open and switch between them, and how closing differs from deleting.
 
+**[Silo's process model](/guide/process-model)** — why Activity Monitor shows many Silo-related processes and what is normal.
+
 **[Side panels](/guide/panels)** — the left and right columns, what's in them, and how to show, hide, and rearrange them.
 
 **[Extensions](/guide/extensions)** — the built-in extensions (Files, Git, Search, Themes, Markdown Preview…) and how to install more.
