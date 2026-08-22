@@ -125,6 +125,8 @@ Two things to know after installing:
 - **Restart pi.** Extensions load at startup, so sessions you already have
   open won't be tracked until you restart them.
 - **Working/idle status is off by default in pi.** pi reports turn progress
-  to the terminal only when **Terminal progress** is enabled in its settings
-  (`terminal.showTerminalProgress`). With it off, Silo still identifies pi
-  terminals and still offers exact resume — they just never light up as busy.
+  to the terminal only when **Terminal progress** is enabled — use the
+  toggle under pi on **Settings → Agents** (writes
+  `terminal.showTerminalProgress` in `~/.pi/agent/settings.json`). With it
+  off, Silo still identifies pi terminals and still offers exact resume — they
+  just never light up as busy.

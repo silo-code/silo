@@ -18,6 +18,7 @@ import {
   buildPiExtensionSource,
   agentById,
   agentByLeader,
+  agentByProcessArgs,
   hookInstallableAgents,
   sessionFileAgents,
   leaderBasename,
@@ -381,6 +382,7 @@ describe("agentByLeader", () => {
     expect(agentByLeader("cursor-agent")?.id).toBe("cursor");
     expect(agentByLeader("copilot")?.id).toBe("copilot");
     expect(agentByLeader("grok")?.id).toBe("grok");
+    expect(agentByLeader("pi")?.id).toBe("pi");
   });
 
   it("does NOT map the bare `agent` shim to Cursor — it collides with Grok", () => {
@@ -403,6 +405,55 @@ describe("agentByLeader", () => {
     expect(agentByLeader("/bin/bash")).toBeUndefined();
     // "cursor" (the editor) is not "cursor-agent" (the CLI).
     expect(agentByLeader("cursor")).toBeUndefined();
+  });
+});
+
+describe("agentByProcessArgs", () => {
+  it("matches pi by argv0 basename", () => {
+    expect(agentByProcessArgs("pi -e ./ext.ts")?.id).toBe("pi");
+  });
+
+  it("matches a node-wrapped pi launched through its PATH symlink", () => {
+    // The real shape, captured live (pi 0.84.2): `pi` on PATH is a symlink
+    // into the package and `ps` reports the path as invoked, so the package
+    // name appears NOWHERE in argv — only the script basename identifies it.
+    expect(
+      agentByProcessArgs("node /Users/x/.nvm/versions/node/v24.19.0/bin/pi")
+        ?.id,
+    ).toBe("pi");
+  });
+
+  it("matches through a shell alias that appends flags", () => {
+    // e.g. `alias pix='pi -e ~/ext.ts'` — the alias expands before exec, so
+    // argv is the same plus arguments.
+    expect(
+      agentByProcessArgs(
+        "node /Users/x/.nvm/versions/node/v24.19.0/bin/pi -e /Users/x/ext.ts",
+      )?.id,
+    ).toBe("pi");
+  });
+
+  it("skips interpreter flags to find the script", () => {
+    expect(
+      agentByProcessArgs("node --inspect /Users/x/.local/bin/claude")?.id,
+    ).toBe("claude");
+  });
+
+  it("matches node-wrapped pi by package path when run as the package file", () => {
+    expect(
+      agentByProcessArgs(
+        "node /Users/x/.nvm/versions/node/v24/lib/node_modules/@earendil-works/pi-coding-agent/dist/cli.js",
+      )?.id,
+    ).toBe("pi");
+  });
+
+  it("does not match an unrelated node script", () => {
+    expect(agentByProcessArgs("node /usr/bin/npm run dev")).toBeUndefined();
+    // A path merely *containing* the two-character name is not a match.
+    expect(
+      agentByProcessArgs("node /Users/x/pipeline/scripts/build.js"),
+    ).toBeUndefined();
+    expect(agentByProcessArgs("")).toBeUndefined();
   });
 });
 

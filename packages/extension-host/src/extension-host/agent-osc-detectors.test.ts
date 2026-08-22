@@ -4,6 +4,7 @@ import {
   detectCursorAgent,
   detectCursorAgentOutput,
   detectCopilotCLI,
+  detectPiTitle,
   detectCodexCLI,
   detectCodexIdleAfterWorking,
   detectShellIntegration,
@@ -262,6 +263,22 @@ describe("Pi progress sequences", () => {
     expect(detectCursorAgent(0, title)).toBeNull();
     expect(detectClaudeCode(0, title)).toBeNull();
     expect(detectCodexCLI(0, title)).toBeNull();
+  });
+});
+
+describe("detectPiTitle", () => {
+  it("promotes pi identity from its OSC 0 title prefix", () => {
+    expect(detectPiTitle(0, "π - my session - xerro-edit")).toEqual({
+      status: "idle",
+      source: "agent",
+      identity: true,
+      agentId: "pi",
+    });
+  });
+
+  it("ignores unrelated OSC 0 titles", () => {
+    expect(detectPiTitle(0, "my-project")).toBeNull();
+    expect(detectPiTitle(9, "π - my session - xerro-edit")).toBeNull();
   });
 });
 

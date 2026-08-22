@@ -1,4 +1,8 @@
-import { agentByLeader, leaderBasename } from "./agent-catalog";
+import {
+  agentByLeader,
+  leaderBasename,
+  type AgentDefinition,
+} from "./agent-catalog";
 
 // Resume-hint resolution for `ctx.agents` (RFC 0018). There are exactly two
 // possible outcomes, and neither one guesses:
@@ -53,6 +57,22 @@ export function genericHint(leader: string, cwd: string): ResumeHint {
       : `was running ${name}`,
     agentName: agent?.displayName,
     agentId: agent?.id,
+  };
+}
+
+/** Generic resume hint when the catalog agent is already known — e.g. a
+ * node-wrapped foreground whose argv0 is `node` but whose full command line
+ * identified pi. */
+export function catalogResumeHint(
+  agent: AgentDefinition,
+  cwd: string,
+): ResumeHint {
+  return {
+    resumeCommand: cwd
+      ? `was running ${agent.displayName} in ${cwd}`
+      : `was running ${agent.displayName}`,
+    agentName: agent.displayName,
+    agentId: agent.id,
   };
 }
 

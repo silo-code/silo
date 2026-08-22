@@ -607,6 +607,90 @@ async function attachTerminal(id: string, sessionId: string) {
   await Promise.resolve();
 }
 
+describe("AgentsService — pi identity", () => {
+  it("promotes a plain shell when pi's OSC 0 title appears", async () => {
+    await attachTerminal("t-pi-title", "sess-pi-title");
+    osc("t-pi-title", 0, "π - my session - xerro-edit");
+    expect(svc.getByTerminalId("t-pi-title")?.isAgent).toBe(true);
+    expect(svc.getByTerminalId("t-pi-title")?.agentId).toBe("pi");
+  });
+
+  it("stays an agent when pi emits OSC 133 shell zones mid-turn", async () => {
+    await attachTerminal("t-pi-133", "sess-pi-133");
+    osc("t-pi-133", 0, "π - my session - xerro-edit");
+    expect(svc.getByTerminalId("t-pi-133")?.isAgent).toBe(true);
+    expect(svc.getByTerminalId("t-pi-133")?.activity).toBe("idle");
+
+    // Pi wraps each assistant/user message in OSC 133;A … 133;C (message
+    // zones, not shell prompts). Those must not drive working/idle once
+    // identified — that flickers through thinking vs token streaming.
+    osc("t-pi-133", 133, "C");
+    expect(svc.getByTerminalId("t-pi-133")?.isAgent).toBe(true);
+    expect(svc.getByTerminalId("t-pi-133")?.activity).toBe("idle");
+
+    osc("t-pi-133", 133, "A");
+    expect(svc.getByTerminalId("t-pi-133")?.isAgent).toBe(true);
+    expect(svc.getByTerminalId("t-pi-133")?.activity).toBe("idle");
+    expect(svc.getByTerminalId("t-pi-133")?.agentId).toBe("pi");
+  });
+
+  it("tracks pi working/idle from OSC 9;4 progress, not message zones", async () => {
+    await attachTerminal("t-pi-prog", "sess-pi-prog");
+    getActive.mockReturnValue("t-pi-prog");
+    osc("t-pi-prog", 0, "π - my session - xerro-edit");
+    expect(svc.getByTerminalId("t-pi-prog")?.activity).toBe("idle");
+
+    osc("t-pi-prog", 9, "4;3");
+    expect(svc.getByTerminalId("t-pi-prog")?.activity).toBe("working");
+    expect(svc.getByTerminalId("t-pi-prog")?.isAgent).toBe(true);
+
+    // Message-zone noise during the turn must not clear working.
+    osc("t-pi-prog", 133, "A");
+    expect(svc.getByTerminalId("t-pi-prog")?.activity).toBe("working");
+
+    osc("t-pi-prog", 9, "4;0");
+    // Agent idle is debounced — advance past AGENT_IDLE_DEBOUNCE_MS.
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+    expect(svc.getByTerminalId("t-pi-prog")?.activity).toBe("idle");
+  });
+
+  it("sticks node-wrapped pi from the foreground pgid argv", async () => {
+    await attachTerminal("t-pi-node", "sess-pi-node");
+    invoke.mockImplementation((cmd: string, args?: { args?: string[] }) => {
+      if (cmd === "process_exec" && args?.args?.[0] === "-p") {
+        return Promise.resolve({
+          stdout:
+            "node /Users/x/.nvm/lib/node_modules/@earendil-works/pi-coding-agent/dist/cli.js -e ./ext.ts",
+        });
+      }
+      return Promise.resolve(null);
+    });
+    foreground("sess-pi-node", {
+      pgid: 4242,
+      atPrompt: false,
+      leader: "node",
+      cwd: "/proj",
+    });
+    await Promise.resolve();
+    const info = svc.getByTerminalId("t-pi-node");
+    expect(info?.agentId).toBe("pi");
+    expect(info?.resumeCommand).toBe("was running pi in /proj");
+  });
+
+  it("recognizes a pi argv0 leader in the foreground poll", async () => {
+    await attachTerminal("t-pi-leader", "sess-pi-leader");
+    foreground("sess-pi-leader", {
+      pgid: 5151,
+      atPrompt: false,
+      leader: "pi",
+      cwd: "/proj",
+    });
+    const info = svc.getByTerminalId("t-pi-leader");
+    expect(info?.agentId).toBe("pi");
+    expect(info?.resumeCommand).toBe("was running pi in /proj");
+  });
+});
+
 describe("AgentsService — demotion cancels pending agent-idle debounce", () => {
   it("does not let a stale queued agent-idle timer re-promote isAgent after the shell reclaims the prompt", async () => {
     await attachTerminal("t1", "sess-1");

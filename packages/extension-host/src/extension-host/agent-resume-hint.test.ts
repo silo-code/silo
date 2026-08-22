@@ -92,6 +92,7 @@ describe("isKnownAgentLeader", () => {
     expect(isKnownAgentLeader("codex")).toBe(true);
     expect(isKnownAgentLeader("cursor-agent")).toBe(true);
     expect(isKnownAgentLeader("copilot")).toBe(true);
+    expect(isKnownAgentLeader("pi")).toBe(true);
   });
 
   it("returns false for a plain shell or unrelated program", () => {

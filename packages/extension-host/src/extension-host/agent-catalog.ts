@@ -3,6 +3,7 @@ import {
   detectCodexCLI,
   detectCodexIdleAfterWorking,
   detectCopilotCLI,
+  detectPiTitle,
   detectCursorAgent,
   detectCursorAgentOutput,
   detectShellIntegration,
@@ -609,7 +610,7 @@ const pi: AgentDefinition = {
   // no status, and its TUI spinner is the *generic* braille frame set, which
   // is far too common in raw output to match safely — the progress protocol
   // is the only trustworthy signal it has.
-  activityDetectors: [detectCopilotCLI],
+  activityDetectors: [detectPiTitle, detectCopilotCLI],
   resume: {
     kind: "hook",
     installStrategy: "pi-extension",
@@ -634,8 +635,8 @@ const pi: AgentDefinition = {
     buildResumeCommand: (sessionId) => `pi --session ${sessionId}`,
     postInstallNote:
       "Pi loads extensions at startup, so restart any pi session you already " +
-      "have open. For live working/idle status, also turn on “Terminal " +
-      "progress” in pi's settings — it's off by default.",
+      "have open. Use “Terminal progress” below for live working/idle status " +
+      "in Silo.",
   },
   docsUrl: "https://getsilo.dev/guide/agent-sessions#pi",
   contract:
@@ -703,6 +704,54 @@ export function leaderBasename(leader: string): string {
 export function agentByLeader(leader: string): AgentDefinition | undefined {
   const base = leaderBasename(leader);
   return AGENT_CATALOG.find((a) => a.leaderNames.includes(base));
+}
+
+/** Interpreters that run an agent CLI as a *script argument*, so argv0 names
+ * the runtime rather than the agent. Node covers pi/Claude/Copilot-style
+ * installs; bun and deno are here because the same shape applies to them. */
+const SCRIPT_INTERPRETERS = new Set(["node", "bun", "deno"]);
+
+/**
+ * Resolve an agent from a process's full argv when argv0 alone is ambiguous
+ * (interpreter-wrapped CLIs report `node`).
+ *
+ * Three passes, most precise first:
+ *
+ * 1. argv0's basename against `leaderNames` (a compiled binary, e.g. Claude).
+ * 2. For an interpreter argv0, the **first non-flag argument's basename** —
+ *    the script being run. This is the case that matters in practice: a CLI
+ *    installed on `PATH` is a symlink into the package, and `ps` reports the
+ *    path *as invoked*, so argv reads
+ *    `node /Users/x/.nvm/versions/node/v24.19.0/bin/pi -e ext.ts` — the
+ *    package name appears nowhere. The script's own basename is the only
+ *    identifier present (confirmed live, pi 0.84.2).
+ * 3. Failing both, unambiguous package-path markers, for an install invoked
+ *    through the package file itself (`node …/pi-coding-agent/dist/cli.js`).
+ *
+ * Every match is an **exact basename** or a full package path — never a bare
+ * substring, which for a two-character name like `pi` would match half the
+ * paths on a machine (the same trap the capture script's walk avoids).
+ */
+export function agentByProcessArgs(args: string): AgentDefinition | undefined {
+  const trimmed = args.trim();
+  if (!trimmed) return undefined;
+  const tokens = trimmed.split(/\s+/);
+  const byLeader = agentByLeader(tokens[0] ?? "");
+  if (byLeader) return byLeader;
+
+  if (SCRIPT_INTERPRETERS.has(leaderBasename(tokens[0] ?? ""))) {
+    const script = tokens.slice(1).find((t) => !t.startsWith("-"));
+    const byScript = script ? agentByLeader(script) : undefined;
+    if (byScript) return byScript;
+  }
+
+  if (
+    trimmed.includes("pi-coding-agent") ||
+    trimmed.includes("@earendil-works/pi")
+  ) {
+    return agentById("pi");
+  }
+  return undefined;
 }
 
 /** The catalog entry with this id (as written into hook events / persisted). */

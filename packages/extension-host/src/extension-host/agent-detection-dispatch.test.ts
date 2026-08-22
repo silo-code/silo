@@ -60,9 +60,21 @@ describe("planDetection", () => {
   it("agent idle with no timer field (Copilot) still debounces the same way", () => {
     const result: DetectionResult = { status: "idle", source: "agent" };
     const plan = planDetection(result);
-    expect(plan.shellTimerAction).toBeNull();
     expect(plan.agentTimerAction).toBe("schedule");
     expect(plan.dispatch).toBeNull();
+  });
+
+  it("identity-only agent idle (pi title) dispatches immediately", () => {
+    const result: DetectionResult = {
+      status: "idle",
+      source: "agent",
+      identity: true,
+    };
+    expect(planDetection(result)).toEqual({
+      shellTimerAction: null,
+      agentTimerAction: null,
+      dispatch: { status: "idle", source: "agent" },
+    });
   });
 
   it("agent working with no timer field (Copilot) dispatches now and clears the agent timer", () => {
