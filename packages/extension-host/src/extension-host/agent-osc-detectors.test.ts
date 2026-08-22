@@ -232,6 +232,40 @@ describe("detectCopilotCLI", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Pi — shares Copilot's OSC 9;4 progress detector
+// ---------------------------------------------------------------------------
+describe("Pi progress sequences", () => {
+  // Golden samples: the exact sequences pi's TUI writes (its terminal layer
+  // defines them as "\x1b]9;4;3\x07" / "\x1b]9;4;0\x07"), captured against
+  // pi 0.84.2. Silo parses these with `detectCopilotCLI` rather than a
+  // near-identical copy, so this test is what would catch pi drifting off the
+  // shared protocol.
+  it("reads pi's turn-start progress as working", () => {
+    expect(detectCopilotCLI(9, "4;3")).toEqual({
+      status: "working",
+      source: "agent",
+    });
+  });
+
+  it("reads pi's turn-end progress as idle", () => {
+    expect(detectCopilotCLI(9, "4;0")).toEqual({
+      status: "idle",
+      source: "agent",
+    });
+  });
+
+  it("does not read pi's plain OSC 0 title as agent status", () => {
+    // Pi's title is "π - <session name> - <cwd>" with no status encoded, and
+    // it must not be mistaken for Cursor's " - <status>" title format or for
+    // a spinner frame.
+    const title = "π - my session - xerro-edit";
+    expect(detectCursorAgent(0, title)).toBeNull();
+    expect(detectClaudeCode(0, title)).toBeNull();
+    expect(detectCodexCLI(0, title)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Codex CLI
 // ---------------------------------------------------------------------------
 describe("detectCodexCLI", () => {

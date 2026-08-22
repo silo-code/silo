@@ -1,7 +1,7 @@
 # Using agents with Silo
 
 Silo recognizes the coding agents you run in your terminals — Claude Code,
-Codex, Cursor Agent, Copilot CLI, and Grok — and shows you what each one is
+Codex, Cursor Agent, Copilot CLI, Grok, and pi — and shows you what each one is
 doing at a glance.
 
 Two optional setup steps: install a monitoring extension to see agent status in
@@ -104,3 +104,27 @@ reload. (Grok also imports hooks from `~/.claude/settings.json` for
 Claude compatibility; Silo ignores those Claude-tagged events when the
 foreground process is Grok, so installing Claude's hook does not mislabel Grok
 terminals.)
+
+### pi {#pi}
+
+|        |                                                |
+| ------ | ---------------------------------------------- |
+| Config | `~/.pi/agent/extensions/silo-track-session.ts` |
+| Resume | `pi --session <id>`                            |
+
+**pi's install is a small TypeScript file, not a config entry.** pi has no
+shell-command hooks — its extension points are TypeScript modules it loads
+from `~/.pi/agent/extensions/`, so that is what Silo writes there. The file
+is Silo-owned and safe to read: it runs the same session-tracking script
+every other agent runs, touches nothing else in your pi setup, and Uninstall
+deletes it. Silo refuses to install if a file it didn't write already sits at
+that path.
+
+Two things to know after installing:
+
+- **Restart pi.** Extensions load at startup, so sessions you already have
+  open won't be tracked until you restart them.
+- **Working/idle status is off by default in pi.** pi reports turn progress
+  to the terminal only when **Terminal progress** is enabled in its settings
+  (`terminal.showTerminalProgress`). With it off, Silo still identifies pi
+  terminals and still offers exact resume — they just never light up as busy.

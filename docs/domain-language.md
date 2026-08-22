@@ -217,22 +217,22 @@ that share one string (`"claude"`) but otherwise don't line up:
 
 - **Terminal Kind** (`TerminalKind`: `"shell" | "claude" | "pi"`): a
   **launch-time** choice — how the terminal was created. Only two agent
-  values exist; `"pi"` is Dave's own local-model CLI and has no Catalog Agent
-  counterpart (see gap note below).
+  values exist, and both also have a Catalog Agent counterpart.
 - **Catalog Agent** (`AgentDefinition.id` in `AGENT_CATALOG`: `"claude" |
-"codex" | "cursor" | "copilot" | "grok"`): a **detected-identity**
+"codex" | "cursor" | "copilot" | "grok" | "pi"`): a **detected-identity**
   classification, computed live from OSC/output signals against the sealed
   catalog. A Codex/Cursor/Copilot/Grok terminal is always launched at Terminal
   Kind `"shell"` and only later upgraded to `isAgent: true` once detected —
-  there is no dedicated Terminal Kind for those four.
+  there is no dedicated Terminal Kind for those four. The two vocabularies
+  still don't line up: sharing a string (`"claude"`, `"pi"`) means the
+  terminal _can_ be that agent, never that it _is_ one.
   _Avoid_: "agent type" or "agent kind" alone (ambiguous between the two);
   conflating a terminal's Kind with its detected Catalog Agent identity
 
-> **Known gap**: `"pi"` terminals are marked `isAgent: true` by Terminal Kind
-> alone. Since `AGENT_CATALOG` has no `"pi"` entry, they get no activity
-> detection, no resume strategy, and no `agentId`/`agentName` — those three
-> fields are populated only via catalog detection. Flagged as a gap worth
-> tracking, not yet resolved.
+> The gap this note used to record — `"pi"` terminals marked `isAgent: true`
+> by Terminal Kind with no catalog entry behind them, so no activity
+> detection, no resume strategy, and no `agentId`/`agentName` — closed when
+> pi joined `AGENT_CATALOG` (ADR 0041).
 
 **Sealed** (detection):
 There is no public `registerAgent` / detector-registration API — `AGENT_CATALOG`
@@ -270,6 +270,15 @@ strategy: `hook` (an installable SessionStart-style hook Silo can wire up),
 `session-file` (reads the agent's own live session registry — currently only
 Grok), or `none` (no exact-resume path; the terminal only ever gets the
 honest, id-less generic hint).
+
+**Install Strategy** (`HookInstallStrategy`):
+For a `hook` agent, the on-disk shape Settings → Agents writes: the merge
+algorithm and the file it applies to. `claude-settings` (Claude, Codex),
+`cursor-hooks-json`, `copilot-hooks-dir`, and `pi-extension` — the last being
+the one whose "config" is a Silo-owned TypeScript file rather than data,
+because pi has no shell-command hooks at all (ADR 0041).
+_Avoid_: Installer, adapter (prefer the field name); calling `pi-extension`
+a plugin (it is Silo's hook, wearing pi's only available shape)
 _Avoid_: Reconnect, restore (prefer "resume" to match the CLI verb every
 catalog agent itself uses)
 

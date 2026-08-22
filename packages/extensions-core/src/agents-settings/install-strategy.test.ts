@@ -6,6 +6,7 @@ const STRATEGIES = [
   "claude-settings",
   "cursor-hooks-json",
   "copilot-hooks-dir",
+  "pi-extension",
 ] as const;
 
 describe("HOOK_INSTALLERS", () => {

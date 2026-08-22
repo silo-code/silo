@@ -9,6 +9,7 @@ import {
   type DetectionResult,
 } from "./agent-osc-detectors";
 import { renderTrackSessionScript } from "./agent-hook-script";
+import { renderPiTrackSessionExtension } from "./agent-pi-extension";
 
 /**
  * The single source of truth for every coding agent Silo supports (RFC 0018).
@@ -90,13 +91,16 @@ export const TRACK_SCRIPT_REL = `${AGENT_HOOKS_DIR_REL}/track-session.sh`;
 /**
  * How Settings → Agents writes this agent's hook into its config. Each
  * strategy has its own pure installer (Claude/Codex share
- * `hook-installer.ts`; Cursor and Copilot each have a dedicated module)
- * because the on-disk schemas differ.
+ * `hook-installer.ts`; Cursor, Copilot, and pi each have a dedicated module)
+ * because the on-disk schemas differ. `pi-extension` is the odd one out: pi
+ * has no shell-command hook config at all, so the "config" Silo writes is a
+ * small TypeScript extension file (ADR 0041).
  */
 export type HookInstallStrategy =
   | "claude-settings"
   | "cursor-hooks-json"
-  | "copilot-hooks-dir";
+  | "copilot-hooks-dir"
+  | "pi-extension";
 
 /**
  * Exact-resume capability for an agent: either it exposes a session-start
@@ -123,6 +127,16 @@ export interface AgentHookResume {
    * `marker` and write one JSON line to `~/.silo/agent-hooks/events.jsonl`
    * (see `agent-hook-events.ts`). */
   buildCommand: () => string;
+  /**
+   * For a strategy whose "config" is a Silo-owned file written wholesale
+   * rather than a merge into someone else's schema, the file's full
+   * contents. Only `pi-extension` needs it (its hook is a TypeScript
+   * extension, not a command in a config file — ADR 0041). It lives on the
+   * descriptor, rather than the installer importing the catalog, so the
+   * installers stay pure modules parameterized by a structural spec — the
+   * same reason `buildCommand` lives here.
+   */
+  buildFileContents?: () => string;
   /** Builds the exact resume command for a captured session id, e.g.
    * `claude --resume <id>` / `codex resume <id>` / `agent --resume <id>` /
    * `copilot --resume=<id>`. Per-agent because the syntax differs; this is
@@ -247,6 +261,20 @@ export function buildTrackSessionScript(): string {
     marker: SILO_HOOK_MARKER,
     hooksDirRel: AGENT_HOOKS_DIR_REL,
     knownNames: knownAgentNames(),
+  });
+}
+
+/**
+ * Build the source of Silo's pi extension (ADR 0041) — pi's equivalent of the
+ * one-line hook command every other agent gets. Catalog supplies the marker,
+ * the script path, and the agent tag; the TypeScript body lives in
+ * {@link renderPiTrackSessionExtension}.
+ */
+export function buildPiExtensionSource(): string {
+  return renderPiTrackSessionExtension({
+    marker: SILO_HOOK_MARKER,
+    trackScriptRel: TRACK_SCRIPT_REL,
+    agentId: "pi",
   });
 }
 
@@ -566,6 +594,90 @@ const grok: AgentDefinition = {
   verifiedAgainstVersion: "grok@0.2.114",
 };
 
+const pi: AgentDefinition = {
+  id: "pi",
+  // Lowercase on purpose: upstream brands it "pi" (pi.dev), and the repo
+  // already labels a pi-kind terminal "pi agent".
+  displayName: "pi",
+  // `pi` on PATH is a symlink to the package's `dist/cli.js`, which carries a
+  // `#!/usr/bin/env node` shebang — so the foreground process reports as
+  // node-wrapped, exactly like Claude and Copilot.
+  leaderNames: ["pi"],
+  // Pi emits the same OSC 9;4 progress protocol Copilot does (`4;3` on turn
+  // start, `4;0` on turn end), so it shares that detector rather than getting
+  // a near-identical copy. Its OSC 0 title ("π - <session> - <cwd>") encodes
+  // no status, and its TUI spinner is the *generic* braille frame set, which
+  // is far too common in raw output to match safely — the progress protocol
+  // is the only trustworthy signal it has.
+  activityDetectors: [detectCopilotCLI],
+  resume: {
+    kind: "hook",
+    installStrategy: "pi-extension",
+    // Not a config file: pi has no shell-command hook mechanism, so this is a
+    // Silo-owned TypeScript extension that pi auto-loads from its global
+    // extensions directory. Created wholesale on install, deleted on
+    // uninstall (like Copilot's dedicated file, never a merge target).
+    configPath: ".pi/agent/extensions/silo-track-session.ts",
+    hookEvent: "session_start",
+    marker: SILO_HOOK_MARKER,
+    // What the extension spawns — the same shared capture script every other
+    // agent runs. The pi installer templates it as an argv inside
+    // `buildPiExtensionSource()` rather than as a shell string, but the
+    // command being run is exactly this.
+    buildCommand: () => buildHookCommand("pi"),
+    buildFileContents: buildPiExtensionSource,
+    // Confirmed live (2026-08-22, pi 0.84.2): `pi --session <id>` accepts a
+    // full or partial session UUID, resolving the current project's sessions
+    // first and then globally. It is also how pi itself relaunches a session
+    // internally. `-r`/`--resume` exists but only opens the interactive
+    // picker, so it is NOT the exact-resume syntax.
+    buildResumeCommand: (sessionId) => `pi --session ${sessionId}`,
+    postInstallNote:
+      "Pi loads extensions at startup, so restart any pi session you already " +
+      "have open. For live working/idle status, also turn on “Terminal " +
+      "progress” in pi's settings — it's off by default.",
+  },
+  docsUrl: "https://getsilo.dev/guide/agent-sessions#pi",
+  contract:
+    "Pi is the one supported agent with no shell-command hook mechanism: its " +
+    "hooks are TypeScript extensions auto-loaded from ~/.pi/agent/extensions/" +
+    "*.ts (global, no trust step — only project-local .pi/extensions requires " +
+    "project trust). CONFIRMED live against pi 0.84.2 (2026-08-22): (1) an " +
+    "extension is a module with a default factory `(pi: ExtensionAPI) => void` " +
+    'that subscribes via `pi.on("session_start", handler)`; the event fires ' +
+    "with reason startup/reload/new/resume/fork and the handler's ctx exposes " +
+    "`sessionManager.getSessionId()` (a UUID) and `cwd`; (2) node built-ins " +
+    "(node:child_process, node:os, node:path) are available to extensions, and " +
+    "TypeScript is loaded through jiti with no build step, so the type-only " +
+    "import in Silo's extension is erased at runtime; (3) `pi --session <id>` " +
+    "resumes by full or partial session UUID (project-scoped first, then " +
+    "global) — `-r` only opens the picker; (4) sessions are stored as " +
+    "~/.pi/agent/sessions/<slugified-cwd>/<timestamp>_<uuid>.jsonl and pi keeps " +
+    "NO live pid registry, which is why the session-file resume path (Grok's) " +
+    "does not apply here. Because the extension runs inside pi's own process, " +
+    "it passes pi's pid to the capture script via SILO_AGENT_PID and the " +
+    "script skips its parent walk — the walk would be actively wrong for a " +
+    "two-character agent name matched by substring. Activity detection: pi " +
+    "emits OSC 9;4;3 at turn start and OSC 9;4;0 at turn end (the ConEmu " +
+    "progress protocol, via its TUI's setProgress), which is the same signal " +
+    "Copilot uses, BUT only when `terminal.showTerminalProgress` is true in " +
+    "~/.pi/agent/settings.json and that DEFAULTS TO FALSE (same situation as " +
+    "Cursor's showStatusIndicators). With it off, a pi terminal is still " +
+    "identified as an agent and still gets exact resume; it just never lights " +
+    "up as busy. Pi also emits OSC 133 A/B/C zones around messages, which the " +
+    'generic shell-integration fallback reads as `source: "shell"` — useful ' +
+    "noise, not agent identity.",
+  upstreamRefs: [
+    "https://pi.dev",
+    "https://www.npmjs.com/package/@earendil-works/pi-coding-agent",
+    // The package ships its own docs — docs/extensions.md (the extension API
+    // and session_start payload) and docs/sessions.md (--session semantics)
+    // are the two Silo's contract depends on.
+  ],
+  lastVerified: "2026-08-22",
+  verifiedAgainstVersion: "pi@0.84.2",
+};
+
 /** Every agent Silo knows about. Order is the detection-dispatch order. */
 export const AGENT_CATALOG: AgentDefinition[] = [
   claude,
@@ -573,6 +685,7 @@ export const AGENT_CATALOG: AgentDefinition[] = [
   cursor,
   copilot,
   grok,
+  pi,
 ];
 
 // ---- derived views ----------------------------------------------------------
