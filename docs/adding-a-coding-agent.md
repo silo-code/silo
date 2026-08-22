@@ -28,7 +28,12 @@ symptom that starts this task ("agent X doesn't show up in my list of agents").
 ## The one file that must change
 
 `packages/extension-host/src/extension-host/agent-catalog.ts` is the single
-source of truth. Every subsystem derives its view from `AGENT_CATALOG`:
+source of truth today. Every subsystem derives its view from `AGENT_CATALOG`:
+
+> **Layout evolving (ADR 0042):** agents with non-trivial runtime quirks (pi is
+> the first) will move to host-internal `agents/<id>.ts` modules with
+> declarative `runtime` policy. Until that migration lands, this file remains
+> the entry point — the recipe below still applies.
 
 - detection dispatch → `detectFromOsc` / `detectIdleAfterWorking` / `detectFromOutput`
 - resume-hint gating → `agentByLeader`

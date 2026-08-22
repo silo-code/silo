@@ -239,6 +239,25 @@ There is no public `registerAgent` / detector-registration API — `AGENT_CATALO
 is host-internal, and every agent Silo recognizes is one entry in it (ADR 0028).
 _Avoid_: Pluggable, extensible detection (explicitly rejected)
 
+**Agent module** (`agents/<id>.ts`):
+A host-internal file for a Catalog Agent with non-trivial runtime quirks
+(node-wrapped argv0, fake shell OSC, settings-gated activity, in-process
+hooks). Holds the catalog entry, agent-specific detectors, and declarative
+`runtime` policy. Simple agents stay thin entries in the catalog index — no
+forced one-file-per-agent symmetry (ADR 0042).
+_Avoid_: Per-agent module for every agent (Claude/Codex-style entries are
+mostly data)
+
+**Runtime policy** (`AgentDefinition.runtime`):
+Declarative host behavior for quirky agents: e.g. suppress shell-integration OSC
+once identified, stamp identity from a detector, declare `processArgsMarkers`
+for node-wrapped argv0. Distinct from **Install Strategy** (resume hook shape)
+and from **extra settings toggles** (opt-in agent config prerequisites for
+activity detection). Applied generically by the host — no agent-id string
+branches in `agents-service.ts` (ADR 0042).
+_Avoid_: Pi-specific branches in shared host files; conflating runtime policy
+with resume or install metadata
+
 **Activity** (`AgentActivity`):
 What an agent is currently doing, classified from OSC/output signals: `"none"`
 (no agent activity observed) | `"working"` | `"idle"` (finished its last turn,

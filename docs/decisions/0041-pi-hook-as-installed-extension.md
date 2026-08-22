@@ -102,3 +102,8 @@ Rejected for now: it adds a publish/version treadmill and a network
 dependency to something a single generated file already does, and it would
 still be Silo's code running in the user's agent — the same trust question,
 with more moving parts.
+
+## References
+
+- ADR 0028 (sealed detection) · ADR 0042 (host-internal catalog layout for
+  quirky agents — install strategy here is unchanged)
