@@ -528,12 +528,18 @@ export function WorkspaceDock({
   }, [api, workspaceId]);
 
   // Activate a panel programmatically (used by openEditor / openPreviewEditor
-  // when the target panel is already mounted).
+  // when the target panel is already mounted, a view-type switch remounting
+  // onto the same panel, and the automation bridge's `activatePanel` op).
+  // Focus follows the activation — matching `applyTarget` above and every one
+  // of these callers' intent: the user asked to open this file (or switch its
+  // viewer), they expect the cursor there.
   useEffect(() => {
     function handler(e: Event) {
       const { panelId } = (e as CustomEvent<{ panelId: string }>).detail;
       const panel = apiRef.current?.getPanel(panelId);
-      if (panel) panel.api.setActive();
+      if (!panel) return;
+      panel.api.setActive();
+      focusPanelContent(panel.view.content.element);
     }
     window.addEventListener("app:activate-panel", handler);
     return () => window.removeEventListener("app:activate-panel", handler);

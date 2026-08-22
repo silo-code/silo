@@ -83,4 +83,32 @@ describe("focusActivePaneContent", () => {
     expect(focusActivePaneContent(host)).toBe(true);
     expect(document.activeElement).toBe(row1);
   });
+
+  it("skips a header's own chrome and lands on the content behind it", () => {
+    // Mirrors the Navigator: a header toolbar button (an ordinary, naturally
+    // tabbable <button>, no tabindex needed) sits before the active view's
+    // content in the DOM. Marked `data-focus-chrome`, so region entry must
+    // skip past it to the content's roving item, not stop on the button.
+    const host = document.createElement("div");
+    const pane = document.createElement("div");
+    pane.className = "tab-pane";
+    pane.dataset.active = "true";
+
+    const header = document.createElement("div");
+    header.dataset.focusChrome = "";
+    const addButton = document.createElement("button");
+    header.appendChild(addButton);
+
+    const list = document.createElement("ul");
+    const row = document.createElement("li");
+    row.tabIndex = 0;
+    list.appendChild(row);
+
+    pane.append(header, list);
+    host.appendChild(pane);
+    document.body.appendChild(host);
+
+    expect(focusActivePaneContent(host)).toBe(true);
+    expect(document.activeElement).toBe(row);
+  });
 });
