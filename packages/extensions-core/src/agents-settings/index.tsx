@@ -22,7 +22,13 @@
  * macOS/Linux only — on Windows the page is detection-only (no Install, no
  * self-heal), since a shell hook can neither run nor correlate there.
  */
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  Fragment,
+  type ReactNode,
+} from "react";
 import { useSnapshot } from "valtio";
 import type { Extension, ExtensionContext } from "@silo-code/sdk";
 import {
@@ -44,6 +50,17 @@ import {
   type AgentHookResume,
 } from "@silo-code/extension-host/internal";
 import { installerFor } from "./install-strategy";
+import {
+  getTerminalProgress,
+  PI_AGENT_SETTINGS_REL,
+  withTerminalProgress,
+  type PiAgentSettings,
+} from "./pi-settings";
+import {
+  parseSettingsJsonText,
+  writableSettingsOrThrow,
+  type SettingsJsonRead,
+} from "./settings-json";
 import "./AgentsSettingsPage.css";
 
 type HookAgent = AgentDefinition & { resume: AgentHookResume };
@@ -123,6 +140,31 @@ async function writeInstalled(
   await installerFor(agent.resume).write(ctx, agent.resume, path, install);
 }
 
+async function readPiAgentSettings(
+  ctx: ExtensionContext,
+  home: string,
+): Promise<SettingsJsonRead<PiAgentSettings>> {
+  const path = `${home}/${PI_AGENT_SETTINGS_REL}`;
+  if (!(await ctx.files.pathExists(path))) return { kind: "missing" };
+  const text = await ctx.files.readText(path).catch(() => null);
+  return parseSettingsJsonText<PiAgentSettings>(text, path);
+}
+
+async function writePiTerminalProgress(
+  ctx: ExtensionContext,
+  home: string,
+  enabled: boolean,
+): Promise<void> {
+  const path = `${home}/${PI_AGENT_SETTINGS_REL}`;
+  const read = await readPiAgentSettings(ctx, home);
+  const current = writableSettingsOrThrow(read, path);
+  const next = withTerminalProgress(current, enabled);
+  const body = JSON.stringify(next, null, 2) + "\n";
+  const dir = path.slice(0, path.lastIndexOf("/"));
+  if (dir) await ctx.files.createDir(dir);
+  await ctx.files.writeText(path, body);
+}
+
 /** Label + hint + docs link on the left; a single control on the right —
  * matches other settings pages (Install / Uninstall alone), instead of cramming badge +
  * link + switch into the control slot. */
@@ -163,6 +205,10 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
   const [home, setHome] = useState<string | null | undefined>(undefined);
   const [rows, setRows] = useState<AgentRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [piTerminalProgress, setPiTerminalProgress] = useState<boolean | null>(
+    null,
+  );
+  const [piProgressError, setPiProgressError] = useState<string | null>(null);
   // Exact resume needs a POSIX-shell hook that Windows can neither run nor
   // correlate against (RFC 0019 / RFC 0010's ConPTY gap) — the toggles are
   // hidden there and the page is detection-only.
@@ -252,6 +298,22 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
       );
     }
 
+    setPiProgressError(null);
+    try {
+      const read = await readPiAgentSettings(ctx, h);
+      if (read.kind === "invalid") {
+        setPiTerminalProgress(false);
+        setPiProgressError(read.message);
+      } else {
+        setPiTerminalProgress(
+          getTerminalProgress(read.kind === "ok" ? read.value : {}),
+        );
+      }
+    } catch (err) {
+      setPiTerminalProgress(false);
+      setPiProgressError(err instanceof Error ? err.message : String(err));
+    }
+
     setRows(next);
   }, [ctx]);
 
@@ -274,6 +336,20 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
             : r,
         ),
       );
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function togglePiTerminalProgress(enabled: boolean) {
+    if (!home) return;
+    setBusy("pi-terminal-progress");
+    setPiProgressError(null);
+    try {
+      await writePiTerminalProgress(ctx, home, enabled);
+      setPiTerminalProgress(enabled);
+    } catch (err) {
+      setPiProgressError(err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(null);
     }
@@ -335,34 +411,58 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
 
         <Section label="Session hooks">
           {rows.map((row) => (
-            <AgentSettingsRow
-              key={row.agent.id}
-              label={row.agent.displayName}
-              hint={
-                row.error
-                  ? `Error: ${row.error}`
-                  : windows
-                    ? "Detection only on this platform"
-                    : row.installed
-                      ? (row.agent.resume.postInstallNote ??
-                        "Hook installed — exact resume enabled.")
-                      : "Install Silo's session hook for exact resume."
-              }
-              docsUrl={row.agent.docsUrl}
-              onOpenDocs={(url) => void ctx.ui.openExternal(url)}
-              control={
-                windows ? undefined : (
-                  <Button
-                    size="sm"
-                    variant={row.installed ? "normal" : "primary"}
-                    disabled={busy === row.agent.id || !row.loaded}
-                    onClick={() => void toggle(row, !row.installed)}
-                  >
-                    {row.installed ? "Uninstall" : "Install"}
-                  </Button>
-                )
-              }
-            />
+            <Fragment key={row.agent.id}>
+              <AgentSettingsRow
+                label={row.agent.displayName}
+                hint={
+                  row.error
+                    ? `Error: ${row.error}`
+                    : windows
+                      ? "Detection only on this platform"
+                      : row.installed
+                        ? (row.agent.resume.postInstallNote ??
+                          "Hook installed — exact resume enabled.")
+                        : "Install Silo's session hook for exact resume."
+                }
+                docsUrl={row.agent.docsUrl}
+                onOpenDocs={(url) => void ctx.ui.openExternal(url)}
+                control={
+                  windows ? undefined : (
+                    <Button
+                      size="sm"
+                      variant={row.installed ? "normal" : "primary"}
+                      disabled={busy === row.agent.id || !row.loaded}
+                      onClick={() => void toggle(row, !row.installed)}
+                    >
+                      {row.installed ? "Uninstall" : "Install"}
+                    </Button>
+                  )
+                }
+              />
+              {row.agent.id === "pi" && !windows && (
+                <SettingRow
+                  label="Terminal progress"
+                  hint={
+                    piProgressError
+                      ? `Error: ${piProgressError}`
+                      : "Emit OSC 9;4 progress so Silo can show pi working/idle. Restart pi after changing."
+                  }
+                >
+                  <Switch
+                    checked={piTerminalProgress ?? false}
+                    disabled={
+                      piTerminalProgress === null ||
+                      busy === "pi-terminal-progress" ||
+                      !home
+                    }
+                    onChange={(checked) =>
+                      void togglePiTerminalProgress(checked)
+                    }
+                    aria-label="pi terminal progress"
+                  />
+                </SettingRow>
+              )}
+            </Fragment>
           ))}
         </Section>
 

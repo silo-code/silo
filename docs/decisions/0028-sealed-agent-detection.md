@@ -53,4 +53,6 @@ activity split proved redundant.
 ## References
 
 - [RFC 0018](../proposals/0018-ctx-agents-surface.md) · [RFC 0019](../proposals/0019-agent-hook-shell-runtime.md)
+- ADR 0042 (host-internal catalog layout and runtime policy — detection
+  boundary here is unchanged)
 - [`ctx.agents` API](../../apps/docs/api/agents/) · [Agent sessions guide](../../apps/docs/guide/agent-sessions.md)

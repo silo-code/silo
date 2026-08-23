@@ -217,27 +217,46 @@ that share one string (`"claude"`) but otherwise don't line up:
 
 - **Terminal Kind** (`TerminalKind`: `"shell" | "claude" | "pi"`): a
   **launch-time** choice — how the terminal was created. Only two agent
-  values exist; `"pi"` is Dave's own local-model CLI and has no Catalog Agent
-  counterpart (see gap note below).
+  values exist, and both also have a Catalog Agent counterpart.
 - **Catalog Agent** (`AgentDefinition.id` in `AGENT_CATALOG`: `"claude" |
-"codex" | "cursor" | "copilot" | "grok"`): a **detected-identity**
+"codex" | "cursor" | "copilot" | "grok" | "pi"`): a **detected-identity**
   classification, computed live from OSC/output signals against the sealed
   catalog. A Codex/Cursor/Copilot/Grok terminal is always launched at Terminal
   Kind `"shell"` and only later upgraded to `isAgent: true` once detected —
-  there is no dedicated Terminal Kind for those four.
+  there is no dedicated Terminal Kind for those four. The two vocabularies
+  still don't line up: sharing a string (`"claude"`, `"pi"`) means the
+  terminal _can_ be that agent, never that it _is_ one.
   _Avoid_: "agent type" or "agent kind" alone (ambiguous between the two);
   conflating a terminal's Kind with its detected Catalog Agent identity
 
-> **Known gap**: `"pi"` terminals are marked `isAgent: true` by Terminal Kind
-> alone. Since `AGENT_CATALOG` has no `"pi"` entry, they get no activity
-> detection, no resume strategy, and no `agentId`/`agentName` — those three
-> fields are populated only via catalog detection. Flagged as a gap worth
-> tracking, not yet resolved.
+> The gap this note used to record — `"pi"` terminals marked `isAgent: true`
+> by Terminal Kind with no catalog entry behind them, so no activity
+> detection, no resume strategy, and no `agentId`/`agentName` — closed when
+> pi joined `AGENT_CATALOG` (ADR 0041).
 
 **Sealed** (detection):
 There is no public `registerAgent` / detector-registration API — `AGENT_CATALOG`
 is host-internal, and every agent Silo recognizes is one entry in it (ADR 0028).
 _Avoid_: Pluggable, extensible detection (explicitly rejected)
+
+**Agent module** (`agents/<id>.ts`):
+A host-internal file for a Catalog Agent with non-trivial runtime quirks
+(node-wrapped argv0, fake shell OSC, settings-gated activity, in-process
+hooks). Holds the catalog entry, agent-specific detectors, and declarative
+`runtime` policy. Simple agents stay thin entries in the catalog index — no
+forced one-file-per-agent symmetry (ADR 0042).
+_Avoid_: Per-agent module for every agent (Claude/Codex-style entries are
+mostly data)
+
+**Runtime policy** (`AgentDefinition.runtime`):
+Declarative host behavior for quirky agents: e.g. suppress shell-integration OSC
+once identified, stamp identity from a detector, declare `processArgsMarkers`
+for node-wrapped argv0. Distinct from **Install Strategy** (resume hook shape)
+and from **extra settings toggles** (opt-in agent config prerequisites for
+activity detection). Applied generically by the host — no agent-id string
+branches in `agents-service.ts` (ADR 0042).
+_Avoid_: Pi-specific branches in shared host files; conflating runtime policy
+with resume or install metadata
 
 **Activity** (`AgentActivity`):
 What an agent is currently doing, classified from OSC/output signals: `"none"`
@@ -270,6 +289,15 @@ strategy: `hook` (an installable SessionStart-style hook Silo can wire up),
 `session-file` (reads the agent's own live session registry — currently only
 Grok), or `none` (no exact-resume path; the terminal only ever gets the
 honest, id-less generic hint).
+
+**Install Strategy** (`HookInstallStrategy`):
+For a `hook` agent, the on-disk shape Settings → Agents writes: the merge
+algorithm and the file it applies to. `claude-settings` (Claude, Codex),
+`cursor-hooks-json`, `copilot-hooks-dir`, and `pi-extension` — the last being
+the one whose "config" is a Silo-owned TypeScript file rather than data,
+because pi has no shell-command hooks at all (ADR 0041).
+_Avoid_: Installer, adapter (prefer the field name); calling `pi-extension`
+a plugin (it is Silo's hook, wearing pi's only available shape)
 _Avoid_: Reconnect, restore (prefer "resume" to match the CLI verb every
 catalog agent itself uses)
 

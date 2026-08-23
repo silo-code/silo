@@ -57,6 +57,14 @@ export function planDetection(result: DetectionResult): DetectionPlan {
         ? "clear"
         : null;
 
+  if (result.identity) {
+    return {
+      shellTimerAction,
+      agentTimerAction: null,
+      dispatch: { status: result.status, source: result.source },
+    };
+  }
+
   if (result.status === "idle" && result.source === "agent") {
     // Debounce: don't dispatch "idle" yet — arm the agent-idle timer and
     // only transition if nothing reconfirms "working" before it fires.

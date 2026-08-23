@@ -28,6 +28,11 @@ import {
   type CopilotHooksFile,
 } from "./copilot-hook-installer";
 import {
+  isForeignPiExtension,
+  isPiExtensionInstalled,
+  needsPiExtensionRefresh,
+} from "./pi-extension-installer";
+import {
   parseSettingsJsonText,
   writableSettingsOrThrow,
   type SettingsJsonRead,
@@ -179,11 +184,73 @@ const copilotHooksDirOps: HookInstallOps = {
   },
 };
 
+/**
+ * The pi extension's source comes off the catalog descriptor, not an import of
+ * the catalog itself — these installers stay pure modules driven by a
+ * structural spec. A `pi-extension` entry without it is a catalog bug.
+ */
+function piSourceOrThrow(resume: AgentHookResume): string {
+  const source = resume.buildFileContents?.();
+  if (!source) {
+    throw new Error(
+      "pi-extension install strategy requires buildFileContents on the agent's resume descriptor",
+    );
+  }
+  return source;
+}
+
+/**
+ * Pi (ADR 0041): the "config" is a Silo-owned TypeScript extension file that
+ * pi auto-loads, so install/uninstall is write-file / delete-file with no
+ * schema to merge — but, because it is *code* landing in the user's agent
+ * config, install refuses rather than overwrites when a file we don't own
+ * already occupies the path.
+ */
+const piExtensionOps: HookInstallOps = {
+  async isInstalled(ctx, _resume, path) {
+    if (!(await ctx.files.pathExists(path))) return false;
+    const text = await ctx.files.readText(path).catch(() => null);
+    return isPiExtensionInstalled(text, { marker: _resume.marker });
+  },
+  async refreshIfDrifted(ctx, resume, path) {
+    if (!(await ctx.files.pathExists(path))) return false;
+    const existing = await ctx.files.readText(path).catch(() => null);
+    const next = piSourceOrThrow(resume);
+    if (!needsPiExtensionRefresh(existing, next, { marker: resume.marker })) {
+      return false;
+    }
+    await ctx.files.writeText(path, next);
+    return true;
+  },
+  async write(ctx, resume, path, install) {
+    const exists = await ctx.files.pathExists(path);
+    const existing = exists
+      ? await ctx.files.readText(path).catch(() => null)
+      : null;
+    if (install) {
+      if (isForeignPiExtension(existing, { marker: resume.marker })) {
+        throw new Error(
+          `A file Silo doesn't manage already exists at ${path}. ` +
+            "Move or delete it, then install again.",
+        );
+      }
+      await ensureParentDir(ctx, path);
+      await ctx.files.writeText(path, piSourceOrThrow(resume));
+    } else if (
+      exists &&
+      isPiExtensionInstalled(existing, { marker: resume.marker })
+    ) {
+      await ctx.files.delete(path);
+    }
+  },
+};
+
 /** Catalog `installStrategy` → I/O ops. Exhaustive over {@link HookInstallStrategy}. */
 export const HOOK_INSTALLERS: Record<HookInstallStrategy, HookInstallOps> = {
   "claude-settings": claudeSettingsOps,
   "cursor-hooks-json": cursorHooksJsonOps,
   "copilot-hooks-dir": copilotHooksDirOps,
+  "pi-extension": piExtensionOps,
 };
 
 export function installerFor(resume: AgentHookResume): HookInstallOps {

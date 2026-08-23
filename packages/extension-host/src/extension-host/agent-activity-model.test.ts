@@ -126,6 +126,27 @@ describe("reduce — working/idle transitions", () => {
     expect(shellPrompt.isAgent).toBe(false);
   });
 
+  it("does not demote a catalog-identified agent on its own shell-integration OSC", () => {
+    // Pi emits OSC 133 around every message while still running. Once the
+    // title/leader stamped agentId, that noise must not wipe isAgent —
+    // only OS-level at-prompt reclaim does.
+    const identified: AgentActivityState = {
+      ...initialState("shell"),
+      isAgent: true,
+      activity: "idle",
+      agentId: "pi",
+      agentName: "pi",
+      resumeCommand: "was running pi",
+    };
+    const duringTurn = reduce(
+      identified,
+      detected("working", { source: "shell" }),
+    );
+    expect(duringTurn.isAgent).toBe(true);
+    expect(duringTurn.activity).toBe("working");
+    expect(duringTurn.agentId).toBe("pi");
+  });
+
   it("returns the same reference when the event repeats a no-op status", () => {
     const idle = reduce(
       initialState("shell"),
@@ -247,19 +268,11 @@ describe("resetOnDemotion", () => {
     );
     expect(prev.isAgent).toBe(true);
 
-    // isActiveTerminal: true (the user is watching, e.g. they just typed
-    // `exit` themselves) -> needsAttention never gets set, so demotion isn't
-    // deferred; reduce() demotes isAgent on this same shell/idle event.
-    const demoted = reduce(prev, {
-      type: "detected",
-      status: "idle",
-      source: "shell",
-      isActiveTerminal: true,
-      now: "t1",
-    });
+    // Catalog-identified agents (agentId set) no longer demote on shell OSC —
+    // that path is reserved for unlabeled promotions. Real exit uses `exited`
+    // (OS-level at-prompt reclaim).
+    const demoted = reduce(prev, { type: "exited" });
     expect(demoted.isAgent).toBe(false);
-    // Before resetOnDemotion, reduce() alone leaves this at "idle" — the
-    // whole point of resetOnDemotion is to catch that and clean it up.
     expect(demoted.activity).toBe("idle");
 
     const cleared = resetOnDemotion(prev, demoted);

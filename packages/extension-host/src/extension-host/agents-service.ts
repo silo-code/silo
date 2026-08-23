@@ -6,6 +6,7 @@ import { onTerminalForeground } from "./terminal-foreground";
 import type { TerminalForeground } from "./terminal-foreground";
 import {
   genericHint,
+  catalogResumeHint,
   isKnownAgentLeader,
   parseResumeSessionIdFromArgv,
   type ResumeHint,
@@ -17,6 +18,8 @@ import {
   detectFromOutput,
   agentById,
   agentByLeader,
+  agentByProcessArgs,
+  leaderBasename,
   type AgentDefinition,
 } from "./agent-catalog";
 import {
@@ -350,6 +353,16 @@ function maybeResolveResumeHint(
   const entry = trackedAgents.get(terminalId);
   if (!entry) return;
   if (entry.resumeHintResolved) return;
+
+  const stickyAgent = entry.agentCatalogId
+    ? agentById(entry.agentCatalogId)
+    : undefined;
+  if (stickyAgent) {
+    entry.resumeHintResolved = true;
+    applyResumeHint(terminalId, catalogResumeHint(stickyAgent, cwd));
+    return;
+  }
+
   if (!isKnownAgentLeader(leader)) {
     agentsChannel.debug(
       `Foreground leader "${leader}" for terminal ${terminalId} isn't a known agent — no resume hint attached.`,
@@ -502,6 +515,11 @@ function applyHookMatch(terminalId: string, event: HookEvent) {
 
   entry.resumeHintResolved = true;
   entry.hookSessionTimestamp = event.timestamp;
+  entry.agentPgid = event.pid;
+  entry.agentCatalogId = event.agent;
+  if (!entry.state.isAgent && entry.state.kind === "shell") {
+    applyEvent(terminalId, detectedEvent(terminalId, "idle", "agent"));
+  }
   applyResumeHint(terminalId, {
     sessionId: event.sessionId,
     resumeCommand: hook
@@ -640,6 +658,17 @@ function scheduleAgentIdle(terminalId: string) {
  * calls for one now (a debounced "idle" only dispatches once its timer
  * actually fires, via scheduleAgentIdle above). */
 function applyDetection(terminalId: string, result: DetectionResult) {
+  // Pi (and any agent that stamps a catalog id) emits OSC 133 A/B/C around
+  // *message zones*, not shell prompts — A at the start of each render, C at
+  // the end. Treating those as shell idle/working flickers the tab through a
+  // turn (working on submit → idle while thinking → working on tokens). Once
+  // identified, ignore shell-integration OSC; agent detectors (e.g. pi's
+  // OSC 9;4 progress) own working/idle. OS at-prompt reclaim still demotes.
+  if (result.source === "shell") {
+    const entry = trackedAgents.get(terminalId);
+    if (entry?.state.agentId) return;
+  }
+
   const plan = planDetection(result);
   if (plan.shellTimerAction === "schedule") scheduleShellIdle(terminalId);
   else if (plan.shellTimerAction === "clear") clearShellIdleTimer(terminalId);
@@ -651,6 +680,41 @@ function applyDetection(terminalId: string, result: DetectionResult) {
       detectedEvent(terminalId, plan.dispatch.status, plan.dispatch.source),
     );
   }
+  // Identity detectors (pi's title) carry a catalog id — stamp it so a later
+  // OSC 133 from the same agent cannot demote this terminal (see reduce()).
+  if (result.agentId) stampDetectedAgentIdentity(terminalId, result.agentId);
+}
+
+/** Attach catalog identity from an OSC identity signal. Does not invent a
+ * session id — only names the agent so shell-integration noise can't wipe
+ * the promotion. */
+function stampDetectedAgentIdentity(terminalId: string, agentId: string) {
+  const entry = trackedAgents.get(terminalId);
+  const agent = agentById(agentId);
+  if (!entry || !agent) return;
+  entry.agentCatalogId = agent.id;
+  // Drop any shell-idle timer armed by OSC 133 before we knew this was an
+  // agent — otherwise it can still fire and flip activity after identity.
+  clearShellIdleTimer(terminalId);
+  // If shell zones already flipped us to working, roll back — those weren't
+  // real turn signals (pi's message wrappers). Baseline is idle until an
+  // agent detector (OSC 9;4) says otherwise.
+  if (entry.state.workingSource === "shell") {
+    applyEvent(terminalId, detectedEvent(terminalId, "idle", "agent"));
+  }
+  if (
+    entry.state.agentId === agent.id &&
+    entry.state.agentName === agent.displayName
+  ) {
+    return;
+  }
+  applyResumeHint(terminalId, {
+    sessionId: entry.state.sessionId ?? undefined,
+    resumeCommand:
+      entry.state.resumeCommand ?? `was running ${agent.displayName}`,
+    agentName: agent.displayName,
+    agentId: agent.id,
+  });
 }
 
 // ---- session tracking ---------------------------------------------------------
@@ -745,6 +809,67 @@ async function resolveResumeIdFromArgv(
   );
 }
 
+/** Sticky foreground-agent bookkeeping shared by argv0 and node-wrapped paths. */
+function stickKnownAgentForeground(
+  entry: TrackedAgent,
+  terminalId: string,
+  fg: TerminalForeground,
+  agent: AgentDefinition,
+) {
+  const prevAgentPgid = entry.agentPgid;
+  const becameAgent = prevAgentPgid !== fg.pgid;
+  entry.agentPgid = fg.pgid;
+  entry.agentCatalogId = agent.id;
+  if (becameAgent) {
+    if (prevAgentPgid != null) {
+      resetSessionIdentityForNewInstance(entry, terminalId);
+    }
+    hookRuntime.scheduleHookCatchupReads();
+    if (agent.resume.kind === "session-file") {
+      sessionFileResume.scheduleSessionFileReads(
+        terminalId,
+        agent,
+        agent.resume,
+        fg.pgid,
+      );
+    }
+    if (agent.resume.kind === "hook") {
+      void resolveResumeIdFromArgv(terminalId, agent, fg.pgid);
+    }
+  }
+}
+
+/** Node-wrapped agents (pi, Claude, Copilot, …) often report argv0 as `node`.
+ * Read the foreground pgid's full command line and match safely. */
+async function resolveNodeWrappedAgent(
+  entry: TrackedAgent,
+  terminalId: string,
+  fg: TerminalForeground,
+) {
+  if (fg.pgid <= 0) return;
+  let stdout: string;
+  try {
+    const res = await invoke<{ stdout?: string }>("process_exec", {
+      command: "ps",
+      args: ["-p", String(fg.pgid), "-o", "args="],
+    });
+    stdout = res?.stdout ?? "";
+  } catch {
+    return;
+  }
+  const agent = agentByProcessArgs(stdout);
+  if (!agent) return;
+
+  const live = trackedAgents.get(terminalId);
+  if (!live || live !== entry) return;
+
+  stickKnownAgentForeground(live, terminalId, fg, agent);
+  maybeResolveResumeHint(terminalId, fg.leader, fg.cwd);
+  agentsChannel.debug(
+    `terminal ${terminalId} foreground node-wrapped: pgid=${fg.pgid} resolved agent=${agent.id} argv="${stdout.trim()}"`,
+  );
+}
+
 function noteForeground(
   entry: TrackedAgent,
   terminalId: string,
@@ -757,48 +882,13 @@ function noteForeground(
   // SessionStart hook's Claude/Codex pid can no longer correlate.
   if (fg.pgid > 0 && isKnownAgentLeader(fg.leader)) {
     const agent = agentByLeader(fg.leader);
-    const prevAgentPgid = entry.agentPgid;
-    const becameAgent = prevAgentPgid !== fg.pgid;
-    entry.agentPgid = fg.pgid;
-    entry.agentCatalogId = agent?.id ?? null;
-    // SessionStart often lands *after* the first foreground tick (confirmed:
-    // Claude #2 wrote events.jsonl ~2s after agentPgid was set; a single
-    // immediate poll missed it and the regular 3s ticker then failed to
-    // consume the new line until reload). Catch up a few times.
-    if (becameAgent) {
-      // A *different* agent pgid than we had means a NEW agent process took
-      // over this terminal. A fast quit+rerun (run cursor, exit, run again)
-      // can slip past the 750ms foreground poll that would otherwise see the
-      // shell at the prompt in between and demote the terminal — leaving the
-      // previous run's resolved session id stuck on it. That stale id then
-      // makes the new run's hook id get rejected as a "later duplicate"
-      // (earliest-wins). Clear it so the new session resolves cleanly. Gated
-      // on a *non-null* previous pgid so first detection and restart-restore
-      // (prevAgentPgid == null) never wipe a legitimately-restored id.
-      if (prevAgentPgid != null) {
-        resetSessionIdentityForNewInstance(entry, terminalId);
-      }
-      hookRuntime.scheduleHookCatchupReads();
-      // Session-file agents (Grok) resolve their exact id from their own
-      // registry rather than a hook — read it now (and retry) against this
-      // foreground pgid. Also re-reads when a foreign hook already stamped a
-      // wrong agentId (Grok + Claude settings import).
-      if (agent?.resume.kind === "session-file") {
-        sessionFileResume.scheduleSessionFileReads(
-          terminalId,
-          agent,
-          agent.resume,
-          fg.pgid,
-        );
-      }
-      // Hook agents don't necessarily re-fire SessionStart on `--resume`
-      // (confirmed for Cursor) — so a resumed terminal would never get an
-      // exact id from the hook. Recover it from the `--resume <id>` argv the
-      // agent was launched with (no-op for a fresh, non-resume launch).
-      if (agent?.resume.kind === "hook") {
-        void resolveResumeIdFromArgv(terminalId, agent, fg.pgid);
-      }
-    }
+    if (agent) stickKnownAgentForeground(entry, terminalId, fg, agent);
+  } else if (
+    fg.pgid > 0 &&
+    leaderBasename(fg.leader) === "node" &&
+    !fg.atPrompt
+  ) {
+    void resolveNodeWrappedAgent(entry, terminalId, fg);
   }
   agentsChannel.debug(
     `terminal ${terminalId} foreground ${source}: pgid=${fg.pgid} agentPgid=${entry.agentPgid} leader="${fg.leader}" cwd=${fg.cwd}` +

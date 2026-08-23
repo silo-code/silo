@@ -31,6 +31,14 @@ export interface DetectionResult {
    * value is acted on.
    */
   timer?: "schedule" | "schedule-agent" | "clear";
+  /** When true, dispatch immediately even for agent-sourced idle — used for
+   * identity-only signals (pi's OSC 0 title) that must promote `isAgent`
+   * without waiting out the agent-idle debounce. */
+  identity?: boolean;
+  /** Catalog id when this detector uniquely identifies an agent (e.g. pi's
+   * title). Stamped onto the terminal so shell-integration OSC the agent
+   * itself emits cannot demote it back to a plain shell. */
+  agentId?: string;
 }
 
 const BRAILLE_START = 0x2800;
@@ -324,6 +332,28 @@ export function stripAgentStatusMarkers(title: string): string {
 // Copilot emits state=3 while actively running and state=0 on completion.
 // States 1/2/3 → working; states 0/4 → idle.
 const COPILOT_PROGRESS_PREFIX = "4;";
+
+// ---------------------------------------------------------------------------
+// pi  (OSC 0 title — identity only, no status encoded)
+// ---------------------------------------------------------------------------
+// Pi's TUI sets the title to "π - <session> - <cwd>". That carries no
+// working/idle state (unlike Claude's spinner prefix), but it is a reliable,
+// pi-specific identity signal for plain-shell terminals where argv0 is `node`
+// and leader-name matching alone would miss it.
+const PI_TITLE_PREFIX = "π - ";
+
+export function detectPiTitle(
+  code: number,
+  payload: string,
+): DetectionResult | null {
+  if (code !== 0 || !payload.startsWith(PI_TITLE_PREFIX)) return null;
+  return {
+    status: "idle",
+    source: "agent",
+    identity: true,
+    agentId: "pi",
+  };
+}
 
 export function detectCopilotCLI(
   code: number,

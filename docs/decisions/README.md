@@ -75,3 +75,5 @@ A small, obvious choice needs neither.
 | [0038](./0038-navigator-view-list.md)                   | The Navigator lists its views instead of hiding them         | 2026-08-13 | accepted |
 | [0039](./0039-self-contained-agent-docs.md)             | Self-contained agent docs, no external skill dependency      | 2026-08-15 | accepted |
 | [0040](./0040-skills-canonical-location-symlink.md)     | Skills live in `.agents/skills/`, `.claude/skills/` symlinks | 2026-08-16 | accepted |
+| [0041](./0041-pi-hook-as-installed-extension.md)        | Pi's session hook ships as an installed TypeScript extension | 2026-08-22 | accepted |
+| [0042](./0042-agent-catalog-modularization.md)          | Agent catalog modularization and declarative runtime policy  | 2026-08-22 | accepted |

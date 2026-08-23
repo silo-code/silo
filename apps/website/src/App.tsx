@@ -238,12 +238,33 @@ function GrokIcon() {
   );
 }
 
+function PiIcon() {
+  // Pi brands itself with the letter π (its TUI title is literally "π"), so
+  // the mark is the glyph drawn geometrically: one bar, two legs, the right
+  // one carrying the tail the letter has.
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <rect x="3.2" y="5.4" width="17.6" height="2.6" rx="1.3" />
+      <rect x="6.6" y="8" width="2.6" height="11.4" rx="1.3" />
+      <rect x="14.8" y="8" width="2.6" height="9.2" rx="1.3" />
+      <path d="M14.8 15.6h2.6a2.6 2.6 0 0 0 2.6 2.6v2.6a5.2 5.2 0 0 1-5.2-5.2z" />
+    </svg>
+  );
+}
+
 function AgentIcon({ icon }: { icon: AgentIconId }) {
   if (icon === "claude") return <ClaudeIcon />;
   if (icon === "cursor") return <CursorIcon />;
   if (icon === "codex") return <CodexIcon />;
   if (icon === "copilot") return <CopilotIcon />;
-  return <GrokIcon />;
+  if (icon === "grok") return <GrokIcon />;
+  return <PiIcon />;
 }
 
 function XIcon() {

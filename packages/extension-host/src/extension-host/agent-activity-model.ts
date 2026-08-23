@@ -268,7 +268,17 @@ export function reduce(
     }
   }
 
-  if (ev.source === "shell" && prev.kind === "shell" && !needsAttention) {
+  // Shell-integration OSC demotes a *guess* promotion (agent signal, no
+  // catalog id yet) once the shell is talking again — Claude exited, zsh
+  // resumed. Agents that emit OSC 133 themselves while still running (pi)
+  // stamp `agentId` on identity, and must not be demoted by their own
+  // shell zones; OS-level at-prompt reclaim (`exited`) is what clears them.
+  if (
+    ev.source === "shell" &&
+    prev.kind === "shell" &&
+    !needsAttention &&
+    prev.agentId == null
+  ) {
     isAgent = false;
   }
 

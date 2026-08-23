@@ -15,8 +15,10 @@ import {
   SILO_HOOK_MARKER,
   TRACK_SCRIPT_REL,
   buildTrackSessionScript,
+  buildPiExtensionSource,
   agentById,
   agentByLeader,
+  agentByProcessArgs,
   hookInstallableAgents,
   sessionFileAgents,
   leaderBasename,
@@ -251,6 +253,47 @@ describe("buildTrackSessionScript", () => {
     }
   });
 
+  it("skips the parent walk when SILO_AGENT_PID is set (pi's in-process hook)", () => {
+    // Pi's hook runs INSIDE pi (a TypeScript extension), so it knows pi's pid
+    // and passes it directly. The walk would resolve the hook's own PPID
+    // instead — and pi's argv0 is `node`, so it could only ever match by the
+    // two-character substring `pi`, which is exactly the ambiguity this
+    // branch avoids.
+    const dir = mkdtempSync(join(tmpdir(), "silo-hook-pid-"));
+    try {
+      const scriptPath = join(dir, "track-session.sh");
+      writeFileSync(scriptPath, buildTrackSessionScript());
+      const home = join(dir, "home");
+      const bin = fastPsBin(dir); // args → "login-shell": no walk match at all
+      const agentPid = 777777;
+
+      execFileSync("sh", [scriptPath, "pi"], {
+        input: '{"session_id":"PI-PID-TEST","cwd":"/p"}',
+        env: {
+          ...process.env,
+          HOME: home,
+          PATH: `${bin}:${process.env.PATH}`,
+          SILO_AGENT_PID: String(agentPid),
+        },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      const obj = JSON.parse(
+        readFileSync(join(home, ".silo/agent-hooks/events.jsonl"), "utf8")
+          .trim()
+          .split("\n")
+          .pop()!,
+      );
+      // The fake `ps` reports pgid == the pid it is asked about, so this is
+      // provably the pid we passed and not the hook's own PPID.
+      expect(obj.pid).toBe(agentPid);
+      expect(obj.agent).toBe("pi");
+      expect(obj.sessionId).toBe("PI-PID-TEST");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("writes nothing when the payload carries no session id", () => {
     const dir = mkdtempSync(join(tmpdir(), "silo-hook-empty-"));
     try {
@@ -275,6 +318,53 @@ describe("buildTrackSessionScript", () => {
   });
 });
 
+describe("buildPiExtensionSource", () => {
+  it("is a legible, marker-carrying extension with no obfuscation or extra dep", () => {
+    const src = buildPiExtensionSource();
+    expect(src).toContain(SILO_HOOK_MARKER);
+    // Self-identifying header, same bar as the shell script (RFC 0019).
+    expect(src.split("\n")[0]).toMatch(
+      /Silo session tracking \(getsilo\.dev\)/,
+    );
+    expect(src).not.toMatch(/base64|atob|eval\(|Function\(|require\(/i);
+    // Node built-ins only — nothing that would need an install in pi's
+    // extensions directory.
+    const imports = [...src.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
+    for (const spec of imports) {
+      expect(
+        spec.startsWith("node:") || spec === "@earendil-works/pi-coding-agent", // type-only, erased
+      ).toBe(true);
+    }
+    // No network, no filesystem writes of its own — it only spawns the script.
+    expect(src).not.toMatch(/fetch\(|https?:\/\/[^\s"]*\/|writeFile/);
+  });
+
+  it("runs the shared capture script and hands it pi's pid", () => {
+    const src = buildPiExtensionSource();
+    expect(src).toContain(TRACK_SCRIPT_REL);
+    expect(src).toContain('spawn("sh"');
+    expect(src).toContain("SILO_AGENT_PID: String(process.pid)");
+    // Tags the event as pi, and sends the payload the script parses.
+    expect(src).toContain('[script, "pi"]');
+    expect(src).toContain("session_id: sessionId");
+    expect(src).toMatch(/pi\.on\("session_start"/);
+  });
+
+  it("passes TypeScript syntax validation", () => {
+    const dir = mkdtempSync(join(tmpdir(), "silo-pi-ext-syntax-"));
+    try {
+      const p = join(dir, "silo-track-session.ts");
+      writeFileSync(p, buildPiExtensionSource());
+      // The TS analogue of the script's `sh -n`: throws on a syntax error.
+      execFileSync("node", ["--experimental-strip-types", "--check", p], {
+        stdio: "pipe",
+      });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("leaderBasename", () => {
   it("returns a bare name unchanged", () => {
     expect(leaderBasename("claude")).toBe("claude");
@@ -292,6 +382,7 @@ describe("agentByLeader", () => {
     expect(agentByLeader("cursor-agent")?.id).toBe("cursor");
     expect(agentByLeader("copilot")?.id).toBe("copilot");
     expect(agentByLeader("grok")?.id).toBe("grok");
+    expect(agentByLeader("pi")?.id).toBe("pi");
   });
 
   it("does NOT map the bare `agent` shim to Cursor — it collides with Grok", () => {
@@ -317,6 +408,55 @@ describe("agentByLeader", () => {
   });
 });
 
+describe("agentByProcessArgs", () => {
+  it("matches pi by argv0 basename", () => {
+    expect(agentByProcessArgs("pi -e ./ext.ts")?.id).toBe("pi");
+  });
+
+  it("matches a node-wrapped pi launched through its PATH symlink", () => {
+    // The real shape, captured live (pi 0.84.2): `pi` on PATH is a symlink
+    // into the package and `ps` reports the path as invoked, so the package
+    // name appears NOWHERE in argv — only the script basename identifies it.
+    expect(
+      agentByProcessArgs("node /Users/x/.nvm/versions/node/v24.19.0/bin/pi")
+        ?.id,
+    ).toBe("pi");
+  });
+
+  it("matches through a shell alias that appends flags", () => {
+    // e.g. `alias pix='pi -e ~/ext.ts'` — the alias expands before exec, so
+    // argv is the same plus arguments.
+    expect(
+      agentByProcessArgs(
+        "node /Users/x/.nvm/versions/node/v24.19.0/bin/pi -e /Users/x/ext.ts",
+      )?.id,
+    ).toBe("pi");
+  });
+
+  it("skips interpreter flags to find the script", () => {
+    expect(
+      agentByProcessArgs("node --inspect /Users/x/.local/bin/claude")?.id,
+    ).toBe("claude");
+  });
+
+  it("matches node-wrapped pi by package path when run as the package file", () => {
+    expect(
+      agentByProcessArgs(
+        "node /Users/x/.nvm/versions/node/v24/lib/node_modules/@earendil-works/pi-coding-agent/dist/cli.js",
+      )?.id,
+    ).toBe("pi");
+  });
+
+  it("does not match an unrelated node script", () => {
+    expect(agentByProcessArgs("node /usr/bin/npm run dev")).toBeUndefined();
+    // A path merely *containing* the two-character name is not a match.
+    expect(
+      agentByProcessArgs("node /Users/x/pipeline/scripts/build.js"),
+    ).toBeUndefined();
+    expect(agentByProcessArgs("")).toBeUndefined();
+  });
+});
+
 describe("agentById", () => {
   it("finds agents by id", () => {
     expect(agentById("claude")?.displayName).toBe("Claude Code");
@@ -337,12 +477,16 @@ describe("hookInstallableAgents", () => {
     }
   });
 
-  it("includes every hook-capable agent (Claude, Codex, Cursor, Copilot)", () => {
+  it("includes every hook-capable agent (Claude, Codex, Cursor, Copilot, pi)", () => {
     const ids = hookInstallableAgents().map((a) => a.id);
     expect(ids).toContain("claude");
     expect(ids).toContain("codex");
     expect(ids).toContain("cursor");
     expect(ids).toContain("copilot");
+    // pi's "hook" is a TypeScript extension file rather than a config entry
+    // (ADR 0041), but it is still an installable hook and belongs in the
+    // Settings → Agents install list.
+    expect(ids).toContain("pi");
   });
 
   it("excludes Grok — it resolves via its own session file, not a hook", () => {
@@ -366,6 +510,12 @@ describe("hookInstallableAgents", () => {
     expect(agentById("copilot")?.resume).toMatchObject({
       kind: "hook",
       installStrategy: "copilot-hooks-dir",
+    });
+    expect(agentById("pi")?.resume).toMatchObject({
+      kind: "hook",
+      installStrategy: "pi-extension",
+      configPath: ".pi/agent/extensions/silo-track-session.ts",
+      hookEvent: "session_start",
     });
   });
 });
@@ -446,6 +596,12 @@ describe("buildResumeCommand", () => {
     if (copilot?.resume.kind === "hook") {
       expect(copilot.resume.buildResumeCommand("x")).toBe("copilot --resume=x");
     }
+    const pi = agentById("pi");
+    if (pi?.resume.kind === "hook") {
+      // `--session`, NOT `-r`/`--resume` — the latter only opens pi's
+      // interactive picker and would ignore the id entirely.
+      expect(pi.resume.buildResumeCommand("x")).toBe("pi --session x");
+    }
   });
 });
 
@@ -455,6 +611,13 @@ describe("postInstallNote", () => {
     expect(
       codex?.resume.kind === "hook" && codex.resume.postInstallNote,
     ).toMatch(/\/hooks/);
+  });
+
+  it("pi carries a note about restarting pi and enabling terminal progress", () => {
+    const pi = agentById("pi");
+    const note = pi?.resume.kind === "hook" ? pi.resume.postInstallNote : "";
+    expect(note).toMatch(/restart/i);
+    expect(note).toMatch(/[Tt]erminal progress/);
   });
 
   it("Claude needs no post-install step (its hooks run immediately)", () => {

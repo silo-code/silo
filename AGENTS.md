@@ -240,6 +240,13 @@ Issues live as GitHub issues in `silo-code/silo`, via the `gh` CLI. See
 Default label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`,
 `ready-for-human`, `wontfix`). See `docs/triage-labels.md`.
 
+### Adding a coding agent
+
+How a coding-agent CLI (Claude Code, Codex, Cursor, Copilot, Grok, …) becomes a
+known agent in Silo: the recon to do against the running binary, the
+`AGENT_CATALOG` entry, activity detectors, resume strategies, and every surface
+that names agents in prose. See `docs/adding-a-coding-agent.md`.
+
 ### Modal & extension UI design
 
 Decision table for building modal content, settings pages, or workspace
