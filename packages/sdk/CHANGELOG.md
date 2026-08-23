@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.38.0](https://github.com/silo-code/silo/compare/sdk-v0.37.1...sdk-v0.38.0) (2026-08-23)
+
+
+### Features
+
+* **terminal:** tell every terminal which tab and workspace it is ([#406](https://github.com/silo-code/silo/issues/406)) ([8d20d02](https://github.com/silo-code/silo/commit/8d20d02312aa9bc50d5f5a2334a1f4b638ec4355))
+
 ## [0.37.1](https://github.com/silo-code/silo/compare/sdk-v0.37.0...sdk-v0.37.1) (2026-08-23)
 
 
