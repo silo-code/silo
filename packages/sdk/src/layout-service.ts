@@ -65,8 +65,10 @@ export interface LayoutService {
    *   close/reopen.
    * @param options - `singleton: true` opens at most one instance at a time:
    *   if a panel with `kindId` already exists, it is focused instead of
-   *   creating a new one. The panel's id equals `kindId` (not UUID-based) when
-   *   singleton is set.
+   *   creating a new one — `params` is still shallow-merged into that
+   *   existing panel first, so a later call can retarget it (e.g. switching
+   *   which channel the Output panel shows). The panel's id equals `kindId`
+   *   (not UUID-based) when singleton is set.
    */
   openPanel(
     kindId: string,

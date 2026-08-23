@@ -16,6 +16,7 @@ import {
   formatTimestamp,
   channelOptions,
   copyEntries,
+  resolveInitialChannel,
   type OutputFilter,
 } from "./output-model";
 import "./OutputPanel.css";
@@ -28,11 +29,17 @@ function safeStringify(data: unknown): string {
   }
 }
 
-interface OutputPanelProps extends DockPanelProps {
+/** Params this panel is opened with — `channel` steers which channel shows. */
+export interface OutputPanelParams {
+  /** Channel key to select on open, overriding the last-remembered channel. */
+  channel?: string;
+}
+
+interface OutputPanelProps extends DockPanelProps<OutputPanelParams> {
   ctx: ExtensionContext;
 }
 
-export function OutputPanel({ ctx }: OutputPanelProps) {
+export function OutputPanel({ ctx, params }: OutputPanelProps) {
   const snap = useSnapshot(outputStore);
   const { host, builtinExtensions, extensions } = channelOptions(
     snap.channels as typeof outputStore.channels,
@@ -40,7 +47,10 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
   );
 
   const [selectedKey, setSelectedKey] = useState<string>(() =>
-    ctx.storage.workspace.get("outputChannel", "silo:notifications"),
+    resolveInitialChannel(
+      params.channel,
+      ctx.storage.workspace.get("outputChannel", "silo:notifications"),
+    ),
   );
   const [filter, setFilter] = useState<OutputFilter>({
     level: "all",
@@ -77,6 +87,17 @@ export function OutputPanel({ ctx }: OutputPanelProps) {
     });
     return () => sub.dispose();
   }, [ctx.storage.workspace]);
+
+  // Jump to a caller-requested channel (`ctx.log.show()`) every time it's
+  // asked for, even a repeat of the same channel — dockview hands this panel
+  // a fresh `params` object on every open/reopen (see layout-service.ts's
+  // singleton `updateParameters` forwarding), so this re-fires on each call
+  // rather than only the first mount.
+  useEffect(() => {
+    if (!params.channel) return;
+    setSelectedKey(params.channel);
+    ctx.storage.workspace.set("outputChannel", params.channel);
+  }, [params, ctx.storage.workspace]);
 
   // Clear selection when channel or filter changes
   useEffect(() => {
