@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.37.1](https://github.com/silo-code/silo/compare/sdk-v0.37.0...sdk-v0.37.1) (2026-08-23)
+
+
+### Bug Fixes
+
+* **layout:** ctx.log.show() actually selects the caller's Output channel ([#399](https://github.com/silo-code/silo/issues/399)) ([1ac907d](https://github.com/silo-code/silo/commit/1ac907d794a695dee4faea23e730214cffdaf7fe))
+
 ## [0.37.0](https://github.com/silo-code/silo/compare/sdk-v0.36.0...sdk-v0.37.0) (2026-08-21)
 
 
