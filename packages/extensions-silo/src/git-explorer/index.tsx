@@ -7,6 +7,12 @@ import {
   type ManageWorktreesArgs,
 } from "./open-worktree-manager";
 import {
+  MANAGE_BRANCHES_COMMAND,
+  resolveManageBranchesTarget,
+  showBranchManager,
+  type ManageBranchesArgs,
+} from "./open-branch-manager";
+import {
   getPendingRemoveStatusLabel,
   getPendingWorktreeRemoves,
   subscribePendingWorktreeRemoves,
@@ -77,6 +83,22 @@ export const extension: Extension = {
         );
         if (!target) return;
         showWorktreeManager(ctx, target);
+      },
+    });
+
+    // A keybinding or the command palette can now reach the same Branches
+    // modal the Git panel's "Manage branches…" menu item opens — one
+    // implementation, multiple entry points (mirrors manageWorktrees above).
+    ctx.registerCommand({
+      id: MANAGE_BRANCHES_COMMAND,
+      label: "Manage Branches…",
+      run: (arg?: unknown) => {
+        const target = resolveManageBranchesTarget(
+          ctx.workspaces.getState(),
+          arg as ManageBranchesArgs | undefined,
+        );
+        if (!target) return;
+        showBranchManager(ctx, target);
       },
     });
   },

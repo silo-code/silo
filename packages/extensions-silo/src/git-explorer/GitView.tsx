@@ -19,7 +19,7 @@ import { buildGitNavItems, navItemKey } from "./git-nav";
 import { ICON_CHECK, ICON_PLUS, ICON_MINUS, ICON_UNDO } from "./git-icons";
 import { summarizeGitError } from "./notify-error";
 import { GitErrorModal } from "./GitErrorModal";
-import { BranchManager } from "./BranchManager";
+import { showBranchManager } from "./open-branch-manager";
 import {
   findWorktreeFor,
   shouldShowWorktreeManagerButton,
@@ -417,18 +417,7 @@ export function GitView({
   // Open the branch manager modal. The host owns the chrome; refresh() re-reads
   // status after a switch/create so the header reflects the new branch.
   function openBranchManager() {
-    ctx.ui.showModal(
-      (close) => (
-        <BranchManager
-          ctx={ctx}
-          folder={folder}
-          close={close}
-          onSwitched={refresh}
-          notifyError={notifyError}
-        />
-      ),
-      { title: "Switch branches", size: "md", dismissible: true },
-    );
+    showBranchManager(ctx, { folder, onSwitched: refresh });
   }
 
   // Open the worktree manager modal for this repo. Everything inside is
