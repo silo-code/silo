@@ -444,3 +444,10 @@ export {
   startupTerminalRestoreEnd,
   resetStartupStatusForTests,
 } from "./startup-status";
+
+// Spawn a session that *is* a terminal tab — privileged because the caller
+// names the tab, and that name becomes `SILO_TERMINAL_ID` in the session's
+// environment (RFC 0028). Only `core.terminal` owns tabs, so only it may claim
+// one; the public `ctx.process.spawn` deliberately has no way to. See
+// process-service.ts for why validating a caller-supplied id isn't enough.
+export { spawnTerminalSession } from "./process-service";

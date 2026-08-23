@@ -35,6 +35,7 @@ import {
   notifyTerminalSessionGone,
   notifyTerminalSessionRecreated,
   stripAgentStatusMarkers,
+  spawnTerminalSession,
   type TerminalForeground,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
@@ -544,7 +545,11 @@ export function TerminalPanel(
         let session;
         try {
           session = needsCreate
-            ? await ctx.process.spawn({
+            ? // The privileged spawn, not `ctx.process.spawn`: this session IS
+              // the tab, so it carries the tab's id as `SILO_TERMINAL_ID`
+              // (RFC 0028).
+              await spawnTerminalSession({
+                terminalId,
                 cwd: tRec.cwd ?? ws.folder,
                 cols,
                 rows,

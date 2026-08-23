@@ -154,15 +154,7 @@ pub fn cli_install_shim() -> Result<String, String> {
     let bin_dir = home.join(".local").join("bin");
     std::fs::create_dir_all(&bin_dir).map_err(|e| e.to_string())?;
 
-    let shim = bin_dir.join("silo");
-    let script = format!("#!/bin/sh\nexec \"{}\" \"$@\"\n", exe.display());
-    std::fs::write(&shim, script).map_err(|e| e.to_string())?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&shim, std::fs::Permissions::from_mode(0o755))
-            .map_err(|e| e.to_string())?;
-    }
+    let shim = write_shim(&bin_dir, &exe).map_err(|e| e.to_string())?;
 
     let on_path = std::env::var("PATH")
         .map(|p| std::env::split_paths(&p).any(|d| d == bin_dir))
@@ -175,6 +167,80 @@ pub fn cli_install_shim() -> Result<String, String> {
             shim.display(),
             bin_dir.display()
         ))
+    }
+}
+
+/// Silo's **own** bin directory — `<app-data>/bin` — where it keeps a `silo`
+/// shim for its own terminals (RFC 0028). Distinct from
+/// [`cli_install_shim`]'s `~/.local/bin`, which is the user's PATH and only
+/// written when they ask for it.
+///
+/// `data_dir()` is already keyed by bundle identifier, so "Silo Dev" and
+/// production get separate directories — and therefore separate shims pointing
+/// at their own binaries — with no extra path logic.
+pub fn managed_bin_dir() -> Option<PathBuf> {
+    super::app_paths::data_dir().map(|d| d.join("bin"))
+}
+
+/// The text of a shim that execs the app binary, passing arguments through.
+fn shim_script(exe: &Path) -> String {
+    if cfg!(windows) {
+        format!("@echo off\r\n\"{}\" %*\r\n", exe.display())
+    } else {
+        format!("#!/bin/sh\nexec \"{}\" \"$@\"\n", exe.display())
+    }
+}
+
+/// File name of the shim on this platform.
+fn shim_name() -> &'static str {
+    if cfg!(windows) {
+        "silo.cmd"
+    } else {
+        "silo"
+    }
+}
+
+/// Write the managed `silo` shim into Silo's own bin directory, returning that
+/// directory so it can be put on `PATH` for Silo's terminals.
+///
+/// Called at every app start. The shim embeds an absolute path to the app
+/// binary, which goes stale when the app updates or the user moves it —
+/// rewriting unconditionally is a single small write on a path we already
+/// compute, and it makes that whole class of staleness impossible rather than
+/// merely detectable.
+///
+/// Best-effort: a failure here costs the bundled `silo` command inside
+/// terminals, nothing else, so it never blocks startup.
+pub fn ensure_managed_shim() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let bin_dir = managed_bin_dir()?;
+    std::fs::create_dir_all(&bin_dir).ok()?;
+    write_shim(&bin_dir, &exe).ok()?;
+    Some(bin_dir)
+}
+
+/// Write an executable `silo` shim for `exe` into `bin_dir`, returning its path.
+///
+/// The write goes to a temporary file and is then **renamed** over the target.
+/// A plain `fs::write` truncates in place, and this runs on every app launch —
+/// a shell that happens to be executing the shim at that moment would read a
+/// half-written script. Rename is atomic, so a concurrent exec sees either the
+/// old shim or the new one.
+fn write_shim(bin_dir: &Path, exe: &Path) -> std::io::Result<PathBuf> {
+    let shim = bin_dir.join(shim_name());
+    let tmp = bin_dir.join(format!("{}.{}.tmp", shim_name(), std::process::id()));
+    std::fs::write(&tmp, shim_script(exe))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o755))?;
+    }
+    match std::fs::rename(&tmp, &shim) {
+        Ok(()) => Ok(shim),
+        Err(e) => {
+            let _ = std::fs::remove_file(&tmp);
+            Err(e)
+        }
     }
 }
 

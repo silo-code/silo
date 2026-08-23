@@ -123,6 +123,25 @@ fn build_session(handle: &str, session_id: &str, conn: Connection) -> Arc<PtySes
     })
 }
 
+/// Add `SILO_BIN` to a session environment that already carries the host's
+/// identity stamp. The webview can't resolve Silo's own bin directory, so this
+/// is the layer that knows it (RFC 0028).
+///
+/// Only added to a session Silo is already claiming as its own — an env map
+/// with no `SILO` flag is a caller's plain environment and is left untouched.
+fn with_bin_dir(
+    env: Option<std::collections::HashMap<String, String>>,
+) -> Option<std::collections::HashMap<String, String>> {
+    let mut env = env?;
+    if !env.contains_key("SILO") {
+        return Some(env);
+    }
+    if let Some(bin) = super::cli::managed_bin_dir() {
+        env.insert("SILO_BIN".to_string(), bin.to_string_lossy().to_string());
+    }
+    Some(env)
+}
+
 #[tauri::command]
 pub fn terminal_create(
     app: tauri::AppHandle,
@@ -131,10 +150,15 @@ pub fn terminal_create(
     cols: u16,
     rows: u16,
     command: Option<Vec<String>>,
+    env: Option<std::collections::HashMap<String, String>>,
 ) -> Result<String, String> {
     let backend = active_backend();
     let session_id = Uuid::new_v4().to_string();
     let handle = backend.handle_for(&session_id);
+    // The host stamps the identity it knows (RFC 0028); `SILO_BIN` is added
+    // here because only the native side can resolve the app's own bin
+    // directory. Each layer stamps what it actually knows.
+    let env = with_bin_dir(env);
 
     let size = PtySize {
         rows,
@@ -142,7 +166,7 @@ pub fn terminal_create(
         pixel_width: 0,
         pixel_height: 0,
     };
-    let conn = backend.create(&handle, &cwd, size, command)?;
+    let conn = backend.create(&handle, &cwd, size, command, env)?;
 
     // Persist the authoritative handle so reattach never has to re-derive it.
     session_registry::save(&session_id, &handle);
@@ -465,6 +489,7 @@ mod tests {
             _cwd: &str,
             _size: PtySize,
             _command: Option<Vec<String>>,
+            _env: Option<std::collections::HashMap<String, String>>,
         ) -> Result<Connection, String> {
             unimplemented!("not exercised by resolve_attach")
         }

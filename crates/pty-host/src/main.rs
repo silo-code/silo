@@ -40,7 +40,8 @@ fn main() {
             let cwd = std::env::current_dir()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|_| "/".to_string());
-            match daemon::spawn_detached(&name, cmd, cwd, 80, 24) {
+            // The test CLI has no identity to inject; the app supplies one (RFC 0028).
+            match daemon::spawn_detached(&name, cmd, cwd, 80, 24, Vec::new()) {
                 Ok(()) => client::attach(&name),
                 Err(e) => Err(e),
             }

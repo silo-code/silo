@@ -112,6 +112,7 @@ const apiSidebar = [
     ],
   },
   { text: "Design tokens", link: "/api/theming" },
+  { text: "Terminal environment", link: "/api/terminal-environment" },
   { text: "Stability & versioning", link: "/reference/stability" },
   { text: "SDK changelog", link: "/api/sdk-changelog" },
   { text: "Type reference", collapsed: true, items: typeReference },

@@ -43,3 +43,24 @@ optional rows?: number;
 Defined in: [packages/sdk/src/process-service.ts:24](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L24)
 
 Initial row count.
+
+***
+
+### env?
+
+```ts
+optional env?: Record<string, string>;
+```
+
+Defined in: [packages/sdk/src/process-service.ts:37](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L37)
+
+Extra environment variables, **merged over** the session's inherited
+environment. Use it for things a long-lived shell needs from the start —
+`NO_COLOR`, a locale, a tool's config directory — without clobbering
+`PATH`.
+
+Keys beginning `SILO_` (and the bare `SILO`) are **reserved by the host**
+and are dropped: Silo stamps its own
+[terminal identity](https://getsilo.dev/api/terminal-environment)
+there, and a guard keyed on a value any caller could write would be no
+guard at all. Dropped keys are logged to the Extension Host output channel.

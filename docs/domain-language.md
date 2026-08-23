@@ -309,6 +309,39 @@ session.
 _Avoid_: Terminal id (a different, always-present identifier), Agent id
 (prefer Catalog Agent id, e.g. `"claude"`, for the stable catalog key)
 
+### Terminal Environment
+
+**Terminal Identity**:
+The facts a Silo-spawned session is told about itself, stamped into its
+environment as `SILO`, `SILO_TERMINAL_ID`, `SILO_WORKSPACE_ID`,
+`SILO_WORKSPACE_PATH`, and `SILO_BIN` (RFC 0028). `SILO_TERMINAL_ID` is the
+**tab** (`TerminalRecord.id`), not the Session Id — a tab keeps its id when its
+shell is killed and recreated, which is what makes it correlatable.
+**Set once, at session creation, and never revisited** — a session outlives app
+restarts and reattaching does not re-create it. Only facts that are true for the
+terminal's whole life may go here; anything describing what is _running right
+now_ would start lying the moment the user quits it, and belongs on the launch
+line instead.
+_Avoid_: Terminal env (too broad — that's the whole environment, most of it
+inherited), session identity (the Session Id is a different thing)
+
+**Reserved Namespace** (`SILO*`):
+Host-owned environment keys. Caller-supplied variables under this prefix are
+dropped by the host on both `spawn` and `exec`, and the drop is logged. The
+point is not tidiness: agent hooks gate on `SILO_TERMINAL_ID`, so a value any
+extension could set would defeat the guard that scopes Silo's instrumentation to
+Silo's own terminals.
+_Avoid_: Protected/private variables (they are readable by anyone inside the
+terminal — the reservation is on _writing_ them)
+
+**Session Environment**:
+The env map assembled for one session: the caller's variables, minus reserved
+keys, plus the stamped Terminal Identity. Built by `buildSessionEnv`, carried to
+the daemon as one JSON variable, and applied in the session's own child process
+so a per-session fact never lands on the daemon that owns it.
+_Avoid_: Spawn env (the map is also the reattach-surviving state, not just a
+spawn argument)
+
 ### Worktrees
 
 **Worktree**:

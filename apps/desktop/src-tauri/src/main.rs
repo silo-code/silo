@@ -28,7 +28,15 @@ fn main() {
                 }
                 _ => vec![shell(), "-l".to_string()],
             };
-            let _ = pty_host::run_session_host(&name, cmd, cwd, cols, rows);
+            // Take the session environment out of our own env (RFC 0028): the
+            // shell gets it applied directly in the forkpty child, and the
+            // daemon must not keep per-session identity a process-tree walk
+            // could find one level too high.
+            let mut env = silo_lib::take_session_env().unwrap_or_default();
+            silo_lib::apply_bin_path(&mut env, std::env::var("PATH").ok().as_deref());
+            let mut env: Vec<(String, String)> = env.into_iter().collect();
+            env.sort();
+            let _ = pty_host::run_session_host(&name, cmd, cwd, cols, rows, env);
             std::process::exit(0);
         }
     }
@@ -53,7 +61,10 @@ fn main() {
                 }
                 _ => vec![default_shell],
             };
-            if let Err(e) = silo_lib::run_win_session_host(&handle, cmd, &cwd, cols, rows) {
+            // Same contract as the Unix branch above (RFC 0028).
+            let mut env = silo_lib::take_session_env().unwrap_or_default();
+            silo_lib::apply_bin_path(&mut env, std::env::var("PATH").ok().as_deref());
+            if let Err(e) = silo_lib::run_win_session_host(&handle, cmd, &cwd, cols, rows, &env) {
                 eprintln!("[daemon] fatal: {e}");
             }
             std::process::exit(0);

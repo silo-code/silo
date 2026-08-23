@@ -47,12 +47,15 @@ enum ClientRole {
 }
 /// Fork off a detached daemon for `name`. Returns in the *original* process so
 /// the caller can attach as a client; the daemon runs in a grandchild.
+/// `env` is applied to the session's shell only, never to the daemon itself —
+/// see [`crate::pty::fork_pty`].
 pub fn spawn_detached(
     name: &str,
     cmd: Vec<String>,
     cwd: String,
     cols: u16,
     rows: u16,
+    env: Vec<(String, String)>,
 ) -> Result<(), String> {
     // SAFETY: standard double-fork daemonize.
     match unsafe { libc::fork() } {
@@ -66,8 +69,15 @@ pub fn spawn_detached(
             match unsafe { libc::fork() } {
                 0 => {
                     redirect_std_to_log(name);
-                    log(&format!("daemon start: name={name} cwd={cwd} size={cols}x{rows}"));
-                    if let Err(e) = run_daemon(name, &cmd, &cwd, cols, rows) {
+                    // Log the variable *names* only. The values are the session's business
+                    // (and a workspace path is more than the log needs); the names are
+                    // enough to answer "did identity reach this session?".
+                    let env_keys: Vec<&str> = env.iter().map(|(k, _)| k.as_str()).collect();
+                    log(&format!(
+                        "daemon start: name={name} cwd={cwd} size={cols}x{rows} env=[{}]",
+                        env_keys.join(",")
+                    ));
+                    if let Err(e) = run_daemon(name, &cmd, &cwd, cols, rows, &env) {
                         log(&format!("daemon error: {e}"));
                     }
                     unsafe { libc::_exit(0) };
@@ -118,8 +128,15 @@ fn log(msg: &str) {
     eprintln!("{ts} {msg}");
 }
 
-fn run_daemon(name: &str, cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Result<(), String> {
-    let pty = pty::fork_pty(cmd, cwd, cols, rows)?;
+fn run_daemon(
+    name: &str,
+    cmd: &[String],
+    cwd: &str,
+    cols: u16,
+    rows: u16,
+    env: &[(String, String)],
+) -> Result<(), String> {
+    let pty = pty::fork_pty(cmd, cwd, cols, rows, env)?;
     let master = pty.master;
     let shell_pid = pty.child;
     // Shared with the master reader: O_NONBLOCK so timed PTY stdin writes never
@@ -761,8 +778,12 @@ mod tests {
 
     impl TestDaemon {
         fn spawn(name: &str, cmd: Vec<String>) -> Self {
+            Self::spawn_with_env(name, cmd, Vec::new())
+        }
+
+        fn spawn_with_env(name: &str, cmd: Vec<String>, env: Vec<(String, String)>) -> Self {
             let _g = SPAWN_GUARD.lock().unwrap_or_else(|e| e.into_inner());
-            spawn_detached(name, cmd, "/tmp".to_string(), 80, 24).expect("spawn_detached");
+            spawn_detached(name, cmd, "/tmp".to_string(), 80, 24, env).expect("spawn_detached");
             let sock = paths::sock_path(name);
             let deadline = Instant::now() + Duration::from_secs(2);
             while Instant::now() < deadline && !discovery::is_live(&sock) {
@@ -889,6 +910,117 @@ mod tests {
                 }
             }
             assert!(saw_fg, "data client must still receive T_FG_REP after probes");
+        });
+    }
+
+    /// Read from `stream` until `needle` appears or the deadline passes.
+    /// Returns everything seen, so a failure can show what actually arrived.
+    fn read_until(stream: &mut UnixStream, needle: &str, timeout: Duration) -> String {
+        stream
+            .set_read_timeout(Some(Duration::from_millis(250)))
+            .expect("read timeout");
+        let mut seen = String::new();
+        let deadline = Instant::now() + timeout;
+        while Instant::now() < deadline {
+            match read_frame(stream) {
+                Ok((T_DATA, payload)) => {
+                    seen.push_str(&String::from_utf8_lossy(&payload));
+                    if seen.contains(needle) {
+                        return seen;
+                    }
+                }
+                Ok(_) => continue,
+                Err(_) => continue, // read timeout — keep waiting for the shell
+            }
+        }
+        seen
+    }
+
+    /// The RFC 0028 contract, end to end: identity handed to `spawn_detached`
+    /// reaches the shell, and is **still there after the client that created
+    /// the session goes away and a new one attaches** — which is the same
+    /// mechanism that carries a session across an app restart, without needing
+    /// to restart an app.
+    #[test]
+    fn session_identity_reaches_the_shell_and_survives_reattach() {
+        crate::test_support::with_temp_dir("session-env", |_dir| {
+            let env = vec![
+                ("SILO".to_string(), "1".to_string()),
+                ("SILO_TERMINAL_ID".to_string(), "t_deadbeef".to_string()),
+            ];
+            let daemon = TestDaemon::spawn_with_env(
+                "t-session-env",
+                vec!["/bin/sh".into()],
+                env,
+            );
+
+            // First client: create-time attach.
+            let mut first = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut first).expect("hello");
+            assert_eq!(tag, T_HELLO);
+            write_frame(&mut first, T_RESIZE, &resize_payload(80, 24)).expect("resize");
+            std::thread::sleep(FG_CLASSIFY_TIMEOUT + Duration::from_millis(50));
+
+            // Marker prefix so we match the command's *output*, not its echo.
+            write_frame(
+                &mut first,
+                T_DATA,
+                b"echo \"id=[$SILO_TERMINAL_ID]\" \"flag=[$SILO]\"\n",
+            )
+            .expect("write echo");
+            let seen = read_until(&mut first, "id=[t_deadbeef]", Duration::from_secs(5));
+            assert!(
+                seen.contains("id=[t_deadbeef]"),
+                "terminal id must reach the shell; saw: {seen:?}"
+            );
+            assert!(
+                seen.contains("flag=[1]"),
+                "SILO flag must reach the shell; saw: {seen:?}"
+            );
+
+            // Drop the creating client and attach a fresh one — the session
+            // outlives the client, exactly as it outlives an app restart.
+            first
+                .shutdown(std::net::Shutdown::Both)
+                .expect("detach the first client");
+            drop(first);
+            std::thread::sleep(Duration::from_millis(200));
+
+            let mut second = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut second).expect("hello on reattach");
+            assert_eq!(tag, T_HELLO);
+            write_frame(&mut second, T_RESIZE, &resize_payload(80, 24)).expect("resize");
+            std::thread::sleep(FG_CLASSIFY_TIMEOUT + Duration::from_millis(50));
+
+            write_frame(&mut second, T_DATA, b"echo \"again=[$SILO_TERMINAL_ID]\"\n")
+                .expect("write echo after reattach");
+            let seen = read_until(&mut second, "again=[t_deadbeef]", Duration::from_secs(5));
+            assert!(
+                seen.contains("again=[t_deadbeef]"),
+                "identity must survive reattach; saw: {seen:?}"
+            );
+        });
+    }
+
+    /// A session spawned with no identity must not inherit one from whatever
+    /// environment the daemon happened to start in.
+    #[test]
+    fn a_session_with_no_identity_has_no_terminal_id() {
+        crate::test_support::with_temp_dir("session-env-none", |_dir| {
+            let daemon = TestDaemon::spawn("t-session-env-none", vec!["/bin/sh".into()]);
+            let mut c = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut c).expect("hello");
+            assert_eq!(tag, T_HELLO);
+            write_frame(&mut c, T_RESIZE, &resize_payload(80, 24)).expect("resize");
+            std::thread::sleep(FG_CLASSIFY_TIMEOUT + Duration::from_millis(50));
+
+            write_frame(&mut c, T_DATA, b"echo \"id=[$SILO_TERMINAL_ID]\"\n")
+                .expect("write echo");
+            let seen = read_until(&mut c, "id=[]", Duration::from_secs(5));
+            assert!(
+                seen.contains("id=[]"),
+                "an unclaimed session must have an empty terminal id; saw: {seen:?}"
+            );
         });
     }
 

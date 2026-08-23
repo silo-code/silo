@@ -3,6 +3,10 @@ mod commands;
 mod mac_keys;
 mod webview_bridge;
 
+// Session-environment carrier (RFC 0028) — used by both daemon entry points
+// in `main.rs`, so exported on every platform.
+pub use commands::session_env::{apply_bin_path, take_session_env};
+
 #[cfg(windows)]
 pub use commands::session_windows::run_daemon as run_win_session_host;
 
@@ -40,6 +44,13 @@ pub fn run() {
             data_dir.join(&context.config().identifier),
         );
     }
+
+    // Refresh the `silo` shim Silo puts on PATH inside its own terminals
+    // (RFC 0028). Rewritten every launch because it embeds an absolute path to
+    // the app binary, which an update or a move invalidates. Must run after
+    // SILO_DATA_DIR is exported, since the bin dir hangs off it. Best-effort:
+    // failure costs the bundled command, never startup.
+    commands::cli::ensure_managed_shim();
 
     // The TS-owned user-config root (~/.config/silo[-suffix], or the
     // SILO_CONFIG_DIR override — same resolution as user-config.ts). The

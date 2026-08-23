@@ -22,6 +22,19 @@ export interface ProcessSpawnOptions {
   cols?: number;
   /** Initial row count. */
   rows?: number;
+  /**
+   * Extra environment variables, **merged over** the session's inherited
+   * environment. Use it for things a long-lived shell needs from the start —
+   * `NO_COLOR`, a locale, a tool's config directory — without clobbering
+   * `PATH`.
+   *
+   * Keys beginning `SILO_` (and the bare `SILO`) are **reserved by the host**
+   * and are dropped: Silo stamps its own
+   * {@link https://getsilo.dev/api/terminal-environment | terminal identity}
+   * there, and a guard keyed on a value any caller could write would be no
+   * guard at all. Dropped keys are logged to the Extension Host output channel.
+   */
+  env?: Record<string, string>;
 }
 
 /**
@@ -71,6 +84,11 @@ export interface ProcessExecOptions {
    * Extra environment variables, **merged over** the host's environment (the
    * command inherits the host env; these keys add to or override it). Use it to
    * set things like `GIT_PAGER=cat` or a locale without clobbering `PATH`.
+   *
+   * Keys beginning `SILO_` (and the bare `SILO`) are **reserved by the host**
+   * and are dropped — same rule as
+   * {@link ProcessSpawnOptions.env}, so the reservation can't be sidestepped
+   * by launching through `exec` instead of `spawn`.
    */
   env?: Record<string, string>;
   /**

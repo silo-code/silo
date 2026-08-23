@@ -70,3 +70,4 @@ never deleted** — "we considered X and rejected it" stops the debate recurring
 | [0025](./0025-extension-to-extension-version-dependencies.md) | Declaring a version floor on another extension's API              | 2026-08-13 | draft       |
 | [0026](./0026-terminal-session-host-backpressure.md)          | Terminal session-host backpressure — no UI freeze, startup status | 2026-08-16 | draft       |
 | [0027](./0027-side-dock-layout-tree.md)                       | SideDock layout tree — free-form splits inside a side dock        | 2026-08-21 | implemented |
+| [0028](./0028-terminal-identity-environment.md)               | Terminal identity in the environment                              | 2026-08-23 | implemented |

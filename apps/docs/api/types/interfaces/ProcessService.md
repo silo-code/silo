@@ -1,6 +1,6 @@
 # Interface: ProcessService
 
-Defined in: [packages/sdk/src/process-service.ts:119](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L119)
+Defined in: [packages/sdk/src/process-service.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L137)
 
 Persistent process / PTY sessions that **survive app restarts** — the core
 primitive under the terminal (and future task runners, REPLs) — plus one-shot
@@ -15,7 +15,7 @@ Exposed as [ExtensionContext.process](ExtensionContext.md#process).
 spawn(opts): Promise<ProcessSession>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:121](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L121)
+Defined in: [packages/sdk/src/process-service.ts:139](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L139)
 
 Spawn a new session in `opts.cwd`.
 
@@ -37,7 +37,7 @@ Spawn a new session in `opts.cwd`.
 attach(id, opts?): Promise<ProcessSession>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:126](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L126)
+Defined in: [packages/sdk/src/process-service.ts:144](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L144)
 
 Re-attach to an existing session by id (e.g. after an app restart). Rejects
 with a 404-style error if the session no longer exists.
@@ -73,7 +73,7 @@ exec(
 options?): Promise<ProcessExecResult>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:158](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L158)
+Defined in: [packages/sdk/src/process-service.ts:176](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L176)
 
 Run a one-shot command and resolve with its captured output — for
 extensions that wrap a CLI (git, formatters, linters) rather than drive an

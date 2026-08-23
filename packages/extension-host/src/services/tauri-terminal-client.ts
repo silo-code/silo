@@ -12,6 +12,12 @@ interface CreateOpts {
   rows?: number;
   /** Program + args to run; undefined → the daemon's default login shell. */
   command?: string[];
+  /**
+   * Environment for the session, already assembled by the host (identity
+   * stamped, reserved keys stripped — see `session-env.ts`). Merged over the
+   * daemon's inherited environment in the forkpty child.
+   */
+  env?: Record<string, string>;
 }
 
 interface AttachOpts {
@@ -41,6 +47,7 @@ export class TauriTerminalClient {
       cols,
       rows,
       command: opts.command,
+      env: opts.env,
     });
 
     await this.setupSessionListeners(sessionId);

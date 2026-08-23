@@ -12,6 +12,7 @@
 // is persisted via `session_registry` at create time.
 
 use portable_pty::PtySize;
+use std::collections::HashMap;
 use std::io::{Read, Write};
 
 /// The two control capabilities the layer above the seam needs on a live
@@ -63,12 +64,19 @@ pub trait SessionBackend: Send + Sync {
     /// Create (and attach to) a new persistent session. `command` is the program
     /// + args to run (empty/None → the backend's default login shell); a leading
     /// empty string means "the user's $SHELL", resolved by the backend.
+    ///
+    /// `env` is the session's terminal identity (RFC 0028) plus any extra
+    /// variables the caller asked for, already assembled and sanitized by the
+    /// host. It is merged over the inherited environment in the session's own
+    /// child process — deliberately not on the daemon that owns it, so a
+    /// per-session fact never shows up one process too high.
     fn create(
         &self,
         handle: &str,
         cwd: &str,
         size: PtySize,
         command: Option<Vec<String>>,
+        env: Option<HashMap<String, String>>,
     ) -> Result<Connection, String>;
 
     /// Reattach to an existing persistent session.
