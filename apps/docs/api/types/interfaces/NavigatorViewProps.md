@@ -1,6 +1,6 @@
 # Interface: NavigatorViewProps
 
-Defined in: [packages/sdk/src/types.ts:485](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L485)
+Defined in: [packages/sdk/src/types.ts:507](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L507)
 
 Props passed to a [NavigatorView](NavigatorView.md) component.
 
@@ -12,7 +12,7 @@ Props passed to a [NavigatorView](NavigatorView.md) component.
 active: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:492](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L492)
+Defined in: [packages/sdk/src/types.ts:514](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L514)
 
 Whether this view is the one currently on screen. A view mounts the first
 time it is selected and then stays mounted — hidden, not unmounted — so it

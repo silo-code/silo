@@ -38,11 +38,26 @@ Human-readable label (shown where the command surfaces in UI).
 run: (...args) => unknown;
 ```
 
-Defined in: [packages/sdk/src/types.ts:261](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L261)
+Defined in: [packages/sdk/src/types.ts:276](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L276)
 
-The action. May accept arguments passed through from
-[ExtensionContext.executeCommand](ExtensionContext.md#executecommand) and may return a value (sync or
-async); `executeCommand` resolves with whatever this returns.
+The action. May return a value (sync or async); `executeCommand` resolves
+with whatever this returns.
+
+**What `args` holds depends on how the command was invoked** — the host
+does not synthesize a target for invocations that carry none:
+
+| Invoked from                                            | `args[0]`                          |
+| ------------------------------------------------------- | ---------------------------------- |
+| [ExtensionContext.registerToolbarItem](ExtensionContext.md#registertoolbaritem)             | [ToolbarItemContext](ToolbarItemContext.md)`[S]`    |
+| [ExtensionContext.registerContextMenuItem](ExtensionContext.md#registercontextmenuitem)         | [MenuContext](MenuContext.md)`[S]`           |
+| [ExtensionContext.executeCommand](ExtensionContext.md#executecommand)                  | whatever the caller passed         |
+| a keybinding, a menu item, the command palette            | **nothing**                        |
+
+So a command that reads its target only from `args` **cannot be bound to
+a key**: it will run and silently do nothing. If the same command backs
+both a surface and a shortcut, fall back to the active tab
+([EditorService.getState](EditorService.md#getstate)`().active`,
+[TerminalService.getActive](TerminalService.md#getactive)) when no context arrives.
 
 Zero-argument, void-returning commands are still valid — `() => void`
 satisfies this type, so existing registrations compile unchanged.
