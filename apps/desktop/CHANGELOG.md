@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.50.1](https://github.com/silo-code/silo/compare/silo-v0.50.0...silo-v0.50.1) (2026-08-23)
+
+
+### Bug Fixes
+
+* **layout:** keyboard region-entry skips a panel's own header chrome ([#392](https://github.com/silo-code/silo/issues/392)) ([200aa31](https://github.com/silo-code/silo/commit/200aa3172ce2187e4b02060893f1087e96457ade))
+* **navigator:** hide view-header border when view list is hidden ([#394](https://github.com/silo-code/silo/issues/394)) ([cf8d963](https://github.com/silo-code/silo/commit/cf8d963fec9e3de4713d81fd82ac784737e1bd50))
+
 ## [0.50.0](https://github.com/silo-code/silo/compare/silo-v0.49.0...silo-v0.50.0) (2026-08-21)
 
 
