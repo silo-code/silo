@@ -251,9 +251,24 @@ export interface Command {
   /** Human-readable label (shown where the command surfaces in UI). */
   label: string;
   /**
-   * The action. May accept arguments passed through from
-   * {@link ExtensionContext.executeCommand} and may return a value (sync or
-   * async); `executeCommand` resolves with whatever this returns.
+   * The action. May return a value (sync or async); `executeCommand` resolves
+   * with whatever this returns.
+   *
+   * **What `args` holds depends on how the command was invoked** — the host
+   * does not synthesize a target for invocations that carry none:
+   *
+   * | Invoked from                                            | `args[0]`                          |
+   * | ------------------------------------------------------- | ---------------------------------- |
+   * | {@link ExtensionContext.registerToolbarItem}             | {@link ToolbarItemContext}`[S]`    |
+   * | {@link ExtensionContext.registerContextMenuItem}         | {@link MenuContext}`[S]`           |
+   * | {@link ExtensionContext.executeCommand}                  | whatever the caller passed         |
+   * | a keybinding, a menu item, the command palette            | **nothing**                        |
+   *
+   * So a command that reads its target only from `args` **cannot be bound to
+   * a key**: it will run and silently do nothing. If the same command backs
+   * both a surface and a shortcut, fall back to the active tab
+   * ({@link EditorService.getState}`().active`,
+   * {@link TerminalService.getActive}) when no context arrives.
    *
    * Zero-argument, void-returning commands are still valid — `() => void`
    * satisfies this type, so existing registrations compile unchanged.
@@ -406,6 +421,13 @@ export interface ContextMenuContribution<S extends MenuSurface = MenuSurface> {
 
 /**
  * Binds a keyboard shortcut to a {@link Command}.
+ *
+ * The command is invoked with **no arguments** — see {@link Command.run} for
+ * what that means for a command shared with a toolbar or context-menu surface.
+ *
+ * Users can also bind any command themselves from Settings → Keyboard
+ * Shortcuts, whether or not the extension registered a default here, so this
+ * applies to every command an extension exposes.
  *
  * @category Registration
  * @public

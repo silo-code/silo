@@ -48,6 +48,17 @@ doesn't repeat the reasoning, just the list.
 - [ ] Settings pages and property tabs have **no footer** — every control
       persists the moment it changes.
 
+## Commands
+
+- [ ] Every command works when invoked with **no arguments**. Toolbar items and
+      tab context menus pass the tab they belong to; a keybinding, a menu item,
+      and the command palette pass nothing — and users can bind any command from
+      Settings → Keyboard Shortcuts. A command that reads its target only from
+      its arguments runs and silently does nothing, which is indistinguishable
+      from the shortcut never firing. Fall back to the active tab
+      (`ctx.editors.getState().active`, `ctx.terminals.getActive()`). See
+      [what `run` receives](/api/registration/register-command#what-run-receives).
+
 ## Lifecycle
 
 - [ ] Everything registered in `activate(ctx)` comes back as a
