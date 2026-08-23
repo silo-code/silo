@@ -154,7 +154,11 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
         // content — keyboard region-entry skips past this to land in the
         // active view itself (see `focusActivePaneContent`), the same way it
         // already skips a row's own out-of-order close button.
-        <div className="nav-view-header" data-focus-chrome>
+        <div
+          className="nav-view-header"
+          data-focus-chrome
+          data-view-list={showViewList ? "true" : "false"}
+        >
           <span className="nav-view-header__title">{activeView.title}</span>
           <ContributedToolbar
             surface="navigator"

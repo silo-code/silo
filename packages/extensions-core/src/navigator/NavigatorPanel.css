@@ -85,6 +85,11 @@
   background: var(--silo-color-bg);
 }
 
+/* No view list above means no seam to draw under it. */
+.nav-view-header[data-view-list="false"] {
+  border-top: none;
+}
+
 .nav-view-header__title {
   flex: 1;
   min-width: 0;
