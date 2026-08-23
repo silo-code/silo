@@ -21,6 +21,7 @@ use portable_pty::PtySize;
 use super::session_backend::{
     log_event, Connection, ForegroundSub, SessionBackend, SessionChild, SessionMaster,
 };
+use super::session_env::{encode_session_env, SESSION_ENV_CARRIER};
 
 // ── Protocol ─────────────────────────────────────────────────────────────────
 
@@ -92,12 +93,15 @@ fn kill_child(pid: u32) {
     }
 }
 
+/// `env` is the session's terminal identity (RFC 0028), applied to the ConPTY
+/// child only — never to the daemon that owns it.
 pub fn run_daemon(
     handle: &str,
     cmd: Vec<String>,
     cwd: &str,
     cols: u16,
     rows: u16,
+    env: &std::collections::HashMap<String, String>,
 ) -> Result<(), String> {
     use portable_pty::{native_pty_system, CommandBuilder};
 
@@ -111,6 +115,9 @@ pub fn run_daemon(
         builder.arg(arg);
     }
     builder.cwd(cwd);
+    for (key, value) in env {
+        builder.env(key, value);
+    }
 
     let child = pty_pair
         .slave
@@ -355,6 +362,7 @@ impl SessionWindowsBackend {
         cwd: &str,
         size: PtySize,
         command: Option<&[String]>,
+        env: Option<std::collections::HashMap<String, String>>,
     ) -> Result<(), String> {
         use std::os::windows::process::CommandExt;
         const DETACHED_PROCESS: u32 = 0x0000_0008;
@@ -379,8 +387,13 @@ impl SessionWindowsBackend {
             }
         }
 
-        std::process::Command::new(exe)
-            .args(&args)
+        let mut cmd = std::process::Command::new(exe);
+        // One JSON carrier across the re-exec, parsed and removed by the daemon
+        // entry point — same contract as the Unix backend (RFC 0028).
+        if let Some(map) = env.filter(|m| !m.is_empty()) {
+            cmd.env(SESSION_ENV_CARRIER, encode_session_env(&map));
+        }
+        cmd.args(&args)
             .creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW)
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
@@ -442,8 +455,9 @@ impl SessionBackend for SessionWindowsBackend {
         cwd: &str,
         size: PtySize,
         command: Option<Vec<String>>,
+        env: Option<std::collections::HashMap<String, String>>,
     ) -> Result<Connection, String> {
-        self.spawn_daemon(handle, cwd, size, command.as_deref())?;
+        self.spawn_daemon(handle, cwd, size, command.as_deref(), env)?;
         log_event("win_daemon_spawned", &format!("handle={handle}"));
         let stream = self.connect(handle)?;
         log_event("win_create", &format!("handle={handle} cwd={cwd}"));

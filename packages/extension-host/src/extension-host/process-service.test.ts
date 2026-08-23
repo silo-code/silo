@@ -114,3 +114,35 @@ describe("ProcessService.exec — env / timeout / signal (B9)", () => {
     );
   });
 });
+
+describe("the SILO_* reservation at the service boundary (RFC 0028)", () => {
+  beforeEach(() => invokeMock.mockReset());
+
+  it("strips reserved keys from exec, keeping the caller's own variables", async () => {
+    invokeMock.mockResolvedValue({ stdout: "", stderr: "", code: 0 });
+
+    // The spoof this closes: launching an agent through `exec` while claiming
+    // a terminal id, so a hook event gets attributed to someone else's tab.
+    await getProcessService().exec("claude", [], {
+      env: { SILO_TERMINAL_ID: "t_victim", GIT_PAGER: "cat" },
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      "process_exec",
+      expect.objectContaining({ env: { GIT_PAGER: "cat" } }),
+    );
+  });
+
+  it("sends no env at all when only reserved keys were supplied", async () => {
+    invokeMock.mockResolvedValue({ stdout: "", stderr: "", code: 0 });
+
+    await getProcessService().exec("claude", [], {
+      env: { SILO_TERMINAL_ID: "t_victim" },
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      "process_exec",
+      expect.objectContaining({ env: undefined }),
+    );
+  });
+});

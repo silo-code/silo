@@ -3,6 +3,8 @@ import { tauriTerminalClient } from "../services/tauri-terminal-client";
 import { store } from "../state/store";
 import { PathDeniedError } from "@silo-code/sdk";
 import { abortError } from "./abort";
+import { extHostLog } from "./extension-host-logger";
+import { buildSessionEnv, stripReservedEnv } from "./session-env";
 import { toAbsolute, withinRoots } from "./security/resolve-path";
 import type { PathScope } from "./security/resolve-path";
 import type {
@@ -27,7 +29,15 @@ function execWithCancellation(
   args: string[],
   options: ProcessExecOptions | undefined,
 ): Promise<ProcessExecResult> {
-  const { cwd, env, timeoutMs, signal } = options ?? {};
+  const { cwd, env: callerEnv, timeoutMs, signal } = options ?? {};
+  // RFC 0028: `SILO_*` is reserved on `exec` as well as `spawn` — otherwise an
+  // extension could launch an agent through `exec` claiming a terminal id it
+  // doesn't own, and the hook guard would believe it.
+  const { env: kept, dropped } = stripReservedEnv(callerEnv);
+  logDroppedKeys("exec", dropped);
+  // Stay `undefined` when nothing survives, rather than sending an empty map —
+  // "no environment override" is the contract the native side already has.
+  const env = Object.keys(kept).length > 0 ? kept : undefined;
   const needsKill = timeoutMs !== undefined || signal !== undefined;
   const execId = needsKill ? `exec_${++execSeq}` : undefined;
   const args_ = { command, args, cwd, env, execId };
@@ -96,6 +106,45 @@ function shellCommand(): string[] | undefined {
 // PTYs. See docs/architecture-audit/ctx-domains.md → "Persistent process sessions".
 // The public contract lives in @silo-code/sdk (process-service.ts).
 
+/**
+ * Report reserved keys a caller tried to set. Silence would leave an extension
+ * author debugging blind; throwing would be disproportionate for what is
+ * nearly always a mistake rather than an attack (RFC 0028).
+ */
+function logDroppedKeys(api: "spawn" | "exec", dropped: string[]): void {
+  if (dropped.length === 0) return;
+  extHostLog.warn(
+    `process.${api}: ignored reserved environment ${
+      dropped.length === 1 ? "variable" : "variables"
+    } ${dropped.join(", ")} — the SILO_* namespace is set by Silo itself.`,
+  );
+}
+
+/**
+ * The identity Silo stamps onto every session it spawns, minus the terminal id
+ * (which only `core.terminal` can supply — see {@link spawnTerminalSession}).
+ *
+ * Known limitation (RFC 0028 → Consequences): this reads the *active*
+ * workspace, not the calling extension's own. Background workspaces stay alive,
+ * so an extension scoped to another one that calls the public
+ * `ctx.process.spawn` gets a session stamped for whichever workspace is focused
+ * — and the stamp is never revisited. Not reachable from the terminal path
+ * (`core.terminal` only spawns for a tab in the active workspace); fixing it
+ * for the public path means carrying the owning workspace through `PathScope`.
+ */
+function activeWorkspaceIdentity(): {
+  workspaceId?: string;
+  workspacePath?: string;
+} {
+  const workspaceId = store.activeWorkspaceId ?? undefined;
+  return {
+    workspaceId,
+    workspacePath: workspaceId
+      ? store.workspaces[workspaceId]?.folder
+      : undefined,
+  };
+}
+
 function makeSession(id: string): ProcessSession {
   return {
     id,
@@ -122,8 +171,16 @@ export function getProcessService(): ProcessService {
   if (service) return service;
   service = {
     async spawn(opts) {
+      // No terminal id: a session spawned through the public surface isn't a
+      // tab, so it gets the flag and the workspace facts and nothing more.
+      const { env, dropped } = buildSessionEnv(
+        activeWorkspaceIdentity(),
+        opts.env,
+      );
+      logDroppedKeys("spawn", dropped);
       const { sessionId } = await tauriTerminalClient.createTerminal({
         ...opts,
+        env,
         command: shellCommand(),
       });
       return makeSession(sessionId);
@@ -187,4 +244,37 @@ export function scopeProcessService(
 /** @internal — the per-extension scoped `ctx.process`. */
 export function getScopedProcessService(scope: PathScope): ProcessService {
   return scopeProcessService(getProcessService(), scope);
+}
+
+/**
+ * Spawn a session that **is** a terminal tab — the privileged path behind
+ * `core.terminal`, exposed on `@silo-code/extension-host/internal`.
+ *
+ * The only difference from `ctx.process.spawn` is that the caller may name the
+ * tab, and so the session gets a `SILO_TERMINAL_ID`. That is deliberately not
+ * on the public options bag: validating a caller-supplied id can confirm it
+ * names a real terminal but not that it names *the caller's*, and the hook
+ * guard downstream (RFC 0028) has to be able to trust it.
+ *
+ * @internal
+ */
+export async function spawnTerminalSession(opts: {
+  terminalId: string;
+  cwd: string;
+  cols?: number;
+  rows?: number;
+  env?: Record<string, string>;
+}): Promise<ProcessSession> {
+  const { terminalId, env: callerEnv, ...spawnOpts } = opts;
+  const { env, dropped } = buildSessionEnv(
+    { terminalId, ...activeWorkspaceIdentity() },
+    callerEnv,
+  );
+  logDroppedKeys("spawn", dropped);
+  const { sessionId } = await tauriTerminalClient.createTerminal({
+    ...spawnOpts,
+    env,
+    command: shellCommand(),
+  });
+  return makeSession(sessionId);
 }

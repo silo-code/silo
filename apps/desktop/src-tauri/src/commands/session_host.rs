@@ -11,6 +11,7 @@
 // single artifact, no version skew, no sidecar to resolve.
 
 use portable_pty::PtySize;
+use std::collections::HashMap;
 use std::io::{self, Read, Write};
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
@@ -20,6 +21,7 @@ use super::session_backend::{
     log_event, Connection, ForegroundInfo, ForegroundSub, SessionBackend, SessionChild,
     SessionMaster,
 };
+use super::session_env::{encode_session_env, SESSION_ENV_CARRIER};
 use pty_host::proto::{
     parse_hello, read_frame, resize_payload, write_frame, PROTO_VERSION, T_DATA, T_FG_REP, T_HELLO,
     T_KILL, T_RESIZE, T_SUBSCRIBE_FG,
@@ -61,6 +63,7 @@ impl SessionHostBackend {
         cwd: &str,
         size: PtySize,
         command: Option<&[String]>,
+        env: Option<HashMap<String, String>>,
     ) -> Result<(), String> {
         // Count socket files only — do not `list_sessions()`/`is_live` probe
         // every existing host on spawn (connect-and-drop was falsely exiting
@@ -85,6 +88,15 @@ impl SessionHostBackend {
                 cmd.arg("--");
                 cmd.args(argv);
             }
+        }
+        // The session's environment travels as one JSON carrier variable, which
+        // the daemon parses and *removes from its own environment* before
+        // forking the shell (see `main.rs`). Two things this buys over letting
+        // the values inherit directly: they never appear in `ps` output the way
+        // argv would, and the daemon process itself never carries per-session
+        // identity that a process-tree walk could misread one level too high.
+        if let Some(map) = env.filter(|m| !m.is_empty()) {
+            cmd.env(SESSION_ENV_CARRIER, encode_session_env(&map));
         }
         cmd.spawn().map_err(|e| format!("spawn daemon: {e}"))?;
         Ok(())
@@ -172,8 +184,9 @@ impl SessionBackend for SessionHostBackend {
         cwd: &str,
         size: PtySize,
         command: Option<Vec<String>>,
+        env: Option<HashMap<String, String>>,
     ) -> Result<Connection, String> {
-        self.spawn_daemon(handle, cwd, size, command.as_deref())?;
+        self.spawn_daemon(handle, cwd, size, command.as_deref(), env)?;
         let stream = self.connect(handle)?;
         log_event("host_create", &format!("handle={handle} cwd={cwd}"));
         self.connection_from(stream)

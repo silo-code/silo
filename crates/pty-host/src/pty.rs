@@ -15,10 +15,22 @@ pub struct Pty {
 
 /// `forkpty` a new session running `cmd` in `cwd` at the given size.
 ///
-/// In the child: set `TERM`/`COLORTERM`, `chdir`, then `execvp`. In the parent
-/// (the daemon): return the master fd + child pid. The child is already the
-/// controlling process of the slave (forkpty does `setsid` + `TIOCSCTTY`).
-pub fn fork_pty(cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Result<Pty, String> {
+/// In the child: set `TERM`/`COLORTERM`, apply `env`, `chdir`, then `execvp`.
+/// In the parent (the daemon): return the master fd + child pid. The child is
+/// already the controlling process of the slave (forkpty does `setsid` +
+/// `TIOCSCTTY`).
+///
+/// `env` is applied **in the child only** — the daemon's own environment is
+/// left alone, so a per-session fact never shows up on the process that owns
+/// the session (RFC 0028). It is merged over the inherited environment, and
+/// overrides the terminal defaults set just above it if it names them.
+pub fn fork_pty(
+    cmd: &[String],
+    cwd: &str,
+    cols: u16,
+    rows: u16,
+    env: &[(String, String)],
+) -> Result<Pty, String> {
     if cmd.is_empty() {
         return Err("empty command".into());
     }
@@ -53,6 +65,9 @@ pub fn fork_pty(cmd: &[String], cwd: &str, cols: u16, rows: u16) -> Result<Pty, 
             // signals are suppressed and background-terminal monitoring is blind.
             set_env("TERM_PROGRAM", "iTerm.app");
             set_env("TERM_PROGRAM_VERSION", "3.6.6");
+            for (key, value) in env {
+                set_env(key, value);
+            }
             if let Ok(c) = CString::new(cwd) {
                 libc::chdir(c.as_ptr());
             }

@@ -13,6 +13,8 @@ pub mod process;
 pub mod search;
 pub mod watch;
 pub mod session_backend;
+// Terminal identity carrier for the session environment (RFC 0028).
+pub mod session_env;
 // Self-owned PTY session host backend (RFC 0010). Unix-only.
 #[cfg(unix)]
 pub mod session_host;
