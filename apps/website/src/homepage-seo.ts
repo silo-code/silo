@@ -14,7 +14,7 @@ export { SITE_DESCRIPTION, SITE_NAME };
 
 export const SITE_ORIGIN = "https://getsilo.dev";
 export const HOME_CANONICAL = `${SITE_ORIGIN}/`;
-export const OG_IMAGE_PATH = "/img/home/og.png";
+export const OG_IMAGE_PATH = "/img/home/og-v2.png";
 export const OG_IMAGE_URL = `${SITE_ORIGIN}${OG_IMAGE_PATH}`;
 export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
