@@ -5,7 +5,6 @@ import type {
   WebFrame,
   WebviewRect,
 } from "@silo-code/sdk";
-import "./WebviewBridgeTestPanel.css";
 
 interface Props extends DockPanelProps {
   ctx: ExtensionContext;
@@ -27,14 +26,168 @@ interface Marquee {
 
 let logCounter = 0;
 
-// Internal diagnostic panel for `ctx.webview` (see
-// docs/proposals/0011-iframe-navigation-events.md). Not registered on any
-// "add panel" menu — reachable only via the "Developer: Webview Bridge Test"
-// command — so it never shows up for ordinary users. Doubles as a reference
+/* -------------------------------------------------------------------------- */
+/* Styles. A runtime-loaded extension's CSS isn't auto-injected (the host only  */
+/* imports the JS bundle), so we inject a <style> on activate and remove it on   */
+/* deactivate. Internal diagnostic panel — functional styling only, not a       */
+/* polished user-facing surface.                                                */
+/* -------------------------------------------------------------------------- */
+
+export const STYLE_ID = "silo-webview-bridge-demo-styles";
+export const STYLES = `
+.wvbt {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-content-text);
+  background: var(--silo-color-content-bg);
+}
+
+.wvbt-bar {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--silo-color-border);
+  flex-shrink: 0;
+}
+
+.wvbt-url {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  font-family: var(--silo-font-mono);
+}
+
+.wvbt-blocked-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: var(--silo-color-content-text);
+  background: color-mix(in srgb, #e0a030 18%, var(--silo-color-content-bg));
+  border-bottom: 1px solid var(--silo-color-border);
+  flex-shrink: 0;
+}
+
+.wvbt-frame-wrap {
+  position: relative;
+  height: 45%;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.wvbt-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.wvbt-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.wvbt-overlay-active {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+.wvbt-marquee {
+  position: absolute;
+  border: 1px solid #4f8ef7;
+  background: rgba(79, 142, 247, 0.15);
+}
+
+.wvbt-controls {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--silo-color-border);
+  flex-shrink: 0;
+}
+
+.wvbt-active {
+  outline: 2px solid #4f8ef7;
+}
+
+.wvbt-pick-result {
+  padding: 4px 6px;
+  font-family: var(--silo-font-mono);
+  font-size: 11px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.wvbt-exec {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 6px;
+  border-bottom: 1px solid var(--silo-color-border);
+  flex-shrink: 0;
+}
+
+.wvbt-exec-input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 6px;
+  font-family: var(--silo-font-mono);
+}
+
+.wvbt-exec-result {
+  font-family: var(--silo-font-mono);
+  font-size: 11px;
+  max-width: 30%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wvbt-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.wvbt-log {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 6px;
+  font-family: var(--silo-font-mono);
+  font-size: 11px;
+}
+
+.wvbt-log-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.wvbt-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  border-left: 1px solid var(--silo-color-border);
+  padding: 6px;
+}
+
+.wvbt-preview img {
+  max-width: 100%;
+  display: block;
+}
+`;
+
+// Diagnostic panel for `ctx.webview` (see
+// docs/proposals/0011-iframe-navigation-events.md). Doubles as a reference
 // implementation of the public ctx.webview API and a manual-test surface for
 // exercising shim injection, nav events, exec, element picking, and native
 // snapshot capture against real cross-origin iframes across platforms.
-export function WebviewBridgeTestPanel({ ctx }: Props) {
+export function BridgePanel({ ctx }: Props) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const handleRef = useRef<WebFrame | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
