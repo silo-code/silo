@@ -415,11 +415,21 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
     },
 
     async worktrees(cwd) {
-      const { stdout, code } = await git(cwd, [
-        "worktree",
-        "list",
-        "--porcelain",
-      ]);
+      let stdout: string, code: number;
+      try {
+        ({ stdout, code } = await git(cwd, [
+          "worktree",
+          "list",
+          "--porcelain",
+        ]));
+      } catch (err) {
+        // A missing `cwd` fails the process spawn itself and rejects — the
+        // same missing-folder case `status()` handles (e.g. a worktree
+        // deleted outside Silo); treat it the same way instead of surfacing
+        // the raw OS error on every background refresh.
+        if (MISSING_CWD_RE.test(String(err))) return [];
+        throw err;
+      }
       // Any error (e.g. not a git repository) → no worktrees.
       if (code !== 0) return [];
       return parseWorktrees(stdout);

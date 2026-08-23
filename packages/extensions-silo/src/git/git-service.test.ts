@@ -990,3 +990,27 @@ describe("GitService.status against a rejecting exec (e.g. missing cwd)", () => 
     expect(s.missing).toBeUndefined();
   });
 });
+
+// worktrees() shares status()'s missing-cwd handling — a background read (fs
+// watch, autofetch, or the tracker's initial read) races an external delete
+// of the folder (e.g. a worktree removed outside Silo) just as easily on this
+// call as on status().
+describe("GitService.worktrees against a rejecting exec (e.g. missing cwd)", () => {
+  it("treats 'no such file or directory' as no worktrees, not a throw", async () => {
+    const execRejects: ExecFn = () =>
+      Promise.reject(
+        new Error("failed to run git: No such file or directory (os error 2)"),
+      );
+    const git = createGitService(execRejects);
+    await expect(git.worktrees("/gone")).resolves.toEqual([]);
+  });
+
+  it("still throws for other spawn failures (e.g. git not installed)", async () => {
+    const execRejects: ExecFn = () =>
+      Promise.reject(new Error("failed to run git: permission denied"));
+    const git = createGitService(execRejects);
+    await expect(git.worktrees("/somewhere")).rejects.toThrow(
+      "permission denied",
+    );
+  });
+});
