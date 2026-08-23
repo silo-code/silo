@@ -51,6 +51,27 @@ jobs:
       - run: cargo test --manifest-path crates/pty-host/Cargo.toml
       - run: cargo clippy --manifest-path crates/pty-host/Cargo.toml --all-targets
 
+  # Windows is a supported target but nothing else here compiles it: the `rust`
+  # job is Linux, and Windows-only code (`session_windows.rs`, the
+  # `--win-session-host` daemon branch, the `.cmd` shim) is invisible to it.
+  # Without this, a type error in that code reaches `main` and only surfaces
+  # when someone cuts a Windows release.
+  #
+  # `cargo check`, not `cargo test` — the Windows session backend needs a real
+  # ConPTY, so its behavior is verified by hand, not on a runner. No system
+  # dependencies: WebView2 ships on the image. `crates/pty-host` is deliberately
+  # absent — it is a `cfg(unix)` dependency built on `forkpty`, so it is not
+  # Windows code at all.
+  rust-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./apps/desktop/src-tauri -> target
+      - run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets
+
   pr-title:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest

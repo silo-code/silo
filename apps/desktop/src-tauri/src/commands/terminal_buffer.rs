@@ -94,22 +94,19 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// Backdate `path`'s mtime by `ago`. Raw `libc::utimes` rather than a new
-    /// dependency for one call — same approach used elsewhere in this repo
-    /// for exactly this (`crates/pty-host`'s daemon tests).
+    /// Backdate `path`'s mtime by `ago`.
+    ///
+    /// `File::set_modified` rather than `libc::utimes`: `libc` is a
+    /// `cfg(unix)` dependency, so the FFI version didn't compile on Windows
+    /// at all — and this needs no `unsafe`, no extra dependency, and no
+    /// platform branch.
     fn backdate_mtime(path: &std::path::Path, ago: std::time::Duration) {
         let target = std::time::SystemTime::now() - ago;
-        let epoch = target
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap();
-        let tv = libc::timeval {
-            tv_sec: epoch.as_secs() as libc::time_t,
-            tv_usec: epoch.subsec_micros() as libc::suseconds_t,
-        };
-        let times = [tv, tv];
-        let c_path = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).unwrap();
-        let rc = unsafe { libc::utimes(c_path.as_ptr(), times.as_ptr()) };
-        assert_eq!(rc, 0, "utimes({path:?})");
+        fs::OpenOptions::new()
+            .write(true)
+            .open(path)
+            .and_then(|f| f.set_modified(target))
+            .unwrap_or_else(|e| panic!("backdate {path:?}: {e}"));
     }
 
     #[test]
