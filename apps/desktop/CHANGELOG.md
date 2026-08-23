@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.51.0](https://github.com/silo-code/silo/compare/silo-v0.50.1...silo-v0.51.0) (2026-08-23)
+
+
+### Features
+
+* **git-explorer:** add a command for opening the Branches modal ([#398](https://github.com/silo-code/silo/issues/398)) ([a3d71ce](https://github.com/silo-code/silo/commit/a3d71ce8e4d4d0a6300f52384ab278ff49e3ad89))
+
+
+### Bug Fixes
+
+* **git:** treat a missing worktree cwd as no worktrees, not a raw error ([#402](https://github.com/silo-code/silo/issues/402)) ([08b1128](https://github.com/silo-code/silo/commit/08b112850e2e8efbe1421acb474c842daa6f6184))
+* **keybindings:** dispatch user-assigned keys for commands with no default ([#395](https://github.com/silo-code/silo/issues/395)) ([ad01a83](https://github.com/silo-code/silo/commit/ad01a8300d2298a1d9c7f1063efb0457bcd83317))
+* **layout:** ctx.log.show() actually selects the caller's Output channel ([#399](https://github.com/silo-code/silo/issues/399)) ([1ac907d](https://github.com/silo-code/silo/commit/1ac907d794a695dee4faea23e730214cffdaf7fe))
+
 ## [0.50.1](https://github.com/silo-code/silo/compare/silo-v0.50.0...silo-v0.50.1) (2026-08-23)
 
 
