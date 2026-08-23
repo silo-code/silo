@@ -24,4 +24,7 @@ Docs consume this package:
 
 Story-section WebM/PNG files live in `src/assets/` and are Vite-imported by
 `App.tsx`. Re-capture with `@silo-code/website-recorder` (see that package’s
-README). OG social image: `apps/docs/public/img/home/og.png`.
+README). OG social image: `apps/docs/public/img/home/og-v2.png` — the filename
+is versioned on purpose: X/Twitter caches social cards by URL for ~7 days and
+no longer offers a manual refresh, so bump the suffix whenever the art
+changes.
