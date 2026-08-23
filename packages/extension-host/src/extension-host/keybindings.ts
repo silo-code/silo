@@ -6,6 +6,7 @@ import {
   clearKeybindingDefaults,
   isKeybindingCaptureActive,
   isRemoved,
+  overrideEntries,
   overrideKey,
   recordKeybindingDefault,
 } from "./keymap";
@@ -75,7 +76,10 @@ function tokenToCode(token: string): string {
     if (/[a-z]/i.test(token)) return `Key${token.toUpperCase()}`;
     if (/[0-9]/.test(token)) return `Digit${token}`;
   }
-  // Already a code-like name ("F1", "Escape", "Enter", "Space").
+  // Function keys: specs are lowercased before this runs ("F5" → "f5"), but the
+  // event's `code` is "F5" — without this they could never match.
+  if (/^f\d{1,2}$/.test(token)) return token.toUpperCase();
+  // Already a code-like name ("Escape", "Enter", "Space").
   return token;
 }
 
@@ -129,7 +133,8 @@ function matches(p: ParsedKey, e: KeyboardEvent): boolean {
  */
 export function dispatchKey(e: KeyboardEvent): boolean {
   if (isKeybindingCaptureActive()) return false;
-  for (const binding of keybindingRegistry.list()) {
+  const bindings = keybindingRegistry.list();
+  for (const binding of bindings) {
     // Menu-homed commands dispatch via their native menu accelerator (which the
     // menu builder sources from the keymap); skip them here to avoid double-fire.
     if (commandHasMenuItem(binding.command)) continue;
@@ -143,6 +148,29 @@ export function dispatchKey(e: KeyboardEvent): boolean {
     e.preventDefault();
     e.stopPropagation();
     executeCommand(binding.command);
+    return true;
+  }
+  return dispatchOverrideOnly(e, bindings);
+}
+
+/**
+ * Dispatch a user override on a command that declared **no** default key.
+ * The Keyboard Shortcuts page lets any command be bound, so such a command has
+ * no registry entry to iterate above and (with no menu item) no native
+ * accelerator either — keybindings.json is the only record of the chord.
+ */
+function dispatchOverrideOnly(
+  e: KeyboardEvent,
+  bindings: readonly Keybinding[],
+): boolean {
+  for (const [command, key] of overrideEntries()) {
+    if (bindings.some((b) => b.command === command)) continue;
+    if (commandHasMenuItem(command)) continue;
+    if (isRemoved(command)) continue;
+    if (!matches(parseKey(key), e)) continue;
+    e.preventDefault();
+    e.stopPropagation();
+    executeCommand(command);
     return true;
   }
   return false;

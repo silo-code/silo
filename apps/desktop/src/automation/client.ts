@@ -100,6 +100,22 @@ export interface ThemeState {
   customThemes: ThemeRef[];
 }
 
+/** One command's key at each layer of the shortcut chain (`keybindingState`). */
+export interface KeybindingState {
+  command: string;
+  /** Absolute path the app reads user overrides from. */
+  keybindingsPath: string;
+  /** The command id resolves in the command registry. */
+  registered: boolean;
+  /** Default declared via `ctx.registerKeybinding`, if any. */
+  registryKey: string | null;
+  /** Homed in the native menu — fires via its accelerator, not `dispatchKey`. */
+  menuHomed: boolean;
+  defaultKey: string | null;
+  overrideKey: string | null;
+  effectiveKey: string | null;
+}
+
 /** A typed wrapper around the automation RPC. One instance per app under test. */
 export class SiloAutomation {
   constructor(private readonly base: string = DEFAULT_BASE) {}
@@ -496,13 +512,21 @@ export class SiloAutomation {
       metaKey?: boolean;
       ctrlKey?: boolean;
       altKey?: boolean;
+      /**
+       * `KeyboardEvent.code` (the physical key). Defaults to the code a real
+       * keyboard would report for `key` ("g" → "KeyG", "1" → "Digit1", named
+       * keys verbatim). Registered keybindings match on `code`, not `key`, so
+       * a chord dispatched without one would never fire.
+       */
+      code?: string;
       /** Dispatch at this element instead of `document.activeElement`. */
       selector?: string;
     } = {},
   ): Promise<ActiveElement | null> {
-    const { selector, ...mods } = opts;
+    const { selector, code, ...mods } = opts;
     const init = JSON.stringify({
       key,
+      code: code ?? codeForKey(key),
       bubbles: true,
       cancelable: true,
       composed: true,
@@ -517,4 +541,53 @@ export class SiloAutomation {
     );
     return this.activeElement();
   }
+
+  /**
+   * Where a command's key stands at every layer of the shortcut chain:
+   * the registry default it shipped with, the user override read from
+   * keybindings.json, the resulting effective key, and whether it is
+   * menu-homed (menu-homed commands fire via their native accelerator instead
+   * of `dispatchKey`). A dispatch assertion that fails next to this can name
+   * the layer that broke.
+   */
+  keybindingState(command: string): Promise<KeybindingState> {
+    return this.call("keybindingState", { command });
+  }
+
+  /**
+   * Register (and zero) a synthetic command to aim a shortcut at — a target
+   * with no UI side effects, so a dispatch test asserts on the shortcut chain
+   * alone. Pass `key` to also give it a registry default (the
+   * `ctx.registerKeybinding` path); omit it for a command with no default at
+   * all, which only a keybindings.json override can bind. Pair with
+   * {@link disarmProbeCommand} so the app isn't left with an automation entry
+   * in its command palette.
+   */
+  armProbeCommand(key?: string): Promise<{
+    id: string;
+    runs: number;
+    key: string | null;
+  }> {
+    return this.call("armProbeCommand", { key });
+  }
+
+  /** How many times the probe command has run since it was armed. */
+  probeCommandRuns(): Promise<{ id: string; runs: number }> {
+    return this.call("probeCommandRuns");
+  }
+
+  /** Unregister the probe command. */
+  disarmProbeCommand(): Promise<{ id: string; disarmed: boolean }> {
+    return this.call("disarmProbeCommand");
+  }
+}
+
+/** The `KeyboardEvent.code` a real keyboard reports for a one-token key spec. */
+function codeForKey(key: string): string {
+  if (key.length === 1) {
+    if (/[a-z]/i.test(key)) return `Key${key.toUpperCase()}`;
+    if (/[0-9]/.test(key)) return `Digit${key}`;
+  }
+  // Named keys ("ArrowDown", "Enter", "Escape", "F5") already are codes.
+  return key;
 }

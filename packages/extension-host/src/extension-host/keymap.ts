@@ -205,6 +205,15 @@ export function overrideKey(command: string): string | undefined {
   return overrides.get(command);
 }
 
+/**
+ * Every user override, as `[command, normalized key]`. A command the user
+ * bound by hand may have no extension-declared default at all, in which case
+ * this map is the *only* record of that chord — see `dispatchKey`.
+ */
+export function overrideEntries(): Array<[string, string]> {
+  return [...overrides.entries()];
+}
+
 /** Extension/menu-declared default, ignoring user overrides and unbinds. */
 export function defaultKey(command: string): string | undefined {
   return menuDefaults.get(command) ?? keybindingDefaults.get(command);
