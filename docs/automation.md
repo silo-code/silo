@@ -258,6 +258,46 @@ curl -s localhost:7878 -H 'X-Silo-Automation: 1' -d '{"op":"openFile","args":{"p
 curl -s localhost:7878 -H 'X-Silo-Automation: 1' -d '{"op":"activatePanel","args":{"panelId":"editor:ed_…"}}'
 ```
 
+### Keybinding ops
+
+The keyboard-shortcut chain has three layers that each fail silently —
+`keybindings.json` on disk → the keymap → `dispatchKey`. These ops let a test
+drive all three (`keybindings.it.test.ts`).
+
+| op                   | args                  | result                                                                                                         |
+| -------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `keybindingState`    | `{ command: string }` | `{ keybindingsPath, registered, registryKey, menuHomed, defaultKey, overrideKey, effectiveKey }`               |
+| `armProbeCommand`    | `{ key?: string }`    | `{ id: "automation.probe", runs: 0, key }` — registers the probe command (and, with `key`, a registry default) |
+| `probeCommandRuns`   | —                     | `{ id, runs }` — how many times the probe has been dispatched since arming                                     |
+| `disarmProbeCommand` | —                     | `{ id, disarmed }` — unregisters it again                                                                      |
+
+Notes:
+
+- `keybindingState` reports a command's key at **every layer**, so a failed
+  dispatch assertion names the layer that broke: `registryKey` is the
+  `ctx.registerKeybinding` default, `overrideKey` is what was read from
+  `keybindings.json`, `effectiveKey` is what should actually fire, and
+  `menuHomed: true` means the command dispatches via its **native menu
+  accelerator** instead of `dispatchKey` (a synthetic key event can't reach it).
+- `keybindingsPath` is the path the _app itself_ resolves, so a test writes
+  overrides exactly where the running identity reads them — no re-deriving the
+  identity → config-root mapping.
+- The **probe command** (`automation.probe`) is a synthetic dispatch target with
+  no UI side effects, so a shortcut test asserts on the chain alone rather than
+  on some real command's visible behavior. Always `disarmProbeCommand` after, or
+  the running app is left carrying an automation entry in its command palette.
+- Synthetic key events match on `KeyboardEvent.code`, like the real dispatcher —
+  `client.key()` derives it from the key name ("g" → `KeyG`), or takes an
+  explicit `code`.
+
+```bash
+# Bind the probe to a chord, press it, count the dispatches
+curl -s localhost:7878 -H 'X-Silo-Automation: 1' -d '{"op":"armProbeCommand","args":{"key":"cmd+ctrl+alt+shift+j"}}'
+curl -s localhost:7878 -H 'X-Silo-Automation: 1' -d '{"op":"keybindingState","args":{"command":"automation.probe"}}'
+# {"ok":true,"result":{"registryKey":"cmd+ctrl+alt+shift+j","effectiveKey":"cmd+ctrl+alt+shift+j",...}}
+curl -s localhost:7878 -H 'X-Silo-Automation: 1' -d '{"op":"probeCommandRuns"}'
+```
+
 ### Output logs
 
 Read and filter entries from the Output panel's log store. Useful for agents and

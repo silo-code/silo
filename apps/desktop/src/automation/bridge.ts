@@ -22,6 +22,21 @@ import {
   setBusyStatus,
   clearBusyStatus,
 } from "@silo-code/extension-host";
+// Keybinding introspection for the shortcut-dispatch ops below. The privileged
+// barrel is where the host exposes its command/keybinding/keymap registries
+// (it's what the core.keybindings settings page reads); apps/desktop is the
+// composition root and already owns the host, so this is the same tier — not
+// an extension reaching in.
+import {
+  commandRegistry,
+  keybindingRegistry,
+  keybindingsPath,
+  menuFor,
+  defaultKey,
+  overrideKey,
+  effectiveKey,
+} from "@silo-code/extension-host/internal";
+import type { Disposable } from "@silo-code/sdk";
 
 // --- Monaco introspection (source of truth, not DOM scraping) ---------------
 // We tap Monaco's own focus events and editor/model registry via the
@@ -776,9 +791,81 @@ async function handleOp(
         limit: args.limit !== undefined ? Number(args.limit) : undefined,
       });
 
+    // --- Keybindings ---------------------------------------------------------
+    // The shortcut chain has three independent layers that can each break
+    // silently — keybindings.json on disk → the keymap → `dispatchKey`. These
+    // ops let a test drive all three: `keybindingState` reports where a
+    // command's key stands at every layer (so a failure names the layer), and
+    // the probe command is a synthetic, side-effect-free target to bind a key
+    // to and count invocations of.
+
+    case "keybindingState": {
+      const command = String(args.command ?? "");
+      return {
+        command,
+        keybindingsPath: await keybindingsPath(),
+        registered: commandRegistry.get(command) !== undefined,
+        // A registry default (`ctx.registerKeybinding`), if the command has one.
+        registryKey:
+          keybindingRegistry.list().find((b) => b.command === command)?.key ??
+          null,
+        // Menu-homed commands fire via their native accelerator, not dispatchKey.
+        menuHomed: menuFor(command) !== undefined,
+        defaultKey: defaultKey(command) ?? null,
+        overrideKey: overrideKey(command) ?? null,
+        effectiveKey: effectiveKey(command) ?? null,
+      };
+    }
+
+    case "armProbeCommand": {
+      disposeProbe();
+      probeCommand = commandRegistry.register({
+        id: PROBE_COMMAND_ID,
+        label: "Automation: Probe",
+        run: () => {
+          probeRuns += 1;
+        },
+      });
+      // With `key`, the probe also gets a registry DEFAULT — the
+      // `ctx.registerKeybinding` path, distinct from a keybindings.json override.
+      const key = args.key === undefined ? undefined : String(args.key);
+      if (key) {
+        probeKeybinding = keybindingRegistry.register({
+          id: `${PROBE_COMMAND_ID}.key`,
+          command: PROBE_COMMAND_ID,
+          key,
+        });
+      }
+      return { id: PROBE_COMMAND_ID, runs: probeRuns, key: key ?? null };
+    }
+
+    case "probeCommandRuns":
+      return { id: PROBE_COMMAND_ID, runs: probeRuns };
+
+    case "disarmProbeCommand": {
+      disposeProbe();
+      return { id: PROBE_COMMAND_ID, disarmed: true };
+    }
+
     default:
       throw new Error(`unknown op: ${op}`);
   }
+}
+
+// A command that exists only to be dispatched at. Registered on demand by
+// `armProbeCommand` (and gone again on `disarmProbeCommand`) so the running
+// app isn't left carrying an automation entry in its command palette.
+const PROBE_COMMAND_ID = "automation.probe";
+let probeCommand: Disposable | null = null;
+let probeKeybinding: Disposable | null = null;
+let probeRuns = 0;
+
+function disposeProbe(): void {
+  probeKeybinding?.dispose();
+  probeKeybinding = null;
+  probeCommand?.dispose();
+  probeCommand = null;
+  probeRuns = 0;
 }
 
 function requireActiveWorkspace(): string {
