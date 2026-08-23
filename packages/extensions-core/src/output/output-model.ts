@@ -63,6 +63,19 @@ export function copyEntries(entries: readonly OutputEntry[]): string {
     .join("\n");
 }
 
+/**
+ * Which channel the panel should show: a caller-requested channel
+ * (`params.channel`, from `ctx.log.show()`) always wins over the last one the
+ * user had selected, so an extension's diagnostics land where it says they
+ * will instead of wherever the panel was last left.
+ */
+export function resolveInitialChannel(
+  paramsChannel: string | undefined,
+  storedChannel: string,
+): string {
+  return paramsChannel ?? storedChannel;
+}
+
 export interface ChannelOption {
   key: string;
   displayName: string;

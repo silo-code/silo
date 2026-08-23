@@ -127,7 +127,7 @@ openPanel(
    options?): void;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:71](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L71)
+Defined in: [packages/sdk/src/layout-service.ts:73](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L73)
 
 Open a new tab in the center dock for the given registered
 [DockPanelKind](DockPanelKind.md). Use this to programmatically open a custom panel
@@ -154,8 +154,10 @@ Arbitrary params forwarded to the panel component.
 
 `singleton: true` opens at most one instance at a time:
   if a panel with `kindId` already exists, it is focused instead of
-  creating a new one. The panel's id equals `kindId` (not UUID-based) when
-  singleton is set.
+  creating a new one — `params` is still shallow-merged into that
+  existing panel first, so a later call can retarget it (e.g. switching
+  which channel the Output panel shows). The panel's id equals `kindId`
+  (not UUID-based) when singleton is set.
 
 ###### singleton?
 
@@ -173,7 +175,7 @@ Arbitrary params forwarded to the panel component.
 openSingletonPanel(kindId, params?): void;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:81](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L81)
+Defined in: [packages/sdk/src/layout-service.ts:83](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L83)
 
 Open a **singleton** dock panel.
 

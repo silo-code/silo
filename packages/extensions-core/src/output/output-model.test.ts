@@ -4,6 +4,7 @@ import {
   formatTimestamp,
   channelOptions,
   copyEntries,
+  resolveInitialChannel,
   type OutputFilter,
 } from "./output-model";
 import type { OutputEntry } from "@silo-code/extension-host/internal";
@@ -162,6 +163,20 @@ describe("copyEntries", () => {
 
   it("returns empty string for empty array", () => {
     expect(copyEntries([])).toBe("");
+  });
+});
+
+describe("resolveInitialChannel", () => {
+  it("prefers a caller-requested channel over the stored one", () => {
+    expect(resolveInitialChannel("ext:silo.git", "silo:notifications")).toBe(
+      "ext:silo.git",
+    );
+  });
+
+  it("falls back to the stored channel when none was requested", () => {
+    expect(resolveInitialChannel(undefined, "silo:notifications")).toBe(
+      "silo:notifications",
+    );
   });
 });
 

@@ -215,7 +215,7 @@ export function createContext(
       show: () =>
         getLayoutService().openPanel(
           "output",
-          { title: "Output" },
+          { title: "Output", channel: channelKey },
           { singleton: true },
         ),
       clear: () => clearChannel(channelKey),

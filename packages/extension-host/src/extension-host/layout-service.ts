@@ -61,6 +61,11 @@ export function getLayoutService(): LayoutService {
       if (options?.singleton) {
         const existing = api.getPanel(kindId);
         if (existing) {
+          // Reopening an already-open singleton still forwards new params
+          // (e.g. `ctx.log.show()` re-targeting the Output panel at a
+          // different channel each call) — a bare focus would strand the
+          // panel on whatever params it was first created with.
+          if (params) existing.api.updateParameters(params);
           existing.api.setActive();
           return;
         }
