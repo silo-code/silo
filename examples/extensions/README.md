@@ -16,6 +16,8 @@ surface at a time.
 | **[permissions-demo](./permissions-demo-extension)** | Workspace **path-scoping** and the capability consent flow.                                                          | status bar                  | `fs:read` |
 | **[sdk-playground](./sdk-playground-extension)**     | Live demos of the newest `ctx` APIs (editor text, terminal I/O, file bytes, exec, cancellable search, binary fetch). | side panel                  | —         |
 | **[modal-gallery](./modal-gallery-extension)**       | Live tour of every modal design-system component (RFC 0016) — Buttons through ModalActions, one tab per docs group.  | Window menu / `cmd+shift+g` | —         |
+| **[busy-status-demo](./busy-status-demo)**           | The StatusBar **busy-status** slot (`ctx.ui.busyStatus`) and its numbered-badge popover.                             | side panel                  | —         |
+| **[webview-bridge-demo](./webview-bridge-demo)**     | Reference implementation of `ctx.webview` — nav events, `exec`, element picking, and screen capture.                 | Window menu                 | —         |
 
 ## Which one do I want?
 

@@ -159,6 +159,6 @@ restored afterward. Rejects if the frame currently has zero viewport height
   CSP before embedding a URL, without needing the `"webview"` permission
 - [`ctx.ui.openExternal`](/api/ui/) — open a URL in the user's default browser
   as a fallback when `onBlocked` fires
-- `core.webview-bridge-test` (bundled, dev builds only) — a reference
-  implementation exercising this API end-to-end against real cross-origin
-  pages
+- [`webview-bridge-demo`](https://github.com/silo-code/silo/tree/main/examples/extensions/webview-bridge-demo) —
+  an example extension, and a reference implementation exercising this API
+  end-to-end against real cross-origin pages

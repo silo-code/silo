@@ -453,7 +453,9 @@ Depends on Phase 1 (UI can paint during restore/stalls).
 
 1. [x] **Host busy-status registry + StatusBar slot + popover** (internal /
        `@internal` `ctx.ui.busyStatus` for builtins — not a stable public API).
-       DEV scratch panel: **Window → Busy Status Test** (`core.busy-status-test`).
+       Verified via a DEV scratch panel (`core.busy-status-test`), since
+       extracted into the example extension
+       [`busy-status-demo`](../../examples/extensions/busy-status-demo).
 2. [x] **Terminal restore** as first writer (`Restoring terminals…` → clear on
        settle; failures via **notify**, not sticky status). During **cold start**,
        the host **startup status** sequence owns the StatusBar line; terminal
