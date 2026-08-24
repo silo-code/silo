@@ -439,6 +439,40 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 }
 
 /* ── icon buttons ── */
+/* Mirrors `.silo-menu-button` in the host's components.css. */
+.silo-demo .silo-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  padding: 5px 8px 5px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font: inherit;
+  font-size: var(--silo-font-size-base);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.silo-demo .silo-menu-button:hover:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+
+.silo-demo .silo-menu-button-chevron {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  color: var(--silo-color-text-lo);
+}
+
+.silo-demo .silo-menu-button-sm {
+  padding: 3px 6px 3px 10px;
+  font-size: var(--silo-font-size-chrome);
+}
+
 .silo-demo .silo-icon-button {
   display: inline-flex;
   align-items: center;
