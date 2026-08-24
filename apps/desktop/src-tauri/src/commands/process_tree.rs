@@ -51,6 +51,8 @@ pub struct Leader {
 pub fn resolve_leader(nodes: &[ProcessNode], root_pid: u32) -> Option<Leader> {
     let root = nodes.iter().find(|n| n.pid == root_pid)?;
 
+    let interesting = |n: &ProcessNode| !is_console_infrastructure(&n.name);
+
     // Depth-first from the root, tracking the deepest node found. Guarded
     // against cycles: pid reuse can, in principle, produce a parent chain that
     // loops, and an unguarded walk would hang the poll thread.
@@ -65,6 +67,14 @@ pub fn resolve_leader(nodes: &[ProcessNode], root_pid: u32) -> Option<Leader> {
             }
             seen.push(child.pid);
             let d = depth + 1;
+            // Descend through infrastructure but never report it as the
+            // leader — `conhost.exe` is a real child of the shell in a ConPTY
+            // session and was observed winning the walk, which named the
+            // terminal after the console host instead of the agent.
+            if !interesting(child) {
+                stack.push((child.pid, d));
+                continue;
+            }
             // Strictly deeper wins; equal depth keeps the lower pid.
             if d > best.0 || (d == best.0 && child.pid < best.1) {
                 best = (d, child.pid, child.name.clone());
@@ -80,6 +90,17 @@ pub fn resolve_leader(nodes: &[ProcessNode], root_pid: u32) -> Option<Leader> {
         // process, so nothing is running under it.
         at_prompt: best.0 == 0,
     })
+}
+
+/// Processes Windows creates as part of running a console, which are never the
+/// thing the user is interacting with. `conhost.exe` is spawned as a child of
+/// the shell in a ConPTY session, so it competes with the real program in the
+/// walk; naming a terminal "conhost" would be strictly wrong.
+fn is_console_infrastructure(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "conhost.exe" | "openconsole.exe"
+    )
 }
 
 /// Snapshot every process on the machine via the ToolHelp API.
@@ -229,6 +250,45 @@ mod tests {
         let b = resolve_leader(&reordered, 100).unwrap();
         assert_eq!(a, b);
         assert_eq!(a.pid, 200);
+    }
+
+    /// Observed live on Windows: `conhost.exe` is a real child of the shell in
+    /// a ConPTY session and briefly won the walk, naming the terminal after the
+    /// console host rather than the agent.
+    #[test]
+    fn console_infrastructure_never_becomes_the_leader() {
+        let nodes = vec![
+            node(100, 1, "cmd.exe"),
+            node(4972, 100, "conhost.exe"),
+            node(3572, 100, "copilot.exe"),
+        ];
+        let leader = resolve_leader(&nodes, 100).unwrap();
+        assert_eq!(leader.name, "copilot.exe");
+        assert_eq!(leader.pid, 3572);
+    }
+
+    /// A shell with nothing but a console host under it is still at a prompt —
+    /// conhost must not make it look like something is running.
+    #[test]
+    fn a_shell_with_only_a_console_host_is_at_the_prompt() {
+        let nodes = vec![node(100, 1, "cmd.exe"), node(4972, 100, "conhost.exe")];
+        let leader = resolve_leader(&nodes, 100).unwrap();
+        assert_eq!(leader.pid, 100);
+        assert!(leader.at_prompt);
+    }
+
+    /// Infrastructure is descended *through*, not pruned — an agent launched
+    /// under a console host must still be found.
+    #[test]
+    fn the_walk_descends_through_infrastructure() {
+        let nodes = vec![
+            node(100, 1, "cmd.exe"),
+            node(4972, 100, "conhost.exe"),
+            node(3572, 4972, "copilot.exe"),
+        ];
+        let leader = resolve_leader(&nodes, 100).unwrap();
+        assert_eq!(leader.name, "copilot.exe");
+        assert!(!leader.at_prompt);
     }
 
     /// A shell that has exited leaves nothing to report.

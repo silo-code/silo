@@ -27,6 +27,39 @@ import {
   detectFromOutput,
 } from "./agent-catalog";
 
+describe("leaderBasename — Windows executable names (RFC: Windows agents)", () => {
+  // Observed live: the process-tree walk correctly reported `copilot.exe`, and
+  // agentByLeader still said "isn't a known agent" — `leaderNames` is written
+  // the Unix way (`copilot`), so nothing matched and no agent was ever named
+  // on Windows.
+  it("strips a .exe extension so Windows leaders match the catalog", () => {
+    expect(agentByLeader("copilot.exe")?.id).toBe("copilot");
+    expect(agentByLeader("claude.exe")?.id).toBe("claude");
+  });
+
+  it("strips the other Windows executable extensions", () => {
+    expect(leaderBasename("copilot.cmd")).toBe("copilot");
+    expect(leaderBasename("copilot.bat")).toBe("copilot");
+    expect(leaderBasename("copilot.COM")).toBe("copilot");
+  });
+
+  it("handles a backslash-separated path", () => {
+    expect(agentByLeader("C:\\Users\\x\\bin\\copilot.exe")?.id).toBe(
+      "copilot",
+    );
+  });
+
+  it("leaves Unix leaders exactly as they were", () => {
+    expect(agentByLeader("/usr/local/bin/copilot")?.id).toBe("copilot");
+    expect(leaderBasename("/Users/x/.local/bin/claude")).toBe("claude");
+  });
+
+  it("does not strip a dot that isn't an executable extension", () => {
+    // A hypothetical `agent.py` must not silently become `agent`.
+    expect(leaderBasename("agent.py")).toBe("agent.py");
+  });
+});
+
 describe("catalog integrity", () => {
   it("has unique agent ids", () => {
     const ids = AGENT_CATALOG.map((a) => a.id);

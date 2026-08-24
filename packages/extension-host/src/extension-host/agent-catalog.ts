@@ -695,8 +695,13 @@ export const AGENT_CATALOG: AgentDefinition[] = [
  * Bun-compiled `claude` reporting as `/Users/x/.local/bin/claude`, not bare
  * `claude`) — match on the basename, not the whole string. */
 export function leaderBasename(leader: string): string {
-  const idx = leader.lastIndexOf("/");
-  return idx >= 0 ? leader.slice(idx + 1) : leader;
+  // Windows reports a bare executable name with its extension (`copilot.exe`)
+  // and uses `\` as the separator; Unix reports a path with `/` and no
+  // extension. `leaderNames` is written the Unix way, so normalize to that —
+  // without this, no agent matches on Windows at all.
+  const idx = Math.max(leader.lastIndexOf("/"), leader.lastIndexOf("\\"));
+  const base = idx >= 0 ? leader.slice(idx + 1) : leader;
+  return base.replace(/\.(exe|cmd|bat|com)$/i, "");
 }
 
 /** The catalog entry whose `leaderNames` includes this foreground leader's
