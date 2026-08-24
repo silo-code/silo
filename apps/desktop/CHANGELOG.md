@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.52.0](https://github.com/silo-code/silo/compare/silo-v0.51.0...silo-v0.52.0) (2026-08-24)
+
+
+### Features
+
+* **agents:** add pi with activity detection and exact resume ([#391](https://github.com/silo-code/silo/issues/391)) ([3ea854f](https://github.com/silo-code/silo/commit/3ea854f27bd10561582c43dd89aa5fc5f6a2620c))
+* **settings:** rebuild Settings on a new app-sheet surface ([#410](https://github.com/silo-code/silo/issues/410)) ([855bd28](https://github.com/silo-code/silo/commit/855bd28636cccc9fca009138fdd50f27ebd6667c))
+* **terminal:** tell every terminal which tab and workspace it is ([#406](https://github.com/silo-code/silo/issues/406)) ([8d20d02](https://github.com/silo-code/silo/commit/8d20d02312aa9bc50d5f5a2334a1f4b638ec4355))
+
+
+### Bug Fixes
+
+* **docs:** version the OG image filename so X serves the new card ([#403](https://github.com/silo-code/silo/issues/403)) ([37509d7](https://github.com/silo-code/silo/commit/37509d7107f4bc402d0e0ae3aa7c92735d9eed9b))
+* **terminal:** resolve file links against terminal cwd ([#413](https://github.com/silo-code/silo/issues/413)) ([c9acd5e](https://github.com/silo-code/silo/commit/c9acd5e61c48c0b1e9d3b4f82baa602f1b164c70))
+* **terminal:** start the output reader for OSC and exit subscribers ([#409](https://github.com/silo-code/silo/issues/409)) ([2621d58](https://github.com/silo-code/silo/commit/2621d588d5e51d2d263c609a164d461734740dd7))
+* **workspaces:** close add-workspace menu after permanent delete ([#414](https://github.com/silo-code/silo/issues/414)) ([81e0ed8](https://github.com/silo-code/silo/commit/81e0ed85eccc7cd50c44898d4d9d93dada8eda08))
+
+
+### Performance Improvements
+
+* **git-explorer:** virtualize the changed-file list ([#415](https://github.com/silo-code/silo/issues/415)) ([7c1eea4](https://github.com/silo-code/silo/commit/7c1eea4b7215976dc2e64423439a8533300e5716))
+
 ## [0.51.0](https://github.com/silo-code/silo/compare/silo-v0.50.1...silo-v0.51.0) (2026-08-23)
 
 
