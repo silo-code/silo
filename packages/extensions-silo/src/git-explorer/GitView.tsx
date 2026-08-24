@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowsClockwise, CaretDown, CaretRight } from "@phosphor-icons/react";
+import type { Virtualizer } from "@tanstack/react-virtual";
 import {
   Badge,
   Tooltip,
+  focusGroupNextIndex,
   useFocusGroup,
   useServiceState,
   type ExtensionContext,
@@ -30,6 +32,8 @@ import { confirmAndRemoveWorktree } from "./confirm-and-remove-worktree";
 import { useViewStack } from "./use-view-stack";
 import { CommitsTakeover } from "./CommitsTakeover";
 import { shouldExitTakeover, shouldPushCommitsOnOpen } from "./takeover-model";
+import { VirtualFileRows } from "./VirtualFileRows";
+import { resolveRowScrollTarget } from "./git-virtual-model";
 
 const messageCache = new Map<string, string>();
 
@@ -171,6 +175,32 @@ export function GitView({
   // owned by useFocusGroup (same as the file Tree): the headers + file rows are
   // one Tab stop, ↑/↓/Home/End move between them, and Enter/Space toggles a
   // header or opens a row's diff.
+  const stagedVirtualizerRef = useRef<Virtualizer<HTMLElement, Element> | null>(
+    null,
+  );
+  const changesVirtualizerRef = useRef<Virtualizer<
+    HTMLElement,
+    Element
+  > | null>(null);
+
+  const scrollNavIndexToView = useCallback(
+    (navIdx: number) => {
+      const target = resolveRowScrollTarget(
+        navItems,
+        navIdx,
+        stagedFiles,
+        changedFiles,
+      );
+      if (!target) return;
+      const vz =
+        target.section === "staged"
+          ? stagedVirtualizerRef.current
+          : changesVirtualizerRef.current;
+      vz?.scrollToIndex(target.rowIndex, { align: "auto" });
+    },
+    [navItems, stagedFiles, changedFiles],
+  );
+
   const group = useFocusGroup({
     count: navItems.length,
     orientation: "vertical",
@@ -193,7 +223,28 @@ export function GitView({
   // it isn't a current nav item (e.g. a collapsed section's rows aren't rendered).
   function focusPropsFor(key: string): FocusGroupItemProps | undefined {
     const idx = navIndex.get(key);
-    return idx === undefined ? undefined : group.getItemProps(idx);
+    if (idx === undefined) return undefined;
+    const base = group.getItemProps(idx);
+    return {
+      ...base,
+      onKeyDown: (e) => {
+        const next = focusGroupNextIndex({
+          current: idx,
+          count: navItems.length,
+          key: e.key,
+          orientation: "vertical",
+          wrap: true,
+          isNavigable: () => true,
+        });
+        if (next !== null) {
+          e.preventDefault();
+          scrollNavIndexToView(next);
+          requestAnimationFrame(() => group.focusItem(next));
+          return;
+        }
+        base.onKeyDown(e);
+      },
+    };
   }
 
   async function stageAll() {
@@ -713,18 +764,23 @@ export function GitView({
                   },
                 ]}
               >
-                {stagedFiles.map((f) => (
-                  <FileRow
-                    key={`s-${f.path}`}
-                    file={f}
-                    folder={folder}
-                    kind="staged"
-                    onRowClick={() => openFileDiff(f, "staged")}
-                    onOpen={() => openFile(f)}
-                    onUnstage={() => unstage(f)}
-                    focusProps={focusPropsFor(`r:staged:${f.path}`)}
-                  />
-                ))}
+                <VirtualFileRows
+                  files={stagedFiles}
+                  enabled={stagedOpen}
+                  virtualizerRef={stagedVirtualizerRef}
+                  renderRow={(f) => (
+                    <FileRow
+                      key={`s-${f.path}`}
+                      file={f}
+                      folder={folder}
+                      kind="staged"
+                      onRowClick={() => openFileDiff(f, "staged")}
+                      onOpen={() => openFile(f)}
+                      onUnstage={() => unstage(f)}
+                      focusProps={focusPropsFor(`r:staged:${f.path}`)}
+                    />
+                  )}
+                />
               </Section>
             )}
 
@@ -754,19 +810,24 @@ export function GitView({
               {changedFiles.length === 0 && (
                 <div className="empty">No changes.</div>
               )}
-              {changedFiles.map((f) => (
-                <FileRow
-                  key={`c-${f.path}`}
-                  file={f}
-                  folder={folder}
-                  kind="changes"
-                  onRowClick={() => openFileDiff(f, "workingTree")}
-                  onOpen={() => openFile(f)}
-                  onStage={() => stage(f)}
-                  onRevert={() => revert(f)}
-                  focusProps={focusPropsFor(`r:changes:${f.path}`)}
-                />
-              ))}
+              <VirtualFileRows
+                files={changedFiles}
+                enabled={changesOpen}
+                virtualizerRef={changesVirtualizerRef}
+                renderRow={(f) => (
+                  <FileRow
+                    key={`c-${f.path}`}
+                    file={f}
+                    folder={folder}
+                    kind="changes"
+                    onRowClick={() => openFileDiff(f, "workingTree")}
+                    onOpen={() => openFile(f)}
+                    onStage={() => stage(f)}
+                    onRevert={() => revert(f)}
+                    focusProps={focusPropsFor(`r:changes:${f.path}`)}
+                  />
+                )}
+              />
             </Section>
           </div>
         </div>
