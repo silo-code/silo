@@ -813,14 +813,22 @@ export function detectFromOsc(
  * OSC pair — a catalog agent's `idleAfterWorking` (only Codex has one today)
  * gets a chance to interpret it *given* whether this terminal was already in
  * an agent-sourced working state. First non-null result wins.
+ *
+ * `agentCatalogId` is the terminal's already-established identity, when there
+ * is one: once we know *which* agent is running, only that agent's fallback
+ * may speak for it. Without this gate Codex's "any plain title ends the turn"
+ * rule fires for every agent — e.g. Copilot shelling out sets the title to
+ * `"Windows PowerShell"`, which would end Copilot's turn mid-task.
  */
 export function detectIdleAfterWorking(
   code: number,
   payload: string,
   wasAgentWorking: boolean,
+  agentCatalogId?: string | null,
 ): DetectionResult | null {
   for (const agent of AGENT_CATALOG) {
     if (!agent.idleAfterWorking) continue;
+    if (agentCatalogId && agent.id !== agentCatalogId) continue;
     const result = agent.idleAfterWorking(code, payload, wasAgentWorking);
     if (result) return result;
   }

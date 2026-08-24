@@ -712,11 +712,11 @@ function logOscEvent(
   terminalId: string,
   code: number,
   payload: string,
+  detected: DetectionResult | null,
 ): void {
   const key = `${code}\u0000${payload}`;
   if (entry.lastOscKey === key) return;
   entry.lastOscKey = key;
-  const detected = detectFromOsc(code, payload);
   const trimmed = payload.length > 120 ? `${payload.slice(0, 120)}…` : payload;
   agentsChannel.debug(
     `terminal ${terminalId} osc ${code} payload=${JSON.stringify(trimmed)} → ` +
@@ -1058,8 +1058,8 @@ function attachSession(terminalId: string) {
   entry.cleanupOsc = getTerminalService().subscribeOsc(
     terminalId,
     ({ code, payload }) => {
-      logOscEvent(entry, terminalId, code, payload);
       const detected = detectFromOsc(code, payload);
+      logOscEvent(entry, terminalId, code, payload, detected);
       if (detected) {
         const wasAgent = entry.state.isAgent;
         applyDetection(terminalId, detected);
@@ -1084,7 +1084,12 @@ function attachSession(terminalId: string) {
       const wasAgentWorking =
         entry.state.activity === "working" &&
         entry.state.workingSource === "agent";
-      const idle = detectIdleAfterWorking(code, payload, wasAgentWorking);
+      const idle = detectIdleAfterWorking(
+        code,
+        payload,
+        wasAgentWorking,
+        entry.agentCatalogId,
+      );
       if (idle) applyDetection(terminalId, idle);
     },
   ).dispose;

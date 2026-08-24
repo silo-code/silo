@@ -763,6 +763,39 @@ describe("detectIdleAfterWorking", () => {
 
   it("returns null for signals other detectors already own (braille, ✳, empty)", () => {
     expect(detectIdleAfterWorking(0, "⠋ my-project", true)).toBeNull();
+  });
+
+  it("does not let one agent's fallback end another agent's turn", () => {
+    // Codex's rule is "any plain title ends the turn". Copilot shelling out
+    // sets the title to "Windows PowerShell" (observed live on Windows), which
+    // would otherwise read as Codex going idle and end Copilot's turn
+    // mid-task. Once a terminal's agent is known, only that agent may speak.
+    expect(
+      detectIdleAfterWorking(0, "Windows PowerShell", true, "copilot"),
+    ).toBeNull();
+  });
+
+  it("still applies the fallback for the agent it belongs to", () => {
+    expect(detectIdleAfterWorking(0, "my-project", true, "codex")).toEqual({
+      status: "idle",
+      source: "agent",
+      timer: "clear",
+    });
+  });
+
+  it("applies any agent's fallback when identity is not yet known", () => {
+    // Before a terminal is identified there is nothing to gate on, so the
+    // pre-existing behavior must be preserved exactly.
+    expect(detectIdleAfterWorking(0, "my-project", true, null)).toEqual({
+      status: "idle",
+      source: "agent",
+      timer: "clear",
+    });
+    expect(detectIdleAfterWorking(0, "my-project", true, undefined)).toEqual({
+      status: "idle",
+      source: "agent",
+      timer: "clear",
+    });
     expect(detectIdleAfterWorking(0, "✳ waiting…", true)).toBeNull();
     expect(detectIdleAfterWorking(0, "", true)).toBeNull();
   });

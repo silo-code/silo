@@ -136,7 +136,37 @@ fn serve_foreground(mut stream: TcpStream, child_pid: Arc<AtomicU32>) {
             FG_POLL_IDLE
         };
         thread::sleep(interval);
+
+        // Only *changes* are written, so a gone subscriber would otherwise go
+        // unnoticed until the next leader change — for a terminal sitting at a
+        // prompt, never. This thread would then snapshot every process on the
+        // machine forever, once per reattach. Check the socket for EOF instead.
+        if subscriber_gone(&stream) {
+            return;
+        }
     }
+}
+
+/// True once the subscriber has closed its end. A foreground subscriber sends
+/// nothing after `T_SUBSCRIBE_FG`, so a readable zero-length read is EOF and
+/// anything else readable is protocol noise we can ignore.
+#[cfg(windows)]
+fn subscriber_gone(stream: &TcpStream) -> bool {
+    if stream.set_nonblocking(true).is_err() {
+        return false;
+    }
+    let mut probe = [0u8; 1];
+    let mut peer: &TcpStream = stream;
+    let gone = match peer.read(&mut probe) {
+        Ok(0) => true,
+        Ok(_) => false,
+        Err(e) => !matches!(
+            e.kind(),
+            io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
+        ),
+    };
+    let _ = stream.set_nonblocking(false);
+    gone
 }
 
 // ── Paths ─────────────────────────────────────────────────────────────────────

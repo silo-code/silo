@@ -138,7 +138,7 @@ These are unsettled — the reason this page is `experimental`:
   — `SessionWindowsBackend` resolves a foreground leader by walking the
   process tree from the shell it spawned (ConPTY exposes no `tcgetpgrp`
   equivalent), which feeds the same `agentByLeader` path every platform uses.
-  What it lacks is a per-turn *activity* signal for agents that don't emit
+  What it lacks is a per-turn _activity_ signal for agents that don't emit
   one: Copilot CLI announces a task's start via its OSC 0 title but never its
   end, so its busy/idle state relies on a debounce rather than an explicit
   signal. Deriving activity from process-tree churn (a tool subprocess running

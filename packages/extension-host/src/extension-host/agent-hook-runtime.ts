@@ -184,6 +184,10 @@ export function createHookRuntime(deps: HookRuntimeDeps): HookRuntime {
   }
 
   async function startAgentHooksWatch() {
+    // Unconditional: on Windows the hooks dir may not resolve or the watch may
+    // fail outright, and that is precisely the platform whose capability line
+    // matters — `bindForeground`'s "no snapshot" message points readers at it.
+    void logPlatformCapabilities();
     try {
       const dir = await resolveAgentHooksDir();
       await invoke("fs_create_dir", { path: dir });
@@ -195,7 +199,6 @@ export function createHookRuntime(deps: HookRuntimeDeps): HookRuntime {
       agentsChannel.info(
         `Hook-events watch started on ${dir} (consume on write, not polled).`,
       );
-      void logPlatformCapabilities();
     } catch (err) {
       agentsChannel.warn(
         "Could not start agent-hooks file watch; catch-up reads only.",
