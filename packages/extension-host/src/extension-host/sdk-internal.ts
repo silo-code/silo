@@ -43,6 +43,15 @@ export { Modal } from "./Modal";
 export { ModalActions } from "@silo-code/sdk";
 export type { ModalProps } from "./Modal";
 
+// PROTOTYPE — the side-anchored companion to `<Modal>`. Core-only for the same
+// reason `<Modal>` is (a runtime React component over a host-owned valtio
+// store), and additionally because its shape is still being felt out: the
+// public capability, if it lands, will be an imperative `ctx.ui.showSheet`
+// mirroring `showModal`. See docs/proposals once the design settles.
+export { Sheet } from "./Sheet";
+export type { SheetProps } from "./Sheet";
+export type { SheetAnchor, SheetMode, SheetSide } from "./sheet-service";
+
 // A `ctx.ui.showModal`-based confirm/info dialog with a persisted "don't show
 // this again" checkbox — a capability `ctx.ui.confirm` has no room for.
 // Core-only: it's bespoke host content built on `<Modal>`, not a public
@@ -298,7 +307,7 @@ export {
 
 // App-shell operations the base menu (`core.menu`) drives — core-only **by
 // design**, not stopgaps. UI-font scale (zoom) is app chrome (see
-// app-settings.ts); settings-dialog open/close is host shell behind the
+// app-settings.ts); settings-sheet open/close is host shell behind the
 // `settings.open`/`settings.close` commands; pickWorkspaceFolder resolves which
 // of a workspace's folders to target (sole folder, else a chooser modal). No
 // `silo.*`/third-party extension needs these, so the internal barrel is their
@@ -306,7 +315,7 @@ export {
 // `ctx.ui`) is deferred until a real public consumer exists — we don't expand
 // the `ctx` surface ahead of a requirement.
 export { bumpUiFontSize, resetUiFontSize } from "./app-settings";
-export { openSettings, closeSettings } from "./settings-dialog";
+export { openSettings, closeSettings } from "./settings-sheet";
 export { pickWorkspaceFolder } from "./pick-folder";
 // Dock/area keyboard navigation the base menu (core.menu) drives — cycling the
 // focused area's tabs, moving across split groups, or moving focus across the

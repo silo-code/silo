@@ -44,7 +44,7 @@ Every role at once, in a composite modal:
 | ------------------------------------- | -------------------------------- | ---------------------------------- | ------ | ---------------------- |
 | **Title**                             | the modal shell (`title` option) | base+2                             | 600    | `--silo-color-text-hi` |
 | **Body**                              | your prose / `Callout`           | sm                                 | 400    | `--silo-color-text`    |
-| **Section label** (`NAME`, `FOLDERS`) | `Section`                        | chrome−1, UPPERCASE, letter-spaced | 400    | `--silo-color-text-lo` |
+| **Section label** (`NAME`, `FOLDERS`) | `Section`                        | chrome−1, UPPERCASE, letter-spaced | 600    | `--silo-color-text-lo` |
 | **Setting label**                     | `SettingRow`                     | base                               | 400    | `--silo-color-text-hi` |
 | **Setting hint**                      | `SettingRow`                     | sm                                 | 400    | `--silo-color-text-lo` |
 | **List row text**                     | `ListRow`                        | sm                                 | 400    | `--silo-color-text-hi` |
@@ -58,8 +58,9 @@ Where `sm` = base−1 and `chrome` = base−2, both derived tokens
 
 ## The rules
 
-- **600 is the only "bold."** Titles, badges, and active states use weight
-  600; everything else is 400. There is no 500 or 700 in modal content.
+- **600 is the only "bold."** Titles, section labels, badges, and active
+  states use weight 600; everything else is 400. There is no 500 or 700 in
+  modal content.
 - **Titles outrank by size.** The title is the single largest text in a modal
   (base+2). Nothing in your content should match or exceed it.
 - **Hierarchy comes from color as much as size.** `text-hi` → `text` →

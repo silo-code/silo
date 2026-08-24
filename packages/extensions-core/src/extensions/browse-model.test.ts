@@ -9,6 +9,7 @@ import type {
 } from "@silo-code/extension-host/internal";
 import {
   browseInstallState,
+  publisherOf,
   filterRegistry,
   isInstallable,
   registryCategories,
@@ -123,5 +124,25 @@ describe("isInstallable", () => {
   it("requires a published release", () => {
     expect(isInstallable(entry("a.a"))).toBe(true);
     expect(isInstallable(entry("a.a", { latest: null }))).toBe(false);
+  });
+});
+
+describe("publisherOf", () => {
+  it("takes the id's namespace and title-cases it", () => {
+    expect(publisherOf("acme.linter")).toBe("Acme");
+  });
+
+  it("keeps only the first segment of a deeper namespace", () => {
+    expect(publisherOf("acme.tools.linter")).toBe("Acme");
+  });
+
+  it("leaves an already-capitalized namespace alone", () => {
+    expect(publisherOf("Acme.linter")).toBe("Acme");
+  });
+
+  it("has no publisher to show for an unnamespaced id", () => {
+    expect(publisherOf("linter")).toBeNull();
+    // A leading dot leaves nothing before it to name.
+    expect(publisherOf(".linter")).toBeNull();
   });
 });

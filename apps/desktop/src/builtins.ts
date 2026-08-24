@@ -69,6 +69,11 @@ const builtins: Extension[] = [
   agentsSettings,
   cliInstall,
   extensions,
+  // core.sheet-lab — the <Sheet> bench. Deliberately NOT activated: the sheet
+  // primitive is still experimental, and the bench's two side panels would be
+  // in everyone's dock. Re-add this line (and its import above) to work on the
+  // sheet surface again; the extension itself is still built and typechecked.
+  // sheetLab,
 ];
 
 /**

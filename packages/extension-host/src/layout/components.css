@@ -682,6 +682,53 @@
  * scales the button + glyph together. At default 13px: normal = 2.5em ≈ 32px,
  * sm = 2em = 26px (local-web-viewer). Child SVGs are % of that em box so fixed
  * Phosphor `size={13}` still zooms. */
+/* MenuButton — a labelled menu trigger. Deliberately quieter than
+   `.silo-button`: no border and no fill until hovered, because it reveals
+   rather than commits and shouldn't compete with the real action beside it.
+   The label plus chevron is what makes it apparent; a box around them would
+   read as a second button. The border is kept but transparent so the box
+   matches a real `.silo-button` sitting next to it, instead of sitting 1px
+   short on every edge. */
+.silo-menu-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  padding: 5px 8px 5px 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text);
+  font: inherit;
+  font-size: var(--silo-font-size-base);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+/* `:not(:disabled)` matches the global `button:hover:not(:disabled)`
+   specificity (0,2,1) — without it theme.css paints the filled-control hover
+   mix over this surface. Same guard as `.silo-icon-button` below. */
+.silo-menu-button:hover:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+
+.silo-menu-button:active:not(:disabled) {
+  background: var(--silo-color-bg-active);
+}
+
+.silo-menu-button-chevron {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  color: var(--silo-color-text-lo);
+}
+
+.silo-menu-button-sm {
+  padding: 3px 6px 3px 10px;
+  font-size: var(--silo-font-size-chrome);
+}
+
 .silo-icon-button {
   display: inline-flex;
   align-items: center;
@@ -839,10 +886,17 @@
   justify-content: space-between;
 }
 
+/* Semibold, matching the Settings rail's own section headings. At this size,
+   uppercase, and `text-lo`, weight 400 left the label reading as faint as the
+   content under it — the one thing a group heading must not do. 600 gives it
+   presence without size or color, so it still sits below body text in the
+   emphasis ladder. Tracking eased to 0.07em: bolder letterforms need less
+   of it to stay legible uppercase. */
 .silo-section-label {
   font-size: calc(var(--silo-font-size-chrome) - 1px);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   color: var(--silo-color-text-lo);
 }
 

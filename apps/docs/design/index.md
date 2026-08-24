@@ -64,6 +64,7 @@ ctx.ui.showModal((close) => <MyPicker onDone={close} />, {
 | -------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------- |
 | Action buttons (Cancel / Save / Delete)      | `Button`                                                | [Buttons](/design/components/buttons)                       |
 | A small icon-only action (✕, ⋮, ↻)           | `IconButton`                                            | [Buttons](/design/components/buttons)                       |
+| A button that opens a menu                   | `MenuButton`                                            | [Buttons](/design/components/buttons)                       |
 | A text field                                 | `Input`, `Textarea`                                     | [Text inputs](/design/components/text-inputs)               |
 | Filter-as-you-type over a list               | `SearchInput` + `List`                                  | [Text inputs](/design/components/text-inputs)               |
 | Click-to-edit a value in place               | `InlineEdit`                                            | [Text inputs](/design/components/text-inputs)               |

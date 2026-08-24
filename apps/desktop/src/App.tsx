@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import {
   AppShell,
   Shortcuts,
-  SettingsDialog,
+  SettingsSheet,
   ModalHost,
   Toasts,
   Menus,
@@ -21,7 +21,7 @@ export default function App() {
       <ThemeInjector />
       <Shortcuts />
       <AppShell />
-      <SettingsDialog />
+      <SettingsSheet />
       <ModalHost />
       <Toasts />
       <Menus />

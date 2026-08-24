@@ -32,6 +32,7 @@ primary action).
 | ------------------------------------ | --------------------------------------------------------------------- |
 | Action buttons                       | `Button` (`variant`: default/primary/danger)                          |
 | Icon-only action                     | `IconButton` + `Tooltip` (label alone isn't enough for sighted users) |
+| Button that opens a menu             | `MenuButton` (labelled + chevron) — see below                         |
 | Text field                           | `Input`, `Textarea`                                                   |
 | Filter-as-you-type over a list       | `SearchInput` + `List` (compose them — no combined `FilterList`)      |
 | Click-to-edit a value in place       | `InlineEdit`                                                          |
@@ -44,6 +45,20 @@ primary action).
 
 All exported from `@silo-code/sdk`. Full prop reference:
 [Design System → Components](https://getsilo.dev/design/#the-component-inventory).
+
+### `MenuButton` vs. a `⋮` `IconButton`
+
+Both open a menu; they differ in who is expected to find it.
+
+- **`MenuButton`** — a label plus a chevron. Use it when the menu is somewhere
+  a user is _meant_ to go: the actions behind it are part of the job, not an
+  escape hatch. A bare `⋮` is discoverable only by people who already know to
+  look, so anything a first-time user needs belongs behind a labelled trigger.
+- **`IconButton`** (with `⋮` and a `Tooltip`) — for dense rows and toolbars
+  where a label genuinely won't fit, and the actions are secondary.
+
+Neither owns the menu. Open one from `onClick` with `ctx.ui.showMenu`,
+anchoring `at: e.currentTarget` so it lines up under the trigger.
 
 ## The class contract (host-styled, don't restyle)
 

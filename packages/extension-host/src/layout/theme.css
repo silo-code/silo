@@ -141,6 +141,22 @@
   --silo-modal-backdrop: rgba(0, 0, 0, 0.5);
   --silo-z-modal-base: 2000;
 
+  /* Component tokens · sheet (PROTOTYPE). The side-anchored surface
+   * (extension-host/Sheet.tsx) — same host-chrome contract as --silo-modal-*:
+   * theme-overridable, NOT extension-consumable. Deliberately its own group
+   * rather than an alias of the modal's: a sheet is a full-height *place* butted
+   * against an edge, so it wants a lighter scrim — you keep seeing the
+   * workbench it grew out of. Deliberately no radius or shadow token: a sheet
+   * is flush with that edge and spans the full height, so rounding or lifting
+   * it would read as a floating card. Separation comes from the scrim (modal)
+   * or the 1px seam every other region has (push). `--silo-z-sheet-base` sits
+   * *below* --silo-z-modal-base so a confirm raised from inside a sheet still
+   * lands on top of it. */
+  --silo-sheet-bg: var(--silo-color-bg);
+  --silo-sheet-border: var(--silo-color-border-strong);
+  --silo-sheet-backdrop: rgba(0, 0, 0, 0.4);
+  --silo-z-sheet-base: 1500;
+
   /* Component tokens · notify. The notification (toast) surface
    * (`ctx.ui.notify`, components/Toasts.css) — an *elevated* card that must lift
    * off the app background, unlike the modal (which leans on a backdrop). Same

@@ -16,7 +16,7 @@ import {
   toTauriAccelerator,
 } from "./keymap";
 import type { Disposable, MenuId, MenuItemContribution } from "@silo-code/sdk";
-import { openSettings } from "./settings-dialog";
+import { openSettings } from "./settings-sheet";
 import { getExtensionManager } from "./extension-manager";
 
 export const menuItemRegistry = new Registry<MenuItemContribution>();

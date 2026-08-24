@@ -31,7 +31,7 @@ export function Section({
   accessory,
   children,
 }: {
-  /** Rendered uppercase, letter-spaced, chrome−1, `text-lo`. */
+  /** Rendered uppercase, semibold, letter-spaced, chrome−1, `text-lo`. */
   label: string;
   /** Right-aligned — a count badge, an add affordance. */
   accessory?: ReactNode;

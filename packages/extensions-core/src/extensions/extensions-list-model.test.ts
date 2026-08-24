@@ -3,8 +3,8 @@ import type { InstalledExtension } from "@silo-code/extension-host/internal";
 import {
   describeSource,
   filterExtensions,
-  hasBuiltins,
   localInstallSource,
+  partitionBuiltins,
   showsReloadHint,
   showsUpdateAction,
 } from "./extensions-list-model";
@@ -34,48 +34,65 @@ const list: InstalledExtension[] = [
 ];
 
 describe("filterExtensions", () => {
-  it("returns everything when query is empty and built-ins are shown", () => {
-    expect(
-      filterExtensions(list, { query: "", showBuiltins: true }),
-    ).toHaveLength(2);
+  it("returns everything when the query is empty", () => {
+    expect(filterExtensions(list, { query: "" })).toHaveLength(2);
   });
 
-  it("hides built-ins when the toggle is off", () => {
-    const out = filterExtensions(list, { query: "", showBuiltins: false });
-    expect(out.map((e) => e.id)).toEqual(["acme.hello"]);
+  it("keeps built-ins — they're grouped, not filtered out", () => {
+    expect(filterExtensions(list, { query: "" }).map((e) => e.id)).toContain(
+      "silo.git",
+    );
   });
 
   it("matches on name, id, publisher, and description", () => {
-    const byName = filterExtensions(list, { query: "git", showBuiltins: true });
+    const byName = filterExtensions(list, { query: "git" });
     expect(byName.map((e) => e.id)).toEqual(["silo.git"]);
 
-    const byPublisher = filterExtensions(list, {
-      query: "silo",
-      showBuiltins: true,
-    });
+    const byPublisher = filterExtensions(list, { query: "silo" });
     expect(byPublisher.map((e) => e.id)).toEqual(["silo.git"]);
 
-    const byDescription = filterExtensions(list, {
-      query: "greets",
-      showBuiltins: true,
-    });
+    const byDescription = filterExtensions(list, { query: "greets" });
     expect(byDescription.map((e) => e.id)).toEqual(["acme.hello"]);
   });
 
-  it("respects the built-in toggle together with the query", () => {
-    // "Git" matches a built-in, but built-ins are hidden → no results.
+  it("ignores surrounding whitespace and case", () => {
     expect(
-      filterExtensions(list, { query: "git", showBuiltins: false }),
-    ).toHaveLength(0);
+      filterExtensions(list, { query: "  GIT " }).map((e) => e.id),
+    ).toEqual(["silo.git"]);
+  });
+
+  it("returns a copy, leaving the caller's list alone", () => {
+    const out = filterExtensions(list, { query: "" });
+    expect(out).not.toBe(list);
   });
 });
 
-describe("hasBuiltins", () => {
-  it("is true when any row is a built-in", () => {
-    expect(hasBuiltins(list)).toBe(true);
+describe("partitionBuiltins", () => {
+  it("splits the user's own installs from Silo's built-ins", () => {
+    const { installed, builtin } = partitionBuiltins(list);
+    expect(installed.map((e) => e.id)).toEqual(["acme.hello"]);
+    expect(builtin.map((e) => e.id)).toEqual(["silo.git"]);
   });
-  it("is false for a third-party-only list", () => {
-    expect(hasBuiltins([ext({ id: "acme.hello" })])).toBe(false);
+
+  it("preserves the incoming order within each group", () => {
+    const many = [
+      ext({ id: "silo.a", builtin: true }),
+      ext({ id: "acme.a" }),
+      ext({ id: "silo.b", builtin: true }),
+      ext({ id: "acme.b" }),
+    ];
+    const { installed, builtin } = partitionBuiltins(many);
+    expect(installed.map((e) => e.id)).toEqual(["acme.a", "acme.b"]);
+    expect(builtin.map((e) => e.id)).toEqual(["silo.a", "silo.b"]);
+  });
+
+  it("leaves a group empty rather than absent when nothing qualifies", () => {
+    // The page uses emptiness to decide whether to render the heading at all.
+    const { installed, builtin } = partitionBuiltins([
+      ext({ id: "acme.only" }),
+    ]);
+    expect(installed).toHaveLength(1);
+    expect(builtin).toEqual([]);
   });
 });
 

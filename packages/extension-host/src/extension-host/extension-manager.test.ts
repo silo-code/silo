@@ -471,11 +471,17 @@ describe("installFromUrl (integration)", () => {
       },
     );
 
-    await mgr.installFromUrl("https://example.com/ext.tgz", async () => true);
+    const name = await mgr.installFromUrl(
+      "https://example.com/ext.tgz",
+      async () => true,
+    );
 
     expect(loaderMock.loadExtension).toHaveBeenCalledWith(
       expect.objectContaining({ id: "acme.x" }),
     );
+    // The display name, so a caller's confirmation can name what it installed
+    // instead of echoing the id back at the user.
+    expect(name).toBe("Acme");
   });
 
   it("skips install when consent is denied but still cleans up", async () => {
@@ -489,10 +495,16 @@ describe("installFromUrl (integration)", () => {
       },
     );
 
-    await mgr.installFromUrl("https://example.com/ext.tgz", async () => false);
+    const name = await mgr.installFromUrl(
+      "https://example.com/ext.tgz",
+      async () => false,
+    );
 
     expect(loaderMock.loadExtension).not.toHaveBeenCalled();
     expect(fsDeleteSpy).toHaveBeenCalledWith(stagingDir);
+    // `null`, not a name — a declined install must be distinguishable from a
+    // successful one, or the caller reports an install that never happened.
+    expect(name).toBeNull();
   });
 
   it("cleans up staging dir even when previewInstall throws", async () => {
@@ -694,11 +706,12 @@ describe("update", () => {
     fsMap.set("/src/ext/package.json", manifest(["fs:read", "network"]));
     fsMap.set("/src/ext/dist/index.js", "v2");
 
-    await mgr.update("acme.x", async () => false);
+    const name = await mgr.update("acme.x", async () => false);
 
     expect(fsMap.get(`${DEST}/dist/index.js`)).toBe("v1");
     expect(installedRecord().permissions).toEqual(["fs:read"]);
     expect(loaderMock.loadExtension).not.toHaveBeenCalled();
+    expect(name).toBeNull();
   });
 
   it("re-resolves an unpinned npm spec and downloads the new tarball", async () => {

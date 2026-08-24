@@ -111,3 +111,61 @@ side — don't wrap them in extra layout.
 Wrap the button in [`Tooltip`](/design/components/feedback#tooltip) so everyone gets the label:
 `<Tooltip content="Refresh"><IconButton aria-label="Refresh">…</IconButton></Tooltip>`.
 :::
+
+## MenuButton
+
+A **labelled** button that opens a menu — the counterpart to `IconButton` for
+cases where a bare `⋮` doesn't tell anyone what they'd get. Renders its label
+with a trailing chevron, the standard signal that pressing it reveals more
+rather than performing something.
+
+<div class="silo-demo">
+  <button class="silo-menu-button">
+    <span class="silo-menu-button-label">More</span>
+    <svg class="silo-menu-button-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="silo-menu-button silo-menu-button-sm">
+    <span class="silo-menu-button-label">Sort</span>
+    <svg class="silo-menu-button-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+
+```tsx
+import { MenuButton } from "@silo-code/sdk";
+
+<MenuButton
+  label="More"
+  onClick={(e) =>
+    ctx.ui.showMenu({
+      items: [
+        { id: "disable", label: "Disable", run: disable },
+        { id: "uninstall", label: "Uninstall", run: uninstall },
+      ],
+      at: e.currentTarget,
+    })
+  }
+/>;
+```
+
+| Prop     | Type               | Default    | Notes                                        |
+| -------- | ------------------ | ---------- | -------------------------------------------- |
+| `label`  | `ReactNode`        | —          | required — the whole point over `IconButton` |
+| `size`   | `"normal" \| "sm"` | `"normal"` | `sm` for card footers and list rows          |
+| children | `ReactNode`        | —          | optional leading content, e.g. an icon       |
+| …rest    | button props       |            | `aria-haspopup="menu"` is applied for you    |
+
+Quieter than `Button` on purpose: no border and no fill at rest, `bg-hover` on
+hover. It reveals rather than commits, so it shouldn't compete with the real
+action beside it.
+
+::: tip MenuButton or a `⋮` IconButton?
+Both open a menu; they differ in **who is expected to find it**. Reach for
+`MenuButton` when the menu is somewhere a user is _meant_ to go — a bare `⋮` is
+discoverable only by people who already know to look, so anything a first-time
+user needs belongs behind a labelled trigger. Keep `IconButton` for dense rows
+and toolbars where a label genuinely won't fit and the actions are secondary.
+:::
+
+Neither owns the menu. Open one from `onClick` with
+[`ctx.ui.showMenu`](/api/types/interfaces/UiService#showmenu), anchoring
+`at: e.currentTarget` so it lines up under the trigger.

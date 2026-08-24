@@ -1,0 +1,149 @@
+/* PROTOTYPE — chrome for the side-anchored `<Sheet>` surface (Sheet.tsx).
+ * Positioning is inline (measured per sheet); everything here is paint. */
+
+/* Zero-size marker left behind in the caller's React tree — the only thing that
+ * knows which side dock a dock-anchored sheet was opened from, since the sheet
+ * itself portals away. Never rendered. */
+.silo-sheet-anchor {
+  display: none;
+}
+
+/* Sheet entrance timing, shared by the surface and its scrim so the two can't
+ * drift apart. The scrim's fade starts partway through the sheet's travel
+ * rather than after it: waiting for the sheet to land reads as two separate
+ * events, while starting together reads as the app dimming *itself*. Catching
+ * the sheet late in its arc is the natural-looking middle. */
+.silo-sheet,
+.silo-sheet-backdrop {
+  --silo-internal-sheet-enter: 0.12s;
+  --silo-internal-sheet-scrim-delay: 0.07s;
+}
+
+/* `backwards` fill holds the scrim at opacity 0 through its delay, so nothing
+ * is on screen until the sheet is most of the way in. */
+.silo-sheet-backdrop {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  /* `left`/`right` are set inline — the scrim covers only what the sheet
+     doesn't occupy (see SheetPlacement.scrim). */
+  background: var(--silo-sheet-backdrop);
+  animation: silo-sheet-fade 0.16s ease-out
+    var(--silo-internal-sheet-scrim-delay) backwards;
+}
+
+/* A sheet butts flush against the edge it grew out of and spans the full
+ * height, so it takes neither corner radius nor elevation — rounding and a
+ * shadow would read as a floating card, which is exactly what a sheet is not.
+ * Modal sheets separate themselves with the scrim, push sheets with the 1px
+ * seam every other region gets. */
+.silo-sheet {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--silo-sheet-bg);
+  color: var(--silo-color-text-hi);
+  overflow: hidden;
+}
+
+/* Only the *inner* edge is drawn — the anchored edge butts against whatever the
+ * sheet emerged from. */
+.silo-sheet--left {
+  border-right: 1px solid var(--silo-sheet-border);
+  animation: silo-sheet-in-left var(--silo-internal-sheet-enter) ease-out;
+}
+
+.silo-sheet--right {
+  border-left: 1px solid var(--silo-sheet-border);
+  animation: silo-sheet-in-right var(--silo-internal-sheet-enter) ease-out;
+}
+
+/* A centered sheet touches no edge, so both sides are drawn and it can't slide
+ * in from anywhere — it rises into place instead. */
+.silo-sheet--center {
+  border-left: 1px solid var(--silo-sheet-border);
+  border-right: 1px solid var(--silo-sheet-border);
+  animation: silo-sheet-in-center var(--silo-internal-sheet-enter) ease-out;
+}
+
+.silo-sheet-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 10px 10px 10px 16px;
+  border-bottom: 1px solid var(--silo-color-border);
+}
+
+.silo-sheet-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--silo-font-size-base);
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.silo-sheet-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  background: transparent;
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+}
+
+.silo-sheet-close:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+
+.silo-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+/* A bare sheet has no header and no padded body — its content fills the
+ * surface and owns its own chrome. */
+.silo-sheet--bare > * {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The push-sheet slots themselves are AppShell's (it renders and sizes them) —
+ * see `.silo-sheet-push-slot` in AppShell.css. */
+
+@keyframes silo-sheet-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes silo-sheet-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes silo-sheet-in-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes silo-sheet-in-center {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}

@@ -1,0 +1,80 @@
+/* PROTOTYPE — the sheet bench's own panel + sheet-content styling. */
+
+.sheet-lab {
+  padding: 8px 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sheet-lab-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sheet-lab-btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.sheet-lab-knob {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.sheet-lab-knob input {
+  width: 84px;
+}
+
+.sheet-lab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 720px;
+}
+
+.sheet-lab-hint {
+  margin: 0;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  line-height: 1.5;
+}
+
+.sheet-lab-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sheet-lab-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: var(--silo-font-size-sm);
+}
+
+.sheet-lab-facts dt {
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-mono);
+}
+
+.sheet-lab-facts dd {
+  margin: 0;
+  color: var(--silo-color-text-hi);
+}
+
+.sheet-lab-filler {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  line-height: 1.7;
+}

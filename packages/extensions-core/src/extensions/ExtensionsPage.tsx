@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  ArrowsClockwise,
-  DotsThreeVertical,
-  SealCheck,
-} from "@phosphor-icons/react";
+import { ArrowsClockwise, DotsThreeVertical } from "@phosphor-icons/react";
 import { useSnapshot } from "valtio";
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import {
@@ -11,9 +7,9 @@ import {
   Button,
   EmptyState,
   IconButton,
+  MenuButton,
   SearchInput,
   SegmentedTabs,
-  Switch,
   Tooltip,
   useServiceState,
 } from "@silo-code/sdk";
@@ -28,8 +24,8 @@ import {
 import { PermissionConsent } from "./PermissionConsent";
 import {
   filterExtensions,
-  hasBuiltins,
   localInstallSource,
+  partitionBuiltins,
   showsReloadHint,
   showsUpdateAction,
 } from "./extensions-list-model";
@@ -37,9 +33,12 @@ import {
   browseInstallState,
   filterRegistry,
   isInstallable,
+  publisherOf,
   registryCategories,
 } from "./browse-model";
-import { sourceOriginLabel } from "./source-meta";
+import { ExtensionCard } from "./ExtensionCard";
+import { extensionIconFor } from "./extension-icons";
+import { sourceBadgeLabel } from "./source-meta";
 import { ExtensionDetail } from "./ExtensionDetail";
 import { extensionsOnboarding, markVisited } from "./extensions-onboarding";
 import "./ExtensionsPage.css";
@@ -88,7 +87,6 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
     const [query, setQuery] = useState("");
     const [browseQuery, setBrowseQuery] = useState("");
     const [category, setCategory] = useState("");
-    const [showBuiltins, setShowBuiltins] = useState(false);
     const [registry, setRegistry] = useState<RegistryState>({
       status: "loading",
     });
@@ -118,8 +116,10 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       void loadRegistry();
     }, []);
 
-    const visible = filterExtensions(extensions, { query, showBuiltins });
-    const builtinsPresent = hasBuiltins(extensions);
+    const visible = filterExtensions(extensions, { query });
+    // Built-ins are always listed, in their own headed group below the user's
+    // own installs, rather than behind a toggle that hid half of what's running.
+    const groups = partitionBuiltins(visible);
     const catalog =
       registry.status === "ready"
         ? filterRegistry(registry.entries, { query: browseQuery, category })
@@ -166,9 +166,13 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
 
     function installFromRegistry(id: string) {
       void run(id, async () => {
-        await mgr.installFromRegistry(id, requestConsent);
+        // `null` = the user declined the permission prompt. Nothing was
+        // installed, so there's nothing to confirm — the toast used to fire
+        // either way, reporting an install that didn't happen.
+        const name = await mgr.installFromRegistry(id, requestConsent);
+        if (!name) return;
         setUpdates(await mgr.checkUpdates().catch(() => []));
-        ctx.ui.notify("info", `Installed ${id}`);
+        ctx.ui.notify("info", `Installed ${name}`);
       });
     }
 
@@ -182,12 +186,11 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       if (!value) return;
       const isUrl = value.startsWith("http://") || value.startsWith("https://");
       await run("install", async () => {
-        if (isUrl) {
-          await mgr.installFromUrl(value, requestConsent);
-        } else {
-          await mgr.installFromNpm(value, requestConsent);
-        }
-        ctx.ui.notify("info", "Extension installed");
+        const name = isUrl
+          ? await mgr.installFromUrl(value, requestConsent)
+          : await mgr.installFromNpm(value, requestConsent);
+        if (!name) return;
+        ctx.ui.notify("info", `Installed ${name}`);
       });
     }
 
@@ -205,7 +208,9 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       if (!(await requestConsent(preview))) return;
       await run("install", async () => {
         await mgr.installFromFolder(folder);
-        ctx.ui.notify("info", "Extension installed");
+        // Consent already happened above, so reaching here means it installed;
+        // the preview is where the name comes from on this path.
+        ctx.ui.notify("info", `Installed ${preview.name}`);
       });
     }
 
@@ -217,9 +222,12 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
 
     function update(ext: Pick<InstalledExtension, "id" | "name">) {
       void run(ext.id, async () => {
-        await mgr.update(ext.id, requestConsent);
+        // `null` = consent for the widened permissions was declined; nothing
+        // was swapped, so don't claim it was updated.
+        const name = await mgr.update(ext.id, requestConsent);
+        if (!name) return;
         setUpdates(await mgr.checkUpdates().catch(() => []));
-        ctx.ui.notify("info", `Updated ${ext.name}`);
+        ctx.ui.notify("info", `Updated ${name}`);
       });
     }
 
@@ -227,11 +235,18 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       void run("update-all", async () => {
         // Sequential on purpose: each update may pop a consent modal, and two
         // in-flight file swaps racing each other helps nobody.
+        let updated = 0;
         for (const u of updates) {
-          await mgr.update(u.id, requestConsent);
+          // Declining one consent skips that extension without abandoning the
+          // rest, so report the count that actually landed.
+          if (await mgr.update(u.id, requestConsent)) updated += 1;
         }
         setUpdates(await mgr.checkUpdates().catch(() => []));
-        ctx.ui.notify("info", "Extensions updated");
+        if (updated === 0) return;
+        ctx.ui.notify(
+          "info",
+          `Updated ${updated} extension${updated === 1 ? "" : "s"}`,
+        );
       });
     }
 
@@ -340,7 +355,14 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
               onSelect={(id) => setView({ kind: id })}
             />
             <Tooltip content="More install options">
+              {/* `sm` (2em) rather than the default 2.5em: `.es-header` declares
+                  `min-height: var(--settings-header-height)`, and a full-size
+                  icon button is taller than that — it stretched the row, which
+                  pushed the centred page title down out of line with the
+                  Settings rail beside it. The segmented tabs already sit under
+                  that height. */}
               <IconButton
+                size="sm"
                 aria-label="More install options"
                 onClick={(e) => openPageMenu(e.currentTarget)}
               >
@@ -389,7 +411,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
             ) : catalog.length === 0 ? (
               <EmptyState title="No extensions match." />
             ) : (
-              <div className="ext-list silo-scroll">
+              <div className="ext-grid silo-scroll">
                 {catalog.map((entry) => {
                   const state = browseInstallState(entry, extensions, updates);
                   const installedExt = extensions.find(
@@ -400,115 +422,84 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                   const localSource = localInstallSource(installedExt);
                   const upd = updates.find((u) => u.id === entry.id);
                   return (
-                    <div
+                    <ExtensionCard
                       key={entry.id}
-                      className="ext-row ext-row-click"
-                      onClick={() =>
+                      name={entry.name}
+                      icon={extensionIconFor(entry.id)}
+                      publisher={publisherOf(entry.id)}
+                      verified={entry.latest?.provenance === "attested"}
+                      description={entry.description}
+                      onOpenDetails={() =>
                         setView({
                           kind: "detail",
                           id: entry.id,
                           from: "browse",
                         })
                       }
-                    >
-                      <div className="ext-row-top">
-                        <div className="ext-row-text">
-                          <span className="ext-label">
-                            {entry.name}
-                            {(() => {
-                              const dot = entry.id.indexOf(".");
-                              const publisher =
-                                dot > 0 ? entry.id.slice(0, dot) : null;
-                              return publisher ? (
-                                <span className="ext-brand">
-                                  {publisher[0].toUpperCase() +
-                                    publisher.slice(1)}
-                                </span>
-                              ) : null;
-                            })()}
-                            {entry.latest && (
-                              <span className="ext-version">
-                                v{entry.latest.version}
-                              </span>
-                            )}
-                            {entry.latest?.provenance === "attested" && (
-                              <Badge
-                                tone="ok"
-                                title="Build provenance verified"
-                              >
-                                <SealCheck size={12} weight="fill" /> verified
-                              </Badge>
-                            )}
-                            {state === "installed" && (
-                              <Badge tone="ok">Installed</Badge>
-                            )}
-                            {state === "update-available" && (
-                              <Badge tone="warn">Update available</Badge>
-                            )}
-                          </span>
-                          <span className="ext-hint">{entry.description}</span>
-                          <span className="ext-hint">
-                            {entry.id}
-                            {" · "}
-                            {entry.latest?.permissions.length
-                              ? `permissions: ${entry.latest.permissions.join(", ")}`
-                              : "no permissions"}
-                            {" · "}
-                            {localSource ? (
-                              <span className="ext-source-note">
-                                Installed from{" "}
-                                {sourceOriginLabel(localSource.kind)}
-                              </span>
-                            ) : (
-                              `${entry.totalDownloads} downloads`
-                            )}
-                          </span>
-                        </div>
-                        <div className="ext-actions">
-                          {state === "not-installed" &&
-                            isInstallable(entry) && (
-                              <Button
-                                size="sm"
-                                disabled={busy === entry.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  installFromRegistry(entry.id);
-                                }}
-                              >
-                                Install
-                              </Button>
-                            )}
-                          {upd && installedExt && (
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              disabled={busy === entry.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                update(installedExt);
-                              }}
-                            >
-                              Update
-                            </Button>
+                      badges={
+                        <>
+                          {entry.latest && (
+                            <span className="ext-version">
+                              v{entry.latest.version}
+                            </span>
                           )}
-                          {installedExt && (
-                            <Tooltip content="Extension actions">
-                              <IconButton
-                                size="sm"
-                                aria-label="Extension actions"
-                                disabled={busy === entry.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openRowMenu(installedExt, e.currentTarget);
-                                }}
-                              >
-                                <DotsThreeVertical size={16} weight="bold" />
-                              </IconButton>
-                            </Tooltip>
+                          {state === "update-available" && (
+                            <Badge tone="warn">Update</Badge>
                           )}
-                        </div>
-                      </div>
-                    </div>
+                          {localSource ? (
+                            <Badge tone="outline">
+                              {sourceBadgeLabel(localSource.kind)}
+                            </Badge>
+                          ) : (
+                            <span className="ext-card-meta">
+                              <span className="ext-card-downloads">
+                                {entry.totalDownloads}
+                              </span>{" "}
+                              downloads
+                            </span>
+                          )}
+                        </>
+                      }
+                      action={
+                        upd && installedExt ? (
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            disabled={busy === entry.id}
+                            onClick={() => update(installedExt)}
+                          >
+                            Update
+                          </Button>
+                        ) : state === "installed" ? (
+                          // Not a button: there's nothing to do to an already
+                          // installed extension from here. Styled like the
+                          // Install it replaces so the grid keeps one rhythm.
+                          <span className="ext-card-installed">Installed</span>
+                        ) : state === "not-installed" &&
+                          isInstallable(entry) ? (
+                          <Button
+                            size="sm"
+                            disabled={busy === entry.id}
+                            onClick={() => installFromRegistry(entry.id)}
+                          >
+                            Install
+                          </Button>
+                        ) : null
+                      }
+                      menu={
+                        installedExt ? (
+                          <MenuButton
+                            size="sm"
+                            label="More"
+                            aria-label="Extension actions"
+                            disabled={busy === entry.id}
+                            onClick={(e) =>
+                              openRowMenu(installedExt, e.currentTarget)
+                            }
+                          />
+                        ) : null
+                      }
+                    />
                   );
                 })}
               </div>
@@ -523,16 +514,6 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                   onValueChange={setQuery}
                   placeholder="Search installed extensions…"
                 />
-              )}
-              {builtinsPresent && (
-                <label className="ext-toggle">
-                  <Switch
-                    checked={showBuiltins}
-                    onChange={setShowBuiltins}
-                    aria-label="Show built-in"
-                  />
-                  Show built-in
-                </label>
               )}
               {updates.length > 0 && (
                 <Button
@@ -553,110 +534,107 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
             ) : visible.length === 0 ? (
               <EmptyState title={`No extensions match “${query}”.`} />
             ) : (
-              <div className="ext-list silo-scroll">
-                {visible.map((ext) => {
-                  const upd = updates.find((u) => u.id === ext.id);
-                  // Folder/URL/npm origin, noted compactly; the full path lives
-                  // in the detail callout (registry installs need no note).
-                  const localSource = localInstallSource(ext);
-                  return (
-                    <div
-                      key={ext.id}
-                      className="ext-row ext-row-click"
-                      onClick={() =>
-                        setView({
-                          kind: "detail",
-                          id: ext.id,
-                          from: "installed",
-                        })
-                      }
-                    >
-                      <div className="ext-row-top">
-                        <div className="ext-row-text">
-                          <span className="ext-label">
-                            {ext.name}
-                            <span className="ext-brand">{ext.publisher}</span>
-                            {ext.builtin && (
-                              <Badge tone="outline">Built-in</Badge>
-                            )}
-                            <span className="ext-version">v{ext.version}</span>
-                            {!ext.enabled && (
-                              <Badge tone="neutral">disabled</Badge>
-                            )}
-                          </span>
-                          {ext.description && (
-                            <span className="ext-hint">{ext.description}</span>
-                          )}
-                          <span className="ext-hint">
-                            {ext.id}
-                            {localSource && (
-                              <>
-                                {" · "}
-                                <span className="ext-source-note">
-                                  Installed from{" "}
-                                  {sourceOriginLabel(localSource.kind)}
-                                </span>
-                              </>
-                            )}
-                          </span>
-                          {upd && (
-                            <span className="ext-hint">
-                              Update available: v{upd.latestVersion}
-                              {upd.widensPermissions &&
-                                " (requests new permissions)"}
-                            </span>
-                          )}
-                          {showsReloadHint(ext) && (
-                            <span className="ext-hint ext-hint-warn">
-                              Reload the window to finish disabling this
-                              extension.
-                            </span>
-                          )}
-                          {!ext.engineCompatible && (
-                            <span className="ext-hint ext-hint-warn">
-                              Needs Silo {ext.engine} — you&rsquo;re on{" "}
-                              {ext.hostVersion}. Update Silo to use this
-                              extension.
-                            </span>
-                          )}
-                        </div>
-                        <div className="ext-actions">
-                          {upd && (
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              disabled={busy === ext.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                update(ext);
-                              }}
-                            >
-                              Update
-                            </Button>
-                          )}
-                          <Tooltip content="Extension actions">
-                            <IconButton
-                              size="sm"
-                              aria-label="Extension actions"
-                              disabled={busy === ext.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openRowMenu(ext, e.currentTarget);
-                              }}
-                            >
-                              <DotsThreeVertical size={16} weight="bold" />
-                            </IconButton>
-                          </Tooltip>
-                        </div>
-                      </div>
+              <div className="ext-groups silo-scroll">
+                {groups.installed.length > 0 && (
+                  <div className="ext-grid">
+                    {groups.installed.map(renderInstalledCard)}
+                  </div>
+                )}
+                {groups.builtin.length > 0 && (
+                  <>
+                    <h3 className="ext-group-head">Built-in Extensions</h3>
+                    <div className="ext-grid">
+                      {groups.builtin.map(renderInstalledCard)}
                     </div>
-                  );
-                })}
+                  </>
+                )}
               </div>
             )}
           </>
         )}
       </div>
     );
+
+    // One card renderer for both groups — an installed extension looks the same
+    // whether the user put it there or Silo ships it; only the heading above it
+    // and its own Built-in badge say which.
+    function renderInstalledCard(ext: InstalledExtension) {
+      const upd = updates.find((u) => u.id === ext.id);
+      // Folder/URL/npm origin, noted compactly; the full path lives in the
+      // detail callout (registry installs need no note).
+      const localSource = localInstallSource(ext);
+      return (
+        <ExtensionCard
+          key={ext.id}
+          name={ext.name}
+          icon={extensionIconFor(ext.id)}
+          publisher={ext.publisher}
+          description={ext.description}
+          onOpenDetails={() =>
+            setView({
+              kind: "detail",
+              id: ext.id,
+              from: "installed",
+            })
+          }
+          badges={
+            <>
+              <span className="ext-version">v{ext.version}</span>
+              {ext.builtin && <Badge tone="outline">Built-in</Badge>}
+              {!ext.enabled && <Badge tone="neutral">disabled</Badge>}
+              {localSource && (
+                <Badge tone="outline">
+                  {sourceBadgeLabel(localSource.kind)}
+                </Badge>
+              )}
+            </>
+          }
+          notes={
+            <>
+              {upd && (
+                <span className="ext-hint">
+                  Update available: v{upd.latestVersion}
+                  {upd.widensPermissions && " (requests new permissions)"}
+                </span>
+              )}
+              {showsReloadHint(ext) && (
+                <span className="ext-hint ext-hint-warn">
+                  Reload the window to finish disabling this extension.
+                </span>
+              )}
+              {!ext.engineCompatible && (
+                <span className="ext-hint ext-hint-warn">
+                  Needs Silo {ext.engine} — you&rsquo;re on {ext.hostVersion}.
+                  Update Silo to use this extension.
+                </span>
+              )}
+            </>
+          }
+          action={
+            upd ? (
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={busy === ext.id}
+                onClick={() => update(ext)}
+              >
+                Update
+              </Button>
+            ) : (
+              <span className="ext-card-installed">Installed</span>
+            )
+          }
+          menu={
+            <MenuButton
+              size="sm"
+              label="More"
+              aria-label="Extension actions"
+              disabled={busy === ext.id}
+              onClick={(e) => openRowMenu(ext, e.currentTarget)}
+            />
+          }
+        />
+      );
+    }
   };
 }

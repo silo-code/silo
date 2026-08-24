@@ -63,6 +63,63 @@
   background: var(--silo-content-tab-bg);
 }
 
+/* Containing block for the push-sheet slots below, which sit in the margin the
+ * dock host gives up while a push sheet is open. */
+.app-col-center {
+  position: relative;
+}
+
+/* Wrapper the center dock actually lives in. It exists so a push sheet's gap
+ * can be a margin *inside* the column: the column is a flex item with
+ * `flex-basis: 0` and a grow factor, so any padding on it would come out of the
+ * group's free space and shrink the side docks along with it. As a stretched
+ * item in the column's own vertical flex, this resolves its width from the
+ * column minus its margins — which is exactly the inset we want. */
+.center-dock-host {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.center-dock-host > * {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The gap the center dock reserves for push sheets (extension-host/Sheet.tsx).
+ * It is both the portal target and the cutout: the column is padded by the same
+ * width, so a push sheet makes room rather than covering anything. Zero-width
+ * whenever no push sheet is open on that side. `pointer-events` is off on the
+ * empty slot and back on for the sheet inside it, so a zero-width slot can
+ * never eat a click meant for the dock. */
+.silo-sheet-push-slot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.silo-sheet-push-slot > * {
+  pointer-events: auto;
+}
+
+.silo-sheet-push-slot[data-side="left"] {
+  left: 0;
+}
+
+.silo-sheet-push-slot[data-side="right"] {
+  right: 0;
+}
+
+/* `padding-top` on `.app-col` only pushes down *in-flow* content — the
+ * absolutely-positioned slot needs its own offset to clear the traffic-light
+ * reservation, same as `.app-shell.mac .side-peek-host.peeking` above. */
+.app-shell.mac .silo-sheet-push-slot {
+  top: 36px;
+}
+
 /* Small-screen-mode peek: the collapsed (0-width) side panel stays clipped by
  * `overflow: hidden` above — and react-resizable-panels sets that as an
  * *inline* style on the Panel's own root div, which beats a plain CSS

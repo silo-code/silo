@@ -20,7 +20,7 @@ import is needed in the extension.
 
 `string`
 
-Rendered uppercase, letter-spaced, chrome−1, `text-lo`.
+Rendered uppercase, semibold, letter-spaced, chrome−1, `text-lo`.
 
 #### accessory?
 

@@ -27,7 +27,8 @@ export { AppShell } from "./layout/AppShell";
 export { ThemeInjector } from "./layout/ThemeInjector";
 export { reloadCustomThemes } from "./layout/ThemeLoader";
 export { Shortcuts } from "./components/Shortcuts";
-export { SettingsDialog } from "./components/SettingsDialog";
+// Settings, as a centered app sheet (it replaced the Settings modal).
+export { SettingsSheet } from "./components/SettingsSheet";
 export { ModalHost } from "./components/ModalHost";
 export { Toasts } from "./components/Toasts";
 export { Menus } from "./components/Menus";

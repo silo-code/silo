@@ -1,5 +1,5 @@
 /* Agents settings uses the shared settings page chrome (`.es-page` /
- * `.es-header` / `.es-scroll` from SettingsDialog.css) and SDK primitives
+ * `.es-header` / `.es-scroll` from SettingsPage.css) and SDK primitives
  * (Section, Callout, Badge, Button). Keep this file for the unboxed WIP
  * banner and the per-row docs link under the SettingRow hint. */
 

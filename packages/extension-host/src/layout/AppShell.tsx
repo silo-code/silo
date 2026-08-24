@@ -25,6 +25,11 @@ import {
   columnLayout,
   widthsFromLayout,
 } from "../state/column-widths";
+import {
+  pushInset,
+  sheetStack,
+  type OpenSheet,
+} from "../extension-host/sheet-service";
 import "./AppShell.css";
 
 // On macOS, `titleBarStyle: "Overlay"` causes the webview to extend under the
@@ -89,6 +94,7 @@ function markPanelDragging(isDragging: boolean) {
 
 export function AppShell() {
   const snap = useSnapshot(store);
+  const sheets = useSnapshot(sheetStack);
   const leftRef = useRef<ImperativePanelHandle>(null);
   const rightRef = useRef<ImperativePanelHandle>(null);
   const groupRef = useRef<ImperativePanelGroupHandle>(null);
@@ -210,6 +216,13 @@ export function AppShell() {
 
   // The library only takes percentages, so the px min/max become constraints
   // for *this* window width and are recomputed as it changes.
+  // Push sheets (PROTOTYPE) take real layout space rather than overlaying: the
+  // center dock is padded by their width and they render into the gap that
+  // leaves, so the tabs underneath narrow instead of being covered.
+  const open = sheets.open as OpenSheet[];
+  const pushLeft = pushInset(open, "left");
+  const pushRight = pushInset(open, "right");
+
   const { sideMin, sideMax, centerMin } = columnConstraints(containerPx);
   const initial = columnLayout(
     snap.smallScreenActive
@@ -245,6 +258,7 @@ export function AppShell() {
             store.leftPanelCollapsed = false;
           }}
           className={`app-col${snap.leftPanelPeeking ? " app-col--peeking" : ""}`}
+          data-app-col="left"
         >
           <div
             className={`side-peek-host side-peek-host--left${
@@ -274,10 +288,37 @@ export function AppShell() {
           </div>
         </Panel>
         <PanelResizeHandle onDragging={onPanelDragging} tabIndex={-1} />
-        <Panel defaultSize={initial[1]} minSize={centerMin} className="app-col">
-          <ErrorBoundary name="center-dock">
-            <CenterDock />
-          </ErrorBoundary>
+        <Panel
+          defaultSize={initial[1]}
+          minSize={centerMin}
+          className="app-col app-col-center"
+          data-app-col="center"
+        >
+          {/* A push sheet insets the dock's *content*, never the column. The
+              library sizes panels with `flex-basis: 0` + a grow factor, so
+              padding on the Panel itself would be subtracted from the group's
+              free space before the grow factors distribute — and all three
+              columns, side docks included, would shrink to pay for it. */}
+          <div
+            className="center-dock-host"
+            style={{ marginLeft: pushLeft, marginRight: pushRight }}
+          >
+            <ErrorBoundary name="center-dock">
+              <CenterDock />
+            </ErrorBoundary>
+          </div>
+          {/* Portal targets for push sheets — always mounted so a sheet has
+              somewhere to land the moment it opens; zero-width until one does. */}
+          <div
+            className="silo-sheet-push-slot"
+            data-side="left"
+            style={{ width: pushLeft }}
+          />
+          <div
+            className="silo-sheet-push-slot"
+            data-side="right"
+            style={{ width: pushRight }}
+          />
         </Panel>
         <PanelResizeHandle onDragging={onPanelDragging} tabIndex={-1} />
         <Panel
@@ -294,6 +335,7 @@ export function AppShell() {
             store.rightPanelCollapsed = false;
           }}
           className={`app-col${snap.rightPanelPeeking ? " app-col--peeking" : ""}`}
+          data-app-col="right"
         >
           <div
             className={`side-peek-host side-peek-host--right${

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, SealCheck } from "@phosphor-icons/react";
+import { CaretLeft, SealCheck } from "@phosphor-icons/react";
 import type { ExtensionContext } from "@silo-code/sdk";
 import {
   getExtensionManager,
@@ -87,8 +87,14 @@ export function ExtensionDetail({
 
   return (
     <div className="ext-detail">
-      <button className="ext-btn ext-detail-back" onClick={onBack}>
-        <ArrowLeft size={13} /> Extensions
+      {/* A plain "Back", styled as a quiet link rather than a button: it undoes
+          navigation rather than doing something to the extension, so it
+          shouldn't carry the same weight as Install/Uninstall below it. Named
+          "Back" rather than the list it returns to — the drill-in is reachable
+          from both Browse and Installed, so naming one of them was wrong half
+          the time. */}
+      <button className="ext-detail-back" onClick={onBack}>
+        <CaretLeft size="1em" weight="bold" /> Back
       </button>
 
       <div className="ext-detail-head">

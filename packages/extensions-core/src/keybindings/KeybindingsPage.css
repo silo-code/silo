@@ -1,5 +1,5 @@
 /* Page chrome (header, search width, scroll/group gap) is the shared
-   `.es-page`/`.es-header`/`.es-scroll` from SettingsDialog.css — this page
+   `.es-page`/`.es-header`/`.es-scroll` from SettingsPage.css — this page
    used to carry its own duplicate copy (`.kb-page`/`.kb-header`/`.kb-list`),
    which is why its spacing drifted out of sync with every other settings
    page. Only what's genuinely bespoke to a keybinding row lives here. */

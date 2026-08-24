@@ -65,7 +65,7 @@ interface PushToastOptions extends NotifyOptions {
  * Ephemeral toast list backing {@link UiService.notify} — app-shell host state,
  * not persisted and not part of the workspace model. The `Toasts` component
  * renders from this proxy; extensions never touch it directly (they call
- * `ctx.ui.notify`). Mirrors the `settings-dialog` host-state pattern.
+ * `ctx.ui.notify`). Mirrors the `settings-sheet` host-state pattern.
  *
  * @internal
  */

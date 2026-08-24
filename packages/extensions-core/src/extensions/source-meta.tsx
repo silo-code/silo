@@ -24,3 +24,17 @@ export function sourceOriginLabel(kind: InstallSource["kind"]): string {
     registry: "the registry",
   }[kind];
 }
+
+/**
+ * Origin as a standalone noun phrase, for a badge. Separate from
+ * {@link sourceOriginLabel} because that one is a sentence fragment: "a folder"
+ * only works after "Installed from", and reads as a typo on its own in a pill.
+ */
+export function sourceBadgeLabel(kind: InstallSource["kind"]): string {
+  return {
+    folder: "Folder Install",
+    url: "URL Install",
+    npm: "npm Install",
+    registry: "Registry Install",
+  }[kind];
+}
