@@ -39,8 +39,14 @@ only ever adds or removes its own entry (marked `# silo-managed-agent-hook`);
 your other hooks are never touched. If a settings file exists but isn't valid
 JSON, Silo refuses to rewrite it — fix or remove the file first.
 
-Exact resume works on **macOS and Linux**; on Windows, agents are still
-detected, but exact resume isn't available. The hook runs a small, readable
+Exact resume works on **macOS and Linux**. On Windows it isn't available, and
+agent support is more limited than that alone suggests: Silo can see that a
+terminal is _busy or idle_ (from the status signals agents emit), but it cannot
+currently tell you **which** agent is running — naming the agent relies on
+reading the terminal's foreground process, which Windows' console API doesn't
+expose. So on Windows a terminal running Claude or Copilot shows activity, but
+not the agent's name, and Settings → Agents has nothing to install. The hook
+runs a small, readable
 shell script Silo writes to `~/.silo/agent-hooks/track-session.sh` — you can
 open and inspect it, and it needs no interpreter or dependency beyond the shell
 your agent already runs its hooks with. See the

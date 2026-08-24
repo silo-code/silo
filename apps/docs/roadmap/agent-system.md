@@ -132,8 +132,14 @@ These are unsettled — the reason this page is `experimental`:
 - **Sub-agent correlation** — the hook events give a count and a bag of running
   types, but no key to pair a specific sub-agent start with its stop; a precise
   tree is out of scope.
-- **Platform** — exact resume is macOS + Linux only (it needs a foreground
-  process-group id to correlate against); Windows stays detection-only.
+- **Platform** — macOS + Linux only, and for two separate reasons. _Exact
+  resume_ needs a foreground process-group id to correlate the hook's event
+  against, which ConPTY has no equivalent for. _Agent identity_ has the same
+  root: `agentByLeader` reads the foreground process name, so on Windows a
+  terminal is classified as active-or-idle from its OSC signals but never
+  named — pi is the sole exception, being the only catalog agent whose own
+  title carries its identity. Windows is therefore **activity-only**, not
+  "detection-only": the status is real, the agent's name is not resolved.
 
 ## Non-goals
 
