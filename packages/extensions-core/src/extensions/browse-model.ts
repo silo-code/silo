@@ -9,6 +9,20 @@ import type {
   RegistryUpdate,
 } from "@silo-code/extension-host/internal";
 
+/**
+ * The publisher shown on a catalog card, taken from the id's namespace
+ * (`acme.linter` → `Acme`). Registry entries carry no publisher field of their
+ * own — unlike an installed extension, whose manifest has one — so the id is
+ * the only place the name exists. `null` for an unnamespaced id rather than
+ * a made-up one.
+ */
+export function publisherOf(id: string): string | null {
+  const dot = id.indexOf(".");
+  if (dot <= 0) return null;
+  const publisher = id.slice(0, dot);
+  return publisher[0].toUpperCase() + publisher.slice(1);
+}
+
 export interface BrowseFilter {
   /** Free-text search; matched against id, description, and categories. */
   query: string;

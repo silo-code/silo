@@ -10,7 +10,7 @@ import {
 } from "../extension-host/modal-service";
 
 // Host-rendered chrome for `ctx.ui.confirm` / `ctx.ui.prompt` / `ctx.ui.showModal`.
-// Mounted once at the App root next to <SettingsDialog> / <Toasts> / <Menus>.
+// Mounted once at the App root next to <SettingsSheet> / <Toasts> / <Menus>.
 // Renders the one imperative dialog queue (modal-service.ts) as <Modal>-based
 // dialogs, and owns the global body scroll-lock while ANY modal is open (custom
 // <Modal>s included, via the shared modalStack). Extensions never touch this —

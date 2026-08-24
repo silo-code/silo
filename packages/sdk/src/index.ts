@@ -266,6 +266,8 @@ export { Button } from "./Button";
 export type { ButtonVariant, ButtonSize } from "./Button";
 export { IconButton } from "./IconButton";
 export type { IconButtonSize, IconButtonVariant } from "./IconButton";
+export { MenuButton } from "./MenuButton";
+export type { MenuButtonSize } from "./MenuButton";
 export { Input } from "./Input";
 export { Textarea } from "./Textarea";
 export { SearchInput } from "./SearchInput";

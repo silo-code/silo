@@ -1,0 +1,193 @@
+/* The Settings sheet's two-pane layout. The host <Sheet bare> owns placement,
+   the scrim, stacking, and Escape; this fills its surface — and since the sheet
+   already paints its own background and border, this only lays out inside it
+   rather than redrawing a card. */
+.settings-sheet {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+
+  /* The settings pages' own CSS (`.es-*` in SettingsPage.css, plus each
+     page's stylesheet) reads these three. They're declared per-container
+     rather than globally, so this container has to supply them or every page
+     inside it would size against undefined values. */
+  --settings-font: calc(var(--silo-font-size-base) + 1px);
+  font-size: var(--settings-font);
+  --settings-header-height: calc(var(--settings-font) + 14px);
+  --settings-pane-pad: 24px;
+}
+
+/* A bare sheet never mounts a scale wrapper, so rebind the shared size tokens
+   here — SDK primitives inside the pages then pick up the same +1 reading scale
+   as every other dialog. */
+.settings-sheet-rail,
+.settings-sheet-pane {
+  --silo-font-size-base: var(--settings-font);
+  --silo-font-size-sm: calc(var(--settings-font) - 1px);
+  --silo-font-size-chrome: calc(var(--settings-font) - 2px);
+}
+
+.settings-sheet-rail {
+  flex: 0 0 272px;
+  display: flex;
+  flex-direction: column;
+  /* The pane's own 24px top padding plus a 2px optical nudge. Matching boxes
+     (see `.settings-sheet-title`) line the two titles up geometrically, but the
+     rail title is set larger than the page title, so its cap height still reads
+     high against it — and a full 4px overshot the other way. The nudge is on
+     the rail's padding rather than the title alone so the sections below move
+     with it. */
+  padding: 26px 12px 24px;
+  border-right: 1px solid var(--silo-color-border);
+  /* Pages own their own scrolling; the rail scrolls only when the settings
+     catalog itself is taller than the sheet. */
+  overflow-y: auto;
+
+  /* The rail reads a step larger than page content — it's navigation, held at
+     arm's length, not prose. Everything in it (items, heading, icons) sizes off
+     this one value in em/calc, so the rail scales as a unit. */
+  --settings-rail-font: calc(var(--settings-font) + 1px);
+  font-size: var(--settings-rail-font);
+}
+
+/* "Settings" has to line up with the page title beside it, and a page title
+   isn't simply text at the top of the pane: it sits in `.es-header`, a flex row
+   of `--settings-header-height` that centres it (the row is sized for a header
+   carrying an action button, so a bare title floats in the middle of it). This
+   adopts the same box and the same centring, which keeps the two aligned as the
+   UI font scales instead of only at one size — a hand-tuned offset would drift
+   the moment `--settings-font` changed. The two titles differ in size, so it's
+   their optical centres that match, not their baselines. */
+.settings-sheet-title {
+  display: flex;
+  align-items: center;
+  min-height: var(--settings-header-height);
+  font-size: 1.15em;
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+  padding: 0 10px;
+  margin-bottom: 20px;
+}
+
+.settings-sheet-section + .settings-sheet-section {
+  margin-top: 22px;
+}
+
+/* Sections carry a heading rather than a bare divider — with only two of them,
+   each one is worth naming. Set uppercase, which reads as a label
+   rather than as another (unclickable) row in the list it heads. */
+.settings-sheet-section-label {
+  font-size: calc(var(--settings-rail-font) - 4px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--silo-color-text-lo);
+  padding: 0 10px;
+  margin-bottom: 8px;
+}
+
+.settings-sheet-rail-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--silo-color-text);
+  padding: 8px 10px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Fixed box so every label starts on the same x, whatever the glyph's own
+   aspect — and so a page with no resolvable icon still lines up. */
+.settings-sheet-rail-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  height: 1.15em;
+  color: var(--silo-color-text-lo);
+}
+
+.settings-sheet-rail-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-sheet-rail-item:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}
+
+.settings-sheet-rail-item:hover .settings-sheet-rail-icon {
+  color: var(--silo-color-text-hi);
+}
+
+/* The active row is marked by accent *color* on both glyph and label rather
+   than a filled background — with icons carrying the row, a fill reads as
+   heavier than the selection actually is. */
+.settings-sheet-rail-item.active,
+.settings-sheet-rail-item.active .settings-sheet-rail-icon {
+  color: var(--silo-color-accent);
+}
+
+.settings-sheet-rail-item.active {
+  font-weight: 600;
+  background: transparent;
+}
+
+.settings-sheet-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* Pages own their scroll regions via `.silo-scroll`; keep the pane from
+     growing a second scrollbar in the close button's gutter. */
+  overflow: hidden;
+  padding: 24px 48px 24px var(--settings-pane-pad);
+  color: var(--silo-color-text);
+}
+
+.settings-sheet-empty {
+  color: var(--silo-color-text-lo);
+  font-size: calc(var(--settings-font) - 1px);
+}
+
+/* Scoped focus ring for the sheet's chrome buttons (rail items, close). Skip
+   `.silo-switch-track` — Switch uses a positive-offset ring by design. */
+.settings-sheet button:not(.silo-switch-track):focus-visible {
+  outline: 1px solid var(--silo-color-accent);
+  outline-offset: -1px;
+}
+
+.settings-sheet-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+}
+
+/* Scoped under `.settings-sheet` (0,3,0) so it beats the global `button:hover`
+   (0,2,1) — otherwise the close picks up the filled-button hover mix instead of
+   this ghost highlight. */
+.settings-sheet .settings-sheet-close:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-hi);
+}

@@ -74,6 +74,208 @@
   margin-left: calc(var(--settings-pane-pad) * -1);
 }
 
+/* PROTOTYPE — the catalog as cards rather than full-width rows. Unlike
+   `.ext-list` this doesn't bleed to the pane edge: a card is a bounded object,
+   and half of one running off the edge reads as clipped rather than as flowing.
+   `auto-fill` at a 260px floor gives three columns in a wide sheet and folds to
+   one in a narrow pane without a breakpoint. */
+/* Installed is two headed groups (the user's own, then Silo's built-ins), so
+   the scroll region moves out here and each grid inside it just lays out. */
+.ext-groups {
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+.ext-group-head {
+  margin: 22px 0 10px;
+  font-size: calc(var(--settings-font) - 2px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--silo-color-text-lo);
+}
+
+/* …but Browse is a single grid that owns its own scrolling. Inside `.ext-groups`
+   the flex/overflow here are inert (a grid child of a plain block), so one rule
+   serves both. */
+.ext-grid {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  align-content: start;
+  gap: 14px;
+  padding-bottom: 4px;
+}
+
+/* A grid nested in the groups wrapper must not scroll on its own — the wrapper
+   is the scroll region, and a nested `overflow-y: auto` would clip the group at
+   its own height instead. */
+.ext-groups .ext-grid {
+  overflow: visible;
+}
+
+.ext-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  /* `-strong`, not `--silo-color-border`: the plain border token is
+     `transparent` in the default dark theme and a very faint #e5e5e5 in light,
+     because it's meant for seams *between* regions that already differ. A card
+     is an object floating on the same surface as its neighbours, so it needs a
+     line that actually draws in both themes. */
+  border: 1px solid var(--silo-color-border-strong);
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg);
+  cursor: pointer;
+}
+
+/* Resting cards keep the light border above; hover goes to the full accent
+   rather than a mix, so the difference is unmistakable at a glance across a
+   grid. Border-color only — a width change here would reflow the card. */
+.ext-card:hover {
+  border-color: var(--silo-color-accent);
+}
+
+.ext-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+
+/* The tile. Sized in em so it tracks the settings reading scale. The base rule
+   is the *placeholder* look — neutral token surface, muted glyph — which an
+   extension we ship an icon for overrides below. */
+.ext-card-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4em;
+  height: 2.4em;
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg-active);
+  color: var(--silo-color-text-lo);
+}
+
+/* A bundled extension's tile: its own fill (set inline — see ExtensionCard.tsx)
+   with a white glyph. White rather than a token, because the tint is a fixed
+   identity color in both themes, so the glyph on top of it has to be too. */
+.ext-card-icon--tinted {
+  color: #fff;
+}
+
+.ext-card-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ext-card-title {
+  color: var(--silo-color-text-hi);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ext-card-seal {
+  flex: none;
+  display: inline-flex;
+  align-self: center;
+  color: var(--silo-color-ok);
+}
+
+.ext-card-by {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  white-space: nowrap;
+}
+
+/* Three lines, always — enough for most descriptions to finish rather than
+   trail off mid-clause, and the fixed height keeps the grid's rhythm steady
+   (a ragged grid whose card heights track blurb length is harder to scan).
+   The clamp and the min-height must stay in step: the clamp caps a long
+   description, the min-height reserves the same space for a short one. */
+.ext-card-desc {
+  margin: 0;
+  font-size: calc(var(--settings-font) - 1px);
+  color: var(--silo-color-text-lo);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: calc((var(--settings-font) - 1px) * 1.45 * 3);
+}
+
+.ext-card-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Pinned to the bottom so every card's footer lines up across a row, whatever
+   the name wrapped to or how many notes it carries. */
+.ext-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.ext-card-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ext-card-foot-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+.ext-card-meta {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+}
+
+/* The count is the part worth scanning — it's the only comparative signal on a
+   Browse card. The word "downloads" stays muted around it, so the number reads
+   without the whole line shouting. */
+.ext-card-downloads {
+  color: var(--silo-color-text-hi);
+  font-weight: 600;
+}
+
+/* The resting counterpart to the Install button: non-interactive, because
+   there's nothing left to do to it from the catalog, but filled rather than
+   outlined so "already yours" is the state that reads first when scanning a
+   grid. Padding, radius, border width, and font-size are `.silo-button-sm`'s
+   own (theme.css), and the fill is the primary button's, so the two states
+   occupy the identical box and the card's corner doesn't shift between them. */
+.ext-card-installed {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--silo-radius-sm);
+  border: 1px solid transparent;
+  background: var(--silo-button-primary-bg);
+  color: var(--silo-button-primary-text);
+  font-size: var(--silo-font-size-chrome);
+  white-space: nowrap;
+}
+
 .ext-row {
   display: flex;
   flex-direction: column;
@@ -278,11 +480,34 @@
   min-height: 0;
   flex: 1 1 auto;
 }
+/* Navigation, not an action — no border, no fill at rest. Accent-coloured so it
+   reads as a link rather than as body text, with the padding sized to give the
+   hover shade a box to fill (negative left margin keeps the caret optically
+   flush with the content below it despite that padding). */
 .ext-detail-back {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  padding: 4px 8px;
+  /* Adds to `.ext-detail`'s 12px column gap, setting the back link apart from
+     the extension it's a way out of rather than reading as the first line of it. */
+  margin: 0 0 8px -8px;
+  background: none;
+  border: none;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-accent);
+  font: inherit;
+  font-size: calc(var(--settings-font) + 1px);
+  cursor: pointer;
+}
+
+/* `:hover:not(:disabled)` (0,3,0) outspecifies theme.css's global
+   `button:hover:not(:disabled)` (0,2,1), which would otherwise paint the
+   filled-control hover background over this instead of the subtle shade. */
+.ext-detail-back:hover:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-accent);
 }
 .ext-detail-head {
   display: flex;

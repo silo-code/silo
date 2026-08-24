@@ -200,11 +200,14 @@ export interface ExtensionManager extends ReactiveService<ExtensionManagerState>
    * The tarball is downloaded from the npm registry CDN. `requestConsent` is
    * called even when `permissions` is empty so the caller can show a summary
    * before committing — return `true` to proceed, `false` to abort.
+   *
+   * Resolves to the installed extension's display name, or `null` when the
+   * user declined consent (see {@link ExtensionManager.installFromUrl}).
    */
   installFromNpm(
     packageName: string,
     requestConsent: (preview: ManifestPreview) => Promise<boolean>,
-  ): Promise<void>;
+  ): Promise<string | null>;
   /**
    * Download a `.tgz` tarball from any URL, extract it, show the permissions
    * consent dialog via `requestConsent`, and install if granted. Covers GitHub
@@ -215,13 +218,19 @@ export interface ExtensionManager extends ReactiveService<ExtensionManagerState>
    *
    * `source` overrides the recorded {@link InstallSource} (the npm path passes
    * the original package spec here instead of the resolved tarball URL).
+   *
+   * Resolves to the installed extension's **display name** on success, or
+   * `null` when `requestConsent` declined and nothing was installed. Callers
+   * need both halves: the name so a confirmation can say what was installed
+   * rather than echo an id, and the null so declining doesn't get reported as
+   * a successful install.
    */
   installFromUrl(
     url: string,
     requestConsent: (preview: ManifestPreview) => Promise<boolean>,
     source?: InstallSource,
     expectedSha256?: string,
-  ): Promise<void>;
+  ): Promise<string | null>;
   /**
    * Install an extension by id from the Silo Extension Registry (RFC 0014):
    * resolve the id against the registry index, download the pinned tarball,
@@ -229,11 +238,14 @@ export interface ExtensionManager extends ReactiveService<ExtensionManagerState>
    * (a swapped or tampered asset fails before extraction), then run the
    * standard consent + install pipeline. Records `{ kind: "registry" }` as the
    * install source so updates re-resolve (and re-verify) through the index.
+   *
+   * Resolves to the installed extension's display name, or `null` when the
+   * user declined consent (see {@link ExtensionManager.installFromUrl}).
    */
   installFromRegistry(
     id: string,
     requestConsent: (preview: ManifestPreview) => Promise<boolean>,
-  ): Promise<void>;
+  ): Promise<string | null>;
   /**
    * Diff installed registry-sourced extensions against the registry index and
    * return the available updates. Cheap to poll: the index fetch is
@@ -253,9 +265,13 @@ export interface ExtensionManager extends ReactiveService<ExtensionManagerState>
    *
    * Consent is re-requested via `requestConsent` **only** when the new manifest
    * widens the granted permission set or the engine floor is unmet (see
-   * {@link updateNeedsConsent}); returning `false` aborts silently. If loading
-   * the new version fails, the previous files, record, and running version are
-   * restored and the original error is rethrown.
+   * {@link updateNeedsConsent}); returning `false` aborts. If loading the new
+   * version fails, the previous files, record, and running version are restored
+   * and the original error is rethrown.
+   *
+   * Resolves to the updated extension's display name, or `null` when consent
+   * was declined and nothing changed — so a caller doesn't report an update
+   * that didn't happen.
    *
    * Rejects for built-ins and for records with no recorded source (installed
    * before source tracking — reinstall once from the original source).
@@ -263,7 +279,7 @@ export interface ExtensionManager extends ReactiveService<ExtensionManagerState>
   update(
     id: string,
     requestConsent: (preview: ManifestPreview) => Promise<boolean>,
-  ): Promise<void>;
+  ): Promise<string | null>;
 }
 
 /** A peek at an extension about to be installed, for the consent prompt. */
@@ -791,7 +807,7 @@ export function getExtensionManager(): ExtensionManager {
       const tarballUrl = await resolveNpmTarball(packageName);
       // Record the original spec, not the resolved tarball URL — an unpinned
       // spec then re-resolves to the latest version on update.
-      await service!.installFromUrl(tarballUrl, requestConsent, {
+      return service!.installFromUrl(tarballUrl, requestConsent, {
         kind: "npm",
         value: packageName,
       });
@@ -803,11 +819,14 @@ export function getExtensionManager(): ExtensionManager {
         const pkgRoot = await findPackageRoot(stagingDir);
         const preview = await service!.previewInstall(pkgRoot);
         const granted = await requestConsent(preview);
-        if (!granted) return;
+        // Declined: report it as such rather than as a silent success — the
+        // caller has no other way to tell the two apart.
+        if (!granted) return null;
         await service!.installFromFolder(
           pkgRoot,
           source ?? { kind: "url", value: url },
         );
+        return preview.name;
       } finally {
         await fsDelete(stagingDir).catch(() => {});
       }
@@ -816,7 +835,7 @@ export function getExtensionManager(): ExtensionManager {
     async installFromRegistry(id, requestConsent) {
       const index = await fetchRegistryIndex();
       const release = resolveRegistryInstall(index, id);
-      await service!.installFromUrl(
+      return service!.installFromUrl(
         release.url,
         requestConsent,
         { kind: "registry", value: id },
@@ -892,7 +911,7 @@ export function getExtensionManager(): ExtensionManager {
           updateNeedsConsent(rec.permissions ?? [], preview) &&
           !(await requestConsent(preview))
         ) {
-          return;
+          return null;
         }
 
         // In-place swap: park the old install as a backup so a failed load of
@@ -958,6 +977,9 @@ export function getExtensionManager(): ExtensionManager {
         } finally {
           await refresh();
         }
+        // Only reached when the swap above completed — every failure path
+        // rethrows after rolling back.
+        return preview.name;
       } finally {
         if (stagingDir) await fsDelete(stagingDir).catch(() => {});
       }

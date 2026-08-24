@@ -26,3 +26,5 @@ export { extension as panelToggles } from "./statusbar/panel-toggles";
 export { extension as settingsButton } from "./statusbar/settings-button";
 export { extension as updates } from "./statusbar/updates";
 export { extension as output } from "./output";
+// PROTOTYPE — the <Sheet> bench. Remove once the surface is settled.
+export { extension as sheetLab } from "./sheet-lab";

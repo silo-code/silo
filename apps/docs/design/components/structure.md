@@ -55,10 +55,10 @@ import { Section, SettingRow, Switch } from "@silo-code/sdk";
 </Section>;
 ```
 
-| Prop        | Type         | Notes                                                  |
-| ----------- | ------------ | ------------------------------------------------------ |
-| `label`     | `string`     | rendered uppercase, letter-spaced, chrome−1, `text-lo` |
-| `accessory` | `ReactNode?` | right-aligned — a count badge, an add affordance       |
+| Prop        | Type         | Notes                                                            |
+| ----------- | ------------ | ---------------------------------------------------------------- |
+| `label`     | `string`     | rendered uppercase, semibold, letter-spaced, chrome−1, `text-lo` |
+| `accessory` | `ReactNode?` | right-aligned — a count badge, an add affordance                 |
 
 ## SettingRow
 

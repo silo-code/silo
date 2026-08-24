@@ -1,0 +1,147 @@
+/* Settings **page** chrome — the shell each settings page renders inside
+   (`.es-page` / `.es-header` / `.es-scroll`), shared by Editor, Terminal,
+   Keybindings, Agents, Extensions, and every contributed page.
+
+   Lives here rather than beside the surface that hosts those pages: it outlived
+   the Settings *modal* it was originally written in, and would have had to move
+   again the next time the container changes. Row/section/control primitives are
+   the SDK's (Section, SettingRow, Switch, Select, SearchInput, Input) via
+   components.css — this is only the page shell.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.es-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 20px;
+}
+
+.es-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--settings-header-height);
+}
+
+.es-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--silo-color-text-hi);
+}
+
+/* SearchInput (SDK) spans the page width on Editor / Terminal. */
+.es-page > .silo-search-input {
+  width: 100%;
+}
+
+.es-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+/* Font family picker (Terminal) — bespoke; out of scope for the SDK kit. */
+.es-font-picker {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 220px;
+}
+
+/* Shared text-input treatment used by the font picker field. */
+.es-text {
+  width: 220px;
+  box-sizing: border-box;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  color: var(--silo-color-input-text);
+  padding: 5px 8px;
+  border-radius: var(--silo-radius-sm);
+  font: inherit;
+}
+
+.es-font-picker-input {
+  width: 100%;
+  padding-right: 30px;
+}
+
+.es-font-picker--has-value .es-font-picker-input {
+  padding-right: 54px;
+}
+
+.es-font-picker-clear {
+  position: absolute;
+  right: 30px;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+  padding: 0;
+  font-size: 15px;
+}
+
+.es-font-picker-clear:hover {
+  color: var(--silo-color-text-hi);
+}
+
+.es-font-picker-arrow {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-left: 1px solid var(--silo-color-border);
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+  padding: 0;
+  font-size: 20px;
+  border-radius: 0 var(--silo-radius-sm) var(--silo-radius-sm) 0;
+}
+
+.es-font-picker-arrow:hover {
+  color: var(--silo-color-text-hi);
+  background: var(--silo-color-bg-active);
+}
+
+.es-font-picker-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  max-height: 180px;
+  overflow-y: auto;
+  background: var(--silo-color-input-bg);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  list-style: none;
+  margin: 0;
+  padding: 3px 0;
+}
+
+.es-font-picker-item {
+  padding: 5px 10px;
+  cursor: pointer;
+  color: var(--silo-color-text-hi);
+  font-size: var(--settings-font);
+}
+
+.es-font-picker-item:hover,
+.es-font-picker-item--selected {
+  background: var(--silo-color-bg-active);
+}

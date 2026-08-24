@@ -77,6 +77,7 @@ the published reference is exactly this surface — no more, no less.
 - [List](functions/List.md)
 - [ListRowProps](interfaces/ListRowProps.md)
 - [ListRow](functions/ListRow.md)
+- [MenuButton](functions/MenuButton.md)
 - [ModalActions](functions/ModalActions.md)
 - [RadioGroup](functions/RadioGroup.md)
 - [RadioCard](functions/RadioCard.md)

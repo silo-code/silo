@@ -1046,10 +1046,13 @@ html.dark .silo-demo {
   align-items: center;
   justify-content: space-between;
 }
+/* Mirrors `.silo-section-label` in the host's components.css — semibold so the
+   docs' live examples match what the kit actually renders. */
 .silo-demo .silo-section-label {
   font-size: calc(var(--silo-font-size-chrome) - 1px);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   color: var(--silo-color-text-lo);
 }
 .silo-demo .silo-setting-row {

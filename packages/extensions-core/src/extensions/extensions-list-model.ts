@@ -1,6 +1,6 @@
-// Pure list logic for the Extensions page — search + the built-in visibility
-// filter — factored out of the component so the rules are unit-testable (the
-// component stays thin glue). See ExtensionsPage.tsx.
+// Pure list logic for the Extensions page — search and the built-in split —
+// factored out of the component so the rules are unit-testable (the component
+// stays thin glue). See ExtensionsPage.tsx.
 
 import type {
   InstalledExtension,
@@ -10,33 +10,42 @@ import type {
 export interface ExtensionsFilter {
   /** Free-text search; matched against name, id, publisher, and description. */
   query: string;
-  /** When false, first-party built-ins are hidden (third-party only). */
-  showBuiltins: boolean;
 }
 
-/** Filter the merged extension list by search query and the built-in toggle. */
+/** Filter the merged extension list by search query. */
 export function filterExtensions(
   extensions: readonly InstalledExtension[],
-  { query, showBuiltins }: ExtensionsFilter,
+  { query }: ExtensionsFilter,
 ): InstalledExtension[] {
   const q = query.trim().toLowerCase();
-  return extensions.filter((e) => {
-    if (!showBuiltins && e.builtin) return false;
-    if (!q) return true;
-    return (
+  if (!q) return [...extensions];
+  return extensions.filter(
+    (e) =>
       e.name.toLowerCase().includes(q) ||
       e.id.toLowerCase().includes(q) ||
       e.publisher.toLowerCase().includes(q) ||
-      (e.description?.toLowerCase().includes(q) ?? false)
-    );
-  });
+      (e.description?.toLowerCase().includes(q) ?? false),
+  );
 }
 
-/** Whether the list contains any built-in rows (gates showing the toggle). */
-export function hasBuiltins(
-  extensions: readonly InstalledExtension[],
-): boolean {
-  return extensions.some((e) => e.builtin);
+/**
+ * Split the list into what the user installed and what ships with Silo, in
+ * that order.
+ *
+ * Built-ins used to be hidden behind a "Show built-in" toggle, which made a
+ * chunk of what's actually running invisible unless you knew to go looking —
+ * and left the page unable to answer "what's installed?" without a setting
+ * change. They're always listed now, under their own heading, so the answer is
+ * complete and the distinction is still obvious.
+ */
+export function partitionBuiltins(extensions: readonly InstalledExtension[]): {
+  installed: InstalledExtension[];
+  builtin: InstalledExtension[];
+} {
+  return {
+    installed: extensions.filter((e) => !e.builtin),
+    builtin: extensions.filter((e) => e.builtin),
+  };
 }
 
 /**
