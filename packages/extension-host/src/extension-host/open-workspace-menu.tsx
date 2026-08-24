@@ -24,6 +24,7 @@ import { getFileService } from "./file-service";
 import { confirmWithDontShowAgain } from "./confirm-with-dont-show-again";
 import { getGlobalExtensionStorage } from "./extension-storage";
 import { executeCommand } from "./commands";
+import { closeMenu } from "./menu-controller";
 import { reapWorkspaceTerminals } from "./terminal-service";
 
 // The **one** builder for the "Open workspace" menu — saved groups to restore,
@@ -59,6 +60,9 @@ async function confirmAndDeleteWorkspace(
   // records synchronously) so no PTY is orphaned in the pty-host daemon.
   void reapWorkspaceTerminals(id);
   deleteWorkspace(id);
+  // The menu snapshot is taken at open time; dismiss it so the delete reads as
+  // having happened instead of leaving a stale row until click-away.
+  closeMenu();
 }
 
 /** Confirm, then delete a group. Member workspaces are kept and reappear
@@ -73,6 +77,7 @@ async function confirmAndDeleteGroup(id: string, name: string): Promise<void> {
   });
   if (!ok) return;
   deleteGroup(id);
+  closeMenu();
 }
 
 /**
