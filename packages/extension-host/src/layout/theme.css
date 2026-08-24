@@ -14,8 +14,24 @@
   --silo-color-text: #5a5959;
   /*#7a8099;*/
   --silo-color-text-lo: #3c3c3c;
-  --silo-color-input-bg: #1c2030;
+  /* The field reads as a slightly lighter box on the page (1.15:1). On a
+     near-black page a field can't be *recessed* into view — even #0f1115 is only
+     1.08:1 below #161922 — so a lift is the only way to draw the box at all.
+     Kept deliberately shallow: on a dark theme a field that lifts far enough to
+     be obvious on its own stops looking dark, so the lift only has to hint at
+     the box and let the border finish it. */
+  --silo-color-input-bg: #202536;
   --silo-color-input-text: #b7bccc;
+  /* The field edge, deliberately its own token rather than --silo-color-border.
+     That token is a *region seam* — transparent in dark, page-colored in light —
+     so a field styled with it has no edge at all on a dark page. This one is
+     tuned to sit one shade above --silo-color-input-bg (1.38:1) rather than to
+     hit the 3:1 of WCAG 1.4.11: a ring bright enough to clear 3:1 against the
+     fill reads as a highlighted/focused field at rest, which is louder than a
+     resting input should be. Fill and border split the work — neither draws the
+     box alone at these values, together they do — and the accent
+     `:focus-visible` ring is what marks the field when it actually matters. */
+  --silo-color-input-border: #343b55;
   --silo-color-border: transparent;
   --silo-color-border-strong: #2b3148;
   --silo-color-accent: #a0a0a0;
@@ -54,7 +70,13 @@
      The normal button is distinguished by its background, not a border. */
   --silo-button-border: transparent;
   --silo-button-primary-bg: var(--silo-color-accent);
-  --silo-button-primary-text: #fff;
+  /* The page background, not #fff: the dark accent is a light neutral
+     (#a0a0a0), so white-on-accent lands at 2.6:1 — a primary button whose own
+     label is the hardest thing on it to read. Painting the label in the page
+     bg instead gives 6.7:1. Light overrides this back to #fff, where the accent
+     is a saturated blue and white is the legible side. Themes that set a *dark*
+     accent should override it in their own vars. */
+  --silo-button-primary-text: var(--silo-color-bg);
   --silo-button-danger-bg: var(--silo-color-err);
   --silo-button-danger-text: #fff;
   /* Normal-button hover/active fill. Dark themes push toward black (the
@@ -232,10 +254,20 @@
   --silo-color-text-lo: #aaaaaa;
   --silo-color-input-bg: #ffffff;
   --silo-color-input-text: #4a4a4a;
+  /* Light keeps its white fill — on a light panel the field is already the
+     lighter surface, so the lift dark needs is inverted and inherent (1.26:1).
+     The border finishes the edge at 2.43:1 against that fill, matching dark's
+     restraint rather than ringing the box. */
+  --silo-color-input-border: #a6a6a6;
   --silo-color-border: #e5e5e5;
   --silo-color-border-strong: #c8c8c8;
   --silo-color-accent: #0078d4;
   --silo-color-accent-2: #6f42c1;
+
+  /* Back to white — the dark block paints the primary label in the page bg to
+     survive its light-neutral accent; here the accent is a saturated blue and
+     white is the high-contrast side (4.5:1 vs 3.6:1 for the #e5e5e5 panel). */
+  --silo-button-primary-text: #fff;
 
   /* Notify (toast) palette — a white card (like tabs/terminal/editor on the
      #e5e5e5 panel) with dark text for clear contrast. */
@@ -563,7 +595,7 @@ input,
 textarea {
   background: var(--silo-color-bg-hover);
   color: var(--silo-color-text-hi);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 4px 8px;
   font: inherit;

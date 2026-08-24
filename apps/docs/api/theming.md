@@ -50,6 +50,7 @@ Semantic, never literal (there is no `--silo-color-blue`). Every one is also a
 | `--silo-color-err`                   | Error / destructive                                           |
 | `--silo-color-input-bg`              | Form-field background                                         |
 | `--silo-color-input-text`            | Form-field text                                               |
+| `--silo-color-input-border`          | Form-field border (a real edge, unlike `--silo-color-border`) |
 | `--silo-color-button-bg`             | Neutral control surface                                       |
 | `--silo-color-button-text`           | Neutral control text                                          |
 | `--silo-color-toolbar-bg`            | Panel header bar background (breadcrumb, toolbar)             |

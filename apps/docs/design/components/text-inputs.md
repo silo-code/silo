@@ -1,7 +1,8 @@
 # Text inputs
 
 One input treatment across the whole app: `--silo-color-input-bg` background,
-6×8px padding, small radius, the shared focus ring. Four components cover the
+`--silo-color-input-border` edge, 6×8px padding, small radius, the shared
+focus ring. Four components cover the
 text-entry patterns modals use.
 
 <div class="silo-demo silo-demo-block">
@@ -116,9 +117,9 @@ saves — except in `multiline`, where plain Enter is a newline and
 edit; the next Esc closes the modal (the host coordinates this — don't add
 your own Escape handling).
 
-| Color                            | Token                                                                       |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| Field background / text / border | `--silo-color-input-bg` / `--silo-color-input-text` / `--silo-color-border` |
-| Display value                    | `--silo-color-text-hi`                                                      |
-| Inline error                     | `--silo-color-err`                                                          |
-| Pencil / ✓ / ✗                   | stock [`IconButton size="sm"`](/design/components/buttons#iconbutton)       |
+| Color                            | Token                                                                             |
+| -------------------------------- | --------------------------------------------------------------------------------- |
+| Field background / text / border | `--silo-color-input-bg` / `--silo-color-input-text` / `--silo-color-input-border` |
+| Display value                    | `--silo-color-text-hi`                                                            |
+| Inline error                     | `--silo-color-err`                                                                |
+| Pencil / ✓ / ✗                   | stock [`IconButton size="sm"`](/design/components/buttons#iconbutton)             |

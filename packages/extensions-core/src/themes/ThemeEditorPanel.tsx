@@ -38,6 +38,7 @@ const VAR_GROUPS: { label: string; keys: (keyof ThemeVars)[] }[] = [
       "--silo-color-text-lo",
       "--silo-color-input-bg",
       "--silo-color-input-text",
+      "--silo-color-input-border",
       "--silo-color-border",
       "--silo-color-border-strong",
       "--silo-color-accent",

@@ -99,6 +99,7 @@ is the same set extensions are allowed to consume.
 | `--silo-color-text-lo`       | Low-emphasis text (hints, disabled)     |
 | `--silo-color-input-bg`      | Form-field background                   |
 | `--silo-color-input-text`    | Form-field text                         |
+| `--silo-color-input-border`  | Form-field border                       |
 | `--silo-color-border`        | Default border (often transparent)      |
 | `--silo-color-border-strong` | Visible divider / outline               |
 | `--silo-color-accent`        | Accent (links, focus, selection)        |
