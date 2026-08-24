@@ -132,8 +132,18 @@ These are unsettled — the reason this page is `experimental`:
 - **Sub-agent correlation** — the hook events give a count and a bag of running
   types, but no key to pair a specific sub-agent start with its stop; a precise
   tree is out of scope.
-- **Platform** — exact resume is macOS + Linux only (it needs a foreground
-  process-group id to correlate against); Windows stays detection-only.
+- **Platform** — exact resume is macOS + Linux only: the hook is a POSIX
+  shell script, and correlation matches the hook's recorded pgid against the
+  terminal's foreground process group. Windows has **detection and identity**
+  — `SessionWindowsBackend` resolves a foreground leader by walking the
+  process tree from the shell it spawned (ConPTY exposes no `tcgetpgrp`
+  equivalent), which feeds the same `agentByLeader` path every platform uses.
+  What it lacks is a per-turn *activity* signal for agents that don't emit
+  one: Copilot CLI announces a task's start via its OSC 0 title but never its
+  end, so its busy/idle state relies on a debounce rather than an explicit
+  signal. Deriving activity from process-tree churn (a tool subprocess running
+  under the agent means "working") would fix that class of agent on every
+  platform, and is not yet designed.
 
 ## Non-goals
 

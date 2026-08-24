@@ -39,8 +39,18 @@ only ever adds or removes its own entry (marked `# silo-managed-agent-hook`);
 your other hooks are never touched. If a settings file exists but isn't valid
 JSON, Silo refuses to rewrite it — fix or remove the file first.
 
-Exact resume works on **macOS and Linux**; on Windows, agents are still
-detected, but exact resume isn't available. The hook runs a small, readable
+Exact resume works on **macOS and Linux**. On Windows, Silo detects which
+agent is running and shows its activity, but exact resume isn't available —
+the hook is a POSIX shell script, so there's nothing to install there, and
+Settings → Agents is read-only.
+
+One caveat on Windows activity: Silo reads the status signals an agent emits,
+and not every agent emits them per turn. GitHub Copilot CLI, for instance,
+announces a task when it starts one but not when it finishes, so its
+busy/idle state is less reliable than Claude's or Codex's. Which agent is
+running is always correct; how busy it is may lag.
+
+The hook runs a small, readable
 shell script Silo writes to `~/.silo/agent-hooks/track-session.sh` — you can
 open and inspect it, and it needs no interpreter or dependency beyond the shell
 your agent already runs its hooks with. See the

@@ -1,5 +1,13 @@
 // Foreground-process resolution for the Windows session backend.
 //
+// Only `session_windows.rs` consumes this, so on other platforms nothing
+// constructs these types and rustc rightly says so. The module is still
+// *compiled* everywhere on purpose: `resolve_leader` is pure, and its tests
+// are the only place the tree-walk logic is exercised on a machine a
+// developer is likely to be sitting at. Silence the dead-code lint off
+// Windows rather than lose that.
+#![cfg_attr(not(windows), allow(dead_code))]
+//
 // Unix answers "what is running in this terminal right now?" with
 // `tcgetpgrp` on the PTY master — the kernel tracks a foreground process
 // *group*, and the answer is one syscall. ConPTY has no equivalent: there are
