@@ -388,7 +388,12 @@ export function detectCopilotTitle(
   if (code !== 0) return null;
   const title = payload.trim();
   if (title === COPILOT_TITLE) {
-    return { status: "idle", source: "agent", identity: true, agentId: "copilot" };
+    return {
+      status: "idle",
+      source: "agent",
+      identity: true,
+      agentId: "copilot",
+    };
   }
   if (title.endsWith(COPILOT_TITLE_SUFFIX)) {
     return {

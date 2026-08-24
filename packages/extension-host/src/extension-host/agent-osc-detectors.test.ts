@@ -511,14 +511,14 @@ describe("detectCopilotTitle — captured live on Windows 2026-08-24", () => {
 
   it("reads a task title as working", () => {
     // Exactly what Copilot emitted when asked to do something slow.
-    expect(detectCopilotTitle(0, "Implement Quick Task - GitHub Copilot")).toEqual(
-      {
-        status: "working",
-        source: "agent",
-        timer: "schedule-agent",
-        agentId: "copilot",
-      },
-    );
+    expect(
+      detectCopilotTitle(0, "Implement Quick Task - GitHub Copilot"),
+    ).toEqual({
+      status: "working",
+      source: "agent",
+      timer: "schedule-agent",
+      agentId: "copilot",
+    });
   });
 
   it("handles a task title echoing the user's own prompt", () => {

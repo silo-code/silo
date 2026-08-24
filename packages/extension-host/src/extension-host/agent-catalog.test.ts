@@ -44,9 +44,7 @@ describe("leaderBasename — Windows executable names (RFC: Windows agents)", ()
   });
 
   it("handles a backslash-separated path", () => {
-    expect(agentByLeader("C:\\Users\\x\\bin\\copilot.exe")?.id).toBe(
-      "copilot",
-    );
+    expect(agentByLeader("C:\\Users\\x\\bin\\copilot.exe")?.id).toBe("copilot");
   });
 
   it("leaves Unix leaders exactly as they were", () => {
