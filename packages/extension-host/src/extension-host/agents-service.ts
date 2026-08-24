@@ -995,6 +995,18 @@ function attachSession(terminalId: string) {
   };
   trackedAgents.set(terminalId, entry);
 
+  // Which workspace a tracked terminal is filed under decides whether it is
+  // ever visible: `ctx.agents.getState()` filters on
+  // `info.workspaceId === activeWorkspaceId`, and the all-workspaces view is
+  // filtered by the caller the same way. A mismatch here means a terminal that
+  // is tracked, ticking, and completely invisible — with nothing in the log to
+  // say why.
+  agentsChannel.debug(
+    `terminal ${terminalId} tracked in workspace ${ctx.wsId} ` +
+      `(active workspace ${store.activeWorkspaceId ?? "none"}, ` +
+      `${trackedAgents.size} tracked total)`,
+  );
+
   entry.cleanupOsc = getTerminalService().subscribeOsc(
     terminalId,
     ({ code, payload }) => {
