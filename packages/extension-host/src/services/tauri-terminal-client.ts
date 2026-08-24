@@ -211,20 +211,37 @@ export class TauriTerminalClient {
     // Unregister session interest (no-op for local PTY)
   }
 
+  /**
+   * Begin delivering this session's output: start the backend reader thread,
+   * then establish the Tauri event bridge.
+   *
+   * **Every** output-derived subscription must call this, not just `onOutput`.
+   * On Unix the reader thread starts in `terminal_create`, so the invoke is a
+   * no-op and forgetting it costs nothing. On Windows the reader is deliberately
+   * deferred until `terminal_start_stream` (the blank-canvas race — cmd.exe
+   * emits its banner in ~5 ms, before JS `listen()` completes), so a subscriber
+   * that skips it registers a listener for a stream that never starts. That is
+   * invisible on macOS and total on Windows, which is exactly how `onOsc` came
+   * to silently deliver nothing there.
+   *
+   * Fire-and-forget and safe to repeat — the Rust side is idempotent
+   * (`AtomicBool` swap).
+   */
+  private beginOutputStream(sessionId: string): void {
+    invoke("terminal_start_stream", { sessionId }).catch(() => {});
+    // Without this, callers that subscribe before the terminal panel mounts
+    // (e.g. ctx.terminals.subscribeOutput) would never receive events.
+    this.setupSessionListeners(sessionId).catch(() => {});
+  }
+
   onOutput(sessionId: string, cb: OutputListener): () => void {
     let set = this.outputListeners.get(sessionId);
     if (!set) {
-      // First listener for this session. Start the backend reader thread now,
-      // so that the first output bytes can't arrive before this callback is
-      // in place. On non-Windows the command is a no-op. Fire-and-forget —
-      // the Rust side is idempotent (AtomicBool swap) so double calls are safe.
-      invoke("terminal_start_stream", { sessionId }).catch(() => {});
+      // First listener for this session — start the stream before the callback
+      // can miss anything.
       set = new Set();
       this.outputListeners.set(sessionId, set);
-      // Establish the Tauri event bridge for this session if it isn't already
-      // active. Without this, callers that subscribe before the terminal panel
-      // mounts (e.g. ctx.terminals.subscribeOutput) would never receive events.
-      this.setupSessionListeners(sessionId).catch(() => {});
+      this.beginOutputStream(sessionId);
     }
     set.add(cb);
     return () => {
@@ -239,6 +256,11 @@ export class TauriTerminalClient {
     if (!set) {
       set = new Set();
       this.exitListeners.set(sessionId, set);
+      // Exit is emitted by the same reader loop as output (terminal_io.rs), so
+      // a caller that subscribes only to exit — e.g. an extension driving a
+      // `ctx.process.spawn` session it doesn't render — still needs the reader
+      // running, or on Windows it would never learn the process ended.
+      this.beginOutputStream(sessionId);
     }
     set.add(cb);
     return () => {
@@ -261,10 +283,9 @@ export class TauriTerminalClient {
     if (!set) {
       set = new Set();
       this.oscListeners.set(sessionId, set);
-      // Establish the terminal_output bridge for this session if it isn't
-      // already active — without this, OSC listeners registered before the
-      // terminal panel mounts would never receive events.
-      this.setupSessionListeners(sessionId).catch(() => {});
+      // OSC sequences ride the same output stream, so this needs the reader
+      // running just as much as `onOutput` does — see `beginOutputStream`.
+      this.beginOutputStream(sessionId);
     }
     set.add(cb);
     return () => {
