@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.39.0](https://github.com/silo-code/silo/compare/sdk-v0.38.0...sdk-v0.39.0) (2026-08-24)
+
+
+### Features
+
+* **settings:** rebuild Settings on a new app-sheet surface ([#410](https://github.com/silo-code/silo/issues/410)) ([855bd28](https://github.com/silo-code/silo/commit/855bd28636cccc9fca009138fdd50f27ebd6667c))
+
 ## [0.38.0](https://github.com/silo-code/silo/compare/sdk-v0.37.1...sdk-v0.38.0) (2026-08-23)
 
 
