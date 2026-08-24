@@ -190,6 +190,7 @@ export interface ThemeVars {
   "--silo-color-err": string;
   "--silo-color-input-bg": string;
   "--silo-color-input-text": string;
+  "--silo-color-input-border": string;
   "--silo-color-button-bg": string;
   "--silo-color-button-text": string;
   // ── Design tokens — toolbar surface (panel header bars) ──
@@ -200,6 +201,18 @@ export interface ThemeVars {
   // ── Design tokens — content viewport surface (editor, terminal, viewer panels) ──
   "--silo-color-content-bg": string;
   "--silo-color-content-text": string;
+  // ── Design tokens — button treatment (themeable, per theme.css) ──
+  // A theme can restyle buttons without moving the global accent. Chiefly
+  // `--silo-button-primary-text`: dark's default paints the primary label in
+  // the page background because its accent is a light neutral, so a theme with
+  // a *dark* or saturated accent has to set white back.
+  "--silo-button-bg": string;
+  "--silo-button-text": string;
+  "--silo-button-border": string;
+  "--silo-button-primary-bg": string;
+  "--silo-button-primary-text": string;
+  "--silo-button-danger-bg": string;
+  "--silo-button-danger-text": string;
   // ── Design tokens — font families ──
   "--silo-font-ui"?: string;
   "--silo-font-mono"?: string;

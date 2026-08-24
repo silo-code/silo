@@ -374,11 +374,14 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
 
         {view.kind === "browse" ? (
           <>
-            <SearchInput
-              value={browseQuery}
-              onValueChange={setBrowseQuery}
-              placeholder="Search the extension registry…"
-            />
+            <div className="ext-list-bar">
+              <SearchInput
+                value={browseQuery}
+                onValueChange={setBrowseQuery}
+                placeholder="Search the extension registry…"
+              />
+              {renderUpdateAll()}
+            </div>
             {registry.status === "ready" && (
               <div className="ext-cats">
                 <button
@@ -507,7 +510,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
           </>
         ) : (
           <>
-            <div className="ext-installed-bar">
+            <div className="ext-list-bar">
               {extensions.length > 0 && (
                 <SearchInput
                   value={query}
@@ -515,15 +518,7 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                   placeholder="Search installed extensions…"
                 />
               )}
-              {updates.length > 0 && (
-                <Button
-                  variant="primary"
-                  onClick={updateAll}
-                  disabled={busy !== null}
-                >
-                  Update all ({updates.length})
-                </Button>
-              )}
+              {renderUpdateAll()}
             </div>
 
             {extensions.length === 0 ? (
@@ -554,6 +549,24 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
         )}
       </div>
     );
+
+    /**
+     * "Update all", in the filter bar of *both* list tabs. Pending updates are
+     * a fact about what's installed, not about which tab is open — the count
+     * already rides the Installed tab label and the Settings rail badge from
+     * either view, and `updateAll` never touches the catalog — so hiding the
+     * action on Browse only meant seeing the count there with no way to act on
+     * it. Renders nothing when there's nothing to update, which is the common
+     * case on both tabs.
+     */
+    function renderUpdateAll() {
+      if (updates.length === 0) return null;
+      return (
+        <Button variant="primary" onClick={updateAll} disabled={busy !== null}>
+          Update all ({updates.length})
+        </Button>
+      );
+    }
 
     // One card renderer for both groups — an installed extension looks the same
     // whether the user put it there or Silo ships it; only the heading above it

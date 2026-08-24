@@ -20,7 +20,7 @@
 .silo-input {
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 6px 8px;
   font: inherit;
@@ -33,7 +33,7 @@
 .silo-textarea {
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 6px 8px;
   font: inherit;
@@ -65,7 +65,7 @@
 .silo-search-input input {
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 6px 28px 6px 28px;
   font: inherit;
@@ -145,7 +145,7 @@
 .silo-select {
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 5px 8px;
   font: inherit;

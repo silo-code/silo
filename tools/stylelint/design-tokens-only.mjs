@@ -51,6 +51,7 @@ export const DESIGN_TOKENS = new Set([
   "--silo-color-err",
   "--silo-color-input-bg",
   "--silo-color-input-text",
+  "--silo-color-input-border",
   "--silo-color-button-bg",
   "--silo-color-button-text",
   // toolbar surface — panel header bars (breadcrumb, view-switcher, web viewer, etc.)

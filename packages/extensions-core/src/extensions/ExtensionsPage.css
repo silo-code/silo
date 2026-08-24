@@ -46,7 +46,7 @@
   flex: 1 1 auto;
   min-width: 0;
   background: var(--silo-color-input-bg);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   color: var(--silo-color-input-text);
   padding: 7px 10px;
   border-radius: var(--silo-radius-sm);
@@ -58,11 +58,6 @@
 }
 .ext-install-input:disabled {
   opacity: 0.5;
-}
-
-/* SearchInput (SDK) spans the page width on Browse; flex-grows in the bar. */
-.ext-page > .silo-search-input {
-  width: 100%;
 }
 
 .ext-list {
@@ -460,13 +455,15 @@
   padding: 0 5px;
 }
 
-/* Search + built-in toggle + Update all, on one line above the installed list. */
-.ext-installed-bar {
+/* Search + Update all, on one line above the list — the same bar on both list
+   tabs. The search flex-grows, so with nothing beside it (the usual case, when
+   no updates are pending) it still spans the full page width. */
+.ext-list-bar {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.ext-installed-bar .silo-search-input {
+.ext-list-bar .silo-search-input {
   flex: 1 1 auto;
   min-width: 0;
 }

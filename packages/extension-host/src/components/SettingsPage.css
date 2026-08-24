@@ -56,7 +56,7 @@
   width: 220px;
   box-sizing: border-box;
   background: var(--silo-color-input-bg);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   color: var(--silo-color-input-text);
   padding: 5px 8px;
   border-radius: var(--silo-radius-sm);
@@ -126,7 +126,7 @@
   max-height: 180px;
   overflow-y: auto;
   background: var(--silo-color-input-bg);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
   list-style: none;

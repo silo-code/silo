@@ -37,7 +37,7 @@
   box-sizing: border-box;
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   /* Match the git panel's commit textarea so side-panel inputs are consistent. */
   padding: 6px 8px;
@@ -275,7 +275,7 @@
   box-sizing: border-box;
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 6px 8px;
   font-family: var(--silo-font-ui);
@@ -315,7 +315,7 @@
   display: flex;
   flex-direction: column;
   background: var(--silo-color-input-bg);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 4px 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);

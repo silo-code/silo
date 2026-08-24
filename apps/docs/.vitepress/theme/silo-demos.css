@@ -32,6 +32,7 @@
   --silo-color-text-lo: #aaaaaa;
   --silo-color-input-bg: #ffffff;
   --silo-color-input-text: #4a4a4a;
+  --silo-color-input-border: #a6a6a6;
   --silo-color-border: #e5e5e5;
   --silo-color-border-strong: #c8c8c8;
   --silo-color-accent: #0078d4;
@@ -93,8 +94,10 @@ html[data-silo-demo-theme="dark"] .silo-demo {
   --silo-color-text-hi: #818181;
   --silo-color-text: #5a5959;
   --silo-color-text-lo: #575757;
-  --silo-color-input-bg: #1c2030;
+  --silo-color-input-bg: #202536;
   --silo-color-input-text: #b7bccc;
+  --silo-color-input-border: #343b55;
+  --silo-button-primary-text: var(--silo-color-bg);
   --silo-color-border: #222222;
   --silo-color-border-strong: #2b3148;
   --silo-color-accent: #a0a0a0;
@@ -118,8 +121,10 @@ html[data-silo-demo-theme="gruvbox-dark"] .silo-demo {
   --silo-color-text-hi: #a89984;
   --silo-color-text: #928374;
   --silo-color-text-lo: #5f564d;
-  --silo-color-input-bg: #3c3836;
+  --silo-color-input-bg: #282828;
   --silo-color-input-text: #ebdbb2;
+  --silo-color-input-border: #453f3b;
+  --silo-button-primary-text: var(--silo-color-bg);
   --silo-color-border: transparent;
   --silo-color-border-strong: #7c6f64;
   --silo-color-accent: #83a598;
@@ -143,8 +148,10 @@ html[data-silo-demo-theme="high-contrast-dark"] .silo-demo {
   --silo-color-text-hi: #e4e6ec;
   --silo-color-text: #a0a0a0;
   --silo-color-text-lo: #6b6b6b;
-  --silo-color-input-bg: #1c2030;
+  --silo-color-input-bg: #2a3044;
   --silo-color-input-text: #f5f6fa;
+  --silo-color-input-border: #4a5378;
+  --silo-button-primary-text: var(--silo-color-bg);
   --silo-color-border: transparent;
   --silo-color-border-strong: #2b3148;
   --silo-color-accent: #a0a0a0;
@@ -170,6 +177,7 @@ html[data-silo-demo-theme="high-contrast-light"] .silo-demo {
   --silo-color-text-lo: #5a5a5a;
   --silo-color-input-bg: #ffffff;
   --silo-color-input-text: #0a0a0a;
+  --silo-color-input-border: #6b6b6b;
   --silo-color-border: #e5e5e5;
   --silo-color-border-strong: #c8c8c8;
   --silo-color-accent: #0078d4;
@@ -195,6 +203,7 @@ html[data-silo-demo-theme="solarized-dark"] .silo-demo {
   --silo-color-text-lo: #586e75;
   --silo-color-input-bg: #073642;
   --silo-color-input-text: #93a1a1;
+  --silo-color-input-border: #0f4c5b;
   --silo-color-border: transparent;
   --silo-color-border-strong: #586e75;
   --silo-color-accent: #cb4b16;
@@ -218,8 +227,9 @@ html[data-silo-demo-theme="solarized-light"] .silo-demo {
   --silo-color-text-hi: #839496;
   --silo-color-text: #738a8a;
   --silo-color-text-lo: #a3b1b1;
-  --silo-color-input-bg: #e8e2d0;
+  --silo-color-input-bg: #fdf6e3;
   --silo-color-input-text: #657b83;
+  --silo-color-input-border: #cfc8b3;
   --silo-color-border: #eee8d5;
   --silo-color-border-strong: #93a1a1;
   --silo-color-accent: #d25f26ff;
@@ -243,8 +253,10 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   --silo-color-text-hi: #787c99;
   --silo-color-text: #6b7099;
   --silo-color-text-lo: #434a6b;
-  --silo-color-input-bg: #1f2335;
+  --silo-color-input-bg: #20243a;
   --silo-color-input-text: #a9b1d6;
+  --silo-color-input-border: #333959;
+  --silo-button-primary-text: var(--silo-color-bg);
   --silo-color-border: transparent;
   --silo-color-border-strong: #3d4461;
   --silo-color-accent: #7aa2f7;
@@ -527,7 +539,7 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 .silo-demo .silo-input {
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 6px 8px;
   font: inherit;
@@ -538,7 +550,7 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 .silo-demo .silo-textarea {
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 6px 8px;
   font: inherit;
@@ -563,7 +575,7 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 .silo-demo .silo-search-input input {
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 6px 28px 6px 28px;
   font: inherit;
@@ -585,7 +597,7 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 .silo-demo .silo-select {
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 5px 8px;
   font: inherit;
@@ -595,7 +607,7 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   text-align: center;
   background: var(--silo-color-input-bg);
   color: var(--silo-color-input-text);
-  border: 1px solid var(--silo-color-border);
+  border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-sm);
   padding: 5px 6px;
   font: inherit;
