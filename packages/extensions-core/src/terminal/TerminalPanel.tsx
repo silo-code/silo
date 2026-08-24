@@ -42,6 +42,7 @@ import { xtermThemeFor } from "./xterm-theme";
 import { effectiveFontFamily } from "./terminal-font";
 import { buildTerminalPaste } from "./terminal-path-paste";
 import { findFileLinks, getHomeDir } from "./terminal-links";
+import { resolveTerminalFilePath } from "./terminal-open-file";
 import {
   isLinkActivationClick,
   linkMenuLabels,
@@ -119,20 +120,18 @@ async function openFileFromTerminal(
   const wsId = findTerminalOwnerId(Object.values(store.workspaces), terminalId);
   if (!wsId) return;
   const ws = store.workspaces[wsId];
+  const tRec = ws.terminals.find((t) => t.id === terminalId);
 
-  // Pull off the optional :LINE:COL suffix. We don't currently honor it
-  // (editor doesn't expose a goto-line API), but stripping it ensures the
-  // path resolves to a real file.
-  const lineColMatch = matched.match(/^(.+?)(?::(\d+))?(?::(\d+))?$/);
-  let path = lineColMatch?.[1] ?? matched;
-
-  if (path.startsWith("~/")) {
-    const home = await getHomeDir();
-    path = `${home}/${path.slice(2)}`;
-  } else if (!path.startsWith("/")) {
-    const rel = path.replace(/^\.\//, "");
-    path = `${ws.folder.replace(/\/$/, "")}/${rel}`;
+  // Relative paths resolve against the terminal's cwd (which may be a
+  // worktree or extra folder), not the workspace's primary folder.
+  let baseDir = tRec?.cwd ?? ws.folder;
+  if (tRec?.sessionId) {
+    const fg = await terminalForegroundSnapshot(tRec.sessionId);
+    if (fg?.cwd) baseDir = fg.cwd;
   }
+
+  const home = matched.startsWith("~/") ? await getHomeDir() : undefined;
+  const path = resolveTerminalFilePath(matched, baseDir, home);
 
   editors.open(path, { workspaceId: wsId });
 }
