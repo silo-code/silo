@@ -72,6 +72,9 @@ type TrackedAgent = {
    * / reset. `null` until a known agent leader has been seen.
    */
   agentPgid: number | null;
+  /** Last `<code>\0<payload>` logged for this terminal, to collapse the
+   * repeats that title sequences produce. Diagnostics only. */
+  lastOscKey?: string;
   /**
    * Sticky catalog id (`"claude"`, `"grok"`, …) of the leader that set
    * {@link agentPgid}. Used to reject foreign SessionStart hooks that share a
@@ -688,6 +691,41 @@ function applyDetection(terminalId: string, result: DetectionResult) {
 /** Attach catalog identity from an OSC identity signal. Does not invent a
  * session id — only names the agent so shell-integration noise can't wipe
  * the promotion. */
+
+/**
+ * Record every OSC sequence a tracked terminal emits, and whether any detector
+ * claimed it.
+ *
+ * This is the signal that answers "why is my agent's status not updating?" —
+ * a question that otherwise requires capturing the raw PTY stream, which is
+ * impractical on Windows (no `script`, and redirecting to a file makes the
+ * agent non-TTY so it stops emitting sequences at all).
+ *
+ * Deliberately logs the *undetected* ones too: an agent whose activity never
+ * changes is emitting something we don't understand, and the payload is the
+ * only way to find out what. Consecutive identical events are collapsed —
+ * title sequences repeat heavily — so a busy terminal doesn't drown the
+ * channel.
+ */
+function logOscEvent(
+  entry: TrackedAgent,
+  terminalId: string,
+  code: number,
+  payload: string,
+): void {
+  const key = `${code}\u0000${payload}`;
+  if (entry.lastOscKey === key) return;
+  entry.lastOscKey = key;
+  const detected = detectFromOsc(code, payload);
+  const trimmed = payload.length > 120 ? `${payload.slice(0, 120)}…` : payload;
+  agentsChannel.debug(
+    `terminal ${terminalId} osc ${code} payload=${JSON.stringify(trimmed)} → ` +
+      (detected
+        ? `${detected.status} (source=${detected.source})`
+        : "no detector matched"),
+  );
+}
+
 function stampDetectedAgentIdentity(terminalId: string, agentId: string) {
   const entry = trackedAgents.get(terminalId);
   const agent = agentById(agentId);
@@ -1020,6 +1058,7 @@ function attachSession(terminalId: string) {
   entry.cleanupOsc = getTerminalService().subscribeOsc(
     terminalId,
     ({ code, payload }) => {
+      logOscEvent(entry, terminalId, code, payload);
       const detected = detectFromOsc(code, payload);
       if (detected) {
         const wasAgent = entry.state.isAgent;
