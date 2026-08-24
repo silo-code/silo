@@ -919,8 +919,14 @@ function bindForeground(
     sessionId,
   }).then((fg) => {
     if (!fg) {
+      // "not yet" is only true where a foreground stream exists at all. Where
+      // the backend has none, this fires for every terminal forever and the
+      // wording sends anyone reading the log looking for a race that isn't
+      // there — which is exactly what happened on Windows.
       agentsChannel.debug(
-        `terminal ${terminalId} foreground seed: no snapshot available yet`,
+        `terminal ${terminalId} foreground seed: no snapshot ` +
+          `(none yet, or this backend reports no foreground process — see the ` +
+          `capability line logged at startup)`,
       );
       return;
     }
@@ -994,7 +1000,21 @@ function attachSession(terminalId: string) {
     ({ code, payload }) => {
       const detected = detectFromOsc(code, payload);
       if (detected) {
+        const wasAgent = entry.state.isAgent;
         applyDetection(terminalId, detected);
+        if (!wasAgent && entry.state.isAgent) {
+          // Promotion from OSC alone. On Windows this is the *only* way a
+          // terminal becomes an agent, so silence here meant an unexplained
+          // "nothing appears" with no trace to follow.
+          agentsChannel.debug(
+            `terminal ${terminalId} promoted to agent by OSC ${code} ` +
+              `(${detected.status}, source=${detected.source})` +
+              (entry.state.agentId
+                ? ` — identified as ${entry.state.agentId}`
+                : " — no identity yet (needs a foreground leader or an " +
+                  "identity-carrying signal)"),
+          );
+        }
         return;
       }
       // Contextual fallback (Codex's plain-title idle): only meaningful when

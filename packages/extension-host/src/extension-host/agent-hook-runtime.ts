@@ -4,6 +4,7 @@
  * {@link HookRuntimeDeps}.
  */
 import { invoke } from "@tauri-apps/api/core";
+import { systemInfo } from "../services/tauri-system";
 import { agentsChannel } from "./agents-channel";
 import {
   readNewHookEvents,
@@ -194,6 +195,7 @@ export function createHookRuntime(deps: HookRuntimeDeps): HookRuntime {
       agentsChannel.info(
         `Hook-events watch started on ${dir} (consume on write, not polled).`,
       );
+      void logPlatformCapabilities();
     } catch (err) {
       agentsChannel.warn(
         "Could not start agent-hooks file watch; catch-up reads only.",
@@ -221,4 +223,31 @@ export function createHookRuntime(deps: HookRuntimeDeps): HookRuntime {
     startAgentHooksWatch,
     dispose,
   };
+}
+
+/**
+ * State what agent machinery is actually available on this platform, once, at
+ * startup.
+ *
+ * Every other line in this channel describes something that happened. This one
+ * describes what *can* happen — which is the line that was missing when agents
+ * silently failed to be identified on Windows: the channel logged the
+ * foreground path in detail and said nothing about the fact that there is no
+ * foreground path there at all. A user reporting "my agent doesn't show up" can
+ * paste this instead of us reading source.
+ */
+async function logPlatformCapabilities(): Promise<void> {
+  try {
+    const { os } = await systemInfo();
+    const windows = os === "windows";
+    agentsChannel.info(
+      `Agent capabilities on ${os}: ` +
+        `foreground=${windows ? "process-tree walk" : "tcgetpgrp"} · ` +
+        `identity=${windows ? "leader name (via walk)" : "leader name"} · ` +
+        `hooks=${windows ? "unavailable (POSIX shell only)" : "available"} · ` +
+        `activity=OSC`,
+    );
+  } catch {
+    // Never let diagnostics break startup.
+  }
 }

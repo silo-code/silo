@@ -19,7 +19,8 @@ use parking_lot::Mutex;
 use portable_pty::PtySize;
 
 use super::session_backend::{
-    log_event, Connection, ForegroundSub, SessionBackend, SessionChild, SessionMaster,
+    log_event, Connection, ForegroundInfo, ForegroundSub, SessionBackend, SessionChild,
+    SessionMaster,
 };
 use super::session_env::{encode_session_env, SESSION_ENV_CARRIER};
 
@@ -28,6 +29,23 @@ use super::session_env::{encode_session_env, SESSION_ENV_CARRIER};
 const T_DATA: u8 = 0;
 const T_RESIZE: u8 = 1;
 const T_KILL: u8 = 2;
+/// Daemon → client: a foreground-process update, tab-separated
+/// `<pid>\t<at_prompt 0|1>\t<leader name>`. Mirrors the Unix host's T_FG_REP.
+const T_FG_REP: u8 = 4;
+/// Client → daemon: turn this connection into a foreground-events subscriber.
+/// Such a connection must never join `clients` — under MAX_DATA_CLIENTS = 1 it
+/// would evict the live data client (the same regression RFC 0026 hit on Unix).
+const T_SUBSCRIBE_FG: u8 = 6;
+
+/// How often to re-snapshot the process tree while a foreground subscriber is
+/// attached. `CreateToolhelp32Snapshot` enumerates *every* process on the
+/// machine, so this is not free — with a dozen terminals open a tight loop is
+/// real overhead. Poll briskly right after a change (an agent starting is what
+/// the user is waiting to see) and back off while the answer is stable.
+const FG_POLL_FAST: Duration = Duration::from_millis(500);
+const FG_POLL_IDLE: Duration = Duration::from_millis(2500);
+/// Stay on the fast cadence for this long after the leader last changed.
+const FG_SETTLE: Duration = Duration::from_secs(5);
 
 const RING_CAPACITY: usize = 256 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(3000);
@@ -61,6 +79,64 @@ fn read_frame<R: Read>(r: &mut R) -> io::Result<(u8, Vec<u8>)> {
         r.read_exact(&mut payload)?;
     }
     Ok((tag, payload))
+}
+
+/// Serve one foreground-events subscriber until it disconnects.
+///
+/// Unix gets this for free: `tcgetpgrp` on the PTY master reports the
+/// foreground process group, and the daemon blocks until it changes. ConPTY has
+/// no such notion, so the leader is *inferred* by walking the process tree from
+/// the shell we spawned (see `process_tree`). That inference is only as good as
+/// its cadence, hence the poll — there is no change event to wait on.
+///
+/// Only differences are sent, so a terminal sitting at a prompt costs one
+/// snapshot every `FG_POLL_IDLE` and no traffic at all.
+#[cfg(windows)]
+fn serve_foreground(mut stream: TcpStream, child_pid: Arc<AtomicU32>) {
+    use super::process_tree;
+
+    let mut last: Option<(u32, bool)> = None;
+    let mut last_change = Instant::now();
+
+    loop {
+        let root = child_pid.load(Ordering::Acquire);
+        if root == 0 {
+            return; // shell never started, or already reaped
+        }
+
+        match process_tree::resolve_leader(&process_tree::snapshot(), root) {
+            Some(leader) => {
+                let key = (leader.pid, leader.at_prompt);
+                if last != Some(key) {
+                    last = Some(key);
+                    last_change = Instant::now();
+                    // `cwd` is deliberately absent: Unix reads it from
+                    // /proc or KERN_PROCARGS, and Windows has no cheap
+                    // equivalent. The seam allows "" for unknown.
+                    let payload = format!(
+                        "{}\t{}\t{}",
+                        leader.pid,
+                        if leader.at_prompt { 1 } else { 0 },
+                        leader.name
+                    );
+                    if write_frame(&mut stream, T_FG_REP, payload.as_bytes()).is_err() {
+                        return; // subscriber gone
+                    }
+                }
+            }
+            None => {
+                // The shell is no longer in the snapshot — the session is over.
+                return;
+            }
+        }
+
+        let interval = if last_change.elapsed() < FG_SETTLE {
+            FG_POLL_FAST
+        } else {
+            FG_POLL_IDLE
+        };
+        thread::sleep(interval);
+    }
 }
 
 // ── Paths ─────────────────────────────────────────────────────────────────────
@@ -254,6 +330,13 @@ pub fn run_daemon(
                 }
             };
             let _ = cmd_stream.set_read_timeout(None);
+
+            // A foreground subscriber never becomes a data client — joining
+            // `clients` here would evict the live one under MAX_DATA_CLIENTS.
+            if matches!(first, Some((T_SUBSCRIBE_FG, _))) {
+                serve_foreground(stream, child_pid);
+                return;
+            }
 
             let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
 
@@ -520,8 +603,41 @@ impl SessionBackend for SessionWindowsBackend {
         Ok(())
     }
 
-    fn subscribe_foreground(&self, _handle: &str) -> Option<Box<dyn ForegroundSub>> {
-        None
+    fn subscribe_foreground(&self, handle: &str) -> Option<Box<dyn ForegroundSub>> {
+        // A second connection dedicated to foreground events, mirroring the
+        // Unix backend: announce with T_SUBSCRIBE_FG so the daemon serves
+        // updates on it instead of treating it as a data client.
+        let mut stream = self.connect(handle).ok()?;
+        write_frame(&mut stream, T_SUBSCRIBE_FG, &[]).ok()?;
+        Some(Box::new(TcpForegroundSub { stream }))
+    }
+}
+
+/// Streams `T_FG_REP` frames from the daemon into the neutral `ForegroundInfo`.
+struct TcpForegroundSub {
+    stream: TcpStream,
+}
+
+impl ForegroundSub for TcpForegroundSub {
+    fn next(&mut self) -> Option<ForegroundInfo> {
+        loop {
+            let (tag, payload) = read_frame(&mut self.stream).ok()?;
+            if tag != T_FG_REP {
+                continue;
+            }
+            let text = String::from_utf8_lossy(&payload);
+            let mut parts = text.split('\t');
+            let pgid: i32 = parts.next()?.parse().ok()?;
+            let at_prompt = parts.next()? == "1";
+            let leader = parts.next().unwrap_or("").to_string();
+            return Some(ForegroundInfo {
+                pgid,
+                at_prompt,
+                leader,
+                // Windows has no cheap per-process cwd; the seam allows "".
+                cwd: String::new(),
+            });
+        }
     }
 }
 
