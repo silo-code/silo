@@ -355,6 +355,52 @@ export function detectPiTitle(
   };
 }
 
+/**
+ * Copilot CLI's OSC 0 title, which is both a state and an identity signal:
+ *
+ * ```
+ * GitHub Copilot                                    idle, at its prompt
+ * Implement Quick Task - GitHub Copilot             working on a task
+ * do something simple for 20 seconds - GitHub Copilot
+ * ```
+ *
+ * Captured live on Windows (2026-08-24). This matters more than it looks:
+ * Copilot emitted **no OSC 9;4 progress at all** in that session, so
+ * {@link detectCopilotCLI} — the progress detector — never fired and
+ * Copilot's activity never changed. The title is its only per-turn signal.
+ *
+ * The suffix is specific enough to carry `agentId`, unlike the OSC 9;4
+ * progress protocol, which is generic to Windows consoles and would label any
+ * `winget` install as Copilot.
+ *
+ * A working title arms the agent-idle debounce rather than promising an
+ * explicit idle: Copilot sets a title when a task *starts* and was not
+ * observed resetting it on completion, so silence is what ends the turn —
+ * the same shape as Cursor Agent's spinner fallback.
+ */
+const COPILOT_TITLE = "GitHub Copilot";
+const COPILOT_TITLE_SUFFIX = ` - ${COPILOT_TITLE}`;
+
+export function detectCopilotTitle(
+  code: number,
+  payload: string,
+): DetectionResult | null {
+  if (code !== 0) return null;
+  const title = payload.trim();
+  if (title === COPILOT_TITLE) {
+    return { status: "idle", source: "agent", identity: true, agentId: "copilot" };
+  }
+  if (title.endsWith(COPILOT_TITLE_SUFFIX)) {
+    return {
+      status: "working",
+      source: "agent",
+      timer: "schedule-agent",
+      agentId: "copilot",
+    };
+  }
+  return null;
+}
+
 export function detectCopilotCLI(
   code: number,
   payload: string,

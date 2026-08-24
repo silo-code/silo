@@ -10,6 +10,7 @@ import {
   detectShellIntegration,
   stripAgentStatusMarkers,
   CURSOR_SPINNER_FRAMES,
+  detectCopilotTitle,
 } from "./agent-osc-detectors";
 
 // Test cases adapted from silo-extensions/agent-monitor's own
@@ -495,5 +496,59 @@ describe("stripAgentStatusMarkers", () => {
     expect(stripAgentStatusMarkers("notes - Workingham")).toBe(
       "notes - Workingham",
     );
+  });
+});
+
+describe("detectCopilotTitle — captured live on Windows 2026-08-24", () => {
+  it("reads the bare title as idle and identifies Copilot", () => {
+    expect(detectCopilotTitle(0, "GitHub Copilot")).toEqual({
+      status: "idle",
+      source: "agent",
+      identity: true,
+      agentId: "copilot",
+    });
+  });
+
+  it("reads a task title as working", () => {
+    // Exactly what Copilot emitted when asked to do something slow.
+    expect(detectCopilotTitle(0, "Implement Quick Task - GitHub Copilot")).toEqual(
+      {
+        status: "working",
+        source: "agent",
+        timer: "schedule-agent",
+        agentId: "copilot",
+      },
+    );
+  });
+
+  it("handles a task title echoing the user's own prompt", () => {
+    const r = detectCopilotTitle(
+      0,
+      "do something simple for 20 seconds - GitHub Copilot",
+    );
+    expect(r?.status).toBe("working");
+    expect(r?.agentId).toBe("copilot");
+  });
+
+  it("ignores titles set by subprocesses Copilot spawns", () => {
+    // Observed in the same capture: powershell and cmd overwrite the title
+    // while Copilot shells out. Neither should change agent state.
+    expect(detectCopilotTitle(0, "Windows PowerShell")).toBeNull();
+    expect(
+      detectCopilotTitle(0, "C:\\WINDOWS\\system32\\cmd.exe - copilot"),
+    ).toBeNull();
+  });
+
+  it("ignores non-title OSC codes", () => {
+    // OSC 4/10/11 colour queries appeared throughout the same capture.
+    expect(detectCopilotTitle(4, "0;?")).toBeNull();
+    expect(detectCopilotTitle(11, "#0D1117")).toBeNull();
+    expect(detectCopilotTitle(9, "4;1;50")).toBeNull();
+  });
+
+  it("does not match a title that merely mentions Copilot", () => {
+    // Must be the suffix, not a substring anywhere — otherwise a shell whose
+    // cwd is a folder named "GitHub Copilot" would read as an agent.
+    expect(detectCopilotTitle(0, "GitHub Copilot notes - vim")).toBeNull();
   });
 });

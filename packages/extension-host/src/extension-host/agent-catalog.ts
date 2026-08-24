@@ -3,6 +3,7 @@ import {
   detectCodexCLI,
   detectCodexIdleAfterWorking,
   detectCopilotCLI,
+  detectCopilotTitle,
   detectPiTitle,
   detectCursorAgent,
   detectCursorAgentOutput,
@@ -484,9 +485,11 @@ const copilot: AgentDefinition = {
   id: "copilot",
   displayName: "GitHub Copilot CLI",
   leaderNames: ["copilot"],
-  // OSC 9;4 (ConEmu/Windows Terminal progress protocol), ported from
-  // silo-extensions/agent-monitor.
-  activityDetectors: [detectCopilotCLI],
+  // Title first: captured live on Windows (2026-08-24), Copilot emitted no
+  // OSC 9;4 at all for a whole session, so the progress detector alone left
+  // its activity permanently stale. The title is its per-turn signal and also
+  // identifies it. OSC 9;4 stays as a second source where it does fire.
+  activityDetectors: [detectCopilotTitle, detectCopilotCLI],
   resume: {
     kind: "hook",
     installStrategy: "copilot-hooks-dir",
