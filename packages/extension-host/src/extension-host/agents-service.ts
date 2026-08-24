@@ -820,6 +820,16 @@ function stickKnownAgentForeground(
   const becameAgent = prevAgentPgid !== fg.pgid;
   entry.agentPgid = fg.pgid;
   entry.agentCatalogId = agent.id;
+  // A known agent is the foreground process — that *is* an agent terminal,
+  // and it's stronger evidence than the OSC heuristics that normally promote
+  // one. `applyHookMatch` already promotes on the same reasoning; this path
+  // never did, because on macOS/Linux a hook or an OSC signal always got
+  // there first. On Windows neither exists, so a correctly-identified agent
+  // stayed `isAgent: false` and was filtered out of every consumer that shows
+  // "agent terminals" — tracked, named, and invisible.
+  if (!entry.state.isAgent && entry.state.kind === "shell") {
+    applyEvent(terminalId, detectedEvent(terminalId, "idle", "agent"));
+  }
   if (becameAgent) {
     if (prevAgentPgid != null) {
       resetSessionIdentityForNewInstance(entry, terminalId);
