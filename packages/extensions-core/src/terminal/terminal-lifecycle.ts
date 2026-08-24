@@ -5,7 +5,7 @@
  * record was actually removed — tab close / workspace delete — never when the
  * panel merely unmounts because the dock is hidden or the last open workspace
  * soft-closed, since records and sessions must survive that) and resolving a
- * terminal-matched file path against its owning workspace's folder.
+ * terminal-matched file path against its owning terminal's cwd.
  */
 export function findTerminalOwnerId(
   workspaces: Iterable<
