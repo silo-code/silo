@@ -41,6 +41,7 @@ import {
   notifyTerminalSessionRecreated,
   stripAgentStatusMarkers,
   spawnTerminalSession,
+  readClipboardText,
   registerTerminalClear,
   setTerminalFocus,
   menuAcceleratorForCommand,
@@ -509,8 +510,8 @@ export function TerminalPanel(
     hostEl?.addEventListener("mouseup", onMouseUp);
     disposers.push(() => hostEl?.removeEventListener("mouseup", onMouseUp));
 
-    // Paste on right-click: do it from `auxclick` (a real click gesture WebKit
-    // allows clipboard reads from) rather than `contextmenu` (which it doesn't).
+    // Paste on right-click: do it from `auxclick` (a real click gesture) rather
+    // than `contextmenu` (which doesn't carry the same user-activation semantics).
     const onAuxClick = (e: MouseEvent) => {
       if (e.button === 2 && store.terminalSettings.pasteOnRightClick) {
         void ctxPaste();
@@ -1166,8 +1167,7 @@ export function TerminalPanel(
     }
 
     // When enabled, right-click pastes instead of opening the context menu. The
-    // paste itself happens in the `auxclick` handler — WebKit grants clipboard
-    // read only on a real click gesture, not on a `contextmenu` event.
+    // paste itself happens in the `auxclick` handler (a real click gesture).
     if (store.terminalSettings.pasteOnRightClick) {
       return;
     }
@@ -1205,11 +1205,9 @@ export function TerminalPanel(
   async function ctxPaste() {
     const live = liveRef.current;
     if (!live) return;
-    // Focus first so the webview clipboard read has document focus (the
-    // right-click path otherwise reads with the window unfocused).
     live.term.focus();
     try {
-      const text = await navigator.clipboard.readText();
+      const text = await readClipboardText();
       if (text) live.term.paste(text);
     } catch (err) {
       console.warn("[terminal] paste failed", err);

@@ -36,6 +36,7 @@
         }
       ]
     },
+    "clipboard-manager:allow-read-text",
     "dialog:default",
     "shell:default",
     "store:default",

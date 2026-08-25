@@ -132,6 +132,12 @@ export { EXTENSIONS_SETTINGS_GROUP } from "./settings-pages";
 // mechanical swap would risk regressing. See platform.ts.
 export { homeDir } from "./platform";
 
+// Clipboard read — privileged because WKWebView's `navigator.clipboard.readText()`
+// shows a native permission bubble that silently fails from custom menus; the
+// Tauri plugin reads the OS pasteboard directly. Only `core.terminal` needs this
+// today (context-menu Paste + paste-on-right-click).
+export { readClipboardText } from "./clipboard";
+
 // Workspace section registry — exposed here (rather than on the public
 // WorkspaceService type) because reading back the full provider list, including
 // React component references, is a core-extension-only concern. The *write* side
