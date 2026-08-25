@@ -11,13 +11,22 @@ import {
   type NewItem,
   type RowFocusProps,
 } from "./tree-types";
-import { collapseAllExpanded, flattenVisible, treeArrowNav } from "./tree-nav";
+import {
+  collapseAllExpanded,
+  flattenVisible,
+  matchRowShortcut,
+  rowAccelerators,
+  treeArrowNav,
+} from "./tree-nav";
 import { DirNode } from "./TreeNodes";
 import type { GitAPI, GitWorktree } from "../git/git-api";
 import { findWorktreeFor } from "../git/worktree-utils";
 
 // Module-level file clipboard (cut/copy) — reserved for future Paste implementation
 const fileCb = { current: null as { path: string; op: "cut" | "copy" } | null };
+
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+const ACCEL = rowAccelerators(isMac);
 
 export function Tree({
   ctx,
@@ -157,47 +166,36 @@ export function Tree({
       return true;
     }
     const name = path.split("/").pop() ?? path;
-    if (e.key === "Enter" && e.metaKey) {
-      e.preventDefault();
-      if (!isDir) editors.open(path, { workspaceId });
-      return true;
+    const shortcut = matchRowShortcut(e, isMac);
+    if (!shortcut) return false;
+    e.preventDefault();
+    switch (shortcut) {
+      case "open":
+        if (!isDir) editors.open(path, { workspaceId });
+        break;
+      case "rename":
+        setRenaming(path);
+        break;
+      case "delete":
+        void ctxDelete(path, name);
+        break;
+      case "reveal":
+        void ctxReveal(path);
+        break;
+      case "cut":
+        ctxCut(path);
+        break;
+      case "copy":
+        ctxCopy(path);
+        break;
+      case "copyPath":
+        ctxCopyPath(path);
+        break;
+      case "copyRelPath":
+        ctxCopyRelPath(path);
+        break;
     }
-    if (e.key === "Enter" && !e.metaKey && !e.shiftKey) {
-      e.preventDefault();
-      setRenaming(path);
-      return true;
-    }
-    if (e.key === "Backspace" && e.metaKey) {
-      e.preventDefault();
-      void ctxDelete(path, name);
-      return true;
-    }
-    if (e.key === "r" && e.altKey && e.metaKey) {
-      e.preventDefault();
-      void ctxReveal(path);
-      return true;
-    }
-    if (e.key === "x" && e.metaKey) {
-      e.preventDefault();
-      ctxCut(path);
-      return true;
-    }
-    if (e.key === "c" && e.metaKey && !e.altKey && !e.shiftKey) {
-      e.preventDefault();
-      ctxCopy(path);
-      return true;
-    }
-    if (e.key === "c" && e.metaKey && e.altKey && !e.shiftKey) {
-      e.preventDefault();
-      ctxCopyPath(path);
-      return true;
-    }
-    if (e.key === "c" && e.metaKey && e.altKey && e.shiftKey) {
-      e.preventDefault();
-      ctxCopyRelPath(path);
-      return true;
-    }
-    return false;
+    return true;
   }
 
   // Focus-group props for a row, composing the group's handlers with the tree's:
@@ -367,7 +365,7 @@ export function Tree({
     if (!isDir) {
       items.push({
         label: "Open",
-        accelerator: "⌘↩",
+        accelerator: ACCEL.open,
         run: () => ctxOpenToSide(path),
       });
       // "Open With" — only when the file has more than one matching view
@@ -395,39 +393,43 @@ export function Tree({
     }
     items.push({
       label: "Reveal in Finder",
-      accelerator: "⌥⌘R",
+      accelerator: ACCEL.reveal,
       run: () => ctxReveal(path),
     });
     if (!rootArea) {
       items.push({ type: "separator" });
-      items.push({ label: "Cut", accelerator: "⌘X", run: () => ctxCut(path) });
+      items.push({
+        label: "Cut",
+        accelerator: ACCEL.cut,
+        run: () => ctxCut(path),
+      });
       items.push({
         label: "Copy",
-        accelerator: "⌘C",
+        accelerator: ACCEL.copy,
         run: () => ctxCopy(path),
       });
     }
     items.push({ type: "separator" });
     items.push({
       label: "Copy Path",
-      accelerator: "⌥⌘C",
+      accelerator: ACCEL.copyPath,
       run: () => ctxCopyPath(path),
     });
     items.push({
       label: "Copy Relative Path",
-      accelerator: "⌥⇧⌘C",
+      accelerator: ACCEL.copyRelPath,
       run: () => ctxCopyRelPath(path),
     });
     if (!rootArea) {
       items.push({ type: "separator" });
       items.push({
         label: "Rename…",
-        accelerator: "↵",
+        accelerator: ACCEL.rename,
         run: () => ctxRename(path),
       });
       items.push({
         label: "Delete",
-        accelerator: "⌘⌫",
+        accelerator: ACCEL.delete,
         danger: true,
         run: () => ctxDelete(path, name),
       });

@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { collapseAllExpanded, flattenVisible, treeArrowNav } from "./tree-nav";
+import {
+  collapseAllExpanded,
+  flattenVisible,
+  matchRowShortcut,
+  rowAccelerators,
+  treeArrowNav,
+  type RowKeyChord,
+} from "./tree-nav";
 import type { Listing } from "./tree-types";
 
 const root = "/ws";
@@ -196,5 +203,100 @@ describe("collapseAllExpanded", () => {
     expect(collapseAllExpanded({ "/ws": true }, root)).toEqual({
       "/ws": true,
     });
+  });
+});
+
+describe("matchRowShortcut", () => {
+  const chord = (
+    init: Partial<RowKeyChord> & { key: string },
+  ): RowKeyChord => ({
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    ...init,
+  });
+
+  // The row shortcuts bypass the keybinding registry, so they carry their own
+  // platform mapping: Cmd on macOS, Ctrl everywhere else. Matching `metaKey`
+  // on both platforms left all of them requiring the Windows key off-Mac.
+  it("takes the primary modifier as Cmd on macOS", () => {
+    expect(matchRowShortcut(chord({ key: "c", metaKey: true }), true)).toBe(
+      "copy",
+    );
+    expect(
+      matchRowShortcut(chord({ key: "c", ctrlKey: true }), true),
+    ).toBeNull();
+  });
+
+  it("takes the primary modifier as Ctrl off macOS", () => {
+    expect(matchRowShortcut(chord({ key: "c", ctrlKey: true }), false)).toBe(
+      "copy",
+    );
+    expect(
+      matchRowShortcut(chord({ key: "c", metaKey: true }), false),
+    ).toBeNull();
+  });
+
+  it("opens on primary+Enter and renames on plain Enter", () => {
+    expect(matchRowShortcut(chord({ key: "Enter", metaKey: true }), true)).toBe(
+      "open",
+    );
+    expect(matchRowShortcut(chord({ key: "Enter" }), true)).toBe("rename");
+    // Shift+Enter is the focus group's to handle, not the tree's.
+    expect(
+      matchRowShortcut(chord({ key: "Enter", shiftKey: true }), true),
+    ).toBeNull();
+  });
+
+  it("separates the three copy chords by Alt and Shift", () => {
+    const c = (init: Partial<RowKeyChord>) =>
+      matchRowShortcut(chord({ key: "c", metaKey: true, ...init }), true);
+    expect(c({})).toBe("copy");
+    expect(c({ altKey: true })).toBe("copyPath");
+    // Shift uppercases the reported key — the match folds case.
+    expect(
+      matchRowShortcut(
+        chord({ key: "C", metaKey: true, altKey: true, shiftKey: true }),
+        true,
+      ),
+    ).toBe("copyRelPath");
+  });
+
+  it("requires Alt for reveal and rejects decorated cut", () => {
+    expect(
+      matchRowShortcut(chord({ key: "r", metaKey: true, altKey: true }), true),
+    ).toBe("reveal");
+    expect(
+      matchRowShortcut(chord({ key: "r", metaKey: true }), true),
+    ).toBeNull();
+    expect(matchRowShortcut(chord({ key: "x", metaKey: true }), true)).toBe(
+      "cut",
+    );
+    expect(
+      matchRowShortcut(chord({ key: "x", metaKey: true, altKey: true }), true),
+    ).toBeNull();
+  });
+
+  it("deletes only with the primary modifier", () => {
+    expect(
+      matchRowShortcut(chord({ key: "Backspace", metaKey: true }), true),
+    ).toBe("delete");
+    expect(matchRowShortcut(chord({ key: "Backspace" }), true)).toBeNull();
+  });
+
+  it("ignores keys the tree does not bind", () => {
+    expect(
+      matchRowShortcut(chord({ key: "v", metaKey: true }), true),
+    ).toBeNull();
+    expect(matchRowShortcut(chord({ key: "a" }), true)).toBeNull();
+  });
+});
+
+describe("rowAccelerators", () => {
+  it("labels chords with Mac glyphs and spelled-out chords elsewhere", () => {
+    expect(rowAccelerators(true).delete).toBe("⌘⌫");
+    expect(rowAccelerators(false).delete).toBe("Ctrl+Backspace");
+    expect(rowAccelerators(false).copyRelPath).toBe("Ctrl+Alt+Shift+C");
   });
 });
