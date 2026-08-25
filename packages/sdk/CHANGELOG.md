@@ -1,5 +1,13 @@
 # @silo-code/sdk
 
+## [0.40.0](https://github.com/silo-code/silo/compare/sdk-v0.39.0...sdk-v0.40.0) (2026-08-25)
+
+
+### Features
+
+* **sdk:** add openPanelSheet, homeDir, confirmWithDontShowAgain ([#423](https://github.com/silo-code/silo/issues/423)) ([2a942f2](https://github.com/silo-code/silo/commit/2a942f241c6e6f23981c2e0ee2a7ec86401121ae))
+* **theming:** give form fields and primary buttons real contrast in dark themes ([#417](https://github.com/silo-code/silo/issues/417)) ([b942c5e](https://github.com/silo-code/silo/commit/b942c5eed732bf41ce25777673a5b1485988e9e9))
+
 ## [0.39.0](https://github.com/silo-code/silo/compare/sdk-v0.38.0...sdk-v0.39.0) (2026-08-24)
 
 
