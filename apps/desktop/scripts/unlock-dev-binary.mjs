@@ -134,7 +134,13 @@ function main() {
   if (process.platform !== "win32") return;
 
   const debugDir = path.join(targetRoot(), "debug");
-  if (!fs.existsSync(debugDir)) return;
+  if (!fs.existsSync(debugDir)) {
+    // Silence here would be indistinguishable from "nothing was locked", which
+    // is exactly the ambiguity that makes a dry run useless as a check.
+    if (DRY_RUN) console.log(`${PREFIX} no build dir at ${debugDir}`);
+    return;
+  }
+  if (DRY_RUN) console.log(`${PREFIX} inspecting ${debugDir}`);
 
   const swept = sweepPrevious([debugDir, path.join(debugDir, "deps")]);
   if (swept > 0) {
@@ -145,8 +151,18 @@ function main() {
 
   const stamp = Date.now();
   let moved = 0;
-  for (const file of candidates(debugDir)) {
-    if (isLocked(file) !== true) continue;
+  const found = candidates(debugDir);
+  if (DRY_RUN && found.length === 0) {
+    console.log(`${PREFIX} no silo.exe artifacts here yet — nothing to check`);
+  }
+  for (const file of found) {
+    const locked = isLocked(file);
+    if (DRY_RUN) {
+      const state =
+        locked === null ? "absent" : locked ? "LOCKED" : "not locked";
+      console.log(`${PREFIX}   ${state}: ${file}`);
+    }
+    if (locked !== true) continue;
 
     const aside = `${file}.locked-${stamp}`;
     if (DRY_RUN) {
