@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.40.1](https://github.com/silo-code/silo/compare/sdk-v0.40.0...sdk-v0.40.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* **sdk:** pin Badge font sizes to absolute chrome tokens ([#424](https://github.com/silo-code/silo/issues/424)) ([8fc4fa0](https://github.com/silo-code/silo/commit/8fc4fa09c36d8bdb060ba0396c4b270223723f51))
+
 ## [0.40.0](https://github.com/silo-code/silo/compare/sdk-v0.39.0...sdk-v0.40.0) (2026-08-25)
 
 

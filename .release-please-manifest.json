@@ -1,5 +1,5 @@
 {
   ".": "0.53.0",
-  "packages/sdk": "0.40.0",
+  "packages/sdk": "0.40.1",
   "packages/git-api": "0.4.0"
 }
