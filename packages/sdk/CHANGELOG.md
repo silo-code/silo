@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.40.2](https://github.com/silo-code/silo/compare/sdk-v0.40.1...sdk-v0.40.2) (2026-08-25)
+
+
+### Bug Fixes
+
+* **terminal:** wire Cmd+K clear shortcut and persist buffer on clear ([#428](https://github.com/silo-code/silo/issues/428)) ([0df7363](https://github.com/silo-code/silo/commit/0df736378b136f91002d429cc69c5b9dfbd67f98))
+
 ## [0.40.1](https://github.com/silo-code/silo/compare/sdk-v0.40.0...sdk-v0.40.1) (2026-08-25)
 
 
