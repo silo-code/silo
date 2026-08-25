@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "app:dev": "tauri dev --config src-tauri/tauri.dev.conf.json --features automation",
+    "app:dev": "node scripts/unlock-dev-binary.mjs && tauri dev --config src-tauri/tauri.dev.conf.json --features automation",
     "app:build": "tauri build",
     "test": "vitest run --project unit --passWithNoTests",
     "test:watch": "vitest --project unit --passWithNoTests",
