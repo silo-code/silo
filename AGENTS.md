@@ -253,3 +253,9 @@ Decision table for building modal content, settings pages, or workspace
 property tabs with the [Design System](https://getsilo.dev/design/) kit —
 which surface, which component, and the forbidden list. See
 `docs/modal-design.md`.
+
+### Side panel & sheet UI design
+
+Decision table for side panels and dock-anchored sheets — typography,
+toolbars, and drill-in ("Back") paging. Overlaps the modal kit but has its
+own chrome rules. See `docs/side-panel-design.md`.

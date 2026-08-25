@@ -1,6 +1,6 @@
 # Interface: LayoutService
 
-Defined in: [packages/sdk/src/layout-service.ts:40](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L40)
+Defined in: [packages/sdk/src/layout-service.ts:68](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L68)
 
 Consumer API for app layout, exposed as [ExtensionContext.layout](ExtensionContext.md#layout).
 Read side-panel collapse state and drive it.
@@ -13,7 +13,7 @@ Read side-panel collapse state and drive it.
 getState(): LayoutState;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:42](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L42)
+Defined in: [packages/sdk/src/layout-service.ts:70](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L70)
 
 Current frozen layout state.
 
@@ -29,7 +29,7 @@ Current frozen layout state.
 subscribe(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:44](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L44)
+Defined in: [packages/sdk/src/layout-service.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L72)
 
 Subscribe to layout changes; dispose to stop.
 
@@ -51,7 +51,7 @@ Subscribe to layout changes; dispose to stop.
 toggleSidePanel(location): void;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:46](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L46)
+Defined in: [packages/sdk/src/layout-service.ts:74](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L74)
 
 Toggle a side column between collapsed and expanded.
 
@@ -73,7 +73,7 @@ Toggle a side column between collapsed and expanded.
 setSidePanelCollapsed(location, collapsed): void;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:48](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L48)
+Defined in: [packages/sdk/src/layout-service.ts:76](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L76)
 
 Set a side column's collapsed state explicitly.
 
@@ -99,7 +99,7 @@ Set a side column's collapsed state explicitly.
 revealSidePanel(id): void;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:55](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L55)
+Defined in: [packages/sdk/src/layout-service.ts:83](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L83)
 
 Reveal a registered side panel by its [SidePanel.id](SidePanel.md#id): make it the
 active panel in its column and expand that column if collapsed. Use to bring
@@ -118,6 +118,68 @@ focusing the Search panel). No-op if no panel with that id is registered.
 
 ***
 
+### openPanelSheet()
+
+```ts
+openPanelSheet(
+   panelId, 
+   render, 
+opts?): Promise<void>;
+```
+
+Defined in: [packages/sdk/src/layout-service.ts:113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L113)
+
+Open a host-owned sheet that grows out of the side dock currently hosting
+`panelId` — reveals that panel first (the same unhide + activate-tab +
+expand-column work [LayoutService.revealSidePanel](#revealsidepanel) does), then
+slides a sheet out from its side. Never modal: no scrim, `Escape` does
+nothing, the rest of the workbench stays live and interactive.
+
+Like [LayoutService.revealSidePanel](#revealsidepanel), `panelId` isn't restricted to
+a panel the calling extension itself registered — a status-bar button or
+command from one extension can open a companion sheet for another's panel.
+
+Supply a `render` callback that receives a `close` function and returns
+the sheet's content; the returned promise resolves (with no value) once
+the sheet closes. Rejects if `panelId` names no registered
+[SidePanel](SidePanel.md).
+
+#### Parameters
+
+##### panelId
+
+`string`
+
+The [SidePanel.id](SidePanel.md#id) to anchor and reveal.
+
+##### render
+
+(`close`) => `ReactNode`
+
+Returns the sheet's content; receives `close` to settle it.
+
+##### opts?
+
+[`SheetOptions`](SheetOptions.md)
+
+Presentation options — see [SheetOptions](SheetOptions.md).
+
+#### Returns
+
+`Promise`\<`void`\>
+
+#### Example
+
+```tsx
+void ctx.layout.openPanelSheet(
+  "skills",
+  (close) => <BrowseBody onClose={close} />,
+  { title: <BrandMark />, width: 560 },
+);
+```
+
+***
+
 ### openPanel()
 
 ```ts
@@ -127,7 +189,7 @@ openPanel(
    options?): void;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:73](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L73)
+Defined in: [packages/sdk/src/layout-service.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L135)
 
 Open a new tab in the center dock for the given registered
 [DockPanelKind](DockPanelKind.md). Use this to programmatically open a custom panel
@@ -175,7 +237,7 @@ Arbitrary params forwarded to the panel component.
 openSingletonPanel(kindId, params?): void;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:83](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L83)
+Defined in: [packages/sdk/src/layout-service.ts:145](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L145)
 
 Open a **singleton** dock panel.
 

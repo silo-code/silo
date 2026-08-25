@@ -10,7 +10,8 @@ import { sidePanelRegistry } from "./side-panels";
 import { activateSidePaneTab } from "../layout/side-pane-registry";
 import { dockOfPane, resolvePaneId } from "../state/side-dock-tree";
 import { getActiveDockApi } from "../docked/dock-api-registry";
-import type { LayoutState, LayoutService } from "@silo-code/sdk";
+import { showSheetDialog } from "./sheet-dialog";
+import type { LayoutState, LayoutService, SidePanel } from "@silo-code/sdk";
 
 // `ctx.layout` — side-column collapse state. The public contract lives in
 // @silo-code/sdk (layout-service.ts); this is the host implementation.
@@ -34,6 +35,26 @@ function buildSnapshot(): LayoutState {
   });
   cachedSnapshot = next;
   return next;
+}
+
+/**
+ * Which side dock `panel` actually renders in right now — its recorded
+ * placement override if that still names a pane in either dock, otherwise its
+ * registered location. Shared by `revealSidePanel` (which side to expand) and
+ * `openPanelSheet` (which side to anchor the sheet to), so there's one source
+ * of truth for "what side is this panel really in" (a user may have dragged
+ * it to the other column).
+ */
+function resolveSidePanelLocation(
+  id: string,
+  panel: Pick<SidePanel, "location">,
+): "left" | "right" {
+  const slot = resolvePaneId(
+    store.sideDockTrees,
+    store.sidePanelLocations[id],
+    panel.location,
+  );
+  return dockOfPane(store.sideDockTrees, slot) ?? panel.location;
 }
 
 let service: LayoutService | null = null;
@@ -90,7 +111,7 @@ export function getLayoutService(): LayoutService {
         store.sidePanelLocations[id],
         panel.location,
       );
-      const location = dockOfPane(store.sideDockTrees, slot) ?? panel.location;
+      const location = resolveSidePanelLocation(id, panel);
       // Un-hide it (visibility defaults to visible; `false` means hidden).
       if (store.sidePanelVisibility[id] === false) {
         delete store.sidePanelVisibility[id];
@@ -103,6 +124,22 @@ export function getLayoutService(): LayoutService {
       // Expand the column so it's actually on screen.
       if (location === "left") setLeftPanelCollapsed(false);
       else setRightPanelCollapsed(false);
+    },
+    openPanelSheet(id, render, opts) {
+      const panel = sidePanelRegistry.get(id);
+      if (!panel) {
+        return Promise.reject(
+          new Error(
+            `ctx.layout.openPanelSheet: no side panel registered with id "${id}".`,
+          ),
+        );
+      }
+      // Reveal first so the sheet grows out of a panel that's actually on
+      // screen (expanded column, active tab) rather than a collapsed or
+      // backgrounded one.
+      service!.revealSidePanel(id);
+      const side = resolveSidePanelLocation(id, panel);
+      return showSheetDialog(render, opts, side);
     },
   };
   return service;

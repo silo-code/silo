@@ -4,6 +4,12 @@ import { getLayoutService } from "./layout-service";
 import { setActiveDockApi } from "../docked/dock-api-registry";
 import { store } from "../state/store";
 import { sidePanelRegistry } from "./side-panels";
+import { firstPaneId } from "../state/side-dock-tree";
+import {
+  getPendingSheetDialog,
+  resolveSheetDialog,
+  sheetDialogStore,
+} from "./sheet-dialog";
 
 // Fake just the slice of DockviewApi that openPanel touches: getPanel for the
 // singleton existence check, addPanel returning a panel whose api.setActive
@@ -180,5 +186,84 @@ describe("LayoutService collapse path writes the live layout mode", () => {
       delete store.activeSidePanelTabs.left;
       dispose.dispose();
     }
+  });
+
+  describe("openPanelSheet", () => {
+    afterEach(() => {
+      // Drain anything a failing assertion might have left open.
+      for (const e of [...sheetDialogStore.entries]) resolveSheetDialog(e.id);
+    });
+
+    it("rejects for an unregistered panel id", async () => {
+      await expect(layout.openPanelSheet("nope", () => null)).rejects.toThrow(
+        /no side panel registered with id "nope"/,
+      );
+    });
+
+    it("reveals the panel and opens the sheet on its registered side", async () => {
+      const dispose = sidePanelRegistry.register({
+        id: "test.panel",
+        location: "left",
+        title: "Test",
+        component: () => null,
+      });
+      try {
+        const render = () => null;
+        void layout.openPanelSheet("test.panel", render, { width: 400 });
+
+        // Revealed: column expanded, tab activated (same as revealSidePanel).
+        expect(store.leftPanelCollapsed).toBe(false);
+        expect(store.activeSidePanelTabs.left).toBe("test.panel");
+
+        expect(sheetDialogStore.entries).toHaveLength(1);
+        const entry = getPendingSheetDialog(sheetDialogStore.entries[0].id);
+        expect(entry?.side).toBe("left");
+        expect(entry?.render).toBe(render);
+        expect(entry?.options).toEqual({ width: 400 });
+      } finally {
+        delete store.activeSidePanelTabs.left;
+        dispose.dispose();
+      }
+    });
+
+    it("resolves the returned promise when the dialog is settled", async () => {
+      const dispose = sidePanelRegistry.register({
+        id: "test.panel",
+        location: "left",
+        title: "Test",
+        component: () => null,
+      });
+      try {
+        const promise = layout.openPanelSheet("test.panel", () => null);
+        const id = sheetDialogStore.entries[0].id;
+        resolveSheetDialog(id);
+        await expect(promise).resolves.toBeUndefined();
+      } finally {
+        delete store.activeSidePanelTabs.left;
+        dispose.dispose();
+      }
+    });
+
+    it("anchors to the dragged-to column, not the registered one", () => {
+      const dispose = sidePanelRegistry.register({
+        id: "test.panel",
+        location: "left",
+        title: "Test",
+        component: () => null,
+      });
+      // Dragged into a pane that lives in the right dock's tree.
+      store.sidePanelLocations["test.panel"] = firstPaneId(
+        store.sideDockTrees.right,
+      );
+      try {
+        void layout.openPanelSheet("test.panel", () => null);
+        const entry = getPendingSheetDialog(sheetDialogStore.entries[0].id);
+        expect(entry?.side).toBe("right");
+      } finally {
+        delete store.sidePanelLocations["test.panel"];
+        delete store.activeSidePanelTabs.right;
+        dispose.dispose();
+      }
+    });
   });
 });

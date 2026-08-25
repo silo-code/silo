@@ -1,6 +1,6 @@
 # Interface: MenuHeader
 
-Defined in: [packages/sdk/src/ui-service.ts:223](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L223)
+Defined in: [packages/sdk/src/ui-service.ts:261](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L261)
 
 A non-interactive group label within a menu.
 
@@ -12,7 +12,7 @@ A non-interactive group label within a menu.
 type: "header";
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:224](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L224)
+Defined in: [packages/sdk/src/ui-service.ts:262](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L262)
 
 ***
 
@@ -22,6 +22,6 @@ Defined in: [packages/sdk/src/ui-service.ts:224](https://github.com/silo-code/si
 label: string;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:226](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L226)
+Defined in: [packages/sdk/src/ui-service.ts:264](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L264)
 
 The label text (rendered uppercase).

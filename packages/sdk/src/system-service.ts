@@ -73,4 +73,25 @@ export interface SystemService {
    * call (the result is cached) — safe to `await` in `activate`.
    */
   getInfo(): Promise<SystemInfo>;
+  /**
+   * Absolute path of the current user's home directory (`$HOME` on
+   * macOS/Linux, `%USERPROFILE%` on Windows). Host-mediated — there's no
+   * Node/`os` access in extensions. Resolves immediately after the first call
+   * (cached, like {@link SystemService.getInfo}).
+   *
+   * Returning the path string is not itself a file read: reading or watching
+   * anything under it still goes through {@link ExtensionContext.files} and
+   * that service's normal permission rules (typically `fs:read` for an
+   * untrusted extension).
+   *
+   * @example
+   * ```ts
+   * const home = await ctx.system.homeDir();
+   * const skillsDir = path.join(home, ".claude", "skills");
+   * if (await ctx.files.pathExists(skillsDir)) {
+   *   const entries = await ctx.files.readDir(skillsDir);
+   * }
+   * ```
+   */
+  homeDir(): Promise<string>;
 }

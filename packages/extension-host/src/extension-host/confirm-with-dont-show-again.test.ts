@@ -5,6 +5,10 @@ import {
   resolveDialogOutcome,
 } from "./confirm-with-dont-show-again";
 
+// `ConfirmDontShowAgainMode`/`Options` (the types `opts` below satisfies) are
+// public SDK types now (RFC 0029); this file only exercises the pure/host
+// logic, so the fake UiService/ExtensionStorage below stay unchanged.
+
 // `resolveDialogOutcome` is the pure decision behind the dialog's buttons
 // (cancel never persists, proceed persists iff checked) — covered directly,
 // no rendering needed. `confirmWithDontShowAgain`'s own logic (the

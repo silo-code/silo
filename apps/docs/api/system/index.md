@@ -91,17 +91,39 @@ export const extension: Extension = {
 };
 ```
 
+### homeDir — resolve the user's home directory
+
+```ts
+const home = await ctx.system.homeDir();
+```
+
+Absolute path of the current user's home directory (`$HOME` /
+`%USERPROFILE%`), host-mediated since extensions have no Node/`os` access.
+Cached after the first call, like `getInfo()`. Returning the path string isn't
+itself a file read — reading or watching anything under it still goes through
+[`ctx.files`](/api/files/) and its normal permission rules.
+
+```ts
+const home = await ctx.system.homeDir();
+const skillsDir = path.join(home, ".claude", "skills");
+if (await ctx.files.pathExists(skillsDir)) {
+  const entries = await ctx.files.readDir(skillsDir);
+}
+```
+
 ## API
 
 ```ts
 interface SystemService {
   getInfo(): Promise<SystemInfo>;
+  homeDir(): Promise<string>;
 }
 ```
 
-| Method      | Returns               | Description                                                      |
-| ----------- | --------------------- | ---------------------------------------------------------------- |
-| `getInfo()` | `Promise<SystemInfo>` | Resolve the host-platform snapshot. Cached after the first call. |
+| Method      | Returns               | Description                                                                     |
+| ----------- | --------------------- | ------------------------------------------------------------------------------- |
+| `getInfo()` | `Promise<SystemInfo>` | Resolve the host-platform snapshot. Cached after the first call.                |
+| `homeDir()` | `Promise<string>`     | Resolve the user's home directory (absolute path). Cached after the first call. |
 
 ## Types
 

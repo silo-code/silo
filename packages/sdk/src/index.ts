@@ -88,6 +88,7 @@ export type {
   LayoutState,
   SidePanelColumnState,
   SideLocation,
+  SheetOptions,
 } from "./layout-service";
 export type {
   ProcessService,
@@ -209,6 +210,8 @@ export type {
   ConfirmOptions,
   PromptOptions,
   ModalOptions,
+  ConfirmDontShowAgainMode,
+  ConfirmDontShowAgainOptions,
   NotifyAction,
   NotifyOptions,
   BusyStatusUrgency,

@@ -10,8 +10,14 @@ import {
   prompt as promptDialog,
   showModal as showModalImpl,
 } from "./modal-service";
+import { confirmWithDontShowAgain as confirmWithDontShowAgainImpl } from "./confirm-with-dont-show-again";
 import { getActiveSelectionText } from "./active-selection";
-import type { NotifyAction, NotifyOptions, UiService } from "@silo-code/sdk";
+import type {
+  ExtensionStorage,
+  NotifyAction,
+  NotifyOptions,
+  UiService,
+} from "@silo-code/sdk";
 import { createHostChannel } from "./output-store";
 import { clearBusyStatus, setBusyStatus } from "./busy-status";
 
@@ -156,10 +162,24 @@ export function isOpenableExternalUrl(url: string): boolean {
   }
 }
 
-let service: UiService | null = null;
+/**
+ * `ctx.ui` minus {@link UiService.confirmWithDontShowAgain} — that one method
+ * needs the *calling extension's* global storage bound in (see
+ * {@link getScopedUiService}), so it can't live on this process-wide
+ * singleton. Every other method is extension-agnostic and shared.
+ */
+type BaseUiService = Omit<UiService, "confirmWithDontShowAgain">;
 
-/** @internal — host factory; extensions receive this as `ctx.ui`. */
-export function getUiService(): UiService {
+let service: BaseUiService | null = null;
+
+/**
+ * @internal — host factory for the extension-agnostic part of `ctx.ui`. Used
+ * directly by host-internal, non-extension callers that need a `ctx.ui`-shaped
+ * value but have no extension storage to scope (`workspace-menu.ts`,
+ * `open-workspace-menu.tsx`); extensions receive the scoped wrapper — see
+ * {@link getScopedUiService}.
+ */
+export function getUiService(): BaseUiService {
   if (service) return service;
   service = {
     async pickFolder(opts) {
@@ -224,4 +244,20 @@ export function getUiService(): UiService {
     },
   };
   return service;
+}
+
+/**
+ * @internal — host factory for the per-extension `ctx.ui`: the shared base
+ * service plus `confirmWithDontShowAgain` bound to `storage` (the calling
+ * extension's `ctx.storage.global`, wired in by `context.ts` — callers never
+ * pass a storage handle themselves). Mirrors `file-service.ts`'s
+ * `getScopedFileService(scope)` — one shared base wrapped per extension.
+ */
+export function getScopedUiService(storage: ExtensionStorage): UiService {
+  return {
+    ...getUiService(),
+    confirmWithDontShowAgain(opts) {
+      return confirmWithDontShowAgainImpl(getUiService(), storage, opts);
+    },
+  };
 }

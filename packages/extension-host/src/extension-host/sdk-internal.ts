@@ -43,24 +43,26 @@ export { Modal } from "./Modal";
 export { ModalActions } from "@silo-code/sdk";
 export type { ModalProps } from "./Modal";
 
-// PROTOTYPE — the side-anchored companion to `<Modal>`. Core-only for the same
-// reason `<Modal>` is (a runtime React component over a host-owned valtio
-// store), and additionally because its shape is still being felt out: the
-// public capability, if it lands, will be an imperative `ctx.ui.showSheet`
-// mirroring `showModal`. See docs/proposals once the design settles.
+// The side-anchored companion to `<Modal>`. Core-only: a runtime React
+// component over a host-owned valtio store, same as `<Modal>` above. The
+// public dock-sheet capability shipped as the imperative
+// `ctx.layout.openPanelSheet` (RFC 0029), which every in-repo `anchor="dock"`
+// consumer has moved to (see `core.skills`'s BrowseSheet). `<Sheet>` itself
+// stays exported here for the declarative `anchor="app"` form Settings and
+// Sheet Lab still use directly, and for Sheet Lab's own `anchor="dock"`
+// comparison demos. `SheetAnchor`/`SheetMode`/`SheetSide` are no longer
+// re-exported — nothing in-repo names them as types now that the dock form's
+// only real consumer went through the public `openPanelSheet` / `SheetOptions`
+// instead.
 export { Sheet } from "./Sheet";
 export type { SheetProps } from "./Sheet";
-export type { SheetAnchor, SheetMode, SheetSide } from "./sheet-service";
 
-// A `ctx.ui.showModal`-based confirm/info dialog with a persisted "don't show
-// this again" checkbox — a capability `ctx.ui.confirm` has no room for.
-// Core-only: it's bespoke host content built on `<Modal>`, not a public
-// contract addition (see the file's header comment for the rationale).
+// The generic `(ui, storage, opts)` implementation behind the now-public
+// `ctx.ui.confirmWithDontShowAgain` (RFC 0029) — its option types
+// (`ConfirmDontShowAgainMode`/`Options`) are public SDK exports now. Still
+// exported here for host-internal, non-extension callers with their own
+// storage and no `ctx` (e.g. `workspace-menu.ts`'s `confirmAndCloseWorkspace`).
 export { confirmWithDontShowAgain } from "./confirm-with-dont-show-again";
-export type {
-  DontShowAgainDialogMode,
-  DontShowAgainDialogOptions,
-} from "./confirm-with-dont-show-again";
 
 // App identity metadata (version/name) — privileged because its only consumer
 // is `core.about`, part of Silo's identity; not a public-surface capability.
@@ -123,10 +125,11 @@ export { compareVersions } from "./registry-client";
 export { EXTENSIONS_SETTINGS_GROUP } from "./settings-pages";
 
 // Host-mediated OS access for core UI: the user's home dir, for home-relative
-// path display (workspaces). A path-display concern, not user interaction, so it
-// stays internal rather than going on public `ctx.ui` (the native file/folder
-// pickers that used to sit here graduated to `ctx.ui`; see ui-service.ts). See
-// platform.ts.
+// path display (workspaces). Superseded for new callers by the public
+// `ctx.system.homeDir()` (see system-service.ts) — `core.skills` migrated off
+// this — but still core-only for existing callers with a module-level cache or
+// non-`ctx`-threaded call site (`workspaces`, `terminal-links.ts`) that a
+// mechanical swap would risk regressing. See platform.ts.
 export { homeDir } from "./platform";
 
 // Workspace section registry — exposed here (rather than on the public

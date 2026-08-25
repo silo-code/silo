@@ -113,6 +113,17 @@ const changes = await ctx.ui.showModal<Changes>(
 );
 if (changes) apply(changes);
 
+// confirm with a persisted "don't show this again" checkbox — resolves true
+// immediately, no dialog, once the user has already suppressed this key
+const ok = await ctx.ui.confirmWithDontShowAgain({
+  storageKey: "installSkill.dontShowAgain",
+  title: "Install skill?",
+  body: `This runs ${cmd} in a new terminal.`,
+  confirmLabel: "Install",
+  mode: { kind: "confirm" },
+});
+if (ok) runInstall();
+
 // open a link out in the browser / mail client (scheme-guarded to http(s)/mailto)
 await ctx.ui.openExternal("https://getsilo.dev/docs");
 
@@ -125,18 +136,19 @@ if (selected) runSearch(selected);
 
 **`UiService`** (`ctx.ui`):
 
-| Method                                                                               | What it does                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`pickFolder(opts?)`](/api/types/interfaces/UiService#pickfolder)                    | Show the native folder picker. Resolves to an absolute path, or `null` if cancelled.                                                                                                                      |
-| [`pickFile(opts?)`](/api/types/interfaces/UiService#pickfile)                        | Show the native open-file picker (single selection), optionally filtered. Resolves to an absolute path, or `null` if cancelled.                                                                           |
-| [`savePath(opts?)`](/api/types/interfaces/UiService#savepath)                        | Show the native save dialog, optionally filtered. Resolves to the chosen absolute path, or `null` if cancelled.                                                                                           |
-| [`notify(level, message, opts?)`](/api/types/interfaces/UiService#notify)            | Show a transient toast (`"info"` / `"warn"` / `"error"`). Fire-and-forget; `info`/`warn` auto-dismiss. Pass [`NotifyOptions`](/api/types/interfaces/NotifyOptions) for a `title` and action buttons.      |
-| [`showMenu(opts)`](/api/types/interfaces/UiService#showmenu)                         | Pop a menu — the same themed primitive behind every context menu and dropdown in Silo. Resolves when an item runs or it's dismissed.                                                                      |
-| [`confirm(opts)`](/api/types/interfaces/UiService#confirm)                           | Pop a host-rendered confirm dialog. Resolves `true` (confirm) / `false` (cancel). Always dismissible; set `danger` for destructive actions.                                                               |
-| [`prompt(opts)`](/api/types/interfaces/UiService#prompt)                             | Pop a single-line input dialog. Resolves the entered string, or `null` if cancelled.                                                                                                                      |
-| [`showModal(render, opts?)`](/api/types/interfaces/UiService#showmodal)              | Pop a modal around your own custom content (a form / bespoke layout). Resolves the value your content passes to `close`, or `undefined`. Not dismissible by default.                                      |
-| [`openExternal(url)`](/api/types/interfaces/UiService#openexternal)                  | Hand a URL to the OS — `http(s)` opens the browser, `mailto:` the mail client. Scheme-guarded: any other scheme (`file:`, `javascript:`, …) rejects, so untrusted URLs are safe to pass straight in.      |
-| [`getActiveSelectionText()`](/api/types/interfaces/UiService#getactiveselectiontext) | The text selected in the focused surface — the active editor **or** a focused terminal — or `null` when nothing is selected. Lets a command (e.g. "Find in Files") seed itself from the user's selection. |
+| Method                                                                                       | What it does                                                                                                                                                                                              |
+| -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`pickFolder(opts?)`](/api/types/interfaces/UiService#pickfolder)                            | Show the native folder picker. Resolves to an absolute path, or `null` if cancelled.                                                                                                                      |
+| [`pickFile(opts?)`](/api/types/interfaces/UiService#pickfile)                                | Show the native open-file picker (single selection), optionally filtered. Resolves to an absolute path, or `null` if cancelled.                                                                           |
+| [`savePath(opts?)`](/api/types/interfaces/UiService#savepath)                                | Show the native save dialog, optionally filtered. Resolves to the chosen absolute path, or `null` if cancelled.                                                                                           |
+| [`notify(level, message, opts?)`](/api/types/interfaces/UiService#notify)                    | Show a transient toast (`"info"` / `"warn"` / `"error"`). Fire-and-forget; `info`/`warn` auto-dismiss. Pass [`NotifyOptions`](/api/types/interfaces/NotifyOptions) for a `title` and action buttons.      |
+| [`showMenu(opts)`](/api/types/interfaces/UiService#showmenu)                                 | Pop a menu — the same themed primitive behind every context menu and dropdown in Silo. Resolves when an item runs or it's dismissed.                                                                      |
+| [`confirm(opts)`](/api/types/interfaces/UiService#confirm)                                   | Pop a host-rendered confirm dialog. Resolves `true` (confirm) / `false` (cancel). Always dismissible; set `danger` for destructive actions.                                                               |
+| [`prompt(opts)`](/api/types/interfaces/UiService#prompt)                                     | Pop a single-line input dialog. Resolves the entered string, or `null` if cancelled.                                                                                                                      |
+| [`showModal(render, opts?)`](/api/types/interfaces/UiService#showmodal)                      | Pop a modal around your own custom content (a form / bespoke layout). Resolves the value your content passes to `close`, or `undefined`. Not dismissible by default.                                      |
+| [`confirmWithDontShowAgain(opts)`](/api/types/interfaces/UiService#confirmwithdontshowagain) | Confirm/info dialog with a persisted "Don't show this again" checkbox. Resolves `true` immediately (no dialog) once the user has suppressed `opts.storageKey`; cancel never persists the checkbox.        |
+| [`openExternal(url)`](/api/types/interfaces/UiService#openexternal)                          | Hand a URL to the OS — `http(s)` opens the browser, `mailto:` the mail client. Scheme-guarded: any other scheme (`file:`, `javascript:`, …) rejects, so untrusted URLs are safe to pass straight in.      |
+| [`getActiveSelectionText()`](/api/types/interfaces/UiService#getactiveselectiontext)         | The text selected in the focused surface — the active editor **or** a focused terminal — or `null` when nothing is selected. Lets a command (e.g. "Find in Files") seed itself from the user's selection. |
 
 Each picker accepts an options object: `defaultPath` seeds the dialog's
 location (and, for `savePath`, the suggested filename); `filters` is a list of
@@ -190,6 +202,22 @@ calls it.) Lay the footer buttons out in a `.silo-modal-actions` row, and style
 them with the global [button classes](/api/theming). All of these ride the same
 host-arbitrated stacking and focus trap.
 
+`confirmWithDontShowAgain(opts)` is `confirm`/`showModal` plus one thing
+neither offers: a persisted "Don't show this again" checkbox, for a
+confirmation the user shouldn't have to answer twice. Pass a
+[`ConfirmDontShowAgainOptions`](/api/types/interfaces/ConfirmDontShowAgainOptions)
+— `storageKey` (a key in **your own** extension's `ctx.storage.global`; the
+host binds storage automatically, you never pass a handle), `title`, `body`,
+`confirmLabel`, and `mode` (a
+[`ConfirmDontShowAgainMode`](/api/types/type-aliases/ConfirmDontShowAgainMode):
+`{ kind: "confirm", danger? }` pairs Cancel with a primary/danger button,
+dismissible like `confirm`; `{ kind: "info" }` is a single acknowledgement
+button, not dismissible, since there's nothing to cancel). If `storageKey` is
+already set, the promise resolves `true` with no dialog at all. **Cancelling
+never persists the checkbox**, even if it was checked — so an accidental
+cancel can't silently suppress a safety warning for good; only proceeding with
+the box checked persists it.
+
 `openExternal(url)` is the host's gateway to the world outside the app — it hands
 the URL to the OS, opening `http(s)` links in the default browser and `mailto:`
 links in the mail client. It's **scheme-guarded**: only `http:`, `https:`, and
@@ -211,6 +239,8 @@ through, catching the rejection to warn the user about an unopenable link.
 [`ConfirmOptions`](/api/types/interfaces/ConfirmOptions) ·
 [`PromptOptions`](/api/types/interfaces/PromptOptions) ·
 [`ModalOptions`](/api/types/interfaces/ModalOptions) ·
+[`ConfirmDontShowAgainOptions`](/api/types/interfaces/ConfirmDontShowAgainOptions) ·
+[`ConfirmDontShowAgainMode`](/api/types/type-aliases/ConfirmDontShowAgainMode) ·
 [`NotifyOptions`](/api/types/interfaces/NotifyOptions) ·
 [`NotifyAction`](/api/types/interfaces/NotifyAction).
 

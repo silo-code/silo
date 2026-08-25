@@ -24,7 +24,7 @@ export const extension: Extension = {
       id: LEFT_PANEL_ID,
       location: "left",
       title: "Sheet Lab",
-      component: () => <SheetLabPanel ctx={ctx} />,
+      component: () => <SheetLabPanel ctx={ctx} panelId={LEFT_PANEL_ID} />,
       order: 99,
       lazyMount: true,
     });
@@ -32,7 +32,7 @@ export const extension: Extension = {
       id: RIGHT_PANEL_ID,
       location: "right",
       title: "Sheet Lab",
-      component: () => <SheetLabPanel ctx={ctx} />,
+      component: () => <SheetLabPanel ctx={ctx} panelId={RIGHT_PANEL_ID} />,
       order: 99,
       lazyMount: true,
     });

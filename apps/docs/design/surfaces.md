@@ -163,10 +163,15 @@ Registered with [`ctx.registerSidePanel`](/api/registration/register-side-panel)
 — a persistent panel docked in Silo's side column, alongside the file
 explorer and git panel.
 
-::: info Coming soon
-Side panel components and layout patterns — headers, toolbars, empty states,
-and how the modal kit's components (`List`, `Badge`, `EmptyState`, …) carry
-over into a docked panel — aren't documented yet.
+Agent-facing decision table (typography, toolbars, drill-in paging, sheets):
+[`docs/side-panel-design.md`](https://github.com/silo-code/silo/blob/main/docs/side-panel-design.md).
+Kit components are the same as the [modal kit](/design/#the-component-inventory);
+the chrome and navigation rules differ.
+
+::: tip Draft
+This surface guide is still being filled in from real panel builds (Skills,
+Git commits takeover, Extensions detail). Prefer the decision table linked
+above until the patterns here are complete.
 :::
 
 ## Status bar items {#status-bar-items}

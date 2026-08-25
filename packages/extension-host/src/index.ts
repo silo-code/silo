@@ -30,6 +30,7 @@ export { Shortcuts } from "./components/Shortcuts";
 // Settings, as a centered app sheet (it replaced the Settings modal).
 export { SettingsSheet } from "./components/SettingsSheet";
 export { ModalHost } from "./components/ModalHost";
+export { SheetDialogHost } from "./components/SheetDialogHost";
 export { Toasts } from "./components/Toasts";
 export { Menus } from "./components/Menus";
 

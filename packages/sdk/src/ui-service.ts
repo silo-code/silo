@@ -205,6 +205,44 @@ export interface ModalOptions {
 }
 
 /**
+ * Which two-button shape {@link UiService.confirmWithDontShowAgain} renders:
+ * `"confirm"` pairs Cancel with a primary/danger button, dismissible (Escape /
+ * backdrop resolve like Cancel) — mirrors {@link UiService.confirm}. `"info"`
+ * is a single acknowledgement button, not dismissible — there's nothing to
+ * cancel, so forcing the explicit click keeps the checkbox's fate unambiguous.
+ *
+ * @category Core Types
+ * @public
+ */
+export type ConfirmDontShowAgainMode =
+  | { kind: "confirm"; danger?: boolean }
+  | { kind: "info" };
+
+/**
+ * Options for {@link UiService.confirmWithDontShowAgain}.
+ *
+ * @category Core Types
+ * @public
+ */
+export interface ConfirmDontShowAgainOptions {
+  /**
+   * Key in the **calling extension's** global storage
+   * ({@link ExtensionContext.storage}`.global`) that remembers the user opted
+   * out. The host binds storage to the caller — you don't pass an
+   * `ExtensionStorage` handle yourself.
+   */
+  storageKey: string;
+  /** The dialog's heading. */
+  title: string;
+  /** Explanatory body text. */
+  body: string;
+  /** Label for the confirm/acknowledge button. */
+  confirmLabel: string;
+  /** Which two-button shape to render — see {@link ConfirmDontShowAgainMode}. */
+  mode: ConfirmDontShowAgainMode;
+}
+
+/**
  * A horizontal rule between groups of menu items.
  *
  * @category Registration
@@ -456,6 +494,34 @@ export interface UiService {
     render: (close: (result?: T) => void) => ReactNode,
     options?: ModalOptions,
   ): Promise<T | undefined>;
+  /**
+   * Pop a confirm/info dialog with a persisted "Don't show this again"
+   * checkbox — the one shape {@link UiService.confirm} has no room for. If
+   * `opts.storageKey` is already set in the calling extension's global
+   * storage, resolves `true` immediately without opening anything.
+   *
+   * Cancelling (or dismissing, in `"confirm"` mode) never persists the
+   * checkbox, even if it was checked — so an accidental cancel can't silently
+   * suppress a safety warning for good. Proceeding persists it iff it was
+   * checked.
+   *
+   * @param opts - See {@link ConfirmDontShowAgainOptions}.
+   * @returns `true` if the user proceeded (or the dialog was already
+   *   suppressed), `false` on cancel/dismiss.
+   *
+   * @example
+   * ```ts
+   * const ok = await ctx.ui.confirmWithDontShowAgain({
+   *   storageKey: "installSkill.dontShowAgain",
+   *   title: "Install skill?",
+   *   body: `This runs ${cmd} in a new terminal.`,
+   *   confirmLabel: "Install",
+   *   mode: { kind: "confirm" },
+   * });
+   * if (ok) runInstall();
+   * ```
+   */
+  confirmWithDontShowAgain(opts: ConfirmDontShowAgainOptions): Promise<boolean>;
   /**
    * Hand a URL to the operating system — open an `http`/`https` link in the
    * user's default browser, or a `mailto:` link in their mail client. The host
