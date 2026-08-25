@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.53.0](https://github.com/silo-code/silo/compare/silo-v0.52.0...silo-v0.53.0) (2026-08-25)
+
+
+### Features
+
+* **sdk:** add openPanelSheet, homeDir, confirmWithDontShowAgain ([#423](https://github.com/silo-code/silo/issues/423)) ([2a942f2](https://github.com/silo-code/silo/commit/2a942f241c6e6f23981c2e0ee2a7ec86401121ae))
+* **theming:** give form fields and primary buttons real contrast in dark themes ([#417](https://github.com/silo-code/silo/issues/417)) ([b942c5e](https://github.com/silo-code/silo/commit/b942c5eed732bf41ce25777673a5b1485988e9e9))
+
+
+### Bug Fixes
+
+* **sdk:** pin Badge font sizes to absolute chrome tokens ([#424](https://github.com/silo-code/silo/issues/424)) ([8fc4fa0](https://github.com/silo-code/silo/commit/8fc4fa09c36d8bdb060ba0396c4b270223723f51))
+* **terminal:** persist mouse-reporting encoding so restore recovers it ([#422](https://github.com/silo-code/silo/issues/422)) ([1c6b533](https://github.com/silo-code/silo/commit/1c6b533efe67fe5d39fde2020d1d3d7d2678a579))
+* **theming:** keep light theme input borders at the region seam ([#421](https://github.com/silo-code/silo/issues/421)) ([956c388](https://github.com/silo-code/silo/commit/956c388005a8a2fd8c11763727c3b8a24263e85c))
+
 ## [0.52.0](https://github.com/silo-code/silo/compare/silo-v0.51.0...silo-v0.52.0) (2026-08-24)
 
 
