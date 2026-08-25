@@ -87,30 +87,48 @@ const isMac =
   typeof navigator !== "undefined" &&
   /Mac|iPhone|iPad/.test(navigator.platform);
 
+/**
+ * Every spelling of the **primary** modifier — Cmd on macOS, Ctrl everywhere
+ * else. `normalizeKey` (keymap.ts) folds all of these to the single stored
+ * token `cmd`, `displayKey` renders that token as "Cmd"/"Ctrl" per platform,
+ * and `toTauriAccelerator` emits it as `CmdOrCtrl` for the native menu — so the
+ * parser has to make the same platform choice. Reading `cmd` as a literal
+ * metaKey off-Mac is what left every JS-dispatched default (tab cycling,
+ * workspace cycling, Find in Files) demanding the physical **Windows key**,
+ * while the Shortcuts page advertised the Ctrl chord that could never fire.
+ * `ctrl` stays literal on every platform — Ctrl is its own modifier on macOS.
+ */
+const PRIMARY_MODIFIERS = [
+  "cmd",
+  "command",
+  "cmdorctrl",
+  "commandorcontrol",
+  "meta",
+  "super",
+];
+
 const parseCache = new Map<string, ParsedKey>();
 
-function parseKey(spec: string): ParsedKey {
-  const cached = parseCache.get(spec);
-  if (cached) return cached;
+/** @internal — exported for tests, which pin `mac` to cover both platforms. */
+export function parseKeySpec(spec: string, mac: boolean): ParsedKey {
   const parts = spec.toLowerCase().split("+");
   // The last token is the key; everything before is a modifier.
   const key = parts.pop() ?? "";
-  const primaryAlias =
-    parts.includes("cmdorctrl") || parts.includes("commandorcontrol");
-  const parsed: ParsedKey = {
-    meta:
-      parts.includes("cmd") ||
-      parts.includes("meta") ||
-      parts.includes("super") ||
-      (isMac && primaryAlias),
+  const primary = PRIMARY_MODIFIERS.some((m) => parts.includes(m));
+  return {
+    meta: mac && primary,
     ctrl:
-      parts.includes("ctrl") ||
-      parts.includes("control") ||
-      (!isMac && primaryAlias),
+      parts.includes("ctrl") || parts.includes("control") || (!mac && primary),
     shift: parts.includes("shift"),
     alt: parts.includes("alt") || parts.includes("option"),
     code: tokenToCode(key),
   };
+}
+
+function parseKey(spec: string): ParsedKey {
+  const cached = parseCache.get(spec);
+  if (cached) return cached;
+  const parsed = parseKeySpec(spec, isMac);
   parseCache.set(spec, parsed);
   return parsed;
 }
