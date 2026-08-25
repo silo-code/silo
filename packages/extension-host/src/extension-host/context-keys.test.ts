@@ -5,6 +5,7 @@ import { contextKeys, setContextKey, onContextChange } from "./context-keys";
 beforeEach(() => {
   setContextKey("activeEditorId", null);
   setContextKey("activeEditorViewId", null);
+  setContextKey("terminalFocused", false);
 });
 
 describe("setContextKey", () => {

@@ -10,6 +10,7 @@ export const contextKeys: ContextKeys = {
   activeEditorViewId: null,
   activeEditorId: null,
   activeViewerId: null, // deprecated alias — mirrored automatically by setContextKey
+  terminalFocused: false,
 };
 
 const listeners = new Set<() => void>();
