@@ -488,6 +488,8 @@
 .silo-badge {
   display: inline-flex;
   align-items: center;
+  /* Absolute chrome token — never `em` / parent cascade. Badges must render
+     the same size in a left pane, right pane, modal, or settings page. */
   font-size: calc(var(--silo-font-size-chrome) - 1px);
   font-weight: 600;
   padding: 1px 8px;
@@ -496,12 +498,11 @@
   flex-shrink: 0;
 }
 
-/* Tighter counter chip (`<Badge size="sm">`) — for a row count or a "+2"
- * sitting beside a label rather than standing alone. Sized in `em` so it
- * tracks whatever text it sits next to, including a side column's own font
- * scaling, which the `md` chrome-relative size does not. */
+/* Counter chip (`<Badge size="sm">`) — absolute chrome (never parent `em`),
+ * with the original pad/line-height. Optical target matches the pre-change
+ * workspaces `+N` chip; pinning chrome keeps that size in every pane. */
 .silo-badge-sm {
-  font-size: calc(1em - 2px);
+  font-size: var(--silo-font-size-chrome);
   padding: 0 5px;
   line-height: 1.5;
 }

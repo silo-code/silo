@@ -18,12 +18,14 @@ vi.mock("@tauri-apps/plugin-shell", () => ({
 
 import {
   getUiService,
+  getScopedUiService,
   isOpenableExternalUrl,
   toastStore,
   pushToast,
   dismissToast,
   runToastAction,
 } from "./ui-service";
+import type { ExtensionStorage } from "@silo-code/sdk";
 
 beforeEach(() => {
   openDialog.mockReset();
@@ -253,5 +255,80 @@ describe("isOpenableExternalUrl", () => {
     expect(isOpenableExternalUrl("javascript:1")).toBe(false);
     expect(isOpenableExternalUrl("tel:+1")).toBe(false);
     expect(isOpenableExternalUrl("nonsense")).toBe(false);
+  });
+});
+
+// getScopedUiService's confirmWithDontShowAgain: only the wiring is covered
+// here (that it threads the given storage through to a real showModal round
+// trip) — the suppress/persist decision itself is `resolveDialogOutcome`,
+// already covered by confirm-with-dont-show-again.test.ts.
+describe("getScopedUiService", () => {
+  function fakeStorage(
+    initial: Record<string, unknown> = {},
+  ): ExtensionStorage {
+    const bag = { ...initial };
+    return {
+      get: <T>(key: string, fallback?: T) =>
+        (key in bag ? (bag[key] as T) : fallback) as T | undefined,
+      set: (key, value) => {
+        if (value === undefined) delete bag[key];
+        else bag[key] = value;
+      },
+      keys: () => Object.keys(bag),
+      subscribe: () => ({ dispose: () => {} }),
+    };
+  }
+
+  it("shares the base service's other methods (e.g. notify)", () => {
+    const scoped = getScopedUiService(fakeStorage());
+    scoped.notify("info", "hi");
+    expect(toastStore.toasts.at(-1)).toMatchObject({ message: "hi" });
+  });
+
+  it("short-circuits to true without opening a dialog once the given storage is suppressed", async () => {
+    const scoped = getScopedUiService(
+      fakeStorage({ "my.dontShowAgain": true }),
+    );
+    await expect(
+      scoped.confirmWithDontShowAgain({
+        storageKey: "my.dontShowAgain",
+        title: "Do it?",
+        body: "…",
+        confirmLabel: "Do it",
+        mode: { kind: "info" },
+      }),
+    ).resolves.toBe(true);
+  });
+
+  it("scopes to the storage instance it was created with — two extensions don't share suppression", async () => {
+    const suppressed = getScopedUiService(fakeStorage({ "shared.key": true }));
+    const fresh = getScopedUiService(fakeStorage());
+
+    await expect(
+      suppressed.confirmWithDontShowAgain({
+        storageKey: "shared.key",
+        title: "Do it?",
+        body: "…",
+        confirmLabel: "Do it",
+        mode: { kind: "info" },
+      }),
+    ).resolves.toBe(true);
+
+    // The fresh extension's own storage has no key set, so it must actually
+    // open a modal (which never resolves here) rather than short-circuiting —
+    // race it against a timeout to prove it didn't settle immediately.
+    const settled = await Promise.race([
+      fresh
+        .confirmWithDontShowAgain({
+          storageKey: "shared.key",
+          title: "Do it?",
+          body: "…",
+          confirmLabel: "Do it",
+          mode: { kind: "info" },
+        })
+        .then(() => "settled"),
+      new Promise((resolve) => setTimeout(() => resolve("pending"), 10)),
+    ]);
+    expect(settled).toBe("pending");
   });
 });

@@ -1,8 +1,4 @@
-import {
-  closeGroup,
-  confirmWithDontShowAgain,
-  deleteGroup,
-} from "@silo-code/extension-host/internal";
+import { closeGroup, deleteGroup } from "@silo-code/extension-host/internal";
 import type { ExtensionContext } from "@silo-code/sdk";
 
 // Confirm helpers for group close/delete. Workspace *close* is host-owned
@@ -17,7 +13,7 @@ export async function confirmAndCloseGroup(
   id: string,
   name: string,
 ): Promise<void> {
-  const ok = await confirmWithDontShowAgain(ctx.ui, ctx.storage.global, {
+  const ok = await ctx.ui.confirmWithDontShowAgain({
     storageKey: "closeGroup.dontShowAgain",
     title: "Close group",
     body: `Closing "${name}" closes all of its workspaces, but their terminals keep running in the background. Reopen the group anytime to bring them all back.`,
@@ -35,7 +31,7 @@ export async function confirmAndDeleteGroup(
   id: string,
   name: string,
 ): Promise<void> {
-  const ok = await confirmWithDontShowAgain(ctx.ui, ctx.storage.global, {
+  const ok = await ctx.ui.confirmWithDontShowAgain({
     storageKey: "deleteGroup.dontShowAgain",
     title: "Delete group?",
     body: `${name} will be removed. Its workspaces stay saved and will appear individually.`,

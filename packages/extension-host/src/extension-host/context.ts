@@ -47,7 +47,7 @@ import { getScopedSearchService } from "./search-service";
 import { getThemeService } from "./theme-service";
 import type { ThemePreset } from "@silo-code/sdk";
 import { getDndService } from "./dnd-service";
-import { getUiService } from "./ui-service";
+import { getScopedUiService } from "./ui-service";
 import { getNetworkService } from "./network-service";
 import { getScopedWebviewService } from "./webview-service";
 import { getSystemService } from "./system-service";
@@ -118,11 +118,15 @@ export function createContext(
     trusted: options.trusted ?? false,
     permissions,
   };
+  // Hoisted so `storage.global` and the scoped `ctx.ui.confirmWithDontShowAgain`
+  // (which must close over this exact extension's global storage) share one
+  // instance rather than each minting their own.
+  const globalStorage = getGlobalExtensionStorage(extensionId);
   return {
     extensionId,
     subscriptions,
     storage: {
-      global: getGlobalExtensionStorage(extensionId),
+      global: globalStorage,
       workspace: getWorkspaceExtensionStorage(extensionId),
     },
     registerEditor(editor: Editor): Disposable {
@@ -203,7 +207,7 @@ export function createContext(
       },
     },
     dnd: getDndService(),
-    ui: getUiService(),
+    ui: getScopedUiService(globalStorage),
     net: getNetworkService(),
     webview: getScopedWebviewService(scope),
     system: getSystemService(),

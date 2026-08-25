@@ -202,6 +202,30 @@ at that window edge. Available whenever a side is collapsed — not only in
 Laptop Mode.
 _Avoid_: Drawer, flyout, temporary expand
 
+### Agent Skills
+
+**Skill** (Agent Skill):
+A reusable capability package for coding agents — typically a folder with a
+`SKILL.md` (and optional supporting files) that agents load as procedural
+knowledge. Distinct from a Silo extension (`core.*` / `silo.*`).
+_Avoid_: Extension (Silo's plugin unit), prompt snippet, rule file (generic)
+
+**Project skill**:
+A Skill installed under the workspace folder (e.g. `.agents/skills`,
+`.claude/skills`) — shared with the repo when committed.
+_Avoid_: Local skill (ambiguous with "on this machine"), workspace skill
+(Workspace already means the Silo workspace)
+
+**User skill**:
+A Skill installed under the user's home agent skill roots — available across
+projects on this machine.
+_Avoid_: Global skill (sounds like a registry-wide scope), personal skill
+
+**skills.sh**:
+The public Agent Skills directory / leaderboard used to discover and install
+Skills (`npx skills add …`).
+_Avoid_: Extension registry (that's extensions.getsilo.dev), skill store
+
 ### Agents
 
 **Agent** (of a terminal):

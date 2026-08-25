@@ -1,6 +1,6 @@
 # Interface: LayoutState
 
-Defined in: [packages/sdk/src/layout-service.ts:28](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L28)
+Defined in: [packages/sdk/src/layout-service.ts:29](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L29)
 
 An immutable view of side-column layout state.
 
@@ -12,7 +12,7 @@ An immutable view of side-column layout state.
 left: SidePanelColumnState;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:29](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L29)
+Defined in: [packages/sdk/src/layout-service.ts:30](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L30)
 
 ***
 
@@ -22,4 +22,4 @@ Defined in: [packages/sdk/src/layout-service.ts:29](https://github.com/silo-code
 right: SidePanelColumnState;
 ```
 
-Defined in: [packages/sdk/src/layout-service.ts:30](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L30)
+Defined in: [packages/sdk/src/layout-service.ts:31](https://github.com/silo-code/silo/blob/main/packages/sdk/src/layout-service.ts#L31)

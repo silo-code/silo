@@ -1,36 +1,19 @@
 import { useState } from "react";
-import type { ExtensionStorage, UiService } from "@silo-code/sdk";
+import type {
+  ConfirmDontShowAgainMode,
+  ConfirmDontShowAgainOptions,
+  ExtensionStorage,
+  UiService,
+} from "@silo-code/sdk";
 import { ModalActions } from "./Modal";
 
 // A `ctx.ui.showModal`-based confirm/info dialog with a persisted "don't show
 // this again" checkbox — the one capability `ctx.ui.confirm` has no room for
-// (ConfirmOptions is a plain title/body/two-buttons shape). Built as host
-// content rather than a public SDK addition: extending `ConfirmOptions` would
-// drag every consumer (and the docs-generation pipeline) into a contract
-// change for what today is a single feature's need.
-
-/**
- * `confirm`: Cancel + a primary/danger button, dismissible (Escape/backdrop
- * resolve like Cancel) — mirrors `ctx.ui.confirm`.
- * `info`: a single acknowledgement button, not dismissible — there's nothing
- * to cancel, so forcing the explicit click keeps the checkbox's fate
- * unambiguous.
- *
- * @internal
- */
-export type DontShowAgainDialogMode =
-  | { kind: "confirm"; danger?: boolean }
-  | { kind: "info" };
-
-/** @internal */
-export interface DontShowAgainDialogOptions {
-  /** Key in `storage` that remembers the user opted out of this dialog. */
-  storageKey: string;
-  title: string;
-  body: string;
-  confirmLabel: string;
-  mode: DontShowAgainDialogMode;
-}
+// (ConfirmOptions is a plain title/body/two-buttons shape). This is the host
+// implementation behind the public `ctx.ui.confirmWithDontShowAgain` (RFC
+// 0029) — its types (`ConfirmDontShowAgainMode`/`Options`) live in the SDK now;
+// this file also stays the generic entry point host-internal callers with no
+// `ctx` (e.g. `workspace-menu.ts`'s `confirmAndCloseWorkspace`) call directly.
 
 /**
  * Pure decision behind the dialog's two buttons: cancelling never persists
@@ -58,7 +41,7 @@ function DontShowAgainDialogContent({
 }: {
   body: string;
   confirmLabel: string;
-  mode: DontShowAgainDialogMode;
+  mode: ConfirmDontShowAgainMode;
   storage: ExtensionStorage;
   storageKey: string;
   close: (result?: boolean) => void;
@@ -113,14 +96,19 @@ function DontShowAgainDialogContent({
  * Pop a confirm/info dialog with a persisted "don't show this again"
  * checkbox, short-circuiting to `true` (proceed) without opening anything
  * once the user has suppressed `opts.storageKey`. See
- * {@link DontShowAgainDialogMode} for the `confirm` vs. `info` shapes.
+ * {@link ConfirmDontShowAgainMode} for the `confirm` vs. `info` shapes.
+ *
+ * Generic over `ui`/`storage` rather than reading `ctx` itself — this is what
+ * lets both the scoped `ctx.ui.confirmWithDontShowAgain` wrapper
+ * (`ui-service.ts`) and host-internal, non-extension callers with their own
+ * storage (e.g. `workspace-menu.ts`) share one implementation.
  *
  * @internal
  */
 export async function confirmWithDontShowAgain(
-  ui: UiService,
+  ui: Pick<UiService, "showModal">,
   storage: ExtensionStorage,
-  opts: DontShowAgainDialogOptions,
+  opts: ConfirmDontShowAgainOptions,
 ): Promise<boolean> {
   if (storage.get<boolean>(opts.storageKey, false)) return true;
   const result = await ui.showModal<boolean>(

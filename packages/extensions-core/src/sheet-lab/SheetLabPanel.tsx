@@ -147,7 +147,13 @@ function SheetContents({
   );
 }
 
-export function SheetLabPanel({ ctx }: { ctx: ExtensionContext }) {
+export function SheetLabPanel({
+  ctx,
+  panelId,
+}: {
+  ctx: ExtensionContext;
+  panelId: string;
+}) {
   const [open, setOpen] = useState<Recipe | null>(null);
   const [width, setWidth] = useState(520);
   const [dismissible, setDismissible] = useState(true);
@@ -167,6 +173,40 @@ export function SheetLabPanel({ ctx }: { ctx: ExtensionContext }) {
               {r.label}
             </Button>
           ))}
+          {/* Exercises the public `ctx.layout.openPanelSheet` path (RFC 0029)
+              — imperative, dock-only, and anchored to *this panel* by id
+              rather than by where the call happens to run, so it opens on
+              the right side/reveals this panel even from, say, a
+              command-palette invocation. */}
+          <Button
+            className="sheet-lab-btn"
+            onClick={() => {
+              void ctx.layout.openPanelSheet(
+                panelId,
+                (imperativeClose) => (
+                  <SheetContents
+                    recipe={{
+                      key: "imperative",
+                      label: "Imperative — ctx.layout.openPanelSheet",
+                      hint: "Opened via ctx.layout.openPanelSheet(panelId, render, opts) — the public SDK path. Side comes from this panel's own id, not from where the call runs.",
+                      anchor: "dock",
+                      mode: "overlay",
+                    }}
+                    widthPx={width}
+                    ctx={ctx}
+                    onClose={imperativeClose}
+                  />
+                ),
+                {
+                  title: "Imperative — ctx.layout.openPanelSheet",
+                  width,
+                  mode: "overlay",
+                },
+              );
+            }}
+          >
+            Imperative — ctx.layout.openPanelSheet
+          </Button>
         </div>
       </Section>
 

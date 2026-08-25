@@ -108,6 +108,7 @@ export type SheetProps = SheetChrome &
          */
         dismissible?: boolean;
         mode?: never;
+        side?: never;
       }
     | {
         /**
@@ -121,6 +122,16 @@ export type SheetProps = SheetChrome &
          * narrows it so the sheet takes real layout space. Default `"overlay"`.
          */
         mode?: SheetMode;
+        /**
+         * Which side to anchor to, bypassing the DOM-sentinel inference
+         * (`useDockSide`) that normally reads it off the caller's own React
+         * tree. Only needed by a caller whose `<Sheet>` isn't mounted inside
+         * the dock it's anchoring to — today, only `SheetDialogHost`, which
+         * renders every `ctx.layout.openPanelSheet` at the app root and
+         * already knows the target panel's actual side from host state.
+         * Omit for the normal declarative case.
+         */
+        side?: SheetSide;
         align?: never;
         dismissible?: never;
       }
@@ -257,9 +268,16 @@ export function Sheet({
   const restoreRef = useRef<HTMLElement | null>(null);
   const snap = useSnapshot(sheetStack);
 
-  // A dock-anchored sheet takes its side from where the caller sits; an
-  // app-anchored one is told (defaulting to the left edge).
-  const dockSide = useDockSide(sentinelRef, isDock);
+  // A dock-anchored sheet takes its side from where the caller sits — unless
+  // `side` is given explicitly (the imperative `ctx.layout.openPanelSheet`
+  // path, whose `<Sheet>` isn't mounted inside the dock it anchors to; see
+  // SheetProps). An app-anchored one is told (defaulting to the left edge).
+  const explicitSide = isDock ? rest.side : undefined;
+  const inferredSide = useDockSide(
+    sentinelRef,
+    isDock && explicitSide === undefined,
+  );
+  const dockSide = isDock ? (explicitSide ?? inferredSide) : null;
   const align: SheetAlign | null = isDock ? dockSide : (rest.align ?? "left");
 
   // Everything but a push sheet is positioned from measured layout rects; a

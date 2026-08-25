@@ -4,6 +4,7 @@ import {
   Shortcuts,
   SettingsSheet,
   ModalHost,
+  SheetDialogHost,
   Toasts,
   Menus,
   ThemeInjector,
@@ -23,6 +24,7 @@ export default function App() {
       <AppShell />
       <SettingsSheet />
       <ModalHost />
+      <SheetDialogHost />
       <Toasts />
       <Menus />
     </ErrorBoundary>

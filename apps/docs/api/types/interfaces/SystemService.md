@@ -49,3 +49,37 @@ call (the result is cached) — safe to `await` in `activate`.
 #### Returns
 
 `Promise`\<[`SystemInfo`](SystemInfo.md)\>
+
+***
+
+### homeDir()
+
+```ts
+homeDir(): Promise<string>;
+```
+
+Defined in: [packages/sdk/src/system-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/system-service.ts#L96)
+
+Absolute path of the current user's home directory (`$HOME` on
+macOS/Linux, `%USERPROFILE%` on Windows). Host-mediated — there's no
+Node/`os` access in extensions. Resolves immediately after the first call
+(cached, like [SystemService.getInfo](#getinfo)).
+
+Returning the path string is not itself a file read: reading or watching
+anything under it still goes through [ExtensionContext.files](ExtensionContext.md#files) and
+that service's normal permission rules (typically `fs:read` for an
+untrusted extension).
+
+#### Returns
+
+`Promise`\<`string`\>
+
+#### Example
+
+```ts
+const home = await ctx.system.homeDir();
+const skillsDir = path.join(home, ".claude", "skills");
+if (await ctx.files.pathExists(skillsDir)) {
+  const entries = await ctx.files.readDir(skillsDir);
+}
+```
