@@ -421,7 +421,7 @@ if (ok) runInstall();
 openExternal(url): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:555](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L555)
+Defined in: [packages/sdk/src/ui-service.ts:553](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L553)
 
 Hand a URL to the operating system — open an `http`/`https` link in the
 user's default browser, or a `mailto:` link in their mail client. The host
@@ -472,7 +472,7 @@ try {
 getActiveSelectionText(): string | null;
 ```
 
-Defined in: [packages/sdk/src/ui-service.ts:570](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L570)
+Defined in: [packages/sdk/src/ui-service.ts:568](https://github.com/silo-code/silo/blob/main/packages/sdk/src/ui-service.ts#L568)
 
 The text currently selected in the **focused surface** — the active editor
 or a focused terminal — or `null` when nothing is selected. Reads the
