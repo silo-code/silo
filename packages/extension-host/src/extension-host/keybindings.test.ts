@@ -3,6 +3,7 @@ import { dispatchKey, keybindingRegistry, parseKeySpec } from "./keybindings";
 import { commandRegistry } from "./commands";
 import { menuItemRegistry } from "./menu-items";
 import { setUserBindings } from "./keymap";
+import { setContextKey } from "./context-keys";
 
 // Registering a menu item / changing user bindings rebuilds the native menu;
 // stub the Tauri menu API so that stays inert under the test environment.
@@ -93,6 +94,7 @@ describe("dispatchKey", () => {
   beforeEach(() => {
     for (const d of disposables.splice(0)) d.dispose();
     setUserBindings([]);
+    setContextKey("terminalFocused", false);
     run = vi.fn();
     disposables.push(
       commandRegistry.register({ id: "ext.toggle", label: "Toggle", run }),
@@ -177,5 +179,24 @@ describe("dispatchKey", () => {
       false,
     );
     expect(run).not.toHaveBeenCalled();
+  });
+
+  it("honors a when clause on the binding", () => {
+    disposables.push(
+      keybindingRegistry.register({
+        id: "ext.terminal.clear.key",
+        command: "ext.toggle",
+        key: "cmd+k",
+        when: (keys) => keys.terminalFocused,
+      }),
+    );
+    const e = keyEvent({ code: "KeyK", ctrl: true });
+
+    expect(dispatchKey(e)).toBe(false);
+    expect(run).not.toHaveBeenCalled();
+
+    setContextKey("terminalFocused", true);
+    expect(dispatchKey(e)).toBe(true);
+    expect(run).toHaveBeenCalledTimes(1);
   });
 });

@@ -54,3 +54,17 @@ Defined in: [packages/sdk/src/context-keys.ts:32](https://github.com/silo-code/s
 Use [ContextKeys.activeEditorViewId](#activeeditorviewid) instead.
 Kept for one release so extensions compiled against the old SDK continue
 to receive the correct value at runtime without a silent break.
+
+***
+
+### terminalFocused
+
+```ts
+terminalFocused: boolean;
+```
+
+Defined in: [packages/sdk/src/context-keys.ts:38](https://github.com/silo-code/silo/blob/main/packages/sdk/src/context-keys.ts#L38)
+
+True when an xterm textarea in a terminal panel owns DOM focus — the user
+is typing into (or has just typed into) a terminal. Used to scope terminal-
+local keybindings such as Clear (`cmd+k`).
