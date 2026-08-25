@@ -653,7 +653,25 @@ export function TerminalPanel(
         if (!needsCreate) {
           const restored = await session.getBuffer();
           if (restored.length > 0) {
-            term.write(restored);
+            // Terminals deliver mouse events in one of several formats: a
+            // legacy default and the modern one (SGR), which every modern
+            // TUI (grok, Claude Code, codex, etc.) uses and switches to.
+            // Restoring the saved buffer re-enables "the CLI app running in
+            // this terminal wants mouse events" but Silo doesn't restore the
+            // format switch, so the CLI app gets events in the legacy format
+            // it can't read and ignores them — wheel scrolling does nothing
+            // until that CLI app itself is restarted. Fix: after restoring
+            // the buffer, always switch mouse events back to SGR format (the
+            // one agent TUIs actually use).
+            term.write(restored, () => {
+              // Tab was closed or moved to another session mid-restore.
+              if (liveRef.current?.sessionId !== sessionId) return;
+              // Skip terminals where no app asked for mouse events (a plain
+              // shell prompt) — those scroll fine, nothing to fix.
+              if (term.modes.mouseTrackingMode !== "none") {
+                term.write("\x1b[?1006h"); // = use SGR format
+              }
+            });
           }
           replayed = true;
           for (const d of pendingLive) writeLive(d);
