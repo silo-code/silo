@@ -12,6 +12,9 @@ pub mod fs;
 pub mod process;
 pub mod search;
 pub mod watch;
+// Foreground-process resolution for Windows (no ConPTY equivalent of
+// tcgetpgrp — the leader is inferred by walking the process tree).
+pub mod process_tree;
 pub mod session_backend;
 // Terminal identity carrier for the session environment (RFC 0028).
 pub mod session_env;

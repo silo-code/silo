@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { dispatchKey, keybindingRegistry } from "./keybindings";
+import { dispatchKey, keybindingRegistry, parseKeySpec } from "./keybindings";
 import { commandRegistry } from "./commands";
 import { menuItemRegistry } from "./menu-items";
 import { setUserBindings } from "./keymap";
@@ -35,6 +35,57 @@ function keyEvent(init: {
   } as unknown as KeyboardEvent;
 }
 
+describe("parseKeySpec", () => {
+  // The stored `cmd` token means CmdOrCtrl — Cmd on macOS, Ctrl elsewhere —
+  // matching what displayKey renders and what the native menu accelerator
+  // resolves to. Parsing it as a literal metaKey off-Mac made every
+  // JS-dispatched default (tab cycling, Cmd+`, Cmd+Shift+F) require the
+  // physical Windows key, so none of them could fire on Windows or Linux.
+  it("maps the primary modifier to Cmd on macOS", () => {
+    const p = parseKeySpec("cmd+alt+right", true);
+    expect(p).toMatchObject({ meta: true, ctrl: false, alt: true });
+  });
+
+  it("maps the primary modifier to Ctrl off macOS", () => {
+    const p = parseKeySpec("cmd+alt+right", false);
+    expect(p).toMatchObject({ meta: false, ctrl: true, alt: true });
+  });
+
+  it("treats every primary spelling alike", () => {
+    for (const spec of [
+      "cmd+k",
+      "command+k",
+      "cmdorctrl+k",
+      "meta+k",
+      "super+k",
+    ]) {
+      expect(parseKeySpec(spec, true)).toMatchObject({
+        meta: true,
+        ctrl: false,
+      });
+      expect(parseKeySpec(spec, false)).toMatchObject({
+        meta: false,
+        ctrl: true,
+      });
+    }
+  });
+
+  it("keeps ctrl literal on both platforms", () => {
+    // A macOS user who binds Ctrl+K means Ctrl, not Cmd — and the Shortcuts
+    // page records exactly what was pressed.
+    expect(parseKeySpec("ctrl+k", true)).toMatchObject({
+      meta: false,
+      ctrl: true,
+    });
+    expect(parseKeySpec("ctrl+k", false)).toMatchObject({
+      meta: false,
+      ctrl: true,
+    });
+  });
+});
+
+// jsdom reports `navigator.platform === ""`, so these run the off-Mac branch:
+// a `cmd+…` binding is pressed as Ctrl.
 describe("dispatchKey", () => {
   let run: ReturnType<typeof vi.fn>;
   const disposables: Array<{ dispose: () => void }> = [];
@@ -56,7 +107,7 @@ describe("dispatchKey", () => {
         key: "cmd+alt+g",
       }),
     );
-    const e = keyEvent({ code: "KeyG", meta: true, alt: true });
+    const e = keyEvent({ code: "KeyG", ctrl: true, alt: true });
 
     expect(dispatchKey(e)).toBe(true);
     expect(run).toHaveBeenCalledTimes(1);
@@ -68,7 +119,7 @@ describe("dispatchKey", () => {
     // never called registerKeybinding and has no menu item — keybindings.json
     // is then the only record of the chord.
     setUserBindings([{ command: "ext.toggle", key: "cmd+alt+g" }]);
-    const e = keyEvent({ code: "KeyG", meta: true, alt: true });
+    const e = keyEvent({ code: "KeyG", ctrl: true, alt: true });
 
     expect(dispatchKey(e)).toBe(true);
     expect(run).toHaveBeenCalledTimes(1);
@@ -79,7 +130,7 @@ describe("dispatchKey", () => {
   it("ignores an override whose chord does not match", () => {
     setUserBindings([{ command: "ext.toggle", key: "cmd+alt+g" }]);
 
-    expect(dispatchKey(keyEvent({ code: "KeyG", meta: true }))).toBe(false);
+    expect(dispatchKey(keyEvent({ code: "KeyG", ctrl: true }))).toBe(false);
     expect(run).not.toHaveBeenCalled();
   });
 
@@ -96,7 +147,7 @@ describe("dispatchKey", () => {
     );
     setUserBindings([{ command: "ext.toggle", key: "cmd+alt+g" }]);
 
-    expect(dispatchKey(keyEvent({ code: "KeyG", meta: true, alt: true }))).toBe(
+    expect(dispatchKey(keyEvent({ code: "KeyG", ctrl: true, alt: true }))).toBe(
       false,
     );
     expect(run).not.toHaveBeenCalled();
@@ -104,7 +155,7 @@ describe("dispatchKey", () => {
 
   it("fires an override-only command exactly once", () => {
     setUserBindings([{ command: "ext.toggle", key: "cmd+alt+g" }]);
-    dispatchKey(keyEvent({ code: "KeyG", meta: true, alt: true }));
+    dispatchKey(keyEvent({ code: "KeyG", ctrl: true, alt: true }));
 
     expect(run).toHaveBeenCalledTimes(1);
   });
@@ -122,7 +173,7 @@ describe("dispatchKey", () => {
       { command: "-ext.toggle", key: "" },
     ]);
 
-    expect(dispatchKey(keyEvent({ code: "KeyG", meta: true, alt: true }))).toBe(
+    expect(dispatchKey(keyEvent({ code: "KeyG", ctrl: true, alt: true }))).toBe(
       false,
     );
     expect(run).not.toHaveBeenCalled();

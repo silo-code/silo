@@ -149,6 +149,70 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe("AgentsService — promotion from the foreground leader alone", () => {
+  // Windows has no hooks (the script is POSIX shell) and no guarantee of an
+  // OSC promotion, so the foreground leader is the only evidence available.
+  // Before this, such a terminal was tracked and correctly named but stayed
+  // isAgent: false — and every consumer that shows "agent terminals" filters
+  // on isAgent, so a working Copilot session was invisible.
+  it("promotes a shell to an agent when a known agent is the foreground leader", async () => {
+    const id = "t-fg-promote";
+    const sessionId = "sess-fg-promote";
+
+    await attachTerminal(id, sessionId);
+    expect(svc.getByTerminalId(id)?.isAgent).toBe(false);
+
+    // No hook event, no OSC — just the leader, as on Windows.
+    foreground(sessionId, {
+      pgid: 9560,
+      atPrompt: false,
+      leader: "copilot.exe",
+      cwd: "",
+    });
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.isAgent).toBe(true);
+    expect(info?.agentId).toBe("copilot");
+    expect(info?.agentName).toBe("GitHub Copilot CLI");
+  });
+
+  it("leaves a plain shell alone", async () => {
+    const id = "t-fg-shell";
+    const sessionId = "sess-fg-shell";
+
+    await attachTerminal(id, sessionId);
+    foreground(sessionId, {
+      pgid: 3732,
+      atPrompt: true,
+      leader: "cmd.exe",
+      cwd: "",
+    });
+
+    expect(svc.getByTerminalId(id)?.isAgent).toBe(false);
+  });
+
+  it("does not re-promote on every tick once it is already an agent", async () => {
+    // The Windows walk reports a new leader roughly once a second while an
+    // agent shells out (git, where, powershell), so this path is hot.
+    const id = "t-fg-repeat";
+    const sessionId = "sess-fg-repeat";
+
+    await attachTerminal(id, sessionId);
+    for (let i = 0; i < 3; i++) {
+      foreground(sessionId, {
+        pgid: 9560,
+        atPrompt: false,
+        leader: "copilot.exe",
+        cwd: "",
+      });
+    }
+
+    const info = svc.getByTerminalId(id);
+    expect(info?.isAgent).toBe(true);
+    expect(info?.agentId).toBe("copilot");
+  });
+});
+
 describe("AgentsService — Grok session-file resume", () => {
   it("resolves grok --resume from the session file when the foreground is grok", async () => {
     const id = "t-grok";

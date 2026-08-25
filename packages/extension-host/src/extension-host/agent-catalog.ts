@@ -3,6 +3,7 @@ import {
   detectCodexCLI,
   detectCodexIdleAfterWorking,
   detectCopilotCLI,
+  detectCopilotTitle,
   detectPiTitle,
   detectCursorAgent,
   detectCursorAgentOutput,
@@ -484,9 +485,11 @@ const copilot: AgentDefinition = {
   id: "copilot",
   displayName: "GitHub Copilot CLI",
   leaderNames: ["copilot"],
-  // OSC 9;4 (ConEmu/Windows Terminal progress protocol), ported from
-  // silo-extensions/agent-monitor.
-  activityDetectors: [detectCopilotCLI],
+  // Title first: captured live on Windows (2026-08-24), Copilot emitted no
+  // OSC 9;4 at all for a whole session, so the progress detector alone left
+  // its activity permanently stale. The title is its per-turn signal and also
+  // identifies it. OSC 9;4 stays as a second source where it does fire.
+  activityDetectors: [detectCopilotTitle, detectCopilotCLI],
   resume: {
     kind: "hook",
     installStrategy: "copilot-hooks-dir",
@@ -695,8 +698,13 @@ export const AGENT_CATALOG: AgentDefinition[] = [
  * Bun-compiled `claude` reporting as `/Users/x/.local/bin/claude`, not bare
  * `claude`) — match on the basename, not the whole string. */
 export function leaderBasename(leader: string): string {
-  const idx = leader.lastIndexOf("/");
-  return idx >= 0 ? leader.slice(idx + 1) : leader;
+  // Windows reports a bare executable name with its extension (`copilot.exe`)
+  // and uses `\` as the separator; Unix reports a path with `/` and no
+  // extension. `leaderNames` is written the Unix way, so normalize to that —
+  // without this, no agent matches on Windows at all.
+  const idx = Math.max(leader.lastIndexOf("/"), leader.lastIndexOf("\\"));
+  const base = idx >= 0 ? leader.slice(idx + 1) : leader;
+  return base.replace(/\.(exe|cmd|bat|com)$/i, "");
 }
 
 /** The catalog entry whose `leaderNames` includes this foreground leader's
@@ -805,14 +813,22 @@ export function detectFromOsc(
  * OSC pair — a catalog agent's `idleAfterWorking` (only Codex has one today)
  * gets a chance to interpret it *given* whether this terminal was already in
  * an agent-sourced working state. First non-null result wins.
+ *
+ * `agentCatalogId` is the terminal's already-established identity, when there
+ * is one: once we know *which* agent is running, only that agent's fallback
+ * may speak for it. Without this gate Codex's "any plain title ends the turn"
+ * rule fires for every agent — e.g. Copilot shelling out sets the title to
+ * `"Windows PowerShell"`, which would end Copilot's turn mid-task.
  */
 export function detectIdleAfterWorking(
   code: number,
   payload: string,
   wasAgentWorking: boolean,
+  agentCatalogId?: string | null,
 ): DetectionResult | null {
   for (const agent of AGENT_CATALOG) {
     if (!agent.idleAfterWorking) continue;
+    if (agentCatalogId && agent.id !== agentCatalogId) continue;
     const result = agent.idleAfterWorking(code, payload, wasAgentWorking);
     if (result) return result;
   }

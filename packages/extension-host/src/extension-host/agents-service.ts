@@ -72,6 +72,9 @@ type TrackedAgent = {
    * / reset. `null` until a known agent leader has been seen.
    */
   agentPgid: number | null;
+  /** Last `<code>\0<payload>` logged for this terminal, to collapse the
+   * repeats that title sequences produce. Diagnostics only. */
+  lastOscKey?: string;
   /**
    * Sticky catalog id (`"claude"`, `"grok"`, …) of the leader that set
    * {@link agentPgid}. Used to reject foreign SessionStart hooks that share a
@@ -688,6 +691,41 @@ function applyDetection(terminalId: string, result: DetectionResult) {
 /** Attach catalog identity from an OSC identity signal. Does not invent a
  * session id — only names the agent so shell-integration noise can't wipe
  * the promotion. */
+
+/**
+ * Record every OSC sequence a tracked terminal emits, and whether any detector
+ * claimed it.
+ *
+ * This is the signal that answers "why is my agent's status not updating?" —
+ * a question that otherwise requires capturing the raw PTY stream, which is
+ * impractical on Windows (no `script`, and redirecting to a file makes the
+ * agent non-TTY so it stops emitting sequences at all).
+ *
+ * Deliberately logs the *undetected* ones too: an agent whose activity never
+ * changes is emitting something we don't understand, and the payload is the
+ * only way to find out what. Consecutive identical events are collapsed —
+ * title sequences repeat heavily — so a busy terminal doesn't drown the
+ * channel.
+ */
+function logOscEvent(
+  entry: TrackedAgent,
+  terminalId: string,
+  code: number,
+  payload: string,
+  detected: DetectionResult | null,
+): void {
+  const key = `${code}\u0000${payload}`;
+  if (entry.lastOscKey === key) return;
+  entry.lastOscKey = key;
+  const trimmed = payload.length > 120 ? `${payload.slice(0, 120)}…` : payload;
+  agentsChannel.debug(
+    `terminal ${terminalId} osc ${code} payload=${JSON.stringify(trimmed)} → ` +
+      (detected
+        ? `${detected.status} (source=${detected.source})`
+        : "no detector matched"),
+  );
+}
+
 function stampDetectedAgentIdentity(terminalId: string, agentId: string) {
   const entry = trackedAgents.get(terminalId);
   const agent = agentById(agentId);
@@ -820,6 +858,16 @@ function stickKnownAgentForeground(
   const becameAgent = prevAgentPgid !== fg.pgid;
   entry.agentPgid = fg.pgid;
   entry.agentCatalogId = agent.id;
+  // A known agent is the foreground process — that *is* an agent terminal,
+  // and it's stronger evidence than the OSC heuristics that normally promote
+  // one. `applyHookMatch` already promotes on the same reasoning; this path
+  // never did, because on macOS/Linux a hook or an OSC signal always got
+  // there first. On Windows neither exists, so a correctly-identified agent
+  // stayed `isAgent: false` and was filtered out of every consumer that shows
+  // "agent terminals" — tracked, named, and invisible.
+  if (!entry.state.isAgent && entry.state.kind === "shell") {
+    applyEvent(terminalId, detectedEvent(terminalId, "idle", "agent"));
+  }
   if (becameAgent) {
     if (prevAgentPgid != null) {
       resetSessionIdentityForNewInstance(entry, terminalId);
@@ -919,8 +967,14 @@ function bindForeground(
     sessionId,
   }).then((fg) => {
     if (!fg) {
+      // "not yet" is only true where a foreground stream exists at all. Where
+      // the backend has none, this fires for every terminal forever and the
+      // wording sends anyone reading the log looking for a race that isn't
+      // there — which is exactly what happened on Windows.
       agentsChannel.debug(
-        `terminal ${terminalId} foreground seed: no snapshot available yet`,
+        `terminal ${terminalId} foreground seed: no snapshot ` +
+          `(none yet, or this backend reports no foreground process — see the ` +
+          `capability line logged at startup)`,
       );
       return;
     }
@@ -989,12 +1043,39 @@ function attachSession(terminalId: string) {
   };
   trackedAgents.set(terminalId, entry);
 
+  // Which workspace a tracked terminal is filed under decides whether it is
+  // ever visible: `ctx.agents.getState()` filters on
+  // `info.workspaceId === activeWorkspaceId`, and the all-workspaces view is
+  // filtered by the caller the same way. A mismatch here means a terminal that
+  // is tracked, ticking, and completely invisible — with nothing in the log to
+  // say why.
+  agentsChannel.debug(
+    `terminal ${terminalId} tracked in workspace ${ctx.wsId} ` +
+      `(active workspace ${store.activeWorkspaceId ?? "none"}, ` +
+      `${trackedAgents.size} tracked total)`,
+  );
+
   entry.cleanupOsc = getTerminalService().subscribeOsc(
     terminalId,
     ({ code, payload }) => {
       const detected = detectFromOsc(code, payload);
+      logOscEvent(entry, terminalId, code, payload, detected);
       if (detected) {
+        const wasAgent = entry.state.isAgent;
         applyDetection(terminalId, detected);
+        if (!wasAgent && entry.state.isAgent) {
+          // Promotion from OSC alone. On Windows this is the *only* way a
+          // terminal becomes an agent, so silence here meant an unexplained
+          // "nothing appears" with no trace to follow.
+          agentsChannel.debug(
+            `terminal ${terminalId} promoted to agent by OSC ${code} ` +
+              `(${detected.status}, source=${detected.source})` +
+              (entry.state.agentId
+                ? ` — identified as ${entry.state.agentId}`
+                : " — no identity yet (needs a foreground leader or an " +
+                  "identity-carrying signal)"),
+          );
+        }
         return;
       }
       // Contextual fallback (Codex's plain-title idle): only meaningful when
@@ -1003,7 +1084,12 @@ function attachSession(terminalId: string) {
       const wasAgentWorking =
         entry.state.activity === "working" &&
         entry.state.workingSource === "agent";
-      const idle = detectIdleAfterWorking(code, payload, wasAgentWorking);
+      const idle = detectIdleAfterWorking(
+        code,
+        payload,
+        wasAgentWorking,
+        entry.agentCatalogId,
+      );
       if (idle) applyDetection(terminalId, idle);
     },
   ).dispose;
