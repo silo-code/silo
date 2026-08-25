@@ -80,6 +80,9 @@ export function SearchInput({
         autoFocus={autoFocus}
         onChange={(e) => onValueChange(e.target.value)}
         autoComplete="off"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
       />
       <button
         type="button"

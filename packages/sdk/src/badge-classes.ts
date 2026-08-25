@@ -14,7 +14,8 @@ export type BadgeTone =
 
 /**
  * Size axis for {@link Badge}. `"md"` is the default text chip; `"sm"` is the
- * tighter counter chip.
+ * tighter counter chip. Both resolve to absolute chrome-token font sizes in
+ * the host — never parent `em`.
  *
  * @internal
  */

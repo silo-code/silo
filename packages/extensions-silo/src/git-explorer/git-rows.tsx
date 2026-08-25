@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { File as FileIcon } from "@phosphor-icons/react";
-import { Tooltip, type FocusGroupItemProps } from "@silo-code/sdk";
+import { Badge, Tooltip, type FocusGroupItemProps } from "@silo-code/sdk";
 import type { GitFileStatus } from "../git/git-api";
 import {
   ICON_CHEV_DOWN,
@@ -76,7 +76,9 @@ export function Section({
             ))}
           </span>
         )}
-        <span className="section-count">{count}</span>
+        <span className="section-count">
+          <Badge size="sm">{count}</Badge>
+        </span>
       </div>
       {open && <div className="section-body">{children}</div>}
     </div>
