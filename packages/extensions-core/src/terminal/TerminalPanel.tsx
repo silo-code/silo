@@ -11,6 +11,11 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import { SerializeAddon } from "@xterm/addon-serialize";
 import { SearchAddon } from "@xterm/addon-search";
 import {
+  nextMouseEncoding,
+  withRestoredMouseEncoding,
+  type MouseEncoding,
+} from "./terminal-mouse-encoding";
+import {
   DND_MIME,
   type DockPanelProps,
   type Disposable,
@@ -456,6 +461,27 @@ export function TerminalPanel(
 
     const disposers: Array<() => void> = [];
 
+    // See terminal-mouse-encoding.ts: xterm's SerializeAddon can't capture
+    // which mouse-reporting encoding a TUI selected, so track it ourselves
+    // via the public CSI-handler API for persistBuffer() below to fold in.
+    let mouseEncoding: MouseEncoding = null;
+    const decsetSub = term.parser.registerCsiHandler(
+      { prefix: "?", final: "h" },
+      (params) => {
+        mouseEncoding = nextMouseEncoding(mouseEncoding, params, true);
+        return false; // don't suppress xterm's own DECSET handling
+      },
+    );
+    const decrstSub = term.parser.registerCsiHandler(
+      { prefix: "?", final: "l" },
+      (params) => {
+        mouseEncoding = nextMouseEncoding(mouseEncoding, params, false);
+        return false; // don't suppress xterm's own DECRST handling
+      },
+    );
+    disposers.push(() => decsetSub.dispose());
+    disposers.push(() => decrstSub.dispose());
+
     // Copy-on-select: on mouse release (so we don't fire mid-drag), copy the
     // selection and clear it. Reads the setting live so the toggle takes effect
     // without a remount.
@@ -618,7 +644,11 @@ export function TerminalPanel(
         let saveDirty = false;
         const persistBuffer = () => {
           try {
-            const data = serializeAddon.serialize({ scrollback: 2000 });
+            const data = withRestoredMouseEncoding(
+              serializeAddon.serialize({ scrollback: 2000 }),
+              mouseEncoding,
+              term.modes.mouseTrackingMode,
+            );
             session.saveBuffer(data);
           } catch (err) {
             console.warn("[terminal] serialize failed", err);
