@@ -237,10 +237,76 @@ pub fn fs_reveal(path: String) -> Result<(), String> {
     }
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
+        // `raw_arg`, not `arg`: Explorer parses its own command line rather
+        // than going through CommandLineToArgvW, so the quoting has to be
+        // exactly what `explorer_reveal_arg` produced.
         std::process::Command::new("explorer")
-            .arg(format!("/select,{}", path))
+            .raw_arg(explorer_reveal_arg(&path))
             .spawn()
             .map(|_| ())
             .map_err(|e| e.to_string())
+    }
+}
+
+/// The command line for `explorer.exe` that reveals `path` in its folder.
+///
+/// Two things Explorer is strict about, and this is where both used to go
+/// wrong. Every path crossing the IPC boundary uses forward slashes (see
+/// [`normalize_path`]), but `/select` only understands backslashes — given
+/// `C:/x/y` it silently ignores the selection and opens the default view,
+/// which is exactly what "reveal opened the wrong folder" looks like. And the
+/// path has to be quoted *inside* the `/select,` argument; Rust's normal
+/// argument quoting wraps the whole thing instead (`"/select,C:\a b\c"`),
+/// which Explorer rejects the moment the path holds a space.
+#[cfg(any(target_os = "windows", test))]
+fn explorer_reveal_arg(path: &str) -> String {
+    let win_path = path.replace('/', "\\");
+    let target = win_path.trim_end_matches('\\');
+    if target.is_empty() || target.ends_with(':') {
+        // A drive root has no item to select — just open it. Left unquoted: a
+        // bare drive letter can't contain a space, and a trailing backslash
+        // before a closing quote would escape the quote.
+        format!("{}\\", target)
+    } else {
+        format!("/select,\"{}\"", target)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reveal_arg_converts_separators_and_quotes_the_path() {
+        // The frontend always hands us forward slashes, even on Windows.
+        assert_eq!(
+            explorer_reveal_arg("C:/dev/silo/README.md"),
+            "/select,\"C:\\dev\\silo\\README.md\""
+        );
+    }
+
+    #[test]
+    fn reveal_arg_survives_spaces() {
+        assert_eq!(
+            explorer_reveal_arg("C:/Users/Dev User/My Notes/a b.txt"),
+            "/select,\"C:\\Users\\Dev User\\My Notes\\a b.txt\""
+        );
+    }
+
+    #[test]
+    fn reveal_arg_opens_a_drive_root_without_selecting() {
+        // `/select,"C:\"` would escape its own closing quote, so a root opens
+        // directly instead.
+        assert_eq!(explorer_reveal_arg("C:/"), "C:\\");
+        assert_eq!(explorer_reveal_arg("C:"), "C:\\");
+    }
+
+    #[test]
+    fn reveal_arg_ignores_a_trailing_separator_on_a_folder() {
+        assert_eq!(
+            explorer_reveal_arg("C:/dev/silo/"),
+            "/select,\"C:\\dev\\silo\""
+        );
     }
 }

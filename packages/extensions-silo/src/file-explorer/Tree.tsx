@@ -25,8 +25,19 @@ import { findWorktreeFor } from "../git/worktree-utils";
 // Module-level file clipboard (cut/copy) — reserved for future Paste implementation
 const fileCb = { current: null as { path: string; op: "cut" | "copy" } | null };
 
+// Sync platform read, mirroring how the host itself decides (keymap.ts): the
+// row chords need an answer inside a keydown handler, and `ctx.system.getInfo()`
+// is async.
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+const isWindows = /Win/.test(navigator.platform);
 const ACCEL = rowAccelerators(isMac);
+// Name the OS file manager the way that platform names it — "Reveal in Finder"
+// is meaningless on Windows.
+const REVEAL_LABEL = isMac
+  ? "Reveal in Finder"
+  : isWindows
+    ? "Reveal in File Explorer"
+    : "Reveal in File Manager";
 
 export function Tree({
   ctx,
@@ -392,7 +403,7 @@ export function Tree({
       });
     }
     items.push({
-      label: "Reveal in Finder",
+      label: REVEAL_LABEL,
       accelerator: ACCEL.reveal,
       run: () => ctxReveal(path),
     });
