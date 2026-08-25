@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.54.0](https://github.com/silo-code/silo/compare/silo-v0.53.0...silo-v0.54.0) (2026-08-25)
+
+
+### Features
+
+* **agents:** resolve the foreground process on Windows ([#416](https://github.com/silo-code/silo/issues/416)) ([066b55b](https://github.com/silo-code/silo/commit/066b55b437704555f54e04fa442b7e4cd59610d7))
+
+
+### Bug Fixes
+
+* **navigator:** drop view row font size by 1px ([#426](https://github.com/silo-code/silo/issues/426)) ([be2b36e](https://github.com/silo-code/silo/commit/be2b36ef147ec0ac234a37a301853bbff0126480))
+* **terminal:** read clipboard via Tauri plugin for context-menu Paste ([#429](https://github.com/silo-code/silo/issues/429)) ([916d4cd](https://github.com/silo-code/silo/commit/916d4cd52c0fa441f7f119a7b1c56f59503f2f61))
+* **terminal:** wire Cmd+K clear shortcut and persist buffer on clear ([#428](https://github.com/silo-code/silo/issues/428)) ([0df7363](https://github.com/silo-code/silo/commit/0df736378b136f91002d429cc69c5b9dfbd67f98))
+
 ## [0.53.0](https://github.com/silo-code/silo/compare/silo-v0.52.0...silo-v0.53.0) (2026-08-25)
 
 
