@@ -530,17 +530,9 @@
 
 .section-count {
   margin-left: auto;
-  min-width: 22px;
-  height: 18px;
-  padding: 0 6px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  background: var(--silo-color-button-bg);
-  color: var(--silo-color-text);
-  border-radius: 999px;
-  font-size: calc(var(--silo-font-size-chrome) - 1px);
-  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .section-body {

@@ -14,10 +14,10 @@ group swatches) via the `--badge-color` custom property.
 Styled purely via host-provided `.silo-badge*` classes — no stylesheet
 import is needed in the extension.
 
-Two sizes: the default `"md"` text chip, and `"sm"` — tighter padding at a
-slightly smaller, em-relative size, for counters sitting beside a label
-(a section's row count, a workspace's extra-folder count). `"sm"` scales
-with the surrounding text, so it tracks a side column's own font size.
+Two sizes: the default `"md"` text chip (chrome−1, roomier pad), and
+`"sm"` (chrome, pad `0 5px`) for counters beside a label. **Font size is
+always an absolute chrome token** — never surrounding `em` / parent
+cascade — so a badge looks the same in every pane.
 
 ## Parameters
 

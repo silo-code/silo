@@ -48,13 +48,16 @@ Every role at once, in a composite modal:
 | **Setting label**                     | `SettingRow`                     | base                               | 400    | `--silo-color-text-hi` |
 | **Setting hint**                      | `SettingRow`                     | sm                                 | 400    | `--silo-color-text-lo` |
 | **List row text**                     | `ListRow`                        | sm                                 | 400    | `--silo-color-text-hi` |
-| **Badge text**                        | `Badge`                          | chrome−1                           | 600    | tone color             |
+| **Badge text (`md`)**                 | `Badge`                          | chrome−1 (absolute, no cascade)    | 600    | tone color             |
+| **Badge counter (`sm`)**              | `Badge size="sm"`                | chrome (absolute, no cascade)      | 600    | tone color             |
 | **Footer meta**                       | `ModalActions` `start` slot      | sm                                 | 400    | `--silo-color-text-lo` |
 | **Button text**                       | `Button`                         | base (sm buttons: chrome)          | 400    | variant text token     |
 | **Inline error**                      | `InlineEdit`                     | sm                                 | 400    | `--silo-color-err`     |
 
 Where `sm` = base−1 and `chrome` = base−2, both derived tokens
-(`--silo-font-size-sm`, `--silo-font-size-chrome`).
+(`--silo-font-size-sm`, `--silo-font-size-chrome`). Badge sizes are both
+absolute off chrome (`md` = chrome−1, `sm` = chrome) with different
+padding — they do **not** cascade from a parent `font-size` / `em`.
 
 ## The rules
 

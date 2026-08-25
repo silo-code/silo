@@ -28,20 +28,20 @@ primary action).
 
 ## Need X → use component Y
 
-| Need                                 | Component                                                             |
-| ------------------------------------ | --------------------------------------------------------------------- |
-| Action buttons                       | `Button` (`variant`: default/primary/danger)                          |
-| Icon-only action                     | `IconButton` + `Tooltip` (label alone isn't enough for sighted users) |
-| Button that opens a menu             | `MenuButton` (labelled + chevron) — see below                         |
-| Text field                           | `Input`, `Textarea`                                                   |
-| Filter-as-you-type over a list       | `SearchInput` + `List` (compose them — no combined `FilterList`)      |
-| Click-to-edit a value in place       | `InlineEdit`                                                          |
-| On/off, pick-one-of-few              | `Switch`, `Select`, `CheckboxRow`, `RadioGroup`                       |
-| Switch between views                 | `Tabs`, `SegmentedTabs`                                               |
-| Rows of selectable things            | `List` / `ListRow`, `AddRow`                                          |
-| Status/identity pill                 | `Badge` (`tone`: `ok`/`warn`/`err`/`accent`/`neutral`)                |
-| "Nothing here" / explanatory copy    | `EmptyState`, `Callout`                                               |
-| Group settings, footer, scroll areas | `Section`, `SettingRow`, `ModalActions`, `.silo-scroll`               |
+| Need                                 | Component                                                                                        |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Action buttons                       | `Button` (`variant`: default/primary/danger)                                                     |
+| Icon-only action                     | `IconButton` + `Tooltip` (label alone isn't enough for sighted users)                            |
+| Button that opens a menu             | `MenuButton` (labelled + chevron) — see below                                                    |
+| Text field                           | `Input`, `Textarea`                                                                              |
+| Filter-as-you-type over a list       | `SearchInput` + `List` (compose them — no combined `FilterList`)                                 |
+| Click-to-edit a value in place       | `InlineEdit`                                                                                     |
+| On/off, pick-one-of-few              | `Switch`, `Select`, `CheckboxRow`, `RadioGroup`                                                  |
+| Switch between views                 | `Tabs`, `SegmentedTabs`                                                                          |
+| Rows of selectable things            | `List` / `ListRow`, `AddRow`                                                                     |
+| Status/identity pill                 | `Badge` (`tone`: `ok`/`warn`/`err`/`accent`/`neutral`; `size`: `md` default / `sm` for counters) |
+| "Nothing here" / explanatory copy    | `EmptyState`, `Callout`                                                                          |
+| Group settings, footer, scroll areas | `Section`, `SettingRow`, `ModalActions`, `.silo-scroll`                                          |
 
 All exported from `@silo-code/sdk`. Full prop reference:
 [Design System → Components](https://getsilo.dev/design/#the-component-inventory).
@@ -83,7 +83,9 @@ applies automatically — your extension never bundles this CSS.
   `showModal`'s `title` option is the heading; the ✕ and Escape are
   host-owned; `ModalActions` (with its `start` slot) is the only footer.
 - **Don't invent a badge/status color.** `ok` / `warn` / `err` / `accent` /
-  `neutral` are the only tones — closest fit wins, not a new tint.
+  `neutral` are the only tones — closest fit wins, not a new tint. Prefer
+  `Badge size="sm"` for section/workspace counts; both sizes are absolute
+  chrome tokens (not surrounding `em`) so they stay consistent across panes.
 - **Don't build a settings rail, tab strip, or page title inside a settings
   page or property tab.** That chrome is host-owned; your component is the
   body content only.

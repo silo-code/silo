@@ -84,6 +84,16 @@
   color: var(--silo-color-text-hi);
 }
 
+/* App chrome scale (uiFontSize 13 defaults) — use on demos that must match
+   side-panel / workspaces chips. Default `.silo-demo` is modal scale
+   (base+1), where `sm` (chrome) renders a px larger than `md` (chrome−1)
+   and no longer matches the app. */
+.silo-demo.silo-demo--app-scale {
+  --silo-font-size-base: 13px;
+  --silo-font-size-sm: 12px;
+  --silo-font-size-chrome: 11px;
+}
+
 html[data-silo-demo-theme="dark"] .silo-demo {
   /* tokens — Dark */
   --silo-color-bg: #161922;
@@ -888,6 +898,8 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
 .silo-demo .silo-badge {
   display: inline-flex;
   align-items: center;
+  /* Absolute chrome token — never `em` / parent cascade. Badges must render
+     the same size in a left pane, right pane, modal, or settings page. */
   font-size: calc(var(--silo-font-size-chrome) - 1px);
   font-weight: 600;
   padding: 1px 8px;
@@ -896,9 +908,54 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   flex-shrink: 0;
 }
 .silo-demo .silo-badge-sm {
-  font-size: calc(1em - 2px);
+  font-size: var(--silo-font-size-chrome);
   padding: 0 5px;
   line-height: 1.5;
+}
+/* Docs-only captions under the sizes demo — not part of the kit. */
+.silo-demo .silo-badge-size-sample {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.silo-demo .silo-badge-size-label {
+  font-family: var(--silo-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--silo-color-text-lo);
+  line-height: 1;
+}
+/* Workspace folder row — the reference surface for `size="sm"`. */
+.silo-demo .silo-badge-size-context {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--silo-color-border-strong);
+}
+.silo-demo .silo-badge-size-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.silo-demo .silo-badge-size-row-label {
+  flex: 0 0 2.5em;
+  font-family: var(--silo-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--silo-color-text-lo);
+}
+.silo-demo .silo-badge-size-context-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-size: calc(var(--silo-font-size-base) - 1px);
+  color: var(--silo-color-text-lo);
 }
 .silo-demo .silo-badge-neutral {
   background: var(

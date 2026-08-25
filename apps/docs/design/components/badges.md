@@ -9,16 +9,12 @@ darkens on a light one without either being hard-coded, so custom themes track
 their own palette.
 
 <div class="silo-demo">
-  <span class="silo-badge silo-badge-neutral">primary</span>
-  <span class="silo-badge silo-badge-accent">current</span>
   <span class="silo-badge silo-badge-ok">Installed</span>
   <span class="silo-badge silo-badge-warn">Update available</span>
-  <span class="silo-badge silo-badge-err">error</span>
+  <span class="silo-badge silo-badge-accent">current</span>
+  <span class="silo-badge silo-badge-neutral">primary</span>
   <span class="silo-badge silo-badge-outline">Silo</span>
-  <span style="width:14px"></span>
   <span class="silo-badge silo-badge-custom" style="--badge-color:#e06c75">Frontend</span>
-  <span class="silo-badge silo-badge-custom" style="--badge-color:#61afef">Backend</span>
-  <span class="silo-badge silo-badge-custom" style="--badge-color:#98c379">Infra</span>
 </div>
 
 ```tsx
@@ -40,26 +36,41 @@ import { Badge } from "@silo-code/sdk";
 
 ## Sizes
 
-`md` is the default text chip. `sm` is a tighter counter chip — for a number
-sitting beside a label rather than a badge standing on its own: a section's row
-count, a workspace's extra-folder count. It is sized in `em`, so unlike `md` it
-tracks the text it sits next to, including a side column's own font scaling.
+`md` is the default **text** chip (chrome−1, roomier pad) — status words like
+`Installed`. `sm` is the **counter** chip (chrome, `padding: 0 5px`) — section
+counts and workspace `+N`. Both pin `--silo-font-size-chrome` (no parent
+`em`). Comparing two single digits side-by-side is a bad test: `sm`'s type is
+one px larger than `md`, and the real difference is pad + role.
 
-<div class="silo-demo">
-  <span class="silo-badge silo-badge-neutral">3</span>
-  <span class="silo-badge silo-badge-neutral silo-badge-sm">3</span>
-  <span style="width:14px"></span>
-  <span class="silo-badge silo-badge-accent">12</span>
-  <span class="silo-badge silo-badge-accent silo-badge-sm">12</span>
+This demo uses **app** chrome scale (`13 / 12 / 11`), not the default
+`.silo-demo` modal scale (`14 / 13 / 12`) — otherwise every chip is inflated
+vs workspaces.
+
+<div class="silo-demo silo-demo--app-scale">
+  <div class="silo-badge-size-context" style="border-top: none; padding-top: 0; margin-top: 0">
+    <div class="silo-badge-size-row">
+      <span class="silo-badge-size-row-label">md</span>
+      <span class="silo-badge silo-badge-ok">Installed</span>
+      <span class="silo-badge silo-badge-warn">Update available</span>
+      <span class="silo-badge silo-badge-neutral">6</span>
+    </div>
+    <div class="silo-badge-size-row">
+      <span class="silo-badge-size-row-label">sm</span>
+      <span class="silo-badge-size-context-path">…/Projects/ai/nt-inbox</span>
+      <span class="silo-badge silo-badge-neutral silo-badge-sm">+1</span>
+      <span class="silo-badge silo-badge-neutral silo-badge-sm">6</span>
+    </div>
+  </div>
 </div>
 
 ```tsx
-<Badge>3</Badge>              {/* md — a badge in its own right */}
-<Badge size="sm">3</Badge>    {/* sm — a count attached to a heading */}
+<Badge tone="ok">Installed</Badge>              {/* md — status text */}
+<Badge>6</Badge>                                {/* md — numeric */}
+<Badge size="sm">+{extraFolders.length}</Badge> {/* sm — counter */}
 ```
 
 Reach for `sm` when the chip is _part of_ another line of text, `md` when it
-stands alone in a row or cell.
+stands alone as a status word.
 
 ## Choosing a tone
 
