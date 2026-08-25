@@ -190,7 +190,7 @@ describe("dispatchKey", () => {
         when: (keys) => keys.terminalFocused,
       }),
     );
-    const e = keyEvent({ code: "KeyK", meta: true });
+    const e = keyEvent({ code: "KeyK", ctrl: true });
 
     expect(dispatchKey(e)).toBe(false);
     expect(run).not.toHaveBeenCalled();
