@@ -3,6 +3,7 @@ import {
   isStartupStatusActive,
   startupTerminalRestoreBegin,
   startupTerminalRestoreEnd,
+  clearFocusedTerminal,
 } from "@silo-code/extension-host/internal";
 import { TerminalPanel, type TerminalPanelParams } from "./TerminalPanel";
 import { TerminalSettingsPage } from "./TerminalSettingsPage";
@@ -15,6 +16,19 @@ export const extension: Extension = {
       isStartupActive: isStartupStatusActive,
       onRestoreBegin: startupTerminalRestoreBegin,
       onRestoreEnd: startupTerminalRestoreEnd,
+    });
+    ctx.registerCommand({
+      id: "core.terminal.clear",
+      label: "Clear Terminal",
+      run: () => {
+        clearFocusedTerminal();
+      },
+    });
+    ctx.registerKeybinding({
+      id: "core.terminal.clear.key",
+      key: "cmd+k",
+      command: "core.terminal.clear",
+      when: (keys) => keys.terminalFocused,
     });
     ctx.registerDockPanelKind({
       id: "terminal",

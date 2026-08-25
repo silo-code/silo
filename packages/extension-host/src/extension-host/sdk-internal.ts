@@ -362,6 +362,7 @@ export {
   isRemoved,
   setKeybindingCaptureActive,
 } from "./keymap";
+export { menuAcceleratorForCommand } from "./menu-accelerator";
 
 // Foreground-process updates for a terminal session (RFC 0010 N1) — consumed by
 // the built-in terminal for tab titles. Core-only; not public SDK surface.
@@ -370,6 +371,12 @@ export {
   terminalForegroundSnapshot,
 } from "./terminal-foreground";
 export type { TerminalForeground } from "./terminal-foreground";
+
+export {
+  clearFocusedTerminal,
+  registerTerminalClear,
+  setTerminalFocus,
+} from "./terminal-clear-registry";
 
 // `ctx.agents`'s death/reset hooks (RFC 0018) — called by the built-in
 // terminal panel at the exact moment it observes SESSION_GONE on reattach

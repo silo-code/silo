@@ -41,6 +41,9 @@ import {
   notifyTerminalSessionRecreated,
   stripAgentStatusMarkers,
   spawnTerminalSession,
+  registerTerminalClear,
+  setTerminalFocus,
+  menuAcceleratorForCommand,
   type TerminalForeground,
 } from "@silo-code/extension-host/internal";
 import { xtermThemeFor } from "./xterm-theme";
@@ -114,6 +117,15 @@ interface LiveRefs {
   search: SearchAddon;
   session: ProcessSession;
   sessionId: string;
+  /**
+   * Serialize the current buffer and persist it immediately, bypassing the
+   * throttle timer below. Set once `persistBuffer` exists, just after this ref
+   * is populated — undefined only in the brief window before that. Without
+   * this, `ctxClear`'s screen clear was invisible to the persisted snapshot
+   * until the next throttle tick, so a restart in that window (or a tick that
+   * lost the race) resurrected the pre-clear scrollback.
+   */
+  persistNow?: () => void;
 }
 
 async function openFileFromTerminal(
@@ -614,18 +626,24 @@ export function TerminalPanel(
           search: searchAddon,
           session,
           sessionId,
+          persistNow: () => {
+            saveDirty = false;
+            persistBuffer();
+          },
         };
 
         // Publish the terminal's selection to the active-selection registry
         // while it has focus, so `ctx.ui.getActiveSelectionText()` (e.g. the
         // Search panel's Cmd+Shift+F) can read it. Cleared on blur / teardown.
         const onTermFocus = () => {
+          setTerminalFocus(terminalId);
           selSourceRef.current?.dispose();
           selSourceRef.current = registerSelectionSource(
             () => liveRef.current?.term.getSelection() || null,
           );
         };
         const onTermBlur = () => {
+          setTerminalFocus(null);
           selSourceRef.current?.dispose();
           selSourceRef.current = null;
         };
@@ -1094,7 +1112,11 @@ export function TerminalPanel(
       { label: "Paste", accelerator: `${cmdKey}V`, run: ctxPaste },
       { label: "Select All", accelerator: `${cmdKey}A`, run: ctxSelectAll },
       { type: "separator" },
-      { label: "Clear", accelerator: `${cmdKey}K`, run: ctxClear },
+      {
+        label: "Clear",
+        accelerator: menuAcceleratorForCommand("core.terminal.clear"),
+        run: ctxClear,
+      },
       { label: "New Terminal Here", run: ctxNewTerminalHere },
       { type: "separator" },
       { label: "Kill Terminal", danger: true, run: ctxKill },
@@ -1205,8 +1227,14 @@ export function TerminalPanel(
     const live = liveRef.current;
     if (!live) return;
     live.term.clear();
+    live.persistNow?.();
     live.term.focus();
   }
+
+  useEffect(() => {
+    if (lifecycle.kind !== "ready") return;
+    return registerTerminalClear(terminalId, ctxClear).dispose;
+  }, [lifecycle.kind, terminalId]);
 
   function ctxKill() {
     const live = liveRef.current;

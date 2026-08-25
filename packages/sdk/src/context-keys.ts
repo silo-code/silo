@@ -30,4 +30,10 @@ export interface ContextKeys {
    * to receive the correct value at runtime without a silent break.
    */
   activeViewerId: string | null;
+  /**
+   * True when an xterm textarea in a terminal panel owns DOM focus — the user
+   * is typing into (or has just typed into) a terminal. Used to scope terminal-
+   * local keybindings such as Clear (`cmd+k`).
+   */
+  terminalFocused: boolean;
 }
