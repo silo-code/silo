@@ -32,8 +32,8 @@
   --silo-color-text-lo: #aaaaaa;
   --silo-color-input-bg: #ffffff;
   --silo-color-input-text: #4a4a4a;
-  --silo-color-input-border: #a6a6a6;
   --silo-color-border: #e5e5e5;
+  --silo-color-input-border: var(--silo-color-border);
   --silo-color-border-strong: #c8c8c8;
   --silo-color-accent: #0078d4;
   --silo-color-accent-2: #6f42c1;
@@ -177,8 +177,8 @@ html[data-silo-demo-theme="high-contrast-light"] .silo-demo {
   --silo-color-text-lo: #5a5a5a;
   --silo-color-input-bg: #ffffff;
   --silo-color-input-text: #0a0a0a;
-  --silo-color-input-border: #6b6b6b;
   --silo-color-border: #e5e5e5;
+  --silo-color-input-border: var(--silo-color-border);
   --silo-color-border-strong: #c8c8c8;
   --silo-color-accent: #0078d4;
   --silo-color-accent-2: #6f42c1;
@@ -227,10 +227,10 @@ html[data-silo-demo-theme="solarized-light"] .silo-demo {
   --silo-color-text-hi: #839496;
   --silo-color-text: #738a8a;
   --silo-color-text-lo: #a3b1b1;
-  --silo-color-input-bg: #fdf6e3;
+  --silo-color-input-bg: #e8e2d0;
   --silo-color-input-text: #657b83;
-  --silo-color-input-border: #cfc8b3;
   --silo-color-border: #eee8d5;
+  --silo-color-input-border: var(--silo-color-border);
   --silo-color-border-strong: #93a1a1;
   --silo-color-accent: #d25f26ff;
   --silo-color-accent-2: #6c71c4;

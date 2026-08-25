@@ -254,13 +254,12 @@
   --silo-color-text-lo: #aaaaaa;
   --silo-color-input-bg: #ffffff;
   --silo-color-input-text: #4a4a4a;
-  /* Light keeps its white fill — on a light panel the field is already the
-     lighter surface, so the lift dark needs is inverted and inherent (1.26:1).
-     The border finishes the edge at 2.43:1 against that fill, matching dark's
-     restraint rather than ringing the box. */
-  --silo-color-input-border: #a6a6a6;
   --silo-color-border: #e5e5e5;
   --silo-color-border-strong: #c8c8c8;
+  /* Light reuses the region seam — fields already read against the panel via
+     the white fill, so the dedicated border dark themes need would only
+     thicken edges that were already fine. */
+  --silo-color-input-border: var(--silo-color-border);
   --silo-color-accent: #0078d4;
   --silo-color-accent-2: #6f42c1;
 
