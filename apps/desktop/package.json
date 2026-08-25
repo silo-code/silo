@@ -15,14 +15,15 @@
     "test:it": "vitest run --project integration --no-file-parallelism"
   },
   "dependencies": {
-    "@silo-code/sdk": "workspace:*",
+    "@monaco-editor/react": "^4.7.0",
+    "@phosphor-icons/react": "^2.1.10",
     "@silo-code/extension-host": "workspace:*",
     "@silo-code/extensions-core": "workspace:*",
     "@silo-code/extensions-silo": "workspace:*",
+    "@silo-code/sdk": "workspace:*",
     "@silo-code/ui": "workspace:*",
-    "@monaco-editor/react": "^4.7.0",
-    "@phosphor-icons/react": "^2.1.10",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-fs": "^2.5.1",
     "@tauri-apps/plugin-process": "^2.3.1",

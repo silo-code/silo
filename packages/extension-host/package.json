@@ -12,10 +12,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@silo-code/sdk": "workspace:*",
     "@monaco-editor/react": "^4.7.0",
     "@phosphor-icons/react": "^2.1.10",
+    "@silo-code/sdk": "workspace:*",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.3.5",
