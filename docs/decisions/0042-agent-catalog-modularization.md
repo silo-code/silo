@@ -101,6 +101,26 @@ policy declaration** change.
    > backed by a real hardcoded branch (`agentByProcessArgs`), and phase 2
    > migrated it as planned.
 
+   > **Implementation note (2026-08-26, phase 4):** `SILO_AGENT_PID`
+   > ownership already matched this row's target before phase 4 touched
+   > anything — `agents/pi.ts`'s extension template is the one place that
+   > _sets_ it (`env: { ...process.env, SILO_AGENT_PID: String(process.pid) }`),
+   > and `agent-hook-script.ts`'s shared capture script is the one place
+   > that _reads_ it, generically gated (`if [ -n "$SILO_AGENT_PID" ]`, no
+   > agent-id check) — nothing to decide, just confirm. Extraction itself
+   > used a factory function (`buildPiAgentDefinition(deps)`) rather than a
+   > plain exported object: `agents/pi.ts` needs catalog-owned constants
+   > (`SILO_HOOK_MARKER`, `TRACK_SCRIPT_REL`, `buildHookCommand`) that
+   > `agent-catalog.ts` must stay the SSOT for, and a plain object would have
+   > needed a runtime import back into `agent-catalog.ts` — which already
+   > imports `agents/pi.ts` for the object itself — creating a real import
+   > cycle. The factory takes those three as parameters instead (`agent-catalog.ts`
+   > calls it once, passing its own constants), so `agents/pi.ts` has no
+   > runtime import of `agent-catalog.ts` at all, only `import type`. The
+   > phase-3 shim (`agent-pi-extension.ts`) is removed now that its one
+   > consumer (`agent-catalog.ts`) imports `agents/pi.ts` directly — exactly
+   > as phase 3's own commit anticipated.
+
 6. **Budget policy-layer work before the next pi-shaped agent.** If recon finds
    node-wrapped argv0, fake shell OSC, in-process hooks, or settings-gated
    activity, plan `runtime` / `extraSettingsToggle` fields in the same change

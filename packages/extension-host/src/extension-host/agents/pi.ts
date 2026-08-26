@@ -1,12 +1,18 @@
 /**
- * Pi's session-capture hook, as a TypeScript **extension** — pure template.
+ * Pi: the one catalog entry with non-trivial runtime quirks, so it gets its
+ * own module (ADR 0042 decision 2) instead of a thin object inline in
+ * `agent-catalog.ts` alongside Claude/Codex/Cursor/Copilot/Grok.
  *
- * The first module under `agents/` (ADR 0042 phase 3's seam): a host-internal
- * home for quirky-agent code, as opposed to a thin catalog entry. The old
- * `../agent-pi-extension` path re-exports from here so `agent-catalog.ts`
- * doesn't need to change yet. Phase 4 folds pi's `AgentDefinition` object
- * (still defined in `agent-catalog.ts` today) into this same file.
+ * `buildPiAgentDefinition` takes catalog-owned constants (the hook marker,
+ * the shared script's path, `buildHookCommand`) as parameters rather than
+ * importing them, the same way `renderPiTrackSessionExtension` below already
+ * took its inputs as params — `agent-catalog.ts` stays the SSOT for that
+ * data (see `agent-hook-script.ts`'s docstring for the same rule applied to
+ * the shared capture script) and this module has no runtime import back
+ * into it, so there's no import cycle between the catalog and its own
+ * agent modules.
  *
+ * Pi's session-capture hook is a TypeScript **extension** — pure template.
  * Every other agent Silo supports configures hooks as a *shell command* in a
  * JSON config file, so installing one is a data edit (see
  * `agent-hook-script.ts` for the one script they all run). Pi has no such
@@ -31,6 +37,9 @@
  *   fallback pass would happily match against an unrelated ancestor's path.
  * - Every failure is swallowed. Session tracking must never break a pi turn.
  */
+
+import { detectPiTitle, detectCopilotCLI } from "../agent-osc-detectors";
+import type { AgentDefinition } from "../agent-catalog";
 
 export interface PiExtensionParams {
   marker: string;
@@ -82,4 +91,128 @@ export function renderPiTrackSessionExtension(
     "}",
     "",
   ].join("\n");
+}
+
+/** Catalog-owned data pi's `AgentDefinition` needs but doesn't own —
+ * supplied by `agent-catalog.ts`, the SSOT, so this module stays free of a
+ * runtime import back into it. */
+export interface PiAgentDeps {
+  /** {@link SILO_HOOK_MARKER} — passed through, not reimported. */
+  marker: string;
+  /** {@link TRACK_SCRIPT_REL} — passed through, not reimported. */
+  trackScriptRel: string;
+  /** `agent-catalog.ts`'s shared hook-command builder. */
+  buildHookCommand: (agentId: string) => string;
+}
+
+/** Pi's full catalog entry. A factory, not a plain object, so it can take
+ * `deps` as parameters instead of importing them (see the module doc). */
+export function buildPiAgentDefinition(deps: PiAgentDeps): AgentDefinition {
+  const { marker, trackScriptRel, buildHookCommand } = deps;
+  return {
+    id: "pi",
+    // Lowercase on purpose: upstream brands it "pi" (pi.dev), and the repo
+    // already labels a pi-kind terminal "pi agent".
+    displayName: "pi",
+    // `pi` on PATH is a symlink to the package's `dist/cli.js`, which carries
+    // a `#!/usr/bin/env node` shebang — so the foreground process reports as
+    // node-wrapped, exactly like Claude and Copilot.
+    leaderNames: ["pi"],
+    // Pi emits the same OSC 9;4 progress protocol Copilot does (`4;3` on turn
+    // start, `4;0` on turn end), so it shares that detector rather than
+    // getting a near-identical copy. Its OSC 0 title ("π - <session> - <cwd>")
+    // encodes no status, and its TUI spinner is the *generic* braille frame
+    // set, which is far too common in raw output to match safely — the
+    // progress protocol is the only trustworthy signal it has.
+    activityDetectors: [detectPiTitle, detectCopilotCLI],
+    resume: {
+      kind: "hook",
+      installStrategy: "pi-extension",
+      // Not a config file: pi has no shell-command hook mechanism, so this is
+      // a Silo-owned TypeScript extension that pi auto-loads from its global
+      // extensions directory. Created wholesale on install, deleted on
+      // uninstall (like Copilot's dedicated file, never a merge target).
+      configPath: ".pi/agent/extensions/silo-track-session.ts",
+      hookEvent: "session_start",
+      marker,
+      // What the extension spawns — the same shared capture script every
+      // other agent runs. The pi installer templates it as an argv inside
+      // `buildFileContents` below rather than as a shell string, but the
+      // command being run is exactly this.
+      buildCommand: () => buildHookCommand("pi"),
+      buildFileContents: () =>
+        renderPiTrackSessionExtension({
+          marker,
+          trackScriptRel,
+          agentId: "pi",
+        }),
+      // Confirmed live (2026-08-22, pi 0.84.2): `pi --session <id>` accepts a
+      // full or partial session UUID, resolving the current project's
+      // sessions first and then globally. It is also how pi itself relaunches
+      // a session internally. `-r`/`--resume` exists but only opens the
+      // interactive picker, so it is NOT the exact-resume syntax.
+      buildResumeCommand: (sessionId) => `pi --session ${sessionId}`,
+      postInstallNote:
+        "Pi loads extensions at startup, so restart any pi session you " +
+        "already have open. Use “Terminal progress” below for live " +
+        "working/idle status in Silo.",
+    },
+    docsUrl: "https://getsilo.dev/guide/agent-sessions#pi",
+    runtime: {
+      // Already generic in agents-service.ts's applyDetection (gated on
+      // `entry?.state.agentId`, not an agent-id check) — declared here so the
+      // catalog entry states the fact this policy documents, not to select
+      // new code paths. See ADR 0042 decision 3 / the phase-2 implementation
+      // note.
+      suppressShellIntegrationWhenIdentified: true,
+      // Already generic in detectPiTitle itself (identity: true,
+      // agentId: "pi" on the DetectionResult it returns) — same as Copilot's
+      // title detector. Declared here for the same audit-trail reason.
+      identityFromDetection: true,
+      // The one field agentByProcessArgs actually reads — replaces what used
+      // to be two string literals inline in that function.
+      processArgsMarkers: ["pi-coding-agent", "@earendil-works/pi"],
+    },
+    contract:
+      "Pi is the one supported agent with no shell-command hook mechanism: " +
+      "its hooks are TypeScript extensions auto-loaded from " +
+      "~/.pi/agent/extensions/*.ts (global, no trust step — only " +
+      "project-local .pi/extensions requires project trust). CONFIRMED live " +
+      "against pi 0.84.2 (2026-08-22): (1) an extension is a module with a " +
+      "default factory `(pi: ExtensionAPI) => void` that subscribes via " +
+      '`pi.on("session_start", handler)`; the event fires with reason ' +
+      "startup/reload/new/resume/fork and the handler's ctx exposes " +
+      "`sessionManager.getSessionId()` (a UUID) and `cwd`; (2) node " +
+      "built-ins (node:child_process, node:os, node:path) are available to " +
+      "extensions, and TypeScript is loaded through jiti with no build " +
+      "step, so the type-only import in Silo's extension is erased at " +
+      "runtime; (3) `pi --session <id>` resumes by full or partial session " +
+      "UUID (project-scoped first, then global) — `-r` only opens the " +
+      "picker; (4) sessions are stored as " +
+      "~/.pi/agent/sessions/<slugified-cwd>/<timestamp>_<uuid>.jsonl and pi " +
+      "keeps NO live pid registry, which is why the session-file resume " +
+      "path (Grok's) does not apply here. Because the extension runs inside " +
+      "pi's own process, it passes pi's pid to the capture script via " +
+      "SILO_AGENT_PID and the script skips its parent walk — the walk would " +
+      "be actively wrong for a two-character agent name matched by " +
+      "substring. Activity detection: pi emits OSC 9;4;3 at turn start and " +
+      "OSC 9;4;0 at turn end (the ConEmu progress protocol, via its TUI's " +
+      "setProgress), which is the same signal Copilot uses, BUT only when " +
+      "`terminal.showTerminalProgress` is true in ~/.pi/agent/settings.json " +
+      "and that DEFAULTS TO FALSE (same situation as Cursor's " +
+      "showStatusIndicators). With it off, a pi terminal is still " +
+      "identified as an agent and still gets exact resume; it just never " +
+      "lights up as busy. Pi also emits OSC 133 A/B/C zones around " +
+      "messages, which the generic shell-integration fallback reads as " +
+      '`source: "shell"` — useful noise, not agent identity.',
+    upstreamRefs: [
+      "https://pi.dev",
+      "https://www.npmjs.com/package/@earendil-works/pi-coding-agent",
+      // The package ships its own docs — docs/extensions.md (the extension
+      // API and session_start payload) and docs/sessions.md (--session
+      // semantics) are the two Silo's contract depends on.
+    ],
+    lastVerified: "2026-08-22",
+    verifiedAgainstVersion: "pi@0.84.2",
+  };
 }
