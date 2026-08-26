@@ -827,12 +827,16 @@ export function agentByProcessArgs(args: string): AgentDefinition | undefined {
     if (byScript) return byScript;
   }
 
-  // Phase 5 (ADR 0042) generalizes this to a loop over every catalog entry's
-  // `runtime.processArgsMarkers` — pi is the only entry that declares any
-  // today, so this still reads as a pi-specific check for now.
-  const piMarkers = agentById("pi")?.runtime?.processArgsMarkers ?? [];
-  if (piMarkers.some((marker) => includesPathMarker(trimmed, marker))) {
-    return agentById("pi");
+  // Generic over every catalog entry's `runtime.processArgsMarkers` (ADR
+  // 0042 phase 5) — pi is the only declarer today, but nothing here is
+  // pi-specific; the next node-wrapped quirky agent just declares its own
+  // markers and this loop picks it up with no changes here.
+  for (const agent of AGENT_CATALOG) {
+    const markers = agent.runtime?.processArgsMarkers;
+    if (!markers) continue;
+    if (markers.some((marker) => includesPathMarker(trimmed, marker))) {
+      return agent;
+    }
   }
   return undefined;
 }
