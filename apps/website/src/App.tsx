@@ -184,23 +184,8 @@ function CodexIcon() {
 }
 
 function CopilotIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      fill="none"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="8.4" />
-      <path d="M12 3.6 L12 8.4 M12 15.6 L12 20.4 M3.6 12 L8.4 12 M15.6 12 L20.4 12" />
-    </svg>
-  );
-}
-
-function GrokIcon() {
+  // GitHub's official Octicons "mark-github" (MIT licensed) — Copilot CLI
+  // is represented by GitHub's own mark, same as onorca.dev does.
   return (
     <svg
       viewBox="0 0 24 24"
@@ -209,22 +194,23 @@ function GrokIcon() {
       fill="currentColor"
       aria-hidden="true"
     >
-      <rect
-        x="10.9"
-        y="1.5"
-        width="2.2"
-        height="21"
-        rx="1.1"
-        transform="rotate(24 12 12)"
-      />
-      <rect
-        x="10.9"
-        y="1.5"
-        width="2.2"
-        height="21"
-        rx="1.1"
-        transform="rotate(-24 12 12)"
-      />
+      <path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943" />
+    </svg>
+  );
+}
+
+function GrokIcon() {
+  // xAI's mark is the plain X glyph — same shape as Silo's own XIcon
+  // (footer social link), reused here rather than redrawn.
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M12.6 1.5h2.2L9.9 7.1l5.7 7.4h-4.5L7.7 9.8l-4 4.7H1.5l5.1-6L1 1.5h4.6l3.2 4.4 3.8-4.4zm-.8 12.1h1.2L4.3 2.7H3L11.8 13.6z" />
     </svg>
   );
 }
