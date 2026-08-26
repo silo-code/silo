@@ -203,6 +203,80 @@ export type AgentResume =
   | AgentSessionFileResume
   | AgentNoResume;
 
+/**
+ * Host behavior for an agent's terminal/session handling that is not resume,
+ * install, or detection data — the runtime quirks ADR 0042 exists to pull out
+ * of host string branches (`agents-service.ts` must not branch on agent id).
+ * Optional: a thin catalog entry (Claude, Codex, Cursor, Copilot, Grok) needs
+ * none of this; a quirky agent (pi first) declares only the fields it needs.
+ *
+ * **Unused as of this type's introduction** (ADR 0042 phase 1) — wired into
+ * `agents-service.ts` and `agent-catalog.ts`'s derived views in phase 2/5.
+ */
+export interface AgentRuntimePolicy {
+  /**
+   * Once this agent's id is stamped onto a terminal, ignore the generic
+   * shell-integration OSC 133 A/B/C zone detector for it — for an agent that
+   * also emits OSC 133 as incidental shell-integration noise around its own
+   * turns (pi), so that noise isn't misread as `source: "shell"` activity
+   * once the real agent is already known.
+   */
+  suppressShellIntegrationWhenIdentified?: boolean;
+  /**
+   * True when a match from this agent's own OSC/output detectors should stamp
+   * catalog identity onto the terminal immediately, even before a hook
+   * confirms the session — for an agent identifiable only by an OSC title
+   * with no other signal (pi's `π - …` title).
+   */
+  identityFromDetection?: boolean;
+  /**
+   * Substring markers that identify this agent from a node/bun/deno-wrapped
+   * process's full argv when neither argv0 nor the script basename matches
+   * `leaderNames` directly — `agentByProcessArgs`'s package-path fallback
+   * (pi: `"pi-coding-agent"`, `"@earendil-works/pi"`). Each marker is matched
+   * as a whole path/package segment via `includesPathMarker`, never as a bare
+   * substring.
+   */
+  processArgsMarkers?: string[];
+}
+
+/**
+ * A settings-page toggle for a prerequisite this agent needs before its
+ * activity detectors can fire at all — an off-by-default setting in the
+ * agent's *own* config that gates the OSC/output signal Silo reads (pi's
+ * `terminal.showTerminalProgress`; Cursor's `showStatusIndicators` is the
+ * same class of problem per ADR 0042, not yet migrated to this mechanism).
+ * Declared as catalog metadata so Settings → Agents can render the row
+ * generically instead of an `agent.id === "pi"` branch in UI code.
+ *
+ * The settings object is untyped (`Record<string, unknown>`) here because
+ * this package must not depend on `extensions-core`, where each agent's
+ * concrete settings shape (e.g. `PiAgentSettings`) is defined — `isEnabled` /
+ * `setEnabled` are meant to be existing per-agent pure functions (pi's
+ * `getTerminalProgress` / `withTerminalProgress`) passed through as-is.
+ *
+ * **Unused as of this type's introduction** (ADR 0042 phase 1) — wired into
+ * `agents-settings/index.tsx` in phase 4b.
+ */
+export interface AgentExtraSettingsToggle {
+  /** Row label shown beneath the agent's row, e.g. `"Terminal progress"`. */
+  label: string;
+  /** Hint text shown under the label when there's no read/write error. */
+  hint: string;
+  /** Path to the agent's own settings file, relative to `$HOME` (POSIX
+   * slashes), e.g. `.pi/agent/settings.json`. */
+  settingsPathRel: string;
+  /** Reads whether the toggle is currently on from the agent's parsed
+   * settings object (an empty object when the file doesn't exist yet). */
+  isEnabled: (settings: Record<string, unknown>) => boolean;
+  /** Returns a new settings object with the toggle set to `enabled`. Pure —
+   * the caller owns reading/writing the file. */
+  setEnabled: (
+    settings: Record<string, unknown>,
+    enabled: boolean,
+  ) => Record<string, unknown>;
+}
+
 export interface AgentDefinition {
   /** Stable id, also written into hook events as the `agent` tag. */
   id: string;
@@ -227,6 +301,13 @@ export interface AgentDefinition {
   resume: AgentResume;
   /** "Setup details" link shown next to the install toggle. */
   docsUrl: string;
+  /** Host runtime quirks beyond resume/install/detection data. Undefined for
+   * every thin catalog entry; only a quirky agent (pi) declares one. */
+  runtime?: AgentRuntimePolicy;
+  /** An extra settings-page toggle this agent needs before its activity
+   * detectors can fire. Undefined for every agent that doesn't gate its
+   * activity signal behind its own off-by-default setting. */
+  extraSettingsToggle?: AgentExtraSettingsToggle;
 
   // ── provenance / maintenance (audit-skill rubric + checkpoint) ──────────
   /** Plain-language statement of exactly what upstream behavior our
