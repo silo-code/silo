@@ -24,11 +24,16 @@ export function parseGitStatus(raw: string): GitStatus {
   let upstream: string | null = null;
   let ahead = 0;
   let behind = 0;
+  let headSha: string | null = null;
   const files: GitFileStatus[] = [];
 
   for (const line of raw.split("\n")) {
     if (!line) continue;
-    if (line.startsWith("# branch.head")) {
+    if (line.startsWith("# branch.oid")) {
+      // `(initial)` on a fresh repo with no commits — HEAD resolves to nothing.
+      const oid = line.replace("# branch.oid ", "").trim();
+      headSha = oid === "(initial)" ? null : oid;
+    } else if (line.startsWith("# branch.head")) {
       branch = line.replace("# branch.head ", "").trim();
     } else if (line.startsWith("# branch.upstream")) {
       upstream = line.replace("# branch.upstream ", "").trim();
@@ -83,5 +88,5 @@ export function parseGitStatus(raw: string): GitStatus {
       });
     }
   }
-  return { branch, upstream, ahead, behind, files, inRepo: true };
+  return { branch, upstream, ahead, behind, files, inRepo: true, headSha };
 }

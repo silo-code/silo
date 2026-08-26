@@ -41,6 +41,15 @@ export interface GitStatus {
    * `inRepo: false`.
    */
   missing?: boolean;
+  /**
+   * The commit `HEAD` currently resolves to (`git status`'s `# branch.oid`
+   * line — `null` for a fresh repo with no commits yet). A free byproduct of
+   * the same porcelain-v2 status parse, not an extra `rev-parse` call. Lets a
+   * consumer notice a new commit landing (or a checkout/pull/rebase moving
+   * `HEAD`) by diffing this against the previous value, instead of re-running
+   * `log`/`commitCount` on every status refresh — see the commits view.
+   */
+  headSha?: string | null;
 }
 
 /** One commit, as listed by {@link GitAPI.log}. */
@@ -49,6 +58,15 @@ export interface GitLogEntry {
   shortHash: string;
   author: string;
   relativeDate: string;
+  /**
+   * Author date in strict ISO 8601 (`git log`'s `%aI`), e.g.
+   * `2026-08-26T09:15:00-04:00`. Absolute counterpart to
+   * {@link GitLogEntry.relativeDate} — for a tooltip showing the real
+   * date/time, since a relative string like "3 minutes ago" is only accurate
+   * as of when it was fetched and goes stale sitting in a list that isn't
+   * re-fetched every second.
+   */
+  authorDate: string;
   subject: string;
   /**
    * Number of files this commit touched — a merge commit's count is relative

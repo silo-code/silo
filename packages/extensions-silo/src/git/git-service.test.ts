@@ -942,6 +942,7 @@ describe("GitService.status against a rejecting exec (e.g. missing cwd)", () => 
       files: [],
       inRepo: false,
       missing: true,
+      headSha: null,
     });
   });
 
@@ -973,6 +974,7 @@ describe("GitService.status against a rejecting exec (e.g. missing cwd)", () => 
       files: [],
       inRepo: false,
       missing: true,
+      headSha: null,
     });
   });
 
