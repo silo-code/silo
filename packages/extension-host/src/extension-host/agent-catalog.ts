@@ -754,12 +754,33 @@ export function agentByProcessArgs(args: string): AgentDefinition | undefined {
   }
 
   if (
-    trimmed.includes("pi-coding-agent") ||
-    trimmed.includes("@earendil-works/pi")
+    includesPathMarker(trimmed, "pi-coding-agent") ||
+    includesPathMarker(trimmed, "@earendil-works/pi")
   ) {
     return agentById("pi");
   }
   return undefined;
+}
+
+/** True when `marker` occurs in `haystack` as a whole path/package segment,
+ * not as a bare substring straddling an unrelated word — e.g. the marker
+ * `pi-coding-agent` must not match inside `api-coding-agent` (index 1), and
+ * `@earendil-works/pi` must not match inside `@earendil-works/pixel-tool`.
+ * A boundary is anything that can't extend an identifier: start/end of
+ * string, or any character other than a letter, digit, `_`, `-`, or `@`. */
+function includesPathMarker(haystack: string, marker: string): boolean {
+  const idx = haystack.indexOf(marker);
+  if (idx < 0) return false;
+  const isBoundary = (ch: string | undefined) =>
+    ch === undefined || !/[\w@-]/.test(ch);
+  return (
+    isBoundary(idx > 0 ? haystack[idx - 1] : undefined) &&
+    isBoundary(
+      idx + marker.length < haystack.length
+        ? haystack[idx + marker.length]
+        : undefined,
+    )
+  );
 }
 
 /** The catalog entry with this id (as written into hook events / persisted). */

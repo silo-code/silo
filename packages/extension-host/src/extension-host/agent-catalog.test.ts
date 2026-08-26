@@ -486,6 +486,25 @@ describe("agentByProcessArgs", () => {
     ).toBeUndefined();
     expect(agentByProcessArgs("")).toBeUndefined();
   });
+
+  it("does not match the package-path marker straddling an unrelated word", () => {
+    // "pi-coding-agent" is a substring of "api-coding-agent" starting at
+    // index 1 — a bare String#includes would false-positive here.
+    expect(
+      agentByProcessArgs(
+        "node /Users/x/repos/api-coding-agent-tool/dist/cli.js",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("does not match the scoped-package marker straddling an unrelated package", () => {
+    // "@earendil-works/pi" is a substring of "@earendil-works/pixel-tool".
+    expect(
+      agentByProcessArgs(
+        "node /Users/x/lib/node_modules/@earendil-works/pixel-tool/cli.js",
+      ),
+    ).toBeUndefined();
+  });
 });
 
 describe("agentById", () => {
