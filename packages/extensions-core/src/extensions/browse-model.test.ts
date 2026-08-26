@@ -79,6 +79,23 @@ describe("filterRegistry", () => {
       filterRegistry(entries, { query: "weather", category: "monitoring" }),
     ).toHaveLength(0);
   });
+
+  it("hides built-in ids the host now ships (until the registry drops them)", () => {
+    const withBuiltin = [
+      ...entries,
+      entry("silo.agent-monitor", { description: "Agent Monitor" }),
+      entry("silo.agents", { description: "Agents" }),
+    ];
+    expect(
+      filterRegistry(withBuiltin, { query: "", category: "" }).map((e) => e.id),
+    ).toEqual(["acme.weather", "acme.clock"]);
+    expect(
+      filterRegistry(withBuiltin, {
+        query: "agent monitor",
+        category: "",
+      }),
+    ).toHaveLength(0);
+  });
 });
 
 describe("registryCategories", () => {

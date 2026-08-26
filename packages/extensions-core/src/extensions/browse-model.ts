@@ -30,6 +30,16 @@ export interface BrowseFilter {
   category: string;
 }
 
+/**
+ * Registry ids Silo now ships as built-ins — hidden from Browse until the
+ * external registry index drops them (avoids offering a separate install).
+ */
+const HIDDEN_FROM_BROWSE = new Set(["silo.agent-monitor", "silo.agents"]);
+
+function visibleInBrowse(entry: Pick<RegistryExtension, "id">): boolean {
+  return !HIDDEN_FROM_BROWSE.has(entry.id);
+}
+
 /** Filter registry entries by search text and category facet. */
 export function filterRegistry(
   entries: readonly RegistryExtension[],
@@ -37,6 +47,7 @@ export function filterRegistry(
 ): RegistryExtension[] {
   const q = query.trim().toLowerCase();
   return entries.filter((e) => {
+    if (!visibleInBrowse(e)) return false;
     if (e.status === "removed") return false;
     if (category && !e.categories.includes(category)) return false;
     if (!q) return true;
@@ -52,7 +63,9 @@ export function filterRegistry(
 export function registryCategories(
   entries: readonly RegistryExtension[],
 ): string[] {
-  return [...new Set(entries.flatMap((e) => e.categories))].sort();
+  return [
+    ...new Set(entries.filter(visibleInBrowse).flatMap((e) => e.categories)),
+  ].sort();
 }
 
 /** How a registry entry relates to this install of Silo. */

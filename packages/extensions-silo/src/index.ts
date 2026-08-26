@@ -17,3 +17,4 @@ export { extension as fileSearch } from "./file-search";
 export { extension as git } from "./git";
 export { extension as gitExplorer } from "./git-explorer";
 export { extension as themePresets } from "./theme-presets";
+export { extension as agents } from "./agents";

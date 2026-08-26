@@ -19,6 +19,7 @@ import {
   MagnifyingGlass,
   MarkdownLogo,
   Palette,
+  PlugsConnected,
   PuzzlePiece,
   Robot,
   SidebarSimple,
@@ -94,7 +95,7 @@ const BUILTIN_ICONS = new Map<string, ExtensionIconSpec>(
   Object.entries({
     // Core — the workbench itself.
     "core.about": spec(Info, TINT.slate),
-    "core.agents-settings": spec(Robot, TINT.teal),
+    "core.agents-settings": spec(PlugsConnected, TINT.teal),
     "core.cli-install": spec(Command, TINT.slate),
     "core.editor": spec(Code, TINT.indigo),
     "core.extensions": spec(PuzzlePiece, TINT.purple),
@@ -116,6 +117,7 @@ const BUILTIN_ICONS = new Map<string, ExtensionIconSpec>(
     "silo.file-search": spec(MagnifyingGlass, TINT.amber),
     "silo.git": spec(GitCommit, TINT.orange),
     "silo.git-explorer": spec(GitBranch, TINT.orange),
+    "silo.agents": spec(Robot, TINT.teal),
     "silo.image-viewer": spec(Image, TINT.rose),
     "silo.markdown-preview": spec(MarkdownLogo, TINT.blue),
     "silo.theme-presets": spec(Swatches, TINT.purple),

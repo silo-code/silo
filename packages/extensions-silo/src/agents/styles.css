@@ -1,0 +1,296 @@
+/* Tab decoration icons — colors come from the host via `currentColor`
+   (the decoration's semantic `color` maps to --silo-color-* tokens). */
+.am-spinner {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: am-spin 0.7s linear infinite;
+}
+@keyframes am-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.am-waiting-icon {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.am-waiting-icon span {
+  display: block;
+  width: 2.5px;
+  height: 8px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
+/* Settings page — mirrors the host's Editor / Keyboard Shortcuts pages so a
+   third-party page reads as one family. */
+.am-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 12px;
+}
+.am-header {
+  display: flex;
+  align-items: center;
+  min-height: var(--settings-header-height);
+  flex-shrink: 0;
+}
+.am-header h2 {
+  margin: 0;
+  font-size: 1.1em;
+  color: var(--silo-color-text-hi);
+}
+/* Scrolls independently of the header once the sections (focus behavior,
+   agent icons, sound) run taller than the settings pane. Scroll behavior and
+   scrollbar appearance come from the host's `.silo-scroll` class (applied in
+   settings.tsx) — no overflow/scrollbar rules needed here. */
+.am-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+/* Embedded in core.agents-settings Options tab — parent owns scroll chrome. */
+.am-options-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+/* The intro block above the first proper Section — a page-level question
+   ("When you view a finished agent's terminal"), not a labeled group, so it
+   keeps its own larger, non-uppercase title instead of the SDK Section
+   label. */
+.am-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.am-intro-title {
+  font-weight: 600;
+  color: var(--silo-color-text-hi);
+}
+.am-hint {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-text-lo);
+  line-height: 1.35;
+}
+/* A plain block wrapper — no flex/gap of its own. RadioCard (SDK) spaces
+   itself via `.silo-radio-card + .silo-radio-card`; adding a flex gap here
+   would double up on that. */
+.am-options {
+  margin-top: 8px;
+}
+
+.am-sound-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.am-hours-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.am-hours-input {
+  width: 4em;
+}
+.am-hours-unit {
+  color: var(--silo-color-text-lo);
+}
+
+/* Agent views in the Navigator — all classes prefixed ap-; tokens
+   only. Root inherits the column font size from `.side-pane`, so no absolute
+   font-size here. Deliberately NOT its own scroll container: the host's
+   `.tab-pane` (the panel's scrolling ancestor) already scrolls, persists, and
+   styles scroll position for whatever renders inside it. Giving `.ap-body`
+   its own nested `overflow-y: auto` stacked TWO scrollable regions at the
+   same screen position — the outer `.tab-pane` (normally zero scroll range,
+   so its thumb renders full-track, looking "already at the bottom") and the
+   real one one level deeper that a real mouse/trackpad drag never reliably
+   reached. Letting `.tab-pane` be the sole scroller fixes that outright. */
+.ap-body {
+  padding: 4px 0;
+}
+.ap-empty {
+  padding: 12px;
+  color: var(--silo-color-text-lo);
+}
+.ap-section + .ap-section {
+  margin-top: 20px;
+}
+.ap-section-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Left inset matches the view header's own padding (same base 12px as
+     `.ap-empty`), not `.ap-row`'s extra 4px hover-pill margin — headings
+     aren't interactive rows, so they align with the chrome above them
+     instead of with the rows below. */
+  padding: 4px 12px;
+  font-size: var(--silo-font-size-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--silo-color-text-lo);
+}
+.ap-section-caret {
+  flex-shrink: 0;
+  transition: transform 0.1s ease-out;
+}
+.ap-section-caret.expanded {
+  transform: rotate(90deg);
+}
+/* The heading is uppercase + letter-spaced; a count inside it isn't. Geometry
+   and color come from the kit's `size="sm"` chip. */
+.ap-section-count {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.ap-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 12px;
+  /* Match WorkspacesView `.ws-item` inset so hover/active backgrounds don't
+     flush to the pane edges. */
+  margin: 0 4px 2px;
+  cursor: pointer;
+  border-radius: var(--silo-radius-sm);
+}
+.ap-row:hover {
+  background: var(--silo-color-bg-hover);
+}
+.ap-row.active {
+  background: var(--silo-color-bg-active);
+}
+.ap-row-glyph {
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.ap-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ap-row-title-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.ap-row-icon {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  /* "Monotone" mode's color (unset when "color" mode overrides it inline) —
+     the middle text tier: lighter than text-hi (the title's own color, which
+     read too heavy for a small glyph) but still darker/more solid than
+     text-lo (the dimmer subtitle line, which read washed out). */
+  color: var(--silo-color-text);
+}
+.ap-row-title {
+  min-width: 0;
+  color: var(--silo-color-text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ap-row-subtitle {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+.ap-row-workspace {
+  min-width: 0;
+  flex-shrink: 1;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ap-row-sep {
+  flex-shrink: 0;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+.ap-row-elapsed {
+  flex-shrink: 0;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+/* The "Recent" view's drag affordance — only that view passes `drag` to
+   AgentRowItem, so this only ever appears there. Hidden until the row is
+   hovered, and pinned to the row's right edge via the auto margin rather
+   than a fixed position, so it still lines up if the row's content is
+   short. */
+.ap-row-grip {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 4px;
+  display: flex;
+  align-items: center;
+  color: var(--silo-color-text-lo);
+  opacity: 0;
+  cursor: grab;
+  /* The drag gesture starts here (pointerdown) rather than on the row as a
+     whole — without this, touch/trackpad input can try to scroll or
+     gesture-navigate before our own pointermove handler gets a chance. */
+  touch-action: none;
+}
+.ap-row:hover .ap-row-grip {
+  opacity: 1;
+}
+.ap-row-grip:active {
+  cursor: grabbing;
+}
+.ap-row-dragging {
+  opacity: 0.4;
+}
+/* Square corners deliberately, on both — a rounded border reads as another
+   row's outline; a plain straight rule reads as an insertion point.
+   `-before` is the common case (every insertion point except "at the very
+   end" has a next row to draw it above); `-after` only ever applies to the
+   section's last row, for that one remaining case — see the `insertAfter`
+   comment on `RowDrag` in agents-panel.tsx. */
+.ap-row-drop-target-before {
+  border-radius: 0;
+  border-top: 2px solid var(--silo-color-accent);
+  margin-top: -1px;
+}
+.ap-row-drop-target-after {
+  border-radius: 0;
+  border-bottom: 2px solid var(--silo-color-accent);
+  margin-bottom: -1px;
+}
+/* The floating "card" that follows the cursor during a drag — a cloned copy
+   of the real row (see `handleAgePointerDown` in agents-panel.tsx), repositioned
+   on every pointermove via inline `left`/`top` rather than a CSS transition,
+   since it needs to track the cursor exactly, not ease toward it. Needs its
+   own solid background because `.ap-row` itself only paints one on
+   hover/active — floating over the panel with no fill would look like
+   see-through text rather than a lifted card. `pointer-events: none` keeps
+   it out of the way of the row-rect hit-testing that drives the drop-target
+   detection. */
+.ap-row-ghost {
+  position: fixed;
+  z-index: 1000;
+  margin: 0;
+  pointer-events: none;
+  background: var(--silo-color-bg);
+  border-radius: var(--silo-radius-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  opacity: 0.5;
+  cursor: grabbing;
+}
+.ap-row-ghost .ap-row-grip {
+  opacity: 1;
+}

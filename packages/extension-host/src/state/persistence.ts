@@ -13,6 +13,7 @@ import {
 } from "./types";
 import type { WorkspaceInternal } from "./types";
 import { migratePanelIds } from "./panel-id-migration";
+import { migrateGlobalExtensionState } from "./extension-id-migration";
 import { loadPanelStateFromWorkspace } from "./workspaces";
 import {
   capturePanelState,
@@ -135,6 +136,7 @@ export async function hydrate(configDir: string): Promise<void> {
   // Merge settings over defaults so settings added in later versions hydrate
   // sanely from an older blob. (Order/active are reconciled below, after we know
   // which workspace files actually loaded.)
+  let extensionStateMigrated = false;
   if (index) {
     store.uiFontSize = index.uiFontSize ?? DEFAULT_UI_FONT_SIZE;
     store.activeThemeId = index.activeThemeId ?? "dark";
@@ -156,6 +158,9 @@ export async function hydrate(configDir: string): Promise<void> {
     store.globalExtensionState = index.globalExtensionState
       ? cloneExtensionState(index.globalExtensionState)
       : {};
+    if (migrateGlobalExtensionState(store.globalExtensionState)) {
+      extensionStateMigrated = true;
+    }
     store.agentState = index.agentState
       ? cloneAgentState(index.agentState)
       : {};
@@ -255,6 +260,9 @@ export async function hydrate(configDir: string): Promise<void> {
 
   store.hydrated = true;
   subscribe(store, schedulePersist);
+  if (extensionStateMigrated) {
+    void persistImmediately();
+  }
 }
 
 async function doPersist(): Promise<void> {
