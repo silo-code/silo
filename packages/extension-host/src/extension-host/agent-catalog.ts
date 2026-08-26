@@ -723,6 +723,20 @@ const pi: AgentDefinition = {
       "in Silo.",
   },
   docsUrl: "https://getsilo.dev/guide/agent-sessions#pi",
+  runtime: {
+    // Already generic in agents-service.ts's applyDetection (gated on
+    // `entry?.state.agentId`, not an agent-id check) — declared here so the
+    // catalog entry states the fact this policy documents, not to select new
+    // code paths. See ADR 0042 decision 3.
+    suppressShellIntegrationWhenIdentified: true,
+    // Already generic in detectPiTitle itself (identity: true, agentId: "pi"
+    // on the DetectionResult it returns) — same as Copilot's title detector.
+    // Declared here for the same audit-trail reason as above.
+    identityFromDetection: true,
+    // The one field agentByProcessArgs actually reads (below) — this
+    // replaces what used to be two string literals inline in that function.
+    processArgsMarkers: ["pi-coding-agent", "@earendil-works/pi"],
+  },
   contract:
     "Pi is the one supported agent with no shell-command hook mechanism: its " +
     "hooks are TypeScript extensions auto-loaded from ~/.pi/agent/extensions/" +
@@ -834,10 +848,11 @@ export function agentByProcessArgs(args: string): AgentDefinition | undefined {
     if (byScript) return byScript;
   }
 
-  if (
-    includesPathMarker(trimmed, "pi-coding-agent") ||
-    includesPathMarker(trimmed, "@earendil-works/pi")
-  ) {
+  // Phase 5 (ADR 0042) generalizes this to a loop over every catalog entry's
+  // `runtime.processArgsMarkers` — pi is the only entry that declares any
+  // today, so this still reads as a pi-specific check for now.
+  const piMarkers = agentById("pi")?.runtime?.processArgsMarkers ?? [];
+  if (piMarkers.some((marker) => includesPathMarker(trimmed, marker))) {
     return agentById("pi");
   }
   return undefined;
