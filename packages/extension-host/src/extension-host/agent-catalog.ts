@@ -212,8 +212,11 @@ export type AgentResume =
  * Optional: a thin catalog entry (Claude, Codex, Cursor, Copilot, Grok) needs
  * none of this; a quirky agent (pi first) declares only the fields it needs.
  *
- * **Unused as of this type's introduction** (ADR 0042 phase 1) — wired into
- * `agents-service.ts` and `agent-catalog.ts`'s derived views in phase 2/5.
+ * Wired as of phase 2: `processArgsMarkers` is read by `agentByProcessArgs`
+ * below. `suppressShellIntegrationWhenIdentified` and `identityFromDetection`
+ * are declared for audit-trail accuracy but select no code path — see the
+ * phase-2 implementation note in the ADR for why (both were already generic
+ * before this type existed).
  */
 export interface AgentRuntimePolicy {
   /**
@@ -252,13 +255,16 @@ export interface AgentRuntimePolicy {
  * generically instead of an `agent.id === "pi"` branch in UI code.
  *
  * The settings object is untyped (`Record<string, unknown>`) here because
- * this package must not depend on `extensions-core`, where each agent's
- * concrete settings shape (e.g. `PiAgentSettings`) is defined — `isEnabled` /
- * `setEnabled` are meant to be existing per-agent pure functions (pi's
- * `getTerminalProgress` / `withTerminalProgress`) passed through as-is.
+ * `extensions-core` (where the settings page lives) is allowed to depend on
+ * this host package, never the reverse — so `isEnabled` / `setEnabled` are
+ * owned and defined right on the agent's own module (e.g. `agents/pi.ts`),
+ * not imported from an `extensions-core` sibling. `index.tsx` calls them
+ * generically through this interface without knowing which agent it's
+ * driving.
  *
- * **Unused as of this type's introduction** (ADR 0042 phase 1) — wired into
- * `agents-settings/index.tsx` in phase 4b.
+ * Wired as of phase 4b: `index.tsx` renders any row whose agent declares
+ * this field, keyed by agent id — pi is the only declarer today; Cursor's
+ * `showStatusIndicators` is the next candidate (see the ADR's open question).
  */
 export interface AgentExtraSettingsToggle {
   /** Row label shown beneath the agent's row, e.g. `"Terminal progress"`. */

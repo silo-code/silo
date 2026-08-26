@@ -409,6 +409,7 @@ export {
 export type {
   AgentDefinition,
   AgentHookResume,
+  AgentExtraSettingsToggle,
   HookInstallStrategy,
 } from "./agent-catalog";
 

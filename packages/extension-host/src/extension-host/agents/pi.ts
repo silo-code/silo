@@ -173,6 +173,30 @@ export function buildPiAgentDefinition(deps: PiAgentDeps): AgentDefinition {
       // to be two string literals inline in that function.
       processArgsMarkers: ["pi-coding-agent", "@earendil-works/pi"],
     },
+    // ADR 0042 phase 4b: Settings → Agents renders this row generically off
+    // `row.agent.extraSettingsToggle` — no `agent.id === "pi"` branch in
+    // index.tsx. isEnabled/setEnabled are owned here (not imported from
+    // extensions-core) because extension-host must not depend on it.
+    extraSettingsToggle: {
+      label: "Terminal progress",
+      hint:
+        "Emit OSC 9;4 progress so Silo can show pi working/idle. Restart " +
+        "pi after changing.",
+      settingsPathRel: ".pi/agent/settings.json",
+      isEnabled: (settings) => {
+        const terminal = settings.terminal as
+          | { showTerminalProgress?: boolean }
+          | undefined;
+        return terminal?.showTerminalProgress ?? false;
+      },
+      setEnabled: (settings, enabled) => ({
+        ...settings,
+        terminal: {
+          ...((settings.terminal as object | undefined) ?? {}),
+          showTerminalProgress: enabled,
+        },
+      }),
+    },
     contract:
       "Pi is the one supported agent with no shell-command hook mechanism: " +
       "its hooks are TypeScript extensions auto-loaded from " +

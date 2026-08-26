@@ -1,9 +1,9 @@
 /**
  * Session-hook install UI for the Agents settings page (Hooks tab).
  *
- * Kept in its own module so `agent-catalog-modularization` can land
- * {@link AgentExtraSettingsToggle} changes here without fighting tab/options
- * composition work in `index.tsx`.
+ * The per-agent "extra settings" row (pi's Terminal progress toggle, today)
+ * renders generically off {@link AgentExtraSettingsToggle} — no
+ * `agent.id === "pi"` branch here (ADR 0042 phase 4b).
  */
 import {
   useCallback,
@@ -28,14 +28,9 @@ import {
   TRACK_SCRIPT_REL,
   type AgentDefinition,
   type AgentHookResume,
+  type AgentExtraSettingsToggle,
 } from "@silo-code/extension-host/internal";
 import { installerFor } from "./install-strategy";
-import {
-  getTerminalProgress,
-  PI_AGENT_SETTINGS_REL,
-  withTerminalProgress,
-  type PiAgentSettings,
-} from "./pi-settings";
 import {
   parseSettingsJsonText,
   writableSettingsOrThrow,
@@ -103,25 +98,34 @@ async function writeInstalled(
   await installerFor(agent.resume).write(ctx, agent.resume, path, install);
 }
 
-async function readPiAgentSettings(
+/** Read+parse an agent's own settings file for its {@link AgentExtraSettingsToggle}
+ * — generic over which agent, per ADR 0042 phase 4b (no `agent.id === "pi"`
+ * branch here or in any caller). */
+async function readExtraSettingsToggleFile(
   ctx: ExtensionContext,
   home: string,
-): Promise<SettingsJsonRead<PiAgentSettings>> {
-  const path = `${home}/${PI_AGENT_SETTINGS_REL}`;
+  settingsPathRel: string,
+): Promise<SettingsJsonRead<Record<string, unknown>>> {
+  const path = `${home}/${settingsPathRel}`;
   if (!(await ctx.files.pathExists(path))) return { kind: "missing" };
   const text = await ctx.files.readText(path).catch(() => null);
-  return parseSettingsJsonText<PiAgentSettings>(text, path);
+  return parseSettingsJsonText<Record<string, unknown>>(text, path);
 }
 
-async function writePiTerminalProgress(
+async function writeExtraSettingsToggle(
   ctx: ExtensionContext,
   home: string,
+  toggle: AgentExtraSettingsToggle,
   enabled: boolean,
 ): Promise<void> {
-  const path = `${home}/${PI_AGENT_SETTINGS_REL}`;
-  const read = await readPiAgentSettings(ctx, home);
+  const path = `${home}/${toggle.settingsPathRel}`;
+  const read = await readExtraSettingsToggleFile(
+    ctx,
+    home,
+    toggle.settingsPathRel,
+  );
   const current = writableSettingsOrThrow(read, path);
-  const next = withTerminalProgress(current, enabled);
+  const next = toggle.setEnabled(current, enabled);
   const body = JSON.stringify(next, null, 2) + "\n";
   const dir = path.slice(0, path.lastIndexOf("/"));
   if (dir) await ctx.files.createDir(dir);
@@ -165,10 +169,13 @@ export function AgentsHooksPanel({ ctx }: { ctx: ExtensionContext }) {
   const [home, setHome] = useState<string | null | undefined>(undefined);
   const [rows, setRows] = useState<AgentRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [piTerminalProgress, setPiTerminalProgress] = useState<boolean | null>(
-    null,
+  // Keyed by agent id — any hook-installable agent may declare
+  // `extraSettingsToggle` (today, only pi does). `undefined` for an id means
+  // "not loaded yet" (disables the switch).
+  const [toggleState, setToggleState] = useState<Record<string, boolean>>({});
+  const [toggleError, setToggleError] = useState<Record<string, string | null>>(
+    {},
   );
-  const [piProgressError, setPiProgressError] = useState<string | null>(null);
   const [windows, setWindows] = useState(false);
 
   const load = useCallback(async () => {
@@ -244,21 +251,34 @@ export function AgentsHooksPanel({ ctx }: { ctx: ExtensionContext }) {
       );
     }
 
-    setPiProgressError(null);
-    try {
-      const read = await readPiAgentSettings(ctx, h);
-      if (read.kind === "invalid") {
-        setPiTerminalProgress(false);
-        setPiProgressError(read.message);
-      } else {
-        setPiTerminalProgress(
-          getTerminalProgress(read.kind === "ok" ? read.value : {}),
+    const nextToggleState: Record<string, boolean> = {};
+    const nextToggleError: Record<string, string | null> = {};
+    for (const agent of agents) {
+      const toggle = agent.extraSettingsToggle;
+      if (!toggle) continue;
+      try {
+        const read = await readExtraSettingsToggleFile(
+          ctx,
+          h,
+          toggle.settingsPathRel,
         );
+        if (read.kind === "invalid") {
+          nextToggleState[agent.id] = false;
+          nextToggleError[agent.id] = read.message;
+        } else {
+          nextToggleState[agent.id] = toggle.isEnabled(
+            read.kind === "ok" ? read.value : {},
+          );
+          nextToggleError[agent.id] = null;
+        }
+      } catch (err) {
+        nextToggleState[agent.id] = false;
+        nextToggleError[agent.id] =
+          err instanceof Error ? err.message : String(err);
       }
-    } catch (err) {
-      setPiTerminalProgress(false);
-      setPiProgressError(err instanceof Error ? err.message : String(err));
     }
+    setToggleState(nextToggleState);
+    setToggleError(nextToggleError);
 
     setRows(next);
   }, [ctx]);
@@ -287,15 +307,20 @@ export function AgentsHooksPanel({ ctx }: { ctx: ExtensionContext }) {
     }
   }
 
-  async function togglePiTerminalProgress(enabled: boolean) {
-    if (!home) return;
-    setBusy("pi-terminal-progress");
-    setPiProgressError(null);
+  async function toggleExtraSetting(agent: HookAgent, enabled: boolean) {
+    const toggle = agent.extraSettingsToggle;
+    if (!toggle || !home) return;
+    const busyKey = `${agent.id}-extra-toggle`;
+    setBusy(busyKey);
+    setToggleError((prev) => ({ ...prev, [agent.id]: null }));
     try {
-      await writePiTerminalProgress(ctx, home, enabled);
-      setPiTerminalProgress(enabled);
+      await writeExtraSettingsToggle(ctx, home, toggle, enabled);
+      setToggleState((prev) => ({ ...prev, [agent.id]: enabled }));
     } catch (err) {
-      setPiProgressError(err instanceof Error ? err.message : String(err));
+      setToggleError((prev) => ({
+        ...prev,
+        [agent.id]: err instanceof Error ? err.message : String(err),
+      }));
     } finally {
       setBusy(null);
     }
@@ -358,24 +383,26 @@ export function AgentsHooksPanel({ ctx }: { ctx: ExtensionContext }) {
                 )
               }
             />
-            {row.agent.id === "pi" && !windows && (
+            {row.agent.extraSettingsToggle && !windows && (
               <SettingRow
-                label="Terminal progress"
+                label={row.agent.extraSettingsToggle.label}
                 hint={
-                  piProgressError
-                    ? `Error: ${piProgressError}`
-                    : "Emit OSC 9;4 progress so Silo can show pi working/idle. Restart pi after changing."
+                  toggleError[row.agent.id]
+                    ? `Error: ${toggleError[row.agent.id]}`
+                    : row.agent.extraSettingsToggle.hint
                 }
               >
                 <Switch
-                  checked={piTerminalProgress ?? false}
+                  checked={toggleState[row.agent.id] ?? false}
                   disabled={
-                    piTerminalProgress === null ||
-                    busy === "pi-terminal-progress" ||
+                    toggleState[row.agent.id] === undefined ||
+                    busy === `${row.agent.id}-extra-toggle` ||
                     !home
                   }
-                  onChange={(checked) => void togglePiTerminalProgress(checked)}
-                  aria-label="pi terminal progress"
+                  onChange={(checked) =>
+                    void toggleExtraSetting(row.agent, checked)
+                  }
+                  aria-label={`${row.agent.displayName} ${row.agent.extraSettingsToggle.label}`}
                 />
               </SettingRow>
             )}
