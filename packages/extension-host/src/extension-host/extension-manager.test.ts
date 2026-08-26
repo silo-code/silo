@@ -96,6 +96,7 @@ import {
   updateNeedsConsent,
 } from "./extension-manager";
 import { registerBuiltins } from "./builtins-registry";
+import { toastStore } from "./ui-service";
 import type { Extension } from "@silo-code/sdk";
 
 const INSTALLED = "/cfg/extensions/installed.json";
@@ -122,6 +123,7 @@ beforeEach(() => {
   loaderMock.needsReload.mockReturnValue(false);
   invokeMock.mockClear().mockResolvedValue(undefined);
   fsDeleteSpy.mockClear();
+  toastStore.toasts.splice(0, toastStore.toasts.length);
   // Reset the built-in registry so merged rows / dispatch start clean.
   registerBuiltins([], new Set());
 });
@@ -223,6 +225,62 @@ describe("loadInstalled", () => {
       main: "dist/index.js",
       permissions: ["fs:write"],
     });
+  });
+
+  it("retires an on-disk install when its id matches a built-in", async () => {
+    registerBuiltins([fakeBuiltin("silo.agents", "Agents")], new Set());
+    fsMap.set(
+      INSTALLED,
+      JSON.stringify({
+        version: 1,
+        extensions: [
+          {
+            id: "silo.agent-monitor",
+            dir: "silo.agent-monitor",
+            enabled: true,
+            permissions: [],
+          },
+        ],
+      }),
+    );
+    fsMap.set(
+      "/cfg/extensions/silo.agent-monitor/package.json",
+      JSON.stringify({
+        name: "Agent Monitor",
+        version: "0.2.10",
+        silo: { id: "silo.agent-monitor", main: "dist/index.js" },
+      }),
+    );
+    fsMap.set(
+      "/cfg/extensions/silo.agent-monitor/dist/index.js",
+      "third-party",
+    );
+
+    await mgr.loadInstalled();
+
+    expect(loaderMock.loadExtension).not.toHaveBeenCalled();
+    expect(JSON.parse(fsMap.get(INSTALLED)!).extensions).toEqual([]);
+    expect(fsMap.has("/cfg/extensions/silo.agent-monitor/dist/index.js")).toBe(
+      false,
+    );
+    const rows = mgr
+      .getState()
+      .extensions.filter((e) => e.id === "silo.agents");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      name: "Agents",
+      builtin: true,
+      publisher: "Silo",
+    });
+    expect(toastStore.toasts).toEqual([
+      expect.objectContaining({
+        level: "info",
+        title: "Agent Monitor extension is now built-in to Silo",
+        message:
+          "Your settings were kept; the separately installed copy was removed.",
+        dedupKey: "builtin-migrate:silo.agents",
+      }),
+    ]);
   });
 });
 

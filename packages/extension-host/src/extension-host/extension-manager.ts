@@ -35,6 +35,13 @@ import {
   disableBuiltin,
   builtinRows,
 } from "./builtins-registry";
+import {
+  migrateDisabledBuiltins,
+  isSupersededOnDiskId,
+  SUPERSEDED_BUILTIN_IDS,
+  SUPERSEDED_BUILTIN_TOAST_TITLES,
+} from "../state/extension-id-migration";
+import { pushToast } from "./ui-service";
 import { appVersion } from "../services/tauri-app";
 import { isEngineCompatible } from "./engine-compat";
 import {
@@ -423,6 +430,11 @@ async function readInstalledFile(): Promise<InstalledFile> {
     if (!Array.isArray(parsed.extensions)) {
       return { version: REGISTRY_VERSION, extensions: [] };
     }
+    const disabled = migrateDisabledBuiltins(parsed.disabledBuiltins);
+    if (disabled.changed) {
+      parsed.disabledBuiltins = disabled.ids;
+      await writeInstalledFile(parsed);
+    }
     return parsed;
   } catch {
     return { version: REGISTRY_VERSION, extensions: [] };
@@ -432,6 +444,20 @@ async function readInstalledFile(): Promise<InstalledFile> {
 async function writeInstalledFile(file: InstalledFile): Promise<void> {
   const path = `${await extensionsRoot()}/installed.json`;
   await fsWriteText(path, JSON.stringify(file, null, 2));
+}
+
+/**
+ * Remove an on-disk third-party install whose id now matches a built-in (or was
+ * superseded by one). Settings in `globalExtensionState` migrate separately.
+ */
+async function retireOnDiskInstall(id: string, dir: string): Promise<void> {
+  if (isLoaded(id)) unloadExtension(id);
+  const root = await extensionsRoot();
+  const destDir = `${root}/${dir}`;
+  if (await fsPathExists(destDir)) await fsDelete(destDir);
+  await upsertRecord((file) => {
+    file.extensions = file.extensions.filter((e) => e.id !== id);
+  });
 }
 
 // ---- reactive state ----------------------------------------------------------
@@ -457,6 +483,9 @@ async function refresh(): Promise<void> {
   const hostVersion = await appVersion().catch(() => "");
   const rows: InstalledExtension[] = [];
   for (const rec of file.extensions) {
+    // A built-in with the same id owns the extension — skip the retired on-disk
+    // row so Settings → Extensions never lists the id twice.
+    if (isBuiltin(rec.id) || isSupersededOnDiskId(rec.id, isBuiltin)) continue;
     const dir = `${root}/${rec.dir}`;
     try {
       const m = await readManifest(dir);
@@ -768,7 +797,33 @@ export function getExtensionManager(): ExtensionManager {
     async loadInstalled() {
       const file = await readInstalledFile();
       const root = await extensionsRoot();
+      // Transparent migration: a third-party install whose id is now built-in
+      // is retired on disk instead of loaded alongside the in-process copy.
+      const migrated: { oldId: string; newId: string }[] = [];
       for (const rec of file.extensions) {
+        if (isBuiltin(rec.id) || isSupersededOnDiskId(rec.id, isBuiltin)) {
+          await retireOnDiskInstall(rec.id, rec.dir);
+          migrated.push({
+            oldId: rec.id,
+            newId: SUPERSEDED_BUILTIN_IDS[rec.id] ?? rec.id,
+          });
+        }
+      }
+      for (const { oldId, newId } of migrated) {
+        const name = builtinRows().find((b) => b.id === newId)?.name ?? newId;
+        const title =
+          SUPERSEDED_BUILTIN_TOAST_TITLES[oldId] ?? `${name} is now built in`;
+        pushToast(
+          "info",
+          "Your settings were kept; the separately installed copy was removed.",
+          {
+            title,
+            dedupKey: `builtin-migrate:${newId}`,
+          },
+        );
+      }
+      const current = await readInstalledFile();
+      for (const rec of current.extensions) {
         if (!rec.enabled) continue;
         try {
           const dir = `${root}/${rec.dir}`;

@@ -5,6 +5,7 @@ describe("extensionIconFor", () => {
   it("gives a bundled extension its own glyph", () => {
     expect(extensionIconFor("core.terminal")).not.toBeNull();
     expect(extensionIconFor("silo.git-explorer")).not.toBeNull();
+    expect(extensionIconFor("silo.agents")).not.toBeNull();
   });
 
   it("has nothing for an extension the user installed themselves", () => {

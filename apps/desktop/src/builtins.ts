@@ -25,6 +25,7 @@ import {
   fileSearch,
   git,
   gitExplorer,
+  agents,
   themePresets,
 } from "@silo-code/extensions-silo";
 
@@ -58,6 +59,7 @@ const builtins: Extension[] = [
   // consume its published GitAPI.
   git,
   gitExplorer,
+  agents,
   // Register presets before the themes UI so the picker has them on first paint.
   themePresets,
   themes,

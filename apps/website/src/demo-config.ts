@@ -517,11 +517,10 @@ export const SETTINGS_PAGES = [
   { id: "terminal", title: "Terminal" },
   { id: "layout", title: "Layout" },
   { id: "extensions", title: "Extensions", group: "extensions" },
-  { id: "agent-monitor", title: "Agent Monitor" },
+  { id: "agents", title: "Agents" },
   { id: "system-monitor", title: "System Monitor" },
   { id: "github-actions", title: "GitHub Actions" },
   { id: "github-prs", title: "GitHub Pull Requests" },
-  { id: "agents", title: "Agents", group: "agents" },
   { id: "about", title: "About Silo", group: "about" },
 ];
 
@@ -544,7 +543,7 @@ export const REGISTRY_CATEGORIES = [
  */
 export const REGISTRY_ENTRIES: RegistryEntry[] = [
   {
-    id: "silo.agent-monitor",
+    id: "silo.agents",
     name: "Agent Monitor",
     version: "0.2.3",
     state: "update-available",
