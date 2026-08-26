@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/silo-code/silo/compare/git-api-v0.4.0...git-api-v0.5.0) (2026-08-26)
+
+
+### Features
+
+* **git-explorer:** auto-refresh commits list and add manual refresh ([#433](https://github.com/silo-code/silo/issues/433)) ([635fbc4](https://github.com/silo-code/silo/commit/635fbc43435612c5d597a1227cb36277e614e4a5))
+
 ## [0.4.0](https://github.com/silo-code/silo/compare/git-api-v0.3.0...git-api-v0.4.0) (2026-08-19)
 
 
