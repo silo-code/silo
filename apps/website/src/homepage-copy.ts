@@ -122,7 +122,8 @@ export type AgentIconId =
   | "codex"
   | "copilot"
   | "grok"
-  | "pi";
+  | "pi"
+  | "opencode";
 
 export type AgentBadge = {
   name: string;
@@ -136,6 +137,7 @@ export const AGENTS: AgentBadge[] = [
   { name: "Copilot", icon: "copilot" },
   { name: "Grok", icon: "grok" },
   { name: "pi", icon: "pi" },
+  { name: "OpenCode", icon: "opencode" },
 ];
 
 export const TRUST_TITLE = "100% open source. Free forever.";

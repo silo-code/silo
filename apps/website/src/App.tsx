@@ -258,13 +258,42 @@ function PiIcon() {
   );
 }
 
+function OpencodeIcon() {
+  // OpenCode's mark: a portrait frame with a solid block inset near the
+  // top — drawn as an outline + a solid fill so the two-tone reference
+  // reads as one shape in a single theme color.
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      aria-hidden="true"
+    >
+      <rect x="6.5" y="3" width="11" height="18" rx="1.6" />
+      <rect
+        x="9.5"
+        y="7"
+        width="5"
+        height="7"
+        rx="0.6"
+        fill="currentColor"
+        stroke="none"
+      />
+    </svg>
+  );
+}
+
 function AgentIcon({ icon }: { icon: AgentIconId }) {
   if (icon === "claude") return <ClaudeIcon />;
   if (icon === "cursor") return <CursorIcon />;
   if (icon === "codex") return <CodexIcon />;
   if (icon === "copilot") return <CopilotIcon />;
   if (icon === "grok") return <GrokIcon />;
-  return <PiIcon />;
+  if (icon === "pi") return <PiIcon />;
+  return <OpencodeIcon />;
 }
 
 function XIcon() {
