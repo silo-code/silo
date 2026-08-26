@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.55.0](https://github.com/silo-code/silo/compare/silo-v0.54.0...silo-v0.55.0) (2026-08-26)
+
+
+### Features
+
+* **agents:** bundle Agent Monitor as built-in silo.agents ([#431](https://github.com/silo-code/silo/issues/431)) ([6b5e951](https://github.com/silo-code/silo/commit/6b5e951e3ef507e9643fbe176dcbd618d3afbcac))
+* **agents:** catalog modularization, OpenCode support, real agent icons ([#435](https://github.com/silo-code/silo/issues/435)) ([0f78118](https://github.com/silo-code/silo/commit/0f78118b6a6e7dc98fbdc2b6d52bd45c7d2281d0))
+* **git-explorer:** auto-refresh commits list and add manual refresh ([#433](https://github.com/silo-code/silo/issues/433)) ([635fbc4](https://github.com/silo-code/silo/commit/635fbc43435612c5d597a1227cb36277e614e4a5))
+
 ## [0.54.0](https://github.com/silo-code/silo/compare/silo-v0.53.0...silo-v0.54.0) (2026-08-25)
 
 
