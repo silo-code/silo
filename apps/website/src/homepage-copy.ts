@@ -114,7 +114,7 @@ export const STORY_SECTIONS: StorySection[] = [
 /** Agent trust band — sits directly under the hero demo. */
 export const AGENTS_TITLE = "Runs the agents you already use.";
 export const AGENTS_LINE =
-  "Claude, Cursor, Codex, Copilot, Grok, pi, and anything else that talks to a terminal.";
+  "Claude, Cursor, Codex, Copilot, Grok, pi, OpenCode, and anything else that talks to a terminal.";
 
 export type AgentIconId =
   | "claude"
@@ -122,7 +122,8 @@ export type AgentIconId =
   | "codex"
   | "copilot"
   | "grok"
-  | "pi";
+  | "pi"
+  | "opencode";
 
 export type AgentBadge = {
   name: string;
@@ -136,6 +137,7 @@ export const AGENTS: AgentBadge[] = [
   { name: "Copilot", icon: "copilot" },
   { name: "Grok", icon: "grok" },
   { name: "pi", icon: "pi" },
+  { name: "OpenCode", icon: "opencode" },
 ];
 
 export const TRUST_TITLE = "100% open source. Free forever.";

@@ -4,14 +4,17 @@ import {
   detectCodexIdleAfterWorking,
   detectCopilotCLI,
   detectCopilotTitle,
-  detectPiTitle,
   detectCursorAgent,
   detectCursorAgentOutput,
+  detectOpencodeOutput,
   detectShellIntegration,
   type DetectionResult,
 } from "./agent-osc-detectors";
 import { renderTrackSessionScript } from "./agent-hook-script";
-import { renderPiTrackSessionExtension } from "./agent-pi-extension";
+import {
+  renderPiTrackSessionExtension,
+  buildPiAgentDefinition,
+} from "./agents/pi";
 
 /**
  * The single source of truth for every coding agent Silo supports (RFC 0018).
@@ -203,6 +206,86 @@ export type AgentResume =
   | AgentSessionFileResume
   | AgentNoResume;
 
+/**
+ * Host behavior for an agent's terminal/session handling that is not resume,
+ * install, or detection data — the runtime quirks ADR 0042 exists to pull out
+ * of host string branches (`agents-service.ts` must not branch on agent id).
+ * Optional: a thin catalog entry (Claude, Codex, Cursor, Copilot, Grok) needs
+ * none of this; a quirky agent (pi first) declares only the fields it needs.
+ *
+ * Wired as of phase 2: `processArgsMarkers` is read by `agentByProcessArgs`
+ * below. `suppressShellIntegrationWhenIdentified` and `identityFromDetection`
+ * are declared for audit-trail accuracy but select no code path — see the
+ * phase-2 implementation note in the ADR for why (both were already generic
+ * before this type existed).
+ */
+export interface AgentRuntimePolicy {
+  /**
+   * Once this agent's id is stamped onto a terminal, ignore the generic
+   * shell-integration OSC 133 A/B/C zone detector for it — for an agent that
+   * also emits OSC 133 as incidental shell-integration noise around its own
+   * turns (pi), so that noise isn't misread as `source: "shell"` activity
+   * once the real agent is already known.
+   */
+  suppressShellIntegrationWhenIdentified?: boolean;
+  /**
+   * True when a match from this agent's own OSC/output detectors should stamp
+   * catalog identity onto the terminal immediately, even before a hook
+   * confirms the session — for an agent identifiable only by an OSC title
+   * with no other signal (pi's `π - …` title).
+   */
+  identityFromDetection?: boolean;
+  /**
+   * Substring markers that identify this agent from a node/bun/deno-wrapped
+   * process's full argv when neither argv0 nor the script basename matches
+   * `leaderNames` directly — `agentByProcessArgs`'s package-path fallback
+   * (pi: `"pi-coding-agent"`, `"@earendil-works/pi"`). Each marker is matched
+   * as a whole path/package segment via `includesPathMarker`, never as a bare
+   * substring.
+   */
+  processArgsMarkers?: string[];
+}
+
+/**
+ * A settings-page toggle for a prerequisite this agent needs before its
+ * activity detectors can fire at all — an off-by-default setting in the
+ * agent's *own* config that gates the OSC/output signal Silo reads (pi's
+ * `terminal.showTerminalProgress`; Cursor's `showStatusIndicators` is the
+ * same class of problem per ADR 0042, not yet migrated to this mechanism).
+ * Declared as catalog metadata so Settings → Agents can render the row
+ * generically instead of an `agent.id === "pi"` branch in UI code.
+ *
+ * The settings object is untyped (`Record<string, unknown>`) here because
+ * `extensions-core` (where the settings page lives) is allowed to depend on
+ * this host package, never the reverse — so `isEnabled` / `setEnabled` are
+ * owned and defined right on the agent's own module (e.g. `agents/pi.ts`),
+ * not imported from an `extensions-core` sibling. `index.tsx` calls them
+ * generically through this interface without knowing which agent it's
+ * driving.
+ *
+ * Wired as of phase 4b: `index.tsx` renders any row whose agent declares
+ * this field, keyed by agent id — pi is the only declarer today; Cursor's
+ * `showStatusIndicators` is the next candidate (see the ADR's open question).
+ */
+export interface AgentExtraSettingsToggle {
+  /** Row label shown beneath the agent's row, e.g. `"Terminal progress"`. */
+  label: string;
+  /** Hint text shown under the label when there's no read/write error. */
+  hint: string;
+  /** Path to the agent's own settings file, relative to `$HOME` (POSIX
+   * slashes), e.g. `.pi/agent/settings.json`. */
+  settingsPathRel: string;
+  /** Reads whether the toggle is currently on from the agent's parsed
+   * settings object (an empty object when the file doesn't exist yet). */
+  isEnabled: (settings: Record<string, unknown>) => boolean;
+  /** Returns a new settings object with the toggle set to `enabled`. Pure —
+   * the caller owns reading/writing the file. */
+  setEnabled: (
+    settings: Record<string, unknown>,
+    enabled: boolean,
+  ) => Record<string, unknown>;
+}
+
 export interface AgentDefinition {
   /** Stable id, also written into hook events as the `agent` tag. */
   id: string;
@@ -227,6 +310,13 @@ export interface AgentDefinition {
   resume: AgentResume;
   /** "Setup details" link shown next to the install toggle. */
   docsUrl: string;
+  /** Host runtime quirks beyond resume/install/detection data. Undefined for
+   * every thin catalog entry; only a quirky agent (pi) declares one. */
+  runtime?: AgentRuntimePolicy;
+  /** An extra settings-page toggle this agent needs before its activity
+   * detectors can fire. Undefined for every agent that doesn't gate its
+   * activity signal behind its own off-by-default setting. */
+  extraSettingsToggle?: AgentExtraSettingsToggle;
 
   // ── provenance / maintenance (audit-skill rubric + checkpoint) ──────────
   /** Plain-language statement of exactly what upstream behavior our
@@ -598,88 +688,71 @@ const grok: AgentDefinition = {
   verifiedAgainstVersion: "grok@0.2.114",
 };
 
-const pi: AgentDefinition = {
-  id: "pi",
-  // Lowercase on purpose: upstream brands it "pi" (pi.dev), and the repo
-  // already labels a pi-kind terminal "pi agent".
-  displayName: "pi",
-  // `pi` on PATH is a symlink to the package's `dist/cli.js`, which carries a
-  // `#!/usr/bin/env node` shebang — so the foreground process reports as
-  // node-wrapped, exactly like Claude and Copilot.
-  leaderNames: ["pi"],
-  // Pi emits the same OSC 9;4 progress protocol Copilot does (`4;3` on turn
-  // start, `4;0` on turn end), so it shares that detector rather than getting
-  // a near-identical copy. Its OSC 0 title ("π - <session> - <cwd>") encodes
-  // no status, and its TUI spinner is the *generic* braille frame set, which
-  // is far too common in raw output to match safely — the progress protocol
-  // is the only trustworthy signal it has.
-  activityDetectors: [detectPiTitle, detectCopilotCLI],
-  resume: {
-    kind: "hook",
-    installStrategy: "pi-extension",
-    // Not a config file: pi has no shell-command hook mechanism, so this is a
-    // Silo-owned TypeScript extension that pi auto-loads from its global
-    // extensions directory. Created wholesale on install, deleted on
-    // uninstall (like Copilot's dedicated file, never a merge target).
-    configPath: ".pi/agent/extensions/silo-track-session.ts",
-    hookEvent: "session_start",
-    marker: SILO_HOOK_MARKER,
-    // What the extension spawns — the same shared capture script every other
-    // agent runs. The pi installer templates it as an argv inside
-    // `buildPiExtensionSource()` rather than as a shell string, but the
-    // command being run is exactly this.
-    buildCommand: () => buildHookCommand("pi"),
-    buildFileContents: buildPiExtensionSource,
-    // Confirmed live (2026-08-22, pi 0.84.2): `pi --session <id>` accepts a
-    // full or partial session UUID, resolving the current project's sessions
-    // first and then globally. It is also how pi itself relaunches a session
-    // internally. `-r`/`--resume` exists but only opens the interactive
-    // picker, so it is NOT the exact-resume syntax.
-    buildResumeCommand: (sessionId) => `pi --session ${sessionId}`,
-    postInstallNote:
-      "Pi loads extensions at startup, so restart any pi session you already " +
-      "have open. Use “Terminal progress” below for live working/idle status " +
-      "in Silo.",
-  },
-  docsUrl: "https://getsilo.dev/guide/agent-sessions#pi",
+// Pi's full AgentDefinition lives in agents/pi.ts (ADR 0042 phase 4) — it's
+// the one entry with non-trivial runtime quirks (decision 2). This module
+// stays the SSOT for the constants pi's definition needs but doesn't own, so
+// they're passed in rather than imported back (see agents/pi.ts's module
+// doc for why: no runtime import cycle between the catalog and its own
+// agent modules).
+const pi: AgentDefinition = buildPiAgentDefinition({
+  marker: SILO_HOOK_MARKER,
+  trackScriptRel: TRACK_SCRIPT_REL,
+  buildHookCommand,
+});
+
+const opencode: AgentDefinition = {
+  id: "opencode",
+  displayName: "OpenCode",
+  // Native compiled binary — argv0 is `opencode` directly, no node-wrapping.
+  leaderNames: ["opencode"],
+  // No OSC-based signal exists at all (see contract) — activity comes only
+  // from the raw-output bar-spinner fallback, same shape as Cursor Agent's.
+  activityDetectors: [],
+  outputDetector: detectOpencodeOutput,
+  // Tier 3 (exact resume) is deliberately deferred (ADR 0043): no
+  // pid-bearing session store exists to read passively — `opencode session
+  // list` has no pid column — and the plugin-based mechanism that could
+  // supply one is unbuilt and unverified. Honest default, not a
+  // placeholder.
+  resume: { kind: "none" },
+  // Inert until Tier 3 lands a `kind: "hook"` resume — `docsUrl` only
+  // renders for hook/session-file rows (Settings → Agents). Points at the
+  // anchor that setup page will use once there's something to document.
+  docsUrl: "https://getsilo.dev/guide/agent-sessions#opencode",
   contract:
-    "Pi is the one supported agent with no shell-command hook mechanism: its " +
-    "hooks are TypeScript extensions auto-loaded from ~/.pi/agent/extensions/" +
-    "*.ts (global, no trust step — only project-local .pi/extensions requires " +
-    "project trust). CONFIRMED live against pi 0.84.2 (2026-08-22): (1) an " +
-    "extension is a module with a default factory `(pi: ExtensionAPI) => void` " +
-    'that subscribes via `pi.on("session_start", handler)`; the event fires ' +
-    "with reason startup/reload/new/resume/fork and the handler's ctx exposes " +
-    "`sessionManager.getSessionId()` (a UUID) and `cwd`; (2) node built-ins " +
-    "(node:child_process, node:os, node:path) are available to extensions, and " +
-    "TypeScript is loaded through jiti with no build step, so the type-only " +
-    "import in Silo's extension is erased at runtime; (3) `pi --session <id>` " +
-    "resumes by full or partial session UUID (project-scoped first, then " +
-    "global) — `-r` only opens the picker; (4) sessions are stored as " +
-    "~/.pi/agent/sessions/<slugified-cwd>/<timestamp>_<uuid>.jsonl and pi keeps " +
-    "NO live pid registry, which is why the session-file resume path (Grok's) " +
-    "does not apply here. Because the extension runs inside pi's own process, " +
-    "it passes pi's pid to the capture script via SILO_AGENT_PID and the " +
-    "script skips its parent walk — the walk would be actively wrong for a " +
-    "two-character agent name matched by substring. Activity detection: pi " +
-    "emits OSC 9;4;3 at turn start and OSC 9;4;0 at turn end (the ConEmu " +
-    "progress protocol, via its TUI's setProgress), which is the same signal " +
-    "Copilot uses, BUT only when `terminal.showTerminalProgress` is true in " +
-    "~/.pi/agent/settings.json and that DEFAULTS TO FALSE (same situation as " +
-    "Cursor's showStatusIndicators). With it off, a pi terminal is still " +
-    "identified as an agent and still gets exact resume; it just never lights " +
-    "up as busy. Pi also emits OSC 133 A/B/C zones around messages, which the " +
-    'generic shell-integration fallback reads as `source: "shell"` — useful ' +
-    "noise, not agent identity.",
+    "OpenCode (opencode-ai) ships as a native compiled binary; argv0 is " +
+    "`opencode` directly (no node-wrapping). CONFIRMED live against " +
+    "opencode 1.18.20 (2026-08-26), across four separate real generations " +
+    "(three in a live Silo terminal, one via direct raw-PTY capture): it " +
+    "NEVER emits OSC 9 (ConEmu progress) or OSC 133 (shell integration). " +
+    'Its OSC 0 title is static ("OpenCode") except one async rename to ' +
+    '"OC | <session summary>" roughly 40s after the first message, ' +
+    "uncorrelated with any working/idle transition — a one-time " +
+    "session-naming event, not a status signal. The one real signal: its " +
+    "@opentui-based TUI renders an animated 8-cell bar while busy — each " +
+    "cell a CSI cursor-position escape immediately followed by U+2B1D " +
+    '"⬝" (empty) or U+25A0 "■" (filled) — confirmed building in real time ' +
+    "(425+ filled-frame writes within 4s) during genuine generation, not " +
+    "just the connection-retry state where it was first observed; no " +
+    "explicit idle signal exists in raw output, so the agent-idle debounce " +
+    "clears working on silence, same as Cursor's fallback. Resume: " +
+    "`--session <id>` / `--continue` / `--fork` are real CLI flags, but " +
+    "`opencode session list` returns id/title/timestamp with NO pid, so " +
+    "Silo's pid-correlated session-file resume cannot read it passively. " +
+    "A pi-extension-style installed plugin (the official @opencode-ai/" +
+    "plugin SDK loads in-process, confirmed via `ps` that the local TUI " +
+    "case is a single OS process) is the plausible resume path, but is " +
+    "UNVERIFIED — read from shipped .d.ts files only, no plugin built or " +
+    "run. See ADR 0043.",
   upstreamRefs: [
-    "https://pi.dev",
-    "https://www.npmjs.com/package/@earendil-works/pi-coding-agent",
-    // The package ships its own docs — docs/extensions.md (the extension API
-    // and session_start payload) and docs/sessions.md (--session semantics)
-    // are the two Silo's contract depends on.
+    "https://opencode.ai",
+    "https://github.com/sst/opencode",
+    // @opencode-ai/plugin's shipped .d.ts (index.d.ts, tui.d.ts) is the
+    // source for the unverified Tier-3 plugin mechanism the contract above
+    // describes — no public docs page covers it yet.
   ],
-  lastVerified: "2026-08-22",
-  verifiedAgainstVersion: "pi@0.84.2",
+  lastVerified: "2026-08-26",
+  verifiedAgainstVersion: "opencode@1.18.20",
 };
 
 /** Every agent Silo knows about. Order is the detection-dispatch order. */
@@ -690,6 +763,7 @@ export const AGENT_CATALOG: AgentDefinition[] = [
   copilot,
   grok,
   pi,
+  opencode,
 ];
 
 // ---- derived views ----------------------------------------------------------
@@ -753,13 +827,39 @@ export function agentByProcessArgs(args: string): AgentDefinition | undefined {
     if (byScript) return byScript;
   }
 
-  if (
-    trimmed.includes("pi-coding-agent") ||
-    trimmed.includes("@earendil-works/pi")
-  ) {
-    return agentById("pi");
+  // Generic over every catalog entry's `runtime.processArgsMarkers` (ADR
+  // 0042 phase 5) — pi is the only declarer today, but nothing here is
+  // pi-specific; the next node-wrapped quirky agent just declares its own
+  // markers and this loop picks it up with no changes here.
+  for (const agent of AGENT_CATALOG) {
+    const markers = agent.runtime?.processArgsMarkers;
+    if (!markers) continue;
+    if (markers.some((marker) => includesPathMarker(trimmed, marker))) {
+      return agent;
+    }
   }
   return undefined;
+}
+
+/** True when `marker` occurs in `haystack` as a whole path/package segment,
+ * not as a bare substring straddling an unrelated word — e.g. the marker
+ * `pi-coding-agent` must not match inside `api-coding-agent` (index 1), and
+ * `@earendil-works/pi` must not match inside `@earendil-works/pixel-tool`.
+ * A boundary is anything that can't extend an identifier: start/end of
+ * string, or any character other than a letter, digit, `_`, `-`, or `@`. */
+function includesPathMarker(haystack: string, marker: string): boolean {
+  const idx = haystack.indexOf(marker);
+  if (idx < 0) return false;
+  const isBoundary = (ch: string | undefined) =>
+    ch === undefined || !/[\w@-]/.test(ch);
+  return (
+    isBoundary(idx > 0 ? haystack[idx - 1] : undefined) &&
+    isBoundary(
+      idx + marker.length < haystack.length
+        ? haystack[idx + marker.length]
+        : undefined,
+    )
+  );
 }
 
 /** The catalog entry with this id (as written into hook events / persisted). */

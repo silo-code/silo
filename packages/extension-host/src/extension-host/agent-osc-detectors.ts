@@ -422,6 +422,32 @@ export function detectCopilotCLI(
 }
 
 // ---------------------------------------------------------------------------
+// OpenCode  (raw output only — no OSC signal exists, ADR 0043)
+// ---------------------------------------------------------------------------
+// Confirmed live across four separate real generations (ADR 0043): OpenCode
+// never emits OSC 9 progress or OSC 133 shell integration, and its OSC 0
+// title is static except a one-time async session-naming rename unrelated
+// to working/idle. The only real signal is raw output: its @opentui-based
+// TUI renders an animated 8-cell bar while busy, each cell an individual
+// CSI cursor-position escape (`ESC[<row>;<col>H`) immediately followed by
+// U+2B1D "⬝" (empty) or U+25A0 "■" (filled). Requiring the glyph to follow a
+// cursor-position escape, and requiring at least two such cells per chunk,
+// rules out an unrelated program's incidental single use of either
+// character — the same "beware bare single-glyph spinners" trap
+// `detectCursorAgentOutput` above avoids via its 2-char frame set. No
+// explicit idle signal exists in raw output either, so (like Cursor) the
+// agent-idle debounce timer clears "working" on silence.
+const OPENCODE_BAR_CELL_RE = /\x1b\[\d+;\d+H(?:\x1b\[[0-9;]*m)*[⬝■]/g;
+
+export function detectOpencodeOutput(chunk: string): DetectionResult | null {
+  const cells = chunk.match(OPENCODE_BAR_CELL_RE);
+  if (cells && cells.length >= 2) {
+    return { status: "working", source: "agent", timer: "schedule-agent" };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Shell integration  (OSC 133 FTCS protocol — zsh/bash/fish, used by pi etc.)
 // ---------------------------------------------------------------------------
 // A=prompt start, B=command entered, C=command output start, D[;exit]=command done.

@@ -77,3 +77,4 @@ A small, obvious choice needs neither.
 | [0040](./0040-skills-canonical-location-symlink.md)     | Skills live in `.agents/skills/`, `.claude/skills/` symlinks | 2026-08-16 | accepted |
 | [0041](./0041-pi-hook-as-installed-extension.md)        | Pi's session hook ships as an installed TypeScript extension | 2026-08-22 | accepted |
 | [0042](./0042-agent-catalog-modularization.md)          | Agent catalog modularization and declarative runtime policy  | 2026-08-22 | accepted |
+| [0043](./0043-opencode-tiered-support.md)               | OpenCode: zero-install activity now, resume deferred         | 2026-08-26 | accepted |

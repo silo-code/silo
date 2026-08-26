@@ -414,6 +414,7 @@ describe("agentByLeader", () => {
     expect(agentByLeader("copilot")?.id).toBe("copilot");
     expect(agentByLeader("grok")?.id).toBe("grok");
     expect(agentByLeader("pi")?.id).toBe("pi");
+    expect(agentByLeader("opencode")?.id).toBe("opencode");
   });
 
   it("does NOT map the bare `agent` shim to Cursor — it collides with Grok", () => {
@@ -486,6 +487,25 @@ describe("agentByProcessArgs", () => {
     ).toBeUndefined();
     expect(agentByProcessArgs("")).toBeUndefined();
   });
+
+  it("does not match the package-path marker straddling an unrelated word", () => {
+    // "pi-coding-agent" is a substring of "api-coding-agent" starting at
+    // index 1 — a bare String#includes would false-positive here.
+    expect(
+      agentByProcessArgs(
+        "node /Users/x/repos/api-coding-agent-tool/dist/cli.js",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("does not match the scoped-package marker straddling an unrelated package", () => {
+    // "@earendil-works/pi" is a substring of "@earendil-works/pixel-tool".
+    expect(
+      agentByProcessArgs(
+        "node /Users/x/lib/node_modules/@earendil-works/pixel-tool/cli.js",
+      ),
+    ).toBeUndefined();
+  });
 });
 
 describe("agentById", () => {
@@ -518,6 +538,15 @@ describe("hookInstallableAgents", () => {
     // (ADR 0041), but it is still an installable hook and belongs in the
     // Settings → Agents install list.
     expect(ids).toContain("pi");
+  });
+
+  it("excludes OpenCode — resume is deliberately kind: none (ADR 0043)", () => {
+    // Tier 3 (exact resume) is deferred until a plugin-based mechanism is
+    // built and verified; opencode must not appear in either install list
+    // until then.
+    expect(hookInstallableAgents().map((a) => a.id)).not.toContain("opencode");
+    expect(sessionFileAgents().map((a) => a.id)).not.toContain("opencode");
+    expect(agentById("opencode")?.resume.kind).toBe("none");
   });
 
   it("excludes Grok — it resolves via its own session file, not a hook", () => {
@@ -823,10 +852,39 @@ describe("detectFromOutput", () => {
     expect(detectFromOutput("hello world")).toBeNull();
   });
 
-  it("only Cursor defines an outputDetector", () => {
+  it("detects OpenCode's raw-output bar spinner (golden sample, ADR 0043)", () => {
+    // Captured shape: each cell is a CSI cursor-position escape immediately
+    // (optionally through SGR color codes) followed by ⬝ (empty) or ■
+    // (filled) — real generations render all 8 cells per redraw.
+    const sample =
+      "\x1b[49;4H\x1b[38;2;35;55;82m\x1b[48;2;10;10;10m⬝" +
+      "\x1b[49;5H⬝\x1b[49;6H⬝\x1b[49;7H⬝" +
+      "\x1b[49;8H■\x1b[49;9H■\x1b[49;10H■\x1b[49;11H■";
+    expect(detectFromOutput(sample)).toEqual({
+      status: "working",
+      source: "agent",
+      timer: "schedule-agent",
+    });
+  });
+
+  it("does not match an unrelated program's incidental single glyph", () => {
+    // Bare ⬝/■ with no cursor-position escape driving them — the exact
+    // "bare single-glyph spinner" trap the detector's boundary guards
+    // against (a box-drawing border, a progress bar using ■, etc.).
+    expect(detectFromOutput("┃ progress: ■■■■⬝⬝⬝⬝ 50%")).toBeNull();
+  });
+
+  it("requires at least two cells, not just one", () => {
+    expect(detectFromOutput("\x1b[10;5H⬝")).toBeNull();
+  });
+
+  it("only Cursor and OpenCode define an outputDetector", () => {
     expect(agentById("claude")?.outputDetector).toBeUndefined();
     expect(agentById("codex")?.outputDetector).toBeUndefined();
     expect(agentById("copilot")?.outputDetector).toBeUndefined();
+    expect(agentById("grok")?.outputDetector).toBeUndefined();
+    expect(agentById("pi")?.outputDetector).toBeUndefined();
     expect(agentById("cursor")?.outputDetector).toBeDefined();
+    expect(agentById("opencode")?.outputDetector).toBeDefined();
   });
 });

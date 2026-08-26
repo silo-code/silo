@@ -85,6 +85,42 @@ policy declaration** change.
 
    Each phase lands with `pnpm test` green and pi manual verification unchanged.
 
+   > **Implementation note (2026-08-26, phase 2):** `suppressShellIntegrationWhenIdentified`
+   > and `identityFromDetection` turned out to already be generic before this
+   > phase, not agent-id branches this decision's rule ("the host applies
+   > these generically; `agents-service.ts` must not branch on agent id
+   > strings") required removing. `applyDetection` already keys its
+   > shell-OSC suppression off `entry?.state.agentId` being set at all (any
+   > identified agent, not a `pi` check), and `detectPiTitle` already
+   > self-reports `identity: true` / `agentId: "pi"` on its own
+   > `DetectionResult` — the same mechanism Copilot's title detector uses.
+   > Both fields are declared `true` on pi's entry for audit-trail accuracy,
+   > but wire to no new code path; gating either behind a per-agent flag
+   > would only narrow existing behavior for the other five agents with no
+   > need driving that. `processArgsMarkers` was the only field of the three
+   > backed by a real hardcoded branch (`agentByProcessArgs`), and phase 2
+   > migrated it as planned.
+
+   > **Implementation note (2026-08-26, phase 4):** `SILO_AGENT_PID`
+   > ownership already matched this row's target before phase 4 touched
+   > anything — `agents/pi.ts`'s extension template is the one place that
+   > _sets_ it (`env: { ...process.env, SILO_AGENT_PID: String(process.pid) }`),
+   > and `agent-hook-script.ts`'s shared capture script is the one place
+   > that _reads_ it, generically gated (`if [ -n "$SILO_AGENT_PID" ]`, no
+   > agent-id check) — nothing to decide, just confirm. Extraction itself
+   > used a factory function (`buildPiAgentDefinition(deps)`) rather than a
+   > plain exported object: `agents/pi.ts` needs catalog-owned constants
+   > (`SILO_HOOK_MARKER`, `TRACK_SCRIPT_REL`, `buildHookCommand`) that
+   > `agent-catalog.ts` must stay the SSOT for, and a plain object would have
+   > needed a runtime import back into `agent-catalog.ts` — which already
+   > imports `agents/pi.ts` for the object itself — creating a real import
+   > cycle. The factory takes those three as parameters instead (`agent-catalog.ts`
+   > calls it once, passing its own constants), so `agents/pi.ts` has no
+   > runtime import of `agent-catalog.ts` at all, only `import type`. The
+   > phase-3 shim (`agent-pi-extension.ts`) is removed now that its one
+   > consumer (`agent-catalog.ts`) imports `agents/pi.ts` directly — exactly
+   > as phase 3's own commit anticipated.
+
 6. **Budget policy-layer work before the next pi-shaped agent.** If recon finds
    node-wrapped argv0, fake shell OSC, in-process hooks, or settings-gated
    activity, plan `runtime` / `extraSettingsToggle` fields in the same change

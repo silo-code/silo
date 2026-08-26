@@ -1,12 +1,13 @@
 # Using agents with Silo
 
 Silo recognizes the coding agents you run in your terminals — Claude Code,
-Codex, Cursor Agent, Copilot CLI, Grok, and pi — and shows you what each one is
-doing at a glance.
+Codex, Cursor Agent, Copilot CLI, Grok, pi, and OpenCode — and shows you what
+each one is doing at a glance.
 
 Two optional setup steps: install a monitoring extension to see agent status in
 the UI, and use **Install** in **Settings → Agents** so Silo can give you the
-exact command to resume a session later.
+exact command to resume a session later. Exact resume is available for every
+one of these except OpenCode today — see its section below.
 
 ## Seeing agent activity
 
@@ -140,3 +141,13 @@ Two things to know after installing:
   `terminal.showTerminalProgress` in `~/.pi/agent/settings.json`). With it
   off, Silo still identifies pi terminals and still offers exact resume — they
   just never light up as busy.
+
+### OpenCode {#opencode}
+
+**No exact resume yet — no Install button.** Silo detects OpenCode terminals
+and tracks their working/idle status, and still gives you the honest generic
+reminder ("was running OpenCode in `<folder>`") after a restart — the same
+fallback any agent gets before its hook is installed. There's nothing to
+install today: OpenCode has no config-file hook like Claude or Codex, and
+exact resume needs a plugin Silo doesn't install yet. Support for that is
+planned; detection and activity tracking work now with nothing to set up.
