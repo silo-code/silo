@@ -1,6 +1,6 @@
 {
   "name": "@silo-code/git-api",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Published types for Silo's silo.git provider — GitAPI plus the live GitRepoStore watch session, consumed via ctx.getExtension(\"silo.git\").",
   "license": "MIT",
   "author": "Dave Weaver",
