@@ -51,6 +51,7 @@ function missingStatus(): GitStatus {
     files: [],
     inRepo: false,
     missing: true,
+    headSha: null,
   };
 }
 
@@ -63,23 +64,27 @@ function notARepoStatus(): GitStatus {
     behind: 0,
     files: [],
     inRepo: false,
+    headSha: null,
   };
 }
 
-/** Parses `git log --pretty=format:%H%x09%h%x09%an%x09%ar%x09%s --numstat
- * [--diff-merges=first-parent]` output — the file lines under each header
- * count that commit's `filesChanged`, with no extra request per commit. */
+/** Parses `git log --pretty=format:%H%x09%h%x09%an%x09%ar%x09%aI%x09%s
+ * --numstat [--diff-merges=first-parent]` output — the file lines under each
+ * header count that commit's `filesChanged`, with no extra request per
+ * commit. */
 function parseLog(raw: string): GitLogEntry[] {
   const entries: GitLogEntry[] = [];
   let current: GitLogEntry | null = null;
   for (const line of raw.split("\n")) {
     if (LOG_HEADER_RE.test(line)) {
-      const [hash, shortHash, author, relativeDate, ...rest] = line.split(TAB);
+      const [hash, shortHash, author, relativeDate, authorDate, ...rest] =
+        line.split(TAB);
       current = {
         hash: hash ?? "",
         shortHash: shortHash ?? "",
         author: author ?? "",
         relativeDate: relativeDate ?? "",
+        authorDate: authorDate ?? "",
         subject: rest.join(TAB),
         filesChanged: 0,
       };
@@ -145,7 +150,7 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
     async log(cwd, limit = 50, base) {
       const { stdout, code } = await git(cwd, [
         "log",
-        "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%s",
+        "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%aI%x09%s",
         "--numstat",
         "--diff-merges=first-parent",
         `-${limit}`,
@@ -280,7 +285,7 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
       for (const range of ranges) {
         const { stdout, code } = await git(cwd, [
           "log",
-          "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%s",
+          "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%aI%x09%s",
           range,
         ]);
         if (code === 0) return parseLog(stdout);
@@ -343,7 +348,7 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
       const { stdout: metaLine, code: metaCode } = await git(cwd, [
         "show",
         "-s",
-        "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%P%x09%s%x09%b",
+        "--pretty=format:%H%x09%h%x09%an%x09%ar%x09%aI%x09%P%x09%s%x09%b",
         hash,
       ]);
       if (metaCode !== 0 || !metaLine) return null;
@@ -352,6 +357,7 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
         shortHash,
         author,
         relativeDate,
+        authorDate,
         parentsRaw,
         subject,
         ...bodyParts
@@ -388,6 +394,7 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
         shortHash: shortHash ?? "",
         author: author ?? "",
         relativeDate: relativeDate ?? "",
+        authorDate: authorDate ?? "",
         subject: subject ?? "",
         filesChanged: files.length,
         body: bodyParts.join(TAB).trim(),

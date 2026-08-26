@@ -23,7 +23,13 @@ describe("parseGitStatus", () => {
       behind: 0,
       files: [],
       inRepo: true,
+      headSha: "393176cf9883e90ad8c21384332b312aa7c736aa",
     });
+  });
+
+  it("reports headSha as null for a fresh repo with no commits yet", () => {
+    const raw = ["# branch.oid (initial)", "# branch.head main", ""].join("\n");
+    expect(parseGitStatus(raw).headSha).toBeNull();
   });
 
   it("decodes staged, modified, untracked, and renamed entries together", () => {

@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import {
+  ArrowsClockwise,
   CaretLeft,
   SortAscending,
   SortDescending,
@@ -45,6 +46,10 @@ export function CommitsTakeover({
   // Exact total for the tools-row count — reported by CommitListView once it
   // resolves (see GitAPI.commitCount), independent of how many rows are paged in.
   const [commitsTotal, setCommitsTotal] = useState<number | null>(null);
+  // Bumped by the "Refresh" button to force CommitListView to refetch even
+  // when status.headSha hasn't moved (e.g. retrying after an error).
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   // The detail pane needs a hash to render even while it's parked off-screen
   // (e.g. sliding out after Back) — keep the last one shown so it doesn't
   // blank mid-animation.
@@ -98,6 +103,16 @@ export function CommitsTakeover({
               {commitsTotal !== null && (
                 <span className="git-takeover-count">{commitsTotal}</span>
               )}
+              <Tooltip content="Refresh">
+                <button
+                  className={`row-action refresh-btn${refreshing ? " working" : ""}`}
+                  onClick={
+                    refreshing ? undefined : () => setRefreshKey((k) => k + 1)
+                  }
+                >
+                  <ArrowsClockwise size={14} />
+                </button>
+              </Tooltip>
               <Tooltip
                 content={
                   commitOrder === "oldestFirst"
@@ -138,7 +153,9 @@ export function CommitsTakeover({
               folder={folder}
               status={status}
               order={commitOrder}
+              refreshKey={refreshKey}
               onTotalCountChange={setCommitsTotal}
+              onLoadingChange={setRefreshing}
               onSelectCommit={(hash) =>
                 viewStack.push({ kind: "commit-detail", hash })
               }

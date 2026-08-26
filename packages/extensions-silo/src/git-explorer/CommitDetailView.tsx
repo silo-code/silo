@@ -7,6 +7,7 @@ import type {
   GitAPI,
 } from "@silo-code/git-api";
 import { resolveDiffBase } from "../git/parse-commit-files";
+import { formatAuthorDate } from "./commit-list-model";
 import { ICON_OPEN } from "./git-icons";
 
 function statusGlyph(status: CommitFileChange["status"]): string {
@@ -103,7 +104,9 @@ export function CommitDetailView({
         )}
         <div className="git-commit-detail-meta">
           <span>{detail.author}</span>
-          <span>{detail.relativeDate}</span>
+          <Tooltip content={formatAuthorDate(detail.authorDate)}>
+            <span>{detail.relativeDate}</span>
+          </Tooltip>
           <code>{detail.shortHash}</code>
         </div>
       </div>

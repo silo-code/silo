@@ -46,3 +46,20 @@ export function displayDividerIndex(
   if (canonicalIndex === -1) return -1;
   return order === "oldestFirst" ? total - canonicalIndex : canonicalIndex;
 }
+
+/**
+ * Formats a commit's {@link GitLogEntry.authorDate} (ISO 8601) into a
+ * locale-formatted absolute date/time — the tooltip counterpart to
+ * {@link GitLogEntry.relativeDate}, which is only accurate as of when it was
+ * fetched and reads increasingly wrong sitting in a list between refreshes.
+ * Returns the raw string unchanged if it doesn't parse as a date (e.g. a
+ * hand-built `GitAPI` test stub that leaves it empty).
+ */
+export function formatAuthorDate(authorDate: string): string {
+  const date = new Date(authorDate);
+  if (Number.isNaN(date.getTime())) return authorDate;
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}

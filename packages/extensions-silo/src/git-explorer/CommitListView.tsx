@@ -5,6 +5,7 @@ import type { GitAPI, GitLogEntry, GitStatus } from "@silo-code/git-api";
 import {
   dividerIndex,
   displayDividerIndex,
+  formatAuthorDate,
   orderedCommits,
   type CommitOrder,
   type UnpushedSet,
@@ -20,23 +21,36 @@ const PAGE_SIZE = 50;
  * parent (its toggle button lives in `GitView`'s shared subview header, next
  * to Back/title). Reads `status` live from the parent (not a snapshot taken
  * when the view opened), so a branch switch underfoot just re-fetches in
- * place. */
+ * place.
+ *
+ * Also refetches when `status.headSha` moves — a new commit, pull, rebase, or
+ * checkout on this folder — so the list stays current without polling `log`
+ * on every status refresh (see `GitStatus.headSha`'s doc comment). `refreshKey`
+ * is the manual escape hatch: bump it (e.g. from a "Refresh" button) to force
+ * a refetch even when `headSha` hasn't changed. */
 export function CommitListView({
   ctx,
   folder,
   status,
   order,
+  refreshKey,
   onTotalCountChange,
+  onLoadingChange,
   onSelectCommit,
 }: {
   ctx: ExtensionContext;
   folder: string;
   status: GitStatus;
   order: CommitOrder;
+  /** Bump to force a refetch regardless of whether `status.headSha` changed. */
+  refreshKey: number;
   /** Reports the exact total once resolved (see `GitAPI.commitCount`), for
    * the parent's "Commits (N)" header — independent of how many rows are
    * currently paged in. */
   onTotalCountChange?: (count: number | null) => void;
+  /** Mirrors the main fetch's loading state, for a parent "Refresh" button's
+   * spin indicator. */
+  onLoadingChange?: (loading: boolean) => void;
   onSelectCommit: (hash: string) => void;
 }) {
   const [commits, setCommits] = useState<GitLogEntry[]>([]);
@@ -88,7 +102,15 @@ export function CommitListView({
     return () => {
       cancelled = true;
     };
-  }, [ctx, folder, branchBase, baseResolved, onTotalCountChange]);
+  }, [
+    ctx,
+    folder,
+    branchBase,
+    baseResolved,
+    status.headSha,
+    refreshKey,
+    onTotalCountChange,
+  ]);
 
   useEffect(() => {
     const api = ctx.getExtension<GitAPI>("silo.git")?.api;
@@ -133,9 +155,15 @@ export function CommitListView({
     limit,
     status.branch,
     status.upstream,
+    status.headSha,
+    refreshKey,
     branchBase,
     baseResolved,
   ]);
+
+  useEffect(() => {
+    onLoadingChange?.(loading);
+  }, [loading, onLoadingChange]);
 
   function copyHash(hash: string) {
     void navigator.clipboard.writeText(hash);
@@ -199,7 +227,9 @@ export function CommitListView({
             </div>
             <div className="git-commit-meta">
               <span className="git-commit-author">{c.author}</span>
-              <span className="git-commit-date">{c.relativeDate}</span>
+              <Tooltip content={formatAuthorDate(c.authorDate)}>
+                <span className="git-commit-date">{c.relativeDate}</span>
+              </Tooltip>
               <span className="git-commit-files">
                 {c.filesChanged} file{c.filesChanged === 1 ? "" : "s"}
               </span>

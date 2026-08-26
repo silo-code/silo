@@ -3,6 +3,7 @@ import type { GitLogEntry } from "../git/git-api";
 import {
   dividerIndex,
   displayDividerIndex,
+  formatAuthorDate,
   orderedCommits,
 } from "./commit-list-model";
 
@@ -12,6 +13,7 @@ function entry(hash: string): GitLogEntry {
     shortHash: hash.slice(0, 7),
     author: "a",
     relativeDate: "now",
+    authorDate: "2026-01-01T00:00:00Z",
     subject: hash,
   };
 }
@@ -75,5 +77,18 @@ describe("displayDividerIndex", () => {
   it("stays -1 (no divider) regardless of order", () => {
     expect(displayDividerIndex(-1, commits.length, "newestFirst")).toBe(-1);
     expect(displayDividerIndex(-1, commits.length, "oldestFirst")).toBe(-1);
+  });
+});
+
+describe("formatAuthorDate", () => {
+  it("formats a valid ISO date into a locale date/time string", () => {
+    const formatted = formatAuthorDate("2026-03-05T14:30:00Z");
+    expect(formatted).not.toBe("2026-03-05T14:30:00Z");
+    expect(formatted).toContain("2026");
+  });
+
+  it("returns the raw string unchanged when it doesn't parse as a date", () => {
+    expect(formatAuthorDate("")).toBe("");
+    expect(formatAuthorDate("not-a-date")).toBe("not-a-date");
   });
 });
