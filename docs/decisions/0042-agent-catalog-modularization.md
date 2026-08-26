@@ -85,6 +85,22 @@ policy declaration** change.
 
    Each phase lands with `pnpm test` green and pi manual verification unchanged.
 
+   > **Implementation note (2026-08-26, phase 2):** `suppressShellIntegrationWhenIdentified`
+   > and `identityFromDetection` turned out to already be generic before this
+   > phase, not agent-id branches this decision's rule ("the host applies
+   > these generically; `agents-service.ts` must not branch on agent id
+   > strings") required removing. `applyDetection` already keys its
+   > shell-OSC suppression off `entry?.state.agentId` being set at all (any
+   > identified agent, not a `pi` check), and `detectPiTitle` already
+   > self-reports `identity: true` / `agentId: "pi"` on its own
+   > `DetectionResult` — the same mechanism Copilot's title detector uses.
+   > Both fields are declared `true` on pi's entry for audit-trail accuracy,
+   > but wire to no new code path; gating either behind a per-agent flag
+   > would only narrow existing behavior for the other five agents with no
+   > need driving that. `processArgsMarkers` was the only field of the three
+   > backed by a real hardcoded branch (`agentByProcessArgs`), and phase 2
+   > migrated it as planned.
+
 6. **Budget policy-layer work before the next pi-shaped agent.** If recon finds
    node-wrapped argv0, fake shell OSC, in-process hooks, or settings-gated
    activity, plan `runtime` / `extraSettingsToggle` fields in the same change
