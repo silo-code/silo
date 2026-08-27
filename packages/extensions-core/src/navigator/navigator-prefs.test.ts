@@ -37,10 +37,9 @@ beforeEach(() => {
 describe("navigator prefs persistence", () => {
   it("defaults to empty order / disabled set", () => {
     const sub = initNavigatorPrefs(fakeStorage());
-    expect(navigatorPrefsService.getState()).toEqual({
-      viewOrder: [],
-      disabledViews: [],
-    });
+    const state = navigatorPrefsService.getState();
+    expect(state.viewOrder).toEqual([]);
+    expect(state.disabledViews).toEqual([]);
     sub.dispose();
   });
 
@@ -120,5 +119,54 @@ describe("navigator prefs persistence", () => {
     storage.set("navigatorViewOrder", ["a"]);
     storage.emit();
     expect(navigatorPrefsService.getState().viewOrder).toEqual([]);
+  });
+});
+
+describe("navigator arrangement pref", () => {
+  it("defaults to one-at-a-time", () => {
+    const sub = initNavigatorPrefs(fakeStorage());
+    expect(navigatorPrefsService.getState().arrangement).toBe("one-at-a-time");
+    expect(navigatorPrefsService.getState().stackedCollapsed).toEqual([]);
+    sub.dispose();
+  });
+
+  it("hydrates a persisted stacked arrangement + collapsed set", () => {
+    const sub = initNavigatorPrefs(
+      fakeStorage({
+        navigatorArrangement: "stacked",
+        navigatorStackedCollapsed: ["silo.agents.by-status"],
+      }),
+    );
+    expect(navigatorPrefsService.getState().arrangement).toBe("stacked");
+    expect(navigatorPrefsService.getState().stackedCollapsed).toEqual([
+      "silo.agents.by-status",
+    ]);
+    sub.dispose();
+  });
+
+  it("coerces an unknown arrangement value to the default", () => {
+    const sub = initNavigatorPrefs(
+      fakeStorage({ navigatorArrangement: "tiled" }),
+    );
+    expect(navigatorPrefsService.getState().arrangement).toBe("one-at-a-time");
+    sub.dispose();
+  });
+
+  it("persists an arrangement change through set()", () => {
+    const storage = fakeStorage();
+    const sub = initNavigatorPrefs(storage);
+    navigatorPrefsService.set({ arrangement: "stacked" });
+    expect(storage.get<string>("navigatorArrangement")).toBe("stacked");
+    sub.dispose();
+  });
+
+  it("picks up an arrangement that arrives after activation", () => {
+    const storage = fakeStorage();
+    const sub = initNavigatorPrefs(storage);
+    expect(navigatorPrefsService.getState().arrangement).toBe("one-at-a-time");
+    storage.set("navigatorArrangement", "stacked");
+    storage.emit();
+    expect(navigatorPrefsService.getState().arrangement).toBe("stacked");
+    sub.dispose();
   });
 });

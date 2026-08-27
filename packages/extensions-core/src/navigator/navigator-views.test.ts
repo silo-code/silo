@@ -8,6 +8,7 @@ import {
   resolveActiveView,
   resolveViewList,
   setViewDisabled,
+  toggleIdInList,
 } from "./navigator-views";
 
 function view(
@@ -202,5 +203,21 @@ describe("setViewDisabled", () => {
   it("is idempotent", () => {
     expect(setViewDisabled(["a"], "a", true)).toEqual(["a"]);
     expect(setViewDisabled(["a"], "b", false)).toEqual(["a"]);
+  });
+});
+
+describe("toggleIdInList", () => {
+  it("adds an absent id", () => {
+    expect(toggleIdInList(["a"], "b")).toEqual(["a", "b"]);
+  });
+
+  it("removes a present id", () => {
+    expect(toggleIdInList(["a", "b"], "a")).toEqual(["b"]);
+  });
+
+  it("never mutates the input", () => {
+    const input = ["a"];
+    toggleIdInList(input, "b");
+    expect(input).toEqual(["a"]);
   });
 });

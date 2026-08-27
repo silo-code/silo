@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { ExtensionContext } from "@silo-code/sdk";
+import { CaretRight } from "@phosphor-icons/react";
+import type { ExtensionContext, NavigatorView } from "@silo-code/sdk";
 import { useFocusGroup, useServiceState } from "@silo-code/sdk";
 import {
   ErrorBoundary,
@@ -11,6 +12,7 @@ import {
   buildViewRows,
   resolveActiveView,
   resolveViewList,
+  toggleIdInList,
 } from "./navigator-views";
 import { navigatorPrefsService } from "./navigator-prefs";
 import "./NavigatorPanel.css";
@@ -26,6 +28,13 @@ const ACTIVE_VIEW_KEY = "activeView";
 const tabId = (viewId: string) => `nav-tab-${viewId}`;
 const tabPanelId = (viewId: string) => `nav-tabpanel-${viewId}`;
 
+/**
+ * The Navigator panel. A thin dispatcher: it resolves the user's enabled views
+ * (in their chosen order) and renders one of two arrangements — the View List +
+ * single Active View, or every view stacked in collapsible sections (RFC 0030).
+ * Stacked mode needs more than one enabled view to be worth its chrome; with
+ * one it falls through to the plain single-view render.
+ */
 export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
   // Re-render when views are registered or unregistered.
   const [, setViewTick] = useState(0);
@@ -34,16 +43,29 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
       navigatorViewRegistry.subscribe(() => setViewTick((t) => t + 1)).dispose,
     [],
   );
-  // The user's arrangement prefs (order + which views are on). `views` below is
-  // the enabled set in user order — everything downstream (list, active-view
-  // resolution, mounting) operates on that, so a disabled view is simply not
-  // part of the Navigator until it's turned back on.
   const prefs = useServiceState(navigatorPrefsService);
   const { enabled: views } = resolveViewList(
     navigatorViewRegistry.list(),
     prefs,
   );
 
+  return prefs.arrangement === "stacked" && views.length > 1 ? (
+    <StackedNavigator ctx={ctx} views={views} />
+  ) : (
+    <SwitcherNavigator ctx={ctx} views={views} />
+  );
+}
+
+/** The default arrangement: a list of every enabled view at the top, one of
+ * them shown below. Unchanged from ADR 0038 apart from operating on the
+ * enabled/ordered set rather than the raw registry. */
+function SwitcherNavigator({
+  ctx,
+  views,
+}: {
+  ctx: ExtensionContext;
+  views: NavigatorView[];
+}) {
   // The user's chosen view, mirrored from global storage so hydration (and a
   // change made in another window) lands here.
   const [savedViewId, setSavedViewId] = useState<string | undefined>(() =>
@@ -55,8 +77,8 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
     });
     return () => sub.dispose();
   }, [ctx]);
-  // Falls back when the saved view isn't registered (its extension is disabled
-  // or gone) without rewriting storage, so re-enabling brings the choice back.
+  // Falls back when the saved view isn't registered or is disabled, without
+  // rewriting storage, so re-enabling brings the choice back.
   const activeViewId = resolveActiveView(views, savedViewId);
 
   // Views mount on first activation and then stay mounted, hidden — the same
@@ -104,7 +126,7 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
 
   return (
     <div className="nav-panel">
-      {/* Every registered view, named and one click away — no menu (RFC 0023's
+      {/* Every enabled view, named and one click away — no menu (RFC 0023's
           selector was a dropdown; the list is the same choice made visible).
           Which one is open is said by the header below rather than by
           highlighting a row up here, so the list reads as a set of
@@ -203,6 +225,81 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
               <Comp active={isActive} />
             </ErrorBoundary>
           </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * The stacked arrangement (RFC 0030): no View List; every enabled view is a
+ * collapsible section in the user's order, each with its own header carrying
+ * that view's `"navigator"`-surface actions. There is no Active View — every
+ * mounted view gets `active` (collapse is purely visual, so a view keeps
+ * running), and keyboard region-entry lands in the first expanded body since
+ * the headers are `data-focus-chrome`.
+ */
+function StackedNavigator({
+  ctx,
+  views,
+}: {
+  ctx: ExtensionContext;
+  views: NavigatorView[];
+}) {
+  const prefs = useServiceState(navigatorPrefsService);
+  const collapsed = new Set(prefs.stackedCollapsed);
+
+  function toggle(viewId: string) {
+    navigatorPrefsService.set({
+      stackedCollapsed: toggleIdInList(prefs.stackedCollapsed, viewId),
+    });
+  }
+
+  return (
+    <div className="nav-panel nav-panel--stacked">
+      {views.map((view) => {
+        const isCollapsed = collapsed.has(view.id);
+        const Comp = view.component;
+        return (
+          <section
+            key={view.id}
+            className="nav-stack-section"
+            data-collapsed={isCollapsed ? "true" : "false"}
+          >
+            {/* `data-focus-chrome`: the disclosure + contributed toolbar are
+                controls, not content — region-entry skips past to the first
+                expanded body. Tab still reaches the disclosure normally. */}
+            <div
+              className="nav-view-header nav-stack-header"
+              data-focus-chrome
+              data-view-list="false"
+            >
+              <button
+                type="button"
+                className="nav-stack-disclosure"
+                aria-expanded={!isCollapsed}
+                onClick={() => toggle(view.id)}
+              >
+                <CaretRight
+                  className="nav-stack-caret"
+                  size={12}
+                  weight="bold"
+                  aria-hidden="true"
+                />
+                <span className="nav-view-header__title">{view.title}</span>
+              </button>
+              <ContributedToolbar
+                surface="navigator"
+                target={{ viewId: view.id }}
+                showMenu={ctx.ui.showMenu}
+              />
+            </div>
+            <div className="nav-stack-body" hidden={isCollapsed}>
+              <ErrorBoundary name={view.id}>
+                <Comp active />
+              </ErrorBoundary>
+            </div>
+          </section>
         );
       })}
     </div>

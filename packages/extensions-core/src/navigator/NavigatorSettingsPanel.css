@@ -64,3 +64,9 @@
 .nav-settings-toggle-lock {
   display: inline-flex;
 }
+
+/* RadioCard spaces its own siblings; this just insets the group from the
+   Section label. */
+.nav-settings-arrangement {
+  margin-top: 6px;
+}

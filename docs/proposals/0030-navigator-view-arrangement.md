@@ -1,5 +1,5 @@
 ---
-status: draft
+status: implemented
 created: 2026-08-27
 ---
 
@@ -269,4 +269,17 @@ gains **View arrangement** and **Stacked view** in the Navigator section.
 
 ## Decision
 
-_Filled in when this RFC leaves `draft`._
+**Implemented as proposed.** The Layout settings page gained a General /
+Navigator tab strip; the Navigator tab (composed from `core.navigator` via
+`getExtension`, hidden when that extension is off) reorders and enables/disables
+views and picks the arrangement. `core.navigator` owns a `navigatorPrefs` store
+on its `ctx.storage.global` and the pure `resolveViewList` resolver; the panel
+renders the enabled set in user order, one at a time or stacked.
+
+Two details settled during implementation, both matching the design here:
+`active` is passed as always-`true` in stacked mode (collapse is purely visual),
+and stacked sections cap at `60vh` with their own inner scroll.
+
+The crystallized decision — and the supersession of ADR 0038's deferred
+"stacked collapsible sections" alternative — is recorded in ADR
+[0044](../decisions/0044-navigator-stacked-arrangement.md).

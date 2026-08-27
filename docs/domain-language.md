@@ -33,22 +33,39 @@ _Avoid_: Side Panel (when the intent is navigation), tab, mode (prefer View),
 editor view (the CenterDock `viewType` sense)
 
 **Active View**:
-The one View currently rendered in the Navigator. A persisted, global user
-choice — unrelated to the focus/activation sense "active" carries for
-workspaces, docks, and panels.
+The one View currently rendered in the Navigator's **one-at-a-time**
+arrangement. A persisted, global user choice — unrelated to the
+focus/activation sense "active" carries for workspaces, docks, and panels. The
+Stacked arrangement has no Active View.
 _Avoid_: Open view, current view, selected view, visible view
 
 **View List**:
-The rows at the top of the Navigator, one per registered View — how you reach a
-View, and what tells you which Views exist. Hidden when only one is registered.
+The rows at the top of the Navigator in the **one-at-a-time** arrangement, one
+per enabled View — how you reach a View, and what tells you which Views exist.
+Hidden when only one View is enabled, and absent entirely in the Stacked
+arrangement.
 _Avoid_: View selector, view menu, view switcher, view picker (none of these are
 a dropdown any more), tab bar
 
 **View Header**:
 The bar between the View List and the panel body. Names the Active View and
-hosts its toolbar actions.
+hosts its toolbar actions. In the Stacked arrangement there is one per section,
+each carrying its own view's title, disclosure toggle, and actions.
 _Avoid_: Navigator header (ambiguous with the View List above it), panel header,
 title bar
+
+**View arrangement**:
+How the Navigator lays out its enabled Views — a persisted, global user choice
+(Settings → Layout → Navigator). Either **one at a time** (the View List plus a
+single Active View — the default) or **Stacked**.
+_Avoid_: View mode, layout mode, Navigator mode
+
+**Stacked view**:
+The Navigator arrangement with no View List — every enabled View is a
+collapsible section, in the user's chosen order, each with its own View Header.
+No Active View: every section's body is live whether expanded or collapsed.
+_Avoid_: Split view, multi view, sections view; "stacked panel" (it's one
+panel, not several)
 
 **Open Workspace menu**:
 The shared "saved workspaces / New workspace…" menu offered from the Navigator's

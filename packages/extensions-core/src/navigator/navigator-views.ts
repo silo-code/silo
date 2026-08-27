@@ -97,6 +97,11 @@ export function setViewDisabled(
     : disabledViews.filter((x) => x !== id);
 }
 
+/** Toggle `id`'s membership in a list — used for stacked-mode collapse state. */
+export function toggleIdInList(list: readonly string[], id: string): string[] {
+  return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
+}
+
 /**
  * The view the Navigator opens with when the user hasn't chosen one — the
  * workspace list, registered by `core.workspaces`. Only a *preference* for
