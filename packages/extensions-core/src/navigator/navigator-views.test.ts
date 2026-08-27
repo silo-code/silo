@@ -5,6 +5,7 @@ import {
   activeViewIndex,
   buildViewRows,
   moveViewInOrder,
+  reorderSavedViews,
   resolveActiveView,
   resolveViewList,
   setViewDisabled,
@@ -203,6 +204,56 @@ describe("setViewDisabled", () => {
   it("is idempotent", () => {
     expect(setViewDisabled(["a"], "a", true)).toEqual(["a"]);
     expect(setViewDisabled(["a"], "b", false)).toEqual(["a"]);
+  });
+});
+
+describe("reorderSavedViews", () => {
+  it("moves a registered view and rewrites the saved order", () => {
+    // Nothing saved yet; three registered views displayed a,b,c.
+    expect(reorderSavedViews([], ["a", "b", "c"], "c", -1)).toEqual([
+      "a",
+      "c",
+      "b",
+    ]);
+  });
+
+  it("keeps a saved id for a currently-unregistered view in its slot", () => {
+    // Saved order a,b,C,d where C's extension is disabled (not displayed).
+    // User nudges b down past d.
+    const saved = ["a", "b", "C", "d"];
+    const displayed = ["a", "b", "d"];
+    expect(reorderSavedViews(saved, displayed, "b", 1)).toEqual([
+      "a",
+      "d",
+      "C",
+      "b",
+    ]);
+  });
+
+  it("leaves an unregistered leading id untouched", () => {
+    const saved = ["GONE", "a", "b"];
+    const displayed = ["a", "b"];
+    expect(reorderSavedViews(saved, displayed, "b", -1)).toEqual([
+      "GONE",
+      "b",
+      "a",
+    ]);
+  });
+
+  it("appends registered ids that were never saved", () => {
+    // a is saved; b, c are registered but not yet in viewOrder.
+    expect(reorderSavedViews(["a"], ["a", "b", "c"], "c", -1)).toEqual([
+      "a",
+      "c",
+      "b",
+    ]);
+  });
+
+  it("is a no-op at an edge (still returns a fresh array)", () => {
+    const saved = ["a", "b"];
+    const out = reorderSavedViews(saved, ["a", "b"], "a", -1);
+    expect(out).toEqual(["a", "b"]);
+    expect(out).not.toBe(saved);
   });
 });
 

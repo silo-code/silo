@@ -12,7 +12,7 @@ import {
 import { navigatorViewRegistry } from "@silo-code/extension-host/internal";
 import { navigatorPrefsService, type ViewArrangement } from "./navigator-prefs";
 import {
-  moveViewInOrder,
+  reorderSavedViews,
   resolveViewList,
   setViewDisabled,
 } from "./navigator-views";
@@ -43,7 +43,7 @@ export function NavigatorSettingsPanel() {
 
   function move(id: string, dir: -1 | 1) {
     navigatorPrefsService.set({
-      viewOrder: moveViewInOrder(orderedIds, id, dir),
+      viewOrder: reorderSavedViews(prefs.viewOrder, orderedIds, id, dir),
     });
   }
   function toggle(id: string, on: boolean) {

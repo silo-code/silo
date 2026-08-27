@@ -50,7 +50,11 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
   );
 
   return prefs.arrangement === "stacked" && views.length > 1 ? (
-    <StackedNavigator ctx={ctx} views={views} />
+    <StackedNavigator
+      ctx={ctx}
+      views={views}
+      collapsed={prefs.stackedCollapsed}
+    />
   ) : (
     <SwitcherNavigator ctx={ctx} views={views} />
   );
@@ -242,16 +246,17 @@ function SwitcherNavigator({
 function StackedNavigator({
   ctx,
   views,
+  collapsed: collapsedIds,
 }: {
   ctx: ExtensionContext;
   views: NavigatorView[];
+  collapsed: readonly string[];
 }) {
-  const prefs = useServiceState(navigatorPrefsService);
-  const collapsed = new Set(prefs.stackedCollapsed);
+  const collapsed = new Set(collapsedIds);
 
   function toggle(viewId: string) {
     navigatorPrefsService.set({
-      stackedCollapsed: toggleIdInList(prefs.stackedCollapsed, viewId),
+      stackedCollapsed: toggleIdInList(collapsedIds, viewId),
     });
   }
 

@@ -97,6 +97,35 @@ export function setViewDisabled(
     : disabledViews.filter((x) => x !== id);
 }
 
+/**
+ * Apply a one-slot move within the *displayed* (registered) order and weave
+ * the result back into the full saved `viewOrder`, so ids for views that
+ * aren't currently registered keep their slot — the navigator-prefs contract
+ * ("a view returns to its slot when its extension is re-enabled").
+ *
+ * `displayedIds` is the registered views in their current on-screen order
+ * (i.e. `resolveViewList(...).ordered` mapped to ids); its registered entries
+ * that came from `savedOrder` are in `savedOrder`'s order, so the positional
+ * weave below stays consistent.
+ */
+export function reorderSavedViews(
+  savedOrder: readonly string[],
+  displayedIds: readonly string[],
+  id: string,
+  dir: -1 | 1,
+): string[] {
+  const swapped = moveViewInOrder(displayedIds, id, dir);
+  const displayed = new Set(displayedIds);
+  const out: string[] = [];
+  let i = 0;
+  for (const vid of savedOrder) {
+    if (displayed.has(vid)) out.push(swapped[i++]);
+    else out.push(vid); // not registered right now — hold its position
+  }
+  for (; i < swapped.length; i++) out.push(swapped[i]); // newly-saved registered ids
+  return out;
+}
+
 /** Toggle `id`'s membership in a list — used for stacked-mode collapse state. */
 export function toggleIdInList(list: readonly string[], id: string): string[] {
   return list.includes(id) ? list.filter((x) => x !== id) : [...list, id];

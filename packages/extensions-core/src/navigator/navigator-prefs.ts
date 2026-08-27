@@ -145,7 +145,13 @@ export function initNavigatorPrefs(storage: ExtensionStorage): {
   }
   read();
   const sub = storage.subscribe(read);
-  return { dispose: () => sub.dispose() };
+  return {
+    dispose: () => {
+      sub.dispose();
+      // Stop `set()` writing to storage the extension no longer owns.
+      if (backingStorage === storage) backingStorage = null;
+    },
+  };
 }
 
 /** Test seam — drop all subscribers and reset to compiled defaults. */
