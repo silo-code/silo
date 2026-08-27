@@ -170,24 +170,31 @@
    each open section caps its own height so one long view can't bury the rest. */
 .nav-panel--stacked {
   padding-top: 0;
+  /* Trailing room after the last section, matching the inter-section gap. */
+  padding-bottom: 9px;
 }
 
+/* One uniform gap above every section — the same whitespace under the panel
+   title as between sections, regardless of what trailing padding each view
+   carries. No rule between sections: each header keeps its own bottom border
+   (from .nav-view-header) above its body. */
 .nav-stack-section {
   display: flex;
   flex-direction: column;
   flex: none;
+  margin-top: 9px;
 }
 
-/* Reuses .nav-view-header's bar treatment; draw the seam between sections
-   ourselves (data-view-list="false" suppresses the default top border). */
+/* Fixed header box so a section with header actions (Agents' "View by",
+   Workspaces' "+") is the same height as a text-only one — otherwise the
+   2em control makes those headers taller and the gaps read as uneven. */
 .nav-stack-header {
   position: sticky;
   top: 0;
   z-index: 1;
-}
-
-.nav-stack-section + .nav-stack-section .nav-stack-header {
-  border-top: 1px solid var(--silo-color-border-strong);
+  min-height: calc(2em + 8px);
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 /* The click target for expand/collapse — caret + title, filling the row so
