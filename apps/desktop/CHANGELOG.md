@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.56.0](https://github.com/silo-code/silo/compare/silo-v0.55.0...silo-v0.56.0) (2026-08-27)
+
+
+### Features
+
+* **agents:** add OpenCode's in-app brand icon ([#436](https://github.com/silo-code/silo/issues/436)) ([dd8334e](https://github.com/silo-code/silo/commit/dd8334eb72c7aac42c307fbfdb946ec0f1fed0ed))
+* **terminal:** drop redundant agent-name prefix from tab titles when the icon already shows it ([#437](https://github.com/silo-code/silo/issues/437)) ([1b6f9a4](https://github.com/silo-code/silo/commit/1b6f9a4dad78e3c9774e01397cd3f3db4eb12218))
+
 ## [0.55.0](https://github.com/silo-code/silo/compare/silo-v0.54.0...silo-v0.55.0) (2026-08-26)
 
 
