@@ -538,8 +538,11 @@ export function AgentsPanel({
   // that's immediately followed by a re-enter (the common case while scrolling
   // through the section's own rows) cancels the pending collapse; only a leave
   // that sticks around actually collapses it.
-  const [staleHovered, setStaleHovered] = useState(false);
-  const [staleManuallyExpanded, setStaleManuallyExpanded] = useState(false);
+  // One flag serves both interaction modes (rather than a separate flag per
+  // mode) so toggling `staleHoverExpandEnabled` while the panel is mounted
+  // can't desync the two — the section's current open/closed state simply
+  // carries over to whichever mode is now active.
+  const [staleExpanded, setStaleExpanded] = useState(false);
   const staleCollapseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -556,16 +559,16 @@ export function AgentsPanel({
       clearTimeout(staleCollapseTimeoutRef.current);
       staleCollapseTimeoutRef.current = null;
     }
-    setStaleHovered(true);
+    setStaleExpanded(true);
   }
   function handleStaleMouseLeave() {
     staleCollapseTimeoutRef.current = setTimeout(() => {
       staleCollapseTimeoutRef.current = null;
-      setStaleHovered(false);
+      setStaleExpanded(false);
     }, 300);
   }
   function handleStaleHeadingClick() {
-    setStaleManuallyExpanded((expanded) => !expanded);
+    setStaleExpanded((expanded) => !expanded);
   }
 
   const agentsSnapshot = ctx.agents.getState({ allWorkspaces: true });
@@ -672,22 +675,22 @@ export function AgentsPanel({
           const isStaleSection = section.key === STALE_DONE_SECTION_KEY;
           const isDraggableSection = section.key === "age";
           const expanded =
-            !isStaleSection ||
-            staleStartsExpanded ||
-            (staleHoverExpandEnabled ? staleHovered : staleManuallyExpanded);
+            !isStaleSection || staleStartsExpanded || staleExpanded;
+          // The stale section's disclosure trigger is either mode, never
+          // both: hover-mode wires the mouse handlers, click-mode makes the
+          // heading itself the toggle.
+          const isStaleHoverTrigger = isStaleSection && staleHoverExpandEnabled;
+          const isStaleClickTrigger =
+            isStaleSection && !staleHoverExpandEnabled;
           return (
             <div
               key={section.key}
               className="ap-section"
               onMouseEnter={
-                isStaleSection && staleHoverExpandEnabled
-                  ? handleStaleMouseEnter
-                  : undefined
+                isStaleHoverTrigger ? handleStaleMouseEnter : undefined
               }
               onMouseLeave={
-                isStaleSection && staleHoverExpandEnabled
-                  ? handleStaleMouseLeave
-                  : undefined
+                isStaleHoverTrigger ? handleStaleMouseLeave : undefined
               }
             >
               {/* Every heading carries its row count. The status grouping's
@@ -699,14 +702,12 @@ export function AgentsPanel({
               {section.header !== "" && (
                 <div
                   className={
-                    isStaleSection && !staleHoverExpandEnabled
+                    isStaleClickTrigger
                       ? "ap-section-title ap-section-title-clickable"
                       : "ap-section-title"
                   }
                   onClick={
-                    isStaleSection && !staleHoverExpandEnabled
-                      ? handleStaleHeadingClick
-                      : undefined
+                    isStaleClickTrigger ? handleStaleHeadingClick : undefined
                   }
                 >
                   {isStaleSection && (

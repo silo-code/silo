@@ -90,7 +90,7 @@ export function SettingRow({
         {hint != null && <div className="silo-setting-row-hint">{hint}</div>}
       </div>
       <div className="silo-setting-row-control">{children}</div>
-      {dependent != null && (
+      {Boolean(dependent) && (
         <fieldset
           className="silo-setting-row-dependent"
           disabled={enabled === false}

@@ -29,9 +29,14 @@ interface SiloAgentsSettingsAPI {
 
 type AgentsSettingsTab = "behavior" | "navigator" | "display" | "hooks";
 
+/** The live `silo.agents` extension entry, for its `active` flag and API. */
+function getSiloAgents(ctx: ExtensionContext) {
+  return ctx.getExtension<SiloAgentsSettingsAPI>("silo.agents");
+}
+
 /** The live `silo.agents` API, or `null` when that extension isn't active. */
 function siloAgentsApi(ctx: ExtensionContext): SiloAgentsSettingsAPI | null {
-  const ext = ctx.getExtension<SiloAgentsSettingsAPI>("silo.agents");
+  const ext = getSiloAgents(ctx);
   return ext?.active ? (ext.api ?? null) : null;
 }
 
@@ -75,8 +80,7 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
 
   // The Navigator tab's content is entirely `silo.agents`' — drop the tab
   // when that extension isn't active rather than show an empty panel.
-  const hasNavigator =
-    ctx.getExtension<SiloAgentsSettingsAPI>("silo.agents")?.active === true;
+  const hasNavigator = getSiloAgents(ctx)?.active === true;
   const activeTab: AgentsSettingsTab =
     tab === "navigator" && !hasNavigator ? "behavior" : tab;
 
