@@ -953,7 +953,7 @@
   padding: 0 0 8px 16px;
   border: 0;
   border-left: 1px solid
-    color-mix(in srgb, var(--silo-color-text-hi) 40%, var(--silo-color-bg));
+    color-mix(in srgb, var(--silo-color-text-hi) 30%, var(--silo-color-bg));
 }
 .silo-setting-row-dependent:disabled {
   opacity: 0.5;
