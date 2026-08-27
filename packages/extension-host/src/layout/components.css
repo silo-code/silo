@@ -901,11 +901,18 @@
   color: var(--silo-color-text-lo);
 }
 
+/* Grid, not flex: a row with `dependent` content needs the control
+   vertically centered against just the label+hint cell, not the taller
+   combined height once `dependent` is showing below it. Flex's single
+   cross-axis centers against the whole item including `dependent`; splitting
+   label+hint and `dependent` into their own grid rows (control spans only
+   the first) fixes that without any extra wrapper element. A row with no
+   `dependent` (most of them) still lays out identically — the implicit
+   second row is simply empty. */
 .silo-setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 20px;
   padding: 10px 0;
 }
 
@@ -914,6 +921,9 @@
 }
 
 .silo-setting-row-text {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
   min-width: 0;
 }
 
@@ -930,11 +940,16 @@
 }
 
 .silo-setting-row-control {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
   flex-shrink: 0;
 }
 
-/* Dependent sub-settings nested under a row's hint (SettingRow's internal
-   `dependent` prop — see its TSDoc). A native <fieldset> so `disabled`
+/* Dependent sub-settings, below a row's label+hint (SettingRow's internal
+   `dependent` prop — see its TSDoc) — its own grid row, first column only,
+   so it never affects how `.silo-setting-row-control` centers against
+   `.silo-setting-row-text` above it. A native <fieldset> so `disabled`
    auto-propagates to every focusable descendant with no per-child wiring;
    reset to a plain block first since fieldsets carry their own UA border/
    padding/min-width. `-border` was tried first for a subtler guide line, but
@@ -948,6 +963,8 @@
    the last child instead of stopping flush with it. */
 .silo-setting-row-dependent {
   display: block;
+  grid-column: 1;
+  grid-row: 2;
   min-width: 0;
   margin: 8px 0 0;
   padding: 0 0 8px 16px;

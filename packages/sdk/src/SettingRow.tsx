@@ -45,11 +45,13 @@ export function SettingRow({
   /**
    * @internal Unstable. For bundled first-party extensions proving the UX;
    * not a documented public API. Third parties must not rely on it until a
-   * graduation RFC. Extra content rendered under the hint, in the same text
-   * column — sub-settings that only make sense while this row's own setting
-   * is on. Rendered inside a native `<fieldset>`: when `enabled` is `false`,
-   * every focusable descendant is disabled automatically and the whole block
-   * dims — no need to thread `disabled` into each child by hand.
+   * graduation RFC. Extra content rendered below the label+hint, in the same
+   * left column but its own row — sub-settings that only make sense while
+   * this row's own setting is on. Kept out of `children`'s vertical centering
+   * (it sits below, not inside, the label+hint block `children` centers
+   * against). Rendered inside a native `<fieldset>`: when `enabled` is
+   * `false`, every focusable descendant is disabled automatically and the
+   * whole block dims — no need to thread `disabled` into each child by hand.
    */
   dependent?: ReactNode;
   /** The control — `Switch`, `Select`, `Input`, etc. */
@@ -60,16 +62,16 @@ export function SettingRow({
       <div className="silo-setting-row-text">
         <div className="silo-setting-row-label">{label}</div>
         {hint != null && <div className="silo-setting-row-hint">{hint}</div>}
-        {dependent != null && (
-          <fieldset
-            className="silo-setting-row-dependent"
-            disabled={enabled === false}
-          >
-            {dependent}
-          </fieldset>
-        )}
       </div>
       <div className="silo-setting-row-control">{children}</div>
+      {dependent != null && (
+        <fieldset
+          className="silo-setting-row-dependent"
+          disabled={enabled === false}
+        >
+          {dependent}
+        </fieldset>
+      )}
     </div>
   );
 }
