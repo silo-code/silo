@@ -937,17 +937,23 @@
    `dependent` prop — see its TSDoc). A native <fieldset> so `disabled`
    auto-propagates to every focusable descendant with no per-child wiring;
    reset to a plain block first since fieldsets carry their own UA border/
-   padding/min-width. `-border` (rather than the row divider's `-border-strong`)
-   was tried first for a subtler guide line, but verified invisible in at
-   least one theme where it's identical to `-bg` — `-border-strong` is the one
-   token guaranteed to read against the surface it sits on. */
+   padding/min-width. `-border` was tried first for a subtler guide line, but
+   verified invisible in at least one theme where it's identical to `-bg`;
+   `-border-strong` was tried next but still read as too faint. The line is a
+   `color-mix` derivation off `-text-hi` instead (RFC 0016's pattern for new
+   kit colors — badge tints, tab hover, etc. — rather than a new raw token):
+   guaranteed real contrast against `-bg` in every theme, and automatically
+   darker in light themes / lighter in dark ones since text-hi always
+   contrasts against bg by construction. Bottom padding lets the line run past
+   the last child instead of stopping flush with it. */
 .silo-setting-row-dependent {
   display: block;
   min-width: 0;
   margin: 8px 0 0;
-  padding: 0 0 0 12px;
+  padding: 0 0 8px 16px;
   border: 0;
-  border-left: 1px solid var(--silo-color-border-strong);
+  border-left: 1px solid
+    color-mix(in srgb, var(--silo-color-text-hi) 40%, var(--silo-color-bg));
 }
 .silo-setting-row-dependent:disabled {
   opacity: 0.5;
