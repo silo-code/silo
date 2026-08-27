@@ -13,10 +13,11 @@ describe("agentIconFor", () => {
     expect(agentIconFor("codex")).toMatchObject({ title: "Codex" });
     expect(agentIconFor("grok")).toMatchObject({ title: "Grok" });
     expect(agentIconFor("pi")).toMatchObject({ title: "pi" });
+    expect(agentIconFor("opencode")).toMatchObject({ title: "OpenCode" });
   });
 
   it("flips genuinely-black marks to white for dark themes, but not colors with real contrast on both", () => {
-    for (const id of ["cursor", "copilot", "grok", "pi"]) {
+    for (const id of ["cursor", "copilot", "grok", "pi", "opencode"]) {
       const icon = agentIconFor(id);
       expect(icon?.hexLight).toBe("000000");
       expect(icon?.hexDark).toBe("FFFFFF");
@@ -30,6 +31,7 @@ describe("agentIconFor", () => {
   it("marks the icons whose path assumes evenodd fill, and only those", () => {
     expect(agentIconFor("codex")?.fillRule).toBe("evenodd");
     expect(agentIconFor("grok")?.fillRule).toBe("evenodd");
+    expect(agentIconFor("opencode")?.fillRule).toBe("evenodd");
     expect(agentIconFor("claude")?.fillRule).toBeUndefined();
     expect(agentIconFor("cursor")?.fillRule).toBeUndefined();
     expect(agentIconFor("copilot")?.fillRule).toBeUndefined();
@@ -39,5 +41,12 @@ describe("agentIconFor", () => {
   it("returns undefined for an unknown or missing id", () => {
     expect(agentIconFor("not-a-real-agent")).toBeUndefined();
     expect(agentIconFor(undefined)).toBeUndefined();
+  });
+
+  it("gives opencode a duotone accentPath, and only opencode", () => {
+    expect(agentIconFor("opencode")?.accentPath).toBeTruthy();
+    for (const id of ["claude", "cursor", "copilot", "codex", "grok", "pi"]) {
+      expect(agentIconFor(id)?.accentPath).toBeUndefined();
+    }
   });
 });
