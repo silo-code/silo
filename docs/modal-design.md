@@ -28,20 +28,21 @@ primary action).
 
 ## Need X → use component Y
 
-| Need                                 | Component                                                                                        |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| Action buttons                       | `Button` (`variant`: default/primary/danger)                                                     |
-| Icon-only action                     | `IconButton` + `Tooltip` (label alone isn't enough for sighted users)                            |
-| Button that opens a menu             | `MenuButton` (labelled + chevron) — see below                                                    |
-| Text field                           | `Input`, `Textarea`                                                                              |
-| Filter-as-you-type over a list       | `SearchInput` + `List` (compose them — no combined `FilterList`)                                 |
-| Click-to-edit a value in place       | `InlineEdit`                                                                                     |
-| On/off, pick-one-of-few              | `Switch`, `Select`, `CheckboxRow`, `RadioGroup`                                                  |
-| Switch between views                 | `Tabs`, `SegmentedTabs`                                                                          |
-| Rows of selectable things            | `List` / `ListRow`, `AddRow`                                                                     |
-| Status/identity pill                 | `Badge` (`tone`: `ok`/`warn`/`err`/`accent`/`neutral`; `size`: `md` default / `sm` for counters) |
-| "Nothing here" / explanatory copy    | `EmptyState`, `Callout`                                                                          |
-| Group settings, footer, scroll areas | `Section`, `SettingRow`, `ModalActions`, `.silo-scroll`                                          |
+| Need                                   | Component                                                                                        |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Action buttons                         | `Button` (`variant`: default/primary/danger)                                                     |
+| Icon-only action                       | `IconButton` + `Tooltip` (label alone isn't enough for sighted users)                            |
+| Button that opens a menu               | `MenuButton` (labelled + chevron) — see below                                                    |
+| Text field                             | `Input`, `Textarea`                                                                              |
+| Filter-as-you-type over a list         | `SearchInput` + `List` (compose them — no combined `FilterList`)                                 |
+| Click-to-edit a value in place         | `InlineEdit`                                                                                     |
+| On/off, pick-one-of-few                | `Switch`, `Select`, `CheckboxRow`, `RadioGroup`                                                  |
+| Switch between views                   | `Tabs`, `SegmentedTabs`                                                                          |
+| Rows of selectable things              | `List` / `ListRow`, `AddRow`                                                                     |
+| Status/identity pill                   | `Badge` (`tone`: `ok`/`warn`/`err`/`accent`/`neutral`; `size`: `md` default / `sm` for counters) |
+| "Nothing here" / explanatory copy      | `EmptyState`, `Callout`                                                                          |
+| Group settings, footer, scroll areas   | `Section`, `SettingRow`, `ModalActions`, `.silo-scroll`                                          |
+| Sub-settings gated on a sibling toggle | `SettingRow`'s `enabled`/`dependent` props — never a hand-rolled nested row                      |
 
 All exported from `@silo-code/sdk`. Full prop reference:
 [Design System → Components](https://getsilo.dev/design/#the-component-inventory).
@@ -89,6 +90,10 @@ applies automatically — your extension never bundles this CSS.
 - **Don't build a settings rail, tab strip, or page title inside a settings
   page or property tab.** That chrome is host-owned; your component is the
   body content only.
+- **Don't hand-roll a nested "only while a sibling toggle is on" row** (a raw
+  `.silo-setting-row` div with a manually-indented sub-control, manually
+  threading `disabled` into each child). Use `SettingRow`'s `enabled`/
+  `dependent` props — the fieldset auto-disables and dims for you.
 
 ## Stability gate
 
