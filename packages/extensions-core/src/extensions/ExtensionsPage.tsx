@@ -633,7 +633,10 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
               >
                 Update
               </Button>
-            ) : (
+            ) : ext.builtin ? // Built-ins can't be uninstalled and the "Built-in" badge
+            // already says they're present — an "Installed" pill on top
+            // is just noise.
+            null : (
               <span className="ext-card-installed">Installed</span>
             )
           }
