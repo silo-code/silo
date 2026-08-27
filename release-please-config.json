@@ -3,6 +3,7 @@
   "include-component-in-tag": true,
   "tag-separator": "-",
   "separate-pull-requests": true,
+  "bump-minor-pre-major": true,
   "packages": {
     "packages/sdk": {
       "release-type": "node",
