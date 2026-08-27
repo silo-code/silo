@@ -38,7 +38,11 @@
  * - Every failure is swallowed. Session tracking must never break a pi turn.
  */
 
-import { detectPiTitle, detectCopilotCLI } from "../agent-osc-detectors";
+import {
+  detectPiTitle,
+  detectCopilotCLI,
+  PI_TITLE_PREFIX,
+} from "../agent-osc-detectors";
 import type { AgentDefinition } from "../agent-catalog";
 
 export interface PiExtensionParams {
@@ -118,6 +122,9 @@ export function buildPiAgentDefinition(deps: PiAgentDeps): AgentDefinition {
     // a `#!/usr/bin/env node` shebang — so the foreground process reports as
     // node-wrapped, exactly like Claude and Copilot.
     leaderNames: ["pi"],
+    // Redundant once the tab shows pi's own icon — same literal detectPiTitle
+    // matches on, reused rather than duplicated.
+    titleIdentityPrefix: PI_TITLE_PREFIX,
     // Pi emits the same OSC 9;4 progress protocol Copilot does (`4;3` on turn
     // start, `4;0` on turn end), so it shares that detector rather than
     // getting a near-identical copy. Its OSC 0 title ("π - <session> - <cwd>")

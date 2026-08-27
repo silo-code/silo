@@ -25,6 +25,7 @@ import {
   detectFromOsc,
   detectIdleAfterWorking,
   detectFromOutput,
+  stripAgentTitleIdentityPrefix,
 } from "./agent-catalog";
 
 describe("leaderBasename — Windows executable names (RFC: Windows agents)", () => {
@@ -88,6 +89,14 @@ describe("catalog integrity", () => {
           `^sh "\\$HOME/${TRACK_SCRIPT_REL}" ${a.id} # ${SILO_HOOK_MARKER}$`,
         ),
       );
+    }
+  });
+
+  it("titleIdentityPrefix, where present, is a non-empty literal", () => {
+    for (const a of AGENT_CATALOG) {
+      if (a.titleIdentityPrefix !== undefined) {
+        expect(a.titleIdentityPrefix.length).toBeGreaterThan(0);
+      }
     }
   });
 
@@ -517,6 +526,38 @@ describe("agentById", () => {
 
   it("returns undefined for an unknown id", () => {
     expect(agentById("nope")).toBeUndefined();
+  });
+});
+
+describe("stripAgentTitleIdentityPrefix", () => {
+  it("strips pi's and OpenCode's redundant identity prefix", () => {
+    expect(stripAgentTitleIdentityPrefix("pi", "π - notes - xerro-edit")).toBe(
+      "notes - xerro-edit",
+    );
+    expect(
+      stripAgentTitleIdentityPrefix("opencode", "OC | Silo Tasks Extension"),
+    ).toBe("Silo Tasks Extension");
+  });
+
+  it("leaves the title alone for an agent with no titleIdentityPrefix", () => {
+    expect(
+      stripAgentTitleIdentityPrefix("claude", "✳ Fix the flaky test"),
+    ).toBe("✳ Fix the flaky test");
+  });
+
+  it("leaves the title alone when it doesn't actually lead with the prefix", () => {
+    expect(stripAgentTitleIdentityPrefix("pi", "xerro-edit")).toBe(
+      "xerro-edit",
+    );
+  });
+
+  it("leaves the title alone for an unknown or missing agentId", () => {
+    expect(stripAgentTitleIdentityPrefix("not-a-real-agent", "π - notes")).toBe(
+      "π - notes",
+    );
+    expect(stripAgentTitleIdentityPrefix(undefined, "π - notes")).toBe(
+      "π - notes",
+    );
   });
 });
 

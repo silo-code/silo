@@ -40,6 +40,7 @@ import {
   notifyTerminalSessionGone,
   notifyTerminalSessionRecreated,
   stripAgentStatusMarkers,
+  stripAgentTitleIdentityPrefix,
   spawnTerminalSession,
   readClipboardText,
   registerTerminalClear,
@@ -946,14 +947,25 @@ export function TerminalPanel(
 
     // The OSC title with agent status markers removed (see
     // `stripAgentStatusMarkers`), or verbatim when the user turned the setting
-    // off. Read per-call rather than stripped once at onTitleChange time so
-    // toggling the setting takes effect on the next read() tick instead of
-    // waiting for the agent to push another title. Returns "" when the title
-    // was nothing but a marker, which callers treat as "no title yet".
-    const displayOscTitle = () =>
-      store.terminalSettings.hideAgentStatusGlyphs
+    // off; then, if this tab is actually showing an agent icon right now (per
+    // `ctx.terminals.getIcons` — the same registry the tab itself renders
+    // from, so this can't drift from what's on screen), also drop that
+    // agent's own redundant identity prefix (pi's "π - ", OpenCode's "OC | ")
+    // via `stripAgentTitleIdentityPrefix` — the icon already says which agent
+    // this is. Read per-call rather than computed once at onTitleChange time
+    // so toggling the setting, or the icon setting, takes effect on the next
+    // read() tick instead of waiting for the agent to push another title.
+    // Returns "" when the title was nothing but a marker, which callers treat
+    // as "no title yet".
+    const displayOscTitle = () => {
+      const glyphsStripped = store.terminalSettings.hideAgentStatusGlyphs
         ? stripAgentStatusMarkers(oscTitle)
         : oscTitle;
+      const iconShown = ctx.terminals.getIcons(terminalId).length > 0;
+      if (!iconShown) return glyphsStripped;
+      const agentId = ctx.agents.getByTerminalId(terminalId)?.agentId;
+      return stripAgentTitleIdentityPrefix(agentId, glyphsStripped);
+    };
     // Foreground process, from the host (RFC 0010 N1). `fg` stays null until the
     // first update so we fall back to legacy behavior if the signal never
     // arrives. At a prompt, a program's stale OSC title is dropped (N1a); a

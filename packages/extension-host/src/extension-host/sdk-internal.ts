@@ -399,12 +399,15 @@ export {
 // `core.agents-settings` page reads `hookInstallableAgents()` (and the hook
 // descriptor on each entry) to render the install toggles. Core-only —
 // detection/resume are sealed, so there is no public `registerAgent`.
+// `stripAgentTitleIdentityPrefix` is `core.terminal`'s presentation-side use:
+// dropping an agent's own redundant title prefix once its icon is shown.
 export {
   hookInstallableAgents,
   sessionFileAgents,
   buildTrackSessionScript,
   TRACK_SCRIPT_REL,
   AGENT_HOOKS_DIR_REL,
+  stripAgentTitleIdentityPrefix,
 } from "./agent-catalog";
 export type {
   AgentDefinition,
