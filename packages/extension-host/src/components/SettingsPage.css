@@ -1,6 +1,8 @@
 /* Settings **page** chrome — the shell each settings page renders inside
-   (`.es-page` / `.es-header` / `.es-scroll`), shared by Editor, Terminal,
-   Keybindings, Agents, Extensions, and every contributed page.
+   (`.es-page` / `.es-scroll`), shared by Editor, Terminal, Keybindings,
+   Agents, Extensions, and every contributed page. The page *title* is
+   host-owned (`.settings-sheet-page-title` in SettingsSheet.css) — pages
+   must not draw their own `<h2>`.
 
    Lives here rather than beside the surface that hosts those pages: it outlived
    the Settings *modal* it was originally written in, and would have had to move
@@ -14,20 +16,6 @@
   flex-direction: column;
   height: 100%;
   gap: 20px;
-}
-
-.es-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: var(--settings-header-height);
-}
-
-.es-header h2 {
-  margin: 0;
-  font-size: 1.1em;
-  color: var(--silo-color-text-hi);
 }
 
 /* SearchInput (SDK) spans the page width on Editor / Terminal. */

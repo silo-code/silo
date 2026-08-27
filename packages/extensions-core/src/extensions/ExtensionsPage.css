@@ -1,28 +1,10 @@
-/* Mirrors the Editor / Keyboard Shortcuts pages so contributed settings pages
-   read as one family: same page gap, header height, title size, and flat
-   border-bottom rows. */
+/* Settings page shell — title is host-owned (SettingsSheet renders
+   `SettingsPage.title`); header tools portal into the title row via
+   SettingsHeaderActions. This is only the body. */
 .ext-page {
   display: flex;
   flex-direction: column;
   height: 100%;
-  gap: 12px;
-}
-
-.ext-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: var(--settings-header-height);
-}
-.ext-header h2 {
-  margin: 0;
-  font-size: 1.1em;
-  color: var(--silo-color-text-hi);
-}
-.ext-header-actions {
-  display: flex;
-  align-items: center;
   gap: 12px;
 }
 

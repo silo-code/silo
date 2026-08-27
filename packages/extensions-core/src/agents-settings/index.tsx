@@ -93,10 +93,6 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
 
   return (
     <div className="es-page agents-settings-page">
-      <div className="es-header">
-        <h2>Agents</h2>
-      </div>
-
       <div className="agents-settings-tabs">
         <Tabs tabs={tabs} active={activeTab} onSelect={setTab} />
         <TabPanel>

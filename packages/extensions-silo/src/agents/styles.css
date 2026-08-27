@@ -26,37 +26,8 @@
   border-radius: 1px;
 }
 
-/* Settings page — mirrors the host's Editor / Keyboard Shortcuts pages so a
-   third-party page reads as one family. */
-.am-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 12px;
-}
-.am-header {
-  display: flex;
-  align-items: center;
-  min-height: var(--settings-header-height);
-  flex-shrink: 0;
-}
-.am-header h2 {
-  margin: 0;
-  font-size: 1.1em;
-  color: var(--silo-color-text-hi);
-}
-/* Scrolls independently of the header once the sections (focus behavior,
-   agent icons, sound) run taller than the settings pane. Scroll behavior and
-   scrollbar appearance come from the host's `.silo-scroll` class (applied in
-   settings.tsx) — no overflow/scrollbar rules needed here. */
-.am-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-/* Embedded in core.agents-settings Options tab — parent owns scroll chrome. */
+/* Agents settings panels embed into core.agents-settings tabs — the page
+   title is host-owned. Parent owns scroll chrome. */
 .am-options-panel {
   display: flex;
   flex-direction: column;

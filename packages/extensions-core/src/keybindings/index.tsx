@@ -17,6 +17,7 @@ import {
   overrideKey,
   isRemoved,
   setKeybindingCaptureActive,
+  SettingsHeaderActions,
 } from "@silo-code/extension-host/internal";
 import {
   bindingsAfterRemove,
@@ -253,127 +254,131 @@ function makePage(ctx: ExtensionContext) {
     const sortedGroups = groupCommands(rows, menuFor);
 
     return (
-      <div className="es-page">
-        <div className="es-header">
-          <h2>Keyboard Shortcuts</h2>
+      <>
+        <SettingsHeaderActions>
           <Tooltip content="More options">
             <IconButton
+              size="sm"
               aria-label="More options"
               onClick={(e) => openPageMenu(e.currentTarget)}
             >
               <DotsThreeVertical size={16} weight="bold" />
             </IconButton>
           </Tooltip>
-        </div>
-        <SearchInput
-          value={query}
-          onValueChange={setQuery}
-          placeholder="Search commands or keys…"
-          autoFocus
-        />
-        <div className="es-scroll silo-scroll">
-          {sortedGroups.map(([group, cmds]) => (
-            <Section key={group} label={group}>
-              {cmds.map((c) => {
-                const eff = effectiveKey(c.id);
-                const state = rowState({
-                  unbound: isRemoved(c.id),
-                  overrideKey: overrideKey(c.id),
-                  defaultKey: defaultKey(c.id),
-                  effectiveKey: eff,
-                });
-                const isCapturing =
-                  capture.kind === "capturing" && capture.commandId === c.id;
-                const isConfirming =
-                  capture.kind === "confirming" && capture.commandId === c.id;
-                const reassignLabel =
-                  isConfirming && capture.kind === "confirming"
-                    ? (commandRegistry.get(capture.reassignFrom[0])?.label ??
-                      capture.reassignFrom[0])
-                    : "";
-                const reassignExtra =
-                  isConfirming &&
-                  capture.kind === "confirming" &&
-                  capture.reassignFrom.length > 1
-                    ? ` +${capture.reassignFrom.length - 1}`
-                    : "";
+        </SettingsHeaderActions>
+        <div className="es-page">
+          <SearchInput
+            value={query}
+            onValueChange={setQuery}
+            placeholder="Search commands or keys…"
+            autoFocus
+          />
+          <div className="es-scroll silo-scroll">
+            {sortedGroups.map(([group, cmds]) => (
+              <Section key={group} label={group}>
+                {cmds.map((c) => {
+                  const eff = effectiveKey(c.id);
+                  const state = rowState({
+                    unbound: isRemoved(c.id),
+                    overrideKey: overrideKey(c.id),
+                    defaultKey: defaultKey(c.id),
+                    effectiveKey: eff,
+                  });
+                  const isCapturing =
+                    capture.kind === "capturing" && capture.commandId === c.id;
+                  const isConfirming =
+                    capture.kind === "confirming" && capture.commandId === c.id;
+                  const reassignLabel =
+                    isConfirming && capture.kind === "confirming"
+                      ? (commandRegistry.get(capture.reassignFrom[0])?.label ??
+                        capture.reassignFrom[0])
+                      : "";
+                  const reassignExtra =
+                    isConfirming &&
+                    capture.kind === "confirming" &&
+                    capture.reassignFrom.length > 1
+                      ? ` +${capture.reassignFrom.length - 1}`
+                      : "";
 
-                let keyContent: ReactNode;
-                let keyClass = "kb-key-btn";
-                if (isConfirming) {
-                  keyClass += " kb-key-btn-confirm";
-                  keyContent = (
-                    <span className="kb-capture-hint">
-                      Used by {reassignLabel}
-                      {reassignExtra}. Enter to reassign, Esc to cancel.
-                    </span>
-                  );
-                } else if (isCapturing) {
-                  keyClass += " kb-key-btn-capture";
-                  keyContent = (
-                    <span className="kb-capture-hint">
-                      Press desired key combination…
-                    </span>
-                  );
-                } else if (eff) {
-                  keyClass +=
-                    state === "override" ? " kb-key-btn-override" : "";
-                  keyContent = <kbd className="kb-key">{displayKey(eff)}</kbd>;
-                } else if (state === "unbound") {
-                  keyClass += " kb-key-btn-unbound";
-                  keyContent = (
-                    <span className="kb-unbound" title="Unbound">
-                      —
-                    </span>
-                  );
-                } else {
-                  keyClass += " kb-key-btn-empty";
-                  keyContent = <span className="kb-unbound">—</span>;
-                }
+                  let keyContent: ReactNode;
+                  let keyClass = "kb-key-btn";
+                  if (isConfirming) {
+                    keyClass += " kb-key-btn-confirm";
+                    keyContent = (
+                      <span className="kb-capture-hint">
+                        Used by {reassignLabel}
+                        {reassignExtra}. Enter to reassign, Esc to cancel.
+                      </span>
+                    );
+                  } else if (isCapturing) {
+                    keyClass += " kb-key-btn-capture";
+                    keyContent = (
+                      <span className="kb-capture-hint">
+                        Press desired key combination…
+                      </span>
+                    );
+                  } else if (eff) {
+                    keyClass +=
+                      state === "override" ? " kb-key-btn-override" : "";
+                    keyContent = (
+                      <kbd className="kb-key">{displayKey(eff)}</kbd>
+                    );
+                  } else if (state === "unbound") {
+                    keyClass += " kb-key-btn-unbound";
+                    keyContent = (
+                      <span className="kb-unbound" title="Unbound">
+                        —
+                      </span>
+                    );
+                  } else {
+                    keyClass += " kb-key-btn-empty";
+                    keyContent = <span className="kb-unbound">—</span>;
+                  }
 
-                return (
-                  <div
-                    key={c.id}
-                    className="kb-row"
-                    onContextMenu={(e) => openRowMenu(c.id, e)}
-                  >
-                    <div className="kb-cmd">
-                      <span className="kb-label">{c.label}</span>
-                      <span className="kb-id">{c.id}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className={keyClass}
-                      aria-label={
-                        isCapturing || isConfirming
-                          ? `Capture keybinding for ${c.label}`
-                          : `Change keybinding for ${c.label}`
-                      }
-                      onClick={() =>
-                        setCapture({ kind: "capturing", commandId: c.id })
-                      }
-                      ref={(el) => {
-                        if (
-                          el &&
-                          (isCapturing || isConfirming) &&
-                          document.activeElement !== el
-                        ) {
-                          el.focus();
-                        }
-                      }}
+                  return (
+                    <div
+                      key={c.id}
+                      className="kb-row"
+                      onContextMenu={(e) => openRowMenu(c.id, e)}
                     >
-                      {keyContent}
-                    </button>
-                  </div>
-                );
-              })}
-            </Section>
-          ))}
-          {rows.length === 0 && (
-            <div className="kb-empty">No commands match “{query}”.</div>
-          )}
+                      <div className="kb-cmd">
+                        <span className="kb-label">{c.label}</span>
+                        <span className="kb-id">{c.id}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={keyClass}
+                        aria-label={
+                          isCapturing || isConfirming
+                            ? `Capture keybinding for ${c.label}`
+                            : `Change keybinding for ${c.label}`
+                        }
+                        onClick={() =>
+                          setCapture({ kind: "capturing", commandId: c.id })
+                        }
+                        ref={(el) => {
+                          if (
+                            el &&
+                            (isCapturing || isConfirming) &&
+                            document.activeElement !== el
+                          ) {
+                            el.focus();
+                          }
+                        }}
+                      >
+                        {keyContent}
+                      </button>
+                    </div>
+                  );
+                })}
+              </Section>
+            ))}
+            {rows.length === 0 && (
+              <div className="kb-empty">No commands match “{query}”.</div>
+            )}
+          </div>
         </div>
-      </div>
+      </>
     );
   };
 }

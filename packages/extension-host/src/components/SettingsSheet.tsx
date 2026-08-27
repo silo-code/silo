@@ -1,4 +1,11 @@
-import { useCallback, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { useSnapshot } from "valtio";
 import type { SettingsPage } from "@silo-code/sdk";
 import { Sheet } from "../extension-host/Sheet";
@@ -9,6 +16,11 @@ import {
   resolveActivePage,
 } from "../extension-host/settings-rail";
 import {
+  eatDuplicateSettingsTitle,
+  paneTitleFor,
+} from "../extension-host/settings-page-title";
+import { SettingsHeaderActionsProvider } from "../extension-host/settings-header-actions";
+import {
   settingsSheet as ui,
   closeSettings,
 } from "../extension-host/settings-sheet";
@@ -17,10 +29,16 @@ import "./SettingsPage.css";
 import "./SettingsSheet.css";
 
 // Settings — a centered app sheet (extension-host/Sheet.tsx) holding the
-// registered settings pages in a two-section icon rail. Replaced the Settings
-// modal it grew out of; the page registry and the page components themselves
-// are unchanged, so only the container and the rail differ from what was here
-// before.
+// registered settings pages in a two-section icon rail. The host owns the
+// page title (from SettingsPage.title); page components are body-only.
+//
+// Pages that need tools beside the title (SegmentedTabs, overflow ⋮, …)
+// portal them into the header-actions slot via SettingsHeaderActions — the
+// header is a fixed height, so contributing actions never bumps body content.
+//
+// During the migration window, SettingsPageBody also hides a page-drawn
+// heading that duplicates the host title (eatDuplicateSettingsTitle) so
+// third-party extensions that still render their own <h2> don't double up.
 //
 // The sheet primitive underneath is still experimental and host-internal.
 // Settings is its first real consumer — which is the point of using it here
@@ -43,14 +61,42 @@ function RailIcon({ page }: { page: SettingsPage }) {
   );
 }
 
+/**
+ * Mounts the active page and eats a leading duplicate title if the page still
+ * draws one. `pageId` re-runs the scan when the rail selection changes.
+ */
+function SettingsPageBody({
+  title,
+  pageId,
+  children,
+}: {
+  title: string;
+  pageId: string;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    eatDuplicateSettingsTitle(root, title);
+  }, [title, pageId, children]);
+  return (
+    <div ref={ref} className="settings-sheet-page-body">
+      {children}
+    </div>
+  );
+}
+
 export function SettingsSheet() {
   const snap = useSnapshot(ui);
   const sections = railSections(useSettingsPages());
+  const [actionsSlot, setActionsSlot] = useState<HTMLElement | null>(null);
 
   if (!snap.open) return null;
 
   const active = resolveActivePage(sections, snap.pageId);
   const ActiveComponent = active?.component;
+  const pageTitle = paneTitleFor(active);
 
   return (
     <Sheet
@@ -91,8 +137,19 @@ export function SettingsSheet() {
           ))}
         </nav>
         <section className="settings-sheet-pane">
-          {ActiveComponent ? (
-            <ActiveComponent />
+          {pageTitle != null && active ? (
+            <SettingsHeaderActionsProvider slot={actionsSlot}>
+              <div className="settings-sheet-page-header">
+                <h2 className="settings-sheet-page-title">{pageTitle}</h2>
+                <div
+                  ref={setActionsSlot}
+                  className="settings-sheet-page-header-actions"
+                />
+              </div>
+              <SettingsPageBody title={pageTitle} pageId={active.id}>
+                {ActiveComponent ? <ActiveComponent /> : null}
+              </SettingsPageBody>
+            </SettingsHeaderActionsProvider>
           ) : (
             <div className="settings-sheet-empty">
               No settings pages registered.

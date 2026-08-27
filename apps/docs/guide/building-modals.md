@@ -222,7 +222,7 @@ ctx.registerSettingsPage({
 });
 ```
 
-That renders as:
+The host draws the pane title from `title` — don't render your own `<h2>`. That renders as:
 
 <div class="silo-demo silo-demo-block">
   <div class="sd-frame">

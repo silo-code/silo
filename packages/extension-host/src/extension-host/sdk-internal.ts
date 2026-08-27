@@ -57,6 +57,13 @@ export type { ModalProps } from "./Modal";
 export { Sheet } from "./Sheet";
 export type { SheetProps } from "./Sheet";
 
+// Settings page header-actions slot — core pages portal tools (SegmentedTabs,
+// overflow ⋮, …) into the host-owned title row so body content Y stays fixed.
+export {
+  SettingsHeaderActions,
+  SettingsHeaderActionsProvider,
+} from "./settings-header-actions";
+
 // The generic `(ui, storage, opts)` implementation behind the now-public
 // `ctx.ui.confirmWithDontShowAgain` (RFC 0029) — its option types
 // (`ConfirmDontShowAgainMode`/`Options`) are public SDK exports now. Still

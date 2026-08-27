@@ -380,9 +380,6 @@ export function TerminalSettingsPage() {
 
   return (
     <div className="es-page">
-      <div className="es-header">
-        <h2>Terminal</h2>
-      </div>
       <SearchInput
         value={query}
         onValueChange={setQuery}

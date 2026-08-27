@@ -24,9 +24,10 @@ Unique id for this settings page.
 title: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:654](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L654)
+Defined in: [packages/sdk/src/types.ts:657](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L657)
 
-Label shown in the Settings left rail.
+Label shown in the Settings left rail **and** as the host-owned page
+title in the pane. Do not render your own `<h2>` — the host draws this.
 
 ***
 
@@ -36,7 +37,7 @@ Label shown in the Settings left rail.
 optional group?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:661](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L661)
+Defined in: [packages/sdk/src/types.ts:664](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L664)
 
 Optional grouping key for the left rail (groups sorted lexically, separated
 by a divider). Honored only for `core.*` pages; a page contributed by any
@@ -51,7 +52,7 @@ ignored for those.
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:663](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L663)
+Defined in: [packages/sdk/src/types.ts:666](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L666)
 
 Sort order within the group. Lower sorts first. Defaults to 0.
 
@@ -63,7 +64,7 @@ Sort order within the group. Lower sorts first. Defaults to 0.
 component: ComponentType;
 ```
 
-Defined in: [packages/sdk/src/types.ts:665](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L665)
+Defined in: [packages/sdk/src/types.ts:668](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L668)
 
 Renders the right-hand pane when this page is selected.
 
@@ -76,7 +77,7 @@ optional badge?: ComponentType<{
 }>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:672](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L672)
+Defined in: [packages/sdk/src/types.ts:675](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L675)
 
 Optional small indicator rendered after the title in the left rail (e.g.
 an update-available count). Rendered as its own component — separate from
