@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0](https://github.com/silo-code/silo/compare/silo-v0.56.0...silo-v1.0.0) (2026-08-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** SettingRow enabled/dependent for gated sub-settings ([#442](https://github.com/silo-code/silo/issues/442))
+
+### Features
+
+* **navigator:** view arrangement — reorder, disable, and a stacked mode ([#440](https://github.com/silo-code/silo/issues/440)) ([8b68e7b](https://github.com/silo-code/silo/commit/8b68e7b081e7cd64f385fc3ad50dd764b507921d))
+* **sdk:** SettingRow enabled/dependent for gated sub-settings ([#442](https://github.com/silo-code/silo/issues/442)) ([d88b579](https://github.com/silo-code/silo/commit/d88b5796ad39e8c514af299805cfdbb72d570994))
+* **settings:** host-own settings page titles ([#444](https://github.com/silo-code/silo/issues/444)) ([48ad9b4](https://github.com/silo-code/silo/commit/48ad9b46f7ea3e82fca5e666df97897c5d74b641))
+
 ## [0.56.0](https://github.com/silo-code/silo/compare/silo-v0.55.0...silo-v0.56.0) (2026-08-27)
 
 
