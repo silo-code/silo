@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { ExtensionContext } from "@silo-code/sdk";
-import { useFocusGroup } from "@silo-code/sdk";
+import { useFocusGroup, useServiceState } from "@silo-code/sdk";
 import {
   ErrorBoundary,
   navigatorViewRegistry,
@@ -10,7 +10,9 @@ import {
   activeViewIndex,
   buildViewRows,
   resolveActiveView,
+  resolveViewList,
 } from "./navigator-views";
+import { navigatorPrefsService } from "./navigator-prefs";
 import "./NavigatorPanel.css";
 
 // Which view the Navigator is showing. Global scope, not workspace: the lens is
@@ -32,7 +34,15 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
       navigatorViewRegistry.subscribe(() => setViewTick((t) => t + 1)).dispose,
     [],
   );
-  const views = navigatorViewRegistry.list();
+  // The user's arrangement prefs (order + which views are on). `views` below is
+  // the enabled set in user order — everything downstream (list, active-view
+  // resolution, mounting) operates on that, so a disabled view is simply not
+  // part of the Navigator until it's turned back on.
+  const prefs = useServiceState(navigatorPrefsService);
+  const { enabled: views } = resolveViewList(
+    navigatorViewRegistry.list(),
+    prefs,
+  );
 
   // The user's chosen view, mirrored from global storage so hydration (and a
   // change made in another window) lands here.

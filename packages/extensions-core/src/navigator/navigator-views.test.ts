@@ -4,15 +4,19 @@ import {
   DEFAULT_VIEW_ID,
   activeViewIndex,
   buildViewRows,
+  moveViewInOrder,
   resolveActiveView,
+  resolveViewList,
+  setViewDisabled,
 } from "./navigator-views";
 
 function view(
   id: string,
   title = id,
   icon?: NavigatorView["icon"],
+  order?: number,
 ): NavigatorView {
-  return { id, title, icon, component: () => null };
+  return { id, title, icon, order, component: () => null };
 }
 
 const views = [
@@ -99,5 +103,104 @@ describe("buildViewRows", () => {
     const [row] = buildViewRows([withIcon], undefined);
     expect(row.title).toBe("Acme");
     expect(row.icon).toBe("🔧");
+  });
+});
+
+describe("resolveViewList", () => {
+  const noPrefs = { viewOrder: [], disabledViews: [] };
+  const reg = [
+    view("b", "Beta", undefined, 2),
+    view("a", "Alpha", undefined, 1),
+    view("c", "Gamma", undefined, 1),
+  ];
+
+  it("sorts unlisted views by order then title with no prefs", () => {
+    const { ordered } = resolveViewList(reg, noPrefs);
+    // a(1) and c(1) tie on order → title: Alpha before Gamma; then b(2).
+    expect(ordered.map((v) => v.id)).toEqual(["a", "c", "b"]);
+  });
+
+  it("puts viewOrder ids first, in that order, rest appended by sort", () => {
+    const { ordered } = resolveViewList(reg, {
+      viewOrder: ["b", "c"],
+      disabledViews: [],
+    });
+    expect(ordered.map((v) => v.id)).toEqual(["b", "c", "a"]);
+  });
+
+  it("skips a viewOrder id that isn't registered", () => {
+    const { ordered } = resolveViewList(reg, {
+      viewOrder: ["gone", "b"],
+      disabledViews: [],
+    });
+    expect(ordered.map((v) => v.id)).toEqual(["b", "a", "c"]);
+  });
+
+  it("partitions enabled / disabled by disabledViews", () => {
+    const { enabled, disabled } = resolveViewList(reg, {
+      viewOrder: [],
+      disabledViews: ["a"],
+    });
+    expect(enabled.map((v) => v.id)).toEqual(["c", "b"]);
+    expect(disabled.map((v) => v.id)).toEqual(["a"]);
+  });
+
+  it("forces the first view on when disabledViews would empty the list", () => {
+    const { enabled } = resolveViewList(reg, {
+      viewOrder: ["a", "b", "c"],
+      disabledViews: ["a", "b", "c"],
+    });
+    expect(enabled.map((v) => v.id)).toEqual(["a"]);
+  });
+
+  it("returns empty lists when nothing is registered", () => {
+    expect(resolveViewList([], noPrefs)).toEqual({
+      ordered: [],
+      enabled: [],
+      disabled: [],
+    });
+  });
+});
+
+describe("moveViewInOrder", () => {
+  it("moves an id up", () => {
+    expect(moveViewInOrder(["a", "b", "c"], "b", -1)).toEqual(["b", "a", "c"]);
+  });
+
+  it("moves an id down", () => {
+    expect(moveViewInOrder(["a", "b", "c"], "b", 1)).toEqual(["a", "c", "b"]);
+  });
+
+  it("is a no-op at the top edge", () => {
+    expect(moveViewInOrder(["a", "b"], "a", -1)).toEqual(["a", "b"]);
+  });
+
+  it("is a no-op at the bottom edge", () => {
+    expect(moveViewInOrder(["a", "b"], "b", 1)).toEqual(["a", "b"]);
+  });
+
+  it("is a no-op when the id isn't present", () => {
+    expect(moveViewInOrder(["a", "b"], "x", 1)).toEqual(["a", "b"]);
+  });
+
+  it("returns a fresh array (never mutates the input)", () => {
+    const input = ["a", "b"];
+    moveViewInOrder(input, "a", 1);
+    expect(input).toEqual(["a", "b"]);
+  });
+});
+
+describe("setViewDisabled", () => {
+  it("adds an id when disabling", () => {
+    expect(setViewDisabled(["a"], "b", true)).toEqual(["a", "b"]);
+  });
+
+  it("removes an id when enabling", () => {
+    expect(setViewDisabled(["a", "b"], "b", false)).toEqual(["a"]);
+  });
+
+  it("is idempotent", () => {
+    expect(setViewDisabled(["a"], "a", true)).toEqual(["a"]);
+    expect(setViewDisabled(["a"], "b", false)).toEqual(["a"]);
   });
 });

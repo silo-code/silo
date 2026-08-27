@@ -1,10 +1,101 @@
 import type { NavigatorView } from "@silo-code/sdk";
 
-// Pure model for the Navigator's view list (RFC 0023). The panel names every
-// registered view in a list at the top and renders one of them below; nothing
-// here is special-cased for the Workspaces view — it is registered through the
-// same public API as any other, and only named below as the fallback the panel
-// opens on.
+// Pure model for the Navigator's view list (RFC 0023 / RFC 0030). The panel
+// names every enabled view in a list at the top and renders one of them below;
+// nothing here is special-cased for the Workspaces view — it is registered
+// through the same public API as any other, and only named below as the
+// fallback the panel opens on.
+
+/** The subset of {@link import("./navigator-prefs").NavigatorPrefs} the
+ * resolver needs — kept structural so this module stays free of the prefs
+ * store. */
+export interface ViewArrangementPrefs {
+  viewOrder: readonly string[];
+  disabledViews: readonly string[];
+}
+
+/** Registered views split by the user's arrangement preferences. */
+export interface ResolvedViewList {
+  /** Every registered view in final sort order (enabled and disabled
+   * interleaved) — the row order for the settings list. */
+  ordered: NavigatorView[];
+  /** Enabled views only, in the same order — what the Navigator renders. */
+  enabled: NavigatorView[];
+  /** Disabled-but-registered views, in the same order. */
+  disabled: NavigatorView[];
+}
+
+/**
+ * Sort registered views by the user's order, then resolve which are enabled.
+ *
+ * Order: ids listed in `prefs.viewOrder` come first, in that order; every
+ * other registered view follows, by `NavigatorView.order ?? 0` then `title`.
+ * A `viewOrder` id that isn't registered is skipped (but the caller keeps it
+ * in storage, so it returns to its slot if its extension comes back).
+ *
+ * Enabled = not in `prefs.disabledViews`, with one guard: if that would leave
+ * nothing enabled, the first view in sort order is forced on. The settings UI
+ * also blocks the toggle that would get there, but storage can arrive from
+ * another window, so the resolver is the real backstop.
+ */
+export function resolveViewList(
+  registered: readonly NavigatorView[],
+  prefs: ViewArrangementPrefs,
+): ResolvedViewList {
+  const byId = new Map(registered.map((v) => [v.id, v]));
+  const listed = prefs.viewOrder
+    .map((id) => byId.get(id))
+    .filter((v): v is NavigatorView => v != null);
+  const listedIds = new Set(listed.map((v) => v.id));
+  const rest = registered
+    .filter((v) => !listedIds.has(v.id))
+    .sort(
+      (a, b) =>
+        (a.order ?? 0) - (b.order ?? 0) || a.title.localeCompare(b.title),
+    );
+  const ordered = [...listed, ...rest];
+
+  const disabledSet = new Set(prefs.disabledViews);
+  let enabled = ordered.filter((v) => !disabledSet.has(v.id));
+  if (enabled.length === 0 && ordered.length > 0) enabled = [ordered[0]];
+  const enabledIds = new Set(enabled.map((v) => v.id));
+  const disabled = ordered.filter((v) => !enabledIds.has(v.id));
+
+  return { ordered, enabled, disabled };
+}
+
+/**
+ * The full ordered id list with `id` moved one slot in `dir` (`-1` up, `1`
+ * down). A no-op at the ends or when `id` isn't present. This becomes the new
+ * `viewOrder` — which then lists every registered view explicitly, so the
+ * order is stable across restarts.
+ */
+export function moveViewInOrder(
+  orderedIds: readonly string[],
+  id: string,
+  dir: -1 | 1,
+): string[] {
+  const from = orderedIds.indexOf(id);
+  if (from === -1) return [...orderedIds];
+  const to = from + dir;
+  if (to < 0 || to >= orderedIds.length) return [...orderedIds];
+  const next = [...orderedIds];
+  [next[from], next[to]] = [next[to], next[from]];
+  return next;
+}
+
+/** Add or remove `id` from the disabled list (idempotent). */
+export function setViewDisabled(
+  disabledViews: readonly string[],
+  id: string,
+  disabled: boolean,
+): string[] {
+  const has = disabledViews.includes(id);
+  if (disabled === has) return [...disabledViews];
+  return disabled
+    ? [...disabledViews, id]
+    : disabledViews.filter((x) => x !== id);
+}
 
 /**
  * The view the Navigator opens with when the user hasn't chosen one — the
