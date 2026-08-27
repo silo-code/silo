@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const invoke = vi.fn();
 const homeDir = vi.fn(async () => "/tmp");
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
-vi.mock("./platform", () => ({ homeDir }));
+vi.mock("../platform", () => ({ homeDir }));
 vi.mock("./agents-channel", () => ({
   agentsChannel: {
     debug: vi.fn(),

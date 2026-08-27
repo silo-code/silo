@@ -12,8 +12,12 @@ import {
   type AgentSessionFileResume,
 } from "./agent-catalog";
 import type { ResumeHint } from "./agent-resume-hint";
-import { homeDir } from "./platform";
-import { startWatch, stopWatch, onFileChange } from "../services/tauri-watch";
+import { homeDir } from "../platform";
+import {
+  startWatch,
+  stopWatch,
+  onFileChange,
+} from "../../services/tauri-watch";
 
 /** Delays (ms after a session-file agent is first seen in the foreground). */
 const SESSION_FILE_READ_DELAYS_MS = [0, 600, 1500, 3000];

@@ -1,12 +1,4 @@
 import {
-  detectClaudeCode,
-  detectCodexCLI,
-  detectCodexIdleAfterWorking,
-  detectCopilotCLI,
-  detectCopilotTitle,
-  detectCursorAgent,
-  detectCursorAgentOutput,
-  detectOpencodeOutput,
   detectShellIntegration,
   type DetectionResult,
 } from "./agent-osc-detectors";
@@ -14,16 +6,22 @@ import { renderTrackSessionScript } from "./agent-hook-script";
 import {
   renderPiTrackSessionExtension,
   buildPiAgentDefinition,
-} from "./agents/pi";
+} from "./catalog/pi";
+import { buildClaudeAgentDefinition } from "./catalog/claude";
+import { buildCodexAgentDefinition } from "./catalog/codex";
+import { buildCursorAgentDefinition } from "./catalog/cursor";
+import { buildCopilotAgentDefinition } from "./catalog/copilot";
+import { grokAgent } from "./catalog/grok";
+import { opencodeAgent } from "./catalog/opencode";
 
 /**
  * The single source of truth for every coding agent Silo supports (RFC 0018).
  *
- * Before this catalog, per-agent knowledge was scattered across ~6 files
- * (leader names, activity detectors, the hook command, the settings-page
- * install list, display names). Adding an agent meant touching all of them,
- * and nothing forced you to touch all of them. Now each agent is **one
- * entry**, and every subsystem derives its view from `AGENT_CATALOG`:
+ * Before this catalog existed, per-agent knowledge was scattered across ~6
+ * files (leader names, activity detectors, the hook command, the
+ * settings-page install list, display names). Adding an agent meant touching
+ * all of them, and nothing forced you to touch all of them. Now each agent is
+ * **one entry**, and every subsystem derives its view from `AGENT_CATALOG`:
  *
  * - detection dispatch → `detectFromOsc` (OSC-based), `detectFromOutput`
  *   (raw-PTY fallback, e.g. Cursor's spinner), `detectIdleAfterWorking`
@@ -31,6 +29,23 @@ import {
  * - resume-hint gating → `agentByLeader` / `isKnownAgentLeader`
  * - hook install UI (Settings → Agents) → `hookInstallableAgents`
  * - hook-event display names → `agentById`
+ *
+ * As of ADR 0042 phase 7, every entry's definition lives in its own
+ * `catalog/<id>.ts` module (sibling of this file, both now under this
+ * package's `agents/` folder — see that folder's other files for the
+ * detection/resume/hook machinery this catalog wires together) — this file
+ * is the index, the shared types (`AgentDefinition` and friends), the shared
+ * hook constants/builder (`SILO_HOOK_MARKER`, `buildHookCommand`, …) those
+ * modules take as `deps` rather than import back, and the derived views
+ * below. An agent whose resume needs those shared constants
+ * (`claude`/`codex`/`cursor`/`copilot`) exports a
+ * `build<Id>AgentDefinition(deps)` factory; one that doesn't (`grok`,
+ * `opencode`, and pi's quirkier `catalog/pi.ts`) exports a plain object
+ * instead. The original phase-2 motivation for splitting pi out first —
+ * non-trivial runtime quirks needing an obvious home — still holds for
+ * `catalog/pi.ts` specifically; phase 7 widened the trigger for *everyone
+ * else* to plain navigability once the file passed ~1,000 lines, not quirks
+ * (see the ADR's phase-7 implementation note).
  *
  * Host-internal by design — detection and resume are sealed (no public
  * `registerAgent`; see RFC 0018 "Detection is sealed, not pluggable"). The
@@ -396,380 +411,51 @@ function buildHookCommand(agentId: string): string {
   return `sh "$HOME/${TRACK_SCRIPT_REL}" ${agentId} # ${SILO_HOOK_MARKER}`;
 }
 
-const claude: AgentDefinition = {
-  id: "claude",
-  displayName: "Claude Code",
-  leaderNames: ["claude"],
-  activityDetectors: [detectClaudeCode],
-  resume: {
-    kind: "hook",
-    installStrategy: "claude-settings",
-    configPath: ".claude/settings.json",
-    hookEvent: "SessionStart",
-    marker: SILO_HOOK_MARKER,
-    buildCommand: () => buildHookCommand("claude"),
-    buildResumeCommand: (sessionId) => `claude --resume ${sessionId}`,
-  },
-  docsUrl: "https://getsilo.dev/guide/agent-sessions#claude-code",
-  contract:
-    "Exact resume depends on Claude Code's SessionStart hook: (1) hooks are " +
-    "configured in ~/.claude/settings.json under hooks.SessionStart[].hooks[] " +
-    "as { type: 'command', command }; (2) the hook receives a JSON stdin " +
-    "payload carrying a session id (field `session_id`, or `sessionId`) and " +
-    "`cwd`; (3) the hook walks parents from its PPID to find the agent " +
-    "process and records that process's pgid (used to correlate against the " +
-    "terminal's foreground pgid — raw PPID alone misses Cursor workers that " +
-    "setpgrp). Activity detection " +
-    "depends on Claude prefixing its OSC 0 title with an animated spinner " +
-    "glyph while working and a '✳' marker when awaiting input. CONFIRMED " +
-    "against claude-code 2.1.228 (2026-08-11): the spinner glyphs are now the " +
-    "half-filled circles ◐/◑ (U+25D0–U+25D3 accepted) — they were braille " +
-    "(U+2800–28FF) in earlier builds, and Silo accepts BOTH ranges so old " +
-    "installs (and Codex/Grok, which still use braille) keep working. The " +
-    "title itself is '<glyph> <conversation title>'; the '✳' idle marker is " +
-    "unchanged. A future glyph change here silently breaks 'working' only — " +
-    "idle detection would keep working, so the symptom is an agent terminal " +
-    "that never lights up as busy.",
-  upstreamRefs: [
-    "https://docs.claude.com/en/docs/claude-code/hooks",
-    "https://docs.claude.com/en/docs/claude-code/settings",
-  ],
-  lastVerified: "2026-08-11",
-  verifiedAgainstVersion: "claude-code@2.1.228",
-};
+/**
+ * What a thin, hook-resuming agent's `build<Id>AgentDefinition(deps)` factory
+ * needs from this module rather than importing back — the same shape
+ * `catalog/pi.ts`'s `PiAgentDeps` established (minus `trackScriptRel`, which
+ * only pi's extension-file template needs). One shared interface here
+ * because all four current implementers (`claude`, `codex`, `cursor`,
+ * `copilot`) need exactly this and nothing more; an agent whose resume
+ * doesn't need a hook at all (`grok`, `opencode`) skips this and exports a
+ * plain object instead.
+ */
+export interface HookAgentDeps {
+  /** {@link SILO_HOOK_MARKER} — passed through, not reimported. */
+  marker: string;
+  /** This module's shared hook-command builder. */
+  buildHookCommand: (agentId: string) => string;
+}
 
-const codex: AgentDefinition = {
-  id: "codex",
-  displayName: "Codex CLI",
-  leaderNames: ["codex"],
-  // "Working" is the shared spinner detector in `detectClaudeCode` (Codex uses
-  // the braille range Claude used to); detectCodexCLI covers its own explicit
-  // "idle" signals (empty title, action-required markers, OSC 9 notifications).
-  // Neither covers the common case — a normal turn finishing with no
-  // approval needed, where Codex just sets a plain project/dir title — so
-  // idleAfterWorking below handles that contextually.
-  activityDetectors: [detectClaudeCode, detectCodexCLI],
-  idleAfterWorking: detectCodexIdleAfterWorking,
-  resume: {
-    kind: "hook",
-    installStrategy: "claude-settings",
-    // Same shape as Claude's settings.json (hooks.SessionStart[].hooks[]), and
-    // the same `session_id` payload field — so it reuses the installer and
-    // hook command verbatim, only the agent tag and resume command differ.
-    configPath: ".codex/hooks.json",
-    hookEvent: "SessionStart",
-    marker: SILO_HOOK_MARKER,
-    buildCommand: () => buildHookCommand("codex"),
-    buildResumeCommand: (sessionId) => `codex resume ${sessionId}`,
-    // Codex's schema documents statusMessage as "a display string shown
-    // during hook execution" — an extra attribution surface on top of the
-    // command's own leading identifier, for whatever review/execution UI
-    // Codex shows it in.
-    statusMessage: "Silo session tracking (getsilo.dev)",
-    // CONFIRMED live (2026-07-27, codex-cli 0.144.5): Codex requires every
-    // individual hook entry to be reviewed and trusted (per-hook-index
-    // trusted_hash recorded in ~/.codex/config.toml's [hooks.state]) before
-    // it will run — installing the config entry alone is silently inert. It
-    // does not prompt automatically; the user must open `/hooks` inside a
-    // running Codex session and approve Silo's entry once.
-    postInstallNote:
-      "After enabling, open Codex and run /hooks once to review and trust " +
-      "Silo's entry — Codex requires each hook to be individually approved " +
-      "and won't run a newly installed one automatically.",
-  },
-  docsUrl: "https://getsilo.dev/guide/agent-sessions#codex-cli",
-  contract:
-    "Codex CLI's SessionStart hook is configured in ~/.codex/hooks.json using " +
-    "the same shape as Claude (hooks.SessionStart[].hooks[] with " +
-    "{ type: 'command', command }), and its payload carries `session_id` and " +
-    "`cwd` — so it reuses Silo's Claude installer and hook command verbatim. " +
-    "CONFIRMED live against codex-cli 0.144.5 (2026-07-27): (1) no " +
-    "`codex_hooks` feature flag is needed — a pre-existing third-party hook " +
-    "ran fine on this install with no such flag in config.toml; (2) `codex " +
-    "resume <SESSION_ID>` (positional UUID) is the exact interactive resume " +
-    "syntax, per `codex resume --help`; (3) **critically**, an installed hook " +
-    "entry does not run until individually trusted — Codex records a " +
-    "trusted_hash per hook index in config.toml's [hooks.state], a freshly " +
-    "appended entry has none, and Codex skips it silently rather than " +
-    "prompting; the user must run `/hooks` inside Codex once to approve it " +
-    "(see resume.postInstallNote). STILL UNVERIFIED: whether a matcher-less " +
-    "group (Silo installs without one) fires on both startup and resume once " +
-    "trusted — blocked on completing the trust step to test. Activity " +
-    "detection (ported from silo-extensions/agent-monitor, 2026-07-28): " +
-    "'working' shares Claude's spinner OSC 0 detector, on its braille branch " +
-    "(U+2800–28FF — the range Claude itself used until claude-code 2.1.228); " +
-    "'idle' comes from either an empty " +
-    "OSC 0 title, '[ ! ]'/'[ . ]' (awaiting approval), specific OSC 9 iTerm " +
-    "notifications, OR — the common case, a normal turn finishing with no " +
-    "approval needed — a contextual fallback: any other non-empty OSC 0 " +
-    "title while an agent-sourced working phase is active is inferred idle, " +
-    "since Codex has no other explicit 'idle' signal for that case.",
-  upstreamRefs: [
-    "https://developers.openai.com/codex/hooks",
-    "https://developers.openai.com/codex/config-advanced",
-    "https://github.com/openai/codex",
-  ],
-  lastVerified: "2026-07-27",
-  verifiedAgainstVersion: "codex-cli@0.144.5",
-};
-
-const cursor: AgentDefinition = {
-  id: "cursor",
-  displayName: "Cursor Agent",
-  // `cursor-agent` is Cursor's binary basename on PATH installs. Deliberately
-  // NOT the bare `agent` shim: it collides with Grok, which installs its own
-  // `~/.local/bin/agent` → `~/.grok/bin/agent` (confirmed live 2026-07-29). A
-  // bare `agent` is therefore ambiguous — mapping it to Cursor would mis-detect
-  // a Grok session launched as `agent`, and (worse) produce a Cursor resume
-  // command that actually invokes Grok. Cursor is identified only by its
-  // unambiguous `cursor-agent` argv0.
-  leaderNames: ["cursor-agent"],
-  // OSC 0 title status (preferred), ported from silo-extensions/agent-monitor.
-  // Only emitted when `display.showStatusIndicators` is true in
-  // ~/.cursor/cli-config.json — the upstream *default is false* — so the raw
-  // output fallback below is what most installs actually rely on.
-  activityDetectors: [detectCursorAgent],
-  // Ink TUI spinner frames land in the raw PTY stream regardless of the OSC
-  // config flag — this is the fallback that works out of the box.
-  outputDetector: detectCursorAgentOutput,
-  resume: {
-    kind: "hook",
-    installStrategy: "cursor-hooks-json",
-    // Cursor's schema is `{ version, hooks: { sessionStart: [{ command }] } }`
-    // — not Claude's nested hooks[] groups. Installed via
-    // cursor-hook-installer.ts.
-    configPath: ".cursor/hooks.json",
-    hookEvent: "sessionStart",
-    marker: SILO_HOOK_MARKER,
-    buildCommand: () => buildHookCommand("cursor"),
-    // Confirmed live (2026-07-28, cursor-agent 2026.07.23): CLI help lists
-    // `--resume [chatId]`; the sessionStart payload's `session_id` is the
-    // same UUID as `conversation_id`. Use `cursor-agent` (NOT the bare `agent`
-    // shim, which is Grok on machines with both installed — confirmed live
-    // 2026-07-29: `agent --resume <cursor-id>` ran Grok and errored "No session
-    // found"). `cursor-agent --resume <id>` is unambiguous. sessionStart fires
-    // when the first character is typed in the TUI — not at process start, and
-    // not after a sent message.
-    buildResumeCommand: (sessionId) => `cursor-agent --resume ${sessionId}`,
-  },
-  docsUrl: "https://getsilo.dev/guide/agent-sessions#cursor-agent",
-  contract:
-    "Exact resume depends on Cursor CLI's sessionStart hook in " +
-    "~/.cursor/hooks.json: (1) schema is `{ version: 1, hooks: { " +
-    "sessionStart: [{ command }] } }` (camelCase event, flat command " +
-    "entries — NOT Claude's hooks.<Event>[].hooks[] shape); (2) CONFIRMED " +
-    "live against cursor-agent 2026.07.23 (2026-07-28): CLI fires " +
-    "sessionStart when the first character is typed in the TUI (not at " +
-    "process start, not after a sent message) with JSON stdin carrying " +
-    "`session_id` (= conversation_id); (3) the hook walks parents from its " +
-    "PPID to find the agent process and " +
-    "records that process's pgid (raw PPID/getpgid(ppid) miss Cursor workers " +
-    "that setpgrp); (4) " +
-    "`cursor-agent --resume <id>` resumes by that id — NOT the bare `agent` " +
-    "shim, which collides with Grok's own `~/.local/bin/agent` (confirmed " +
-    "live 2026-07-29). Activity detection (ported from " +
-    "silo-extensions/agent-monitor, " +
-    "2026-07-28): preferred signal is an OSC 0 title of the form " +
-    "'<name> - <emoji?> <status>' — but only emitted when " +
-    "`display.showStatusIndicators` is true in ~/.cursor/cli-config.json " +
-    "(default false); the fallback matches known ink-spinner byte sequences " +
-    "in the terminal's raw output stream, ending on ~1.5s of silence after " +
-    "the last frame.",
-  upstreamRefs: [
-    "https://docs.cursor.com/en/cli/reference/hooks",
-    "https://docs.cursor.com/en/cli/overview",
-    "https://cursor.com/docs/hooks",
-  ],
-  lastVerified: "2026-07-28",
-  verifiedAgainstVersion: "cursor-agent@2026.07.23-e383d2b",
-};
-
-const copilot: AgentDefinition = {
-  id: "copilot",
-  displayName: "GitHub Copilot CLI",
-  leaderNames: ["copilot"],
-  // Title first: captured live on Windows (2026-08-24), Copilot emitted no
-  // OSC 9;4 at all for a whole session, so the progress detector alone left
-  // its activity permanently stale. The title is its per-turn signal and also
-  // identifies it. OSC 9;4 stays as a second source where it does fire.
-  activityDetectors: [detectCopilotTitle, detectCopilotCLI],
-  resume: {
-    kind: "hook",
-    installStrategy: "copilot-hooks-dir",
-    // Dedicated file under ~/.copilot/hooks/ — Copilot loads every *.json
-    // there, so create/delete is safer than merging settings.json.
-    configPath: ".copilot/hooks/silo-managed-agent-hook.json",
-    hookEvent: "sessionStart",
-    marker: SILO_HOOK_MARKER,
-    buildCommand: () => buildHookCommand("copilot"),
-    // Confirmed live (2026-07-28): `copilot --resume=<id>` (and
-    // `--resume=<prefix>`); sessionStart payload carries camelCase
-    // `sessionId`.
-    buildResumeCommand: (sessionId) => `copilot --resume=${sessionId}`,
-  },
-  docsUrl: "https://getsilo.dev/guide/agent-sessions#github-copilot-cli",
-  contract:
-    "Exact resume depends on Copilot CLI's sessionStart hook: (1) user-level " +
-    "hooks live as *.json files under ~/.copilot/hooks/ with shape " +
-    "`{ version: 1, hooks: { sessionStart: [{ type: 'command', command }] } }` " +
-    "(also loadable inline in ~/.copilot/settings.json — Silo uses a " +
-    "dedicated file so uninstall is delete-only); (2) CONFIRMED live " +
-    "(2026-07-28): sessionStart fires with camelCase `sessionId` + `cwd` on " +
-    "stdin, including for `copilot -p`; (3) the hook walks parents from its " +
-    "PPID to find the agent process and records that process's pgid; (4) " +
-    "`copilot --resume=<id>` resumes by that id. Activity comes from " +
-    "OSC 9;4 progress notifications — payload '4;<state>' — with state " +
-    "1/2/3 = working and state 0/4 = idle.",
-  upstreamRefs: [
-    "https://docs.github.com/en/copilot/reference/hooks-configuration",
-    "https://github.com/github/copilot-cli",
-    "https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/overview",
-  ],
-  lastVerified: "2026-07-28",
-};
-
-const grok: AgentDefinition = {
-  id: "grok",
-  displayName: "Grok",
-  leaderNames: ["grok"],
-  // "Working" shares the spinner OSC 0 detector, on its braille branch — Grok's
-  // TUI uses the U+2800–28FF glyph range Claude used until 2.1.228 (confirmed
-  // live: Grok shows as an agent via this shared detector before any
-  // Grok-specific entry existed). Idle is the shared contextual fallback (an
-  // OSC 0 title with no spinner glyph after an agent-sourced working phase),
-  // reused from Codex — provisional until a Grok-specific idle signal is
-  // observed.
-  activityDetectors: [detectClaudeCode],
-  idleAfterWorking: detectCodexIdleAfterWorking,
-  resume: {
-    // Grok maintains its own live session registry, so exact resume needs no
-    // hook: Silo reads Grok's file when it detects the Grok foreground and
-    // matches the terminal's foreground pgid against the recorded pid.
-    kind: "session-file",
-    sessionFilePath: ".grok/active_sessions.json",
-    resolveSessionId: (fileText, pgid) => {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(fileText);
-      } catch {
-        return null;
-      }
-      if (!Array.isArray(parsed)) return null;
-      for (const e of parsed) {
-        if (
-          e &&
-          typeof e === "object" &&
-          (e as { pid?: unknown }).pid === pgid &&
-          typeof (e as { session_id?: unknown }).session_id === "string" &&
-          (e as { session_id: string }).session_id
-        ) {
-          return (e as { session_id: string }).session_id;
-        }
-      }
-      return null;
-    },
-    buildResumeCommand: (sessionId) => `grok --resume ${sessionId}`,
-  },
-  docsUrl: "https://getsilo.dev/guide/agent-sessions#grok",
-  contract:
-    "Exact resume uses Grok's OWN live session registry — no hook, no install, " +
-    "no trust step. CONFIRMED live against grok 0.2.114 (2026-07-29): " +
-    "(1) Grok maintains ~/.grok/active_sessions.json, a JSON array of " +
-    "{ session_id, pid, cwd, opened_at } for currently-active sessions; " +
-    "(2) Grok runs as a process-group leader (pgid == pid), so a terminal's " +
-    "foreground pgid equals the `pid` recorded in the file — Silo reads the " +
-    "file when it first detects a Grok foreground (and again whenever " +
-    "`active_sessions.json` changes — Grok only creates a session on the " +
-    "first typed character, not at process start) and matches pgid " +
-    "→ pid to attach the exact session id; (3) `grok --resume <SESSION_ID>` " +
-    "resumes by id (UUID-shaped values are always treated as ids, per " +
-    "`grok --resume --help`); session ids are UUIDv7. Activity: 'working' " +
-    "shares the spinner OSC 0 detector on its braille branch (U+2800–28FF — " +
-    "the range Claude itself used until claude-code 2.1.228, confirmed " +
-    "shared); idle is the shared contextual fallback (an OSC 0 title with no " +
-    "spinner glyph after an agent-sourced working phase) — " +
-    "PROVISIONAL, pending observation of a Grok-specific idle signal. Note: " +
-    "Grok ALSO supports [[hooks.SessionStart]] hooks, but only in TOML " +
-    "config.toml (no global JSON hooks dir) and behind a folder-trust step, so " +
-    "the native session file is the cleaner integration. Caveat: Grok imports " +
-    "hooks from ~/.claude/settings.json for Claude compatibility — Silo's " +
-    "Claude SessionStart hook can fire against a Grok pid; the host rejects " +
-    "that mismatch via the sticky foreground agent id and lets the session " +
-    "file win.",
-  upstreamRefs: ["https://github.com/xai-org/grok-cli", "https://docs.x.ai"],
-  lastVerified: "2026-07-29",
-  verifiedAgainstVersion: "grok@0.2.114",
-};
-
-// Pi's full AgentDefinition lives in agents/pi.ts (ADR 0042 phase 4) — it's
-// the one entry with non-trivial runtime quirks (decision 2). This module
-// stays the SSOT for the constants pi's definition needs but doesn't own, so
-// they're passed in rather than imported back (see agents/pi.ts's module
-// doc for why: no runtime import cycle between the catalog and its own
-// agent modules).
+// Pi's full AgentDefinition lives in catalog/pi.ts (ADR 0042 phase 4) — it was
+// the one entry with non-trivial runtime quirks (decision 2) and the first to
+// move. Phase 7 moved every other entry out too, purely for this file's
+// navigability (see the module doc above) — each below takes the same `deps`
+// shape (or none, for the two that need no shared hook constants) so this
+// module stays the SSOT for `SILO_HOOK_MARKER`/`buildHookCommand` with no
+// runtime import cycle back into any agent module.
 const pi: AgentDefinition = buildPiAgentDefinition({
   marker: SILO_HOOK_MARKER,
   trackScriptRel: TRACK_SCRIPT_REL,
   buildHookCommand,
 });
-
-const opencode: AgentDefinition = {
-  id: "opencode",
-  displayName: "OpenCode",
-  // Native compiled binary — argv0 is `opencode` directly, no node-wrapping.
-  leaderNames: ["opencode"],
-  // Its async session-naming rename (see `contract` below) leads with this —
-  // redundant once the tab shows OpenCode's icon.
-  titleIdentityPrefix: "OC | ",
-  // No OSC-based signal exists at all (see contract) — activity comes only
-  // from the raw-output bar-spinner fallback, same shape as Cursor Agent's.
-  activityDetectors: [],
-  outputDetector: detectOpencodeOutput,
-  // Tier 3 (exact resume) is deliberately deferred (ADR 0043): no
-  // pid-bearing session store exists to read passively — `opencode session
-  // list` has no pid column — and the plugin-based mechanism that could
-  // supply one is unbuilt and unverified. Honest default, not a
-  // placeholder.
-  resume: { kind: "none" },
-  // Inert until Tier 3 lands a `kind: "hook"` resume — `docsUrl` only
-  // renders for hook/session-file rows (Settings → Agents). Points at the
-  // anchor that setup page will use once there's something to document.
-  docsUrl: "https://getsilo.dev/guide/agent-sessions#opencode",
-  contract:
-    "OpenCode (opencode-ai) ships as a native compiled binary; argv0 is " +
-    "`opencode` directly (no node-wrapping). CONFIRMED live against " +
-    "opencode 1.18.20 (2026-08-26), across four separate real generations " +
-    "(three in a live Silo terminal, one via direct raw-PTY capture): it " +
-    "NEVER emits OSC 9 (ConEmu progress) or OSC 133 (shell integration). " +
-    'Its OSC 0 title is static ("OpenCode") except one async rename to ' +
-    '"OC | <session summary>" roughly 40s after the first message, ' +
-    "uncorrelated with any working/idle transition — a one-time " +
-    "session-naming event, not a status signal. The one real signal: its " +
-    "@opentui-based TUI renders an animated 8-cell bar while busy — each " +
-    "cell a CSI cursor-position escape immediately followed by U+2B1D " +
-    '"⬝" (empty) or U+25A0 "■" (filled) — confirmed building in real time ' +
-    "(425+ filled-frame writes within 4s) during genuine generation, not " +
-    "just the connection-retry state where it was first observed; no " +
-    "explicit idle signal exists in raw output, so the agent-idle debounce " +
-    "clears working on silence, same as Cursor's fallback. Resume: " +
-    "`--session <id>` / `--continue` / `--fork` are real CLI flags, but " +
-    "`opencode session list` returns id/title/timestamp with NO pid, so " +
-    "Silo's pid-correlated session-file resume cannot read it passively. " +
-    "A pi-extension-style installed plugin (the official @opencode-ai/" +
-    "plugin SDK loads in-process, confirmed via `ps` that the local TUI " +
-    "case is a single OS process) is the plausible resume path, but is " +
-    "UNVERIFIED — read from shipped .d.ts files only, no plugin built or " +
-    "run. See ADR 0043.",
-  upstreamRefs: [
-    "https://opencode.ai",
-    "https://github.com/sst/opencode",
-    // @opencode-ai/plugin's shipped .d.ts (index.d.ts, tui.d.ts) is the
-    // source for the unverified Tier-3 plugin mechanism the contract above
-    // describes — no public docs page covers it yet.
-  ],
-  lastVerified: "2026-08-26",
-  verifiedAgainstVersion: "opencode@1.18.20",
-};
+const claude: AgentDefinition = buildClaudeAgentDefinition({
+  marker: SILO_HOOK_MARKER,
+  buildHookCommand,
+});
+const codex: AgentDefinition = buildCodexAgentDefinition({
+  marker: SILO_HOOK_MARKER,
+  buildHookCommand,
+});
+const cursor: AgentDefinition = buildCursorAgentDefinition({
+  marker: SILO_HOOK_MARKER,
+  buildHookCommand,
+});
+const copilot: AgentDefinition = buildCopilotAgentDefinition({
+  marker: SILO_HOOK_MARKER,
+  buildHookCommand,
+});
 
 /** Every agent Silo knows about. Order is the detection-dispatch order. */
 export const AGENT_CATALOG: AgentDefinition[] = [
@@ -777,9 +463,9 @@ export const AGENT_CATALOG: AgentDefinition[] = [
   codex,
   cursor,
   copilot,
-  grok,
+  grokAgent,
   pi,
-  opencode,
+  opencodeAgent,
 ];
 
 // ---- derived views ----------------------------------------------------------

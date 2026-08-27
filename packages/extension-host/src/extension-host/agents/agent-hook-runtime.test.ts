@@ -50,7 +50,7 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock("../services/tauri-watch", () => ({
+vi.mock("../../services/tauri-watch", () => ({
   startWatch: vi.fn(() => Promise.resolve()),
   stopWatch: vi.fn(() => Promise.resolve()),
   onFileChange: vi.fn(() => Promise.resolve(() => {})),

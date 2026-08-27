@@ -134,10 +134,12 @@ Ship in the two tiers the recon actually supports today, per
 - ADR 0028 (sealed detection — unchanged)
 - ADR 0041 (pi hook as installed extension — the install-strategy shape a
   future OpenCode plugin would follow)
-- ADR 0042 (host-internal catalog layout for quirky agents — OpenCode is a
-  genuine `agents/opencode.ts` candidate once Tier 3 lands, not before)
+- ADR 0042 (host-internal catalog layout — OpenCode already lives at
+  `agents/catalog/opencode.ts` as a plain object per phase 7; if Tier 3 adds
+  real runtime quirks it's a genuine candidate to grow pi's factory-plus-
+  `runtime`-policy shape, not before)
 - `docs/adding-a-coding-agent.md` (the three-tier model this ships in
   stages of)
-- `packages/extension-host/src/extension-host/agent-osc-detectors.ts`
+- `packages/extension-host/src/extension-host/agents/agent-osc-detectors.ts`
   (`detectCursorAgentOutput` — the precedent this ADR's `OutputDetector`
   follows)
