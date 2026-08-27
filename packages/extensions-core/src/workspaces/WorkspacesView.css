@@ -25,9 +25,12 @@
   /* Small top padding is the "drop before the first entry" catch-all zone (a
      group's line sits at -7px, which the Navigator header above absorbs — it
      no longer risks clipping against the pane top, so this doesn't need the
-     12px it carried when the list was the whole panel). Bottom padding is the
-     always-present drop-at-the-end strip below the last entry. */
-  padding: 4px 0 24px;
+     12px it carried when the list was the whole panel). Bottom padding is a
+     small drop-at-the-end strip; in the one-at-a-time arrangement the bigger
+     catch area comes from `.workspaces-body`'s `min-height: 100%` fill, and in
+     the stacked arrangement the section is content-height, so this is kept
+     modest to match the uniform gap the Navigator puts between sections. */
+  padding: 4px 0 8px;
 }
 
 .ws-item {

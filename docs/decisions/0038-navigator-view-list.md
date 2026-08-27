@@ -5,6 +5,11 @@ date: 2026-08-13
 
 # 0038. The Navigator lists its views instead of hiding them in a menu
 
+> **The "Stacked collapsible sections" alternative below is superseded by ADR
+> [0044](./0044-navigator-stacked-arrangement.md)** — it shipped as an opt-in
+> arrangement (RFC [0030](../proposals/0030-navigator-view-arrangement.md)). The
+> View List described here remains the default.
+
 ## Context
 
 RFC [0023](../proposals/0023-workspace-panel-views.md) turned the Navigator into a
@@ -105,6 +110,10 @@ rejection of that shape.
   80px tall," which is an SDK contract change every existing view has to absorb.
   Worth revisiting if watching agents and workspaces simultaneously turns out to
   be the real need behind the frequent switching.
+  **Superseded by ADR [0044](./0044-navigator-stacked-arrangement.md):** RFC
+  0030 found the contract objection didn't hold (a section is a smaller
+  rectangle, not a different contract; `active` is a hint), and it shipped as an
+  opt-in arrangement with one-at-a-time still the default.
 - **An icon rail** down the panel's edge. Scales to many views for almost no
   space. Rejected for now: it forces `NavigatorView.icon` from optional to
   required, breaking third-party views that don't set one.

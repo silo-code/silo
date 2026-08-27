@@ -6,6 +6,7 @@ import {
   homeDir,
   confirmAndCloseWorkspace,
 } from "@silo-code/extension-host/internal";
+import type { NavigatorExtensionAPI } from "../navigator/navigator-api";
 import { WorkspacesView } from "./WorkspacesView";
 import { WorkspaceStatusItem } from "./WorkspaceStatusItem";
 import { registerWorkspaceCycle } from "./workspace-cycle";
@@ -66,15 +67,27 @@ export const extension: Extension = {
 
     // "Add workspace" in the Navigator header. A toolbar contribution rather
     // than panel chrome, which is what lets core.navigator stay ignorant of
-    // workspaces — and it is deliberately *unscoped* (no `when`), so opening
-    // or creating a workspace stays one click away from whichever view the
-    // user is in.
+    // workspaces.
+    //
+    // One-at-a-time arrangement: unscoped, on every view's header, so
+    // New-workspace stays one click away wherever you are (RFC 0023).
+    // Stacked arrangement: every view's header is on screen at once, so it
+    // would repeat down the panel — `core.navigator` names the single section
+    // that should carry it (the Workspaces section, or the top one if
+    // Workspaces is hidden) and this scopes to that.
     ctx.registerToolbarItem({
       id: "core.workspaces.add",
       surface: "navigator",
       icon: "Plus",
       label: "Add workspace",
       tooltip: "Add workspace",
+      when: (_keys, target) => {
+        const host =
+          ctx
+            .getExtension<NavigatorExtensionAPI>("core.navigator")
+            ?.api?.stackedChromeHostViewId() ?? null;
+        return host === null || target.viewId === host;
+      },
       menu: () => ctx.workspaces.getOpenWorkspaceMenuItems(),
     });
 

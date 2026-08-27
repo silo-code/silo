@@ -78,3 +78,4 @@ A small, obvious choice needs neither.
 | [0041](./0041-pi-hook-as-installed-extension.md)        | Pi's session hook ships as an installed TypeScript extension | 2026-08-22 | accepted |
 | [0042](./0042-agent-catalog-modularization.md)          | Agent catalog modularization and declarative runtime policy  | 2026-08-22 | accepted |
 | [0043](./0043-opencode-tiered-support.md)               | OpenCode: zero-install activity now, resume deferred         | 2026-08-26 | accepted |
+| [0044](./0044-navigator-stacked-arrangement.md)         | The Navigator can stack its views instead of one at a time   | 2026-08-27 | accepted |

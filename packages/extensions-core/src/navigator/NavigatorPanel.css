@@ -163,3 +163,72 @@
 .nav-view[data-active="false"] {
   display: none;
 }
+
+/* ── Stacked arrangement (RFC 0030) ─────────────────────────────────────────
+   No view list; every enabled view is a collapsible section. The panel still
+   only sets a min-height — the host tab-pane stays the sole scroller — and
+   each open section caps its own height so one long view can't bury the rest. */
+.nav-panel--stacked {
+  padding-top: 0;
+  /* Trailing room after the last section, matching the inter-section gap. */
+  padding-bottom: 9px;
+}
+
+/* One uniform gap above every section — the same whitespace under the panel
+   title as between sections, regardless of what trailing padding each view
+   carries. No rule between sections: each header keeps its own bottom border
+   (from .nav-view-header) above its body. */
+.nav-stack-section {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  margin-top: 9px;
+}
+
+/* Fixed header box so a section with header actions (Agents' "View by",
+   Workspaces' "+") is the same height as a text-only one — otherwise the
+   2em control makes those headers taller and the gaps read as uneven. */
+.nav-stack-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: calc(2em + 8px);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* The click target for expand/collapse — caret + title, filling the row so
+   the contributed toolbar is pushed to the right edge. `text-align: left`
+   undoes the UA button default that would otherwise centre the title text. */
+.nav-stack-disclosure {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-stack-caret {
+  flex: none;
+  color: var(--silo-color-text-lo);
+  transition: transform 0.12s ease;
+}
+
+.nav-stack-disclosure[aria-expanded="true"] .nav-stack-caret {
+  transform: rotate(90deg);
+}
+
+.nav-stack-body {
+  /* Content-height, capped — a taller view scrolls within its own section
+     rather than pushing the ones below it off screen. 60vh approximates
+     "most of the panel" without a container query. */
+  overflow-y: auto;
+  max-height: 60vh;
+}
