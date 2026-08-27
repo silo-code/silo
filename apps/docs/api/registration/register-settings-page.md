@@ -1,6 +1,8 @@
 # ctx.registerSettingsPage
 
-Add a page to the Settings dialog, listed in the left rail with optional `group` / `order`.
+Add a page to the Settings dialog. The host draws the left rail entry and the
+pane title from `SettingsPage.title` — your component is the body only (no
+`<h2>`).
 
 ```ts
 ctx.registerSettingsPage(page: SettingsPage): Disposable
@@ -12,7 +14,7 @@ ctx.registerSettingsPage(page: SettingsPage): Disposable
 ctx.registerSettingsPage({
   id: "acme",
   title: "Acme",
-  component: AcmeSettings, // a React component
+  component: AcmeSettings, // body only — no page title
 });
 ```
 

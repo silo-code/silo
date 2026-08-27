@@ -171,10 +171,6 @@ export function makeLayoutSettingsPage(ctx: ExtensionContext) {
 
     return (
       <div className="es-page layout-settings-page">
-        <div className="es-header">
-          <h2>Layout</h2>
-        </div>
-
         <div className="layout-settings-tabs">
           <Tabs tabs={tabs} active={activeTab} onSelect={setTab} />
           <TabPanel>

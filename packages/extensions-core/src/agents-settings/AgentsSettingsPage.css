@@ -1,8 +1,8 @@
-/* Agents settings uses the shared settings page chrome (`.es-page` /
- * `.es-header` from SettingsPage.css) and SDK primitives (Section, Callout,
- * Badge, Button). Tab content scrolls via `.silo-scroll` inside TabPanel,
- * matching system-monitor settings spacing. Keep this file for the unboxed WIP
- * banner and the per-row docs link under the SettingRow hint. */
+/* Agents settings uses the shared settings page chrome (`.es-page` from
+ * SettingsPage.css; the page title is host-owned) and SDK primitives (Section,
+ * Callout, Badge, Button). Tab content scrolls via `.silo-scroll` inside
+ * TabPanel, matching system-monitor settings spacing. Keep this file for the
+ * unboxed WIP banner and the per-row docs link under the SettingRow hint. */
 
 .agents-settings-banner {
   margin: 0;

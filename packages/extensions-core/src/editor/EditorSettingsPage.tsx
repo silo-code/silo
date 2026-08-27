@@ -210,9 +210,6 @@ export function EditorSettingsPage() {
 
   return (
     <div className="es-page">
-      <div className="es-header">
-        <h2>Editor</h2>
-      </div>
       <SearchInput
         value={query}
         onValueChange={setQuery}

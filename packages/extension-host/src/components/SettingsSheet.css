@@ -15,7 +15,10 @@
      inside it would size against undefined values. */
   --settings-font: calc(var(--silo-font-size-base) + 1px);
   font-size: var(--settings-font);
-  --settings-header-height: calc(var(--settings-font) + 14px);
+  /* Sized to fit IconButton `sm` (2em) / SegmentedTabs without growing the
+     row — the page header is a fixed height so contributing actions never
+     bumps body content down. */
+  --settings-header-height: calc(var(--settings-font) * 2);
   --settings-pane-pad: 24px;
 }
 
@@ -33,12 +36,9 @@
   flex: 0 0 272px;
   display: flex;
   flex-direction: column;
-  /* The pane's own 24px top padding plus a 2px optical nudge. Matching boxes
-     (see `.settings-sheet-title`) line the two titles up geometrically, but the
-     rail title is set larger than the page title, so its cap height still reads
-     high against it — and a full 4px overshot the other way. The nudge is on
-     the rail's padding rather than the title alone so the sections below move
-     with it. */
+  /* Same top inset as the pane — both titles sit in identical
+     `--settings-header-height` boxes, so matching padding keeps their
+     optical centres lined up as `--settings-font` scales. */
   padding: 26px 12px 24px;
   border-right: 1px solid var(--silo-color-border);
   /* Pages own their own scrolling; the rail scrolls only when the settings
@@ -47,28 +47,70 @@
 
   /* The rail reads a step larger than page content — it's navigation, held at
      arm's length, not prose. Everything in it (items, heading, icons) sizes off
-     this one value in em/calc, so the rail scales as a unit. */
+     this one value in em/calc, so the rail scales as a unit. Also the shared
+     chrome-title size (Settings + page title) is keyed off this. */
   --settings-rail-font: calc(var(--settings-font) + 1px);
   font-size: var(--settings-rail-font);
 }
 
-/* "Settings" has to line up with the page title beside it, and a page title
-   isn't simply text at the top of the pane: it sits in `.es-header`, a flex row
-   of `--settings-header-height` that centres it (the row is sized for a header
-   carrying an action button, so a bare title floats in the middle of it). This
-   adopts the same box and the same centring, which keeps the two aligned as the
-   UI font scales instead of only at one size — a hand-tuned offset would drift
-   the moment `--settings-font` changed. The two titles differ in size, so it's
-   their optical centres that match, not their baselines. */
-.settings-sheet-title {
+/* Shared chrome title — "Settings" in the rail and the host-owned page title
+   in the pane. Same size/weight so they line up; the *row* height lives on
+   `.settings-sheet-title` / `.settings-sheet-page-header` (fixed, so header
+   actions never bump body content). */
+.settings-sheet-title,
+.settings-sheet-page-title {
   display: flex;
   align-items: center;
-  min-height: var(--settings-header-height);
-  font-size: 1.15em;
+  margin: 0;
+  /* Absolute to `--settings-font`, not `em` of the parent — the rail's base
+     is a step larger than the pane's, and both titles must resolve to the
+     same px (17.25 at the default scale). */
+  font-size: calc(1.15 * (var(--settings-font) + 1px));
   font-weight: 600;
   color: var(--silo-color-text-hi);
+}
+
+.settings-sheet-title {
+  height: var(--settings-header-height);
   padding: 0 10px;
   margin-bottom: 20px;
+}
+
+/* Page title row — title left, optional actions right. Fixed height so a
+   page with tools and a page without share the same content start Y. */
+.settings-sheet-page-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--settings-header-height);
+}
+
+.settings-sheet-page-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* Fill the row and centre the glyphs in it — same vertical centre as the
+     actions, instead of centering a taller line-box that sits the text high
+     and makes the tools read bottom-aligned. */
+  height: 100%;
+  line-height: 1;
+}
+
+.settings-sheet-page-header-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  height: 100%;
+}
+
+/* Tooltip wraps its trigger in an inline <span>; without this the span's
+   line-box baseline gap makes the control sit off-centre in the row. */
+.settings-sheet-page-header-actions > .silo-tooltip-host {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
 }
 
 .settings-sheet-section + .settings-sheet-section {
@@ -148,11 +190,23 @@
 .settings-sheet-pane {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   /* Pages own their scroll regions via `.silo-scroll`; keep the pane from
      growing a second scrollbar in the close button's gutter. */
   overflow: hidden;
-  padding: 24px 48px 24px var(--settings-pane-pad);
+  /* 26px top matches the rail so host page title and "Settings" share a top
+     inset (both centre in `--settings-header-height`). */
+  padding: 26px 48px 24px var(--settings-pane-pad);
   color: var(--silo-color-text);
+}
+
+.settings-sheet-page-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .settings-sheet-empty {

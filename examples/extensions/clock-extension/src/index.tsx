@@ -14,11 +14,11 @@ const STYLE_ID = "silo-clock-styles";
 const STYLES = `
 .clock-status { font-variant-numeric: tabular-nums; }
 
-/* Settings page — mirrors the host's Editor / Keyboard Shortcuts pages so a
-   third-party page reads as one family. */
+/* Settings page — body only; the host draws the page title from
+   SettingsPage.title. Consume only --silo-* design tokens (plus the
+   settings sheet's --settings-* contract) so the extension themes correctly
+   and scales with uiFontSize. */
 .clock-page { display: flex; flex-direction: column; height: 100%; gap: 12px; }
-.clock-header { display: flex; align-items: center; min-height: var(--settings-header-height); }
-.clock-header h2 { margin: 0; font-size: 1.1em; color: var(--silo-color-text-hi); }
 .clock-list { display: flex; flex-direction: column; margin-left: calc(var(--settings-pane-pad) * -1); }
 .clock-row {
   display: flex;
@@ -154,9 +154,6 @@ function ClockSettingsPage() {
   const s = useServiceState(settingsService);
   return (
     <div className="clock-page">
-      <div className="clock-header">
-        <h2>Clock</h2>
-      </div>
       <div className="clock-list">
         <ToggleRow
           label="24-hour clock"

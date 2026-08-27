@@ -3,6 +3,11 @@ import type { Extension, SystemInfo, SystemService } from "@silo-code/sdk";
 import siloIcon from "./silo-icon.png";
 import "./AboutPage.css";
 
+/** Keep in sync with `apps/website/src/homepage-copy.ts` (HEADLINE + INTRO_COPY). */
+const HEADLINE = "One window — every project, every agent";
+const INTRO =
+  "Terminals, agents, and layout stay intact — switch between them instantly. 100% open source, free forever.";
+
 function AboutPage({ system }: { system: SystemService }) {
   const [info, setInfo] = useState<SystemInfo | null>(null);
 
@@ -15,17 +20,24 @@ function AboutPage({ system }: { system: SystemService }) {
 
   return (
     <div className="about-page">
-      <img className="about-icon" src={siloIcon} alt="Silo" />
-      <div className="about-tagline">
-        Run every workspace at once. Switch instantly, lose nothing.
+      <img
+        className="about-icon"
+        src={siloIcon}
+        alt=""
+        width={64}
+        height={64}
+      />
+      <div className="about-copy">
+        <p className="about-headline">{HEADLINE}</p>
+        <p className="about-intro">{INTRO}</p>
       </div>
       {info && (
-        <>
+        <div className="about-meta">
           <div className="about-version">Version {info.siloVersion}</div>
           <div className="about-platform">
             {info.os} · {info.arch}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

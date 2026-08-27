@@ -16,6 +16,7 @@ import {
 import {
   getExtensionManager,
   fetchRegistryIndex,
+  SettingsHeaderActions,
   type InstalledExtension,
   type ManifestPreview,
   type RegistryExtension,
@@ -336,218 +337,216 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
     const listTab = view.kind;
 
     return (
-      <div className="ext-page">
-        <div className="ext-header">
-          <h2>Extensions</h2>
-          <div className="ext-header-actions">
-            <SegmentedTabs
-              tabs={[
-                { id: "browse", label: "Browse" },
-                {
-                  id: "installed",
-                  label:
-                    updates.length > 0
-                      ? `Installed (${updates.length})`
-                      : "Installed",
-                },
-              ]}
-              active={listTab}
-              onSelect={(id) => setView({ kind: id })}
-            />
-            <Tooltip content="More install options">
-              {/* `sm` (2em) rather than the default 2.5em: `.es-header` declares
-                  `min-height: var(--settings-header-height)`, and a full-size
-                  icon button is taller than that — it stretched the row, which
-                  pushed the centred page title down out of line with the
-                  Settings rail beside it. The segmented tabs already sit under
-                  that height. */}
-              <IconButton
-                size="sm"
-                aria-label="More install options"
-                onClick={(e) => openPageMenu(e.currentTarget)}
-              >
-                <DotsThreeVertical size={16} weight="bold" />
-              </IconButton>
-            </Tooltip>
-          </div>
-        </div>
-
-        {view.kind === "browse" ? (
-          <>
-            <div className="ext-list-bar">
-              <SearchInput
-                value={browseQuery}
-                onValueChange={setBrowseQuery}
-                placeholder="Search the extension registry…"
-              />
-              {renderUpdateAll()}
-            </div>
-            {registry.status === "ready" && (
-              <div className="ext-cats">
-                <button
-                  className={`ext-cat${category === "" ? " ext-cat-active" : ""}`}
-                  onClick={() => setCategory("")}
-                >
-                  all
-                </button>
-                {registryCategories(registry.entries).map((c) => (
-                  <button
-                    key={c}
-                    className={`ext-cat${category === c ? " ext-cat-active" : ""}`}
-                    onClick={() => setCategory(category === c ? "" : c)}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            )}
-            {registry.status === "loading" ? (
-              <EmptyState title="Loading the extension registry…" />
-            ) : registry.status === "error" ? (
-              <EmptyState
-                title="Couldn't reach the extension registry"
-                description={registry.message}
-                action={
-                  <Button onClick={() => void loadRegistry()}>Retry</Button>
-                }
-              />
-            ) : catalog.length === 0 ? (
-              <EmptyState title="No extensions match." />
-            ) : (
-              <div className="ext-grid silo-scroll">
-                {catalog.map((entry) => {
-                  const state = browseInstallState(entry, extensions, updates);
-                  const installedExt = extensions.find(
-                    (e) => e.id === entry.id,
-                  );
-                  // A folder/URL/npm install of this id: note the origin in
-                  // place of the registry download count (it's not this build).
-                  const localSource = localInstallSource(installedExt);
-                  const upd = updates.find((u) => u.id === entry.id);
-                  return (
-                    <ExtensionCard
-                      key={entry.id}
-                      name={entry.name}
-                      icon={extensionIconFor(entry.id)}
-                      publisher={publisherOf(entry.id)}
-                      verified={entry.latest?.provenance === "attested"}
-                      description={entry.description}
-                      onOpenDetails={() =>
-                        setView({
-                          kind: "detail",
-                          id: entry.id,
-                          from: "browse",
-                        })
-                      }
-                      badges={
-                        <>
-                          {entry.latest && (
-                            <span className="ext-version">
-                              v{entry.latest.version}
-                            </span>
-                          )}
-                          {state === "update-available" && (
-                            <Badge tone="warn">Update</Badge>
-                          )}
-                          {localSource ? (
-                            <Badge tone="outline">
-                              {sourceBadgeLabel(localSource.kind)}
-                            </Badge>
-                          ) : (
-                            <span className="ext-card-meta">
-                              <span className="ext-card-downloads">
-                                {entry.totalDownloads}
-                              </span>{" "}
-                              downloads
-                            </span>
-                          )}
-                        </>
-                      }
-                      action={
-                        upd && installedExt ? (
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            disabled={busy === entry.id}
-                            onClick={() => update(installedExt)}
-                          >
-                            Update
-                          </Button>
-                        ) : state === "installed" ? (
-                          // Not a button: there's nothing to do to an already
-                          // installed extension from here. Styled like the
-                          // Install it replaces so the grid keeps one rhythm.
-                          <span className="ext-card-installed">Installed</span>
-                        ) : state === "not-installed" &&
-                          isInstallable(entry) ? (
-                          <Button
-                            size="sm"
-                            disabled={busy === entry.id}
-                            onClick={() => installFromRegistry(entry.id)}
-                          >
-                            Install
-                          </Button>
-                        ) : null
-                      }
-                      menu={
-                        installedExt ? (
-                          <MenuButton
-                            size="sm"
-                            label="More"
-                            aria-label="Extension actions"
-                            disabled={busy === entry.id}
-                            onClick={(e) =>
-                              openRowMenu(installedExt, e.currentTarget)
-                            }
-                          />
-                        ) : null
-                      }
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="ext-list-bar">
-              {extensions.length > 0 && (
+      <>
+        <SettingsHeaderActions>
+          <SegmentedTabs
+            tabs={[
+              { id: "browse", label: "Browse" },
+              {
+                id: "installed",
+                label:
+                  updates.length > 0
+                    ? `Installed (${updates.length})`
+                    : "Installed",
+              },
+            ]}
+            active={listTab}
+            onSelect={(id) => setView({ kind: id })}
+          />
+          <Tooltip content="More install options">
+            <IconButton
+              size="sm"
+              aria-label="More install options"
+              onClick={(e) => openPageMenu(e.currentTarget)}
+            >
+              <DotsThreeVertical size={16} weight="bold" />
+            </IconButton>
+          </Tooltip>
+        </SettingsHeaderActions>
+        <div className="ext-page">
+          {view.kind === "browse" ? (
+            <>
+              <div className="ext-list-bar">
                 <SearchInput
-                  value={query}
-                  onValueChange={setQuery}
-                  placeholder="Search installed extensions…"
+                  value={browseQuery}
+                  onValueChange={setBrowseQuery}
+                  placeholder="Search the extension registry…"
                 />
-              )}
-              {renderUpdateAll()}
-            </div>
-
-            {extensions.length === 0 ? (
-              <EmptyState
-                title="No extensions installed yet"
-                description="Find one in Browse."
-              />
-            ) : visible.length === 0 ? (
-              <EmptyState title={`No extensions match “${query}”.`} />
-            ) : (
-              <div className="ext-groups silo-scroll">
-                {groups.installed.length > 0 && (
-                  <div className="ext-grid">
-                    {groups.installed.map(renderInstalledCard)}
-                  </div>
-                )}
-                {groups.builtin.length > 0 && (
-                  <>
-                    <h3 className="ext-group-head">Built-in Extensions</h3>
-                    <div className="ext-grid">
-                      {groups.builtin.map(renderInstalledCard)}
-                    </div>
-                  </>
-                )}
+                {renderUpdateAll()}
               </div>
-            )}
-          </>
-        )}
-      </div>
+              {registry.status === "ready" && (
+                <div className="ext-cats">
+                  <button
+                    className={`ext-cat${category === "" ? " ext-cat-active" : ""}`}
+                    onClick={() => setCategory("")}
+                  >
+                    all
+                  </button>
+                  {registryCategories(registry.entries).map((c) => (
+                    <button
+                      key={c}
+                      className={`ext-cat${category === c ? " ext-cat-active" : ""}`}
+                      onClick={() => setCategory(category === c ? "" : c)}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {registry.status === "loading" ? (
+                <EmptyState title="Loading the extension registry…" />
+              ) : registry.status === "error" ? (
+                <EmptyState
+                  title="Couldn't reach the extension registry"
+                  description={registry.message}
+                  action={
+                    <Button onClick={() => void loadRegistry()}>Retry</Button>
+                  }
+                />
+              ) : catalog.length === 0 ? (
+                <EmptyState title="No extensions match." />
+              ) : (
+                <div className="ext-grid silo-scroll">
+                  {catalog.map((entry) => {
+                    const state = browseInstallState(
+                      entry,
+                      extensions,
+                      updates,
+                    );
+                    const installedExt = extensions.find(
+                      (e) => e.id === entry.id,
+                    );
+                    // A folder/URL/npm install of this id: note the origin in
+                    // place of the registry download count (it's not this build).
+                    const localSource = localInstallSource(installedExt);
+                    const upd = updates.find((u) => u.id === entry.id);
+                    return (
+                      <ExtensionCard
+                        key={entry.id}
+                        name={entry.name}
+                        icon={extensionIconFor(entry.id)}
+                        publisher={publisherOf(entry.id)}
+                        verified={entry.latest?.provenance === "attested"}
+                        description={entry.description}
+                        onOpenDetails={() =>
+                          setView({
+                            kind: "detail",
+                            id: entry.id,
+                            from: "browse",
+                          })
+                        }
+                        badges={
+                          <>
+                            {entry.latest && (
+                              <span className="ext-version">
+                                v{entry.latest.version}
+                              </span>
+                            )}
+                            {state === "update-available" && (
+                              <Badge tone="warn">Update</Badge>
+                            )}
+                            {localSource ? (
+                              <Badge tone="outline">
+                                {sourceBadgeLabel(localSource.kind)}
+                              </Badge>
+                            ) : (
+                              <span className="ext-card-meta">
+                                <span className="ext-card-downloads">
+                                  {entry.totalDownloads}
+                                </span>{" "}
+                                downloads
+                              </span>
+                            )}
+                          </>
+                        }
+                        action={
+                          upd && installedExt ? (
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              disabled={busy === entry.id}
+                              onClick={() => update(installedExt)}
+                            >
+                              Update
+                            </Button>
+                          ) : state === "installed" ? (
+                            // Not a button: there's nothing to do to an already
+                            // installed extension from here. Styled like the
+                            // Install it replaces so the grid keeps one rhythm.
+                            <span className="ext-card-installed">
+                              Installed
+                            </span>
+                          ) : state === "not-installed" &&
+                            isInstallable(entry) ? (
+                            <Button
+                              size="sm"
+                              disabled={busy === entry.id}
+                              onClick={() => installFromRegistry(entry.id)}
+                            >
+                              Install
+                            </Button>
+                          ) : null
+                        }
+                        menu={
+                          installedExt ? (
+                            <MenuButton
+                              size="sm"
+                              label="More"
+                              aria-label="Extension actions"
+                              disabled={busy === entry.id}
+                              onClick={(e) =>
+                                openRowMenu(installedExt, e.currentTarget)
+                              }
+                            />
+                          ) : null
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="ext-list-bar">
+                {extensions.length > 0 && (
+                  <SearchInput
+                    value={query}
+                    onValueChange={setQuery}
+                    placeholder="Search installed extensions…"
+                  />
+                )}
+                {renderUpdateAll()}
+              </div>
+
+              {extensions.length === 0 ? (
+                <EmptyState
+                  title="No extensions installed yet"
+                  description="Find one in Browse."
+                />
+              ) : visible.length === 0 ? (
+                <EmptyState title={`No extensions match “${query}”.`} />
+              ) : (
+                <div className="ext-groups silo-scroll">
+                  {groups.installed.length > 0 && (
+                    <div className="ext-grid">
+                      {groups.installed.map(renderInstalledCard)}
+                    </div>
+                  )}
+                  {groups.builtin.length > 0 && (
+                    <>
+                      <h3 className="ext-group-head">Built-in Extensions</h3>
+                      <div className="ext-grid">
+                        {groups.builtin.map(renderInstalledCard)}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </>
     );
 
     /**

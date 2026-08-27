@@ -650,7 +650,10 @@ export interface StatusItem {
 export interface SettingsPage {
   /** Unique id for this settings page. */
   id: string;
-  /** Label shown in the Settings left rail. */
+  /**
+   * Label shown in the Settings left rail **and** as the host-owned page
+   * title in the pane. Do not render your own `<h2>` — the host draws this.
+   */
   title: string;
   /**
    * Optional grouping key for the left rail (groups sorted lexically, separated
