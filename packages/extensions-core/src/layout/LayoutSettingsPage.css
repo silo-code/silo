@@ -11,3 +11,36 @@
   gap: 6px;
   margin-top: 6px;
 }
+
+/* Layout settings gained a tab strip (General / Navigator) — same page-level
+   pattern as Agents settings (Tabs attached to a TabPanel below the title,
+   not header-inline SegmentedTabs). Row/section primitives are the SDK's. */
+
+.layout-settings-page {
+  gap: 12px;
+}
+
+.layout-settings-tabs {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-settings-tabs > .silo-tab-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout-settings-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  /* TabPanel already pads 14px; extra inset below the tab strip. */
+  padding-top: 20px;
+}
