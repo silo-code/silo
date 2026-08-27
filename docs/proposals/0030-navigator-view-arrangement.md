@@ -173,6 +173,15 @@ The View List is not rendered. Each enabled view, in `viewOrder`, is a
   the same contributions that sit in the single View Header today, now scoped
   next to their view. Marked `data-focus-chrome` so keyboard region-entry skips
   past headers into a body.
+- **Otherwise-unscoped chrome collapses to one section.** RFC 0023 left
+  `core.workspaces`' Add-workspace **+** unscoped so it shows on every view's
+  header. In one-at-a-time mode that's still one header, so nothing changes.
+  In stacked mode it would repeat down the panel — so `core.navigator` exposes
+  `stackedChromeHostViewId()` (the Workspaces section, or the top section if
+  Workspaces is hidden/disabled), and `core.workspaces` `when`-scopes its **+**
+  to that in stacked mode only. A view's _own_ scoped items (e.g. the Agents
+  view's "View by") are unaffected — they were already `when`-bound to their
+  view.
 - **Sizing.** Each expanded section is content-height; the panel scrolls as one
   (preserving the "host tab-pane is the sole scroller" invariant every view
   assumes). A section body taller than a cap (proposed: ~60% of panel height)
@@ -276,9 +285,12 @@ views and picks the arrangement. `core.navigator` owns a `navigatorPrefs` store
 on its `ctx.storage.global` and the pure `resolveViewList` resolver; the panel
 renders the enabled set in user order, one at a time or stacked.
 
-Two details settled during implementation, both matching the design here:
-`active` is passed as always-`true` in stacked mode (collapse is purely visual),
-and stacked sections cap at `60vh` with their own inner scroll.
+Details settled during implementation, all matching the design here: `active`
+is passed as always-`true` in stacked mode (collapse is purely visual); stacked
+sections cap at `60vh` with their own inner scroll; and `core.workspaces`'
+Add-workspace **+** stays unscoped in one-at-a-time mode but `when`-scopes to
+the single section named by `core.navigator`'s `stackedChromeHostViewId()` in
+stacked mode.
 
 The crystallized decision — and the supersession of ADR 0038's deferred
 "stacked collapsible sections" alternative — is recorded in ADR

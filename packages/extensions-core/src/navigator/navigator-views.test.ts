@@ -9,6 +9,7 @@ import {
   resolveActiveView,
   resolveViewList,
   setViewDisabled,
+  stackedChromeHostId,
   toggleIdInList,
 } from "./navigator-views";
 
@@ -254,6 +255,25 @@ describe("reorderSavedViews", () => {
     const out = reorderSavedViews(saved, ["a", "b"], "a", -1);
     expect(out).toEqual(["a", "b"]);
     expect(out).not.toBe(saved);
+  });
+});
+
+describe("stackedChromeHostId", () => {
+  it("is the Workspaces view when it's enabled", () => {
+    const enabled = [
+      view("ext.status", "Agents"),
+      view(DEFAULT_VIEW_ID, "Workspaces"),
+    ];
+    expect(stackedChromeHostId(enabled)).toBe(DEFAULT_VIEW_ID);
+  });
+
+  it("falls back to the top view when Workspaces is hidden", () => {
+    const enabled = [view("ext.status", "Agents"), view("ext.tasks", "Tasks")];
+    expect(stackedChromeHostId(enabled)).toBe("ext.status");
+  });
+
+  it("is undefined when nothing is enabled", () => {
+    expect(stackedChromeHostId([])).toBeUndefined();
   });
 });
 

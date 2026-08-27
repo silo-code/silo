@@ -158,6 +158,20 @@ export function resolveActiveView(
 }
 
 /**
+ * In the **stacked** arrangement, the one section that carries otherwise-
+ * unscoped `"navigator"` toolbar chrome — today just `core.workspaces`'
+ * Add-workspace "+". It sits on the Workspaces section, or on the top section
+ * if Workspaces is hidden. `undefined` only when nothing is enabled (which
+ * {@link resolveViewList} prevents). One-at-a-time mode doesn't call this —
+ * there, unscoped chrome shows on every view as before.
+ */
+export function stackedChromeHostId(
+  enabled: readonly NavigatorView[],
+): string | undefined {
+  return (enabled.find((v) => v.id === DEFAULT_VIEW_ID) ?? enabled[0])?.id;
+}
+
+/**
  * Where roving focus parks when it enters the view list — the active row, so
  * arrowing starts from what's on screen. `findIndex`'s `-1` (no active view,
  * e.g. nothing registered yet) is passed through rather than clamped here:

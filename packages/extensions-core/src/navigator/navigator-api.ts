@@ -9,4 +9,12 @@ import type { ComponentType } from "react";
 export interface NavigatorExtensionAPI {
   /** The **Navigator** settings tab's body — reorder / enable views. */
   SettingsPanel: ComponentType;
+  /**
+   * In the **stacked** arrangement, the id of the view whose section should
+   * carry otherwise-unscoped `"navigator"` toolbar chrome (the Add-workspace
+   * "+") — so it appears once, not on every section. `null` in the
+   * one-at-a-time arrangement, where such chrome shows on every view as
+   * before. `core.workspaces` reads this to scope its "+" in stacked mode.
+   */
+  stackedChromeHostViewId(): string | null;
 }

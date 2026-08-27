@@ -1,7 +1,9 @@
 import type { Extension } from "@silo-code/sdk";
+import { navigatorViewRegistry } from "@silo-code/extension-host/internal";
 import { NavigatorPanel } from "./NavigatorPanel";
 import { NavigatorSettingsPanel } from "./NavigatorSettingsPanel";
-import { initNavigatorPrefs } from "./navigator-prefs";
+import { initNavigatorPrefs, navigatorPrefsService } from "./navigator-prefs";
+import { resolveViewList, stackedChromeHostId } from "./navigator-views";
 import type { NavigatorExtensionAPI } from "./navigator-api";
 
 /**
@@ -39,6 +41,20 @@ export const extension: Extension<NavigatorExtensionAPI> = {
       order: 1,
     });
 
-    return { SettingsPanel: NavigatorSettingsPanel };
+    return {
+      SettingsPanel: NavigatorSettingsPanel,
+      stackedChromeHostViewId() {
+        const prefs = navigatorPrefsService.getState();
+        const { enabled } = resolveViewList(
+          navigatorViewRegistry.list(),
+          prefs,
+        );
+        // Stacked needs >1 view to render as a stack (see NavigatorPanel);
+        // with one it falls through to the plain single-view render, where
+        // unscoped chrome belongs on that view like one-at-a-time.
+        if (prefs.arrangement !== "stacked" || enabled.length <= 1) return null;
+        return stackedChromeHostId(enabled) ?? null;
+      },
+    };
   },
 };
