@@ -117,6 +117,12 @@
 .am-hours-label {
   color: var(--silo-color-text-lo);
 }
+/* Auto-expand checkbox nested under the "Collapse older agents" hint, below
+   the cutoff-period control — sits in the parent row's text column, not a
+   row of its own. */
+.am-checkbox-subrow {
+  margin-top: 8px;
+}
 
 /* Agent views in the Navigator — all classes prefixed ap-; tokens
    only. Root inherits the column font size from `.side-pane`, so no absolute
@@ -152,6 +158,9 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--silo-color-text-lo);
+}
+.ap-section-title-clickable {
+  cursor: pointer;
 }
 .ap-section-caret {
   flex-shrink: 0;

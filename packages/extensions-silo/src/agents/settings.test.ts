@@ -8,6 +8,7 @@ import {
   DEFAULT_SHOW_WS_STATUS_ROWS,
   DEFAULT_STALE_DONE_ENABLED,
   DEFAULT_STALE_DONE_HOURS,
+  DEFAULT_STALE_HOVER_EXPAND_ENABLED,
   type FocusBehavior,
 } from "./settings-store";
 
@@ -430,6 +431,50 @@ describe("agent-monitor staleDoneHours setting", () => {
     const sub = initSettings(storage);
     settingsService.set({ staleDoneHours: 6 });
     expect(storage.get<number>("agentsStaleDoneHours")).toBe(6);
+    sub.dispose();
+  });
+});
+
+describe("agent-monitor staleHoverExpandEnabled setting", () => {
+  beforeEach(() => {
+    clearSettingsListeners();
+    initSettings(
+      fakeStorage({
+        agentsStaleHoverExpandEnabled: DEFAULT_STALE_HOVER_EXPAND_ENABLED,
+      }),
+    ).dispose();
+  });
+
+  it(`defaults to ${DEFAULT_STALE_HOVER_EXPAND_ENABLED} with empty storage`, () => {
+    const storage = fakeStorage();
+    const sub = initSettings(storage);
+    expect(settingsService.getState().staleHoverExpandEnabled).toBe(
+      DEFAULT_STALE_HOVER_EXPAND_ENABLED,
+    );
+    sub.dispose();
+  });
+
+  it("hydrates a persisted true value", () => {
+    const storage = fakeStorage({ agentsStaleHoverExpandEnabled: true });
+    const sub = initSettings(storage);
+    expect(settingsService.getState().staleHoverExpandEnabled).toBe(true);
+    sub.dispose();
+  });
+
+  it("coerces a non-boolean persisted value to the default", () => {
+    const storage = fakeStorage({ agentsStaleHoverExpandEnabled: "nope" });
+    const sub = initSettings(storage);
+    expect(settingsService.getState().staleHoverExpandEnabled).toBe(
+      DEFAULT_STALE_HOVER_EXPAND_ENABLED,
+    );
+    sub.dispose();
+  });
+
+  it("persists a change through settingsService.set", () => {
+    const storage = fakeStorage();
+    const sub = initSettings(storage);
+    settingsService.set({ staleHoverExpandEnabled: true });
+    expect(storage.get<boolean>("agentsStaleHoverExpandEnabled")).toBe(true);
     sub.dispose();
   });
 });

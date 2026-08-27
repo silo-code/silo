@@ -66,6 +66,11 @@ export interface AgentMonitorSettings {
    * Done heading into its own "N+ hours old" one. Whole hours, minimum 1.
    * Only takes effect while {@link staleDoneEnabled} is on. */
   staleDoneHours: number;
+  /** Whether hovering the "N+ hours old" section reveals its rows. Off
+   * (default): the section only opens on click, so a stray hover while
+   * scrolling past it never pops it open. On: the pre-existing hover-reveal
+   * behavior. Only takes effect while {@link staleDoneEnabled} is on. */
+  staleHoverExpandEnabled: boolean;
 }
 
 // Keys renamed on each shape change ("hideStatusWhenFocused" → "clearOnFocus"
@@ -79,6 +84,7 @@ const STORAGE_KEY_GROUP_BY = "agentsGroupBy";
 const STORAGE_KEY_SHOW_WS_STATUS_ROWS = "agentsShowWorkspaceStatusRows";
 const STORAGE_KEY_STALE_DONE_ENABLED = "agentsStaleDoneEnabled";
 const STORAGE_KEY_STALE_DONE_HOURS = "agentsStaleDoneHours";
+const STORAGE_KEY_STALE_HOVER_EXPAND_ENABLED = "agentsStaleHoverExpandEnabled";
 
 const DEFAULT_BEHAVIOR: FocusBehavior = "clear";
 const DEFAULT_SOUND_ENABLED = true;
@@ -89,6 +95,7 @@ export const DEFAULT_SHOW_WS_STATUS_ROWS = true;
 export const DEFAULT_STALE_DONE_ENABLED = true;
 export const DEFAULT_STALE_DONE_HOURS = 4;
 export const MIN_STALE_DONE_HOURS = 1;
+export const DEFAULT_STALE_HOVER_EXPAND_ENABLED = false;
 
 const VALID_BEHAVIORS: readonly FocusBehavior[] = ["clear", "hide", "none"];
 const VALID_ICON_MODES: readonly IconMode[] = ["none", "color", "monotone"];
@@ -152,6 +159,10 @@ function coerceStaleDoneHours(v: unknown): number {
     : DEFAULT_STALE_DONE_HOURS;
 }
 
+function coerceStaleHoverExpandEnabled(v: unknown): boolean {
+  return typeof v === "boolean" ? v : DEFAULT_STALE_HOVER_EXPAND_ENABLED;
+}
+
 let settings: AgentMonitorSettings = {
   focusBehavior: DEFAULT_BEHAVIOR,
   soundEnabled: DEFAULT_SOUND_ENABLED,
@@ -161,6 +172,7 @@ let settings: AgentMonitorSettings = {
   showWorkspaceStatusRows: DEFAULT_SHOW_WS_STATUS_ROWS,
   staleDoneEnabled: DEFAULT_STALE_DONE_ENABLED,
   staleDoneHours: DEFAULT_STALE_DONE_HOURS,
+  staleHoverExpandEnabled: DEFAULT_STALE_HOVER_EXPAND_ENABLED,
 };
 let backingStorage: ExtensionStorage | null = null;
 const listeners = new Set<(s: AgentMonitorSettings) => void>();
@@ -189,6 +201,10 @@ export const settingsService: ReactiveService<AgentMonitorSettings> & {
       settings.staleDoneEnabled,
     );
     backingStorage?.set(STORAGE_KEY_STALE_DONE_HOURS, settings.staleDoneHours);
+    backingStorage?.set(
+      STORAGE_KEY_STALE_HOVER_EXPAND_ENABLED,
+      settings.staleHoverExpandEnabled,
+    );
     for (const l of listeners) l(settings);
   },
 };
@@ -237,6 +253,12 @@ export function initSettings(storage: ExtensionStorage): {
         settings.staleDoneHours,
       ),
     );
+    const staleHoverExpandEnabled = coerceStaleHoverExpandEnabled(
+      storage.get<boolean>(
+        STORAGE_KEY_STALE_HOVER_EXPAND_ENABLED,
+        settings.staleHoverExpandEnabled,
+      ),
+    );
     if (
       focusBehavior !== settings.focusBehavior ||
       soundEnabled !== settings.soundEnabled ||
@@ -245,7 +267,8 @@ export function initSettings(storage: ExtensionStorage): {
       groupBy !== settings.groupBy ||
       showWorkspaceStatusRows !== settings.showWorkspaceStatusRows ||
       staleDoneEnabled !== settings.staleDoneEnabled ||
-      staleDoneHours !== settings.staleDoneHours
+      staleDoneHours !== settings.staleDoneHours ||
+      staleHoverExpandEnabled !== settings.staleHoverExpandEnabled
     ) {
       settings = {
         ...settings,
@@ -257,6 +280,7 @@ export function initSettings(storage: ExtensionStorage): {
         showWorkspaceStatusRows,
         staleDoneEnabled,
         staleDoneHours,
+        staleHoverExpandEnabled,
       };
       for (const l of listeners) l(settings);
     }

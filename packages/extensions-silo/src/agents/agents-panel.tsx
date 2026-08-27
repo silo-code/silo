@@ -54,9 +54,10 @@ export interface PanelSection {
   rows: AgentRow[];
   subtitle: (row: AgentRow) => string;
   /** Whether the render below collapses this heading's rows by default,
-   * revealing them only while the section is hovered — only the "N+ hours
-   * old" heading does, since it's the one that piles up with rows you're
-   * least likely to still care about. */
+   * revealing them on hover or on click of the heading (see
+   * `staleHoverExpandEnabled`) — only the "N+ hours old" heading does, since
+   * it's the one that piles up with rows you're least likely to still care
+   * about. */
   collapsible?: boolean;
 }
 
@@ -350,8 +351,13 @@ export function AgentsPanel({
   // `groupBy` is a setting rather than a prop now: the two groupings were two
   // registered Navigator views until SDK 0.34, and are one view with a
   // "View by" header control since.
-  const { iconMode, groupBy, staleDoneEnabled, staleDoneHours } =
-    useServiceState(settingsService);
+  const {
+    iconMode,
+    groupBy,
+    staleDoneEnabled,
+    staleDoneHours,
+    staleHoverExpandEnabled,
+  } = useServiceState(settingsService);
 
   // "color" mode picks a brand hex that has to have contrast against the
   // host's actual active background, not just against Silo's dark theme —
@@ -515,11 +521,13 @@ export function AgentsPanel({
     dragCleanupRef.current = cleanup;
   }
 
-  // The "N+ hours old" section starts collapsed and reveals its rows only
-  // while the mouse is over it — attached to the section's own container
-  // (not the heading), so a click on a row inside it (which doesn't move the
-  // mouse) never collapses it mid-click; only actually leaving the section
-  // does.
+  // The "N+ hours old" section starts collapsed. With `staleHoverExpandEnabled`
+  // on, it reveals its rows while the mouse is over it — attached to the
+  // section's own container (not the heading), so a click on a row inside it
+  // (which doesn't move the mouse) never collapses it mid-click; only
+  // actually leaving the section does. With it off (the default), hover does
+  // nothing and the heading is a click-to-toggle disclosure instead — a
+  // stray hover while scrolling past the section can't pop it open.
   //
   // Collapse is debounced rather than instant: WebKit (and Chromium) re-hit-test
   // and fire mouseleave/mouseenter transitions on scroll, not just on real
@@ -531,6 +539,7 @@ export function AgentsPanel({
   // through the section's own rows) cancels the pending collapse; only a leave
   // that sticks around actually collapses it.
   const [staleHovered, setStaleHovered] = useState(false);
+  const [staleManuallyExpanded, setStaleManuallyExpanded] = useState(false);
   const staleCollapseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -554,6 +563,9 @@ export function AgentsPanel({
       staleCollapseTimeoutRef.current = null;
       setStaleHovered(false);
     }, 300);
+  }
+  function handleStaleHeadingClick() {
+    setStaleManuallyExpanded((expanded) => !expanded);
   }
 
   const agentsSnapshot = ctx.agents.getState({ allWorkspaces: true });
@@ -660,13 +672,23 @@ export function AgentsPanel({
           const isStaleSection = section.key === STALE_DONE_SECTION_KEY;
           const isDraggableSection = section.key === "age";
           const expanded =
-            !isStaleSection || staleHovered || staleStartsExpanded;
+            !isStaleSection ||
+            staleStartsExpanded ||
+            (staleHoverExpandEnabled ? staleHovered : staleManuallyExpanded);
           return (
             <div
               key={section.key}
               className="ap-section"
-              onMouseEnter={isStaleSection ? handleStaleMouseEnter : undefined}
-              onMouseLeave={isStaleSection ? handleStaleMouseLeave : undefined}
+              onMouseEnter={
+                isStaleSection && staleHoverExpandEnabled
+                  ? handleStaleMouseEnter
+                  : undefined
+              }
+              onMouseLeave={
+                isStaleSection && staleHoverExpandEnabled
+                  ? handleStaleMouseLeave
+                  : undefined
+              }
             >
               {/* Every heading carries its row count. The status grouping's
                   three headings are fixed and so are often empty — a `0` says
@@ -675,7 +697,18 @@ export function AgentsPanel({
                   heading row entirely — "Agents" would only restate the
                   view's own title. */}
               {section.header !== "" && (
-                <div className="ap-section-title">
+                <div
+                  className={
+                    isStaleSection && !staleHoverExpandEnabled
+                      ? "ap-section-title ap-section-title-clickable"
+                      : "ap-section-title"
+                  }
+                  onClick={
+                    isStaleSection && !staleHoverExpandEnabled
+                      ? handleStaleHeadingClick
+                      : undefined
+                  }
+                >
                   {isStaleSection && (
                     <CaretRight
                       size="0.7em"

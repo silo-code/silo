@@ -7,6 +7,7 @@
 
 import {
   useServiceState,
+  CheckboxRow,
   IconButton,
   Input,
   RadioCard,
@@ -33,6 +34,7 @@ export {
   DEFAULT_SHOW_WS_STATUS_ROWS,
   DEFAULT_STALE_DONE_ENABLED,
   DEFAULT_STALE_DONE_HOURS,
+  DEFAULT_STALE_HOVER_EXPAND_ENABLED,
   MIN_STALE_DONE_HOURS,
   type AgentMonitorSettings,
   type FocusBehavior,
@@ -207,6 +209,16 @@ export function AgentsNavigatorPanel() {
                 aria-label="Cutoff period in hours"
               />
               <span className="am-hours-unit">hours</span>
+            </div>
+            <div className="am-checkbox-subrow">
+              <CheckboxRow
+                label="Auto-expand on hover"
+                checked={s.staleHoverExpandEnabled}
+                disabled={!s.staleDoneEnabled}
+                onChange={(staleHoverExpandEnabled) =>
+                  settingsService.set({ staleHoverExpandEnabled })
+                }
+              />
             </div>
           </div>
           <div className="silo-setting-row-control">
