@@ -5,6 +5,7 @@ import {
   initSettings,
   clearSettingsListeners,
   SOUND_IDS,
+  DEFAULT_SHOW_WS_STATUS_ROWS,
   DEFAULT_STALE_DONE_ENABLED,
   DEFAULT_STALE_DONE_HOURS,
   type FocusBehavior,
@@ -262,6 +263,63 @@ describe("agent-monitor groupBy setting", () => {
     const listener = settingsService.subscribe((s) => seen.push(s.groupBy));
     settingsService.set({ groupBy: "workspace" });
     expect(seen).toEqual(["workspace"]);
+    listener.dispose();
+    sub.dispose();
+  });
+});
+
+describe("agent-monitor showWorkspaceStatusRows setting", () => {
+  beforeEach(() => {
+    clearSettingsListeners();
+    initSettings(
+      fakeStorage({
+        agentsShowWorkspaceStatusRows: DEFAULT_SHOW_WS_STATUS_ROWS,
+      }),
+    ).dispose();
+  });
+
+  it(`defaults to ${DEFAULT_SHOW_WS_STATUS_ROWS} with empty storage`, () => {
+    const storage = fakeStorage();
+    const sub = initSettings(storage);
+    expect(settingsService.getState().showWorkspaceStatusRows).toBe(
+      DEFAULT_SHOW_WS_STATUS_ROWS,
+    );
+    sub.dispose();
+  });
+
+  it("hydrates a persisted false value (restart case)", () => {
+    const storage = fakeStorage({ agentsShowWorkspaceStatusRows: false });
+    const sub = initSettings(storage);
+    expect(settingsService.getState().showWorkspaceStatusRows).toBe(false);
+    sub.dispose();
+  });
+
+  it("coerces a non-boolean persisted value to the default", () => {
+    const storage = fakeStorage({ agentsShowWorkspaceStatusRows: "nope" });
+    const sub = initSettings(storage);
+    expect(settingsService.getState().showWorkspaceStatusRows).toBe(
+      DEFAULT_SHOW_WS_STATUS_ROWS,
+    );
+    sub.dispose();
+  });
+
+  it("persists a change through settingsService.set", () => {
+    const storage = fakeStorage();
+    const sub = initSettings(storage);
+    settingsService.set({ showWorkspaceStatusRows: false });
+    expect(storage.get<boolean>("agentsShowWorkspaceStatusRows")).toBe(false);
+    sub.dispose();
+  });
+
+  it("notifies subscribers so the workspace rows re-render", () => {
+    const storage = fakeStorage();
+    const sub = initSettings(storage);
+    const seen: boolean[] = [];
+    const listener = settingsService.subscribe((s) =>
+      seen.push(s.showWorkspaceStatusRows),
+    );
+    settingsService.set({ showWorkspaceStatusRows: false });
+    expect(seen).toEqual([false]);
     listener.dispose();
     sub.dispose();
   });

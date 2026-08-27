@@ -55,6 +55,10 @@ export interface AgentMonitorSettings {
   iconMode: IconMode;
   /** Which axis the Agents view groups its rows by. */
   groupBy: GroupMode;
+  /** Whether `silo.agents` contributes per-terminal agent status rows to the
+   * Navigator's workspace rows. Off = the workspace rows stay quiet even while
+   * agents are working; the Agents view and tab badges are unaffected. */
+  showWorkspaceStatusRows: boolean;
   /** Whether the Agents panel segments long-done agents out of the Done
    * heading into a collapsible "N+ hours old" one at all. */
   staleDoneEnabled: boolean;
@@ -72,6 +76,7 @@ const STORAGE_KEY_SOUND_ENABLED = "soundEnabled";
 const STORAGE_KEY_SOUND_ID = "soundId";
 const STORAGE_KEY_ICON_MODE = "agentsIconMode";
 const STORAGE_KEY_GROUP_BY = "agentsGroupBy";
+const STORAGE_KEY_SHOW_WS_STATUS_ROWS = "agentsShowWorkspaceStatusRows";
 const STORAGE_KEY_STALE_DONE_ENABLED = "agentsStaleDoneEnabled";
 const STORAGE_KEY_STALE_DONE_HOURS = "agentsStaleDoneHours";
 
@@ -80,6 +85,7 @@ const DEFAULT_SOUND_ENABLED = true;
 const DEFAULT_SOUND_ID: SoundName = "chime";
 const DEFAULT_ICON_MODE: IconMode = "color";
 const DEFAULT_GROUP_BY: GroupMode = "age";
+export const DEFAULT_SHOW_WS_STATUS_ROWS = true;
 export const DEFAULT_STALE_DONE_ENABLED = true;
 export const DEFAULT_STALE_DONE_HOURS = 4;
 export const MIN_STALE_DONE_HOURS = 1;
@@ -126,6 +132,10 @@ function coerceGroupBy(v: unknown): GroupMode {
     : DEFAULT_GROUP_BY;
 }
 
+function coerceShowWorkspaceStatusRows(v: unknown): boolean {
+  return typeof v === "boolean" ? v : DEFAULT_SHOW_WS_STATUS_ROWS;
+}
+
 function coerceStaleDoneEnabled(v: unknown): boolean {
   return typeof v === "boolean" ? v : DEFAULT_STALE_DONE_ENABLED;
 }
@@ -148,6 +158,7 @@ let settings: AgentMonitorSettings = {
   soundId: DEFAULT_SOUND_ID,
   iconMode: DEFAULT_ICON_MODE,
   groupBy: DEFAULT_GROUP_BY,
+  showWorkspaceStatusRows: DEFAULT_SHOW_WS_STATUS_ROWS,
   staleDoneEnabled: DEFAULT_STALE_DONE_ENABLED,
   staleDoneHours: DEFAULT_STALE_DONE_HOURS,
 };
@@ -169,6 +180,10 @@ export const settingsService: ReactiveService<AgentMonitorSettings> & {
     backingStorage?.set(STORAGE_KEY_SOUND_ID, settings.soundId);
     backingStorage?.set(STORAGE_KEY_ICON_MODE, settings.iconMode);
     backingStorage?.set(STORAGE_KEY_GROUP_BY, settings.groupBy);
+    backingStorage?.set(
+      STORAGE_KEY_SHOW_WS_STATUS_ROWS,
+      settings.showWorkspaceStatusRows,
+    );
     backingStorage?.set(
       STORAGE_KEY_STALE_DONE_ENABLED,
       settings.staleDoneEnabled,
@@ -204,6 +219,12 @@ export function initSettings(storage: ExtensionStorage): {
     const groupBy = coerceGroupBy(
       storage.get<string>(STORAGE_KEY_GROUP_BY, settings.groupBy),
     );
+    const showWorkspaceStatusRows = coerceShowWorkspaceStatusRows(
+      storage.get<boolean>(
+        STORAGE_KEY_SHOW_WS_STATUS_ROWS,
+        settings.showWorkspaceStatusRows,
+      ),
+    );
     const staleDoneEnabled = coerceStaleDoneEnabled(
       storage.get<boolean>(
         STORAGE_KEY_STALE_DONE_ENABLED,
@@ -222,6 +243,7 @@ export function initSettings(storage: ExtensionStorage): {
       soundId !== settings.soundId ||
       iconMode !== settings.iconMode ||
       groupBy !== settings.groupBy ||
+      showWorkspaceStatusRows !== settings.showWorkspaceStatusRows ||
       staleDoneEnabled !== settings.staleDoneEnabled ||
       staleDoneHours !== settings.staleDoneHours
     ) {
@@ -232,6 +254,7 @@ export function initSettings(storage: ExtensionStorage): {
         soundId,
         iconMode,
         groupBy,
+        showWorkspaceStatusRows,
         staleDoneEnabled,
         staleDoneHours,
       };

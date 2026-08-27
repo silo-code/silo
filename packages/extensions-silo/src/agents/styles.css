@@ -92,6 +92,11 @@
   align-items: center;
   gap: 8px;
 }
+/* Sound picker nested under the "Play a sound…" hint — sits in the parent
+   row's text column, not a row of its own. */
+.am-sound-subrow {
+  margin-top: 8px;
+}
 
 .am-hours-control {
   display: flex;
@@ -102,6 +107,14 @@
   width: 4em;
 }
 .am-hours-unit {
+  color: var(--silo-color-text-lo);
+}
+/* Cutoff-period control nested under the "Collapse older agents" hint —
+   sits in the parent row's text column, not a row of its own. */
+.am-hours-subrow {
+  margin-top: 8px;
+}
+.am-hours-label {
   color: var(--silo-color-text-lo);
 }
 

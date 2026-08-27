@@ -30,6 +30,7 @@ export {
   settingsService,
   initSettings,
   clearSettingsListeners,
+  DEFAULT_SHOW_WS_STATUS_ROWS,
   DEFAULT_STALE_DONE_ENABLED,
   DEFAULT_STALE_DONE_HOURS,
   MIN_STALE_DONE_HOURS,
@@ -66,8 +67,12 @@ const ICON_MODE_OPTIONS: { value: IconMode; label: string }[] = [
   { value: "monotone", label: "Monotone" },
 ];
 
-/** Embeddable options block — composed into core.agents-settings via getExtension. */
-export function AgentsOptionsPanel() {
+/**
+ * Embeddable behavior block — composed into the `core.agents-settings`
+ * **Behavior** tab via `getExtension`. Covers what viewing a finished agent
+ * does to its status, and the stop-working sound.
+ */
+export function AgentsBehaviorPanel() {
   const s = useServiceState(settingsService);
   return (
     <div className="am-options-panel">
@@ -98,6 +103,136 @@ export function AgentsOptionsPanel() {
           </RadioGroup>
         </div>
       </div>
+      <Section label="Sound">
+        {/* Hand-rolled instead of <SettingRow> so the sound picker can sit
+            inside the same row's text column, directly under the hint, rather
+            than as its own row below. */}
+        <div className="silo-setting-row">
+          <div className="silo-setting-row-text">
+            <div className="silo-setting-row-label">
+              Play a sound when an agent stops working
+            </div>
+            <div className="silo-setting-row-hint">
+              Plays whenever an agent stops working, whether or not you're
+              watching its terminal.
+            </div>
+            <div className="am-sound-control am-sound-subrow">
+              <Select
+                value={s.soundId}
+                disabled={!s.soundEnabled}
+                onChange={(e) =>
+                  settingsService.set({ soundId: e.target.value as SoundName })
+                }
+                aria-label="Notification sound"
+              >
+                {SOUND_IDS.map((name) => (
+                  <option key={name} value={name}>
+                    {soundLabel(name)}
+                  </option>
+                ))}
+              </Select>
+              <IconButton
+                size="sm"
+                disabled={!s.soundEnabled}
+                onClick={() => previewSound(s.soundId)}
+                aria-label={`Preview ${soundLabel(s.soundId)} sound`}
+              >
+                ▶
+              </IconButton>
+            </div>
+          </div>
+          <div className="silo-setting-row-control">
+            <Switch
+              checked={s.soundEnabled}
+              onChange={(soundEnabled) => settingsService.set({ soundEnabled })}
+              aria-label="Play a sound when an agent stops working"
+            />
+          </div>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/**
+ * Embeddable Navigator-preferences block — composed into the
+ * `core.agents-settings` **Navigator** tab via `getExtension`. Covers how
+ * agents surface in the Navigator: the per-workspace status rows and the
+ * Agents view's handling of long-finished runs.
+ */
+export function AgentsNavigatorPanel() {
+  const s = useServiceState(settingsService);
+  return (
+    <div className="am-options-panel">
+      <Section label="Workspace rows">
+        <SettingRow
+          label="Show agent status on workspace rows"
+          hint="Adds a per-terminal status row (working / waiting / done) under each workspace in the Navigator."
+        >
+          <Switch
+            checked={s.showWorkspaceStatusRows}
+            onChange={(showWorkspaceStatusRows) =>
+              settingsService.set({ showWorkspaceStatusRows })
+            }
+            aria-label="Show agent status on workspace rows"
+          />
+        </SettingRow>
+      </Section>
+      <Section label="Agent views">
+        {/* Hand-rolled instead of <SettingRow> (whose `hint` is a plain string)
+            so the cutoff-period control can sit inside the same row's text
+            column, directly under the hint, rather than as its own row below. */}
+        <div className="silo-setting-row">
+          <div className="silo-setting-row-text">
+            <div className="silo-setting-row-label">Collapse older agents</div>
+            <div className="silo-setting-row-hint">
+              Agents drop off into a collapsed section once they are older than
+              the cutoff period.
+            </div>
+            <div className="am-hours-control am-hours-subrow">
+              <span className="am-hours-label">Cutoff period</span>
+              <Input
+                className="am-hours-input"
+                type="number"
+                min={MIN_STALE_DONE_HOURS}
+                step={1}
+                value={s.staleDoneHours}
+                disabled={!s.staleDoneEnabled}
+                onChange={(e) => {
+                  const hours = Math.trunc(Number(e.target.value));
+                  if (!Number.isFinite(hours) || hours < MIN_STALE_DONE_HOURS)
+                    return;
+                  settingsService.set({ staleDoneHours: hours });
+                }}
+                aria-label="Cutoff period in hours"
+              />
+              <span className="am-hours-unit">hours</span>
+            </div>
+          </div>
+          <div className="silo-setting-row-control">
+            <Switch
+              checked={s.staleDoneEnabled}
+              onChange={(staleDoneEnabled) =>
+                settingsService.set({ staleDoneEnabled })
+              }
+              aria-label="Collapse older agents"
+            />
+          </div>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+/**
+ * Embeddable display block — composed into the `core.agents-settings`
+ * **Display** tab via `getExtension`. Covers the agent brand icons shown in
+ * the agent views.
+ */
+export function AgentsDisplayPanel() {
+  const s = useServiceState(settingsService);
+  return (
+    <div className="am-options-panel">
       <Section label="Agent icons">
         <SettingRow label="Show agent app icons in the agent views">
           <Select
@@ -115,81 +250,6 @@ export function AgentsOptionsPanel() {
           </Select>
         </SettingRow>
       </Section>
-      <Section label="Agent views">
-        <SettingRow
-          label="Set old finished agents aside"
-          hint="Keeps Done focused on recent finishes — older ones collapse into their own section that expands on hover."
-        >
-          <Switch
-            checked={s.staleDoneEnabled}
-            onChange={(staleDoneEnabled) =>
-              settingsService.set({ staleDoneEnabled })
-            }
-            aria-label="Set old finished agents aside"
-          />
-        </SettingRow>
-        {s.staleDoneEnabled && (
-          <SettingRow label="Consider an agent old after">
-            <div className="am-hours-control">
-              <Input
-                className="am-hours-input"
-                type="number"
-                min={MIN_STALE_DONE_HOURS}
-                step={1}
-                value={s.staleDoneHours}
-                onChange={(e) => {
-                  const hours = Math.trunc(Number(e.target.value));
-                  if (!Number.isFinite(hours) || hours < MIN_STALE_DONE_HOURS)
-                    return;
-                  settingsService.set({ staleDoneHours: hours });
-                }}
-                aria-label="Consider an agent old after this many hours"
-              />
-              <span className="am-hours-unit">hours</span>
-            </div>
-          </SettingRow>
-        )}
-      </Section>
-      <Section label="Sound">
-        <span className="am-hint">
-          Play a sound whenever an agent stops working, whether or not you're
-          watching its terminal.
-        </span>
-        <SettingRow label="Play a sound when an agent stops working">
-          <Switch
-            checked={s.soundEnabled}
-            onChange={(soundEnabled) => settingsService.set({ soundEnabled })}
-            aria-label="Play a sound when an agent stops working"
-          />
-        </SettingRow>
-        <SettingRow label="Notification sound">
-          <div className="am-sound-control">
-            <Select
-              value={s.soundId}
-              onChange={(e) =>
-                settingsService.set({ soundId: e.target.value as SoundName })
-              }
-              aria-label="Notification sound"
-            >
-              {SOUND_IDS.map((name) => (
-                <option key={name} value={name}>
-                  {soundLabel(name)}
-                </option>
-              ))}
-            </Select>
-            <IconButton
-              size="sm"
-              onClick={() => previewSound(s.soundId)}
-              aria-label={`Preview ${soundLabel(s.soundId)} sound`}
-            >
-              ▶
-            </IconButton>
-          </div>
-        </SettingRow>
-      </Section>
     </div>
   );
 }
-
-/** @deprecated Use {@link AgentsOptionsPanel}. */
-export const AgentMonitorSettingsPage = AgentsOptionsPanel;
