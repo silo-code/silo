@@ -12,6 +12,10 @@ import { agentIconFor } from "./agent-icons";
  * sets on an ancestor (the Agents panel points it at `--silo-color-text-hi`;
  * the CenterDock tab is sized/positioned entirely by host chrome, which also
  * supplies its own icon color via `currentColor` inheritance).
+ *
+ * Marks whose source design is duotone (OpenCode's frame-plus-panel) layer a
+ * second, 40%-opacity `accentPath` on top of the primary `path` rather than
+ * flattening both into one flat-color fill, which loses the panel entirely.
  */
 export function AgentIconGlyph({
   agentId,
@@ -39,6 +43,14 @@ export function AgentIconGlyph({
       aria-hidden="true"
     >
       <path d={icon.path} fill="currentColor" fillRule={icon.fillRule} />
+      {icon.accentPath && (
+        <path
+          d={icon.accentPath}
+          fill="currentColor"
+          fillRule={icon.accentFillRule}
+          opacity={0.4}
+        />
+      )}
     </svg>
   );
 }

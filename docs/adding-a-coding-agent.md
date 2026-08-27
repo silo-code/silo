@@ -236,6 +236,14 @@ The catalog can't reach these; grep for an existing agent's name to find them al
   `docsUrl`.
 - `apps/docs/index.md` and `apps/website/src/homepage-copy.ts` — the "works
   with" line and the trust band (`AgentIconId` + an icon).
+- `packages/extensions-silo/src/agents/agent-icons.ts` — the **in-app** brand
+  mark, a separate icon from the marketing site's, shown in the Agents panel
+  and on CenterDock terminal tabs (`AgentIconGlyph.tsx`). Add an
+  `AGENT_ICONS[id]` entry (title, light/dark hex, single `0 0 24 24` SVG
+  path) even when the catalog entry is detection-only (Tier 1/2, no resume) —
+  the icon isn't gated on resume support. Easy to miss because nothing fails
+  loudly without it: `agentIconFor` just returns `undefined` and the row
+  renders with no icon.
 - `docs/domain-language.md` — if the agent introduces a new concept (a new
   resume kind, a new install strategy), the glossary changes with it.
 - An ADR or RFC only if you added a **mechanism** (a new resume kind, a new
@@ -250,6 +258,7 @@ The catalog can't reach these; grep for an existing agent's name to find them al
 - [ ] Unit tests: catalog integrity, detector goldens, resume command
 - [ ] `agent-sessions.md` section + matching `docsUrl` anchor
 - [ ] Website / docs "works with" lists and icon
+- [ ] In-app icon: `agent-icons.ts` entry (separate from the website's)
 - [ ] `pnpm lint`, `pnpm test`, `pnpm --filter silo exec tsc --noEmit` green
 - [ ] Verified in the real app: agent shows in Settings → Agents, tab dot
       tracks a turn, resume command copies and works after a restart

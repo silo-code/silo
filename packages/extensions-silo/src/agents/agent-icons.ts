@@ -13,6 +13,13 @@
  * - pi: no icon pack carries a mark for it. Reuses the geometric π glyph
  *   already drawn for it on the marketing site (`apps/website/src/App.tsx`,
  *   xerro-edit) — three bars/legs plus a curled tail, combined into one path.
+ * - opencode: no icon pack carries a mark for it either. Reuses OpenCode's
+ *   official portrait-frame mark, the same one drawn for the marketing site
+ *   (`apps/website/src/App.tsx`'s `OpencodeIcon`, sourced from paseo.sh) —
+ *   uniformly rescaled from that component's `96 64 288 384` viewBox into
+ *   this file's `0 0 24 24` convention. Its two source layers (an opaque
+ *   border-plus-window frame, and a translucent inner panel) map directly
+ *   onto {@link AgentIcon.path}/{@link AgentIcon.accentPath}.
  */
 
 export interface AgentIcon {
@@ -39,6 +46,14 @@ export interface AgentIcon {
    * default (`nonzero`). Getting this wrong renders solid over what should be
    * a cut-out hole in the glyph. */
   fillRule?: "evenodd";
+  /** A second SVG path (same viewBox) layered on top of {@link path} at 40%
+   * opacity, for a source mark that is genuinely duotone rather than flat —
+   * OpenCode's mark is a border plus a lighter inner panel. Omit for a flat
+   * single-tone mark; flattening a duotone source into one solid fill loses
+   * the panel and reads as a plain notched shape rather than a frame. */
+  accentPath?: string;
+  /** `fill-rule` for {@link accentPath}, independent of {@link fillRule}. */
+  accentFillRule?: "evenodd";
 }
 
 const AGENT_ICONS: Record<string, AgentIcon> = {
@@ -79,6 +94,14 @@ const AGENT_ICONS: Record<string, AgentIcon> = {
     hexLight: "000000",
     hexDark: "FFFFFF",
     path: "M4.5,5.4 H19.5 A1.3,1.3 0 0 1 20.8,6.7 A1.3,1.3 0 0 1 19.5,8 H4.5 A1.3,1.3 0 0 1 3.2,6.7 A1.3,1.3 0 0 1 4.5,5.4 Z M7.9,8 A1.3,1.3 0 0 1 9.2,9.3 V18.1 A1.3,1.3 0 0 1 7.9,19.4 A1.3,1.3 0 0 1 6.6,18.1 V9.3 A1.3,1.3 0 0 1 7.9,8 Z M16.1,8 A1.3,1.3 0 0 1 17.4,9.3 V15.9 A1.3,1.3 0 0 1 16.1,17.2 A1.3,1.3 0 0 1 14.8,15.9 V9.3 A1.3,1.3 0 0 1 16.1,8 Z M14.8 15.6h2.6a2.6 2.6 0 0 0 2.6 2.6v2.6a5.2 5.2 0 0 1-5.2-5.2z",
+  },
+  opencode: {
+    title: "OpenCode",
+    hexLight: "000000",
+    hexDark: "FFFFFF",
+    fillRule: "evenodd",
+    path: "M20.8 23H3.2V1H20.8V23ZM16.4 5.4H7.6V18.6H16.4V5.4Z",
+    accentPath: "M16.4 9.8V18.6H7.6V9.8H16.4Z",
   },
 };
 
