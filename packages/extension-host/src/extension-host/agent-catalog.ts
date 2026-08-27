@@ -299,6 +299,19 @@ export interface AgentDefinition {
    * yet read this agent's activity (it still appears via `ctx.processes`
    * leader/cwd facts, just with no `working`/`idle` state). */
   activityDetectors: OscDetector[];
+  /**
+   * A literal prefix this agent's own OSC 0 title carries that is purely
+   * self-identification (pi's `"π - "`, OpenCode's `"OC | "`) — redundant
+   * once the tab is already showing that agent's icon, since the icon says
+   * the same thing visually. `core.terminal` strips it via
+   * {@link stripAgentTitleIdentityPrefix}, and only when
+   * `ctx.terminals.getIcons` confirms an icon is actually rendered for that
+   * tab; left alone otherwise; the prefix is then the tab's only identity
+   * signal. Undefined for every agent whose title doesn't lead with its own
+   * name (most don't — Claude's spinner/idle marker is a status signal, not
+   * an identity one, and is handled separately by `stripAgentStatusMarkers`).
+   */
+  titleIdentityPrefix?: string;
   /** Raw-output fallback for status that isn't reliably exposed via OSC
    * (Cursor Agent's spinner, when `showStatusIndicators` is off — the
    * upstream default). Undefined for agents that don't need one. */
@@ -705,6 +718,9 @@ const opencode: AgentDefinition = {
   displayName: "OpenCode",
   // Native compiled binary — argv0 is `opencode` directly, no node-wrapping.
   leaderNames: ["opencode"],
+  // Its async session-naming rename (see `contract` below) leads with this —
+  // redundant once the tab shows OpenCode's icon.
+  titleIdentityPrefix: "OC | ",
   // No OSC-based signal exists at all (see contract) — activity comes only
   // from the raw-output bar-spinner fallback, same shape as Cursor Agent's.
   activityDetectors: [],
@@ -865,6 +881,24 @@ function includesPathMarker(haystack: string, marker: string): boolean {
 /** The catalog entry with this id (as written into hook events / persisted). */
 export function agentById(id: string): AgentDefinition | undefined {
   return AGENT_CATALOG.find((a) => a.id === id);
+}
+
+/**
+ * Strip `agentId`'s {@link AgentDefinition.titleIdentityPrefix} from `title`,
+ * if it has one and `title` leads with it. The caller — `core.terminal` — is
+ * responsible for only calling this once it has confirmed (via
+ * `ctx.terminals.getIcons`) that the tab is actually showing an icon for this
+ * terminal; this function itself has no opinion on that, since the catalog
+ * doesn't know about icons or tab chrome.
+ */
+export function stripAgentTitleIdentityPrefix(
+  agentId: string | undefined,
+  title: string,
+): string {
+  const prefix = agentId ? agentById(agentId)?.titleIdentityPrefix : undefined;
+  return prefix && title.startsWith(prefix)
+    ? title.slice(prefix.length)
+    : title;
 }
 
 /** Agents that expose an installable hook — the rows the Settings → Agents

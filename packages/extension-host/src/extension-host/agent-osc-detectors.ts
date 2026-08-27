@@ -339,8 +339,10 @@ const COPILOT_PROGRESS_PREFIX = "4;";
 // Pi's TUI sets the title to "π - <session> - <cwd>". That carries no
 // working/idle state (unlike Claude's spinner prefix), but it is a reliable,
 // pi-specific identity signal for plain-shell terminals where argv0 is `node`
-// and leader-name matching alone would miss it.
-const PI_TITLE_PREFIX = "π - ";
+// and leader-name matching alone would miss it. Exported so `agent-catalog.ts`
+// can reuse the exact same literal as pi's `titleIdentityPrefix` — the prefix
+// that's redundant once the tab already shows pi's icon.
+export const PI_TITLE_PREFIX = "π - ";
 
 export function detectPiTitle(
   code: number,
