@@ -66,16 +66,59 @@ The label + hint + control row every settings surface uses: title and dim
 description on the left, the control pinned right. Rows in a group are
 separated by hairline dividers.
 
-| Prop     | Type        | Notes                                                                               |
-| -------- | ----------- | ----------------------------------------------------------------------------------- |
-| `label`  | `string`    | base / `text-hi`                                                                    |
-| `hint`   | `string?`   | sm / `text-lo`, wraps under the label                                               |
-| children | `ReactNode` | the control — `Switch`, `Select`, `Input`, a number field, or a small status recipe |
+| Prop        | Type         | Notes                                                                               |
+| ----------- | ------------ | ----------------------------------------------------------------------------------- |
+| `label`     | `string`     | base / `text-hi`                                                                    |
+| `hint`      | `string?`    | sm / `text-lo`, wraps under the label                                               |
+| `enabled`   | `boolean?`   | gates `dependent`; a plain boolean unrelated to whatever `children` is              |
+| `dependent` | `ReactNode?` | sub-settings below the hint, gated by `enabled` — see below                         |
+| children    | `ReactNode`  | the control — `Switch`, `Select`, `Input`, a number field, or a small status recipe |
 
 ::: tip Inline status is a recipe, not a component
 The "✓ Authenticated" pattern is an icon + `--silo-color-ok` text dropped into
 a SettingRow's control slot — deliberately not its own component.
 :::
+
+### Dependent sub-settings
+
+A row can nest a sub-setting that only makes sense while its own control is
+on — a cutoff field, a secondary checkbox. The row's control stays centered
+against just the label+hint above it, not the taller combined block.
+
+<div class="silo-demo silo-demo-block">
+  <div class="silo-section" style="max-width:520px;">
+    <div class="silo-section-header"><span class="silo-section-label">Agent views</span></div>
+    <div>
+      <div class="silo-setting-row" style="padding-top:0;">
+        <div class="text">
+          <div class="row-label">Collapse older agents</div>
+          <div class="row-hint">Agents drop off into a collapsed section once they are older than the cutoff period.</div>
+        </div>
+        <div class="control"><button class="silo-switch-track" data-checked="true" aria-label="Collapse older agents"></button></div>
+        <div class="dependent">Cutoff period&nbsp; <input class="silo-number" value="4" readonly style="width:3em;">&nbsp; hours</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+```tsx
+<SettingRow
+  label="Collapse older agents"
+  hint="Agents drop off into a collapsed section once they are older than the cutoff period."
+  enabled={staleDoneEnabled}
+  dependent={
+    <>
+      Cutoff period <Input type="number" value={hours} onChange={...} /> hours
+    </>
+  }
+>
+  <Switch checked={staleDoneEnabled} onChange={setStaleDoneEnabled} aria-label="Collapse older agents" />
+</SettingRow>
+```
+
+`dependent` renders inside a native `<fieldset>` — when `enabled` is `false`
+every focusable descendant is disabled automatically and the whole block
+dims, with no `disabled` prop to thread into each child by hand.
 
 ## ModalActions
 

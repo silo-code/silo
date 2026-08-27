@@ -576,6 +576,12 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
       // Folder/URL/npm origin, noted compactly; the full path lives in the
       // detail callout (registry installs need no note).
       const localSource = localInstallSource(ext);
+      // Built-ins can't be uninstalled and the "Built-in" badge already says
+      // they're present — an "Installed" pill on top is just noise. (Pulled
+      // out of the `action` prop below and given its own boolean rather than
+      // a `null` ternary branch: Prettier doesn't format a comment attached
+      // to a bare `null` branch stably — each re-format further garbles it.)
+      const showInstalledPill = !upd && !ext.builtin;
       return (
         <ExtensionCard
           key={ext.id}
@@ -634,7 +640,9 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
                 Update
               </Button>
             ) : (
-              <span className="ext-card-installed">Installed</span>
+              showInstalledPill && (
+                <span className="ext-card-installed">Installed</span>
+              )
             )
           }
           menu={

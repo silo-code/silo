@@ -105,69 +105,65 @@ export function makeLayoutSettingsPage(ctx: ExtensionContext) {
               aria-label="Share side panel widths across workspaces"
             />
           </SettingRow>
-          {/* Hand-rolled instead of <SettingRow> (whose `hint` is a plain
-                string) so the sub-setting checkbox can sit inside the same
-                row's text column, directly under the hint, rather than as
-                its own separate row below. */}
-          <div className="silo-setting-row">
-            <div className="silo-setting-row-text">
-              <div className="silo-setting-row-label">
-                Share side panel layout across workspaces
-              </div>
-              <div className="silo-setting-row-hint">
-                Enable this setting to use the same side panel layout (position,
-                visibility, collapse) across workspaces.
-              </div>
-              <div style={{ marginTop: "8px", marginBottom: "12px" }}>
-                <CheckboxRow
-                  label="Also maintain active tab(s)"
-                  checked={snap.globalActiveTabEnabled}
-                  onChange={setGlobalActiveTabEnabled}
-                  disabled={!snap.globalPanelLayoutEnabled}
-                />
-              </div>
-            </div>
-            <div className="silo-setting-row-control">
-              <Switch
-                checked={snap.globalPanelLayoutEnabled}
-                onChange={(next) => void toggleGlobalPanelLayout(next)}
-                aria-label="Share side panel layout across workspaces"
+          <SettingRow
+            label="Share side panel layout across workspaces"
+            hint="Enable this setting to use the same side panel layout (position, visibility, collapse) across workspaces."
+            enabled={snap.globalPanelLayoutEnabled}
+            dependent={
+              <CheckboxRow
+                label="Also maintain active tab(s)"
+                checked={snap.globalActiveTabEnabled}
+                onChange={setGlobalActiveTabEnabled}
               />
-            </div>
-          </div>
+            }
+          >
+            <Switch
+              checked={snap.globalPanelLayoutEnabled}
+              onChange={(next) => void toggleGlobalPanelLayout(next)}
+              aria-label="Share side panel layout across workspaces"
+            />
+          </SettingRow>
         </Section>
         <Section label="Laptop Mode">
           <SettingRow
             label="Enable Laptop Mode"
             hint="Enable this setting to automatically hide the side panels when using Silo on a laptop (determined by threshold below)."
+            enabled={snap.smallScreenModeEnabled}
+            dependent={
+              <>
+                <div className="silo-setting-row-label ls-threshold-label">
+                  Threshold width
+                </div>
+                <div className="silo-setting-row-hint">
+                  Below this window width (in pixels), side panels auto-hide.
+                </div>
+                <div className="ls-threshold-control">
+                  <Input
+                    type="number"
+                    min={MIN_SMALL_SCREEN_THRESHOLD_PX}
+                    value={thresholdInput}
+                    onChange={(e) => setThresholdInput(e.target.value)}
+                    onBlur={(e) => commitThreshold(e.target.value)}
+                  />
+                  <Tooltip content="Capture current width">
+                    <IconButton
+                      aria-label="Capture current width"
+                      onClick={() =>
+                        setSmallScreenThresholdPx(window.innerWidth)
+                      }
+                    >
+                      <Crosshair size={16} weight="bold" />
+                    </IconButton>
+                  </Tooltip>
+                </div>
+              </>
+            }
           >
             <Switch
               checked={snap.smallScreenModeEnabled}
               onChange={setSmallScreenModeEnabled}
               aria-label="Enable Laptop Mode"
             />
-          </SettingRow>
-          <SettingRow
-            label="Threshold width"
-            hint="Below this window width (in pixels), side panels auto-hide."
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <Input
-                type="number"
-                min={MIN_SMALL_SCREEN_THRESHOLD_PX}
-                value={thresholdInput}
-                onChange={(e) => setThresholdInput(e.target.value)}
-                onBlur={(e) => commitThreshold(e.target.value)}
-              />
-              <Tooltip content="Capture current width">
-                <IconButton
-                  aria-label="Capture current width"
-                  onClick={() => setSmallScreenThresholdPx(window.innerWidth)}
-                >
-                  <Crosshair size={16} weight="bold" />
-                </IconButton>
-              </Tooltip>
-            </div>
           </SettingRow>
         </Section>
       </>

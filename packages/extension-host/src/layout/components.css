@@ -901,11 +901,18 @@
   color: var(--silo-color-text-lo);
 }
 
+/* Grid, not flex: a row with `dependent` content needs the control
+   vertically centered against just the label+hint cell, not the taller
+   combined height once `dependent` is showing below it. Flex's single
+   cross-axis centers against the whole item including `dependent`; splitting
+   label+hint and `dependent` into their own grid rows (control spans only
+   the first) fixes that without any extra wrapper element. A row with no
+   `dependent` (most of them) still lays out identically — the implicit
+   second row is simply empty. */
 .silo-setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 20px;
   padding: 10px 0;
 }
 
@@ -914,6 +921,9 @@
 }
 
 .silo-setting-row-text {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
   min-width: 0;
 }
 
@@ -930,7 +940,40 @@
 }
 
 .silo-setting-row-control {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
   flex-shrink: 0;
+}
+
+/* Dependent sub-settings, below a row's label+hint (SettingRow's internal
+   `dependent` prop — see its TSDoc) — its own grid row, first column only,
+   so it never affects how `.silo-setting-row-control` centers against
+   `.silo-setting-row-text` above it. A native <fieldset> so `disabled`
+   auto-propagates to every focusable descendant with no per-child wiring;
+   reset to a plain block first since fieldsets carry their own UA border/
+   padding/min-width. `-border` was tried first for a subtler guide line, but
+   verified invisible in at least one theme where it's identical to `-bg`;
+   `-border-strong` was tried next but still read as too faint. The line is a
+   `color-mix` derivation off `-text-hi` instead (RFC 0016's pattern for new
+   kit colors — badge tints, tab hover, etc. — rather than a new raw token):
+   guaranteed real contrast against `-bg` in every theme, and automatically
+   darker in light themes / lighter in dark ones since text-hi always
+   contrasts against bg by construction. Bottom padding lets the line run past
+   the last child instead of stopping flush with it. */
+.silo-setting-row-dependent {
+  display: block;
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  margin: 8px 0 0;
+  padding: 0 0 8px 16px;
+  border: 0;
+  border-left: 1px solid
+    color-mix(in srgb, var(--silo-color-text-hi) 30%, var(--silo-color-bg));
+}
+.silo-setting-row-dependent:disabled {
+  opacity: 0.5;
 }
 
 /* ── ModalActions — start slot ───────────────────────────────────────────

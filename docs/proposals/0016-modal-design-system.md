@@ -93,8 +93,39 @@ Props sketches; `React.ComponentProps<...>` pass-through where natural.
 | `EmptyState`               | `icon?; tone?: "ok"\|"neutral"; title; description?; action?`                                      | Big circled icon + title + dim description; **no shadow/card of its own** — it lives in the modal body                                                                                                                                                                                                                                                                                             |
 | `Callout`                  | children                                                                                           | Quiet set-off box for explanatory copy: hairline `border-strong` border only — no fill, no tone. Not for status/alerts (Badge/EmptyState territory)                                                                                                                                                                                                                                                |
 | `Section`                  | `label; accessory?` + children                                                                     | Uppercase letter-spaced label at chrome−1                                                                                                                                                                                                                                                                                                                                                          |
-| `SettingRow`               | `label; hint?` + children (control)                                                                | Title (base/`text-hi`) + hint (sm/`text-lo`) left, control right, `border-strong` row dividers                                                                                                                                                                                                                                                                                                     |
+| `SettingRow`               | `label; hint?; enabled?; dependent?` + children (control)                                          | Title (base/`text-hi`) + hint (sm/`text-lo`) left, control right, `border-strong` row dividers. `enabled`/`dependent` (added post-launch, see below) nest gated sub-settings under the hint                                                                                                                                                                                                        |
 | `ModalActions`             | `start?` + children                                                                                | Right-aligned actions; optional left `start` slot (meta text or secondary action) replaces bespoke space-between footers. Promoted from host `Modal.tsx` into the SDK                                                                                                                                                                                                                              |
+
+**`SettingRow` dependent sub-settings (added 2026-08-27, additive within this
+RFC's own "new props" contract — no new component, no new RFC)** — settings
+pages had accumulated three different hand-rolled shapes for "a control that
+only makes sense while a sibling toggle is on" (Collapse older agents' cutoff
+input, Share side panel layout's checkbox, each with its own one-off CSS for
+what should have been one pattern). `SettingRow` gained two props: `enabled?:
+boolean` and `dependent?: ReactNode`. `dependent` renders below the hint, in
+the label/hint column, inside a native `<fieldset disabled={enabled ===
+false}>` — the browser auto-disables every focusable descendant with no
+per-child wiring, and `fieldset:disabled { opacity: .5 }` dims the whole block
+in one rule. `enabled` is a plain boolean unrelated to whatever `children`
+renders (a `Switch`, a `Select`, or nothing) — nothing requires the row to
+have a toggle at all. The row's own layout is CSS grid, not flex: `dependent`
+sits in its own grid row so it never affects how the control centers against
+label+hint above it — a tall dependent block doesn't drag the control down
+with it. The guide line is a `color-mix(in srgb, text-hi 30%, bg)` derivation
+(this RFC's existing "derivation formula, not a new token" rule) rather than
+`border`/`border-strong`: the plain `border` token is literally identical to
+`bg` in at least one theme (invisible), and `border-strong` still read too
+faint in review; deriving off `text-hi` guarantees real, correctly-signed
+contrast (darker in light themes, lighter in dark ones) in every theme by
+construction. 16px inset from the line to the content; 8px of bottom padding
+so the line runs past the last child rather than stopping flush with it.
+Ships in `packages/extension-host/src/layout/components.css` as
+`.silo-setting-row-dependent`, no extension-side CSS required. First proven
+internally (`@internal`, unstable, bundled-extensions-only) across four real
+call sites — Collapse older agents, Play a sound, Share side panel layout, and
+Enable/Threshold width under Laptop Mode (the last of these also fixed a
+latent bug: Threshold width was never actually disabled when Laptop Mode was
+off) — before this promotion to `@public`.
 
 **Scrollbars** — a `.silo-scroll` class (not a React component) for scrollable
 regions inside modals: 8px, transparent track, pill thumb

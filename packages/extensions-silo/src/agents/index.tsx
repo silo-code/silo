@@ -17,7 +17,9 @@ import { maybePlayTransitionSound } from "./sound";
 import {
   initSettings,
   clearSettingsListeners,
-  AgentsOptionsPanel,
+  AgentsBehaviorPanel,
+  AgentsNavigatorPanel,
+  AgentsDisplayPanel,
   settingsService,
 } from "./settings";
 import { AgentsPanel } from "./agents-panel";
@@ -112,6 +114,9 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
       provide(workspaceId): WorkspaceStatusRow[] {
         const ws = ctx.workspaces.get(workspaceId);
         if (!ws) return [];
+        // Opt-out: keep the Navigator's workspace rows quiet. The Agents view
+        // and tab badges still read `agents` directly and are unaffected.
+        if (!settingsService.getState().showWorkspaceStatusRows) return [];
         const rows: WorkspaceStatusRow[] = [];
         const behavior = settingsService.getState().focusBehavior;
         const hideFocusedRow = behavior === "hide";
@@ -206,7 +211,8 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
   let lastGroupBy = settingsService.getState().groupBy;
   ctx.subscriptions.push(
     settingsService.subscribe((s) => {
-      // Toggling "hide focused row" changes which rows render.
+      // Toggling "hide focused row" or "show agent status on workspace rows"
+      // changes which rows render.
       ctx.workspaces.invalidateStatus();
       // Toggling iconMode changes what silo.agents.tab-icon returns.
       ctx.terminals.invalidateTabAdornments();
@@ -305,7 +311,11 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
 
   injectStyles();
 
-  return { OptionsPanel: AgentsOptionsPanel };
+  return {
+    BehaviorPanel: AgentsBehaviorPanel,
+    NavigatorPanel: AgentsNavigatorPanel,
+    DisplayPanel: AgentsDisplayPanel,
+  };
 }
 
 function deactivate() {

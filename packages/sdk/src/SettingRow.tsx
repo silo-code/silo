@@ -22,16 +22,64 @@ import type { ReactNode } from "react";
  * </SettingRow>
  * ```
  *
+ * A row can also nest sub-settings that only make sense while its own
+ * setting is on, via `enabled`/`dependent`:
+ *
+ * ```tsx
+ * <SettingRow
+ *   label="Collapse older agents"
+ *   hint="Agents drop off into a collapsed section once older than the cutoff."
+ *   enabled={staleDoneEnabled}
+ *   dependent={
+ *     <CheckboxRow
+ *       label="Auto-expand on hover"
+ *       checked={autoExpand}
+ *       onChange={setAutoExpand}
+ *     />
+ *   }
+ * >
+ *   <Switch
+ *     checked={staleDoneEnabled}
+ *     onChange={setStaleDoneEnabled}
+ *     aria-label="Collapse older agents"
+ *   />
+ * </SettingRow>
+ * ```
+ *
+ * `dependent` renders inside a native `<fieldset>`, so when `enabled` is
+ * `false` every focusable descendant is disabled automatically and the whole
+ * block dims — no need to thread `disabled` into each child by hand. `enabled`
+ * is a plain boolean unrelated to whatever `children` renders (a `Switch`, a
+ * `Select`, or nothing at all) — nothing requires the row to have a toggle.
+ *
  * @category Consumer Services
  * @public
  */
 export function SettingRow({
   label,
   hint,
+  enabled,
+  dependent,
   children,
 }: {
   label: string;
   hint?: string;
+  /**
+   * Gates `dependent` — a plain boolean, unrelated to whatever control
+   * `children` renders. Omit (or leave `true`) to leave `dependent` always
+   * enabled.
+   */
+  enabled?: boolean;
+  /**
+   * Extra content rendered below the label+hint, in the same left column but
+   * its own row — sub-settings that only make sense while this row's own
+   * setting is on. Kept out of `children`'s vertical centering (it sits
+   * below, not inside, the label+hint block `children` centers against).
+   * Rendered inside a native `<fieldset>`: when `enabled` is `false`, every
+   * focusable descendant is disabled automatically and the whole block dims —
+   * no need to thread `disabled` into each child by hand.
+   */
+  dependent?: ReactNode;
   /** The control — `Switch`, `Select`, `Input`, etc. */
   children?: ReactNode;
 }) {
@@ -42,6 +90,14 @@ export function SettingRow({
         {hint != null && <div className="silo-setting-row-hint">{hint}</div>}
       </div>
       <div className="silo-setting-row-control">{children}</div>
+      {Boolean(dependent) && (
+        <fieldset
+          className="silo-setting-row-dependent"
+          disabled={enabled === false}
+        >
+          {dependent}
+        </fieldset>
+      )}
     </div>
   );
 }

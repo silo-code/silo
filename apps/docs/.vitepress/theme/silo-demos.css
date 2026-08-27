@@ -1159,16 +1159,16 @@ html.dark .silo-demo {
   color: var(--silo-color-text-lo);
 }
 .silo-demo .silo-setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 20px;
   padding: 10px 0;
 }
 .silo-demo .silo-setting-row + .silo-setting-row {
   border-top: 1px solid var(--silo-color-border-strong);
 }
 .silo-demo .silo-setting-row .text {
+  align-self: center;
   min-width: 0;
 }
 .silo-demo .silo-setting-row .row-label {
@@ -1182,7 +1182,18 @@ html.dark .silo-demo {
   max-width: 420px;
 }
 .silo-demo .silo-setting-row .control {
+  align-self: center;
   flex-shrink: 0;
+}
+.silo-demo .silo-setting-row .dependent {
+  grid-column: 1;
+  grid-row: 2;
+  margin: 8px 0 0;
+  padding: 0 0 8px 16px;
+  border-left: 1px solid
+    color-mix(in srgb, var(--silo-color-text-hi) 30%, var(--silo-color-bg));
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
 }
 .silo-demo .status-ok {
   display: inline-flex;

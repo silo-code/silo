@@ -104,6 +104,16 @@
 .am-hours-unit {
   color: var(--silo-color-text-lo);
 }
+.am-hours-label {
+  color: var(--silo-color-text-lo);
+}
+/* Auto-expand checkbox, below the cutoff-period control — both sit inside
+   SettingRow's `dependent` block (see its TSDoc), which already handles the
+   indent/rule/spacing off the hint; this only separates the two from each
+   other. */
+.am-checkbox-subrow {
+  margin-top: 8px;
+}
 
 /* Agent views in the Navigator — all classes prefixed ap-; tokens
    only. Root inherits the column font size from `.side-pane`, so no absolute
@@ -139,6 +149,9 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--silo-color-text-lo);
+}
+.ap-section-title-clickable {
+  cursor: pointer;
 }
 .ap-section-caret {
   flex-shrink: 0;
