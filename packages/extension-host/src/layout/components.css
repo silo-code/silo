@@ -933,6 +933,26 @@
   flex-shrink: 0;
 }
 
+/* Dependent sub-settings nested under a row's hint (SettingRow's internal
+   `dependent` prop — see its TSDoc). A native <fieldset> so `disabled`
+   auto-propagates to every focusable descendant with no per-child wiring;
+   reset to a plain block first since fieldsets carry their own UA border/
+   padding/min-width. `-border` (rather than the row divider's `-border-strong`)
+   was tried first for a subtler guide line, but verified invisible in at
+   least one theme where it's identical to `-bg` — `-border-strong` is the one
+   token guaranteed to read against the surface it sits on. */
+.silo-setting-row-dependent {
+  display: block;
+  min-width: 0;
+  margin: 8px 0 0;
+  padding: 0 0 0 12px;
+  border: 0;
+  border-left: 1px solid var(--silo-color-border-strong);
+}
+.silo-setting-row-dependent:disabled {
+  opacity: 0.5;
+}
+
 /* ── ModalActions — start slot ───────────────────────────────────────────
  * The .silo-modal-actions container itself already exists in theme.css
  * (flex-end row). This adds the optional left slot for meta text or a

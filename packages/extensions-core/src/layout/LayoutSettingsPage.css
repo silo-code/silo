@@ -1,0 +1,13 @@
+/* Threshold width, nested as Enable Laptop Mode's SettingRow `dependent`
+   content. Label/hint reuse the kit's own `.silo-setting-row-label`/`-hint`
+   classes directly (same pattern as AgentsHooksPanel's AgentSettingsRow) —
+   only the input+capture-button row needs layout of its own. */
+.ls-threshold-label {
+  margin-top: 8px;
+}
+.ls-threshold-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}

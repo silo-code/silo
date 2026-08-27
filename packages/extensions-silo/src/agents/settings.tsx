@@ -106,22 +106,14 @@ export function AgentsBehaviorPanel() {
         </div>
       </div>
       <Section label="Sound">
-        {/* Hand-rolled instead of <SettingRow> so the sound picker can sit
-            inside the same row's text column, directly under the hint, rather
-            than as its own row below. */}
-        <div className="silo-setting-row">
-          <div className="silo-setting-row-text">
-            <div className="silo-setting-row-label">
-              Play a sound when an agent stops working
-            </div>
-            <div className="silo-setting-row-hint">
-              Plays whenever an agent stops working, whether or not you're
-              watching its terminal.
-            </div>
-            <div className="am-sound-control am-sound-subrow">
+        <SettingRow
+          label="Play a sound when an agent stops working"
+          hint="Plays whenever an agent stops working, whether or not you're watching its terminal."
+          enabled={s.soundEnabled}
+          dependent={
+            <div className="am-sound-control">
               <Select
                 value={s.soundId}
-                disabled={!s.soundEnabled}
                 onChange={(e) =>
                   settingsService.set({ soundId: e.target.value as SoundName })
                 }
@@ -135,22 +127,20 @@ export function AgentsBehaviorPanel() {
               </Select>
               <IconButton
                 size="sm"
-                disabled={!s.soundEnabled}
                 onClick={() => previewSound(s.soundId)}
                 aria-label={`Preview ${soundLabel(s.soundId)} sound`}
               >
                 ▶
               </IconButton>
             </div>
-          </div>
-          <div className="silo-setting-row-control">
-            <Switch
-              checked={s.soundEnabled}
-              onChange={(soundEnabled) => settingsService.set({ soundEnabled })}
-              aria-label="Play a sound when an agent stops working"
-            />
-          </div>
-        </div>
+          }
+        >
+          <Switch
+            checked={s.soundEnabled}
+            onChange={(soundEnabled) => settingsService.set({ soundEnabled })}
+            aria-label="Play a sound when an agent stops working"
+          />
+        </SettingRow>
       </Section>
     </div>
   );
@@ -181,56 +171,50 @@ export function AgentsNavigatorPanel() {
         </SettingRow>
       </Section>
       <Section label="Agent views">
-        {/* Hand-rolled instead of <SettingRow> (whose `hint` is a plain string)
-            so the cutoff-period control can sit inside the same row's text
-            column, directly under the hint, rather than as its own row below. */}
-        <div className="silo-setting-row">
-          <div className="silo-setting-row-text">
-            <div className="silo-setting-row-label">Collapse older agents</div>
-            <div className="silo-setting-row-hint">
-              Agents drop off into a collapsed section once they are older than
-              the cutoff period.
-            </div>
-            <div className="am-hours-control am-hours-subrow">
-              <span className="am-hours-label">Cutoff period</span>
-              <Input
-                className="am-hours-input"
-                type="number"
-                min={MIN_STALE_DONE_HOURS}
-                step={1}
-                value={s.staleDoneHours}
-                disabled={!s.staleDoneEnabled}
-                onChange={(e) => {
-                  const hours = Math.trunc(Number(e.target.value));
-                  if (!Number.isFinite(hours) || hours < MIN_STALE_DONE_HOURS)
-                    return;
-                  settingsService.set({ staleDoneHours: hours });
-                }}
-                aria-label="Cutoff period in hours"
-              />
-              <span className="am-hours-unit">hours</span>
-            </div>
-            <div className="am-checkbox-subrow">
-              <CheckboxRow
-                label="Auto-expand on hover"
-                checked={s.staleHoverExpandEnabled}
-                disabled={!s.staleDoneEnabled}
-                onChange={(staleHoverExpandEnabled) =>
-                  settingsService.set({ staleHoverExpandEnabled })
-                }
-              />
-            </div>
-          </div>
-          <div className="silo-setting-row-control">
-            <Switch
-              checked={s.staleDoneEnabled}
-              onChange={(staleDoneEnabled) =>
-                settingsService.set({ staleDoneEnabled })
-              }
-              aria-label="Collapse older agents"
-            />
-          </div>
-        </div>
+        <SettingRow
+          label="Collapse older agents"
+          hint="Agents drop off into a collapsed section once they are older than the cutoff period."
+          enabled={s.staleDoneEnabled}
+          dependent={
+            <>
+              <div className="am-hours-control">
+                <span className="am-hours-label">Cutoff period</span>
+                <Input
+                  className="am-hours-input"
+                  type="number"
+                  min={MIN_STALE_DONE_HOURS}
+                  step={1}
+                  value={s.staleDoneHours}
+                  onChange={(e) => {
+                    const hours = Math.trunc(Number(e.target.value));
+                    if (!Number.isFinite(hours) || hours < MIN_STALE_DONE_HOURS)
+                      return;
+                    settingsService.set({ staleDoneHours: hours });
+                  }}
+                  aria-label="Cutoff period in hours"
+                />
+                <span className="am-hours-unit">hours</span>
+              </div>
+              <div className="am-checkbox-subrow">
+                <CheckboxRow
+                  label="Auto-expand on hover"
+                  checked={s.staleHoverExpandEnabled}
+                  onChange={(staleHoverExpandEnabled) =>
+                    settingsService.set({ staleHoverExpandEnabled })
+                  }
+                />
+              </div>
+            </>
+          }
+        >
+          <Switch
+            checked={s.staleDoneEnabled}
+            onChange={(staleDoneEnabled) =>
+              settingsService.set({ staleDoneEnabled })
+            }
+            aria-label="Collapse older agents"
+          />
+        </SettingRow>
       </Section>
     </div>
   );
