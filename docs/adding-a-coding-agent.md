@@ -25,15 +25,18 @@ An agent with **no** catalog entry gets none of this. It still runs fine in a
 Silo terminal — it just looks like any other program, which is exactly the
 symptom that starts this task ("agent X doesn't show up in my list of agents").
 
-## The one file that must change
+## The one file that must change — plus a new sibling module
 
-`packages/extension-host/src/extension-host/agent-catalog.ts` is the single
-source of truth today. Every subsystem derives its view from `AGENT_CATALOG`:
-
-> **Layout evolving (ADR 0042):** agents with non-trivial runtime quirks (pi is
-> the first) will move to host-internal `agents/<id>.ts` modules with
-> declarative `runtime` policy. Until that migration lands, this file remains
-> the entry point — the recipe below still applies.
+`packages/extension-host/src/extension-host/agents/agent-catalog.ts` (every
+agent-related host file lives under that `agents/` folder — detection,
+resume, hooks, the live agent-activity service, all of it) is still the
+single source of truth: every subsystem derives its view from
+`AGENT_CATALOG`, and this is the file with that array plus the shared types,
+hook constants, and derived-view functions listed below. As of ADR 0042 phase
+7, though, each agent's actual `AgentDefinition` data lives in its own
+`agents/catalog/<id>.ts` module, not inline in this file — so "write the
+catalog entry" (Step 2) means adding a new file under `agents/catalog/`, not
+a new `const` in `agent-catalog.ts`.
 
 - detection dispatch → `detectFromOsc` / `detectIdleAfterWorking` / `detectFromOutput`
 - resume-hint gating → `agentByLeader`
@@ -90,26 +93,55 @@ none of this is reliably documented upstream.
 
 ## Step 2 — Write the catalog entry
 
+Create `agents/catalog/example.ts`. If the agent's resume is `kind: "hook"`
+and needs Silo's shared marker/command-builder (most agents do — see
+`agents/catalog/claude.ts` for the pattern), export a `deps`-taking factory
+instead of a plain object, the same shape every hook-resuming agent uses, so
+`agent-catalog.ts` stays the SSOT for those constants with no import cycle:
+
 ```ts
-const example: AgentDefinition = {
-  id: "example", // stable; also the hook event's `agent` tag
-  displayName: "Example CLI",
-  leaderNames: ["example"], // argv0 basenames, unambiguous ones only
-  activityDetectors: [
-    /* … */
-  ], // OSC detectors, tried in order
-  outputDetector: undefined, // raw-PTY fallback (Cursor-style)
-  idleAfterWorking: undefined, // contextual OSC fallback (Codex-style)
-  resume: { kind: "none" }, // or "hook" / "session-file" — see Step 4
-  docsUrl: "https://getsilo.dev/guide/agent-sessions#example-cli",
-  contract: "…", // see Step 6
-  upstreamRefs: ["…"],
-  lastVerified: "YYYY-MM-DD",
-  verifiedAgainstVersion: "example@1.2.3",
-};
+import type { AgentDefinition, HookAgentDeps } from "../agent-catalog";
+
+export function buildExampleAgentDefinition(
+  deps: HookAgentDeps,
+): AgentDefinition {
+  const { marker, buildHookCommand } = deps;
+  return {
+    id: "example", // stable; also the hook event's `agent` tag
+    displayName: "Example CLI",
+    leaderNames: ["example"], // argv0 basenames, unambiguous ones only
+    activityDetectors: [
+      /* … */
+    ], // OSC detectors, tried in order
+    outputDetector: undefined, // raw-PTY fallback (Cursor-style)
+    idleAfterWorking: undefined, // contextual OSC fallback (Codex-style)
+    resume: {
+      kind: "hook", // or "session-file" / "none" — see Step 4
+      installStrategy: "claude-settings", // or another HookInstallStrategy
+      configPath: ".example/settings.json",
+      hookEvent: "SessionStart",
+      marker,
+      buildCommand: () => buildHookCommand("example"),
+      buildResumeCommand: (sessionId) => `example --resume ${sessionId}`,
+    },
+    docsUrl: "https://getsilo.dev/guide/agent-sessions#example-cli",
+    contract: "…", // see Step 6
+    upstreamRefs: ["…"],
+    lastVerified: "YYYY-MM-DD",
+    verifiedAgainstVersion: "example@1.2.3",
+  };
+}
 ```
 
-Append it to `AGENT_CATALOG` (order is detection-dispatch order).
+If the agent's resume is `kind: "session-file"` or `"none"` (no shared hook
+constants needed — see `agents/catalog/grok.ts` /
+`agents/catalog/opencode.ts`), skip the factory and export a plain
+`const example: AgentDefinition = { … }` instead.
+
+Either way, import it into `agent-catalog.ts`, call the factory (if any) with
+`{ marker: SILO_HOOK_MARKER, buildHookCommand }`, and append the result to
+`AGENT_CATALOG` (order is detection-dispatch order) — mirror the existing
+entries there for the exact wiring.
 
 ## Step 3 — Activity detection
 
@@ -252,7 +284,8 @@ The catalog can't reach these; grep for an existing agent's name to find them al
 ## Checklist
 
 - [ ] Agent installed locally; recon answered against the running binary
-- [ ] `agent-catalog.ts` entry appended, with provenance filled in
+- [ ] `agents/catalog/<id>.ts` module written and wired into `AGENT_CATALOG`,
+      with provenance filled in
 - [ ] Detectors added or reused; idle path (explicit signal or timer) proven
 - [ ] Resume strategy chosen; installer reused or added
 - [ ] Unit tests: catalog integrity, detector goldens, resume command

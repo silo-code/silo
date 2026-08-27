@@ -14,7 +14,7 @@ const { subscribeOsc, subscribeOutput, getActive } = vi.hoisted(() => ({
   subscribeOutput: vi.fn(),
   getActive: vi.fn(() => null as string | null),
 }));
-vi.mock("./terminal-service", () => ({
+vi.mock("../terminal-service", () => ({
   getTerminalService: () => ({ subscribeOsc, subscribeOutput, getActive }),
 }));
 
@@ -23,12 +23,12 @@ vi.mock("./terminal-service", () => ({
 const { onTerminalForeground } = vi.hoisted(() => ({
   onTerminalForeground: vi.fn(),
 }));
-vi.mock("./terminal-foreground", () => ({ onTerminalForeground }));
+vi.mock("../terminal-foreground", () => ({ onTerminalForeground }));
 
 const { homeDir } = vi.hoisted(() => ({
   homeDir: vi.fn(() => Promise.resolve("/Users/test")),
 }));
-vi.mock("./platform", () => ({ homeDir }));
+vi.mock("../platform", () => ({ homeDir }));
 
 // Skip the hook-events file consume entirely — irrelevant to activity-state
 // tests and would otherwise do a real file read / start a watch.
@@ -65,7 +65,7 @@ const { startWatch, stopWatch, onFileChange, fileChangeListeners } = vi.hoisted(
     };
   },
 );
-vi.mock("../services/tauri-watch", () => ({
+vi.mock("../../services/tauri-watch", () => ({
   startWatch,
   stopWatch,
   onFileChange,
@@ -81,8 +81,8 @@ function emitSessionFileChange() {
     });
   }
 }
-import { store } from "../state/store";
-import type { WorkspaceInternal } from "../state/types";
+import { store } from "../../state/store";
+import type { WorkspaceInternal } from "../../state/types";
 import { getAgentsService, notifyTerminalSessionGone } from "./agents-service";
 import { AGENT_IDLE_DEBOUNCE_MS } from "./agent-detection-dispatch";
 import { readNewHookEvents } from "./agent-hook-events";

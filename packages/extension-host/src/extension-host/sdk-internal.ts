@@ -392,7 +392,7 @@ export {
 export {
   notifyTerminalSessionGone,
   notifyTerminalSessionRecreated,
-} from "./agents-service";
+} from "./agents/agents-service";
 
 // The agent catalog (RFC 0018) — the single source of truth for every agent
 // Silo supports. Detection/resume-hint resolution consume it host-side; the
@@ -408,19 +408,19 @@ export {
   TRACK_SCRIPT_REL,
   AGENT_HOOKS_DIR_REL,
   stripAgentTitleIdentityPrefix,
-} from "./agent-catalog";
+} from "./agents/agent-catalog";
 export type {
   AgentDefinition,
   AgentHookResume,
   AgentExtraSettingsToggle,
   HookInstallStrategy,
-} from "./agent-catalog";
+} from "./agents/agent-catalog";
 
 // Presentation-side counterpart to detection: strip the status markers agents
 // encode into their OSC 0 title, so `core.terminal` can show a clean tab title
 // (gated by the `hideAgentStatusGlyphs` setting). Detection itself reads the raw
 // OSC stream, so stripping here can't affect it.
-export { stripAgentStatusMarkers } from "./agent-osc-detectors";
+export { stripAgentStatusMarkers } from "./agents/agent-osc-detectors";
 
 // Tooltip — re-exported here so core.* extensions can still import it from the
 // internal barrel. The component itself is now public (@silo-code/sdk); the

@@ -4,7 +4,7 @@
  * {@link HookRuntimeDeps}.
  */
 import { invoke } from "@tauri-apps/api/core";
-import { systemInfo } from "../services/tauri-system";
+import { systemInfo } from "../../services/tauri-system";
 import { agentsChannel } from "./agents-channel";
 import {
   readNewHookEvents,
@@ -20,7 +20,11 @@ import {
   type HookEvent,
   type PendingHookEvent,
 } from "./agent-hook-events";
-import { startWatch, stopWatch, onFileChange } from "../services/tauri-watch";
+import {
+  startWatch,
+  stopWatch,
+  onFileChange,
+} from "../../services/tauri-watch";
 
 const AGENT_HOOKS_WATCH_ID = "silo-agent-hooks";
 const HOOK_CATCHUP_DELAYS_MS = [0, 500, 2_000] as const;

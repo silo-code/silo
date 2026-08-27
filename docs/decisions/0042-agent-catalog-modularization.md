@@ -121,6 +121,47 @@ policy declaration** change.
    > consumer (`agent-catalog.ts`) imports `agents/pi.ts` directly — exactly
    > as phase 3's own commit anticipated.
 
+   > **Implementation note (2026-08-26, phase 7 — trigger widened):** phase 7
+   > was originally gated on "only when a module earns it" (decision 2: split
+   > by concern, not by symmetry — a thin, all-data agent doesn't earn a
+   > file). That gate was about _not inventing per-file boilerplate for
+   > boilerplate's sake_ — a factory function or module docstring for an
+   > object with no quirks is premature abstraction. It was never a rule
+   > against plain file-count. By the time OpenCode's entry landed (the
+   > seventh), `agent-catalog.ts` had grown to 986 lines of interleaved
+   > types, six-to-seven agent objects, and derived-view functions, which is
+   > a distinct, legitimate complaint from "boilerplate": pure navigability.
+   > Executed phase 7 on that basis — `claude`/`codex`/`cursor`/`copilot`
+   > moved to `agents/catalog/<id>.ts` as `build<Id>AgentDefinition(deps)`
+   > factories (deps: `{ marker, buildHookCommand }`, the same shape pi
+   > established, now named `HookAgentDeps` and shared since all four need
+   > exactly it); `grok`/`opencode` moved as plain exported objects (no
+   > shared hook constants needed — `session-file`/`none` resume). No
+   > factory boilerplate was invented for these beyond what moving the
+   > object required — same tests, same runtime behavior, `agent-catalog.ts`
+   > down to ~670 lines. `docs/adding-a-coding-agent.md` (originally phase
+   > 9's job) updated in the same change to describe the new default: Step 2
+   > now writes a new `agents/catalog/<id>.ts` module, not an inline `const`.
+   >
+   > Landed together with an unrelated but compounding reorganization: every
+   > `agent-*`/`agents-*` file that used to sit directly under
+   > `extension-host/` (`agent-catalog.ts`, `agent-osc-detectors.ts`,
+   > `agents-service.ts`, the hook/resume/activity machinery, …) moved into
+   > a new `extension-host/agents/` folder — `extension-host/` itself had
+   > grown to ~187 entries and was raised independently as "too many files."
+   > The pre-existing per-agent-definition folder (`agents/pi.ts` and, as of
+   > this same change, its five new siblings) was renamed to `agents/catalog/`
+   > first, freeing the `agents` name for the new grouping folder — the two
+   > reorganizations share one root cause (this subsystem outgrowing a flat
+   > layout) but are otherwise independent; this note records both since they
+   > landed in the same commit. Filenames were **not** shortened to drop
+   > their now-redundant `agent-`/`agents-` prefix (e.g. `agents/agent-catalog.ts`
+   > rather than `agents/catalog.ts` — which would also have collided with
+   > the `agents/catalog/` folder) — that would touch every doc/ADR/RFC that
+   > names these files by their current basename, a much larger blast radius
+   > than a directory move that TypeScript resolves transparently. Left as a
+   > candidate for a future, separately-reviewed change if wanted.
+
 6. **Budget policy-layer work before the next pi-shaped agent.** If recon finds
    node-wrapped argv0, fake shell OSC, in-process hooks, or settings-gated
    activity, plan `runtime` / `extraSettingsToggle` fields in the same change
@@ -158,5 +199,5 @@ policy declaration** change.
 - ADR 0041 (pi install strategy — unchanged)
 - RFC 0018 · RFC 0019
 - `docs/adding-a-coding-agent.md`
-- `packages/extension-host/src/extension-host/agent-catalog.ts`
-- `packages/extension-host/src/extension-host/agents-service.ts`
+- `packages/extension-host/src/extension-host/agents/agent-catalog.ts`
+- `packages/extension-host/src/extension-host/agents/agents-service.ts`

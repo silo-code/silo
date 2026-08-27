@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { agentsChannel } from "./agents-channel";
 import { AGENT_HOOKS_DIR_REL } from "./agent-catalog";
-import { homeDir } from "./platform";
+import { homeDir } from "../platform";
 
 /**
  * Reads the events file Silo's opt-in `SessionStart` hook writes to (see

@@ -1,9 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { subscribe } from "valtio";
-import { store } from "../state/store";
-import { getTerminalService } from "./terminal-service";
-import { onTerminalForeground } from "./terminal-foreground";
-import type { TerminalForeground } from "./terminal-foreground";
+import { store } from "../../state/store";
+import { getTerminalService } from "../terminal-service";
+import { onTerminalForeground } from "../terminal-foreground";
+import type { TerminalForeground } from "../terminal-foreground";
 import {
   genericHint,
   catalogResumeHint,
@@ -43,7 +43,7 @@ import {
   type AgentActivityEvent,
 } from "./agent-activity-model";
 import type { AgentInfo, AgentsService } from "@silo-code/sdk";
-import type { PersistedAgentInfo } from "../state/types";
+import type { PersistedAgentInfo } from "../../state/types";
 
 // `ctx.agents` — the host implementation. Public contract in
 // @silo-code/sdk (agents-service.ts). See RFC 0018. Detection and
