@@ -1,15 +1,16 @@
 /**
- * The persisted drag order for the "Recent" view's flat section — a plain
- * list of terminal ids in the order the user last left them via drag. Empty
- * by default, which reduces `orderAgeRows` to its unmodified
- * most-recent-first sort, so nobody who's never dragged a row sees any
- * change in behavior.
+ * The persisted row order for the "Recent" view's flat section — a plain
+ * list of terminal ids. Updated when the user drag-reorders, and when the
+ * panel reconciles newcomers (prepended at the top) or closed/stale rows
+ * (dropped). Empty until the first reconcile or drag; display applies the
+ * same rule via `orderAgeRows` / `reconcileAgeManualOrder` in
+ * `agents-panel-view.ts`.
  *
  * A `ReactiveService` like `./settings-store`, rather than folded into that
  * store directly: it's read the same way (`useServiceState` in
- * `agents-panel.tsx`) but changes for a different reason — a user drag, not a
- * settings-page edit — and keeping it separate means a settings change never
- * has to reason about drag state or vice versa.
+ * `agents-panel.tsx`) but changes for a different reason — a user drag or
+ * reconcile, not a settings-page edit — and keeping it separate means a
+ * settings change never has to reason about drag state or vice versa.
  */
 
 import type { ExtensionStorage, ReactiveService } from "@silo-code/sdk";

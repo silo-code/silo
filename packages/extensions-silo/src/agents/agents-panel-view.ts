@@ -176,9 +176,8 @@ export function isAtLeastHoursOld(isoDate: string, hours: number): boolean {
  * Ordering is driven purely by the fixed ISO `since` string, never by an
  * elapsed duration computed against `Date.now()` — so a row's position never
  * shifts on its own as time passes between renders, only the elapsed label
- * next to it does. Exported so the "Recent" grouping (`buildAgeSections` in
- * `agents-panel.tsx`) can sort its flat, cross-section list with the same
- * jitter-free rule instead of drifting from this one.
+ * next to it does. Used by the status and workspace views; the "Recent" view
+ * does not auto-sort (see {@link orderAgeRows} / {@link reconcileAgeManualOrder}).
  */
 export function compareRows(x: AgentRow, y: AgentRow): number {
   if (x.since && y.since) return y.since.localeCompare(x.since);
@@ -270,33 +269,49 @@ export function moveItem<T>(
 }
 
 /**
- * Final row order for the "Recent" view's flat, non-stale section. A row the
- * user has never dragged sorts by {@link compareRows} (most recent first)
- * and floats above every dragged row — a freshly-started or freshly-finished
- * agent should read as "new" without the user having to go drag it there
- * themselves. A row present in `manualOrder` (the id sequence a previous drag
- * left behind, persisted by `./manual-order`) instead keeps that exact
- * relative order, below the undragged rows.
+ * Merge newly-visible terminal ids into the "Recent" view's persisted order.
+ * Ids in `visibleIds` that aren't yet in `manualOrder` are prepended (newest
+ * at the top, in the order they appear in `visibleIds`); known ids keep their
+ * relative order; ids that dropped out of the flat section are removed.
  *
- * Nothing here prunes `manualOrder` — an id that's dropped out of `rows`
- * entirely (terminal closed, or the row aged into the stale section) simply
- * has no matching row to place, so it's silently inert. `agents-panel.tsx`
- * is the one persisting a trimmed `manualOrder` back once that happens, so
- * storage doesn't accumulate ids forever.
+ * Pure — callers (the panel's reconcile effect) decide when to persist.
+ */
+export function reconcileAgeManualOrder(
+  manualOrder: readonly string[],
+  visibleIds: readonly string[],
+): string[] {
+  const known = new Set(manualOrder);
+  const visible = new Set(visibleIds);
+  const newcomers = visibleIds.filter((id) => !known.has(id));
+  const kept = manualOrder.filter((id) => visible.has(id));
+  return [...newcomers, ...kept];
+}
+
+/**
+ * Final row order for the "Recent" view's flat, non-stale section. Order is
+ * purely the persisted `manualOrder` (drag), with any id not yet in that list
+ * prepended at the top — never sorted by {@link compareRows} / duration. A
+ * state change (ready → working → done) must not reshuffle the list; only a
+ * drag or a newly-appeared agent does.
+ *
+ * `agents-panel.tsx` persists the same rule via {@link reconcileAgeManualOrder}
+ * so newcomers stick at the top across reloads and closed/stale ids don't
+ * accumulate in storage. An id in `manualOrder` with no matching row is
+ * silently skipped here (inert until that reconcile trims it).
  */
 export function orderAgeRows(
   rows: readonly AgentRow[],
   manualOrder: readonly string[],
 ): AgentRow[] {
-  const manualIndex = new Map(manualOrder.map((id, i) => [id, i]));
-  const undragged: AgentRow[] = [];
-  const dragged: AgentRow[] = [];
-  for (const row of rows) {
-    (manualIndex.has(row.terminalId) ? dragged : undragged).push(row);
-  }
-  undragged.sort(compareRows);
-  dragged.sort(
-    (a, b) => manualIndex.get(a.terminalId)! - manualIndex.get(b.terminalId)!,
+  const byId = new Map(rows.map((row) => [row.terminalId, row]));
+  const orderedIds = reconcileAgeManualOrder(
+    manualOrder,
+    rows.map((row) => row.terminalId),
   );
-  return [...undragged, ...dragged];
+  const ordered: AgentRow[] = [];
+  for (const id of orderedIds) {
+    const row = byId.get(id);
+    if (row) ordered.push(row);
+  }
+  return ordered;
 }

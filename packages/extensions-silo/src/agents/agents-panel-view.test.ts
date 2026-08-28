@@ -8,6 +8,7 @@ import {
   isAtLeastHoursOld,
   moveItem,
   orderAgeRows,
+  reconcileAgeManualOrder,
   updateDoneSince,
   type AgentRow,
 } from "./agents-panel-view";
@@ -539,32 +540,65 @@ describe("moveItem", () => {
   });
 });
 
+describe("reconcileAgeManualOrder", () => {
+  it("prepends newcomers and keeps known relative order", () => {
+    expect(reconcileAgeManualOrder(["b", "a"], ["c", "a", "b"])).toEqual([
+      "c",
+      "b",
+      "a",
+    ]);
+  });
+
+  it("drops ids that left the visible set", () => {
+    expect(reconcileAgeManualOrder(["gone", "a", "b"], ["b", "a"])).toEqual([
+      "a",
+      "b",
+    ]);
+  });
+
+  it("seeds an empty order from the visible id list as-is", () => {
+    expect(reconcileAgeManualOrder([], ["a", "b", "c"])).toEqual([
+      "a",
+      "b",
+      "c",
+    ]);
+  });
+
+  it("preserves multiple newcomers in the order they appear", () => {
+    expect(reconcileAgeManualOrder(["z"], ["n1", "n2", "z"])).toEqual([
+      "n1",
+      "n2",
+      "z",
+    ]);
+  });
+});
+
 describe("orderAgeRows", () => {
-  it("with an empty manualOrder, sorts every row by since (most recent first)", () => {
+  it("with an empty manualOrder, keeps row encounter order (no since-sort)", () => {
     const rows = [
       row({ terminalId: "oldest", since: hoursAgo(3) }),
       row({ terminalId: "newest", since: hoursAgo(1) }),
       row({ terminalId: "middle", since: hoursAgo(2) }),
     ];
     expect(orderAgeRows(rows, []).map((r) => r.terminalId)).toEqual([
+      "oldest",
       "newest",
       "middle",
-      "oldest",
     ]);
   });
 
-  it("puts every undragged row above every dragged row", () => {
+  it("prepends every unknown id above the manualOrder sequence", () => {
     const rows = [
-      row({ terminalId: "dragged-1", since: hoursAgo(1) }),
-      row({ terminalId: "undragged", since: hoursAgo(9) }),
-      row({ terminalId: "dragged-2", since: hoursAgo(2) }),
+      row({ terminalId: "known-1", since: hoursAgo(1) }),
+      row({ terminalId: "new", since: hoursAgo(9) }),
+      row({ terminalId: "known-2", since: hoursAgo(2) }),
     ];
     expect(
-      orderAgeRows(rows, ["dragged-1", "dragged-2"]).map((r) => r.terminalId),
-    ).toEqual(["undragged", "dragged-1", "dragged-2"]);
+      orderAgeRows(rows, ["known-1", "known-2"]).map((r) => r.terminalId),
+    ).toEqual(["new", "known-1", "known-2"]);
   });
 
-  it("orders dragged rows by their position in manualOrder, not by since", () => {
+  it("orders known rows by their position in manualOrder, not by since", () => {
     const rows = [
       row({ terminalId: "a", since: hoursAgo(1) }),
       row({ terminalId: "b", since: hoursAgo(9) }),
@@ -573,6 +607,17 @@ describe("orderAgeRows", () => {
     expect(orderAgeRows(rows, ["b", "a"]).map((r) => r.terminalId)).toEqual([
       "b",
       "a",
+    ]);
+  });
+
+  it("does not reshuffle when a known row's since becomes more recent", () => {
+    const rows = [
+      row({ terminalId: "a", since: hoursAgo(9) }),
+      row({ terminalId: "b", since: hoursAgo(1) }),
+    ];
+    expect(orderAgeRows(rows, ["a", "b"]).map((r) => r.terminalId)).toEqual([
+      "a",
+      "b",
     ]);
   });
 
