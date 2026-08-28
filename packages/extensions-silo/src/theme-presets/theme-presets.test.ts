@@ -29,13 +29,18 @@ describe("theme-presets extension", () => {
         "high-contrast-dark",
         "high-contrast-light",
         "solarized-dark",
+        "white",
       ]),
     );
   });
 
-  it("registers presets in alphabetical order by name", () => {
+  it("registers White first, Gruvbox last, and the middle alphabetically", () => {
     const names = activateAndCollect().map((p) => p.name);
-    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+    expect(names[0]).toBe("White");
+    expect(names.at(-1)).toBe("Gruvbox Dark");
+    expect(names.slice(1, -1)).toEqual(
+      [...names.slice(1, -1)].sort((a, b) => a.localeCompare(b)),
+    );
   });
 
   it("keeps High Contrast Dark on the dark base with brighter text and selection fills", () => {
@@ -80,6 +85,24 @@ describe("theme-presets extension", () => {
     expect(solarizedDark!.base).toBe("dark");
     expect(solarizedDark!.colorScheme).toBe("dark");
     expect(solarizedDark!.vars["--silo-color-bg"]).toBe("#002b36");
+  });
+
+  it("keeps White on the light base with a true-white chrome and darker text", () => {
+    const white = activateAndCollect().find((p) => p.id === "white");
+    expect(white).toBeDefined();
+    expect(white!.base).toBe("light");
+    expect(white!.colorScheme).toBe("light");
+    expect(white!.vars["--silo-color-bg"]).toBe("#ffffff");
+    expect(white!.vars["--silo-color-bg-hover"]).toBe("#f3f3f3");
+    expect(white!.vars["--silo-color-bg-active"]).toBe("#ebebeb");
+    expect(white!.vars["--silo-color-input-bg"]).toBe("#f5f5f5");
+    expect(white!.vars["--silo-content-tab-tray-bg"]).toBe("#f5f5f5");
+    expect(white!.vars["--silo-statusbar-bg"]).toBe("#f0f0f0");
+    expect(white!.vars["--silo-color-text-hi"]).toBe("#333333");
+    expect(white!.vars["--silo-color-text"]).toBe("#555555");
+    expect(white!.vars["--silo-color-content-text"]).toBe("#1f1f1f");
+    // Accent stays on Light's blue — White only recolors surfaces + type.
+    expect(white!.vars["--silo-color-accent"]).toBeUndefined();
   });
 
   it("gives Gruvbox Dark its own warm notify (toast) palette", () => {

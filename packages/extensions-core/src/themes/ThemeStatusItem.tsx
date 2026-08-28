@@ -68,7 +68,7 @@ export function ThemeStatusItem({
   const activeName = activePreset?.name ?? activeCustom?.name ?? activeId;
 
   function openPicker() {
-    const items: MenuEntry[] = [{ type: "header", label: "Built-in" }];
+    const items: MenuEntry[] = [];
     for (const preset of presets) {
       items.push({
         label: preset.name,
