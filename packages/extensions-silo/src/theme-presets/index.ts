@@ -5,48 +5,58 @@ import type { Extension, ThemePreset } from "@silo-code/sdk";
 // is a regular contribution — the same path a third-party extension would use.
 // These move out of core so the picker's bundled themes are independently
 // removable and so theming is a real contribution point, not a core list.
-// Listed alphabetically by name; keep new entries in that order.
+//
+// Order: White first (sits under Light in the picker — CORE_PRESETS are Dark,
+// Light, then this list); Gruvbox Dark last (under Tokyo Night). Everything
+// between is alphabetical by name.
 const PRESETS: ThemePreset[] = [
   {
-    id: "gruvbox-dark",
-    name: "Gruvbox Dark",
-    base: "dark",
-    colorScheme: "dark",
+    id: "white",
+    name: "White",
+    base: "light",
+    colorScheme: "light",
+    // Light's chrome is a mid gray (#e5e5e5) with white content panes. White
+    // flips the chrome to true white and uses soft gray only where a surface
+    // needs to recess (inputs, tab tray, status bar, hover) so seams still
+    // read without the gray frame. Text is darker than Light so labels and
+    // content clear the white page without going full High Contrast Light.
     vars: {
-      "--silo-color-bg": "#1d2021",
-      "--silo-color-bg-hover": "#3c3836",
-      "--silo-color-bg-active": "#665c5466",
-      "--silo-color-button-bg": "#504945",
-      "--silo-color-button-text": "#a89984",
-      "--silo-color-text-hi": "#a89984",
-      "--silo-color-text": "#928374",
-      "--silo-color-text-lo": "#5f564d",
-      "--silo-color-input-bg": "#282828",
-      "--silo-color-input-border": "#453f3b",
-      "--silo-color-input-text": "#ebdbb2",
-      "--silo-color-border": "transparent",
-      "--silo-color-border-strong": "#7c6f64",
-      "--silo-color-accent": "#83a598",
-      "--silo-color-accent-2": "#d3869b",
-      "--silo-content-text": "#ebdbb2",
-      "--silo-content-editor-text-dim": "#d5c4a1",
-      "--silo-content-editor-text-faint": "#a89984",
-      "--silo-color-ok": "#b8bb26",
-      "--silo-color-warn": "#fabd2f",
-      "--silo-color-err": "#fb4934",
-      "--silo-content-tab-tray-bg": "#1d2021",
-      "--silo-content-tab-tray-text": "#a89984",
-      "--silo-content-tab-text-inactive": "#7c6f64",
-      "--silo-content-tab-text": "#a89984",
-      "--silo-content-tab-text-active": "#ebdbb2",
-      "--silo-statusbar-bg": "#1a1c1d",
-      "--silo-statusbar-text": "#a89984",
-      // Notify (toast) — a warm brown card from the theme's own family, lighter
-      // than the app bg so it lifts, darker than the buttons (#504945) so they
-      // read; cream text to match.
-      "--silo-notify-bg": "#3a3634",
-      "--silo-notify-text": "#d5c4a1",
-      "--silo-notify-text-hi": "#ebdbb2",
+      "--silo-color-bg": "#ffffff",
+      "--silo-color-bg-hover": "#f3f3f3",
+      // Soft gray instead of Light's blue (#cce4ff) — selection should read
+      // without a tinted block on the white page.
+      "--silo-color-bg-active": "#ebebeb",
+      "--silo-color-button-bg": "#f0f0f0",
+      "--silo-color-button-text": "#333333",
+      "--silo-color-text-hi": "#333333",
+      "--silo-color-text": "#555555",
+      "--silo-color-text-lo": "#888888",
+      "--silo-color-input-bg": "#f5f5f5",
+      // Same as the fill — Light hides the ring by matching the panel; here the
+      // recessed fill already draws the field, so a visible edge is just noise.
+      "--silo-color-input-border": "#f5f5f5",
+      "--silo-color-input-text": "#1f1f1f",
+      "--silo-color-border": "#ececec",
+      "--silo-color-border-strong": "#d0d0d0",
+      "--silo-color-toolbar-text": "#1f1f1f",
+      "--silo-color-toolbar-text-disabled": "#6b6b6b",
+      "--silo-color-toolbar-input-bg": "#f5f5f5",
+      "--silo-color-content-text": "#1f1f1f",
+      "--silo-content-text": "#1f1f1f",
+      "--silo-content-editor-text-dim": "#4a4a4a",
+      "--silo-content-editor-text-faint": "#757575",
+      "--silo-content-tab-tray-bg": "#f5f5f5",
+      "--silo-content-tab-tray-text": "#555555",
+      "--silo-content-tab-text-inactive": "#6b6b6b",
+      "--silo-content-tab-text": "#333333",
+      "--silo-content-tab-text-active": "#1a1a1a",
+      "--silo-statusbar-bg": "#f0f0f0",
+      "--silo-statusbar-text": "#333333",
+      "--silo-tab-text-active": "#1a1a1a",
+      "--silo-tab-text": "#333333",
+      "--silo-tab-bg-hover": "#f3f3f3",
+      "--silo-notify-text": "#333333",
+      "--silo-notify-text-hi": "#1a1a1a",
     },
   },
   {
@@ -243,6 +253,48 @@ const PRESETS: ThemePreset[] = [
       "--silo-tab-text": "#787c99",
       "--silo-tab-bg-hover": "#1f2335",
       "--silo-tab-border-active": "#3d4461",
+    },
+  },
+  {
+    id: "gruvbox-dark",
+    name: "Gruvbox Dark",
+    base: "dark",
+    colorScheme: "dark",
+    vars: {
+      "--silo-color-bg": "#1d2021",
+      "--silo-color-bg-hover": "#3c3836",
+      "--silo-color-bg-active": "#665c5466",
+      "--silo-color-button-bg": "#504945",
+      "--silo-color-button-text": "#a89984",
+      "--silo-color-text-hi": "#a89984",
+      "--silo-color-text": "#928374",
+      "--silo-color-text-lo": "#5f564d",
+      "--silo-color-input-bg": "#282828",
+      "--silo-color-input-border": "#453f3b",
+      "--silo-color-input-text": "#ebdbb2",
+      "--silo-color-border": "transparent",
+      "--silo-color-border-strong": "#7c6f64",
+      "--silo-color-accent": "#83a598",
+      "--silo-color-accent-2": "#d3869b",
+      "--silo-content-text": "#ebdbb2",
+      "--silo-content-editor-text-dim": "#d5c4a1",
+      "--silo-content-editor-text-faint": "#a89984",
+      "--silo-color-ok": "#b8bb26",
+      "--silo-color-warn": "#fabd2f",
+      "--silo-color-err": "#fb4934",
+      "--silo-content-tab-tray-bg": "#1d2021",
+      "--silo-content-tab-tray-text": "#a89984",
+      "--silo-content-tab-text-inactive": "#7c6f64",
+      "--silo-content-tab-text": "#a89984",
+      "--silo-content-tab-text-active": "#ebdbb2",
+      "--silo-statusbar-bg": "#1a1c1d",
+      "--silo-statusbar-text": "#a89984",
+      // Notify (toast) — a warm brown card from the theme's own family, lighter
+      // than the app bg so it lifts, darker than the buttons (#504945) so they
+      // read; cream text to match.
+      "--silo-notify-bg": "#3a3634",
+      "--silo-notify-text": "#d5c4a1",
+      "--silo-notify-text-hi": "#ebdbb2",
     },
   },
 ];

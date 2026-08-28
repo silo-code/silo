@@ -4,8 +4,8 @@
    Renders the design-system components inline in the docs pages, styled with
    the same token values the app ships. Light is the default (unprefixed)
    block; every other bundled preset — Dark, Gruvbox Dark, High Contrast
-   Dark/Light, Solarized Dark/Light, Tokyo Night — is a `[data-silo-demo-theme
-   ="<id>"]` override block below, mirroring
+   Dark/Light, Solarized Dark/Light, Tokyo Night, White — is a
+   `[data-silo-demo-theme="<id>"]` override block below, mirroring
    packages/extension-host/src/layout/presets.ts +
    packages/extensions-silo/src/theme-presets/index.ts. Everything is scoped
    under `.silo-demo` so nothing leaks into VitePress chrome.
@@ -278,6 +278,23 @@ html[data-silo-demo-theme="tokyo-night"] .silo-demo {
   --silo-button-bg: var(--silo-color-button-bg);
   --silo-button-hover-bg: color-mix(in srgb, var(--silo-button-bg) 85%, #000);
   --silo-button-active-bg: color-mix(in srgb, var(--silo-button-bg) 75%, #000);
+}
+
+html[data-silo-demo-theme="white"] .silo-demo {
+  /* tokens — White (true-white chrome, darker text than Light) */
+  --silo-color-bg: #ffffff;
+  --silo-color-bg-hover: #f3f3f3;
+  --silo-color-bg-active: #ebebeb;
+  --silo-color-button-bg: #f0f0f0;
+  --silo-color-button-text: #333333;
+  --silo-color-text-hi: #333333;
+  --silo-color-text: #555555;
+  --silo-color-text-lo: #888888;
+  --silo-color-input-bg: #f5f5f5;
+  --silo-color-input-text: #1f1f1f;
+  --silo-color-input-border: #f5f5f5;
+  --silo-color-border: #ececec;
+  --silo-color-border-strong: #d0d0d0;
 }
 
 .silo-demo.silo-demo-block {

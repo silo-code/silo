@@ -94,8 +94,8 @@ const STORAGE_KEY = "silo-demo-theme";
 
 const THEMES = [
   { id: "light", name: "Light", accent: "#0078d4" },
+  { id: "white", name: "White", accent: "#0078d4" },
   { id: "dark", name: "Dark", accent: "#a0a0a0" },
-  { id: "gruvbox-dark", name: "Gruvbox Dark", accent: "#83a598" },
   { id: "high-contrast-dark", name: "High Contrast Dark", accent: "#a0a0a0" },
   {
     id: "high-contrast-light",
@@ -105,6 +105,7 @@ const THEMES = [
   { id: "solarized-dark", name: "Solarized Dark", accent: "#cb4b16" },
   { id: "solarized-light", name: "Solarized Light", accent: "#d25f26" },
   { id: "tokyo-night", name: "Tokyo Night", accent: "#7aa2f7" },
+  { id: "gruvbox-dark", name: "Gruvbox Dark", accent: "#83a598" },
 ];
 
 function currentDemoTheme() {

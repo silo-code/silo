@@ -27,7 +27,11 @@
   font-weight: 600;
   background: transparent;
   border-bottom: 2px solid var(--silo-tab-border-active);
-  margin-bottom: -1px;
+  /* Keep the 2px underline inside the header. A negative margin used to pull
+     1px into the panel body so it could cover a hairline that no longer
+     exists — opaque panel tops (e.g. Navigator's sticky `.nav-views`) then
+     painted over that pixel and the active mark looked 1px thinner than
+     tabs whose body starts with a non-covering toolbar. */
 }
 
 /* Keyboard focus indicator: when this side dock holds focus, the active tab's
