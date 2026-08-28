@@ -18,3 +18,43 @@ export function findTerminalOwnerId(
   }
   return null;
 }
+
+/** Cap on automatic reattach attempts after a data-client EOF (false exit). */
+export const MAX_EXIT_RECONNECTS = 3;
+
+/**
+ * What {@link TerminalPanel} should do when the PTY data stream ends.
+ *
+ * A stream EOF is not always a dead shell: the session-host can drop the UI's
+ * data client (write timeout, MAX_DATA_CLIENTS eviction, …) while the shell
+ * keeps running. Prefer a bounded reattach over the permanent "Session ended"
+ * overlay; only give up after {@link MAX_EXIT_RECONNECTS} failures in a row.
+ */
+export type ExitStreamPlan =
+  | { action: "reconnect"; attempt: number }
+  | { action: "exited"; exitCode: number };
+
+export function planExitStreamEnd(opts: {
+  exitCode: number;
+  reconnectCount: number;
+  maxReconnects?: number;
+}): ExitStreamPlan {
+  const max = opts.maxReconnects ?? MAX_EXIT_RECONNECTS;
+  if (opts.reconnectCount < max) {
+    return { action: "reconnect", attempt: opts.reconnectCount + 1 };
+  }
+  return { action: "exited", exitCode: opts.exitCode };
+}
+
+/**
+ * After a reconnect-driven remount, a SESSION_GONE attach means the host
+ * really died — show the exited overlay with the original exit code. A
+ * SESSION_GONE on cold restore (no pending exit) keeps today's recreate path.
+ */
+export type SessionGonePlan = "exited" | "recreate";
+
+export function planSessionGoneAfterAttach(opts: {
+  pendingExitCode: number | null;
+}): SessionGonePlan {
+  return opts.pendingExitCode !== null ? "exited" : "recreate";
+}

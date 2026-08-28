@@ -60,7 +60,11 @@ import {
   type HoveredTerminalLink,
   type TerminalLinkRange,
 } from "./terminal-link-policy";
-import { findTerminalOwnerId } from "./terminal-lifecycle";
+import {
+  findTerminalOwnerId,
+  planExitStreamEnd,
+  planSessionGoneAfterAttach,
+} from "./terminal-lifecycle";
 import {
   beginTerminalRestoreAttach,
   endTerminalRestoreAttach,
@@ -192,6 +196,11 @@ export function TerminalPanel(
   // When auto-recreating after a 404, holds the stale sessionId so the next
   // init() run can replay its persisted buffer into the fresh session.
   const replayFromRef = useRef<string>("");
+  // After a data-stream EOF we remount to reattach (false Process-exited). These
+  // track the original exit code (for the overlay if the host is truly gone)
+  // and how many reconnects we've already spent without a sustained ready.
+  const pendingExitCodeRef = useRef<number | null>(null);
+  const exitReconnectCountRef = useRef(0);
   // Find overlay (Cmd+F). `seed` carries the terminal's current selection into
   // the search box at open time; bumping `nonce` re-focuses the box if Cmd+F is
   // pressed while it's already open.
@@ -806,7 +815,37 @@ export function TerminalPanel(
           return true;
         });
         const exitSub = session.onExit((exitCode) => {
-          setLifecycle({ kind: "exited", sessionId, exitCode });
+          // Stream EOF ≠ shell death: the session-host often drops the UI data
+          // client while the PTY keeps running. Remount/reattach first; only
+          // paint "Session ended" after the reconnect budget is spent or attach
+          // comes back SESSION_GONE (see planSessionGoneAfterAttach).
+          const plan = planExitStreamEnd({
+            exitCode,
+            reconnectCount: exitReconnectCountRef.current,
+          });
+          if (plan.action === "exited") {
+            logTerminalAttachTrace("ui_reconnect_give_up", {
+              terminalId,
+              workspaceId: activeWsId,
+              sessionId,
+              exitCode,
+              attempts: exitReconnectCountRef.current,
+            });
+            pendingExitCodeRef.current = null;
+            setLifecycle({ kind: "exited", sessionId, exitCode });
+            return;
+          }
+          exitReconnectCountRef.current = plan.attempt;
+          pendingExitCodeRef.current = exitCode;
+          logTerminalAttachTrace("ui_reconnect", {
+            terminalId,
+            workspaceId: activeWsId,
+            sessionId,
+            exitCode,
+            attempt: plan.attempt,
+          });
+          setLifecycle({ kind: "loading" });
+          setVersion((v) => v + 1);
         });
         const onData = term.onData((data) => session.write(data));
         let resizeTimer: number | null = null;
@@ -835,6 +874,9 @@ export function TerminalPanel(
           },
         );
 
+        // Sustained ready — clear reconnect bookkeeping from a prior false exit.
+        pendingExitCodeRef.current = null;
+        exitReconnectCountRef.current = 0;
         setLifecycle({ kind: "ready", sessionId });
 
         // Trigger resize to ensure Claude Code renders properly on both create and restore
@@ -851,6 +893,27 @@ export function TerminalPanel(
       } catch (err) {
         const e = err as Error & { status?: number };
         if (e.status === 404) {
+          const gonePlan = planSessionGoneAfterAttach({
+            pendingExitCode: pendingExitCodeRef.current,
+          });
+          if (gonePlan === "exited") {
+            // Reconnect after stream EOF found no live host — real session end.
+            const exitCode = pendingExitCodeRef.current ?? 0;
+            pendingExitCodeRef.current = null;
+            logTerminalAttachTrace("ui_attach_gone", {
+              terminalId,
+              workspaceId: activeWsId,
+              sessionId: tRec.sessionId,
+              message: e.message,
+              reason: "reconnect-host-gone",
+            });
+            setLifecycle({
+              kind: "exited",
+              sessionId: tRec.sessionId,
+              exitCode,
+            });
+            return;
+          }
           // PTY daemon died (e.g. reboot). Save the old sessionId so the next
           // init() run can replay its persisted buffer after spawning a fresh shell.
           logTerminalAttachTrace("ui_attach_gone", {

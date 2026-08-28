@@ -25,8 +25,10 @@ const RING_CAP: usize = 256 * 1024;
 const MAX_DATA_CLIENTS: usize = 1;
 /// Max simultaneous foreground-subscribe clients.
 const MAX_FG_CLIENTS: usize = 2;
-/// How long to wait after HELLO for `T_SUBSCRIBE_FG` before treating the
-/// connection as a data client (ring replay + broadcast).
+/// How long to wait after HELLO for an explicit role frame (`T_SUBSCRIBE_FG` or
+/// a Data frame). Past this we still do **not** assume Data — a quiet socket
+/// that later disconnects is a discovery probe / stalled peer, and registering
+/// it would evict the live UI client under `MAX_DATA_CLIENTS=1`.
 const FG_CLASSIFY_TIMEOUT: Duration = Duration::from_millis(100);
 /// Chunk size for ring replay and live broadcast frames (keeps each socket
 /// write within the write-timeout budget).
@@ -369,18 +371,38 @@ fn run_daemon(
         });
 
         // Classify in a side thread so the accept loop stays responsive.
-        // Data clients are registered after a short wait (or sooner if they
-        // send a non-subscribe frame); FG clients never join `clients`.
+        // Data clients register only after an explicit Data frame (or FG after
+        // `T_SUBSCRIBE_FG`); never on classify-timeout alone — that footgun is
+        // what made maintenance-sweep `is_live` probes (and any quiet socket
+        // held past FG_CLASSIFY_TIMEOUT) evict the live UI client.
         let clients_f = clients.clone();
         let ring_f = ring.clone();
         let write_half_f = write_half.clone();
         let gone_f = client_gone;
         std::thread::spawn(move || {
-            let role = role_rx
-                .recv_timeout(FG_CLASSIFY_TIMEOUT)
-                .unwrap_or(ClientRole::Data);
-            // Connect-and-drop probes disconnect before any role frame; do not
-            // register them as Data (that would evict the live UI client).
+            let role = match role_rx.recv_timeout(FG_CLASSIFY_TIMEOUT) {
+                Ok(role) => role,
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                    // Still connected but quiet. Wait for an explicit role
+                    // frame; if the peer disconnects first, treat as a probe.
+                    if gone_f.load(Ordering::SeqCst) {
+                        log("ignoring disconnect before classify");
+                        return;
+                    }
+                    match role_rx.recv() {
+                        Ok(role) => role,
+                        Err(_) => {
+                            log("ignoring disconnect before classify");
+                            return;
+                        }
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    log("ignoring disconnect before classify");
+                    return;
+                }
+            };
+            // Peer may have dropped between the role announce and here.
             if gone_f.load(Ordering::SeqCst) {
                 log("ignoring disconnect before classify");
                 return;
@@ -910,6 +932,82 @@ mod tests {
                 }
             }
             assert!(saw_fg, "data client must still receive T_FG_REP after probes");
+        });
+    }
+
+    /// Quiet socket held past `FG_CLASSIFY_TIMEOUT` with no role frame — the
+    /// maintenance-sweep race stand-in (`METHOD=silent-hold`). Must not default
+    /// to Data and evict the live UI client.
+    #[test]
+    fn silent_hold_does_not_evict_data_client() {
+        crate::test_support::with_temp_dir("silent-hold", |_dir| {
+            let daemon = TestDaemon::spawn("t-silent-hold", vec!["sleep".into(), "600".into()]);
+            let mut data = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut data).expect("hello");
+            assert_eq!(tag, T_HELLO);
+            write_frame(&mut data, T_RESIZE, &resize_payload(80, 24)).expect("resize");
+            std::thread::sleep(FG_CLASSIFY_TIMEOUT + Duration::from_millis(50));
+
+            let mut quiet = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut quiet).expect("hello");
+            assert_eq!(tag, T_HELLO);
+            // Hold past classify timeout with no Data/FG frame, then drop —
+            // same shape as a starved `is_live` probe under load.
+            std::thread::sleep(FG_CLASSIFY_TIMEOUT + Duration::from_millis(150));
+            drop(quiet);
+            std::thread::sleep(FG_CLASSIFY_TIMEOUT + Duration::from_millis(50));
+
+            write_frame(&mut data, T_FG_REQ, &[]).expect("fg req after silent hold");
+            data.set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("read timeout");
+            let mut saw_fg = false;
+            for _ in 0..8 {
+                match read_frame(&mut data) {
+                    Ok((T_FG_REP, _)) => {
+                        saw_fg = true;
+                        break;
+                    }
+                    Ok(_) => continue,
+                    Err(e) => panic!("data client died after silent hold: {e}"),
+                }
+            }
+            assert!(
+                saw_fg,
+                "data client must survive a quiet socket held past classify timeout"
+            );
+        });
+    }
+
+    /// A slow Data announce (past `FG_CLASSIFY_TIMEOUT`) must still register and
+    /// receive ring/broadcast — we wait for an explicit frame rather than
+    /// giving up or mis-classifying probes.
+    #[test]
+    fn slow_data_announce_still_registers() {
+        crate::test_support::with_temp_dir("slow-data", |_dir| {
+            let daemon = TestDaemon::spawn("t-slow-data", vec!["sleep".into(), "600".into()]);
+            let mut stream = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut stream).expect("hello");
+            assert_eq!(tag, T_HELLO);
+            std::thread::sleep(FG_CLASSIFY_TIMEOUT + Duration::from_millis(50));
+            write_frame(&mut stream, T_RESIZE, &resize_payload(80, 24)).expect("late resize");
+            std::thread::sleep(Duration::from_millis(50));
+
+            write_frame(&mut stream, T_FG_REQ, &[]).expect("fg req");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("read timeout");
+            let mut saw_fg = false;
+            for _ in 0..8 {
+                match read_frame(&mut stream) {
+                    Ok((T_FG_REP, _)) => {
+                        saw_fg = true;
+                        break;
+                    }
+                    Ok(_) => continue,
+                    Err(e) => panic!("slow Data client never registered: {e}"),
+                }
+            }
+            assert!(saw_fg, "late T_RESIZE must still classify as Data");
         });
     }
 
