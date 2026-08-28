@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.58.0](https://github.com/silo-code/silo/compare/silo-v0.57.0...silo-v0.58.0) (2026-08-28)
+
+
+### Features
+
+* **theme-presets:** add White theme and polish the picker ([#448](https://github.com/silo-code/silo/issues/448)) ([dba730f](https://github.com/silo-code/silo/commit/dba730fd58362b907c286c9fd772fb129e1e9342))
+
+
+### Bug Fixes
+
+* **agents:** stop auto-sorting Recent view by duration ([#450](https://github.com/silo-code/silo/issues/450)) ([a00b68c](https://github.com/silo-code/silo/commit/a00b68c6078fc7e8e9b19e49287c23c9d5e6d05b))
+* **terminal:** stop sweep probes from false-exiting live sessions ([#451](https://github.com/silo-code/silo/issues/451)) ([0397c1b](https://github.com/silo-code/silo/commit/0397c1b1aeadd3626954775c8134da9d3f298b05))
+
 ## [0.57.0](https://github.com/silo-code/silo/compare/silo-v0.56.0...silo-v0.57.0) (2026-08-28)
 
 
