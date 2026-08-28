@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { findTerminalOwnerId } from "./terminal-lifecycle";
+import {
+  findTerminalOwnerId,
+  MAX_EXIT_RECONNECTS,
+  planExitStreamEnd,
+  planSessionGoneAfterAttach,
+} from "./terminal-lifecycle";
 
 describe("findTerminalOwnerId", () => {
   const workspaces = [
@@ -37,5 +42,42 @@ describe("findTerminalOwnerId", () => {
       findTerminalOwnerId([null, undefined, workspaces[0]], "term_b"),
     ).toBe("ws_a");
     expect(findTerminalOwnerId([null, undefined], "term_b")).toBeNull();
+  });
+});
+
+describe("planExitStreamEnd", () => {
+  it("reconnects while under the attempt cap (false Process-exited)", () => {
+    expect(planExitStreamEnd({ exitCode: 0, reconnectCount: 0 })).toEqual({
+      action: "reconnect",
+      attempt: 1,
+    });
+    expect(planExitStreamEnd({ exitCode: 0, reconnectCount: 2 })).toEqual({
+      action: "reconnect",
+      attempt: 3,
+    });
+  });
+
+  it("gives up at MAX_EXIT_RECONNECTS and surfaces exited", () => {
+    expect(
+      planExitStreamEnd({
+        exitCode: 0,
+        reconnectCount: MAX_EXIT_RECONNECTS,
+      }),
+    ).toEqual({ action: "exited", exitCode: 0 });
+    expect(
+      planExitStreamEnd({ exitCode: 1, reconnectCount: 5, maxReconnects: 3 }),
+    ).toEqual({ action: "exited", exitCode: 1 });
+  });
+});
+
+describe("planSessionGoneAfterAttach", () => {
+  it("shows exited when SESSION_GONE follows a reconnect attempt", () => {
+    expect(planSessionGoneAfterAttach({ pendingExitCode: 0 })).toBe("exited");
+  });
+
+  it("recreates when SESSION_GONE is a cold restore (no pending exit)", () => {
+    expect(planSessionGoneAfterAttach({ pendingExitCode: null })).toBe(
+      "recreate",
+    );
   });
 });

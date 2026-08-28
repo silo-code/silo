@@ -25,7 +25,11 @@ export type TerminalAttachTraceEvent =
   | "ui_attach_fail"
   | "ui_attach_gone"
   | "ui_recreate"
-  | "ui_init_cancelled";
+  | "ui_init_cancelled"
+  /** Data-client EOF while session-host may still be alive — remount to reattach. */
+  | "ui_reconnect"
+  /** Reconnect budget exhausted; painting the permanent exited overlay. */
+  | "ui_reconnect_give_up";
 
 export type TraceFieldValue = string | number | boolean | null | undefined;
 
