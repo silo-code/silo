@@ -16,6 +16,7 @@ import {
   isAtLeastHoursOld,
   moveItem,
   orderAgeRows,
+  reconcileAgeManualOrder,
   SECTION_ORDER,
   type AgentRow,
   type AgentSection,
@@ -137,23 +138,17 @@ export function buildWorkspaceSections(
 /**
  * The "Recent" view (internal `groupBy` value `"age"`): unlike status or
  * workspace grouping, every row sits in one flat, unheaded-by-status list —
- * no status or workspace bucketing above it. Rows the user hasn't
- * drag-reordered sort by {@link compareRows} (most recently changed first);
- * `manualOrder` (see `./manual-order`) carries whatever order a drag left
- * behind for the rest — see {@link orderAgeRows} for exactly how the two mix.
- * The one exception, drag or no drag, is the same "N+ hours old" split
- * `buildStatusSections` uses: a done row that's sat past `staleDoneHours`
- * still peels off into its own collapsible heading (tagged with the same
- * `STALE_DONE_SECTION_KEY`, so the panel's existing hover-to-reveal behavior
- * applies unchanged, and it stays un-reorderable — see `agents-panel.tsx`'s
- * render, which only wires drag handlers for `key === "age"`), since burying
- * genuinely stale rows among fresh ones defeats the point of this view.
- *
- * Because {@link compareRows} orders by the fixed `since` timestamp rather
- * than an elapsed duration recomputed on every render, an undragged row's
- * position never shifts on its own as time passes — only its displayed
- * elapsed label does — so a row stays put unless its actual state changes or
- * the user drags it.
+ * no status or workspace bucketing above it. Order is entirely manual:
+ * {@link orderAgeRows} / `manualOrder` (see `./manual-order`) — new agents
+ * prepend at the top, and positions only change on drag-and-drop. There is
+ * no automatic sort by duration/`since`. The one exception is the same
+ * "N+ hours old" split `buildStatusSections` uses: a done row that's sat
+ * past `staleDoneHours` still peels off into its own collapsible heading
+ * (tagged with the same `STALE_DONE_SECTION_KEY`, so the panel's existing
+ * hover-to-reveal behavior applies unchanged, and it stays un-reorderable —
+ * see `agents-panel.tsx`'s render, which only wires drag handlers for
+ * `key === "age"`), since burying genuinely stale rows among fresh ones
+ * defeats the point of this view.
  */
 export function buildAgeSections(
   rows: readonly AgentRow[],
@@ -500,10 +495,9 @@ export function AgentsPanel({
         // `insertAt` up by one once the dragged row is removed, so the
         // final index is one less than the original insertion point.
         const finalIndex = insertAt > from ? insertAt - 1 : insertAt;
-        // The whole visible order becomes the new manual order, not just the
-        // two swapped rows — so a row that was sorting purely by recency
-        // (not yet in `manualOrder`) gets carried into it too, exactly where
-        // it was sitting when the drag happened.
+        // Persist the whole visible order after the move — every flat-section
+        // id is already in `manualOrder` (reconcile prepends newcomers), so
+        // this is just rewriting positions from the drag.
         manualOrderService.set(
           moveItem(
             sectionRows.map((r) => r.terminalId),
@@ -590,19 +584,22 @@ export function AgentsPanel({
 
   const staleStartsExpanded = staleSectionStartsExpanded(sections);
 
-  // Trim `manualOrder` once a dragged row drops out of the flat section for
-  // good (terminal closed, or it aged into "N+ hours old") — otherwise
-  // storage would carry that id forever. `orderAgeRows` already treats a
-  // manual-order id with no matching row as inert, so this is pure
-  // housekeeping, not correctness: it only ever removes ids, never changes
-  // display order.
+  // Keep `manualOrder` in sync with the flat section: prepend any newly
+  // visible terminal ids (so they stay at the top across reloads) and drop
+  // ids that left for good (closed, or aged into "N+ hours old"). Display
+  // already applies the same rule via `orderAgeRows`; this only persists it.
   useEffect(() => {
     if (groupBy !== "age") return;
-    const flatIds = new Set(
-      sections.find((s) => s.key === "age")?.rows.map((r) => r.terminalId),
-    );
-    const trimmed = manualOrder.filter((id) => flatIds.has(id));
-    if (trimmed.length !== manualOrder.length) manualOrderService.set(trimmed);
+    const flatIds =
+      sections.find((s) => s.key === "age")?.rows.map((r) => r.terminalId) ??
+      [];
+    const next = reconcileAgeManualOrder(manualOrder, flatIds);
+    if (
+      next.length !== manualOrder.length ||
+      next.some((id, i) => id !== manualOrder[i])
+    ) {
+      manualOrderService.set(next);
+    }
   });
 
   function openRowMenu(row: AgentRow, at: { x: number; y: number }) {

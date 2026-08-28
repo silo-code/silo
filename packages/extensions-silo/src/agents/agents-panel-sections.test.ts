@@ -203,7 +203,7 @@ describe("buildAgeSections (staleDoneEnabled: true)", () => {
     expect(sections.find((s) => s.header === "")?.collapsible).toBeUndefined();
   });
 
-  it("mixes ready, working and recent done rows into one list, ordered by since (most recent first), not by status", () => {
+  it("mixes ready, working and recent done rows into one list without auto-sorting by since", () => {
     const sections = buildAgeSections(
       [
         row({
@@ -231,7 +231,7 @@ describe("buildAgeSections (staleDoneEnabled: true)", () => {
     );
     expect(
       sections.find((s) => s.header === "")?.rows.map((r) => r.terminalId),
-    ).toEqual(["newest", "middle", "oldest"]);
+    ).toEqual(["oldest", "newest", "middle"]);
   });
 
   it("splits only done rows older than the configured threshold into their own heading", () => {
@@ -270,7 +270,7 @@ describe("buildAgeSections (staleDoneEnabled: true)", () => {
     ).toEqual(["stale-done"]);
   });
 
-  it("puts undragged rows above dragged ones, and honors manualOrder's relative order for the dragged ones", () => {
+  it("prepends unknown rows above manualOrder and honors that relative order for the known ones", () => {
     const sections = buildAgeSections(
       [
         row({ terminalId: "a", since: hoursAgo(1) }),
@@ -279,15 +279,30 @@ describe("buildAgeSections (staleDoneEnabled: true)", () => {
       ],
       true,
       8,
-      ["c", "a"], // dragged, in this order — "b" was never touched
+      ["c", "a"], // known, in this order — "b" is new
     );
     expect(
       sections.find((s) => s.header === "")?.rows.map((r) => r.terminalId),
     ).toEqual([
-      "b", // undragged, floats to the top
-      "c", // dragged, first in manualOrder
-      "a", // dragged, second in manualOrder
+      "b", // new, prepended
+      "c", // known, first in manualOrder
+      "a", // known, second in manualOrder
     ]);
+  });
+
+  it("keeps a known row put even when its since is more recent than neighbors", () => {
+    const sections = buildAgeSections(
+      [
+        row({ terminalId: "old-top", since: hoursAgo(9) }),
+        row({ terminalId: "fresh", since: hoursAgo(1) }),
+      ],
+      true,
+      8,
+      ["old-top", "fresh"],
+    );
+    expect(
+      sections.find((s) => s.header === "")?.rows.map((r) => r.terminalId),
+    ).toEqual(["old-top", "fresh"]);
   });
 
   it("ignores manualOrder ids with no matching row instead of erroring", () => {
