@@ -23,7 +23,7 @@ the proposal collapses.
 - [ ] Every requirement in `requirements.md` is met or explicitly noted as not.
 - [ ] `pnpm test`, `pnpm --filter silo exec tsc --noEmit`, and `pnpm lint` pass.
 - [ ] Durable decisions recorded as ADRs.
-- [ ] Proposal collapsed to a single curated `NNNN-name.md` — `status:
-  implemented` if this was the last planned phase, `status: accepted` with
-      the phase table updated if phases remain (see "Multi-phase changes" in
+- [ ] Proposal collapsed to a single curated `NNNN-name.md`. Status
+      `implemented` if this was the last planned phase; `accepted` with the
+      phase table updated if phases remain (see "Multi-phase changes" in
       `change-planning-convention.md`).
