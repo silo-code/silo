@@ -19,7 +19,10 @@ missing today, what becomes possible.
 
 ## Proposed solution
 
-The shape of the change at a high level. Detail lives in `design.md`.
+The shape of the change at a high level. Detail lives in `design.md`. If the
+change ships as multiple sequenced phases, name them here as a table (phase,
+rough scope) — see "Multi-phase changes" in `change-planning-convention.md`
+for how planning and collapse work per phase.
 
 ## Scope
 

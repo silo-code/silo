@@ -37,6 +37,10 @@ docs/proposals/NNNN-name.md          Stage 5 — Collapse
     status: implemented                (curated, not concatenated)
 ```
 
+This is the single-pass shape. A change that ships as multiple sequenced
+phases loops Stages 2–5 once per phase instead of once total — see
+[Multi-phase changes](#multi-phase-changes) below.
+
 Numbering is the same sequence as every other proposal — sequential,
 permanent, never reused (`NNNN-kebab-title`). A planning package keeps the
 proposal's number; only its _shape_ changes.
@@ -175,12 +179,12 @@ status: implemented
 created: 2026-08-30
 ---
 
-# 0031. Tasks extension
+# 0099. Notes extension
 
 ## Summary
 
-A `silo.tasks` extension for tracking implementation work alongside agent
-sessions. Implemented in `silo-code/silo-extensions` (`tasks/`).
+A `silo.notes` extension for jotting scratch notes alongside agent sessions.
+Implemented in `silo-code/silo-extensions` (`notes/`).
 
 ## Motivation
 
@@ -188,19 +192,71 @@ sessions. Implemented in `silo-code/silo-extensions` (`tasks/`).
 
 ## Final design
 
-Tasks are owned by the extension and persisted via `ctx.storage` (workspace
+Notes are owned by the extension and persisted via `ctx.storage` (workspace
 scope). The panel is a contributed Navigator view ...
 
 ## Requirements that still matter
 
-- Tasks persist across restarts and across workspace switches.
-- A task's identifier is stable for its lifetime.
+- Notes persist across restarts and across workspace switches.
+- A note's identifier is stable for its lifetime.
 
 ## Related decisions
 
 - ADR 0004 — public `@silo-code/sdk` is types-first
 - ADR 0022 — on-disk storage layout
 ```
+
+## Multi-phase changes
+
+Some proposals define more than one phase up front — a build sequenced into
+shippable slices, each usable before the next begins, typically written as a
+phase table under **Proposed solution**. The five stages above still apply,
+but Stages 2–5 repeat **once per phase** instead of once for the whole
+proposal:
+
+```
+docs/proposals/NNNN-name.md          status: accepted, phase table in Proposed solution
+  │   phase 1 accepted for implementation
+  ▼
+docs/proposals/NNNN-name/            Stage 2 (phase 1) — scoped to phase 1 only
+  │   implement ──► verify (phase 1)
+  ▼
+docs/proposals/NNNN-name.md          Stage 5 (phase 1) — collapse
+    status: accepted                    (stays accepted; phases remain)
+  │   phase 2 accepted for implementation
+  ▼
+docs/proposals/NNNN-name/            Stage 2 (phase 2) — scoped to phase 2 only
+  │   ...repeat per phase...
+  ▼
+docs/proposals/NNNN-name.md          Stage 5 (final phase) — collapse
+    status: implemented                 (every planned phase has shipped)
+```
+
+Rules:
+
+- **Say the scope out loud.** The expanded `proposal.md` names which phase the
+  package covers — a short note is enough — so a reader mid-package isn't left
+  guessing whether `requirements.md` describes the whole proposal or one slice
+  of it.
+- **`status` tracks the whole proposal, not the phase just shipped.** A
+  proposal collapsed after phase 1 stays `accepted`; it only becomes
+  `implemented` once every phase the proposal commits to has shipped and
+  collapsed.
+- **The phase table survives every collapse.** Curate it like everything else
+  in Stage 5: mark what shipped, keep what's still planned, so the next
+  phase's package starts from an accurate picture instead of re-deriving one
+  from the diff or git history.
+- **A dropped or reshaped phase says so, in the collapsed proposal.** Update
+  the phase table and explain why rather than leaving a stale commitment a
+  future reader would otherwise trust.
+- **Re-expansion is Stage 2 again.** A fresh `requirements.md` / `design.md` /
+  `tasks.md`, scoped to the next phase and informed by whatever the prior
+  collapse curated — not a continuation of the files deleted last time.
+
+This needs no new proposal number and no new ADR — it is the same proposal,
+still governed by [ADR 0045](./decisions/0045-ephemeral-change-planning.md);
+only the planning package's scope and how many times Stage 5 runs differ from
+a single-pass change.
 
 ## The role of ADRs / decisions
 
@@ -239,3 +295,6 @@ behind that flip happens; `design.md` and the roadmap sketch should agree.
    tests for current behavior.
 5. **Framework-neutral.** Ordinary Markdown, directories, and the conventions
    this repo already has. Nothing here names a tool or methodology.
+6. **A phased change collapses per phase, not per proposal.** `status` reflects
+   the whole proposal — it stays `accepted` until every planned phase has
+   shipped, not the moment any one phase does.
