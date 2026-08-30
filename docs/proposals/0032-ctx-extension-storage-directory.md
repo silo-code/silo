@@ -19,7 +19,7 @@ offer.
 `ctx.storage` ([RFC 0004](./0004-ctx-storage.md)) solved settings-sized state:
 two namespaced key/value bags, `global` and `workspace`, persisted alongside app
 state. Every bundled extension had needed nothing more, which is why this gap
-went unnoticed until the Tasks extension ([RFC 0031](./0031-tasks-extension.md))
+went unnoticed until the Tasks extension ([RFC 0031](./0031-tasks-extension/proposal.md))
 needed a genuine **data file** — a newline-delimited JSON list of tasks that
 must be greppable, backup-able, exportable, and pointable-at by an agent. That
 doesn't belong in the app-state blob: it grows unbounded, it's invisible outside
@@ -193,5 +193,5 @@ The crystallized "never delete without asking" principle is recorded in
 `ctx.storage` roadmap entry is `stable`
 ([docs](https://getsilo.dev/api/storage/#storage-directories)). The first
 consumer is `silo.tasks` in `silo-code/silo-extensions`
-([RFC 0031](./0031-tasks-extension.md)), which drops `fs:read` + `fs:write`
+([RFC 0031](./0031-tasks-extension/proposal.md)), which drops `fs:read` + `fs:write`
 from its manifest once a published SDK carries this.

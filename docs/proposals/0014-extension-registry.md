@@ -1,9 +1,19 @@
 ---
-status: draft
+status: implemented
 created: 2026-07-12
 ---
 
 # 0014. Extension registry — central publishing, discovery, and install
+
+> **Implemented.** The registry shipped end to end as designed: publishers cut a
+> GitHub Release on their own repo, a git-backed robot validates each version and
+> pins its sha256 into a static index served from `registry.getsilo.dev`, and both
+> [extensions.getsilo.dev](https://extensions.getsilo.dev) and in-app **Browse /
+> install / update** are pure readers of it. The catalog itself lives in the
+> external `silo-code/extensions-registry` repo — see
+> [`docs/extensions-registry-repo.md`](../extensions-registry-repo.md). **Private
+> / team registries (a federated index)** were designed here but not built, and
+> remain `planned`.
 
 ## Summary
 

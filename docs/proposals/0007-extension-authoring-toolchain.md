@@ -5,6 +5,19 @@ created: 2026-06-04
 
 # 0007. Extension authoring toolchain
 
+> **Partly delivered — narrowed.** The scaffolder shipped as
+> `npx create-silo-extension` (stable), but **not** as the
+> `@silo-code/extension-tools` CLI proposed below: the generated `package.json`
+> carries plain `esbuild` `build` / `dev` / `pack` scripts with the externals
+> baked in, which removed the hand-written `build.mjs` without adding a wrapper
+> CLI to maintain. `silo-ext build` / `silo-ext dev` are therefore **withdrawn**.
+> Still open, and the reason this stays a draft: **CSS auto-injection** (every
+> extension, first-party examples included, still hand-rolls a `<style>` element
+> on `activate` and removes it on `deactivate`) and the SDK **`createStore`**
+> helper. See also [RFC 0008](./0008-extension-package-format-remote-install.md),
+> whose frozen package format already assumes the auto-injected
+> `dist/index.css`.
+
 ## Summary
 
 Make authoring a third-party extension a one-command experience: a scaffolder, a
@@ -37,8 +50,13 @@ avoidable boilerplate.
 
 ## Decision
 
-Draft. Sequenced **post-monorepo** — needs a published `@silo-code/sdk` (shim-free leaf)
-and the new `@silo-code/extension-tools` / `create-@silo-code/extension` packages.
+Draft, narrowed to **CSS auto-injection + `createStore`**. The scaffolder half is
+done (`npx create-silo-extension`) and the `@silo-code/extension-tools` CLI is
+withdrawn — see the note at the top. The remaining two are the friction an author
+still hits today; the loader change (inject a sibling `dist/index.css` on load,
+remove it on unload) is the higher-value of the pair because the frozen package
+format in [RFC 0008](./0008-extension-package-format-remote-install.md) already
+promises it.
 
 ## References
 

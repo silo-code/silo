@@ -4,6 +4,10 @@ The behavioral specification: what must be true when this is done. Keep
 requirements explicit and testable where practical, each with acceptance
 criteria. Working artifact — removed when the proposal collapses.
 
+For one phase of a multi-phase proposal, scope this file to that phase only —
+say which phase in `proposal.md`, and list later phases' requirements under
+"Out of scope" below.
+
 ## R1 — <requirement name>
 
 <One or two sentences stating what the system must do.>

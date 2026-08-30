@@ -1,17 +1,21 @@
 ---
-status: accepted
+status: implemented
 created: 2026-08-06
 ---
 
 # 0023. The Navigator — a side panel of contributed views
 
-> **Partly superseded by ADR [0038](../decisions/0038-navigator-view-list.md).**
-> The Navigator, `ctx.registerNavigatorView`, and the `"navigator"` toolbar
-> surface are all as described here. Two things are not: the header **selector
-> is a visible list of every view**, not a dropdown, and agent-monitor ships
-> **one** Agents view with a `Group by` control rather than the two views
+> **Implemented, and partly superseded by ADR
+> [0038](../decisions/0038-navigator-view-list.md).** The Navigator,
+> `ctx.registerNavigatorView`, and the `"navigator"` toolbar surface all shipped
+> as described here and are stable. Two things are not as proposed: the header
+> **selector is a visible list of every view**, not a dropdown, and agent-monitor
+> ships **one** Agents view with a `Group by` control rather than the two views
 > proposed below (the "menu inside a menu" objection in _Alternatives_ no longer
-> applies once the outer menu is gone).
+> applies once the outer menu is gone). User control over the view list — order,
+> enablement, and a stacked mode — arrived afterwards in
+> [RFC 0030](./0030-navigator-view-arrangement.md) / ADR
+> [0044](../decisions/0044-navigator-stacked-arrangement.md).
 
 ## Summary
 

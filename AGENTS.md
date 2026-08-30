@@ -96,8 +96,11 @@ implement those directly. Full workflow:
 - **Verify** against every requirement and acceptance criterion
   (`pnpm test` / `tsc --noEmit` / `pnpm lint`), then **collapse**: delete
   `requirements.md` / `design.md` / `tasks.md` and rewrite the directory back to
-  one curated `docs/proposals/NNNN-name.md`, `status: implemented`. Curate the
-  durable intent and outcome — don't concatenate.
+  one curated `docs/proposals/NNNN-name.md`. Curate the durable intent and
+  outcome — don't concatenate. `status: implemented` once every phase the
+  proposal commits to has shipped; for a change planned in multiple phases,
+  collapse keeps `status: accepted` and re-expands for the next phase — see
+  "Multi-phase changes" in the convention doc.
 
 The durable record is the collapsed proposal plus any **ADR**
 (`docs/decisions/`) for a lasting architectural decision; the code and tests are
