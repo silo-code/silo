@@ -4,6 +4,9 @@ How the requirements will be satisfied. Include only what's useful for
 implementation; don't restate the source. Working artifact — removed when the
 proposal collapses (durable pieces move into the collapsed proposal or an ADR).
 
+For one phase of a multi-phase proposal, design only that phase — later
+phases' designs get their own `design.md` when their turn comes.
+
 ## Architecture
 
 <Where this lives — package(s), extension(s) — and how the pieces fit.>
