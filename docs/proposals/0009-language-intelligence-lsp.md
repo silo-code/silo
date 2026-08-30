@@ -8,6 +8,12 @@ created: 2026-05-29
 _Lifted from the former `LSP-PLAN.md`; this is the RFC of record. The detailed
 design + the performance-budget gate below are the proposal._
 
+> **Wanted, deliberately unscheduled.** This is still the direction for language
+> intelligence, but nothing here has been built — there is no `tsserver` code in
+> the repo — and it is not queued behind any current milestone. Read it as a
+> design held in reserve, not as work in flight. Revisit the performance-budget
+> gate before starting; the app has changed a lot since this was written.
+
 ---
 
 ## TL;DR

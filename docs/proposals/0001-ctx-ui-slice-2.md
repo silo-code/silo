@@ -23,7 +23,9 @@ host's theming, z-stacking, and focus handling.
 - `ctx.ui.quickPick(items, opts) → Promise<Item | undefined>` — filterable,
   keyboard-driven, cancelable.
 - `ctx.ui.inputBox(opts) → Promise<string | undefined>` — with an optional
-  validation hook.
+  validation hook. **Mostly delivered:** the plain single-line case shipped in
+  slice 1 as `ctx.ui.prompt`; only the live validation hook is outstanding, which
+  is why the roadmap now tracks this RFC as `quickPick` / `progress`.
 - `ctx.ui.progress({ title, location }, task) → Promise<T>` — runs `task` behind a
   host-rendered progress indicator (cancellable task chrome — modal /
   notification locations as designed when this lands).
@@ -32,13 +34,14 @@ All host-owned chrome, consistent with modals/menus.
 
 ### Relationship to StatusBar **busy status** (RFC 0026)
 
-RFC 0026 introduces a separate ambient surface — **busy status**: a host-owned
+RFC 0026 introduced a separate ambient surface — **busy status**: a host-owned
 StatusBar aggregate for multi-writer _in-flight_ phrases (restore terminals,
 remove worktree, …), with a numbered badge when N>1 and a click-through popover.
 Errors use `notify`, not sticky status.
 
-That work is **in progress as host-internal / `@internal` `ctx.ui.busyStatus`** —
-proven with bundled first-party consumers before any stable public API. It is
+That work **shipped** (RFC 0026 is `implemented`) and stays host-internal /
+`@internal` `ctx.ui.busyStatus` — proven with bundled first-party consumers and
+the `busy-status-demo` example, deliberately short of a stable public API. It is
 **not** a substitute for this RFC’s `progress` primitive:
 
 |            | Busy status (RFC 0026)                     | `ctx.ui.progress` (this RFC)           |

@@ -1,9 +1,16 @@
 ---
-status: accepted
+status: implemented
 created: 2026-07-18
 ---
 
 # 0016. Modal design system: a public SDK component set
+
+> **Implemented.** The kit shipped in the public `@silo-code/sdk` and is
+> documented at [getsilo.dev/design](https://getsilo.dev/design/). ADR
+> [0026](../decisions/0026-sdk-component-set.md) records the crystallized
+> decision — one source for the components with no internal fork, the
+> chrome-vs-content line, and the version asymmetry between first-party (HEAD)
+> and third-party (last published SDK) consumers.
 
 ## Summary
 

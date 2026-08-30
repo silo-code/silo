@@ -1,9 +1,13 @@
 ---
-status: draft
+status: implemented
 created: 2026-06-04
 ---
 
 # 0002. Typed `ctx` events (`Event<T>`)
+
+> **Implemented.** Typed `Event<T>` shipped as designed — domain-owned emitters
+> on `ctx` plus an SDK `EventEmitter`, and no global string-keyed bus. Stable on
+> the roadmap and documented under the SDK's `Event` reference.
 
 ## Summary
 

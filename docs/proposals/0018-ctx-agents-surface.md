@@ -1,11 +1,20 @@
 ---
-status: accepted
+status: implemented
 created: 2026-07-22
 # supersedes:
 # superseded-by:
 ---
 
 # 0018. `ctx.agents` — unified, host-computed agent activity and resume-hint surface
+
+> **Implemented.** `ctx.agents` shipped (beta on the roadmap): host-computed
+> activity, resume hints, and the hook-sourced session-id correlation described in
+> this RFC's addendum. Two amendments since:
+> [RFC 0019](./0019-agent-hook-shell-runtime.md) replaced the Python/base64
+> hook-command mechanism proposed here with a POSIX-shell runtime, and ADR
+> [0042](../decisions/0042-agent-catalog-modularization.md) reshaped the agent
+> catalog. Promoting hooks from session-id capture to a full activity channel is
+> still open as [RFC 0020](./0020-agent-hook-activity-channel.md).
 
 > **Agent-observability series** — read together: **0018 · `ctx.agents` surface**
 > (this RFC) → [0019 · POSIX-shell hook runtime](./0019-agent-hook-shell-runtime.md)

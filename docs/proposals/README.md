@@ -30,6 +30,18 @@ roadmap badge flips `planned → stable`, optionally an ADR records the crystall
 decision, and the CHANGELOG/semver reflect it. **Rejected/superseded proposals are
 never deleted** — "we considered X and rejected it" stops the debate recurring.
 
+**`implemented` means the RFC's core mechanism shipped, not that every line of it
+did.** Several proposals landed with a named piece deliberately left out
+(`ctx.secrets` under [0004](./0004-ctx-storage.md), the `explorer/item` surface
+under [0013](./0013-context-menu-contributions.md), federated registries under
+[0014](./0014-extension-registry.md)). Where that happened, a blockquote at the
+top of the proposal says exactly what shipped and what did not, and the leftover
+stays visible as a `planned` row on the
+[roadmap](../../apps/docs/roadmap.md) — it does not hide inside an
+`implemented` RFC. Keep `accepted` for a proposal whose _defining_ change is
+still unbuilt (e.g. [0006](./0006-extension-permissions-sandbox.md): the
+permission model shipped, the sandbox did not).
+
 ## Planning packages (for substantial implementation work)
 
 When a proposal is `accepted` and real implementation work is about to start, it
@@ -67,31 +79,31 @@ don't get a proposal at all — see below.
 | RFC                                                           | Title                                                             | Created    | Status      |
 | ------------------------------------------------------------- | ----------------------------------------------------------------- | ---------- | ----------- |
 | [0001](./0001-ctx-ui-slice-2.md)                              | `ctx.ui` slice 2 — quickPick / inputBox / progress                | 2026-06-04 | draft       |
-| [0002](./0002-ctx-events.md)                                  | Typed `ctx` events (`Event<T>`)                                   | 2026-06-04 | draft       |
+| [0002](./0002-ctx-events.md)                                  | Typed `ctx` events (`Event<T>`)                                   | 2026-06-04 | implemented |
 | [0003](./0003-ctx-settings.md)                                | `ctx.settings` — per-extension configuration                      | 2026-06-04 | superseded  |
-| [0004](./0004-ctx-storage.md)                                 | `ctx.storage` — global / workspace / secret                       | 2026-06-04 | accepted    |
+| [0004](./0004-ctx-storage.md)                                 | `ctx.storage` — global / workspace / secret                       | 2026-06-04 | implemented |
 | [0005](./0005-declarative-contributes-activation.md)          | Declarative `contributes` + activation events                     | 2026-06-04 | draft       |
-| [0006](./0006-extension-permissions-sandbox.md)               | Extension permissions + sandbox model                             | 2026-06-04 | draft       |
-| [0007](./0007-extension-authoring-toolchain.md)               | Extension authoring toolchain (build/dev, scaffolder, CSS, store) | 2026-06-04 | draft       |
-| [0008](./0008-extension-package-format-remote-install.md)     | Extension package format + remote install (GitHub / npm)          | 2026-06-04 | draft       |
+| [0006](./0006-extension-permissions-sandbox.md)               | Extension permissions + sandbox model                             | 2026-06-04 | accepted    |
+| [0007](./0007-extension-authoring-toolchain.md)               | Extension authoring toolchain (CSS auto-injection, `createStore`) | 2026-06-04 | draft       |
+| [0008](./0008-extension-package-format-remote-install.md)     | Extension package format + remote install (GitHub / npm)          | 2026-06-04 | implemented |
 | [0009](./0009-language-intelligence-lsp.md)                   | Language intelligence — TS/JS via `tsserver`                      | 2026-05-29 | draft       |
 | [0010](./0010-pty-host-daemon.md)                             | Self-owned PTY host daemon (replace abduco)                       | 2026-06-04 | implemented |
 | [0011](./0011-iframe-navigation-events.md)                    | Iframe navigation events via webview init script                  | 2026-06-21 | implemented |
 | [0012](./0012-keyboard-navigation-architecture.md)            | Keyboard navigation architecture                                  | 2026-06-06 | implemented |
-| [0013](./0013-context-menu-contributions.md)                  | Context-menu contributions for built-in surfaces                  | 2026-07-02 | accepted    |
-| [0014](./0014-extension-registry.md)                          | Extension registry — publishing, discovery, install               | 2026-07-12 | draft       |
-| [0015](./0015-workspace-extension-contributions.md)           | Workspace extension contributions — property pages + context menu | 2026-07-15 | accepted    |
-| [0016](./0016-modal-design-system.md)                         | Modal design system: a public SDK component set                   | 2026-07-18 | accepted    |
+| [0013](./0013-context-menu-contributions.md)                  | Context-menu contributions for built-in surfaces                  | 2026-07-02 | implemented |
+| [0014](./0014-extension-registry.md)                          | Extension registry — publishing, discovery, install               | 2026-07-12 | implemented |
+| [0015](./0015-workspace-extension-contributions.md)           | Workspace extension contributions — property pages + context menu | 2026-07-15 | implemented |
+| [0016](./0016-modal-design-system.md)                         | Modal design system: a public SDK component set                   | 2026-07-18 | implemented |
 | [0017](./0017-pty-host-daemon-outside-appimage-mount.md)      | Relocate the pty-host daemon binary outside the AppImage mount    | 2026-07-22 | draft       |
-| [0018](./0018-ctx-agents-surface.md)                          | `ctx.agents` — host-computed agent activity + resume-hint surface | 2026-07-22 | draft       |
+| [0018](./0018-ctx-agents-surface.md)                          | `ctx.agents` — host-computed agent activity + resume-hint surface | 2026-07-22 | implemented |
 | [0019](./0019-agent-hook-shell-runtime.md)                    | Agent session hook — POSIX-shell runtime (replaces base64/Python) | 2026-07-29 | implemented |
 | [0020](./0020-agent-hook-activity-channel.md)                 | Hooks as an authoritative agent-activity channel (over OSC)       | 2026-07-29 | draft       |
-| [0021](./0021-follow-ups-extension-sdk.md)                    | Follow-ups extension — generic toolbar + tab-decoration SDK       | 2026-07-30 | accepted    |
+| [0021](./0021-follow-ups-extension-sdk.md)                    | Follow-ups extension — generic toolbar + tab-decoration SDK       | 2026-07-30 | implemented |
 | [0022](./0022-side-panel-tab-adornments.md)                   | Side-panel tab adornments — owner handle from registerSidePanel   | 2026-07-31 | draft       |
-| [0023](./0023-workspace-panel-views.md)                       | The Navigator — a side panel of contributed views                 | 2026-08-06 | accepted    |
+| [0023](./0023-workspace-panel-views.md)                       | The Navigator — a side panel of contributed views                 | 2026-08-06 | implemented |
 | [0024](./0024-git-detection-handler-claim-protocol.md)        | Git detection handler claim protocol                              | 2026-08-13 | draft       |
 | [0025](./0025-extension-to-extension-version-dependencies.md) | Declaring a version floor on another extension's API              | 2026-08-13 | draft       |
-| [0026](./0026-terminal-session-host-backpressure.md)          | Terminal session-host backpressure — no UI freeze, startup status | 2026-08-16 | draft       |
+| [0026](./0026-terminal-session-host-backpressure.md)          | Terminal session-host backpressure — no UI freeze, startup status | 2026-08-16 | implemented |
 | [0027](./0027-side-dock-layout-tree.md)                       | SideDock layout tree — free-form splits inside a side dock        | 2026-08-21 | implemented |
 | [0028](./0028-terminal-identity-environment.md)               | Terminal identity in the environment                              | 2026-08-23 | implemented |
 | [0029](./0029-sdk-sheet-homedir-confirm-dont-show.md)         | Public SDK: `showSheet`, `homeDir`, `confirmWithDontShowAgain`    | 2026-08-25 | implemented |

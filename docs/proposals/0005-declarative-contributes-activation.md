@@ -38,8 +38,17 @@ Sketch:
 
 ## Decision
 
-Draft. This is the explicit revisit of [ADR 0002](../decisions/0002-imperative-registration-no-manifest.md);
-must settle **before publish**, since the manifest becomes a third-party contract.
+Draft. This is the explicit revisit of
+[ADR 0002](../decisions/0002-imperative-registration-no-manifest.md).
+
+**The "settle before publish" deadline has passed.** Third parties now publish
+against the manifest via the registry ([RFC 0014](./0014-extension-registry.md),
+`implemented`) and the package format is frozen
+([RFC 0008](./0008-extension-package-format-remote-install.md), `implemented`),
+so `contributes` can no longer be added as a clean break — it has to arrive as an
+**additive, optional** section that coexists with imperative `register*` calls,
+with the manifest treated as the fast path and `activate()` as the fallback. That
+constraint is the main thing to resolve before this leaves `draft`.
 
 ## References
 
