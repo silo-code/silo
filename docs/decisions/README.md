@@ -30,6 +30,11 @@ A small, obvious choice needs neither.
   ADR supersedes it and the old one's `status` flips to `superseded-by NNNN`.
 - **Status:** `proposed` · `accepted` · `rejected` · `superseded-by NNNN`.
 - **Format:** MADR-lite — see `template.md`.
+- **The index is enforced, not curated by memory.** A new ADR or a status change
+  means updating the row below — a unit test
+  ([`apps/docs/checks/doc-indexes.sync.test.ts`](../../apps/docs/checks/doc-indexes.sync.test.ts))
+  fails when the table and this directory disagree on which ADRs exist, where a
+  row links, or a row's `date` / `status`. Titles are yours.
 
 ## Index
 
