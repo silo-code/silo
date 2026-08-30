@@ -62,6 +62,27 @@ matter where they cloned the project. Reach for an absolute path only when you
 genuinely need one, and expect it to be checked against the workspace.
 :::
 
+## Your own storage directory needs no permission
+
+Every extension gets a **directory of its own** from
+[`ctx.storage`](/api/storage/) — the place for a data file that isn't part of the
+user's project. Paths inside it are readable and writable through `ctx.files`
+with **no `fs:read` or `fs:write` declared**: it's your storage, so it's inside
+your sandbox, just like the open workspace folder.
+
+```ts
+const dir = await ctx.storage.globalDir(); // created on first call
+await ctx.files.writeText(`${dir}/tasks.jsonl`, body); // ✅ no permission needed
+```
+
+So don't invent a path under the user's home directory and declare `fs:write` to
+reach it — that asks for access to the entire filesystem when all you needed was
+one folder. See [`ctx.storage`](/api/storage/#storage-directories) for the
+details (including that relative paths still resolve against the workspace).
+
+The exemption covers `ctx.files` only: running a command _in_ that directory
+still needs `process`.
+
 ## Asking for more
 
 Need to go beyond the workspace — read a file in the user's home directory, run a
@@ -84,13 +105,13 @@ user sees exactly what you're asking for when they install, and approves it once
 }
 ```
 
-| Permission | Lets you…                                        |
-| ---------- | ------------------------------------------------ |
-| _(none)_   | read / write / run **inside the workspace** only |
-| `fs:read`  | read files anywhere on disk                      |
-| `fs:write` | write files anywhere on disk                     |
-| `process`  | run commands with any working directory          |
-| `network`  | make outbound network requests                   |
+| Permission | Lets you…                                                                         |
+| ---------- | --------------------------------------------------------------------------------- |
+| _(none)_   | read / write / run **inside the workspace**, plus read/write your own storage dir |
+| `fs:read`  | read files anywhere on disk                                                       |
+| `fs:write` | write files anywhere on disk                                                      |
+| `process`  | run commands with any working directory                                           |
+| `network`  | make outbound network requests                                                    |
 
 **Ask for the least you need.** An extension with no `permissions` installs with
 no prompt at all — the smoothest experience for your users. Every permission you

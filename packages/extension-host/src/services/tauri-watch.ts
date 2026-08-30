@@ -13,8 +13,20 @@ interface RawFileChangeEvent {
   kind: string;
 }
 
-export function startWatch(watchId: string, path: string): Promise<void> {
-  return invoke("start_watch", { watchId, path });
+/**
+ * Start a recursive watch on `path`.
+ *
+ * `filterNoise` (default `true`) applies the backend's project-tree skip list
+ * (`node_modules/`, `dist/`, `.cache/`, …). The host turns it off for paths
+ * inside the extension-storage root, where those names are ordinary folders an
+ * extension chose (RFC 0032).
+ */
+export function startWatch(
+  watchId: string,
+  path: string,
+  filterNoise = true,
+): Promise<void> {
+  return invoke("start_watch", { watchId, path, filterNoise });
 }
 
 export function stopWatch(watchId: string): Promise<void> {

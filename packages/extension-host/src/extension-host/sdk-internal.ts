@@ -108,6 +108,9 @@ export type {
   ManifestPreview,
 } from "./extension-manager";
 export { getExtensionManager } from "./extension-manager";
+// The shape behind `ExtensionManager.getDataInfo` — what the uninstall confirm
+// needs to describe an extension's storage directory (RFC 0032).
+export type { ExtensionDataInfo } from "./extension-storage-dirs";
 // The registry client — browse/search data for the manager page and id → pinned
 // tarball resolution. Same core-only rationale as the manager it feeds.
 export type {

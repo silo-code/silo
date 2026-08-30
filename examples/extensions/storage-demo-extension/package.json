@@ -1,0 +1,24 @@
+{
+  "name": "storage-demo-extension",
+  "displayName": "Storage Demo",
+  "version": "0.1.0",
+  "description": "A side panel that exercises ctx.storage.globalDir()/workspaceDir() — the per-extension storage directories — with no filesystem permission declared.",
+  "private": true,
+  "type": "module",
+  "silo": {
+    "id": "silo.storage-demo",
+    "engine": "^0.1",
+    "main": "dist/index.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@silo-code/sdk": "workspace:*",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.24.0",
+    "react": "^19.0.0",
+    "typescript": "^5.6.0"
+  }
+}

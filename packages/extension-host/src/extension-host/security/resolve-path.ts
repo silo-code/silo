@@ -32,6 +32,14 @@ export interface PathScope {
    * path is then denied for untrusted extensions).
    */
   readonly roots: readonly string[];
+  /**
+   * This extension's own storage directories (RFC 0032) — always allowed, read
+   * or write, with no `fs:*` permission. Absolute paths from
+   * `ctx.storage.globalDir()` / `workspaceDir()`; read live so the workspace
+   * one tracks the active workspace. Empty before the storage root resolves at
+   * startup (and if resolving it failed), which denies through the normal rules.
+   */
+  readonly ownDirs: readonly string[];
   /** First-party (bundled) extensions are unscoped — every call passes through. */
   readonly trusted: boolean;
   /** Capabilities the user granted at install. */
@@ -88,9 +96,16 @@ export function withinRoots(roots: readonly string[], path: string): boolean {
 /**
  * Enforce `scope` on `rawPath` and return the absolute path to hand to the host.
  * Trusted extensions pass through untouched. Otherwise the path must resolve
- * inside a workspace root — unless the extension holds the `fs:read` (for reads)
- * or `fs:write` (for writes) permission. Throws {@link PathDeniedError} when it
- * doesn't.
+ * inside a workspace root, or inside one of the extension's own storage
+ * directories ({@link PathScope.ownDirs}) — unless the extension holds the
+ * `fs:read` (for reads) or `fs:write` (for writes) permission. Throws
+ * {@link PathDeniedError} when it doesn't.
+ *
+ * Note the own-dir check comes **after** `toAbsolute` but is otherwise
+ * independent of the workspace: an extension with no workspace open still
+ * reaches its own global directory (an own-dir path is always absolute, so it
+ * never hits the "no workspace to resolve against" branch). Relative paths are
+ * unaffected — they still resolve against `roots[0]`, never against an own dir.
  */
 export function resolvePath(
   scope: PathScope,
@@ -106,6 +121,7 @@ export function resolvePath(
       `Cannot resolve "${rawPath}": no workspace is open`,
     );
   }
+  if (withinRoots(scope.ownDirs, abs)) return abs;
   if (withinRoots(scope.roots, abs)) return abs;
 
   const needed: Permission = access === "write" ? "fs:write" : "fs:read";

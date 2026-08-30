@@ -200,6 +200,13 @@ export function getProcessService(): ProcessService {
  * Resolve and check a working directory against `scope`. Defaults to the primary
  * workspace root when unset; a cwd outside the workspace is allowed only with the
  * `process` capability. Throws {@link PathDeniedError} otherwise.
+ *
+ * **Deliberately not `resolvePath`.** That function also admits
+ * {@link PathScope.ownDirs} — an extension's own storage directories, which are
+ * inside its `ctx.files` sandbox (RFC 0032). The storage lift stops at
+ * `ctx.files`: running a process with a working directory in there still needs
+ * `process`, so one permission keeps one meaning. Unifying these two near-twins
+ * would silently widen that grant — `scoped-services.test.ts` pins it.
  */
 function guardCwd(scope: PathScope, cwd: string | undefined): string {
   const target = cwd ?? scope.roots[0];

@@ -12,6 +12,7 @@ import {
 function scope(over: Partial<PathScope> = {}): PathScope {
   return {
     roots: ["/work/project"],
+    ownDirs: [],
     trusted: false,
     permissions: new Set<Permission>(),
     ...over,
@@ -130,5 +131,92 @@ describe("resolvePath", () => {
       expect(err).toBeInstanceOf(PathDeniedError);
       expect((err as PathDeniedError).path).toBe("/etc/hosts");
     }
+  });
+});
+
+// RFC 0032 — an extension's own storage directories are inside its sandbox,
+// read and write, with no fs:* permission declared.
+describe("resolvePath — own storage directories", () => {
+  const OWN = "/cfg/extension-storage/acme.hello";
+  const owned = (over: Partial<PathScope> = {}) =>
+    scope({
+      ownDirs: [`${OWN}/global`, `${OWN}/workspaces/ws_1`],
+      ...over,
+    });
+
+  it("allows reads and writes inside the global dir with no permissions", () => {
+    const s = owned();
+    expect(resolvePath(s, `${OWN}/global/tasks.jsonl`, "write")).toBe(
+      `${OWN}/global/tasks.jsonl`,
+    );
+    expect(resolvePath(s, `${OWN}/global/deep/nested/x`, "read")).toBe(
+      `${OWN}/global/deep/nested/x`,
+    );
+  });
+
+  it("allows the directory itself, not just its contents", () => {
+    expect(resolvePath(owned(), `${OWN}/global`, "write")).toBe(
+      `${OWN}/global`,
+    );
+  });
+
+  it("allows the active workspace's own dir", () => {
+    expect(
+      resolvePath(owned(), `${OWN}/workspaces/ws_1/notes.md`, "write"),
+    ).toBe(`${OWN}/workspaces/ws_1/notes.md`);
+  });
+
+  it("works with no workspace open — the global dir doesn't need one", () => {
+    const s = owned({ roots: [] });
+    expect(resolvePath(s, `${OWN}/global/tasks.jsonl`, "write")).toBe(
+      `${OWN}/global/tasks.jsonl`,
+    );
+  });
+
+  it("denies a sibling that merely shares the prefix", () => {
+    expect(() => resolvePath(owned(), `${OWN}/global-evil/x`, "write")).toThrow(
+      PathDeniedError,
+    );
+  });
+
+  it("denies an escape via '..' out of the own dir", () => {
+    expect(() =>
+      resolvePath(owned(), `${OWN}/global/../../other.ext/global/x`, "read"),
+    ).toThrow(PathDeniedError);
+  });
+
+  it("denies another workspace's dir under the same extension", () => {
+    expect(() =>
+      resolvePath(owned(), `${OWN}/workspaces/ws_2/notes.md`, "read"),
+    ).toThrow(PathDeniedError);
+  });
+
+  it("denies another extension's storage directory", () => {
+    expect(() =>
+      resolvePath(
+        owned(),
+        "/cfg/extension-storage/other.tool/global/x",
+        "read",
+      ),
+    ).toThrow(PathDeniedError);
+  });
+
+  it("does not resolve relative paths against an own dir", () => {
+    // Relative paths still resolve against the workspace — the one surprising
+    // part of the rule, and the reason `globalDir()` hands back an absolute path.
+    expect(resolvePath(owned(), "tasks.jsonl", "write")).toBe(
+      "/work/project/tasks.jsonl",
+    );
+  });
+
+  it("leaves every other path's behaviour unchanged", () => {
+    const s = owned({ permissions: new Set<Permission>(["fs:read"]) });
+    expect(resolvePath(s, "/etc/hosts", "read")).toBe("/etc/hosts");
+    expect(() => resolvePath(s, "/etc/hosts", "write")).toThrow(
+      PathDeniedError,
+    );
+    expect(resolvePath(s, "src/app.tsx", "read")).toBe(
+      "/work/project/src/app.tsx",
+    );
   });
 });

@@ -23,6 +23,7 @@ import {
   type RegistryUpdate,
 } from "@silo-code/extension-host/internal";
 import { PermissionConsent } from "./PermissionConsent";
+import { confirmUninstallWithData } from "./UninstallDialog";
 import {
   filterExtensions,
   localInstallSource,
@@ -252,15 +253,25 @@ export function makeExtensionsPage(ctx: ExtensionContext) {
     }
 
     async function uninstall(ext: InstalledExtension) {
-      const ok = await ctx.ui.confirm({
-        title: `Uninstall ${ext.name}?`,
-        body: "Its files will be removed from disk.",
-        confirmLabel: "Uninstall",
-        danger: true,
-      });
-      if (!ok) return;
+      // An extension with stored data (RFC 0032) gets the richer confirm with
+      // the opt-in delete checkbox; everything else keeps the plain one.
+      const info = await mgr.getDataInfo(ext.id).catch(() => null);
+      let deleteData = false;
+      if (info) {
+        const outcome = await confirmUninstallWithData(ctx.ui, ext.name, info);
+        if (!outcome.uninstall) return;
+        deleteData = outcome.deleteData;
+      } else {
+        const ok = await ctx.ui.confirm({
+          title: `Uninstall ${ext.name}?`,
+          body: `The ${ext.name} extension will be removed from Silo.`,
+          confirmLabel: "Uninstall",
+          danger: true,
+        });
+        if (!ok) return;
+      }
       void run(ext.id, async () => {
-        await mgr.uninstall(ext.id);
+        await mgr.uninstall(ext.id, { deleteData });
         ctx.ui.notify("info", `Uninstalled ${ext.name}`);
       });
     }

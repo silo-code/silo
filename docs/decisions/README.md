@@ -85,3 +85,4 @@ A small, obvious choice needs neither.
 | [0043](./0043-opencode-tiered-support.md)               | OpenCode: zero-install activity now, resume deferred               | 2026-08-26 | accepted |
 | [0044](./0044-navigator-stacked-arrangement.md)         | The Navigator can stack its views instead of one at a time         | 2026-08-27 | accepted |
 | [0045](./0045-ephemeral-change-planning.md)             | Substantial changes are planned in an ephemeral proposal expansion | 2026-08-30 | accepted |
+| [0046](./0046-never-delete-user-data-unprompted.md)     | The host never deletes user data without asking                    | 2026-08-30 | accepted |

@@ -502,3 +502,28 @@ _Avoid_: Restore, revert shortcut, clear override (prefer "reset" in the UI)
 **Remove keybinding**:
 Make a command unbound — no chord fires it, even if a default existed.
 _Avoid_: Delete keybinding, clear shortcut, unbind (ok in prose; UI says Remove)
+
+### Extension Storage
+
+**Extension storage**:
+The umbrella for everything Silo persists on an extension's behalf, in two
+shapes: the key/value **bags** (`ctx.storage.global` / `.workspace`) and the
+**storage directories** below. Always namespaced by extension id.
+_Avoid_: Extension state (the host's own term for app state), extension data
+(ok in UI copy for the files specifically — "Also delete its data")
+
+**Extension storage directory**:
+A directory the host owns on an extension's behalf, at
+`<userConfigRoot>/extension-storage/<extensionId>/`, for real data files rather
+than settings-sized values. Reachable through `ctx.files` with no `fs:*`
+permission. Two scopes: **global** (`global/`, shared across workspaces) and
+**workspace** (`workspaces/<workspaceId>/`, keyed to workspace identity).
+_Avoid_: Extension folder / extension dir (those are the installed **code** at
+`extensions/<id>`), data directory, storage root (that's the shared
+`extension-storage/` parent, not one extension's)
+
+**Own directory**:
+The short form used in host code (`PathScope.ownDirs`) for the storage
+directories the calling extension may touch unconditionally — global always,
+plus the active workspace's when one is open.
+_Avoid_: Sandbox dir (it isn't a sandbox — see ADR 0015), private dir
