@@ -95,13 +95,20 @@ Tasks case.
 The host knows about the directory, so it can offer to clean it up — but it
 never deletes a user's files on its own:
 
-- **Uninstall keeps the data by default.** When the directory exists and is
-  non-empty, the existing "Uninstall X?" confirm grows an unchecked
-  _"Also delete its data (3 files, 1.2 MB)"_ checkbox. Reinstalling restores
-  everything; deleting is deliberate and informed.
+- **Uninstall keeps the data by default.** When the directory holds files, the
+  existing "Uninstall X?" confirm grows an unchecked _"Also delete its data
+  (3 files, 1.2 MB)"_ checkbox. Reinstalling restores everything; deleting is
+  deliberate and informed. Retained data has its path written to the Output
+  panel, because nothing else in the product names it afterwards. A directory
+  with no files in it is simply removed — there is nothing to lose.
 - **Hard-deleting a workspace leaves its per-extension directories alone**, even
   though the workspace's key/value bag goes away with the workspace file. A
   key/value bag is app state; a `.jsonl` the user has been editing is not.
+- **An id change carries the data with it.** Silo already migrates an
+  extension's key/value bag when its id is superseded by a built-in
+  (`silo.agent-monitor` → `silo.agents`), behind a toast promising _"Your
+  settings were kept."_ The storage directory is renamed in the same pass, so
+  files keep that promise too.
 
 This is a deliberate departure from RFC 0004's sketch of automatic
 uninstall-time cleanup: silently deleting files a user could have been editing
@@ -109,14 +116,22 @@ is a worse failure than leaving bytes on disk in a directory they can find.
 
 ## Scope
 
-**In:** the two SDK methods and their host implementation; the on-disk layout;
-the `ctx.files` sandbox lift for own directories; the opt-in delete at uninstall;
-docs (`ctx.storage` page, permissions guide, roadmap flip) and tests.
+**In:** the two SDK methods and their host implementation; a `NoWorkspaceError`
+on the SDK; the on-disk layout; the `ctx.files` sandbox lift for own
+directories; carrying storage across an extension-id migration; exempting
+storage paths from the file watcher's project-tree noise filter (an extension
+naming a subfolder `cache/` or `build/` must not get a watcher that silently
+never fires); the opt-in delete at uninstall; docs (`ctx.storage` page,
+permissions guide, roadmap flip) and tests.
 
 **Out:** `ctx.secrets`; cleanup of the `global`/`workspace` **key/value**
 namespaces on uninstall (RFC 0004's other open gap — untouched here); any UI for
-managing the data of an already-uninstalled extension; Windows path scoping
-(`resolve-path.ts` is POSIX today); sandboxed execution ([ADR 0015](../../decisions/0015-phased-security-model.md)
+managing the data of an already-uninstalled extension — including built-ins,
+which can only be disabled, never uninstalled; extension ids that collide only
+by letter case on a case-insensitive filesystem (already true of the
+`extensions/<id>` code directory today, so storage inherits it rather than
+introducing it); Windows path scoping (`resolve-path.ts` is POSIX today);
+sandboxed execution ([ADR 0015](../../decisions/0015-phased-security-model.md)
 phase 4).
 
 The first consumer is `silo.tasks` in `silo-code/silo-extensions`
@@ -149,6 +164,16 @@ meant to edit, and hiding the Tasks file inside
 
 **Delete the directory automatically on uninstall.** RFC 0004's original sketch.
 Rejected: see "Data outlives the extension" above.
+
+**Key the workspace directory by folder path** rather than workspace id, so
+deleting and re-adding a project finds its old data. Rejected: it would give the
+two storage scopes two different rules — `ctx.storage.workspace`'s key/value bag
+is already keyed to the workspace and already dies with it — and it breaks when
+a folder is moved or renamed, while making two workspaces over one folder share
+data. RFC 0031's objection to workspace ids was about writing them into task
+data that may be shared or committed; a host-owned path on the user's own disk
+is not that. Documented instead: the directory follows the workspace, not the
+folder.
 
 ## Decision
 
