@@ -1,9 +1,19 @@
 ---
-status: draft
+status: implemented
 created: 2026-06-04
 ---
 
 # 0008. Extension package format + remote install (GitHub / npm)
+
+> **Implemented, with one design detail unbuilt.** The package format is frozen
+> and remote install shipped end to end: local folder, URL / GitHub-release
+> tarball, and npm registry installs are all stable, as is update checking +
+> apply. Two things below did **not** land: the frozen format's
+> `dist/index.css` **auto-injection** (extensions still inject their own
+> `<style>` on activate — see [RFC 0007](./0007-extension-authoring-toolchain.md)),
+> and the `silo-ext pack` CLI (the scaffolder emits plain `esbuild` scripts and
+> `npm pack` instead). **Safe update** — stage → validate → swap with rollback —
+> is a separate `planned` item, not part of what landed here.
 
 ## Summary
 

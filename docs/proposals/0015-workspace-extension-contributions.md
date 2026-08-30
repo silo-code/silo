@@ -1,11 +1,17 @@
 ---
-status: accepted
+status: implemented
 created: 2026-07-15
 # supersedes:
 # superseded-by:
 ---
 
 # 0015. Workspace extension contributions — extending the workspace surface
+
+> **Implemented.** Both contributions shipped and are stable:
+> `ctx.workspaces.registerPropertyPage` (tabbed workspace property pages) and
+> workspace context-menu contributions (`getWorkspaceMenuItems` /
+> `getOpenWorkspaceMenuItems`), the latter as part of the surface vocabulary in
+> [RFC 0013](./0013-context-menu-contributions.md).
 
 ## Summary
 

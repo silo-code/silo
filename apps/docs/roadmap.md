@@ -150,17 +150,29 @@ The shape of each planned surface is now designed in an **RFC** under
 [`docs/proposals/`](https://github.com/silo-code/silo/tree/main/docs/proposals)
 (subject to change until it ships):
 
-| Planned surface                                                                                | RFC                                                                                                                    |
-| ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| <a id="ctx-ui"></a>`ctx.ui` slice 2 — `quickPick` / `inputBox` / `progress`                    | [RFC 0001](https://github.com/silo-code/silo/blob/main/docs/proposals/0001-ctx-ui-slice-2.md)                          |
-| <a id="ctx-events"></a>Typed `ctx` events (`Event<T>`, domain-owned, no global bus)            | [RFC 0002](https://github.com/silo-code/silo/blob/main/docs/proposals/0002-ctx-events.md)                              |
-| `ctx.secrets` — host-mediated credentials (storage `global` / `workspace` shipped)             | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md)                             |
-| Declarative `contributes` + activation events                                                  | [RFC 0005](https://github.com/silo-code/silo/blob/main/docs/proposals/0005-declarative-contributes-activation.md)      |
-| Extension permissions + sandbox                                                                | [RFC 0006](https://github.com/silo-code/silo/blob/main/docs/proposals/0006-extension-permissions-sandbox.md)           |
-| Extension authoring toolchain                                                                  | [RFC 0007](https://github.com/silo-code/silo/blob/main/docs/proposals/0007-extension-authoring-toolchain.md)           |
-| Package format + remote install (GitHub / npm)                                                 | [RFC 0008](https://github.com/silo-code/silo/blob/main/docs/proposals/0008-extension-package-format-remote-install.md) |
-| Language intelligence (TS/JS via `tsserver`)                                                   | [RFC 0009](https://github.com/silo-code/silo/blob/main/docs/proposals/0009-language-intelligence-lsp.md)               |
-| <a id="context-menus"></a>Context-menu contributions (explorer/item, editor/tab, terminal/tab) | [RFC 0013](https://github.com/silo-code/silo/blob/main/docs/proposals/0013-context-menu-contributions.md)              |
+| Planned surface                                                                             | RFC                                                                                                                        |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| <a id="ctx-ui"></a>`ctx.ui` slice 2 — `quickPick` / `progress` (`prompt` covers `inputBox`) | [RFC 0001](https://github.com/silo-code/silo/blob/main/docs/proposals/0001-ctx-ui-slice-2.md)                              |
+| `ctx.secrets` — host-mediated credentials (storage `global` / `workspace` shipped)          | [RFC 0004](https://github.com/silo-code/silo/blob/main/docs/proposals/0004-ctx-storage.md)                                 |
+| Declarative `contributes` + activation events                                               | [RFC 0005](https://github.com/silo-code/silo/blob/main/docs/proposals/0005-declarative-contributes-activation.md)          |
+| Sandboxed extension execution (the permission model itself is stable)                       | [RFC 0006](https://github.com/silo-code/silo/blob/main/docs/proposals/0006-extension-permissions-sandbox.md)               |
+| Extension CSS auto-injection + SDK `createStore`                                            | [RFC 0007](https://github.com/silo-code/silo/blob/main/docs/proposals/0007-extension-authoring-toolchain.md)               |
+| Language intelligence (TS/JS via `tsserver`) — held, not scheduled                          | [RFC 0009](https://github.com/silo-code/silo/blob/main/docs/proposals/0009-language-intelligence-lsp.md)                   |
+| <a id="context-menus"></a>Context-menu contributions — `explorer/item` dispatch             | [RFC 0013](https://github.com/silo-code/silo/blob/main/docs/proposals/0013-context-menu-contributions.md)                  |
+| pty-host daemon relocated outside the AppImage mount (Linux)                                | [RFC 0017](https://github.com/silo-code/silo/blob/main/docs/proposals/0017-pty-host-daemon-outside-appimage-mount.md)      |
+| Hooks as an authoritative agent-activity channel (`blocked` state, sub-agents)              | [RFC 0020](https://github.com/silo-code/silo/blob/main/docs/proposals/0020-agent-hook-activity-channel.md)                 |
+| Side-panel tab adornments (owner handle from `registerSidePanel`)                           | [RFC 0022](https://github.com/silo-code/silo/blob/main/docs/proposals/0022-side-panel-tab-adornments.md)                   |
+| Git-detection handler claim protocol                                                        | [RFC 0024](https://github.com/silo-code/silo/blob/main/docs/proposals/0024-git-detection-handler-claim-protocol.md)        |
+| Extension-to-extension version floors (`engine`-style, generalized)                         | [RFC 0025](https://github.com/silo-code/silo/blob/main/docs/proposals/0025-extension-to-extension-version-dependencies.md) |
+| Private / team registries (federated index)                                                 | [RFC 0014](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md)                          |
+
+> RFCs [0002](https://github.com/silo-code/silo/blob/main/docs/proposals/0002-ctx-events.md)
+> (typed `ctx` events),
+> [0008](https://github.com/silo-code/silo/blob/main/docs/proposals/0008-extension-package-format-remote-install.md)
+> (package format + remote install) and
+> [0014](https://github.com/silo-code/silo/blob/main/docs/proposals/0014-extension-registry.md)
+> (the registry) used to sit in this table and have since shipped — they are
+> `implemented` now, and only the leftovers listed above are still open.
 
 ---
 

@@ -1,9 +1,19 @@
 ---
-status: draft
+status: implemented
 created: 2026-08-16
 ---
 
 # 0026. Terminal session-host backpressure — no UI freeze, bounded stalls, startup status
+
+> **Implemented.** Phases 0–3 of the plan below landed: the per-session writer
+> thread and bounded/timed writes in the app, the daemon-side stall bounds, client
+> caps and lock discipline, and the host busy-status registry + StatusBar slot +
+> startup-status sequence (with pending-remove migrated onto the same slot). The
+> unchecked items that remain are follow-ups, not blockers — exposing
+> `last_write_error` to JS, per-terminal reconnect chrome when an input timeout
+> fires, the CI freeze gate, and the Phase 4 observability work.
+> `ctx.ui.busyStatus` stays deliberately `@internal`; graduating it to a public
+> API is [RFC 0001](./0001-ctx-ui-slice-2.md)'s `progress` question.
 
 ## Summary
 

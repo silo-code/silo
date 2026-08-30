@@ -1,9 +1,17 @@
 ---
-status: draft
+status: accepted
 created: 2026-06-04
 ---
 
 # 0006. Extension permissions + sandbox model
+
+> **Accepted; partially implemented.** The two phases marked ✅ below shipped —
+> workspace path-scoping on `ctx.files`/`ctx.process`, and the `silo.permissions`
+> capability manifest with an install-time consent modal. The **sandbox** — the
+> part that turns declared capabilities into real enforcement rather than consent
+> and audit — has not been built. Until it does, the user-facing rule stays
+> _install extensions you trust_, and nothing in the product should imply the
+> permission prompt is a security guarantee.
 
 ## Summary
 

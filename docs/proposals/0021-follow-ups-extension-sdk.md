@@ -1,11 +1,21 @@
 ---
-status: accepted
+status: implemented
 created: 2026-07-30
 # supersedes:
 # superseded-by:
 ---
 
 # 0021. Follow-ups extension — generic toolbar + tab-decoration SDK
+
+> **Implemented.** Both generic surfaces shipped and are stable:
+> `ctx.registerToolbarItem` and tab decorations. Tab decorations were
+> subsequently reshaped by ADR
+> [0029](../decisions/0029-adornments-vs-registration.md) into adorn verbs
+> (`setIcon` / `setIndicator` / `setActivity` / `bindIndicator` / `bindActivity`),
+> with `registerTabDecoration` kept as a deprecated shim; ADR
+> [0030](../decisions/0030-activity-chrome.md) covers the `Activity` chrome those
+> verbs paint. The equivalent handle for **side-panel** tabs is still open as
+> [RFC 0022](./0022-side-panel-tab-adornments.md).
 
 ## Summary
 

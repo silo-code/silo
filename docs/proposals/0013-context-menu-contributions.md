@@ -1,9 +1,16 @@
 ---
-status: accepted
+status: implemented
 created: 2026-07-02
 ---
 
 # 0013. Context-menu contributions for built-in surfaces
+
+> **Implemented, one surface short.** `ctx.registerContextMenuItem` and the typed
+> per-surface `MenuContext` shipped and are stable for `editor/tab`,
+> `terminal/tab`, and `terminal/link`, alongside the workspace menus from
+> [RFC 0015](./0015-workspace-extension-contributions.md). `"explorer/item"` is
+> typed in `MenuSurface` but **not yet dispatched** by the file explorer — the
+> one remaining piece of this RFC.
 
 ## Summary
 

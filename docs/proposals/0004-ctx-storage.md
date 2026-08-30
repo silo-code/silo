@@ -1,9 +1,15 @@
 ---
-status: accepted
+status: implemented
 created: 2026-06-04
 ---
 
 # 0004. `ctx.storage` — global / workspace / secret
+
+> **Implemented, with one part deferred.** `ctx.storage` shipped with its
+> `global` and `workspace` bags (stable), and it is what
+> [RFC 0003](./0003-ctx-settings.md) was superseded by. The third piece — a
+> host-mediated **`ctx.secrets`** store — was **not** built; it stays `planned`
+> on the roadmap and the design below remains its design of record.
 
 ## Summary
 
