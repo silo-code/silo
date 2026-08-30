@@ -41,6 +41,12 @@ Numbering is the same sequence as every other proposal — sequential,
 permanent, never reused (`NNNN-kebab-title`). A planning package keeps the
 proposal's number; only its _shape_ changes.
 
+Every stage that changes a proposal's shape or status also updates its row in
+[`proposals/README.md`](./proposals/README.md) — creating it (stage 1),
+repointing the link at `NNNN-name/proposal.md` and flipping `status` (stage 2),
+and pointing it back at `NNNN-name.md` with `status: implemented` (stage 5). A
+unit test enforces this; see that README's conventions.
+
 ## When to use it
 
 Use the workflow when a change has meaningful:

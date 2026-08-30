@@ -73,6 +73,14 @@ don't get a proposal at all — see below.
   will be overhauled. Once `implemented`, the proposal _is_ the record.
 - **Format:** see [`template.md`](./template.md). Frontmatter: `status`, `created`,
   optional `supersedes` / `superseded-by`.
+- **The index is enforced, not curated by memory.** A new proposal, a status
+  change, or an expansion into a planning package all mean updating the row
+  below — a unit test
+  ([`apps/docs/checks/doc-indexes.sync.test.ts`](../../apps/docs/checks/doc-indexes.sync.test.ts))
+  fails when the table and this directory disagree on which documents exist,
+  where a row links, or a row's `created` / `status`. Expanding into a package
+  repoints the link at `NNNN-name/proposal.md`; collapsing points it back.
+  Titles are yours — the index shortens some deliberately.
 
 ## Index
 
@@ -108,3 +116,5 @@ don't get a proposal at all — see below.
 | [0028](./0028-terminal-identity-environment.md)               | Terminal identity in the environment                              | 2026-08-23 | implemented |
 | [0029](./0029-sdk-sheet-homedir-confirm-dont-show.md)         | Public SDK: `showSheet`, `homeDir`, `confirmWithDontShowAgain`    | 2026-08-25 | implemented |
 | [0030](./0030-navigator-view-arrangement.md)                  | Navigator view arrangement — reorder, disable, and a stacked mode | 2026-08-27 | implemented |
+| [0031](./0031-tasks-extension/proposal.md)                    | Tasks extension — Silo tasks, third-party trackers as sources     | 2026-08-30 | accepted    |
+| [0032](./0032-ctx-extension-storage-directory/proposal.md)    | A per-extension storage directory on `ctx`                        | 2026-08-30 | accepted    |
