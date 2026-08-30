@@ -61,6 +61,14 @@ don't get a proposal at all — see below.
   will be overhauled. Once `implemented`, the proposal _is_ the record.
 - **Format:** see [`template.md`](./template.md). Frontmatter: `status`, `created`,
   optional `supersedes` / `superseded-by`.
+- **The index is enforced, not curated by memory.** A new proposal, a status
+  change, or an expansion into a planning package all mean updating the row
+  below — a unit test
+  ([`apps/docs/checks/doc-indexes.sync.test.ts`](../../apps/docs/checks/doc-indexes.sync.test.ts))
+  fails when the table and this directory disagree on which documents exist,
+  where a row links, or a row's `created` / `status`. Expanding into a package
+  repoints the link at `NNNN-name/proposal.md`; collapsing points it back.
+  Titles are yours — the index shortens some deliberately.
 
 ## Index
 
@@ -83,7 +91,7 @@ don't get a proposal at all — see below.
 | [0015](./0015-workspace-extension-contributions.md)           | Workspace extension contributions — property pages + context menu | 2026-07-15 | accepted    |
 | [0016](./0016-modal-design-system.md)                         | Modal design system: a public SDK component set                   | 2026-07-18 | accepted    |
 | [0017](./0017-pty-host-daemon-outside-appimage-mount.md)      | Relocate the pty-host daemon binary outside the AppImage mount    | 2026-07-22 | draft       |
-| [0018](./0018-ctx-agents-surface.md)                          | `ctx.agents` — host-computed agent activity + resume-hint surface | 2026-07-22 | draft       |
+| [0018](./0018-ctx-agents-surface.md)                          | `ctx.agents` — host-computed agent activity + resume-hint surface | 2026-07-22 | accepted    |
 | [0019](./0019-agent-hook-shell-runtime.md)                    | Agent session hook — POSIX-shell runtime (replaces base64/Python) | 2026-07-29 | implemented |
 | [0020](./0020-agent-hook-activity-channel.md)                 | Hooks as an authoritative agent-activity channel (over OSC)       | 2026-07-29 | draft       |
 | [0021](./0021-follow-ups-extension-sdk.md)                    | Follow-ups extension — generic toolbar + tab-decoration SDK       | 2026-07-30 | accepted    |
@@ -96,3 +104,5 @@ don't get a proposal at all — see below.
 | [0028](./0028-terminal-identity-environment.md)               | Terminal identity in the environment                              | 2026-08-23 | implemented |
 | [0029](./0029-sdk-sheet-homedir-confirm-dont-show.md)         | Public SDK: `showSheet`, `homeDir`, `confirmWithDontShowAgain`    | 2026-08-25 | implemented |
 | [0030](./0030-navigator-view-arrangement.md)                  | Navigator view arrangement — reorder, disable, and a stacked mode | 2026-08-27 | implemented |
+| [0031](./0031-tasks-extension/proposal.md)                    | Tasks extension — Silo tasks, third-party trackers as sources     | 2026-08-30 | accepted    |
+| [0032](./0032-ctx-extension-storage-directory/proposal.md)    | A per-extension storage directory on `ctx`                        | 2026-08-30 | accepted    |

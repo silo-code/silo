@@ -454,6 +454,10 @@ grep-based test in `boundaries.test.ts`, cheap and self-explaining when it fails
   sandbox lift for own directories are what allow `permissions: []`. Nothing here
   can be built against the published SDK until 0032 ships and the SDK is
   released.
+  RFC 0032 R8 also lifts the host's `node_modules` / `dist` / `build` watch
+  filter inside `extension-storage/`, so R11's external-change watch behaves
+  predictably there; the `tasks.jsonl` path contains none of those segments
+  either way, so this is belt-and-braces rather than load-bearing.
 - **[ADR 0022](../../decisions/0022-on-disk-storage-layout.md)** — three-tier
   on-disk layout. Task data is tier 1 (user data), reached only via 0032's
   directories; this extension never builds a path of its own under `$HOME`.
