@@ -30,9 +30,32 @@ roadmap badge flips `planned → stable`, optionally an ADR records the crystall
 decision, and the CHANGELOG/semver reflect it. **Rejected/superseded proposals are
 never deleted** — "we considered X and rejected it" stops the debate recurring.
 
+## Planning packages (for substantial implementation work)
+
+When a proposal is `accepted` and real implementation work is about to start, it
+may temporarily expand from a single file into a directory of the same name:
+
+```
+docs/proposals/NNNN-name/
+├── proposal.md       ← the overview + frontmatter
+├── requirements.md   ← behavioural spec + acceptance criteria
+├── design.md         ← technical design
+└── tasks.md          ← the implementation checklist
+```
+
+`requirements.md` / `design.md` / `tasks.md` are **ephemeral working
+artifacts**. When the work is implemented and verified they are deleted and the
+directory collapses back to a single curated `NNNN-name.md` with
+`status: implemented` — the numbered proposal file itself is never deleted.
+Skeletons: [`planning-template/`](./planning-template/). Full workflow (when to
+expand, how to collapse, cross-repo work): the
+[change-planning convention](../change-planning-convention.md). Small changes
+don't get a proposal at all — see below.
+
 ## Conventions
 
-- **Numbering** is sequential (`NNNN-kebab-title.md`), permanent, never reused.
+- **Numbering** is sequential (`NNNN-kebab-title.md`), permanent, never reused —
+  a planning package keeps its proposal's number.
 - **Self-contained.** Like ADRs, a proposal carries its own design; it links to
   other proposals/ADRs (stable) but only sparingly to the narrative docs, which
   will be overhauled. Once `implemented`, the proposal _is_ the record.

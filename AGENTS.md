@@ -16,6 +16,9 @@ Orientation docs (read when relevant):
 
 - `docs/decisions/` — ADRs: the architecture decisions of record (the durable "why").
 - `docs/proposals/` — RFCs: forward-looking designs not yet decided.
+- `docs/change-planning-convention.md` — how a substantial change is planned:
+  proposal → (temporary) planning package → implementation → verification →
+  collapse back to one durable proposal. See "Planning a substantial change" below.
 - `docs/domain-language.md` — the domain glossary: ubiquitous language for the
   product, including UI component naming (Panels & Docking, Navigator, …).
   Kept current via the workflow in `.agents/skills/silo-domain-modeling/SKILL.md`.
@@ -71,6 +74,36 @@ and proposals (`docs/proposals/`). Design a new primitive by adding it to the
 roadmap as `planned` (with its sketched surface) _first_, then implement it and
 flip it to `stable`. Expanding `ExtensionContext` (`ctx`) is the main ongoing
 work — and the moment to run through that workflow.
+
+## Planning a substantial change
+
+A change with real product/architectural/API/persistence impact, cross-cutting
+reach, significant complexity, or ambiguity needing explicit decisions gets a
+proposal. Small, low-risk changes (typo/CSS/dep-bump/localized fix) don't —
+implement those directly. Full workflow:
+[change-planning convention](docs/change-planning-convention.md).
+
+- **Proposal** — one `docs/proposals/NNNN-name.md`
+  ([template](docs/proposals/template.md)): problem, motivation, proposed
+  change, rough scope.
+- **Planning package** — once `accepted` and implementation is starting, expand
+  that file into `docs/proposals/NNNN-name/` with `proposal.md`,
+  `requirements.md`, `design.md`, `tasks.md`
+  ([skeletons](docs/proposals/planning-template/)). These three planning files
+  are **temporary**. Implement against them, keep `tasks.md` current, follow
+  existing ADRs, fix the design when the code contradicts it, ship tests in the
+  same change.
+- **Verify** against every requirement and acceptance criterion
+  (`pnpm test` / `tsc --noEmit` / `pnpm lint`), then **collapse**: delete
+  `requirements.md` / `design.md` / `tasks.md` and rewrite the directory back to
+  one curated `docs/proposals/NNNN-name.md`, `status: implemented`. Curate the
+  durable intent and outcome — don't concatenate.
+
+The durable record is the collapsed proposal plus any **ADR**
+(`docs/decisions/`) for a lasting architectural decision; the code and tests are
+the truth of _how it works now_. The implementation may live in another repo
+(e.g. an extension in `silo-code/silo-extensions`) — the proposal stays here and
+names it.
 
 ## Domain language — keep the glossary in sync AS YOU BUILD
 
