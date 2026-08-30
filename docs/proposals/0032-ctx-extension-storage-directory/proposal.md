@@ -20,7 +20,7 @@ two namespaced key/value bags, `global` and `workspace`, persisted alongside app
 state. Every bundled extension to date has needed nothing more, which is why this
 gap has gone unnoticed.
 
-The Tasks extension ([RFC 0031](../0031-tasks-extension.md)) is the first with a
+The Tasks extension ([RFC 0031](../0031-tasks-extension/proposal.md)) is the first with a
 genuine **data file** — a newline-delimited JSON list of tasks that must be
 greppable, backup-able, exportable, and pointable-at by an agent. That does not
 belong in the app-state blob: it grows unbounded, it is invisible outside Silo,
@@ -135,7 +135,7 @@ sandboxed execution ([ADR 0015](../../decisions/0015-phased-security-model.md)
 phase 4).
 
 The first consumer is `silo.tasks` in `silo-code/silo-extensions`
-([RFC 0031](../0031-tasks-extension.md)), which drops `fs:read` + `fs:write` from
+([RFC 0031](../0031-tasks-extension/proposal.md)), which drops `fs:read` + `fs:write` from
 its manifest once this ships.
 
 ## Alternatives considered

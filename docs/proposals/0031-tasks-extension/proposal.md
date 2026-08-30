@@ -1,5 +1,5 @@
 ---
-status: draft # draft | accepted | implemented | rejected | superseded-by NNNN
+status: accepted # draft | accepted | implemented | rejected | superseded-by NNNN
 created: 2026-08-30
 ---
 
@@ -114,7 +114,7 @@ CLI lands. The schema is Silo's own and documented; **interop is export, not
 adoption** (see Alternatives).
 
 This needs a per-extension storage directory, which the SDK does not have —
-see [RFC 0032](./0032-ctx-extension-storage-directory/proposal.md).
+see [RFC 0032](../0032-ctx-extension-storage-directory/proposal.md).
 
 ### The normalized model: LCD core, provider-rendered detail
 
@@ -177,7 +177,7 @@ open** and does not re-render with the panel, so the app owns its own
 subscription.
 
 Grouping is a **toolbar control**, not separate views — ADR
-[0038](../decisions/0038-navigator-view-list.md)'s precedent from agent-monitor.
+[0038](../../decisions/0038-navigator-view-list.md)'s precedent from agent-monitor.
 Defaults: `None` in the panel, `Status` in the Navigator.
 
 ### Row vocabulary
@@ -243,6 +243,56 @@ Phases 1–3 must stand on their own for a human user; agent integration is
 additive, and the extension's usefulness must not depend on the unshipped CLI
 work.
 
+## Planning scope
+
+This directory is the **planning package for phase 1 only** — the Silo provider,
+the global and per-workspace lists, the side panel, and create/edit/complete.
+`requirements.md`, `design.md`, and `tasks.md` describe that slice and nothing
+beyond it. Phases 2–4 stay as the table above until each is planned in turn; the
+package collapses back to a single curated `0031-tasks-extension.md` when phase 1
+ships, and re-expands for the next phase.
+
+Phase 1 does build the **full provider seam** (`TaskSource`, the normalized core
+model, the optional-method `TaskProvider` interface, detail-section descriptors)
+with Silo as its only implementation. The alternative — write Silo-direct and
+extract the seam when Beads and dex arrive — was rejected because the LCD line is
+the whole architectural claim of this RFC; drawing it against one provider and
+then reshaping it under two is a worse test than designing it once, and the seam
+is what keeps `if (source.providerId === "silo")` out of the views from day one.
+
+### Sequencing
+
+Implementation is **blocked on [RFC 0032](../0032-ctx-extension-storage-directory/proposal.md)
+shipping _and_ the SDK being published to npm.** `silo-extensions` builds against
+the published `@silo-code/sdk`, not this workspace, so `ctx.storage.globalDir()` /
+`workspaceDir()` only become available to `silo.tasks` after a release. Local
+development can proceed against a linked SDK build; the manifest's `silo.engine`
+and `@silo-code/sdk` devDependency get pinned once that version exists.
+
+The payoff is that phase 1 ships with **`permissions: []`** — RFC 0032's sandbox
+lift means the extension needs no `fs:read` / `fs:write` to own its data. The
+`process` declaration arrives with Beads in phase 2, not before.
+
+### Corrections to the design above, made during planning
+
+- **`priority` joins the core schema.** The schema list under "The normalized
+  model" omits it while "Row vocabulary" renders a priority arrow on every row
+  and the list sorts by it. By the RFC's own rule — core holds what the list
+  sorts, filters, groups, or lays out by — priority is core.
+- **Storage paths follow RFC 0032's directory shape.** `globalDir()/tasks.jsonl`
+  and `workspaceDir()/tasks.jsonl`, not `tasks/global.jsonl` + `ws-<id>.jsonl`
+  under one directory; 0032 already namespaces per workspace, so the `ws-<id>`
+  prefix would be redundant.
+- **"New tasks go to" is a phase-1 concern, not phase 2.** The phase table files
+  it under multi-provider work, but phase 1 already has two sources — global and
+  the active workspace — so a create destination must be chosen and shown from
+  the first release.
+- **The Silo provider watches its own file in phase 1.** The phase table defers
+  `ctx.files.watch` to phase 2. For a subprocess provider that is right; for a
+  plain file the extension already owns it is a few lines, and phase 1's storage
+  pitch is explicitly that an agent can be pointed at the `.jsonl`. Without a
+  watch the panel goes stale the moment that happens.
+
 ## Non-goals
 
 - **Start Task** — deferred until Agent Profiles make the flow obvious. Noted as
@@ -300,17 +350,18 @@ still buckets.
 
 ## Decision
 
-_Pending._ Fill in when this leaves `draft`.
+**Accepted** 2026-08-30. Phase 1 is planned in this directory; see
+`requirements.md`, `design.md`, and `tasks.md`.
 
 ## References
 
 - Surface study (interactive): panel drill-in, Navigator view, Tasks app sheet.
 - Competitive teardown of task UI across twelve agent orchestrators and editors.
-- [RFC 0032](./0032-ctx-extension-storage-directory/proposal.md) — the per-extension
+- [RFC 0032](../0032-ctx-extension-storage-directory/proposal.md) — the per-extension
   storage directory this depends on.
-- [`docs/side-panel-design.md`](../side-panel-design.md) — panel typography,
+- [`docs/side-panel-design.md`](../../side-panel-design.md) — panel typography,
   toolbar chrome, and the drill-in "Back" contract.
-- ADR [0038](../decisions/0038-navigator-view-list.md) /
-  [0044](../decisions/0044-navigator-stacked-arrangement.md) — Navigator view
+- ADR [0038](../../decisions/0038-navigator-view-list.md) /
+  [0044](../../decisions/0044-navigator-stacked-arrangement.md) — Navigator view
   list, `Group by` as a toolbar control, and why `active` does not throttle in
   stacked mode.

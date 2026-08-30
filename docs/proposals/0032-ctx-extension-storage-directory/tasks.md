@@ -117,7 +117,7 @@ current as work proceeds.
 - [ ] Flip the roadmap entry to `stable`.
 - [ ] `docs/domain-language.md` — add _extension storage directory_ if the
       glossary needs the term (`silo-domain-modeling`).
-- [ ] Update the two links to this RFC in `docs/proposals/0031-tasks-extension.md`
+- [ ] Update the links to this RFC in `docs/proposals/0031-tasks-extension/`
       for the new package path.
 
 ## Follow-ups to file, not to build here
