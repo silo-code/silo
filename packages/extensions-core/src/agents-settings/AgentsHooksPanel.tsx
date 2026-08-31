@@ -24,13 +24,16 @@ import {
 import {
   hookInstallableAgents,
   sessionFileAgents,
-  buildTrackSessionScript,
-  TRACK_SCRIPT_REL,
-  type AgentDefinition,
-  type AgentHookResume,
   type AgentExtraSettingsToggle,
 } from "@silo-code/extension-host/internal";
 import { installerFor } from "./install-strategy";
+import {
+  resolveHomeDir,
+  settingsPathFor,
+  ensureTrackScript,
+  healInstalledAgents,
+  type HookAgent,
+} from "./hook-self-heal";
 import {
   parseSettingsJsonText,
   writableSettingsOrThrow,
@@ -38,53 +41,11 @@ import {
 } from "./settings-json";
 import "./AgentsSettingsPage.css";
 
-type HookAgent = AgentDefinition & { resume: AgentHookResume };
-
 interface AgentRow {
   agent: HookAgent;
   installed: boolean;
   loaded: boolean;
   error?: string;
-}
-
-async function resolveHomeDir(ctx: ExtensionContext): Promise<string | null> {
-  try {
-    const { code, stdout } = await ctx.process.exec("sh", [
-      "-c",
-      "printf '%s' \"$HOME\"",
-    ]);
-    return code === 0 ? stdout.trim() || null : null;
-  } catch {
-    return null;
-  }
-}
-
-function settingsPathFor(agent: HookAgent, home: string): string {
-  return `${home}/${agent.resume.configPath}`;
-}
-
-async function ensureTrackScript(
-  ctx: ExtensionContext,
-  home: string,
-): Promise<boolean> {
-  const path = `${home}/${TRACK_SCRIPT_REL}`;
-  const body = buildTrackSessionScript();
-  const existing = (await ctx.files.pathExists(path))
-    ? await ctx.files.readText(path).catch(() => null)
-    : null;
-  if (existing === body) return false;
-  const dir = path.slice(0, path.lastIndexOf("/"));
-  if (dir) await ctx.files.createDir(dir);
-  await ctx.files.writeText(path, body);
-  return true;
-}
-
-async function refreshConfigIfDrifted(
-  ctx: ExtensionContext,
-  agent: HookAgent,
-  path: string,
-): Promise<boolean> {
-  return installerFor(agent.resume).refreshIfDrifted(ctx, agent.resume, path);
 }
 
 async function writeInstalled(
@@ -223,27 +184,13 @@ export function AgentsHooksPanel({ ctx }: { ctx: ExtensionContext }) {
     }
 
     try {
-      const installedAgents = next.filter((r) => r.installed);
-      if (installedAgents.length > 0) {
-        const scriptWrote = await ensureTrackScript(ctx, h);
-        const healed: string[] = [];
-        for (const r of installedAgents) {
-          const wrote = await refreshConfigIfDrifted(
-            ctx,
-            r.agent,
-            settingsPathFor(r.agent, h),
-          );
-          if (wrote) healed.push(r.agent.displayName);
-        }
-        if (scriptWrote || healed.length > 0) {
-          ctx.log.info(
-            "Refreshed Silo session hook to the shell-script runtime" +
-              (healed.length > 0 ? ` (config: ${healed.join(", ")})` : "") +
-              (scriptWrote ? " (wrote track-session.sh)" : "") +
-              ".",
-          );
-        }
-      }
+      // Also self-healed at app startup (core.agents-settings' activate,
+      // see hook-self-heal.ts) — this call is a harmless, idempotent repeat
+      // for whenever the page happens to be open too.
+      const installedAgents = next
+        .filter((r) => r.installed)
+        .map((r) => r.agent);
+      await healInstalledAgents(ctx, h, installedAgents);
     } catch (err) {
       ctx.log.warn(
         "Agent hook self-heal skipped: " +
