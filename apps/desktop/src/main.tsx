@@ -5,6 +5,7 @@ import {
   persistImmediately,
   flushEditorBackups,
   userConfigDir,
+  initStorageRoot,
   getExtensionManager,
   initUserKeybindings,
   setExtensionsReady,
@@ -22,6 +23,15 @@ initGlobalErrorCapture();
 
 // StatusBar startup sequence (RFC 0026) — before hydrate / extension races.
 beginStartupStatus();
+
+// Resolve the extension-storage root (RFC 0032) before anything can ask for a
+// path inside it. Built-ins activate synchronously below and are trusted (their
+// `ctx.files` isn't scoped at all); the load-bearing case is `loadInstalled`
+// below, which awaits this itself so a third-party extension's own-dir paths are
+// allowed from the first line of `activate()` — including a path it cached in a
+// previous session and uses before calling `globalDir()`. A rejection is logged
+// to the Output panel inside; own-dir paths then deny through the normal rules.
+void initStorageRoot().catch(() => {});
 
 // Activate built-ins synchronously, before render — the dock needs their panel
 // kinds present when it deserializes the saved layout.

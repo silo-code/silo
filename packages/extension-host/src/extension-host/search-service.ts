@@ -59,7 +59,9 @@ export function getSearchService(): SearchService {
  * Resolve and check a search root against `scope` — the workspace folder by
  * default; a `cwd` outside the workspace is allowed only with the `process`
  * capability. Throws {@link PathDeniedError} otherwise. Mirrors the cwd guard
- * the process service applies (search shells out to the same workspace tree).
+ * the process service applies (search shells out to the same workspace tree) —
+ * including its deliberate avoidance of `resolvePath`, which would also admit
+ * the extension's own storage directories (RFC 0032). See that guard's comment.
  */
 function guardCwd(scope: PathScope, cwd: string | undefined): string {
   const target = cwd ?? scope.roots[0];

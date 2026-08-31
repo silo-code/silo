@@ -5,26 +5,38 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const { fsMap, loaderMock, invokeMock, fsDeleteSpy } = vi.hoisted(() => {
-  const fsMap = new Map<string, string>();
-  return {
-    fsMap,
-    loaderMock: {
-      loadExtension: vi.fn(async () => {}),
-      unloadExtension: vi.fn(),
-      isLoaded: vi.fn(() => false),
-      needsReload: vi.fn(() => false),
-    },
-    invokeMock: vi.fn(async () => {}),
-    // Directory semantics over the flat map: deleting a path also deletes
-    // everything under it (the update flow deletes/renames whole install dirs).
-    fsDeleteSpy: vi.fn(async (p: string) => {
+const { fsMap, fsDirs, loaderMock, invokeMock, fsDeleteSpy, defaultFsDelete } =
+  vi.hoisted(() => {
+    const fsMap = new Map<string, string>();
+    // Directories with no files in them — the flat map can't represent those,
+    // and the storage-directory tests need "exists but empty" to be a real
+    // state.
+    const fsDirs = new Set<string>();
+    const defaultFsDelete = async (p: string) => {
       for (const key of [...fsMap.keys()]) {
         if (key === p || key.startsWith(`${p}/`)) fsMap.delete(key);
       }
-    }),
-  };
-});
+      for (const d of [...fsDirs]) {
+        if (d === p || d.startsWith(`${p}/`)) fsDirs.delete(d);
+      }
+    };
+    return {
+      fsMap,
+      fsDirs,
+      defaultFsDelete,
+      loaderMock: {
+        loadExtension: vi.fn(async () => {}),
+        unloadExtension: vi.fn(),
+        isLoaded: vi.fn(() => false),
+        needsReload: vi.fn(() => false),
+      },
+      invokeMock: vi.fn(async () => {}),
+      // Directory semantics over the flat map: deleting a path also deletes
+      // everything under it (the update flow deletes/renames whole install
+      // dirs).
+      fsDeleteSpy: vi.fn(defaultFsDelete),
+    };
+  });
 
 vi.mock("../services/user-config", () => ({
   userConfigDir: async () => "/cfg",
@@ -47,7 +59,9 @@ vi.mock("../services/tauri-fs", () => ({
   },
   fsDelete: fsDeleteSpy,
   fsPathExists: async (p: string) =>
-    fsMap.has(p) || [...fsMap.keys()].some((k) => k.startsWith(`${p}/`)),
+    fsMap.has(p) ||
+    fsDirs.has(p) ||
+    [...fsMap.keys(), ...fsDirs].some((k) => k.startsWith(`${p}/`)),
   fsRename: async (from: string, to: string) => {
     for (const [key, val] of [...fsMap.entries()]) {
       if (key === from || key.startsWith(`${from}/`)) {
@@ -55,12 +69,44 @@ vi.mock("../services/tauri-fs", () => ({
         fsMap.set(`${to}${key.slice(from.length)}`, val);
       }
     }
+    for (const d of [...fsDirs]) {
+      if (d === from || d.startsWith(`${from}/`)) {
+        fsDirs.delete(d);
+        fsDirs.add(`${to}${d.slice(from.length)}`);
+      }
+    }
+  },
+  // Immediate children of `p` over the flat map — enough for the storage
+  // directory walk behind `getDataInfo` (files carry their content's length as
+  // their size; intermediate segments come back as directories).
+  fsReadDir: async (p: string) => {
+    const prefix = `${p}/`;
+    const seen = new Map<string, { isDir: boolean; size: number }>();
+    for (const [key, val] of fsMap.entries()) {
+      if (!key.startsWith(prefix)) continue;
+      const rest = key.slice(prefix.length);
+      const slash = rest.indexOf("/");
+      if (slash === -1) seen.set(rest, { isDir: false, size: val.length });
+      else seen.set(rest.slice(0, slash), { isDir: true, size: 0 });
+    }
+    for (const d of fsDirs) {
+      if (!d.startsWith(prefix)) continue;
+      const rest = d.slice(prefix.length);
+      const name = rest.includes("/") ? rest.slice(0, rest.indexOf("/")) : rest;
+      if (!seen.has(name)) seen.set(name, { isDir: true, size: 0 });
+    }
+    return [...seen.entries()].map(([name, meta]) => ({
+      name,
+      path: `${p}/${name}`,
+      isDir: meta.isDir,
+      size: meta.size,
+      modifiedMs: 0,
+    }));
   },
   // Remaining surface the scoped file service binds when a built-in activates
   // (createContext → getScopedFileService). Not exercised by these tests.
   fsReadBytes: vi.fn(),
-  fsReadDir: vi.fn(),
-  fsCreateDir: vi.fn(),
+  fsCreateDir: async (p: string) => void fsDirs.add(p),
   fsWriteBytes: vi.fn(),
   fsStat: vi.fn(),
   fsReveal: vi.fn(),
@@ -96,10 +142,16 @@ import {
   updateNeedsConsent,
 } from "./extension-manager";
 import { registerBuiltins } from "./builtins-registry";
+import {
+  extensionDataExists,
+  resetStorageRootForTests,
+} from "./extension-storage-dirs";
+import { outputStore, clearChannel } from "./output-store";
 import { toastStore } from "./ui-service";
 import type { Extension } from "@silo-code/sdk";
 
 const INSTALLED = "/cfg/extensions/installed.json";
+const STORAGE = "/cfg/extension-storage";
 
 function manifest(perms?: unknown): string {
   return JSON.stringify({
@@ -117,12 +169,15 @@ const mgr = getExtensionManager();
 
 beforeEach(() => {
   fsMap.clear();
+  fsDirs.clear();
+  resetStorageRootForTests();
+  clearChannel("silo:extension-host");
   loaderMock.loadExtension.mockClear();
   loaderMock.unloadExtension.mockClear();
   loaderMock.isLoaded.mockReturnValue(false);
   loaderMock.needsReload.mockReturnValue(false);
   invokeMock.mockClear().mockResolvedValue(undefined);
-  fsDeleteSpy.mockClear();
+  fsDeleteSpy.mockClear().mockImplementation(defaultFsDelete);
   toastStore.toasts.splice(0, toastStore.toasts.length);
   // Reset the built-in registry so merged rows / dispatch start clean.
   registerBuiltins([], new Set());
@@ -1045,5 +1100,180 @@ describe("installFromRegistry", () => {
     expect(mgr.getState().availableUpdates).toEqual([
       expect.objectContaining({ id: "acme.x" }),
     ]);
+  });
+});
+
+// RFC 0032 — an uninstalled extension's storage directory is the user's data,
+// not app state: it survives unless the user opts in.
+describe("uninstall and extension storage", () => {
+  /** Install a minimal acme.x record so `uninstall` has something to remove. */
+  function installedRecord(): void {
+    fsMap.set(
+      INSTALLED,
+      JSON.stringify({
+        version: 1,
+        extensions: [
+          { id: "acme.x", dir: "acme.x", enabled: true, permissions: [] },
+        ],
+      }),
+    );
+    fsMap.set("/cfg/extensions/acme.x/package.json", manifest());
+  }
+
+  function hostLogText(): string {
+    return (outputStore.channels["silo:extension-host"]?.entries ?? [])
+      .map((e) => e.message)
+      .join("\n");
+  }
+
+  it("keeps the data by default and writes its path to the Output panel", async () => {
+    installedRecord();
+    fsMap.set(`${STORAGE}/acme.x/global/tasks.jsonl`, "{}");
+
+    await mgr.uninstall("acme.x");
+
+    expect(fsMap.get(`${STORAGE}/acme.x/global/tasks.jsonl`)).toBe("{}");
+    expect(hostLogText()).toContain(`${STORAGE}/acme.x`);
+    expect(mgr.getState().extensions.find((e) => e.id === "acme.x")).toBe(
+      undefined,
+    );
+  });
+
+  it("removes the whole subtree when the user opts in", async () => {
+    installedRecord();
+    fsMap.set(`${STORAGE}/acme.x/global/tasks.jsonl`, "{}");
+    fsMap.set(`${STORAGE}/acme.x/workspaces/ws_1/notes.md`, "hi");
+
+    await mgr.uninstall("acme.x", { deleteData: true });
+
+    expect(fsMap.has(`${STORAGE}/acme.x/global/tasks.jsonl`)).toBe(false);
+    expect(fsMap.has(`${STORAGE}/acme.x/workspaces/ws_1/notes.md`)).toBe(false);
+  });
+
+  it("sweeps away a file-free directory unconditionally", async () => {
+    installedRecord();
+    fsDirs.add(`${STORAGE}/acme.x/global`);
+
+    await mgr.uninstall("acme.x");
+
+    expect(fsDirs.has(`${STORAGE}/acme.x/global`)).toBe(false);
+  });
+
+  it("uninstalls cleanly when there is no storage directory at all", async () => {
+    installedRecord();
+    await expect(mgr.uninstall("acme.x")).resolves.toBeUndefined();
+    expect(fsMap.has("/cfg/extensions/acme.x/package.json")).toBe(false);
+  });
+
+  it("still completes the uninstall when deleting the data fails", async () => {
+    installedRecord();
+    fsMap.set(`${STORAGE}/acme.x/global/tasks.jsonl`, "{}");
+    fsDeleteSpy.mockImplementation(async (p: string) => {
+      if (p.startsWith(STORAGE)) throw new Error("EACCES");
+      await defaultFsDelete(p);
+    });
+
+    await expect(
+      mgr.uninstall("acme.x", { deleteData: true }),
+    ).resolves.toBeUndefined();
+
+    // The record is gone — the extension is not left half-uninstalled — and the
+    // failure is reported rather than swallowed.
+    expect(JSON.parse(fsMap.get(INSTALLED)!).extensions).toEqual([]);
+    expect(hostLogText()).toContain("Extension data cleanup failed");
+    expect(
+      toastStore.toasts.some(
+        (t) => t.level === "error" && t.message.includes("EACCES"),
+      ),
+    ).toBe(true);
+  });
+
+  it("getDataInfo reports files and size, and null when there is nothing", async () => {
+    expect(await mgr.getDataInfo("acme.x")).toBeNull();
+    fsMap.set(`${STORAGE}/acme.x/global/tasks.jsonl`, "12345");
+    expect(await mgr.getDataInfo("acme.x")).toEqual({
+      path: `${STORAGE}/acme.x`,
+      files: 1,
+      bytes: 5,
+      truncated: false,
+    });
+  });
+});
+
+// R7 — the migration toast promises "Your settings were kept"; files have to
+// keep that promise too.
+describe("loadInstalled carries storage across an id migration", () => {
+  it("renames the storage directory alongside the retired install", async () => {
+    registerBuiltins([fakeBuiltin("silo.agents", "Agents")], new Set());
+    fsMap.set(
+      INSTALLED,
+      JSON.stringify({
+        version: 1,
+        extensions: [
+          {
+            id: "silo.agent-monitor",
+            dir: "silo.agent-monitor",
+            enabled: true,
+            permissions: [],
+          },
+        ],
+      }),
+    );
+    fsMap.set(`${STORAGE}/silo.agent-monitor/global/state.json`, "{}");
+
+    await mgr.loadInstalled();
+
+    expect(fsMap.get(`${STORAGE}/silo.agents/global/state.json`)).toBe("{}");
+    expect(fsMap.has(`${STORAGE}/silo.agent-monitor/global/state.json`)).toBe(
+      false,
+    );
+  });
+
+  // The storage directory outlives its install by design (uninstall keeps the
+  // data unless the user opts in), so the rename must not be gated on an
+  // install record still being present — that would orphan the data of anyone
+  // who uninstalled the old extension before the built-in shipped.
+  it("renames storage even when no install record remains", async () => {
+    registerBuiltins([fakeBuiltin("silo.agents", "Agents")], new Set());
+    fsMap.set(INSTALLED, JSON.stringify({ version: 1, extensions: [] }));
+    fsMap.set(`${STORAGE}/silo.agent-monitor/global/state.json`, "{}");
+
+    await mgr.loadInstalled();
+
+    expect(fsMap.get(`${STORAGE}/silo.agents/global/state.json`)).toBe("{}");
+    expect(await extensionDataExists("silo.agent-monitor")).toBe(false);
+  });
+
+  it("does nothing until the superseding id is actually a built-in", async () => {
+    registerBuiltins([], new Set());
+    fsMap.set(INSTALLED, JSON.stringify({ version: 1, extensions: [] }));
+    fsMap.set(`${STORAGE}/silo.agent-monitor/global/state.json`, "{}");
+
+    await mgr.loadInstalled();
+
+    expect(fsMap.get(`${STORAGE}/silo.agent-monitor/global/state.json`)).toBe(
+      "{}",
+    );
+    expect(await extensionDataExists("silo.agents")).toBe(false);
+  });
+
+  it("is a no-op when the old id had no storage directory", async () => {
+    registerBuiltins([fakeBuiltin("silo.agents", "Agents")], new Set());
+    fsMap.set(
+      INSTALLED,
+      JSON.stringify({
+        version: 1,
+        extensions: [
+          {
+            id: "silo.agent-monitor",
+            dir: "silo.agent-monitor",
+            enabled: true,
+            permissions: [],
+          },
+        ],
+      }),
+    );
+
+    await expect(mgr.loadInstalled()).resolves.toBeUndefined();
   });
 });

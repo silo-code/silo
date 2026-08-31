@@ -163,9 +163,10 @@ export type {
 } from "./search-service";
 // The permission surface: the capability vocabulary an extension declares, and
 // the error the host throws when an extension reaches outside the workspace
-// without the matching grant. `PathDeniedError` is a class (a runtime value).
+// without the matching grant. `PathDeniedError` and `NoWorkspaceError` are
+// classes (runtime values).
 export type { Permission } from "./permissions";
-export { PathDeniedError } from "./permissions";
+export { PathDeniedError, NoWorkspaceError } from "./permissions";
 // The theme domain: the consumer service + its state/resolve shapes, the
 // `ThemePreset` contribution type (registered via ctx.registerThemePreset), and
 // the underlying theme types (re-exported from ./domain-types via theme-service).

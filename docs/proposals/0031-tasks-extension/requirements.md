@@ -13,7 +13,7 @@ tracker installed and no agent running, and can keep a real list of work.
 
 Tasks live in newline-delimited JSON files that Silo owns, outside any
 repository, in the extension's own storage directory
-([RFC 0032](../0032-ctx-extension-storage-directory/proposal.md)).
+([RFC 0032](../0032-ctx-extension-storage-directory.md)).
 
 ### Acceptance criteria
 

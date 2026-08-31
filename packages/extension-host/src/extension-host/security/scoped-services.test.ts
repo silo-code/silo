@@ -3,11 +3,13 @@ import { PathDeniedError } from "@silo-code/sdk";
 import type { Permission, FileService, ProcessService } from "@silo-code/sdk";
 import { scopeFileService } from "../file-service";
 import { scopeProcessService } from "../process-service";
+import { scopeSearchService } from "../search-service";
 import type { PathScope } from "./resolve-path";
 
 function scope(over: Partial<PathScope> = {}): PathScope {
   return {
     roots: ["/work/project"],
+    ownDirs: [],
     trusted: false,
     permissions: new Set<Permission>(),
     ...over,
@@ -148,5 +150,50 @@ describe("scopeProcessService", () => {
     const proc = scopeProcessService(base, scope());
     await proc.attach("s1", { cols: 80 });
     expect(base.attach).toHaveBeenCalledWith("s1", { cols: 80 });
+  });
+});
+
+// RFC 0032 R4 — the storage-directory lift widens `ctx.files` and nothing else.
+// `guardCwd` deliberately does not go through `resolvePath` (which admits
+// `ownDirs`); if the two are ever unified, these fail.
+describe("own storage directories do not lift anything but ctx.files", () => {
+  const OWN_DIR = "/cfg/extension-storage/acme.hello/global";
+  const owned = () => scope({ ownDirs: [OWN_DIR] });
+
+  it("still denies an exec cwd inside the own dir without the process permission", async () => {
+    const base = fakeProcess();
+    const proc = scopeProcessService(base, owned());
+    await expect(proc.exec("ls", [], { cwd: OWN_DIR })).rejects.toBeInstanceOf(
+      PathDeniedError,
+    );
+    await expect(
+      proc.exec("ls", [], { cwd: `${OWN_DIR}/sub` }),
+    ).rejects.toBeInstanceOf(PathDeniedError);
+    expect(base.exec).not.toHaveBeenCalled();
+  });
+
+  it("still denies a spawn cwd inside the own dir without the process permission", async () => {
+    const base = fakeProcess();
+    const proc = scopeProcessService(base, owned());
+    await expect(proc.spawn({ cwd: OWN_DIR })).rejects.toBeInstanceOf(
+      PathDeniedError,
+    );
+    expect(base.spawn).not.toHaveBeenCalled();
+  });
+
+  it("still denies a search root inside the own dir without the process permission", async () => {
+    const base = { search: vi.fn(async () => ({ files: [] }) as never) };
+    const search = scopeSearchService(base, owned());
+    await expect(search.search("q", { cwd: OWN_DIR })).rejects.toBeInstanceOf(
+      PathDeniedError,
+    );
+    expect(base.search).not.toHaveBeenCalled();
+  });
+
+  it("but does allow the same path through ctx.files", async () => {
+    const base = fakeFiles();
+    const fs = scopeFileService(base, owned());
+    await fs.writeText(`${OWN_DIR}/tasks.jsonl`, "{}");
+    expect(base.writeText).toHaveBeenCalledWith(`${OWN_DIR}/tasks.jsonl`, "{}");
   });
 });

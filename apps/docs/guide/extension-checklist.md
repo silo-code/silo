@@ -22,6 +22,10 @@ doesn't repeat the reasoning, just the list.
       [Permissions & access](/guide/permissions).
 - [ ] File and process access uses workspace-relative paths where possible,
       rather than assuming an absolute path will be granted.
+- [ ] Storing a data file? It goes in the extension's own directory
+      (`ctx.storage.globalDir()` / `workspaceDir()`), never a path invented
+      under `$HOME` — that folder needs no `fs:read`/`fs:write` at all. See
+      [`ctx.storage`](/api/storage/#storage-directories).
 
 ## Styling
 

@@ -41,6 +41,15 @@ import {
   SUPERSEDED_BUILTIN_IDS,
   SUPERSEDED_BUILTIN_TOAST_TITLES,
 } from "../state/extension-id-migration";
+import {
+  deleteExtensionData,
+  extensionDataExists,
+  extensionDataInfo,
+  initStorageRoot,
+  renameExtensionData,
+  type ExtensionDataInfo,
+} from "./extension-storage-dirs";
+import { extHostLog } from "./extension-host-logger";
 import { pushToast } from "./ui-service";
 import { appVersion } from "../services/tauri-app";
 import { isEngineCompatible } from "./engine-compat";
@@ -177,8 +186,24 @@ export interface ExtensionManager extends ReactiveService<ExtensionManagerState>
    * pass their true origin here so the temp staging dir is never recorded.
    */
   installFromFolder(srcDir: string, source?: InstallSource): Promise<void>;
-  /** Unload (if loaded), delete the folder, and drop the record. Rejects for built-ins. */
-  uninstall(id: string): Promise<void>;
+  /**
+   * Unload (if loaded), delete the folder, and drop the record. Rejects for
+   * built-ins.
+   *
+   * The extension's **storage directory** (RFC 0032) is kept by default — a
+   * `.jsonl` the user has been editing is not app state, and reinstalling
+   * restores it. Pass `deleteData: true` (the opt-in checkbox on the uninstall
+   * confirm) to remove it. A directory holding no files is removed either way:
+   * there is nothing to lose and no reason to litter. Failing to delete the
+   * data never fails the uninstall.
+   */
+  uninstall(id: string, opts?: { deleteData?: boolean }): Promise<void>;
+  /**
+   * File count + size of an extension's storage directory, for the uninstall
+   * confirm. `null` when there is nothing a user could lose (absent, or no
+   * files) — the UI then shows the plain confirm with no checkbox.
+   */
+  getDataInfo(id: string): Promise<ExtensionDataInfo | null>;
   /** Enable: load a third-party extension, or hot-enable a built-in. */
   enable(id: string): Promise<void>;
   /** Disable: unload a third-party extension, or hot-disable a built-in. */
@@ -460,6 +485,81 @@ async function retireOnDiskInstall(id: string, dir: string): Promise<void> {
   });
 }
 
+/**
+ * Carry storage directories across every superseded extension id (RFC 0032 R7),
+ * so the migration toast's "Your settings were kept" covers files too.
+ *
+ * Deliberately keyed on `SUPERSEDED_BUILTIN_IDS` rather than on the on-disk
+ * install records being retired alongside it: a storage directory outlives its
+ * install by design (uninstall keeps the data unless the user opts in), so a
+ * user who uninstalled `oldId` before the built-in shipped has data but no
+ * record. Gating on the record would orphan exactly that case.
+ *
+ * `renameExtensionData` is idempotent and refuses to clobber an existing
+ * `<newId>`, so this is safe to run on every startup; the steady state is one
+ * `fsPathExists` per mapping.
+ */
+async function migrateSupersededStorage(): Promise<void> {
+  for (const [oldId, newId] of Object.entries(SUPERSEDED_BUILTIN_IDS)) {
+    if (oldId === newId || !isBuiltin(newId)) continue;
+    await renameExtensionData(oldId, newId).catch((err: unknown) => {
+      extHostLog.warn(
+        `Could not move extension storage from "${oldId}" to "${newId}"`,
+        { error: err instanceof Error ? err.message : String(err) },
+      );
+    });
+  }
+}
+
+/**
+ * Decide what happens to an uninstalled extension's storage directory (R6).
+ * The host never deletes a user's files on its own: with `deleteData` false the
+ * directory survives and its path goes to the Output panel, because nothing
+ * else in the product names it afterwards. A directory holding no files is
+ * swept away regardless — there is nothing to lose.
+ *
+ * Every failure here is reported, never rethrown: the extension is already
+ * uninstalled by this point, and failing the call would report a completed
+ * operation as failed.
+ */
+async function handleStorageOnUninstall(
+  id: string,
+  deleteData: boolean,
+): Promise<void> {
+  try {
+    if (deleteData) {
+      const info = await extensionDataInfo(id);
+      await deleteExtensionData(id);
+      if (info) extHostLog.info(`Deleted extension data: ${info.path}`);
+      return;
+    }
+    const info = await extensionDataInfo(id);
+    if (info) {
+      // A truncated walk has no trustworthy count — say so rather than
+      // reporting the floor (0, when the depth cap stopped it) as fact.
+      const count = info.truncated
+        ? "contents not fully counted"
+        : `${info.files} file(s)`;
+      extHostLog.info(
+        `Kept extension data for "${id}" — ${count} at ${info.path}`,
+      );
+      return;
+    }
+    // No files, but the directory may still be there (empty subfolders).
+    if (await extensionDataExists(id)) await deleteExtensionData(id);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    extHostLog.error(`Extension data cleanup failed for "${id}"`, {
+      error: message,
+    });
+    pushToast(
+      "error",
+      `${id} was uninstalled, but its stored data could not be removed: ${message}`,
+      { title: "Extension data not removed" },
+    );
+  }
+}
+
 // ---- reactive state ----------------------------------------------------------
 
 let cached: ExtensionManagerState = Object.freeze({
@@ -721,7 +821,7 @@ export function getExtensionManager(): ExtensionManager {
       await refresh();
     },
 
-    async uninstall(id) {
+    async uninstall(id, opts) {
       // Built-ins live in the app bundle, not on disk — there's nothing to
       // remove, so the UI offers only disable. Guard the API too.
       if (isBuiltin(id)) {
@@ -736,7 +836,14 @@ export function getExtensionManager(): ExtensionManager {
       await upsertRecord((file) => {
         file.extensions = file.extensions.filter((e) => e.id !== id);
       });
+      // Storage directory, after the code is gone. Never rolls the uninstall
+      // back — a half-uninstalled extension is worse than bytes left on disk.
+      await handleStorageOnUninstall(id, opts?.deleteData ?? false);
       await refresh();
+    },
+
+    getDataInfo(id) {
+      return extensionDataInfo(id);
     },
 
     async enable(id) {
@@ -795,6 +902,13 @@ export function getExtensionManager(): ExtensionManager {
     },
 
     async loadInstalled() {
+      // Resolve the extension-storage root before any third-party extension
+      // activates, so `PathScope.ownDirs` is populated from the first line of
+      // `activate()` (R5). Already in flight from main.tsx; awaiting the shared
+      // promise here is what makes the ordering a guarantee rather than a race.
+      // A failure is already logged to Output — extensions still load, and
+      // own-dir paths deny through the normal rules.
+      await initStorageRoot().catch(() => {});
       const file = await readInstalledFile();
       const root = await extensionsRoot();
       // Transparent migration: a third-party install whose id is now built-in
@@ -809,6 +923,7 @@ export function getExtensionManager(): ExtensionManager {
           });
         }
       }
+      await migrateSupersededStorage();
       for (const { oldId, newId } of migrated) {
         const name = builtinRows().find((b) => b.id === newId)?.name ?? newId;
         const title =

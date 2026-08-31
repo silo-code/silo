@@ -57,6 +57,12 @@ import {
   getGlobalExtensionStorage,
   getWorkspaceExtensionStorage,
 } from "./extension-storage";
+import {
+  ensureGlobalDir,
+  ensureWorkspaceDir,
+  ownDirPaths,
+} from "./extension-storage-dirs";
+import { NoWorkspaceError } from "@silo-code/sdk";
 import { getActiveWorkspace } from "../state/store";
 import type { PathScope } from "./security/resolve-path";
 import {
@@ -115,6 +121,11 @@ export function createContext(
       const ws = getActiveWorkspace();
       return ws ? [ws.folder, ...(ws.extraFolders ?? [])] : [];
     },
+    // Live too, for the same reason `roots` is: the workspace storage dir moves
+    // under the extension when the active workspace switches.
+    get ownDirs(): readonly string[] {
+      return ownDirPaths(extensionId, getActiveWorkspace()?.id);
+    },
     trusted: options.trusted ?? false,
     permissions,
   };
@@ -128,6 +139,14 @@ export function createContext(
     storage: {
       global: globalStorage,
       workspace: getWorkspaceExtensionStorage(extensionId),
+      globalDir: () => ensureGlobalDir(extensionId),
+      workspaceDir: () => {
+        const ws = getActiveWorkspace();
+        // Not a PathDeniedError — nothing was denied, there's just nothing to
+        // scope to yet.
+        if (!ws) return Promise.reject(new NoWorkspaceError());
+        return ensureWorkspaceDir(extensionId, ws.id);
+      },
     },
     registerEditor(editor: Editor): Disposable {
       return track(editorRegistry.register(editor));

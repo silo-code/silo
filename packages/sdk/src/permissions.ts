@@ -63,3 +63,34 @@ export class PathDeniedError extends Error {
     Object.setPrototypeOf(this, PathDeniedError.prototype);
   }
 }
+
+/**
+ * Thrown when an API that needs the **active workspace** is called while no
+ * workspace is open — today, {@link ExtensionStorageScopes.workspaceDir}.
+ *
+ * It is deliberately not a {@link PathDeniedError}: nothing was denied, there
+ * is simply nothing to scope to yet. Catch it to fall back to
+ * {@link ExtensionStorageScopes.globalDir | globalDir} or to defer the work
+ * until a workspace opens:
+ *
+ * ```ts
+ * try {
+ *   const dir = await ctx.storage.workspaceDir();
+ * } catch (err) {
+ *   if (err instanceof NoWorkspaceError) return; // nothing to persist yet
+ *   throw err;
+ * }
+ * ```
+ *
+ * @category Core Types
+ * @public
+ */
+export class NoWorkspaceError extends Error {
+  constructor(message?: string) {
+    super(message ?? "No workspace is open");
+    this.name = "NoWorkspaceError";
+    // Same prototype-chain restoration as PathDeniedError — `instanceof` has to
+    // survive the down-leveled build and the host↔extension boundary.
+    Object.setPrototypeOf(this, NoWorkspaceError.prototype);
+  }
+}

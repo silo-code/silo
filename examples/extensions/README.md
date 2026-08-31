@@ -18,6 +18,7 @@ surface at a time.
 | **[modal-gallery](./modal-gallery-extension)**       | Live tour of every modal design-system component (RFC 0016) — Buttons through ModalActions, one tab per docs group.  | Window menu / `cmd+shift+g` | —         |
 | **[busy-status-demo](./busy-status-demo)**           | The StatusBar **busy-status** slot (`ctx.ui.busyStatus`) and its numbered-badge popover.                             | side panel                  | —         |
 | **[webview-bridge-demo](./webview-bridge-demo)**     | Reference implementation of `ctx.webview` — nav events, `exec`, element picking, and screen capture.                 | Window menu                 | —         |
+| **[storage-demo](./storage-demo-extension)**         | `ctx.storage.globalDir()` / `workspaceDir()` — a real data-file directory with **no** `fs:*` permission needed.      | side panel                  | —         |
 
 ## Which one do I want?
 
@@ -35,6 +36,8 @@ surface at a time.
 - **Building a modal?** See **modal-gallery** — every kit component from
   RFC 0016, live and interactive, grouped the same way as the
   [design docs](../../apps/docs/design/components/).
+- **Persisting a real data file** (not just settings)? See **storage-demo** —
+  `ctx.storage.globalDir()`/`workspaceDir()` need no `fs:*` permission at all.
 
 `hello` is deliberately a strict subset of `clock`: same shape (command + status
 item), minus the state and settings page — so "what does the next step look

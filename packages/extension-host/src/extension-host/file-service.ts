@@ -13,6 +13,7 @@ import {
   fsCopy,
 } from "../services/tauri-fs";
 import { startWatch, stopWatch, onFileChange } from "../services/tauri-watch";
+import { isStoragePath } from "./extension-storage-dirs";
 import { retargetEditorsForRename } from "../state/workspaces";
 import { resolvePath } from "./security/resolve-path";
 import type { PathScope } from "./security/resolve-path";
@@ -85,7 +86,11 @@ export function getFileService(): FileService {
           disposed: false,
         };
         watches.set(path, created);
-        void startWatch(watchId, path).catch((err) =>
+        // The project-tree noise filter is wrong inside extension storage — an
+        // extension is free to name a subfolder `cache/` and must still get
+        // events for it (RFC 0032). The host decides; `ctx.files.watch`'s
+        // public signature is unchanged.
+        void startWatch(watchId, path, !isStoragePath(path)).catch((err) =>
           console.warn("ctx.files.watch failed", err),
         );
         void onFileChange((evt) => {

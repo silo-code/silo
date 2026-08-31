@@ -212,6 +212,7 @@ the published reference is exactly this surface — no more, no less.
 - [NetworkBytesResponse](interfaces/NetworkBytesResponse.md)
 - [path](variables/path.md)
 - [PathDeniedError](classes/PathDeniedError.md)
+- [NoWorkspaceError](classes/NoWorkspaceError.md)
 - [Disposable](interfaces/Disposable.md)
 - [DockPanelApi](interfaces/DockPanelApi.md)
 - [DockPanelProps](interfaces/DockPanelProps.md)

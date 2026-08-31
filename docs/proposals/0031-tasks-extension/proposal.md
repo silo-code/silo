@@ -114,7 +114,7 @@ CLI lands. The schema is Silo's own and documented; **interop is export, not
 adoption** (see Alternatives).
 
 This needs a per-extension storage directory, which the SDK does not have —
-see [RFC 0032](../0032-ctx-extension-storage-directory/proposal.md).
+see [RFC 0032](../0032-ctx-extension-storage-directory.md).
 
 ### The normalized model: LCD core, provider-rendered detail
 
@@ -262,7 +262,7 @@ is what keeps `if (source.providerId === "silo")` out of the views from day one.
 
 ### Sequencing
 
-Implementation is **blocked on [RFC 0032](../0032-ctx-extension-storage-directory/proposal.md)
+Implementation is **blocked on [RFC 0032](../0032-ctx-extension-storage-directory.md)
 shipping _and_ the SDK being published to npm.** `silo-extensions` builds against
 the published `@silo-code/sdk`, not this workspace, so `ctx.storage.globalDir()` /
 `workspaceDir()` only become available to `silo.tasks` after a release. Local
@@ -357,7 +357,7 @@ still buckets.
 
 - Surface study (interactive): panel drill-in, Navigator view, Tasks app sheet.
 - Competitive teardown of task UI across twelve agent orchestrators and editors.
-- [RFC 0032](../0032-ctx-extension-storage-directory/proposal.md) — the per-extension
+- [RFC 0032](../0032-ctx-extension-storage-directory.md) — the per-extension
   storage directory this depends on.
 - [`docs/side-panel-design.md`](../../side-panel-design.md) — panel typography,
   toolbar chrome, and the drill-in "Back" contract.

@@ -449,7 +449,7 @@ grep-based test in `boundaries.test.ts`, cheap and self-explaining when it fails
 
 ## Constraints and existing decisions
 
-- **[RFC 0032](../0032-ctx-extension-storage-directory/proposal.md)** — hard
+- **[RFC 0032](../0032-ctx-extension-storage-directory.md)** — hard
   dependency. `ctx.storage.globalDir()` / `workspaceDir()` and the `ctx.files`
   sandbox lift for own directories are what allow `permissions: []`. Nothing here
   can be built against the published SDK until 0032 ships and the SDK is

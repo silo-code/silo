@@ -22,9 +22,16 @@ const { invoke, listen, unlisten, fireChange } = vi.hoisted(() => {
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 vi.mock("@tauri-apps/api/event", () => ({ listen }));
+vi.mock("../services/user-config", () => ({
+  userConfigDir: async () => "/cfg",
+}));
 
 import { PathDeniedError } from "@silo-code/sdk";
 import { getFileService, scopeFileService } from "./file-service";
+import {
+  initStorageRoot,
+  resetStorageRootForTests,
+} from "./extension-storage-dirs";
 
 const files = getFileService();
 
@@ -136,6 +143,7 @@ describe("FileService — scope wrapper (B8)", () => {
   it("copy checks src as read and dest as write", async () => {
     const scope = {
       roots: ["/ws"],
+      ownDirs: [],
       trusted: false,
       permissions: new Set<never>(),
     };
@@ -167,6 +175,36 @@ const stops = (watchId?: string) =>
   );
 const startsFor = (path: string) =>
   invoke.mock.calls.filter((c) => c[0] === "start_watch" && c[1].path === path);
+
+// RFC 0032 — the project-tree noise filter is a workspace concern; inside an
+// extension's own storage directory the host turns it off, so a subfolder the
+// extension named `cache/` still delivers events.
+describe("FileService — watch noise filtering", () => {
+  beforeEach(() => resetStorageRootForTests());
+
+  it("keeps the filter on for a workspace path", async () => {
+    await initStorageRoot();
+    const handle = files.watch("/work/project", () => {});
+    await flush();
+    expect(invoke).toHaveBeenCalledWith(
+      "start_watch",
+      expect.objectContaining({ path: "/work/project", filterNoise: true }),
+    );
+    handle.dispose();
+  });
+
+  it("turns the filter off inside the extension-storage root", async () => {
+    await initStorageRoot();
+    const path = "/cfg/extension-storage/acme.hello/global";
+    const handle = files.watch(path, () => {});
+    await flush();
+    expect(invoke).toHaveBeenCalledWith(
+      "start_watch",
+      expect.objectContaining({ path, filterNoise: false }),
+    );
+    handle.dispose();
+  });
+});
 
 describe("FileService — watch", () => {
   it("starts a backend watch on the path and stops it on dispose", async () => {
