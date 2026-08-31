@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.59.0](https://github.com/silo-code/silo/compare/silo-v0.58.0...silo-v0.59.0) (2026-08-31)
+
+
+### Features
+
+* **agents:** repair drifted session hooks on app startup, not just Settings ([#462](https://github.com/silo-code/silo/issues/462)) ([6f8af16](https://github.com/silo-code/silo/commit/6f8af1608bfdc424d203405c625f03a3284b06fb))
+* **sdk:** add ctx.storage.globalDir()/workspaceDir() (RFC 0032) ([#458](https://github.com/silo-code/silo/issues/458)) ([041b475](https://github.com/silo-code/silo/commit/041b475ebb9bfc1bd7bfb2bde362b5c07434e15f))
+
+
+### Bug Fixes
+
+* **agents:** gate the session-capture hook to Silo terminals only ([#461](https://github.com/silo-code/silo/issues/461)) ([5cc5085](https://github.com/silo-code/silo/commit/5cc5085345e35356ea8a1c64a29b43f1292dc838))
+
 ## [0.58.0](https://github.com/silo-code/silo/compare/silo-v0.57.0...silo-v0.58.0) (2026-08-28)
 
 
