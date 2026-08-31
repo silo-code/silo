@@ -320,11 +320,14 @@ A separate `SILO_VERSION` can be added later if a consumer needs it.
 - **Sessions open at upgrade time have no `SILO_*`** and will not until their
   tab is closed and reopened. Environment is set at creation and reattach does
   not re-create it. Harmless here; it matters at Hook Guard, where those tabs
-  will silently stop producing hook events until they turn over. That is
-  flagged as an open question for that change, not solved here — a fallback to
-  the old process-tree walk when `SILO` is unset would re-open the exact hole
-  the guard closes, because a pre-upgrade Silo session and a foreign session
-  are indistinguishable from inside the script.
+  will silently stop producing hook events until they turn over. **Resolved**:
+  `agent-hook-script.ts` gates on `[ -n "$SILO" ] || exit 0` with no fallback —
+  a pre-upgrade tab goes quiet until closed and reopened, silently and with no
+  release note. A fallback to the old process-tree walk when `SILO` is unset
+  was rejected because a pre-upgrade Silo session and a foreign session are
+  indistinguishable from inside the script, which would re-open the exact hole
+  the guard closes. Accepted given the userbase size; revisit the "silent" part
+  if that stops being true.
 - **`ProcessExecOptions.env` changes behavior**: `SILO_*` keys are now dropped.
   Realistically zero blast radius — those values come from the host today — but
   it is a change to shipped public API.

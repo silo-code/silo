@@ -179,6 +179,7 @@ describe("buildTrackSessionScript", () => {
             ...process.env,
             HOME: home,
             PATH: `${bin}:${process.env.PATH}`,
+            SILO: "1",
           },
           stdio: ["pipe", "pipe", "pipe"],
         });
@@ -277,7 +278,12 @@ describe("buildTrackSessionScript", () => {
 
       execFileSync("sh", [scriptPath, "cursor"], {
         input: '{"session_id":"CURSOR-WALK-TEST"}',
-        env: { ...process.env, HOME: home, PATH: `${bin}:${process.env.PATH}` },
+        env: {
+          ...process.env,
+          HOME: home,
+          PATH: `${bin}:${process.env.PATH}`,
+          SILO: "1",
+        },
         stdio: ["pipe", "pipe", "pipe"],
       });
       const line = readFileSync(
@@ -313,6 +319,7 @@ describe("buildTrackSessionScript", () => {
           ...process.env,
           HOME: home,
           PATH: `${bin}:${process.env.PATH}`,
+          SILO: "1",
           SILO_AGENT_PID: String(agentPid),
         },
         stdio: ["pipe", "pipe", "pipe"],
@@ -342,7 +349,7 @@ describe("buildTrackSessionScript", () => {
       const home = join(dir, "home");
       execFileSync("sh", [scriptPath, "claude"], {
         input: '{"cwd":"/nope"}',
-        env: { ...process.env, HOME: home },
+        env: { ...process.env, HOME: home, SILO: "1" },
         stdio: ["pipe", "pipe", "pipe"],
       });
       let wrote = true;
@@ -351,6 +358,38 @@ describe("buildTrackSessionScript", () => {
       } catch {
         wrote = false;
       }
+      expect(wrote).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("is inert outside a Silo terminal (Hook Guard, RFC 0028)", () => {
+    // $SILO is the one variable the guard checks, and it's reserved — a
+    // caller can't fake it from inside the hook's own environment. Strip any
+    // SILO* the test happened to inherit (e.g. this suite running inside a
+    // Silo dev terminal) so the case under test is genuinely absent.
+    const withoutSilo = Object.fromEntries(
+      Object.entries(process.env).filter(([k]) => !k.startsWith("SILO")),
+    );
+    const dir = mkdtempSync(join(tmpdir(), "silo-hook-guard-"));
+    try {
+      const scriptPath = join(dir, "track-session.sh");
+      writeFileSync(scriptPath, buildTrackSessionScript());
+      const home = join(dir, "home");
+      execFileSync("sh", [scriptPath, "claude"], {
+        input: '{"session_id":"019fa9d2-1234-7abc-8def-0123456789ab"}',
+        env: { ...withoutSilo, HOME: home },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      let wrote = true;
+      try {
+        readFileSync(join(home, ".silo/agent-hooks/events.jsonl"), "utf8");
+      } catch {
+        wrote = false;
+      }
+      // A real session id is present — the only thing missing is $SILO —
+      // so a write here would mean the guard isn't actually gating anything.
       expect(wrote).toBe(false);
     } finally {
       rmSync(dir, { recursive: true, force: true });
