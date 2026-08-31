@@ -461,7 +461,9 @@
   padding: 4px 8px;
   background: transparent;
   border: none;
-  color: var(--silo-color-text);
+  /* Muted by default so the header reads quieter than the rows it groups; it
+     brightens on hover (it's a collapse toggle). */
+  color: var(--silo-color-text-lo);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: var(--silo-font-size-chrome);

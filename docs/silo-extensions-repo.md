@@ -21,11 +21,24 @@ a branch that isn't on the registry yet).
 
 ## What lives there
 
-Independently-installable extensions, one per top-level folder
-(`docs-panel`, `local-web-viewer`, `system-monitor`, …). Each is its own npm
-package. These are the model for **third-party** extensions — unlike the bundled
-`core.*` / `silo.*` extensions in `packages/extensions-*`, they consume Silo only
-through the public SDK and are installed at runtime, not compiled into the app.
+Independently-installable extensions, one per top-level folder. Each is its own
+npm package. These are the model for **third-party** extensions — unlike the
+bundled `core.*` / `silo.*` extensions in `packages/extensions-*`, they consume
+Silo only through the public SDK and are installed at runtime, not compiled into
+the app.
+
+Current folders: `agent-monitor`, `docs-panel`, `follow-ups`, `github-actions`,
+`github-issues`, `github-prs`, `local-web-viewer`, `skills-manager`,
+`system-monitor`, `tasks`.
+
+- **`tasks`** (`silo.tasks`) — Silo-managed task lists: a global personal list
+  and one per workspace, a right-side panel to scan / drill in / create / edit /
+  complete, and NDJSON storage in the extension's own directory (no repo writes,
+  `permissions: []`). Phase 1 of [RFC 0031](proposals/0031-tasks-extension/proposal.md);
+  the proposal stays in this monorepo. Depends on RFC 0032's storage directories,
+  so it needs a published SDK release carrying `ctx.storage.globalDir()` — until
+  then it builds against a linked local `packages/sdk` (see its `tsconfig.json`
+  / `vitest.config.ts` notes).
 
 ## It is NOT part of this pnpm workspace
 

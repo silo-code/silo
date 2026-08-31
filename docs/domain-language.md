@@ -527,3 +527,47 @@ The short form used in host code (`PathScope.ownDirs`) for the storage
 directories the calling extension may touch unconditionally — global always,
 plus the active workspace's when one is open.
 _Avoid_: Sandbox dir (it isn't a sandbox — see ADR 0015), private dir
+
+### Tasks
+
+Vocabulary for the `silo.tasks` extension ([RFC 0031](proposals/0031-tasks-extension/proposal.md)),
+which ships in the external `silo-extensions` repo.
+
+**Task**:
+A unit of work someone intends to do — "what to do next / what's blocked". Bound
+to the _intent_, never to an agent run: a Task exists before any agent is
+started and after any branch is merged. (Six of the twelve tools RFC 0031
+surveyed use "task" the other way, as a synonym for an agent session — Silo does
+not.)
+_Avoid_: Using "task" for an agent session, a worktree, or a CI job
+
+**Task vs Follow-up**:
+Adjacent enough that users will conflate them — the glossary draws the line. A
+**Follow-up** (`silo.follow-ups`, [RFC 0021](proposals/0021-follow-ups-extension-sdk.md))
+is a _bookmark on a tab_ — "this editor / terminal is worth coming back to",
+scoped to a workspace's open tabs and gone when the tab closes. A **Task** is a
+_unit of work_ with its own record, lane, and priority, that outlives any tab
+and any workspace. Marking a tab ≠ tracking work.
+
+**Task Source**:
+One resolved store of tasks, identified by its **locator** (a dedupe key — two
+workspaces resolving to the same locator are one source). The provider (Silo,
+and later Beads / dex) is an implementation detail _of_ a source. Phase 1 has
+two, both Silo-managed: one always-present **global** source ("Personal") and
+one per active workspace.
+_Avoid_: "Beads workspace" reaching any UI — Beads' own term for its unit
+collides with Silo's **Workspace**; the provider seam keeps it internal
+
+**Lane**:
+The closed set `todo | in_progress | blocked | done` that every provider maps
+its own statuses into. Distinct from `statusLabel`, which carries the provider's
+_own_ word for display; Silo groups and sorts by lane, shows the label in
+detail.
+_Avoid_: "Status" for the closed set (that's the display label); "column" (no
+board in phase 1)
+
+**Ready**:
+A task in the `todo` lane — nothing is blocking it and no one has started it.
+The hollow-ring status glyph. The state an agent (or a person) picks work up
+from.
+_Avoid_: "Open" (ambiguous with not-done), "backlog" (implies a separate tier)

@@ -96,6 +96,13 @@ primitives above — so a third party could build the same.
 > service) still live in the host; that split is by design. The decisions behind
 > the model are recorded as ADRs in
 > [`docs/decisions/`](https://github.com/silo-code/silo/tree/main/docs/decisions).
+>
+> This table is **bundled** features only. Extensions that live in
+> `silo-code/silo-extensions` and are installed at runtime — `silo.follow-ups`,
+> `silo.agent-monitor`, and `silo.tasks`
+> ([RFC 0031](https://github.com/silo-code/silo/blob/main/docs/proposals/0031-tasks-extension/proposal.md))
+> — deliberately get no row here; they are discovered through Browse, not shipped
+> in the app.
 
 ## Extension distribution <a id="extension-distribution"></a>
 
