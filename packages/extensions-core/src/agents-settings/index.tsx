@@ -18,6 +18,7 @@ import type { Extension, ExtensionContext, TabItem } from "@silo-code/sdk";
 import { Section, Tabs, TabPanel, SettingRow, Switch } from "@silo-code/sdk";
 import { store, setTerminalSetting } from "@silo-code/extension-host/internal";
 import { AgentsHooksPanel } from "./AgentsHooksPanel";
+import { selfHealInstalledHooks } from "./hook-self-heal";
 import "./AgentsSettingsPage.css";
 
 /** Mirror of `silo.agents`' {@link AgentsExtensionAPI} — core cannot import silo. */
@@ -123,5 +124,9 @@ export const extension: Extension = {
       order: 1,
       component: () => <AgentsSettingsPage ctx={ctx} />,
     });
+    // Hook Reconcile: repair already-installed hooks on every launch, not
+    // only when this settings page happens to be opened. Fire-and-forget —
+    // never blocks activation, and is silent on a no-op.
+    void selfHealInstalledHooks(ctx);
   },
 };
