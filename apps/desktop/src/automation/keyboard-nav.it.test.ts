@@ -438,7 +438,7 @@ describe.skipIf(!canFocus)("keyboard navigation", () => {
     // leaving the center and returning (region cycle) must restore the GROUP you
     // left — not the first visible textarea (which an always-visible xterm wins).
     await silo.activateWorkspace(wsB);
-    const term = await silo.openTerminal(); // editor + terminal in one group…
+    const term = await silo.openTerminal(undefined, wsB); // editor + terminal in one group…
     await silo.splitActivePanel("right"); // …now two groups, side by side.
 
     // Region-cycle out of the center and back.
