@@ -113,8 +113,9 @@ and can be pointed at by an agent with one line in `AGENTS.md` until the Silo
 CLI lands. The schema is Silo's own and documented; **interop is export, not
 adoption** (see Alternatives).
 
-This needs a per-extension storage directory, which the SDK does not have —
-see [RFC 0032](../0032-ctx-extension-storage-directory.md).
+This needs a per-extension storage directory, delivered by
+[RFC 0032](../0032-ctx-extension-storage-directory.md) (implemented; awaiting an
+SDK publish).
 
 ### The normalized model: LCD core, provider-rendered detail
 
@@ -207,10 +208,12 @@ one source, the label is the source's name.
 The provider is authoritative; cached task state is disposable. Resolution
 (`bd where`) is cached per folder and re-probed only on workspace/folder change —
 detection is the expensive part, listing is cheap (`bd list --json` ≈ 0.4s,
-`dex list --json` ≈ 0.2s). Last-known lists persist in extension storage for
-instant paint, then refresh. Phase 1 refreshes on view open/focus plus manual;
-`ctx.files.watch` on a source's directory replaces polling in phase 2 — it is the
-only way to see an agent's `bd close` promptly, and costs nothing at idle.
+`dex list --json` ≈ 0.2s). From phase 2 on, last-known lists persist in extension
+storage for instant paint, then refresh — a subprocess round trip is worth
+hiding; a local `.jsonl` read is not (see the corrections below).
+`ctx.files.watch` on a source's directory replaces polling for subprocess
+providers in phase 2 — it is the only way to see an agent's `bd close` promptly,
+and costs nothing at idle.
 
 Deduping by source is the largest single win: five worktrees of one repo are
 **one** `bd list`, not five.
@@ -218,10 +221,11 @@ Deduping by source is the largest single win: five worktrees of one repo are
 ### Where it lives
 
 `silo-extensions`, as `silo.tasks`, per-package npm, consuming the published
-`@silo-code/sdk`. It declares `process` (running a tracker CLI with a cwd outside
-the active workspace) and `fs:read` + `fs:write` (its own storage directory).
-Not published to the registry until several phases in; installed from GitHub
-until then.
+`@silo-code/sdk`. Phase 1 declares **no permissions at all** — RFC 0032's sandbox
+lift means an extension reaches its own storage directory through `ctx.files`
+with no `fs:read` / `fs:write`. `process` arrives with Beads in phase 2 (running
+a tracker CLI with a cwd outside the active workspace). Not published to the
+registry until several phases in; installed from GitHub until then.
 
 ### Phases
 
@@ -266,8 +270,14 @@ Implementation is **blocked on [RFC 0032](../0032-ctx-extension-storage-director
 shipping _and_ the SDK being published to npm.** `silo-extensions` builds against
 the published `@silo-code/sdk`, not this workspace, so `ctx.storage.globalDir()` /
 `workspaceDir()` only become available to `silo.tasks` after a release. Local
-development can proceed against a linked SDK build; the manifest's `silo.engine`
-and `@silo-code/sdk` devDependency get pinned once that version exists.
+development can proceed against a linked SDK build.
+
+Two independent version lines get pinned once that release exists, and they are
+**not** the same number: `silo.engine` is a floor on the **host app** version
+(`engine-compat.ts` checks it against the running Silo, currently 0.58.x), while
+the `@silo-code/sdk` devDependency is the **npm package** version (currently
+0.41.x). `silo.engine` names the app release whose runtime carries RFC 0032's
+storage directories; the devDependency names the SDK release whose types do.
 
 The payoff is that phase 1 ships with **`permissions: []`** — RFC 0032's sandbox
 lift means the extension needs no `fs:read` / `fs:write` to own its data. The
@@ -283,15 +293,54 @@ lift means the extension needs no `fs:read` / `fs:write` to own its data. The
   and `workspaceDir()/tasks.jsonl`, not `tasks/global.jsonl` + `ws-<id>.jsonl`
   under one directory; 0032 already namespaces per workspace, so the `ws-<id>`
   prefix would be redundant.
-- **"New tasks go to" is a phase-1 concern, not phase 2.** The phase table files
-  it under multi-provider work, but phase 1 already has two sources — global and
-  the active workspace — so a create destination must be chosen and shown from
-  the first release.
+- **No "New tasks go to" setting in phase 1** _(revised 2026-08-31 during
+  implementation, reversing an earlier correction)._ The panel has exactly two
+  Silo sources, and a persisted per-workspace default plus a one-off override
+  menu is more chrome than that warrants. The side panel always creates in the
+  **active workspace's** source, falling back to the always-present global
+  ("Personal") list when no workspace is open; the bottom-docked Add button
+  names the destination. The `silo.tasks.newInGlobal` command covers the
+  "put this on my personal list instead" case without a picker. A real
+  destination choice returns in phase 2, when detected third-party providers
+  make "which of several sources" a genuine question.
 - **The Silo provider watches its own file in phase 1.** The phase table defers
   `ctx.files.watch` to phase 2. For a subprocess provider that is right; for a
   plain file the extension already owns it is a few lines, and phase 1's storage
   pitch is explicitly that an agent can be pointed at the `.jsonl`. Without a
   watch the panel goes stale the moment that happens.
+- **Mutations are compare-and-swap, not blind rewrite.** The design's storage
+  pitch (an agent appends to `tasks.jsonl`) and its write strategy (whole-file
+  read-modify-write) are in direct tension: an external append landing between
+  the load and the write is silently lost. Every mutation re-`stat`s immediately
+  before the rename and re-applies against the reloaded file when the source
+  changed underneath it. The residual window — a write landing inside the
+  final stat→rename gap — is documented as a known limitation, not designed
+  away; the alternative is a lock file this product does not need.
+- **A patch's non-core fields travel through the descriptor channel too.**
+  Letting `TaskPatch` carry Silo's own fields directly would put
+  provider-specific keys on a type the whole seam shares — the coupling R5
+  bans, relocated into the type system. Detail sections instead carry an
+  optional `key`, and edits come back as `providerFields` keyed by it. The core
+  still knows nothing about any provider's vocabulary, in both directions.
+- **Assignees are not editable in phase 1.** The field stays on the core model
+  (providers that have it populate it; Silo returns `[]`), but a single-user
+  local app with no user directory has nothing to populate an assignee picker
+  from. Editing arrives with a provider that has real assignees.
+- **`rank` is append-order, not a midpoint scheme.** Phase 1 ships no
+  drag-reordering, so a generator that can insert between two neighbours has no
+  caller. The field stays — lexicographically sortable, so phase 2's table can
+  swap the generator without a file migration — but phase 1 simply appends.
+- **The panel groups by source by default**, not `None`. "Row vocabulary" says a
+  row never shows which provider it came from and relies on grouping to separate
+  sources; with `None` as the default, the always-present global list and the
+  workspace list would render as one indistinguishable stream on first run. A
+  single non-empty source collapses to one unlabeled group, so the
+  no-workspace case still looks flat.
+- **Panel preferences are global-scoped, keyed by workspace.**
+  `SidePanelProps.storage` and `ctx.storage.workspace` are the same
+  per-workspace bag, persisted **into the workspace record** — so with no
+  workspace open (a case R2 requires to work) nothing persists. Preferences
+  live in `ctx.storage.global` under a workspace-id key instead.
 
 ## Non-goals
 
@@ -308,6 +357,10 @@ lift means the extension needs no `fs:read` / `fs:write` to own its data. The
 - **Multiple folders per workspace.** Detection resolves against the primary
   folder; a workspace whose _second_ folder holds the tracker won't offer it.
   Known limitation, deferred.
+- **Multi-writer coordination.** Compare-and-swap closes the practical window
+  against an agent appending to a Silo `.jsonl` (see the corrections above); a
+  lock file, a journal, or a real embedded store is out of scope for a personal
+  task list at this scale.
 
 ## Alternatives considered
 
