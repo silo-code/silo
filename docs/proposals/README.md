@@ -120,6 +120,6 @@ don't get a proposal at all — see below.
 | [0028](./0028-terminal-identity-environment.md)               | Terminal identity in the environment                              | 2026-08-23 | implemented |
 | [0029](./0029-sdk-sheet-homedir-confirm-dont-show.md)         | Public SDK: `showSheet`, `homeDir`, `confirmWithDontShowAgain`    | 2026-08-25 | implemented |
 | [0030](./0030-navigator-view-arrangement.md)                  | Navigator view arrangement — reorder, disable, and a stacked mode | 2026-08-27 | implemented |
-| [0031](./0031-tasks-extension.md)                             | Tasks extension — Silo tasks, third-party trackers as sources     | 2026-08-30 | accepted    |
+| [0031](./0031-tasks-extension/proposal.md)                    | Tasks extension — Silo tasks, third-party trackers as sources     | 2026-08-30 | accepted    |
 | [0032](./0032-ctx-extension-storage-directory.md)             | A per-extension storage directory on `ctx`                        | 2026-08-30 | implemented |
 | [0033](./0033-agent-profiles.md)                              | Agent Profiles — naming how you start an agent                    | 2026-08-31 | accepted    |

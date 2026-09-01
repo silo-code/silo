@@ -1,5 +1,5 @@
 ---
-status: accepted # phase 1 implemented; phases 2–4 remain
+status: accepted # phase 1 implemented; phase 2 in planning; phases 3–5 remain
 created: 2026-08-30
 ---
 
@@ -18,7 +18,75 @@ and consumes Silo only through the published `@silo-code/sdk`.
 
 **Phase 1 has shipped** — the Silo provider, the global and per-workspace lists,
 the side panel with group/filter/sort/search, drill-in detail, and
-create/edit/complete/delete. Phases 2–4 (below) are still planned.
+create/edit/complete/delete. Phases 2–5 (below) are still planned.
+
+## Planning scope
+
+**This package plans phase 2 only.** Phase 1 is implemented, verified, and
+collapsed; treat it as the current baseline. Phases 3–5 are not planned here.
+
+### What phase 2 delivers
+
+The two **aggregating surfaces** — the ones that show tasks from more than one
+source at once:
+
+1. **The Navigator cross-workspace view** — a registered Navigator view
+   (`ctx.registerNavigatorView`) that lists every open workspace's Silo tasks
+   plus the global list in one place, grouped by workspace, with the same
+   filter/sort/search/group controls and drill-in detail the side panel has.
+2. **The Tasks app dock sheet** — a dock-anchored, non-modal sheet
+   (`ctx.layout.openPanelSheet`) presenting the same aggregated list in a wider,
+   full-height layout, opened from a command.
+
+Both are pure UI over the **phase-1 provider seam**. The only new data-layer
+work is resolving a Silo `TaskSource` for **every open workspace** rather than
+just the active one — the payoff the phase-1 `source-set` store was built for
+("loaded and watched once, owned by the source set, not the panel — the
+multi-consumer payoff lands with phase 2's Navigator view").
+
+### What phase 2 explicitly does NOT touch
+
+No second provider. Beads and dex, tracker detection, per-workspace provider
+enablement, the "new tasks go to" destination choice, provider-rendered detail
+sections from a real second/third provider, and subprocess file-watched refresh
+are all **phase 3**. Writes across providers are phase 4; decorations are phase 5. (The original phase 2 bundled the aggregation surfaces with the Beads/dex
+work; they were split on 2026-09-01 — see the note under **Phases**.)
+
+### Phase-1 corrections phase 2 must preserve
+
+- **Preferences use `ctx.storage.global` keyed by workspace id**, never
+  `SidePanelProps.storage` / `ctx.storage.workspace` (which drop everything when
+  no workspace is open). The cross-workspace view is not per-workspace, so it
+  needs its own prefs key — it must not reuse or clobber a workspace's key.
+- **No `providerId` under `src/ui`** — the new view and sheet render through the
+  same generic seam; the `boundaries.test.ts` grep assertion extends to them.
+- **The global source always exists and is listable with no workspace open** —
+  the Navigator view and the sheet must both render in that state.
+- **No "new tasks go to" picker** — creating from a cross-workspace surface is
+  the phase-3 destination question; phase 2's `New task` action reuses the
+  phase-1 command (reveal the side panel, focus quick-add).
+
+### Cross-repository dependency (open decision)
+
+The phase-1 `ctx.storage.workspaceDir()` resolves the **active** workspace's
+directory only, and creating the directory is a side effect of the call. The
+cross-workspace view needs a path for **every** open workspace, without the
+create side effect. `design.md` weighs two options and recommends **Option A —
+extend `ctx.storage`** in **`silo-code/silo`**:
+
+- `workspaceDir(workspaceId?: string, options?: { create?: boolean })` — resolve
+  any workspace's dir (not just the active one); `options.create` **defaults to
+  `true`** because every existing RFC 0032 caller writes into the result without
+  calling `createDir` and `writeText` does not create parent dirs — so
+  `create: false` as the default would break them (the Tasks extension included).
+- `workspaceDirs(options?: { create?: boolean })` — one call resolves a path per
+  open workspace, so the aggregation layer does not fan out N calls.
+
+This triggers the `silo-docs-sync` workflow and an `@silo-code/sdk` + app
+release the extension then floors on. **It is the one decision that gates phase
+2's sequencing** and needs sign-off before implementation starts. Option B
+(derive the path in-extension) is a fallback only — the SDK documents the path
+shape as non-contractual.
 
 ## Motivation
 
@@ -56,6 +124,13 @@ tear down, so binding a task to one is nearly free. This proposal does not build
 that (see Non-goals), but it is why the architecture keeps a task's workspace
 association **derivable, never stored**.
 
+**Phase 2 specifically:** phase 1 gave each workspace a task list, but every list
+is walled inside its own workspace — to see what is outstanding across projects
+you switch workspaces one at a time. The cross-workspace view answers "what is on
+my plate everywhere" in one place, and the app sheet gives that same answer the
+room a ~250px side panel cannot. Both are the reason the phase-1 store was built
+as a shared, always-on resource rather than something the panel owns.
+
 ## Architecture
 
 ### The Task Source
@@ -66,12 +141,12 @@ source is identified by its **locator** and is either:
 - **Silo-managed** — a file Silo owns, outside any repo. One always-present
   **global** source ("Personal") and optionally one per workspace.
 - **Repo-derived** — a third-party tracker detected in a workspace folder (phase
-  2+).
+  3+).
 
 The provider (Silo, Beads, dex) is an implementation detail _of_ a source. Two
 workspaces that are worktrees of the same repository resolve to the **same**
 source — the locator is a dedupe key. Providers are **additive per workspace**: a
-workspace may have any number of sources enabled at once (phase 2+).
+workspace may have any number of sources enabled at once (phase 3+).
 
 ### The normalized model: LCD core, provider-rendered detail
 
@@ -191,20 +266,30 @@ Everything below is live in `silo-extensions/tasks/`.
 
 ## Phases
 
-| Phase     | Scope                                                                                                                                                                                                                                                                           | Status                                       |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| **1**     | Silo provider only — global + per-workspace lists, side panel, list with filter/sort/search, drill-in detail, create/edit/complete/delete. No provider UI, because there is nothing to choose.                                                                                  | **Implemented** — `silo-extensions` `tasks/` |
-| **2**     | Beads **and** dex together. Detection offers, per-workspace enablement, "new tasks go to", the Navigator cross-workspace view and the Tasks app dock sheet, provider-rendered detail sections from a real second/third provider, file-watched refresh for subprocess providers. | Planned                                      |
-| **3**     | Writes across providers; move/migrate between sources with lossy-field warnings and dependency-id remapping.                                                                                                                                                                    | Planned                                      |
-| **4**     | Decorations — workspace badges, status rows, status bar — all **default off**.                                                                                                                                                                                                  | Planned                                      |
-| **Later** | Backlog.md, Linear, GitHub Issues; Silo CLI for agent access; Start Task.                                                                                                                                                                                                       | Planned                                      |
+| Phase     | Scope                                                                                                                                                                                                                              | Status                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **1**     | Silo provider only — global + per-workspace lists, side panel, list with filter/sort/search, drill-in detail, create/edit/complete/delete. No provider UI, because there is nothing to choose.                                     | **Implemented** — `silo-extensions` `tasks/` |
+| **2**     | The **Navigator cross-workspace view** and the **Tasks app dock sheet** — two aggregating surfaces that show every workspace's list plus the global one in one place, built over the phase-1 Silo provider seam. No new providers. | **In planning** — this package               |
+| **3**     | Beads **and** dex together. Detection offers, per-workspace enablement, "new tasks go to", provider-rendered detail sections from a real second/third provider, file-watched refresh for subprocess providers.                     | Planned                                      |
+| **4**     | Writes across providers; move/migrate between sources with lossy-field warnings and dependency-id remapping.                                                                                                                       | Planned                                      |
+| **5**     | Decorations — workspace badges, status rows, status bar — all **default off**.                                                                                                                                                     | Planned                                      |
+| **Later** | Backlog.md, Linear, GitHub Issues; Silo CLI for agent access; Start Task.                                                                                                                                                          | Planned                                      |
 
-Phase 2 pairs Beads and dex deliberately: they are maximally different
+**Phase 2 was split out of the original phase 2** (2026-09-01). The original
+phase 2 bundled the cross-workspace aggregation surfaces with the Beads/dex
+provider work. They separate cleanly: the Navigator view and the Tasks app sheet
+are pure UI over the seam phase 1 already shipped and need no second provider to
+build or to prove, while Beads + dex is a self-contained chunk with its own risk.
+Splitting them lets the multi-consumer payoff the phase-1 `source-set` store was
+built for land first, on the one provider that already exists. Every later phase
+shifted down one number; nothing was dropped.
+
+Phase 3 pairs Beads and dex deliberately: they are maximally different
 (subprocess + Dolt + rich dependency graph vs. a plain file with no labels and no
 assignees), and with Silo as a superset that gives one provider _richer_ than the
 core schema and one _poorer_ — the actual test of whether the LCD line is drawn
-correctly. Phases 1–3 must each stand on their own for a human user; agent
-integration is additive and must not depend on the unshipped CLI work.
+correctly. Every phase must stand on its own for a human user; agent integration
+is additive and must not depend on the unshipped CLI work.
 
 Phase 1 built the **full provider seam** (`TaskSource`, the normalized core
 model, the optional-method `TaskProvider` interface, detail-section descriptors)
@@ -253,10 +338,10 @@ reshaping it under two is a worse test than designing it once.
   A two-Silo-source panel doesn't warrant a persisted default plus a one-off
   override menu. The active-workspace-with-global-fallback rule plus
   `silo.tasks.newInGlobal` covers it. A real destination choice returns in phase
-  2 when detected third-party providers make "which of several sources" a genuine
+  3 when detected third-party providers make "which of several sources" a genuine
   question.
 - **The Silo provider watches its own file in phase 1.** The phase table deferred
-  `ctx.files.watch` to phase 2; for a plain file the extension already owns, it's
+  `ctx.files.watch` to a later phase; for a plain file the extension already owns, it's
   a few lines and phase 1's storage pitch (an agent appends to the `.jsonl`)
   makes it mandatory.
 - **A patch's non-core fields travel through the descriptor channel** (`key` →
@@ -270,7 +355,9 @@ reshaping it under two is a worse test than designing it once.
   extension today, is not public SDK surface, and its rationale lives here.
   Revisit when a **second** aggregating surface adopts the same seam — at that
   point it becomes a contract with two implementations to generalize from rather
-  than one to guess at.
+  than one to guess at. **(Phase 2 is that second surface — re-evaluate at
+  collapse; the current recommendation in `design.md` is still no ADR, because
+  the second consumer is the same extension, not an independent one.)**
 - **Windows.** The predicted `resolve-path.ts` POSIX-only gap — a `permissions:
 []` own-dir write with a drive-absolute path failing with `ERROR_INVALID_NAME`
   — was **fixed in RFC 0032** (`silo-code/silo` #473): that module now recognizes
@@ -283,20 +370,26 @@ reshaping it under two is a worse test than designing it once.
 
 - **Repo / package:** `silo-code/silo-extensions`, `tasks/`, package
   `@silo-extensions/tasks`, manifest id `silo.tasks`, `publisher` `"Silo"`,
-  `permissions: []`. Added in `silo-extensions` #100.
+  `permissions: []`. Added in `silo-extensions` #100. **Phase 2's UI work lands
+  here too; the `ctx.storage` extension (Option A — `workspaceDir` params +
+  `workspaceDirs()`) lands in `silo-code/silo`** and ships in an `@silo-code/sdk`
+  - app release the extension
+    then floors on (`silo.engine` + the `@silo-code/sdk` devDependency).
 - **Layout:** `model/` (pure types), `lib/` (pure `ids` / `view` / `prefs`),
   `providers/silo/` (`jsonl`, `record`, `file-store`, `provider`) + `registry`,
   `sources/source-set` (the one reactive store), `ui/` (panel, toolbar, list,
   row, detail, generic descriptor renderer, quick-add, glyphs, CSS). Internal
   layering mirrors the repo's: `ui → {model, lib, sources}`, `sources → {model,
 providers}`, `providers → model`; nothing under `model/` or `lib/` imports
-  React or `ctx`.
+  React or `ctx`. Phase 2 adds `ui/CrossTasksView.tsx`, `ui/TasksAppSheet.tsx`,
+  and a shared `ui/AggregatedList.tsx`; `source-set` grows from 2 sources to
+  N + 1 (see `design.md`).
 - **Tests:** co-located Vitest, pure-logic style — `jsonl`, `record`, `view`,
   `ids`, `file-store` (absent file, tmp-then-rename, CAS reload/re-apply, retry
   exhaustion, serialization, content-based self-write suppression), `provider`,
   `source-set`, `prefs`, `commands`, and a grep-based `boundaries` assertion.
   `FileService` is faked in-memory at the `ctx.files` seam.
-- **Dependencies / sequencing:** requires RFC 0032's
+- **Dependencies / sequencing:** phase 1 requires RFC 0032's
   `ctx.storage.globalDir()` / `workspaceDir()` and the `ctx.files` own-dir
   sandbox lift — shipped in `@silo-code/sdk` **0.42.0** and Silo app **0.59.0**.
   The two pins are different numbers by design: `silo.engine: "^0.59.0"` is a
@@ -307,11 +400,14 @@ providers}`, `providers → model`; nothing under `model/` or `lib/` imports
   than 0.59.0 are gated by `silo.engine` until that release ships.
 - **Docs:** `docs/domain-language.md` gained a **Tasks** section (Task, Task
   Source, Lane, Ready; Task pinned to the intent, never an agent run; Task vs.
-  Follow-up; Beads' "beads workspace" must not reach the UI).
+  Follow-up; Beads' "beads workspace" must not reach the UI). Phase 2 adds
+  **Tasks app** (the aggregated cross-workspace surface).
   `docs/side-panel-design.md`'s working log records the token-styled native date
   input. `docs/silo-extensions-repo.md` and `silo-extensions/README.md` list
   `tasks/`. `silo.tasks` gets **no row** in `apps/docs/roadmap.md` — that table
-  is for bundled `core.*` / `silo.*` packages, and this ships external.
+  is for bundled `core.*` / `silo.*` packages, and this ships external. (The
+  phase-2 `ctx.storage` extension does get a one-line note under the existing
+  `ctx.storage` roadmap row.)
 
 ## Non-goals
 
@@ -349,27 +445,47 @@ init`'s repo modifications make Beads a poor default for repos you don't own.
 - **A generic `project` taxonomy that workspaces map into.** Rejected as a second
   taxonomy for a case labels already cover — labels are core, filterable, and
   cross-source.
+- **Phase 2: derive an inactive workspace's storage dir in-extension** (string
+  ops off `globalDir()`) instead of extending the SDK. Rejected as the primary
+  plan — the SDK documents the path shape as non-contractual; see `design.md`.
+  Kept only as a bridge (behind `resolveWorkspaceTasksDir`) if the SDK change
+  slips.
+- **Phase 2: default `workspaceDir`'s new `create` option to `false`.** Reads
+  cleaner in isolation, but `writeText` does not create parent directories and
+  every existing RFC 0032 caller relies on `workspaceDir()` having made the dir —
+  so `false` as the default breaks them. Default `true`; `false` is opt-in.
+- **Phase 2: fan out `workspaceDir(id)` per open workspace** instead of a
+  `workspaceDirs()` batch. Rejected — N host round-trips and, at the default
+  `create: true`, N empty directories littered for workspaces that have no
+  tasks.
+- **Phase 2: a dock panel kind (a real tab) instead of `openPanelSheet`.** The
+  proposal commits to a "dock sheet" — anchored, non-modal, dismissible — not a
+  persistent tab the user manages. `design.md` records the reasoning.
 
 ## Related decisions
 
-- [RFC 0032](./0032-ctx-extension-storage-directory.md) — the per-extension
-  storage directory and `ctx.files` own-dir sandbox lift this depends on.
-- [ADR 0022](./decisions/0022-on-disk-storage-layout.md) — three-tier on-disk
+- [RFC 0032](../0032-ctx-extension-storage-directory.md) — the per-extension
+  storage directory and `ctx.files` own-dir sandbox lift this depends on; phase 2
+  may extend its `workspaceDir()`.
+- [ADR 0022](../decisions/0022-on-disk-storage-layout.md) — three-tier on-disk
   layout; task data is tier 1, reached only via 0032's directories.
-- [ADR 0026](./decisions/0026-sdk-component-set.md) — the design-system kit is
-  the source for content components; panel chrome stays bespoke where
-  `docs/side-panel-design.md` says so.
-- [ADR 0017](./decisions/0017-css-theming-contract.md) — extension CSS uses
+- [ADR 0026](../decisions/0026-sdk-component-set.md) — the design-system kit is
+  the source for content components; panel and sheet chrome stay bespoke where
+  `docs/side-panel-design.md` / `docs/modal-design.md` say so.
+- [ADR 0017](../decisions/0017-css-theming-contract.md) — extension CSS uses
   design tokens only.
-- [ADR 0038](./decisions/0038-navigator-view-list.md) — `Group by` is a toolbar
-  control, not a second view.
-- [RFC 0021](./0021-follow-ups-extension-sdk.md) — Follow-ups, the adjacent
-  concept the glossary now disambiguates Task from.
-- [ADR 0045](./decisions/0045-ephemeral-change-planning.md) — the change-planning
+- [ADR 0038](../decisions/0038-navigator-view-list.md) — the Navigator lists its
+  views; register **one** view, controls are toolbar items, set an `icon`.
+- [RFC 0021](../0021-follow-ups-extension-sdk.md) — Follow-ups, the adjacent
+  concept the glossary disambiguates Task from.
+- [ADR 0045](../decisions/0045-ephemeral-change-planning.md) — the change-planning
   convention this proposal's phased collapse follows.
 
 ## Decision
 
 **Accepted** 2026-08-30. **Phase 1 implemented** and collapsed 2026-09-01;
-`status` stays `accepted` while phases 2–4 remain. Re-expand into a fresh
-planning package to plan phase 2.
+`status` stays `accepted` while phases 2–5 remain. The original phase 2 was
+split in two on 2026-09-01 (see the note under **Phases**); phases 3–5 are the
+old 2–4 shifted down. **Phase 2 re-expanded into this planning package on
+2026-09-01** — `requirements.md` / `design.md` / `tasks.md` are scoped to phase 2
+only and are deleted at collapse.
