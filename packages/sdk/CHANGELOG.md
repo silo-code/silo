@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.42.0](https://github.com/silo-code/silo/compare/sdk-v0.41.0...sdk-v0.42.0) (2026-09-01)
+
+
+### Features
+
+* **sdk:** add ctx.storage.globalDir()/workspaceDir() (RFC 0032) ([#458](https://github.com/silo-code/silo/issues/458)) ([041b475](https://github.com/silo-code/silo/commit/041b475ebb9bfc1bd7bfb2bde362b5c07434e15f))
+
 ## [0.42.0](https://github.com/silo-code/silo/compare/sdk-v0.41.0...sdk-v0.42.0) (2026-08-31)
 
 
