@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import { PathDeniedError } from "@silo-code/sdk";
 import type { Permission } from "@silo-code/sdk";
 import {
-  normalizePosix,
+  isAbsolutePath,
+  normalizePath,
   toAbsolute,
   withinRoots,
   resolvePath,
@@ -19,21 +20,63 @@ function scope(over: Partial<PathScope> = {}): PathScope {
   };
 }
 
-describe("normalizePosix", () => {
+describe("normalizePath", () => {
   it("collapses slashes and drops '.'", () => {
-    expect(normalizePosix("/work//project/./src")).toBe("/work/project/src");
+    expect(normalizePath("/work//project/./src")).toBe("/work/project/src");
   });
   it("resolves '..' segments", () => {
-    expect(normalizePosix("/work/project/src/../lib")).toBe(
-      "/work/project/lib",
-    );
+    expect(normalizePath("/work/project/src/../lib")).toBe("/work/project/lib");
   });
   it("does not ascend above the root for absolute paths", () => {
-    expect(normalizePosix("/work/../../etc")).toBe("/etc");
-    expect(normalizePosix("/..")).toBe("/");
+    expect(normalizePath("/work/../../etc")).toBe("/etc");
+    expect(normalizePath("/..")).toBe("/");
   });
   it("keeps leading '..' for relative paths", () => {
-    expect(normalizePosix("../sibling/file")).toBe("../sibling/file");
+    expect(normalizePath("../sibling/file")).toBe("../sibling/file");
+  });
+  it("returns '' for an empty relative path", () => {
+    expect(normalizePath("")).toBe("");
+  });
+
+  // Windows: drive-letter and UNC anchors.
+  it("converts '\\' to '/'", () => {
+    expect(normalizePath("C:\\Users\\dave\\notes.txt")).toBe(
+      "C:/Users/dave/notes.txt",
+    );
+  });
+  it("upper-cases the drive letter", () => {
+    expect(normalizePath("c:/work/project")).toBe("C:/work/project");
+  });
+  it("treats a drive as an anchor '..' cannot escape", () => {
+    expect(normalizePath("C:/work/../../etc")).toBe("C:/etc");
+    expect(normalizePath("C:/..")).toBe("C:/");
+  });
+  it("resolves '..' within a drive path", () => {
+    expect(normalizePath("C:/work/project/src/../lib")).toBe(
+      "C:/work/project/lib",
+    );
+  });
+  it("preserves a UNC prefix as an anchor", () => {
+    expect(normalizePath("\\\\server\\share\\dir\\file")).toBe(
+      "//server/share/dir/file",
+    );
+    expect(normalizePath("//server/share/a/../b")).toBe("//server/share/b");
+  });
+});
+
+describe("isAbsolutePath", () => {
+  it("accepts POSIX, drive, and UNC forms", () => {
+    expect(isAbsolutePath("/etc/hosts")).toBe(true);
+    expect(isAbsolutePath("C:/Users/dave")).toBe(true);
+    expect(isAbsolutePath("c:\\Users\\dave")).toBe(true);
+    expect(isAbsolutePath("\\\\server\\share")).toBe(true);
+    expect(isAbsolutePath("//server/share")).toBe(true);
+  });
+  it("rejects relative paths and drive-relative 'C:foo'", () => {
+    expect(isAbsolutePath("src/index.ts")).toBe(false);
+    expect(isAbsolutePath("./notes.md")).toBe(false);
+    expect(isAbsolutePath("../up")).toBe(false);
+    expect(isAbsolutePath("C:foo")).toBe(false);
   });
 });
 
@@ -52,6 +95,23 @@ describe("toAbsolute", () => {
   it("returns null for a relative path with no roots", () => {
     expect(toAbsolute([], "src/index.ts")).toBeNull();
   });
+  it("keeps a Windows drive-absolute path absolute, not workspace-relative", () => {
+    // The RFC 0032 bug: a drive-absolute own-dir path was treated as relative
+    // and spliced onto roots[0].
+    expect(
+      toAbsolute(
+        ["C:/dev/silo"],
+        "C:/Users/dave/.config/silo/extension-storage/silo.tasks/tasks.jsonl",
+      ),
+    ).toBe(
+      "C:/Users/dave/.config/silo/extension-storage/silo.tasks/tasks.jsonl",
+    );
+  });
+  it("resolves a relative path against a Windows root", () => {
+    expect(toAbsolute(["C:\\dev\\silo"], "src/index.ts")).toBe(
+      "C:/dev/silo/src/index.ts",
+    );
+  });
 });
 
 describe("withinRoots", () => {
@@ -65,6 +125,23 @@ describe("withinRoots", () => {
     expect(withinRoots(roots, "/work/project-evil/x")).toBe(false);
     expect(withinRoots(roots, "/work")).toBe(false);
     expect(withinRoots(roots, "/etc/hosts")).toBe(false);
+  });
+  it("matches a Windows path regardless of drive-letter case", () => {
+    expect(withinRoots(["C:/work/project"], "c:/work/project/src/a.ts")).toBe(
+      true,
+    );
+    expect(withinRoots(["c:\\work\\project"], "C:/work/project")).toBe(true);
+  });
+  it("rejects a same-path on a different drive", () => {
+    expect(withinRoots(["C:/work/project"], "D:/work/project/a.ts")).toBe(
+      false,
+    );
+  });
+  it("handles a root with a trailing separator", () => {
+    expect(withinRoots(["/work/project/"], "/work/project/a.ts")).toBe(true);
+    expect(withinRoots(["C:/work/project/"], "C:/work/project/a.ts")).toBe(
+      true,
+    );
   });
 });
 
@@ -217,6 +294,56 @@ describe("resolvePath — own storage directories", () => {
     );
     expect(resolvePath(s, "src/app.tsx", "read")).toBe(
       "/work/project/src/app.tsx",
+    );
+  });
+});
+
+// RFC 0032 on Windows — a zero-permission extension writing into its own
+// drive-absolute storage directory. Regression cases for the bug where the
+// drive-absolute path was treated as relative and spliced onto roots[0].
+describe("resolvePath — own storage directories on Windows", () => {
+  const OWN = "C:/Users/dave/.config/silo/extension-storage/silo.tasks";
+  const win = (over: Partial<PathScope> = {}) =>
+    scope({
+      roots: ["C:/dev/silo"],
+      ownDirs: [`${OWN}/global`, `${OWN}/workspaces/ws_1`],
+      ...over,
+    });
+
+  it("allows a write into the workspace storage dir with no permissions", () => {
+    expect(
+      resolvePath(win(), `${OWN}/workspaces/ws_1/tasks.jsonl`, "write"),
+    ).toBe(`${OWN}/workspaces/ws_1/tasks.jsonl`);
+  });
+
+  it("allows a write into the global storage dir with no workspace open", () => {
+    expect(
+      resolvePath(win({ roots: [] }), `${OWN}/global/notes.log`, "write"),
+    ).toBe(`${OWN}/global/notes.log`);
+  });
+
+  it("accepts a backslash-separated own-dir path", () => {
+    const backslashed = `${OWN}/global/cache/probe.txt`.replace(/\//g, "\\");
+    expect(resolvePath(win(), backslashed, "write")).toBe(
+      `${OWN}/global/cache/probe.txt`,
+    );
+  });
+
+  it("still denies a prefix-sibling of the storage dir", () => {
+    expect(() => resolvePath(win(), `${OWN}/global-evil/x`, "write")).toThrow(
+      PathDeniedError,
+    );
+  });
+
+  it("still denies an out-of-workspace path without fs:write", () => {
+    expect(() =>
+      resolvePath(win(), "C:/Windows/System32/drivers/etc/hosts", "write"),
+    ).toThrow(PathDeniedError);
+  });
+
+  it("still resolves a relative path against the Windows workspace root", () => {
+    expect(resolvePath(win(), "src/app.tsx", "read")).toBe(
+      "C:/dev/silo/src/app.tsx",
     );
   });
 });

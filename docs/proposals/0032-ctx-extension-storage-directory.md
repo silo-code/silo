@@ -89,6 +89,15 @@ lazily on first `globalDir()` call — an extension can cache its absolute path
 in `ctx.storage.global` in one session and use it at the top of `activate()` in
 the next without ever calling `globalDir()` again.
 
+On Windows the directory paths handed back are drive-absolute (`C:/Users/…`).
+`resolve-path.ts` recognizes a Windows drive (`C:/`, `C:\`) and a UNC prefix
+(`//`, `\\`) as absolute anchors alongside the POSIX root, normalizing `\` to
+`/` and comparing the drive letter case-insensitively. Without this an untrusted
+extension's `C:/…` own-dir path was treated as workspace-relative and spliced
+onto the workspace root, so every own-dir write failed with `ERROR_INVALID_NAME`
+— the first symptoms being `silo.tasks` (RFC 0031 phase 1) and the
+`storage-demo` example both unable to write their `.jsonl` on Windows.
+
 The workspace file watcher's project-tree noise filter
 (`node_modules/`, `dist/`, `cache/`, …) is bypassed for paths inside extension
 storage: an extension is free to name a subfolder `cache/`, and a watcher that

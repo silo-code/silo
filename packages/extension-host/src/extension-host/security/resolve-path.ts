@@ -9,8 +9,13 @@
  * **not** a sandbox — in-realm code can bypass `ctx` entirely (see RFC 0006) — so
  * it constrains the `ctx.files`/`ctx.process` surface, nothing more.
  *
- * No Tauri or platform imports: paths are treated as POSIX (Silo's terminals and
- * fs are Unix-only for now; Windows scoping is future work). Kept pure so the
+ * No Tauri or platform imports. Paths are normalized to a forward-slash form and
+ * compared structurally: a POSIX root (`/`), a Windows drive (`C:/`, `C:\`), and
+ * a UNC prefix (`//`, `\\`) are each recognized as an absolute anchor that `..`
+ * cannot ascend above. This matters on Windows because `ctx.storage.globalDir()`
+ * / `workspaceDir()` (RFC 0032) hand an untrusted extension a drive-absolute
+ * path back: treating `C:/…` as relative would splice it onto the workspace root
+ * and every own-dir write would fail (`ERROR_INVALID_NAME`). Kept pure so the
  * rules are exhaustively unit-testable.
  *
  * @internal
@@ -47,24 +52,50 @@ export interface PathScope {
 }
 
 /**
- * Normalize a POSIX path: collapse `//`, drop `.`, and resolve `..` segments.
- * An absolute path can't ascend above `/`; a relative one keeps leading `..`.
+ * True if `p` is an absolute path: a POSIX root (`/`), a Windows drive letter
+ * followed by a separator (`C:/`, `C:\`), or a UNC path (`//`, `\\`). A
+ * drive-relative `C:foo` (no separator) is **not** absolute.
  */
-export function normalizePosix(path: string): string {
-  const isAbsolute = path.startsWith("/");
+export function isAbsolutePath(p: string): boolean {
+  const s = p.replace(/\\/g, "/");
+  return s.startsWith("/") || /^[A-Za-z]:\//.test(s);
+}
+
+/**
+ * Normalize a path to forward-slash form: convert `\` to `/`, collapse `//`,
+ * drop `.`, and resolve `..` segments. Three anchors are recognized as absolute
+ * and `..` can never ascend above them — a POSIX root (`/`), a Windows drive
+ * (`C:/`), and a UNC prefix (`//`). A relative path keeps its leading `..`. The
+ * drive letter is upper-cased so containment comparisons are case-insensitive on
+ * it, as Windows drive letters are.
+ *
+ * Kept self-contained rather than routed through the SDK's `path.normalize` (its
+ * close twin) so this security boundary's rules stay auditable in one file with
+ * no cross-package coupling.
+ */
+export function normalizePath(input: string): string {
+  const path = input.replace(/\\/g, "/");
+  const driveMatch = /^([A-Za-z]):\//.exec(path);
+  const drive = driveMatch ? `${driveMatch[1].toUpperCase()}:` : "";
+  const afterDrive = drive ? path.slice(drive.length) : path;
+  const isUnc = !drive && afterDrive.startsWith("//");
+  const isAbsolute = drive !== "" || afterDrive.startsWith("/");
+
   const stack: string[] = [];
-  for (const segment of path.split("/")) {
+  for (const segment of afterDrive.split("/")) {
     if (segment === "" || segment === ".") continue;
     if (segment === "..") {
       const top = stack[stack.length - 1];
       if (stack.length && top !== "..") stack.pop();
       else if (!isAbsolute) stack.push("..");
-      // absolute + nothing to pop → stay at root
+      // absolute + nothing to pop → stay at the anchor
     } else {
       stack.push(segment);
     }
   }
   const joined = stack.join("/");
+  if (drive) return `${drive}/${joined}`;
+  if (isUnc) return `//${joined}`;
   return isAbsolute ? `/${joined}` : joined;
 }
 
@@ -77,18 +108,24 @@ export function toAbsolute(
   roots: readonly string[],
   rawPath: string,
 ): string | null {
-  if (rawPath.startsWith("/")) return normalizePosix(rawPath);
+  if (isAbsolutePath(rawPath)) return normalizePath(rawPath);
   const base = roots[0];
   if (base === undefined) return null;
-  return normalizePosix(`${base}/${rawPath}`);
+  return normalizePath(`${base}/${rawPath}`);
 }
 
-/** True if the absolute, normalized `path` is a root or nested under one. */
+/**
+ * True if the absolute, normalized `path` is a root or nested under one. Both
+ * sides are re-normalized (so a raw root with a trailing slash or `\` separators
+ * still compares correctly), which also upper-cases a Windows drive letter on
+ * both — `c:/work` and `C:/work` are the same root.
+ */
 export function withinRoots(roots: readonly string[], path: string): boolean {
+  const target = normalizePath(path);
   for (const root of roots) {
-    const r = normalizePosix(root);
-    const prefix = r === "/" ? "/" : `${r}/`;
-    if (path === r || path.startsWith(prefix)) return true;
+    const r = normalizePath(root);
+    const prefix = r.endsWith("/") ? r : `${r}/`;
+    if (target === r || target.startsWith(prefix)) return true;
   }
   return false;
 }

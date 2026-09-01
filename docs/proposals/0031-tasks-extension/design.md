@@ -627,7 +627,9 @@ reformatting is theatre. `boundaries.test.ts` reads source from disk with
   the strategy works, but it is not the POSIX atomicity guarantee and it fails
   outright on a sharing violation (an editor or antivirus holding the file). The
   CAS retry absorbs the transient case; a persistent one surfaces as a write
-  error. (2) `resolve-path.ts` states in its own header that paths are treated
-  as POSIX and "Windows scoping is future work", so `permissions: []` over an
-  own-dir path is untested there. Both are verified before phase 1 is called
-  done; if either fails it is filed against RFC 0032, not worked around here.
+  error. (2) `resolve-path.ts` treated every path as POSIX, so a `permissions: []`
+  own-dir write with the drive-absolute path `ctx.storage.workspaceDir()` hands
+  back on Windows was spliced onto the workspace root and failed with
+  `ERROR_INVALID_NAME` (`os error 123`). **Fixed in RFC 0032**, not here: that
+  module now recognizes a Windows drive and a UNC prefix as absolute anchors.
+  Assumption (1) still stands and is verified before phase 1 is called done.
