@@ -47,9 +47,12 @@ proposal's number; only its _shape_ changes.
 
 Every stage that changes a proposal's shape or status also updates its row in
 [`proposals/README.md`](./proposals/README.md) — creating it (stage 1),
-repointing the link at `NNNN-name/proposal.md` and flipping `status` (stage 2),
-and pointing it back at `NNNN-name.md` with `status: implemented` (stage 5). A
-unit test enforces this; see that README's conventions.
+repointing the link at `NNNN-name/proposal.md` when a planning package is
+expanded, and pointing it back at `NNNN-name.md` when that package is collapsed.
+For a multi-phase proposal, a non-final collapse keeps the proposal's existing
+status (normally `accepted`); only the final collapse changes it to
+`implemented`. A unit test enforces the index shape; see that README's
+conventions.
 
 ## When to use it
 
@@ -257,6 +260,69 @@ This needs no new proposal number and no new ADR — it is the same proposal,
 still governed by [ADR 0045](./decisions/0045-ephemeral-change-planning.md);
 only the planning package's scope and how many times Stage 5 runs differ from
 a single-pass change.
+
+### Starting the next phase
+
+The transition from one phase to the next is an explicit two-step handoff. Do
+not leave phase 1's planning files in place and edit them in place: those files
+are the temporary record of the phase that just shipped.
+
+After phase N has passed verification:
+
+1. **Collapse phase N.** Curate the durable proposal, mark phase N as
+   implemented in the phase table, keep the proposal `status: accepted` when
+   another committed phase remains, delete the temporary
+   `requirements.md`, `design.md`, and `tasks.md`, and repoint the proposal
+   index row to `NNNN-name.md`.
+2. **Re-expand for phase N+1 when work is ready.** Read the collapsed proposal
+   and the actual phase-N implementation first. Confirm the next phase is still
+   the next unimplemented row in the phase table. Create a fresh planning
+   package, repoint the index row to `NNNN-name/proposal.md`, and write all
+   three working artifacts specifically for phase N+1. Copy forward only
+   constraints and decisions that still apply; do not recreate phase-N
+   requirements or tasks.
+
+The new package's `proposal.md` must contain a `Planning scope` section naming
+the phase number and its exact scope, and must describe the prior phase as the
+baseline. Its requirements, design, and tasks must not include work from later
+phases. If the next phase's scope or sequencing no longer matches the table,
+update the durable proposal first and explain the change; do not silently
+reinterpret the phase while planning it.
+
+Use this prompt to start a later phase:
+
+```text
+Start planning phase 2 of proposal 0031.
+
+Phase 1 has already been implemented, verified, and collapsed. Treat the
+collapsed proposal as the durable record of the product and phase 1 as the
+current implementation baseline. Do not redo phase 1 planning.
+
+Before writing anything, inspect:
+- docs/proposals/0031-tasks-extension.md
+- the actual phase 1 implementation and tests in silo-extensions
+- the current Silo extension architecture, relevant ADRs, and docs
+
+Confirm that phase 2 is the next unimplemented phase in the proposal's phase
+table. If the table is stale or phase 1 was not actually collapsed and
+verified, stop and report that instead of planning phase 2.
+
+Re-expand the proposal into a fresh temporary planning package:
+- docs/proposals/0031-tasks-extension/proposal.md
+- requirements.md
+- design.md
+- tasks.md
+
+Scope every artifact to phase 2 only: Beads and dex integration, detection and
+per-workspace enablement, "new tasks go to", the Navigator view, the Tasks app
+sheet, provider-rendered detail sections, and file-watched refresh. Treat phase
+1's shipped behavior and architectural seams as the baseline. Identify any
+phase-1 corrections or constraints that phase 2 must preserve.
+
+Do not implement anything yet. Keep the proposal status accepted, update the
+proposal index for the expanded package, and produce the planning artifacts
+for review.
+```
 
 ## The role of ADRs / decisions
 
