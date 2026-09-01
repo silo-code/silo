@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.60.0](https://github.com/silo-code/silo/compare/silo-v0.59.0...silo-v0.60.0) (2026-09-01)
+
+
+### Features
+
+* **agents:** Agent Profiles phase 1 (RFC 0033) ([#471](https://github.com/silo-code/silo/issues/471)) ([61cb90f](https://github.com/silo-code/silo/commit/61cb90fa4a8a0345d12ce44a3bcb902f70183c25))
+
+
+### Bug Fixes
+
+* **agents:** stop the Hook Guard test flaking on EPIPE ([#468](https://github.com/silo-code/silo/issues/468)) ([d166516](https://github.com/silo-code/silo/commit/d166516ea606414d83ffc4638161eb76d3f7652d))
+* **extension-host:** recognize Windows absolute paths in ctx.files scoping ([#473](https://github.com/silo-code/silo/issues/473)) ([e1d84c2](https://github.com/silo-code/silo/commit/e1d84c2e0b8f8926b87b0501962980a8bdd18691))
+* **extension-host:** stage URL/npm installs correctly for every tempDir shape ([#474](https://github.com/silo-code/silo/issues/474)) ([b18460a](https://github.com/silo-code/silo/commit/b18460afd8fb14c9e0ee5bc3dd4b558a57ca3756))
+* **release:** resync release-please manifest after sdk 0.42.0 shipped ([#472](https://github.com/silo-code/silo/issues/472)) ([4f80968](https://github.com/silo-code/silo/commit/4f809687fe56f43c3d9e5646b4e34972d3712824))
+
 ## [0.59.0](https://github.com/silo-code/silo/compare/silo-v0.58.0...silo-v0.59.0) (2026-08-31)
 
 
