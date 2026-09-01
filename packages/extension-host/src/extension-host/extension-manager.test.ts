@@ -5,38 +5,49 @@
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-const { fsMap, fsDirs, loaderMock, invokeMock, fsDeleteSpy, defaultFsDelete } =
-  vi.hoisted(() => {
-    const fsMap = new Map<string, string>();
-    // Directories with no files in them — the flat map can't represent those,
-    // and the storage-directory tests need "exists but empty" to be a real
-    // state.
-    const fsDirs = new Set<string>();
-    const defaultFsDelete = async (p: string) => {
-      for (const key of [...fsMap.keys()]) {
-        if (key === p || key.startsWith(`${p}/`)) fsMap.delete(key);
-      }
-      for (const d of [...fsDirs]) {
-        if (d === p || d.startsWith(`${p}/`)) fsDirs.delete(d);
-      }
-    };
-    return {
-      fsMap,
-      fsDirs,
-      defaultFsDelete,
-      loaderMock: {
-        loadExtension: vi.fn(async () => {}),
-        unloadExtension: vi.fn(),
-        isLoaded: vi.fn(() => false),
-        needsReload: vi.fn(() => false),
-      },
-      invokeMock: vi.fn(async () => {}),
-      // Directory semantics over the flat map: deleting a path also deletes
-      // everything under it (the update flow deletes/renames whole install
-      // dirs).
-      fsDeleteSpy: vi.fn(defaultFsDelete),
-    };
-  });
+const {
+  fsMap,
+  fsDirs,
+  loaderMock,
+  invokeMock,
+  fsDeleteSpy,
+  defaultFsDelete,
+  tempDirState,
+} = vi.hoisted(() => {
+  const fsMap = new Map<string, string>();
+  // Directories with no files in them — the flat map can't represent those,
+  // and the storage-directory tests need "exists but empty" to be a real
+  // state.
+  const fsDirs = new Set<string>();
+  const defaultFsDelete = async (p: string) => {
+    for (const key of [...fsMap.keys()]) {
+      if (key === p || key.startsWith(`${p}/`)) fsMap.delete(key);
+    }
+    for (const d of [...fsDirs]) {
+      if (d === p || d.startsWith(`${p}/`)) fsDirs.delete(d);
+    }
+  };
+  return {
+    fsMap,
+    fsDirs,
+    defaultFsDelete,
+    loaderMock: {
+      loadExtension: vi.fn(async () => {}),
+      unloadExtension: vi.fn(),
+      isLoaded: vi.fn(() => false),
+      needsReload: vi.fn(() => false),
+    },
+    invokeMock: vi.fn(async () => {}),
+    // Directory semantics over the flat map: deleting a path also deletes
+    // everything under it (the update flow deletes/renames whole install
+    // dirs).
+    fsDeleteSpy: vi.fn(defaultFsDelete),
+    // `tempDir()`'s return value, varied per-test to cover each platform's
+    // shape. Default is the Linux form (no trailing slash) — the one the
+    // pre-fix code broke on.
+    tempDirState: { value: "/tmp" },
+  };
+});
 
 vi.mock("../services/user-config", () => ({
   userConfigDir: async () => "/cfg",
@@ -124,7 +135,10 @@ vi.mock("./menu-items", async (orig) => ({
   syncMenu: vi.fn(async () => {}),
 }));
 vi.mock("@tauri-apps/api/path", () => ({
-  tempDir: async () => "/tmp/",
+  // `tempDir()`'s shape is platform-dependent (Linux `/tmp`, macOS
+  // `/var/folders/…/T/`, Windows `C:\…\Temp\`). `tempDirState.value` is set
+  // per-test; `stageFromUrl` must handle every shape.
+  tempDir: async () => tempDirState.value,
 }));
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: invokeMock,
@@ -179,6 +193,7 @@ beforeEach(() => {
   invokeMock.mockClear().mockResolvedValue(undefined);
   fsDeleteSpy.mockClear().mockImplementation(defaultFsDelete);
   toastStore.toasts.splice(0, toastStore.toasts.length);
+  tempDirState.value = "/tmp";
   // Reset the built-in registry so merged rows / dispatch start clean.
   registerBuiltins([], new Set());
 });
@@ -654,6 +669,39 @@ describe("installFromUrl (integration)", () => {
       "download_extract",
       expect.objectContaining({ url: tarball }),
     );
+  });
+
+  // Regression: `${await tempDir()}silo-install-…` assumed a trailing slash.
+  // On Linux `tempDir()` is `/tmp`, so the path became `/tmpsilo-install-…` and
+  // the install died trying to mkdir at `/`. The staging dir must come out
+  // well-formed for every platform's `tempDir()` shape.
+  it.each([
+    ["Linux", "/tmp", /^\/tmp\/silo-install-\d+$/],
+    [
+      "macOS",
+      "/var/folders/ab/cd/T/",
+      /^\/var\/folders\/ab\/cd\/T\/silo-install-\d+$/,
+    ],
+    [
+      "Windows",
+      "C:\\Users\\d\\AppData\\Local\\Temp\\",
+      /^C:\/Users\/d\/AppData\/Local\/Temp\/silo-install-\d+$/,
+    ],
+  ])("builds a well-formed staging dir on %s", async (_os, tmp, expected) => {
+    tempDirState.value = tmp;
+    let destDir = "";
+    invokeMock.mockImplementation(
+      async (_cmd: string, args: { destDir?: string }) => {
+        if (args.destDir) {
+          destDir = args.destDir;
+          populateStaging(args.destDir);
+        }
+      },
+    );
+
+    await mgr.installFromUrl("https://example.com/ext.tgz", async () => true);
+
+    expect(destDir).toMatch(expected);
   });
 });
 
