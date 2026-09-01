@@ -106,6 +106,7 @@ export function AgentsProfilesPanel({
   const covered = new Set(
     profiles.map((p) => p.assumedAgentId).filter((x): x is string => !!x),
   );
+  const existingProfileIds = new Set(profiles.map((p) => p.id));
 
   return (
     <div className="apf-panel">
@@ -159,6 +160,7 @@ export function AgentsProfilesPanel({
       <FoundOnThisMachine
         ctx={ctx}
         coveredAgentIds={covered}
+        existingProfileIds={existingProfileIds}
         colorScheme={colorScheme}
       />
     </div>

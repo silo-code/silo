@@ -13,15 +13,22 @@ import {
   scanInstalledAgents,
   type InstalledAgent,
 } from "@silo-code/extension-host/internal";
+import {
+  profileIdForCatalogAgent,
+  shouldShowFoundAgentCard,
+} from "./found-on-machine-model";
 
 export function FoundOnThisMachine({
   ctx,
   coveredAgentIds,
+  existingProfileIds,
   colorScheme,
 }: {
   ctx: ExtensionContext;
   /** Agent ids that already have a profile — filtered out of the cards. */
   coveredAgentIds: ReadonlySet<string>;
+  /** Profile ids already in the list — blocks duplicate one-click adds. */
+  existingProfileIds: ReadonlySet<string>;
   colorScheme: "dark" | "light";
 }) {
   const [found, setFound] = useState<InstalledAgent[] | null>(null);
@@ -42,7 +49,9 @@ export function FoundOnThisMachine({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cards = (found ?? []).filter((f) => !coveredAgentIds.has(f.id));
+  const cards = (found ?? []).filter((f) =>
+    shouldShowFoundAgentCard(f.id, coveredAgentIds, existingProfileIds),
+  );
   if (cards.length === 0 && !scanning && found !== null) return null;
 
   return (
@@ -60,14 +69,16 @@ export function FoundOnThisMachine({
             key={f.id}
             type="button"
             className="apf-card"
-            onClick={() =>
+            onClick={() => {
+              const id = profileIdForCatalogAgent(f.id);
+              if (existingProfileIds.has(id)) return;
               addAgentProfile({
-                id: profileIdFor(f.id),
+                id,
                 label: f.displayName,
                 command: f.command,
                 assumedAgentId: f.id,
-              })
-            }
+              });
+            }}
           >
             <span className="apf-card-icon">
               <AgentIconGlyph
@@ -86,11 +97,4 @@ export function FoundOnThisMachine({
       </div>
     </Section>
   );
-}
-
-/** A never-before-seen agent slugs straight to its id; the editor lets the
- *  user change it later. Uniqueness within this session is handled by the
- *  cards disappearing once a profile for the agent exists. */
-function profileIdFor(agentId: string): string {
-  return agentId.replace(/[^a-z0-9-]/g, "-");
 }
