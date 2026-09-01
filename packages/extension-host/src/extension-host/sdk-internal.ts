@@ -418,6 +418,7 @@ export {
   TRACK_SCRIPT_REL,
   AGENT_HOOKS_DIR_REL,
   stripAgentTitleIdentityPrefix,
+  configDirEnvVarForAgent,
 } from "./agents/agent-catalog";
 export type {
   AgentDefinition,
@@ -431,6 +432,40 @@ export type {
 // (gated by the `hideAgentStatusGlyphs` setting). Detection itself reads the raw
 // OSC stream, so stripping here can't affect it.
 export { stripAgentStatusMarkers } from "./agents/agent-osc-detectors";
+
+// Agent Profiles (RFC 0033 phase 1). Host-owned, user-defined launch recipes.
+// Core-only via this barrel — the public `ctx.agents.profiles` is deferred to
+// phase 5 (no public consumer yet). `core.agents-settings` drives the Profiles
+// tab; `core.terminal` drains the pending launch. NOT here: a catalog accessor
+// — core reads `ctx.agents.catalog()` like anyone else.
+export {
+  getAgentProfiles,
+  subscribeAgentProfiles,
+  addAgentProfile,
+  updateAgentProfile,
+  removeAgentProfile,
+  moveAgentProfile,
+} from "../state/agent-profiles";
+export { launchAgentProfile } from "./agents/agent-launch";
+export { takePendingLaunch, drainPendingLaunch } from "./agents/pending-launch";
+export { scanInstalledAgents } from "./agents/agent-installed-scan";
+export type { InstalledAgent } from "./agents/agent-installed-scan";
+export {
+  slugifyProfileId,
+  validateProfileDraft,
+  draftIsValid,
+  buildLaunchLine,
+  profileLaunchLine,
+  expandTilde,
+  firstToken,
+  fallbackAgentForCommand,
+  PROFILE_ID_RE,
+} from "./agents/agent-profile-model";
+export type {
+  ProfileDraft,
+  ProfileDraftErrors,
+} from "./agents/agent-profile-model";
+export type { AgentProfile } from "../state/types";
 
 // Tooltip — re-exported here so core.* extensions can still import it from the
 // internal barrel. The component itself is now public (@silo-code/sdk); the

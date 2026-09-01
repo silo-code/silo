@@ -21,8 +21,12 @@ import { pickWorkspaceFolder } from "../extension-host/pick-folder";
 import { listCreatableFileTypes } from "../extension-host/file-types";
 import { dockPanelKindRegistry } from "../extension-host/dock-panel-kinds";
 import { openMenu } from "../extension-host/menu-controller";
-import type { MenuEntry } from "@silo-code/sdk";
-import type { TerminalKind } from "../state/types";
+import { launchAgentProfile } from "../extension-host/agents/agent-launch";
+import { agentIconFor } from "../extension-host/agents/agent-icons";
+import { openSettings } from "../extension-host/settings-sheet";
+import { getThemeBase } from "../layout/presets";
+import { AgentIconGlyph, type MenuEntry } from "@silo-code/sdk";
+import type { AgentProfile, TerminalKind } from "../state/types";
 import { pickFileForWorkspace, shouldShowMaximizeButton } from "./dock-helpers";
 
 // Mounted by dockview as the right-side header-actions slot of every tab
@@ -100,6 +104,25 @@ export function GroupAddMenu(props: IDockviewHeaderActionsProps) {
     });
   }
 
+  async function launchProfile(profile: AgentProfile) {
+    const wsId = store.activeWorkspaceId;
+    if (!wsId) return;
+    const folder = await pickWorkspaceFolder(wsId);
+    if (!folder) return; // dismissed the folder chooser → create nothing
+    const rec = launchAgentProfile({
+      profileId: profile.id,
+      workspaceId: wsId,
+      cwd: folder,
+    });
+    if (!rec) return; // profile deleted between menu open and click → no error
+    newPanelInGroup({
+      id: `terminal:${rec.id}`,
+      component: "terminal",
+      title: rec.title,
+      params: { terminalId: rec.id },
+    });
+  }
+
   async function pickFile() {
     const wsId = store.activeWorkspaceId;
     if (!wsId) return;
@@ -153,6 +176,43 @@ export function GroupAddMenu(props: IDockviewHeaderActionsProps) {
         }),
       );
 
+    // Agent Profiles (RFC 0033) — a flat list in stored order, in their own
+    // section at the bottom of the menu (below a separator). With zero
+    // profiles, one "Add an agent profile…" entry stands in for the list (the
+    // whole of onboarding).
+    const themeBase = getThemeBase(store.activeThemeId);
+    const profiles = store.agentProfiles;
+    const profileItems: MenuEntry[] =
+      profiles.length === 0
+        ? [
+            {
+              label: "Add an agent profile…",
+              icon: <Plus size={14} weight="regular" />,
+              run: () => openSettings("agents"),
+            },
+          ]
+        : profiles.map(
+            (p): MenuEntry => ({
+              label: p.label,
+              icon: (
+                <span
+                  style={{
+                    display: "inline-flex",
+                    width: 14,
+                    height: 14,
+                  }}
+                >
+                  <AgentIconGlyph
+                    icon={agentIconFor(p.assumedAgentId)}
+                    mode="color"
+                    colorScheme={themeBase}
+                  />
+                </span>
+              ),
+              run: () => void launchProfile(p),
+            }),
+          );
+
     const items: MenuEntry[] = [
       {
         label: "New Terminal",
@@ -178,6 +238,9 @@ export function GroupAddMenu(props: IDockviewHeaderActionsProps) {
         icon: <FolderOpen size={14} weight="regular" />,
         run: pickFile,
       },
+      // Agent Profiles get their own section at the bottom.
+      { type: "separator" },
+      ...profileItems,
     ];
     void openMenu({ items, anchor: btnRef.current });
   }

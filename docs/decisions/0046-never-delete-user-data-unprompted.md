@@ -35,6 +35,20 @@ lose. Reinstalling finds the previous data. Retained data's path is written to
 the Output panel — the one place a user can find it afterward, since nothing
 else in the product names it.
 
+## The converse: the host never _creates_ user data unprompted either
+
+Same instinct, other direction (RFC 0033). A user-owned list — Agent Profiles,
+in that case — that the product presents as empty until the user adds something
+must not gain rows as a side effect of a programmatic call. RFC 0033's
+`ctx.terminals.create({ kind: "claude" })` compatibility path launches a
+matching profile _if one exists_ but never writes a profile record, and a
+persisted `kind: "claude"` terminal is normalized to `"shell"` at load without
+synthesizing a `profileId`. The rule: **the host adds a row to a user-owned
+collection only in response to an explicit user gesture** (a click, a typed
+command) — never inferred, never on migration, never behind a programmatic API
+call. A missing back-reference nobody can act on is a better failure than a
+fabricated one.
+
 ## Consequences
 
 - A user can never lose files by uninstalling on reflex. The worst outcome of
@@ -70,3 +84,5 @@ else in the product names it.
 - [RFC 0004](../proposals/0004-ctx-storage.md) — `ctx.storage`, whose original
   sketch this departs from; also the open `ctx.secrets` item this rule should
   govern when it lands.
+- [RFC 0033](../proposals/0033-agent-profiles.md) — Agent Profiles; the first
+  application of the converse ("never _create_ user data unprompted").

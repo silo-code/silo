@@ -103,7 +103,14 @@ export type {
   ProcessStats,
   ProcessTreeNode,
 } from "./processes-service";
-export type { AgentsService, AgentInfo, AgentActivity } from "./agents-service";
+export type {
+  AgentsService,
+  AgentInfo,
+  AgentActivity,
+  AgentIcon,
+  AgentIconMode,
+  CatalogAgentSummary,
+} from "./agents-service";
 export type {
   TerminalService,
   CreateTerminalInput,
@@ -271,7 +278,7 @@ export type { ButtonVariant, ButtonSize } from "./Button";
 export { IconButton } from "./IconButton";
 export type { IconButtonSize, IconButtonVariant } from "./IconButton";
 export { MenuButton } from "./MenuButton";
-export type { MenuButtonSize } from "./MenuButton";
+export type { MenuButtonSize, MenuButtonVariant } from "./MenuButton";
 export { Input } from "./Input";
 export { Textarea } from "./Textarea";
 export { SearchInput } from "./SearchInput";
@@ -293,6 +300,7 @@ export type { ListRowProps, ListRowTruncate } from "./List";
 export { AddRow } from "./AddRow";
 export { Badge } from "./Badge";
 export type { BadgeSize, BadgeTone } from "./Badge";
+export { AgentIconGlyph } from "./AgentIconGlyph";
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateTone } from "./EmptyState";
 export { Callout } from "./Callout";

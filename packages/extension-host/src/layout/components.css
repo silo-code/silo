@@ -730,6 +730,33 @@
   font-size: var(--silo-font-size-chrome);
 }
 
+/* `variant="field"` — match .silo-input / .silo-select so the trigger reads as
+   a form field rather than a toolbar button: opaque border, input background,
+   full width, label left, chevron pinned to the trailing edge. */
+.silo-menu-button-field {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 5px 8px;
+  background: var(--silo-color-input-bg);
+  border-color: var(--silo-color-input-border);
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-input-text);
+}
+
+.silo-menu-button-field .silo-menu-button-label {
+  flex: 1 1 auto;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.silo-menu-button-field:hover:not(:disabled) {
+  background: var(--silo-color-input-bg);
+  color: var(--silo-color-input-text);
+  border-color: var(--silo-color-border-strong);
+}
+
 .silo-icon-button {
   display: inline-flex;
   align-items: center;

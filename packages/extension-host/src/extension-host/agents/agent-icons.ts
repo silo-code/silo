@@ -1,67 +1,35 @@
 /**
- * Per-agent brand marks for the Agents panel's icon column. Path + hex data
- * copied from icon packs rather than taken as a runtime dependency — each
- * icon is a single small SVG path, and inlining it avoids pulling in a
- * multi-thousand-icon package for six entries. Sources, per entry:
+ * Per-agent brand marks, next to the sealed catalog (RFC 0033 R17 moved this
+ * here from `packages/extensions-silo/src/agents/` so the host chrome that
+ * renders the `+` menu can read it without importing an extension package).
+ * `ctx.agents.catalog()` hands these out to extensions; `silo.agents` and the
+ * `+` menu both render them through the SDK's `AgentIconGlyph`.
  *
- * - claude, cursor, copilot: simple-icons (CC0-1.0, https://simpleicons.org).
- * - codex, grok: simple-icons has no OpenAI/xAI marks (both were pulled from
- *   that project after trademark requests — see its DISCLAIMER.md), so these
- *   two come from `@lobehub/icons-static-svg` (MIT,
- *   https://github.com/lobehub/lobe-icons), a set curated specifically for
- *   AI-model/agent brand logos.
- * - pi: no icon pack carries a mark for it. Reuses the geometric π glyph
- *   already drawn for it on the marketing site (`apps/website/src/App.tsx`,
- *   xerro-edit) — three bars/legs plus a curled tail, combined into one path.
- * - opencode: no icon pack carries a mark for it either. Reuses OpenCode's
- *   official portrait-frame mark, the same one drawn for the marketing site
- *   (`apps/website/src/App.tsx`'s `OpencodeIcon`, sourced from paseo.sh) —
- *   uniformly rescaled from that component's `96 64 288 384` viewBox into
- *   this file's `0 0 24 24` convention. Its two source layers (an opaque
- *   border-plus-window frame, and a translucent inner panel) map directly
- *   onto {@link AgentIcon.path}/{@link AgentIcon.accentPath}.
+ * Path + hex data copied from icon packs rather than taken as a runtime
+ * dependency — each icon is a single small SVG path. Sources, per entry:
+ *
+ * - claude (the starburst), cursor, copilot: simple-icons (CC0-1.0,
+ *   https://simpleicons.org).
+ * - codex, grok: `@lobehub/icons-static-svg` (MIT) — simple-icons has no
+ *   OpenAI/xAI marks (both pulled after trademark requests).
+ * - pi: no icon pack carries a mark — the geometric π glyph from the marketing
+ *   site, three bars/legs plus a curled tail as one path.
+ * - opencode: OpenCode's official portrait-frame mark, rescaled from its
+ *   `96 64 288 384` viewBox into this file's `0 0 24 24` convention; its two
+ *   layers map onto {@link AgentIcon.path} / {@link AgentIcon.accentPath}.
  */
 
-export interface AgentIcon {
-  /** Display name, for the glyph's accessible label. */
-  title: string;
-  /**
-   * The brand's color against a light background, no leading `#`.
-   * "color" mode uses this or {@link hexDark} depending on the host's active
-   * theme — a single hex can't have enough contrast against both a white and
-   * a near-black tab strip. Claude and Codex have one color that already
-   * reads fine on both, so their `hexLight`/`hexDark` match; cursor, copilot,
-   * grok, and pi are genuinely black-or-nothing marks (real marks for the
-   * first three, `currentColor` for pi), so those flip to white for
-   * {@link hexDark} rather than going invisible against a dark background.
-   */
-  hexLight: string;
-  /** The brand's color against a dark background, no leading `#`. See
-   * {@link hexLight}. */
-  hexDark: string;
-  /** SVG path data, `viewBox="0 0 24 24"`. */
-  path: string;
-  /** Set when the source path was authored assuming `fill-rule: evenodd`
-   * (codex, grok) — omit for the simple-icons paths, which assume the SVG
-   * default (`nonzero`). Getting this wrong renders solid over what should be
-   * a cut-out hole in the glyph. */
-  fillRule?: "evenodd";
-  /** A second SVG path (same viewBox) layered on top of {@link path} at 40%
-   * opacity, for a source mark that is genuinely duotone rather than flat —
-   * OpenCode's mark is a border plus a lighter inner panel. Omit for a flat
-   * single-tone mark; flattening a duotone source into one solid fill loses
-   * the panel and reads as a plain notched shape rather than a frame. */
-  accentPath?: string;
-  /** `fill-rule` for {@link accentPath}, independent of {@link fillRule}. */
-  accentFillRule?: "evenodd";
-}
+import type { AgentIcon } from "@silo-code/sdk";
 
 const AGENT_ICONS: Record<string, AgentIcon> = {
   claude: {
     title: "Claude Code",
     hexLight: "D97757",
     hexDark: "D97757",
-    path: "M21 10.5h3v3h-3v3h-1.5v3H18v-3h-1.5v3H15v-3H9v3H7.5v-3H6v3H4.5v-3H3v-3H0v-3h3v-6h18Zm-15 0h1.5v-3H6Zm10.5 0H18v-3h-1.5z",
+    // Anthropic's current starburst mark (simple-icons, CC0-1.0) — replaced the
+    // older "crossword" glyph.
+    fillRule: "evenodd",
+    path: "M4.709 15.955l4.72-2.647.08-.23-.08-.128H9.2l-.79-.048-2.698-.073-2.339-.097-2.266-.122-.571-.121L0 11.784l.055-.352.48-.321.686.06 1.52.103 2.278.158 1.652.097 2.449.255h.389l.055-.157-.134-.098-.103-.097-2.358-1.596-2.552-1.688-1.336-.972-.724-.491-.364-.462-.158-1.008.656-.722.881.06.225.061.893.686 1.908 1.476 2.491 1.833.365.304.145-.103.019-.073-.164-.274-1.355-2.446-1.446-2.49-.644-1.032-.17-.619a2.97 2.97 0 01-.104-.729L6.283.134 6.696 0l.996.134.42.364.62 1.414 1.002 2.229 1.555 3.03.456.898.243.832.091.255h.158V9.01l.128-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.584.28.48.685-.067.444-.286 1.851-.559 2.903-.364 1.942h.212l.243-.242.985-1.306 1.652-2.064.73-.82.85-.904.547-.431h1.033l.76 1.129-.34 1.166-1.064 1.347-.881 1.142-1.264 1.7-.79 1.36.073.11.188-.02 2.856-.606 1.543-.28 1.841-.315.833.388.091.395-.328.807-1.969.486-2.309.462-3.439.813-.042.03.049.061 1.549.146.662.036h1.622l3.02.225.79.522.474.638-.079.485-1.215.62-1.64-.389-3.829-.91-1.312-.329h-.182v.11l1.093 1.068 2.006 1.81 2.509 2.33.127.578-.322.455-.34-.049-2.205-1.657-.851-.747-1.926-1.62h-.128v.17l.444.649 2.345 3.521.122 1.08-.17.353-.608.213-.668-.122-1.374-1.925-1.415-2.167-1.143-1.943-.14.08-.674 7.254-.316.37-.729.28-.607-.461-.322-.747.322-1.476.389-1.924.315-1.53.286-1.9.17-.632-.012-.042-.14.018-1.434 1.967-2.18 2.945-1.726 1.845-.414.164-.717-.37.067-.662.401-.589 2.388-3.036 1.44-1.882.93-1.086-.006-.158h-.055L4.132 18.56l-1.13.146-.487-.456.061-.746.231-.243 1.908-1.312-.006.006z",
   },
   cursor: {
     title: "Cursor",
@@ -105,8 +73,7 @@ const AGENT_ICONS: Record<string, AgentIcon> = {
   },
 };
 
-/** The brand icon for an {@link AgentInfo.agentId}, or `undefined` if none is
- * known (unrecognized id). */
+/** The brand icon for a catalog agent id, or `undefined` for an unknown id. */
 export function agentIconFor(
   agentId: string | undefined,
 ): AgentIcon | undefined {

@@ -1,16 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // Mock the Tauri terminal client and the process service (force-spawn path).
-const { sendInput, deleteTerminal, spawn } = vi.hoisted(() => ({
-  sendInput: vi.fn(),
-  deleteTerminal: vi.fn(() => Promise.resolve()),
-  spawn: vi.fn(),
-}));
+const { sendInput, deleteTerminal, spawn, spawnTerminalSession, onOutput } =
+  vi.hoisted(() => ({
+    sendInput: vi.fn(),
+    deleteTerminal: vi.fn(() => Promise.resolve()),
+    spawn: vi.fn(),
+    spawnTerminalSession: vi.fn(),
+    onOutput: vi.fn(() => () => {}),
+  }));
 vi.mock("../services/tauri-terminal-client", () => ({
-  tauriTerminalClient: { sendInput, deleteTerminal },
+  tauriTerminalClient: { sendInput, deleteTerminal, onOutput },
 }));
 vi.mock("./process-service", () => ({
   getProcessService: () => ({ spawn }),
+  spawnTerminalSession,
 }));
 
 // Mock dockview's own registry so `focus()`'s call sequence/timing is
@@ -79,6 +83,8 @@ beforeEach(() => {
   sendInput.mockReset();
   deleteTerminal.mockReset().mockResolvedValue(undefined);
   spawn.mockReset();
+  spawnTerminalSession.mockReset();
+  onOutput.mockReset().mockReturnValue(() => {});
   setActive.mockReset();
   getPanel.mockReset().mockReturnValue({
     api: { setActive },
@@ -133,22 +139,27 @@ describe("TerminalService.sendText (B7)", () => {
     expect(sendInput).toHaveBeenCalledWith("sess-1", "partial");
   });
 
-  it("force-spawns a PTY for an unmounted terminal, then writes", async () => {
-    spawn.mockResolvedValue({ id: "sess-2", kill: vi.fn() });
+  it("force-spawns a PTY for an unmounted terminal via the privileged path (RFC 0028/0033), then writes", async () => {
+    spawnTerminalSession.mockResolvedValue({ id: "sess-2", kill: vi.fn() });
     svc.sendText("t2", "ls");
     await flush();
-    // Spawned with the record's cwd, wrote once spawned, and recorded sessionId.
-    expect(spawn).toHaveBeenCalledWith({ cwd: "/ws/w/sub" });
+    // Privileged spawn (stamps SILO_TERMINAL_ID) with the terminal id and the
+    // record's cwd — never the public `spawn`. Wrote once spawned, recorded id.
+    expect(spawnTerminalSession).toHaveBeenCalledWith({
+      terminalId: "t2",
+      cwd: "/ws/w/sub",
+    });
+    expect(spawn).not.toHaveBeenCalled();
     expect(sendInput).toHaveBeenCalledWith("sess-2", "ls\r");
     expect(store.workspaces.w.terminals[1].sessionId).toBe("sess-2");
   });
 
   it("shares one spawn across concurrent sends to the same terminal", async () => {
-    spawn.mockResolvedValue({ id: "sess-2", kill: vi.fn() });
+    spawnTerminalSession.mockResolvedValue({ id: "sess-2", kill: vi.fn() });
     svc.sendText("t2", "one");
     svc.sendText("t2", "two");
     await flush();
-    expect(spawn).toHaveBeenCalledTimes(1);
+    expect(spawnTerminalSession).toHaveBeenCalledTimes(1);
     expect(sendInput).toHaveBeenCalledTimes(2);
   });
 
@@ -156,7 +167,7 @@ describe("TerminalService.sendText (B7)", () => {
     svc.sendText("nope", "x");
     await flush();
     expect(sendInput).not.toHaveBeenCalled();
-    expect(spawn).not.toHaveBeenCalled();
+    expect(spawnTerminalSession).not.toHaveBeenCalled();
   });
 });
 

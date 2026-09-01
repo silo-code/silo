@@ -118,3 +118,17 @@
   color: #6b6b6b;
   font-size: 12px;
 }
+
+/* Agent brand mark in the context menu's "Agents" submenu — sized to the
+   menu's icon gutter (matches the 14px Phosphor icons the menu uses). */
+.term-menu-agent-icon {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+}
+
+.term-menu-agent-icon > svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}

@@ -76,3 +76,189 @@
   /* TabPanel already pads 14px; extra inset below the tab strip (+10px vs system-monitor). */
   padding-top: 20px;
 }
+
+/* ── Agent Profiles (RFC 0033) ─────────────────────────────────────────── */
+
+.apf-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.apf-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.apf-empty-title {
+  margin: 0;
+  color: var(--silo-color-text-hi);
+  font-weight: 600;
+}
+
+.apf-empty-desc {
+  margin: 0;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  max-width: 460px;
+}
+
+.apf-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.apf-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--silo-color-bg);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-md);
+  cursor: pointer;
+  text-align: left;
+  color: var(--silo-color-text);
+}
+
+.apf-card:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.apf-card-icon,
+.apf-row-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+/* Size the actual glyph the same in both places — the row passes the class to
+   the SVG directly, the card wraps it in the span above. */
+.apf-card-icon > svg,
+.apf-row-icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.apf-card-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.apf-card-name {
+  color: var(--silo-color-text-hi);
+}
+
+.apf-card-cmd,
+.apf-row-cmd {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apf-card-add {
+  color: var(--silo-color-accent);
+  font-size: var(--silo-font-size-sm);
+  flex: none;
+}
+
+.apf-row-main {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.apf-row-label {
+  color: var(--silo-color-text-hi);
+  font-size: calc(var(--silo-font-size-base) + 1px);
+  flex: none;
+}
+
+.apf-row-agent {
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  flex: none;
+}
+
+.apf-badge-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* ── Profile editor modal ─────────────────────────────────────────────── */
+
+/* Rides the host's `.silo-modal-form` scaffold (flex column, 12px gap); each
+   field is a `<Section>` (the uppercase label the design system reserves for
+   this — see typography.md). This class only sets the modal's minimum width. */
+.apf-editor {
+  min-width: 420px;
+}
+
+/* Agent brand mark, sized to sit inline in the Agent picker trigger and its
+   dropdown rows (matches the 1em menu-button chevron). */
+.apf-agent-icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+}
+
+.apf-field-hint {
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+
+.apf-field-hint code {
+  font-family: var(--silo-font-mono);
+}
+
+.apf-field-err {
+  color: var(--silo-color-err);
+  font-size: var(--silo-font-size-sm);
+}
+
+/* Launch-line preview: a small caption over a read-only command readout. Uses
+   the recessed panel background (not input chrome) so it doesn't read as a
+   field you type into; Copy is tucked inside on the right. */
+.apf-launch {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.apf-launch-label {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.apf-launch-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  background: var(--silo-color-bg-hover);
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+}
+
+.apf-launch-code {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}

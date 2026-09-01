@@ -1,6 +1,6 @@
 # Interface: AgentsService
 
-Defined in: [packages/sdk/src/agents-service.ts:139](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L139)
+Defined in: [packages/sdk/src/agents-service.ts:198](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L198)
 
 **`Beta`**
 
@@ -23,7 +23,29 @@ const sub = ctx.agents.subscribe((agents) => {
 ctx.subscriptions.push(sub);
 ```
 
-## Methods
+## Consumer Services
+
+### catalog()
+
+```ts
+catalog(): readonly CatalogAgentSummary[];
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:252](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L252)
+
+Every coding agent Silo knows about, as read-only
+[CatalogAgentSummary](CatalogAgentSummary.md) records. Detection stays sealed (ADR 0028) —
+there is no way to register into this list.
+
+The returned array is **memoized and deeply frozen**: it is read inside
+tab-icon rendering (`ctx.terminals.bindIcon`), so a fresh allocation per
+call would be a per-render cost and a mutable one a correctness hazard.
+
+#### Returns
+
+readonly [`CatalogAgentSummary`](CatalogAgentSummary.md)[]
+
+## Other
 
 ### getState()
 
@@ -31,7 +53,7 @@ ctx.subscriptions.push(sub);
 getState(options?): AgentInfo[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:145](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L145)
+Defined in: [packages/sdk/src/agents-service.ts:204](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L204)
 
 **`Beta`**
 
@@ -59,7 +81,7 @@ instead.
 getByTerminalId(terminalId): AgentInfo | undefined;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:147](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L147)
+Defined in: [packages/sdk/src/agents-service.ts:206](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L206)
 
 **`Beta`**
 
@@ -83,7 +105,7 @@ Look up [AgentInfo](AgentInfo.md) for a specific terminal tab by its record id.
 subscribe(listener, options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:153](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L153)
+Defined in: [packages/sdk/src/agents-service.ts:212](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L212)
 
 **`Beta`**
 
@@ -115,7 +137,7 @@ instead. Returns a [Disposable](Disposable.md) that cancels the subscription.
 acknowledge(terminalId): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:180](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L180)
+Defined in: [packages/sdk/src/agents-service.ts:239](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L239)
 
 **`Beta`**
 

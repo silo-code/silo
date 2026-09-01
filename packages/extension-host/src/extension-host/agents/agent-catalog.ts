@@ -13,6 +13,8 @@ import { buildCursorAgentDefinition } from "./catalog/cursor";
 import { buildCopilotAgentDefinition } from "./catalog/copilot";
 import { grokAgent } from "./catalog/grok";
 import { opencodeAgent } from "./catalog/opencode";
+import { agentIconFor } from "./agent-icons";
+import type { CatalogAgentSummary } from "@silo-code/sdk";
 
 /**
  * The single source of truth for every coding agent Silo supports (RFC 0018).
@@ -345,6 +347,25 @@ export interface AgentDefinition {
    * detectors can fire. Undefined for every agent that doesn't gate its
    * activity signal behind its own off-by-default setting. */
   extraSettingsToggle?: AgentExtraSettingsToggle;
+  /**
+   * The environment variable this agent's CLI reads its **config directory**
+   * from (`"CLAUDE_CONFIG_DIR"`, `"CODEX_HOME"`, …). An Agent Profile (RFC
+   * 0033) with a `configDir` set prefixes it onto the launch line as
+   * `<VAR>='<path>' <command>`, and the profile editor shows the
+   * config-directory field only when the resolved agent declares one.
+   *
+   * The bar is **not** "an env var moves the config directory" but "does it
+   * move the credentials too" — the field's user-facing purpose is running two
+   * accounts of the same agent. Populated only for `claude`
+   * (`CLAUDE_CONFIG_DIR`), `codex` (`CODEX_HOME`), `grok` (`GROK_HOME`), and
+   * `pi` (`PI_CODING_AGENT_DIR`). Left undefined for `cursor-agent` and
+   * `opencode` (a config-dir var exists but credentials resolve from `$HOME`
+   * independently, so a second profile would silently share the first's
+   * account) and for `copilot` (`COPILOT_HOME` only extends a plugin search
+   * path). Each of those three records the negative finding in its `contract`.
+   * See `docs/adding-a-coding-agent.md` for the recon a new agent must do.
+   */
+  configDirEnvVar?: string;
 
   // ── provenance / maintenance (audit-skill rubric + checkpoint) ──────────
   /** Plain-language statement of exactly what upstream behavior our
@@ -470,6 +491,29 @@ export const AGENT_CATALOG: AgentDefinition[] = [
 
 // ---- derived views ----------------------------------------------------------
 
+let catalogSummaries: readonly CatalogAgentSummary[] | null = null;
+
+/**
+ * The catalog as read-only {@link CatalogAgentSummary} records, for the public
+ * `ctx.agents.catalog()` and the host `+` menu. **Memoized and deeply frozen**:
+ * it is read inside tab-icon rendering, so a fresh allocation per call would be
+ * a per-render cost and a mutable one a correctness hazard (RFC 0033 R17).
+ */
+export function catalogAgentSummaries(): readonly CatalogAgentSummary[] {
+  if (catalogSummaries) return catalogSummaries;
+  catalogSummaries = Object.freeze(
+    AGENT_CATALOG.map((a) => {
+      const icon = agentIconFor(a.id);
+      return Object.freeze({
+        id: a.id,
+        displayName: a.displayName,
+        ...(icon ? { icon: Object.freeze({ ...icon }) } : {}),
+      });
+    }),
+  );
+  return catalogSummaries;
+}
+
 /** `leader` is observed to be a full path on some installs (e.g. a
  * Bun-compiled `claude` reporting as `/Users/x/.local/bin/claude`, not bare
  * `claude`) — match on the basename, not the whole string. */
@@ -567,6 +611,18 @@ function includesPathMarker(haystack: string, marker: string): boolean {
 /** The catalog entry with this id (as written into hook events / persisted). */
 export function agentById(id: string): AgentDefinition | undefined {
   return AGENT_CATALOG.find((a) => a.id === id);
+}
+
+/**
+ * The config-directory env var a catalog agent reads, or `undefined` (RFC
+ * 0033). Exposed to `core.agents-settings` via the internal barrel so the
+ * profile editor can decide whether to show the config-directory field —
+ * `CatalogAgentSummary` deliberately does not carry this launch detail.
+ */
+export function configDirEnvVarForAgent(
+  agentId: string | undefined,
+): string | undefined {
+  return agentId ? agentById(agentId)?.configDirEnvVar : undefined;
 }
 
 /**

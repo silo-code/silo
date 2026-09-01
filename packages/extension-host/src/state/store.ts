@@ -45,6 +45,7 @@ export const store = proxy<AppState>({
   ...structuredClone(DEFAULT_PANEL_STATE),
   globalExtensionState: {},
   agentState: {},
+  agentProfiles: [],
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,
   smallScreenModeEnabled: true,

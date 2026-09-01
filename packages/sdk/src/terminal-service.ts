@@ -63,7 +63,14 @@ export interface TerminalTabDecorationProvider {
  * @public
  */
 export interface CreateTerminalInput {
-  /** Terminal kind — `"shell"` (default), `"claude"`, or `"pi"`. */
+  /**
+   * Terminal kind. Defaults to `"shell"`.
+   *
+   * @deprecated Pass `"shell"` (or omit). The `"claude"` / `"pi"` values are
+   * kept for compatibility (RFC 0033): they create a `"shell"` terminal and, if
+   * a matching Agent Profile exists, launch it — otherwise the bare command is
+   * typed. Start agents via an Agent Profile instead.
+   */
   kind?: TerminalKind;
   /** Working directory; falls back to the workspace folder when absent. */
   cwd?: string;

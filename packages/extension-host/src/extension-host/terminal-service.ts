@@ -8,7 +8,14 @@ import {
   findTerminal,
 } from "../state/workspaces";
 import { tauriTerminalClient } from "../services/tauri-terminal-client";
-import { getProcessService } from "./process-service";
+import { spawnTerminalSession } from "./process-service";
+import {
+  drainPendingLaunch,
+  discardPendingLaunch,
+  requestRawLaunch,
+} from "./agents/pending-launch";
+import { launchAgentProfile } from "./agents/agent-launch";
+import { getAgentProfiles } from "../state/agent-profiles";
 import { buildTerminalTabMenuItems } from "./terminal-tab-menu";
 import type { TerminalRecord } from "../state/types";
 import type {
@@ -120,6 +127,27 @@ function syncPtyDiagnostics(): void {
 
 subscribe(store, syncPtyDiagnostics);
 
+// RFC 0033: discard a pending Agent Profile launch for any terminal record that
+// disappears before its session came up. Same "one place that can't miss it"
+// diff-on-mutation approach as syncPtyDiagnostics — cheaper than instrumenting
+// every removeTerminal call site (the dock, reap, close, …). Explicit
+// discards in `close` / `reapWorkspaceTerminals` stay for immediacy; this is
+// the backstop.
+let knownTerminalIds: Set<string> | null = null;
+function sweepOrphanedPendingLaunches(): void {
+  if (!store.hydrated) return;
+  const current = new Set<string>();
+  for (const ws of Object.values(store.workspaces))
+    for (const t of ws.terminals) current.add(t.id);
+  if (knownTerminalIds !== null) {
+    for (const id of knownTerminalIds) {
+      if (!current.has(id)) discardPendingLaunch(id);
+    }
+  }
+  knownTerminalIds = current;
+}
+subscribe(store, sweepOrphanedPendingLaunches);
+
 // Periodic PTY census — every 5 minutes after the startup log above, dump a
 // per-workspace rollup (count + terminal names). The only way to notice a
 // session that's still alive when nothing should be holding it open.
@@ -196,8 +224,22 @@ const spawning = new Map<string, Promise<string | null>>();
  * tab has never mounted (PTYs spawn lazily on first mount). Sets the new
  * `sessionId` on the record so a later mount attaches to it instead of spawning
  * a second session.
+ *
+ * Spawns through the **privileged** `spawnTerminalSession` (not the public
+ * `getProcessService().spawn`), so a session brought up this way still carries
+ * its `SILO_TERMINAL_ID` — RFC 0028's guarantee, which the public path
+ * deliberately withholds ("a session spawned through the public surface isn't a
+ * tab"). This closes the pre-existing gap for a never-shown tab whose PTY came
+ * up via `ctx.terminals.sendText`, and is the normal agent-terminal path in
+ * RFC 0033 (a profile launched into a background workspace).
+ *
+ * On resolve it drains any pending Agent Profile launch (RFC 0033) for this
+ * terminal — this is the *background* drain path; the mounted panel drains the
+ * foreground case.
+ *
+ * @internal
  */
-function ensureSession(terminalId: string): Promise<string | null> {
+export function ensureSession(terminalId: string): Promise<string | null> {
   const found = locate(terminalId);
   if (!found) return Promise.resolve(null);
   if (found.rec.sessionId) return Promise.resolve(found.rec.sessionId);
@@ -208,8 +250,7 @@ function ensureSession(terminalId: string): Promise<string | null> {
   const cwd = found.rec.cwd ?? ws?.folder;
   if (!cwd) return Promise.resolve(null);
 
-  const p = getProcessService()
-    .spawn({ cwd })
+  const p = spawnTerminalSession({ terminalId, cwd })
     .then((session) => {
       // Re-resolve the record — it may have moved/closed during the await.
       const rec = findTerminal(found.workspaceId, terminalId);
@@ -217,6 +258,7 @@ function ensureSession(terminalId: string): Promise<string | null> {
         // The terminal was removed while its PTY was still spawning — kill the
         // now-orphaned session rather than leaking it.
         void session.kill();
+        discardPendingLaunch(terminalId);
         logPtyEvent("deleted", {
           workspaceId: found.workspaceId,
           terminalId,
@@ -226,6 +268,7 @@ function ensureSession(terminalId: string): Promise<string | null> {
         return null;
       }
       if (!rec.sessionId) rec.sessionId = session.id;
+      drainPendingLaunch(terminalId, rec.sessionId);
       return rec.sessionId;
     })
     .finally(() => spawning.delete(terminalId));
@@ -251,6 +294,7 @@ export async function reapWorkspaceTerminals(
   const ids = ws.terminals.map((t) => t.id);
   const kills: Promise<void>[] = [];
   for (const id of ids) {
+    discardPendingLaunch(id);
     const rec = removeTerminal(workspaceId, id);
     if (rec?.sessionId) {
       const sessionId = rec.sessionId;
@@ -283,7 +327,29 @@ export function getTerminalService(): TerminalService {
     create(input) {
       const workspaceId = input?.workspaceId ?? store.activeWorkspaceId;
       if (!workspaceId) return undefined;
-      return addTerminal(workspaceId, input?.kind ?? "shell", input?.cwd);
+      const kind = input?.kind ?? "shell";
+      // RFC 0033: the deprecated `"claude"` / `"pi"` kinds create a `"shell"`
+      // terminal. If a profile asserts that agent, launch it; otherwise type
+      // the bare command — preserving today's observable behavior. This path
+      // NEVER writes a profile record: a programmatic call must not create
+      // user data behind the user's back.
+      if (kind === "claude" || kind === "pi") {
+        const profile = getAgentProfiles().find(
+          (p) => p.assumedAgentId === kind,
+        );
+        if (profile) {
+          return launchAgentProfile({
+            profileId: profile.id,
+            workspaceId,
+            cwd: input?.cwd,
+          });
+        }
+        const rec = addTerminal(workspaceId, "shell", input?.cwd);
+        requestRawLaunch(rec.id, kind);
+        if (workspaceId !== store.activeWorkspaceId) void ensureSession(rec.id);
+        return rec;
+      }
+      return addTerminal(workspaceId, "shell", input?.cwd);
     },
     getTabMenuItems(terminalId) {
       return buildTerminalTabMenuItems(terminalId);
@@ -358,6 +424,7 @@ export function getTerminalService(): TerminalService {
     close(terminalId) {
       const found = locate(terminalId);
       if (!found) return; // unknown id → no-op
+      discardPendingLaunch(terminalId);
       const rec = removeTerminal(found.workspaceId, terminalId);
       if (rec?.sessionId) {
         const { workspaceId } = found;

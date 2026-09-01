@@ -26,6 +26,7 @@ import {
   detectIdleAfterWorking,
   detectFromOutput,
   stripAgentTitleIdentityPrefix,
+  catalogAgentSummaries,
 } from "./agent-catalog";
 
 describe("leaderBasename — Windows executable names (RFC: Windows agents)", () => {
@@ -978,5 +979,43 @@ describe("detectFromOutput", () => {
     expect(agentById("pi")?.outputDetector).toBeUndefined();
     expect(agentById("cursor")?.outputDetector).toBeDefined();
     expect(agentById("opencode")?.outputDetector).toBeDefined();
+  });
+});
+
+describe("configDirEnvVar (RFC 0033 R3)", () => {
+  it("is set for exactly claude, codex, grok, pi", () => {
+    expect(agentById("claude")?.configDirEnvVar).toBe("CLAUDE_CONFIG_DIR");
+    expect(agentById("codex")?.configDirEnvVar).toBe("CODEX_HOME");
+    expect(agentById("grok")?.configDirEnvVar).toBe("GROK_HOME");
+    expect(agentById("pi")?.configDirEnvVar).toBe("PI_CODING_AGENT_DIR");
+  });
+
+  it("is undefined for cursor, opencode, copilot, and each records why", () => {
+    for (const id of ["cursor", "opencode", "copilot"]) {
+      const a = agentById(id);
+      expect(a?.configDirEnvVar).toBeUndefined();
+      expect(a?.contract).toMatch(/RFC 0033/);
+    }
+  });
+});
+
+describe("catalogAgentSummaries (RFC 0033 R17)", () => {
+  it("returns the same frozen reference across calls", () => {
+    const a = catalogAgentSummaries();
+    const b = catalogAgentSummaries();
+    expect(a).toBe(b);
+    expect(Object.isFrozen(a)).toBe(true);
+    expect(Object.isFrozen(a[0])).toBe(true);
+  });
+
+  it("carries id, displayName, and an icon for every catalog agent", () => {
+    const summaries = catalogAgentSummaries();
+    expect(summaries.map((s) => s.id).sort()).toEqual(
+      AGENT_CATALOG.map((a) => a.id).sort(),
+    );
+    for (const s of summaries) {
+      expect(s.displayName).toBeTruthy();
+      expect(s.icon?.path).toBeTruthy();
+    }
   });
 });

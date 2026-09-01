@@ -66,6 +66,7 @@ the published reference is exactly this surface — no more, no less.
 
 - [ActivityGlyph](functions/ActivityGlyph.md)
 - [AddRow](functions/AddRow.md)
+- [AgentIconGlyph](functions/AgentIconGlyph.md)
 - [Badge](functions/Badge.md)
 - [Button](functions/Button.md)
 - [Callout](functions/Callout.md)
@@ -91,6 +92,9 @@ the published reference is exactly this surface — no more, no less.
 - [TabPanel](functions/TabPanel.md)
 - [Textarea](variables/Textarea.md)
 - [AgentInfo](interfaces/AgentInfo.md)
+- [AgentIcon](interfaces/AgentIcon.md)
+- [AgentIconMode](type-aliases/AgentIconMode.md)
+- [CatalogAgentSummary](interfaces/CatalogAgentSummary.md)
 - [AgentsService](interfaces/AgentsService.md)
 - [DndService](interfaces/DndService.md)
 - [OpenFileOptions](interfaces/OpenFileOptions.md)

@@ -4,7 +4,7 @@
 function MenuButton(__namedParameters): Element;
 ```
 
-Defined in: [packages/sdk/src/MenuButton.tsx:46](https://github.com/silo-code/silo/blob/main/packages/sdk/src/MenuButton.tsx#L46)
+Defined in: [packages/sdk/src/MenuButton.tsx:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/MenuButton.tsx#L61)
 
 A **labelled** button that opens a menu — the counterpart to
 [IconButton](IconButton.md) for the cases where a bare `⋮` doesn't tell anyone what
@@ -21,7 +21,9 @@ with [UiService.showMenu](../interfaces/UiService.md#showmenu), anchoring to `e.
 lines up under the button.
 
 Styled purely via host-provided `.silo-menu-button*` classes — no stylesheet
-import is needed in the extension.
+import is needed in the extension. `variant="field"` gives it `Input` /
+`Select` chrome (border, full width, trailing chevron) for use as a value
+picker in a form, where a rich menu (icons, checks) beats a native `<select>`.
 
 ## Parameters
 
@@ -51,4 +53,13 @@ import is needed in the extension.
 
 // compact — e.g. in a card footer or a ListRow's trailing slot
 <MenuButton size="sm" label="More" onClick={openMenu} />
+
+// as a form field — a value picker inside a `Section`
+<MenuButton
+  variant="field"
+  label={agent?.displayName ?? "Auto-detect"}
+  onClick={(e) => ctx.ui.showMenu({ anchor: e.currentTarget, items })}
+>
+  <AgentIconGlyph icon={agent?.icon} mode="color" colorScheme={scheme} />
+</MenuButton>
 ```

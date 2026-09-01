@@ -16,6 +16,7 @@ import {
   type MouseEncoding,
 } from "./terminal-mouse-encoding";
 import {
+  AgentIconGlyph,
   DND_MIME,
   type DockPanelProps,
   type Disposable,
@@ -42,6 +43,9 @@ import {
   stripAgentStatusMarkers,
   stripAgentTitleIdentityPrefix,
   spawnTerminalSession,
+  drainPendingLaunch,
+  getAgentProfiles,
+  profileLaunchLine,
   readClipboardText,
   registerTerminalClear,
   setTerminalFocus,
@@ -886,9 +890,14 @@ export function TerminalPanel(
           }
         }, 100);
 
-        if (needsCreate && tRec.kind !== "shell") {
-          const cmd = tRec.kind === "claude" ? "claude" : "pi";
-          window.setTimeout(() => session.write(`${cmd}\r`), 150);
+        // RFC 0033: if a profile launch is pending for this terminal, drain it
+        // now that the session is live. The view only reports readiness — the
+        // host decides what (if anything) to type. `drainPendingLaunch` is
+        // remove-on-read, so the background `ensureSession` path racing this
+        // one is a no-op for whichever arrives second. This replaces the old
+        // `kind`-based shim (the `"claude"`/`"pi"` kinds are deprecated).
+        if (needsCreate) {
+          drainPendingLaunch(terminalId, sessionId);
         }
       } catch (err) {
         const e = err as Error & { status?: number };
@@ -1194,6 +1203,7 @@ export function TerminalPanel(
         run: ctxClear,
       },
       { label: "New Terminal Here", run: ctxNewTerminalHere },
+      ...agentsSubmenuEntries(),
       { type: "separator" },
       { label: "Kill Terminal", danger: true, run: ctxKill },
     ];
@@ -1320,6 +1330,48 @@ export function TerminalPanel(
   // host hasn't reported one yet.
   function ctxNewTerminalHere() {
     ctx.terminals.create({ cwd: cwdRef.current || undefined });
+  }
+
+  // RFC 0033: an "Agents" submenu mirroring the `+` menu's profile list, but
+  // launching the profile **in this terminal** — type its launch line into the
+  // live shell, exactly as if the user had typed it. This terminal keeps no
+  // `profileId` (that back-reference is only set when Silo owns the launch); the
+  // agent is picked up by detection like any hand-typed one. Omitted entirely
+  // with no profiles — the context menu is not an onboarding surface.
+  function agentsSubmenuEntries(): MenuEntry[] {
+    const profiles = getAgentProfiles();
+    if (profiles.length === 0) return [];
+    const catalog = ctx.agents.catalog();
+    const colorScheme = getThemeBase(store.activeThemeId);
+    return [
+      {
+        label: "Agents",
+        submenu: profiles.map(
+          (p): MenuEntry => ({
+            label: p.label,
+            icon: (
+              <span className="term-menu-agent-icon">
+                <AgentIconGlyph
+                  icon={catalog.find((a) => a.id === p.assumedAgentId)?.icon}
+                  mode="color"
+                  colorScheme={colorScheme}
+                />
+              </span>
+            ),
+            run: () => runProfileHere(p.id),
+          }),
+        ),
+      },
+    ];
+  }
+
+  function runProfileHere(profileId: string) {
+    const live = liveRef.current;
+    if (!live) return;
+    const profile = getAgentProfiles().find((p) => p.id === profileId);
+    if (!profile) return; // deleted between menu open and click
+    live.session.write(`${profileLaunchLine(profile)}\r`);
+    live.term.focus();
   }
 
   // A freshly-created terminal (Cmd+T / "New Terminal") is set active by the

@@ -44,7 +44,15 @@ export interface AgentInfo {
   readonly terminalId: string;
   /** The workspace this terminal belongs to. */
   readonly workspaceId: string;
-  /** The terminal's kind at registration time (`"shell"`, `"claude"`, `"pi"`). */
+  /**
+   * The terminal's kind at registration time.
+   *
+   * @deprecated Always `"shell"` after RFC 0033 — the deprecated `"claude"` /
+   * `"pi"` kinds are normalized away at load and nothing creates them, so a
+   * consumer branching on this is reading a constant. Use
+   * {@link AgentInfo.agentId} for which agent is running, and
+   * {@link AgentInfo.isAgent} for whether one is.
+   */
   readonly kind: TerminalKind;
   /**
    * Whether this terminal currently hosts an agent — true if it was created
@@ -114,6 +122,57 @@ export interface AgentInfo {
 }
 
 /**
+ * A Catalog Agent's brand mark — SVG path data plus the two theme-dependent
+ * hexes. Consumed by {@link AgentIconGlyph}; a single hex cannot have enough
+ * contrast against both a light and a dark tab strip, so `"color"` mode picks
+ * `hexLight` / `hexDark` by the host's active base.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface AgentIcon {
+  /** Display name, for the glyph's accessible label. */
+  title: string;
+  /** The brand's color against a light background, no leading `#`. */
+  hexLight: string;
+  /** The brand's color against a dark background, no leading `#`. */
+  hexDark: string;
+  /** SVG path data, `viewBox="0 0 24 24"`. */
+  path: string;
+  /** Set when the source path assumes `fill-rule: evenodd`; omit for the SVG
+   *  default (`nonzero`). */
+  fillRule?: "evenodd";
+  /** A second path (same viewBox) layered on {@link AgentIcon.path} at 40%
+   *  opacity, for a genuinely duotone mark (OpenCode's frame + inner panel). */
+  accentPath?: string;
+  /** `fill-rule` for {@link AgentIcon.accentPath}, independent of `fillRule`. */
+  accentFillRule?: "evenodd";
+}
+
+/**
+ * How {@link AgentIconGlyph} renders: `"none"` draws nothing, `"color"` tints
+ * with the brand hex, `"monotone"` inherits `currentColor`.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export type AgentIconMode = "none" | "color" | "monotone";
+
+/**
+ * One Catalog Agent as an extension may read it through
+ * {@link AgentsService.catalog}. Read-only — detection stays sealed (ADR 0028)
+ * and there is no way to register into the catalog.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface CatalogAgentSummary {
+  readonly id: string;
+  readonly displayName: string;
+  readonly icon?: AgentIcon;
+}
+
+/**
  * Host-computed coding-agent observability — exposed as
  * {@link ExtensionContext.agents}. Detection (what OSC/output signals mean
  * for a given agent) and resume-hint resolution are both sealed inside the
@@ -178,4 +237,17 @@ export interface AgentsService {
    * ```
    */
   acknowledge(terminalId: string): void;
+  /**
+   * Every coding agent Silo knows about, as read-only
+   * {@link CatalogAgentSummary} records. Detection stays sealed (ADR 0028) —
+   * there is no way to register into this list.
+   *
+   * The returned array is **memoized and deeply frozen**: it is read inside
+   * tab-icon rendering (`ctx.terminals.bindIcon`), so a fresh allocation per
+   * call would be a per-render cost and a mutable one a correctness hazard.
+   *
+   * @category Consumer Services
+   * @public
+   */
+  catalog(): readonly CatalogAgentSummary[];
 }

@@ -1,6 +1,6 @@
 # Interface: EditorRecord
 
-Defined in: [packages/sdk/src/domain-types.ts:70](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L70)
+Defined in: [packages/sdk/src/domain-types.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L95)
 
 An editor tab record in a workspace — a text editor or a diff.
 
@@ -12,7 +12,7 @@ An editor tab record in a workspace — a text editor or a diff.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:71](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L71)
+Defined in: [packages/sdk/src/domain-types.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L96)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [packages/sdk/src/domain-types.ts:71](https://github.com/silo-code/s
 filePath: string | null;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:73](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L73)
+Defined in: [packages/sdk/src/domain-types.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L98)
 
 null for an untitled buffer that hasn't been saved yet.
 
@@ -34,7 +34,7 @@ null for an untitled buffer that hasn't been saved yet.
 title: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:74](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L74)
+Defined in: [packages/sdk/src/domain-types.ts:99](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L99)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [packages/sdk/src/domain-types.ts:74](https://github.com/silo-code/s
 optional isPreview?: boolean;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:76](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L76)
+Defined in: [packages/sdk/src/domain-types.ts:101](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L101)
 
 When true, the tab is a temporary preview that gets replaced by the next single-click open.
 
@@ -56,7 +56,7 @@ When true, the tab is a temporary preview that gets replaced by the next single-
 optional mode?: EditorMode;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:82](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L82)
+Defined in: [packages/sdk/src/domain-types.ts:107](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L107)
 
 Which mode this record renders in. Absent ⇒ `"text"`. A `"diff"` record
 additionally carries [EditorRecord.providerId](#providerid)/[EditorRecord.args](#args)
@@ -70,7 +70,7 @@ and always has a non-null `filePath`.
 optional providerId?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:88](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L88)
+Defined in: [packages/sdk/src/domain-types.ts:113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L113)
 
 Diff mode only: which registered diff-content provider resolves the two
 sides (e.g. "silo.git"). The diff is content-agnostic — the provider owns
@@ -84,7 +84,7 @@ what the two sides contain.
 optional args?: Record<string, unknown>;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:93](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L93)
+Defined in: [packages/sdk/src/domain-types.ts:118](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L118)
 
 Diff mode only: serializable args the provider needs to (re)compute content
 on mount / restart.
@@ -97,7 +97,7 @@ on mount / restart.
 optional viewType?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:104](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L104)
+Defined in: [packages/sdk/src/domain-types.ts:129](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L129)
 
 The chosen editor *view* for this tab, referencing an [Editor.id](Editor.md#id)
 (e.g. `"text"`, `"silo.markdown-preview"`). Absent ⇒ the host renders the

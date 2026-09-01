@@ -19,6 +19,13 @@ export function buildCodexAgentDefinition(
     id: "codex",
     displayName: "Codex CLI",
     leaderNames: ["codex"],
+    // RFC 0033 recon (2026-08-31, macOS): CODEX_HOME moves both config and
+    // credentials (`auth.json`) — `codex doctor` resolves its config and state
+    // root from it. The hook `configPath` (`.codex/hooks.json`) sits inside it.
+    // Operational note: `codex` does NOT create CODEX_HOME if missing — it
+    // warns and fails to load config — so the profile editor stats the dir and
+    // offers to create it.
+    configDirEnvVar: "CODEX_HOME",
     // "Working" is the shared spinner detector in `detectClaudeCode` (Codex uses
     // the braille range Claude used to); detectCodexCLI covers its own explicit
     // "idle" signals (empty title, action-required markers, OSC 9 notifications).
@@ -86,7 +93,7 @@ export function buildCodexAgentDefinition(
       "https://developers.openai.com/codex/config-advanced",
       "https://github.com/openai/codex",
     ],
-    lastVerified: "2026-07-27",
+    lastVerified: "2026-08-31",
     verifiedAgainstVersion: "codex-cli@0.144.5",
   };
 }

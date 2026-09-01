@@ -46,12 +46,17 @@ export function buildCopilotAgentDefinition(
       "PPID to find the agent process and records that process's pgid; (4) " +
       "`copilot --resume=<id>` resumes by that id. Activity comes from " +
       "OSC 9;4 progress notifications — payload '4;<state>' — with state " +
-      "1/2/3 = working and state 0/4 = idle.",
+      "1/2/3 = working and state 0/4 = idle. RFC 0033 recon (2026-08-31): " +
+      "Copilot has NO config-directory override at all — COPILOT_HOME only " +
+      "extends the plugin `pkg` search path, and ~/.copilot is resolved from " +
+      "homedir() with no override — so `configDirEnvVar` is undefined. This is " +
+      "the case that justifies the recon: string presence alone would have " +
+      "produced a field that does nothing.",
     upstreamRefs: [
       "https://docs.github.com/en/copilot/reference/hooks-configuration",
       "https://github.com/github/copilot-cli",
       "https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli/overview",
     ],
-    lastVerified: "2026-07-28",
+    lastVerified: "2026-08-31",
   };
 }

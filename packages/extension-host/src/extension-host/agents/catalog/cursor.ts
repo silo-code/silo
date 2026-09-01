@@ -75,13 +75,18 @@ export function buildCursorAgentDefinition(
       "`display.showStatusIndicators` is true in ~/.cursor/cli-config.json " +
       "(default false); the fallback matches known ink-spinner byte sequences " +
       "in the terminal's raw output stream, ending on ~1.5s of silence after " +
-      "the last frame.",
+      "the last frame. RFC 0033 recon (2026-08-31): CURSOR_CONFIG_DIR is a " +
+      "real config-dir override (source: env → $XDG_CONFIG_HOME/cursor → " +
+      "~/.cursor) but `auth.json` is read from homedir() independently — a " +
+      "second profile pointed at it would share the first profile's account " +
+      "while appearing to have its own, so `configDirEnvVar` is deliberately " +
+      "left undefined. Revisit if Cursor gains a credential-dir override.",
     upstreamRefs: [
       "https://docs.cursor.com/en/cli/reference/hooks",
       "https://docs.cursor.com/en/cli/overview",
       "https://cursor.com/docs/hooks",
     ],
-    lastVerified: "2026-07-28",
+    lastVerified: "2026-08-31",
     verifiedAgainstVersion: "cursor-agent@2026.07.23-e383d2b",
   };
 }

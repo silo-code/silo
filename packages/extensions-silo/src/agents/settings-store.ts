@@ -16,7 +16,11 @@
  * that adds the one runtime import (`useServiceState`).
  */
 
-import type { ExtensionStorage, ReactiveService } from "@silo-code/sdk";
+import type {
+  AgentIconMode,
+  ExtensionStorage,
+  ReactiveService,
+} from "@silo-code/sdk";
 import { sounds, type SoundName } from "./synth";
 
 /**
@@ -32,8 +36,10 @@ import { sounds, type SoundName } from "./synth";
 export type FocusBehavior = "clear" | "hide" | "none";
 
 /** Whether/how the Agents panel shows each row's agent brand icon —
- * `"none"`, the official brand color, or a single monotone color. */
-export type IconMode = "none" | "color" | "monotone";
+ * `"none"`, the official brand color, or a single monotone color. Aliased to
+ * the SDK's {@link AgentIconMode} (RFC 0033 R17) so this stored setting's type
+ * and the public `AgentIconGlyph`'s prop can't drift. */
+export type IconMode = AgentIconMode;
 
 /**
  * Which axis the Agents view sections its rows by. Until SDK 0.34 these were
