@@ -377,11 +377,23 @@ describe("buildTrackSessionScript", () => {
       const scriptPath = join(dir, "track-session.sh");
       writeFileSync(scriptPath, buildTrackSessionScript());
       const home = join(dir, "home");
-      execFileSync("sh", [scriptPath, "claude"], {
-        input: '{"session_id":"019fa9d2-1234-7abc-8def-0123456789ab"}',
-        env: { ...withoutSilo, HOME: home },
-        stdio: ["pipe", "pipe", "pipe"],
-      });
+      try {
+        execFileSync("sh", [scriptPath, "claude"], {
+          input: '{"session_id":"019fa9d2-1234-7abc-8def-0123456789ab"}',
+          env: { ...withoutSilo, HOME: home },
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+      } catch (err) {
+        // EPIPE here is a *symptom of the guard working*, not a failure. The
+        // guard is the script's first statement (`[ -n "$SILO" ] || exit 0`),
+        // so with $SILO absent the script exits before it ever reaches
+        // `payload=$(cat)` — it never drains stdin. Whether our write lands in
+        // the pipe buffer before the child is reaped is pure scheduling, so
+        // this raced green locally and flaked on a loaded CI runner. Keep
+        // sending the payload (a real hook invocation gets one) and treat the
+        // broken pipe as expected; the assertion that matters is below.
+        if ((err as NodeJS.ErrnoException).code !== "EPIPE") throw err;
+      }
       let wrote = true;
       try {
         readFileSync(join(home, ".silo/agent-hooks/events.jsonl"), "utf8");
