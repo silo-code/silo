@@ -280,10 +280,26 @@ global default → system `~/.claude`) worth returning to at phase 8.
 - **A "Test launch" button.** Copying the launch line proves more (it exercises
   the user's real shell) and doesn't pull the user out of Settings or need a
   cleanup rule.
-- **Seeding profiles automatically on first run.** Probing `command -v` misses
-  aliases; probing an interactive shell means running the user's rc file
-  unprompted. The empty `+` menu entry plus "Found on this machine" cards get
-  the same result at the moment of intent, with a click behind it.
+- **Seeding profiles automatically on first run.** No detection is complete
+  enough to seed from silently — a directory probe misses an unusual prefix, and
+  probing an interactive shell to do better means running the user's rc file
+  unprompted (see "Detecting agents through `PATH`" below). The empty `+` menu
+  entry plus "Found on this machine" cards get the same result at the moment of
+  intent, with a click behind it.
+- **Detecting agents through `PATH`.** What phase 1 shipped, and it found
+  nothing in a release build: a `.app` launched from Finder/Dock inherits
+  launchd's minimal `PATH`, so `command -v` missed all seven catalog agents,
+  and "Found on this machine" hid itself as designed. Silo's terminals never hit
+  this because they run `$SHELL -l`; the scan runs in the app process, which
+  doesn't. Resolving the login shell's `PATH` at startup instead (VS Code's
+  approach, which Paseo adapts) was rejected: ~9s of interactive shell startup
+  measured with nvm in `.zshrc`, it runs the user's rc files unprompted — the
+  same objection as auto-seeding above — and it still reports an alias-only
+  agent as alias text rather than a binary. Detection now probes known install
+  directories directly (`agent-install-locations.ts`): ~40ms, no subprocess, and
+  it found one _more_ agent than the shell did. The cost is a curated list that
+  can miss an unusual prefix, which is what the hand-typed "Add an agent
+  profile…" row is for.
 - **Extension-contributed profiles.** A marketplace of extensions injecting
   shell commands into a user's terminal is a real trust surface. Rejected for
   v1; an extension that wants a different agent asks the user.
