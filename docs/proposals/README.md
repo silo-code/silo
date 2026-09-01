@@ -25,7 +25,8 @@ as the permanent record.
     └─► rejected └─► superseded-by NNNN    ← also stays, as the record of "no"
 ```
 
-When an RFC lands it leaves a trail: the proposal flips to `implemented`, the
+When an RFC lands it leaves a trail: the proposal eventually flips to
+`implemented`, the
 roadmap badge flips `planned → stable`, optionally an ADR records the crystallized
 decision, and the CHANGELOG/semver reflect it. **Rejected/superseded proposals are
 never deleted** — "we considered X and rejected it" stops the debate recurring.
@@ -56,11 +57,14 @@ docs/proposals/NNNN-name/
 ```
 
 `requirements.md` / `design.md` / `tasks.md` are **ephemeral working
-artifacts**. When the work is implemented and verified they are deleted and the
-directory collapses back to a single curated `NNNN-name.md` with
-`status: implemented` — the numbered proposal file itself is never deleted.
-Skeletons: [`planning-template/`](./planning-template/). Full workflow (when to
-expand, how to collapse, cross-repo work): the
+artifacts**. When the current phase is implemented and verified they are
+deleted and the directory collapses back to a single curated `NNNN-name.md`.
+For a multi-phase proposal, that intermediate collapse keeps `status: accepted`
+and records the shipped phase; the same proposal may be re-expanded for the
+next phase. Only the final phase changes the status to `implemented` — the
+numbered proposal file itself is never deleted. Skeletons:
+[`planning-template/`](./planning-template/). Full workflow (when to expand,
+how to transition phases, how to collapse, cross-repo work): the
 [change-planning convention](../change-planning-convention.md). Small changes
 don't get a proposal at all — see below.
 
