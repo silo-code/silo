@@ -19,6 +19,12 @@ export function buildClaudeAgentDefinition(
     id: "claude",
     displayName: "Claude Code",
     leaderNames: ["claude"],
+    // RFC 0033 recon (2026-08-31, macOS): CLAUDE_CONFIG_DIR moves both config
+    // and credentials — empirically created `.claude.json` + `backups/` under
+    // the override and `claude mcp list` read it there. The hook `configPath`
+    // (`.claude/settings.json`) also sits inside it, which is what makes the
+    // deferred (agentId, configDir) hook keying (phase 6) work cleanly.
+    configDirEnvVar: "CLAUDE_CONFIG_DIR",
     activityDetectors: [detectClaudeCode],
     resume: {
       kind: "hook",
@@ -53,7 +59,7 @@ export function buildClaudeAgentDefinition(
       "https://docs.claude.com/en/docs/claude-code/hooks",
       "https://docs.claude.com/en/docs/claude-code/settings",
     ],
-    lastVerified: "2026-08-11",
+    lastVerified: "2026-08-31",
     verifiedAgainstVersion: "claude-code@2.1.228",
   };
 }

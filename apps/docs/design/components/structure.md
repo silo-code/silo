@@ -36,7 +36,10 @@ scroll areas. (The modal _shell_ — title, backdrop, sizing, close — comes fr
 ## Section
 
 A labeled group — the uppercase `NAME` / `FOLDERS` / `FORMATTING` headers seen
-throughout Silo's modals and settings pages.
+throughout Silo's modals and settings pages. Use it to label **one field** too,
+not only a group: a modal form is a stack of `Section`s, each wrapping a single
+`Input` / `Select` (plus its hint). This is the only sanctioned way to put a
+label above a field — never a bare `<label>` or an ad-hoc class.
 
 ```tsx
 import { Section, SettingRow, Switch } from "@silo-code/sdk";

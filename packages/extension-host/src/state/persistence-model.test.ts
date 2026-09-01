@@ -4,6 +4,7 @@ import type { WorkspaceInternal } from "./types";
 import {
   buildIndex,
   diffWorkspaceWrites,
+  loadAgentProfiles,
   reconcilePanelOrder,
   reconcileWorkspaceListing,
   splitPersistedState,
@@ -506,5 +507,52 @@ describe("sharedColumnWidthsEnabled in the index", () => {
     expect(
       index.sharedColumnWidthsEnabled ?? DEFAULT_SHARED_COLUMN_WIDTHS,
     ).toBe(false);
+  });
+});
+
+describe("loadAgentProfiles (RFC 0033 R2)", () => {
+  it("returns [] for an absent or non-array value", () => {
+    expect(loadAgentProfiles(undefined)).toEqual([]);
+    expect(loadAgentProfiles(null)).toEqual([]);
+    expect(loadAgentProfiles({})).toEqual([]);
+  });
+
+  it("drops entries missing id/label/command", () => {
+    const out = loadAgentProfiles([
+      { id: "ok", label: "OK", command: "claude" },
+      { id: "no-cmd", label: "X" },
+      { label: "no id", command: "c" },
+      { id: "", label: "empty id", command: "c" },
+      null,
+    ]);
+    expect(out.map((p) => p.id)).toEqual(["ok"]);
+  });
+
+  it("keeps the first of a duplicate id", () => {
+    const out = loadAgentProfiles([
+      { id: "dup", label: "first", command: "a" },
+      { id: "dup", label: "second", command: "b" },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].label).toBe("first");
+  });
+
+  it("preserves optional fields and drops empty optionals", () => {
+    const out = loadAgentProfiles([
+      {
+        id: "p",
+        label: "P",
+        command: "claude",
+        configDir: "/x",
+        assumedAgentId: "claude",
+      },
+      { id: "q", label: "Q", command: "c", configDir: "", assumedAgentId: "" },
+    ]);
+    expect(out[0]).toMatchObject({
+      configDir: "/x",
+      assumedAgentId: "claude",
+    });
+    expect(out[1].configDir).toBeUndefined();
+    expect(out[1].assumedAgentId).toBeUndefined();
   });
 });

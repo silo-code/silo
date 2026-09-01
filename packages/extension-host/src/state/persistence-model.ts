@@ -10,6 +10,7 @@
 
 import { cloneTrees } from "./side-dock-tree";
 import type {
+  AgentProfile,
   EditorSettings,
   GlobalPanelLayout,
   PanelStateSnapshot,
@@ -45,6 +46,10 @@ export interface PersistedIndex {
   // reason globalExtensionState is: not per-workspace-scoped. Absent in
   // older indexes (pre-ctx.agents installs).
   agentState?: Record<string, PersistedAgentInfo>;
+  // User-defined Agent Profiles (RFC 0033). Global (not per-workspace), so it
+  // lives in the index. Absent in an older index, in which case the list loads
+  // empty. Order is the menu / settings-list order, preserved verbatim.
+  agentProfiles?: AgentProfile[];
   // Legacy migration fields — stored globally in old installs, now per-workspace.
   leftPanelCollapsed?: boolean;
   rightPanelCollapsed?: boolean;
@@ -107,6 +112,51 @@ export function cloneAgentState(
 ): Record<string, PersistedAgentInfo> {
   const out: Record<string, PersistedAgentInfo> = {};
   for (const k of Object.keys(src)) out[k] = { ...src[k] };
+  return out;
+}
+
+/**
+ * Load Agent Profiles from a persisted index, defensively (RFC 0033). An entry
+ * missing `id`, `label`, or `command` (or with the wrong type) is dropped with
+ * a logged warning rather than failing hydration; the first occurrence of a
+ * duplicate id wins; a non-array (or absent) value yields `[]`.
+ */
+export function loadAgentProfiles(raw: unknown): AgentProfile[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AgentProfile[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    const e = entry as Partial<AgentProfile> | null;
+    if (
+      !e ||
+      typeof e.id !== "string" ||
+      typeof e.label !== "string" ||
+      typeof e.command !== "string" ||
+      !e.id ||
+      !e.label ||
+      !e.command
+    ) {
+      console.warn("dropping malformed persisted agent profile", entry);
+      continue;
+    }
+    if (seen.has(e.id)) {
+      console.warn(`dropping duplicate agent profile id "${e.id}"`);
+      continue;
+    }
+    seen.add(e.id);
+    const profile: AgentProfile = {
+      id: e.id,
+      label: e.label,
+      command: e.command,
+    };
+    if (typeof e.configDir === "string" && e.configDir) {
+      profile.configDir = e.configDir;
+    }
+    if (typeof e.assumedAgentId === "string" && e.assumedAgentId) {
+      profile.assumedAgentId = e.assumedAgentId;
+    }
+    out.push(profile);
+  }
   return out;
 }
 
@@ -178,6 +228,9 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
       : undefined,
     agentState: snapshot.agentState
       ? cloneAgentState(snapshot.agentState)
+      : undefined,
+    agentProfiles: snapshot.agentProfiles
+      ? snapshot.agentProfiles.map((p) => ({ ...p }))
       : undefined,
     groups: snapshot.groups ? cloneGroups(snapshot.groups) : undefined,
     panelOrder: snapshot.panelOrder ? [...snapshot.panelOrder] : undefined,

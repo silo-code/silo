@@ -77,7 +77,7 @@ describe("railSections", () => {
   });
 
   it("heads Application with the lead pages, in their own order", () => {
-    // Extensions / Layout / Agents lead regardless of the group+order they
+    // Extensions / Agents / Layout lead regardless of the group+order they
     // register with — `agents` sorts last of the three by group, and `layout`
     // sorts after `editor` and `terminal` within 1_general.
     const [app] = railSections([
@@ -90,8 +90,8 @@ describe("railSections", () => {
     ]);
     expect(app.pages.map((p) => p.id)).toEqual([
       "extensions",
-      "layout",
       "agents",
+      "layout",
       "editor",
       "terminal",
       "about",

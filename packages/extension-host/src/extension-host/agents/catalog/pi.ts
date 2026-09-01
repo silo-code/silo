@@ -122,6 +122,11 @@ export function buildPiAgentDefinition(deps: PiAgentDeps): AgentDefinition {
     // a `#!/usr/bin/env node` shebang — so the foreground process reports as
     // node-wrapped, exactly like Claude and Copilot.
     leaderNames: ["pi"],
+    // RFC 0033 recon (2026-08-31): PI_CODING_AGENT_DIR moves both config and
+    // credentials (`auth.json`) — source resolves it as
+    // `process.env.PI_CODING_AGENT_DIR ?? ~/.pi/agent`. The hook `configPath`
+    // (`.pi/agent/extensions/silo-track-session.ts`) sits inside it.
+    configDirEnvVar: "PI_CODING_AGENT_DIR",
     // Redundant once the tab shows pi's own icon — same literal detectPiTitle
     // matches on, reused rather than duplicated.
     titleIdentityPrefix: PI_TITLE_PREFIX,
@@ -243,7 +248,7 @@ export function buildPiAgentDefinition(deps: PiAgentDeps): AgentDefinition {
       // API and session_start payload) and docs/sessions.md (--session
       // semantics) are the two Silo's contract depends on.
     ],
-    lastVerified: "2026-08-22",
+    lastVerified: "2026-08-31",
     verifiedAgainstVersion: "pi@0.84.2",
   };
 }

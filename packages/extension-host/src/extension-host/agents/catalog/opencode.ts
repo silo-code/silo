@@ -53,7 +53,11 @@ export const opencodeAgent: AgentDefinition = {
     "plugin SDK loads in-process, confirmed via `ps` that the local TUI " +
     "case is a single OS process) is the plausible resume path, but is " +
     "UNVERIFIED — read from shipped .d.ts files only, no plugin built or " +
-    "run. See ADR 0043.",
+    "run. See ADR 0043. RFC 0033 recon (2026-08-31): OPENCODE_CONFIG_DIR is a " +
+    "real config-load-path override (and suppresses default config bootstrap), " +
+    "but credentials/state live at ~/.local/share/opencode independently — a " +
+    "second profile would share the first's account — so `configDirEnvVar` is " +
+    "left undefined.",
   upstreamRefs: [
     "https://opencode.ai",
     "https://github.com/sst/opencode",
@@ -61,6 +65,6 @@ export const opencodeAgent: AgentDefinition = {
     // source for the unverified Tier-3 plugin mechanism the contract above
     // describes — no public docs page covers it yet.
   ],
-  lastVerified: "2026-08-26",
+  lastVerified: "2026-08-31",
   verifiedAgainstVersion: "opencode@1.18.20",
 };

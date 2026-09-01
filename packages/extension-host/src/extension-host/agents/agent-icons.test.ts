@@ -29,10 +29,10 @@ describe("agentIconFor", () => {
   });
 
   it("marks the icons whose path assumes evenodd fill, and only those", () => {
+    expect(agentIconFor("claude")?.fillRule).toBe("evenodd");
     expect(agentIconFor("codex")?.fillRule).toBe("evenodd");
     expect(agentIconFor("grok")?.fillRule).toBe("evenodd");
     expect(agentIconFor("opencode")?.fillRule).toBe("evenodd");
-    expect(agentIconFor("claude")?.fillRule).toBeUndefined();
     expect(agentIconFor("cursor")?.fillRule).toBeUndefined();
     expect(agentIconFor("copilot")?.fillRule).toBeUndefined();
     expect(agentIconFor("pi")?.fillRule).toBeUndefined();

@@ -84,7 +84,7 @@ export function sortSettingsPages(pages: SettingsPage[]): SettingsPage[] {
  * Silo's own browse/install surface, filed there so it sorts above the pages it
  * manages. Leading Application is the rail's reading of it.
  */
-const RAIL_LEAD_PAGE_IDS = ["extensions", "layout", "agents"];
+const RAIL_LEAD_PAGE_IDS = ["extensions", "agents", "layout"];
 
 /**
  * Split the registered pages into the rail's two headed sections: everything

@@ -11,6 +11,17 @@
 /**
  * The kind of a terminal session.
  *
+ * @remarks
+ * The `"claude"` and `"pi"` values are **deprecated** (RFC 0033). Nothing in
+ * Silo creates a terminal with those kinds any more, and a persisted record
+ * carrying one is normalized to `"shell"` at load. Use an **Agent Profile** to
+ * start an agent in a terminal — it is the launch-time vocabulary for "which
+ * agent"; `TerminalKind` is neither the launch nor the identity vocabulary.
+ * `ctx.terminals.create({ kind: "claude" | "pi" })` still works (it creates a
+ * `"shell"` terminal and launches a matching profile if one exists), and the
+ * type keeps both values so third-party code compiles — removal is gated on a
+ * later engine bump.
+ *
  * @category Core Types
  * @public
  */
@@ -50,6 +61,20 @@ export interface TerminalRecord {
   cwd?: string;
   /** ISO timestamp of the last output we observed; used to pick a workspace's "primary" terminal. */
   lastActiveAt?: string;
+  /**
+   * The id of the Agent Profile this terminal was launched from (RFC 0033),
+   * when Silo launched it with one. A terminal created any other way — "New
+   * Terminal", the watermark, `core.newTerminal`, `ctx.terminals.create` — has
+   * no `profileId`; Silo never guesses one for a hand-typed agent.
+   *
+   * Written at launch and maintained by the host: renaming a profile's id
+   * rewrites this, deleting the profile clears it. It is written and kept
+   * current in phase 1 but not yet read — its first consumer is resume
+   * composition (RFC 0033 phase 4).
+   *
+   * @public
+   */
+  profileId?: string;
 }
 
 /**

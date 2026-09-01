@@ -91,6 +91,26 @@ none of this is reliably documented upstream.
 - If it has no shell hook: does it keep a live `{ pid → session id }`
   registry (Grok does)? That is the hook-free path.
 
+**Config directory (`configDirEnvVar`)** — for Agent Profiles (RFC 0033)
+
+- Does an environment variable move the agent's config directory? (`--help`,
+  embedded strings, the resolver source if the binary is a JS bundle, and an
+  empirical run against a scratch directory.)
+- **The distinguishing question is not "does it move the config" but "does it
+  move the credentials too."** The user-facing purpose of this field is running
+  two accounts of the same agent, so a var that relocates `config.toml` but
+  still reads `auth.json` from `$HOME` is **worse than nothing** — a second
+  profile would silently share the first one's account while looking like it had
+  its own. Populate `configDirEnvVar` only when the credentials follow the var.
+- Recorded 2026-08-31: populated for `claude` (`CLAUDE_CONFIG_DIR`), `codex`
+  (`CODEX_HOME`), `grok` (`GROK_HOME`), `pi` (`PI_CODING_AGENT_DIR`). Left
+  undefined — with the reason in `contract` — for `cursor-agent` and `opencode`
+  (credentials resolve from `$HOME` independently) and `copilot` (`COPILOT_HOME`
+  only extends a plugin search path; `~/.copilot` has no override at all).
+- If a hook `configPath` sits _inside_ the overridden directory
+  (`.claude/settings.json`, `.codex/hooks.json`), note it — that is what makes
+  per-account hook keying (RFC 0033 phase 6) work cleanly.
+
 ## Step 2 — Write the catalog entry
 
 Create `agents/catalog/example.ts`. If the agent's resume is `kind: "hook"`
@@ -288,10 +308,13 @@ The catalog can't reach these; grep for an existing agent's name to find them al
       with provenance filled in
 - [ ] Detectors added or reused; idle path (explicit signal or timer) proven
 - [ ] Resume strategy chosen; installer reused or added
+- [ ] `configDirEnvVar` answered deliberately — populated only if it moves the
+      **credentials**, else left undefined with the reason in `contract`
 - [ ] Unit tests: catalog integrity, detector goldens, resume command
 - [ ] `agent-sessions.md` section + matching `docsUrl` anchor
 - [ ] Website / docs "works with" lists and icon
-- [ ] In-app icon: `agent-icons.ts` entry (separate from the website's)
+- [ ] In-app icon: `agent-icons.ts` entry (in the host, beside the catalog —
+      RFC 0033 moved it there; separate from the website's)
 - [ ] `pnpm lint`, `pnpm test`, `pnpm --filter silo exec tsc --noEmit` green
 - [ ] Verified in the real app: agent shows in Settings → Agents, tab dot
       tracks a turn, resume command copies and works after a restart

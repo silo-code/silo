@@ -128,6 +128,10 @@ rather than performing something.
     <span class="silo-menu-button-label">Sort</span>
     <svg class="silo-menu-button-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </button>
+  <button class="silo-menu-button silo-menu-button-field" style="width: 180px">
+    <span class="silo-menu-button-label">Auto-detect</span>
+    <svg class="silo-menu-button-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
 </div>
 
 ```tsx
@@ -145,18 +149,33 @@ import { MenuButton } from "@silo-code/sdk";
     })
   }
 />;
+
+// variant="field" — a value picker inside a `Section`, when a rich menu
+// (icons, checks) beats a native <select>
+<Section label="Agent">
+  <MenuButton
+    variant="field"
+    label={agent?.displayName ?? "Auto-detect from the command"}
+    onClick={(e) => ctx.ui.showMenu({ anchor: e.currentTarget, items })}
+  >
+    <AgentIconGlyph icon={agent?.icon} mode="color" colorScheme={scheme} />
+  </MenuButton>
+</Section>;
 ```
 
-| Prop     | Type               | Default    | Notes                                        |
-| -------- | ------------------ | ---------- | -------------------------------------------- |
-| `label`  | `ReactNode`        | —          | required — the whole point over `IconButton` |
-| `size`   | `"normal" \| "sm"` | `"normal"` | `sm` for card footers and list rows          |
-| children | `ReactNode`        | —          | optional leading content, e.g. an icon       |
-| …rest    | button props       |            | `aria-haspopup="menu"` is applied for you    |
+| Prop      | Type                | Default    | Notes                                                   |
+| --------- | ------------------- | ---------- | ------------------------------------------------------- |
+| `label`   | `ReactNode`         | —          | required — the whole point over `IconButton`            |
+| `size`    | `"normal" \| "sm"`  | `"normal"` | `sm` for card footers and list rows                     |
+| `variant` | `"bare" \| "field"` | `"bare"`   | `field` wears `Input` / `Select` chrome as a form field |
+| children  | `ReactNode`         | —          | optional leading content, e.g. an icon                  |
+| …rest     | button props        |            | `aria-haspopup="menu"` is applied for you               |
 
-Quieter than `Button` on purpose: no border and no fill at rest, `bg-hover` on
-hover. It reveals rather than commits, so it shouldn't compete with the real
-action beside it.
+Quieter than `Button` on purpose: `bare` has no border and no fill at rest,
+`bg-hover` on hover. It reveals rather than commits, so it shouldn't compete
+with the real action beside it. Use `variant="field"` only when the trigger
+_is_ the field — a value picker in a form that lines up with `Input` and
+`Select`.
 
 ::: tip MenuButton or a `⋮` IconButton?
 Both open a menu; they differ in **who is expected to find it**. Reach for

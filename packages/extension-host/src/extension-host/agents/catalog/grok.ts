@@ -15,6 +15,11 @@ export const grokAgent: AgentDefinition = {
   id: "grok",
   displayName: "Grok",
   leaderNames: ["grok"],
+  // RFC 0033 recon (2026-08-31): GROK_HOME overrides the base directory (per
+  // the binary's own `--help`: "Set GROK_HOME to override the base directory")
+  // and carries credentials (`auth.json`) with it. Resume is session-file, not
+  // hook, so no hook config path is involved.
+  configDirEnvVar: "GROK_HOME",
   // "Working" shares the spinner OSC 0 detector, on its braille branch — Grok's
   // TUI uses the U+2800–28FF glyph range Claude used until 2.1.228 (confirmed
   // live: Grok shows as an agent via this shared detector before any
@@ -80,6 +85,6 @@ export const grokAgent: AgentDefinition = {
     "that mismatch via the sticky foreground agent id and lets the session " +
     "file win.",
   upstreamRefs: ["https://github.com/xai-org/grok-cli", "https://docs.x.ai"],
-  lastVerified: "2026-07-29",
+  lastVerified: "2026-08-31",
   verifiedAgainstVersion: "grok@0.2.114",
 };

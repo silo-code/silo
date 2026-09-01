@@ -13,6 +13,7 @@ import {
 } from "./types";
 import type { WorkspaceInternal } from "./types";
 import { migratePanelIds } from "./panel-id-migration";
+import { normalizeTerminalKinds } from "./terminal-kind-migration";
 import { migrateGlobalExtensionState } from "./extension-id-migration";
 import { loadPanelStateFromWorkspace } from "./workspaces";
 import {
@@ -25,6 +26,7 @@ import {
   buildIndex,
   cloneExtensionState,
   cloneAgentState,
+  loadAgentProfiles,
   cloneGlobalPanelLayout,
   diffWorkspaceWrites,
   reconcilePanelOrder,
@@ -164,6 +166,12 @@ export async function hydrate(configDir: string): Promise<void> {
     store.agentState = index.agentState
       ? cloneAgentState(index.agentState)
       : {};
+    // Agent Profiles (RFC 0033). Loaded here — inside `hydrate`, which
+    // `main.tsx` awaits before `ExtensionManager.loadInstalled()` — so the
+    // deprecated-`TerminalKind` mapping in `getTerminalService().create` and
+    // the `+` menu both resolve against a populated list from first activation.
+    // Malformed entries are dropped rather than failing hydration.
+    store.agentProfiles = loadAgentProfiles(index.agentProfiles);
     // Absent in an older index: widths were global, which is this flag on.
     store.sharedColumnWidthsEnabled =
       index.sharedColumnWidthsEnabled ?? DEFAULT_SHARED_COLUMN_WIDTHS;
@@ -189,7 +197,7 @@ export async function hydrate(configDir: string): Promise<void> {
           const s = await load(e.path, STORE_OPTS);
           const ws = await s.get<WorkspaceInternal>(WORKSPACE_KEY);
           if (ws && typeof ws.id === "string") {
-            workspaces[ws.id] = migratePanelIds(ws);
+            workspaces[ws.id] = normalizeTerminalKinds(migratePanelIds(ws));
             wsStores.set(ws.id, s);
           } else {
             await s.close();
@@ -334,6 +342,7 @@ async function doPersist(): Promise<void> {
       smallScreenPeekWidthRightPx: store.smallScreenPeekWidthRightPx,
       globalExtensionState: store.globalExtensionState,
       agentState: store.agentState,
+      agentProfiles: [...store.agentProfiles],
       groups: store.groups,
       panelOrder: [...store.panelOrder],
       sharedColumnWidthsEnabled: store.sharedColumnWidthsEnabled,

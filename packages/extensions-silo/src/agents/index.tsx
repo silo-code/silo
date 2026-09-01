@@ -25,7 +25,7 @@ import {
 import { AgentsPanel } from "./agents-panel";
 import { initDoneSince, recordDoneSince } from "./done-since";
 import { initManualOrder } from "./manual-order";
-import { AgentIconGlyph } from "./AgentIconGlyph";
+import { AgentIconGlyph } from "@silo-code/sdk";
 import styles from "./styles.css?inline";
 
 const STYLE_ID = "silo-agents-styles";
@@ -175,7 +175,7 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
         // component ultimately renders nothing, tricking the host into
         // reserving tab space (margin, flex gap) for an empty icon slot.
         const icon = AgentIconGlyph({
-          agentId: a.agentId,
+          icon: ctx.agents.catalog().find((c) => c.id === a.agentId)?.icon,
           mode: settingsService.getState().iconMode,
           colorScheme,
         });

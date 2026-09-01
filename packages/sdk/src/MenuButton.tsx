@@ -1,7 +1,11 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { menuButtonClass, type MenuButtonSize } from "./menu-button-classes";
+import {
+  menuButtonClass,
+  type MenuButtonSize,
+  type MenuButtonVariant,
+} from "./menu-button-classes";
 
-export type { MenuButtonSize };
+export type { MenuButtonSize, MenuButtonVariant };
 
 /**
  * A **labelled** button that opens a menu — the counterpart to
@@ -19,7 +23,9 @@ export type { MenuButtonSize };
  * lines up under the button.
  *
  * Styled purely via host-provided `.silo-menu-button*` classes — no stylesheet
- * import is needed in the extension.
+ * import is needed in the extension. `variant="field"` gives it `Input` /
+ * `Select` chrome (border, full width, trailing chevron) for use as a value
+ * picker in a form, where a rich menu (icons, checks) beats a native `<select>`.
  *
  * @example
  * ```tsx
@@ -38,6 +44,15 @@ export type { MenuButtonSize };
  *
  * // compact — e.g. in a card footer or a ListRow's trailing slot
  * <MenuButton size="sm" label="More" onClick={openMenu} />
+ *
+ * // as a form field — a value picker inside a `Section`
+ * <MenuButton
+ *   variant="field"
+ *   label={agent?.displayName ?? "Auto-detect"}
+ *   onClick={(e) => ctx.ui.showMenu({ anchor: e.currentTarget, items })}
+ * >
+ *   <AgentIconGlyph icon={agent?.icon} mode="color" colorScheme={scheme} />
+ * </MenuButton>
  * ```
  *
  * @category Consumer Services
@@ -46,6 +61,7 @@ export type { MenuButtonSize };
 export function MenuButton({
   label,
   size = "normal",
+  variant = "bare",
   className,
   type = "button",
   children,
@@ -55,10 +71,15 @@ export function MenuButton({
   label: ReactNode;
   /** `sm` for compact contexts (card footers, list rows). */
   size?: MenuButtonSize;
+  /**
+   * `"bare"` (default) is a borderless label + chevron for toolbars and rows;
+   * `"field"` wears `Input` / `Select` chrome so it lines up as a form field.
+   */
+  variant?: MenuButtonVariant;
   /** Optional leading content, e.g. an icon before the label. */
   children?: ReactNode;
 } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">) {
-  const classes = menuButtonClass(size);
+  const classes = menuButtonClass(size, variant);
   return (
     <button
       type={type}

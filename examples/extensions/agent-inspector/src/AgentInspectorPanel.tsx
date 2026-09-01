@@ -242,7 +242,6 @@ function AgentRow({
       </div>
 
       <div className="ai-row-meta">
-        <span>kind: {agent.kind}</span>
         <span>isAgent: {String(agent.isAgent)}</span>
         {agent.agentName && (
           <span>

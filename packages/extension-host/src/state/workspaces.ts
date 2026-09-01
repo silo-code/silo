@@ -656,18 +656,23 @@ export function addTerminal(
   workspaceId: string,
   kind: TerminalKind,
   cwd?: string,
+  opts?: { profileId?: string },
 ): TerminalRecord {
   const ws = store.workspaces[workspaceId];
   if (!ws) throw new Error(`workspace ${workspaceId} not found`);
   const id = `term_${uuid()}`;
-  const title =
-    kind === "claude" ? "Claude Code" : kind === "pi" ? "pi agent" : "Terminal";
+  // Title is always PTY-derived (RFC 0033 R8). Even for a profile launch we do
+  // not seed the profile label: `TerminalPanel` overwrites `title` from the
+  // foreground process / OSC within a second, so a seeded label would flash
+  // and vanish. The kind-derived "Claude Code" / "pi agent" seeds went with
+  // the deprecation of those kinds.
   const rec: TerminalRecord = {
     id,
     sessionId: "",
     kind,
-    title,
+    title: "Terminal",
     ...(cwd ? { cwd } : {}),
+    ...(opts?.profileId ? { profileId: opts.profileId } : {}),
   };
   ws.terminals.push(rec);
   return rec;

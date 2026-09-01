@@ -9,6 +9,24 @@ the UI, and use **Install** in **Settings → Agents** so Silo can give you the
 exact command to resume a session later. Exact resume is available for every
 one of these except OpenCode today — see its section below.
 
+## Starting an agent
+
+You can always open a terminal and type `claude` (or `codex`, `cursor-agent`,
+…) yourself — Silo notices and starts tracking it.
+
+For the agents you start often, make an **agent profile**: a named recipe with a
+label, the command to run (an alias like `claude-work` is fine), and optionally
+a separate config directory for a second account. Manage them on **Settings →
+Agents → Profiles**, or click **Add an agent profile…** from a terminal group's
+**+** menu — the Profiles tab offers a one-click add for each agent already on
+your `PATH`. Once a profile exists it shows up in two places: the **+** menu,
+which opens a new terminal and starts the agent there, and a terminal's
+right-click **Agents** submenu, which runs the agent **in that terminal** — the
+same as typing its command yourself.
+
+A profile is just a way to start a terminal — everything after that is the
+agent's own CLI, exactly as if you had typed the command.
+
 ## Seeing agent activity
 
 Silo detects agents on its own, but drawing the indicators — the activity dots
@@ -59,7 +77,8 @@ your agent already runs its hooks with. See the
 
 ## Settings → Agents
 
-Each hook-installable CLI has an **Install** / **Uninstall** button: without
+The **Sessions** tab (this is where session-hook install lives) has, for each
+hook-installable CLI, an **Install** / **Uninstall** button: without
 the hook you keep detection and the plain reminder; Install adds Silo's session
 hook for exact resume. It assumes each CLI's default config location — if you
 run one somewhere else, Install once and copy the `# silo-managed-agent-hook`

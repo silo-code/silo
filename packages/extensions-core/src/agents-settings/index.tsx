@@ -9,8 +9,9 @@
  * its content comes from that extension; **Display** also carries a host-owned
  * tab-title setting, so it stays.
  *
- * **Hooks** tab lives in {@link AgentsHooksPanel} so agent-catalog modularization
- * can evolve hook/extra-settings UI independently.
+ * **Sessions** tab (formerly **Hooks**) lives in {@link AgentsHooksPanel} so
+ * agent-catalog modularization can evolve hook/extra-settings UI independently.
+ * **Profiles** (RFC 0033) is the first tab and the page's default.
  */
 import { useState, type ComponentType } from "react";
 import { useSnapshot } from "valtio";
@@ -18,6 +19,7 @@ import type { Extension, ExtensionContext, TabItem } from "@silo-code/sdk";
 import { Section, Tabs, TabPanel, SettingRow, Switch } from "@silo-code/sdk";
 import { store, setTerminalSetting } from "@silo-code/extension-host/internal";
 import { AgentsHooksPanel } from "./AgentsHooksPanel";
+import { AgentsProfilesPanel } from "./AgentsProfilesPanel";
 import { selfHealInstalledHooks } from "./hook-self-heal";
 import "./AgentsSettingsPage.css";
 
@@ -28,7 +30,12 @@ interface SiloAgentsSettingsAPI {
   DisplayPanel: ComponentType;
 }
 
-type AgentsSettingsTab = "behavior" | "navigator" | "display" | "hooks";
+type AgentsSettingsTab =
+  | "profiles"
+  | "behavior"
+  | "navigator"
+  | "display"
+  | "sessions";
 
 /** The live `silo.agents` extension entry, for its `active` flag and API. */
 function getSiloAgents(ctx: ExtensionContext) {
@@ -77,19 +84,20 @@ function AgentsDisplayTab({ ctx }: { ctx: ExtensionContext }) {
 }
 
 function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
-  const [tab, setTab] = useState<AgentsSettingsTab>("behavior");
+  const [tab, setTab] = useState<AgentsSettingsTab>("profiles");
 
   // The Navigator tab's content is entirely `silo.agents`' — drop the tab
   // when that extension isn't active rather than show an empty panel.
   const hasNavigator = getSiloAgents(ctx)?.active === true;
   const activeTab: AgentsSettingsTab =
-    tab === "navigator" && !hasNavigator ? "behavior" : tab;
+    tab === "navigator" && !hasNavigator ? "profiles" : tab;
 
   const tabs: TabItem<AgentsSettingsTab>[] = [
+    { id: "profiles", label: "Profiles" },
     { id: "behavior", label: "Behavior" },
     ...(hasNavigator ? [{ id: "navigator" as const, label: "Navigator" }] : []),
     { id: "display", label: "Display" },
-    { id: "hooks", label: "Hooks" },
+    { id: "sessions", label: "Sessions" },
   ];
 
   return (
@@ -98,7 +106,12 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
         <Tabs tabs={tabs} active={activeTab} onSelect={setTab} />
         <TabPanel>
           <div className="silo-scroll agents-settings-scroll">
-            {activeTab === "behavior" ? (
+            {activeTab === "profiles" ? (
+              <AgentsProfilesPanel
+                ctx={ctx}
+                onOpenSessions={() => setTab("sessions")}
+              />
+            ) : activeTab === "behavior" ? (
               <AgentsBehaviorTab ctx={ctx} />
             ) : activeTab === "navigator" ? (
               <AgentsNavigatorTab ctx={ctx} />

@@ -253,27 +253,54 @@ only once an opt-in hook reports it) is the closest thing to one.
 _Avoid_: Agent session (no such persisted type exists — see Session Id),
 Agent object
 
-**Terminal Kind** vs **Catalog Agent** — two distinct "which agent" vocabularies
-that share one string (`"claude"`) but otherwise don't line up:
+**Agent Profile** (`AgentProfile`, RFC 0033) — a named, user-authored recipe for
+**starting** a coding agent in a terminal: an `id`, a `label`, a `command`
+string (an alias / shell function / version-manager shim, not an argv array —
+Silo launches by typing into an interactive login shell, never `exec`), an
+optional `configDir` for a second account, and an optional `assumedAgentId`.
+Host-owned global state; appears in the `+` menu, a terminal's right-click
+**Agents** submenu, and on Settings → Agents → **Profiles**. A profile is _a way
+to start a terminal, not a way to talk to an agent_ — everything downstream
+stays a PTY, a shell, and a TUI.
 
-- **Terminal Kind** (`TerminalKind`: `"shell" | "claude" | "pi"`): a
-  **launch-time** choice — how the terminal was created. Only two agent
-  values exist, and both also have a Catalog Agent counterpart.
+- `assumedAgentId` is a **user assertion** ("this launches Claude"), matched
+  from the command text and overridable in the editor. It may pick the menu
+  icon and the config-dir env var; it is **never** written into
+  `AgentInfo.agentId` (a proven
+  **observation**) and never seeds `AgentInfo.isAgent`. A profile-launched
+  terminal becomes an agent the same way every other terminal does — by
+  detection (ADR 0028).
+- A terminal carries `TerminalRecord.profileId` **only if Silo opened the
+  terminal for that launch** (the `+` menu). A hand-typed agent — or one started
+  from the right-click **Agents** submenu, which just types the profile's
+  command into the terminal you're in — gets full catalog identity and no
+  profile; Silo never guesses one.
+
+_Avoid_: "agent config" / "agent preset" (it is a launch recipe, not the
+agent's own configuration); conflating asserted `assumedAgentId` with observed
+`agentId`.
+
+**Agent Profile is the launch vocabulary; Catalog Agent is the identity
+vocabulary; Terminal Kind is neither.**
+
 - **Catalog Agent** (`AgentDefinition.id` in `AGENT_CATALOG`: `"claude" |
-"codex" | "cursor" | "copilot" | "grok" | "pi"`): a **detected-identity**
-  classification, computed live from OSC/output signals against the sealed
-  catalog. A Codex/Cursor/Copilot/Grok terminal is always launched at Terminal
-  Kind `"shell"` and only later upgraded to `isAgent: true` once detected —
-  there is no dedicated Terminal Kind for those four. The two vocabularies
-  still don't line up: sharing a string (`"claude"`, `"pi"`) means the
-  terminal _can_ be that agent, never that it _is_ one.
-  _Avoid_: "agent type" or "agent kind" alone (ambiguous between the two);
-  conflating a terminal's Kind with its detected Catalog Agent identity
+"codex" | "cursor" | "copilot" | "grok" | "pi" | "opencode"`): a
+  **detected-identity** classification, computed live from OSC/output signals
+  against the sealed catalog. A terminal is upgraded to `isAgent: true` and
+  given an `agentId` only once detection says so.
+- **Terminal Kind** (`TerminalKind`: `"shell" | "claude" | "pi"`): the
+  `"claude"` / `"pi"` values are **deprecated** (RFC 0033). Nothing creates
+  them, a persisted record carrying one is normalized to `"shell"` at load, and
+  `ctx.terminals.create({ kind: "claude" | "pi" })` now creates a `"shell"`
+  terminal (launching a matching profile if one exists). `AgentInfo.kind` is
+  likewise deprecated — always `"shell"` after normalization.
+  _Avoid_: "agent type" or "agent kind" alone (ambiguous); treating Terminal
+  Kind as either the launch or the identity vocabulary — it is a vestige.
 
-> The gap this note used to record — `"pi"` terminals marked `isAgent: true`
-> by Terminal Kind with no catalog entry behind them, so no activity
-> detection, no resume strategy, and no `agentId`/`agentName` — closed when
-> pi joined `AGENT_CATALOG` (ADR 0041).
+> Earlier gaps this note recorded — `"pi"` terminals marked `isAgent: true` by
+> Terminal Kind with no catalog entry — closed when pi joined `AGENT_CATALOG`
+> (ADR 0041); the Kind values themselves retired as launch vocabulary in favour
+> of Agent Profiles (RFC 0033).
 
 **Sealed** (detection):
 There is no public `registerAgent` / detector-registration API — `AGENT_CATALOG`

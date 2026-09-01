@@ -23,7 +23,7 @@ import {
 } from "./agents-panel-view";
 import { getDoneSince } from "./done-since";
 import { manualOrderService } from "./manual-order";
-import { AgentIconGlyph } from "./AgentIconGlyph";
+import { AgentIconGlyph, type AgentIcon } from "@silo-code/sdk";
 import { settingsService, type IconMode } from "./settings-store";
 
 /** Ticks the panel so a rendered `formatElapsed` duration stays live. 1s
@@ -229,6 +229,7 @@ function AgentRowItem({
   row,
   subtitle,
   active,
+  icon,
   iconMode,
   colorScheme,
   onFocus,
@@ -240,6 +241,7 @@ function AgentRowItem({
    * workspace" view — whichever isn't already the enclosing section header. */
   subtitle: string;
   active: boolean;
+  icon: AgentIcon | undefined;
   iconMode: IconMode;
   colorScheme: "dark" | "light";
   onFocus: (terminalId: string) => void;
@@ -271,7 +273,7 @@ function AgentRowItem({
       <div className="ap-row-text">
         <span className="ap-row-title-line">
           <AgentIconGlyph
-            agentId={row.agentId}
+            icon={icon}
             mode={iconMode}
             colorScheme={colorScheme}
             className="ap-row-icon"
@@ -731,6 +733,10 @@ export function AgentsPanel({
                     row={row}
                     subtitle={section.subtitle(row)}
                     active={row.terminalId === activeTerminalId}
+                    icon={
+                      ctx.agents.catalog().find((c) => c.id === row.agentId)
+                        ?.icon
+                    }
                     iconMode={iconMode}
                     colorScheme={colorScheme}
                     onFocus={(terminalId) => ctx.terminals.focus(terminalId)}

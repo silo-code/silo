@@ -20,6 +20,7 @@ import {
   agentByLeader,
   agentByProcessArgs,
   leaderBasename,
+  catalogAgentSummaries,
   type AgentDefinition,
 } from "./agent-catalog";
 import {
@@ -1253,6 +1254,9 @@ export function getAgentsService(): AgentsService {
       // through; "activated" already no-ops when there's nothing pending
       // (see agent-activity-model.ts's reduce()).
       applyEvent(terminalId, { type: "activated" });
+    },
+    catalog() {
+      return catalogAgentSummaries();
     },
   };
   return agentsService;

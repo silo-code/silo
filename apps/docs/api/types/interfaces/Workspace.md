@@ -1,6 +1,6 @@
 # Interface: Workspace
 
-Defined in: [packages/sdk/src/domain-types.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L137)
+Defined in: [packages/sdk/src/domain-types.ts:162](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L162)
 
 A workspace — the unit Silo switches between, keeping its terminals, editors,
 and layout alive. Read via [WorkspaceService](WorkspaceService.md).
@@ -18,7 +18,7 @@ intentionally absent here.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:138](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L138)
+Defined in: [packages/sdk/src/domain-types.ts:163](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L163)
 
 ***
 
@@ -28,7 +28,7 @@ Defined in: [packages/sdk/src/domain-types.ts:138](https://github.com/silo-code/
 name: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:139](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L139)
+Defined in: [packages/sdk/src/domain-types.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L164)
 
 ***
 
@@ -38,7 +38,7 @@ Defined in: [packages/sdk/src/domain-types.ts:139](https://github.com/silo-code/
 folder: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:140](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L140)
+Defined in: [packages/sdk/src/domain-types.ts:165](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L165)
 
 ***
 
@@ -48,7 +48,7 @@ Defined in: [packages/sdk/src/domain-types.ts:140](https://github.com/silo-code/
 optional extraFolders?: string[];
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:142](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L142)
+Defined in: [packages/sdk/src/domain-types.ts:167](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L167)
 
 Additional folders beyond the primary one.
 
@@ -60,7 +60,7 @@ Additional folders beyond the primary one.
 createdAt: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:143](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L143)
+Defined in: [packages/sdk/src/domain-types.ts:168](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L168)
 
 ***
 
@@ -70,7 +70,7 @@ Defined in: [packages/sdk/src/domain-types.ts:143](https://github.com/silo-code/
 lastOpenedAt: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:144](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L144)
+Defined in: [packages/sdk/src/domain-types.ts:169](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L169)
 
 ***
 
@@ -80,7 +80,7 @@ Defined in: [packages/sdk/src/domain-types.ts:144](https://github.com/silo-code/
 optional closedAt?: string | null;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:150](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L150)
+Defined in: [packages/sdk/src/domain-types.ts:175](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L175)
 
 ISO timestamp of when the workspace was soft-closed, or null/undefined
 if the workspace is open. Closed workspaces are hidden from the main
@@ -94,7 +94,7 @@ list and surfaced in a "reopen" picker.
 terminals: readonly TerminalRecord[];
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:151](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L151)
+Defined in: [packages/sdk/src/domain-types.ts:176](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L176)
 
 ***
 
@@ -104,6 +104,6 @@ Defined in: [packages/sdk/src/domain-types.ts:151](https://github.com/silo-code/
 editors: readonly EditorRecord[];
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:153](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L153)
+Defined in: [packages/sdk/src/domain-types.ts:178](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L178)
 
 Editor tabs — text editors and diffs alike (a diff is a record with `mode: "diff"`).

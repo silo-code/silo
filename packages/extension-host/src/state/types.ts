@@ -240,6 +240,47 @@ export interface PersistedAgentInfo {
   lastLiveAt: string;
 }
 
+/**
+ * A named, user-authored recipe for starting a coding agent in a terminal
+ * (RFC 0033). Host-owned global state. **Not** part of the public SDK surface
+ * in phase 1 — it rides `@silo-code/extension-host/internal`; it becomes public
+ * when `ctx.agents.profiles` does (phase 5).
+ */
+export interface AgentProfile {
+  /**
+   * Short, user-authored, editable, unique id matching `^[a-z0-9][a-z0-9-]*$`.
+   * Prefilled by slugifying {@link AgentProfile.label}. This is the value a
+   * human types at `silo agent run --profile <id>` (phase 2), which is why it
+   * is chosen and editable rather than derived-from-the-label and frozen.
+   */
+  id: string;
+  /** Shown in the `+` menu and the Profiles list. Freely editable. */
+  label: string;
+  /**
+   * The shell command line, typed into the terminal's interactive shell
+   * exactly as a user would type it — a **string**, not an argv array, so an
+   * alias (`claude-work`), shell function, or version-manager shim resolves.
+   * Silo launches agents by writing into an interactive login shell, never by
+   * `exec`, and this field's type encodes that.
+   */
+  command: string;
+  /**
+   * Absolute path to an agent config directory, for agents that declare a
+   * `configDirEnvVar`. `~` is expanded at save time, never at launch. Prefixed
+   * onto the launch line as `<VAR>='<path>' <command>`.
+   */
+  configDir?: string;
+  /**
+   * Which sealed catalog agent the user *asserts* this launches — matched from
+   * the command text, overridable in the editor. Named `assumed…` deliberately:
+   * it is a user assertion, where `AgentInfo.agentId` is a proven observation
+   * (ADR 0028). It selects the `+` menu icon and the config-dir variable and is
+   * **never** written into `AgentInfo.agentId` or used to seed
+   * `AgentInfo.isAgent`.
+   */
+  assumedAgentId?: string;
+}
+
 export interface AppState extends SharedPanelState {
   workspaces: Record<string, WorkspaceInternal>;
   workspaceOrder: string[];
@@ -267,6 +308,15 @@ export interface AppState extends SharedPanelState {
    * each `PersistedAgentInfo` carries its own `workspaceId`.
    */
   agentState: Record<string, PersistedAgentInfo>;
+  /**
+   * User-defined Agent Profiles (RFC 0033), in menu / settings-list order.
+   * Global (not per-workspace) — the same list appears in every workspace.
+   * Silo ships zero and writes none automatically; every entry is an explicit
+   * user action. Persisted in the global index, not per-workspace. Hydrated
+   * before extensions activate so the deprecated-`TerminalKind` mapping can
+   * resolve against a populated list.
+   */
+  agentProfiles: AgentProfile[];
   /**
    * The **live** (on-screen) collapse state — small-screen mode's own layout
    * while it's active, the normal-width one otherwise. Which is which is

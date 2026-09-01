@@ -1,6 +1,6 @@
 # Interface: TerminalRecord
 
-Defined in: [packages/sdk/src/domain-types.ts:25](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L25)
+Defined in: [packages/sdk/src/domain-types.ts:36](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L36)
 
 A terminal tab record in a workspace.
 
@@ -12,7 +12,7 @@ A terminal tab record in a workspace.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:26](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L26)
+Defined in: [packages/sdk/src/domain-types.ts:37](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L37)
 
 ***
 
@@ -22,7 +22,7 @@ Defined in: [packages/sdk/src/domain-types.ts:26](https://github.com/silo-code/s
 sessionId: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:27](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L27)
+Defined in: [packages/sdk/src/domain-types.ts:38](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L38)
 
 ***
 
@@ -32,7 +32,7 @@ Defined in: [packages/sdk/src/domain-types.ts:27](https://github.com/silo-code/s
 kind: TerminalKind;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:28](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L28)
+Defined in: [packages/sdk/src/domain-types.ts:39](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L39)
 
 ***
 
@@ -42,7 +42,7 @@ Defined in: [packages/sdk/src/domain-types.ts:28](https://github.com/silo-code/s
 title: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:41](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L41)
+Defined in: [packages/sdk/src/domain-types.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L52)
 
 The auto-derived tab title: the window title the running program pushed via
 an OSC escape sequence, else its process name, else the tmux status line.
@@ -63,7 +63,7 @@ activity; use `ctx.agents`, or `ctx.terminals.subscribeOsc` for the raw
 optional customName?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:48](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L48)
+Defined in: [packages/sdk/src/domain-types.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L59)
 
 A user-assigned name (via the tab's "Rename…" menu). When set, it wins over
 the PTY-derived [TerminalRecord.title](#title) and stays put until the user
@@ -78,7 +78,7 @@ string, which hands the title back to PTY auto-derivation.
 optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:50](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L50)
+Defined in: [packages/sdk/src/domain-types.ts:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L61)
 
 Working directory override. Falls back to ws.folder when absent.
 
@@ -90,6 +90,26 @@ Working directory override. Falls back to ws.folder when absent.
 optional lastActiveAt?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L52)
+Defined in: [packages/sdk/src/domain-types.ts:63](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L63)
 
 ISO timestamp of the last output we observed; used to pick a workspace's "primary" terminal.
+
+***
+
+### profileId?
+
+```ts
+optional profileId?: string;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:77](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L77)
+
+The id of the Agent Profile this terminal was launched from (RFC 0033),
+when Silo launched it with one. A terminal created any other way — "New
+Terminal", the watermark, `core.newTerminal`, `ctx.terminals.create` — has
+no `profileId`; Silo never guesses one for a hand-typed agent.
+
+Written at launch and maintained by the host: renaming a profile's id
+rewrites this, deleting the profile clears it. It is written and kept
+current in phase 1 but not yet read — its first consumer is resume
+composition (RFC 0033 phase 4).
