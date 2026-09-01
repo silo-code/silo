@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.43.0](https://github.com/silo-code/silo/compare/sdk-v0.42.0...sdk-v0.43.0) (2026-09-01)
+
+
+### Features
+
+* **agents:** Agent Profiles phase 1 (RFC 0033) ([#471](https://github.com/silo-code/silo/issues/471)) ([61cb90f](https://github.com/silo-code/silo/commit/61cb90fa4a8a0345d12ce44a3bcb902f70183c25))
+
 ## [0.42.0](https://github.com/silo-code/silo/compare/sdk-v0.41.0...sdk-v0.42.0) (2026-08-31)
 
 
