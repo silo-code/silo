@@ -732,8 +732,14 @@ async function stageFromUrl(
   url: string,
   expectedSha256?: string,
 ): Promise<string> {
-  const tmp = await tempDir();
-  const stagingDir = `${tmp}silo-install-${Date.now()}`;
+  // `tempDir()`'s shape varies by platform: a trailing slash on macOS
+  // (`/var/folders/…/T/`), none on Linux (`/tmp`), and a trailing backslash on
+  // Windows (`C:\…\Temp\`). Normalize to a forward-slash path with no trailing
+  // separator and join explicitly — the old `${tmp}silo-install-…` produced
+  // `/tmpsilo-install-…` on Linux and failed every URL/npm/registry install
+  // trying to mkdir at the filesystem root.
+  const tmp = (await tempDir()).replace(/\\/g, "/").replace(/\/+$/, "");
+  const stagingDir = `${tmp}/silo-install-${Date.now()}`;
   await fsCreateDir(stagingDir);
   await invoke("download_extract", {
     url,

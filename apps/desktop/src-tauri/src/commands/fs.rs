@@ -48,7 +48,7 @@ pub fn fs_read_bytes(path: String) -> Result<Response, String> {
 pub fn fs_write_text(path: String, content: String) -> Result<(), String> {
     if let Some(parent) = Path::new(&path).parent() {
         if !parent.as_os_str().is_empty() && !parent.exists() {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {}", parent.display(), e))?;
         }
     }
     std::fs::write(&path, content).map_err(|e| format!("{}: {}", path, e))
@@ -58,7 +58,7 @@ pub fn fs_write_text(path: String, content: String) -> Result<(), String> {
 pub fn fs_write_bytes(path: String, data: Vec<u8>) -> Result<(), String> {
     if let Some(parent) = Path::new(&path).parent() {
         if !parent.as_os_str().is_empty() && !parent.exists() {
-            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {}", parent.display(), e))?;
         }
     }
     std::fs::write(&path, data).map_err(|e| format!("{}: {}", path, e))
@@ -163,7 +163,7 @@ pub fn fs_read_dir(path: String) -> Result<Vec<FileMeta>, String> {
 
 #[tauri::command]
 pub fn fs_create_dir(path: String) -> Result<(), String> {
-    std::fs::create_dir_all(&path).map_err(|e| e.to_string())
+    std::fs::create_dir_all(&path).map_err(|e| format!("{}: {}", path, e))
 }
 
 #[tauri::command]
