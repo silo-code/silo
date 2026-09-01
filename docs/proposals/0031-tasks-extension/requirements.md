@@ -349,12 +349,13 @@ agents.
 - [ ] It is installable from a built folder; it is not published to the registry
       in phase 1.
 - [ ] Behavior is confirmed on Windows, or the gap is recorded. Windows is a
-      shipped target, and two phase-1 assumptions are unverified there: the
-      host's `resolvePath` treats paths as POSIX by its own admission, so
-      `permissions: []` over an own-dir path is untested; and `fs_rename` maps
-      to `MoveFileEx`, which overwrites but is not the POSIX atomicity
-      guarantee and fails outright on a sharing violation. If either fails, file
-      it against RFC 0032 rather than working around it here.
+      shipped target. The POSIX-only `resolvePath` gap — a `permissions: []`
+      own-dir write with a drive-absolute path failed with `ERROR_INVALID_NAME`
+      — is **fixed in RFC 0032**: `resolve-path.ts` now recognizes Windows drive
+      and UNC anchors. Still unverified: `fs_rename` maps to `MoveFileEx`, which
+      overwrites but is not the POSIX atomicity guarantee and fails outright on a
+      sharing violation — if it fails, file it against RFC 0032 rather than
+      working around it here.
 
 ## R14 — Documentation
 

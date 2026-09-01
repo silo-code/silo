@@ -35,7 +35,7 @@ import {
   fsRename,
 } from "../services/tauri-fs";
 import { extHostLog } from "./extension-host-logger";
-import { normalizePosix, withinRoots } from "./security/resolve-path";
+import { normalizePath, withinRoots } from "./security/resolve-path";
 
 /** The directory name under the user-config root. */
 const STORAGE_DIR_NAME = "extension-storage";
@@ -153,7 +153,7 @@ export function ownDirPaths(
 export function isStoragePath(path: string): boolean {
   const root = storageRoot;
   if (!root) return false;
-  return withinRoots([root], normalizePosix(path));
+  return withinRoots([root], normalizePath(path));
 }
 
 /** Create-on-first-call; the body behind `ctx.storage.globalDir()`. */
