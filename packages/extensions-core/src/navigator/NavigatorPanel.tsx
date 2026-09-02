@@ -95,8 +95,8 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
 }
 
 /** The default arrangement: a list of every enabled view at the top, one of
- * them shown below. Unchanged from ADR 0038 apart from operating on the
- * enabled/ordered set rather than the raw registry. */
+ * them shown below. Operates on the enabled/ordered set rather than the raw
+ * registry (ADR 0038). */
 function SwitcherNavigator({
   ctx,
   views,
@@ -169,9 +169,9 @@ function SwitcherNavigator({
     <div className="nav-panel">
       {/* Every enabled view, named and one click away — no menu (RFC 0023's
           selector was a dropdown; the list is the same choice made visible).
-          Which one is open is said by the header below rather than by
-          highlighting a row up here, so the list reads as a set of
-          destinations rather than a control with a stuck state.
+          The active row's label goes bold; nothing else about a row changes
+          (no background, no border), so the list still reads as a set of
+          destinations rather than a segmented control.
 
           Dropped entirely below two views: a one-row list of destinations you
           are already at is pure chrome, and the header below still names the
@@ -205,6 +205,7 @@ function SwitcherNavigator({
                 // the row — assistive tech needs it named here, where the
                 // choice is.
                 aria-selected={row.selected}
+                data-selected={row.selected ? "true" : undefined}
                 // Omitted until the panel actually mounts (views mount lazily
                 // on first activation, below) — pointing at an id that isn't in
                 // the DOM yet would be a dangling reference for any view not
@@ -230,13 +231,19 @@ function SwitcherNavigator({
         </div>
       )}
 
-      {/* The active view, named — and the place its *scoped* actions live
+      {/* The active view's header — the place its *scoped* actions live
           (toolbar contributions on the "navigator" surface `when`-bound to this
           view). Unscoped chrome — the Add-workspace "+" — rides the Workspaces
           row above instead (ADR 0048); it only falls to this header when the
           list is hidden (one enabled view), which is the sole case
           `chromeHostId` can match `activeView.id` here. Either way core.navigator
-          imports not a line of workspace code. */}
+          imports not a line of workspace code.
+
+          Named here only when the list above is hidden: with the list shown,
+          the active row's bold label already says which view is open, so
+          repeating the name here would be redundant. With the list hidden
+          (one enabled view) this header is the only place the view is named
+          at all. */}
       {activeView && (
         // `data-focus-chrome`: header controls (the contributed toolbar), not
         // content — keyboard region-entry skips past this to land in the
@@ -247,7 +254,9 @@ function SwitcherNavigator({
           data-focus-chrome
           data-view-list={showViewList ? "true" : "false"}
         >
-          <span className="nav-view-header__title">{activeView.title}</span>
+          {!showViewList && (
+            <span className="nav-view-header__title">{activeView.title}</span>
+          )}
           <ContributedToolbar
             surface="navigator"
             target={{ viewId: activeView.id }}
