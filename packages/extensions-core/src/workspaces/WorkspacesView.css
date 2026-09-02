@@ -453,9 +453,14 @@
    header and rows keep neutral chrome. Driven entirely by the stored
    --ws-group-color (a hex, or a color-mix() string from the neutral swatches). */
 .ws-group--colored {
-  /* Scales the mixes below. Bumped on light themes, where the same percentage
-     of a mid-tone color barely registers against a light ground. */
-  --ws-group-wash: 1;
+  /* Final wash strength = the user's setting (--ws-group-wash-user, pushed onto
+     :root by the Navigator panel from navigatorPrefs, default 1) times a
+     per-theme factor — light themes need more, since the same percentage of a
+     mid-tone color barely registers against a light ground. */
+  --ws-group-wash-theme: 1;
+  --ws-group-wash: calc(
+    var(--ws-group-wash-user, 1) * var(--ws-group-wash-theme)
+  );
   border-radius: var(--silo-radius-sm);
   margin-inline: 4px;
   margin-bottom: 4px;
@@ -479,7 +484,7 @@
 }
 
 [data-theme="light"] .ws-group--colored {
-  --ws-group-wash: 1.5;
+  --ws-group-wash-theme: 1.5;
 }
 
 /* Header and body sit directly on the wash — no separate fill. */

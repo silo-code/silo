@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { ArrowUp, ArrowDown } from "@phosphor-icons/react";
 import {
   IconButton,
@@ -10,7 +10,12 @@ import {
   useServiceState,
 } from "@silo-code/sdk";
 import { navigatorViewRegistry } from "@silo-code/extension-host/internal";
-import { navigatorPrefsService, type ViewArrangement } from "./navigator-prefs";
+import {
+  navigatorPrefsService,
+  GROUP_COLOR_INTENSITY_MIN,
+  GROUP_COLOR_INTENSITY_MAX,
+  type ViewArrangement,
+} from "./navigator-prefs";
 import {
   reorderSavedViews,
   resolveViewList,
@@ -138,6 +143,45 @@ export function NavigatorSettingsPanel() {
               description="No list — every enabled view is stacked in the order above, each collapsible."
             />
           </RadioGroup>
+        </div>
+      </Section>
+
+      <Section label="Group color">
+        <p className="nav-settings-hint">
+          How strongly a colored workspace group washes its rows. Groups still
+          keep whatever color you pick for them.
+        </p>
+        <div className="nav-settings-intensity">
+          <input
+            type="range"
+            className="nav-settings-intensity-slider"
+            min={GROUP_COLOR_INTENSITY_MIN}
+            max={GROUP_COLOR_INTENSITY_MAX}
+            step={0.1}
+            value={prefs.groupColorIntensity}
+            aria-label="Group color intensity"
+            onChange={(e) =>
+              navigatorPrefsService.set({
+                groupColorIntensity: Number(e.target.value),
+              })
+            }
+          />
+          <div
+            className="nav-settings-intensity-preview"
+            style={
+              {
+                "--ws-group-color": "var(--silo-color-accent)",
+                "--preview-wash": prefs.groupColorIntensity,
+              } as CSSProperties
+            }
+            aria-hidden="true"
+          >
+            <span className="nav-settings-intensity-preview-header">
+              Example group
+            </span>
+            <span className="nav-settings-intensity-preview-row" />
+            <span className="nav-settings-intensity-preview-row" />
+          </div>
         </div>
       </Section>
     </>
