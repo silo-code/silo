@@ -42,7 +42,7 @@ export function EmptyWatermark() {
     borderRadius: 0,
     padding: "4px 0",
     color: "var(--silo-color-accent)",
-    fontSize: "var(--silo-internal-font-size-right-panel)",
+    fontSize: "var(--silo-internal-font-size-side-panel)",
     cursor: "pointer",
     textAlign: "left",
     width: "100%",

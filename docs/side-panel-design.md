@@ -38,16 +38,17 @@ The host owns absolute size. Extensions inherit and step relatively.
 
 At default `uiFontSize` (13px):
 
-| Slot              | Host rule                                            | Computed |
-| ----------------- | ---------------------------------------------------- | -------- |
-| App / editor base | `--silo-font-size-base`                              | 13px     |
-| Left side pane    | `--silo-internal-font-size-left-panel` = base + 1px  | 14px     |
-| Right side pane   | `--silo-internal-font-size-right-panel` = base + 2px | 15px     |
+| Slot              | Host rule                                           | Computed |
+| ----------------- | --------------------------------------------------- | -------- |
+| App / editor base | `--silo-font-size-base`                             | 13px     |
+| Side pane         | `--silo-internal-font-size-side-panel` = base + 2px | 15px     |
 
-Applied in `SideColumn.css` on `.side-pane[data-location]`. Files / Git / Search
-**do not pin a root `font-size`** — they inherit the pane. Primary row labels
-are `1em` (15px on the right); secondary lines use `calc(1em - 1px)` (14px) or
-`calc(1em - 2px)` for denser chrome (file-tree roots).
+**One scale for both columns** — the left and right panes are identical (15px
+at defaults), so a panel reads the same wherever it is docked. Applied in
+`SideColumn.css` on `.side-pane[data-location="left"], [data-location="right"]`.
+Files / Git / Search **do not pin a root `font-size`** — they inherit the pane.
+Primary row labels are `1em` (15px); secondary lines use `calc(1em - 1px)`
+(14px) or `calc(1em - 2px)` for denser chrome (file-tree roots).
 
 | Role                       | Rule                                                                    |
 | -------------------------- | ----------------------------------------------------------------------- |
@@ -60,7 +61,7 @@ are `1em` (15px on the right); secondary lines use `calc(1em - 1px)` (14px) or
 
 **Kit `List` gotcha:** `.silo-list-row` is styled with
 `font-size: var(--silo-font-size-sm)` (absolute — 12px at default), so a List
-inside a right pane renders ~3px smaller than Files/Git trees. Until the kit
+inside a side pane renders ~3px smaller than Files/Git trees. Until the kit
 inherits, override in the panel:
 
 ```css
@@ -70,9 +71,10 @@ inherits, override in the panel:
 ```
 
 **Sheets** portal outside the pane, so they lose inheritance. Re-apply the
-matching slot formula on the sheet body (right-dock companion →
-`calc(var(--silo-font-size-base) + 2px)`), and pull `.silo-sheet-title` up to
-`1em` under a sheet className so the header matches.
+side-pane scale on the sheet body —
+`font-size: calc(var(--silo-font-size-base) + 2px)` (the internal token is
+lint-blocked for extensions, so copy the formula) — and pull `.silo-sheet-title`
+up to `1em` under a sheet className so the header matches.
 
 Avoid `--silo-font-size-sm` as a blanket secondary size in panels — it is an
 absolute token off app base, not off the pane.
@@ -299,8 +301,8 @@ The drill-in header is **two rows**, shared by github-prs, github-issues, and
 2. **Title row** (`align-items: flex-start`, `gap: 10px`) — the entity title
    (`flex: 1`, wraps) and, right-aligned, the primary action button(s).
 
-**Title text** is body, not chrome: `font-size: 1em` (the pane scale — 15px in
-the right column), `font-weight: 600`, `line-height: 1.35`,
+**Title text** is body, not chrome: `font-size: 1em` (the pane scale — 15px at
+defaults), `font-weight: 600`, `line-height: 1.35`,
 `color: var(--silo-color-text-hi)`. When the title is an `InlineEdit`, override
 its value span — `.silo-inline-edit-value` pins itself to
 `--silo-font-size-base` (13px) and would otherwise render a step small:
@@ -463,3 +465,4 @@ Record concrete tweaks as we learn them so the table above stays honest.
 | 2026-08-31 | **`silo.tasks` detail field order + identity footer** — core `Labels` field moved to sit directly under the provider's free-form `Description` (not up with the Lane / Priority pickers); the old subtitle line (lane · list · id) removed — lane duplicates the Lane control, and `List` / `Workspace` / `ID` now render as read-only `.silo-section-label` rows at the **foot**, beside the provider's `Created`.                                                                                                                                                     | Order fields by reading priority, not core-vs-provider origin; task id / list are reference facts, not header material.                                                                                                                                                                                                         |
 | 2026-08-31 | **Filled derived-color label chips** — a colorless string tag (`silo.tasks` label) renders as a solid chip, hue hashed from the text (`hsl(h 65% 45%)`, `#161616` / `#fff` text picked by luma), `radius-sm` rectangle like github-issues `.ghi-chip--label`. **Not** the kit `Badge` — its `color` prop is a 20% tint, too faint for a content chip. `LabelsField` + `lib/labels.ts`; new "Label / tag chips" note under Inputs.                                                                                                                                       | Wanted the github-issues label look; task labels carry no color of their own, so derive it; `Badge` tint didn't read as filled.                                                                                                                                                                                                 |
 | 2026-08-31 | **`InlineEdit` in a hand-rolled panel needs `yieldEscapeToInlineEdit()`** — the panel's own document-level Escape handler must call it first and bail on `true`, else the first Escape pops the detail page instead of cancelling the edit. `silo.tasks` `TasksPanel` fixed; `LabelsField` registers `setActiveInlineEditCancel` like `InlineEdit` does. Also: a hand-rolled edit `Input` must set the `autoCapitalize` / `autoCorrect` / `spellCheck` off trio itself (tasks' Labels input was missing it).                                                            | `Modal.tsx` wires the two-stage Escape; a side panel with its own keydown listener doesn't inherit it.                                                                                                                                                                                                                          |
+| 2026-09-02 | **Left and right side panes unified to one scale** — the two internal tokens (`--silo-internal-font-size-left-panel` = base+1px, `-right-panel` = base+2px) collapsed into `--silo-internal-font-size-side-panel` = base+2px (15px). `SideColumn.css` now applies it to both `data-location`s; `EmptyWatermark` follows the rename. Regressing absolute pins fixed to relative: Navigator `.nav-view-row` (`base+1px` → `1em`), agent-monitor `.ap-row-workspace` / `-sep` / `-elapsed` (`--silo-font-size-sm` → `calc(1em - 1px)`).                                    | The left pane rendered a step smaller than the right for no reason a user could name; Navigator / agent views read undersized next to Files / Git. One number, right pane as the reference.                                                                                                                                     |

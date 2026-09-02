@@ -232,10 +232,10 @@
    * never a contract — lint-blocked for extensions. The panel-derived sizes are
    * applied to the panel slot wrapper; extension content inherits them (see the
    * sizing rule) and never names them. */
-  /* Right/left panel content (file tree, git status rows) — intentionally a bit
-   * larger than terminal/editor base for legibility. */
-  --silo-internal-font-size-right-panel: calc(var(--silo-font-size-base) + 2px);
-  --silo-internal-font-size-left-panel: calc(var(--silo-font-size-base) + 1px);
+  /* Side-panel content (file tree, git status rows, Navigator) — intentionally a
+   * bit larger than terminal/editor base for legibility. One scale for both the
+   * left and right columns: a panel reads the same wherever it is docked. */
+  --silo-internal-font-size-side-panel: calc(var(--silo-font-size-base) + 2px);
   --silo-internal-titlebar-h: 36px;
   --silo-internal-statusbar-h: 36px;
 }

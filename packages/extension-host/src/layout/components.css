@@ -586,14 +586,27 @@
   color: var(--silo-activity-none);
 }
 
+/* Diameters track `uiFontSize` (a proportion of the base size, not a fixed px)
+   so the dots grow and shrink with the rest of the UI on `Cmd/Ctrl +/-`.
+   8px / 10px at the 13px default.
+
+   Rounded to an *even* whole pixel, not just a whole one. The `working` wave
+   rings are the dot's own box scaled by `silo-activity-wave`'s 3.4, so the
+   ring's size is `diameter × 3.4` — fractional for most diameters (9 → 30.6),
+   which lands the ring's edges on a different subpixel phase than the dot's
+   and reads as an off-centre ring wherever the dot itself sits at a fractional
+   x. That happens on the agents rows, which right-align the dot against a
+   user-resizable (so fractionally-wide) side panel, and it's plainly visible
+   at devicePixelRatio 1. An even diameter keeps `md` at 10 → 34, an integer,
+   so ring and dot share one phase. */
 .silo-activity-sm {
-  width: 6px;
-  height: 6px;
+  width: round(var(--silo-font-size-base) * 0.55, 2px);
+  height: round(var(--silo-font-size-base) * 0.55, 2px);
 }
 
 .silo-activity-md {
-  width: 8px;
-  height: 8px;
+  width: round(var(--silo-font-size-base) * 0.7, 2px);
+  height: round(var(--silo-font-size-base) * 0.7, 2px);
 }
 
 .silo-activity-working {

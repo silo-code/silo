@@ -43,10 +43,10 @@ import { ActivityGlyph, type Activity } from "@silo-code/sdk";
 <ActivityGlyph size="sm" />  // omit activity → gray neutral
 ```
 
-| Prop       | Type                                         | Default | Notes                                          |
-| ---------- | -------------------------------------------- | ------- | ---------------------------------------------- |
-| `activity` | `"working" \| "ready" \| "warn" \| "error"`? | —       | Omit only for the gray neutral fallback        |
-| `size`     | `"sm" \| "md"`                               | `"sm"`  | `sm` ≈ workspace rows (6px); `md` ≈ tabs (8px) |
+| Prop       | Type                                         | Default | Notes                                                                                                                                                                                                                            |
+| ---------- | -------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `activity` | `"working" \| "ready" \| "warn" \| "error"`? | —       | Omit only for the gray neutral fallback                                                                                                                                                                                          |
+| `size`     | `"sm" \| "md"`                               | `"sm"`  | `sm` (8px at default) is the workbench size — workspace status rows and tabs; `md` (10px) is for a list that leads with the dot. Both track `uiFontSize` — a proportion of the base size rounded to an even pixel, not fixed px. |
 
 ## Kinds
 

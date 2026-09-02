@@ -1036,12 +1036,12 @@ html.dark .silo-demo {
   color: var(--silo-activity-none);
 }
 .silo-demo .silo-activity-sm {
-  width: 6px;
-  height: 6px;
+  width: round(var(--silo-font-size-base) * 0.55, 2px);
+  height: round(var(--silo-font-size-base) * 0.55, 2px);
 }
 .silo-demo .silo-activity-md {
-  width: 8px;
-  height: 8px;
+  width: round(var(--silo-font-size-base) * 0.7, 2px);
+  height: round(var(--silo-font-size-base) * 0.7, 2px);
 }
 .silo-demo .silo-activity-working {
   color: var(--silo-activity-working);

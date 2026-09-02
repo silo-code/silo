@@ -27,9 +27,16 @@ everywhere.
    palette** (today’s `--ws-status-*` values), not per-theme-preset
    `--silo-color-*` tokens — so `working` is recognizably blue across the app
    within a theme.
-3. Paint is size-scaled by placement (`sm` ≈ workspace 6px, `md` ≈ CenterDock
-   tabs) via a public SDK `ActivityGlyph` component (same `.silo-activity*` class
-   contract as the rest of the kit).
+3. Paint is size-scaled by placement (`sm` for workbench chrome — workspace
+   rows and CenterDock tabs; `md` where a list leads with the dot, today the
+   Agents Navigator view) via a public SDK `ActivityGlyph` component (same `.silo-activity*` class
+   contract as the rest of the kit). Diameters are a proportion of
+   `--silo-font-size-base`, rounded to an even whole pixel (8px / 10px at the
+   default), so the dots track
+   `uiFontSize` like the rest of the UI. _(Amended 2026-09-02: originally a fixed
+   6px / 8px. Even, not merely whole: the `working` wave ring is the
+   dot scaled 3.4x, so an even diameter keeps ring and dot on one subpixel
+   phase.)_
 4. **CenterDock** gets adorn verbs `setActivity` / `clearActivity` /
    `flashActivity` / `bindActivity` on `ctx.editors` and `ctx.terminals`.
    Tab `animation` presets are removed; trailing **indicators** stay

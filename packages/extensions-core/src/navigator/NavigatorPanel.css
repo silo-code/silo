@@ -37,10 +37,10 @@
   border-radius: var(--silo-radius-sm);
   color: var(--silo-color-text-hi);
   font-family: var(--silo-font-ui);
-  /* Matches the surrounding left-panel size (SideColumn.css sets that to
-     base + 1px) so the destinations sit level with the view bodies they lead
-     to. The icon column and `size={19}` glyphs are scaled to match. */
-  font-size: calc(var(--silo-font-size-base) + 1px);
+  /* Inherit the side-pane scale (SideColumn.css) so the destinations sit level
+     with the view bodies they lead to. The icon column and `size={19}` glyphs
+     are scaled to match. */
+  font-size: 1em;
   cursor: pointer;
   user-select: none;
 }
