@@ -4671,7 +4671,7 @@ dependencies = [
 
 [[package]]
 name = "silo"
-version = "0.61.0"
+version = "0.62.0"
 dependencies = [
  "base64 0.22.1",
  "block2",
