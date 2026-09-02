@@ -61,6 +61,7 @@ beforeEach(() => {
   deleteMock.mockClear();
   resetStorageRootForTests();
   store.workspaces = {};
+  store.workspaceOrder = [];
   store.activeWorkspaceId = null;
 });
 
@@ -178,6 +179,65 @@ describe("createContext storage directories", () => {
     );
   });
 
+  it("resolves a named workspace's dir even when it is not the active one", async () => {
+    openWorkspace("/work/one"); // active is w1
+    const ctx = createContext("third.party");
+    await expect(ctx.storage.workspaceDir("other-ws")).resolves.toBe(
+      `${ROOT}/third.party/workspaces/other-ws`,
+    );
+  });
+
+  it("skips directory creation when workspaceDir is passed create: false", async () => {
+    const ctx = createContext("third.party");
+    await expect(
+      ctx.storage.workspaceDir("ws-x", { create: false }),
+    ).resolves.toBe(`${ROOT}/third.party/workspaces/ws-x`);
+    expect(createDirMock).not.toHaveBeenCalled();
+  });
+
+  it("workspaceDirs resolves one entry per open workspace", async () => {
+    store.workspaces = {
+      w1: { id: "w1", name: "one", folder: "/work/one" },
+      w2: { id: "w2", name: "two", folder: "/work/two" },
+      w3: {
+        id: "w3",
+        name: "gone",
+        folder: "/work/three",
+        closedAt: "2026-01",
+      },
+    } as never;
+    store.workspaceOrder = ["w1", "w2", "w3"];
+    store.activeWorkspaceId = "w1";
+    const ctx = createContext("third.party");
+
+    const dirs = await ctx.storage.workspaceDirs({ create: false });
+
+    expect(dirs).toEqual([
+      { workspaceId: "w1", dir: `${ROOT}/third.party/workspaces/w1` },
+      { workspaceId: "w2", dir: `${ROOT}/third.party/workspaces/w2` },
+    ]);
+    expect(createDirMock).not.toHaveBeenCalled();
+  });
+
+  it("workspaceDirs creates each directory by default", async () => {
+    store.workspaces = {
+      w1: { id: "w1", name: "one", folder: "/work/one" },
+      w2: { id: "w2", name: "two", folder: "/work/two" },
+    } as never;
+    store.workspaceOrder = ["w1", "w2"];
+    store.activeWorkspaceId = "w1";
+    const ctx = createContext("third.party");
+
+    await ctx.storage.workspaceDirs();
+
+    expect(createDirMock).toHaveBeenCalledWith(
+      `${ROOT}/third.party/workspaces/w1`,
+    );
+    expect(createDirMock).toHaveBeenCalledWith(
+      `${ROOT}/third.party/workspaces/w2`,
+    );
+  });
+
   it("gives trusted (bundled) extensions the same paths", async () => {
     const ctx = createContext("silo.tasks", { trusted: true });
     await expect(ctx.storage.globalDir()).resolves.toBe(
@@ -192,6 +252,23 @@ describe("createContext storage directories", () => {
       ctx.files.writeText(`${dir}/tasks.jsonl`, "{}"),
     ).resolves.toBeUndefined();
     expect(writeTextMock).toHaveBeenCalledWith(`${dir}/tasks.jsonl`, "{}");
+  });
+
+  it("allows file access in every open workspace's storage dir, not just the active one", async () => {
+    store.workspaces = {
+      w1: { id: "w1", name: "one", folder: "/work/one" },
+      w2: { id: "w2", name: "two", folder: "/work/two" },
+    } as never;
+    store.workspaceOrder = ["w1", "w2"];
+    store.activeWorkspaceId = "w1";
+    await initStorageRoot();
+    const ctx = createContext("third.party");
+
+    const inactiveDir = `${ROOT}/third.party/workspaces/w2`;
+    await expect(
+      ctx.files.readText(`${inactiveDir}/tasks.jsonl`),
+    ).resolves.toBe("file-contents");
+    expect(readTextMock).toHaveBeenCalledWith(`${inactiveDir}/tasks.jsonl`);
   });
 
   it("denies another extension's storage directory", async () => {

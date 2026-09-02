@@ -5,32 +5,36 @@ Phase 1 is the baseline; nothing here re-does phase-1 work.
 
 ## 0. Decision gate (before implementation)
 
-- [ ] Sign-off on the SDK approach: **Option A** — extend `ctx.storage`
+- [x] Sign-off on the SDK approach: **Option A** — extend `ctx.storage`
       (`workspaceDir` gains `workspaceId?` + `options.create`, new
-      `workspaceDirs()`) in `silo-code/silo` — vs. Option B (derive in-extension).
-      See `design.md` → SDK dependency.
-- [ ] If Option A: confirm the release path (SDK version, app version, engine
-      floor) and that the extension work waits on that release or bridges with
-      Option B behind `resolveWorkspaceTasksDir`.
+      `workspaceDirs()`) in `silo-code/silo`. Confirmed 2026-09-01.
+- [ ] Confirm the release path (SDK version, app version, engine floor) — the
+      extension work waits on that release, or bridges with Option B behind
+      `resolveWorkspaceTasksDir`.
 
-## 1. SDK — extend `ctx.storage` (only if Option A; repo: `silo-code/silo`)
+## 1. SDK — extend `ctx.storage` (Option A; repo: `silo-code/silo` — this repo)
 
-- [ ] `workspaceDir(workspaceId?: string, options?: { create?: boolean })` —
+- [x] `workspaceDir(workspaceId?: string, options?: { create?: boolean })` —
       `workspaceId` omitted = active (unchanged), `NoWorkspaceError` when none and
       no id; `options.create` **defaults to `true`** (back-compat: existing
       callers write into the result without `createDir`), `false` = resolve only.
-- [ ] `workspaceDirs(options?: { create?: boolean }): Promise<{ workspaceId, dir }[]>` —
-      one entry per workspace in `ctx.workspaces` open set, single round-trip,
-      same `create` default.
-- [ ] Host resolver returns `.../extension-storage/<extId>/workspaces/<workspaceId>`;
-      `mkdir` only when `create` is true.
-- [ ] `silo-docs-sync`: TSDoc + `@public`/`@category` on both, hand-authored
-      `ctx` storage member page, `pnpm docs:api`, one-line roadmap note under the
-      `ctx.storage` row.
-- [ ] Unit tests: `workspaceDir("other-id")` path; `workspaceDir()` unchanged;
-      `create: false` creates nothing; default still creates; `workspaceDirs()`
-      one-per-open-workspace; `workspaceDirs({ create: false })` creates nothing.
-- [ ] Release `@silo-code/sdk` + Silo app; note the versions.
+- [x] `workspaceDirs(options?: { create?: boolean }): Promise<readonly WorkspaceStorageDir[]>` —
+      one entry per workspace in `ctx.workspaces.getState().open`, same `create`
+      default. `WorkspaceStorageDir` (`{ workspaceId, dir }`) added to the barrel
+      (deviation noted in `design.md`).
+- [x] Host resolver (`extension-storage-dirs.ts`: `ensureWorkspaceDir` →
+      `resolveWorkspaceDir` with `{ create }`) returns
+      `.../extension-storage/<extId>/workspaces/<workspaceId>`; `mkdir` only when
+      `create` is true. Wired in `context.ts`.
+- [x] `silo-docs-sync`: TSDoc + `@category` on both methods + the new type,
+      hand-authored `apps/docs/api/storage/index.md`, `pnpm docs:api`
+      (regenerated `api/types/`, new `WorkspaceStorageDir.md`), roadmap note on
+      the `ctx.storage` directories row.
+- [x] Unit tests: `resolveWorkspaceDir` create-flag (`extension-storage-dirs.test.ts`);
+      `workspaceDir("other-id")` path, `workspaceDir(id, { create: false })`
+      creates nothing, `workspaceDirs()` one-per-open-workspace (closed excluded),
+      `workspaceDirs({ create: false })` creates nothing (`context.test.ts`).
+- [ ] Release `@silo-code/sdk` + Silo app; note the versions. _(release chore — not this session)_
 
 ## 2. Cross-workspace source resolution (`sources/source-set.ts`)
 

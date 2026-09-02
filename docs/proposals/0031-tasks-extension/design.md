@@ -205,10 +205,23 @@ Cost: a `silo-code/silo` change (`@silo-code/sdk` + host), the `silo-docs-sync`
 workflow, an `@silo-code/sdk` + app release, and the extension bumps its
 `silo.engine` floor + `@silo-code/sdk` devDependency to match. `workspaceDir`'s
 new params are on an existing `@public` method; `workspaceDirs` is one new method
-on an existing interface (no new barrel export). `silo-docs-sync` scope: TSDoc +
-`@category` on both, the hand-authored `ctx` storage member page, `pnpm docs:api`,
-and a one-line roadmap note under the existing `ctx.storage` row. **No new
-roadmap primitive, no ADR** — it does not move an architectural boundary.
+on an existing interface. One small named type, `WorkspaceStorageDir`
+(`{ workspaceId, dir }`), **is** added to the barrel — an inline object array
+renders as `readonly object[]` in the generated reference, which is a real
+downgrade for a public return type (deviation from the earlier "no new barrel
+export" note; the type is trivial and `@category Core Types`). `silo-docs-sync`
+scope: TSDoc + `@category` on both methods and the new type, the hand-authored
+`ctx` storage member page, `pnpm docs:api`, and a one-line roadmap note under the
+existing `ctx.storage` row. **No new roadmap primitive, no ADR** — it does not
+move an architectural boundary.
+
+**Implemented in `silo-code/silo` (this repo)** — SDK types in
+`packages/sdk/src/extension-storage.ts` (+ barrel), host wiring in
+`context.ts` + `extension-storage-dirs.ts` (`ensureWorkspaceDir` →
+`resolveWorkspaceDir` with a `{ create }` option), tests in
+`context.test.ts` / `extension-storage-dirs.test.ts`, docs in
+`apps/docs/api/storage/index.md` + regenerated `api/types/`. The extension-side
+consumption (task section 2 onward) is a separate session.
 
 Verdict: **recommended.** AGENTS.md — "if an extension needs a capability the SDK
 lacks, add it to `ctx`", don't reach into internals.

@@ -1,6 +1,6 @@
 # Interface: ExtensionStorageScopes
 
-Defined in: [packages/sdk/src/extension-storage.ts:46](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L46)
+Defined in: [packages/sdk/src/extension-storage.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L65)
 
 The persisted-storage scopes available to an extension, exposed as
 [ExtensionContext.storage](ExtensionContext.md#storage): two key/value bags for settings-sized
@@ -14,7 +14,7 @@ state, and the two matching **directories** for real data files.
 readonly global: ExtensionStorage;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:51](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L51)
+Defined in: [packages/sdk/src/extension-storage.ts:70](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L70)
 
 Per-extension storage shared across **all** workspaces — the place for
 an extension's own settings (enabled features, layout choices, etc.).
@@ -27,7 +27,7 @@ an extension's own settings (enabled features, layout choices, etc.).
 readonly workspace: ExtensionStorage;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:57](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L57)
+Defined in: [packages/sdk/src/extension-storage.ts:76](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L76)
 
 Per-extension storage scoped to the **active workspace** — the place for
 state that should differ per workspace (last selection, per-project
@@ -41,7 +41,7 @@ toggles). The bag is swapped when the active workspace changes.
 globalDir(): Promise<string>;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:88](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L88)
+Defined in: [packages/sdk/src/extension-storage.ts:107](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L107)
 
 An absolute path to a **directory of your own**, shared across every
 workspace — the filesystem counterpart to [ExtensionStorageScopes.global](#global).
@@ -81,28 +81,87 @@ user opts in; the data survives a reinstall.
 ### workspaceDir()
 
 ```ts
-workspaceDir(): Promise<string>;
+workspaceDir(workspaceId?, options?): Promise<string>;
 ```
 
-Defined in: [packages/sdk/src/extension-storage.ts:107](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L107)
+Defined in: [packages/sdk/src/extension-storage.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L135)
 
-An absolute path to a directory of your own scoped to the **active
-workspace** — the filesystem counterpart to
-[ExtensionStorageScopes.workspace](#workspace). Created on first call, at
+An absolute path to a directory of your own scoped to a **workspace** — the
+filesystem counterpart to [ExtensionStorageScopes.workspace](#workspace). Lives at
 `~/.config/silo/extension-storage/<your-id>/workspaces/<workspaceId>`.
 
 Everything [ExtensionStorageScopes.globalDir](#globaldir) says about permissions
-and relative paths applies here too. Call it again after the active
-workspace changes — the path changes with it, so don't cache it across a
-workspace switch.
+and relative paths applies here too.
+
+#### Parameters
+
+##### workspaceId?
+
+`string`
+
+Which workspace's directory to resolve. Omit for the
+  **active** workspace — the path then changes as the active workspace
+  switches, so don't cache it across a switch, and the call rejects with
+  `NoWorkspaceError` when no workspace is open. Pass an id (from
+  [ExtensionContext.workspaces](ExtensionContext.md#workspaces)) to resolve **any** workspace's
+  directory, active or not — the aggregating case (a view over every
+  workspace's data).
+
+##### options?
+
+`create` (default `true`) creates the directory if it is
+  missing, matching the historical behaviour — every caller that then
+  **writes** into the path needs this, because [FileService.writeText](FileService.md#writetext)
+  does not create parent directories. Pass `create: false` when you only
+  need the path to **read** from (a missing file already reads as absent);
+  nothing is written to disk for a workspace that has no data yet.
 
 The directory follows the workspace's **identity**, not its folder path:
 deleting a workspace and re-adding the same folder gives you a new, empty
 directory (the same rule [ExtensionStorageScopes.workspace](#workspace) follows).
 Deleting a workspace leaves the directory on disk.
 
-Rejects with `NoWorkspaceError` when no workspace is open.
+###### create?
+
+`boolean`
 
 #### Returns
 
 `Promise`\<`string`\>
+
+***
+
+### workspaceDirs()
+
+```ts
+workspaceDirs(options?): Promise<readonly WorkspaceStorageDir[]>;
+```
+
+Defined in: [packages/sdk/src/extension-storage.ts:155](https://github.com/silo-code/silo/blob/main/packages/sdk/src/extension-storage.ts#L155)
+
+Resolve a storage directory for **every open workspace** in one call — the
+building block for a surface that aggregates per-workspace data (a
+cross-workspace list, say) without making a separate
+[ExtensionStorageScopes.workspaceDir](#workspacedir) call per workspace.
+
+Returns one entry per workspace in
+[WorkspaceService.getState](WorkspaceService.md#getstate)`().open`, each `{ workspaceId, dir }`.
+There is no ordering guarantee — match entries to workspaces by
+`workspaceId`.
+
+#### Parameters
+
+##### options?
+
+`create` (default `true`) behaves exactly as it does on
+  [ExtensionStorageScopes.workspaceDir](#workspacedir). The aggregating case passes
+  `create: false`: it only reads each workspace's data, so no directory is
+  created for a workspace that has none.
+
+###### create?
+
+`boolean`
+
+#### Returns
+
+`Promise`\<readonly [`WorkspaceStorageDir`](WorkspaceStorageDir.md)[]\>

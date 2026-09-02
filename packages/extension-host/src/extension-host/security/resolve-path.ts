@@ -40,9 +40,10 @@ export interface PathScope {
   /**
    * This extension's own storage directories (RFC 0032) — always allowed, read
    * or write, with no `fs:*` permission. Absolute paths from
-   * `ctx.storage.globalDir()` / `workspaceDir()`; read live so the workspace
-   * one tracks the active workspace. Empty before the storage root resolves at
-   * startup (and if resolving it failed), which denies through the normal rules.
+   * `ctx.storage.globalDir()` / `workspaceDir()` / `workspaceDirs()`; read live
+   * so the workspace entries track every open workspace. Empty before the storage
+   * root resolves at startup (and if resolving it failed), which denies through
+   * the normal rules.
    */
   readonly ownDirs: readonly string[];
   /** First-party (bundled) extensions are unscoped — every call passes through. */

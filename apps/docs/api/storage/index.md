@@ -8,15 +8,16 @@ are namespaced to your extension id, shared across all your surfaces (status bar
 side panels, settings page).
 
 ```ts
-ctx.storage: ExtensionStorageScopes // { global, workspace, globalDir(), workspaceDir() }
+ctx.storage: ExtensionStorageScopes // { global, workspace, globalDir(), workspaceDir(), workspaceDirs() }
 ```
 
-| Scope                        | Lifetime                                  | Use for                                            |
-| ---------------------------- | ----------------------------------------- | -------------------------------------------------- |
-| `ctx.storage.global`         | one bag, shared across **all** workspaces | the extension's own settings (enabled features, …) |
-| `ctx.storage.workspace`      | one bag per **active workspace**          | state that should differ per workspace             |
-| `ctx.storage.globalDir()`    | one directory, shared across workspaces   | data files (a `.jsonl` log, a cache, an export)    |
-| `ctx.storage.workspaceDir()` | one directory per **active workspace**    | per-project data files                             |
+| Scope                         | Lifetime                                                | Use for                                            |
+| ----------------------------- | ------------------------------------------------------- | -------------------------------------------------- |
+| `ctx.storage.global`          | one bag, shared across **all** workspaces               | the extension's own settings (enabled features, …) |
+| `ctx.storage.workspace`       | one bag per **active workspace**                        | state that should differ per workspace             |
+| `ctx.storage.globalDir()`     | one directory, shared across workspaces                 | data files (a `.jsonl` log, a cache, an export)    |
+| `ctx.storage.workspaceDir()`  | one directory per workspace (the active one by default) | per-project data files                             |
+| `ctx.storage.workspaceDirs()` | every open workspace's directory, in one call           | a surface that aggregates data across workspaces   |
 
 Pick a bag for something settings-shaped, and a directory for something a person
 should be able to find, `grep`, back up, or point an agent at. A growing list
@@ -92,8 +93,8 @@ workspace and re-adding the same folder gives you a new, empty directory — the
 same rule `ctx.storage.workspace` already follows. Call it again after the active
 workspace changes; don't cache the path across a switch.
 
-With no workspace open it rejects with
-[`NoWorkspaceError`](/api/types/classes/NoWorkspaceError) — distinct from a
+With no workspace open — and no id passed — it rejects with
+[`NoWorkspaceError`](/api/types/classes/NoWorkspaceError), distinct from a
 [`PathDeniedError`](/api/types/classes/PathDeniedError), because nothing was
 denied:
 
@@ -106,6 +107,35 @@ try {
   throw err;
 }
 ```
+
+### Reading across workspaces
+
+To resolve **another** workspace's directory, pass its id (from
+[`ctx.workspaces`](/api/state/workspaces)); to resolve **every** open
+workspace's directory at once — the building block for a cross-workspace view —
+call `workspaceDirs()`. Both take `{ create }`, defaulting to `true`. Pass
+`create: false` when you only need the path to **read** from:
+[`ctx.files.writeText`](/api/files/) does not create parent directories, so a
+caller that writes needs the default, but a reader does not want an empty
+directory left on disk for every workspace that has no data yet.
+
+```ts
+// one aggregated list over every workspace's tasks.jsonl
+for (const { workspaceId, dir } of await ctx.storage.workspaceDirs({
+  create: false,
+})) {
+  const path = `${dir}/tasks.jsonl`;
+  const body = (await ctx.files.pathExists(path))
+    ? await ctx.files.readText(path)
+    : "";
+  // …merge into the aggregated model, keyed by workspaceId
+}
+```
+
+`workspaceDirs()` returns one
+[`WorkspaceStorageDir`](/api/types/interfaces/WorkspaceStorageDir) per workspace
+in `ctx.workspaces.getState().open`, in no guaranteed order — match entries by
+`workspaceId`. Closed workspaces are not included.
 
 ### Your data outlives your extension
 
@@ -129,17 +159,22 @@ Method names link to the full signature.
 On [`ExtensionStorageScopes`](/api/types/interfaces/ExtensionStorageScopes)
 itself:
 
-| Method                                                                        | What it does                                                                                       |
-| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| [`globalDir()`](/api/types/interfaces/ExtensionStorageScopes#globaldir)       | Absolute path to your directory, shared across workspaces. Created on first call.                  |
-| [`workspaceDir()`](/api/types/interfaces/ExtensionStorageScopes#workspacedir) | Absolute path to your directory for the active workspace. Rejects with `NoWorkspaceError` if none. |
+| Method                                                                                        | What it does                                                                                                                                                                |
+| --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`globalDir()`](/api/types/interfaces/ExtensionStorageScopes#globaldir)                       | Absolute path to your directory, shared across workspaces. Created on first call.                                                                                           |
+| [`workspaceDir(id?, { create? })`](/api/types/interfaces/ExtensionStorageScopes#workspacedir) | Absolute path to your directory for a workspace — the active one by default (rejects with `NoWorkspaceError` if none), or any workspace by id. `create` defaults to `true`. |
+| [`workspaceDirs({ create? })`](/api/types/interfaces/ExtensionStorageScopes#workspacedirs)    | One `{ workspaceId, dir }` per open workspace, in a single call. `create` defaults to `true`.                                                                               |
 
 ## Types
 
 Pass [`ExtensionStorageScopes`](/api/types/interfaces/ExtensionStorageScopes)
-(`{ global, workspace, globalDir(), workspaceDir() }`), whose two bags are each
-an [`ExtensionStorage`](/api/types/interfaces/ExtensionStorage), and
-[`NoWorkspaceError`](/api/types/classes/NoWorkspaceError).
+(`{ global, workspace, globalDir(), workspaceDir(), workspaceDirs() }`), whose
+two bags are each an [`ExtensionStorage`](/api/types/interfaces/ExtensionStorage).
+`workspaceDirs()` resolves to
+[`WorkspaceStorageDir`](/api/types/interfaces/WorkspaceStorageDir)`[]`.
+`workspaceDir()` rejects with
+[`NoWorkspaceError`](/api/types/classes/NoWorkspaceError) when called with no id
+and no workspace open.
 
 Related: [`SidePanelProps`](/api/types/interfaces/SidePanelProps) exposes the
 same `workspace` scope keyed by panel id, for panel-local UI state.

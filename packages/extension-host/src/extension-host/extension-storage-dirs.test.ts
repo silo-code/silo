@@ -79,7 +79,7 @@ vi.mock("../services/tauri-fs", () => ({
 import {
   deleteExtensionData,
   ensureGlobalDir,
-  ensureWorkspaceDir,
+  resolveWorkspaceDir,
   extensionDataExists,
   extensionDataInfo,
   initStorageRoot,
@@ -130,23 +130,26 @@ describe("initStorageRoot", () => {
     });
     await expect(initStorageRoot()).rejects.toThrow("no home");
     expect(storageRootPath()).toBeNull();
-    expect(ownDirPaths("acme.hello", "ws_1")).toEqual([]);
+    expect(ownDirPaths("acme.hello", ["ws_1"])).toEqual([]);
   });
 });
 
 describe("ownDirPaths", () => {
   it("is empty before the root resolves", () => {
-    expect(ownDirPaths("acme.hello", "ws_1")).toEqual([]);
+    expect(ownDirPaths("acme.hello", ["ws_1"])).toEqual([]);
   });
 
-  it("lists the global dir, and the workspace dir when one is active", async () => {
+  it("lists the global dir, and a dir per open workspace", async () => {
     await initStorageRoot();
-    expect(ownDirPaths("acme.hello", undefined)).toEqual([
-      `${ROOT}/acme.hello/global`,
-    ]);
-    expect(ownDirPaths("acme.hello", "ws_1")).toEqual([
+    expect(ownDirPaths("acme.hello")).toEqual([`${ROOT}/acme.hello/global`]);
+    expect(ownDirPaths("acme.hello", ["ws_1"])).toEqual([
       `${ROOT}/acme.hello/global`,
       `${ROOT}/acme.hello/workspaces/ws_1`,
+    ]);
+    expect(ownDirPaths("acme.hello", ["ws_1", "ws_2"])).toEqual([
+      `${ROOT}/acme.hello/global`,
+      `${ROOT}/acme.hello/workspaces/ws_1`,
+      `${ROOT}/acme.hello/workspaces/ws_2`,
     ]);
   });
 
@@ -154,22 +157,22 @@ describe("ownDirPaths", () => {
     await initStorageRoot();
     // A path cached by an extension in a previous session must be allowed at
     // the top of activate(), before any globalDir() call creates anything.
-    expect(ownDirPaths("acme.hello", "ws_1")).toHaveLength(2);
+    expect(ownDirPaths("acme.hello", ["ws_1"])).toHaveLength(2);
     expect(createDirSpy).not.toHaveBeenCalled();
   });
 
   it("namespaces by extension id — two extensions never share a path", async () => {
     await initStorageRoot();
-    const a = ownDirPaths("acme.hello", "ws_1");
-    const b = ownDirPaths("other.tool", "ws_1");
+    const a = ownDirPaths("acme.hello", ["ws_1"]);
+    const b = ownDirPaths("other.tool", ["ws_1"]);
     expect(a.some((p) => b.includes(p))).toBe(false);
   });
 
   it("refuses ids and workspace ids outside the manifest charset", async () => {
     await initStorageRoot();
-    expect(ownDirPaths("../escape", "ws_1")).toEqual([]);
-    expect(ownDirPaths(".hidden", "ws_1")).toEqual([]);
-    expect(ownDirPaths("acme.hello", "../escape")).toEqual([
+    expect(ownDirPaths("../escape", ["ws_1"])).toEqual([]);
+    expect(ownDirPaths(".hidden", ["ws_1"])).toEqual([]);
+    expect(ownDirPaths("acme.hello", ["../escape"])).toEqual([
       `${ROOT}/acme.hello/global`,
     ]);
   });
@@ -203,7 +206,7 @@ describe("isStoragePath", () => {
   });
 });
 
-describe("ensureGlobalDir / ensureWorkspaceDir", () => {
+describe("ensureGlobalDir / resolveWorkspaceDir", () => {
   it("creates on first call and returns a stable path", async () => {
     const first = await ensureGlobalDir("acme.hello");
     const second = await ensureGlobalDir("acme.hello");
@@ -212,18 +215,30 @@ describe("ensureGlobalDir / ensureWorkspaceDir", () => {
     expect(createDirSpy).toHaveBeenCalledWith(first);
   });
 
-  it("keys the workspace dir by workspace id", async () => {
-    expect(await ensureWorkspaceDir("acme.hello", "ws_1")).toBe(
+  it("keys the workspace dir by workspace id, creating by default", async () => {
+    expect(await resolveWorkspaceDir("acme.hello", "ws_1")).toBe(
       `${ROOT}/acme.hello/workspaces/ws_1`,
     );
-    expect(await ensureWorkspaceDir("acme.hello", "ws_2")).toBe(
+    expect(await resolveWorkspaceDir("acme.hello", "ws_2")).toBe(
       `${ROOT}/acme.hello/workspaces/ws_2`,
     );
+    expect(createDirSpy).toHaveBeenCalledWith(
+      `${ROOT}/acme.hello/workspaces/ws_1`,
+    );
+  });
+
+  it("resolves the path without creating it when create is false", async () => {
+    const dir = await resolveWorkspaceDir("acme.hello", "ws_1", {
+      create: false,
+    });
+    expect(dir).toBe(`${ROOT}/acme.hello/workspaces/ws_1`);
+    expect(createDirSpy).not.toHaveBeenCalled();
+    expect(dirs.has(dir)).toBe(false);
   });
 
   it("never lets a workspace dir land inside the global dir", async () => {
     const global = await ensureGlobalDir("acme.hello");
-    const ws = await ensureWorkspaceDir("acme.hello", "ws_1");
+    const ws = await resolveWorkspaceDir("acme.hello", "ws_1");
     expect(ws.startsWith(`${global}/`)).toBe(false);
   });
 
@@ -231,9 +246,12 @@ describe("ensureGlobalDir / ensureWorkspaceDir", () => {
     await expect(ensureGlobalDir("../escape")).rejects.toThrow(
       /Invalid extension id/,
     );
-    await expect(ensureWorkspaceDir("acme.hello", "..")).rejects.toThrow(
+    await expect(resolveWorkspaceDir("acme.hello", "..")).rejects.toThrow(
       /Invalid workspace id/,
     );
+    await expect(
+      resolveWorkspaceDir("acme.hello", "..", { create: false }),
+    ).rejects.toThrow(/Invalid workspace id/);
   });
 });
 
