@@ -122,5 +122,5 @@ don't get a proposal at all — see below.
 | [0030](./0030-navigator-view-arrangement.md)                  | Navigator view arrangement — reorder, disable, and a stacked mode | 2026-08-27 | implemented |
 | [0031](./0031-tasks-extension/proposal.md)                    | Tasks extension — Silo tasks, third-party trackers as sources     | 2026-08-30 | accepted    |
 | [0032](./0032-ctx-extension-storage-directory.md)             | A per-extension storage directory on `ctx`                        | 2026-08-30 | implemented |
-| [0033](./0033-agent-profiles.md)                              | Agent Profiles — naming how you start an agent                    | 2026-08-31 | accepted    |
+| [0033](./0033-agent-profiles/proposal.md)                     | Agent Profiles — naming how you start an agent                    | 2026-08-31 | accepted    |
 | [0034](./0034-control-api/proposal.md)                        | Control API — a return channel for the `silo` command             | 2026-09-01 | accepted    |
