@@ -50,9 +50,10 @@ export interface NavigatorPrefs {
   stackedCollapsed: readonly string[];
   /**
    * Multiplier on the color wash a colored workspace group paints over its
-   * rows. `1` is the built-in strength; the settings slider spans
-   * {@link GROUP_COLOR_INTENSITY_MIN}–{@link GROUP_COLOR_INTENSITY_MAX}. Pushed
-   * onto `--ws-group-wash-user` by the Navigator panel.
+   * rows. `1` is the built-in strength; the settings stepper moves it in
+   * {@link GROUP_COLOR_INTENSITY_STEP} increments between
+   * {@link GROUP_COLOR_INTENSITY_MIN} and {@link GROUP_COLOR_INTENSITY_MAX}.
+   * Pushed onto `--ws-group-wash-user` by the Navigator panel.
    */
   groupColorIntensity: number;
 }
