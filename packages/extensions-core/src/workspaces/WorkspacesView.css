@@ -466,14 +466,14 @@
       120% 90% at 50% 0%,
       color-mix(
         in srgb,
-        var(--ws-group-color) calc(4% * var(--ws-group-wash)),
+        var(--ws-group-color) calc(6% * var(--ws-group-wash)),
         transparent
       ),
       transparent 72%
     ),
     color-mix(
       in srgb,
-      var(--ws-group-color) calc(10% * var(--ws-group-wash)),
+      var(--ws-group-color) calc(15% * var(--ws-group-wash)),
       transparent
     );
 }
