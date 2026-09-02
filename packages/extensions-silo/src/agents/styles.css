@@ -87,8 +87,10 @@
 }
 
 /* Agent views in the Navigator — all classes prefixed ap-; tokens
-   only. Root inherits the column font size from `.side-pane`, so no absolute
-   font-size here. Deliberately NOT its own scroll container: the host's
+   only. The root pins no font-size — it inherits the side-pane scale, and rows
+   step relative to it (`1em`, `calc(1em - 1px)`); only the uppercase section
+   heading uses a fixed chrome size. Deliberately NOT its own scroll container:
+   the host's
    `.tab-pane` (the panel's scrolling ancestor) already scrolls, persists, and
    styles scroll position for whatever renders inside it. Giving `.ap-body`
    its own nested `overflow-y: auto` stacked TWO scrollable regions at the
@@ -115,10 +117,15 @@
      aren't interactive rows, so they align with the chrome above them
      instead of with the rows below. */
   padding: 4px 12px;
-  font-size: var(--silo-font-size-sm);
+  /* The canonical side-panel group heading (git `.section-head`,
+     skills-manager, `silo.tasks`): chrome tier, 600, uppercase, `0.06em`,
+     muted to `text-lo`. Chrome size is absolute off app base on purpose —
+     a group label is chrome, so it stays put while the rows it groups scale
+     with the pane. */
+  font-size: var(--silo-font-size-chrome);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   color: var(--silo-color-text-lo);
 }
 .ap-section-title-clickable {
@@ -132,16 +139,27 @@
   transform: rotate(90deg);
 }
 /* The heading is uppercase + letter-spaced; a count inside it isn't. Geometry
-   and color come from the kit's `size="sm"` chip. */
+   and color come from the kit's `size="sm"` chip.
+
+   Pushed to the heading's trailing edge like git's `.section-count` and
+   skills-manager's, so counts line up down the panel's right edge instead of
+   floating at the end of each label. */
 .ap-section-count {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
   text-transform: none;
   letter-spacing: normal;
 }
 .ap-row {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 6px 12px;
+  /* Centred, not top-aligned: the activity dot sits on the row's trailing edge
+     (see `.ap-row-glyph`), where it has to read level with the whole two-line
+     block rather than against the title's first line. */
+  align-items: center;
+  gap: 9px;
+  padding: 7px 12px;
   /* Match WorkspacesView `.ws-item` inset so hover/active backgrounds don't
      flush to the pane edges. */
   margin: 0 4px 2px;
@@ -154,8 +172,14 @@
 .ap-row.active {
   background: var(--silo-color-bg-active);
 }
+
+/* Trailing edge, after the text block — the agent's own icon leads the row, so
+   the status dot reads as the row's outcome rather than competing with the
+   identity mark for the leading slot. `order` rather than DOM position keeps
+   the glyph first in the reading order for assistive tech. */
 .ap-row-glyph {
-  margin-top: 4px;
+  order: 3;
+  margin-left: auto;
   flex-shrink: 0;
 }
 .ap-row-text {
@@ -171,8 +195,10 @@
 }
 .ap-row-icon {
   flex-shrink: 0;
-  width: 12px;
-  height: 12px;
+  /* The row's primary identifier — which agent this is — so it carries real
+     weight rather than sitting as a hint beside the title. */
+  width: 16px;
+  height: 16px;
   /* "Monotone" mode's color (unset when "color" mode overrides it inline) —
      the middle text tier: lighter than text-hi (the title's own color, which
      read too heavy for a small glyph) but still darker/more solid than
@@ -186,17 +212,39 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* Centred rather than baseline-aligned: the workspace mark below is an SVG,
+   whose baseline is its bottom edge — on a baseline row it would hang low
+   against the text. Every text part here is the same size, so centring reads
+   identically for them. */
 .ap-row-subtitle {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 4px;
   min-width: 0;
+  /* Set here, not only on each part, so the workspace mark's `currentColor`
+     resolves to the line's own color. */
+  color: var(--silo-color-text-lo);
 }
+
+/* Workspace mark before the name — the same Phosphor `SquaresFour` the
+   Workspaces view uses for a workspace, so one glyph means one thing across
+   the Navigator. Inherits `currentColor` from the subtitle so it can never
+   drift from the line it sits on; only shown where the subtitle really is a
+   workspace name (see `subtitleIsWorkspace` in agents-panel.tsx). */
+.ap-row-ws-icon {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  opacity: 0.75;
+}
+
 .ap-row-workspace {
   min-width: 0;
   flex-shrink: 1;
   color: var(--silo-color-text-lo);
-  font-size: var(--silo-font-size-sm);
+  /* Secondary line, one step below the row title — relative to the pane, not
+     the absolute `--silo-font-size-sm` (which is off app base, a step small). */
+  font-size: calc(1em - 1px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -204,12 +252,12 @@
 .ap-row-sep {
   flex-shrink: 0;
   color: var(--silo-color-text-lo);
-  font-size: var(--silo-font-size-sm);
+  font-size: calc(1em - 1px);
 }
 .ap-row-elapsed {
   flex-shrink: 0;
   color: var(--silo-color-text-lo);
-  font-size: var(--silo-font-size-sm);
+  font-size: calc(1em - 1px);
 }
 /* The "Recent" view's drag affordance — only that view passes `drag` to
    AgentRowItem, so this only ever appears there. Hidden until the row is

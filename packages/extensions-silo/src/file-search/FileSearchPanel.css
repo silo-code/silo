@@ -4,7 +4,7 @@
   height: 100%;
   overflow: hidden;
   font-family: var(--silo-font-ui);
-  /* Inherit the host's side-panel font size (it sets the right-panel size on the
+  /* Inherit the host's side-panel font size (it sets the side-pane scale on the
      column body) — don't pin it, or the panel renders smaller than its siblings.
      Secondary text below scales down with `em` so it tracks that size. */
   color: var(--silo-color-text);

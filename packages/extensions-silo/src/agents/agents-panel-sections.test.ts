@@ -3,6 +3,7 @@ import type { AgentRow } from "./agents-panel-view";
 import {
   buildAgeSections,
   buildStatusSections,
+  buildWorkspaceSections,
   staleSectionStartsExpanded,
 } from "./agents-panel";
 
@@ -390,5 +391,42 @@ describe("staleSectionStartsExpanded", () => {
       8,
     );
     expect(staleSectionStartsExpanded(sections)).toBe(true);
+  });
+});
+
+describe("subtitle axis", () => {
+  const r = row({ section: "done", workspaceName: "Silo Dev" });
+
+  it("is the bare workspace name in the Recent view — no status prefix", () => {
+    // The row's activity dot already carries the state, and sorted by age
+    // nearly every row reads "Idle".
+    const [age] = buildAgeSections([r], false, 8, []);
+    expect(age.subtitle(r)).toBe("Silo Dev");
+    expect(age.subtitleIsWorkspace).toBe(true);
+  });
+
+  it("is the workspace name in the by-status view, where status is the heading", () => {
+    const sections = buildStatusSections([r], false, 8);
+    const idle = sections.find((s) => s.header === "Idle");
+    expect(idle?.subtitle(r)).toBe("Silo Dev");
+    expect(idle?.subtitleIsWorkspace).toBe(true);
+  });
+
+  it("is the status label in the by-workspace view, and is not marked as a workspace", () => {
+    // The workspace is already the heading here, so a workspace glyph on the
+    // subtitle would label the status as something it isn't.
+    const [group] = buildWorkspaceSections([r]);
+    expect(group.subtitle(r)).toBe("Idle");
+    expect(group.subtitleIsWorkspace).toBe(false);
+  });
+
+  it("marks the stale heading the same way as the section it splits from", () => {
+    const stale = row({ section: "done", since: hoursAgo(9) });
+    for (const sections of [
+      buildStatusSections([stale], true, 8),
+      buildAgeSections([stale], true, 8, []),
+    ]) {
+      expect(sections.every((s) => s.subtitleIsWorkspace)).toBe(true);
+    }
   });
 });

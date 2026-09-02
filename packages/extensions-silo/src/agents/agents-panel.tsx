@@ -4,7 +4,11 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { CaretRight, DotsSixVertical } from "@phosphor-icons/react";
+import {
+  CaretRight,
+  DotsSixVertical,
+  SquaresFour,
+} from "@phosphor-icons/react";
 import type { Activity, ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import { ActivityGlyph, Badge, useServiceState } from "@silo-code/sdk";
 import {
@@ -54,6 +58,14 @@ export interface PanelSection {
   header: string;
   rows: AgentRow[];
   subtitle: (row: AgentRow) => string;
+  /**
+   * Whether `subtitle` yields a **workspace name** (so the row can mark it with
+   * the workspace glyph) rather than a status label. The by-workspace view is
+   * the one that answers `false`: there the workspace is already the heading,
+   * so the subtitle carries the status instead — marking it with a workspace
+   * glyph would label it as something it isn't.
+   */
+  subtitleIsWorkspace: boolean;
   /** Whether the render below collapses this heading's rows by default,
    * revealing them on hover or on click of the heading (see
    * `staleHoverExpandEnabled`) — only the "N+ hours old" heading does, since
@@ -110,6 +122,7 @@ export function buildStatusSections(
         ? groups.done.filter((row) => !isStaleDone(row, staleDoneHours))
         : groups[section],
     subtitle,
+    subtitleIsWorkspace: true,
   }));
   if (!staleDoneEnabled) return statusSections;
   return [
@@ -119,6 +132,7 @@ export function buildStatusSections(
       header: `${staleDoneHours}+ hours old`,
       rows: groups.done.filter((row) => isStaleDone(row, staleDoneHours)),
       subtitle,
+      subtitleIsWorkspace: true,
       collapsible: true,
     },
   ];
@@ -132,6 +146,7 @@ export function buildWorkspaceSections(
     header: group.workspaceName,
     rows: group.rows,
     subtitle: (row) => SECTION_LABELS[row.section],
+    subtitleIsWorkspace: false,
   }));
 }
 
@@ -156,8 +171,10 @@ export function buildAgeSections(
   staleDoneHours: number,
   manualOrder: readonly string[],
 ): PanelSection[] {
-  const subtitle = (row: AgentRow) =>
-    `${SECTION_LABELS[row.section]} · ${row.workspaceName}`;
+  // Workspace only — no status prefix. The row's activity dot already says
+  // what state the agent is in, and with this view sorted by age nearly every
+  // row reads "Idle", so the label cost a line of width to repeat the glyph.
+  const subtitle = (row: AgentRow) => row.workspaceName;
   const isStale = (row: AgentRow) =>
     staleDoneEnabled &&
     row.section === "done" &&
@@ -174,6 +191,7 @@ export function buildAgeSections(
     header: "",
     rows: activeRows,
     subtitle,
+    subtitleIsWorkspace: true,
   };
   if (!staleDoneEnabled) return [ageSection];
   return [
@@ -183,6 +201,7 @@ export function buildAgeSections(
       header: `${staleDoneHours}+ hours old`,
       rows: rows.filter(isStale).slice().sort(compareRows),
       subtitle,
+      subtitleIsWorkspace: true,
       collapsible: true,
     },
   ];
@@ -228,6 +247,7 @@ interface RowDrag {
 function AgentRowItem({
   row,
   subtitle,
+  subtitleIsWorkspace,
   active,
   icon,
   iconMode,
@@ -237,9 +257,12 @@ function AgentRowItem({
   drag,
 }: {
   row: AgentRow;
-  /** Workspace name in the "by status" view; status label in the "by
-   * workspace" view — whichever isn't already the enclosing section header. */
+  /** Workspace name in the "by status" and "Recent" views; status label in the
+   * "by workspace" view — whichever isn't already the enclosing section
+   * header. */
   subtitle: string;
+  /** See `PanelSection.subtitleIsWorkspace` — gates the workspace glyph. */
+  subtitleIsWorkspace: boolean;
   active: boolean;
   icon: AgentIcon | undefined;
   iconMode: IconMode;
@@ -269,7 +292,14 @@ function AgentRowItem({
         onContextMenu(row, { x: e.clientX, y: e.clientY });
       }}
     >
-      <ActivityGlyph activity={glyphFor(row)} className="ap-row-glyph" />
+      {/* `md`, not the default `sm`: on the row's trailing edge the dot is the
+          only thing carrying state, so it needs the weight the leading slot's
+          smaller glyph used to borrow from its position. */}
+      <ActivityGlyph
+        activity={glyphFor(row)}
+        size="md"
+        className="ap-row-glyph"
+      />
       <div className="ap-row-text">
         <span className="ap-row-title-line">
           <AgentIconGlyph
@@ -281,6 +311,14 @@ function AgentRowItem({
           <span className="ap-row-title">{row.title}</span>
         </span>
         <span className="ap-row-subtitle">
+          {subtitleIsWorkspace && (
+            <SquaresFour
+              className="ap-row-ws-icon"
+              size={12}
+              weight="fill"
+              aria-hidden="true"
+            />
+          )}
           <span className="ap-row-workspace">{subtitle}</span>
           {row.since && (
             <>
@@ -732,6 +770,7 @@ export function AgentsPanel({
                     key={row.terminalId}
                     row={row}
                     subtitle={section.subtitle(row)}
+                    subtitleIsWorkspace={section.subtitleIsWorkspace}
                     active={row.terminalId === activeTerminalId}
                     icon={
                       ctx.agents.catalog().find((c) => c.id === row.agentId)

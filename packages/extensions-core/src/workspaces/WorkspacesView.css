@@ -114,7 +114,9 @@
 }
 
 .ws-item .ws-name {
-  font-weight: 600;
+  /* Matches the row title in github-prs / github-issues (`.ghpr-row__title`):
+     pane size (1em, inherited), medium weight — not bold — and `text-hi`. */
+  font-weight: 500;
   color: var(--silo-color-text-hi);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -243,7 +245,9 @@
   gap: 5px;
   margin-top: 2px;
   font-family: var(--silo-font-ui);
-  font-size: calc(1em - 1.5px);
+  /* Secondary line — one step below the pane (14px at defaults), matching
+     `.ws-folder` and the ghpr/ghi row meta line. */
+  font-size: calc(1em - 1px);
   color: var(--silo-color-text-lo);
   min-width: 0;
 }

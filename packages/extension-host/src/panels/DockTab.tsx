@@ -291,7 +291,7 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
           disabled={!act.tooltip}
         >
           <span className="dvi-tab-activity" aria-label={act.tooltip}>
-            <ActivityGlyph activity={act.activity} size="md" />
+            <ActivityGlyph activity={act.activity} size="sm" />
           </span>
         </Tooltip>
       ))}

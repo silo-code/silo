@@ -11,8 +11,11 @@ import type { AgentActivity } from "./agents-service";
 export type Activity = "working" | "ready" | "warn" | "error";
 
 /**
- * Glyph size for {@link Activity}. `"sm"` matches workspace status rows (~6px);
- * `"md"` is slightly larger for CenterDock / SideDock tabs.
+ * Glyph size for {@link Activity}. `"sm"` (8px at the default `uiFontSize`) is
+ * the workbench size — workspace status rows and CenterDock / SideDock tabs;
+ * `"md"` (10px) is the roomier one, for a list that leads with the dot rather
+ * than tucking it into chrome. Both scale with `uiFontSize` rather than being
+ * fixed pixels.
  *
  * @category Core Types
  * @public
