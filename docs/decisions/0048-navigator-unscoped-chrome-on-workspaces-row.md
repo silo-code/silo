@@ -101,15 +101,21 @@ qualifier is gone because the concept now spans both arrangements.
 
 The Workspaces row is a `role="tab"` in the View List's `role="tablist"` with
 `useFocusGroup` roving focus (ADR [0021](./0021-keyboard-navigation-architecture.md)).
-The "+" is rendered as a **sibling of the tab element inside a row wrapper**,
-not a child of the tab, so the tab stays a clean single selectable and the
-tablist stays one Tab stop. The "+" itself is `tabIndex={-1}` — a pointer
-affordance, like the CenterDock tab close button and the Agents "Recent"
-drag grip. Keyboard and AT users reach "new workspace" through the
-`workspace.new` command (command palette, and its keybinding) and the
-status-bar item — both already fully keyboard-accessible, and the same
-division ADR 0038 accepted when it noted "a keybinding remains worth adding
-alongside the list".
+The "+" is rendered as a **sibling of the tab element**, inside a
+`role="presentation"` row wrapper — not a child of the tab. A focusable control
+inside a `role="tab"` is contrary to the APG tabs pattern; as a sibling it is
+an ordinary `<button>` that:
+
+- stays out of the arrow-key roving set (`useFocusGroup`'s `count` is the view
+  count, unchanged), so ↑/↓ still move only between view rows — ADR 0038's
+  "one Tab stop, arrow between rows" model for the list itself is intact;
+- is its own Tab stop, reached right after the Workspaces row — the normal
+  behaviour for a per-row action button, and it makes "new workspace"
+  keyboard-reachable from the Navigator.
+
+`workspace.new` also gains a default keybinding (`cmd+shift+n`, mirroring the
+native File-menu `cmd+n`), so the command path works even when the Workspaces
+view — and therefore the "+" — is disabled.
 
 ## Consequences
 
@@ -122,14 +128,11 @@ alongside the list".
   row." ADR 0038's core decision (list, not menu; header names the active
   view) stands; a pointer at this ADR is added to that consequence bullet.
 - **The "+" can be absent from the Navigator.** If a user disables the
-  Workspaces view, the Navigator shows no "+". This is intended — but it means
-  the status-bar item is now the _only_ in-chrome path to "new workspace" for
-  that user, and `workspace.new` should carry a default keybinding so there's
-  always a keyboard path. (Filed as follow-up if it doesn't already.)
-- **"New workspace" via the "+" is pointer-only.** Keyboard/AT users use the
-  command or the status bar. Acceptable because two keyboard paths already
-  exist and the row's Tab-stop model (ADR 0038 / 0021) is worth more than a
-  third; revisit if the command-palette path proves too indirect in practice.
+  Workspaces view, the Navigator shows no "+". This is intended; recovery is
+  the status-bar item and the new `workspace.new` keybinding (`cmd+shift+n`).
+- **The View List region gains one Tab stop** (the "+", after the Workspaces
+  row) — only when the Workspaces view is enabled. The arrow-key model for the
+  rows is unchanged.
 - **A reserved sentinel view id exists.** `unscopedChromeTarget()` returns a
   string that is deliberately not any real view's id. It's internal to the
   bundled `core.navigator` ⇄ `core.workspaces` pair and never reaches

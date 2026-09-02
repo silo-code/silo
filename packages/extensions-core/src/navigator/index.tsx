@@ -3,7 +3,11 @@ import { navigatorViewRegistry } from "@silo-code/extension-host/internal";
 import { NavigatorPanel } from "./NavigatorPanel";
 import { NavigatorSettingsPanel } from "./NavigatorSettingsPanel";
 import { initNavigatorPrefs, navigatorPrefsService } from "./navigator-prefs";
-import { resolveViewList, stackedChromeHostId } from "./navigator-views";
+import {
+  chromeHostViewId,
+  resolveViewList,
+  UNSCOPED_CHROME_TARGET,
+} from "./navigator-views";
 import type { NavigatorExtensionAPI } from "./navigator-api";
 
 /**
@@ -43,17 +47,17 @@ export const extension: Extension<NavigatorExtensionAPI> = {
 
     return {
       SettingsPanel: NavigatorSettingsPanel,
-      stackedChromeHostViewId() {
-        const prefs = navigatorPrefsService.getState();
+      unscopedChromeTarget() {
         const { enabled } = resolveViewList(
           navigatorViewRegistry.list(),
-          prefs,
+          navigatorPrefsService.getState(),
         );
-        // Stacked needs >1 view to render as a stack (see NavigatorPanel);
-        // with one it falls through to the plain single-view render, where
-        // unscoped chrome belongs on that view like one-at-a-time.
-        if (prefs.arrangement !== "stacked" || enabled.length <= 1) return null;
-        return stackedChromeHostId(enabled) ?? null;
+        // The slot exists in every arrangement — the renderer decides *where*
+        // (row / header / section). All this answers is whether it exists at
+        // all, i.e. whether the Workspaces view is enabled.
+        return chromeHostViewId(enabled) === null
+          ? null
+          : UNSCOPED_CHROME_TARGET;
       },
     };
   },

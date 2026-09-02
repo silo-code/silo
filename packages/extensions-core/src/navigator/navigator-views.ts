@@ -158,17 +158,26 @@ export function resolveActiveView(
 }
 
 /**
- * In the **stacked** arrangement, the one section that carries otherwise-
- * unscoped `"navigator"` toolbar chrome — today just `core.workspaces`'
- * Add-workspace "+". It sits on the Workspaces section, or on the top section
- * if Workspaces is hidden. `undefined` only when nothing is enabled (which
- * {@link resolveViewList} prevents). One-at-a-time mode doesn't call this —
- * there, unscoped chrome shows on every view as before.
+ * The synthetic `viewId` the Navigator passes from its single **unscoped-chrome
+ * slot** — the Add-workspace "+"'s home (ADR 0048). Deliberately not any real
+ * view's id: a per-view header item's `when` only ever sees a real id and never
+ * matches this, while `core.workspaces.add` matches only this.
  */
-export function stackedChromeHostId(
+export const UNSCOPED_CHROME_TARGET = "core.navigator:unscoped-chrome";
+
+/**
+ * The view whose row (one-at-a-time) or section header (stacked) carries
+ * otherwise-unscoped `"navigator"` toolbar chrome — today just
+ * `core.workspaces`' Add-workspace "+". It is the **Workspaces** view when
+ * enabled, and `null` when it is not: the "+" then lives only on the workspace
+ * status-bar item, not anywhere in the Navigator (ADR 0048). Unlike the old
+ * stacked-only helper this has no "…or the top view" fallback — the "+" is the
+ * Workspaces affordance or it is absent.
+ */
+export function chromeHostViewId(
   enabled: readonly NavigatorView[],
-): string | undefined {
-  return (enabled.find((v) => v.id === DEFAULT_VIEW_ID) ?? enabled[0])?.id;
+): string | null {
+  return enabled.find((v) => v.id === DEFAULT_VIEW_ID)?.id ?? null;
 }
 
 /**

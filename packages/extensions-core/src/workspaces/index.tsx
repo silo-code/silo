@@ -65,29 +65,24 @@ export const extension: Extension = {
       component: (props) => <WorkspacesView ctx={ctx} {...props} />,
     });
 
-    // "Add workspace" in the Navigator header. A toolbar contribution rather
-    // than panel chrome, which is what lets core.navigator stay ignorant of
-    // workspaces.
-    //
-    // One-at-a-time arrangement: unscoped, on every view's header, so
-    // New-workspace stays one click away wherever you are (RFC 0023).
-    // Stacked arrangement: every view's header is on screen at once, so it
-    // would repeat down the panel — `core.navigator` names the single section
-    // that should carry it (the Workspaces section, or the top one if
-    // Workspaces is hidden) and this scopes to that.
+    // "Add workspace" — a toolbar contribution rather than panel chrome, which
+    // is what lets `core.navigator` stay ignorant of workspaces. `core.navigator`
+    // renders it in exactly one place — the Workspaces view's row / header /
+    // section (ADR 0048) — and passes its `unscopedChromeTarget()` sentinel as
+    // the `viewId`, so this `when` is a plain equality: it matches that slot and
+    // nothing else, and returns false (target ≠ null) when the Workspaces view
+    // is disabled, taking the "+" out of the Navigator entirely.
     ctx.registerToolbarItem({
       id: "core.workspaces.add",
       surface: "navigator",
       icon: "Plus",
       label: "Add workspace",
       tooltip: "Add workspace",
-      when: (_keys, target) => {
-        const host =
-          ctx
-            .getExtension<NavigatorExtensionAPI>("core.navigator")
-            ?.api?.stackedChromeHostViewId() ?? null;
-        return host === null || target.viewId === host;
-      },
+      when: (_keys, target) =>
+        target.viewId ===
+        ctx
+          .getExtension<NavigatorExtensionAPI>("core.navigator")
+          ?.api?.unscopedChromeTarget(),
       menu: () => ctx.workspaces.getOpenWorkspaceMenuItems(),
     });
 
@@ -111,6 +106,16 @@ export const extension: Extension = {
           console.error("create workspace failed", err);
         });
       },
+    });
+
+    // A keyboard path to "new workspace" that doesn't depend on the Navigator's
+    // "+" being visible — it isn't when the Workspaces view is disabled, and the
+    // "+" is pointer-only regardless (ADR 0048). `cmd+shift+n` mirrors the
+    // native File-menu `cmd+n` (new file).
+    ctx.registerKeybinding({
+      id: "workspace.new",
+      key: "cmd+shift+n",
+      command: "workspace.new",
     });
 
     ctx.registerCommand({

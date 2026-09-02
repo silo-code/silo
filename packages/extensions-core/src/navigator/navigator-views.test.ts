@@ -6,10 +6,10 @@ import {
   buildViewRows,
   moveViewInOrder,
   reorderSavedViews,
+  chromeHostViewId,
   resolveActiveView,
   resolveViewList,
   setViewDisabled,
-  stackedChromeHostId,
   toggleIdInList,
 } from "./navigator-views";
 
@@ -258,22 +258,22 @@ describe("reorderSavedViews", () => {
   });
 });
 
-describe("stackedChromeHostId", () => {
-  it("is the Workspaces view when it's enabled", () => {
+describe("chromeHostViewId", () => {
+  it("is the Workspaces view when it's enabled, wherever it sits in order", () => {
     const enabled = [
       view("ext.status", "Agents"),
       view(DEFAULT_VIEW_ID, "Workspaces"),
     ];
-    expect(stackedChromeHostId(enabled)).toBe(DEFAULT_VIEW_ID);
+    expect(chromeHostViewId(enabled)).toBe(DEFAULT_VIEW_ID);
   });
 
-  it("falls back to the top view when Workspaces is hidden", () => {
+  it("is null when Workspaces is not enabled — no top-view fallback (ADR 0048)", () => {
     const enabled = [view("ext.status", "Agents"), view("ext.tasks", "Tasks")];
-    expect(stackedChromeHostId(enabled)).toBe("ext.status");
+    expect(chromeHostViewId(enabled)).toBeNull();
   });
 
-  it("is undefined when nothing is enabled", () => {
-    expect(stackedChromeHostId([])).toBeUndefined();
+  it("is null when nothing is enabled", () => {
+    expect(chromeHostViewId([])).toBeNull();
   });
 });
 

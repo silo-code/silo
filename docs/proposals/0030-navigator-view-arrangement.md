@@ -182,6 +182,9 @@ The View List is not rendered. Each enabled view, in `viewOrder`, is a
   to that in stacked mode only. A view's _own_ scoped items (e.g. the Agents
   view's "View by") are unaffected — they were already `when`-bound to their
   view.
+  _(Superseded by ADR 0048: the **+** now rides the Workspaces row/header/section
+  in **both** arrangements via `unscopedChromeTarget()`, with no top-section
+  fallback — absent from the Navigator when the Workspaces view is disabled.)_
 - **Sizing.** Each expanded section is content-height; the panel scrolls as one
   (preserving the "host tab-pane is the sole scroller" invariant every view
   assumes). A section body taller than a cap (proposed: ~60% of panel height)
@@ -290,7 +293,9 @@ is passed as always-`true` in stacked mode (collapse is purely visual); stacked
 sections cap at `60vh` with their own inner scroll; and `core.workspaces`'
 Add-workspace **+** stays unscoped in one-at-a-time mode but `when`-scopes to
 the single section named by `core.navigator`'s `stackedChromeHostViewId()` in
-stacked mode.
+stacked mode. _(That last detail was later revised by ADR 0048 — the **+** rides
+the Workspaces row/header/section in both arrangements via
+`unscopedChromeTarget()`.)_
 
 The crystallized decision — and the supersession of ADR 0038's deferred
 "stacked collapsible sections" alternative — is recorded in ADR

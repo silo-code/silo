@@ -24,17 +24,32 @@
   background: var(--silo-color-bg);
 }
 
+/* A `role="presentation"` flex line: the tab (`.nav-view-row`, `flex: 1`) plus,
+   on the Workspaces row only, the trailing Add-workspace "+"
+   (`.nav-view-row__chrome`). The wrapper — not the tab — carries the hover
+   background and radius so the whole line, "+" included, reads as one row. */
+.nav-view-row-wrap {
+  display: flex;
+  align-items: center;
+  border-radius: var(--silo-radius-sm);
+}
+
+/* Already the panel's brightest text, so hover moves the background only. */
+.nav-view-row-wrap:hover {
+  background: var(--silo-color-bg-hover);
+}
+
 /* Deliberately unhighlighted when selected — `.nav-view-header` below names
    the open view instead. Hover is the only row state, so the list reads as a
    set of destinations rather than a segmented control. */
 .nav-view-row {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: 9px;
   min-width: 0;
   min-height: 30px;
   padding: 5px 10px;
-  border-radius: var(--silo-radius-sm);
   color: var(--silo-color-text-hi);
   font-family: var(--silo-font-ui);
   /* Inherit the side-pane scale (SideColumn.css) so the destinations sit level
@@ -45,9 +60,14 @@
   user-select: none;
 }
 
-/* Already the panel's brightest text, so hover moves the background only. */
-.nav-view-row:hover {
-  background: var(--silo-color-bg-hover);
+/* Trailing "+" cluster on the Workspaces row (ADR 0048). Flattened to just its
+   button the same way the view header's toolbar is — see the shared rules
+   below — and nudged off the pane edge to match the row's own inset. */
+.nav-view-row__chrome {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding-right: 6px;
 }
 
 /* Fixed width so titles line up whether or not a given view supplies an icon.
@@ -105,18 +125,19 @@
 }
 
 /* ContributedToolbar ships the editor breadcrumb's bar chrome — its own
-   background and bottom rule. Inside this header that reads as a bar within a
-   bar, so the cluster is flattened to just its buttons here; the header is
-   already the bar. */
-.nav-view-header .contributed-toolbar {
+   background and bottom rule. Inside the header (a bar within a bar) or on a
+   view-list row it reads as clutter, so the cluster is flattened to just its
+   buttons in both places. */
+.nav-view-header .contributed-toolbar,
+.nav-view-row__chrome .contributed-toolbar {
   min-height: 0;
   padding: 0;
   background: none;
   border-bottom: none;
 }
 
-/* Actions read as part of the header line rather than as controls sitting on
-   it, so they take the title's color instead of the toolbar surface's. Both
+/* Actions read as part of the header / row line rather than as controls sitting
+   on it, so they take the title's color instead of the toolbar surface's. Both
    control shapes are covered: text / icon+text / menu controls are
    `.contributed-toolbar__btn`, while icon-only ones are SDK IconButtons
    (`.silo-icon-button-toolbar`) — the workspaces + is one of those.
@@ -126,27 +147,27 @@
    checked-state rule — that rule is the same specificity as this one, so
    without the exclusion, load order (not intent) would decide whether the
    accent color survives. Excluding by selector means it always does. */
-.nav-view-header
+:is(.nav-view-header, .nav-view-row__chrome)
   .contributed-toolbar__btn:not([data-checked="true"]):not(
     [aria-pressed="true"]
   ),
-.nav-view-header
+:is(.nav-view-header, .nav-view-row__chrome)
   .contributed-toolbar__btn:hover:not(:disabled):not([data-checked="true"]):not(
     [aria-pressed="true"]
   ),
-.nav-view-header
+:is(.nav-view-header, .nav-view-row__chrome)
   .contributed-toolbar__btn:active:not(:disabled):not(
     [data-checked="true"]
   ):not([aria-pressed="true"]),
-.nav-view-header
+:is(.nav-view-header, .nav-view-row__chrome)
   .silo-icon-button-toolbar:not([data-checked="true"]):not(
     [aria-pressed="true"]
   ),
-.nav-view-header
+:is(.nav-view-header, .nav-view-row__chrome)
   .silo-icon-button-toolbar:hover:not(:disabled):not([data-checked="true"]):not(
     [aria-pressed="true"]
   ),
-.nav-view-header
+:is(.nav-view-header, .nav-view-row__chrome)
   .silo-icon-button-toolbar:active:not(:disabled):not(
     [data-checked="true"]
   ):not([aria-pressed="true"]) {
