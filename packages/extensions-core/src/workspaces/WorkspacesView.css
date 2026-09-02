@@ -78,8 +78,25 @@
   bottom: -1px;
 }
 
-.ws-item.active {
-  background: var(--silo-color-bg-active);
+/* Active workspace: no background fill — a vertical accent "stem" drops from
+   under the icon, down the icon column, ending just past the row's content.
+   It's a real element (not ::before/::after) so it never collides with the
+   drag reorder lines, which own both row pseudo-elements. */
+.ws-item .ws-active-stem {
+  display: none;
+}
+
+.ws-item.active .ws-active-stem {
+  display: block;
+  position: absolute;
+  /* Centred under the 20px icon: row padding-left 10 + half of (20 - 2). */
+  left: 19px;
+  top: 31px;
+  bottom: 1px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--silo-color-accent);
+  pointer-events: none;
 }
 
 .ws-item .ws-icon {
