@@ -1,5 +1,28 @@
 /* The Navigator settings tab (RFC 0030). Chrome only — Section, Switch,
-   IconButton, Tooltip are the SDK's. Design tokens only. */
+   IconButton, Tooltip, SettingRow are the SDK's. Design tokens only. */
+
+/* A labelled block inside a Section — the "Views" section holds two (the view
+   list and the arrangement picker), neither of which is a single right-aligned
+   control, so they can't be SettingRows. Match SettingRow's vertical rhythm and
+   hairline divider so the section still reads as a set of labelled fields. */
+.nav-settings-field {
+  padding: 10px 0;
+}
+
+.nav-settings-field:first-child {
+  padding-top: 0;
+}
+
+.nav-settings-field + .nav-settings-field {
+  border-top: 1px solid var(--silo-color-border-strong);
+}
+
+/* Field label — same size/color as SettingRow's `.silo-setting-row-label`. */
+.nav-settings-sublabel {
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+  margin-bottom: 4px;
+}
 
 .nav-settings-hint {
   margin: 0 0 12px;
