@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.61.0](https://github.com/silo-code/silo/compare/silo-v0.60.0...silo-v0.61.0) (2026-09-02)
+
+
+### Features
+
+* **sdk:** ctx.storage cross-workspace directory resolution ([#481](https://github.com/silo-code/silo/issues/481)) ([0c9ec86](https://github.com/silo-code/silo/commit/0c9ec86e4185cdf77a9c5e1c25cc791228adf0e6))
+
+
+### Bug Fixes
+
+* **agents:** detect installed agents by install location, not PATH ([#477](https://github.com/silo-code/silo/issues/477)) ([e390db6](https://github.com/silo-code/silo/commit/e390db60f231d0b5fee34a672521fc6db66d2b12))
+
 ## [0.60.0](https://github.com/silo-code/silo/compare/silo-v0.59.0...silo-v0.60.0) (2026-09-01)
 
 
