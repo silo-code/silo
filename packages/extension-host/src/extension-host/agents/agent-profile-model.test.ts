@@ -203,7 +203,9 @@ describe("resolveDefaultProfile", () => {
   const c = profile({ id: "c", label: "C" });
 
   it("returns the flagged default, wherever it sits in the list", () => {
-    expect(resolveDefaultProfile([a, { ...b, default: true }, c])?.id).toBe("b");
+    expect(resolveDefaultProfile([a, { ...b, default: true }, c])?.id).toBe(
+      "b",
+    );
   });
 
   it("falls back to the first profile when none is flagged", () => {

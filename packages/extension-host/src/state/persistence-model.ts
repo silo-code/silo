@@ -163,7 +163,9 @@ export function loadAgentProfiles(raw: unknown): AgentProfile[] {
     }
     if (e.default === true) {
       if (defaultClaimed) {
-        console.warn(`agent profile "${e.id}": dropping duplicate default flag`);
+        console.warn(
+          `agent profile "${e.id}": dropping duplicate default flag`,
+        );
       } else {
         profile.default = true;
         defaultClaimed = true;

@@ -77,13 +77,17 @@ describe("default flag (RFC 0033 phase 2)", () => {
     addAgentProfile(p({ id: "a" }));
     addAgentProfile(p({ id: "b" }));
     setDefaultAgentProfile("a");
-    expect(getAgentProfiles().filter((x) => x.default).map((x) => x.id)).toEqual([
-      "a",
-    ]);
+    expect(
+      getAgentProfiles()
+        .filter((x) => x.default)
+        .map((x) => x.id),
+    ).toEqual(["a"]);
     setDefaultAgentProfile("b");
-    expect(getAgentProfiles().filter((x) => x.default).map((x) => x.id)).toEqual([
-      "b",
-    ]);
+    expect(
+      getAgentProfiles()
+        .filter((x) => x.default)
+        .map((x) => x.id),
+    ).toEqual(["b"]);
   });
 
   it("setDefaultAgentProfile is a no-op for an unknown id", () => {

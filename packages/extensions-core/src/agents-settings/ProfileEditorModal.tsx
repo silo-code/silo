@@ -137,10 +137,7 @@ export function ProfileEditorModal({
     const nextId = idValue.trim();
     const hasUserBinding = (cmd: string) =>
       overrideKey(cmd) !== undefined || isRemoved(cmd);
-    if (
-      editingId &&
-      renameRetiresBinding(editingId, nextId, hasUserBinding)
-    ) {
+    if (editingId && renameRetiresBinding(editingId, nextId, hasUserBinding)) {
       const oldKey = overrideKey(profileCommandId(editingId));
       const chord = oldKey ? ` (${displayKey(oldKey)})` : "";
       const ok = await ctx.ui.confirm({

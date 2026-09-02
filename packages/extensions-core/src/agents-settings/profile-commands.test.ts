@@ -11,9 +11,7 @@ const { openSettings, pickWorkspaceFolder, launchAgentProfile } = vi.hoisted(
 
 vi.mock("@silo-code/extension-host/internal", async (importOriginal) => {
   const actual =
-    await importOriginal<
-      typeof import("@silo-code/extension-host/internal")
-    >();
+    await importOriginal<typeof import("@silo-code/extension-host/internal")>();
   return { ...actual, openSettings, pickWorkspaceFolder, launchAgentProfile };
 });
 
