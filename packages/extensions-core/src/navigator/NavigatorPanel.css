@@ -17,7 +17,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 15px 6px 18px;
+  padding: 15px 6px 8px;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -39,9 +39,9 @@
   background: var(--silo-color-bg-hover);
 }
 
-/* Deliberately unhighlighted when selected — `.nav-view-header` below names
-   the open view instead. Hover is the only row state, so the list reads as a
-   set of destinations rather than a segmented control. */
+/* No background/border for the selected state — only the label's weight
+   changes (below) — so the list still reads as a set of destinations rather
+   than a segmented control. */
 .nav-view-row {
   display: flex;
   flex: 1;
@@ -88,6 +88,14 @@
   white-space: nowrap;
 }
 
+/* The one bit of selected-state styling the row above gets: its label goes
+   bold. Everything else about the row (background, border) stays plain — the
+   list still reads as a set of destinations, just with the current one
+   distinguishable by weight instead of unmarked entirely. */
+.nav-view-row[data-selected="true"] .nav-view-row__label {
+  font-weight: 600;
+}
+
 /* Names the open view and hosts its contributed actions. Reads as a section
    heading over the view body — the same uppercase treatment the views use for
    their own section headings, so the hierarchy is [destinations][you are
@@ -95,6 +103,11 @@
 .nav-view-header {
   display: flex;
   align-items: center;
+  /* The title (when rendered) is flex:1 and pushes everything after it to the
+     end on its own; with the title hidden (list shown — EXPERIMENT above)
+     nothing does that job, so state it directly instead of leaving the
+     toolbar to fall back to the start. */
+  justify-content: flex-end;
   gap: 6px;
   padding: 4px 12px;
   /* --silo-color-border is transparent in dark theme (theme.css), so it reads
@@ -108,6 +121,18 @@
 /* No view list above means no seam to draw under it. */
 .nav-view-header[data-view-list="false"] {
   border-top: none;
+}
+
+/* With the title gone (list shown — the bold row above names the view
+   instead), the header has no seam to draw and no content to hold its old
+   vertical padding open — collapse both, so it's just the toolbar floating
+   over the active view. The list's own bottom padding, above, is what
+   separates list from view now. */
+.nav-view-header[data-view-list="true"] {
+  border-top: none;
+  border-bottom: none;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .nav-view-header__title {

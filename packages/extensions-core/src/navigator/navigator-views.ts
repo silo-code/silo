@@ -200,9 +200,9 @@ export interface ViewRow {
   id: string;
   title: string;
   icon: NavigatorView["icon"];
-  /** Whether this is the active view — the row's `aria-selected`. Not painted
-   * (ADR 0038: the view header names the active view instead), but still the
-   * one place "which row is the active one" is decided. */
+  /** Whether this is the active view — the row's `aria-selected`, and what
+   * bolds its label. The one place "which row is the active one" is
+   * decided. */
   selected: boolean;
 }
 
