@@ -10,11 +10,16 @@ export interface NavigatorExtensionAPI {
   /** The **Navigator** settings tab's body — reorder / enable views. */
   SettingsPanel: ComponentType;
   /**
-   * In the **stacked** arrangement, the id of the view whose section should
-   * carry otherwise-unscoped `"navigator"` toolbar chrome (the Add-workspace
-   * "+") — so it appears once, not on every section. `null` in the
-   * one-at-a-time arrangement, where such chrome shows on every view as
-   * before. `core.workspaces` reads this to scope its "+" in stacked mode.
+   * The synthetic `ToolbarItemContext["navigator"].viewId` the Navigator passes
+   * from its single **unscoped-chrome slot** — the Add-workspace "+"'s home:
+   * the Workspaces View List row (one-at-a-time), that view's View Header when
+   * the list is hidden, or its stacked section header (ADR 0048). An item whose
+   * `when` matches this value renders there and nowhere else; a normal per-view
+   * item matches a real view id and never sees it.
+   *
+   * `null` when the Workspaces view is disabled — the slot isn't rendered and
+   * the "+" lives only on the workspace status-bar item. `core.workspaces`
+   * reads this to place its "+".
    */
-  stackedChromeHostViewId(): string | null;
+  unscopedChromeTarget(): string | null;
 }

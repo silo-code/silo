@@ -10,9 +10,11 @@ import { ContributedToolbar } from "../shared/ContributedToolbar";
 import {
   activeViewIndex,
   buildViewRows,
+  chromeHostViewId,
   resolveActiveView,
   resolveViewList,
   toggleIdInList,
+  UNSCOPED_CHROME_TARGET,
 } from "./navigator-views";
 import { navigatorPrefsService } from "./navigator-prefs";
 import "./NavigatorPanel.css";
@@ -27,6 +29,23 @@ const ACTIVE_VIEW_KEY = "activeView";
 // an HTML id, and nothing selects them from CSS (where they'd need escaping).
 const tabId = (viewId: string) => `nav-tab-${viewId}`;
 const tabPanelId = (viewId: string) => `nav-tabpanel-${viewId}`;
+
+/**
+ * The one place otherwise-unscoped `"navigator"` toolbar chrome renders — the
+ * Add-workspace "+" (ADR 0048). Placed by the caller on the Workspaces row, its
+ * View Header when the list is hidden, or its stacked section header; the
+ * `UNSCOPED_CHROME_TARGET` sentinel is what makes `core.workspaces.add`'s `when`
+ * match here and a per-view item's `when` never see it.
+ */
+function UnscopedChromeSlot({ ctx }: { ctx: ExtensionContext }) {
+  return (
+    <ContributedToolbar
+      surface="navigator"
+      target={{ viewId: UNSCOPED_CHROME_TARGET }}
+      showMenu={ctx.ui.showMenu}
+    />
+  );
+}
 
 /**
  * The Navigator panel. A thin dispatcher: it resolves the user's enabled views
@@ -127,6 +146,9 @@ function SwitcherNavigator({
   // calling themselves tab panels too, rather than pointing `aria-labelledby`
   // at a tab that isn't rendered.
   const showViewList = views.length > 1;
+  // The row (list shown) or header (list hidden) that carries the Add-workspace
+  // "+" — the Workspaces view, or `null` when it isn't enabled (ADR 0048).
+  const chromeHostId = chromeHostViewId(views);
 
   return (
     <div className="nav-panel">
@@ -153,38 +175,53 @@ function SwitcherNavigator({
           {...group.containerProps}
         >
           {viewRows.map((row, i) => (
-            <div
-              key={row.id}
-              {...group.getItemProps(i)}
-              role="tab"
-              id={tabId(row.id)}
-              // Selection is still announced even though it isn't painted on
-              // the row — assistive tech needs it named here, where the choice
-              // is.
-              aria-selected={row.selected}
-              // Omitted until the panel actually mounts (views mount lazily on
-              // first activation, below) — pointing at an id that isn't in the
-              // DOM yet would be a dangling reference for any view not yet
-              // visited this session.
-              aria-controls={
-                mountedViewIds.has(row.id) ? tabPanelId(row.id) : undefined
-              }
-              className="nav-view-row"
-              onClick={() => pickView(row.id)}
-            >
-              {hasIcons && (
-                <span className="nav-view-row__icon">{row.icon}</span>
+            // `role="presentation"` so the wrapper is transparent to AT and the
+            // tablist → tab relationship is preserved. It exists only to sit the
+            // Add-workspace "+" *beside* the tab rather than inside it — a
+            // focusable control within a `role="tab"` is contrary to the APG
+            // tabs pattern, and the "+" stays its own Tab stop this way without
+            // joining the arrow-key roving set (`group.count` is unchanged).
+            <div key={row.id} className="nav-view-row-wrap" role="presentation">
+              <div
+                {...group.getItemProps(i)}
+                role="tab"
+                id={tabId(row.id)}
+                // Selection is still announced even though it isn't painted on
+                // the row — assistive tech needs it named here, where the
+                // choice is.
+                aria-selected={row.selected}
+                // Omitted until the panel actually mounts (views mount lazily
+                // on first activation, below) — pointing at an id that isn't in
+                // the DOM yet would be a dangling reference for any view not
+                // yet visited this session.
+                aria-controls={
+                  mountedViewIds.has(row.id) ? tabPanelId(row.id) : undefined
+                }
+                className="nav-view-row"
+                onClick={() => pickView(row.id)}
+              >
+                {hasIcons && (
+                  <span className="nav-view-row__icon">{row.icon}</span>
+                )}
+                <span className="nav-view-row__label">{row.title}</span>
+              </div>
+              {row.id === chromeHostId && (
+                <div className="nav-view-row__chrome">
+                  <UnscopedChromeSlot ctx={ctx} />
+                </div>
               )}
-              <span className="nav-view-row__label">{row.title}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* The active view, named — and the place its actions live. They're toolbar
-          contributions on the "navigator" surface rather than anything this
-          panel knows about, which is how the workspaces + button gets here
-          without core.navigator importing a line of workspace code. */}
+      {/* The active view, named — and the place its *scoped* actions live
+          (toolbar contributions on the "navigator" surface `when`-bound to this
+          view). Unscoped chrome — the Add-workspace "+" — rides the Workspaces
+          row above instead (ADR 0048); it only falls to this header when the
+          list is hidden (one enabled view), which is the sole case
+          `chromeHostId` can match `activeView.id` here. Either way core.navigator
+          imports not a line of workspace code. */}
       {activeView && (
         // `data-focus-chrome`: header controls (the contributed toolbar), not
         // content — keyboard region-entry skips past this to land in the
@@ -201,6 +238,9 @@ function SwitcherNavigator({
             target={{ viewId: activeView.id }}
             showMenu={ctx.ui.showMenu}
           />
+          {!showViewList && chromeHostId != null && (
+            <UnscopedChromeSlot ctx={ctx} />
+          )}
         </div>
       )}
 
@@ -253,6 +293,10 @@ function StackedNavigator({
   collapsed: readonly string[];
 }) {
   const collapsed = new Set(collapsedIds);
+  // The section header that carries the Add-workspace "+" — the Workspaces
+  // section, or nowhere when that view isn't enabled (ADR 0048; no "top
+  // section" fallback any more).
+  const chromeHostId = chromeHostViewId(views);
 
   function toggle(viewId: string) {
     navigatorPrefsService.set({
@@ -298,6 +342,7 @@ function StackedNavigator({
                 target={{ viewId: view.id }}
                 showMenu={ctx.ui.showMenu}
               />
+              {view.id === chromeHostId && <UnscopedChromeSlot ctx={ctx} />}
             </div>
             <div className="nav-stack-body" hidden={isCollapsed}>
               <ErrorBoundary name={view.id}>
