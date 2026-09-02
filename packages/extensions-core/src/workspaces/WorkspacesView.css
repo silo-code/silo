@@ -103,8 +103,9 @@
   pointer-events: none;
 }
 
-/* Companion: same line, touching the key on its content-facing side, at the
-   same 70% — together they read as one 4px-wide marker. */
+/* Companion: same line, touching the key on its content-facing side. The key
+   sits at 70% and this at 15%, so the pair reads as one line with depth
+   rather than two marks. */
 .ws-item.active .ws-active-stem::after {
   content: "";
   position: absolute;
@@ -113,7 +114,7 @@
   bottom: 0;
   width: 2px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--silo-color-accent) 70%, transparent);
+  background: color-mix(in srgb, var(--silo-color-accent) 15%, transparent);
 }
 
 .ws-item .ws-icon {
