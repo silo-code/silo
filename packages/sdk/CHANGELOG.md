@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.44.0](https://github.com/silo-code/silo/compare/sdk-v0.43.0...sdk-v0.44.0) (2026-09-02)
+
+
+### Features
+
+* **sdk:** ctx.storage cross-workspace directory resolution ([#481](https://github.com/silo-code/silo/issues/481)) ([0c9ec86](https://github.com/silo-code/silo/commit/0c9ec86e4185cdf77a9c5e1c25cc791228adf0e6))
+
 ## [0.43.0](https://github.com/silo-code/silo/compare/sdk-v0.42.0...sdk-v0.43.0) (2026-09-01)
 
 
