@@ -448,60 +448,58 @@
   --ws-group-neutral-ink: var(--silo-color-input-text);
 }
 
-/* The whole group becomes one bordered card */
+/* Colored group: the color is a soft wash over the whole group, not card
+   chrome — a faint flat tint, a touch stronger toward the top, plus a 1px
+   inset edge so the group still reads as one contained block. The header and
+   rows keep neutral chrome. Driven entirely by the stored --ws-group-color
+   (a hex, or a color-mix() string from the neutral swatches). */
 .ws-group--colored {
-  --ws-group-mix: 20%;
-  --ws-group-mix-hover: 30%;
-  border: 2px solid
-    color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix), transparent);
+  /* Scales every mix below. Bumped on light themes, where the same percentage
+     of a mid-tone color barely registers against a light ground. */
+  --ws-group-wash: 1;
   border-radius: var(--silo-radius-sm);
   margin-inline: 4px;
   margin-bottom: 4px;
+  padding-block: 3px;
   /* margin-top intentionally omitted — controlled by .ws-group base rule */
+  background:
+    radial-gradient(
+      120% 90% at 50% 0%,
+      color-mix(
+        in srgb,
+        var(--ws-group-color) calc(3% * var(--ws-group-wash)),
+        transparent
+      ),
+      transparent 72%
+    ),
+    color-mix(
+      in srgb,
+      var(--ws-group-color) calc(6% * var(--ws-group-wash)),
+      transparent
+    );
+  box-shadow: inset 0 0 0 1px
+    color-mix(
+      in srgb,
+      var(--ws-group-color) calc(10% * var(--ws-group-wash)),
+      transparent
+    );
 }
 
 [data-theme="light"] .ws-group--colored {
-  --ws-group-mix: 35%;
-  --ws-group-mix-hover: 45%;
-  /* Darken the group color for readable text on the tinted header. On dark
-     themes this isn't set, so `var(--ws-group-text-color)` falls through to
-     `var(--ws-group-color)`, which already contrasts well against dark bg. */
-  --ws-group-text-color: color-mix(in srgb, var(--ws-group-color) 80%, black);
+  --ws-group-wash: 1.7;
 }
 
-/* Header fills the top of the card with a subtle tint */
+/* Header and body sit directly on the wash — no separate fill. */
 .ws-group--colored .ws-group-header {
-  background: color-mix(
-    in srgb,
-    var(--ws-group-color) var(--ws-group-mix),
-    transparent
-  );
   margin: 0;
-  border-radius: calc(var(--silo-radius-sm) - 2px)
-    calc(var(--silo-radius-sm) - 2px) 0 0;
 }
 
-.ws-group--colored .ws-group-header:hover {
-  background: color-mix(
-    in srgb,
-    var(--ws-group-color) var(--ws-group-mix-hover),
-    transparent
-  );
-}
-
-.ws-group--colored .ws-group-name,
-.ws-group--colored .ws-group-caret {
-  color: var(--ws-group-text-color, var(--ws-group-color));
-  opacity: 1;
-}
-
-/* Body sits inside the card — no separate border needed */
 .ws-group--colored .ws-group-body {
   margin: 0;
   padding: 4px 0 2px;
 }
 
-/* Items inside a colored group use symmetric margins matching the right side */
+/* Symmetric row insets — the wash edge stands in for the old card border. */
 .ws-group--colored .ws-group-body .ws-item {
   margin-left: 4px;
 }
