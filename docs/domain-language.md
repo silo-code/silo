@@ -275,6 +275,16 @@ stays a PTY, a shell, and a TUI.
   from the right-click **Agents** submenu, which just types the profile's
   command into the terminal you're in — gets full catalog identity and no
   profile; Silo never guesses one.
+- The `id` is also a **command-id component** (`core.newAgent.<id>`, RFC 0033
+  phase 2) and the value `silo agent run --profile <id>` takes — which is why it
+  is user-authored and editable, not derived-and-frozen. Renaming it retires
+  that command; a keybinding on the old id goes inert (kept, not pruned — ADR
+  0046) and the editor warns first.
+- **Default profile** — the one profile flagged `AgentProfile.default` (at most
+  one; set only by an explicit gesture on the Profiles tab, never inferred). The
+  generic **New Agent** command (`core.newAgent`) and a bare `silo agent run`
+  launch it — falling back to the first profile in list order when none is
+  flagged.
 
 _Avoid_: "agent config" / "agent preset" (it is a launch recipe, not the
 agent's own configuration); conflating asserted `assumedAgentId` with observed

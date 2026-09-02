@@ -120,11 +120,17 @@ export function cloneAgentState(
  * missing `id`, `label`, or `command` (or with the wrong type) is dropped with
  * a logged warning rather than failing hydration; the first occurrence of a
  * duplicate id wins; a non-array (or absent) value yields `[]`.
+ *
+ * `default` (phase 2) is copied only when strictly `true` — a truthy non-boolean
+ * is dropped, not coerced. The "at most one default" invariant the runtime
+ * mutators maintain is re-imposed here too: a hand-edited file with several
+ * defaults keeps the flag on the first claiming entry and loses it on the rest.
  */
 export function loadAgentProfiles(raw: unknown): AgentProfile[] {
   if (!Array.isArray(raw)) return [];
   const out: AgentProfile[] = [];
   const seen = new Set<string>();
+  let defaultClaimed = false;
   for (const entry of raw) {
     const e = entry as Partial<AgentProfile> | null;
     if (
@@ -154,6 +160,14 @@ export function loadAgentProfiles(raw: unknown): AgentProfile[] {
     }
     if (typeof e.assumedAgentId === "string" && e.assumedAgentId) {
       profile.assumedAgentId = e.assumedAgentId;
+    }
+    if (e.default === true) {
+      if (defaultClaimed) {
+        console.warn(`agent profile "${e.id}": dropping duplicate default flag`);
+      } else {
+        profile.default = true;
+        defaultClaimed = true;
+      }
     }
     out.push(profile);
   }

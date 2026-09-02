@@ -51,6 +51,31 @@ instance. Because the command works by launching the real binary (which is then
 forwarded to the running instance), pointing `open -a Silo` at the app won't
 pass the path — use the binary path or the installed shim.
 
+## Launching an agent
+
+```sh
+silo agent run --profile claude-work   # launch that Agent Profile
+silo agent run                         # launch the default profile
+```
+
+`silo agent run` starts an [agent profile](/guide/agent-sessions#starting-an-agent) —
+the same named launch recipes that appear in the `+` menu and on **Settings →
+Agents → Profiles**. `--profile` takes the profile's **id** (the short value
+shown in the editor, e.g. `claude-work`); with no `--profile` it uses the
+profile marked **default**, or the first one in the list if none is marked.
+
+The agent opens in **the workspace your shell is in** — Silo picks the open
+workspace whose folder contains your current directory, or creates one rooted
+there if none does — and the terminal starts in that directory, not the
+workspace root. That workspace is activated and the new terminal focused.
+
+`silo agent` with anything other than `run` is treated as a path, so a directory
+named `agent` still opens normally. Listing profiles from the shell
+(`silo agent list`) is not available yet.
+
+Like `silo <path>`, this is warm/cold: forwarded to the running instance, or
+applied on the next launch.
+
 ## Extension commands
 
 ```sh

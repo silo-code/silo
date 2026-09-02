@@ -555,4 +555,31 @@ describe("loadAgentProfiles (RFC 0033 R2)", () => {
     expect(out[1].configDir).toBeUndefined();
     expect(out[1].assumedAgentId).toBeUndefined();
   });
+
+  it("round-trips a strictly-true default flag (RFC 0033 phase 2)", () => {
+    const out = loadAgentProfiles([
+      { id: "a", label: "A", command: "c" },
+      { id: "b", label: "B", command: "c", default: true },
+    ]);
+    expect(out[0].default).toBeUndefined();
+    expect(out[1].default).toBe(true);
+  });
+
+  it("keeps default on the first claiming entry when several claim it", () => {
+    const out = loadAgentProfiles([
+      { id: "a", label: "A", command: "c", default: true },
+      { id: "b", label: "B", command: "c", default: true },
+    ]);
+    expect(out[0].default).toBe(true);
+    expect(out[1].default).toBeUndefined();
+  });
+
+  it("drops a non-boolean default without dropping the profile", () => {
+    const out = loadAgentProfiles([
+      { id: "a", label: "A", command: "c", default: 1 },
+      { id: "b", label: "B", command: "c", default: "yes" },
+    ]);
+    expect(out.map((p) => p.id)).toEqual(["a", "b"]);
+    expect(out.every((p) => p.default === undefined)).toBe(true);
+  });
 });

@@ -12,21 +12,25 @@
 //! - `silo <path>`                 — open path (dir, file, or missing)
 //! - `silo install <path>`         — install extension from folder
 //! - `silo uninstall <id>`         — uninstall extension by id
+//! - `silo agent run [--profile <id>]` — launch an Agent Profile (RFC 0033)
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Manager, State};
 
-/// A resolved CLI request. `action` is `"open"`, `"install"`, or `"uninstall"`.
+/// A resolved CLI request. `action` is `"open"`, `"install"`, `"uninstall"`, or
+/// `"agent-run"`.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct CliRequest {
     pub action: String,
-    /// Resolved absolute path — set for `"open"` and `"install"`.
+    /// Resolved absolute path — set for `"open"` and `"install"`, and the
+    /// forwarded cwd for `"agent-run"` (which workspace the shell is in).
     pub path: Option<String>,
     /// `"dir"`, `"file"`, or `"missing"` — only set for `"open"`.
     pub kind: Option<String>,
-    /// Extension id — only set for `"uninstall"`.
+    /// Extension id for `"uninstall"`; the `--profile` id (or `None` for the
+    /// default) for `"agent-run"`.
     pub id: Option<String>,
 }
 
@@ -40,11 +44,28 @@ pub struct PendingLaunchArg(pub Mutex<Option<CliRequest>>);
 ///
 /// - `silo install <path>` → `{ action: "install", path: <abs> }`
 /// - `silo uninstall <id>` → `{ action: "uninstall", id: <id> }`
+/// - `silo agent run [--profile <id>]` → `{ action: "agent-run", path: <cwd>, id: <profile?> }`
 /// - `silo <path>` → `{ action: "open", path: <abs>, kind: "dir"|"file"|"missing" }`
 /// - `silo` (bare) → `None` (only focus the window)
 pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
     let mut pos = argv.iter().skip(1).filter(|a| !a.starts_with('-'));
     let first = pos.next()?;
+
+    // `silo agent run [--profile <id>]` (RFC 0033). Only `run` as the next
+    // positional makes `agent` a subcommand — `pos.clone()` peeks without
+    // consuming, so a bare `silo agent` (or any other second token) falls
+    // through to the path-open arm and a directory named `agent` still opens.
+    if first == "agent" && pos.clone().next().map(String::as_str) == Some("run") {
+        let cwd_norm = std::fs::canonicalize(cwd)
+            .map(|p| super::fs::normalize_path(&p))
+            .unwrap_or_else(|_| super::fs::normalize_path(Path::new(cwd)));
+        return Some(CliRequest {
+            action: "agent-run".to_string(),
+            path: Some(cwd_norm),
+            kind: None,
+            id: agent_run_profile(argv),
+        });
+    }
 
     match first.as_str() {
         "install" => {
@@ -92,6 +113,24 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
             })
         }
     }
+}
+
+/// The `--profile` value for `silo agent run`, from the raw argv (the
+/// positional iterator in [`resolve_cli_request`] has already dropped every
+/// `-`-prefixed token). Accepts `--profile <value>` and `--profile=<value>`;
+/// a trailing `--profile` with no value, and every unknown flag, are ignored —
+/// a bare run (no profile → the default) is the safe outcome, never a panic.
+fn agent_run_profile(argv: &[String]) -> Option<String> {
+    let mut it = argv.iter();
+    while let Some(arg) = it.next() {
+        if let Some(value) = arg.strip_prefix("--profile=") {
+            return (!value.is_empty()).then(|| value.to_string());
+        }
+        if arg == "--profile" {
+            return it.next().filter(|v| !v.is_empty()).map(|v| v.to_string());
+        }
+    }
+    None
 }
 
 /// Whether an install argument reads as a registry extension id
@@ -365,6 +404,64 @@ mod tests {
         assert!(req.id.is_none());
         assert!(req.path.unwrap().ends_with("acme.clock"));
         let _ = std::fs::remove_dir(&dir);
+    }
+
+    #[test]
+    fn agent_run_with_profile_flag() {
+        // A nonexistent cwd: canonicalize() fails and we fall back to the
+        // lexical path, so the assertion is stable across machines.
+        let req = resolve_cli_request(
+            &argv(&["agent", "run", "--profile", "claude-work"]),
+            "/no/such/repo",
+        )
+        .unwrap();
+        assert_eq!(req.action, "agent-run");
+        assert_eq!(req.id.unwrap(), "claude-work");
+        assert!(req.kind.is_none());
+        assert_eq!(req.path.unwrap(), "/no/such/repo");
+    }
+
+    #[test]
+    fn agent_run_profile_equals_form() {
+        let req =
+            resolve_cli_request(&argv(&["agent", "run", "--profile=codex"]), "/tmp").unwrap();
+        assert_eq!(req.action, "agent-run");
+        assert_eq!(req.id.unwrap(), "codex");
+    }
+
+    #[test]
+    fn agent_run_bare_has_no_profile() {
+        let req = resolve_cli_request(&argv(&["agent", "run"]), "/tmp").unwrap();
+        assert_eq!(req.action, "agent-run");
+        assert!(req.id.is_none());
+    }
+
+    #[test]
+    fn agent_run_valueless_profile_flag_is_bare() {
+        let req =
+            resolve_cli_request(&argv(&["agent", "run", "--profile"]), "/tmp").unwrap();
+        assert_eq!(req.action, "agent-run");
+        assert!(req.id.is_none());
+    }
+
+    #[test]
+    fn agent_run_ignores_extra_positional_and_unknown_flags() {
+        let req = resolve_cli_request(
+            &argv(&["agent", "run", "extra", "--verbose", "--profile", "x"]),
+            "/tmp",
+        )
+        .unwrap();
+        assert_eq!(req.action, "agent-run");
+        assert_eq!(req.id.unwrap(), "x");
+    }
+
+    #[test]
+    fn agent_without_run_is_a_path_open() {
+        // `silo agent` (no `run`) must still open a path named `agent`, not be
+        // swallowed as a subcommand.
+        let req = resolve_cli_request(&argv(&["agent"]), "/tmp/some-cwd").unwrap();
+        assert_eq!(req.action, "open");
+        assert_eq!(req.path.unwrap(), "/tmp/some-cwd/agent");
     }
 
     #[test]

@@ -11,6 +11,8 @@ import {
   subscribeAgentProfiles,
   removeAgentProfile,
   moveAgentProfile,
+  setDefaultAgentProfile,
+  clearDefaultAgentProfile,
   hookInstallableAgents,
   sessionFileAgents,
   type AgentProfile,
@@ -139,6 +141,8 @@ export function AgentsProfilesPanel({
                 }
                 onMove={(delta) => moveAgentProfile(p.id, delta)}
                 onDelete={() => void onDelete(p)}
+                onSetDefault={() => setDefaultAgentProfile(p.id)}
+                onClearDefault={() => clearDefaultAgentProfile()}
                 onOpenSessions={onOpenSessions}
               />
             ))}

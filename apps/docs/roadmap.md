@@ -27,7 +27,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.processes` (foreground process observer)                                     | <Badge type="tip" text="stable" />   | [docs](/api/processes/)                                                                                                                                                                                                                        |
 | `ctx.agents` (coding-agent activity + resume hints)                               | <Badge type="warning" text="beta" /> | [How it works](/roadmap/agent-system)                                                                                                                                                                                                          |
 | `ctx.agents.catalog()` (+ `AgentIconGlyph`)                                       | <Badge type="warning" text="beta" /> | [docs](/api/agents/) · [RFC 0033](https://github.com/silo-code/silo/blob/main/docs/proposals/0033-agent-profiles.md)                                                                                                                           |
-| Agent Profiles (`ctx.agents.profiles`)                                            | <Badge type="info" text="planned" /> | [RFC 0033](https://github.com/silo-code/silo/blob/main/docs/proposals/0033-agent-profiles.md) — phase 1 ships the `+` menu, the terminal Agents submenu, and settings; the public SDK surface is phase 5                                       |
+| Agent Profiles (`ctx.agents.profiles`)                                            | <Badge type="info" text="planned" /> | [RFC 0033](https://github.com/silo-code/silo/blob/main/docs/proposals/0033-agent-profiles.md) — phases 1–2 ship the `+` menu, the Agents submenu, settings, per-profile commands and `silo agent run`; the public SDK surface is phase 5        |
 | Extension-API mechanism (`getExtension`)                                          | <Badge type="tip" text="stable" />   | [docs](/api/other/get-extension)                                                                                                                                                                                                               |
 | `ctx.editors` (documents)                                                         | <Badge type="tip" text="stable" />   | [docs](/api/editors/)                                                                                                                                                                                                                          |
 | `ctx.terminals` (terminal tabs)                                                   | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                                                                                                                                                                                                                   |
@@ -200,10 +200,11 @@ Not part of the extension SDK — host-side developer/test surfaces.
 
 A terminal entry point: `silo <dir>` foregrounds (or launches) Silo and
 opens/activates a workspace for that folder; `silo <file>` opens the file in the
-active workspace. Built on `tauri-plugin-single-instance` — a second launch is
-forwarded to the running instance rather than opening a new window. Install the
-command from **File → Install `silo` Command in PATH**. See
-[the `silo` command](/guide/cli).
+active workspace; `silo agent run [--profile <id>]` launches an Agent Profile
+(RFC 0033) into the workspace the shell is in. Built on
+`tauri-plugin-single-instance` — a second launch is forwarded to the running
+instance rather than opening a new window. Install the command from
+**File → Install `silo` Command in PATH**. See [the `silo` command](/guide/cli).
 
 ### Automation RPC <Badge type="warning" text="experimental" />
 

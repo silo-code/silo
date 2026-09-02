@@ -21,6 +21,7 @@ import { store, setTerminalSetting } from "@silo-code/extension-host/internal";
 import { AgentsHooksPanel } from "./AgentsHooksPanel";
 import { AgentsProfilesPanel } from "./AgentsProfilesPanel";
 import { selfHealInstalledHooks } from "./hook-self-heal";
+import { registerProfileCommands } from "./profile-commands";
 import "./AgentsSettingsPage.css";
 
 /** Mirror of `silo.agents`' {@link AgentsExtensionAPI} — core cannot import silo. */
@@ -137,6 +138,9 @@ export const extension: Extension = {
       order: 1,
       component: () => <AgentsSettingsPage ctx={ctx} />,
     });
+    // Agent-launch commands (RFC 0033 phase 2): one per profile, kept synced
+    // with the list, plus a generic `core.newAgent` for the default.
+    ctx.subscriptions.push(registerProfileCommands(ctx));
     // Hook Reconcile: repair already-installed hooks on every launch, not
     // only when this settings page happens to be opened. Fire-and-forget —
     // never blocks activation, and is silent on a no-op.

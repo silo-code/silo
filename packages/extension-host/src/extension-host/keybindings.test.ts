@@ -181,6 +181,18 @@ describe("dispatchKey", () => {
     expect(run).not.toHaveBeenCalled();
   });
 
+  it("does not swallow a chord bound to an unregistered command (RFC 0033 R6)", () => {
+    // The state after a `core.newAgent.<profileId>` command is retired by a
+    // profile delete/rename: the keybindings.json entry survives, its command
+    // does not.
+    setUserBindings([{ command: "core.newAgent.gone", key: "cmd+alt+g" }]);
+    const e = keyEvent({ code: "KeyG", ctrl: true, alt: true });
+
+    expect(dispatchKey(e)).toBe(false);
+    expect(e.preventDefault).not.toHaveBeenCalled();
+    expect(e.stopPropagation).not.toHaveBeenCalled();
+  });
+
   it("honors a when clause on the binding", () => {
     disposables.push(
       keybindingRegistry.register({

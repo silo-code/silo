@@ -58,6 +58,39 @@ export function findWorkspaceByFolder(
   );
 }
 
+/** True when `folder` is `dir` itself or lives inside it — matched at a path
+ *  segment boundary, so `/a/b` contains `/a/b/c` but not `/a/bc`. */
+export function folderContains(dir: string, folder: string): boolean {
+  const d = normalizeFolder(dir);
+  const f = normalizeFolder(folder);
+  return f === d || f.startsWith(d === "/" ? "/" : `${d}/`);
+}
+
+/**
+ * The open workspace whose primary folder or one of its `extraFolders`
+ * **contains** `cwd` — the deepest match wins when several nest. Used by
+ * `silo agent run` to launch into the workspace the shell is actually in
+ * (RFC 0033 R5), where `findWorkspaceByFolder`'s exact-match is too strict.
+ */
+export function findWorkspaceContaining(
+  workspaces: Record<string, Workspace>,
+  cwd: string,
+): Workspace | undefined {
+  let best: Workspace | undefined;
+  let bestLen = -1;
+  for (const w of Object.values(workspaces)) {
+    for (const folder of [w.folder, ...(w.extraFolders ?? [])]) {
+      if (!folderContains(folder, cwd)) continue;
+      const len = normalizeFolder(folder).length;
+      if (len > bestLen) {
+        best = w;
+        bestLen = len;
+      }
+    }
+  }
+  return best;
+}
+
 /**
  * Act on a resolved CLI request against the live workspace store:
  *

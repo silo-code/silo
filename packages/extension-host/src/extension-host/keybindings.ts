@@ -1,5 +1,5 @@
 import { Registry } from "./registry";
-import { executeCommand } from "./commands";
+import { commandRegistry, executeCommand } from "./commands";
 import { contextKeys } from "./context-keys";
 import { menuItemRegistry } from "./menu-items";
 import {
@@ -185,6 +185,14 @@ function dispatchOverrideOnly(
     if (bindings.some((b) => b.command === command)) continue;
     if (commandHasMenuItem(command)) continue;
     if (isRemoved(command)) continue;
+    // A user binding whose command isn't registered — the state left behind
+    // when a `core.newAgent.<profileId>` command is retired by a profile
+    // delete or id rename (RFC 0033 R6). Skip it *before* consuming the
+    // keystroke, so the chord falls through to whatever else would handle it.
+    // The keybindings.json entry is deliberately kept, not pruned: it is user
+    // data (ADR 0046) and revives correctly if a profile with that id is
+    // recreated.
+    if (!commandRegistry.get(command)) continue;
     if (!matches(parseKey(key), e)) continue;
     e.preventDefault();
     e.stopPropagation();

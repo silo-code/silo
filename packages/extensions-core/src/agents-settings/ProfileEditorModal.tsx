@@ -27,6 +27,11 @@ import {
   draftIsValid,
   configDirEnvVarForAgent,
   fallbackAgentForCommand,
+  profileCommandId,
+  renameRetiresBinding,
+  overrideKey,
+  isRemoved,
+  displayKey,
   type AgentProfile,
 } from "@silo-code/extension-host/internal";
 
@@ -124,6 +129,27 @@ export function ProfileEditorModal({
     const errs = validateProfileDraft(draft, existing, editingId);
     setErrors(errs);
     if (!draftIsValid(errs)) return;
+
+    // R7: renaming a profile's id retires its `core.newAgent.<id>` command, so
+    // a user keybinding on the old id goes dead (it stays inert per R6, never
+    // pruned). Warn before that happens — only for a real user binding, since
+    // the per-profile commands declare no defaults.
+    const nextId = idValue.trim();
+    const hasUserBinding = (cmd: string) =>
+      overrideKey(cmd) !== undefined || isRemoved(cmd);
+    if (
+      editingId &&
+      renameRetiresBinding(editingId, nextId, hasUserBinding)
+    ) {
+      const oldKey = overrideKey(profileCommandId(editingId));
+      const chord = oldKey ? ` (${displayKey(oldKey)})` : "";
+      const ok = await ctx.ui.confirm({
+        title: "Rename this profile?",
+        body: `Its keyboard shortcut${chord} is bound to the old id “${editingId}” and will stop working. You can rebind it on the Keyboard Shortcuts page.`,
+        confirmLabel: "Rename",
+      });
+      if (!ok) return;
+    }
 
     setSaving(true);
     try {

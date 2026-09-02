@@ -445,6 +445,8 @@ export {
   updateAgentProfile,
   removeAgentProfile,
   moveAgentProfile,
+  setDefaultAgentProfile,
+  clearDefaultAgentProfile,
 } from "../state/agent-profiles";
 export { launchAgentProfile } from "./agents/agent-launch";
 export { takePendingLaunch, drainPendingLaunch } from "./agents/pending-launch";
@@ -459,6 +461,9 @@ export {
   expandTilde,
   firstToken,
   fallbackAgentForCommand,
+  profileCommandId,
+  resolveDefaultProfile,
+  renameRetiresBinding,
   PROFILE_ID_RE,
 } from "./agents/agent-profile-model";
 export type {

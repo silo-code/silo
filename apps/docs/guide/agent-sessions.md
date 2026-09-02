@@ -24,6 +24,17 @@ which opens a new terminal and starts the agent there, and a terminal's
 right-click **Agents** submenu, which runs the agent **in that terminal** — the
 same as typing its command yourself.
 
+Every profile is also addressable by name:
+
+- **A keyboard shortcut** — each profile gets a command (searchable and bindable
+  on **Settings → Keyboard Shortcuts**), plus a generic **New Agent** command
+  that launches whichever profile you mark as **default** (its `⋮` menu →
+  **Set as default**). Bind **New Agent** once and it keeps working even if you
+  rename the profile behind it.
+- **The shell** — `silo agent run --profile <id>` (or just `silo agent run` for
+  the default) starts the profile in whatever workspace your shell is in. See
+  [the `silo` command](/guide/cli#launching-an-agent).
+
 A profile is just a way to start a terminal — everything after that is the
 agent's own CLI, exactly as if you had typed the command.
 
