@@ -78,10 +78,14 @@
   bottom: -1px;
 }
 
-/* Active workspace: no background fill — a vertical accent "stem" drops from
-   under the icon, down the icon column, ending just past the row's content.
-   It's a real element (not ::before/::after) so it never collides with the
-   drag reorder lines, which own both row pseudo-elements. */
+/* Active workspace: no background fill — a vertical two-tone accent "stem"
+   drops from under the icon, down the icon column, ending just past the row's
+   content. A full-strength key line sits against a translucent companion (no
+   gap), echoing the duotone icon's solid-stroke-plus-tint pairing.
+
+   It's a real element (not the row's ::before/::after) so it never collides
+   with the drag reorder lines, which own both row pseudo-elements — the
+   companion rides the stem's own ::after, which is free. */
 .ws-item .ws-active-stem {
   display: none;
 }
@@ -97,6 +101,19 @@
   border-radius: 2px;
   background: var(--silo-color-accent);
   pointer-events: none;
+}
+
+/* Companion: same line, touching the key on its content-facing side, at 20%
+   so it reads as depth rather than a second mark. */
+.ws-item.active .ws-active-stem::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--silo-color-accent) 20%, transparent);
 }
 
 .ws-item .ws-icon {
