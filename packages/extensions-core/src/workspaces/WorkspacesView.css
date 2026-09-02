@@ -99,12 +99,13 @@
   bottom: 1px;
   width: 2px;
   border-radius: 2px;
-  background: var(--silo-color-accent);
+  background: color-mix(in srgb, var(--silo-color-accent) 70%, transparent);
   pointer-events: none;
 }
 
-/* Companion: same line, touching the key on its content-facing side, at 20%
-   so it reads as depth rather than a second mark. */
+/* Companion: same line, touching the key on its content-facing side. The key
+   sits at 70% and this at 20%, so the pair reads as one line with depth
+   rather than two marks. */
 .ws-item.active .ws-active-stem::after {
   content: "";
   position: absolute;
