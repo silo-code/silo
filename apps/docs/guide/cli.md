@@ -80,8 +80,9 @@ profile marked **default**, or the first one in the list if none is marked.
 The agent opens in **the workspace your shell is in**: Silo picks the workspace
 whose folder contains your current directory (the innermost one, if several
 nest, and it reopens that workspace if you had closed it). The terminal starts
-in your current directory, not the workspace root. That workspace is activated
-and the new terminal focused.
+in your current directory rather than at the workspace root — so an agent
+started from a subdirectory stays there. That workspace is activated and the new
+terminal focused.
 
 If your current directory isn't inside any workspace, nothing is launched —
 `silo agent run` never creates a workspace for you. Open one first with
