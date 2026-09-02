@@ -27,7 +27,7 @@ designed. As a primitive ships, its badge flips from
 | `ctx.processes` (foreground process observer)                                     | <Badge type="tip" text="stable" />   | [docs](/api/processes/)                                                                                                                                                                                                                        |
 | `ctx.agents` (coding-agent activity + resume hints)                               | <Badge type="warning" text="beta" /> | [How it works](/roadmap/agent-system)                                                                                                                                                                                                          |
 | `ctx.agents.catalog()` (+ `AgentIconGlyph`)                                       | <Badge type="warning" text="beta" /> | [docs](/api/agents/) · [RFC 0033](https://github.com/silo-code/silo/blob/main/docs/proposals/0033-agent-profiles.md)                                                                                                                           |
-| Agent Profiles (`ctx.agents.profiles`)                                            | <Badge type="info" text="planned" /> | [RFC 0033](https://github.com/silo-code/silo/blob/main/docs/proposals/0033-agent-profiles.md) — phases 1–2 ship the `+` menu, the Agents submenu, settings, per-profile commands and `silo agent run`; the public SDK surface is phase 5        |
+| Agent Profiles (`ctx.agents.profiles`)                                            | <Badge type="info" text="planned" /> | [RFC 0033](https://github.com/silo-code/silo/blob/main/docs/proposals/0033-agent-profiles.md) — phases 1–2 ship the `+` menu, the Agents submenu, settings, per-profile commands and `silo agent run`; the public SDK surface is phase 5       |
 | Extension-API mechanism (`getExtension`)                                          | <Badge type="tip" text="stable" />   | [docs](/api/other/get-extension)                                                                                                                                                                                                               |
 | `ctx.editors` (documents)                                                         | <Badge type="tip" text="stable" />   | [docs](/api/editors/)                                                                                                                                                                                                                          |
 | `ctx.terminals` (terminal tabs)                                                   | <Badge type="tip" text="stable" />   | [docs](/api/state/terminals)                                                                                                                                                                                                                   |
@@ -190,11 +190,13 @@ The shape of each planned surface is now designed in an **RFC** under
 
 Not part of the extension SDK — host-side developer/test surfaces.
 
-| Surface                 | Status                                       |                                                                          |
-| ----------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
-| `silo <path>` CLI       | <Badge type="tip" text="stable" />           | [docs](/guide/cli)                                                       |
-| Automation RPC (dev)    | <Badge type="warning" text="experimental" /> | [design](https://github.com/silo-code/silo/blob/main/docs/automation.md) |
-| Nightly release channel | <Badge type="tip" text="stable" />           | [docs](/guide/release-channels)                                          |
+| Surface                 | Status                                       |                                                                                                    |
+| ----------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `silo <path>` CLI       | <Badge type="tip" text="stable" />           | [docs](/guide/cli)                                                                                 |
+| CLI noun grammar        | <Badge type="info" text="planned" />         | [ADR 0047](https://github.com/silo-code/silo/blob/main/docs/decisions/0047-cli-command-grammar.md) |
+| CLI Control API         | <Badge type="info" text="planned" />         | [RFC 0034](https://github.com/silo-code/silo/blob/main/docs/proposals/0034-control-api.md)         |
+| Automation RPC (dev)    | <Badge type="warning" text="experimental" /> | [design](https://github.com/silo-code/silo/blob/main/docs/automation.md)                           |
+| Nightly release channel | <Badge type="tip" text="stable" />           | [docs](/guide/release-channels)                                                                    |
 
 ### `silo <path>` CLI <Badge type="tip" text="stable" />
 
@@ -205,6 +207,29 @@ active workspace; `silo agent run [--profile <id>]` launches an Agent Profile
 `tauri-plugin-single-instance` — a second launch is forwarded to the running
 instance rather than opening a new window. Install the command from
 **File → Install `silo` Command in PATH**. See [the `silo` command](/guide/cli).
+
+### CLI noun grammar <Badge type="info" text="planned" />
+
+Every `silo` capability gets one canonical spelling, `silo <noun> <verb>`, with
+today's forms kept as permanent shorthands: `silo <path>` for `silo ws open`,
+`silo install` for `silo ext install`. Reserved nouns are `ext`, `ws`, `agent`,
+`term`, and `help` — a folder with one of those names is still reachable as
+`./ws` or `silo -- ws`. Machine callers get `--json`, a `--ws <folder|.|id>`
+flag on workspace-scoped verbs, and commands that never prompt, because the
+CLI's primary consumer is a coding agent. Also lands the targeting fix: a path
+inside a workspace resolves to _that_ workspace — so `silo README.md` stops
+opening in whichever workspace the app last focused, and `silo .` from a
+subdirectory switches to the project above it instead of creating a second
+workspace.
+
+### CLI Control API <Badge type="info" text="planned" />
+
+A return channel, so a `silo` command can answer: real stdout, a real exit
+code, and one `--json` envelope. Today the CLI is a one-way forwarder — argv in,
+`exit 0` out — which is fine for "open this folder" and useless for "which
+workspaces exist" or "what id did that get". Workspace and profile _listings_
+don't need it (they read the config files on disk); live state, returning the id
+of something just created, and interactive pickers do.
 
 ### Automation RPC <Badge type="warning" text="experimental" />
 
