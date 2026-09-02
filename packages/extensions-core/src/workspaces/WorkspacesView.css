@@ -466,20 +466,20 @@
       120% 90% at 50% 0%,
       color-mix(
         in srgb,
-        var(--ws-group-color) calc(3% * var(--ws-group-wash)),
+        var(--ws-group-color) calc(4% * var(--ws-group-wash)),
         transparent
       ),
       transparent 72%
     ),
     color-mix(
       in srgb,
-      var(--ws-group-color) calc(6% * var(--ws-group-wash)),
+      var(--ws-group-color) calc(10% * var(--ws-group-wash)),
       transparent
     );
 }
 
 [data-theme="light"] .ws-group--colored {
-  --ws-group-wash: 1.7;
+  --ws-group-wash: 1.5;
 }
 
 /* Header and body sit directly on the wash — no separate fill. */
