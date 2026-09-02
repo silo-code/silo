@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.63.0](https://github.com/silo-code/silo/compare/silo-v0.62.0...silo-v0.63.0) (2026-09-02)
+
+
+### Features
+
+* **navigator:** bold the active row's label in the View List ([#489](https://github.com/silo-code/silo/issues/489)) ([32106dc](https://github.com/silo-code/silo/commit/32106dcee032172fdd3d480629edc9d22b606444))
+* **navigator:** move the Add-workspace "+" onto the Workspaces row ([#486](https://github.com/silo-code/silo/issues/486)) ([0fa6c26](https://github.com/silo-code/silo/commit/0fa6c261e2f0246648f9db88beae1709b7db1300))
+* **navigator:** rework active-workspace and colored-group visuals ([#488](https://github.com/silo-code/silo/issues/488)) ([d944103](https://github.com/silo-code/silo/commit/d944103a6c9383916a4077f1dffa465c1138b478))
+
 ## [0.62.0](https://github.com/silo-code/silo/compare/silo-v0.61.0...silo-v0.62.0) (2026-09-02)
 
 
