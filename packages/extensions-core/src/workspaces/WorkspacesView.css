@@ -449,12 +449,11 @@
 }
 
 /* Colored group: the color is a soft wash over the whole group, not card
-   chrome — a faint flat tint, a touch stronger toward the top, plus a 1px
-   inset edge so the group still reads as one contained block. The header and
-   rows keep neutral chrome. Driven entirely by the stored --ws-group-color
-   (a hex, or a color-mix() string from the neutral swatches). */
+   chrome — a faint flat tint, a touch stronger toward the top. No border; the
+   header and rows keep neutral chrome. Driven entirely by the stored
+   --ws-group-color (a hex, or a color-mix() string from the neutral swatches). */
 .ws-group--colored {
-  /* Scales every mix below. Bumped on light themes, where the same percentage
+  /* Scales the mixes below. Bumped on light themes, where the same percentage
      of a mid-tone color barely registers against a light ground. */
   --ws-group-wash: 1;
   border-radius: var(--silo-radius-sm);
@@ -475,12 +474,6 @@
     color-mix(
       in srgb,
       var(--ws-group-color) calc(6% * var(--ws-group-wash)),
-      transparent
-    );
-  box-shadow: inset 0 0 0 1px
-    color-mix(
-      in srgb,
-      var(--ws-group-color) calc(10% * var(--ws-group-wash)),
       transparent
     );
 }
