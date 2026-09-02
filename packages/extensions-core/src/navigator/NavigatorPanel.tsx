@@ -68,6 +68,21 @@ export function NavigatorPanel({ ctx }: { ctx: ExtensionContext }) {
     prefs,
   );
 
+  // The colored-group wash (WorkspacesView.css) reads --ws-group-wash-user off
+  // the document root. Mirror the pref there while the Navigator is mounted, so
+  // dragging the settings slider repaints the groups live; the CSS falls back
+  // to 1 when the Navigator isn't open.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty(
+      "--ws-group-wash-user",
+      String(prefs.groupColorIntensity),
+    );
+    return () => {
+      root.style.removeProperty("--ws-group-wash-user");
+    };
+  }, [prefs.groupColorIntensity]);
+
   return prefs.arrangement === "stacked" && views.length > 1 ? (
     <StackedNavigator
       ctx={ctx}

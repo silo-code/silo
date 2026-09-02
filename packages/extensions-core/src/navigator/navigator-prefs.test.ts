@@ -4,6 +4,7 @@ import {
   navigatorPrefsService,
   initNavigatorPrefs,
   clearNavigatorPrefsListeners,
+  stepGroupColorIntensity,
 } from "./navigator-prefs";
 
 /** In-memory ExtensionStorage stand-in, mirroring the host's real contract. */
@@ -168,5 +169,80 @@ describe("navigator arrangement pref", () => {
     storage.emit();
     expect(navigatorPrefsService.getState().arrangement).toBe("stacked");
     sub.dispose();
+  });
+});
+
+describe("navigator group color intensity pref", () => {
+  it("defaults to 1", () => {
+    const sub = initNavigatorPrefs(fakeStorage());
+    expect(navigatorPrefsService.getState().groupColorIntensity).toBe(1);
+    sub.dispose();
+  });
+
+  it("hydrates a persisted value", () => {
+    const sub = initNavigatorPrefs(
+      fakeStorage({ navigatorGroupColorIntensity: 1.8 }),
+    );
+    expect(navigatorPrefsService.getState().groupColorIntensity).toBe(1.8);
+    sub.dispose();
+  });
+
+  it("clamps a too-high value to the slider max", () => {
+    const sub = initNavigatorPrefs(
+      fakeStorage({ navigatorGroupColorIntensity: 9 }),
+    );
+    expect(navigatorPrefsService.getState().groupColorIntensity).toBe(2.4);
+    sub.dispose();
+  });
+
+  it("clamps a too-low value to the slider min", () => {
+    const sub = initNavigatorPrefs(
+      fakeStorage({ navigatorGroupColorIntensity: 0 }),
+    );
+    expect(navigatorPrefsService.getState().groupColorIntensity).toBe(0.4);
+    sub.dispose();
+  });
+
+  it("coerces a non-number to the default", () => {
+    const sub = initNavigatorPrefs(
+      fakeStorage({ navigatorGroupColorIntensity: "bold" }),
+    );
+    expect(navigatorPrefsService.getState().groupColorIntensity).toBe(1);
+    sub.dispose();
+  });
+
+  it("persists a change through set()", () => {
+    const storage = fakeStorage();
+    const sub = initNavigatorPrefs(storage);
+    navigatorPrefsService.set({ groupColorIntensity: 1.3 });
+    expect(storage.get<number>("navigatorGroupColorIntensity")).toBe(1.3);
+    sub.dispose();
+  });
+
+  it("picks up a value that arrives after activation", () => {
+    const storage = fakeStorage();
+    const sub = initNavigatorPrefs(storage);
+    expect(navigatorPrefsService.getState().groupColorIntensity).toBe(1);
+    storage.set("navigatorGroupColorIntensity", 2);
+    storage.emit();
+    expect(navigatorPrefsService.getState().groupColorIntensity).toBe(2);
+    sub.dispose();
+  });
+});
+
+describe("stepGroupColorIntensity", () => {
+  it("steps by 0.2 in each direction", () => {
+    expect(stepGroupColorIntensity(1, 1)).toBe(1.2);
+    expect(stepGroupColorIntensity(1, -1)).toBe(0.8);
+  });
+
+  it("rounds away floating-point drift", () => {
+    // 0.6 - 0.2 is 0.39999999999999997 without the round
+    expect(stepGroupColorIntensity(0.6, -1)).toBe(0.4);
+  });
+
+  it("clamps to the slider bounds", () => {
+    expect(stepGroupColorIntensity(2.4, 1)).toBe(2.4);
+    expect(stepGroupColorIntensity(0.4, -1)).toBe(0.4);
   });
 });

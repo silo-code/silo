@@ -1,5 +1,28 @@
 /* The Navigator settings tab (RFC 0030). Chrome only — Section, Switch,
-   IconButton, Tooltip are the SDK's. Design tokens only. */
+   IconButton, Tooltip, SettingRow are the SDK's. Design tokens only. */
+
+/* A labelled block inside a Section — the "Views" section holds two (the view
+   list and the arrangement picker), neither of which is a single right-aligned
+   control, so they can't be SettingRows. Match SettingRow's vertical rhythm and
+   hairline divider so the section still reads as a set of labelled fields. */
+.nav-settings-field {
+  padding: 10px 0;
+}
+
+.nav-settings-field:first-child {
+  padding-top: 0;
+}
+
+.nav-settings-field + .nav-settings-field {
+  border-top: 1px solid var(--silo-color-border-strong);
+}
+
+/* Field label — same size/color as SettingRow's `.silo-setting-row-label`. */
+.nav-settings-sublabel {
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-hi);
+  margin-bottom: 4px;
+}
 
 .nav-settings-hint {
   margin: 0 0 12px;
@@ -69,4 +92,83 @@
    Section label. */
 .nav-settings-arrangement {
   margin-top: 6px;
+}
+
+/* ── Group color intensity ─────────────────────────────────────────────── */
+
+/* SettingRow control: a compact live preview with an up/down stepper docked
+   beside it, sized to sit in the row's right-hand control cell. */
+.nav-group-color {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+/* The preview tile. Its wash formula is kept in sync with `.ws-group--colored`
+   in WorkspacesView.css — same percentages, same per-theme factor — driven
+   here by --preview-wash (the pref value, set inline). */
+.nav-group-color-preview {
+  --preview-wash-theme: 1;
+  --preview-w: calc(var(--preview-wash, 1) * var(--preview-wash-theme));
+  position: relative;
+  width: 144px;
+  padding: 7px 9px 9px;
+  border-radius: var(--silo-radius-sm);
+  overflow: hidden;
+  background:
+    radial-gradient(
+      120% 90% at 50% 0%,
+      color-mix(
+        in srgb,
+        var(--ws-group-color) calc(6% * var(--preview-w)),
+        transparent
+      ),
+      transparent 72%
+    ),
+    color-mix(
+      in srgb,
+      var(--ws-group-color) calc(15% * var(--preview-w)),
+      transparent
+    );
+}
+
+[data-theme="light"] .nav-group-color-preview {
+  --preview-wash-theme: 1.5;
+}
+
+.nav-group-color-preview-label {
+  display: block;
+  font-family: var(--silo-font-ui);
+  font-size: calc(var(--silo-font-size-chrome) - 1px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--silo-color-text-lo);
+}
+
+/* A single faux workspace row under the header. */
+.nav-group-color-preview-bar {
+  display: block;
+  width: 64%;
+  height: 6px;
+  margin-top: 7px;
+  border-radius: 3px;
+  background: var(--silo-color-bg-hover);
+}
+
+.nav-group-color-preview-val {
+  position: absolute;
+  right: 6px;
+  bottom: 5px;
+  font-family: var(--silo-font-ui);
+  font-size: calc(var(--silo-font-size-chrome) - 1px);
+  font-variant-numeric: tabular-nums;
+  color: var(--silo-color-text-hi);
+}
+
+.nav-group-color-stepper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }

@@ -48,18 +48,43 @@ export interface NavigatorPrefs {
    * Retained across (un)registration, same as the lists above.
    */
   stackedCollapsed: readonly string[];
+  /**
+   * Multiplier on the color wash a colored workspace group paints over its
+   * rows. `1` is the built-in strength; the settings stepper moves it in
+   * {@link GROUP_COLOR_INTENSITY_STEP} increments between
+   * {@link GROUP_COLOR_INTENSITY_MIN} and {@link GROUP_COLOR_INTENSITY_MAX}.
+   * Pushed onto `--ws-group-wash-user` by the Navigator panel.
+   */
+  groupColorIntensity: number;
 }
 
 const STORAGE_KEY_VIEW_ORDER = "navigatorViewOrder";
 const STORAGE_KEY_DISABLED_VIEWS = "navigatorDisabledViews";
 const STORAGE_KEY_ARRANGEMENT = "navigatorArrangement";
 const STORAGE_KEY_STACKED_COLLAPSED = "navigatorStackedCollapsed";
+const STORAGE_KEY_GROUP_COLOR_INTENSITY = "navigatorGroupColorIntensity";
+
+export const GROUP_COLOR_INTENSITY_MIN = 0.4;
+export const GROUP_COLOR_INTENSITY_MAX = 2.4;
+export const GROUP_COLOR_INTENSITY_STEP = 0.2;
+export const DEFAULT_GROUP_COLOR_INTENSITY = 1;
+
+/** Nudge the intensity by one step, clamped and rounded to avoid FP drift. */
+export function stepGroupColorIntensity(current: number, dir: -1 | 1): number {
+  const next =
+    Math.round((current + dir * GROUP_COLOR_INTENSITY_STEP) * 100) / 100;
+  return Math.min(
+    GROUP_COLOR_INTENSITY_MAX,
+    Math.max(GROUP_COLOR_INTENSITY_MIN, next),
+  );
+}
 
 const DEFAULT_PREFS: NavigatorPrefs = {
   viewOrder: [],
   disabledViews: [],
   arrangement: DEFAULT_ARRANGEMENT,
   stackedCollapsed: [],
+  groupColorIntensity: DEFAULT_GROUP_COLOR_INTENSITY,
 };
 
 /** Coerce persisted JSON to a string array — anything else becomes `[]`. */
@@ -71,6 +96,17 @@ function coerceIdList(v: unknown): readonly string[] {
 
 function coerceArrangement(v: unknown): ViewArrangement {
   return v === "stacked" || v === "one-at-a-time" ? v : DEFAULT_ARRANGEMENT;
+}
+
+/** Clamp a persisted intensity to the slider's range; non-numbers → default. */
+function coerceGroupColorIntensity(v: unknown): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    return DEFAULT_GROUP_COLOR_INTENSITY;
+  }
+  return Math.min(
+    GROUP_COLOR_INTENSITY_MAX,
+    Math.max(GROUP_COLOR_INTENSITY_MIN, v),
+  );
 }
 
 function sameList(a: readonly string[], b: readonly string[]): boolean {
@@ -97,6 +133,10 @@ export const navigatorPrefsService: ReactiveService<NavigatorPrefs> & {
     backingStorage?.set(STORAGE_KEY_STACKED_COLLAPSED, [
       ...prefs.stackedCollapsed,
     ]);
+    backingStorage?.set(
+      STORAGE_KEY_GROUP_COLOR_INTENSITY,
+      prefs.groupColorIntensity,
+    );
     for (const l of listeners) l(prefs);
   },
 };
@@ -127,11 +167,18 @@ export function initNavigatorPrefs(storage: ExtensionStorage): {
         prefs.stackedCollapsed,
       ),
     );
+    const groupColorIntensity = coerceGroupColorIntensity(
+      storage.get<unknown>(
+        STORAGE_KEY_GROUP_COLOR_INTENSITY,
+        prefs.groupColorIntensity,
+      ),
+    );
     if (
       !sameList(viewOrder, prefs.viewOrder) ||
       !sameList(disabledViews, prefs.disabledViews) ||
       arrangement !== prefs.arrangement ||
-      !sameList(stackedCollapsed, prefs.stackedCollapsed)
+      !sameList(stackedCollapsed, prefs.stackedCollapsed) ||
+      groupColorIntensity !== prefs.groupColorIntensity
     ) {
       prefs = {
         ...prefs,
@@ -139,6 +186,7 @@ export function initNavigatorPrefs(storage: ExtensionStorage): {
         disabledViews,
         arrangement,
         stackedCollapsed,
+        groupColorIntensity,
       };
       for (const l of listeners) l(prefs);
     }

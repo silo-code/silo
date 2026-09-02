@@ -78,8 +78,43 @@
   bottom: -1px;
 }
 
-.ws-item.active {
-  background: var(--silo-color-bg-active);
+/* Active workspace: no background fill — a vertical two-tone accent "stem"
+   drops from under the icon, down the icon column, ending just past the row's
+   content. A full-strength key line sits against a translucent companion (no
+   gap), echoing the duotone icon's solid-stroke-plus-tint pairing.
+
+   It's a real element (not the row's ::before/::after) so it never collides
+   with the drag reorder lines, which own both row pseudo-elements — the
+   companion rides the stem's own ::after, which is free. */
+.ws-item .ws-active-stem {
+  display: none;
+}
+
+.ws-item.active .ws-active-stem {
+  display: block;
+  position: absolute;
+  /* Centred under the 20px icon: row padding-left 10 + half of (20 - 2). */
+  left: 19px;
+  top: 31px;
+  bottom: 1px;
+  width: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--silo-color-accent) 70%, transparent);
+  pointer-events: none;
+}
+
+/* Companion: same line, touching the key on its content-facing side. The key
+   sits at 70% and this at 15%, so the pair reads as one line with depth
+   rather than two marks. */
+.ws-item.active .ws-active-stem::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--silo-color-accent) 15%, transparent);
 }
 
 .ws-item .ws-icon {
@@ -413,62 +448,74 @@
   --ws-group-neutral-ink: var(--silo-color-input-text);
 }
 
-/* The whole group becomes one bordered card */
+/* Colored group: the color is a soft wash over the whole group, not card
+   chrome — a faint flat tint, a touch stronger toward the top. No border; the
+   header and rows keep neutral chrome. Driven entirely by the stored
+   --ws-group-color (a hex, or a color-mix() string from the neutral swatches). */
 .ws-group--colored {
-  --ws-group-mix: 20%;
-  --ws-group-mix-hover: 30%;
-  border: 2px solid
-    color-mix(in srgb, var(--ws-group-color) var(--ws-group-mix), transparent);
+  /* Final wash strength = the user's setting (--ws-group-wash-user, pushed onto
+     :root by the Navigator panel from navigatorPrefs, default 1) times a
+     per-theme factor — light themes need more, since the same percentage of a
+     mid-tone color barely registers against a light ground. */
+  --ws-group-wash-theme: 1;
+  --ws-group-wash: calc(
+    var(--ws-group-wash-user, 1) * var(--ws-group-wash-theme)
+  );
   border-radius: var(--silo-radius-sm);
   margin-inline: 4px;
   margin-bottom: 4px;
+  padding-block: 3px;
   /* margin-top intentionally omitted — controlled by .ws-group base rule */
+  background:
+    radial-gradient(
+      120% 90% at 50% 0%,
+      color-mix(
+        in srgb,
+        var(--ws-group-color) calc(6% * var(--ws-group-wash)),
+        transparent
+      ),
+      transparent 72%
+    ),
+    color-mix(
+      in srgb,
+      var(--ws-group-color) calc(15% * var(--ws-group-wash)),
+      transparent
+    );
 }
 
 [data-theme="light"] .ws-group--colored {
-  --ws-group-mix: 35%;
-  --ws-group-mix-hover: 45%;
-  /* Darken the group color for readable text on the tinted header. On dark
-     themes this isn't set, so `var(--ws-group-text-color)` falls through to
-     `var(--ws-group-color)`, which already contrasts well against dark bg. */
-  --ws-group-text-color: color-mix(in srgb, var(--ws-group-color) 80%, black);
+  --ws-group-wash-theme: 1.5;
 }
 
-/* Header fills the top of the card with a subtle tint */
+/* Header and body sit directly on the wash — no separate fill. */
 .ws-group--colored .ws-group-header {
-  background: color-mix(
-    in srgb,
-    var(--ws-group-color) var(--ws-group-mix),
-    transparent
-  );
   margin: 0;
-  border-radius: calc(var(--silo-radius-sm) - 2px)
-    calc(var(--silo-radius-sm) - 2px) 0 0;
 }
 
+/* Hover deepens the group's own color rather than dropping to the generic
+   grey hover — a translucent layer of --ws-group-color that stacks over the
+   group wash beneath, so it reads as a darker/lighter patch of the same hue.
+   Fixed alpha (not scaled by --ws-group-wash) so the hover still registers at
+   low intensity settings. */
 .ws-group--colored .ws-group-header:hover {
-  background: color-mix(
-    in srgb,
-    var(--ws-group-color) var(--ws-group-mix-hover),
-    transparent
-  );
+  background: color-mix(in srgb, var(--ws-group-color) 22%, transparent);
+  color: var(--silo-color-text-hi);
 }
 
-.ws-group--colored .ws-group-name,
-.ws-group--colored .ws-group-caret {
-  color: var(--ws-group-text-color, var(--ws-group-color));
-  opacity: 1;
-}
-
-/* Body sits inside the card — no separate border needed */
 .ws-group--colored .ws-group-body {
   margin: 0;
   padding: 4px 0 2px;
 }
 
-/* Items inside a colored group use symmetric margins matching the right side */
+/* Symmetric row insets — the wash edge stands in for the old card border. */
 .ws-group--colored .ws-group-body .ws-item {
   margin-left: 4px;
+}
+
+/* Rows inside a colored group get the same hue-tinted hover as the header,
+   instead of the generic grey. */
+.ws-group--colored .ws-group-body .ws-item:hover {
+  background: color-mix(in srgb, var(--ws-group-color) 22%, transparent);
 }
 
 /* ── Group color swatch palette ─────────────────────────────────────────── */
