@@ -512,6 +512,12 @@
   margin-left: 4px;
 }
 
+/* Rows inside a colored group get the same hue-tinted hover as the header,
+   instead of the generic grey. */
+.ws-group--colored .ws-group-body .ws-item:hover {
+  background: color-mix(in srgb, var(--ws-group-color) 22%, transparent);
+}
+
 /* ── Group color swatch palette ─────────────────────────────────────────── */
 
 .ws-group-palette {
