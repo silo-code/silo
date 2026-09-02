@@ -645,7 +645,7 @@ _Avoid_: Top-level command (collides with the shorthand path form)
 Who answers a command: **Local** (the binary itself), **Disk-read** (the binary,
 reading ADR 0022's config tier — no GUI needed), **Forward** (the running app,
 fire-and-forget, exit 0), **Control** (the running app, round-trip, real stdout
-and exit code — the [Control API](proposals/0034-control-api.md), unbuilt). The
+and exit code — the [Control API](proposals/0034-control-api/proposal.md), unbuilt). The
 dividing line: config lives on disk, live state needs Control.
 _Avoid_: IPC / RPC as a synonym for Forward (the dev automation channel,
 [ADR 0012](decisions/0012-dev-automation-rpc.md), is a different surface);
