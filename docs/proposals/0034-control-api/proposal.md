@@ -69,14 +69,17 @@ Four pieces:
 3. **The operation allowlist.** A closed registry of named ops, each labelled
    read or mutate. An unknown op is `denied` — the channel is never a passthrough
    to arbitrary host capability. Extensions cannot reach it; they have `ctx`.
-4. **First consumers**, proving both tiers: `silo status` (new, read),
-   `silo ws list [--json]` (new, read — the live half disk cannot answer), and
-   converting the shipped `silo agent run` from Forward to Control so it returns
-   the terminal id it created (mutate).
+4. **First consumers**, proving both tiers: `silo status` (new, read, answered
+   host-side so it works even when the webview is wedged), `silo ws list`
+   (new — Disk-read per ADR 0047, with a live overlay from the channel when an
+   instance is running), and converting the shipped `silo agent run` from Forward
+   to Control so it returns the terminal id it created (mutate).
 
-Cold behavior is **fail-fast**: no instance listening exits non-zero with a
-distinguishable `not-running` code. `--launch` opts into starting the app and
-waiting. A read must never boot a desktop app as a side effect.
+Cold behavior for **Control** commands is **fail-fast**: no instance listening
+exits non-zero with a distinguishable `not-running` code, and `--launch` opts
+into starting the app and waiting. A read must never boot a desktop app as a side
+effect. `ws list` is unaffected — being Disk-read, it answers with no app running
+at all.
 
 ## Decisions
 
@@ -92,18 +95,33 @@ outlives the change belongs in an ADR written during implementation (see
 2. **The allowlist is closed, and every op is labelled `read` or `mutate`.**
    Both tiers are reachable over the same socket — the OS gate is the only
    principal boundary, so a second runtime gate would be theatre. The label is
-   what makes the surface auditable and is what the no-prompt rule keys off.
+   what makes the surface auditable. **No op may require user confirmation**, and
+   the registry refuses to admit one that does; a `--yes` flag and a `confirms`
+   column that no op sets would be an untested path with no caller. Admitting the
+   first such op is an amendment, not a flag shipped in advance.
 3. **Cold behavior: fail fast**, with `--launch` opting into launch-and-wait.
+   This **breaks the shipped `silo agent run`**, which today launches Silo and
+   runs the agent on startup — taken deliberately while the command has no
+   established users, because a CLI whose cold behavior varies per verb is one an
+   agent cannot learn once. It does not apply to `ws list`, which is Disk-read and
+   needs no instance. See "Breaking changes" in `design.md`.
 4. **The dev automation RPC (ADR 0012) does not converge here** — and this
    proposal does not decide whether it ever should. It stays dev-only and
    untouched; the question is left open deliberately rather than answered by
    this change. See "Deferred" below.
 5. **Error codes are a closed vocabulary with a fixed exit-code mapping**
-   (`invalid-args`, `not-running`, `not-found`, `denied`, `timeout`,
-   `internal`). Specified in `design.md`.
-6. **The envelope is versioned as a whole** by a top-level integer that only
-   changes on a breaking envelope change; per-command `data` shapes are
-   documented per verb and evolve additively.
+   (`invalid-args`, `not-running`, `not-found`, `denied`, `timeout`, `failed`,
+   `internal`). `failed` and `internal` are deliberately distinct — "your
+   profile's command isn't installed" must not share a code with "Silo is
+   broken", and a closed vocabulary means splitting them later would be exactly
+   the breaking change this proposal exists to avoid. Exit code 1 is left
+   unassigned so a crash stays distinguishable. Specified in `design.md`.
+6. **The envelope is versioned as a whole** by a top-level integer on the
+   **response**, changing only on a breaking envelope change; per-command `data`
+   shapes are documented per verb and evolve additively. Its audience is
+   third-party `--json` consumers, not the client: both shims `exec` the app
+   binary, so the process sending a request and the one answering it are the same
+   build, and there is nothing to negotiate.
 
 ## Scope
 
@@ -116,9 +134,12 @@ outlives the change belongs in an ADR written during implementation (see
 - The shared envelope, the error-code vocabulary, and the exit-code mapping.
 - The operation registry and its request round-trip through the webview.
 - `--json`, `--launch`, and the request timeout.
+- The Disk-read half of `silo ws list` — config-root resolution and workspace
+  file reading in the client process (ADR 0047's Disk-read mode).
 - Consumers: `silo status`, `silo ws list [--json]`, and moving
   `silo agent run` to Control so it returns the created terminal's id.
-- The CLI guide and the domain glossary, updated in the same change.
+- The CLI guide, the domain glossary, and the ADR 0047 amendment lines the
+  grammar changes require — all in the same change.
 
 **Out:**
 
@@ -127,14 +148,17 @@ outlives the change belongs in an ADR written during implementation (see
   picker needs; it does not build the picker.
 - Extension-contributed commands (`silo ext <id> <cmd>`) — RFC 0005 / RFC 0006.
 - `term` verbs, and any `ws` verb beyond `list`.
+- A user-consent mechanism (`--yes`, a `confirms` op flag) — no op in this change
+  needs one; see decision 2.
 - Any non-loopback, cross-machine, or container-crossing access.
 - Extension access to the channel. This is a CLI↔host surface.
 - Converging or retiring ADR 0012's automation RPC.
 
 **Implementation repo:** this one — `apps/desktop/src-tauri` (listener, client,
-parser), `apps/desktop/src` (webview-side operation handlers), `crates/pty-host`
-(promoting the runtime-base path helper it already owns), `apps/docs` (CLI
-guide).
+parser, Disk-read), `apps/desktop/src` (webview-side operation handlers),
+`crates/pty-host` (promoting the runtime-base path helper it already owns),
+`docs/decisions` (ADR 0047 amendments, plus the new ADR at collapse),
+`apps/docs` (CLI guide).
 
 ## Security
 
