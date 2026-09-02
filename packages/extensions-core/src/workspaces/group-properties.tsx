@@ -47,13 +47,12 @@ const PALETTE: Swatch[] = [
 const neutral = (pct: number): string =>
   `color-mix(in srgb, var(--ws-group-neutral-ink) ${pct}%, var(--silo-color-bg))`;
 
+// Just the two extremes of the neutral ramp — a faint tint and a strong one.
+// (Both invert per theme, so "faint"/"strong" describes the wash weight, not a
+// fixed light/dark value.)
 const GREYSCALE: Swatch[] = [
-  { label: "Gray 1", value: neutral(40) },
-  { label: "Gray 2", value: neutral(52) },
-  { label: "Gray 3", value: neutral(64) },
-  { label: "Gray 4", value: neutral(76) },
-  { label: "Gray 5", value: neutral(88) },
-  { label: "Gray 6", value: neutral(100) },
+  { label: "Gray faint", value: neutral(40) },
+  { label: "Gray strong", value: neutral(100) },
 ];
 
 function GroupPropertiesContent({
