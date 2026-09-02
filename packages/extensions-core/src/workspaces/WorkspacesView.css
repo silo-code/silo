@@ -492,6 +492,16 @@
   margin: 0;
 }
 
+/* Hover deepens the group's own color rather than dropping to the generic
+   grey hover — a translucent layer of --ws-group-color that stacks over the
+   group wash beneath, so it reads as a darker/lighter patch of the same hue.
+   Fixed alpha (not scaled by --ws-group-wash) so the hover still registers at
+   low intensity settings. */
+.ws-group--colored .ws-group-header:hover {
+  background: color-mix(in srgb, var(--ws-group-color) 22%, transparent);
+  color: var(--silo-color-text-hi);
+}
+
 .ws-group--colored .ws-group-body {
   margin: 0;
   padding: 4px 0 2px;
