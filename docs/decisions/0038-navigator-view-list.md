@@ -74,6 +74,10 @@ rejection of that shape.
   the view header, not a moving row. An intentionally unscoped item (e.g.
   `core.workspaces.add`) stays in the same place as the user switches views,
   which the earlier active-row placement would not have given it.
+  **Revised by ADR [0048](./0048-navigator-unscoped-chrome-on-workspaces-row.md):**
+  the one unscoped item, the Add-workspace "+", now rides the **Workspaces row**
+  of the view list rather than following the user across every view header.
+  Scoped `"navigator"` items are unchanged — they stay in their view's header.
 - Which view is active is conveyed **visually by the header alone**; the rows carry
   `aria-selected` but no highlight. Assistive tech is told at the point of choice,
   sighted users read it off the header.

@@ -68,8 +68,9 @@ _Avoid_: Split view, multi view, sections view; "stacked panel" (it's one
 panel, not several)
 
 **Open Workspace menu**:
-The shared "saved workspaces / New workspace…" menu offered from the Navigator's
-View Header, the workspace status-bar item, and the empty CenterDock.
+The shared "saved workspaces / New workspace…" menu offered from the "+" on the
+Navigator's Workspaces row (its section header in the Stacked arrangement; ADR
+0048), the workspace status-bar item, and the empty CenterDock.
 _Avoid_: Add workspace menu, reopen picker (that's the closed-workspace path)
 
 ### Panels & Docking
