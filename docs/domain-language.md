@@ -275,6 +275,15 @@ stays a PTY, a shell, and a TUI.
   from the right-click **Agents** submenu, which just types the profile's
   command into the terminal you're in — gets full catalog identity and no
   profile; Silo never guesses one.
+- The `id` is also a **command-id component** (`core.newAgent.<id>`, RFC 0033
+  phase 2) and the value `silo agent run --profile <id>` takes — which is why it
+  is user-authored and editable, not derived-and-frozen. Renaming it retires
+  that command; a keybinding on the old id goes inert (kept, not pruned — ADR 0046) and the editor warns first.
+- **Default profile** — the one profile flagged `AgentProfile.default` (at most
+  one; set only by an explicit gesture on the Profiles tab, never inferred). The
+  generic **New Agent** command (`core.newAgent`) and a bare `silo agent run`
+  launch it — falling back to the first profile in list order when none is
+  flagged.
 
 _Avoid_: "agent config" / "agent preset" (it is a launch recipe, not the
 agent's own configuration); conflating asserted `assumedAgentId` with observed
@@ -598,3 +607,54 @@ A task in the `todo` lane — nothing is blocking it and no one has started it.
 The hollow-ring status glyph. The state an agent (or a person) picks work up
 from.
 _Avoid_: "Open" (ambiguous with not-done), "backlog" (implies a separate tier)
+
+### Command Line
+
+Vocabulary for the `silo` command's namespace ([ADR 0047](decisions/0047-cli-command-grammar.md)).
+
+**CLI (the `silo` command)**:
+The user/runtime binary that drives a running Silo instance from a terminal —
+open a path, install an extension, run an agent profile. Its **primary consumer
+is coding agents**, humans second, and that premise is what the grammar is
+designed around. Distinct from the authoring scaffolder
+(`create-silo-extension`).
+_Avoid_: `silo-ext` (withdrawn, [RFC 0007](proposals/0007-extension-authoring-toolchain.md));
+"the CLI" as if it were a standalone tool that answers on stdout — most of it
+does not yet
+
+**Canonical form**:
+The one spelling of a capability: `silo <noun> <verb> [args]`. Host verbs match
+`[a-z][a-z0-9-]*` and never contain a dot. Every capability has exactly one.
+_Avoid_: Subcommand (too generic — verbs under a noun are subcommands too)
+
+**Shorthand**:
+A frozen top-level synonym for a canonical form, kept for human ergonomics —
+`silo <path>` for `silo ws open <path>`, `silo install` for `silo ext install`.
+A closed set that never grows.
+_Avoid_: Bare verb / bare alias (describes the shape, not that it is sugar over
+a canonical form); "the default command"
+
+**Reserved noun**:
+A first positional that is never a path — `ext`, `ws`, `agent`, `term`, `help`.
+Closed set, grown only by amending ADR 0047. `./<noun>` and `silo -- <noun>`
+always still address a folder of that name.
+_Avoid_: Top-level command (collides with the shorthand path form)
+
+**Execution mode**:
+Who answers a command: **Local** (the binary itself), **Disk-read** (the binary,
+reading ADR 0022's config tier — no GUI needed), **Forward** (the running app,
+fire-and-forget, exit 0), **Control** (the running app, round-trip, real stdout
+and exit code — the [Control API](proposals/0034-control-api.md), unbuilt). The
+dividing line: config lives on disk, live state needs Control.
+_Avoid_: IPC / RPC as a synonym for Forward (the dev automation channel,
+[ADR 0012](decisions/0012-dev-automation-rpc.md), is a different surface);
+"async" for Forward (the problem is that there is no answer, not that it is late)
+
+**CLI workspace identity**:
+How a workspace is addressed on the command line: the folder path of its primary
+`folder` or an `extraFolders` entry — matched exactly, or by **containment** for
+any path underneath it. `ws_<uuid>` is accepted wherever a workspace is named,
+for machine callers that need a handle surviving a rename; `--json` returns it.
+Never the display name, which collides.
+_Avoid_: Targeting by name; treating cwd as the workspace (cwd resolves relative
+paths, and is separately one fallback rung of workspace inference)

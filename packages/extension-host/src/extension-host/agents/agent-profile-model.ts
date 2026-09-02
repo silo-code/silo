@@ -11,6 +11,44 @@ import type { AgentProfile } from "../../state/types";
 export const PROFILE_ID_RE = /^[a-z0-9][a-z0-9-]*$/;
 
 /**
+ * The command id that launches a given profile (RFC 0033 phase 2). The single
+ * place `` `core.newAgent.${id}` `` is spelled, so the command registry, the
+ * editor's rename-warning check, and any keybinding lookup cannot drift. Profile
+ * ids match {@link PROFILE_ID_RE}, so the id can never inject a `.` and change
+ * how the command id parses.
+ */
+export function profileCommandId(profileId: string): string {
+  return `core.newAgent.${profileId}`;
+}
+
+/**
+ * The profile a launch that names none should use (RFC 0033 phase 2): the one
+ * flagged `default`, else the first in list order, else `undefined` when there
+ * are no profiles at all. The "else first" fallback is what makes the generic
+ * `core.newAgent` command and a bare `silo agent run` useful before anyone sets
+ * a default.
+ */
+export function resolveDefaultProfile(
+  profiles: readonly AgentProfile[],
+): AgentProfile | undefined {
+  return profiles.find((p) => p.default) ?? profiles[0];
+}
+
+/**
+ * Whether renaming a profile's id from `currentId` to `nextId` should warn the
+ * user first (RFC 0033 R7): true only when the id actually changes **and** a
+ * user keybinding exists on the retiring `core.newAgent.<currentId>` command.
+ * `hasUserBinding` is injected so this stays free of the keymap.
+ */
+export function renameRetiresBinding(
+  currentId: string,
+  nextId: string,
+  hasUserBinding: (commandId: string) => boolean,
+): boolean {
+  return nextId !== currentId && hasUserBinding(profileCommandId(currentId));
+}
+
+/**
  * Prefill an id from a label: lowercase, strip non-alphanumerics, collapse runs
  * to a single hyphen, trim leading/trailing hyphens. `"Claude (work)"` →
  * `"claude-work"`. An all-punctuation label slugs to `""` — the caller treats an

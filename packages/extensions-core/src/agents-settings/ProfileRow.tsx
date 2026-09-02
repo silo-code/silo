@@ -1,8 +1,8 @@
 /**
  * One Agent Profile row on the Profiles tab (RFC 0033 R13): label · command
- * (monospace) · agent icon + name · config directory when set · a
- * resume-status badge · a `⋮` menu (Edit / Duplicate / Move up / Move down /
- * Delete).
+ * (monospace) · agent icon + name · config directory when set · a `Default`
+ * badge when this is the default profile · a resume-status badge · a `⋮` menu
+ * (Edit / Duplicate / Set or Clear default / Move up / Move down / Delete).
  */
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import { AgentIconGlyph, Badge, IconButton, ListRow } from "@silo-code/sdk";
@@ -29,6 +29,8 @@ export function ProfileRow({
   onDuplicate,
   onMove,
   onDelete,
+  onSetDefault,
+  onClearDefault,
   onOpenSessions,
 }: {
   ctx: ExtensionContext;
@@ -42,16 +44,23 @@ export function ProfileRow({
   onDuplicate: () => void;
   onMove: (delta: -1 | 1) => void;
   onDelete: () => void;
+  onSetDefault: () => void;
+  onClearDefault: () => void;
   onOpenSessions: () => void;
 }) {
   const agent = ctx.agents
     .catalog()
     .find((a) => a.id === profile.assumedAgentId);
+  const isDefault = profile.default === true;
 
   function openMenu(at: { x: number; y: number }) {
     const items: MenuEntry[] = [
       { label: "Edit…", run: onEdit },
       { label: "Duplicate", run: onDuplicate },
+      { type: "separator" },
+      isDefault
+        ? { label: "Clear default", run: onClearDefault }
+        : { label: "Set as default", run: onSetDefault },
       { type: "separator" },
       {
         label: "Move up",
@@ -81,6 +90,11 @@ export function ProfileRow({
       }
       trailing={
         <>
+          {isDefault && (
+            <Badge size="sm" tone="accent">
+              Default
+            </Badge>
+          )}
           {profile.configDir && (
             <Badge size="sm" tone="neutral">
               {shortDir(profile.configDir)}

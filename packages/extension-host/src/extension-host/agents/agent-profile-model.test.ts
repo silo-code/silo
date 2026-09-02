@@ -7,6 +7,9 @@ import {
   buildLaunchLine,
   profileLaunchLine,
   fallbackAgentForCommand,
+  profileCommandId,
+  resolveDefaultProfile,
+  renameRetiresBinding,
 } from "./agent-profile-model";
 import type { AgentProfile } from "../../state/types";
 
@@ -185,5 +188,47 @@ describe("fallbackAgentForCommand", () => {
     expect(fallbackAgentForCommand("copilot")).toBe("copilot");
     // "pilot" must not resolve copilot via substring
     expect(fallbackAgentForCommand("pilot")).toBeUndefined();
+  });
+});
+
+describe("profileCommandId", () => {
+  it("spells the one `core.newAgent.<id>` form", () => {
+    expect(profileCommandId("claude-work")).toBe("core.newAgent.claude-work");
+  });
+});
+
+describe("resolveDefaultProfile", () => {
+  const a = profile({ id: "a", label: "A" });
+  const b = profile({ id: "b", label: "B" });
+  const c = profile({ id: "c", label: "C" });
+
+  it("returns the flagged default, wherever it sits in the list", () => {
+    expect(resolveDefaultProfile([a, { ...b, default: true }, c])?.id).toBe(
+      "b",
+    );
+  });
+
+  it("falls back to the first profile when none is flagged", () => {
+    expect(resolveDefaultProfile([a, b, c])?.id).toBe("a");
+  });
+
+  it("is undefined for an empty list", () => {
+    expect(resolveDefaultProfile([])).toBeUndefined();
+  });
+});
+
+describe("renameRetiresBinding", () => {
+  const bound = (cmd: string) => cmd === "core.newAgent.old";
+
+  it("is true only when the id changes and the old command is bound", () => {
+    expect(renameRetiresBinding("old", "new", bound)).toBe(true);
+  });
+
+  it("is false when the id is unchanged", () => {
+    expect(renameRetiresBinding("old", "old", bound)).toBe(false);
+  });
+
+  it("is false when the old command has no user binding", () => {
+    expect(renameRetiresBinding("free", "new", bound)).toBe(false);
   });
 });

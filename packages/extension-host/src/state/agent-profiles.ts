@@ -24,6 +24,24 @@ export function subscribeAgentProfiles(listener: () => void): () => void {
   return subscribe(store.agentProfiles, listener);
 }
 
+/**
+ * Replace the whole list **in place**, identity-preserving — the hydrate seam.
+ *
+ * `core.agents-settings` activates in `activateBuiltins()` (synchronous, before
+ * the async `hydrate`) and calls {@link subscribeAgentProfiles} right then, so
+ * the per-profile `core.newAgent.<id>` command sync is watching this exact
+ * array before it holds any persisted data. Reassigning `store.agentProfiles`
+ * would orphan that subscription; `splice` keeps the proxy identity and fires
+ * the subscribers with the loaded profiles.
+ */
+export function replaceAgentProfiles(profiles: readonly AgentProfile[]): void {
+  store.agentProfiles.splice(
+    0,
+    store.agentProfiles.length,
+    ...profiles.map((p) => ({ ...p })),
+  );
+}
+
 /** Append a profile. The caller is responsible for a valid, unique id. */
 export function addAgentProfile(profile: AgentProfile): void {
   store.agentProfiles.push({ ...profile });
@@ -56,6 +74,26 @@ export function removeAgentProfile(id: string): void {
   if (idx === -1) return;
   store.agentProfiles.splice(idx, 1);
   sweepProfileReferences(id, undefined);
+}
+
+/**
+ * Mark `id` as the default profile, clearing `default` from every other profile
+ * in the **same mutation** so the "at most one default" invariant can never be
+ * observed broken by a persistence tick. No-op if `id` doesn't exist.
+ */
+export function setDefaultAgentProfile(id: string): void {
+  if (!store.agentProfiles.some((p) => p.id === id)) return;
+  for (const p of store.agentProfiles) {
+    if (p.id === id) p.default = true;
+    else if (p.default) delete p.default;
+  }
+}
+
+/** Clear the `default` flag from every profile. */
+export function clearDefaultAgentProfile(): void {
+  for (const p of store.agentProfiles) {
+    if (p.default) delete p.default;
+  }
 }
 
 /** Move a profile one slot up (`-1`) or down (`+1`). No-op at the ends. */

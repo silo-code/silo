@@ -7,6 +7,10 @@ import {
   updateAgentProfile,
   removeAgentProfile,
   moveAgentProfile,
+  setDefaultAgentProfile,
+  clearDefaultAgentProfile,
+  replaceAgentProfiles,
+  subscribeAgentProfiles,
 } from "./agent-profiles";
 
 function ws(id: string, terminals: TerminalRecord[]): WorkspaceInternal {
@@ -65,6 +69,84 @@ describe("agent-profiles CRUD", () => {
     expect(getAgentProfiles().map((x) => x.id)).toEqual(["a", "c", "b"]);
     moveAgentProfile("b", 1);
     expect(getAgentProfiles().map((x) => x.id)).toEqual(["a", "c", "b"]);
+  });
+});
+
+describe("default flag (RFC 0033 phase 2)", () => {
+  it("setDefaultAgentProfile marks one and clears the previous in one mutation", () => {
+    addAgentProfile(p({ id: "a" }));
+    addAgentProfile(p({ id: "b" }));
+    setDefaultAgentProfile("a");
+    expect(
+      getAgentProfiles()
+        .filter((x) => x.default)
+        .map((x) => x.id),
+    ).toEqual(["a"]);
+    setDefaultAgentProfile("b");
+    expect(
+      getAgentProfiles()
+        .filter((x) => x.default)
+        .map((x) => x.id),
+    ).toEqual(["b"]);
+  });
+
+  it("setDefaultAgentProfile is a no-op for an unknown id", () => {
+    addAgentProfile(p({ id: "a", default: true }));
+    setDefaultAgentProfile("nope");
+    expect(getAgentProfiles()[0].default).toBe(true);
+  });
+
+  it("clearDefaultAgentProfile removes the flag from every profile", () => {
+    addAgentProfile(p({ id: "a", default: true }));
+    addAgentProfile(p({ id: "b" }));
+    clearDefaultAgentProfile();
+    expect(getAgentProfiles().some((x) => x.default)).toBe(false);
+  });
+
+  it("deleting the default promotes nobody", () => {
+    addAgentProfile(p({ id: "a" }));
+    addAgentProfile(p({ id: "b", default: true }));
+    removeAgentProfile("b");
+    expect(getAgentProfiles().some((x) => x.default)).toBe(false);
+  });
+
+  it("an id rename preserves the default flag", () => {
+    addAgentProfile(p({ id: "a", default: true }));
+    updateAgentProfile("a", { id: "a2" });
+    expect(getAgentProfiles()[0]).toMatchObject({ id: "a2", default: true });
+  });
+});
+
+describe("replaceAgentProfiles — the hydrate seam (RFC 0033 phase 2)", () => {
+  it("preserves the array identity so pre-hydrate subscribers survive", () => {
+    const original = store.agentProfiles;
+    replaceAgentProfiles([p({ id: "a" }), p({ id: "b" })]);
+    expect(store.agentProfiles).toBe(original);
+    expect(getAgentProfiles().map((x) => x.id)).toEqual(["a", "b"]);
+  });
+
+  it("notifies a subscriber that attached before it was populated", async () => {
+    let ticks = 0;
+    const unsub = subscribeAgentProfiles(() => ticks++);
+    replaceAgentProfiles([p({ id: "claude" })]);
+    // valtio batches to a microtask
+    await Promise.resolve();
+    await Promise.resolve();
+    unsub();
+    expect(ticks).toBeGreaterThan(0);
+  });
+
+  it("clones entries so the caller's array can't alias the store", () => {
+    const src = [p({ id: "a" })];
+    replaceAgentProfiles(src);
+    src[0].label = "mutated by caller";
+    expect(getAgentProfiles()[0].label).toBe("Claude (work)");
+  });
+
+  it("replaces rather than appends on a second call", () => {
+    replaceAgentProfiles([p({ id: "a" }), p({ id: "b" })]);
+    replaceAgentProfiles([p({ id: "c" })]);
+    expect(getAgentProfiles().map((x) => x.id)).toEqual(["c"]);
   });
 });
 

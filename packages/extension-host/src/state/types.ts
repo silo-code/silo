@@ -279,6 +279,15 @@ export interface AgentProfile {
    * `AgentInfo.isAgent`.
    */
   assumedAgentId?: string;
+  /**
+   * Marks this as the profile a launch that names none should use — the
+   * generic `core.newAgent` command and a bare `silo agent run` (RFC 0033
+   * phase 2). **At most one** profile carries it: {@link setDefaultAgentProfile}
+   * clears it from every other in the same mutation. Set only by an explicit
+   * gesture on the Profiles tab — never inferred, never assigned on first
+   * creation or on delete of the current default (ADR 0046's converse).
+   */
+  default?: boolean;
 }
 
 export interface AppState extends SharedPanelState {

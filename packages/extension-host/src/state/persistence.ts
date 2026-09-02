@@ -22,6 +22,7 @@ import {
   applyGlobalPanelLayout,
 } from "./panel-state";
 import { setBackupDir, sweepEditorBackups } from "./editor-backups";
+import { replaceAgentProfiles } from "./agent-profiles";
 import {
   buildIndex,
   cloneExtensionState,
@@ -171,7 +172,12 @@ export async function hydrate(configDir: string): Promise<void> {
     // deprecated-`TerminalKind` mapping in `getTerminalService().create` and
     // the `+` menu both resolve against a populated list from first activation.
     // Malformed entries are dropped rather than failing hydration.
-    store.agentProfiles = loadAgentProfiles(index.agentProfiles);
+    //
+    // Identity-preserving: `core.agents-settings` subscribes to this array in
+    // `activateBuiltins()`, before this async hydrate runs (RFC 0033 phase 2 —
+    // the per-profile `core.newAgent.<id>` command sync). See
+    // `replaceAgentProfiles`.
+    replaceAgentProfiles(loadAgentProfiles(index.agentProfiles));
     // Absent in an older index: widths were global, which is this flag on.
     store.sharedColumnWidthsEnabled =
       index.sharedColumnWidthsEnabled ?? DEFAULT_SHARED_COLUMN_WIDTHS;
