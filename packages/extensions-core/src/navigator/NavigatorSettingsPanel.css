@@ -73,30 +73,25 @@
 
 /* ── Group color intensity ─────────────────────────────────────────────── */
 
-.nav-settings-intensity {
+/* SettingRow control: a compact live preview with an up/down stepper docked
+   beside it, sized to sit in the row's right-hand control cell. */
+.nav-group-color {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 6px;
+  align-items: stretch;
+  gap: 6px;
 }
 
-.nav-settings-intensity-slider {
-  width: 100%;
-  margin: 0;
-  accent-color: var(--silo-color-accent);
-}
-
-/* Live preview. The wash formula is kept in sync with `.ws-group--colored` in
-   WorkspacesView.css — same percentages, same per-theme factor — driven here
-   by --preview-wash (the pref value, set inline). */
-.nav-settings-intensity-preview {
+/* The preview tile. Its wash formula is kept in sync with `.ws-group--colored`
+   in WorkspacesView.css — same percentages, same per-theme factor — driven
+   here by --preview-wash (the pref value, set inline). */
+.nav-group-color-preview {
   --preview-wash-theme: 1;
   --preview-w: calc(var(--preview-wash, 1) * var(--preview-wash-theme));
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  padding: 8px 10px;
+  position: relative;
+  width: 144px;
+  padding: 7px 9px 9px;
   border-radius: var(--silo-radius-sm);
+  overflow: hidden;
   background:
     radial-gradient(
       120% 90% at 50% 0%,
@@ -114,30 +109,43 @@
     );
 }
 
-[data-theme="light"] .nav-settings-intensity-preview {
+[data-theme="light"] .nav-group-color-preview {
   --preview-wash-theme: 1.5;
 }
 
-.nav-settings-intensity-preview-header {
+.nav-group-color-preview-label {
+  display: block;
   font-family: var(--silo-font-ui);
-  font-size: var(--silo-font-size-chrome);
+  font-size: calc(var(--silo-font-size-chrome) - 1px);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--silo-color-text-lo);
 }
 
-/* Faux workspace rows — just tinted bars so the eye reads "list under a wash". */
-.nav-settings-intensity-preview-row {
-  height: 8px;
+/* A single faux workspace row under the header. */
+.nav-group-color-preview-bar {
+  display: block;
+  width: 64%;
+  height: 6px;
+  margin-top: 7px;
   border-radius: 3px;
   background: var(--silo-color-bg-hover);
 }
 
-.nav-settings-intensity-preview-row:first-of-type {
-  width: 70%;
+.nav-group-color-preview-val {
+  position: absolute;
+  right: 6px;
+  bottom: 5px;
+  font-family: var(--silo-font-ui);
+  font-size: calc(var(--silo-font-size-chrome) - 1px);
+  font-variant-numeric: tabular-nums;
+  color: var(--silo-color-text-hi);
 }
 
-.nav-settings-intensity-preview-row:last-of-type {
-  width: 52%;
+.nav-group-color-stepper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
 }

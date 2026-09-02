@@ -4,6 +4,7 @@ import {
   navigatorPrefsService,
   initNavigatorPrefs,
   clearNavigatorPrefsListeners,
+  stepGroupColorIntensity,
 } from "./navigator-prefs";
 
 /** In-memory ExtensionStorage stand-in, mirroring the host's real contract. */
@@ -226,5 +227,22 @@ describe("navigator group color intensity pref", () => {
     storage.emit();
     expect(navigatorPrefsService.getState().groupColorIntensity).toBe(2);
     sub.dispose();
+  });
+});
+
+describe("stepGroupColorIntensity", () => {
+  it("steps by 0.2 in each direction", () => {
+    expect(stepGroupColorIntensity(1, 1)).toBe(1.2);
+    expect(stepGroupColorIntensity(1, -1)).toBe(0.8);
+  });
+
+  it("rounds away floating-point drift", () => {
+    // 0.6 - 0.2 is 0.39999999999999997 without the round
+    expect(stepGroupColorIntensity(0.6, -1)).toBe(0.4);
+  });
+
+  it("clamps to the slider bounds", () => {
+    expect(stepGroupColorIntensity(2.4, 1)).toBe(2.4);
+    expect(stepGroupColorIntensity(0.4, -1)).toBe(0.4);
   });
 });

@@ -65,7 +65,18 @@ const STORAGE_KEY_GROUP_COLOR_INTENSITY = "navigatorGroupColorIntensity";
 
 export const GROUP_COLOR_INTENSITY_MIN = 0.4;
 export const GROUP_COLOR_INTENSITY_MAX = 2.4;
+export const GROUP_COLOR_INTENSITY_STEP = 0.2;
 export const DEFAULT_GROUP_COLOR_INTENSITY = 1;
+
+/** Nudge the intensity by one step, clamped and rounded to avoid FP drift. */
+export function stepGroupColorIntensity(current: number, dir: -1 | 1): number {
+  const next =
+    Math.round((current + dir * GROUP_COLOR_INTENSITY_STEP) * 100) / 100;
+  return Math.min(
+    GROUP_COLOR_INTENSITY_MAX,
+    Math.max(GROUP_COLOR_INTENSITY_MIN, next),
+  );
+}
 
 const DEFAULT_PREFS: NavigatorPrefs = {
   viewOrder: [],
