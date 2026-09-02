@@ -88,6 +88,10 @@
    companion rides the stem's own ::after, which is free. */
 .ws-item .ws-active-stem {
   display: none;
+}
+
+.ws-item.active .ws-active-stem {
+  display: block;
   position: absolute;
   /* Centred under the 20px icon: row padding-left 10 + half of (20 - 2). */
   left: 19px;
@@ -95,19 +99,8 @@
   bottom: 1px;
   width: 2px;
   border-radius: 2px;
-  pointer-events: none;
-}
-
-/* Hovering an inactive row previews the marker at low strength, so the row
-   shows exactly where the stem would land once it's selected. */
-.ws-item:hover:not(.active) .ws-active-stem {
-  display: block;
-  background: color-mix(in srgb, var(--silo-color-accent) 22%, transparent);
-}
-
-.ws-item.active .ws-active-stem {
-  display: block;
   background: color-mix(in srgb, var(--silo-color-accent) 70%, transparent);
+  pointer-events: none;
 }
 
 /* Companion: same line, touching the key on its content-facing side. The key
