@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.62.0](https://github.com/silo-code/silo/compare/silo-v0.61.0...silo-v0.62.0) (2026-09-02)
+
+
+### Features
+
+* **agents:** Agent Profiles phase 2 — addressing a profile by name (RFC 0033) ([#483](https://github.com/silo-code/silo/issues/483)) ([76b49c9](https://github.com/silo-code/silo/commit/76b49c90121dfd68671672abd4d643b6c7505823))
+
 ## [0.61.0](https://github.com/silo-code/silo/compare/silo-v0.60.0...silo-v0.61.0) (2026-09-02)
 
 
