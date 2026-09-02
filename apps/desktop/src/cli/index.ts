@@ -7,7 +7,7 @@ import {
   applyCliUninstall,
   type CliOpenRequest,
 } from "./open-handler";
-import { applyCliAgentRun } from "./agent-run-handler";
+import { applyCliAgentRun, applyCliAgentUsage } from "./agent-run-handler";
 
 /**
  * A resolved CLI request from `src-tauri/src/commands/cli.rs`.
@@ -16,14 +16,20 @@ import { applyCliAgentRun } from "./agent-run-handler";
  * - `install` — install an extension: `path` for a local folder, `id` for a
  *   registry id (`silo install acme.weather`)
  * - `uninstall` — uninstall an extension by id
- * - `agent-run` — launch an Agent Profile (`silo agent run [--profile <id>]`);
- *   `path` is the shell's cwd, `id` the `--profile` value (absent → default)
+ * - `agent-run` — launch an Agent Profile
+ *   (`silo agent run [--profile <id>] [--ws <folder|.|id>]`); `path` is the
+ *   shell's cwd, `id` the `--profile` value (absent → default), `ws` the
+ *   explicit target (absent → resolve from cwd)
+ * - `agent-usage` — `silo agent` with no verb or an unknown one; `id` is the
+ *   verb when there was one. `agent` is a reserved noun (ADR 0047), so this
+ *   never falls back to opening a folder
  */
 type CliRequest =
   | ({ action: "open" } & CliOpenRequest)
   | { action: "install"; path?: string; id?: string }
   | { action: "uninstall"; id: string }
-  | { action: "agent-run"; path: string; id?: string };
+  | { action: "agent-run"; path: string; id?: string; ws?: string }
+  | { action: "agent-usage"; id?: string };
 
 function dispatch(req: CliRequest): void {
   if (req.action === "open") {
@@ -38,7 +44,9 @@ function dispatch(req: CliRequest): void {
       console.error("[silo cli] uninstall failed:", err),
     );
   } else if (req.action === "agent-run") {
-    applyCliAgentRun({ cwd: req.path, profileId: req.id });
+    applyCliAgentRun({ cwd: req.path, profileId: req.id, ws: req.ws });
+  } else if (req.action === "agent-usage") {
+    applyCliAgentUsage(req.id);
   }
 }
 

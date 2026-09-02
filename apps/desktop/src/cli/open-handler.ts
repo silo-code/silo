@@ -67,28 +67,50 @@ export function folderContains(dir: string, folder: string): boolean {
 }
 
 /**
- * The open workspace whose primary folder or one of its `extraFolders`
- * **contains** `cwd` — the deepest match wins when several nest. Used by
- * `silo agent run` to launch into the workspace the shell is actually in
- * (RFC 0033 R5), where `findWorkspaceByFolder`'s exact-match is too strict.
+ * The workspace whose primary folder or one of its `extraFolders` **contains**
+ * `path`. Used by `silo agent run` to launch into the workspace the shell is
+ * actually in (RFC 0033 R5), where `findWorkspaceByFolder`'s exact-match is too
+ * strict.
+ *
+ * Ranked by ADR 0047's tie-breaks, in order: the deepest (longest) matching
+ * root; then an **open** workspace over a soft-closed one; then a match on the
+ * primary `folder` over one on `extraFolders`; then the active workspace.
+ * Soft-closed workspaces are candidates on purpose — matching one and
+ * activating it reopens it, which beats dropping the caller's path into an
+ * unrelated workspace that merely happens to be focused.
  */
 export function findWorkspaceContaining(
   workspaces: Record<string, Workspace>,
-  cwd: string,
+  path: string,
+  activeWorkspaceId?: string | null,
 ): Workspace | undefined {
   let best: Workspace | undefined;
-  let bestLen = -1;
+  let bestRank: readonly number[] = [];
   for (const w of Object.values(workspaces)) {
-    for (const folder of [w.folder, ...(w.extraFolders ?? [])]) {
-      if (!folderContains(folder, cwd)) continue;
-      const len = normalizeFolder(folder).length;
-      if (len > bestLen) {
+    const roots = [w.folder, ...(w.extraFolders ?? [])];
+    for (const [i, folder] of roots.entries()) {
+      if (!folderContains(folder, path)) continue;
+      const rank = [
+        normalizeFolder(folder).length, // deepest root
+        w.closedAt ? 0 : 1, // open over soft-closed
+        i === 0 ? 1 : 0, // primary folder over an extra
+        w.id === activeWorkspaceId ? 1 : 0, // then whatever is active
+      ];
+      if (!best || compareRank(rank, bestRank) > 0) {
         best = w;
-        bestLen = len;
+        bestRank = rank;
       }
     }
   }
   return best;
+}
+
+/** Lexicographic compare of two equal-length rank tuples. */
+function compareRank(a: readonly number[], b: readonly number[]): number {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return 0;
 }
 
 /**

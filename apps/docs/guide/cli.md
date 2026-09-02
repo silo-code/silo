@@ -56,6 +56,7 @@ pass the path — use the binary path or the installed shim.
 ```sh
 silo agent run --profile claude-work   # launch that Agent Profile
 silo agent run                         # launch the default profile
+silo agent run --ws ~/code/app         # launch in a specific workspace
 ```
 
 `silo agent run` starts an [agent profile](/guide/agent-sessions#starting-an-agent) —
@@ -64,14 +65,40 @@ Agents → Profiles**. `--profile` takes the profile's **id** (the short value
 shown in the editor, e.g. `claude-work`); with no `--profile` it uses the
 profile marked **default**, or the first one in the list if none is marked.
 
-The agent opens in **the workspace your shell is in** — Silo picks the open
-workspace whose folder contains your current directory, or creates one rooted
-there if none does — and the terminal starts in that directory, not the
-workspace root. That workspace is activated and the new terminal focused.
+The agent opens in **the workspace your shell is in**: Silo picks the workspace
+whose folder contains your current directory (the innermost one, if several
+nest, and it reopens that workspace if you had closed it). The terminal starts
+in your current directory, not the workspace root. That workspace is activated
+and the new terminal focused.
 
-`silo agent` with anything other than `run` is treated as a path, so a directory
-named `agent` still opens normally. Listing profiles from the shell
-(`silo agent list`) is not available yet.
+If your current directory isn't inside any workspace, nothing is launched —
+`silo agent run` never creates a workspace for you. Open one first with
+`silo <dir>`, or name one explicitly:
+
+```sh
+silo agent run --ws .                  # the workspace rooted here
+silo agent run --ws ~/code/app         # by folder — its root, or an extra folder
+silo agent run --ws ws_a1b2c3          # by workspace id
+```
+
+`--ws` names a workspace **root** exactly (a folder it was opened with), not any
+path inside it. When nothing matches, the run is reported and abandoned rather
+than falling back to a guess.
+
+When you target a workspace you're **not** standing in, the agent starts at that
+workspace's folder — your current directory has nothing to do with it. If you
+are already somewhere inside the target, your current directory wins, so
+`cd packages/sdk && silo agent run` still starts the agent in `packages/sdk`.
+
+Because there's no way yet for the command to print back to your shell, a
+message you'd otherwise see on stderr — an unknown profile, a directory in no
+workspace, an unmatched `--ws` — lands in Silo's **Output** panel under
+**Application**.
+
+`agent` is a reserved word: `silo agent` on its own, or with any verb other than
+`run`, prints usage there rather than opening a folder. A directory actually
+named `agent` still opens as `./agent` or `silo -- agent`. Listing profiles from
+the shell (`silo agent list`) is not available yet.
 
 Like `silo <path>`, this is warm/cold: forwarded to the running instance, or
 applied on the next launch.

@@ -8,19 +8,24 @@
 //! [`cli_consume_launch_args`] once it's ready — avoiding the race where the emit
 //! lands before any listener exists.
 //!
-//! Subcommands:
+//! Subcommands (the grammar is ADR 0047 — reserved nouns, frozen shorthands,
+//! `--ws` on workspace-scoped verbs):
 //! - `silo <path>`                 — open path (dir, file, or missing)
-//! - `silo install <path>`         — install extension from folder
-//! - `silo uninstall <id>`         — uninstall extension by id
-//! - `silo agent run [--profile <id>]` — launch an Agent Profile (RFC 0033)
+//! - `silo install <path>`         — install extension from folder (shorthand)
+//! - `silo uninstall <id>`         — uninstall extension by id (shorthand)
+//! - `silo agent run [--profile <id>] [--ws <folder|id>]` — launch an Agent
+//!   Profile (RFC 0033)
+//!
+//! `agent` is a **reserved noun**: `silo agent <anything>` is never a path, so a
+//! folder of that name is reached as `./agent` or `silo -- agent`.
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use tauri::{AppHandle, Manager, State};
 
-/// A resolved CLI request. `action` is `"open"`, `"install"`, `"uninstall"`, or
-/// `"agent-run"`.
+/// A resolved CLI request. `action` is `"open"`, `"install"`, `"uninstall"`,
+/// `"agent-run"`, or `"agent-usage"`.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct CliRequest {
     pub action: String,
@@ -30,8 +35,13 @@ pub struct CliRequest {
     /// `"dir"`, `"file"`, or `"missing"` — only set for `"open"`.
     pub kind: Option<String>,
     /// Extension id for `"uninstall"`; the `--profile` id (or `None` for the
-    /// default) for `"agent-run"`.
+    /// default) for `"agent-run"`; the unrecognized verb, when there was one,
+    /// for `"agent-usage"`.
     pub id: Option<String>,
+    /// An explicit `--ws <folder|.|ws_<uuid>>` target (ADR 0047). A folder is
+    /// resolved to an absolute path here; a `ws_`-prefixed value is passed
+    /// through as an id. `None` means "infer from cwd".
+    pub ws: Option<String>,
 }
 
 /// Cold-launch holding cell: the request parsed in `setup`, kept until the
@@ -44,18 +54,38 @@ pub struct PendingLaunchArg(pub Mutex<Option<CliRequest>>);
 ///
 /// - `silo install <path>` → `{ action: "install", path: <abs> }`
 /// - `silo uninstall <id>` → `{ action: "uninstall", id: <id> }`
-/// - `silo agent run [--profile <id>]` → `{ action: "agent-run", path: <cwd>, id: <profile?> }`
+/// - `silo agent run [--profile <id>] [--ws <folder|id>]` →
+///   `{ action: "agent-run", path: <cwd>, id: <profile?>, ws: <target?> }`
+/// - `silo agent` / `silo agent <other>` → `{ action: "agent-usage", id: <verb?> }`
 /// - `silo <path>` → `{ action: "open", path: <abs>, kind: "dir"|"file"|"missing" }`
+/// - `silo -- <path>` → force-path, even for a reserved noun
 /// - `silo` (bare) → `None` (only focus the window)
 pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
+    // `--` forces path interpretation of everything after it (ADR 0047), so a
+    // folder named like a reserved noun stays reachable: `silo -- agent`.
+    if let Some(idx) = argv.iter().position(|a| a == "--") {
+        let raw = argv[idx + 1..].iter().find(|a| !a.starts_with('-'))?;
+        return Some(open_request(raw, cwd));
+    }
+
     let mut pos = argv.iter().skip(1).filter(|a| !a.starts_with('-'));
     let first = pos.next()?;
 
-    // `silo agent run [--profile <id>]` (RFC 0033). Only `run` as the next
-    // positional makes `agent` a subcommand — `pos.clone()` peeks without
-    // consuming, so a bare `silo agent` (or any other second token) falls
-    // through to the path-open arm and a directory named `agent` still opens.
-    if first == "agent" && pos.clone().next().map(String::as_str) == Some("run") {
+    // `agent` is a reserved noun (ADR 0047): it is never a path, whatever
+    // follows. `run` is its only verb today; anything else — including a bare
+    // `silo agent` — resolves to a usage report rather than silently opening a
+    // folder, which is what made `silo agent list` a path-open before.
+    if first == "agent" {
+        let verb = pos.next();
+        if verb.map(String::as_str) != Some("run") {
+            return Some(CliRequest {
+                action: "agent-usage".to_string(),
+                path: None,
+                kind: None,
+                id: verb.cloned(),
+                ws: None,
+            });
+        }
         let cwd_norm = std::fs::canonicalize(cwd)
             .map(|p| super::fs::normalize_path(&p))
             .unwrap_or_else(|_| super::fs::normalize_path(Path::new(cwd)));
@@ -63,7 +93,8 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
             action: "agent-run".to_string(),
             path: Some(cwd_norm),
             kind: None,
-            id: agent_run_profile(argv),
+            id: flag_value(argv, "--profile"),
+            ws: workspace_flag(argv, cwd),
         });
     }
 
@@ -80,6 +111,7 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
                     path: None,
                     kind: None,
                     id: Some(raw.clone()),
+                    ws: None,
                 });
             }
             Some(CliRequest {
@@ -87,6 +119,7 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
                 path: Some(super::fs::normalize_path(&resolved)),
                 kind: None,
                 id: None,
+                ws: None,
             })
         }
         "uninstall" => {
@@ -96,41 +129,63 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
                 path: None,
                 kind: None,
                 id: Some(id),
+                ws: None,
             })
         }
-        raw => {
-            let resolved = resolve_path(raw, cwd);
-            let kind = match std::fs::metadata(&resolved) {
-                Ok(meta) if meta.is_dir() => "dir",
-                Ok(_) => "file",
-                Err(_) => "missing",
-            };
-            Some(CliRequest {
-                action: "open".to_string(),
-                path: Some(super::fs::normalize_path(&resolved)),
-                kind: Some(kind.to_string()),
-                id: None,
-            })
-        }
+        raw => Some(open_request(raw, cwd)),
     }
 }
 
-/// The `--profile` value for `silo agent run`, from the raw argv (the
-/// positional iterator in [`resolve_cli_request`] has already dropped every
-/// `-`-prefixed token). Accepts `--profile <value>` and `--profile=<value>`;
-/// a trailing `--profile` with no value, and every unknown flag, are ignored —
-/// a bare run (no profile → the default) is the safe outcome, never a panic.
-fn agent_run_profile(argv: &[String]) -> Option<String> {
+/// `silo <path>` — the unmarked form (ADR 0047: sugar for `silo ws open`).
+fn open_request(raw: &str, cwd: &str) -> CliRequest {
+    let resolved = resolve_path(raw, cwd);
+    let kind = match std::fs::metadata(&resolved) {
+        Ok(meta) if meta.is_dir() => "dir",
+        Ok(_) => "file",
+        Err(_) => "missing",
+    };
+    CliRequest {
+        action: "open".to_string(),
+        path: Some(super::fs::normalize_path(&resolved)),
+        kind: Some(kind.to_string()),
+        id: None,
+        ws: None,
+    }
+}
+
+/// A flag's value from the raw argv (the positional iterator in
+/// [`resolve_cli_request`] has already dropped every `-`-prefixed token).
+/// Accepts `--flag <value>` and `--flag=<value>`; a trailing `--flag` with no
+/// value, a value that is itself a flag, and every unknown flag are ignored —
+/// the flagless outcome is the safe one, never a panic.
+fn flag_value(argv: &[String], name: &str) -> Option<String> {
+    let eq = format!("{name}=");
     let mut it = argv.iter();
     while let Some(arg) = it.next() {
-        if let Some(value) = arg.strip_prefix("--profile=") {
+        if let Some(value) = arg.strip_prefix(&eq) {
             return (!value.is_empty()).then(|| value.to_string());
         }
-        if arg == "--profile" {
-            return it.next().filter(|v| !v.is_empty()).map(|v| v.to_string());
+        if arg == name {
+            return it
+                .next()
+                .filter(|v| !v.is_empty() && !v.starts_with('-'))
+                .map(|v| v.to_string());
         }
     }
     None
+}
+
+/// The `--ws <folder|.|ws_<uuid>>` target (ADR 0047). A `ws_`-prefixed value is
+/// a workspace id and passes through untouched; anything else is a folder and
+/// is resolved against the forwarding shell's cwd, so `--ws .` and
+/// `--ws ../sibling` mean what they say. The webview matches the result
+/// exactly — an unresolvable target is that command's error, not a fallback.
+fn workspace_flag(argv: &[String], cwd: &str) -> Option<String> {
+    let raw = flag_value(argv, "--ws")?;
+    if raw.starts_with("ws_") {
+        return Some(raw);
+    }
+    Some(super::fs::normalize_path(&resolve_path(&raw, cwd)))
 }
 
 /// Whether an install argument reads as a registry extension id
@@ -149,9 +204,9 @@ fn looks_like_extension_id(raw: &str) -> bool {
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
     let ok_name = !name.is_empty()
         && name.starts_with(|c: char| c.is_ascii_lowercase() || c.is_ascii_digit())
-        && name
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '-' || c == '_');
+        && name.chars().all(|c| {
+            c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '-' || c == '_'
+        });
     ok_publisher && ok_name
 }
 
@@ -199,7 +254,10 @@ pub fn cli_install_shim() -> Result<String, String> {
         .map(|p| std::env::split_paths(&p).any(|d| d == bin_dir))
         .unwrap_or(false);
     if on_path {
-        Ok(format!("Installed the `silo` command to {}.", shim.display()))
+        Ok(format!(
+            "Installed the `silo` command to {}.",
+            shim.display()
+        ))
     } else {
         Ok(format!(
             "Installed `silo` to {} — add {} to your PATH to use it.",
@@ -323,15 +381,13 @@ mod tests {
     #[test]
     fn open_classifies_existing_dir_and_file() {
         let dir = std::env::temp_dir();
-        let dir_req =
-            resolve_cli_request(&argv(&[&dir.to_string_lossy()]), "/").unwrap();
+        let dir_req = resolve_cli_request(&argv(&[&dir.to_string_lossy()]), "/").unwrap();
         assert_eq!(dir_req.action, "open");
         assert_eq!(dir_req.kind.unwrap(), "dir");
 
         let file = dir.join("silo-cli-test-marker.txt");
         std::fs::write(&file, b"x").unwrap();
-        let file_req =
-            resolve_cli_request(&argv(&[&file.to_string_lossy()]), "/").unwrap();
+        let file_req = resolve_cli_request(&argv(&[&file.to_string_lossy()]), "/").unwrap();
         assert_eq!(file_req.action, "open");
         assert_eq!(file_req.kind.unwrap(), "file");
         let _ = std::fs::remove_file(&file);
@@ -342,8 +398,7 @@ mod tests {
         // Use a path that definitely doesn't exist so canonicalize() falls back to
         // the lexical path (avoids macOS /tmp → /private/tmp symlink expansion).
         let req =
-            resolve_cli_request(&argv(&["install", "/no/such/silo-ext/dave.clock"]), "/")
-                .unwrap();
+            resolve_cli_request(&argv(&["install", "/no/such/silo-ext/dave.clock"]), "/").unwrap();
         assert_eq!(req.action, "install");
         assert_eq!(req.path.unwrap(), "/no/such/silo-ext/dave.clock");
         assert!(req.kind.is_none());
@@ -352,8 +407,7 @@ mod tests {
 
     #[test]
     fn install_resolves_relative_path() {
-        let req =
-            resolve_cli_request(&argv(&["install", "my-ext"]), "/home/dave").unwrap();
+        let req = resolve_cli_request(&argv(&["install", "my-ext"]), "/home/dave").unwrap();
         assert_eq!(req.action, "install");
         assert_eq!(req.path.unwrap(), "/home/dave/my-ext");
     }
@@ -366,8 +420,7 @@ mod tests {
 
     #[test]
     fn uninstall_captures_id() {
-        let req =
-            resolve_cli_request(&argv(&["uninstall", "dave.clock"]), "/").unwrap();
+        let req = resolve_cli_request(&argv(&["uninstall", "dave.clock"]), "/").unwrap();
         assert_eq!(req.action, "uninstall");
         assert_eq!(req.id.unwrap(), "dave.clock");
         assert!(req.path.is_none());
@@ -383,9 +436,8 @@ mod tests {
     fn install_registry_id_when_no_such_path() {
         // "silo.system-monitor" reads as an id and nothing exists at that
         // relative path → registry install.
-        let req =
-            resolve_cli_request(&argv(&["install", "silo.system-monitor"]), "/no/such/cwd")
-                .unwrap();
+        let req = resolve_cli_request(&argv(&["install", "silo.system-monitor"]), "/no/such/cwd")
+            .unwrap();
         assert_eq!(req.action, "install");
         assert_eq!(req.id.unwrap(), "silo.system-monitor");
         assert!(req.path.is_none());
@@ -423,8 +475,7 @@ mod tests {
 
     #[test]
     fn agent_run_profile_equals_form() {
-        let req =
-            resolve_cli_request(&argv(&["agent", "run", "--profile=codex"]), "/tmp").unwrap();
+        let req = resolve_cli_request(&argv(&["agent", "run", "--profile=codex"]), "/tmp").unwrap();
         assert_eq!(req.action, "agent-run");
         assert_eq!(req.id.unwrap(), "codex");
     }
@@ -438,8 +489,7 @@ mod tests {
 
     #[test]
     fn agent_run_valueless_profile_flag_is_bare() {
-        let req =
-            resolve_cli_request(&argv(&["agent", "run", "--profile"]), "/tmp").unwrap();
+        let req = resolve_cli_request(&argv(&["agent", "run", "--profile"]), "/tmp").unwrap();
         assert_eq!(req.action, "agent-run");
         assert!(req.id.is_none());
     }
@@ -456,12 +506,84 @@ mod tests {
     }
 
     #[test]
-    fn agent_without_run_is_a_path_open() {
-        // `silo agent` (no `run`) must still open a path named `agent`, not be
-        // swallowed as a subcommand.
+    fn bare_agent_is_usage_not_a_path() {
+        // `agent` is a reserved noun (ADR 0047): it never opens a folder.
         let req = resolve_cli_request(&argv(&["agent"]), "/tmp/some-cwd").unwrap();
+        assert_eq!(req.action, "agent-usage");
+        assert!(req.id.is_none());
+    }
+
+    #[test]
+    fn unknown_agent_verb_is_usage_not_a_path() {
+        // The case that made reserving the noun worth a break: `agent list` used
+        // to resolve to a path open (RFC 0033 phase 9 plans that command).
+        let req = resolve_cli_request(&argv(&["agent", "list"]), "/tmp/some-cwd").unwrap();
+        assert_eq!(req.action, "agent-usage");
+        assert_eq!(req.id.unwrap(), "list");
+    }
+
+    #[test]
+    fn double_dash_forces_a_path_for_a_reserved_noun() {
+        let req = resolve_cli_request(&argv(&["--", "agent"]), "/tmp/some-cwd").unwrap();
         assert_eq!(req.action, "open");
         assert_eq!(req.path.unwrap(), "/tmp/some-cwd/agent");
+    }
+
+    #[test]
+    fn dot_slash_still_reaches_a_folder_named_like_a_noun() {
+        let req = resolve_cli_request(&argv(&["./agent"]), "/tmp/some-cwd").unwrap();
+        assert_eq!(req.action, "open");
+        assert!(req.path.unwrap().ends_with("agent"));
+    }
+
+    #[test]
+    fn agent_run_ws_folder_resolves_against_cwd() {
+        // Nonexistent, so canonicalize() falls back to the lexical join (avoids
+        // macOS /tmp → /private/tmp expansion), same trick as the install tests.
+        let req = resolve_cli_request(
+            &argv(&["agent", "run", "--profile", "x", "--ws", "sibling"]),
+            "/no/such/repo",
+        )
+        .unwrap();
+        assert_eq!(req.action, "agent-run");
+        assert_eq!(req.id.unwrap(), "x");
+        assert_eq!(req.ws.unwrap(), "/no/such/repo/sibling");
+    }
+
+    #[test]
+    fn agent_run_ws_dot_is_the_shells_own_directory() {
+        // `--ws .` is the common explicit form; an existing cwd canonicalizes,
+        // so compare against the same resolution the open arm would produce.
+        let dir = std::env::temp_dir();
+        let cwd = dir.to_string_lossy().to_string();
+        let req = resolve_cli_request(&argv(&["agent", "run", "--ws", "."]), &cwd).unwrap();
+        let expected = resolve_cli_request(&argv(&["."]), &cwd)
+            .unwrap()
+            .path
+            .unwrap();
+        assert_eq!(req.ws.unwrap(), expected);
+    }
+
+    #[test]
+    fn agent_run_ws_id_passes_through() {
+        let req = resolve_cli_request(&argv(&["agent", "run", "--ws=ws_abc123"]), "/tmp").unwrap();
+        assert_eq!(req.ws.unwrap(), "ws_abc123");
+    }
+
+    #[test]
+    fn agent_run_without_ws_infers_from_cwd() {
+        let req = resolve_cli_request(&argv(&["agent", "run"]), "/no/such/repo").unwrap();
+        assert!(req.ws.is_none());
+        assert_eq!(req.path.unwrap(), "/no/such/repo");
+    }
+
+    #[test]
+    fn agent_run_valueless_ws_flag_is_ignored() {
+        // `--ws` swallowing the next flag would silently target the wrong thing.
+        let req = resolve_cli_request(&argv(&["agent", "run", "--ws", "--profile", "x"]), "/tmp")
+            .unwrap();
+        assert!(req.ws.is_none());
+        assert_eq!(req.id.unwrap(), "x");
     }
 
     #[test]
