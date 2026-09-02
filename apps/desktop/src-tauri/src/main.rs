@@ -70,5 +70,13 @@ fn main() {
             std::process::exit(0);
         }
     }
+    // Local flags (ADR 0047): `-h` / `--help` / `-V` / `--version` are answered
+    // by the binary itself, on stdout, with no GUI — so they neither focus a
+    // running window nor cold-launch the app.
+    if let Some(text) = silo_lib::local_flag_response(&std::env::args().collect::<Vec<_>>()) {
+        print!("{text}");
+        std::process::exit(0);
+    }
+
     silo_lib::run()
 }

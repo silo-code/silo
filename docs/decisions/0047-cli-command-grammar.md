@@ -221,7 +221,9 @@ binary and they do not hang under `ext`.
 In order:
 
 1. **Local flags** — `--help` / `-h`, `--version` / `-V`. The binary answers, no
-   GUI. (Today they focus the window; that is a bug against this ADR.)
+   GUI. (They used to focus the window instead; answered locally as of this
+   ADR — the one piece of it that ships immediately, because it needs no
+   channel and no parser change.)
 2. **No positionals** — focus the running instance, or launch it. Does not
    change the active workspace.
 3. **`--`** — everything after it is a path.

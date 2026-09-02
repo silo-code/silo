@@ -5,6 +5,7 @@ mod webview_bridge;
 
 // Session-environment carrier (RFC 0028) — used by both daemon entry points
 // in `main.rs`, so exported on every platform.
+pub use commands::cli::local_flag_response;
 pub use commands::session_env::{apply_bin_path, take_session_env};
 
 #[cfg(windows)]

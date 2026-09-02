@@ -25,6 +25,18 @@ A second `silo` invocation never opens a new window: it's forwarded to the
 already-running instance, which focuses and handles the path. Silo Dev and a
 release install are independent instances, each with its own command target.
 
+## Getting help
+
+```sh
+silo --help      # the commands, with the options for each
+silo --version   # which build this shim points at
+```
+
+Both are answered by the `silo` binary itself and print in your terminal — they
+don't focus the app or launch it. That makes `silo --version` the quickest way to
+tell which install a shim is wired to when you have both a release build and a
+dev build on the same machine.
+
 ## Installing the command
 
 The binary ships inside the app bundle but isn't on your `PATH` by default. The

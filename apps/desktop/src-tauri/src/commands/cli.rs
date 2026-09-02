@@ -50,6 +50,61 @@ pub struct CliRequest {
 #[derive(Default)]
 pub struct PendingLaunchArg(pub Mutex<Option<CliRequest>>);
 
+/// The `silo` command's help text — ADR 0047's **Local** execution mode: the
+/// binary answers on stdout and exits, with no GUI involved. Lists only what
+/// actually works today; the canonical `silo ext …` / `silo ws …` forms the
+/// grammar reserves are not advertised until the parser implements them.
+const HELP: &str = concat!(
+    "silo ",
+    env!("CARGO_PKG_VERSION"),
+    r#" — open Silo from the terminal, and drive the running app.
+
+Usage:
+  silo                           focus the running app (or launch it)
+  silo <path>                    open a folder as a workspace, or a file in one
+  silo agent run [options]       launch an Agent Profile in a terminal
+  silo install <id|path|url>     install an extension
+  silo uninstall <id>            uninstall an extension
+
+Options for `agent run`:
+  --profile <id>                 which profile (default: the one marked default)
+  --ws <folder | . | ws_id>      which workspace (default: the one holding your cwd)
+
+Flags:
+  -h, --help                     print this and exit
+  -V, --version                  print the version and exit
+
+Notes:
+  `agent` is a reserved word: `./agent` or `silo -- agent` opens a folder of
+  that name. Everything after `--` is treated as a path.
+
+  Commands are forwarded to the running app and cannot report results here
+  yet, so failures appear in Silo's Output panel under "Application".
+
+Docs: https://getsilo.dev/guide/cli
+"#
+);
+
+/// Answer a **local** flag (`-h` / `--help`, `-V` / `--version`) without
+/// touching the GUI — the text to print, or `None` when this invocation is for
+/// the app (ADR 0047 dispatch rule 1).
+///
+/// Only flags **before** a `--` count, so `silo -- --help` opens a file named
+/// `--help` rather than printing help. Called from `main` before any Tauri
+/// init, which is what keeps `silo --help` from focusing a window (the bug
+/// this replaces) or waking a cold instance.
+pub fn local_flag_response(argv: &[String]) -> Option<String> {
+    for arg in argv.iter().skip(1) {
+        match arg.as_str() {
+            "--" => return None,
+            "-h" | "--help" => return Some(HELP.to_string()),
+            "-V" | "--version" => return Some(format!("silo {}\n", env!("CARGO_PKG_VERSION"))),
+            _ => {}
+        }
+    }
+    None
+}
+
 /// Resolve an `argv` + `cwd` pair into a structured [`CliRequest`].
 ///
 /// - `silo install <path>` → `{ action: "install", path: <abs> }`
@@ -503,6 +558,33 @@ mod tests {
         .unwrap();
         assert_eq!(req.action, "agent-run");
         assert_eq!(req.id.unwrap(), "x");
+    }
+
+    #[test]
+    fn help_and_version_are_answered_locally() {
+        let help = local_flag_response(&argv(&["--help"])).unwrap();
+        assert!(help.starts_with("silo "));
+        assert!(help.contains("silo agent run [options]"));
+        assert!(help.contains("--ws <folder | . | ws_id>"));
+        assert_eq!(local_flag_response(&argv(&["-h"])), Some(help));
+
+        let version = local_flag_response(&argv(&["-V"])).unwrap();
+        assert_eq!(version, format!("silo {}\n", env!("CARGO_PKG_VERSION")));
+        assert_eq!(local_flag_response(&argv(&["--version"])), Some(version));
+    }
+
+    #[test]
+    fn help_is_found_after_other_arguments() {
+        assert!(local_flag_response(&argv(&["agent", "run", "--help"])).is_some());
+    }
+
+    #[test]
+    fn no_local_response_for_app_invocations() {
+        assert!(local_flag_response(&argv(&[])).is_none());
+        assert!(local_flag_response(&argv(&["."])).is_none());
+        assert!(local_flag_response(&argv(&["agent", "run"])).is_none());
+        // `--` forces a path: a file literally named `--help` stays reachable.
+        assert!(local_flag_response(&argv(&["--", "--help"])).is_none());
     }
 
     #[test]
