@@ -176,14 +176,16 @@
 /* Trailing edge, after the text block — the agent's own icon leads the row, so
    the status dot reads as the row's outcome rather than competing with the
    identity mark for the leading slot. `order` rather than DOM position keeps
-   the glyph first in the reading order for assistive tech. */
+   the glyph first in the reading order for assistive tech. The text block's
+   `flex: 1` (below) takes the row's slack, so the dot — and the grip beside
+   it — sit against the right edge without an auto margin of their own. */
 .ap-row-glyph {
   order: 3;
-  margin-left: auto;
   flex-shrink: 0;
 }
 .ap-row-text {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
 }
@@ -261,13 +263,12 @@
 }
 /* The "Recent" view's drag affordance — only that view passes `drag` to
    AgentRowItem, so this only ever appears there. Hidden until the row is
-   hovered, and pinned to the row's right edge via the auto margin rather
-   than a fixed position, so it still lines up if the row's content is
-   short. */
+   hovered. Sits directly left of the status dot in the trailing cluster
+   (`order: 2`, between the text block and the `order: 3` glyph); the text
+   block's `flex: 1` holds it there whatever the row's content width. */
 .ap-row-grip {
+  order: 2;
   flex-shrink: 0;
-  margin-left: auto;
-  padding-left: 4px;
   display: flex;
   align-items: center;
   color: var(--silo-color-text-lo);
