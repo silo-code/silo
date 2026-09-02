@@ -13,6 +13,8 @@ Four seams, in dependency order. Nothing here is public SDK surface.
 | `packages/extension-host/…/agents/agent-prompt.ts` **(new)**                | The whole pure core: sanitizer, dialect, delimiter, composition, refusals |
 | `packages/extension-host/…/agents/pending-launch.ts` + `agent-launch.ts`    | A launch may carry a prompt; the drain composes it                        |
 | `apps/desktop/src-tauri/…/commands/cli.rs` + `src/cli/agent-run-handler.ts` | `--prompt` parsed, forwarded, prechecked                                  |
+| `packages/extensions-core/src/agents-settings/ProfileEditorModal.tsx`       | R10 — the profile says whether it can take a prompt                       |
+| `packages/extensions-core/src/terminal/TerminalPanel.tsx`                   | R9 — the orphaned-session fix (adjacent; own commit)                      |
 
 The design deliberately puts **all** the reasoning in one pure module. The
 drain, the CLI handler, and (later) phase 5 each call the same function and act
@@ -39,6 +41,13 @@ function sanitizePromptForLineEditor(text: string): string;
 /** The dialect of the shell a terminal will actually run. */
 function shellDialect(shell: string | undefined): ShellDialect;
 
+/** The catalog agent a profile resolves to — `assumedAgentId` when set, else
+ *  matched from the command text. The single source the launch path and the
+ *  Profiles editor (R10) share, so a refusal and its warning cannot drift. */
+function resolveProfileAgentId(
+  profile: Pick<AgentProfile, "assumedAgentId" | "command">,
+): string | undefined;
+
 /** A delimiter no line of `payload` equals. */
 function heredocDelimiter(payload: string): string;
 
@@ -51,9 +60,14 @@ function composePromptLaunchLine(input: {
 }): { line: string } | { refusal: PromptRefusal };
 ```
 
-`composePromptLaunchLine` is the only place shell syntax is written, and it is
-called from exactly two points (below) with the same inputs, so a precheck and
-the eventual drain cannot disagree.
+`composePromptLaunchLine` is the only place shell syntax is written. It is
+called from two points — the CLI precheck and the drain — and the inputs that
+_can_ differ between them are deliberately narrowed to one: the **profile**,
+which phase 1 established is resolved at drain time so a mid-flight edit is
+respected. `dialect` is decided once at registration and carried on the pending
+launch, and `delivery` follows from the profile. So the two calls can only
+disagree when the user edits the profile mid-launch, which is exactly the case
+R7 documents.
 
 ### The catalog field
 
@@ -111,10 +125,27 @@ is typed. Resolution, in order:
    the host already stores).
 2. The user's login shell, from a new `default_shell` host command reading
    `$SHELL` (`/bin/bash` when unset — the same fallback `main.rs` already
-   uses), resolved once and cached host-side.
+   uses).
 
 Mapped by basename: `bash` / `zsh` / `sh` / `dash` / `ksh` → `posix`; `fish` →
 `fish`; everything else → `unsupported`.
+
+**Resolved once, at host init — not per launch.** `default_shell` is a Tauri
+`invoke` and therefore async, but `applyCliAgentRun` is synchronous and its
+callers (the warm `cli:open` emit and the cold `PendingLaunchArg` path) expect
+it to stay that way. Making the CLI handler async to fetch a value that never
+changes would push a signature change through both paths for nothing. So the
+login shell is resolved **during host initialization** and held in host state;
+every consumer reads it synchronously. This is also what lets the dialect be
+decided once per launch and carried on the pending launch, rather than
+re-derived at drain time from a record that did not exist at precheck.
+
+**Why fish gets a real transport rather than a refusal.** It doubles the
+composition surface, which is a genuine cost — but fish is common in exactly
+this product's audience, its single-quoting rule is small and exact (only `\`
+and `'` need escaping, and newlines are literal inside quotes), and the
+detection machinery is needed either way to _recognize_ fish. Refusing a whole
+shell community on a new feature to save one small function is the wrong trade.
 
 **Known limitation, accepted:** the login shell is read in the app process,
 while the session host resolves `$SHELL` in its own. They are the same value in
@@ -176,11 +207,17 @@ of prompt delivery.
 5. The resulting line is typed with one `sendInput` call.
 
 Steps 2 and 4 evaluate the same function. The precheck is what satisfies R7's
-"a refused prompt aborts the launch"; the re-evaluation at drain is what keeps
-phase 1's "resolved at drain time" promise when a profile is edited in between.
-If the drain now refuses where the precheck passed, it types **nothing** and
-logs — a launched-but-promptless agent is the outcome this phase exists to
-prevent.
+"a refused prompt aborts the launch" — it runs before anything is created, so a
+refusal costs nothing. The re-evaluation at drain is what keeps phase 1's
+"resolved at drain time" promise when a profile is edited in between; the
+dialect, decided at step 3 and carried on the pending launch, is _not_
+re-derived, so the profile is the only input that can have changed.
+
+If the drain refuses where the precheck passed, it types **nothing** and logs.
+The terminal already exists at that point and is left as a plain shell — the
+one case in which a terminal outlives a refused prompt, and the same shape as
+phase 1's "a profile deleted mid-launch drains to nothing." R7 names it
+explicitly rather than pretending the precheck is total.
 
 ### Newlines: `\n` in the model, `\r` on the wire
 
@@ -230,6 +267,28 @@ claude 'fix the
 CI'
 ```
 
+### Transport validation (spike, 2026-09-02)
+
+The whole phase rests on "a quoted heredoc typed as keystrokes into an
+interactive shell delivers its payload intact." That was verified before the
+design committed to it, by driving a real PTY — `pty.fork()`, an interactive
+shell, the composed line written as keystrokes with `\r` line endings, and the
+receiving program writing its `argv[1]` to a file for byte comparison:
+
+| Shell                      | Result                                                                                 |
+| -------------------------- | -------------------------------------------------------------------------------------- |
+| interactive `bash`         | **byte-exact** — `$HOME`, `` `date` ``, `$(uname)`, embedded newlines all literal      |
+| `zsh -f`                   | **byte-exact**; bracketed-paste mode (`ESC[?2004h`) active and harmless to typed input |
+| `zsh` with a heavy user rc | inconclusive — the spike harness got no output at all                                  |
+
+Two things follow. First, the transport is sound and the `$(cat <<'X' … X\n)"`
+form is correct as written. Second — and more important — **the third row is
+the real risk**, and no synthetic PTY can retire it: plugin-heavy line editors
+(zsh-autosuggestions, syntax highlighting, powerlevel10k instant prompt) hook
+the same keystroke path this transport uses. That verification has to happen in
+the real app against a real user shell, which is why it is a `verifier-gui`
+task rather than a unit test.
+
 Any other dialect refuses (`unsupported-shell`). Nu and PowerShell are
 deliberately not implemented: nu's raw-string forms are their own puzzle, and
 approximating a quoting rule is precisely the failure mode this phase is
@@ -274,10 +333,21 @@ All four report on the existing `silo:application` / **Application** channel via
 use, and the only place a Forward-mode CLI request can speak (ADR 0047: there
 is no stdout and no meaningful exit code until the Control API).
 
-`MAX_PROMPT_BYTES` is a documented constant. A prompt is an opening
+`MAX_PROMPT_BYTES` is **16 KiB** of sanitized UTF-8. A prompt is an opening
 instruction, not a file transfer; a bounded, stated limit that fails loudly
-beats an unbounded paste that wedges a line editor. Pick a value in the tens of
-kilobytes and state it in the CLI guide.
+beats an unbounded paste that wedges a line editor. 16 KiB is far more than any
+real instruction, far under `ARG_MAX`, and small enough to stay tractable for
+the line editor and for the history file the line lands in (R5a). The CLI guide
+states it.
+
+**PTY write chunking.** A 16 KiB composed line may exceed what a single
+`sendInput` can carry in one write. A truncated heredoc is the worst possible
+failure here: the delimiter never arrives, so the user's shell sits in an
+unterminated quote waiting for input that will never come. The send must
+therefore either be proven to carry the full line or chunk it, and the boundary
+case must be tested at exactly `MAX_PROMPT_BYTES` rather than assumed. This is
+the one place where "it worked in the spike" is not evidence — the spike's
+payloads were small.
 
 ## Testing strategy
 
@@ -330,9 +400,31 @@ workspace, and logs; a launch with no prompt is unchanged.
   prompt creates no terminal record. This is the same reasoning that kept
   phase 1 from synthesizing a profile.
 - **ADR 0047 (CLI grammar)** — `--prompt` is a flag on an existing verb, not a
-  new noun or verb. Forward mode: it asks for an action, not an answer, so it
-  needs no `--json` envelope and no Control channel. Rule 7's "never prompt"
+  new noun or verb, so the grammar is untouched. Rule 7's "never prompt"
   concerns modals, not this flag.
+
+  **The Forward-mode question, answered rather than waved past.** Rule 1 makes
+  coding agents the primary consumer, and rule 7 says a command whose failures
+  the caller cannot see is "a reason to move a command to Control, not an
+  exemption it keeps." `--prompt` adds four refusal paths; left as runtime-only
+  Output lines, an agent could not distinguish "started with my prompt" from
+  "did nothing." That would be the exact defect the ADR names.
+
+  The resolution is not a return channel — it is noticing that three of the
+  four refusals are **not runtime failures at all**. `no-agent` and
+  `agent-takes-none` are properties of the _profile_, fixed the moment it is
+  saved. `unsupported-shell` is a property of the _user's shell_, fixed for the
+  machine. Only `too-large` is a property of the invocation, and it is the
+  caller's own doing and trivially corrected. So the static three move to where
+  they are actionable (R10, the Profiles tab), and the CLI keeps only a failure
+  its caller can see coming. Forward mode is then honest about what it is
+  reporting rather than concealing configuration errors behind silence.
+
+  The staged story stays coherent as later phases land: phase 9's
+  `silo agent list --json` exposes the same fact to machines, and the Control
+  API (RFC 0034) eventually supplies real exit codes. Each phase reports as
+  much as its execution mode honestly can.
+
 - **ADR 0022 (storage layout)** — nothing new on disk.
 - **RFC 0028 (terminal identity in the environment)** — `SILO_*` is host-owned.
   The prompt rides the launch line and never enters the session environment.

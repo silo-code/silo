@@ -62,17 +62,19 @@ depend on which transport or dialect is chosen.
 - [ ] Sanitizing an already-clean prompt returns it unchanged (idempotent, and
       no cosmetic rewriting of ordinary text).
 
-## R3 — The payload rides in a quoted heredoc, never interpolated
+## R3 — The payload is never interpolated unescaped
 
-On a POSIX-family shell the sanitized prompt is delivered inside a **quoted**
-heredoc, so parameter expansion, command substitution, and quoting are dead by
-construction. The prompt text is never spliced into the launch line as a quoted
-string, and never written to a temp file.
+Prompt text never reaches a shell as text the shell may interpret. On a
+POSIX-family shell that is a **quoted heredoc**, so parameter expansion,
+command substitution, and quoting are dead by construction; on `fish`, which
+has no heredocs, it is that dialect's exact single-quoted literal (R4). Neither
+form is a temp file, and neither splices raw text into the launch line.
 
 ### Acceptance criteria
 
-- [ ] The composed line delivers the prompt via a quoted heredoc; no code path
-      interpolates raw prompt text into the launch line.
+- [ ] On a POSIX-family shell the prompt is delivered via a quoted heredoc.
+- [ ] No code path places prompt text into a launch line without the escaping
+      its dialect requires.
 - [ ] A multi-line prompt is delivered intact, with its line breaks preserved.
 - [ ] A prompt containing shell metacharacters (`$`, `` ` ``, `\`, `"`, `'`,
       `;`, `&&`, `$(…)`, backslash-newline) is delivered as literal text and
@@ -96,10 +98,12 @@ that has none.
 
 - [ ] The dialect is resolved from the terminal's own shell when the record
       names one, and otherwise from the user's login shell.
+- [ ] The dialect is decided **once per launch**, at registration, and carried
+      on the pending launch — so the precheck and the drain cannot reach
+      different conclusions about it.
 - [ ] A POSIX-family shell (`bash`, `zsh`, `sh`, and their common variants) gets
       the heredoc transport.
-- [ ] `fish` gets a dialect-correct transport of its own, or is refused — not a
-      heredoc.
+- [ ] `fish` gets its own exact single-quoted transport, escaping `\` and `'`.
 - [ ] Any shell Silo has no exact quoting rule for (including an unrecognized
       one) **refuses** the prompt rather than approximating it.
 - [ ] Dialect selection is a pure function of the shell name, unit-tested for
@@ -124,6 +128,32 @@ Everything that model already guarantees continues to hold.
       wrapper.
 - [ ] Both drain paths — the mounted `TerminalPanel` and `ensureSession`'s lazy
       spawn for a background workspace — deliver a prompt identically.
+- [ ] The catalog agent behind a profile is resolved by one shared helper —
+      `assumedAgentId` when set, else `fallbackAgentForCommand(command)` — used
+      by the launch path and by R10's editor affordance alike.
+- [ ] A composed line at `MAX_PROMPT_BYTES` reaches the PTY **complete**. If a
+      single `sendInput` cannot carry it, the send chunks and the chunking is
+      tested at the limit; a truncated heredoc never terminates and would hang
+      the user's shell mid-quote.
+
+## R5a — The prompt is visible to the user, and that is intended
+
+The composed line is typed into the user's own interactive shell, so it appears
+in scrollback and enters shell history exactly as if they had typed it. That is
+the product's model — phase 1 chose typing into an interactive shell over
+`exec` precisely so a launch is something the user can see, edit, and re-run —
+and a prompt does not change it.
+
+### Acceptance criteria
+
+- [ ] No attempt is made to hide the prompt from scrollback or suppress it from
+      history. Silo does not manipulate the user's `HISTCONTROL` /
+      `HIST_IGNORE_SPACE`, which are opt-in and shell-specific.
+- [ ] `apps/docs/guide/cli.md` states plainly that a prompt passed to
+      `silo agent run` lands in shell history, so a user putting sensitive text
+      in one is not surprised.
+- [ ] `MAX_PROMPT_BYTES` is justified partly by this: an opening instruction,
+      not a file transfer.
 
 ## R6 — `silo agent run --prompt <text>`
 
@@ -136,8 +166,11 @@ noun, verb, or grammar, and ADR 0047 reads the same with or without it.
 - [ ] `silo agent run --prompt <text>` launches the resolved profile and hands
       the agent that text, composing with `--profile` and `--ws` in any order.
 - [ ] `--prompt=<text>` is accepted as well as `--prompt <text>`.
-- [ ] A prompt whose text begins with `-` is delivered, not silently dropped as
-      a flag.
+- [ ] Prompt text beginning with `-` is supported through the `--prompt=<text>`
+      spelling. `--prompt -foo` follows the **same** rule as every other flag on
+      this verb — a value that looks like a flag is not consumed — so the parser
+      keeps one value reader rather than two behaviors for sibling flags. The
+      CLI guide documents the `=` spelling for this case.
 - [ ] A multi-line prompt (`--prompt "$(cat notes.md)"`) is delivered intact.
 - [ ] A bare trailing `--prompt` with no value is ignored, exactly as the other
       flags are — never a panic, never a partial request.
@@ -150,22 +183,59 @@ noun, verb, or grammar, and ADR 0047 reads the same with or without it.
 ## R7 — Refusal is visible and never partial
 
 Every reason a prompt cannot be delivered ends the same way: nothing is typed,
-no agent is started, and the user is told why in the one place a
-fire-and-forget CLI request can speak.
+no agent is started, and the user is told why.
+
+`silo agent run` is **Forward** mode — no stdout, no meaningful exit code
+(ADR 0047). ADR 0047 is explicit that this is "a reason to move a command to
+Control, not an exemption it keeps," so a flag whose failures are invisible to
+its caller would be adding exactly the defect that ADR warns about. R10 is the
+answer: the refusals that are **static** — properties of the profile or the
+user's shell rather than of this invocation — are surfaced where they are
+configured, so nobody first learns about them from an Output line they were not
+watching. What is left at the CLI is a failure the caller caused and can fix.
 
 ### Acceptance criteria
 
 - [ ] A prompt is refused when the profile resolves to no catalog agent, when
       that agent's `promptDelivery` is undefined or says it takes none, when the
       target shell's dialect cannot be quoted, or when the sanitized prompt
-      exceeds the documented size limit.
+      exceeds `MAX_PROMPT_BYTES`.
 - [ ] Each refusal reports a distinct, actionable message on the Output panel
       naming the actual reason.
-- [ ] A refused prompt **aborts the launch**: no terminal is left holding a
-      promptless agent, and no partial line is typed.
+- [ ] A refusal detected at **precheck** aborts the launch: no terminal record
+      is created, no workspace is activated, nothing is focused.
+- [ ] A refusal detected only at **drain** — the profile was edited between the
+      request and the session coming up — types nothing and logs. The terminal
+      already exists and is left as a plain shell. This is the same shape as
+      phase 1's "a profile deleted mid-launch drains to nothing," and it is the
+      only case in which a terminal outlives a refused prompt.
 - [ ] A launch with no prompt is never affected by any of these checks.
-- [ ] There is a documented maximum sanitized prompt size, enforced and tested
-      at the boundary.
+- [ ] `MAX_PROMPT_BYTES` is **16 KiB** of sanitized UTF-8, enforced and tested
+      at the boundary (at the limit, and one byte over).
+
+## R10 — A profile says up front whether it can take a prompt
+
+Whether a profile can be given an opening prompt is a **static** fact — it
+depends on the catalog agent the profile resolves to, not on any particular
+launch. It therefore belongs on the Profiles tab, next to where the profile is
+authored, rather than only in a runtime refusal.
+
+This is what keeps R7's Forward-mode story honest, and it mirrors phase 1's
+treatment of `configDirEnvVar`: the editor already shows or hides the
+config-directory field based on the resolved agent's catalog entry.
+
+### Acceptance criteria
+
+- [ ] A profile whose resolved agent cannot take an opening prompt says so in
+      the profile editor, in plain language naming the agent.
+- [ ] A profile that resolves to **no** catalog agent says so too — the same
+      surface, a different reason.
+- [ ] The agent resolution behind this is the **same helper** the launch path
+      uses, so the editor and the refusal can never disagree.
+- [ ] Nothing is blocked: a profile that cannot take a prompt is still fully
+      usable for launching. This is information, not validation.
+- [ ] No new setting, no new persisted field — the fact is derived from the
+      catalog at render time.
 
 ## R8 — The user-facing story stays in sync in this change
 
@@ -196,7 +266,6 @@ correctly, and this makes the two agree.
 - [ ] The `ui_init_cancelled` attach trace records which of the two happened.
 - [ ] No change to what is typed into any terminal: this fixes a leak, not a
       delivery path.
-- [ ] Ships as its own commit, revertable without touching prompt delivery.
 
 ## Out of scope
 

@@ -12,13 +12,19 @@ is recorded in `design.md` → "Recon findings". Five take a positional prompt
 `--prompt` flag because its positional is a project path, and `copilot`'s
 `-p/--prompt` is documented as non-interactive. What remains:
 
-- [ ] Confirm empirically that `pi` stays in its TUI after positional
-      `[messages...]` rather than answering and exiting. Ambiguous → leave
-      `promptDelivery` undefined.
-- [ ] Confirm empirically whether `copilot` has any interactive form that takes
-      an opening prompt. Documented answer is no; ambiguous → undefined.
-- [ ] Spot-check one `argv` agent end to end (a real launch with a prompt that
-      contains a quote and a newline) before trusting the other four.
+**Method** for each empirical check below: launch the agent in a real terminal
+with a positional prompt, then confirm two things — the agent **acted on the
+prompt**, and it **left you at its interactive UI** rather than printing and
+exiting. A process that has exited is a "no" no matter how good its answer was.
+
+- [ ] `pi` — run `pi "say hello"`; confirm it answers **and** stays in the TUI.
+      Ambiguous → leave `promptDelivery` undefined.
+- [ ] `copilot` — establish whether any interactive form takes an opening
+      prompt (`-p` is documented as non-interactive). Ambiguous → undefined.
+- [ ] Spot-check one confirmed `argv` agent end to end through Silo itself, with
+      a prompt containing a single quote, a double quote, a `$`, and a newline.
+- [ ] Spot-check `opencode`'s `--prompt` flag the same way — it is the only
+      `{ kind: "flag" }` entry, so nothing else covers that arm.
 - [ ] Write each answer — positive **and** negative — into that agent's
       `contract`, and refresh `lastVerified` / `verifiedAgainstVersion`.
 - [ ] Add the prompt-delivery recon question to `docs/adding-a-coding-agent.md`
@@ -39,37 +45,68 @@ string }`) and `AgentDefinition.promptDelivery?`, with TSDoc stating what the
 
 ## The pure core — `agents/agent-prompt.ts`
 
-- [ ] `sanitizePromptForLineEditor` — normalize CRLF/CR → LF, strip CSI and OSC
-      sequences whole, remove remaining C0/C1 controls (keep LF), expand tabs.
-      Total and idempotent.
+Split finely on purpose: this module is where the phase's whole risk lives, and
+"write the sanitizer" is not a reviewable unit.
+
+- [ ] `sanitizePromptForLineEditor` — CRLF and lone CR → LF.
+- [ ] …strip ANSI **CSI** sequences whole.
+- [ ] …strip **OSC** sequences whole, including their terminator (`BEL` and
+      `ESC \` both).
+- [ ] …remove remaining C0/C1 controls, keeping LF.
+- [ ] …expand tabs to spaces. Confirm total and idempotent.
 - [ ] `ShellDialect` + `shellDialect(shell)` — basename-mapped; `posix` for
       bash/zsh/sh/dash/ksh, `fish` for fish, `unsupported` otherwise (including
       `undefined`).
 - [ ] `heredocDelimiter(payload)` — `SILO_PROMPT`, suffixed until no line of the
       payload equals it.
-- [ ] `MAX_PROMPT_BYTES` — one documented constant.
-- [ ] `PromptRefusal` union and `composePromptLaunchLine` — returns the line to
-      type or a refusal. The only place shell syntax is written.
-- [ ] fish escaping (`\` → `\\`, `'` → `\'`) inside the same module.
+- [ ] `MAX_PROMPT_BYTES = 16 * 1024` (sanitized UTF-8 bytes, not characters).
+- [ ] `resolveProfileAgentId` — `assumedAgentId` ?? `fallbackAgentForCommand`.
+      Shared with R10's editor affordance; neither may resolve agents its own
+      way.
+- [ ] `PromptRefusal` union.
+- [ ] `composePromptLaunchLine` — the POSIX heredoc arm.
+- [ ] …the fish single-quoted arm (`\` → `\\`, `'` → `\'`).
+- [ ] …the `{ kind: "flag" }` variant for both dialects (one token's difference
+      from `argv`; do not fork the function).
+- [ ] …the four refusal returns.
 
 ## The launch path
 
-- [ ] Resolve the login shell once: a `default_shell` host command reading
-      `$SHELL` (falling back to `/bin/bash`), cached host-side.
-- [ ] `PendingLaunch`'s `{ profileId }` arm gains `prompt?`;
-      `requestProfileLaunch` accepts it. Leave the `{ rawLine }` arm alone.
-- [ ] `drainPendingLaunch` composes `profileLaunchLine(profile)` with the prompt
-      when one is claimed, re-resolving delivery and dialect at drain time; a
-      refusal types nothing and logs.
-- [ ] Convert `\n` → `\r` at the single send seam, and keep the trailing `\r`.
+- [ ] Add the `default_shell` host command (`$SHELL`, falling back to
+      `/bin/bash`) and resolve it **during host init** into host state, so every
+      consumer reads it synchronously. This is what keeps `applyCliAgentRun`
+      synchronous — do not make the CLI handler async.
+- [ ] `PendingLaunch`'s `{ profileId }` arm gains `prompt?` **and `dialect`**;
+      `requestProfileLaunch` accepts them. Leave the `{ rawLine }` arm alone.
+- [ ] `drainPendingLaunch` composes `profileLaunchLine(profile)` with the
+      prompt when one is claimed, re-resolving the **profile** (not the
+      dialect) at drain time; a refusal types nothing and logs.
+- [ ] Convert `\n` → `\r` at the **single** send seam and keep the trailing
+      `\r`. Assert there is exactly one such conversion in the codebase — doing
+      it twice leaves a heredoc that never terminates.
+- [ ] Confirm whether one `sendInput` carries a 16 KiB line to the PTY intact;
+      chunk the send if not. A truncated heredoc hangs the user's shell in an
+      unterminated quote.
 - [ ] `LaunchAgentProfileInput.prompt?` threads through `launchAgentProfile`.
 - [ ] Verify a launch with **no** prompt still produces a byte-identical line.
+
+## R10 — the Profiles tab says whether a prompt is possible
+
+- [ ] `ProfileEditorModal` surfaces, in plain language, when the resolved agent
+      cannot take an opening prompt — and when the profile resolves to no
+      catalog agent at all. Use `resolveProfileAgentId`, never a second
+      resolution path.
+- [ ] Purely informational: nothing is blocked, nothing new is persisted, the
+      fact is derived from the catalog at render time.
+- [ ] Follow `docs/modal-design.md` and the SDK kit — no hand-rolled styling,
+      design tokens only.
 
 ## The CLI
 
 - [ ] `cli.rs`: `CliRequest.prompt`, parsed from `--prompt <text>` /
-      `--prompt=<text>`. Use a value reader that does **not** reject a value
-      beginning with `-`; a bare trailing `--prompt` still yields `None`.
+      `--prompt=<text>` using the **existing** `flag_value` reader. Do not add a
+      second reader: prompt text starting with `-` goes through
+      `--prompt=<text>`, the same rule every other flag on this verb follows.
 - [ ] Add `--prompt` to the `HELP` text under the `agent run` options.
 - [ ] `CliAgentRunRequest.prompt` and the `cli:open` / `PendingLaunchArg`
       pass-through.
@@ -111,9 +148,11 @@ commit so it can be reverted without touching the prompt path.
       line; a promptless claim is byte-identical to today.
 - [ ] `agent-launch.test.ts` — `prompt` threads through; the background branch
       is unchanged.
-- [ ] `cli.rs` tests — `--prompt <text>`, `--prompt=<text>`, a value beginning
-      with `-`, a bare trailing `--prompt`, and mixed order with `--profile` /
-      `--ws`.
+- [ ] `cli.rs` tests — `--prompt <text>`, `--prompt=<text>`, dash-leading text
+      via the `=` form, a bare trailing `--prompt`, and mixed order with
+      `--profile` / `--ws`.
+- [ ] Chunking / size — a composed line at exactly `MAX_PROMPT_BYTES` reaches
+      the PTY complete, and one byte over is refused before anything is typed.
 - [ ] `agent-run-handler` test — a refused prompt creates no terminal, activates
       no workspace, and logs; no-prompt behavior unchanged.
 - [ ] The orphaned-session fix (R9) — cancelled after a **spawn** kills the
@@ -125,8 +164,9 @@ commit so it can be reverted without touching the prompt path.
 ## Docs
 
 - [ ] `apps/docs/guide/cli.md` — document `--prompt`, with a multi-line example
-      (`--prompt "$(cat notes.md)"`), the stated size limit, and what happens
-      when the agent or the shell cannot take one.
+      (`--prompt "$(cat notes.md)"`), the 16 KiB limit, the `--prompt=<text>`
+      spelling for dash-leading text, which agents accept a prompt, and — per
+      R5a — that the prompt lands in shell history like anything else typed.
 - [ ] `docs/domain-language.md` — add or sharpen a term only if the work
       actually introduces one; don't invent a synonym for something already
       there.
@@ -141,6 +181,12 @@ commit so it can be reverted without touching the prompt path.
 - [ ] Exercised by hand at a real shell: `silo agent run --profile <id>
 --prompt "…"` on a POSIX shell, a multi-line prompt, a prompt full of shell
       metacharacters, and each refusal path.
+- [ ] **Run in the real app against a plugin-heavy `zsh`** (autosuggestions,
+      syntax highlighting, powerlevel10k) via the `verifier-gui` skill. The
+      spike validated bash and `zsh -f`; it could not validate a customized rc,
+      and those plugins hook the same keystroke path this transport uses. This
+      is the phase's highest-risk unknown — do not close the phase without it.
+- [ ] Verify on `fish` too, since it takes the second transport arm.
 - [ ] Durable decisions recorded as ADRs (none expected — the transport and its
       refusal rule are phase detail the collapsed proposal carries; write one
       only if something outlives this change).

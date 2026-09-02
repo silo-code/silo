@@ -43,6 +43,11 @@ execution as the user. Phase 3 builds the safe answer and proves it:
    lone CR submits the line early, and a tab triggers completion. The prompt is
    sanitized before it is ever composed into a line.
 4. **`silo agent run --prompt <text>`** — the transport's first caller.
+5. **The Profiles tab says whether a prompt is possible at all** — whether an
+   agent can take an opening prompt is a static fact about the profile, so it
+   belongs where the profile is authored, not only in a runtime refusal. This
+   is also what keeps the CLI flag honest against ADR 0047: a Forward-mode
+   command must not hide configuration errors behind silence.
 
 Item 4 is a **deliberate scope addition to the phase table**, made when this
 package was planned and recorded in the durable proposal's "The command line"
