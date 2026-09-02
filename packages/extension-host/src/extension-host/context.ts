@@ -59,7 +59,7 @@ import {
 } from "./extension-storage";
 import {
   ensureGlobalDir,
-  ensureWorkspaceDir,
+  resolveWorkspaceDir,
   ownDirPaths,
 } from "./extension-storage-dirs";
 import { NoWorkspaceError } from "@silo-code/sdk";
@@ -121,10 +121,13 @@ export function createContext(
       const ws = getActiveWorkspace();
       return ws ? [ws.folder, ...(ws.extraFolders ?? [])] : [];
     },
-    // Live too, for the same reason `roots` is: the workspace storage dir moves
-    // under the extension when the active workspace switches.
+    // Live too: the open-workspace set changes as workspaces open/close, and
+    // cross-workspace storage reads/writes must stay inside the sandbox.
     get ownDirs(): readonly string[] {
-      return ownDirPaths(extensionId, getActiveWorkspace()?.id);
+      const openIds = getWorkspaceService()
+        .getState()
+        .open.map((ws) => ws.id);
+      return ownDirPaths(extensionId, openIds);
     },
     trusted: options.trusted ?? false,
     permissions,
@@ -140,13 +143,25 @@ export function createContext(
       global: globalStorage,
       workspace: getWorkspaceExtensionStorage(extensionId),
       globalDir: () => ensureGlobalDir(extensionId),
-      workspaceDir: () => {
+      workspaceDir: (workspaceId?: string, options?: { create?: boolean }) => {
+        if (workspaceId !== undefined) {
+          return resolveWorkspaceDir(extensionId, workspaceId, options);
+        }
         const ws = getActiveWorkspace();
         // Not a PathDeniedError — nothing was denied, there's just nothing to
         // scope to yet.
         if (!ws) return Promise.reject(new NoWorkspaceError());
-        return ensureWorkspaceDir(extensionId, ws.id);
+        return resolveWorkspaceDir(extensionId, ws.id, options);
       },
+      workspaceDirs: (options?: { create?: boolean }) =>
+        Promise.all(
+          getWorkspaceService()
+            .getState()
+            .open.map(async (ws) => ({
+              workspaceId: ws.id,
+              dir: await resolveWorkspaceDir(extensionId, ws.id, options),
+            })),
+        ),
     },
     registerEditor(editor: Editor): Disposable {
       return track(editorRegistry.register(editor));

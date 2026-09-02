@@ -190,6 +190,7 @@ export type {
 export type {
   ExtensionStorage,
   ExtensionStorageScopes,
+  WorkspaceStorageDir,
 } from "./extension-storage";
 // The drag-and-drop domain: the consumer service + its payload/handler shapes.
 // DND_MIME is a value (the well-known MIME vocabulary), so it's a runtime export.

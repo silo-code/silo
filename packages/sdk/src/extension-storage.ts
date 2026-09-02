@@ -36,6 +36,25 @@ export interface ExtensionStorage {
 }
 
 /**
+ * One workspace's per-extension storage directory, as returned by
+ * {@link ExtensionStorageScopes.workspaceDirs}: the workspace's id paired with
+ * the absolute path to that workspace's directory for the calling extension.
+ *
+ * @category Core Types
+ * @public
+ */
+export interface WorkspaceStorageDir {
+  /** The workspace this directory belongs to. */
+  readonly workspaceId: string;
+  /**
+   * Absolute path to `~/.config/silo/extension-storage/<your-id>/workspaces/<workspaceId>`.
+   * Readable and writable through {@link ExtensionContext.files} with no
+   * `fs:*` permission, like every other own-storage path.
+   */
+  readonly dir: string;
+}
+
+/**
  * The persisted-storage scopes available to an extension, exposed as
  * {@link ExtensionContext.storage}: two key/value bags for settings-sized
  * state, and the two matching **directories** for real data files.
@@ -87,22 +106,53 @@ export interface ExtensionStorageScopes {
    */
   globalDir(): Promise<string>;
   /**
-   * An absolute path to a directory of your own scoped to the **active
-   * workspace** — the filesystem counterpart to
-   * {@link ExtensionStorageScopes.workspace}. Created on first call, at
+   * An absolute path to a directory of your own scoped to a **workspace** — the
+   * filesystem counterpart to {@link ExtensionStorageScopes.workspace}. Lives at
    * `~/.config/silo/extension-storage/<your-id>/workspaces/<workspaceId>`.
    *
    * Everything {@link ExtensionStorageScopes.globalDir} says about permissions
-   * and relative paths applies here too. Call it again after the active
-   * workspace changes — the path changes with it, so don't cache it across a
-   * workspace switch.
+   * and relative paths applies here too.
+   *
+   * @param workspaceId - Which workspace's directory to resolve. Omit for the
+   *   **active** workspace — the path then changes as the active workspace
+   *   switches, so don't cache it across a switch, and the call rejects with
+   *   `NoWorkspaceError` when no workspace is open. Pass an id (from
+   *   {@link ExtensionContext.workspaces}) to resolve **any** workspace's
+   *   directory, active or not — the aggregating case (a view over every
+   *   workspace's data).
+   * @param options - `create` (default `true`) creates the directory if it is
+   *   missing, matching the historical behaviour — every caller that then
+   *   **writes** into the path needs this, because {@link FileService.writeText}
+   *   does not create parent directories. Pass `create: false` when you only
+   *   need the path to **read** from (a missing file already reads as absent);
+   *   nothing is written to disk for a workspace that has no data yet.
    *
    * The directory follows the workspace's **identity**, not its folder path:
    * deleting a workspace and re-adding the same folder gives you a new, empty
    * directory (the same rule {@link ExtensionStorageScopes.workspace} follows).
    * Deleting a workspace leaves the directory on disk.
-   *
-   * Rejects with `NoWorkspaceError` when no workspace is open.
    */
-  workspaceDir(): Promise<string>;
+  workspaceDir(
+    workspaceId?: string,
+    options?: { create?: boolean },
+  ): Promise<string>;
+  /**
+   * Resolve a storage directory for **every open workspace** in one call — the
+   * building block for a surface that aggregates per-workspace data (a
+   * cross-workspace list, say) without making a separate
+   * {@link ExtensionStorageScopes.workspaceDir} call per workspace.
+   *
+   * Returns one entry per workspace in
+   * {@link WorkspaceService.getState}`().open`, each `{ workspaceId, dir }`.
+   * There is no ordering guarantee — match entries to workspaces by
+   * `workspaceId`.
+   *
+   * @param options - `create` (default `true`) behaves exactly as it does on
+   *   {@link ExtensionStorageScopes.workspaceDir}. The aggregating case passes
+   *   `create: false`: it only reads each workspace's data, so no directory is
+   *   created for a workspace that has none.
+   */
+  workspaceDirs(options?: {
+    create?: boolean;
+  }): Promise<readonly WorkspaceStorageDir[]>;
 }

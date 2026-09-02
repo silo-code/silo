@@ -11,7 +11,7 @@
  * ```
  * ~/.config/silo[-<identity>]/extension-storage/<extensionId>/
  * ├── global/            ← ctx.storage.globalDir()
- * └── workspaces/<wsId>/ ← ctx.storage.workspaceDir()
+ * └── workspaces/<wsId>/ ← ctx.storage.workspaceDir() / workspaceDirs()
  * ```
  *
  * The `global/` + `workspaces/` split (rather than global content sitting at
@@ -123,20 +123,23 @@ function extensionRoot(root: string, extensionId: string): string {
  * the root is resolved at startup; empty only before that completes, or if it
  * failed.
  *
- * The workspace directory is included whenever a workspace is active — whether
- * or not it has been created yet, so a cached path from a previous session
- * works at the top of `activate()`.
+ * Each open workspace's directory is included — whether or not it has been
+ * created yet, so a cached path from a previous session works at the top of
+ * `activate()`, and cross-workspace aggregation via `workspaceDirs()` can read
+ * and write through `ctx.files` without `fs:*`.
  */
 export function ownDirPaths(
   extensionId: string,
-  workspaceId: string | undefined,
+  workspaceIds: readonly string[] = [],
 ): readonly string[] {
   const root = storageRoot;
   if (!root || !ID_PATTERN.test(extensionId)) return [];
   const base = `${root}/${extensionId}`;
   const paths = [`${base}/global`];
-  if (workspaceId && ID_PATTERN.test(workspaceId)) {
-    paths.push(`${base}/workspaces/${workspaceId}`);
+  for (const workspaceId of workspaceIds) {
+    if (ID_PATTERN.test(workspaceId)) {
+      paths.push(`${base}/workspaces/${workspaceId}`);
+    }
   }
   return paths;
 }
@@ -164,17 +167,23 @@ export async function ensureGlobalDir(extensionId: string): Promise<string> {
   return dir;
 }
 
-/** Create-on-first-call; the body behind `ctx.storage.workspaceDir()`. */
-export async function ensureWorkspaceDir(
+/**
+ * The body behind `ctx.storage.workspaceDir()` / `workspaceDirs()`. Resolves
+ * `<root>/<extensionId>/workspaces/<workspaceId>` for any workspace id — the
+ * caller decides whether it is the active one. Creates the directory unless
+ * `create` is `false` (a read-only caller that only wants the path).
+ */
+export async function resolveWorkspaceDir(
   extensionId: string,
   workspaceId: string,
+  options: { create?: boolean } = {},
 ): Promise<string> {
   const root = await initStorageRoot();
   if (!ID_PATTERN.test(workspaceId)) {
     throw new Error(`Invalid workspace id for storage: ${workspaceId}`);
   }
   const dir = `${extensionRoot(root, extensionId)}/workspaces/${workspaceId}`;
-  await fsCreateDir(dir);
+  if (options.create ?? true) await fsCreateDir(dir);
   return dir;
 }
 

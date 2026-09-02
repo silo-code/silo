@@ -207,6 +207,7 @@ the published reference is exactly this surface — no more, no less.
 - [CustomTheme](interfaces/CustomTheme.md)
 - [ThemeExport](type-aliases/ThemeExport.md)
 - [Event](type-aliases/Event.md)
+- [WorkspaceStorageDir](interfaces/WorkspaceStorageDir.md)
 - [FileMeta](interfaces/FileMeta.md)
 - [FileChangeKind](type-aliases/FileChangeKind.md)
 - [FileChangeEvent](interfaces/FileChangeEvent.md)
