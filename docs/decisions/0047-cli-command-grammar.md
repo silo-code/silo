@@ -300,6 +300,38 @@ The load-bearing cases, `*` marking a change from behavior before this ADR:
   `--wait`, or an exception to the shorthand set is an amendment to this ADR
   with a dated line in Consequences.
 
+### Amendment 2026-09-02 — the test for staying in Forward mode
+
+Rule 6 lists four execution modes as peers. Practice has shown they are not.
+Local, Disk-read, and Control each answer "**who** can answer this?" — the
+binary, the config tier on disk, the running instance. Forward answers "nobody
+does": it is a description of a limitation, not a design that was chosen. So it
+needs an entry test, which rule 6 left implicit and which RFC 0033's phase 3
+planning got wrong by reading the four modes as equally available.
+
+**A command may stay Forward only when both hold:**
+
+1. Its value **is** the side effect the user is about to look at — the window,
+   the workspace, the installed extension — not information the caller reads.
+2. It must work when **nothing is running**, so requiring a live instance would
+   break its most common invocation.
+
+`silo <path>` / `ws open`, `install`, and `uninstall` pass both: they are
+`open(1)`-shaped, and opening Silo when Silo is closed is the normal case.
+Blocking the shell to hand back an id nobody reads would make them worse.
+
+**Everything else is Control**, including any command a caller branches on, any
+command that creates something whose id is needed next, and any **new flag on a
+verb already scheduled for conversion.** That last clause is the one this
+amendment exists for: adding Forward-mode plumbing to a verb that is being
+moved to Control is writing code against a mode that verb is leaving.
+`silo agent run` is exactly that case (RFC 0034), which is why RFC 0033 phase 3
+carries `--prompt` as a **defined payload** on `agent.run` rather than as
+shipped Forward behavior.
+
+This tightens rule 7 rather than loosening it, and ratifies RFC 0034's split —
+it converts `agent run` and leaves `open` / `install` / `uninstall` alone.
+
 ## Alternatives considered
 
 - **Keep the path form as the only way to open things** ("there is no

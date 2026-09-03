@@ -1,16 +1,87 @@
 ---
-status: accepted # phases 1–2 shipped; phases 3–9 remain — see the phase table
+status: accepted # phases 1–2 shipped; phase 3 in progress; phases 4, 6–9 remain
 created: 2026-08-31
 ---
 
 # 0033. Agent Profiles — naming how you start an agent
 
-**Phases 1 and 2 shipped 2026-09-01.** This is the collapsed record: the durable
-intent, the decisions that outlive each planning package, and what each phase
-actually delivered. The `status` stays `accepted` because phases 3–9 are still
-planned; it becomes `implemented` only once every committed phase has shipped.
-Each later phase re-expands into `docs/proposals/0033-agent-profiles/` with its
-own `requirements.md` / `design.md` / `tasks.md`.
+**Phases 1 and 2 shipped 2026-09-01.** Everything below the planning scope is
+the collapsed record: the durable intent, the decisions that outlive each
+planning package, and what each phase actually delivered. The `status` stays
+`accepted` because phases 4 and 6–9 are still planned; it becomes `implemented` only
+once every committed phase has shipped.
+
+## Planning scope
+
+**This package covers phase 3 — "Prompt delivery, and `ctx.agents.profiles`" —
+only.**
+
+Phases 1 and 2 shipped 2026-09-01 and were collapsed back into the durable
+proposal before this package was written. Treat them as the **implementation
+baseline**: the `AgentProfile` record and its persistence, the pending-launch
+model, `TerminalRecord.profileId`, `ctx.agents.catalog()`, the `+` menu, the
+terminal **Agents** submenu, Settings → Agents → **Profiles**, the
+`core.newAgent.<id>` commands, the `default` flag, and
+`silo agent run [--profile <id>] [--ws <folder|.|id>]` all exist and work. Do
+not re-plan or re-implement any of it.
+
+Phase 3 answers one question the proposal has deferred since it was written:
+**how does Silo hand a coding agent its opening prompt?** Today it cannot. The
+only mechanism a caller has is `ctx.terminals.sendText`, which types raw bytes
+into a live shell — and the original RFC named that as the highest-severity
+idea in its first sketch, because a quoting bug there is arbitrary code
+execution as the user. Phase 3 builds the safe answer and proves it:
+
+1. **`AgentDefinition.promptDelivery`** — one sealed-catalog field saying how
+   (or whether) each agent accepts an opening prompt, established by the same
+   empirical recon `configDirEnvVar` got. An agent with no reconned answer
+   refuses a prompt rather than guessing.
+2. **The transport** — the payload rides in a **quoted heredoc**, never
+   interpolated into the launch line, so expansion and quoting are dead by
+   construction and a multi-line or very long prompt is no special case.
+3. **Line-editor sanitization** — the bytes are _typed_, so they reach the
+   shell's line editor as keystrokes. ESC and C1 sequences fire keybindings, a
+   lone CR submits the line early, and a tab triggers completion. The prompt is
+   sanitized before it is ever composed into a line.
+4. **`ctx.agents.profiles`** — `list()` and `launch({ prompt })`, the public SDK
+   surface that makes the transport reachable. This was originally phase 5;
+   merging it in is the substantive change from the first draft of this package
+   (below).
+5. **The Profiles tab says whether a prompt is possible at all** — whether an
+   agent can take an opening prompt is a static fact about the profile, so it
+   belongs where the profile is authored, not only in a runtime refusal.
+
+### Why phase 5 merged in, and why `--prompt` did not
+
+The first draft of this package added `silo agent run --prompt <text>` as the
+transport's consumer, to avoid shipping three pieces of plumbing nothing calls.
+That was reasoned while RFC 0034 was a `draft` with no design. RFC 0034 is now
+an accepted package whose scope is **converting `silo agent run` from Forward
+to Control** — so that flag would have been built in a mode the verb is
+leaving, then deleted. ADR 0047's 2026-09-02 amendment generalizes the lesson.
+
+The consumer prompt delivery actually wanted was the one already on the phase
+table: `ctx.agents.profiles.launch({ prompt })`. It is public SDK surface — the
+product's central bet — callable from an extension the day it ships, and the
+blocker on RFC 0031's **Start Task**. A seam and its first real consumer are one
+shippable slice, not two, so phase 5 folds into phase 3 and phase 3 gets
+smaller in the bargain: no Forward plumbing, no CLI flag, no throwaway.
+
+`--prompt` is still **specified** here — as a `prompt` member of `agent.run`'s
+Control args, with its refusals mapped onto RFC 0034's closed error vocabulary
+— because ADR 0047 rule 6 requires a mutating verb's payload before it ships.
+It lands when the channel does.
+
+Out of scope, and unchanged from the phase table below: resume composition
+(phase 4), per-account hooks (phase 6), `SILO_AGENT_PROFILE` (phase 7),
+per-workspace defaults (phase 8), and the CLI's read-back half (phase 9).
+
+**Phase 3 now adds public `@silo-code/sdk` surface**, which the first draft did
+not. `ctx.agents.profiles` means the `silo-docs-sync` workflow applies in full —
+TSDoc, `@public`/`@beta` + `@category` tags, the barrel re-export, the
+hand-authored `ctx` member page, `pnpm docs:api`, and flipping the roadmap's
+`ctx.agents.profiles` entry to `stable`. That is the phase's largest addition
+and it is deliberate: publishing the surface is what makes the transport real.
 
 ## Summary
 
@@ -301,6 +372,7 @@ verbs; that ADR owns the shape.
 silo agent run --profile claude-work   # launch that profile             → shipped (phase 2)
 silo agent run                         # no --profile → the default        → shipped (phase 2)
 silo agent run --ws ~/code/app         # …in a named workspace             → shipped (phase 2)
+silo agent run --prompt "fix the CI"   # …and hand it an opening prompt    → with RFC 0034
                                        # …an interactive picker            → phase 9
 silo agent list [--json]               # the profiles, with their ids      → phase 9
 ```
@@ -309,6 +381,26 @@ silo agent list [--json]               # the profiles, with their ids      → p
 are user-authored, short, and editable rather than derived-and-frozen — and why
 a rename that retires a `core.newAgent.<id>` binding warns first rather than
 being forbidden.
+
+**`--prompt` ships with the Control conversion, not before it.** It was briefly
+planned as phase 3's consumer, on the reasoning that a flag on an existing verb
+is cheap and ADR 0047 reads the same with or without it. That was decided while
+RFC 0034 was a `draft` with no design. It is now an accepted package whose scope
+is **converting `silo agent run` from Forward to Control** — so building
+Forward-mode plumbing for `--prompt` would mean writing code against a mode this
+verb is leaving, and deleting it weeks later.
+
+Phase 3 therefore defines `--prompt` as a `prompt` member of `agent.run`'s
+Control args, with its refusals mapped onto RFC 0034's closed error vocabulary,
+and lets the flag land when that channel does. ADR 0047's amendment of
+2026-09-02 records the general rule this case produced: a new flag on a verb
+already scheduled for conversion is Control, never Forward.
+
+The transport's consumer is instead `ctx.agents.profiles.launch({ prompt })` —
+public SDK surface, callable by any extension the day it ships, and the thing
+RFC 0031's **Start Task** has been waiting on. That was originally phase 5; it
+is now part of phase 3, because a seam and its first real consumer are one
+shippable slice rather than two.
 
 **Which workspace it runs in** follows ADR 0047's resolution order: an explicit
 `--ws <folder | . | ws_<uuid>>`, else the workspace **containing** the shell's
@@ -334,17 +426,17 @@ activity state, and handing the launched terminal's id back to the caller.
 
 ## Phases
 
-| Phase                                        | Scope                                                                                                                                                                                                                                                                                                                       | Status                   |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| **1 — Populate and use the `+` menu**        | The record, persistence, `configDirEnvVar`, `TerminalRecord.profileId` + `TerminalKind` deprecation, the pending-launch model (+ the `SILO_TERMINAL_ID` repair), the Profiles settings tab, the `+` menu and the terminal context menu's Agents submenu, `ctx.agents.catalog()` + icon relocation, Hooks → Sessions rename. | **shipped** (2026-09-01) |
-| **2 — Addressing a profile by name**         | `core.newAgent.<profileId>` per profile + generic `core.newAgent`; the `default` flag and its two gestures; `silo agent run [--profile <id>] [--ws <folder                                                                                                                                                                  | .                        | id>]`(reserved`agent`noun,`--ws` or cwd containment, never creating a workspace; first real caller of the background launch branch); the dangling-command-id dispatch guard; the rename warning. Plus the subscription-survival hydrate fix. | **shipped** (2026-09-01) |
-| 3 — Prompt delivery                          | `promptDelivery` on `AgentDefinition`, quoted-heredoc transport, line-editor sanitization.                                                                                                                                                                                                                                  | planned                  |
-| 4 — Resume composition                       | Split `buildResumeCommand` into catalog-owned `resumeArgs` + the profile's command and env prefix. First consumer of `profileId`.                                                                                                                                                                                           | planned                  |
-| 5 — `ctx.agents.profiles`                    | Public `list()` / `launch()`. First consumer is RFC 0031's deferred **Start Task**.                                                                                                                                                                                                                                         | planned                  |
-| 6 — Per-account hooks                        | Install strategies keyed on `(agentId, configDir)`. Depends on Managed Hooks.                                                                                                                                                                                                                                               | planned                  |
-| 7 — `SILO_AGENT_PROFILE` + hook confirmation | RFC 0028 designed the seam; deferred until a surface branches on "confirmed" vs "assumed".                                                                                                                                                                                                                                  | planned                  |
-| 8 — Per-workspace default profile            | Bind a workspace to a profile so "new agent" does the right thing per repo with no menu. Revisit AgentsRoom's resolution order (per-agent override → per-project pin → global default → system `~/.claude`).                                                                                                                | planned                  |
-| 9 — CLI read-back (`silo agent list`)        | `silo agent list [--json]`, which reads the profiles off disk (ADR 0047's Disk-read mode — no channel needed), plus bare `silo agent run`'s interactive **picker** and returning the launched terminal's id, which need the Control API (RFC 0034).                                                                         | planned                  |
+| Phase                                          | Scope                                                                                                                                                                                                                                                                                                                                                                                                           | Status                   |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| **1 — Populate and use the `+` menu**          | The record, persistence, `configDirEnvVar`, `TerminalRecord.profileId` + `TerminalKind` deprecation, the pending-launch model (+ the `SILO_TERMINAL_ID` repair), the Profiles settings tab, the `+` menu and the terminal context menu's Agents submenu, `ctx.agents.catalog()` + icon relocation, Hooks → Sessions rename.                                                                                     | **shipped** (2026-09-01) |
+| **2 — Addressing a profile by name**           | `core.newAgent.<profileId>` per profile + generic `core.newAgent`; the `default` flag and its two gestures; `silo agent run [--profile <id>] [--ws <folder\|.\|id>]` (reserved `agent` noun, `--ws` or cwd containment, never creating a workspace; first real caller of the background launch branch); the dangling-command-id dispatch guard; the rename warning. Plus the subscription-survival hydrate fix. | **shipped** (2026-09-01) |
+| 3 — Prompt delivery, and `ctx.agents.profiles` | `promptDelivery` on `AgentDefinition`, quoted-heredoc transport, line-editor sanitization — published through `ctx.agents.profiles` `list()` / `launch({ prompt })`, the phase's real consumer. Absorbs what was phase 5.                                                                                                                                                                                       | planned                  |
+| 4 — Resume composition                         | Split `buildResumeCommand` into catalog-owned `resumeArgs` + the profile's command and env prefix. First consumer of `profileId`.                                                                                                                                                                                                                                                                               | planned                  |
+| 5 — _(merged into phase 3)_                    | The public `ctx.agents.profiles` surface was originally its own phase. It moved into phase 3 because prompt delivery needs a consumer and this is the honest one: an SDK surface beats a CLI flag on a verb RFC 0034 is converting. The row is kept, not renumbered — RFC 0034 and ADR 0047 both cite "RFC 0033 phase 9" by number.                                                                             | merged                   |
+| 6 — Per-account hooks                          | Install strategies keyed on `(agentId, configDir)`. Depends on Managed Hooks.                                                                                                                                                                                                                                                                                                                                   | planned                  |
+| 7 — `SILO_AGENT_PROFILE` + hook confirmation   | RFC 0028 designed the seam; deferred until a surface branches on "confirmed" vs "assumed".                                                                                                                                                                                                                                                                                                                      | planned                  |
+| 8 — Per-workspace default profile              | Bind a workspace to a profile so "new agent" does the right thing per repo with no menu. Revisit AgentsRoom's resolution order (per-agent override → per-project pin → global default → system `~/.claude`).                                                                                                                                                                                                    | planned                  |
+| 9 — CLI read-back (`silo agent list`)          | `silo agent list [--json]`, which reads the profiles off disk (ADR 0047's Disk-read mode — no channel needed), plus bare `silo agent run`'s interactive **picker** and returning the launched terminal's id, which need the Control API (RFC 0034).                                                                                                                                                             | planned                  |
 
 Phases 3–9 keep the direction stated here and in each shipped phase's planning
 package history; each re-expands into its own package when its turn comes.

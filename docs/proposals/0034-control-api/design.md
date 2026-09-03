@@ -218,6 +218,26 @@ instead of logging to the Output channel, that an unresolvable workspace is an
 error rather than a create, and that a profile whose command cannot be launched
 is `failed` rather than `internal` (R11).
 
+**`args.prompt` — the opening prompt (RFC 0033 phase 3).** That phase builds
+prompt delivery and publishes it as `ctx.agents.profiles.launch({ prompt })`.
+It deliberately ships **no CLI code**: `silo agent run --prompt <text>` is the
+same capability at the command line, and ADR 0047's 2026-09-02 amendment says a
+new flag on a verb already scheduled for conversion is Control, never Forward.
+So the flag is specified there and **built here**, as part of this conversion.
+
+`prompt` is optional and opaque to this proposal — RFC 0033 owns sanitizing it,
+choosing a transport, and deciding whether the target agent and shell can take
+one at all. What this proposal owns is the flag itself and the fact that its
+refusals arrive as **codes from the closed vocabulary above** rather than
+Output-panel text: a profile whose agent cannot take a prompt is the caller's
+configuration to fix, an unquotable shell is environmental, and an oversized
+prompt is a bad argument.
+
+Implementation note: RFC 0033 phase 3 leaves a host-side precheck that returns
+a typed refusal before creating anything. `agent.run`'s handler calls it and
+maps the refusal onto a code — the CLI work here is the flag, the arg, and that
+mapping, not the delivery mechanism.
+
 ## Data flow
 
 ### `silo ws list --json` — Disk-read base, live overlay
@@ -234,7 +254,7 @@ is `failed` rather than `internal` (R11).
 
 ### `silo agent run` — the mutate path
 
-1. `control_request` yields `{ op: "agent.run", args: { profile, ws }, cwd }`.
+1. `control_request` yields `{ op: "agent.run", args: { profile, ws, prompt }, cwd }`.
 2. Client connects. Refused → `not-running` (exit 3), or, with `--launch`,
    launch and poll `status` for readiness to the deadline (R7).
 3. Client writes `{ id, op, args, cwd }\n` and blocks on the read deadline.
@@ -313,7 +333,7 @@ the breaking change this proposal exists to avoid.
 ```
 silo status  [--json] [--launch]
 silo ws list [--json]
-silo agent run [--profile <id>] [--ws <folder|.|ws_id>] [--json] [--launch]
+silo agent run [--profile <id>] [--ws <folder|.|ws_id>] [--prompt <text>] [--json] [--launch]
 ```
 
 `ws list` takes no `--launch`: it is Disk-read and already answers with no app
