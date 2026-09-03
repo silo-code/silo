@@ -12,6 +12,11 @@ import {
   type ResumeHint,
 } from "./agent-resume-hint";
 import { agentsChannel } from "./agents-channel";
+import { subscribeAgentProfiles } from "../../state/agent-profiles";
+import {
+  createAgentProfilesService,
+  invalidateProfileSummaries,
+} from "./agent-profiles-service";
 import {
   detectFromOsc,
   detectIdleAfterWorking,
@@ -1258,6 +1263,13 @@ export function getAgentsService(): AgentsService {
     catalog() {
       return catalogAgentSummaries();
     },
+    // RFC 0033 phase 3. The summary list is memoized, so it has to be dropped
+    // whenever the user adds, edits, reorders, or deletes a profile — and when
+    // the default flag moves, since `isDefault` rides on the summary.
+    profiles: (() => {
+      subscribeAgentProfiles(invalidateProfileSummaries);
+      return createAgentProfilesService();
+    })(),
   };
   return agentsService;
 }

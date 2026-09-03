@@ -27,6 +27,7 @@ import {
   draftIsValid,
   configDirEnvVarForAgent,
   fallbackAgentForCommand,
+  profileAcceptsPrompt,
   profileCommandId,
   renameRetiresBinding,
   overrideKey,
@@ -106,6 +107,18 @@ export function ProfileEditorModal({
     undefined;
   const envVar = configDirEnvVarForAgent(resolvedAgentId);
   const resolvedAgentKnown = resolvedAgentId != null;
+
+  // R10: whether this profile could ever be given an **opening prompt** is a
+  // static fact about the agent it resolves to, so it belongs here — where the
+  // profile is authored — rather than only in a refusal at launch time.
+  // Resolved through `profileAcceptsPrompt`, the same helper the launch path
+  // uses, against the profile this editor *would save*, so the notice below
+  // and an actual refusal can never disagree. Purely informational: a profile
+  // that can't take one is still fully usable, and nothing new is persisted.
+  const acceptsPrompt = profileAcceptsPrompt({
+    assumedAgentId: resolvedAgentId,
+    command: s.command,
+  });
 
   // id tracks the label until the user edits the id field.
   const idValue = s.idEdited ? s.id : slugifyProfileId(s.label);
@@ -312,6 +325,17 @@ export function ProfileEditorModal({
           setups).
         </span>
       )}
+
+      {!acceptsPrompt && s.command.trim() ? (
+        <span className="apf-field-hint">
+          {resolvedAgentKnown
+            ? `${
+                catalog.find((a) => a.id === resolvedAgentId)?.displayName ??
+                "This agent"
+              } can’t be given an opening prompt — extensions that offer one will skip this profile.`
+            : "This profile matches no known agent, so Silo can’t give it an opening prompt. Choose an agent above if you want that."}
+        </span>
+      ) : null}
 
       <div className="apf-launch">
         <span className="apf-launch-label">Silo will type</span>

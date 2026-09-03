@@ -12,3 +12,10 @@ interface RawSystemInfo {
 export function systemInfo(): Promise<RawSystemInfo> {
   return invoke<RawSystemInfo>("system_info");
 }
+
+/** The user's login shell (`$SHELL`, else `/bin/bash`; `COMSPEC`, else
+ *  `cmd.exe` on Windows) — RFC 0033 phase 3. Read once at host init; see
+ *  `login-shell.ts` for why it is cached rather than awaited per call. */
+export function defaultShell(): Promise<string> {
+  return invoke<string>("default_shell");
+}

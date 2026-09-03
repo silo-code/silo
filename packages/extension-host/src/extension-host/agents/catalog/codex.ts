@@ -26,6 +26,10 @@ export function buildCodexAgentDefinition(
     // warns and fails to load config — so the profile editor stats the dir and
     // offers to create it.
     configDirEnvVar: "CODEX_HOME",
+    // RFC 0033 phase-3 recon (2026-09-02, macOS, codex 0.149.1): `codex
+    // "<prompt>"` answered and stayed in the TUI. `codex exec` is the
+    // non-interactive mode and is NOT what this field means.
+    promptDelivery: { kind: "argv" },
     // "Working" is the shared spinner detector in `detectClaudeCode` (Codex uses
     // the braille range Claude used to); detectCodexCLI covers its own explicit
     // "idle" signals (empty title, action-required markers, OSC 9 notifications).
@@ -87,13 +91,20 @@ export function buildCodexAgentDefinition(
       "notifications, OR — the common case, a normal turn finishing with no " +
       "approval needed — a contextual fallback: any other non-empty OSC 0 " +
       "title while an agent-sourced working phase is active is inferred idle, " +
-      "since Codex has no other explicit 'idle' signal for that case.",
+      "since Codex has no other explicit 'idle' signal for that case. " +
+      "RFC 0033 phase-3 recon (2026-09-02, codex 0.149.1): `codex [OPTIONS] " +
+      "[PROMPT]` takes an opening prompt POSITIONALLY and stays interactive — " +
+      "run in a real PTY it answered and was still at its composer, so " +
+      "`promptDelivery` is { kind: 'argv' }. `codex exec` also takes a prompt " +
+      "but is the non-interactive mode, which is a NO for this field. NOTE " +
+      "the resume/hook findings above were confirmed at 0.144.5 and were not " +
+      "re-run at 0.149.1.",
     upstreamRefs: [
       "https://developers.openai.com/codex/hooks",
       "https://developers.openai.com/codex/config-advanced",
       "https://github.com/openai/codex",
     ],
-    lastVerified: "2026-08-31",
-    verifiedAgainstVersion: "codex-cli@0.144.5",
+    lastVerified: "2026-09-02",
+    verifiedAgainstVersion: "codex-cli@0.149.1",
   };
 }

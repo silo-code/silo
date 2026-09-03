@@ -15,7 +15,8 @@ vi.mock("../settings-sheet", () => ({ openSettings: vi.fn() }));
 import { store } from "../../state/store";
 import type { WorkspaceInternal } from "../../state/types";
 import { addAgentProfile } from "../../state/agent-profiles";
-import { launchAgentProfile } from "./agent-launch";
+import { launchAgentProfile, launchShellDialect } from "./agent-launch";
+import { setLoginShellForTests } from "../login-shell";
 import {
   drainPendingLaunch,
   hasPendingLaunch,
@@ -92,5 +93,57 @@ describe("launchAgentProfile (RFC 0033 R6)", () => {
     takePendingLaunch(rec.id); // simulate discard
     drainPendingLaunch(rec.id, "sess-x");
     expect(sendInput).not.toHaveBeenCalled();
+  });
+});
+
+describe("launchAgentProfile — an opening prompt (RFC 0033 phase 3)", () => {
+  it("threads prompt and dialect onto the pending launch", () => {
+    const rec = launchAgentProfile({
+      profileId: "cw",
+      prompt: "fix the CI",
+      dialect: "posix",
+    })!;
+    expect(takePendingLaunch(rec.id)).toEqual({
+      profileId: "cw",
+      prompt: "fix the CI",
+      dialect: "posix",
+    });
+  });
+
+  it("leaves the claim promptless when no prompt is given", () => {
+    const rec = launchAgentProfile({ profileId: "cw" })!;
+    expect(takePendingLaunch(rec.id)).toEqual({ profileId: "cw" });
+  });
+
+  it("still takes the background eager-spawn branch with a prompt", () => {
+    const rec = launchAgentProfile({
+      profileId: "cw",
+      workspaceId: "bg",
+      prompt: "fix the CI",
+      dialect: "posix",
+    })!;
+    expect(ensureSession).toHaveBeenCalledWith(rec.id);
+  });
+});
+
+describe("launchShellDialect (RFC 0033 phase 3)", () => {
+  beforeEach(() => {
+    store.terminalSettings.shell = "";
+    setLoginShellForTests(undefined);
+  });
+
+  it("prefers the Terminal setting's explicit shell — that is what gets exec'd", () => {
+    store.terminalSettings.shell = "/opt/homebrew/bin/fish";
+    setLoginShellForTests("/bin/zsh");
+    expect(launchShellDialect()).toBe("fish");
+  });
+
+  it("falls back to the login shell when the setting is empty", () => {
+    setLoginShellForTests("/bin/zsh");
+    expect(launchShellDialect()).toBe("posix");
+  });
+
+  it("is unsupported — never assumed POSIX — when neither is known", () => {
+    expect(launchShellDialect()).toBe("unsupported");
   });
 });

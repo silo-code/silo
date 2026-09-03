@@ -434,10 +434,13 @@ export type {
 export { stripAgentStatusMarkers } from "./agents/agent-osc-detectors";
 
 // Agent Profiles (RFC 0033 phase 1). Host-owned, user-defined launch recipes.
-// Core-only via this barrel — the public `ctx.agents.profiles` is deferred to
-// phase 5 (no public consumer yet). `core.agents-settings` drives the Profiles
-// tab; `core.terminal` drains the pending launch. NOT here: a catalog accessor
-// — core reads `ctx.agents.catalog()` like anyone else.
+// These are the **management** operations — creating, editing, reordering, and
+// deleting profiles — which stay core-only: `core.agents-settings` drives the
+// Profiles tab and `core.terminal` drains the pending launch. The *consumer*
+// half is public as of phase 3 (`ctx.agents.profiles`: read the list, launch
+// one, optionally with an opening prompt), so a third-party extension never
+// needs this barrel to start an agent. NOT here: a catalog accessor — core
+// reads `ctx.agents.catalog()` like anyone else.
 export {
   getAgentProfiles,
   subscribeAgentProfiles,
@@ -471,6 +474,18 @@ export type {
   ProfileDraftErrors,
 } from "./agents/agent-profile-model";
 export type { AgentProfile } from "../state/types";
+
+// Opening-prompt delivery (RFC 0033 phase 3). Core needs exactly one thing
+// from this module: whether a profile can be given an opening prompt, so the
+// Profiles editor can say so where the profile is authored rather than leaving
+// the user to meet the refusal at launch time (R10). It resolves the agent
+// through the same helper the launch path uses, so the warning and the refusal
+// cannot disagree. Composition, sanitizing, and dialect selection stay
+// host-internal — nothing outside the host builds a launch line for a prompt.
+export {
+  profileAcceptsPrompt,
+  resolveProfileAgentId,
+} from "./agents/agent-prompt";
 
 // Tooltip — re-exported here so core.* extensions can still import it from the
 // internal barrel. The component itself is now public (@silo-code/sdk); the

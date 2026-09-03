@@ -12,6 +12,12 @@ export const opencodeAgent: AgentDefinition = {
   displayName: "OpenCode",
   // Native compiled binary — argv0 is `opencode` directly, no node-wrapping.
   leaderNames: ["opencode"],
+  // RFC 0033 phase-3 recon (2026-09-02, macOS, opencode 1.18.20): the
+  // positional is a **project path**, not a prompt (`opencode [project]`), so
+  // appending prompt text there would set the project directory to the
+  // prompt. `--prompt <string>` is the interactive form, and it answered and
+  // stayed in the TUI. This entry is why the union has a `"flag"` member.
+  promptDelivery: { kind: "flag", flag: "--prompt" },
   // Its async session-naming rename (see `contract` below) leads with this —
   // redundant once the tab shows OpenCode's icon.
   titleIdentityPrefix: "OC | ",
@@ -57,7 +63,14 @@ export const opencodeAgent: AgentDefinition = {
     "real config-load-path override (and suppresses default config bootstrap), " +
     "but credentials/state live at ~/.local/share/opencode independently — a " +
     "second profile would share the first's account — so `configDirEnvVar` is " +
-    "left undefined.",
+    "left undefined. RFC 0033 phase-3 recon (2026-09-02, opencode 1.18.20): " +
+    "the default command's positional is a PROJECT PATH (`opencode " +
+    "[project]`), so a prompt appended positionally would be read as a " +
+    "directory — the reason `promptDelivery` is a flag here and not argv. " +
+    "`--prompt <string>` is the interactive opening-prompt form: run in a " +
+    'real terminal, `opencode --prompt "<text>"` answered and left the TUI ' +
+    "up. (`opencode run [message..]` is the separate non-interactive verb and " +
+    "is a NO for this field.)",
   upstreamRefs: [
     "https://opencode.ai",
     "https://github.com/sst/opencode",
@@ -65,6 +78,6 @@ export const opencodeAgent: AgentDefinition = {
     // source for the unverified Tier-3 plugin mechanism the contract above
     // describes — no public docs page covers it yet.
   ],
-  lastVerified: "2026-08-31",
+  lastVerified: "2026-09-02",
   verifiedAgainstVersion: "opencode@1.18.20",
 };

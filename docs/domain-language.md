@@ -290,6 +290,40 @@ _Avoid_: "agent config" / "agent preset" (it is a launch recipe, not the
 agent's own configuration); conflating asserted `assumedAgentId` with observed
 `agentId`.
 
+**Opening Prompt** (RFC 0033 phase 3) — the text a profile launch hands the
+agent **on its launch line**, so the agent starts already working on something.
+An _opening_ prompt precisely because it rides the launch: there is no way to
+send a second one to an agent that is already running, and building that would
+be the agent-agnostic runner the proposal rejects outright. Reachable only
+through `ctx.agents.profiles.launch({ prompt })`.
+
+The governing rule is **refuse rather than approximate**: a prompt Silo cannot
+quote exactly is never typed, no agent is started without it, and the caller is
+told why as a typed `PromptRefusal` — the same discipline `configDirEnvVar`
+settled in phase 1, since a mechanism that looks like it worked and silently
+didn't is worse than one that isn't there. The payload rides a **quoted
+heredoc** (POSIX) or an exact single-quoted literal (fish), so shell expansion
+is dead by construction rather than by escaping; it is _sanitized_ first,
+because the bytes are typed into a **line editor** where ESC fires keybindings,
+a lone CR submits the line, and a tab completes.
+
+- **Prompt Delivery** (`AgentDefinition.promptDelivery`) — the sealed-catalog
+  fact saying how an agent takes one: `{ kind: "argv" }` (positional) or
+  `{ kind: "flag", flag }`. Established by empirical recon, not from `--help`
+  and never guessed from the command text. The distinguishing question is not
+  "does it accept prompt text" but "does it accept prompt text **and stay
+  interactive**" — a mode that prints and exits is a no. `undefined` is a
+  deliberate no, and the profile is then refused a prompt.
+- **Shell Dialect** (`"posix" | "fish" | "unsupported"`) — which exact quoting
+  rule applies to the shell a terminal will actually run. Decided **once per
+  launch**, at registration, and carried on the pending launch, so the precheck
+  and the drain cannot reach different conclusions. `"unsupported"` is an
+  answer, not a gap: it refuses.
+
+_Avoid_: "initial message" / "seed prompt" (use Opening Prompt); calling a
+refusal an error (it is a returned value, not a throw); "sending a prompt to an
+agent" for anything but the launch line.
+
 **Agent Profile is the launch vocabulary; Catalog Agent is the identity
 vocabulary; Terminal Kind is neither.**
 

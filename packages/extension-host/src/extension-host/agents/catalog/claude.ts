@@ -25,6 +25,10 @@ export function buildClaudeAgentDefinition(
     // (`.claude/settings.json`) also sits inside it, which is what makes the
     // deferred (agentId, configDir) hook keying (phase 6) work cleanly.
     configDirEnvVar: "CLAUDE_CONFIG_DIR",
+    // RFC 0033 phase-3 recon (2026-09-02, macOS, claude 2.1.252): `claude
+    // "<prompt>"` answered the prompt and left the TUI up. `-p/--print` is
+    // the non-interactive mode and is deliberately NOT what this field means.
+    promptDelivery: { kind: "argv" },
     activityDetectors: [detectClaudeCode],
     resume: {
       kind: "hook",
@@ -54,12 +58,18 @@ export function buildClaudeAgentDefinition(
       "title itself is '<glyph> <conversation title>'; the '✳' idle marker is " +
       "unchanged. A future glyph change here silently breaks 'working' only — " +
       "idle detection would keep working, so the symptom is an agent terminal " +
-      "that never lights up as busy.",
+      "that never lights up as busy. RFC 0033 phase-3 recon (2026-09-02, " +
+      "claude 2.1.252): `claude [options] [command] [prompt]` takes an " +
+      "opening prompt POSITIONALLY and stays interactive — run in a real PTY, " +
+      "it answered the prompt and was still at its input box afterwards, so " +
+      "`promptDelivery` is { kind: 'argv' }. `-p/--print` also takes prompt " +
+      "text but prints and exits, which is a NO for this field.",
     upstreamRefs: [
       "https://docs.claude.com/en/docs/claude-code/hooks",
       "https://docs.claude.com/en/docs/claude-code/settings",
+      "https://docs.claude.com/en/docs/claude-code/cli-reference",
     ],
-    lastVerified: "2026-08-31",
-    verifiedAgainstVersion: "claude-code@2.1.228",
+    lastVerified: "2026-09-02",
+    verifiedAgainstVersion: "claude-code@2.1.252",
   };
 }

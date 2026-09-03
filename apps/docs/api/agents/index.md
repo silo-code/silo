@@ -63,6 +63,12 @@ gate any tab chrome on the return value rather than rendering it blind.
 Detection stays sealed (ADR 0028) — `catalog()` is read-only, with no way to
 register into the list.
 
+### Start an agent
+
+This surface observes agents that are already running. To **start** one, use
+[`ctx.agents.profiles`](/api/agents/profiles) — the user's own named launch
+recipes, which can also carry an opening prompt.
+
 ## What you get
 
 | Field                         | Meaning                                                                                                                                                                     |
@@ -80,6 +86,7 @@ register into the list.
 - [`CatalogAgentSummary`](/api/types/interfaces/CatalogAgentSummary)
 - [`AgentIcon`](/api/types/interfaces/AgentIcon)
 - [`AgentIconMode`](/api/types/type-aliases/AgentIconMode)
+- [`ctx.agents.profiles`](/api/agents/profiles) — start an agent from a user-defined profile
 - [Using agents with Silo](/guide/agent-sessions) — install hooks, platform notes
 - [Agent system architecture](/roadmap/agent-system)
 - ADR 0028 — sealed detection, no cwd inference

@@ -5,20 +5,24 @@ Design for **phase 3 only**. Phases 1 and 2 are the baseline. Working artifact
 
 ## Architecture
 
-Four seams, in dependency order. Nothing here is public SDK surface.
+Five seams, in dependency order. The last two **are** public SDK surface —
+`ctx.agents.profiles` is what this phase publishes, and the reason it ships a
+product rather than a seam.
 
-| Where                                                                    | What changes                                                              |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| `packages/extension-host/…/agents/agent-catalog.ts` + `catalog/*.ts`     | `AgentDefinition.promptDelivery`, populated per recon                     |
-| `packages/extension-host/…/agents/agent-prompt.ts` **(new)**             | The whole pure core: sanitizer, dialect, delimiter, composition, refusals |
-| `packages/extension-host/…/agents/pending-launch.ts` + `agent-launch.ts` | A launch may carry a prompt; the drain composes it                        |
-| `packages/sdk/src/` + `packages/extension-host/…/agents-service.ts`      | `ctx.agents.profiles` — `list()` / `launch({ prompt })`, the consumer     |
-| `packages/extensions-core/src/agents-settings/ProfileEditorModal.tsx`    | R10 — the profile says whether it can take a prompt                       |
+| Where                                                                               | What changes                                                              |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `packages/extension-host/…/agents/agent-catalog.ts` + `catalog/*.ts`                | `AgentDefinition.promptDelivery`, populated per recon                     |
+| `packages/extension-host/…/agents/agent-prompt.ts` **(new)**                        | The whole pure core: sanitizer, dialect, delimiter, composition, refusals |
+| `packages/extension-host/…/login-shell.ts` **(new)** + `system.rs`                  | `default_shell`, resolved once at host init so every consumer is sync     |
+| `packages/extension-host/…/agents/pending-launch.ts` + `agent-launch.ts`            | A launch may carry a prompt; the drain composes it and chunks the send    |
+| `packages/sdk/src/agents-service.ts` + `agents/agent-profiles-service.ts` **(new)** | `ctx.agents.profiles` — `list()` / `launch({ prompt })`, the consumer     |
+| `packages/extensions-core/src/agents-settings/ProfileEditorModal.tsx`               | R10 — the profile says whether it can take a prompt                       |
 
 The design deliberately puts **all** the reasoning in one pure module. The
-drain, the CLI handler, and (later) phase 5 each call the same function and act
-on its result; none of them builds shell syntax inline. That is what makes a
-phase whose risk is entirely "did we quote it right" coverable by unit tests.
+precheck, the drain, and (later) RFC 0034's `agent.run` handler each call the
+same function and act on its result; none of them builds shell syntax inline.
+That is what makes a phase whose risk is entirely "did we quote it right"
+coverable by unit tests.
 
 ## Components
 
@@ -40,12 +44,19 @@ function sanitizePromptForLineEditor(text: string): string;
 /** The dialect of the shell a terminal will actually run. */
 function shellDialect(shell: string | undefined): ShellDialect;
 
-/** The catalog agent a profile resolves to — `assumedAgentId` when set, else
- *  matched from the command text. The single source the launch path and the
- *  Profiles editor (R10) share, so a refusal and its warning cannot drift. */
+/** The catalog agent a profile resolves to — `assumedAgentId` when set **and
+ *  in the catalog**, else matched from the command text. The single source the
+ *  launch path and the Profiles editor (R10) share, so a refusal and its
+ *  warning cannot drift. */
 function resolveProfileAgentId(
   profile: Pick<AgentProfile, "assumedAgentId" | "command">,
 ): string | undefined;
+
+/** Whether a profile can be given an opening prompt at all — R10's static
+ *  fact, and what rides on `AgentProfileSummary.acceptsPrompt`. */
+function profileAcceptsPrompt(
+  profile: Pick<AgentProfile, "assumedAgentId" | "command">,
+): boolean;
 
 /** A delimiter no line of `payload` equals. */
 function heredocDelimiter(payload: string): string;
@@ -54,19 +65,33 @@ function heredocDelimiter(payload: string): string;
 function composePromptLaunchLine(input: {
   launchLine: string; // phase 1's `profileLaunchLine(profile)`, unchanged
   prompt: string; // raw; this function sanitizes
+  agentId: string | undefined; // from resolveProfileAgentId
   delivery: AgentPromptDelivery | undefined;
   dialect: ShellDialect;
 }): { line: string } | { refusal: PromptRefusal };
 ```
 
 `composePromptLaunchLine` is the only place shell syntax is written. It is
-called from two points — the CLI precheck and the drain — and the inputs that
-_can_ differ between them are deliberately narrowed to one: the **profile**,
-which phase 1 established is resolved at drain time so a mid-flight edit is
-respected. `dialect` is decided once at registration and carried on the pending
-launch, and `delivery` follows from the profile. So the two calls can only
-disagree when the user edits the profile mid-launch, which is exactly the case
-R7 documents.
+called from two points — `launch()`'s precheck and the drain — and the inputs
+that _can_ differ between them are deliberately narrowed to one: the
+**profile**, which phase 1 established is resolved at drain time so a mid-flight
+edit is respected. `dialect` is decided once at registration and carried on the
+pending launch, and `delivery` follows from the profile. So the two calls can
+only disagree when the user edits the profile mid-launch, which is exactly the
+case R7 documents.
+
+Two refinements the implementation added, both small and both load-bearing:
+
+- **`agentId` is passed alongside `delivery`.** The sketch derived both from
+  the profile, but then "this profile names no agent" and "this agent takes no
+  prompt" collapse into one `undefined` and the two refusals cannot be told
+  apart. They need different wording — one is "pick an agent", the other is
+  "this agent can't do that" — so the resolved id rides in explicitly.
+- **`resolveProfileAgentId` validates against the catalog.** An
+  `assumedAgentId` naming an agent Silo has since dropped falls through to the
+  command match rather than being taken at its word; otherwise a launch reports
+  `agent-takes-none` about an agent that does not exist, which names the wrong
+  problem.
 
 ### The catalog field
 
@@ -97,31 +122,55 @@ it accept prompt text **and stay interactive**." Every agent here has a
 non-interactive mode that also takes a prompt; that mode is a **no** for this
 field, because a profile launch is an interactive TUI in a tab.
 
-| Agent          | Evidence                                                                                          | `promptDelivery`                               |
-| -------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `claude`       | `claude [options] [command] [prompt]`; `-p/--print` is the non-interactive one                    | `{ kind: "argv" }`                             |
-| `codex`        | `codex [OPTIONS] [PROMPT]`, "forwarded to the interactive CLI"; `exec` is the non-interactive one | `{ kind: "argv" }`                             |
-| `grok`         | `[PROMPT]` — "Initial prompt for the interactive session, e.g. `grok \"fix the bug\"`"            | `{ kind: "argv" }`                             |
-| `cursor-agent` | `agent [options] [command] [prompt...]`; `-p/--print` is the non-interactive mode                 | `{ kind: "argv" }`                             |
-| `pi`           | `pi [options] [--] [@files...] [messages...]`                                                     | `{ kind: "argv" }` — **confirm empirically**   |
-| `opencode`     | the positional is a **project path**, not a prompt; the TUI takes `--prompt <string>`             | `{ kind: "flag", flag: "--prompt" }`           |
-| `copilot`      | "Start an interactive session…, or use `-p/--prompt` for **non-interactive** scripting"           | likely **undefined** — **confirm empirically** |
+**All seven were run for real on 2026-09-02** (macOS, each launched with a
+prompt in a live PTY — bare `pty.fork()` for `pi`, a `tmux` pane for the six
+whose TUIs query terminal capabilities before drawing). Each was checked
+against both halves of the question: did it **act on the prompt**, and was the
+process still **at its own composer** afterwards. All seven passed.
 
-`opencode` is why the union has two members: appending its prompt positionally
-would set the project directory to the prompt text.
+| Agent          | Version            | Evidence                                                                                                                      | `promptDelivery`                          |
+| -------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `claude`       | 2.1.252            | `claude "<prompt>"` answered, TUI stayed up. `-p/--print` is the non-interactive one                                          | `{ kind: "argv" }`                        |
+| `codex`        | 0.149.1            | `codex "<prompt>"` answered, composer stayed up. `codex exec` is the non-interactive one                                      | `{ kind: "argv" }`                        |
+| `grok`         | 1.0.13             | `grok "<prompt>"` answered; `--help` calls the positional the "initial prompt for the interactive session"                    | `{ kind: "argv" }`                        |
+| `cursor-agent` | 2026.08.31-4057e58 | `cursor-agent "<prompt>"` answered, left "Add a follow-up" up. `-p/--print` is non-interactive                                | `{ kind: "argv" }`                        |
+| `pi`           | 0.84.3             | `pi "say hello"` answered "hello" and was still at its composer 45s later                                                     | `{ kind: "argv" }`                        |
+| `opencode`     | 1.18.20            | positional is a **project path**; `--prompt <string>` answered and stayed in the TUI                                          | `{ kind: "flag", flag: "--prompt" }`      |
+| `copilot`      | 1.0.82             | positional is a **subcommand** (`copilot "x"` → "Invalid command format"); `-i/--interactive <prompt>` answered and stayed up | `{ kind: "flag", flag: "--interactive" }` |
 
-Two entries above are read from `--help` and still need the empirical run that
-`configDirEnvVar` got — whether `pi` stays in its TUI after positional
-messages, and whether `copilot -p` has any interactive form. Both default to
-`undefined` (refuse) if the run is ambiguous.
+`opencode` and `copilot` are why the union has two members, and for different
+reasons: appending a prompt positionally would set opencode's **project
+directory** to the prompt text, and would be parsed as a **subcommand name** by
+copilot.
+
+**Copilot overturned the pre-recon prediction, and that is the lesson worth
+keeping.** This table's first draft read copilot's `--help` — "Start an
+interactive session…, or use `-p/--prompt` for **non-interactive** scripting" —
+and concluded `undefined`. Running it found `-i/--interactive <prompt>`,
+documented as "Start interactive mode and automatically execute this prompt",
+which is exactly the capability. A `--help`-only pass would have shipped a
+permanent, silent "copilot can't take prompts". This is the same argument
+`configDirEnvVar` made in phase 1, and it is why `docs/adding-a-coding-agent.md`
+now says the check is a run, not a read.
+
+No agent in the catalog is left `undefined`, so the `agent-takes-none` refusal
+has no live producer today. It stays, and is tested: it is the answer for any
+future agent whose recon comes back ambiguous, and `undefined` remains the
+deliberate default rather than a gap.
 
 ### Shell dialect
 
 The transport is bash/zsh syntax, so the dialect must be known before anything
 is typed. Resolution, in order:
 
-1. `TerminalRecord.shell` when the record names one (a per-terminal override
-   the host already stores).
+1. **`store.terminalSettings.shell`, when the user set one.** _(Corrected
+   during implementation: this rung was drafted as `TerminalRecord.shell`, "a
+   per-terminal override the host already stores". **There is no such field.**
+   The real override is the global Terminal setting — "Shell to launch; empty =
+   the user's `$SHELL`" — which is what `process-service.ts` hands the session
+   host, so it is genuinely the shell the prompt will be typed into. That makes
+   it a better rung 1 than the drafted one, not a worse one; the only thing lost
+   is per-terminal granularity, which never existed.)_
 2. The user's login shell, from a new `default_shell` host command reading
    `$SHELL` (`/bin/bash` when unset — the same fallback `main.rs` already
    uses).
@@ -361,10 +410,17 @@ a terminal they reopened hours later.
 | `unsupported-shell` | Dialect is neither `posix` nor `fish`                        | the shell                                          |
 | `too-large`         | Sanitized prompt exceeds `MAX_PROMPT_BYTES`                  | the limit and the actual size                      |
 
-All four report on the existing `silo:application` / **Application** channel via
-`createHostChannel` — the same channel phase 2's profile and workspace misses
-use, and the only place a Forward-mode CLI request can speak (ADR 0047: there
-is no stdout and no meaningful exit code until the Control API).
+A refusal caught at **precheck** is a return value, not a log — that is the
+whole point of `launch()` returning a result. Only the **drain**'s refusal has
+nowhere to return to, and it reports on the existing `silo:agents` /
+**Agents** channel via `createHostChannel`.
+
+\_(Corrected during implementation: this said `silo:application`. That was right
+for the CLI handler — which lives in `apps/desktop` and is out of this phase's
+scope entirely — and wrong for the drain, which is host `agents/` code.
+`silo:agents` already exists and is the agents subsystem's diagnostic surface,
+so AGENTS.md's "check whether an existing one is a close fit before adding a
+channel" resolves to it. No new channel either way.)
 
 `MAX_PROMPT_BYTES` is **16 KiB** of sanitized UTF-8. A prompt is an opening
 instruction, not a file transfer; a bounded, stated limit that fails loudly
@@ -373,14 +429,34 @@ real instruction, far under `ARG_MAX`, and small enough to stay tractable for
 the line editor and for the history file the line lands in (R5a). The CLI guide
 states it.
 
-**PTY write chunking.** A 16 KiB composed line may exceed what a single
-`sendInput` can carry in one write. A truncated heredoc is the worst possible
-failure here: the delimiter never arrives, so the user's shell sits in an
-unterminated quote waiting for input that will never come. The send must
-therefore either be proven to carry the full line or chunk it, and the boundary
-case must be tested at exactly `MAX_PROMPT_BYTES` rather than assumed. This is
-the one place where "it worked in the spike" is not evidence — the spike's
-payloads were small.
+**PTY write chunking — answered: it must chunk.** The open question was whether
+a single `sendInput` carries a 16 KiB composed line intact. Tracing the whole
+path (2026-09-03) says **no**, and the failure is silent:
+
+`sendInput` → `terminal_write` (one item on a 64-slot queue) → the per-session
+writer thread's `write_all` → one `T_DATA` frame (a `u32` length, no cap) →
+the daemon's `write_master_timed`. Everything up to that last hop loops until
+the whole buffer is written. `write_master_timed`
+(`crates/pty-host/src/daemon.rs`) does not: it writes under a **one-second
+deadline and then drops whatever is left**, logging
+`write_master: timeout after N/M bytes`. A 16 KiB heredoc is exactly the
+payload that reaches it — and a plugin-heavy line editor, which re-renders on
+every chunk it consumes, is exactly what makes the PTY drain slowly enough to
+hit the deadline. A heredoc truncated before its closing delimiter never
+terminates, so the user's shell parks in an unterminated quote forever.
+
+So the send **chunks**, at 1 KiB of UTF-8 per `sendInput`. One write per frame
+means one deadline per frame: each piece gets its own full budget, and each is
+small enough to land in the PTY's input buffer in a single `write(2)` in the
+ordinary case. Ordering is preserved by the per-session writer thread, and 16
+chunks is far inside the 64-slot queue. Chunking is by **code point**, not code
+unit — `sendInput` encodes each call independently, so splitting a surrogate
+pair would put replacement bytes on the wire.
+
+The bound is a correctness constant, not a tuning knob, and it is commented as
+such at the constant. A line that fits in one chunk — every promptless launch —
+is still exactly one `sendInput` carrying exactly `line + "\r"`, which is what
+keeps R5's byte-identical guarantee true.
 
 ## Testing strategy
 
@@ -409,15 +485,22 @@ pure module, so the coverage is too.
 yields `null` to the second caller; the drain sends the composed line; a claim
 with **no** prompt sends a line byte-identical to today's.
 
-`agent-launch.test.ts` — `prompt` threads through to the registry; the
-background branch behaves as before.
+`agent-launch.test.ts` — `prompt` and `dialect` thread through to the registry;
+the background branch behaves as before; `launchShellDialect` prefers the
+Terminal setting's shell, falls back to the login shell, and refuses rather
+than assuming POSIX when neither is known.
 
-`cli.rs` unit tests, beside the existing `agent_run_*` ones — `--prompt <text>`,
-`--prompt=<text>`, a value beginning with `-`, a bare trailing `--prompt`, and
-`--prompt` combined with `--profile` and `--ws` in mixed order.
+`agent-profiles-service.test.ts` — `list()`'s shape, freezing, memoization and
+invalidation, and that no host record leaks through it; `launch()` returning the
+terminal id, `activate: false` leaving focus alone, the background workspace
+taking the eager-spawn branch, each refusal arriving as a typed result rather
+than a throw, and a refused prompt creating no terminal and activating no
+workspace.
 
-`agent-run-handler` — a refused prompt creates no terminal, activates no
-workspace, and logs; a launch with no prompt is unchanged.
+_(Corrected during implementation: this section also listed `cli.rs` and
+`agent-run-handler` tests for `--prompt`. Those contradict the phase's own "no
+CLI code ships here" — they belong to RFC 0034, which builds the flag. Removed;
+the two suites above are what replaced them.)_
 
 ## Constraints and existing decisions
 
@@ -493,11 +576,11 @@ What is real at that bail is a **leaked PTY**: it returns without
 `session.kill()`. `ensureSession` handles the identical race correctly
 (`terminal-service.ts:260` reaps its orphan before returning).
 
-**Decision: fix it in this phase** (see "The orphaned-session fix" below). It is
-adjacent rather than required — a leaked session is never drained into, so
-prompt delivery works either way — but it is four lines beside code this phase
-already touches, and leaving a known leak next to a new launch path invites
-misattributing the next terminal oddity to prompt delivery.
+**Decision: it ships as its own PR** — see "The orphaned session — moved out of
+this phase" above, which is the current decision. _(This paragraph previously
+read "fix it in this phase"; that was the earlier draft, superseded when the fix
+was split out. It is out of scope here and nothing in this phase depends on it:
+a leaked session is never drained into, so prompt delivery works either way.)_
 
 **The proposal's "typed twice" note is stale and gets corrected here.** It
 describes phase 1's _predecessor_: the old `kind`-based shim was a bare

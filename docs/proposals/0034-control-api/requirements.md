@@ -241,7 +241,11 @@ The proving mutate-tier consumer, converted from Forward mode.
 - [ ] This proposal treats the prompt as opaque — RFC 0033 owns sanitizing,
       transport, and deliverability — and calls its host-side precheck, mapping
       any refusal onto a code from the closed vocabulary rather than
-      Output-panel text.
+      Output-panel text. That precheck shipped with RFC 0033 phase 3
+      (2026-09-03) as `ctx.agents.profiles.launch()`'s own; the mapping is
+      settled in `design.md` → "The mapping": all four `PromptRefusal` members
+      are `failed`, with the specifics in `message`. `too-large` deliberately
+      does **not** use `invalid-args` — see the finding recorded there.
 - [ ] **Breaking change:** with no instance running the command exits
       `not-running` instead of launching Silo and running the agent on startup.
       `--launch` restores the launch-and-run behavior explicitly. The

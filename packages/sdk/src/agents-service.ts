@@ -173,6 +173,176 @@ export interface CatalogAgentSummary {
 }
 
 /**
+ * One **Agent Profile** as an extension may read it through
+ * {@link AgentProfilesService.list} — a named recipe for starting a coding
+ * agent in a terminal, defined by the user on Settings → Agents → Profiles.
+ * Deliberately a summary, never the host's own profile record: the command
+ * line, its config directory, and every other launch detail stay host-owned
+ * (RFC 0033).
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentProfileSummary {
+  /** Stable id — pass it to {@link AgentProfilesService.launch}. */
+  readonly id: string;
+  /** The user's own name for this profile, e.g. `"Claude (work)"`. Show this;
+   *  never show or parse the id. */
+  readonly label: string;
+  /** True for the single profile marked default, which is what `launch()`
+   *  starts when no `profileId` is given. False for every profile when the
+   *  user has not chosen one. */
+  readonly isDefault: boolean;
+  /**
+   * Whether this profile's agent can be given an **opening prompt**. A static
+   * fact about the agent, not about any particular launch — so a picker can
+   * grey out or annotate a profile up front instead of discovering
+   * `"agent-takes-none"` after the user has already typed one.
+   */
+  readonly acceptsPrompt: boolean;
+}
+
+/**
+ * Why an opening prompt could not be delivered. Silo refuses rather than
+ * approximating: a prompt it cannot quote exactly is never typed, and no agent
+ * is started without the prompt the caller asked for.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export type PromptRefusal =
+  /** The profile matches no agent Silo knows, so there is no way to tell how
+   *  its CLI takes a prompt. The user can fix this by setting the agent on the
+   *  profile. */
+  | "no-agent"
+  /** The profile's agent has no way to accept an opening prompt while staying
+   *  interactive. Check {@link AgentProfileSummary.acceptsPrompt} first to
+   *  avoid offering a prompt for such a profile at all. */
+  | "agent-takes-none"
+  /** Silo has no exact quoting rule for the shell this terminal would run and
+   *  will not guess one. bash, zsh, and fish are supported. */
+  | "unsupported-shell"
+  /** The prompt exceeds Silo's 16 KiB limit. An opening instruction, not a
+   *  file transfer. */
+  | "too-large";
+
+/**
+ * Options for {@link AgentProfilesService.launch}. Every field is optional —
+ * a bare `launch()` starts the default profile in the active workspace.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface LaunchAgentProfileOptions {
+  /** Which profile to start. Defaults to the one marked default, else the
+   *  first — the same profile the built-in "New Agent" command uses. */
+  profileId?: string;
+  /** Which workspace to start it in. Defaults to the active one. A
+   *  background workspace works: the session is spawned eagerly, since no
+   *  panel will mount to do it. */
+  workspaceId?: string;
+  /** Working directory for the new terminal. Defaults to the workspace folder. */
+  cwd?: string;
+  /**
+   * An opening prompt to hand the agent on its launch line.
+   *
+   * The text is delivered as a literal — it is never interpreted by the
+   * shell, so `$HOME`, backticks, quotes, and newlines are all safe. If Silo
+   * cannot deliver it exactly, the launch is **refused** rather than mangled
+   * or silently dropped: nothing is typed, no terminal is created, and
+   * `launch()` returns the reason.
+   *
+   * The composed line is typed into the user's own interactive shell, so it
+   * appears in scrollback and in shell history exactly as if they had typed
+   * it. Don't put a secret in one.
+   */
+  prompt?: string;
+  /**
+   * Activate the target workspace and focus the new terminal. Defaults to
+   * `true`. Pass `false` to start an agent without stealing the user's place.
+   */
+  activate?: boolean;
+}
+
+/**
+ * What {@link AgentProfilesService.launch} did. A **result**, never a throw:
+ * every foreseeable reason a launch cannot happen is a value you can branch
+ * on and report to your own user.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export type LaunchAgentProfileResult =
+  | {
+      readonly ok: true;
+      /** The created terminal's record id — the same id
+       *  {@link AgentsService.getByTerminalId} and `ctx.terminals` take. */
+      readonly terminalId: string;
+    }
+  | {
+      readonly ok: false;
+      /** Why nothing was launched. `"no-profile"` — the named profile does
+       *  not exist, or there are no profiles at all. `"no-workspace"` — the
+       *  named workspace does not exist, or none is open. Otherwise one of the
+       *  {@link PromptRefusal} reasons. */
+      readonly refusal: PromptRefusal | "no-profile" | "no-workspace";
+    };
+
+/**
+ * Read the user's **Agent Profiles** and start one, optionally with an opening
+ * prompt — exposed as `ctx.agents.profiles` (RFC 0033).
+ *
+ * A profile is a way to *start* a terminal, not a way to talk to an agent:
+ * what comes up is a PTY running a real agent CLI, exactly as if the user had
+ * typed the command themselves. There is no agent-agnostic messaging layer
+ * here and there is not meant to be one.
+ *
+ * There is deliberately no `pick()` — build one from `list()` and
+ * `ctx.ui.showMenu`, which is the shared chrome — and no `get()`, which is
+ * `list().find()`.
+ *
+ * @example
+ * ```ts
+ * // Let the user choose a profile, then start it on a task.
+ * const profiles = ctx.agents.profiles.list();
+ * const chosen = await ctx.ui.showMenu(
+ *   profiles.map((p) => ({ id: p.id, label: p.label })),
+ * );
+ * if (chosen) {
+ *   const result = ctx.agents.profiles.launch({
+ *     profileId: chosen,
+ *     prompt: "Fix the failing test in src/foo.test.ts",
+ *   });
+ *   if (!result.ok) ctx.ui.notify("warn", `Couldn't start it: ${result.refusal}`);
+ * }
+ * ```
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentProfilesService {
+  /**
+   * Every Agent Profile the user has defined, in the order they appear in
+   * Settings. The returned array is **read-only and deeply frozen**; it is
+   * recomputed when the profile list changes, not on every call.
+   */
+  list(): readonly AgentProfileSummary[];
+  /**
+   * Start a profile in a terminal. Returns the created terminal's id, or a
+   * typed refusal — see {@link LaunchAgentProfileResult}.
+   *
+   * A refused prompt creates nothing at all: no terminal record, no workspace
+   * activation, no focus change.
+   */
+  launch(options?: LaunchAgentProfileOptions): LaunchAgentProfileResult;
+}
+
+/**
  * Host-computed coding-agent observability — exposed as
  * {@link ExtensionContext.agents}. Detection (what OSC/output signals mean
  * for a given agent) and resume-hint resolution are both sealed inside the
@@ -250,4 +420,13 @@ export interface AgentsService {
    * @public
    */
   catalog(): readonly CatalogAgentSummary[];
+  /**
+   * The user's **Agent Profiles** — read them, and start one, optionally with
+   * an opening prompt. See {@link AgentProfilesService}.
+   *
+   * @category Consumer Services
+   * @public
+   * @beta
+   */
+  readonly profiles: AgentProfilesService;
 }
