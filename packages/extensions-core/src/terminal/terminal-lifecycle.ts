@@ -58,3 +58,27 @@ export function planSessionGoneAfterAttach(opts: {
 }): SessionGonePlan {
   return opts.pendingExitCode !== null ? "exited" : "recreate";
 }
+
+/**
+ * What to do with the session in hand when {@link TerminalPanel}'s init effect
+ * is cancelled after the session has already come up.
+ *
+ * The effect can re-run — a StrictMode double-invoke in dev, or a fast remount
+ * — and the in-flight run then reaches its `cancelled` check holding a live
+ * session. That check sits **above** the `tRec.sessionId` assignment, so a
+ * session this run *spawned* is referenced by nothing once it returns: a live
+ * shell with no tab, surviving until the app quits. `ensureSession` already
+ * reaps its equivalent orphan; this is the same rule for the panel's path.
+ *
+ * The `needsCreate` guard is load-bearing, not defensive. `kill()` deletes the
+ * persistent session, and on the **attach** path that session predates this run
+ * and the terminal record still points at it — reaping there would destroy a
+ * live terminal the user is using.
+ */
+export type CancelledInitPlan = "reap" | "leave";
+
+export function planCancelledInit(opts: {
+  needsCreate: boolean;
+}): CancelledInitPlan {
+  return opts.needsCreate ? "reap" : "leave";
+}
