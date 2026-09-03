@@ -6,6 +6,12 @@ pub mod webview;
 #[cfg(feature = "automation")]
 pub mod automation;
 pub mod cli;
+// The Control API (RFC 0034): a request/response channel into a running
+// instance. Unlike `automation` above, compiled into every build — the
+// filesystem, not a Cargo feature, is what gates it.
+pub mod control;
+// Build identity (bundle identifier) and the per-user roots derived from it.
+pub mod identity;
 pub mod install;
 pub mod devtools;
 pub mod fs;

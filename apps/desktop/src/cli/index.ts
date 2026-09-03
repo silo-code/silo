@@ -7,29 +7,31 @@ import {
   applyCliUninstall,
   type CliOpenRequest,
 } from "./open-handler";
-import { applyCliAgentRun, applyCliAgentUsage } from "./agent-run-handler";
+import { applyCliUsage } from "./usage-handler";
 
 /**
  * A resolved CLI request from `src-tauri/src/commands/cli.rs`.
+ *
+ * These are the **Forward**-mode commands (ADR 0047): argv is delivered to the
+ * running app, which acts on it and reports to the Output panel. The commands
+ * whose value is their answer — `silo status`, `silo ws list`,
+ * `silo agent run` — are **Control** commands and never arrive here; they are
+ * answered on the caller's own stdout before Tauri even starts (RFC 0034).
  *
  * - `open` — open a path (dir, file, or missing)
  * - `install` — install an extension: `path` for a local folder, `id` for a
  *   registry id (`silo install acme.weather`)
  * - `uninstall` — uninstall an extension by id
- * - `agent-run` — launch an Agent Profile
- *   (`silo agent run [--profile <id>] [--ws <folder|.|id>]`); `path` is the
- *   shell's cwd, `id` the `--profile` value (absent → default), `ws` the
- *   explicit target (absent → resolve from cwd)
- * - `agent-usage` — `silo agent` with no verb or an unknown one; `id` is the
- *   verb when there was one. `agent` is a reserved noun (ADR 0047), so this
- *   never falls back to opening a folder
+ * - `agent-usage` / `ws-usage` — a bare `silo agent` / `silo ws`, or an unknown
+ *   verb; `id` is the verb when there was one. Both nouns are reserved
+ *   (ADR 0047), so neither falls back to opening a folder
  */
 type CliRequest =
   | ({ action: "open" } & CliOpenRequest)
   | { action: "install"; path?: string; id?: string }
   | { action: "uninstall"; id: string }
-  | { action: "agent-run"; path: string; id?: string; ws?: string }
-  | { action: "agent-usage"; id?: string };
+  | { action: "agent-usage"; id?: string }
+  | { action: "ws-usage"; id?: string };
 
 function dispatch(req: CliRequest): void {
   if (req.action === "open") {
@@ -43,10 +45,10 @@ function dispatch(req: CliRequest): void {
     applyCliUninstall(req.id).catch((err) =>
       console.error("[silo cli] uninstall failed:", err),
     );
-  } else if (req.action === "agent-run") {
-    applyCliAgentRun({ cwd: req.path, profileId: req.id, ws: req.ws });
   } else if (req.action === "agent-usage") {
-    applyCliAgentUsage(req.id);
+    applyCliUsage("agent", req.id);
+  } else if (req.action === "ws-usage") {
+    applyCliUsage("ws", req.id);
   }
 }
 

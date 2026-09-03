@@ -4,6 +4,59 @@ How the requirements are satisfied. Intent, not a copy of the source. Working
 artifact — removed when the proposal collapses; the durable reasoning moves into
 an ADR.
 
+## Corrections made during implementation
+
+Six places where building it showed the plan below was wrong. Each is fixed in
+the code and described here rather than left as a discrepancy.
+
+1. **The client needs the bundle identifier before Tauri exists.** The design
+   assumed the socket namespace and config root were simply available; they are
+   derived from `app.config().identifier`, which the pre-Tauri client has no way
+   to read. `build.rs` now exports `SILO_IDENTIFIER` at compile time, resolved
+   the way `tauri-build` itself does (`tauri.conf.json` merged with the CLI's
+   inline `TAURI_CONFIG`), and a new `commands/identity.rs` owns the identifier
+   and the three roots derived from it. `lib.rs` reads that module instead of
+   re-deriving the namespace inline, so the client and the instance agree by
+   construction rather than by two copies of one rule. `config_root_name` moved
+   there from `session_maintenance.rs`, which is `cfg(unix)` — the client needs
+   it on Windows too.
+
+2. **`pty-host`'s `test_support` is not reachable from this crate.** The testing
+   plan named it as the shared env-redirection helper; it is `#[cfg(test)] mod`
+   inside its own crate. The socket-path tests use this crate's existing
+   `app_paths::env_lock` instead — same purpose, and it serializes against the
+   _other_ env-mutating tests in this crate, which a `pty-host` helper could not.
+
+3. **`listener.rs` split into transport and host.** The design put the accept
+   loop and the webview round-trip in one file, which made every socket
+   behavior — stale takeover, live refusal, re-bind, the size cap, concurrent
+   clients — reachable only through an `AppHandle`. `listener.rs` now owns the
+   socket and hands each parsed request to a `Dispatcher` trait; `host.rs`
+   implements it with the Tauri emit. The socket tests run against a real socket
+   with a trivial dispatcher, which is how corrections 4 and 5 were found at all.
+
+4. **Accepted streams must be forced back to blocking.** On macOS and the BSDs
+   `accept()` inherits `O_NONBLOCK` from the listening socket — which the accept
+   loop sets — so every request larger than one 8 KiB buffer fill failed partway
+   through the read. Linux does not inherit the flag, which is what makes this
+   the kind of bug that ships. `handle_connection` now calls
+   `set_nonblocking(false)` first.
+
+5. **An over-cap request is drained before it is refused.** Closing on a client
+   still mid-`write` breaks its pipe, so it learns "could not send" instead of
+   _why_ it was refused. The listener now reads to the request line's newline
+   (bounded, and not to EOF — the sender is waiting to read, not about to close)
+   before answering.
+
+6. **The reap check must ask about the socket it bound**, not re-resolve the
+   path from the environment on every poll. A listener whose `$TMPDIR` changed
+   underneath it would otherwise check — or re-bind onto — an address it never
+   owned. `Endpoint` is captured once at bind.
+
+Two smaller ones: `silo ws list` rejects `--launch` as `invalid-args` (a
+Disk-read command starting a desktop app is precisely what R7 forbids), and
+`--prompt` ships with its delivery stubbed — see "the opening prompt" below.
+
 ## Architecture
 
 Three halves and a wire between them, all in this repo:
@@ -275,6 +328,20 @@ So `too-large` rides `failed` with a message naming the limit and the actual
 size. **No new code is being asked for** — this is recorded so the choice is
 deliberate rather than a silent widening of `failed`, and so that a future
 reader does not "fix" it into `invalid-args`.
+
+**As built, phase 3 has not landed, so there is nothing to call.** The flag, the
+wire argument, the size validation, and the refusal mapping all ship; the
+precheck is `checkPrompt` in `apps/desktop/src/control/agent-run-handler.ts`,
+which currently refuses **any** prompt with `failed` and a message naming
+phase 3. Phase 3 replaces that one function's body and changes no other CLI
+code, which is exactly the split its own package committed to.
+
+The flag ships now rather than waiting because ADR 0047's 2026-09-02 amendment
+puts a new flag on a conversion-bound verb in Control, and this change _is_ that
+conversion — deferring it would leave the flag with no owner, since RFC 0033
+phase 3 explicitly ships no CLI code. Refusing loudly is the honest interim: a
+silently dropped prompt would be worse, and an improvised transport would be the
+quoting-bug-as-code-execution risk phase 3 exists to close.
 
 ## Data flow
 

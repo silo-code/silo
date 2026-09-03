@@ -25,6 +25,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+# build.rs resolves the bundle identifier out of the Tauri config so the
+# pre-Tauri CLI client can derive its own namespace (RFC 0034).
+serde_json = "1"
 
 [dependencies]
 tauri = { version = "2", features = [] }
@@ -52,6 +55,11 @@ uuid = { version = "1", features = ["v4", "serde"] }
 dashmap = "5"
 parking_lot = "0.12"
 dirs = "5"
+# One API over Unix domain sockets and Windows named pipes, for the Control API
+# listener and client (RFC 0034). Chosen over std's `UnixListener` plus a
+# hand-rolled `windows-sys` pipe because the Windows arm needs an owner-only
+# SECURITY_DESCRIPTOR, which is the wrong thing to hand-roll.
+interprocess = "2"
 # Optional: only pulled in by the dev-only `automation` feature.
 tiny_http = { version = "0.12", optional = true }
 # Window capture for the dev-only `screenshot` automation op.

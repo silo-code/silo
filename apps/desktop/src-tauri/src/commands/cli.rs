@@ -13,11 +13,17 @@
 //! - `silo <path>`                 — open path (dir, file, or missing)
 //! - `silo install <path>`         — install extension from folder (shorthand)
 //! - `silo uninstall <id>`         — uninstall extension by id (shorthand)
-//! - `silo agent run [--profile <id>] [--ws <folder|id>]` — launch an Agent
-//!   Profile (RFC 0033)
 //!
-//! `agent` is a **reserved noun**: `silo agent <anything>` is never a path, so a
-//! folder of that name is reached as `./agent` or `silo -- agent`.
+//! `agent` and `ws` are **reserved nouns**: `silo agent <anything>` and
+//! `silo ws <anything>` are never a path, so a folder of either name is reached
+//! as `./agent` or `silo -- agent`.
+//!
+//! The **Control** commands — `silo status`, `silo ws list`, `silo agent run` —
+//! do not go through this module's Forward path at all. They are parsed and
+//! answered by `commands::control::client` before Tauri init, so they can report
+//! a result and a real exit code (RFC 0034). What survives here for those nouns
+//! is the usage report for a bare or unknown verb, which is what keeps
+//! `silo ws open` from silently opening a folder named `ws`.
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -25,22 +31,22 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager, State};
 
 /// A resolved CLI request. `action` is `"open"`, `"install"`, `"uninstall"`,
-/// `"agent-run"`, or `"agent-usage"`.
+/// `"agent-usage"`, or `"ws-usage"`.
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct CliRequest {
     pub action: String,
-    /// Resolved absolute path — set for `"open"` and `"install"`, and the
-    /// forwarded cwd for `"agent-run"` (which workspace the shell is in).
+    /// Resolved absolute path — set for `"open"` and `"install"`.
     pub path: Option<String>,
     /// `"dir"`, `"file"`, or `"missing"` — only set for `"open"`.
     pub kind: Option<String>,
-    /// Extension id for `"uninstall"`; the `--profile` id (or `None` for the
-    /// default) for `"agent-run"`; the unrecognized verb, when there was one,
-    /// for `"agent-usage"`.
+    /// Extension id for `"uninstall"`; the unrecognized verb, when there was
+    /// one, for `"agent-usage"` / `"ws-usage"`.
     pub id: Option<String>,
     /// An explicit `--ws <folder|.|ws_<uuid>>` target (ADR 0047). A folder is
     /// resolved to an absolute path here; a `ws_`-prefixed value is passed
-    /// through as an id. `None` means "infer from cwd".
+    /// through as an id. `None` means "infer from cwd". Unused by the Forward
+    /// commands that remain; kept because the field is part of the `cli:open`
+    /// payload shape.
     pub ws: Option<String>,
 }
 
@@ -52,8 +58,8 @@ pub struct PendingLaunchArg(pub Mutex<Option<CliRequest>>);
 
 /// The `silo` command's help text — ADR 0047's **Local** execution mode: the
 /// binary answers on stdout and exits, with no GUI involved. Lists only what
-/// actually works today; the canonical `silo ext …` / `silo ws …` forms the
-/// grammar reserves are not advertised until the parser implements them.
+/// actually works today; the canonical `silo ext …` forms the grammar reserves
+/// are not advertised until the parser implements them.
 const HELP: &str = concat!(
     "silo ",
     env!("CARGO_PKG_VERSION"),
@@ -62,6 +68,8 @@ const HELP: &str = concat!(
 Usage:
   silo                           focus the running app (or launch it)
   silo <path>                    open a folder as a workspace, or a file in one
+  silo status [--json]           report the running instance, or exit 3
+  silo ws list [--json]          list workspaces (works with Silo closed)
   silo agent run [options]       launch an Agent Profile in a terminal
   silo install <id|path|url>     install an extension
   silo uninstall <id>            uninstall an extension
@@ -69,17 +77,32 @@ Usage:
 Options for `agent run`:
   --profile <id>                 which profile (default: the one marked default)
   --ws <folder | . | ws_id>      which workspace (default: the one holding your cwd)
+  --prompt <text>                an opening prompt for the agent
 
 Flags:
+  --json                         print one line of JSON instead of prose
+  --launch                       start Silo and wait for it, if it isn't running
   -h, --help                     print this and exit
   -V, --version                  print the version and exit
 
-Notes:
-  `agent` is a reserved word: `./agent` or `silo -- agent` opens a folder of
-  that name. Everything after `--` is treated as a path.
+Exit codes:
+  0   success              4   not-found (no such workspace/profile)
+  2   invalid-args         5   denied
+  3   not-running          6   timeout
+  7   failed (the command ran but could not finish)
+  70  internal (Silo malfunctioned)
 
-  Commands are forwarded to the running app and cannot report results here
-  yet, so failures appear in Silo's Output panel under "Application".
+Notes:
+  `status`, `ws list` and `agent run` answer here: they print a result and exit
+  with the code above, and `--json` prints one parseable line. Failures print to
+  stderr, so `x=$(silo …)` captures nothing rather than an error message.
+
+  `silo agent run` no longer starts Silo when nothing is running — it exits 3.
+  Pass --launch to start Silo and wait for it. `silo <path>`, `install` and
+  `uninstall` are unchanged and still launch it.
+
+  `agent` and `ws` are reserved words: `./agent` or `silo -- agent` opens a
+  folder of that name. Everything after `--` is treated as a path.
 
 Docs: https://getsilo.dev/guide/cli
 "#
@@ -109,12 +132,14 @@ pub fn local_flag_response(argv: &[String]) -> Option<String> {
 ///
 /// - `silo install <path>` → `{ action: "install", path: <abs> }`
 /// - `silo uninstall <id>` → `{ action: "uninstall", id: <id> }`
-/// - `silo agent run [--profile <id>] [--ws <folder|id>]` →
-///   `{ action: "agent-run", path: <cwd>, id: <profile?>, ws: <target?> }`
 /// - `silo agent` / `silo agent <other>` → `{ action: "agent-usage", id: <verb?> }`
+/// - `silo ws` / `silo ws <other>` → `{ action: "ws-usage", id: <verb?> }`
 /// - `silo <path>` → `{ action: "open", path: <abs>, kind: "dir"|"file"|"missing" }`
 /// - `silo -- <path>` → force-path, even for a reserved noun
 /// - `silo` (bare) → `None` (only focus the window)
+///
+/// The Control commands (`status`, `ws list`, `agent run`) never reach here —
+/// `control::client` answers them before Tauri init (RFC 0034).
 pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
     // `--` forces path interpretation of everything after it (ADR 0047), so a
     // folder named like a reserved noun stays reachable: `silo -- agent`.
@@ -126,30 +151,19 @@ pub fn resolve_cli_request(argv: &[String], cwd: &str) -> Option<CliRequest> {
     let mut pos = argv.iter().skip(1).filter(|a| !a.starts_with('-'));
     let first = pos.next()?;
 
-    // `agent` is a reserved noun (ADR 0047): it is never a path, whatever
-    // follows. `run` is its only verb today; anything else — including a bare
-    // `silo agent` — resolves to a usage report rather than silently opening a
-    // folder, which is what made `silo agent list` a path-open before.
-    if first == "agent" {
-        let verb = pos.next();
-        if verb.map(String::as_str) != Some("run") {
-            return Some(CliRequest {
-                action: "agent-usage".to_string(),
-                path: None,
-                kind: None,
-                id: verb.cloned(),
-                ws: None,
-            });
-        }
-        let cwd_norm = std::fs::canonicalize(cwd)
-            .map(|p| super::fs::normalize_path(&p))
-            .unwrap_or_else(|_| super::fs::normalize_path(Path::new(cwd)));
+    // `agent` and `ws` are reserved nouns (ADR 0047): never a path, whatever
+    // follows. Their working verbs — `agent run`, `ws list` — are **Control**
+    // commands (RFC 0034), parsed and answered before Tauri init, so nothing
+    // reaching here is one of those. What is left is a bare noun or an unknown
+    // verb, which resolves to a usage report rather than silently opening a
+    // folder — the bug that made `silo agent list` a path-open before.
+    if first == "agent" || first == "ws" {
         return Some(CliRequest {
-            action: "agent-run".to_string(),
-            path: Some(cwd_norm),
+            action: format!("{first}-usage"),
+            path: None,
             kind: None,
-            id: flag_value(argv, "--profile"),
-            ws: workspace_flag(argv, cwd),
+            id: pos.next().cloned(),
+            ws: None,
         });
     }
 
@@ -213,7 +227,11 @@ fn open_request(raw: &str, cwd: &str) -> CliRequest {
 /// Accepts `--flag <value>` and `--flag=<value>`; a trailing `--flag` with no
 /// value, a value that is itself a flag, and every unknown flag are ignored —
 /// the flagless outcome is the safe one, never a panic.
-fn flag_value(argv: &[String], name: &str) -> Option<String> {
+///
+/// Shared with the Control client (RFC 0034) so both parsers accept exactly the
+/// same flag spellings — `--profile x` and `--profile=x` must not diverge based
+/// on which execution mode a verb happens to be in.
+pub(crate) fn flag_value(argv: &[String], name: &str) -> Option<String> {
     let eq = format!("{name}=");
     let mut it = argv.iter();
     while let Some(arg) = it.next() {
@@ -235,7 +253,10 @@ fn flag_value(argv: &[String], name: &str) -> Option<String> {
 /// is resolved against the forwarding shell's cwd, so `--ws .` and
 /// `--ws ../sibling` mean what they say. The webview matches the result
 /// exactly — an unresolvable target is that command's error, not a fallback.
-fn workspace_flag(argv: &[String], cwd: &str) -> Option<String> {
+///
+/// Shared with the Control client (RFC 0034): `--ws` resolves identically
+/// whether the verb forwards or round-trips.
+pub(crate) fn workspace_flag(argv: &[String], cwd: &str) -> Option<String> {
     let raw = flag_value(argv, "--ws")?;
     if raw.starts_with("ws_") {
         return Some(raw);
@@ -263,6 +284,17 @@ fn looks_like_extension_id(raw: &str) -> bool {
             c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '-' || c == '_'
         });
     ok_publisher && ok_name
+}
+
+/// The forwarding shell's working directory, absolute and normalized.
+///
+/// Shared with the Control client (RFC 0034), so a `cwd` means the same thing
+/// whichever execution mode a verb is in — a workspace inferred from it must not
+/// depend on that.
+pub(crate) fn canonical_cwd(cwd: &str) -> String {
+    std::fs::canonicalize(cwd)
+        .map(|p| super::fs::normalize_path(&p))
+        .unwrap_or_else(|_| super::fs::normalize_path(Path::new(cwd)))
 }
 
 /// Resolve a raw CLI path token to an absolute, canonicalized path.
@@ -513,51 +545,93 @@ mod tests {
         let _ = std::fs::remove_dir(&dir);
     }
 
+    // `flag_value` and `workspace_flag` are shared with the Control client
+    // (RFC 0034), so both parsers accept exactly the same spellings. They are
+    // tested here, at their owner; the Control-mode verbs that consume them are
+    // tested in `control::client`.
+
     #[test]
-    fn agent_run_with_profile_flag() {
-        // A nonexistent cwd: canonicalize() fails and we fall back to the
-        // lexical path, so the assertion is stable across machines.
-        let req = resolve_cli_request(
-            &argv(&["agent", "run", "--profile", "claude-work"]),
-            "/no/such/repo",
-        )
-        .unwrap();
-        assert_eq!(req.action, "agent-run");
-        assert_eq!(req.id.unwrap(), "claude-work");
-        assert!(req.kind.is_none());
-        assert_eq!(req.path.unwrap(), "/no/such/repo");
+    fn flag_value_accepts_both_spellings() {
+        assert_eq!(
+            flag_value(&argv(&["agent", "run", "--profile", "claude-work"]), "--profile"),
+            Some("claude-work".to_string())
+        );
+        assert_eq!(
+            flag_value(&argv(&["agent", "run", "--profile=codex"]), "--profile"),
+            Some("codex".to_string())
+        );
     }
 
     #[test]
-    fn agent_run_profile_equals_form() {
-        let req = resolve_cli_request(&argv(&["agent", "run", "--profile=codex"]), "/tmp").unwrap();
-        assert_eq!(req.action, "agent-run");
-        assert_eq!(req.id.unwrap(), "codex");
+    fn flag_value_is_none_rather_than_wrong() {
+        // A valueless flag must not swallow the next token: `--profile --ws x`
+        // silently targeting the wrong thing is worse than no profile at all.
+        assert_eq!(flag_value(&argv(&["agent", "run"]), "--profile"), None);
+        assert_eq!(
+            flag_value(&argv(&["agent", "run", "--profile"]), "--profile"),
+            None
+        );
+        assert_eq!(
+            flag_value(&argv(&["agent", "run", "--profile", "--ws", "x"]), "--profile"),
+            None
+        );
+        assert_eq!(
+            flag_value(&argv(&["agent", "run", "--profile="]), "--profile"),
+            None
+        );
     }
 
     #[test]
-    fn agent_run_bare_has_no_profile() {
-        let req = resolve_cli_request(&argv(&["agent", "run"]), "/tmp").unwrap();
-        assert_eq!(req.action, "agent-run");
-        assert!(req.id.is_none());
+    fn workspace_flag_resolves_a_folder_against_cwd() {
+        // Nonexistent, so canonicalize() falls back to the lexical join (avoids
+        // macOS /tmp → /private/tmp expansion), same trick as the install tests.
+        assert_eq!(
+            workspace_flag(&argv(&["agent", "run", "--ws", "sibling"]), "/no/such/repo"),
+            Some("/no/such/repo/sibling".to_string())
+        );
     }
 
     #[test]
-    fn agent_run_valueless_profile_flag_is_bare() {
-        let req = resolve_cli_request(&argv(&["agent", "run", "--profile"]), "/tmp").unwrap();
-        assert_eq!(req.action, "agent-run");
-        assert!(req.id.is_none());
+    fn workspace_flag_dot_is_the_shells_own_directory() {
+        let dir = std::env::temp_dir();
+        let cwd = dir.to_string_lossy().to_string();
+        let expected = resolve_cli_request(&argv(&["."]), &cwd)
+            .unwrap()
+            .path
+            .unwrap();
+        assert_eq!(
+            workspace_flag(&argv(&["agent", "run", "--ws", "."]), &cwd),
+            Some(expected)
+        );
     }
 
     #[test]
-    fn agent_run_ignores_extra_positional_and_unknown_flags() {
-        let req = resolve_cli_request(
-            &argv(&["agent", "run", "extra", "--verbose", "--profile", "x"]),
-            "/tmp",
-        )
-        .unwrap();
-        assert_eq!(req.action, "agent-run");
-        assert_eq!(req.id.unwrap(), "x");
+    fn workspace_flag_passes_an_id_through_untouched() {
+        assert_eq!(
+            workspace_flag(&argv(&["agent", "run", "--ws=ws_abc123"]), "/tmp"),
+            Some("ws_abc123".to_string())
+        );
+    }
+
+    #[test]
+    fn workspace_flag_absent_means_infer_from_cwd() {
+        assert_eq!(workspace_flag(&argv(&["agent", "run"]), "/tmp"), None);
+        // A valueless `--ws` swallowing the next flag would silently target the
+        // wrong workspace.
+        assert_eq!(
+            workspace_flag(&argv(&["agent", "run", "--ws", "--profile", "x"]), "/tmp"),
+            None
+        );
+    }
+
+    #[test]
+    fn canonical_cwd_falls_back_to_the_lexical_path() {
+        // A cwd that no longer exists must still produce something usable —
+        // the shell's directory can be deleted out from under it.
+        assert_eq!(canonical_cwd("/no/such/repo"), "/no/such/repo");
+        let dir = std::env::temp_dir();
+        let resolved = canonical_cwd(&dir.to_string_lossy());
+        assert!(resolved.starts_with('/'), "{resolved}");
     }
 
     #[test]
@@ -571,6 +645,38 @@ mod tests {
         let version = local_flag_response(&argv(&["-V"])).unwrap();
         assert_eq!(version, format!("silo {}\n", env!("CARGO_PKG_VERSION")));
         assert_eq!(local_flag_response(&argv(&["--version"])), Some(version));
+    }
+
+    #[test]
+    fn help_documents_the_control_surface() {
+        // `--help` is the only place an agent learns these without the docs
+        // site, so the Control commands, both flags, the exit-code table, and
+        // the `agent run` cold-behavior break all have to be in it (R12).
+        let help = local_flag_response(&argv(&["--help"])).unwrap();
+        for expected in [
+            "silo status",
+            "silo ws list",
+            "--json",
+            "--launch",
+            "--prompt",
+            "invalid-args",
+            "not-running",
+            "not-found",
+            "denied",
+            "timeout",
+            "failed",
+            "internal",
+        ] {
+            assert!(help.contains(expected), "--help is missing {expected:?}");
+        }
+        assert!(
+            help.contains("no longer starts Silo"),
+            "--help must call out the `agent run` cold-behavior break"
+        );
+        assert!(
+            !help.contains("cannot report results here"),
+            "--help still claims commands cannot report results"
+        );
     }
 
     #[test]
@@ -605,67 +711,35 @@ mod tests {
     }
 
     #[test]
+    fn bare_ws_and_unknown_ws_verbs_are_usage_not_a_path() {
+        // `ws` becomes a live reserved noun with RFC 0034: `silo ws open` must
+        // report usage rather than opening a folder named `ws`, exactly as
+        // `agent` already does.
+        let bare = resolve_cli_request(&argv(&["ws"]), "/tmp/some-cwd").unwrap();
+        assert_eq!(bare.action, "ws-usage");
+        assert!(bare.id.is_none());
+
+        let unknown = resolve_cli_request(&argv(&["ws", "open"]), "/tmp/some-cwd").unwrap();
+        assert_eq!(unknown.action, "ws-usage");
+        assert_eq!(unknown.id.unwrap(), "open");
+    }
+
+    #[test]
     fn double_dash_forces_a_path_for_a_reserved_noun() {
-        let req = resolve_cli_request(&argv(&["--", "agent"]), "/tmp/some-cwd").unwrap();
-        assert_eq!(req.action, "open");
-        assert_eq!(req.path.unwrap(), "/tmp/some-cwd/agent");
+        for noun in ["agent", "ws"] {
+            let req = resolve_cli_request(&argv(&["--", noun]), "/tmp/some-cwd").unwrap();
+            assert_eq!(req.action, "open");
+            assert_eq!(req.path.unwrap(), format!("/tmp/some-cwd/{noun}"));
+        }
     }
 
     #[test]
     fn dot_slash_still_reaches_a_folder_named_like_a_noun() {
-        let req = resolve_cli_request(&argv(&["./agent"]), "/tmp/some-cwd").unwrap();
-        assert_eq!(req.action, "open");
-        assert!(req.path.unwrap().ends_with("agent"));
-    }
-
-    #[test]
-    fn agent_run_ws_folder_resolves_against_cwd() {
-        // Nonexistent, so canonicalize() falls back to the lexical join (avoids
-        // macOS /tmp → /private/tmp expansion), same trick as the install tests.
-        let req = resolve_cli_request(
-            &argv(&["agent", "run", "--profile", "x", "--ws", "sibling"]),
-            "/no/such/repo",
-        )
-        .unwrap();
-        assert_eq!(req.action, "agent-run");
-        assert_eq!(req.id.unwrap(), "x");
-        assert_eq!(req.ws.unwrap(), "/no/such/repo/sibling");
-    }
-
-    #[test]
-    fn agent_run_ws_dot_is_the_shells_own_directory() {
-        // `--ws .` is the common explicit form; an existing cwd canonicalizes,
-        // so compare against the same resolution the open arm would produce.
-        let dir = std::env::temp_dir();
-        let cwd = dir.to_string_lossy().to_string();
-        let req = resolve_cli_request(&argv(&["agent", "run", "--ws", "."]), &cwd).unwrap();
-        let expected = resolve_cli_request(&argv(&["."]), &cwd)
-            .unwrap()
-            .path
-            .unwrap();
-        assert_eq!(req.ws.unwrap(), expected);
-    }
-
-    #[test]
-    fn agent_run_ws_id_passes_through() {
-        let req = resolve_cli_request(&argv(&["agent", "run", "--ws=ws_abc123"]), "/tmp").unwrap();
-        assert_eq!(req.ws.unwrap(), "ws_abc123");
-    }
-
-    #[test]
-    fn agent_run_without_ws_infers_from_cwd() {
-        let req = resolve_cli_request(&argv(&["agent", "run"]), "/no/such/repo").unwrap();
-        assert!(req.ws.is_none());
-        assert_eq!(req.path.unwrap(), "/no/such/repo");
-    }
-
-    #[test]
-    fn agent_run_valueless_ws_flag_is_ignored() {
-        // `--ws` swallowing the next flag would silently target the wrong thing.
-        let req = resolve_cli_request(&argv(&["agent", "run", "--ws", "--profile", "x"]), "/tmp")
-            .unwrap();
-        assert!(req.ws.is_none());
-        assert_eq!(req.id.unwrap(), "x");
+        for noun in ["agent", "ws"] {
+            let req = resolve_cli_request(&argv(&[&format!("./{noun}")]), "/tmp/some-cwd").unwrap();
+            assert_eq!(req.action, "open");
+            assert!(req.path.unwrap().ends_with(noun));
+        }
     }
 
     #[test]

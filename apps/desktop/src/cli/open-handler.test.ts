@@ -6,6 +6,8 @@ import {
   applyCliInstall,
   applyCliUninstall,
   findWorkspaceByFolder,
+  findWorkspaceContaining,
+  folderContains,
   normalizeFolder,
   dirname,
   basename,
@@ -36,12 +38,14 @@ function makeWorkspace(
   id: string,
   folder: string,
   extra?: string[],
+  closedAt?: string,
 ): WorkspaceInternal {
   return {
     id,
     name: id,
     folder,
     extraFolders: extra,
+    closedAt,
     createdAt: "",
     lastOpenedAt: "",
     terminals: [],
@@ -90,6 +94,105 @@ describe("findWorkspaceByFolder", () => {
   it("returns undefined when nothing matches", () => {
     const ws = makeWorkspace("a", "/code/foo");
     expect(findWorkspaceByFolder({ a: ws }, "/code/other")).toBeUndefined();
+  });
+});
+
+// `folderContains` and `findWorkspaceContaining` are the *containment* rules —
+// which workspace a shell's cwd is inside. `silo agent run` is their consumer
+// (RFC 0034's `agent.run` handler), but they are owned here, alongside the
+// exact-match `findWorkspaceByFolder` they are so easily confused with.
+
+describe("folderContains", () => {
+  it("matches at a path-segment boundary only", () => {
+    expect(folderContains("/a/b", "/a/b")).toBe(true);
+    expect(folderContains("/a/b", "/a/b/c")).toBe(true);
+    expect(folderContains("/a/b", "/a/bc")).toBe(false);
+    expect(folderContains("/a/b", "/a")).toBe(false);
+  });
+
+  it("treats root as containing everything", () => {
+    expect(folderContains("/", "/anything/here")).toBe(true);
+  });
+});
+
+describe("findWorkspaceContaining", () => {
+  it("finds the workspace whose primary folder contains the cwd", () => {
+    const ws = { a: makeWorkspace("a", "/proj") };
+    expect(findWorkspaceContaining(ws, "/proj/src/deep")?.id).toBe("a");
+  });
+
+  it("matches an extra folder", () => {
+    const ws = { a: makeWorkspace("a", "/proj", ["/other"]) };
+    expect(findWorkspaceContaining(ws, "/other/pkg")?.id).toBe("a");
+  });
+
+  it("prefers the deepest (longest) match when workspaces nest", () => {
+    const ws = {
+      a: makeWorkspace("a", "/a"),
+      b: makeWorkspace("b", "/a/b"),
+    };
+    expect(findWorkspaceContaining(ws, "/a/b/c")?.id).toBe("b");
+    expect(findWorkspaceContaining(ws, "/a/x")?.id).toBe("a");
+  });
+
+  it("does not match a sibling directory sharing a prefix", () => {
+    const ws = { a: makeWorkspace("a", "/a/b") };
+    expect(findWorkspaceContaining(ws, "/a/bc")).toBeUndefined();
+  });
+
+  it("returns undefined when no workspace contains the cwd", () => {
+    const ws = { a: makeWorkspace("a", "/proj") };
+    expect(findWorkspaceContaining(ws, "/elsewhere")).toBeUndefined();
+  });
+
+  // ADR 0047's tie-breaks, in order, each isolated to one rung.
+  it("prefers an open workspace over a soft-closed one at the same root", () => {
+    const ws = {
+      closed: makeWorkspace(
+        "closed",
+        "/proj",
+        undefined,
+        "2026-09-01T00:00:00Z",
+      ),
+      open: makeWorkspace("open", "/proj"),
+    };
+    expect(findWorkspaceContaining(ws, "/proj/src")?.id).toBe("open");
+  });
+
+  it("still matches a soft-closed workspace when it is the only container", () => {
+    const ws = {
+      closed: makeWorkspace(
+        "closed",
+        "/proj",
+        undefined,
+        "2026-09-01T00:00:00Z",
+      ),
+    };
+    expect(findWorkspaceContaining(ws, "/proj/src")?.id).toBe("closed");
+  });
+
+  it("prefers a primary-folder match over an extraFolders match", () => {
+    const ws = {
+      extra: makeWorkspace("extra", "/other", ["/proj"]),
+      primary: makeWorkspace("primary", "/proj"),
+    };
+    expect(findWorkspaceContaining(ws, "/proj/src")?.id).toBe("primary");
+  });
+
+  it("prefers the active workspace when everything else ties", () => {
+    const ws = {
+      a: makeWorkspace("a", "/proj"),
+      b: makeWorkspace("b", "/proj"),
+    };
+    expect(findWorkspaceContaining(ws, "/proj/src", "b")?.id).toBe("b");
+  });
+
+  it("keeps depth ahead of the active workspace", () => {
+    const ws = {
+      shallow: makeWorkspace("shallow", "/a"),
+      deep: makeWorkspace("deep", "/a/b"),
+    };
+    expect(findWorkspaceContaining(ws, "/a/b/c", "shallow")?.id).toBe("deep");
   });
 });
 
