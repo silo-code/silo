@@ -317,6 +317,15 @@ building a picker can grey out or annotate a profile without launching one.
   one. `ctx.agents.profiles.launch()` is the phase's only entry point.
 - **A prompt field on the `+` menu or the Agents submenu.** Both are
   point-and-launch gestures with nowhere to type; adding a text field to them
-  is a product call this phase does not make.
+  is a product call this phase does not make. **RFC 0035** now owns that
+  question — a host-owned prompt composer and profile picker, as a second entry
+  point rather than a mode of `launch()`.
+- **Any way for the user to review a generated prompt before it runs.**
+  `launch()` types immediately, which is right when the user authored the
+  prompt and thin when an extension generated it (see R5a). RFC 0035.
+- **Exposing which catalog agent a profile resolves to.** `AgentProfileSummary`
+  deliberately ships without it here, so an extension cannot yet render a
+  profile's agent icon the way Silo's own Profiles tab does. Named as a gap and
+  addressed in RFC 0035, not worked around by widening this phase's surface.
 - **RFC 0031's Start Task.** This phase unblocks it by publishing the surface;
   building it stays in that proposal and that repo.

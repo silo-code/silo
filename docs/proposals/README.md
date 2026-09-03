@@ -124,3 +124,4 @@ don't get a proposal at all — see below.
 | [0032](./0032-ctx-extension-storage-directory.md)             | A per-extension storage directory on `ctx`                        | 2026-08-30 | implemented |
 | [0033](./0033-agent-profiles/proposal.md)                     | Agent Profiles — naming how you start an agent                    | 2026-08-31 | accepted    |
 | [0034](./0034-control-api/proposal.md)                        | Control API — a return channel for the `silo` command             | 2026-09-01 | accepted    |
+| [0035](./0035-agent-prompt-composer.md)                       | Choosing an agent and reviewing a prompt before it runs           | 2026-09-03 | draft       |
