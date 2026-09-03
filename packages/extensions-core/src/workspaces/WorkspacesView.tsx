@@ -332,7 +332,6 @@ export function WorkspacesView({
         }}
       >
         <WorkspaceIcon className="ws-icon" size={20} weight="duotone" />
-        <span className="ws-active-stem" aria-hidden="true" />
         <div className="ws-name-row">
           <span className="ws-name">{ws.name}</span>
           {service.getBadges(ws.id).map((b) => (

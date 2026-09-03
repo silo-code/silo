@@ -78,43 +78,20 @@
   bottom: -1px;
 }
 
-/* Active workspace: no background fill — a vertical two-tone accent "stem"
-   drops from under the icon, down the icon column, ending just past the row's
-   content. A full-strength key line sits against a translucent companion (no
-   gap), echoing the duotone icon's solid-stroke-plus-tint pairing.
-
-   It's a real element (not the row's ::before/::after) so it never collides
-   with the drag reorder lines, which own both row pseudo-elements — the
-   companion rides the stem's own ::after, which is free. */
-.ws-item .ws-active-stem {
-  display: none;
+/* Active workspace: a background fill carries the selection, and the icon
+   switches to the accent color (see `.ws-item.active .ws-icon` below). A very
+   subtle inset hairline frames the row so the selection still reads inside a
+   colored group, whose wash can sit close to the active fill. Inset box-shadow
+   (not `border`) so it adds no box and can't shift the grid. */
+.ws-item.active {
+  background: var(--silo-color-bg-active);
+  box-shadow: inset 0 0 0 1px var(--silo-color-border-strong);
 }
 
-.ws-item.active .ws-active-stem {
-  display: block;
-  position: absolute;
-  /* Centred under the 20px icon: row padding-left 10 + half of (20 - 2). */
-  left: 19px;
-  top: 31px;
-  bottom: 1px;
-  width: 2px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--silo-color-accent) 70%, transparent);
-  pointer-events: none;
-}
-
-/* Companion: same line, touching the key on its content-facing side. The key
-   sits at 70% and this at 15%, so the pair reads as one line with depth
-   rather than two marks. */
-.ws-item.active .ws-active-stem::after {
-  content: "";
-  position: absolute;
-  left: 2px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--silo-color-accent) 15%, transparent);
+/* Keep the active fill visible on hover rather than dropping to the lighter
+   hover grey. */
+.ws-item.active:hover {
+  background: var(--silo-color-bg-active);
 }
 
 .ws-item .ws-icon {
