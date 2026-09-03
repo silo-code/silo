@@ -233,13 +233,15 @@ The proving mutate-tier consumer, converted from Forward mode.
 - [ ] A profile whose command cannot be launched fails `failed` with a message
       naming the command, not `internal`.
 - [ ] A failed run leaves no half-created terminal.
-- [ ] `args` carries an optional `prompt` (RFC 0033 phase 3's
-      `--prompt <text>`). This proposal treats it as opaque — RFC 0033 owns
-      sanitizing, transport, and deliverability — but its refusals return codes
-      from the closed vocabulary rather than Output-panel text. Declared here
-      because ADR 0047 rule 6 requires a mutating verb's payload to exist before
-      it ships, and because both packages were unimplemented when this was
-      written, so neither needs rework for the other.
+- [ ] `args` carries an optional `prompt`, and `silo agent run` gains
+      `--prompt <text>`. RFC 0033 phase 3 builds prompt delivery and publishes
+      it on `ctx.agents.profiles`, ships **no CLI code**, and specifies this
+      flag; ADR 0047's 2026-09-02 amendment puts a new flag on a
+      conversion-bound verb in Control, so the flag is built here.
+- [ ] This proposal treats the prompt as opaque — RFC 0033 owns sanitizing,
+      transport, and deliverability — and calls its host-side precheck, mapping
+      any refusal onto a code from the closed vocabulary rather than
+      Output-panel text.
 - [ ] **Breaking change:** with no instance running the command exits
       `not-running` instead of launching Silo and running the agent on startup.
       `--launch` restores the launch-and-run behavior explicitly. The

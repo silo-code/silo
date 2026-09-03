@@ -1,4 +1,4 @@
-# Design — 0033. Agent Profiles, phase 3 (Prompt delivery)
+# Design — 0033. Agent Profiles, phase 3 (Prompt delivery + ctx.agents.profiles)
 
 Design for **phase 3 only**. Phases 1 and 2 are the baseline. Working artifact
 — removed when the proposal collapses.
@@ -7,14 +7,13 @@ Design for **phase 3 only**. Phases 1 and 2 are the baseline. Working artifact
 
 Four seams, in dependency order. Nothing here is public SDK surface.
 
-| Where                                                                       | What changes                                                              |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `packages/extension-host/…/agents/agent-catalog.ts` + `catalog/*.ts`        | `AgentDefinition.promptDelivery`, populated per recon                     |
-| `packages/extension-host/…/agents/agent-prompt.ts` **(new)**                | The whole pure core: sanitizer, dialect, delimiter, composition, refusals |
-| `packages/extension-host/…/agents/pending-launch.ts` + `agent-launch.ts`    | A launch may carry a prompt; the drain composes it                        |
-| `apps/desktop/src-tauri/…/commands/cli.rs` + `src/cli/agent-run-handler.ts` | `--prompt` parsed, forwarded, prechecked                                  |
-| `packages/extensions-core/src/agents-settings/ProfileEditorModal.tsx`       | R10 — the profile says whether it can take a prompt                       |
-| `packages/extensions-core/src/terminal/TerminalPanel.tsx`                   | R9 — the orphaned-session fix (adjacent; own commit)                      |
+| Where                                                                    | What changes                                                              |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `packages/extension-host/…/agents/agent-catalog.ts` + `catalog/*.ts`     | `AgentDefinition.promptDelivery`, populated per recon                     |
+| `packages/extension-host/…/agents/agent-prompt.ts` **(new)**             | The whole pure core: sanitizer, dialect, delimiter, composition, refusals |
+| `packages/extension-host/…/agents/pending-launch.ts` + `agent-launch.ts` | A launch may carry a prompt; the drain composes it                        |
+| `packages/sdk/src/` + `packages/extension-host/…/agents-service.ts`      | `ctx.agents.profiles` — `list()` / `launch({ prompt })`, the consumer     |
+| `packages/extensions-core/src/agents-settings/ProfileEditorModal.tsx`    | R10 — the profile says whether it can take a prompt                       |
 
 The design deliberately puts **all** the reasoning in one pure module. The
 drain, the CLI handler, and (later) phase 5 each call the same function and act
@@ -154,52 +153,40 @@ covers the per-terminal case. If this ever bites, the escalation is to read the
 session's foreground leader — authoritative, no new IPC, but it makes the drain
 async — not to guess harder. Not built now.
 
-### The orphaned-session fix
+### The orphaned session — moved out of this phase
 
-`TerminalPanel`'s init effect can re-run (StrictMode double-invoke in dev, a
-fast remount). When it does, the in-flight run reaches the `cancelled` bail
-after its PTY has already come up and returns without disposing of it. Because
-the bail sits **above** the `tRec.sessionId` assignment, nothing ever references
-that session again: it is a live shell with no tab, surviving until the app
-quits.
+`TerminalPanel`'s init effect can re-run and reach its `cancelled` bail after
+its PTY has come up, returning without `session.kill()`. Because the bail sits
+above the `tRec.sessionId` assignment, nothing references that session again:
+a live shell with no tab, surviving until the app quits. `ensureSession`
+handles the identical race correctly (`terminal-service.ts:260`).
 
-The fix mirrors `ensureSession` — reap the orphan before returning — with the
-one guard that makes it safe:
+It was briefly folded into this phase. **It now ships as its own PR** — it never
+belonged to prompt delivery, and pairing a terminal-lifecycle change with a
+public SDK addition serves neither review. The fix is
+`if (needsCreate) void session.kill();` before the bail's `return`, guarded so
+the attach path never kills a session the record still points at, plus the
+disposition in the `ui_init_cancelled` trace.
 
-```ts
-if (cancelled) {
-  // Only a session this run *spawned* is an orphan. On the attach path the
-  // session predates us and the record still points at it — killing it would
-  // destroy a live terminal.
-  if (needsCreate) void session.kill();
-  …
-}
-```
-
-`session.kill()` is `deleteTerminal(id)`, which destroys the persistent
-session, so the `needsCreate` guard is load-bearing rather than defensive. The
-existing `ui_init_cancelled` attach trace gains the disposition (reaped or
-attached) so a post-mortem can tell the two apart — per AGENTS.md, terminal
-lifecycle is diagnosed from `terminal.log`, not the Output panel.
-
-This is the phase's one change outside the prompt path. It ships with its own
-test and is described in the collapsed proposal as an adjacent fix, not as part
-of prompt delivery.
+Recorded here only so the analysis is not lost: it is **not** the "launch line
+typed twice" symptom the collapsed proposal describes. A double drain is
+impossible (`needsCreate` guard at `TerminalPanel.tsx:900`, remove-on-read, and
+the bail returning above both the assignment and the drain). That note describes
+the pre-phase-1 `kind` shim, and correcting it is a collapse-time task.
 
 ## Data flow
 
-`silo agent run --profile claude-work --prompt "fix the CI"`:
+`ctx.agents.profiles.launch({ profileId, prompt })` from an extension:
 
-1. **`resolve_cli_request`** parses `--prompt` into a new `CliRequest.prompt`.
-   Warm launches carry it through the existing `cli:open` emit; cold launches
-   through `PendingLaunchArg`. No new IPC.
-2. **`applyCliAgentRun`** resolves the profile and workspace exactly as phase 2
-   does. Then, **only when a prompt is present**, it runs
-   `composePromptLaunchLine` as a **precheck** — before creating anything. A
-   refusal logs and returns: no terminal record, no workspace activation, no
-   focus change.
-3. **`launchAgentProfile({ …, prompt })`** creates the terminal record and calls
-   `requestProfileLaunch(rec.id, profileId, prompt)`.
+1. **The host service** resolves the profile (`profileId`, else
+   `resolveDefaultProfile`) and the target workspace, exactly as the `+` menu
+   and `core.newAgent` already do.
+2. **Only when a prompt is present**, it runs `composePromptLaunchLine` as a
+   **precheck** — before creating anything. A refusal is **returned to the
+   caller** as a typed value; no terminal record, no activation, no focus.
+3. **`launchAgentProfile({ …, prompt, dialect })`** creates the terminal record
+   and calls `requestProfileLaunch(rec.id, profileId, prompt, dialect)`. The id
+   goes back to the caller.
 4. **The drain** (`TerminalPanel` on ready, or `ensureSession` for a background
    workspace) resolves the profile, builds `profileLaunchLine(profile)`, and —
    when the claim carries a prompt — runs `composePromptLaunchLine` again
@@ -208,16 +195,22 @@ of prompt delivery.
 
 Steps 2 and 4 evaluate the same function. The precheck is what satisfies R7's
 "a refused prompt aborts the launch" — it runs before anything is created, so a
-refusal costs nothing. The re-evaluation at drain is what keeps phase 1's
-"resolved at drain time" promise when a profile is edited in between; the
-dialect, decided at step 3 and carried on the pending launch, is _not_
-re-derived, so the profile is the only input that can have changed.
+refusal costs nothing and the caller learns of it synchronously. The
+re-evaluation at drain keeps phase 1's "resolved at drain time" promise when a
+profile is edited in between; the dialect, decided at step 3 and carried on the
+pending launch, is _not_ re-derived, so the profile is the only input that can
+have changed.
 
 If the drain refuses where the precheck passed, it types **nothing** and logs.
-The terminal already exists at that point and is left as a plain shell — the
-one case in which a terminal outlives a refused prompt, and the same shape as
-phase 1's "a profile deleted mid-launch drains to nothing." R7 names it
-explicitly rather than pretending the precheck is total.
+The terminal already exists and is left as a plain shell — the one refusal
+`launch()` cannot return, because it has already returned. R7 names it rather
+than pretending the precheck is total.
+
+**The CLI is not in this picture.** `silo agent run --prompt` is specified as a
+`prompt` member of `agent.run`'s Control args (R6) and built with RFC 0034;
+`cli.rs` and `agent-run-handler.ts` are untouched here. The precheck then lives
+in that op's handler, which is where 0034 puts `applyCliAgentRun`'s logic
+anyway.
 
 ### Newlines: `\n` in the model, `\r` on the wire
 
@@ -296,20 +289,60 @@ avoiding.
 
 ## APIs / interfaces
 
-No `@silo-code/sdk` change. `promptDelivery`, `agent-prompt.ts`, and the
-extended pending-launch registry are all host-internal, and `--prompt` is a CLI
-flag. The `silo-docs-sync` workflow does not apply; if implementation forces a
-public symbol, it does.
+**This phase publishes SDK surface**, so `.agents/skills/silo-docs-sync/SKILL.md`
+applies in full — TSDoc, `@public`/`@beta` + `@category`, the barrel re-export,
+the hand-authored `ctx` member page, `pnpm docs:api`, and the roadmap flip.
+
+```ts
+/** A profile, as an extension sees it. Never the host's `AgentProfile`. */
+interface AgentProfileSummary {
+  readonly id: string;
+  readonly label: string;
+  /** True for the one profile marked default, if any. */
+  readonly isDefault: boolean;
+  /** Whether this profile's agent can take an opening prompt (R10's fact). */
+  readonly acceptsPrompt: boolean;
+}
+
+interface LaunchAgentProfileOptions {
+  /** Defaults to the default profile, else the first. */
+  profileId?: string;
+  workspaceId?: string;
+  cwd?: string;
+  /** An opening prompt. Refused rather than mangled — see `PromptRefusal`. */
+  prompt?: string;
+  /** Activate the workspace and focus the terminal. Defaults to true. */
+  activate?: boolean;
+}
+
+type LaunchAgentProfileResult =
+  | { ok: true; terminalId: string }
+  | { ok: false; refusal: PromptRefusal | "no-profile" | "no-workspace" };
+
+interface AgentProfilesService {
+  list(): readonly AgentProfileSummary[];
+  launch(options?: LaunchAgentProfileOptions): LaunchAgentProfileResult;
+}
+```
+
+`launch()` returning a **result** rather than `void` is the design's whole
+argument for preferring this over a Forward-mode CLI flag: the caller can see
+what happened. `PromptRefusal` becomes public here, which means its members are
+API — name them for an extension author, not for this module's internals.
+
+Mirrors phase 1's `ctx.agents.catalog()`: `@beta` on first publication,
+read-only, deeply frozen, and a summary type rather than the host record.
 
 Host-internal shapes that change:
 
 - `AgentDefinition.promptDelivery?: AgentPromptDelivery`
-- `PendingLaunch`: the `{ profileId }` arm gains `prompt?: string`. The
-  `{ rawLine }` arm (the deprecated-kind fallback) does **not** — it has no
-  profile and no agent, so there is nothing to resolve a delivery from.
-- `LaunchAgentProfileInput.prompt?: string`
-- `CliRequest.prompt: Option<String>` (Rust) / `CliAgentRunRequest.prompt?:
-string` (TS)
+- `PendingLaunch`: the `{ profileId }` arm gains `prompt?: string` and
+  `dialect`. The `{ rawLine }` arm (the deprecated-kind fallback) does **not** —
+  it has no profile and no agent, so there is nothing to resolve a delivery from.
+- `LaunchAgentProfileInput.prompt?: string`, `.dialect`
+
+**No Rust and no CLI types change in this phase.** `CliRequest.prompt` belongs
+to RFC 0034's conversion.
 
 ## Persistence
 
@@ -399,59 +432,38 @@ workspace, and logs; a launch with no prompt is unchanged.
 - **ADR 0046 (never create or destroy user data unprompted)** — a refused
   prompt creates no terminal record. This is the same reasoning that kept
   phase 1 from synthesizing a profile.
-- **ADR 0047 (CLI grammar)** — `--prompt` is a flag on an existing verb, not a
-  new noun or verb, so the grammar is untouched. Rule 7's "never prompt"
-  concerns modals, not this flag.
+- **ADR 0047 (CLI grammar), amended 2026-09-02 by this work.** The first draft
+  of this package shipped `silo agent run --prompt` in **Forward** mode, reading
+  rule 6's four execution modes as equally available and justifying the silence
+  with R10. That was decided while RFC 0034 was a `draft` with no design.
 
-  **The Forward-mode question, answered rather than waved past.** Rule 1 makes
-  coding agents the primary consumer, and rule 7 says a command whose failures
-  the caller cannot see is "a reason to move a command to Control, not an
-  exemption it keeps." `--prompt` adds four refusal paths; left as runtime-only
-  Output lines, an agent could not distinguish "started with my prompt" from
-  "did nothing." That would be the exact defect the ADR names.
+  It was wrong, and the ADR was right. Rule 7 already said Forward's inability
+  to report "is a reason to move a command to Control, not an exemption it
+  keeps" — and RFC 0034's accepted scope is converting this exact verb. Building
+  Forward plumbing onto it meant writing code against a mode the verb is
+  leaving.
 
-  The resolution is not a return channel — it is noticing that three of the
-  four refusals are **not runtime failures at all**. `no-agent` and
-  `agent-takes-none` are properties of the _profile_, fixed the moment it is
-  saved. `unsupported-shell` is a property of the _user's shell_, fixed for the
-  machine. Only `too-large` is a property of the invocation, and it is the
-  caller's own doing and trivially corrected. So the static three move to where
-  they are actionable (R10, the Profiles tab), and the CLI keeps only a failure
-  its caller can see coming. Forward mode is then honest about what it is
-  reporting rather than concealing configuration errors behind silence.
+  The amendment records the general test rather than deprecating Forward, which
+  would have been the wrong lesson: `open`, `install`, and `uninstall` stay
+  Forward legitimately, because their value **is** the side effect and they must
+  work with nothing running. Everything a caller branches on, reads an id from,
+  or hangs on a verb already scheduled for conversion is Control.
 
-  The staged story stays coherent as later phases land: phase 9's
-  `silo agent list --json` exposes the same fact to machines, and the Control
-  API supplies real exit codes. Each phase reports as much as its execution
-  mode honestly can.
+  Applied here: no CLI code ships in this phase. `--prompt` is defined as a
+  `prompt` member of `agent.run`'s Control args with its refusals mapped onto
+  RFC 0034's closed error vocabulary (rule 6 requires the payload before the
+  verb ships), and it is built with that channel. The consumer this phase does
+  ship is `ctx.agents.profiles` — where a refusal is a **return value**, which
+  is what the Forward flag could never manage.
 
-- **RFC 0034 (Control API) — accepted, in flight, and it rewrites this exact
-  verb.** Its scope includes converting `silo agent run` from Forward to
-  Control: an `agent.run` op with `args: { profile, ws }`, R11 returning the
-  created terminal's id, a closed error vocabulary, and removal of this
-  command's `PendingLaunchArg` cold-launch arm (a deliberate break — cold runs
-  will need `--launch`).
-
-  Two packages therefore touch one command. Both are unimplemented, so they are
-  reconciled **now**, in documents, rather than by whoever implements second:
-  1. `--prompt` is specified as a `prompt` member of `agent.run`'s `args`, and
-     RFC 0034's package is updated to carry it. ADR 0047 rule 6 requires the
-     payload be defined before the verb ships regardless; 0034's own motivation
-     names the alternative — "every command shipped in the meantime is shaped
-     for silence, and gains its answer later as a breaking change."
-  2. Phase 3's refusals map onto 0034's **closed** error vocabulary rather than
-     inventing codes: `no-agent` and `agent-takes-none` are the caller's
-     configuration to fix, `unsupported-shell` is environmental, `too-large` is
-     a bad argument. Pick the exact codes when implementing, and raise a finding
-     against 0034 if none fits — it is still unimplemented and cheap to amend.
-
-  **Landing order does not matter, but it changes where the precheck lives.**
-  If phase 3 lands first, the precheck sits in `applyCliAgentRun` as designed
-  above, and 0034 moves it into the `agent.run` handler as part of its
-  conversion. If 0034 lands first, phase 3 writes the precheck straight into
-  that handler and skips the Forward-mode plumbing. Neither is rework of the
-  pure core, which is where this phase's real content lives — `agent-prompt.ts`
-  is untouched by the question.
+- **RFC 0034 (Control API) — accepted, unimplemented, and it rewrites this
+  verb.** Its scope includes `agent.run` with `args: { profile, ws, prompt }`,
+  R11 returning the created terminal id, a closed error vocabulary, and removal
+  of this command's `PendingLaunchArg` cold-launch arm. Both packages were
+  unimplemented when this was written, so they were reconciled in documents:
+  0034 carries `prompt`, and this package carries the refusal mapping. Neither
+  needs rework for the other, and there is no ordering constraint — this phase
+  touches no CLI code at all.
 
 - **ADR 0022 (storage layout)** — nothing new on disk.
 - **RFC 0028 (terminal identity in the environment)** — `SILO_*` is host-owned.

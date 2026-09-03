@@ -1,8 +1,9 @@
-# Tasks — 0033. Agent Profiles, phase 3 (Prompt delivery)
+# Tasks — 0033. Agent Profiles, phase 3 (Prompt delivery + ctx.agents.profiles)
 
-Implementation plan for **phase 3 only**. Ordered: recon settles the catalog,
-the pure core comes next, then the launch path, then the CLI, then docs. Keep
-the checkboxes current. Working artifact — removed when the proposal collapses.
+Implementation plan for **phase 3 only** — prompt delivery _and_
+`ctx.agents.profiles`. Ordered: recon settles the catalog, the pure core comes
+next, then the launch path, then the public surface, then docs. Keep the
+checkboxes current. Working artifact — removed when the proposal collapses.
 
 ## Recon (mostly done — see the findings table in `design.md`)
 
@@ -74,8 +75,9 @@ Split finely on purpose: this module is where the phase's whole risk lives, and
 
 - [ ] Add the `default_shell` host command (`$SHELL`, falling back to
       `/bin/bash`) and resolve it **during host init** into host state, so every
-      consumer reads it synchronously. This is what keeps `applyCliAgentRun`
-      synchronous — do not make the CLI handler async.
+      consumer reads it synchronously. `ctx.agents.profiles.launch()` returns a
+      result rather than a promise, and RFC 0034's `agent.run` handler will read
+      the same value — neither should have to await a constant.
 - [ ] `PendingLaunch`'s `{ profileId }` arm gains `prompt?` **and `dialect`**;
       `requestProfileLaunch` accepts them. Leave the `{ rawLine }` arm alone.
 - [ ] `drainPendingLaunch` composes `profileLaunchLine(profile)` with the
@@ -101,57 +103,42 @@ Split finely on purpose: this module is where the phase's whole risk lives, and
 - [ ] Follow `docs/modal-design.md` and the SDK kit — no hand-rolled styling,
       design tokens only.
 
-## The CLI
+## `ctx.agents.profiles` — the public surface (R6)
 
-- [ ] `cli.rs`: `CliRequest.prompt`, parsed from `--prompt <text>` /
-      `--prompt=<text>` using the **existing** `flag_value` reader. Do not add a
-      second reader: prompt text starting with `-` goes through
-      `--prompt=<text>`, the same rule every other flag on this verb follows.
-- [ ] Add `--prompt` to the `HELP` text under the `agent run` options.
-- [ ] `CliAgentRunRequest.prompt` and the `cli:open` / `PendingLaunchArg`
-      pass-through.
-- [ ] `applyCliAgentRun`: when a prompt is present, precheck with
-      `composePromptLaunchLine` **before** creating the terminal; a refusal logs
-      the specific reason on `silo:application` and returns without creating,
-      activating, or focusing anything.
-- [ ] **Check RFC 0034's state first.** It is converting this verb to Control.
-      If it has landed, write the precheck into the `agent.run` handler instead
-      and skip the Forward-mode plumbing above; if not, proceed as written and
-      0034 relocates it. The pure core is unaffected either way.
+This is the phase's consumer and its only public API. `silo-docs-sync` applies
+in full; do the docs in this change, not after.
 
-## Reconcile with RFC 0034 (Control API)
+- [ ] `AgentProfileSummary` in `packages/sdk` — `id`, `label`, `isDefault`,
+      `acceptsPrompt`. A summary type, never the host's `AgentProfile`.
+- [ ] `LaunchAgentProfileOptions` and `LaunchAgentProfileResult`; make
+      `PromptRefusal` public and name its members for an extension author.
+- [ ] `list()` on the host service — read-only, memoized, deeply frozen, the
+      same shape `ctx.agents.catalog()` shipped in phase 1.
+- [ ] `launch()` — resolve profile (else `resolveDefaultProfile`) and workspace,
+      precheck the prompt, create the terminal, return `{ ok: true, terminalId }`
+      or `{ ok: false, refusal }`.
+- [ ] `activate` (default true) drives workspace activation and terminal focus,
+      so an extension can launch quietly.
+- [ ] Confirm the background-workspace path returns the id correctly — it takes
+      `launchAgentProfile`'s eager-spawn branch, which until now had only unit
+      coverage.
+- [ ] TSDoc on every new symbol with `@public`/`@beta` + `@category`; re-export
+      from `packages/sdk/src/index.ts`.
+- [ ] The hand-authored `ctx` member page, then `pnpm docs:api`.
+- [ ] Flip the roadmap's `ctx.agents.profiles` entry, and make sure its sketched
+      surface matches what shipped.
 
-Both packages touch `silo agent run` and both are unimplemented, so they are
-reconciled in documents now rather than by whoever implements second.
+## Specify `--prompt`, don't build it
 
-- [ ] Add `prompt` to `agent.run`'s `args` in
-      `docs/proposals/0034-control-api/` — the design's wire contract, its op
-      table row, and R11's criteria as needed.
+ADR 0047's 2026-09-02 amendment: a new flag on a verb scheduled for conversion
+is Control, never Forward. No `cli.rs`, no `agent-run-handler.ts`, no `--help`,
+no CLI guide in this phase.
+
+- [ ] Confirm `prompt` is in `agent.run`'s args in
+      `docs/proposals/0034-control-api/` — wire contract, CLI surface line, R11.
 - [ ] Map each phase-3 refusal onto 0034's **closed** error vocabulary and
-      record the choice. Invent no new codes; if none fits, raise it against
-      0034 while it is still cheap to amend.
-- [ ] Add `--prompt` to the `silo agent run` line in 0034's "New CLI surface"
-      block, so its CLI-guide and `--help` tasks cover the flag.
-
-## Adjacent fix — the orphaned session
-
-Pre-existing and independent of prompt delivery; folded into this phase because
-it is four lines beside code the phase already touches. Keep it as its own
-commit so it can be reverted without touching the prompt path.
-
-- [ ] `TerminalPanel.tsx` — at the `cancelled` bail (~line 617), reap a session
-      this run spawned: `if (needsCreate) void session.kill();` before the
-      `return`. **Guard on `needsCreate`** — on the attach path the session
-      predates this run and the record still points at it, so killing it would
-      destroy a live terminal.
-- [ ] Include the disposition (reaped / attached) in the existing
-      `ui_init_cancelled` attach trace, so `terminal.log` distinguishes the two.
-- [ ] Correct the stale "launch line is occasionally typed twice" paragraph in
-      the collapsed proposal's **launch model** section: the symptom it
-      describes belonged to the pre-phase-1 `kind` shim
-      (`setTimeout(() => session.write(cmd))`, no dedupe), which phase 1
-      deleted. What actually survives is a double-**spawn**, now fixed. Do this
-      at collapse time, with the rest of the curation.
+      record the choice there. Invent no new codes; raise a finding against 0034
+      if none fits, while it is still cheap to amend.
 
 ## Tests
 
@@ -166,48 +153,47 @@ commit so it can be reverted without touching the prompt path.
       line; a promptless claim is byte-identical to today.
 - [ ] `agent-launch.test.ts` — `prompt` threads through; the background branch
       is unchanged.
-- [ ] `cli.rs` tests — `--prompt <text>`, `--prompt=<text>`, dash-leading text
-      via the `=` form, a bare trailing `--prompt`, and mixed order with
-      `--profile` / `--ws`.
 - [ ] Chunking / size — a composed line at exactly `MAX_PROMPT_BYTES` reaches
       the PTY complete, and one byte over is refused before anything is typed.
-- [ ] `agent-run-handler` test — a refused prompt creates no terminal, activates
-      no workspace, and logs; no-prompt behavior unchanged.
-- [ ] The orphaned-session fix (R9) — cancelled after a **spawn** kills the
-      session; cancelled after an **attach** does not. Extract the disposition
-      decision as a pure helper if `TerminalPanel` is awkward to drive directly
-      (per `silo-testing`: extract testable logic rather than reaching for
-      `@testing-library/react`).
+- [ ] `ctx.agents.profiles` — `list()` shape and freezing; `launch()` returning
+      the terminal id; each refusal coming back as a typed result rather than a
+      throw; `activate: false` leaving focus alone; a refused prompt creating no
+      terminal and activating no workspace.
+- [ ] Nothing in the SDK surface leaks host state — `list()` returns summaries,
+      not `AgentProfile` records.
 
 ## Docs
 
-- [ ] `apps/docs/guide/cli.md` — document `--prompt`, with a multi-line example
-      (`--prompt "$(cat notes.md)"`), the 16 KiB limit, the `--prompt=<text>`
-      spelling for dash-leading text, which agents accept a prompt, and — per
-      R5a — that the prompt lands in shell history like anything else typed.
+- [ ] `silo-docs-sync` in full for `ctx.agents.profiles` (see that task group) —
+      this is the phase's docs work, and it is not optional.
 - [ ] `docs/domain-language.md` — add or sharpen a term only if the work
       actually introduces one; don't invent a synonym for something already
       there.
-- [ ] Confirm no `@silo-code/sdk` symbol changed. If one did, run the
-      `silo-docs-sync` workflow in this same change.
+- [ ] `docs/adding-a-coding-agent.md` Step 1 — the prompt-delivery recon
+      question (also listed under Recon).
+- [ ] **No CLI docs.** `apps/docs/guide/cli.md` and `silo --help` are untouched;
+      `--prompt` documents itself when RFC 0034 ships it.
 
 ## Verification
 
 - [ ] Every requirement in `requirements.md` is met or explicitly noted as not.
-- [ ] `pnpm test`, `pnpm --filter silo exec tsc --noEmit`, and `pnpm lint` pass;
-      Rust tests pass for the `cli.rs` arm.
-- [ ] Exercised by hand at a real shell: `silo agent run --profile <id>
---prompt "…"` on a POSIX shell, a multi-line prompt, a prompt full of shell
-      metacharacters, and each refusal path.
+- [ ] `pnpm test`, `pnpm --filter silo exec tsc --noEmit`, `pnpm lint`, and
+      `pnpm docs:api` all pass and leave no uncommitted generated output.
+- [ ] Exercised for real from an extension: launch a profile with a multi-line
+      prompt, a prompt full of shell metacharacters, and each refusal path.
+      `packages/extensions-silo`'s sdk-playground is the natural harness.
 - [ ] **Run in the real app against a plugin-heavy `zsh`** (autosuggestions,
       syntax highlighting, powerlevel10k) via the `verifier-gui` skill. The
       spike validated bash and `zsh -f`; it could not validate a customized rc,
       and those plugins hook the same keystroke path this transport uses. This
       is the phase's highest-risk unknown — do not close the phase without it.
 - [ ] Verify on `fish` too, since it takes the second transport arm.
-- [ ] Durable decisions recorded as ADRs (none expected — the transport and its
-      refusal rule are phase detail the collapsed proposal carries; write one
-      only if something outlives this change).
+- [ ] Durable decisions recorded as ADRs. ADR 0047's 2026-09-02 amendment (the
+      Forward-vs-Control test) ships with this work; nothing else is expected.
 - [ ] Proposal collapsed to a single curated `0033-agent-profiles.md` with the
-      phase table updated: phase 3 shipped, `status` stays `accepted` because
-      phases 4–9 remain. Index row repointed to `./0033-agent-profiles.md`.
+      phase table updated: phase 3 shipped and phase 5 marked merged into it,
+      `status` stays `accepted` because phases 4 and 6–9 remain. Index row
+      repointed to `./0033-agent-profiles.md`.
+- [ ] Correct the stale "launch line is occasionally typed twice" paragraph in
+      the launch-model section while curating — it describes the pre-phase-1
+      `kind` shim, which no longer exists.
