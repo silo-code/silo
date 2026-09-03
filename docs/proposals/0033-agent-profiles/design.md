@@ -422,8 +422,36 @@ workspace, and logs; a launch with no prompt is unchanged.
 
   The staged story stays coherent as later phases land: phase 9's
   `silo agent list --json` exposes the same fact to machines, and the Control
-  API (RFC 0034) eventually supplies real exit codes. Each phase reports as
-  much as its execution mode honestly can.
+  API supplies real exit codes. Each phase reports as much as its execution
+  mode honestly can.
+
+- **RFC 0034 (Control API) — accepted, in flight, and it rewrites this exact
+  verb.** Its scope includes converting `silo agent run` from Forward to
+  Control: an `agent.run` op with `args: { profile, ws }`, R11 returning the
+  created terminal's id, a closed error vocabulary, and removal of this
+  command's `PendingLaunchArg` cold-launch arm (a deliberate break — cold runs
+  will need `--launch`).
+
+  Two packages therefore touch one command. Both are unimplemented, so they are
+  reconciled **now**, in documents, rather than by whoever implements second:
+  1. `--prompt` is specified as a `prompt` member of `agent.run`'s `args`, and
+     RFC 0034's package is updated to carry it. ADR 0047 rule 6 requires the
+     payload be defined before the verb ships regardless; 0034's own motivation
+     names the alternative — "every command shipped in the meantime is shaped
+     for silence, and gains its answer later as a breaking change."
+  2. Phase 3's refusals map onto 0034's **closed** error vocabulary rather than
+     inventing codes: `no-agent` and `agent-takes-none` are the caller's
+     configuration to fix, `unsupported-shell` is environmental, `too-large` is
+     a bad argument. Pick the exact codes when implementing, and raise a finding
+     against 0034 if none fits — it is still unimplemented and cheap to amend.
+
+  **Landing order does not matter, but it changes where the precheck lives.**
+  If phase 3 lands first, the precheck sits in `applyCliAgentRun` as designed
+  above, and 0034 moves it into the `agent.run` handler as part of its
+  conversion. If 0034 lands first, phase 3 writes the precheck straight into
+  that handler and skips the Forward-mode plumbing. Neither is rework of the
+  pure core, which is where this phase's real content lives — `agent-prompt.ts`
+  is untouched by the question.
 
 - **ADR 0022 (storage layout)** — nothing new on disk.
 - **RFC 0028 (terminal identity in the environment)** — `SILO_*` is host-owned.

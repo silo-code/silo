@@ -175,18 +175,40 @@ noun, verb, or grammar, and ADR 0047 reads the same with or without it.
 - [ ] A bare trailing `--prompt` with no value is ignored, exactly as the other
       flags are — never a panic, never a partial request.
 - [ ] Omitting `--prompt` leaves phase 2's behavior untouched.
-- [ ] The flag stays **Forward** mode: it asks for an action, reports nothing on
-      stdout, and needs no return channel.
 - [ ] The Rust parser arm has unit coverage for each of the cases above,
       alongside the existing `agent run` tests.
+
+### Its Control answer is defined now, not later
+
+ADR 0047 rule 6: _"Every mutating verb gets a defined return payload in its own
+proposal **before** it ships, even while the channel can't yet deliver one."_
+RFC 0034 is accepted and converting this exact verb from Forward to Control, so
+`--prompt` must be designed against that contract rather than shaped for silence
+and retrofitted as a breaking change.
+
+- [ ] `--prompt` is specified as part of `agent.run`'s Control request — a
+      `prompt` member of its `args`, beside `profile` and `ws`.
+- [ ] Each of R7's refusals maps to a code in RFC 0034's **closed** error
+      vocabulary, chosen and written down in this package. Nothing new is
+      invented: `no-agent` and `agent-takes-none` are configuration errors the
+      caller can fix, `unsupported-shell` is environmental, and `too-large` is a
+      bad argument. If none of the existing codes fits, that is a finding to
+      raise against RFC 0034 while it is still unimplemented — not a reason to
+      add a code here.
+- [ ] Ships as **Forward** in phase 3 (the channel does not exist yet), with the
+      payload above recorded so the later conversion adds a return value rather
+      than changing a contract.
+- [ ] RFC 0034's package is updated in the same change so `agent.run`'s `args`
+      carry `prompt`. Whichever lands first, the other needs no rework.
 
 ## R7 — Refusal is visible and never partial
 
 Every reason a prompt cannot be delivered ends the same way: nothing is typed,
 no agent is started, and the user is told why.
 
-`silo agent run` is **Forward** mode — no stdout, no meaningful exit code
-(ADR 0047). ADR 0047 is explicit that this is "a reason to move a command to
+`silo agent run` is **Forward** mode _today_ — no stdout, no meaningful exit
+code (ADR 0047) — and RFC 0034 is converting it to Control. Until that lands,
+ADR 0047 is explicit that Forward's silence is "a reason to move a command to
 Control, not an exemption it keeps," so a flag whose failures are invisible to
 its caller would be adding exactly the defect that ADR warns about. R10 is the
 answer: the refusals that are **static** — properties of the profile or the

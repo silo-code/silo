@@ -114,6 +114,24 @@ Split finely on purpose: this module is where the phase's whole risk lives, and
       `composePromptLaunchLine` **before** creating the terminal; a refusal logs
       the specific reason on `silo:application` and returns without creating,
       activating, or focusing anything.
+- [ ] **Check RFC 0034's state first.** It is converting this verb to Control.
+      If it has landed, write the precheck into the `agent.run` handler instead
+      and skip the Forward-mode plumbing above; if not, proceed as written and
+      0034 relocates it. The pure core is unaffected either way.
+
+## Reconcile with RFC 0034 (Control API)
+
+Both packages touch `silo agent run` and both are unimplemented, so they are
+reconciled in documents now rather than by whoever implements second.
+
+- [ ] Add `prompt` to `agent.run`'s `args` in
+      `docs/proposals/0034-control-api/` — the design's wire contract, its op
+      table row, and R11's criteria as needed.
+- [ ] Map each phase-3 refusal onto 0034's **closed** error vocabulary and
+      record the choice. Invent no new codes; if none fits, raise it against
+      0034 while it is still cheap to amend.
+- [ ] Add `--prompt` to the `silo agent run` line in 0034's "New CLI surface"
+      block, so its CLI-guide and `--help` tasks cover the flag.
 
 ## Adjacent fix — the orphaned session
 
