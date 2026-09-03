@@ -58,3 +58,35 @@ export function activityClass(
   const kind = activity ?? "none";
   return `silo-activity silo-activity-${kind} silo-activity-${size}`;
 }
+
+/**
+ * Deterministic per-instance `animation-delay` (via the `--silo-activity-jitter`
+ * custom property) for an animated {@link Activity} glyph, keyed off a stable id
+ * — a row or terminal id, not an array index. Two purposes:
+ *
+ * - **Desync.** Several `working` / `ready` glyphs rendered side by side would
+ *   otherwise pulse in perfect lockstep; a per-id offset staggers them.
+ * - **Start mid-cycle.** The value is a *negative* delay, so the animation
+ *   mounts already in progress rather than pausing on first paint — a WebKit
+ *   quirk that bites when the glyph is created inside a container that was
+ *   `display: none` moments earlier (e.g. a Navigator view on its first
+ *   activation), where a zero delay can leave the pulse frozen until the next
+ *   show/hide toggle.
+ *
+ * Hashed rather than random so the offset is stable across re-renders. Pinned
+ * by unit tests.
+ *
+ * @internal
+ */
+export function activityJitterStyle(
+  key: string,
+): Record<"--silo-activity-jitter", string> {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = (hash * 31 + key.charCodeAt(i)) | 0;
+  }
+  // 1.8s is the longest activity animation period (`silo-activity-wave`), so the
+  // offset spans one full cycle.
+  const delaySeconds = -(((hash >>> 0) % 1000) / 1000) * 1.8;
+  return { "--silo-activity-jitter": `${delaySeconds.toFixed(3)}s` };
+}
