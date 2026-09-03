@@ -328,7 +328,7 @@ paths carry `action: "agent-run"` unchanged.
 data on disk (ADR 0022 tier 1: `<config>/app-state.json`), so
 `silo agent list [--json]` is ADR 0047's **Disk-read** mode — no channel, no
 running app, and unbuilt only because nobody has written it yet. What genuinely
-waits on the [Control API](./0034-control-api.md) is anything that must answer
+waits on the [Control API](./0034-control-api/proposal.md) is anything that must answer
 from the _running_ instance: bare `silo agent run`'s interactive picker, live
 activity state, and handing the launched terminal's id back to the caller.
 
