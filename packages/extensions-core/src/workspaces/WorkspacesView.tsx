@@ -75,22 +75,6 @@ function useHomeDir(): string {
   return useSyncExternalStore(subscribeHome, getHome);
 }
 
-// Deterministic per-row jitter so multiple animated activity glyphs
-// (working rings, ready throb) don't move in lockstep — hashed from the
-// stable row id (not Math.random()) so the offset doesn't jump around on
-// re-render. Expressed as a negative delay so the animation starts already in
-// progress rather than pausing on mount.
-function activityJitterStyle(id: string): React.CSSProperties {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  }
-  const delaySeconds = -(((hash >>> 0) % 1000) / 1000) * 1.8;
-  return {
-    "--silo-activity-jitter": `${delaySeconds.toFixed(3)}s`,
-  } as React.CSSProperties;
-}
-
 function WorkspaceStatusRows({
   workspaceId,
   rows,
@@ -106,15 +90,11 @@ function WorkspaceStatusRows({
           <ActivityGlyph
             activity={row.activity}
             size="sm"
-            style={
-              row.activity === "working" || row.activity === "ready"
-                ? // Providers commonly reuse the same row id across every
-                  // workspace (e.g. a fixed "build-task" id) — fold in the
-                  // workspace id too, or every workspace's dot would still
-                  // land on the same delay and throb in lockstep.
-                  activityJitterStyle(`${workspaceId}:${row.id}`)
-                : undefined
-            }
+            // Providers commonly reuse the same row id across every workspace
+            // (e.g. a fixed "build-task" id) — fold in the workspace id too, or
+            // every workspace's dot would land on the same delay and throb in
+            // lockstep.
+            jitterKey={`${workspaceId}:${row.id}`}
           />
           <span className="ws-status-label">{row.label}</span>
           {row.startedAt && (

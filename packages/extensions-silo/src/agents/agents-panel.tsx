@@ -299,6 +299,7 @@ function AgentRowItem({
         activity={glyphFor(row)}
         size="md"
         className="ap-row-glyph"
+        jitterKey={row.terminalId}
       />
       <div className="ap-row-text">
         <span className="ap-row-title-line">
