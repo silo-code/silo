@@ -331,6 +331,25 @@ the same keystroke path this transport uses. That verification has to happen in
 the real app against a real user shell, which is why it is a `verifier-gui`
 task rather than a unit test.
 
+### Real-app verification (2026-09-03)
+
+The third row is now partly retired. Driving the running dev app via
+`verifier-gui` — a throwaway workspace, a real Silo terminal running the
+machine's own `/bin/zsh` **with its real customized rc**, and a recorder
+script capturing `argv[1]` to disk for byte comparison — **12 of 12 cases came
+back byte-exact**, including every shell metacharacter, multi-line payloads,
+a payload carrying `SILO_PROMPT` as a whole line, non-ASCII, and **16 KiB at
+exactly `MAX_PROMPT_BYTES` across 17 chunks**. The chunked send is therefore
+verified on the real keystroke path, not just in unit tests.
+
+What is **not** retired: that shell has a customized rc but **no**
+zsh-autosuggestions, zsh-syntax-highlighting, or powerlevel10k, which are the
+specific plugins the risk names. The gap is narrower than "a customized rc was
+never tested" — it is now "those three plugins were never tested" — and
+closing it needs a throwaway `ZDOTDIR` with them installed. `fish` could not be
+verified at all: it is not installed on the machine, so its arm remains
+unit-tested only.
+
 Any other dialect refuses (`unsupported-shell`). Nu and PowerShell are
 deliberately not implemented: nu's raw-string forms are their own puzzle, and
 approximating a quoting rule is precisely the failure mode this phase is

@@ -218,17 +218,42 @@ string }`) and `AgentDefinition.promptDelivery?`, with TSDoc stating what the
       `pnpm --filter silo exec tsc --noEmit`, `pnpm lint`, and `pnpm docs:api`
       all pass. `docs:api` output is committed.
 - [ ] Every requirement in `requirements.md` met or explicitly noted as not.
-- [ ] Exercised for real from an extension: launch a profile with a multi-line
-      prompt, a prompt full of shell metacharacters, and each refusal path.
-      `packages/extensions-silo`'s sdk-playground is the natural harness.
-- [ ] **Run in the real app against a plugin-heavy `zsh`** (autosuggestions,
-      syntax highlighting, powerlevel10k) via the `verifier-gui` skill. The
-      spike validated bash and `zsh -f`; it could not validate a customized rc,
-      and those plugins hook the same keystroke path this transport uses. This
-      is the phase's highest-risk unknown — **do not close the phase without
-      it.** The chunked send makes this more important, not less: chunk
-      boundaries are new behavior on exactly that keystroke path.
-- [ ] Verify on `fish` too, since it takes the second transport arm.
+- [x] **Transport verified in the real app, against a real customized `zsh`**
+      (2026-09-03, `verifier-gui`, dev build from this worktree — binary
+      identity confirmed via `lsof`). Method: a throwaway workspace and a real
+      Silo terminal running the user's own `/bin/zsh` and rc; for each case the
+      exact line `composePromptLaunchLine` produces was `\r`-converted and sent
+      in 1 KiB chunks the way `sendLine` does, invoking a recorder script that
+      wrote its `argv[1]` to disk for byte comparison. **12/12 byte-exact**:
+      plain; shell metacharacters (`$HOME`, backticks, `$(…)`, `\`, `'`, `"`,
+      `;`, `&&`, `|`, `>`); multi-line; quotes at the edges;
+      backslash-newline; a payload containing `SILO_PROMPT` as a whole line;
+      one containing both `SILO_PROMPT` and `SILO_PROMPT_2`; non-ASCII
+      (accents, CJK, emoji); tabs + CRLF; blank lines; `${…}`/`$((…))`; and
+      **16 KiB at exactly `MAX_PROMPT_BYTES`, delivered complete across 17
+      chunks** — the case the chunking fix exists for.
+- [x] Promptless drain regression-checked in the real app: `core.newAgent.codex`
+      created the terminal, `ensureSession`'s lazy spawn drained the intent
+      through the rewritten `sendLine`, and the agents channel then reported
+      `leader="codex"` — the launch line reached the shell and the agent
+      started, unchanged from phases 1–2.
+- [ ] **Not yet run against a plugin-heavy `zsh`** (autosuggestions, syntax
+      highlighting, powerlevel10k). The machine's `zsh` has a customized rc —
+      which is more than the spike's `zsh -f`, and is what the 12 cases above
+      ran through — but **none of those three plugins**, so the specific risk
+      the design named (plugins hooking the same keystroke path, especially at
+      chunk boundaries) is narrowed, not retired. Closing this needs a
+      throwaway `ZDOTDIR` with those plugins installed.
+- [ ] Exercised end to end from an extension calling
+      `ctx.agents.profiles.launch({ prompt })`. The transport below it and the
+      service above it are both covered (real-app cases here; unit tests for
+      `launch()` → `requestProfileLaunch` → drain), but the two have not been
+      joined in the running app — there is no bridge op for the new surface and
+      no bundled extension calls it yet. `packages/extensions-silo`'s
+      sdk-playground is the natural harness.
+- [ ] Verify on `fish` too, since it takes the second transport arm. **`fish`
+      is not installed on this machine**, so this could not be run; its arm is
+      unit-tested only.
 - [ ] Durable decisions recorded as ADRs. ADR 0047's 2026-09-02 amendment (the
       Forward-vs-Control test) ships with this work; nothing else is expected.
 - [ ] Proposal collapsed to a single curated `0033-agent-profiles.md` with the
