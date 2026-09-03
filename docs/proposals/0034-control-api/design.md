@@ -6,7 +6,7 @@ an ADR.
 
 ## Corrections made during implementation
 
-Six places where building it showed the plan below was wrong. Each is fixed in
+Seven places where building it showed the plan below was wrong. Each is fixed in
 the code and described here rather than left as a discrepancy.
 
 1. **The client needs the bundle identifier before Tauri exists.** The design
@@ -52,6 +52,16 @@ the code and described here rather than left as a discrepancy.
    path from the environment on every poll. A listener whose `$TMPDIR` changed
    underneath it would otherwise check — or re-bind onto — an address it never
    owned. `Endpoint` is captured once at bind.
+
+7. **`--launch` needs a three-state probe, not a boolean.** The first
+   implementation asked "is it ready?" and spawned on `false`, which collapses
+   "nothing is listening" and "listening but still starting" into one answer —
+   so `--launch` against an instance mid-startup launched a second process,
+   exactly what R7 forbids. This is not a narrow race: the socket binds at
+   process start (that is what lets `status` report a wedged webview), so every
+   cold launch spends its first seconds in that state. A `Liveness` enum
+   (`Absent` / `Starting` / `Ready`) replaces the boolean, and `should_spawn` —
+   the pure decision the bug lived in — is unit-tested over all three.
 
 Two smaller ones: `silo ws list` rejects `--launch` as `invalid-args` (a
 Disk-read command starting a desktop app is precisely what R7 forbids), and

@@ -320,26 +320,60 @@ fn connect() -> Result<Stream, Envelope> {
     })
 }
 
+/// What a `status` probe found.
+///
+/// The middle case is the whole reason this is not a `bool`: an instance that is
+/// **listening but not yet ready** must be *waited on*, never launched again
+/// (R7). The socket is bound at process start, so a mid-startup instance answers
+/// `status` for the entire time its webview is still coming up — a window of
+/// seconds during which "not ready" and "not running" look identical to a caller
+/// that only asks "can it serve me yet?".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Liveness {
+    /// Nothing is listening on this identity's socket.
+    Absent,
+    /// An instance is alive, but its webview cannot serve ops yet.
+    Starting,
+    /// An instance is alive and serving.
+    Ready,
+}
+
+/// Whether `--launch` should start a process, given what the probe found.
+///
+/// Only [`Liveness::Absent`] does. [`Liveness::Starting`] is the case this
+/// function exists to get right: an instance that is alive but whose webview has
+/// not registered yet must be **waited on**, never launched again. Spawning
+/// there would hand a Control invocation to `tauri-plugin-single-instance`,
+/// which raises the still-starting window and forwards argv the Forward path
+/// does not understand — a visible side effect from what the caller asked to be
+/// a wait.
+fn should_spawn(found: Liveness) -> bool {
+    matches!(found, Liveness::Absent)
+}
+
 /// `--launch`: make sure a **ready** instance exists (R7).
 ///
 /// Polls readiness, not socket existence, so a request is never delivered to an
 /// instance whose webview cannot yet answer it — and an instance that is already
 /// running but mid-startup is waited on rather than duplicated.
 fn ensure_running() -> Result<(), Envelope> {
-    if probe_ready()? {
+    let found = probe()?;
+    if found == Liveness::Ready {
         return Ok(());
     }
-    if let Err(e) = spawn_app() {
-        return Err(Envelope::err(
-            ErrorCode::Failed,
-            format!("could not launch Silo: {e}"),
-        ));
+    if should_spawn(found) {
+        if let Err(e) = spawn_app() {
+            return Err(Envelope::err(
+                ErrorCode::Failed,
+                format!("could not launch Silo: {e}"),
+            ));
+        }
     }
 
     let deadline = Instant::now() + LAUNCH_DEADLINE;
     while Instant::now() < deadline {
         std::thread::sleep(LAUNCH_POLL);
-        if probe_ready()? {
+        if probe()? == Liveness::Ready {
             return Ok(());
         }
     }
@@ -352,17 +386,17 @@ fn ensure_running() -> Result<(), Envelope> {
     ))
 }
 
-/// Whether an instance is up **and** serving. `Ok(false)` covers both "nothing
-/// listening" and "listening but still starting", which is exactly the
-/// distinction `--launch` has to wait on rather than act on.
-fn probe_ready() -> Result<bool, Envelope> {
+/// Ask the socket what is there.
+///
+/// An error other than `not-running` stops the wait rather than burning the
+/// deadline: a malformed reply or a socket-level failure is not something more
+/// waiting will fix.
+fn probe() -> Result<Liveness, Envelope> {
     let envelope = request("status", &serde_json::json!({}), "");
     if !envelope.ok {
         let code = envelope.error.as_ref().map(|e| e.code);
-        // Not running yet is the normal case while waiting. Anything else is a
-        // real failure and stops the wait rather than burning the deadline.
         return match code {
-            Some(ErrorCode::NotRunning) => Ok(false),
+            Some(ErrorCode::NotRunning) => Ok(Liveness::Absent),
             _ => Err(envelope),
         };
     }
@@ -380,7 +414,10 @@ fn probe_ready() -> Result<bool, Envelope> {
             ))
         }
     };
-    Ok(status.webview == Webview::Ready)
+    Ok(match status.webview {
+        Webview::Ready => Liveness::Ready,
+        Webview::Starting => Liveness::Starting,
+    })
 }
 
 /// Start the platform's **app entry point**, detached.
@@ -685,6 +722,26 @@ mod tests {
         let req = parse(&["ws", "list", "--launch"]).unwrap();
         let err = validate(&req).expect_err("a Disk-read command takes no --launch");
         assert_eq!(err.error.unwrap().code, ErrorCode::InvalidArgs);
+    }
+
+    #[test]
+    fn launch_starts_a_process_only_when_nothing_is_listening() {
+        // The middle case is the one that matters: an instance whose socket is
+        // bound but whose webview has not registered yet is *starting*, and
+        // `--launch` must wait for it rather than spawn a second process (R7).
+        // The socket binds at process start, so this window is every cold
+        // launch's first few seconds — not a rare race.
+        assert!(should_spawn(Liveness::Absent));
+        assert!(!should_spawn(Liveness::Starting));
+        assert!(!should_spawn(Liveness::Ready));
+    }
+
+    #[test]
+    fn a_starting_instance_is_not_the_same_as_no_instance() {
+        // Guards the distinction itself: collapsing these two into one "not
+        // ready" answer is what made `--launch` duplicate a starting app.
+        assert_ne!(Liveness::Starting, Liveness::Absent);
+        assert_ne!(Liveness::Starting, Liveness::Ready);
     }
 
     #[test]
