@@ -609,6 +609,30 @@ registry. Phase 3 rewrites that paragraph in the collapsed proposal to describe
 the double-**spawn** that actually survives, so a future reader stops chasing a
 symptom the code no longer has.
 
+**…and the real-app run found what that note was probably describing.**
+Verifying end to end (2026-09-03), a freshly-spawned terminal rendered the
+composed line **three times** in its scrollback: twice as bare text with no
+shell prompt, then once at the `$` prompt with zsh's own continuation prompts
+(`dquote cmdsubst heredoc>`). It **executed exactly once** — one `claude`
+process, one answer.
+
+So this is not a double drain, and the structural argument above still holds
+(remove-on-read; a second drain would have started a second agent). It is the
+ordinary "input arrived before the shell drew its first prompt" echo: the tty
+echoes the bytes raw, then ZLE redraws them once it takes over, then renders
+the command it accepted. What changed is **visibility** — phase 1 typed a
+single word, where the artifact is easy to miss; a multi-line heredoc renders
+as three stacked blocks and looks alarming, which is very likely what the
+original "typed twice" observation actually was.
+
+Cosmetic, not a correctness bug, and out of scope here — but it is the one
+place where prompt delivery makes an existing rough edge markedly worse, so it
+should not be dropped silently. The fix is to drain on shell **readiness**
+rather than on session spawn; that is a terminal-lifecycle change and belongs
+in its own piece of work, alongside the orphaned-session fix. Recorded as a
+follow-up, and the collapse-time correction of the "typed twice" paragraph
+should describe this rather than deleting it outright.
+
 **Two recon entries are still `--help`-only.** `pi` and `copilot` are read from
 their help text rather than an empirical run (see the findings table). Both
 default to `undefined` — refuse — if the run is ambiguous, so the failure mode

@@ -40,11 +40,19 @@ capabilities before drawing (a raw PTY with no responder stalls them).
 
 Deferred to phase verification (they need the running app, not a unit test):
 
-- [ ] Spot-check one confirmed `argv` agent end to end **through Silo itself**,
-      with a prompt containing a single quote, a double quote, a `$`, and a
-      newline.
+- [x] Spot-checked an `argv` agent end to end **through Silo itself**
+      (2026-09-03): `claude-personal` launched via
+      `ctx.agents.profiles.launch({ prompt })`, with a prompt carrying a single
+      quote, a double quote, `$HOME`, `` `date` ``, `$(uname)` and an em-dash —
+      Claude displayed every one of them literally and answered. The **newline**
+      half of this criterion is covered by the 12 byte-exact transport cases
+      through the same real shell rather than by this launch, whose prompt was
+      single-line.
 - [ ] Spot-check `opencode`'s `--prompt` flag the same way — it is the
-      `{ kind: "flag" }` arm.
+      `{ kind: "flag" }` arm, and no profile on this machine points at it, so
+      the flag arm has still never been through a real launch. Its composition
+      is unit-tested; what is unverified is opencode itself accepting the line
+      Silo builds.
 
 ## Catalog
 
@@ -244,13 +252,17 @@ string }`) and `AgentDefinition.promptDelivery?`, with TSDoc stating what the
       the design named (plugins hooking the same keystroke path, especially at
       chunk boundaries) is narrowed, not retired. Closing this needs a
       throwaway `ZDOTDIR` with those plugins installed.
-- [ ] Exercised end to end from an extension calling
-      `ctx.agents.profiles.launch({ prompt })`. The transport below it and the
-      service above it are both covered (real-app cases here; unit tests for
-      `launch()` → `requestProfileLaunch` → drain), but the two have not been
-      joined in the running app — there is no bridge op for the new surface and
-      no bundled extension calls it yet. `packages/extensions-silo`'s
-      sdk-playground is the natural harness.
+- [x] **Exercised end to end from a real installed extension** (2026-09-03).
+      The sdk-playground example gained a `ctx.agents.profiles` section — its
+      stated purpose is one runnable demo per SDK-surface item — plus a command
+      so the same battery can be driven headlessly and read back from the
+      extension's own Output channel. Installed into the Silo Dev identity and
+      driven in a throwaway workspace. Results, all through the public SDK: - `list()` → 3 profiles, each with `isDefault` / `acceptsPrompt`. - `launch({ prompt: 17 KiB })` → `{ ok: false, refusal: "too-large" }`. - `launch({ profileId: <unknown> })` → `{ ok: false, refusal: "no-profile" }`. - `launch({ profileId: "claude-personal", prompt })` →
+      `{ ok: true, terminalId }`; the terminal spawned, the agents channel
+      reported `leader=".../bin/claude"`, and **Claude Code displayed the
+      prompt verbatim** — `$HOME`, `` `date` ``, `$(uname)`, `'quoted'`,
+      `"double"` and an em-dash all literal — and answered it. Every link
+      from the public API to the agent's own screen is now covered.
 - [ ] Verify on `fish` too, since it takes the second transport arm. **`fish`
       is not installed on this machine**, so this could not be run; its arm is
       unit-tested only.
@@ -260,6 +272,20 @@ string }`) and `AgentDefinition.promptDelivery?`, with TSDoc stating what the
       phase table updated: phase 3 shipped and phase 5 marked merged into it,
       `status` stays `accepted` because phases 4 and 6–9 remain. Index row
       repointed to `./0033-agent-profiles.md`.
-- [ ] Correct the stale "launch line is occasionally typed twice" paragraph in
-      the launch-model section while curating — it describes the pre-phase-1
-      `kind` shim, which no longer exists.
+- [ ] Correct the "launch line is occasionally typed twice" paragraph in the
+      launch-model section while curating. It does **not** describe a double
+      drain (structurally impossible), but the real-app run found what it very
+      likely was: a line typed before zsh has drawn its first prompt is echoed
+      to scrollback more than once while executing exactly once, and a
+      multi-line heredoc makes that far more visible than phase 1's one-word
+      command. Rewrite it to say that, rather than deleting it as stale.
+- [ ] Follow-up (not this phase): drain on shell **readiness** rather than on
+      session spawn, which removes the echo artifact above. A
+      terminal-lifecycle change — pair it with the orphaned-session fix rather
+      than folding it into a prompt-delivery PR.
+- [ ] Follow-up (not this phase): the daemon's `write_master_timed` drops the
+      tail of a PTY write after its one-second deadline and reports it only to
+      the daemon log, so Silo itself never learns. Chunking makes truncation
+      unlikely but cannot rule it out, and the failure mode — a shell parked in
+      an unterminated quote with nothing in the Output panel — is bad enough to
+      deserve a surfaced warning. Its own issue.

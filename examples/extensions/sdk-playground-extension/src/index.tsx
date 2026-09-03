@@ -10,6 +10,7 @@ import type { Extension, ExtensionContext } from "@silo-code/sdk";
 
 const PANEL_ID = "sdk-playground";
 const OPEN_COMMAND = "silo.sdk-playground.open";
+const PROFILES_COMMAND = "silo.sdk-playground.agentProfiles";
 const STYLE_ID = "silo-sdk-playground-styles";
 
 // Consume only `--silo-*` design tokens so the panel themes correctly and
@@ -301,6 +302,75 @@ function Playground({ ctx }: { ctx: ExtensionContext }) {
       ],
     },
     {
+      item: "RFC 0033",
+      title: "Agent Profiles: list + launch with a prompt",
+      blurb:
+        "Read the user's Agent Profiles, then start one with an opening prompt. A prompt Silo can't quote exactly is refused as a typed value rather than mangled — so every button below reports what actually came back, including the refusals.",
+      actions: [
+        {
+          label: "list()",
+          run: async () => {
+            const profiles = ctx.agents.profiles.list();
+            if (profiles.length === 0)
+              return "No profiles — add one in Settings → Agents → Profiles.";
+            return profiles
+              .map(
+                (p) =>
+                  `${p.id}${p.isDefault ? " (default)" : ""} — ${p.label}` +
+                  `\n    acceptsPrompt: ${p.acceptsPrompt}`,
+              )
+              .join("\n");
+          },
+        },
+        {
+          label: "launch with a prompt",
+          run: async () => {
+            const target = ctx.agents.profiles
+              .list()
+              .find((p) => p.acceptsPrompt);
+            if (!target)
+              return "No profile whose agent can take an opening prompt.";
+            // Deliberately full of things a shell would otherwise interpret —
+            // the payload is quoted, never escaped, so all of it is literal.
+            const result = ctx.agents.profiles.launch({
+              profileId: target.id,
+              prompt:
+                "say hello and nothing else — literal test: $HOME `date` $(uname) 'quoted' \"double\"",
+              activate: false,
+            });
+            return result.ok
+              ? `launched ${target.id} → terminal ${result.terminalId}`
+              : `refused: ${result.refusal}`;
+          },
+        },
+        {
+          label: "refusal: too-large",
+          run: async () => {
+            const result = ctx.agents.profiles.launch({
+              prompt: "x".repeat(16 * 1024 + 1),
+              activate: false,
+            });
+            return result.ok
+              ? `unexpectedly launched ${result.terminalId}`
+              : `refused: ${result.refusal}`;
+          },
+        },
+        {
+          label: "refusal: no-profile",
+          run: async () => {
+            const result = ctx.agents.profiles.launch({
+              profileId: "definitely-not-a-profile",
+              prompt: "hi",
+              activate: false,
+            });
+            return result.ok
+              ? `unexpectedly launched ${result.terminalId}`
+              : `refused: ${result.refusal}`;
+          },
+        },
+      ],
+    },
+    {
       item: "B14",
       title: "Binary fetch",
       blurb:
@@ -358,6 +428,56 @@ export const extension: Extension = {
       id: OPEN_COMMAND,
       label: "Open SDK Playground",
       run: () => ctx.layout.revealSidePanel(PANEL_ID),
+    });
+    // The same `ctx.agents.profiles` battery the panel exposes as buttons, as
+    // one command that writes its findings to this extension's Output channel.
+    // Buttons need a human; this can be driven headlessly (by the dev
+    // automation bridge, or a keybinding) and read back afterwards, which is
+    // what makes the surface verifiable in the running app rather than only in
+    // unit tests.
+    ctx.registerCommand({
+      id: PROFILES_COMMAND,
+      label: "SDK Playground: exercise ctx.agents.profiles",
+      run: () => {
+        const profiles = ctx.agents.profiles.list();
+        ctx.log.info(
+          `list() → ${profiles.length} profile(s): ` +
+            profiles
+              .map(
+                (p) =>
+                  `${p.id}${p.isDefault ? "*" : ""}(acceptsPrompt=${p.acceptsPrompt})`,
+              )
+              .join(", "),
+        );
+
+        const tooLarge = ctx.agents.profiles.launch({
+          prompt: "x".repeat(16 * 1024 + 1),
+          activate: false,
+        });
+        ctx.log.info(`launch(oversized prompt) → ${JSON.stringify(tooLarge)}`);
+
+        const missing = ctx.agents.profiles.launch({
+          profileId: "definitely-not-a-profile",
+          prompt: "hi",
+          activate: false,
+        });
+        ctx.log.info(`launch(unknown profile) → ${JSON.stringify(missing)}`);
+
+        const target = profiles.find((p) => p.acceptsPrompt);
+        if (!target) {
+          ctx.log.warn("no prompt-capable profile — skipping the real launch");
+          return;
+        }
+        const launched = ctx.agents.profiles.launch({
+          profileId: target.id,
+          prompt:
+            "say hello and nothing else — literal test: $HOME `date` $(uname) 'quoted' \"double\"",
+          activate: false,
+        });
+        ctx.log.info(
+          `launch(${target.id}, with prompt) → ${JSON.stringify(launched)}`,
+        );
+      },
     });
   },
   deactivate() {
