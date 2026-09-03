@@ -48,11 +48,15 @@ Deferred to phase verification (they need the running app, not a unit test):
       half of this criterion is covered by the 12 byte-exact transport cases
       through the same real shell rather than by this launch, whose prompt was
       single-line.
-- [ ] Spot-check `opencode`'s `--prompt` flag the same way — it is the
-      `{ kind: "flag" }` arm, and no profile on this machine points at it, so
-      the flag arm has still never been through a real launch. Its composition
-      is unit-tested; what is unverified is opencode itself accepting the line
-      Silo builds.
+- [x] Spot-checked `opencode`'s `--prompt` flag the same way (2026-09-03) — the
+      `{ kind: "flag" }` arm, which nothing else exercised end to end. The
+      composed `opencode --prompt "$(cat <<'SILO_PROMPT' … )"` was typed into a
+      real terminal; opencode became the foreground leader and stayed
+      interactive, and `ps` showed its **argv** as
+      `--prompt say hello … $HOME \`date\` $(uname) 'q' "d"` — every
+      metacharacter literal, in one argument. Reading argv from the process
+      table is stronger evidence than a screenshot: it is what the kernel
+      handed the program.
 
 ## Catalog
 
@@ -276,10 +280,15 @@ string }`) and `AgentDefinition.promptDelivery?`, with TSDoc stating what the
       **downgraded from "the fix" to "a narrowing"** in the same pass — an
       earlier revision of the design claimed it solved this on the strength of
       an unadorned-zsh run.
-- [ ] **Re-run the battery at the 2 KiB limit** against the plugin-heavy shell,
-      to confirm that what Silo now _accepts_ delivers reliably there. Blocked
-      only on the phase-3 dev app: port 7878 is currently held by another
-      worktree's build.
+- [x] **Re-ran the battery at the 2 KiB limit** against the same plugin-heavy
+      shell — **12/12 byte-exact**, including a payload of exactly
+      `MAX_PROMPT_BYTES` delivered across 3 chunks. What Silo now accepts is
+      reliable on the shell that broke the old limit.
+- [x] **Verified on `fish`** (4.8.1, installed for this) — **12/12
+      byte-exact**, exercising the second transport arm's single-quoted
+      escaping against the real shell rather than only in unit tests. The probe
+      confirmed `$FISH_VERSION` from inside the terminal, so the swap really
+      took.
 - [x] **Exercised end to end from a real installed extension** (2026-09-03).
       The sdk-playground example gained a `ctx.agents.profiles` section — its
       stated purpose is one runnable demo per SDK-surface item — plus a command
@@ -291,9 +300,7 @@ string }`) and `AgentDefinition.promptDelivery?`, with TSDoc stating what the
       prompt verbatim** — `$HOME`, `` `date` ``, `$(uname)`, `'quoted'`,
       `"double"` and an em-dash all literal — and answered it. Every link
       from the public API to the agent's own screen is now covered.
-- [ ] Verify on `fish` too, since it takes the second transport arm. **`fish`
-      is not installed on this machine**, so this could not be run; its arm is
-      unit-tested only.
+- [x] Verified on `fish` (4.8.1) — 12/12 byte-exact; see the battery above.
 - [ ] Durable decisions recorded as ADRs. ADR 0047's 2026-09-02 amendment (the
       Forward-vs-Control test) ships with this work; nothing else is expected.
 - [ ] Proposal collapsed to a single curated `0033-agent-profiles.md` with the

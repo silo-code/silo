@@ -342,13 +342,27 @@ a payload carrying `SILO_PROMPT` as a whole line, non-ASCII, and **16 KiB at
 exactly `MAX_PROMPT_BYTES` across 17 chunks**. The chunked send is therefore
 verified on the real keystroke path, not just in unit tests.
 
-What is **not** retired: that shell has a customized rc but **no**
-zsh-autosuggestions, zsh-syntax-highlighting, or powerlevel10k, which are the
-specific plugins the risk names. The gap is narrower than "a customized rc was
-never tested" — it is now "those three plugins were never tested" — and
-closing it needs a throwaway `ZDOTDIR` with them installed. `fish` could not be
-verified at all: it is not installed on the machine, so its arm remains
-unit-tested only.
+**The plugin-heavy case, and what it cost (2026-09-03).** Re-running the same
+battery against a throwaway `ZDOTDIR` carrying zsh-autosuggestions,
+zsh-syntax-highlighting and powerlevel10k found the risk was real: 11 of 12
+cases passed, and the twelfth — a 16 KiB payload — silently truncated. That is
+what drove `MAX_PROMPT_BYTES` down to 2 KiB (see "Error handling"). Re-run at
+the new limit, the same shell delivers **12/12 byte-exact**, including a
+payload of exactly `MAX_PROMPT_BYTES`.
+
+**`fish` (4.8.1): 12/12 byte-exact.** The second transport arm's single-quoted
+escaping is now verified against the real shell, not just unit tests; the probe
+read `$FISH_VERSION` from inside the terminal so the swap is not assumed.
+
+**The `{ kind: "flag" }` arm, end to end.** Every other real-app case exercised
+`argv`. `opencode --prompt "$(cat <<'SILO_PROMPT' … )"` was typed into a real
+terminal: opencode came up, stayed interactive, and `ps` showed its argv
+carrying `$HOME`, `` `date` ``, `$(uname)` and both quote styles literally in a
+single argument. Argv from the process table is stronger evidence than a
+screenshot — it is what the kernel handed the program.
+
+Taken together the transport is verified on all three shells Silo claims to
+support, on both delivery kinds, at the limit it now enforces.
 
 Any other dialect refuses (`unsupported-shell`). Nu and PowerShell are
 deliberately not implemented: nu's raw-string forms are their own puzzle, and
