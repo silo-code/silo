@@ -679,7 +679,7 @@ _Avoid_: Top-level command (collides with the shorthand path form)
 Who answers a command: **Local** (the binary itself), **Disk-read** (the binary,
 reading ADR 0022's config tier — no GUI needed), **Forward** (the running app,
 fire-and-forget, exit 0), **Control** (the running app, round-trip, real stdout
-and exit code — the [Control API](proposals/0034-control-api/proposal.md)). The
+and exit code — the [Control API](proposals/0034-control-api.md)). The
 dividing line: config lives on disk, live state needs Control. A command may be
 **both**: `silo ws list` is Disk-read with a Control **overlay**, and the answer
 records whether the overlay was applied so "not open" and "unknown because

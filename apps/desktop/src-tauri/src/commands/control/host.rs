@@ -210,8 +210,16 @@ pub fn register<R: Runtime>(app: &AppHandle<R>) {
         );
     });
 
-    // No stopper is retained: the app's shutdown *is* process exit, and the
-    // bound socket is unlinked as the listener drops with it.
+    // No stopper is retained, and **the socket file outlives the process**: the
+    // listener runs on a detached thread, so process exit kills it without
+    // unwinding and `Listener`'s `Drop` never runs. Nothing here tries to fix
+    // that, because an exit hook would only cover a graceful quit — a crash or
+    // a SIGKILL would still leave the path behind, so takeover has to be
+    // correct either way and is the only mechanism worth relying on.
+    //
+    // The leftover path is inert: `bind` connect-probes before binding, so the
+    // next start unlinks the corpse and rebinds, and a client that reaches it
+    // meanwhile gets a refused connect and reports `not-running` (RFC 0034 R2).
     let dispatcher = HostDispatcher { app: app.clone() };
     std::thread::spawn(move || listener::serve(dispatcher, listener::Stopper::default()));
 }

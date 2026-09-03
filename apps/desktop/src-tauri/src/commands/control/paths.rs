@@ -7,8 +7,17 @@
 //! namespace, so reaping one never touches the other.
 //!
 //! - Unix: `<runtime-base>/silo-ctl/<ns>/control.sock`, dir `0700`, socket `0600`.
-//! - Windows: `\\.\pipe\silo-control-<ns>`, owner-only security descriptor. No
-//!   filesystem path, so the length constraint below does not apply.
+//! - Windows: `\\.\pipe\silo-control-<ns>`. No filesystem path, so the length
+//!   constraint below does not apply.
+//!
+//! **The two arms are not equally gated.** Unix is owner-exclusive: `0600`
+//! inside `0700`. Windows takes the pipe's *default* security descriptor —
+//! `ListenerOptions` passes no `SECURITY_ATTRIBUTES`, so `CreateNamedPipeW`
+//! applies the default DACL, which grants the creator and administrators full
+//! control and **Everyone read access**. Another local user therefore cannot
+//! write a request and cannot drive an op, but the pipe is not owner-only the
+//! way the socket is. Setting an explicit descriptor is the fix; it is not done.
+//! See ADR 0049's "Known limitation" — do not restate this as "owner-only".
 //!
 //! `silo-ctl` is deliberately short. On macOS the runtime base is
 //! `/var/folders/…/T` (~49 chars) and the whole path must stay under
