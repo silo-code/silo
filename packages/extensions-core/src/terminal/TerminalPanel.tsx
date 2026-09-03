@@ -66,6 +66,7 @@ import {
 } from "./terminal-link-policy";
 import {
   findTerminalOwnerId,
+  planCancelledInit,
   planExitStreamEnd,
   planSessionGoneAfterAttach,
 } from "./terminal-lifecycle";
@@ -616,11 +617,20 @@ export function TerminalPanel(
         }
         if (cancelled) {
           endRestore(true);
+          // This run is being abandoned while holding a live session. A session
+          // it *spawned* is referenced by nothing (the `tRec.sessionId`
+          // assignment is below this bail), so it would leak as a shell with no
+          // tab — reap it, exactly as `ensureSession` reaps its own orphan. A
+          // session it merely *attached* to belongs to the record and the user;
+          // killing that one would destroy a live terminal.
+          const plan = planCancelledInit({ needsCreate });
+          if (plan === "reap") void session.kill();
           logTerminalAttachTrace("ui_init_cancelled", {
             terminalId,
             workspaceId: activeWsId,
             sessionId: session.id,
             needsCreate,
+            disposition: plan,
           });
           return;
         }

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   findTerminalOwnerId,
   MAX_EXIT_RECONNECTS,
+  planCancelledInit,
   planExitStreamEnd,
   planSessionGoneAfterAttach,
 } from "./terminal-lifecycle";
@@ -79,5 +80,19 @@ describe("planSessionGoneAfterAttach", () => {
     expect(planSessionGoneAfterAttach({ pendingExitCode: null })).toBe(
       "recreate",
     );
+  });
+});
+
+describe("planCancelledInit", () => {
+  it("reaps a session this run spawned — nothing references it", () => {
+    // The cancelled bail returns above the `tRec.sessionId` assignment, so a
+    // spawned session left alive is a shell with no tab until the app quits.
+    expect(planCancelledInit({ needsCreate: true })).toBe("reap");
+  });
+
+  it("leaves an attached session alone — the record still points at it", () => {
+    // Killing here would destroy a live terminal the user is using; this is
+    // the guard, not a nicety.
+    expect(planCancelledInit({ needsCreate: false })).toBe("leave");
   });
 });
