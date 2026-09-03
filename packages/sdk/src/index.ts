@@ -110,6 +110,11 @@ export type {
   AgentIcon,
   AgentIconMode,
   CatalogAgentSummary,
+  AgentProfilesService,
+  AgentProfileSummary,
+  LaunchAgentProfileOptions,
+  LaunchAgentProfileResult,
+  PromptRefusal,
 } from "./agents-service";
 export type {
   TerminalService,

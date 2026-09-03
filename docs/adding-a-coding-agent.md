@@ -111,6 +111,35 @@ none of this is reliably documented upstream.
   (`.claude/settings.json`, `.codex/hooks.json`), note it — that is what makes
   per-account hook keying (RFC 0033 phase 6) work cleanly.
 
+**Opening prompt (`promptDelivery`)** — for Agent Profiles (RFC 0033 phase 3)
+
+- How does the agent take an **opening prompt** on its launch line? Positional
+  (`{ kind: "argv" }`) or a named option (`{ kind: "flag", flag: "--prompt" }`)?
+- **The distinguishing question is not "does it accept prompt text" but "does
+  it accept prompt text _and stay interactive_."** Every agent here has a
+  non-interactive mode that also takes a prompt (`claude -p`, `copilot -p`,
+  `codex exec`, `opencode run`), and that mode is a **no** for this field: an
+  Agent Profile launch is an interactive agent in a terminal tab, so an agent
+  that prints an answer and exits has no way to take one.
+- **`--help` is not enough — run it.** Launch the agent in a real terminal with
+  a prompt and confirm two things: it **acted on the prompt**, and it **left you
+  at its TUI**. A process that has exited is a "no" no matter how good its
+  answer was. Ambiguous → leave `promptDelivery` undefined; the failure mode is
+  then a prompt declined with a clear message, never one delivered wrongly.
+  (Copilot is the case that proves the point: its `--help` reads as
+  prompt-hostile — `-p` is documented non-interactive and the positional slot is
+  a subcommand — but `-i/--interactive <prompt>` works, and only the empirical
+  run found it.)
+- Check what the **positional slot already means** before assuming `argv`.
+  OpenCode's is a project path, so appending a prompt there would set the
+  project directory to the prompt text; Copilot's is a subcommand name and
+  errors outright. Both are why the union has a `"flag"` member.
+- Recorded 2026-09-02, all seven confirmed by running them: `{ kind: "argv" }`
+  for `claude`, `codex`, `cursor-agent`, `grok`, `pi`;
+  `{ kind: "flag", flag: "--prompt" }` for `opencode`;
+  `{ kind: "flag", flag: "--interactive" }` for `copilot`. Each entry's
+  `contract` carries its own evidence, positive and negative.
+
 ## Step 2 — Write the catalog entry
 
 Create `agents/catalog/example.ts`. If the agent's resume is `kind: "hook"`
@@ -310,6 +339,9 @@ The catalog can't reach these; grep for an existing agent's name to find them al
 - [ ] Resume strategy chosen; installer reused or added
 - [ ] `configDirEnvVar` answered deliberately — populated only if it moves the
       **credentials**, else left undefined with the reason in `contract`
+- [ ] `promptDelivery` answered deliberately, **by running the agent** — a
+      prompt mode that exits is a no; else left undefined with the reason in
+      `contract`
 - [ ] Unit tests: catalog integrity, detector goldens, resume command
 - [ ] `agent-sessions.md` section + matching `docsUrl` anchor
 - [ ] Website / docs "works with" lists and icon

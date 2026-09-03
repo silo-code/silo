@@ -20,6 +20,10 @@ export const grokAgent: AgentDefinition = {
   // and carries credentials (`auth.json`) with it. Resume is session-file, not
   // hook, so no hook config path is involved.
   configDirEnvVar: "GROK_HOME",
+  // RFC 0033 phase-3 recon (2026-09-02, macOS, grok 1.0.13): `grok "<prompt>"`
+  // answered and stayed in the TUI — its own `--help` calls the positional
+  // "Initial prompt for the interactive session".
+  promptDelivery: { kind: "argv" },
   // "Working" shares the spinner OSC 0 detector, on its braille branch — Grok's
   // TUI uses the U+2800–28FF glyph range Claude used until 2.1.228 (confirmed
   // live: Grok shows as an agent via this shared detector before any
@@ -83,8 +87,13 @@ export const grokAgent: AgentDefinition = {
     "hooks from ~/.claude/settings.json for Claude compatibility — Silo's " +
     "Claude SessionStart hook can fire against a Grok pid; the host rejects " +
     "that mismatch via the sticky foreground agent id and lets the session " +
-    "file win.",
+    "file win. RFC 0033 phase-3 recon (2026-09-02, grok 1.0.13): the " +
+    "positional `[PROMPT]` is documented as the 'Initial prompt for the " +
+    "interactive session' and behaves that way — run in a real PTY, " +
+    '`grok "<prompt>"` answered and left the composer up, so ' +
+    "`promptDelivery` is { kind: 'argv' }. NOTE the resume/activity findings " +
+    "above were confirmed at 0.2.114 and were not re-run at 1.0.13.",
   upstreamRefs: ["https://github.com/xai-org/grok-cli", "https://docs.x.ai"],
-  lastVerified: "2026-08-31",
-  verifiedAgainstVersion: "grok@0.2.114",
+  lastVerified: "2026-09-02",
+  verifiedAgainstVersion: "grok@1.0.13",
 };

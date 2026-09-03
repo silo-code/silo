@@ -10,6 +10,7 @@ import {
   initUserKeybindings,
   setExtensionsReady,
   initGlobalErrorCapture,
+  initLoginShell,
   beginStartupStatus,
   markStartupHydrated,
   markStartupExtensionsReady,
@@ -32,6 +33,13 @@ beginStartupStatus();
 // previous session and uses before calling `globalDir()`. A rejection is logged
 // to the Output panel inside; own-dir paths then deny through the normal rules.
 void initStorageRoot().catch(() => {});
+
+// Resolve the user's login shell once (RFC 0033 phase 3) so every consumer can
+// read it synchronously — `ctx.agents.profiles.launch()` returns a result
+// rather than a promise, and the value never changes for the life of the
+// process. A failure leaves it unknown, which makes an opening prompt refuse
+// with `unsupported-shell` rather than be typed into a shell Silo can't quote.
+void initLoginShell();
 
 // Activate built-ins synchronously, before render — the dock needs their panel
 // kinds present when it deserializes the saved layout.

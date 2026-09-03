@@ -224,6 +224,24 @@ export type AgentResume =
   | AgentNoResume;
 
 /**
+ * How an agent's CLI takes an **opening prompt** while staying interactive
+ * (RFC 0033 phase 3) — see {@link AgentDefinition.promptDelivery} for the
+ * recon question and why `undefined` means "cannot".
+ *
+ * A closed union of exactly the two shapes recon actually found. `"argv"` is
+ * the common case: the prompt is appended to the command as a positional
+ * argument. `"flag"` exists because two agents' positional slot is already
+ * spoken for — `opencode`'s is a project path, and `copilot`'s is a
+ * subcommand name — so each names its own option instead. A third shape is
+ * added only when some agent's recon demands one; in particular there is no
+ * `"stdin"` member, because a heredoc on stdin detaches an interactive TUI
+ * from the tty, which is the opposite of what a profile launch is for.
+ */
+export type AgentPromptDelivery =
+  | { kind: "argv" }
+  | { kind: "flag"; flag: string };
+
+/**
  * Host behavior for an agent's terminal/session handling that is not resume,
  * install, or detection data — the runtime quirks ADR 0042 exists to pull out
  * of host string branches (`agents-service.ts` must not branch on agent id).
@@ -366,6 +384,30 @@ export interface AgentDefinition {
    * See `docs/adding-a-coding-agent.md` for the recon a new agent must do.
    */
   configDirEnvVar?: string;
+  /**
+   * How this agent's CLI accepts an **opening prompt** on its launch line
+   * while *staying interactive* (RFC 0033 phase 3). `undefined` is a
+   * deliberate "no": a profile that resolves to an agent without this field
+   * refuses a prompt rather than guessing at a positional argument.
+   *
+   * The distinguishing recon question is **not** "does it accept prompt
+   * text" — every agent here has a non-interactive mode that does — but
+   * "does it accept prompt text **and leave you at its TUI**". A flag that
+   * prints an answer and exits (`claude -p`, `copilot -p`, `codex exec`) is a
+   * **no** for this field, because an Agent Profile launch is an interactive
+   * agent in a terminal tab. The check is empirical, exactly as
+   * {@link AgentDefinition.configDirEnvVar}'s was: run the agent with a
+   * prompt in a real terminal, confirm it answered, and confirm the process
+   * is still alive at its prompt afterwards.
+   *
+   * Populated for all seven catalog agents as of 2026-09-02 — five positional
+   * (`claude`, `codex`, `cursor-agent`, `grok`, `pi`) and two by flag
+   * (`opencode --prompt`, `copilot --interactive`), the latter two because
+   * their positional slot means something else (a project path; a
+   * subcommand). Every entry records its evidence in its own `contract`.
+   * See `docs/adding-a-coding-agent.md` for the recon a new agent must do.
+   */
+  promptDelivery?: AgentPromptDelivery;
 
   // ── provenance / maintenance (audit-skill rubric + checkpoint) ──────────
   /** Plain-language statement of exactly what upstream behavior our
@@ -623,6 +665,18 @@ export function configDirEnvVarForAgent(
   agentId: string | undefined,
 ): string | undefined {
   return agentId ? agentById(agentId)?.configDirEnvVar : undefined;
+}
+
+/**
+ * How a catalog agent takes an opening prompt, or `undefined` when it has no
+ * reconned way to take one (RFC 0033 phase 3) — including for an id that is
+ * not in the catalog at all. The single lookup both the launch path and the
+ * profile editor's "can this take a prompt?" affordance go through.
+ */
+export function promptDeliveryForAgent(
+  agentId: string | undefined,
+): AgentPromptDelivery | undefined {
+  return agentId ? agentById(agentId)?.promptDelivery : undefined;
 }
 
 /**

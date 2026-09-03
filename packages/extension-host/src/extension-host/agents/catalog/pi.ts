@@ -127,6 +127,10 @@ export function buildPiAgentDefinition(deps: PiAgentDeps): AgentDefinition {
     // `process.env.PI_CODING_AGENT_DIR ?? ~/.pi/agent`. The hook `configPath`
     // (`.pi/agent/extensions/silo-track-session.ts`) sits inside it.
     configDirEnvVar: "PI_CODING_AGENT_DIR",
+    // RFC 0033 phase-3 recon (2026-09-02, macOS, pi 0.84.3): `pi "<prompt>"`
+    // answered and stayed in the TUI — its positional `[messages...]` is an
+    // opening message for the interactive session.
+    promptDelivery: { kind: "argv" },
     // Redundant once the tab shows pi's own icon — same literal detectPiTitle
     // matches on, reused rather than duplicated.
     titleIdentityPrefix: PI_TITLE_PREFIX,
@@ -240,7 +244,13 @@ export function buildPiAgentDefinition(deps: PiAgentDeps): AgentDefinition {
       "identified as an agent and still gets exact resume; it just never " +
       "lights up as busy. Pi also emits OSC 133 A/B/C zones around " +
       "messages, which the generic shell-integration fallback reads as " +
-      '`source: "shell"` — useful noise, not agent identity.',
+      '`source: "shell"` — useful noise, not agent identity. ' +
+      "RFC 0033 phase-3 recon (2026-09-02, pi 0.84.3): `pi [options] [--] " +
+      "[@files...] [messages...]` takes an opening prompt POSITIONALLY and " +
+      'stays interactive — run in a real PTY, `pi "say hello"` answered ' +
+      '"hello" and was still at its composer 45s later, so `promptDelivery` ' +
+      "is { kind: 'argv' }. NOTE the hook/session findings above were " +
+      "confirmed at 0.84.2 and were not re-run at 0.84.3.",
     upstreamRefs: [
       "https://pi.dev",
       "https://www.npmjs.com/package/@earendil-works/pi-coding-agent",
@@ -248,7 +258,7 @@ export function buildPiAgentDefinition(deps: PiAgentDeps): AgentDefinition {
       // API and session_start payload) and docs/sessions.md (--session
       // semantics) are the two Silo's contract depends on.
     ],
-    lastVerified: "2026-08-31",
-    verifiedAgainstVersion: "pi@0.84.2",
+    lastVerified: "2026-09-02",
+    verifiedAgainstVersion: "pi@0.84.3",
   };
 }

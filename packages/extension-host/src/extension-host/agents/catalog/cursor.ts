@@ -25,6 +25,10 @@ export function buildCursorAgentDefinition(
     // command that actually invokes Grok. Cursor is identified only by its
     // unambiguous `cursor-agent` argv0.
     leaderNames: ["cursor-agent"],
+    // RFC 0033 phase-3 recon (2026-09-02, macOS, cursor-agent
+    // 2026.08.31-4057e58): `cursor-agent "<prompt>"` answered and stayed in
+    // the TUI. `-p/--print` is the non-interactive mode.
+    promptDelivery: { kind: "argv" },
     // OSC 0 title status (preferred), ported from silo-extensions/agent-monitor.
     // Only emitted when `display.showStatusIndicators` is true in
     // ~/.cursor/cli-config.json — the upstream *default is false* — so the raw
@@ -80,13 +84,20 @@ export function buildCursorAgentDefinition(
       "~/.cursor) but `auth.json` is read from homedir() independently — a " +
       "second profile pointed at it would share the first profile's account " +
       "while appearing to have its own, so `configDirEnvVar` is deliberately " +
-      "left undefined. Revisit if Cursor gains a credential-dir override.",
+      "left undefined. Revisit if Cursor gains a credential-dir override. " +
+      "RFC 0033 phase-3 recon (2026-09-02, cursor-agent 2026.08.31-4057e58): " +
+      "`agent [options] [command] [prompt...]` takes an opening prompt " +
+      "POSITIONALLY and stays interactive — run in a real PTY it answered and " +
+      "left the 'Add a follow-up' composer up, so `promptDelivery` is " +
+      "{ kind: 'argv' }. `-p/--print` is the non-interactive mode, a NO for " +
+      "this field. NOTE the hook/activity findings above were confirmed at " +
+      "2026.07.23-e383d2b and were not re-run.",
     upstreamRefs: [
       "https://docs.cursor.com/en/cli/reference/hooks",
       "https://docs.cursor.com/en/cli/overview",
       "https://cursor.com/docs/hooks",
     ],
-    lastVerified: "2026-08-31",
-    verifiedAgainstVersion: "cursor-agent@2026.07.23-e383d2b",
+    lastVerified: "2026-09-02",
+    verifiedAgainstVersion: "cursor-agent@2026.08.31-4057e58",
   };
 }

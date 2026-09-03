@@ -240,6 +240,7 @@ pub fn run() {
             commands::finder_drop::dnd_get_finder_paths,
             commands::window_chrome::window_set_caption_color,
             commands::system::system_info,
+            commands::system::default_shell,
             commands::app_paths::app_config_dir_override,
         ])
         .run(context)

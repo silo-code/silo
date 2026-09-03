@@ -233,10 +233,48 @@ Output-panel text: a profile whose agent cannot take a prompt is the caller's
 configuration to fix, an unquotable shell is environmental, and an oversized
 prompt is a bad argument.
 
-Implementation note: RFC 0033 phase 3 leaves a host-side precheck that returns
-a typed refusal before creating anything. `agent.run`'s handler calls it and
-maps the refusal onto a code — the CLI work here is the flag, the arg, and that
-mapping, not the delivery mechanism.
+Implementation note: RFC 0033 phase 3 shipped that host-side precheck. It is
+`ctx.agents.profiles.launch()`'s own: the service composes the line before
+creating anything and returns `{ ok: false, refusal }`. `agent.run`'s handler
+calls the same path and maps the refusal onto a code — the CLI work here is the
+flag, the arg, and that mapping, not the delivery mechanism.
+
+**The mapping** (settled 2026-09-03 against the shipped `PromptRefusal`, per
+RFC 0033 R6). All four are `failed`:
+
+| `PromptRefusal`     | Code     | Why                                                                            |
+| ------------------- | -------- | ------------------------------------------------------------------------------ |
+| `no-agent`          | `failed` | The profile exists; it just names no agent Silo knows. Fixable config.         |
+| `agent-takes-none`  | `failed` | The agent exists and has no interactive opening-prompt form.                   |
+| `unsupported-shell` | `failed` | Environmental — Silo has no exact quoting rule for this shell.                 |
+| `too-large`         | `failed` | Over 2 KiB after sanitizing. See the finding below for why not `invalid-args`. |
+
+`not-found` is deliberately **not** used for `no-agent`: that code means "a
+named workspace, profile, or terminal does not exist", and in every one of these
+cases the named profile does exist. `failed` — "the op ran and could not
+complete" — is literally true for all four, and the `message` field carries
+which one. The vocabulary being coarse here is the point: it is closed, and
+`message` is where the specifics belong.
+
+**Finding raised against this proposal (RFC 0033 phase 3, 2026-09-03).**
+`too-large` is the one that reads like `invalid-args` — it is a bad argument by
+any ordinary reading. It cannot use that code, for two independent reasons, and
+both are worth stating before this ships:
+
+1. The table above declares `invalid-args` "detected client-side; never sent on
+   the wire", and `cli.rs` cannot detect this one. The 2 KiB limit applies to
+   the **sanitized** payload, and sanitizing (stripping escape sequences and
+   control bytes) only ever shrinks the text — so a raw prompt over the limit
+   may still be under it once sanitized. A client-side check would reject
+   prompts that would actually have worked.
+2. Sanitizing is RFC 0033's, and deliberately host-side. Duplicating it in
+   `cli.rs` to make a client-side check exact is precisely the "second
+   implementation of the quoting rules" that phase forbids.
+
+So `too-large` rides `failed` with a message naming the limit and the actual
+size. **No new code is being asked for** — this is recorded so the choice is
+deliberate rather than a silent widening of `failed`, and so that a future
+reader does not "fix" it into `invalid-args`.
 
 ## Data flow
 
