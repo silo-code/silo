@@ -81,7 +81,10 @@ string }`) and `AgentDefinition.promptDelivery?`, with TSDoc stating what the
       (including `undefined`).
 - [x] `heredocDelimiter(payload)` — `SILO_PROMPT`, suffixed until no line of the
       payload equals it.
-- [x] `MAX_PROMPT_BYTES = 16 * 1024` (sanitized UTF-8 bytes, not characters).
+- [x] `MAX_PROMPT_BYTES` (sanitized UTF-8 bytes, not characters). Drafted at
+      `16 * 1024`; **lowered to `2 * 1024` during verification** once a
+      plugin-heavy zsh was measured truncating anything above ~4 KiB. See the
+      verification section.
 - [x] `resolveProfileAgentId` — `assumedAgentId` (validated against the catalog)
       ?? `fallbackAgentForCommand`. Shared with R10's editor affordance via
       `profileAcceptsPrompt`; neither resolves agents its own way.
@@ -123,7 +126,10 @@ string }`) and `AgentDefinition.promptDelivery?`, with TSDoc stating what the
       truncated before its delimiter never terminates and parks the user's
       shell in an unterminated quote. Chunked at 1 KiB of UTF-8 per write —
       one deadline per frame — splitting on code-point boundaries so a
-      multi-byte character is never cut in half.
+      multi-byte character is never cut in half. **Chunking turned out to
+      narrow this rather than fix it** — see the verification section; the
+      actual mitigation is the lowered `MAX_PROMPT_BYTES`, and the real fix is
+      silo-code/silo#497.
 - [x] `LaunchAgentProfileInput.prompt?` / `.dialect?` thread through
       `launchAgentProfile`.
 - [x] Verified a launch with **no** prompt still produces a byte-identical line
@@ -245,13 +251,35 @@ string }`) and `AgentDefinition.promptDelivery?`, with TSDoc stating what the
       through the rewritten `sendLine`, and the agents channel then reported
       `leader="codex"` — the launch line reached the shell and the agent
       started, unchanged from phases 1–2.
-- [ ] **Not yet run against a plugin-heavy `zsh`** (autosuggestions, syntax
-      highlighting, powerlevel10k). The machine's `zsh` has a customized rc —
-      which is more than the spike's `zsh -f`, and is what the 12 cases above
-      ran through — but **none of those three plugins**, so the specific risk
-      the design named (plugins hooking the same keystroke path, especially at
-      chunk boundaries) is narrowed, not retired. Closing this needs a
-      throwaway `ZDOTDIR` with those plugins installed.
+- [x] **Run against a plugin-heavy `zsh`** (autosuggestions, syntax
+      highlighting, powerlevel10k in a throwaway `ZDOTDIR`) — 2026-09-03. **The
+      risk the design named was real.** 11 of 12 cases passed, so the quoting is
+      sound on this shell too; the failure was purely size:
+
+      | Payload | Result                                      |
+      | ------- | ------------------------------------------- |
+      | ≤ 4 KiB | complete, 4/4 runs                          |
+      | 6 KiB   | flaky — 1 of 2 runs lost bytes              |
+      | ≥ 8 KiB | always truncated (16 KiB arrived as ~14.3)  |
+
+      Two failure modes, both bad: **silent truncation** (the heredoc still
+      closes around a short payload, so the agent acts on partial instructions
+      with nothing logged anywhere), and a **wedged shell** parked at
+      `dquote cmdsubst heredoc>` that automated Ctrl-C did not clear. The same
+      payloads all delivered intact on an unadorned zsh, so the ceiling belongs
+      to the user's environment, not to Silo.
+
+- [x] **`MAX_PROMPT_BYTES` lowered 16 KiB → 2 KiB** as the mitigation, with the
+      measurement recorded at the constant and in `design.md`. Refusing well
+      short of the cliff is what turns an invisible corruption into an
+      actionable `too-large` a caller can trim and retry. Chunking was
+      **downgraded from "the fix" to "a narrowing"** in the same pass — an
+      earlier revision of the design claimed it solved this on the strength of
+      an unadorned-zsh run.
+- [ ] **Re-run the battery at the 2 KiB limit** against the plugin-heavy shell,
+      to confirm that what Silo now _accepts_ delivers reliably there. Blocked
+      only on the phase-3 dev app: port 7878 is currently held by another
+      worktree's build.
 - [x] **Exercised end to end from a real installed extension** (2026-09-03).
       The sdk-playground example gained a `ctx.agents.profiles` section — its
       stated purpose is one runnable demo per SDK-surface item — plus a command

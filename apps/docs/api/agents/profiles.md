@@ -104,9 +104,31 @@ returns the reason.
 | `no-agent`          | The profile matches no agent Silo knows, so there is no way to tell how its CLI takes a prompt |
 | `agent-takes-none`  | That agent has no way to accept an opening prompt while staying interactive                    |
 | `unsupported-shell` | Silo has no exact quoting rule for the shell this terminal would run — bash, zsh and fish work |
-| `too-large`         | Over the 16 KiB limit. An opening instruction, not a file transfer                             |
+| `too-large`         | Over the 2 KiB limit — about a page. See "How long can a prompt be?" below                     |
 | `no-profile`        | The named profile does not exist, or there are none at all                                     |
 | `no-workspace`      | The named workspace does not exist, or none is open                                            |
+
+### How long can a prompt be?
+
+**2 KiB** — roughly a page of prose. Longer is refused with `"too-large"`
+before anything is typed.
+
+The ceiling is lower than you might expect, and the reason is worth
+understanding: the prompt is **typed into the user's shell**, exactly as if
+they had entered it. A shell running syntax highlighting or autosuggestions
+re-parses its whole input buffer on every keystroke batch, so it consumes a
+long paste slowly — and measurably fails to keep up past a few KiB. On an
+unadorned shell the same text arrives fine, so the real ceiling depends on
+_your user's_ setup, not on Silo.
+
+Silo therefore refuses well short of where delivery actually degrades. That is
+deliberate: a caller who gets `"too-large"` can trim and retry, whereas a
+prompt that silently lost its last paragraph reaches the agent looking
+complete, and the agent acts on it.
+
+If you have more context than fits, put it somewhere the agent can read — a
+file in the workspace, an issue it can fetch — and use the prompt to point at
+it.
 
 Two things worth knowing before you put text in a prompt:
 

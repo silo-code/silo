@@ -224,8 +224,15 @@ export type PromptRefusal =
   /** Silo has no exact quoting rule for the shell this terminal would run and
    *  will not guess one. bash, zsh, and fish are supported. */
   | "unsupported-shell"
-  /** The prompt exceeds Silo's 16 KiB limit. An opening instruction, not a
-   *  file transfer. */
+  /**
+   * The prompt exceeds Silo's 2 KiB limit — roughly a page of prose.
+   *
+   * The ceiling is low because the prompt is *typed* into the user's shell,
+   * and a shell with syntax highlighting or autosuggestions cannot reliably
+   * consume more than a few KiB in one go. Silo refuses well short of where
+   * delivery starts failing, because a truncated prompt would reach the agent
+   * looking complete. Trim it and retry.
+   */
   | "too-large";
 
 /**
@@ -254,6 +261,10 @@ export interface LaunchAgentProfileOptions {
    * cannot deliver it exactly, the launch is **refused** rather than mangled
    * or silently dropped: nothing is typed, no terminal is created, and
    * `launch()` returns the reason.
+   *
+   * Keep it to an opening instruction. The limit is **2 KiB** — about a page —
+   * and anything longer is refused with `"too-large"`; see that member for
+   * why the ceiling is where it is.
    *
    * The composed line is typed into the user's own interactive shell, so it
    * appears in scrollback and in shell history exactly as if they had typed

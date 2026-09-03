@@ -242,12 +242,12 @@ flag, the arg, and that mapping, not the delivery mechanism.
 **The mapping** (settled 2026-09-03 against the shipped `PromptRefusal`, per
 RFC 0033 R6). All four are `failed`:
 
-| `PromptRefusal`     | Code     | Why                                                                             |
-| ------------------- | -------- | ------------------------------------------------------------------------------- |
-| `no-agent`          | `failed` | The profile exists; it just names no agent Silo knows. Fixable config.          |
-| `agent-takes-none`  | `failed` | The agent exists and has no interactive opening-prompt form.                    |
-| `unsupported-shell` | `failed` | Environmental — Silo has no exact quoting rule for this shell.                  |
-| `too-large`         | `failed` | Over 16 KiB after sanitizing. See the finding below for why not `invalid-args`. |
+| `PromptRefusal`     | Code     | Why                                                                            |
+| ------------------- | -------- | ------------------------------------------------------------------------------ |
+| `no-agent`          | `failed` | The profile exists; it just names no agent Silo knows. Fixable config.         |
+| `agent-takes-none`  | `failed` | The agent exists and has no interactive opening-prompt form.                   |
+| `unsupported-shell` | `failed` | Environmental — Silo has no exact quoting rule for this shell.                 |
+| `too-large`         | `failed` | Over 2 KiB after sanitizing. See the finding below for why not `invalid-args`. |
 
 `not-found` is deliberately **not** used for `no-agent`: that code means "a
 named workspace, profile, or terminal does not exist", and in every one of these
@@ -262,7 +262,7 @@ any ordinary reading. It cannot use that code, for two independent reasons, and
 both are worth stating before this ships:
 
 1. The table above declares `invalid-args` "detected client-side; never sent on
-   the wire", and `cli.rs` cannot detect this one. The 16 KiB limit applies to
+   the wire", and `cli.rs` cannot detect this one. The 2 KiB limit applies to
    the **sanitized** payload, and sanitizing (stripping escape sequences and
    control bytes) only ever shrinks the text — so a raw prompt over the limit
    may still be under it once sanitized. A client-side check would reject

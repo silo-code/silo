@@ -172,6 +172,31 @@ rejected, but not this proposal's job: it is a choice each _surface_ makes, and
 it composes from the two methods above. Worth it only where one surface
 genuinely serves both intents; most serve one.
 
+## A related constraint the composer will run into
+
+Prompts are capped at **2 KiB** — about a page — and that number is not
+arbitrary. RFC 0033 phase-3 verification measured a plugin-heavy zsh losing
+bytes above ~4 KiB and truncating reliably at 8 KiB, silently, because the
+prompt is _typed_ and a line editor running syntax highlighting cannot keep up
+(silo-code/silo#497). The limit is set well below the cliff so a caller gets a
+`too-large` it can act on rather than an agent working from a truncated brief.
+
+This bears on the composer directly: an editor invites longer text than a
+one-line API call does. Whatever it looks like, it should show the limit and
+refuse **in the dialog**, before the user has written two pages — the same
+principle as surfacing `acceptsPrompt` up front rather than as a refusal after
+confirming.
+
+It also puts a third option on the table that this RFC does not choose:
+**stop typing the payload.** Writing the prompt to a temp file and typing
+`agent "$(cat <file>)"` makes the line editor see ~80 bytes regardless of size,
+and the ceiling disappears. The cost is R5a's transparency — the composed line
+in scrollback stops being the instruction and becomes a `cat` of an opaque
+path, no longer something the user can read, edit, and re-run — plus a file on
+disk with a lifetime to manage. If a consumer ever genuinely needs prompts
+larger than a page, that trade is the decision to make, and it should be made
+deliberately rather than as a side effect of raising a constant.
+
 ## Decision
 
 Not yet decided — `draft`.

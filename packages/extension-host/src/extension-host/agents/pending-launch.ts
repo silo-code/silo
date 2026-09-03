@@ -172,17 +172,25 @@ export function drainPendingLaunch(
  * daemon's `write_master_timed` (`crates/pty-host/src/daemon.rs`) writes a
  * frame's payload to the PTY master under a **one-second deadline and then
  * silently drops whatever is left** ("write_master: timeout after N/M bytes").
- * A 16 KiB heredoc is exactly the payload that can hit that: a plugin-heavy
- * line editor (zsh-autosuggestions, syntax highlighting) re-renders on every
- * chunk it consumes, so it drains slowly — and a heredoc truncated before its
- * closing delimiter never terminates, leaving the user's shell parked in an
- * unterminated quote waiting for input that will never come.
+ * A plugin-heavy line editor (zsh-autosuggestions, syntax highlighting)
+ * re-parses its whole buffer on every chunk it consumes, so it drains slowly
+ * and a large paste can hit that deadline. What is lost is never reported: the
+ * heredoc may still close around a short payload, so the agent receives
+ * truncated instructions that look complete.
  *
  * One write per frame, one deadline per frame: splitting the line gives each
  * piece its own full budget, and each piece is small enough to land in the
  * PTY's input buffer in a single `write(2)` in the ordinary case. Ordering is
- * preserved by the per-session writer thread, and 16 chunks is far inside the
- * 64-slot write queue `terminal_write` enqueues into.
+ * preserved by the per-session writer thread, and a whole composed line is a
+ * handful of chunks — far inside the 64-slot write queue `terminal_write`
+ * enqueues into.
+ *
+ * Chunking **narrows** this failure; it does not remove it. Measurement showed
+ * a plugin-heavy zsh still losing bytes above ~4 KiB even chunked, which is why
+ * {@link MAX_PROMPT_BYTES} refuses long before that. The durable fix is for the
+ * daemon to report a short write instead of discarding it — silo-code/silo#497,
+ * because a transport that can silently eat keystrokes is a problem well beyond
+ * prompt delivery.
  */
 const PTY_WRITE_CHUNK_BYTES = 1024;
 

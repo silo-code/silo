@@ -1,6 +1,6 @@
 # Interface: LaunchAgentProfileOptions
 
-Defined in: [packages/sdk/src/agents-service.ts:239](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L239)
+Defined in: [packages/sdk/src/agents-service.ts:246](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L246)
 
 **`Beta`**
 
@@ -15,7 +15,7 @@ a bare `launch()` starts the default profile in the active workspace.
 optional profileId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:242](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L242)
+Defined in: [packages/sdk/src/agents-service.ts:249](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L249)
 
 **`Beta`**
 
@@ -30,7 +30,7 @@ Which profile to start. Defaults to the one marked default, else the
 optional workspaceId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:246](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L246)
+Defined in: [packages/sdk/src/agents-service.ts:253](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L253)
 
 **`Beta`**
 
@@ -46,7 +46,7 @@ Which workspace to start it in. Defaults to the active one. A
 optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:248](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L248)
+Defined in: [packages/sdk/src/agents-service.ts:255](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L255)
 
 **`Beta`**
 
@@ -60,7 +60,7 @@ Working directory for the new terminal. Defaults to the workspace folder.
 optional prompt?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:262](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L262)
+Defined in: [packages/sdk/src/agents-service.ts:273](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L273)
 
 **`Beta`**
 
@@ -71,6 +71,10 @@ shell, so `$HOME`, backticks, quotes, and newlines are all safe. If Silo
 cannot deliver it exactly, the launch is **refused** rather than mangled
 or silently dropped: nothing is typed, no terminal is created, and
 `launch()` returns the reason.
+
+Keep it to an opening instruction. The limit is **2 KiB** — about a page —
+and anything longer is refused with `"too-large"`; see that member for
+why the ceiling is where it is.
 
 The composed line is typed into the user's own interactive shell, so it
 appears in scrollback and in shell history exactly as if they had typed
@@ -84,7 +88,7 @@ it. Don't put a secret in one.
 optional activate?: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:267](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L267)
+Defined in: [packages/sdk/src/agents-service.ts:278](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L278)
 
 **`Beta`**
 

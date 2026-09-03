@@ -70,13 +70,36 @@ export type ShellDialect = "posix" | "fish" | "unsupported";
 
 /**
  * The largest sanitized prompt Silo will deliver, in UTF-8 **bytes** (not
- * characters). An opening instruction, not a file transfer: 16 KiB is far more
- * than any real instruction, far under `ARG_MAX`, and small enough to stay
- * tractable for a line editor and for the shell-history entry the composed
- * line becomes (R5a). A bounded limit that fails loudly beats an unbounded
- * paste that wedges the user's shell.
+ * characters).
+ *
+ * **This number comes from measurement, not from taste.** The binding
+ * constraint is not `ARG_MAX` or shell history — it is how fast the target
+ * shell's *line editor* can consume keystrokes, because the prompt is typed
+ * rather than passed as argv. A plugin-heavy zsh (autosuggestions, syntax
+ * highlighting, powerlevel10k) re-parses the whole buffer on every chunk it
+ * receives, and slows down as the buffer grows.
+ *
+ * Measured in the real app against exactly that shell (2026-09-03):
+ *
+ * | Payload | Result                                     |
+ * | ------- | ------------------------------------------ |
+ * | ≤ 4 KiB | delivered complete, 4/4 runs               |
+ * | 6 KiB   | **flaky** — 1 of 2 runs lost bytes         |
+ * | ≥ 8 KiB | **always truncated** (16 KiB arrived as 14) |
+ *
+ * The same payloads all delivered intact on an unadorned zsh, so the ceiling
+ * is a property of the *user's environment*, not of Silo. 2 KiB sits at half
+ * the largest reliably-delivered size and a third of the first flaky one —
+ * margin for a slower machine or a heavier rc than the one measured.
+ *
+ * Truncation is silent (see `pending-launch.ts` → `PTY_WRITE_CHUNK_BYTES`),
+ * so the only safe posture is to refuse well before the cliff: a caller that
+ * gets `"too-large"` can trim and retry, whereas an agent that silently
+ * receives three-quarters of its instructions cannot. Raising this is gated on
+ * the daemon reporting short writes instead of discarding them
+ * (silo-code/silo#497).
  */
-export const MAX_PROMPT_BYTES = 16 * 1024;
+export const MAX_PROMPT_BYTES = 2 * 1024;
 
 /** The heredoc delimiter, before any collision suffix. */
 const BASE_DELIMITER = "SILO_PROMPT";

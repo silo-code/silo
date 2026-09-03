@@ -441,12 +441,25 @@ scope entirely — and wrong for the drain, which is host `agents/` code.
 so AGENTS.md's "check whether an existing one is a close fit before adding a
 channel" resolves to it. No new channel either way.)
 
-`MAX_PROMPT_BYTES` is **16 KiB** of sanitized UTF-8. A prompt is an opening
-instruction, not a file transfer; a bounded, stated limit that fails loudly
-beats an unbounded paste that wedges a line editor. 16 KiB is far more than any
-real instruction, far under `ARG_MAX`, and small enough to stay tractable for
-the line editor and for the history file the line lands in (R5a). The CLI guide
-states it.
+`MAX_PROMPT_BYTES` is **2 KiB** of sanitized UTF-8 — about a page of prose.
+
+_(Corrected during verification. The drafted figure was **16 KiB**, justified
+against `ARG_MAX` and shell-history size. Both were the wrong constraints: the
+binding one is how fast the target shell's **line editor** consumes keystrokes,
+because the prompt is typed rather than passed as argv. Measured in the real
+app against a plugin-heavy zsh — 2026-09-03 — a payload of ≤ 4 KiB arrived
+complete on 4 of 4 runs, 6 KiB was flaky at 1 of 2, and ≥ 8 KiB truncated
+every time; 16 KiB arrived as ~14.3 KiB. The identical payloads all delivered
+intact on an unadorned zsh, so the ceiling is a property of the **user's
+environment**, not of Silo, and no single number is right for everyone.)_
+
+2 KiB is half the largest reliably-delivered size and a third of the first
+flaky one, leaving margin for a slower machine or a heavier rc than the one
+measured. The posture is deliberately conservative because the failure is
+**silent**: a caller that gets `too-large` can trim and retry, whereas an agent
+that receives three-quarters of its instructions cannot tell, and neither can
+the user. Raising this is gated on the daemon reporting short writes rather
+than discarding them.
 
 **PTY write chunking — answered: it must chunk.** The open question was whether
 a single `sendInput` carries a 16 KiB composed line intact. Tracing the whole
@@ -476,6 +489,34 @@ The bound is a correctness constant, not a tuning knob, and it is commented as
 such at the constant. A line that fits in one chunk — every promptless launch —
 is still exactly one `sendInput` carrying exactly `line + "\r"`, which is what
 keeps R5's byte-identical guarantee true.
+
+**Chunking narrows this failure; it does not remove it — corrected 2026-09-03.**
+An earlier revision of this section concluded that chunking fixed the problem,
+on the strength of a 16 KiB line delivering intact through an unadorned zsh.
+Re-running the same case against a plugin-heavy zsh showed it still losing
+bytes: chunking buys one deadline per frame, but a line editor that re-parses
+its whole buffer per chunk can stay behind for longer than a second no matter
+how the write is sliced. Pacing the chunks (25–50 ms apart) was tried and did
+not help either — though that measurement is weak, because the run was
+contaminated by a shell already wedged from a previous case.
+
+Two consequences. `MAX_PROMPT_BYTES` drops to 2 KiB (above), which is the
+actual mitigation. And the real fix is not in this layer at all: the daemon
+should **report** a short write rather than discard it, so that Silo can tell
+the difference between "delivered" and "delivered three-quarters of it."
+That is tracked separately — a transport that can silently eat keystrokes is a
+problem beyond prompt delivery, and it would bite a user pasting into an agent
+by hand just as readily.
+
+**A third option, deliberately not taken now: stop typing the payload.**
+Writing the prompt to a temp file and typing `agent "$(cat <file>)"` makes the
+line editor see ~80 bytes regardless of prompt size, and the size ceiling
+disappears entirely. It is rejected _for this phase_ rather than on the merits:
+it trades away R5a's transparency — the composed line in scrollback becomes a
+`cat` of an opaque path, no longer something the user can read, edit, and
+re-run — and it puts the prompt on disk with a lifetime to manage. Worth an
+explicit product decision if a consumer ever needs prompts larger than a page;
+not worth making silently to raise a limit.
 
 ## Testing strategy
 

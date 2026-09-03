@@ -1,6 +1,6 @@
 # Interface: AgentsService
 
-Defined in: [packages/sdk/src/agents-service.ts:368](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L368)
+Defined in: [packages/sdk/src/agents-service.ts:379](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L379)
 
 **`Beta`**
 
@@ -31,7 +31,7 @@ ctx.subscriptions.push(sub);
 catalog(): readonly CatalogAgentSummary[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:422](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L422)
+Defined in: [packages/sdk/src/agents-service.ts:433](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L433)
 
 Every coding agent Silo knows about, as read-only
 [CatalogAgentSummary](CatalogAgentSummary.md) records. Detection stays sealed (ADR 0028) —
@@ -53,7 +53,7 @@ readonly [`CatalogAgentSummary`](CatalogAgentSummary.md)[]
 readonly profiles: AgentProfilesService;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:431](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L431)
+Defined in: [packages/sdk/src/agents-service.ts:442](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L442)
 
 **`Beta`**
 
@@ -68,7 +68,7 @@ an opening prompt. See [AgentProfilesService](AgentProfilesService.md).
 getState(options?): AgentInfo[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:374](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L374)
+Defined in: [packages/sdk/src/agents-service.ts:385](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L385)
 
 **`Beta`**
 
@@ -96,7 +96,7 @@ instead.
 getByTerminalId(terminalId): AgentInfo | undefined;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:376](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L376)
+Defined in: [packages/sdk/src/agents-service.ts:387](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L387)
 
 **`Beta`**
 
@@ -120,7 +120,7 @@ Look up [AgentInfo](AgentInfo.md) for a specific terminal tab by its record id.
 subscribe(listener, options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:382](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L382)
+Defined in: [packages/sdk/src/agents-service.ts:393](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L393)
 
 **`Beta`**
 
@@ -152,7 +152,7 @@ instead. Returns a [Disposable](Disposable.md) that cancels the subscription.
 acknowledge(terminalId): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:409](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L409)
+Defined in: [packages/sdk/src/agents-service.ts:420](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L420)
 
 **`Beta`**
 

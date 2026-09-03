@@ -248,7 +248,7 @@ than as a failed launch.
       prompt. It is also the only refusal `launch()` cannot return, because it
       happens after it has already returned.
 - [ ] A launch with no prompt is never affected by any of these checks.
-- [ ] `MAX_PROMPT_BYTES` is **16 KiB** of sanitized UTF-8, enforced and tested
+- [ ] `MAX_PROMPT_BYTES` is **2 KiB** of sanitized UTF-8, enforced and tested
       at the boundary (at the limit, and one byte over).
 
 ## R10 — A profile says up front whether it can take a prompt

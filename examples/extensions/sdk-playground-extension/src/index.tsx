@@ -347,7 +347,7 @@ function Playground({ ctx }: { ctx: ExtensionContext }) {
           label: "refusal: too-large",
           run: async () => {
             const result = ctx.agents.profiles.launch({
-              prompt: "x".repeat(16 * 1024 + 1),
+              prompt: "x".repeat(64 * 1024),
               activate: false,
             });
             return result.ok
@@ -451,7 +451,7 @@ export const extension: Extension = {
         );
 
         const tooLarge = ctx.agents.profiles.launch({
-          prompt: "x".repeat(16 * 1024 + 1),
+          prompt: "x".repeat(64 * 1024),
           activate: false,
         });
         ctx.log.info(`launch(oversized prompt) → ${JSON.stringify(tooLarge)}`);
