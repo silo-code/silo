@@ -188,15 +188,15 @@ recorded is fixed.
   local user cannot write a request and so cannot drive an op, but the pipe is
   not owner-exclusive the way the Unix socket is. Setting an explicit security
   descriptor is the fix, deferred to a change that can be tested on Windows.
-- **`--prompt` is accepted and refused.** The flag, the wire argument, the size
-  validation, and the refusal mapping all ship; `checkPrompt` in
-  `agent-run-handler.ts` refuses every prompt with `failed` until RFC 0033
-  phase 3 lands prompt delivery, which replaces that one function's body.
-  The flag ships here because ADR 0047's 2026-09-02 amendment puts a new flag on
-  a conversion-bound verb in Control, and this change _is_ that conversion.
-  Refusing loudly is the honest interim: a silently dropped prompt would be
-  worse, and an improvised transport would be the quoting-bug-as-code-execution
-  risk phase 3 exists to close.
+- **A prompt is delivered or refused, never approximated.** `--prompt` rides
+  RFC 0033 phase 3's transport. The handler does not reimplement any of it: it
+  resolves the profile, the `--ws` target and the launch cwd, then delegates to
+  the same service `ctx.agents.profiles` is built from, so the precheck, the
+  dialect decision and the activate/focus have one owner and the CLI and an
+  extension cannot drift on them. Every prompt refusal maps to `failed` — which
+  agent the profile resolves to, whether that agent's CLI takes a prompt, and
+  whether Silo knows the shell's exact quoting rule are all facts about the
+  environment, never malfunctions.
 - **`agent run` does not report whether the agent's command actually started.**
   The launch line is typed into a shell at drain time, so a `command not found`
   surfaces in the terminal after the response is already written. The caller

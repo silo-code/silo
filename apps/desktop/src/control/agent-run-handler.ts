@@ -1,13 +1,9 @@
-import type { Workspace } from "@silo-code/sdk";
-import {
-  store,
-  activateWorkspace,
-  getTerminalService,
-} from "@silo-code/extension-host";
+import type { PromptRefusal, Workspace } from "@silo-code/sdk";
+import { store } from "@silo-code/extension-host";
 import {
   getAgentProfiles,
   resolveDefaultProfile,
-  launchAgentProfile,
+  createAgentProfilesService,
 } from "@silo-code/extension-host/internal";
 import {
   findWorkspaceContaining,
@@ -95,29 +91,55 @@ function launchCwd(
 }
 
 /**
- * Whether an opening prompt can be delivered at all.
+ * Map a launch refusal onto the closed error vocabulary (R4).
  *
- * **Not yet.** RFC 0033 phase 3 owns prompt delivery — the `promptDelivery`
- * catalog field, the quoted-heredoc transport, and the line-editor sanitization
- * that makes typing a payload into a live shell safe. Until it lands there is no
- * safe path, and RFC 0034 deliberately does not invent one: a quoting bug in an
- * improvised transport is arbitrary code execution as the user, which is the
- * exact risk phase 3 exists to close.
+ * The split is the one the vocabulary exists to make. `too-large` is the
+ * caller's argument, so `invalid-args`; the prompt refusals are facts about the
+ * environment the command ran in — which agent the profile resolves to, whether
+ * that agent's CLI takes an opening prompt, whether Silo knows the shell's exact
+ * quoting rule — so `failed`, never `internal`. Nothing is broken in any of
+ * them.
  *
- * The flag ships now because ADR 0047's 2026-09-02 amendment puts a new flag on
- * a conversion-bound verb in Control mode, and `agent run`'s conversion is this
- * change — building it in Forward mode first would mean building it into a mode
- * the verb is leaving. So the flag, the wire argument, and the refusal mapping
- * are here, and phase 3 replaces this function's body with its real precheck.
- * The refusal is `failed`, not `internal`: nothing is broken, the capability
- * simply is not available in this build.
+ * `no-profile` / `no-workspace` are unreachable from here: this handler
+ * resolves both itself, with messages that say which rung failed. They are
+ * mapped anyway, because the service re-checks them and a silent `internal`
+ * would be the wrong answer if it ever won that race.
  */
-function checkPrompt(prompt: string | undefined): ControlResult | undefined {
-  if (prompt === undefined) return undefined;
-  return fail(
-    "failed",
-    "--prompt is not available yet: opening-prompt delivery ships with Agent Profiles phase 3 (RFC 0033).",
-  );
+function refusalResult(
+  refusal: PromptRefusal | "no-profile" | "no-workspace",
+  profileId: string,
+): ControlResult {
+  switch (refusal) {
+    case "too-large":
+      // The client already rejects an oversized `--prompt` as `invalid-args`
+      // without connecting, which is the right answer for a bad argument. This
+      // arm is the narrow remainder: sanitizing expands each tab to two spaces,
+      // so a prompt just under the cap can cross it here. `invalid-args` is out
+      // of a handler's reach by design (see `ControlErrorCode`), and `failed` is
+      // the honest code for a limit only the sanitizer could discover.
+      return fail(
+        "failed",
+        "--prompt crosses Silo's opening-prompt size limit once sanitized (tabs become two spaces).",
+      );
+    case "no-agent":
+      return fail(
+        "failed",
+        `Agent profile "${profileId}" resolves to no known agent, so Silo cannot tell whether its CLI takes an opening prompt.`,
+      );
+    case "agent-takes-none":
+      return fail(
+        "failed",
+        `The agent behind profile "${profileId}" has no way to take an opening prompt and stay interactive.`,
+      );
+    case "unsupported-shell":
+      return fail(
+        "failed",
+        "Silo has no exact quoting rule for this terminal's shell and will not approximate one — set a supported shell in Settings → Terminal.",
+      );
+    case "no-profile":
+    case "no-workspace":
+      return fail("not-found", `The ${refusal.slice(3)} went away mid-launch.`);
+  }
 }
 
 /**
@@ -169,9 +191,6 @@ export function applyControlAgentRun(
     );
   }
 
-  const promptRefusal = checkPrompt(req.prompt);
-  if (promptRefusal) return promptRefusal;
-
   const target = req.ws ? resolveExplicitWorkspace(req.ws) : undefined;
   const workspace = req.ws
     ? target?.workspace
@@ -190,26 +209,22 @@ export function applyControlAgentRun(
     );
   }
 
-  const rec = launchAgentProfile({
+  // Delegate the launch itself to the same service `ctx.agents.profiles` is
+  // built from. It owns the prompt precheck, the dialect decision, and the
+  // activate/focus that follow a successful launch — so the CLI and an
+  // extension cannot drift on any of them, and a prompt Silo cannot quote
+  // exactly aborts before anything is created (R11: no half-created terminal).
+  const result = createAgentProfilesService().launch({
     profileId: profile.id,
     workspaceId: workspace.id,
     cwd: launchCwd(workspace, req.cwd, target?.namedFolder),
+    ...(req.prompt === undefined ? {} : { prompt: req.prompt }),
   });
-  if (!rec) {
-    // Both of `launchAgentProfile`'s refusals were already checked above, so
-    // reaching here means the store changed underneath us mid-call. It creates
-    // nothing when it refuses, so there is no half-built terminal to clean up.
-    return fail(
-      "internal",
-      "Silo could not create the terminal — the profile or workspace changed mid-launch.",
-    );
-  }
 
-  activateWorkspace(workspace.id);
-  getTerminalService().focus(rec.id);
+  if (!result.ok) return refusalResult(result.refusal, profile.id);
 
   return ok({
-    terminalId: rec.id,
+    terminalId: result.terminalId,
     workspaceId: workspace.id,
     workspaceName: workspace.name,
     profileId: profile.id,

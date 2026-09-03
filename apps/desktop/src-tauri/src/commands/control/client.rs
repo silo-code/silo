@@ -179,9 +179,18 @@ pub fn validate(req: &ControlRequest) -> Result<(), Envelope> {
     Ok(())
 }
 
-/// Prompt ceiling. Comfortably below the listener's 64 KiB request cap, leaving
-/// room for the rest of the envelope.
-const MAX_PROMPT_BYTES: usize = 32 * 1024;
+/// Prompt ceiling. **Must match `MAX_PROMPT_BYTES` in
+/// `packages/extension-host/src/extension-host/agents/agent-prompt.ts`** — the
+/// measured limit RFC 0033 phase 3 established for what a shell's line editor
+/// takes reliably. Checking it here means an oversized prompt is `invalid-args`
+/// from the client, with no connection made, rather than a `failed` discovered
+/// after a round trip.
+///
+/// The two can still disagree in one narrow case, and that is deliberate:
+/// sanitizing expands each tab to two spaces, so a prompt just under this cap
+/// can cross it host-side. That remainder answers `failed` — see
+/// `refusalResult` in `apps/desktop/src/control/agent-run-handler.ts`.
+const MAX_PROMPT_BYTES: usize = 2 * 1024;
 
 /// Run a Control command to completion and return the process exit code.
 ///

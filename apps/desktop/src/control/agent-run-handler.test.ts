@@ -8,26 +8,24 @@ import type { ControlResult } from "./types";
 // outcome is *returned* — so these tests assert the returned code as strictly as
 // they assert what did or did not get created.
 
-const { launchAgentProfile } = vi.hoisted(() => ({
-  launchAgentProfile: vi.fn(() => ({ id: "term-1" })),
+// The handler delegates the launch itself to the same service
+// `ctx.agents.profiles` is built from, so that is the seam these tests drive:
+// it owns the prompt precheck, the dialect decision, and the activate/focus
+// that follow. What stays this handler's own — and what is asserted here — is
+// resolving the profile, the `--ws` target, and the launch cwd.
+const { launchProfile } = vi.hoisted(() => ({
+  launchProfile: vi.fn((_options: Record<string, unknown>) => ({
+    ok: true,
+    terminalId: "term-1",
+  })),
 }));
 
 vi.mock("@silo-code/extension-host/internal", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@silo-code/extension-host/internal")>();
-  return { ...actual, launchAgentProfile };
-});
-
-const focusMock = vi.fn();
-vi.mock("@silo-code/extension-host", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@silo-code/extension-host")>();
   return {
     ...actual,
-    getTerminalService: () => ({
-      ...actual.getTerminalService(),
-      focus: focusMock,
-    }),
+    createAgentProfilesService: () => ({ list: () => [], launch: launchProfile }),
   };
 });
 
@@ -72,8 +70,7 @@ beforeEach(() => {
   store.workspaceOrder = [];
   store.activeWorkspaceId = null;
   store.agentProfiles = [];
-  launchAgentProfile.mockClear();
-  focusMock.mockClear();
+  launchProfile.mockClear();
 });
 
 describe("applyControlAgentRun — success", () => {
@@ -91,13 +88,11 @@ describe("applyControlAgentRun — success", () => {
       workspaceName: "w",
       profileId: "p",
     });
-    expect(launchAgentProfile).toHaveBeenCalledWith({
+    expect(launchProfile).toHaveBeenCalledWith({
       profileId: "p",
       workspaceId: "w",
       cwd: "/proj/src",
     });
-    expect(store.activeWorkspaceId).toBe("w");
-    expect(focusMock).toHaveBeenCalledWith("term-1");
   });
 
   it("uses the default profile when none is named", () => {
@@ -110,7 +105,10 @@ describe("applyControlAgentRun — success", () => {
     expect(data(result).profileId).toBe("p");
   });
 
-  it("reopens and launches into a soft-closed workspace containing the cwd", () => {
+  it("resolves a soft-closed workspace containing the cwd instead of skipping it", () => {
+    // Soft-closed is still a workspace: reopening it is the activation the
+    // launch service performs, so what this handler owes is resolving to it
+    // rather than falling through to "not inside any workspace".
     addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
     store.workspaces = {
       w: makeWorkspace("w", "/proj", undefined, "2026-09-01T00:00:00Z"),
@@ -120,8 +118,10 @@ describe("applyControlAgentRun — success", () => {
     const result = applyControlAgentRun({ cwd: "/proj/src" });
 
     expect(result.ok).toBe(true);
-    expect(store.activeWorkspaceId).toBe("w");
-    expect(store.workspaces.w.closedAt).toBeFalsy();
+    expect(data(result).workspaceId).toBe("w");
+    expect(launchProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: "w" }),
+    );
   });
 });
 
@@ -133,7 +133,7 @@ describe("applyControlAgentRun — not-found", () => {
     const result = applyControlAgentRun({ cwd: "/proj", profileId: "ghost" });
 
     expect(code(result)).toBe("not-found");
-    expect(launchAgentProfile).not.toHaveBeenCalled();
+    expect(launchProfile).not.toHaveBeenCalled();
     expect(store.activeWorkspaceId).toBeNull();
   });
 
@@ -143,7 +143,7 @@ describe("applyControlAgentRun — not-found", () => {
     const result = applyControlAgentRun({ cwd: "/proj" });
 
     expect(code(result)).toBe("not-found");
-    expect(launchAgentProfile).not.toHaveBeenCalled();
+    expect(launchProfile).not.toHaveBeenCalled();
   });
 
   it("refuses an unresolvable --ws rather than falling back", () => {
@@ -157,7 +157,7 @@ describe("applyControlAgentRun — not-found", () => {
     });
 
     expect(code(result)).toBe("not-found");
-    expect(launchAgentProfile).not.toHaveBeenCalled();
+    expect(launchProfile).not.toHaveBeenCalled();
     // Not silently redirected into the workspace the cwd happens to be in.
     expect(store.activeWorkspaceId).toBe("a");
   });
@@ -171,7 +171,7 @@ describe("applyControlAgentRun — not-found", () => {
 
     expect(code(result)).toBe("not-found");
     expect(Object.keys(store.workspaces)).toHaveLength(0);
-    expect(launchAgentProfile).not.toHaveBeenCalled();
+    expect(launchProfile).not.toHaveBeenCalled();
   });
 });
 
@@ -186,29 +186,33 @@ describe("applyControlAgentRun — failed vs. internal", () => {
 
     expect(code(result)).toBe("failed");
     expect(result.ok ? "" : result.message).toContain("empty");
-    expect(launchAgentProfile).not.toHaveBeenCalled();
+    expect(launchProfile).not.toHaveBeenCalled();
   });
 
-  it("leaves no half-created terminal when the launch itself refuses", () => {
+  it("maps a launch-time refusal onto the closed vocabulary, creating nothing", () => {
+    // The service re-checks the profile and workspace this handler already
+    // resolved, so this only fires if one went away mid-launch. It creates
+    // nothing when it refuses, so there is no half-built terminal to clean up.
     addAgentProfile({ id: "p", label: "P", command: "claude" });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
-    launchAgentProfile.mockReturnValueOnce(undefined as never);
+    launchProfile.mockReturnValueOnce({
+      ok: false,
+      refusal: "no-workspace",
+    } as never);
 
     const result = applyControlAgentRun({ cwd: "/proj", profileId: "p" });
 
-    expect(code(result)).toBe("internal");
-    expect(focusMock).not.toHaveBeenCalled();
+    expect(code(result)).toBe("not-found");
     expect(store.workspaces.w.terminals).toHaveLength(0);
   });
 });
 
 describe("applyControlAgentRun — --prompt", () => {
-  it("refuses as failed until prompt delivery ships (RFC 0033 phase 3)", () => {
-    // The flag and its wire argument ship here because ADR 0047 puts a new flag
-    // on a conversion-bound verb in Control mode. Delivery is phase 3's, and
-    // inventing a transport in the meantime would be the quoting-bug risk that
-    // phase exists to close — so this refuses loudly rather than dropping the
-    // prompt silently or typing it raw.
+  it("forwards the prompt to the launch rather than handling it here", () => {
+    // RFC 0033 phase 3 owns delivery — the quoted-heredoc transport, the
+    // line-editor sanitizing, the dialect choice. This handler's whole job is
+    // to carry the flag through and map a refusal onto an exit code, so what is
+    // asserted is that the prompt reaches the service untouched.
     addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
 
@@ -217,15 +221,37 @@ describe("applyControlAgentRun — --prompt", () => {
       prompt: "fix the build",
     });
 
-    expect(code(result)).toBe("failed");
-    expect(launchAgentProfile).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    expect(launchProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: "fix the build" }),
+    );
   });
 
-  it("is unaffected when no prompt is given", () => {
+  it("omits the key entirely when no prompt is given", () => {
+    // Not `prompt: undefined` — the service branches on the key's presence.
     addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
 
     expect(applyControlAgentRun({ cwd: "/proj" }).ok).toBe(true);
+    expect(launchProfile).toHaveBeenCalledTimes(1);
+    expect(launchProfile.mock.lastCall?.[0]).not.toHaveProperty("prompt");
+  });
+
+  it.each([
+    ["no-agent"],
+    ["agent-takes-none"],
+    ["unsupported-shell"],
+    ["too-large"],
+  ])("maps the %s prompt refusal to failed, never internal", (refusal) => {
+    // Every prompt refusal is a fact about the environment the command ran in,
+    // never a malfunction — so `failed` (exit 7), never `internal` (exit 70).
+    addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
+    store.workspaces = { w: makeWorkspace("w", "/proj") };
+    launchProfile.mockReturnValueOnce({ ok: false, refusal } as never);
+
+    const result = applyControlAgentRun({ cwd: "/proj", prompt: "go" });
+
+    expect(code(result)).toBe("failed");
   });
 });
 
@@ -243,20 +269,19 @@ describe("applyControlAgentRun — an explicit --ws target", () => {
   it("targets by folder path, overriding the cwd's own workspace", () => {
     applyControlAgentRun({ cwd: "/proj-a/src", ws: "/proj-b" });
 
-    expect(launchAgentProfile).toHaveBeenCalledWith({
+    expect(launchProfile).toHaveBeenCalledWith({
       profileId: "p",
       workspaceId: "b",
       // Not /proj-a/src: a cwd outside the named workspace is irrelevant to it,
       // so the agent starts at the root the caller named.
       cwd: "/proj-b",
     });
-    expect(store.activeWorkspaceId).toBe("b");
   });
 
   it("keeps the shell's cwd when it is inside the named workspace", () => {
     applyControlAgentRun({ cwd: "/proj-b/packages/sdk", ws: "/proj-b" });
 
-    expect(launchAgentProfile).toHaveBeenCalledWith(
+    expect(launchProfile).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: "b",
         cwd: "/proj-b/packages/sdk",
@@ -267,7 +292,7 @@ describe("applyControlAgentRun — an explicit --ws target", () => {
   it("starts at the named extra folder, not the primary one", () => {
     applyControlAgentRun({ cwd: "/proj-a", ws: "/extra-b" });
 
-    expect(launchAgentProfile).toHaveBeenCalledWith(
+    expect(launchProfile).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceId: "b", cwd: "/extra-b" }),
     );
   });
@@ -275,7 +300,7 @@ describe("applyControlAgentRun — an explicit --ws target", () => {
   it("starts at the primary folder when targeted by id from outside", () => {
     applyControlAgentRun({ cwd: "/proj-a", ws: "b" });
 
-    expect(launchAgentProfile).toHaveBeenCalledWith(
+    expect(launchProfile).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceId: "b", cwd: "/proj-b" }),
     );
   });
@@ -288,6 +313,6 @@ describe("applyControlAgentRun — an explicit --ws target", () => {
     });
 
     expect(code(result)).toBe("not-found");
-    expect(launchAgentProfile).not.toHaveBeenCalled();
+    expect(launchProfile).not.toHaveBeenCalled();
   });
 });
