@@ -61,6 +61,11 @@ Each view renders inside an error boundary, so a crash in one doesn't take the
 Navigator down. The user's choice of view is remembered globally (not per
 workspace) across workspace switches and restarts.
 
+Your component also receives `panelId` — the Navigator's own side panel id.
+Pass it to [`ctx.layout.openPanelSheet`](/api/state/layout) so a sheet your
+view opens anchors to whichever column the Navigator is actually docked in,
+rather than assuming a fixed side.
+
 ## Header actions
 
 A view's buttons are **toolbar items** on the `"navigator"`

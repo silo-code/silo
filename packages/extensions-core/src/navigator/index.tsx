@@ -5,6 +5,7 @@ import { NavigatorSettingsPanel } from "./NavigatorSettingsPanel";
 import { initNavigatorPrefs, navigatorPrefsService } from "./navigator-prefs";
 import {
   chromeHostViewId,
+  NAVIGATOR_PANEL_ID,
   resolveViewList,
   UNSCOPED_CHROME_TARGET,
 } from "./navigator-views";
@@ -36,7 +37,7 @@ export const extension: Extension<NavigatorExtensionAPI> = {
     ctx.subscriptions.push(initNavigatorPrefs(ctx.storage.global));
 
     ctx.registerSidePanel({
-      id: "navigator",
+      id: NAVIGATOR_PANEL_ID,
       location: "left",
       title: "Navigator",
       // Inject ctx so the panel reaches storage/ui through the public

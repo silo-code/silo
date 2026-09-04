@@ -495,6 +495,13 @@
   background: color-mix(in srgb, var(--ws-group-color) 22%, transparent);
 }
 
+/* Higher specificity than the hue-tinted hover above (4 classes vs. 3), so
+   without this the active row's fill would still yield to the tint on
+   hover. Mirrors `.ws-item.active:hover` for the colored-group case. */
+.ws-group--colored .ws-group-body .ws-item.active:hover {
+  background: var(--silo-color-bg-active);
+}
+
 /* ── Group color swatch palette ─────────────────────────────────────────── */
 
 .ws-group-palette {

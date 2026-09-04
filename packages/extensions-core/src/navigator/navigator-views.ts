@@ -139,6 +139,14 @@ export function toggleIdInList(list: readonly string[], id: string): string[] {
 export const DEFAULT_VIEW_ID = "workspaces";
 
 /**
+ * The Navigator's own {@link import("@silo-code/sdk").SidePanel} id — shared
+ * by `core.navigator`'s `registerSidePanel` call and every render site that
+ * passes {@link import("@silo-code/sdk").NavigatorViewProps.panelId} down to a
+ * view, so there is exactly one place that decides it.
+ */
+export const NAVIGATOR_PANEL_ID = "navigator";
+
+/**
  * Which view the panel should render. `savedId` is the user's last choice
  * (from global extension storage); it wins as long as it still resolves to a
  * registered view.

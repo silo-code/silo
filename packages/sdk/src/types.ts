@@ -512,6 +512,13 @@ export interface NavigatorViewProps {
    * the view is off screen.
    */
   active: boolean;
+  /**
+   * The {@link SidePanel.id} of the side panel hosting the Navigator. Pass it
+   * to {@link LayoutService.openPanelSheet} so a sheet the view opens anchors
+   * to the column the Navigator is actually docked in, rather than assuming a
+   * fixed side.
+   */
+  panelId: string;
 }
 
 /**
@@ -541,7 +548,9 @@ export interface NavigatorViewProps {
  * ctx.registerNavigatorView({
  *   id: "my-ext.agents",
  *   title: "Agents",
- *   component: ({ active }) => <AgentList paused={!active} />,
+ *   component: ({ active, panelId }) => (
+ *     <AgentList paused={!active} panelId={panelId} />
+ *   ),
  * });
  * ```
  *
