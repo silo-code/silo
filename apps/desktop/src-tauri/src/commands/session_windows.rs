@@ -20,7 +20,7 @@ use portable_pty::PtySize;
 
 use super::session_backend::{
     log_event, Connection, ForegroundInfo, ForegroundSub, SessionBackend, SessionChild,
-    SessionMaster,
+    SessionChunk, SessionMaster, SessionReader,
 };
 use super::session_env::{encode_session_env, SESSION_ENV_CARRIER};
 
@@ -685,14 +685,18 @@ impl TcpReader {
     }
 }
 
-impl Read for TcpReader {
-    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+// The Windows daemon has no replay-bracket tags on its wire (RFC 0036 only
+// bracketed the Unix pty-host's protocol) — every chunk is reported as live,
+// exactly like an untagged v1 Unix peer. See `SessionReader` for why a plain
+// `Read` no longer satisfies the seam.
+impl SessionReader for TcpReader {
+    fn read_chunk(&mut self, out: &mut [u8]) -> io::Result<SessionChunk> {
         loop {
             if self.pos < self.buf.len() {
                 let n = std::cmp::min(out.len(), self.buf.len() - self.pos);
                 out[..n].copy_from_slice(&self.buf[self.pos..self.pos + n]);
                 self.pos += n;
-                return Ok(n);
+                return Ok(SessionChunk { len: n, replay: false });
             }
             match read_frame(&mut self.stream) {
                 Ok((T_DATA, payload)) => {
@@ -703,9 +707,16 @@ impl Read for TcpReader {
                     self.pos = 0;
                 }
                 Ok(_) => continue,
-                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => return Ok(0),
-                Err(e) if e.kind() == io::ErrorKind::ConnectionReset => return Ok(0),
-                Err(e) if e.kind() == io::ErrorKind::ConnectionAborted => return Ok(0),
+                Err(e)
+                    if matches!(
+                        e.kind(),
+                        io::ErrorKind::UnexpectedEof
+                            | io::ErrorKind::ConnectionReset
+                            | io::ErrorKind::ConnectionAborted
+                    ) =>
+                {
+                    return Ok(SessionChunk { len: 0, replay: false })
+                }
                 Err(e) => return Err(e),
             }
         }
