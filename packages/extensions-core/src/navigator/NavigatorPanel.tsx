@@ -11,6 +11,7 @@ import {
   activeViewIndex,
   buildViewRows,
   chromeHostViewId,
+  NAVIGATOR_PANEL_ID,
   resolveActiveView,
   resolveViewList,
   toggleIdInList,
@@ -290,7 +291,7 @@ function SwitcherNavigator({
             data-active={isActive ? "true" : "false"}
           >
             <ErrorBoundary name={view.id}>
-              <Comp active={isActive} />
+              <Comp active={isActive} panelId={NAVIGATOR_PANEL_ID} />
             </ErrorBoundary>
           </div>
         );
@@ -370,7 +371,7 @@ function StackedNavigator({
             </div>
             <div className="nav-stack-body" hidden={isCollapsed}>
               <ErrorBoundary name={view.id}>
-                <Comp active />
+                <Comp active panelId={NAVIGATOR_PANEL_ID} />
               </ErrorBoundary>
             </div>
           </section>
