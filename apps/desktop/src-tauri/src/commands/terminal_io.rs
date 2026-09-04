@@ -1,10 +1,23 @@
 use dashmap::DashMap;
 use parking_lot::Mutex;
-use std::io::Read;
 use std::sync::Arc;
 use tauri::Emitter;
 
-use super::session_backend::{log_event, ForegroundInfo, ForegroundSub};
+use super::session_backend::{log_event, ForegroundInfo, ForegroundSub, SessionReader};
+
+/// Payload of a `terminal_output:<sessionId>` event.
+///
+/// `replay` marks bytes the session host is replaying from its ring on
+/// reattach rather than output the session produced just now (RFC 0036).
+/// Without it every consumer reads a reattach as things happening right now:
+/// the terminal repaints history it already restored, and the agents service
+/// rings completion bells for turns that finished before the app started.
+#[derive(Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TerminalOutput {
+    data: String,
+    replay: bool,
+}
 
 /// Decode PTY bytes as UTF-8, returning the valid prefix as a String and any
 /// incomplete trailing multi-byte sequence as leftover bytes to carry into the
@@ -49,7 +62,7 @@ pub fn decode_utf8_stream(bytes: &[u8]) -> (String, Vec<u8>) {
 /// session-touching command (`terminal_write`, `terminal_resize`, a future
 /// reattach) to trust a possibly-stale entry until something else notices.
 pub fn run_reader_loop(
-    reader: Arc<Mutex<Box<dyn Read + Send>>>,
+    reader: Arc<Mutex<Box<dyn SessionReader + Send>>>,
     handle: String,
     app: tauri::AppHandle,
     session_id: String,
@@ -60,8 +73,9 @@ pub fn run_reader_loop(
     let mut carry: Vec<u8> = Vec::new();
     loop {
         let mut r = reader.lock();
-        match r.read(&mut buf) {
-            Ok(n) if n > 0 => {
+        match r.read_chunk(&mut buf) {
+            Ok(chunk) if chunk.len > 0 => {
+                let n = chunk.len;
                 let bytes = if carry.is_empty() {
                     &buf[..n]
                 } else {
@@ -71,7 +85,20 @@ pub fn run_reader_loop(
                 let (data, leftover) = decode_utf8_stream(bytes);
                 carry = leftover;
                 if !data.is_empty() {
-                    let _ = app.emit(&format!("terminal_output:{}", session_id), data);
+                    // One event per chunk, so a single event never mixes
+                    // replayed and live bytes. A multi-byte sequence split
+                    // across the replay/live boundary is carried into the
+                    // chunk that completes it and attributed to that chunk —
+                    // the ring holds whole PTY writes, so this is vanishingly
+                    // rare, and attributing the glyph to the live side paints
+                    // it rather than dropping it.
+                    let _ = app.emit(
+                        &format!("terminal_output:{}", session_id),
+                        TerminalOutput {
+                            data,
+                            replay: chunk.replay,
+                        },
+                    );
                 }
             }
             Ok(_) => {

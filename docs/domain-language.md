@@ -454,6 +454,27 @@ so a per-session fact never lands on the daemon that owns it.
 _Avoid_: Spawn env (the map is also the reattach-surviving state, not just a
 spawn argument)
 
+**Replay** (of a session):
+The scrollback a session host sends a client on attach, out of the bounded ring
+it keeps for exactly this purpose. It is the session's recent past, not its
+present — and on the wire it now says so, bracketed by `T_REPLAY_BEGIN` /
+`T_REPLAY_END` so no consumer has to guess (RFC 0036). Everything above the
+seam carries the distinction as an `OutputOrigin`, and `ctx` withholds replay
+unless a subscriber opts in with `includeReplay`.
+_Avoid_: Scrollback (that's the content; Replay is the act of re-sending it, and
+Silo has a second, unrelated scrollback source in the persisted xterm buffer),
+history (too vague), buffer (the ring, the persisted buffer, and xterm's own
+buffer are three different things)
+
+**Live Output**:
+Bytes the session is producing now, as opposed to Replay. The distinction is
+the difference between evidence and news: replayed bytes are legitimate
+_evidence_ of what a terminal is running — often the only evidence, on a
+terminal Silo has only just attached to — but only live output is _activity_,
+and only activity may raise attention or ring a bell.
+_Avoid_: Real-time output (nothing here is real-time in the scheduling sense),
+new output (a replayed chunk is also new to the client that just received it)
+
 ### Worktrees
 
 **Worktree**:

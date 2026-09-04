@@ -1,6 +1,6 @@
 # Interface: ProcessSession
 
-Defined in: [packages/sdk/src/process-service.ts:49](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L49)
+Defined in: [packages/sdk/src/process-service.ts:50](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L50)
 
 A live handle to one persistent process session, returned by
 [ProcessService.spawn](ProcessService.md#spawn) / [ProcessService.attach](ProcessService.md#attach). The underlying
@@ -15,7 +15,7 @@ to reconnect to a still-running session.
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:51](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L51)
+Defined in: [packages/sdk/src/process-service.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L52)
 
 Stable session id; pass to [ProcessService.attach](ProcessService.md#attach) to reconnect.
 
@@ -27,7 +27,7 @@ Stable session id; pass to [ProcessService.attach](ProcessService.md#attach) to 
 write(data): void;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:53](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L53)
+Defined in: [packages/sdk/src/process-service.ts:54](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L54)
 
 Write input to the session (e.g. keystrokes).
 
@@ -49,7 +49,7 @@ Write input to the session (e.g. keystrokes).
 resize(cols, rows): void;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:55](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L55)
+Defined in: [packages/sdk/src/process-service.ts:56](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L56)
 
 Notify the session its viewport size changed.
 
@@ -75,7 +75,7 @@ Notify the session its viewport size changed.
 kill(): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:57](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L57)
+Defined in: [packages/sdk/src/process-service.ts:58](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L58)
 
 Terminate the session and release it.
 
@@ -91,7 +91,7 @@ Terminate the session and release it.
 getBuffer(): Promise<string>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:59](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L59)
+Defined in: [packages/sdk/src/process-service.ts:60](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L60)
 
 Fetch the persisted output buffer (to restore a view after re-attach).
 
@@ -107,7 +107,7 @@ Fetch the persisted output buffer (to restore a view after re-attach).
 saveBuffer(data): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L61)
+Defined in: [packages/sdk/src/process-service.ts:62](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L62)
 
 Persist an output buffer for later restore.
 
@@ -126,18 +126,29 @@ Persist an output buffer for later restore.
 ### onData()
 
 ```ts
-onData(listener): Disposable;
+onData(listener, options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:63](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L63)
+Defined in: [packages/sdk/src/process-service.ts:73](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L73)
 
 Subscribe to output data. Dispose to stop listening.
+
+By default only **live** output is delivered. A session survives app
+restarts, so re-attaching to one replays its recent scrollback; delivering
+that by default would make every reattach look like a burst of output
+arriving right now. Pass `{ includeReplay: true }` to receive the replayed
+history too — for instance to paint scrollback into a fresh view — and read
+`origin.replay` to tell the two apart.
 
 #### Parameters
 
 ##### listener
 
-(`data`) => `void`
+(`data`, `origin`) => `void`
+
+##### options?
+
+[`SubscribeOutputOptions`](SubscribeOutputOptions.md)
 
 #### Returns
 
@@ -151,7 +162,7 @@ Subscribe to output data. Dispose to stop listening.
 onExit(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L65)
+Defined in: [packages/sdk/src/process-service.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L78)
 
 Subscribe to session exit. Dispose to stop listening.
 

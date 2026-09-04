@@ -125,3 +125,4 @@ don't get a proposal at all — see below.
 | [0033](./0033-agent-profiles.md)                              | Agent Profiles — naming how you start an agent                    | 2026-08-31 | accepted    |
 | [0034](./0034-control-api.md)                                 | Control API — a return channel for the `silo` command             | 2026-09-01 | implemented |
 | [0035](./0035-agent-prompt-composer.md)                       | Choosing an agent and reviewing a prompt before it runs           | 2026-09-03 | draft       |
+| [0036](./0036-replay-tagged-reattach.md)                      | Tagging reattach replay on the wire                               | 2026-09-03 | implemented |

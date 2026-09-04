@@ -155,8 +155,8 @@ function makeSession(id: string): ProcessSession {
     kill: () => tauriTerminalClient.deleteTerminal(id),
     getBuffer: () => tauriTerminalClient.getTerminalBuffer(id),
     saveBuffer: (data) => tauriTerminalClient.saveTerminalBuffer(id, data),
-    onData: (listener) => ({
-      dispose: tauriTerminalClient.onOutput(id, listener),
+    onData: (listener, options) => ({
+      dispose: tauriTerminalClient.onOutput(id, listener, options),
     }),
     onExit: (listener) => ({
       dispose: tauriTerminalClient.onExit(id, listener),

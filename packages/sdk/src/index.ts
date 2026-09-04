@@ -124,6 +124,8 @@ export type {
   TerminalTabDecoration,
   TerminalTabDecorationProvider,
   OscEvent,
+  OutputOrigin,
+  SubscribeOutputOptions,
 } from "./terminal-service";
 export type {
   TabAdornmentColor,

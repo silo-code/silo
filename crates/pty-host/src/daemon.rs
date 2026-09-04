@@ -37,7 +37,22 @@ const REPLAY_CHUNK: usize = 8 * 1024;
 /// stdin queue cannot park a daemon thread forever (RFC 0026).
 const WRITE_DEADLINE: Duration = Duration::from_secs(1);
 
-type Clients = Arc<Mutex<Vec<Arc<Mutex<UnixStream>>>>>;
+/// A connected client socket plus the bracket state of any ring replay in
+/// flight to it (RFC 0036).
+struct ClientConn {
+    stream: UnixStream,
+    /// True between a `T_REPLAY_BEGIN` we wrote and its matching
+    /// `T_REPLAY_END`. Live PTY output can land *between* two replay chunks —
+    /// the client is registered for broadcast before replay starts on purpose,
+    /// so that output isn't lost — and it must not end up inside the bracket.
+    /// The broadcast path therefore closes the bracket before writing live
+    /// data, and the next replay chunk reopens it, so a bracket always
+    /// describes exactly the frames inside it.
+    replaying: bool,
+}
+
+type Client = Arc<Mutex<ClientConn>>;
+type Clients = Arc<Mutex<Vec<Client>>>;
 
 /// How an accepted socket is used after the HELLO handshake.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -283,13 +298,16 @@ fn run_daemon(
             Ok(s) => s,
             Err(_) => continue,
         };
-        let write_half = Arc::new(Mutex::new(stream));
+        let write_half: Client = Arc::new(Mutex::new(ClientConn {
+            stream,
+            replaying: false,
+        }));
 
         // Handshake first: tell the client our protocol version so an app build
         // never silently talks to an incompatible leftover daemon.
         {
             let mut w = write_half.lock().unwrap();
-            let _ = write_frame(&mut *w, T_HELLO, &hello_payload());
+            let _ = write_frame(&mut w.stream, T_HELLO, &hello_payload());
         }
 
         // Classify before registering as a data client: Silo's FG subscriber
@@ -335,7 +353,7 @@ fn run_daemon(
                         announce(ClientRole::Data);
                         let fg = foreground::query(master, shell_pid);
                         let mut w = wh.lock().unwrap();
-                        let _ = write_frame(&mut *w, T_FG_REP, &foreground::encode(&fg));
+                        let _ = write_frame(&mut w.stream, T_FG_REP, &foreground::encode(&fg));
                     }
                     Ok((T_SUBSCRIBE_FG, _)) => {
                         announce(ClientRole::Foreground);
@@ -345,7 +363,7 @@ fn run_daemon(
                         let fg = foreground::query(master, shell_pid);
                         {
                             let mut w = wh.lock().unwrap();
-                            let _ = write_frame(&mut *w, T_FG_REP, &foreground::encode(&fg));
+                            let _ = write_frame(&mut w.stream, T_FG_REP, &foreground::encode(&fg));
                         }
                         evict_clients_to_cap(&fg_clients_r, keep_before_push(MAX_FG_CLIENTS));
                         fg_clients_r.lock().unwrap().push(wh.clone());
@@ -424,7 +442,7 @@ fn run_daemon(
             let snapshot: Vec<u8> = ring_f.lock().unwrap().iter().copied().collect();
             if !replay_ring_chunked(&write_half_f, &snapshot) {
                 if let Ok(w) = write_half_f.lock() {
-                    let _ = w.shutdown(std::net::Shutdown::Both);
+                    let _ = w.stream.shutdown(std::net::Shutdown::Both);
                 }
                 clients_f
                     .lock()
@@ -439,21 +457,32 @@ fn run_daemon(
 
 /// Snapshot clients, write each frame outside the list lock, prune failures.
 fn broadcast_frame(clients: &Clients, tag: u8, payload: &[u8]) {
-    let snapshot: Vec<Arc<Mutex<UnixStream>>> = {
+    let snapshot: Vec<Client> = {
         let cs = clients.lock().unwrap();
         cs.clone()
     };
-    let mut dead: Vec<Arc<Mutex<UnixStream>>> = Vec::new();
+    let mut dead: Vec<Client> = Vec::new();
     for c in &snapshot {
         let ok = {
             let mut w = c.lock().unwrap();
-            write_frame(&mut *w, tag, payload).is_ok()
+            // Live output that lands between two replay chunks must not be
+            // mistaken for history (RFC 0036): close the bracket first, and let
+            // the next chunk reopen it. Only data frames need this — a
+            // `T_FG_REP` push carries its own meaning and can ride inside a
+            // bracket harmlessly.
+            let bracket_closed = if tag == T_DATA && w.replaying {
+                w.replaying = false;
+                write_frame(&mut w.stream, T_REPLAY_END, &[]).is_ok()
+            } else {
+                true
+            };
+            bracket_closed && write_frame(&mut w.stream, tag, payload).is_ok()
         };
         if !ok {
             // Shut down so the app reader sees EOF (not a silent hung attach
             // parked mid-frame after a write-timeout desync).
             if let Ok(w) = c.lock() {
-                let _ = w.shutdown(std::net::Shutdown::Both);
+                let _ = w.stream.shutdown(std::net::Shutdown::Both);
             }
             dead.push(Arc::clone(c));
         }
@@ -467,7 +496,7 @@ fn broadcast_frame(clients: &Clients, tag: u8, payload: &[u8]) {
 
 /// Close and drop the oldest clients until `len() <= keep`.
 fn evict_clients_to_cap(clients: &Clients, keep: usize) {
-    let evicted: Vec<Arc<Mutex<UnixStream>>> = {
+    let evicted: Vec<Client> = {
         let mut cs = clients.lock().unwrap();
         if cs.len() <= keep {
             return;
@@ -477,21 +506,42 @@ fn evict_clients_to_cap(clients: &Clients, keep: usize) {
     };
     for c in evicted {
         if let Ok(w) = c.lock() {
-            let _ = w.shutdown(std::net::Shutdown::Both);
+            let _ = w.stream.shutdown(std::net::Shutdown::Both);
         }
         log("evicted prior client (cap)");
     }
 }
 
-/// Replay the ring as `REPLAY_CHUNK`-sized T_DATA frames. Returns false if a
-/// write failed (caller should prune the client).
-fn replay_ring_chunked(write_half: &Arc<Mutex<UnixStream>>, snapshot: &[u8]) -> bool {
+/// Replay the ring as `REPLAY_CHUNK`-sized `T_DATA` frames, bracketed by
+/// `T_REPLAY_BEGIN` / `T_REPLAY_END` so the client can tell history from live
+/// output (RFC 0036). Returns false if a write failed (caller should prune the
+/// client).
+///
+/// An empty ring writes nothing at all — not even an empty bracket — so a
+/// client attaching to a session that has produced no output sees exactly what
+/// it saw before.
+fn replay_ring_chunked(client: &Client, snapshot: &[u8]) -> bool {
     if snapshot.is_empty() {
         return true;
     }
     for chunk in snapshot.chunks(REPLAY_CHUNK) {
-        let mut w = write_half.lock().unwrap();
-        if write_frame(&mut *w, T_DATA, chunk).is_err() {
+        let mut w = client.lock().unwrap();
+        // Open the bracket lazily, and reopen it if a live broadcast frame
+        // closed it since the previous chunk.
+        if !w.replaying {
+            if write_frame(&mut w.stream, T_REPLAY_BEGIN, &[]).is_err() {
+                return false;
+            }
+            w.replaying = true;
+        }
+        if write_frame(&mut w.stream, T_DATA, chunk).is_err() {
+            return false;
+        }
+    }
+    let mut w = client.lock().unwrap();
+    if w.replaying {
+        w.replaying = false;
+        if write_frame(&mut w.stream, T_REPLAY_END, &[]).is_err() {
             return false;
         }
     }
@@ -1008,6 +1058,116 @@ mod tests {
                 }
             }
             assert!(saw_fg, "late T_RESIZE must still classify as Data");
+        });
+    }
+
+    /// Collect the tags the daemon sends until `needle` shows up in the
+    /// accumulated `T_DATA` payloads (or the deadline passes). Unlike
+    /// `read_until` this keeps the frame *shape*, which is what the replay
+    /// bracket is about.
+    fn read_tags_until(
+        stream: &mut UnixStream,
+        needle: &str,
+        timeout: Duration,
+    ) -> (Vec<u8>, String) {
+        stream
+            .set_read_timeout(Some(Duration::from_millis(250)))
+            .expect("read timeout");
+        let mut tags = Vec::new();
+        let mut seen = String::new();
+        let deadline = Instant::now() + timeout;
+        while Instant::now() < deadline {
+            match read_frame(stream) {
+                Ok((tag, payload)) => {
+                    tags.push(tag);
+                    if tag == T_DATA {
+                        seen.push_str(&String::from_utf8_lossy(&payload));
+                        if seen.contains(needle) {
+                            return (tags, seen);
+                        }
+                    }
+                }
+                Err(_) => continue,
+            }
+        }
+        (tags, seen)
+    }
+
+    /// The whole point of RFC 0036: a reattaching client can tell the ring
+    /// replay from live output, because the replay arrives inside a
+    /// `T_REPLAY_BEGIN` … `T_REPLAY_END` bracket.
+    #[test]
+    fn reattach_brackets_the_ring_replay() {
+        crate::test_support::with_temp_dir("replay-bracket", |_dir| {
+            let daemon = TestDaemon::spawn(
+                "t-replay-bracket",
+                vec!["sh".into(), "-c".into(), "echo marker-abc; sleep 600".into()],
+            );
+
+            // First client: register as Data and wait for the shell's output so
+            // we know the ring is non-empty before we reattach.
+            let mut first = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut first).expect("hello");
+            assert_eq!(tag, T_HELLO);
+            write_frame(&mut first, T_RESIZE, &resize_payload(80, 24)).expect("announce data");
+            let seen = read_until(&mut first, "marker-abc", Duration::from_secs(3));
+            assert!(seen.contains("marker-abc"), "no live output; saw {seen:?}");
+            drop(first);
+
+            // Reattach: the ring now holds that output and must be replayed
+            // inside a bracket.
+            let mut second = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut second).expect("hello");
+            assert_eq!(tag, T_HELLO);
+            write_frame(&mut second, T_RESIZE, &resize_payload(80, 24)).expect("announce data");
+            let (tags, seen) = read_tags_until(&mut second, "marker-abc", Duration::from_secs(3));
+            assert!(seen.contains("marker-abc"), "no replay; saw {seen:?}");
+
+            let begin = tags
+                .iter()
+                .position(|t| *t == T_REPLAY_BEGIN)
+                .expect("replay must open a bracket");
+            let first_data = tags
+                .iter()
+                .position(|t| *t == T_DATA)
+                .expect("replay must carry data");
+            assert!(
+                begin < first_data,
+                "T_REPLAY_BEGIN must precede the first replayed frame; tags={tags:?}"
+            );
+
+            // The bracket closes once the ring is drained. Read a little
+            // further to catch the T_REPLAY_END that follows the last chunk.
+            let (more, _) = read_tags_until(&mut second, "\u{0}never", Duration::from_millis(600));
+            let all: Vec<u8> = tags.into_iter().chain(more).collect();
+            assert!(
+                all.contains(&T_REPLAY_END),
+                "replay must close its bracket; tags={all:?}"
+            );
+        });
+    }
+
+    /// A session that has produced no output replays nothing — not even an
+    /// empty bracket. A client attaching to a silent session sees exactly what
+    /// it saw before RFC 0036.
+    #[test]
+    fn empty_ring_emits_no_bracket() {
+        crate::test_support::with_temp_dir("replay-empty", |_dir| {
+            let daemon =
+                TestDaemon::spawn("t-replay-empty", vec!["sleep".into(), "600".into()]);
+            let mut s = connect_retry(&daemon.sock);
+            let (tag, _) = read_frame(&mut s).expect("hello");
+            assert_eq!(tag, T_HELLO);
+            write_frame(&mut s, T_RESIZE, &resize_payload(80, 24)).expect("announce data");
+
+            // `sleep` writes nothing, so nothing should arrive but the fg reply
+            // we ask for as a liveness fence.
+            write_frame(&mut s, T_FG_REQ, &[]).expect("fg req");
+            let (tags, _) = read_tags_until(&mut s, "\u{0}never", Duration::from_millis(800));
+            assert!(
+                !tags.contains(&T_REPLAY_BEGIN) && !tags.contains(&T_REPLAY_END),
+                "silent session must not emit a replay bracket; tags={tags:?}"
+            );
         });
     }
 

@@ -13,7 +13,7 @@
 
 use portable_pty::PtySize;
 use std::collections::HashMap;
-use std::io::{Read, Write};
+use std::io::Write;
 
 /// The two control capabilities the layer above the seam needs on a live
 /// session: resize it and force-kill it. Kept backend-neutral (no `portable_pty`
@@ -28,11 +28,34 @@ pub trait SessionChild: Send {
     fn kill(&mut self) -> Result<(), String>;
 }
 
+/// One delivery of session output: how many bytes landed in the caller's
+/// buffer, and whether they are history the backend is replaying rather than
+/// output the session produced just now.
+pub struct SessionChunk {
+    pub len: usize,
+    pub replay: bool,
+}
+
+/// The read half of a session. Deliberately *not* `Read`: a plain byte stream
+/// cannot say when its bytes were produced, and on reattach a backend replays
+/// up to a full ring buffer of history that is byte-for-byte indistinguishable
+/// from live output. Consumers that paint it (double-painting scrollback) or
+/// read activity from it (phantom agent bells) need the distinction, so it
+/// belongs on the seam rather than in a backend-specific side channel — see
+/// RFC 0036.
+///
+/// A single `read_chunk` never mixes replayed and live bytes.
+pub trait SessionReader: Send {
+    /// Fill `buf` with the next available bytes. A `len` of 0 means EOF, as
+    /// with [`Read::read`].
+    fn read_chunk(&mut self, buf: &mut [u8]) -> std::io::Result<SessionChunk>;
+}
+
 /// A live, attached connection to a session: the resize/kill handles plus the
 /// byte streams bridging this app instance to the persistent session.
 pub struct Connection {
     pub master: Box<dyn SessionMaster>,
-    pub reader: Box<dyn Read + Send>,
+    pub reader: Box<dyn SessionReader + Send>,
     pub writer: Box<dyn Write + Send>,
     pub child: Box<dyn SessionChild>,
 }

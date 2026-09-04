@@ -89,3 +89,4 @@ A small, obvious choice needs neither.
 | [0047](./0047-cli-command-grammar.md)                         | CLI command grammar: an agent-first `silo` namespace               | 2026-09-01 | accepted |
 | [0048](./0048-navigator-unscoped-chrome-on-workspaces-row.md) | Unscoped Navigator chrome rides the Workspaces row                 | 2026-09-02 | accepted |
 | [0049](./0049-control-api-transport-and-authorization.md)     | The Control API: OS-gated socket, closed operation allowlist       | 2026-09-03 | accepted |
+| [0050](./0050-replay-is-tagged-not-filtered.md)               | Reattach replay is tagged on the wire, not filtered out            | 2026-09-03 | accepted |

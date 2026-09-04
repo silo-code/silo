@@ -1,10 +1,38 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { OscEvent } from "@silo-code/sdk";
+import type {
+  OscEvent,
+  OutputOrigin,
+  SubscribeOutputOptions,
+} from "@silo-code/sdk";
 
-type OutputListener = (data: string) => void;
+type OutputListener = (data: string, origin: OutputOrigin) => void;
 type ExitListener = (exitCode: number) => void;
-type OscListener = (event: OscEvent) => void;
+type OscListener = (event: OscEvent, origin: OutputOrigin) => void;
+
+/**
+ * Payload of a `terminal_output:<sessionId>` event (see `terminal_io.rs`).
+ * `replay` marks scrollback the session host is replaying on attach rather
+ * than output the session produced just now — RFC 0036.
+ */
+interface TerminalOutputEvent {
+  data: string;
+  replay: boolean;
+}
+
+/**
+ * A registered listener plus whether it asked for replayed output. Listeners
+ * are stored this way rather than as bare callbacks because the opt-in is
+ * per-subscription: the terminal panel wants the scrollback, a status watcher
+ * emphatically does not, and both can be watching the same session.
+ */
+interface Subscription<T> {
+  cb: T;
+  includeReplay: boolean;
+}
+
+const LIVE: OutputOrigin = { replay: false };
+const REPLAYED: OutputOrigin = { replay: true };
 
 interface CreateOpts {
   cwd: string;
@@ -26,9 +54,12 @@ interface AttachOpts {
 }
 
 export class TauriTerminalClient {
-  private outputListeners = new Map<string, Set<OutputListener>>();
+  private outputListeners = new Map<
+    string,
+    Set<Subscription<OutputListener>>
+  >();
   private exitListeners = new Map<string, Set<ExitListener>>();
-  private oscListeners = new Map<string, Set<OscListener>>();
+  private oscListeners = new Map<string, Set<Subscription<OscListener>>>();
   private unlisteners = new Map<string, Array<() => void>>();
   // Tracks sessions whose Tauri event bridge is currently being set up. Guards
   // against concurrent calls to setupSessionListeners (e.g. onOsc + onOutput
@@ -116,20 +147,31 @@ export class TauriTerminalClient {
 
     try {
       // Listen for output events from this session
-      const unlistenOutput = await listen<string>(
+      const unlistenOutput = await listen<TerminalOutputEvent>(
         `terminal_output:${sessionId}`,
         (event) => {
+          const { data, replay } = event.payload;
+          const origin = replay ? REPLAYED : LIVE;
+          // Replayed scrollback goes only to subscribers that asked for it.
+          // Everyone else sees live output alone, so re-attaching to a session
+          // never reads as a burst of things happening now (RFC 0036).
           const listeners = this.outputListeners.get(sessionId);
-          listeners?.forEach((cb) => cb(event.payload));
+          listeners?.forEach((sub) => {
+            if (replay && !sub.includeReplay) return;
+            sub.cb(data, origin);
+          });
           // Parse and dispatch any OSC sequences in this chunk.
           // Checked on every chunk so OSC listeners registered after setup
           // (e.g. from subscribeOsc) are picked up immediately.
           const oscListeners = this.oscListeners.get(sessionId);
-          if (oscListeners?.size) {
-            parseOscSequences(event.payload, (osc) =>
-              oscListeners.forEach((cb) => cb(osc)),
-            );
-          }
+          if (!oscListeners?.size) return;
+          const targets = replay
+            ? [...oscListeners].filter((sub) => sub.includeReplay)
+            : [...oscListeners];
+          if (targets.length === 0) return;
+          parseOscSequences(data, (osc) =>
+            targets.forEach((sub) => sub.cb(osc, origin)),
+          );
         },
       );
 
@@ -234,7 +276,11 @@ export class TauriTerminalClient {
     this.setupSessionListeners(sessionId).catch(() => {});
   }
 
-  onOutput(sessionId: string, cb: OutputListener): () => void {
+  onOutput(
+    sessionId: string,
+    cb: OutputListener,
+    options: SubscribeOutputOptions = {},
+  ): () => void {
     let set = this.outputListeners.get(sessionId);
     if (!set) {
       // First listener for this session — start the stream before the callback
@@ -243,10 +289,14 @@ export class TauriTerminalClient {
       this.outputListeners.set(sessionId, set);
       this.beginOutputStream(sessionId);
     }
-    set.add(cb);
+    const sub: Subscription<OutputListener> = {
+      cb,
+      includeReplay: options.includeReplay ?? false,
+    };
+    set.add(sub);
     return () => {
       const s = this.outputListeners.get(sessionId);
-      s?.delete(cb);
+      s?.delete(sub);
       if (s && s.size === 0) this.outputListeners.delete(sessionId);
     };
   }
@@ -278,7 +328,11 @@ export class TauriTerminalClient {
    * Calling onOsc also ensures the Tauri event bridge is established for this
    * session, so OSC events fire even before the terminal panel mounts.
    */
-  onOsc(sessionId: string, cb: OscListener): () => void {
+  onOsc(
+    sessionId: string,
+    cb: OscListener,
+    options: SubscribeOutputOptions = {},
+  ): () => void {
     let set = this.oscListeners.get(sessionId);
     if (!set) {
       set = new Set();
@@ -287,10 +341,14 @@ export class TauriTerminalClient {
       // running just as much as `onOutput` does — see `beginOutputStream`.
       this.beginOutputStream(sessionId);
     }
-    set.add(cb);
+    const sub: Subscription<OscListener> = {
+      cb,
+      includeReplay: options.includeReplay ?? false,
+    };
+    set.add(sub);
     return () => {
       const s = this.oscListeners.get(sessionId);
-      s?.delete(cb);
+      s?.delete(sub);
       if (s && s.size === 0) this.oscListeners.delete(sessionId);
     };
   }

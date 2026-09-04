@@ -1,6 +1,6 @@
 # Interface: ProcessSpawnOptions
 
-Defined in: [packages/sdk/src/process-service.ts:13](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L13)
+Defined in: [packages/sdk/src/process-service.ts:14](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L14)
 
 Options for spawning a process session. Today sessions are shell PTYs, so
 `cwd` is required (the webview has no ambient working directory).
@@ -13,7 +13,7 @@ Options for spawning a process session. Today sessions are shell PTYs, so
 cwd: string;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:20](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L20)
+Defined in: [packages/sdk/src/process-service.ts:21](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L21)
 
 Working directory the session starts in. Must resolve inside the open
 workspace unless the extension declared the `process` [Permission](../type-aliases/Permission.md)
@@ -28,7 +28,7 @@ workspace unless the extension declared the `process` [Permission](../type-alias
 optional cols?: number;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:22](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L22)
+Defined in: [packages/sdk/src/process-service.ts:23](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L23)
 
 Initial column count.
 
@@ -40,7 +40,7 @@ Initial column count.
 optional rows?: number;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:24](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L24)
+Defined in: [packages/sdk/src/process-service.ts:25](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L25)
 
 Initial row count.
 
@@ -52,7 +52,7 @@ Initial row count.
 optional env?: Record<string, string>;
 ```
 
-Defined in: [packages/sdk/src/process-service.ts:37](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L37)
+Defined in: [packages/sdk/src/process-service.ts:38](https://github.com/silo-code/silo/blob/main/packages/sdk/src/process-service.ts#L38)
 
 Extra environment variables, **merged over** the session's inherited
 environment. Use it for things a long-lived shell needs from the start —
