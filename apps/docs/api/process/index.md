@@ -56,13 +56,36 @@ at all (e.g. the executable isn't on `PATH`). This is the primitive the
 
 **[`ProcessSession`](/api/types/interfaces/ProcessSession)** (the handle):
 
-| Method                                  | What it does                                                                            |
-| --------------------------------------- | --------------------------------------------------------------------------------------- |
-| `write(data)`                           | Send input to the session.                                                              |
-| `resize(cols, rows)`                    | Notify the session of a viewport size change.                                           |
-| `kill()`                                | Terminate and release the session.                                                      |
-| `getBuffer()` / `saveBuffer(data)`      | Read / persist the output buffer (restore a view on re-attach).                         |
-| `onData(listener)` / `onExit(listener)` | Subscribe to output / exit; returns a [`Disposable`](/api/types/interfaces/Disposable). |
+| Method                                            | What it does                                                                                                                                                                                             |
+| ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `write(data)`                                     | Send input to the session.                                                                                                                                                                               |
+| `resize(cols, rows)`                              | Notify the session of a viewport size change.                                                                                                                                                            |
+| `kill()`                                          | Terminate and release the session.                                                                                                                                                                       |
+| `getBuffer()` / `saveBuffer(data)`                | Read / persist the output buffer (restore a view on re-attach).                                                                                                                                          |
+| `onData(listener, options?)` / `onExit(listener)` | Subscribe to output / exit; returns a [`Disposable`](/api/types/interfaces/Disposable). `onData` is live output only unless `{ includeReplay: true }` — see [Replayed scrollback](#replayed-scrollback). |
+
+## Replayed scrollback
+
+A session survives app restarts, so re-attaching to one makes the session host
+replay its recent scrollback — bytes indistinguishable from output arriving
+right now.
+
+`onData` delivers **live output only** by default, so re-attaching can't make
+your extension believe a burst of output just happened. Pass
+`{ includeReplay: true }` when you want the history (painting scrollback into a
+fresh view, say); each chunk then carries an
+[`OutputOrigin`](/api/types/interfaces/OutputOrigin) saying which kind it is.
+
+```ts
+const session = await ctx.process.attach(id);
+session.onData(
+  (data, { replay }) => {
+    term.write(data);
+    if (!replay) noteActivity();
+  },
+  { includeReplay: true },
+);
+```
 
 ## Types
 

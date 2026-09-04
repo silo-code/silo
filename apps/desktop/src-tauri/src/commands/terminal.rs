@@ -1,7 +1,7 @@
 use dashmap::DashMap;
 use parking_lot::Mutex;
 use portable_pty::PtySize;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::{sync_channel, SyncSender, TrySendError};
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use super::session_backend::{
     active_backend, log_event, Connection, ForegroundInfo, SessionBackend, SessionChild,
-    SessionMaster,
+    SessionMaster, SessionReader,
 };
 use super::session_registry;
 use super::terminal_io::{run_foreground_loop, run_reader_loop};
@@ -30,7 +30,7 @@ const WRITE_QUEUE_CAP: usize = 64;
 struct PtySession {
     handle: String,
     master: Arc<Mutex<Box<dyn SessionMaster>>>,
-    reader: Arc<Mutex<Box<dyn Read + Send>>>,
+    reader: Arc<Mutex<Box<dyn SessionReader + Send>>>,
     /// Ordered off-main writer (RFC 0026): `terminal_write` only enqueues.
     write_tx: SyncSender<Vec<u8>>,
     /// Last socket write failure observed by the writer thread (for Phase 3 UX).
@@ -470,7 +470,7 @@ pub fn terminal_foreground_snapshot(
 
 #[cfg(test)]
 mod tests {
-    use super::super::session_backend::ForegroundSub;
+    use super::super::session_backend::{ForegroundSub, SessionChunk};
     use super::*;
 
     /// A `SessionBackend` whose `exists()` answer is fixed for the test —
@@ -517,6 +517,19 @@ mod tests {
         }
     }
 
+    /// A `SessionReader` that is immediately at EOF — the `std::io::empty()`
+    /// of the seam.
+    struct EmptyReader;
+
+    impl SessionReader for EmptyReader {
+        fn read_chunk(&mut self, _buf: &mut [u8]) -> std::io::Result<SessionChunk> {
+            Ok(SessionChunk {
+                len: 0,
+                replay: false,
+            })
+        }
+    }
+
     /// A tracked-in-memory session with no real backend behind it — enough to
     /// populate `state.sessions` for a test.
     fn fake_session(handle: &str) -> Arc<PtySession> {
@@ -526,7 +539,7 @@ mod tests {
             handle: handle.to_string(),
             master: Arc::new(Mutex::new(Box::new(NoopMaster) as Box<dyn SessionMaster>)),
             reader: Arc::new(Mutex::new(
-                Box::new(std::io::empty()) as Box<dyn Read + Send>
+                Box::new(EmptyReader) as Box<dyn SessionReader + Send>
             )),
             write_tx,
             last_write_error,

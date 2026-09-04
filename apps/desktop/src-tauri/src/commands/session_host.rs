@@ -12,19 +12,20 @@
 
 use portable_pty::PtySize;
 use std::collections::HashMap;
-use std::io::{self, Read, Write};
+use std::io::{self, Write};
 use std::net::Shutdown;
 use std::os::unix::net::UnixStream;
 use std::time::{Duration, Instant};
 
 use super::session_backend::{
     log_event, Connection, ForegroundInfo, ForegroundSub, SessionBackend, SessionChild,
-    SessionMaster,
+    SessionChunk, SessionMaster, SessionReader,
 };
 use super::session_env::{encode_session_env, SESSION_ENV_CARRIER};
 use pty_host::proto::{
-    parse_hello, read_frame, resize_payload, write_frame, PROTO_VERSION, T_DATA, T_FG_REP, T_HELLO,
-    T_KILL, T_RESIZE, T_SUBSCRIBE_FG,
+    parse_hello, proto_compatible, proto_tags_replay, read_frame, resize_payload, write_frame,
+    PROTO_VERSION, T_DATA, T_FG_REP, T_HELLO, T_KILL, T_REPLAY_BEGIN, T_REPLAY_END, T_RESIZE,
+    T_SUBSCRIBE_FG,
 };
 use pty_host::{discovery, foreground, paths};
 
@@ -103,8 +104,11 @@ impl SessionHostBackend {
     }
 
     /// Connect to a session socket, retrying briefly (the daemon may still be
-    /// binding right after a spawn).
-    fn connect(&self, handle: &str) -> Result<UnixStream, String> {
+    /// binding right after a spawn). Returns the stream and the protocol
+    /// version the daemon announced — a daemon left over from a previous
+    /// release keeps speaking the version it started with for the life of its
+    /// sessions, and how it frames replay depends on that (RFC 0036).
+    fn connect(&self, handle: &str) -> Result<(UnixStream, u32), String> {
         let path = paths::sock_path(handle);
         let deadline = Instant::now() + CONNECT_TIMEOUT;
         let mut stream = loop {
@@ -121,18 +125,22 @@ impl SessionHostBackend {
         // SESSION_GONE (clean "recreate" UX) and log the reason rather than dump
         // a raw error. We deliberately do NOT kill it here — its shell may hold
         // real work; the user (or a manual reap) decides.
+        //
+        // "Compatible" spans a range, not a single number: a daemon forked by
+        // the previous release outlives the upgrade, and refusing it would kill
+        // every running terminal on any update that touches the protocol. See
+        // `MIN_COMPATIBLE_PROTO`.
         match read_frame(&mut stream) {
-            Ok((T_HELLO, p)) if parse_hello(&p) == Some(PROTO_VERSION) => Ok(stream),
-            Ok((T_HELLO, p)) => {
-                log_event(
-                    "host_incompatible",
-                    &format!(
-                        "handle={handle} daemon_proto={:?} app_proto={PROTO_VERSION}",
-                        parse_hello(&p)
-                    ),
-                );
-                Err(SESSION_GONE.into())
-            }
+            Ok((T_HELLO, p)) => match parse_hello(&p) {
+                Some(v) if proto_compatible(v) => Ok((stream, v)),
+                other => {
+                    log_event(
+                        "host_incompatible",
+                        &format!("handle={handle} daemon_proto={other:?} app_proto={PROTO_VERSION}"),
+                    );
+                    Err(SESSION_GONE.into())
+                }
+            },
             Ok((tag, _)) => {
                 log_event(
                     "host_incompatible",
@@ -151,7 +159,7 @@ impl SessionHostBackend {
     }
 
     /// Wrap a connected socket into the neutral `Connection` seam.
-    fn connection_from(&self, stream: UnixStream) -> Result<Connection, String> {
+    fn connection_from(&self, stream: UnixStream, proto: u32) -> Result<Connection, String> {
         let reader = stream.try_clone().map_err(|e| e.to_string())?;
         let writer = stream.try_clone().map_err(|e| e.to_string())?;
         let master = stream.try_clone().map_err(|e| e.to_string())?;
@@ -161,7 +169,7 @@ impl SessionHostBackend {
             .set_write_timeout(Some(Duration::from_secs(1)))
             .map_err(|e| e.to_string())?;
         Ok(Connection {
-            reader: Box::new(SocketReader::new(reader)),
+            reader: Box::new(SocketReader::new(reader, proto)),
             writer: Box::new(SocketWriter(writer)),
             master: Box::new(SocketMaster(master)),
             child: Box::new(SocketChild(stream)),
@@ -187,20 +195,23 @@ impl SessionBackend for SessionHostBackend {
         env: Option<HashMap<String, String>>,
     ) -> Result<Connection, String> {
         self.spawn_daemon(handle, cwd, size, command.as_deref(), env)?;
-        let stream = self.connect(handle)?;
-        log_event("host_create", &format!("handle={handle} cwd={cwd}"));
-        self.connection_from(stream)
+        let (stream, proto) = self.connect(handle)?;
+        log_event("host_create", &format!("handle={handle} cwd={cwd} proto={proto}"));
+        self.connection_from(stream, proto)
     }
 
     fn attach(&self, handle: &str, size: PtySize) -> Result<Connection, String> {
-        let stream = self.connect(handle)?;
+        let (stream, proto) = self.connect(handle)?;
         // Match the daemon's PTY to the attaching client's size.
         {
             let mut s = &stream;
             let _ = write_frame(&mut s, T_RESIZE, &resize_payload(size.cols, size.rows));
         }
-        log_event("host_attach", &format!("handle={handle}"));
-        self.connection_from(stream)
+        // `proto` is worth logging on its own line of the durable trail: a
+        // reattach to a pre-upgrade daemon behaves differently (untagged
+        // replay), and after a weird restart that is otherwise invisible.
+        log_event("host_attach", &format!("handle={handle} proto={proto}"));
+        self.connection_from(stream, proto)
     }
 
     fn exists(&self, handle: &str) -> bool {
@@ -245,7 +256,7 @@ impl SessionBackend for SessionHostBackend {
     fn subscribe_foreground(&self, handle: &str) -> Option<Box<dyn ForegroundSub>> {
         // A second connection dedicated to foreground events: send T_SUBSCRIBE_FG
         // so the daemon stops sending us data and starts pushing T_FG_REP.
-        let mut stream = self.connect(handle).ok()?;
+        let (mut stream, _proto) = self.connect(handle).ok()?;
         write_frame(&mut stream, T_SUBSCRIBE_FG, &[]).ok()?;
         Some(Box::new(SocketForegroundSub { stream }))
     }
@@ -280,45 +291,71 @@ impl ForegroundSub for SocketForegroundSub {
 
 // --- socket <-> seam adapters ---
 
-/// Deframes the daemon's `T_DATA` frames into a raw byte stream for the reader
-/// loop. Control replies on the data connection (if any) are ignored.
+/// Deframes the daemon's `T_DATA` frames into a chunk stream for the reader
+/// loop, classifying each chunk as ring replay or live output from the
+/// `T_REPLAY_BEGIN` / `T_REPLAY_END` brackets (RFC 0036). Control replies on
+/// the data connection (if any) are ignored.
 struct SocketReader {
     stream: UnixStream,
     buf: Vec<u8>,
     pos: usize,
+    /// Whether the peer brackets its replay at all. False against a daemon from
+    /// a previous release, whose frames are all reported as live — which is
+    /// exactly how this behaved before the brackets existed.
+    tags_replay: bool,
+    /// Bracket state: whether the frame currently buffered (and the frames that
+    /// follow, until `T_REPLAY_END`) are history.
+    replaying: bool,
+    /// Classification of the payload in `buf`, latched when the frame was read
+    /// so a payload drained over several `read_chunk` calls keeps one answer.
+    buf_replay: bool,
 }
 
 impl SocketReader {
-    fn new(stream: UnixStream) -> Self {
+    fn new(stream: UnixStream, proto: u32) -> Self {
         SocketReader {
             stream,
             buf: Vec::new(),
             pos: 0,
+            tags_replay: proto_tags_replay(proto),
+            replaying: false,
+            buf_replay: false,
         }
     }
 }
 
-impl Read for SocketReader {
-    fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
+impl SessionReader for SocketReader {
+    fn read_chunk(&mut self, out: &mut [u8]) -> io::Result<SessionChunk> {
         loop {
             if self.pos < self.buf.len() {
                 let n = std::cmp::min(out.len(), self.buf.len() - self.pos);
                 out[..n].copy_from_slice(&self.buf[self.pos..self.pos + n]);
                 self.pos += n;
-                return Ok(n);
+                return Ok(SessionChunk {
+                    len: n,
+                    replay: self.buf_replay,
+                });
             }
             match read_frame(&mut self.stream) {
                 Ok((T_DATA, payload)) => {
                     if payload.is_empty() {
                         continue;
                     }
+                    self.buf_replay = self.tags_replay && self.replaying;
                     self.buf = payload;
                     self.pos = 0;
                 }
+                Ok((T_REPLAY_BEGIN, _)) => self.replaying = true,
+                Ok((T_REPLAY_END, _)) => self.replaying = false,
                 Ok(_) => continue, // ignore non-data control frames here
                 // Socket closed / daemon gone → EOF, so the reader loop ends and
                 // the frontend sees the session close.
-                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => return Ok(0),
+                Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => {
+                    return Ok(SessionChunk {
+                        len: 0,
+                        replay: false,
+                    })
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -379,5 +416,134 @@ mod tests {
         assert!(!should_warn_concurrency_cap(39, 40));
         assert!(should_warn_concurrency_cap(40, 40));
         assert!(should_warn_concurrency_cap(50, 40));
+    }
+
+    /// Drive a `SocketReader` over a socketpair: write `frames` from the
+    /// "daemon" end, then drain the reader and report each chunk as
+    /// (bytes, replay).
+    fn drain(proto: u32, frames: &[(u8, &[u8])], buf_size: usize) -> Vec<(Vec<u8>, bool)> {
+        let (daemon, app) = UnixStream::pair().expect("socketpair");
+        {
+            let mut w = &daemon;
+            for (tag, payload) in frames {
+                write_frame(&mut w, *tag, payload).expect("write frame");
+            }
+        }
+        // Closing the daemon end turns the end of the frames into EOF, so the
+        // drain loop terminates instead of blocking.
+        drop(daemon);
+
+        let mut reader = SocketReader::new(app, proto);
+        let mut buf = vec![0u8; buf_size];
+        let mut out = Vec::new();
+        loop {
+            let chunk = reader.read_chunk(&mut buf).expect("read_chunk");
+            if chunk.len == 0 {
+                return out;
+            }
+            out.push((buf[..chunk.len].to_vec(), chunk.replay));
+        }
+    }
+
+    #[test]
+    fn brackets_classify_the_frames_inside_them() {
+        let chunks = drain(
+            2,
+            &[
+                (T_REPLAY_BEGIN, &[]),
+                (T_DATA, b"old-1"),
+                (T_DATA, b"old-2"),
+                (T_REPLAY_END, &[]),
+                (T_DATA, b"live"),
+            ],
+            64,
+        );
+        assert_eq!(
+            chunks,
+            vec![
+                (b"old-1".to_vec(), true),
+                (b"old-2".to_vec(), true),
+                (b"live".to_vec(), false),
+            ]
+        );
+    }
+
+    #[test]
+    fn live_output_interleaved_with_replay_stays_live() {
+        // What the daemon writes when PTY output lands between two replay
+        // chunks: it closes the bracket, writes the live frame, and reopens.
+        let chunks = drain(
+            2,
+            &[
+                (T_REPLAY_BEGIN, &[]),
+                (T_DATA, b"old-1"),
+                (T_REPLAY_END, &[]),
+                (T_DATA, b"live"),
+                (T_REPLAY_BEGIN, &[]),
+                (T_DATA, b"old-2"),
+                (T_REPLAY_END, &[]),
+            ],
+            64,
+        );
+        assert_eq!(
+            chunks,
+            vec![
+                (b"old-1".to_vec(), true),
+                (b"live".to_vec(), false),
+                (b"old-2".to_vec(), true),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_untagged_peer_reports_everything_as_live() {
+        // A daemon from a previous release never sends brackets. Even if a
+        // stray bracket tag did arrive, protocol 1 means "don't trust it" —
+        // the pre-RFC-0036 behavior is that every byte is live.
+        let chunks = drain(
+            1,
+            &[
+                (T_REPLAY_BEGIN, &[]),
+                (T_DATA, b"old"),
+                (T_REPLAY_END, &[]),
+                (T_DATA, b"live"),
+            ],
+            64,
+        );
+        assert_eq!(
+            chunks,
+            vec![(b"old".to_vec(), false), (b"live".to_vec(), false)]
+        );
+    }
+
+    #[test]
+    fn a_payload_split_across_reads_keeps_one_classification() {
+        // A 5-byte replayed payload drained through a 2-byte buffer must not
+        // have its tail reclassified as live.
+        let chunks = drain(
+            2,
+            &[
+                (T_REPLAY_BEGIN, &[]),
+                (T_DATA, b"12345"),
+                (T_REPLAY_END, &[]),
+                (T_DATA, b"ab"),
+            ],
+            2,
+        );
+        assert_eq!(
+            chunks,
+            vec![
+                (b"12".to_vec(), true),
+                (b"34".to_vec(), true),
+                (b"5".to_vec(), true),
+                (b"ab".to_vec(), false),
+            ]
+        );
+    }
+
+    #[test]
+    fn empty_data_frames_are_skipped_not_reported_as_eof() {
+        let chunks = drain(2, &[(T_DATA, &[]), (T_DATA, b"x")], 64);
+        assert_eq!(chunks, vec![(b"x".to_vec(), false)]);
     }
 }

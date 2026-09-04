@@ -150,3 +150,138 @@ describe("output stream startup", () => {
     expect(startCalls("s5")).toBe(1);
   });
 });
+
+// RFC 0036 / issue #500. Re-attaching to a session makes the host replay up to
+// 256KB of its ring, byte-for-byte indistinguishable from live output. Every
+// subscriber used to read that as things happening right now — the terminal
+// repainted scrollback it had already restored, and agent status flipped for
+// turns that finished before the app started. Replay now travels tagged, and
+// each subscription says whether it wants it.
+describe("replay fan-out", () => {
+  beforeEach(() => {
+    invokeMock.mockClear();
+    listenMock.mockClear();
+  });
+
+  /**
+   * Grab the handler the client registered for a session's output events, so a
+   * test can push frames at it the way the Rust side would.
+   */
+  async function outputBridge(sessionId: string) {
+    // setupSessionListeners is fired without await from beginOutputStream.
+    await Promise.resolve();
+    await Promise.resolve();
+    const call = listenMock.mock.calls.find(
+      ([event]) => event === `terminal_output:${sessionId}`,
+    );
+    if (!call) throw new Error(`no output bridge for ${sessionId}`);
+    const handler = call[1] as (e: {
+      payload: { data: string; replay: boolean };
+    }) => void;
+    return (data: string, replay: boolean) =>
+      handler({ payload: { data, replay } });
+  }
+
+  it("withholds replayed output from a default subscriber", async () => {
+    const client = new TauriTerminalClient();
+    const seen: string[] = [];
+    client.onOutput("r1", (data) => seen.push(data));
+    const emit = await outputBridge("r1");
+
+    emit("old scrollback", true);
+    emit("live output", false);
+
+    expect(seen).toEqual(["live output"]);
+  });
+
+  it("delivers replayed output to a subscriber that opted in, flagged", async () => {
+    const client = new TauriTerminalClient();
+    const seen: Array<[string, boolean]> = [];
+    client.onOutput("r2", (data, { replay }) => seen.push([data, replay]), {
+      includeReplay: true,
+    });
+    const emit = await outputBridge("r2");
+
+    emit("old scrollback", true);
+    emit("live output", false);
+
+    expect(seen).toEqual([
+      ["old scrollback", true],
+      ["live output", false],
+    ]);
+  });
+
+  it("gives two subscribers on one session what each asked for", async () => {
+    // The real shape: the terminal panel wants the scrollback to paint, while
+    // a status watcher on the same session must not see it.
+    const client = new TauriTerminalClient();
+    const painter: string[] = [];
+    const watcher: string[] = [];
+    client.onOutput("r3", (d) => painter.push(d), { includeReplay: true });
+    client.onOutput("r3", (d) => watcher.push(d));
+    const emit = await outputBridge("r3");
+
+    emit("history", true);
+    emit("now", false);
+
+    expect(painter).toEqual(["history", "now"]);
+    expect(watcher).toEqual(["now"]);
+  });
+
+  it("applies the same rule to OSC sequences", async () => {
+    // A replayed "busy" title describes a turn that is already over.
+    const client = new TauriTerminalClient();
+    const optedOut: OscEvent[] = [];
+    const optedIn: Array<[OscEvent, boolean]> = [];
+    client.onOsc("r4", (e) => optedOut.push(e));
+    client.onOsc("r4", (e, { replay }) => optedIn.push([e, replay]), {
+      includeReplay: true,
+    });
+    const emit = await outputBridge("r4");
+
+    emit("\x1b]0;✳ done\x07", true);
+    emit("\x1b]0;live\x07", false);
+
+    expect(optedOut).toEqual([{ code: 0, payload: "live" }]);
+    expect(optedIn).toEqual([
+      [{ code: 0, payload: "✳ done" }, true],
+      [{ code: 0, payload: "live" }, false],
+    ]);
+  });
+
+  it("unsubscribing removes only that subscription", async () => {
+    const client = new TauriTerminalClient();
+    const a: string[] = [];
+    const b: string[] = [];
+    const offA = client.onOutput("r5", (d) => a.push(d));
+    client.onOutput("r5", (d) => b.push(d));
+    const emit = await outputBridge("r5");
+
+    emit("first", false);
+    offA();
+    emit("second", false);
+
+    expect(a).toEqual(["first"]);
+    expect(b).toEqual(["first", "second"]);
+  });
+
+  it("registering the same callback twice delivers to both subscriptions", async () => {
+    // Subscriptions are identified by their registration, not by callback
+    // identity — two components can legitimately pass the same function.
+    const client = new TauriTerminalClient();
+    let calls = 0;
+    const cb = () => {
+      calls += 1;
+    };
+    const off = client.onOutput("r6", cb);
+    client.onOutput("r6", cb);
+    const emit = await outputBridge("r6");
+
+    emit("x", false);
+    expect(calls).toBe(2);
+
+    off();
+    emit("y", false);
+    expect(calls).toBe(3);
+  });
+});

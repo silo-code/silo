@@ -1,6 +1,6 @@
 # Interface: TerminalService
 
-Defined in: [packages/sdk/src/terminal-service.ts:97](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L97)
+Defined in: [packages/sdk/src/terminal-service.ts:144](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L144)
 
 Consumer API for the terminal domain, exposed as
 [ExtensionContext.terminals](ExtensionContext.md#terminals). The terminal is a core feature — a
@@ -551,7 +551,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:260](https://github.com/silo-code
 create(input?): TerminalRecord | undefined;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:107](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L107)
+Defined in: [packages/sdk/src/terminal-service.ts:154](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L154)
 
 Open a new terminal in a workspace (defaults to the active one). Returns the
 created [TerminalRecord](TerminalRecord.md); the PTY session spawns lazily when its tab
@@ -579,7 +579,7 @@ happen because activating any workspace happens before extensions run.
 closeWorkspace(workspaceId): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L113)
+Defined in: [packages/sdk/src/terminal-service.ts:160](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L160)
 
 Close and kill every terminal in a workspace. [WorkspaceService.delete](WorkspaceService.md#delete)
 reaps terminals the same way automatically, so this is for reaping a
@@ -606,7 +606,7 @@ sendText(
    addNewline?): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:134](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L134)
+Defined in: [packages/sdk/src/terminal-service.ts:181](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L181)
 
 Write text to a terminal's PTY as if the user typed it. By default a
 carriage return is appended so the line executes; pass `addNewline: false`
@@ -655,7 +655,7 @@ if (term) ctx.terminals.sendText(term.id, "npm run build");
 close(terminalId): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:141](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L141)
+Defined in: [packages/sdk/src/terminal-service.ts:188](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L188)
 
 Close one terminal tab and kill its PTY session. No-op if the id is unknown.
 To reap every terminal in a workspace at once use
@@ -679,7 +679,7 @@ To reap every terminal in a workspace at once use
 rename(terminalId, name): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:149](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L149)
+Defined in: [packages/sdk/src/terminal-service.ts:196](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L196)
 
 Set a terminal's user-facing name ([TerminalRecord.customName](TerminalRecord.md#customname)),
 shown on its tab and persisted across restarts. Passing an empty string
@@ -708,7 +708,7 @@ No-op for an unknown `terminalId`.
 getTabMenuItems(terminalId): MenuEntry[];
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:177](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L177)
+Defined in: [packages/sdk/src/terminal-service.ts:224](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L224)
 
 The rows of this terminal's tab context menu — **Rename…**, then whatever
 extensions contributed on the `"terminal/tab"`
@@ -750,7 +750,7 @@ ctx.ui.showMenu({
 focus(terminalId): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:179](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L179)
+Defined in: [packages/sdk/src/terminal-service.ts:226](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L226)
 
 #### Parameters
 
@@ -770,7 +770,7 @@ Defined in: [packages/sdk/src/terminal-service.ts:179](https://github.com/silo-c
 registerTabDecoration(provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:185](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L185)
+Defined in: [packages/sdk/src/terminal-service.ts:232](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L232)
 
 #### Parameters
 
@@ -797,7 +797,7 @@ getTabDecoration(terminalId):
   | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:191](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L191)
+Defined in: [packages/sdk/src/terminal-service.ts:238](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L238)
 
 #### Parameters
 
@@ -823,7 +823,7 @@ trailing indicator for a terminal tab, or `null`.
 invalidateTabDecorations(): void;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:196](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L196)
+Defined in: [packages/sdk/src/terminal-service.ts:243](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L243)
 
 #### Returns
 
@@ -841,7 +841,7 @@ Prefer [TerminalService.invalidateTabAdornments](TabAdornmentMethods.md#invalida
 subscribeTabDecorations(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:201](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L201)
+Defined in: [packages/sdk/src/terminal-service.ts:248](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L248)
 
 #### Parameters
 
@@ -862,10 +862,13 @@ Prefer [TerminalService.subscribeTabAdornments](TabAdornmentMethods.md#subscribe
 ### subscribeOsc()
 
 ```ts
-subscribeOsc(terminalId, handler): Disposable;
+subscribeOsc(
+   terminalId, 
+   handler, 
+   options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:238](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L238)
+Defined in: [packages/sdk/src/terminal-service.ts:293](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L293)
 
 Subscribe to raw OSC (Operating System Command) escape sequences emitted
 by the terminal identified by `terminalId`. The handler is called once per
@@ -886,7 +889,11 @@ Returns a [Disposable](Disposable.md) that cancels the subscription.
 
 ##### handler
 
-(`event`) => `void`
+(`event`, `origin`) => `void`
+
+##### options?
+
+[`SubscribeOutputOptions`](SubscribeOutputOptions.md)
 
 #### Returns
 
@@ -916,15 +923,27 @@ const sub = ctx.terminals.subscribeOsc(terminalId, ({ code, payload }) => {
 ctx.subscriptions.push(sub);
 ```
 
+#### Remarks
+
+OSC sequences ride the raw output stream, so the same replay rule applies
+as for [TerminalService.subscribeOutput](#subscribeoutput): by default only sequences
+from **live** output are delivered, and `{ includeReplay: true }` adds
+those found in the scrollback replayed on attach. Status titles are the
+usual reason to leave it off — a replayed "busy" title describes a turn
+that is already over.
+
 ***
 
 ### subscribeOutput()
 
 ```ts
-subscribeOutput(terminalId, handler): Disposable;
+subscribeOutput(
+   terminalId, 
+   handler, 
+   options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:271](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L271)
+Defined in: [packages/sdk/src/terminal-service.ts:350](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L350)
 
 Subscribe to the raw PTY output stream of the terminal identified by
 `terminalId`. The `handler` is called with every chunk of bytes the PTY
@@ -941,6 +960,12 @@ The subscription is keyed to the **terminal record id** (e.g. `"term_…"`),
 not the underlying PTY session id, so it survives terminal recreation within
 the same record.
 
+By default only **live** output is delivered. A terminal session outlives
+the app, so attaching to one replays its recent scrollback; without this
+default every reattach would look like a burst of activity happening right
+now. Pass `{ includeReplay: true }` to receive that history too — each
+chunk then arrives with an [OutputOrigin](OutputOrigin.md) saying which kind it is.
+
 Returns a [Disposable](Disposable.md) that cancels the subscription.
 
 #### Parameters
@@ -951,20 +976,40 @@ Returns a [Disposable](Disposable.md) that cancels the subscription.
 
 ##### handler
 
-(`data`) => `void`
+(`data`, `origin`) => `void`
+
+##### options?
+
+[`SubscribeOutputOptions`](SubscribeOutputOptions.md)
 
 #### Returns
 
 [`Disposable`](Disposable.md)
 
-#### Example
+#### Examples
 
 ```ts
 // Track the last time any output arrived to confirm agent activity.
+// Replayed scrollback is excluded by default, so re-attaching to a
+// long-idle terminal doesn't read as fresh activity.
 let lastOutputAt = 0;
 const sub = ctx.terminals.subscribeOutput(terminalId, () => {
   lastOutputAt = Date.now();
 });
+ctx.subscriptions.push(sub);
+```
+
+```ts
+// Opt in to the replayed scrollback — needed to work out what is running
+// in a terminal you just attached to — and keep the two apart.
+const sub = ctx.terminals.subscribeOutput(
+  terminalId,
+  (chunk, { replay }) => {
+    identifyProgram(chunk);           // history is evidence
+    if (!replay) noteActivity();      // …but only live output is activity
+  },
+  { includeReplay: true },
+);
 ctx.subscriptions.push(sub);
 ```
 
@@ -976,7 +1021,7 @@ ctx.subscriptions.push(sub);
 getActive(): string | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:283](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L283)
+Defined in: [packages/sdk/src/terminal-service.ts:363](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L363)
 
 The record id of the terminal tab that is currently active in the active
 workspace's center dock, or `null` when an editor tab (or nothing) is
@@ -996,7 +1041,7 @@ split does not count.
 subscribeActive(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:305](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L305)
+Defined in: [packages/sdk/src/terminal-service.ts:385](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L385)
 
 Subscribe to active-terminal changes. The listener receives the terminal
 record id whenever a terminal tab becomes the active center-dock panel,

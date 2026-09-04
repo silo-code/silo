@@ -157,6 +157,8 @@ the published reference is exactly this surface — no more, no less.
 - [TabActivityBinder](interfaces/TabActivityBinder.md)
 - [TabAdornmentMethods](interfaces/TabAdornmentMethods.md)
 - [OscEvent](interfaces/OscEvent.md)
+- [OutputOrigin](interfaces/OutputOrigin.md)
+- [SubscribeOutputOptions](interfaces/SubscribeOutputOptions.md)
 - [~~TerminalTabDecoration~~](type-aliases/TerminalTabDecoration.md)
 - [~~TerminalTabDecorationProvider~~](interfaces/TerminalTabDecorationProvider.md)
 - [CreateTerminalInput](interfaces/CreateTerminalInput.md)

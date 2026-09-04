@@ -22,6 +22,8 @@ import type {
   TerminalService,
   TerminalTabDecorationProvider,
   OscEvent,
+  OutputOrigin,
+  SubscribeOutputOptions,
 } from "@silo-code/sdk";
 import {
   tabAdornmentMethodsFor,
@@ -462,18 +464,26 @@ export function getTerminalService(): TerminalService {
     subscribeTabDecorations(listener: () => void) {
       return tabAdornmentRegistry.subscribe(listener);
     },
-    subscribeOsc(terminalId: string, handler: (event: OscEvent) => void) {
+    subscribeOsc(
+      terminalId: string,
+      handler: (event: OscEvent, origin: OutputOrigin) => void,
+      options?: SubscribeOutputOptions,
+    ) {
       // Bound to the terminal's *current* PTY session and re-bound whenever
       // that session changes — a terminal that hasn't spawned yet binds once
       // its sessionId lands, and a recreated one (reboot) re-binds to the new
       // session instead of going silent. See subscribeToSession.
       return subscribeToSession(terminalId, (sid) =>
-        tauriTerminalClient.onOsc(sid, handler),
+        tauriTerminalClient.onOsc(sid, handler, options),
       );
     },
-    subscribeOutput(terminalId: string, handler: (data: string) => void) {
+    subscribeOutput(
+      terminalId: string,
+      handler: (data: string, origin: OutputOrigin) => void,
+      options?: SubscribeOutputOptions,
+    ) {
       return subscribeToSession(terminalId, (sid) =>
-        tauriTerminalClient.onOutput(sid, handler),
+        tauriTerminalClient.onOutput(sid, handler, options),
       );
     },
   };

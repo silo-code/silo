@@ -96,13 +96,6 @@ type TrackedAgent = {
    */
   hookSessionTimestamp: string | null;
   /**
-   * One-shot restart guard: when we restore an already-acknowledged idle agent,
-   * the first live working→idle (reattach redraw / OSC title refresh) must not
-   * re-raise `needsAttention` — the user already cleared it. Consumed on that
-   * first working→idle so a later real turn still flags attention normally.
-   */
-  suppressNextAttention: boolean;
-  /**
    * PTY session id the foreground stream ({@link cleanupFg}) is currently
    * subscribed to. Unlike the OSC/output subscriptions (keyed by the stable
    * terminal id), `onTerminalForeground` is keyed by the *PTY* session id,
@@ -236,7 +229,20 @@ function notify() {
 
 // ---- event application -------------------------------------------------------
 
-function applyEvent(terminalId: string, ev: AgentActivityEvent) {
+/**
+ * Apply one activity event.
+ *
+ * `fromReplay` marks an event derived from output the session host replayed on
+ * attach rather than from the session producing it now (RFC 0036). Such an
+ * event still moves state — an agent that finished while the app was closed
+ * really is idle — but it must not raise attention or ring the bell, because
+ * the turn it describes was over before the app started.
+ */
+function applyEvent(
+  terminalId: string,
+  ev: AgentActivityEvent,
+  fromReplay = false,
+) {
   const entry = trackedAgents.get(terminalId);
   if (!entry) return;
 
@@ -251,19 +257,25 @@ function applyEvent(terminalId: string, ev: AgentActivityEvent) {
       ? reduced
       : resetOnDemotion(entry.state, reduced);
 
-  // Restored acknowledged-idle: swallow the first working→idle so a reattach
-  // OSC redraw doesn't look like a brand-new finished turn (confirmed live:
+  // Replayed evidence moves activity and identity but never touches attention.
+  //
+  // Raising it would announce a turn that finished before this app instance
+  // existed — the phantom indicators and bells of issue #500 (confirmed live:
   // Claude/Codex/Copilot all flipped needsAttention on restart with identical
-  // attentionSince while the focused Cursor tab stayed clear).
-  if (
-    entry.suppressNextAttention &&
-    entry.state.activity === "working" &&
-    next.activity === "idle"
-  ) {
-    entry.suppressNextAttention = false;
-    if (next.needsAttention) {
-      next = { ...next, needsAttention: false, attentionSince: null };
-    }
+  // attentionSince, while the focused Cursor tab stayed clear). Clearing it
+  // would be just as wrong in the other direction: a restored
+  // `needsAttention: true` was never acknowledged, and a replayed "working"
+  // marker in the ring would silently drop something the user is still owed —
+  // the ring can't say whether it predates or postdates the persisted flag.
+  //
+  // So attention is owned by what restore produced plus live evidence, full
+  // stop. Whatever the reducer decided here is discarded.
+  if (fromReplay) {
+    next = {
+      ...next,
+      needsAttention: entry.state.needsAttention,
+      attentionSince: entry.state.attentionSince,
+    };
   }
 
   const isLiveTick =
@@ -632,13 +644,24 @@ function clearShellIdleTimer(terminalId: string) {
   }
 }
 
-function scheduleShellIdle(terminalId: string) {
+/**
+ * `fromReplay` follows the evidence that armed the timer all the way to the
+ * event it eventually dispatches (RFC 0036). A debounced idle is the *same*
+ * observation as the marker that scheduled it, just delivered late — so a turn
+ * read out of the replayed ring must not become a live-looking completion
+ * merely because its debounce elapsed after the replay was over.
+ */
+function scheduleShellIdle(terminalId: string, fromReplay = false) {
   clearShellIdleTimer(terminalId);
   shellIdleTimers.set(
     terminalId,
     setTimeout(() => {
       shellIdleTimers.delete(terminalId);
-      applyEvent(terminalId, detectedEvent(terminalId, "idle", "timer"));
+      applyEvent(
+        terminalId,
+        detectedEvent(terminalId, "idle", "timer"),
+        fromReplay,
+      );
     }, SHELL_IDLE_MS),
   );
 }
@@ -651,13 +674,18 @@ function clearAgentIdleTimer(terminalId: string) {
   }
 }
 
-function scheduleAgentIdle(terminalId: string) {
+/** See {@link scheduleShellIdle} for what `fromReplay` carries. */
+function scheduleAgentIdle(terminalId: string, fromReplay = false) {
   clearAgentIdleTimer(terminalId);
   agentIdleTimers.set(
     terminalId,
     setTimeout(() => {
       agentIdleTimers.delete(terminalId);
-      applyEvent(terminalId, detectedEvent(terminalId, "idle", "agent"));
+      applyEvent(
+        terminalId,
+        detectedEvent(terminalId, "idle", "agent"),
+        fromReplay,
+      );
     }, AGENT_IDLE_DEBOUNCE_MS),
   );
 }
@@ -666,7 +694,26 @@ function scheduleAgentIdle(terminalId: string) {
  * `planDetection`'s decision, then dispatch a `"detected"` event if the plan
  * calls for one now (a debounced "idle" only dispatches once its timer
  * actually fires, via scheduleAgentIdle above). */
-function applyDetection(terminalId: string, result: DetectionResult) {
+/**
+ * Apply a detector's result.
+ *
+ * `fromReplay` marks a result derived from scrollback the session host replayed
+ * on attach (RFC 0036). Replayed output is genuinely useful — it is often the
+ * only evidence of *which* agent owns a reattached terminal, which is why
+ * dropping it outright broke agent detection — but it describes the past, so it
+ * is applied as identity and state without the two side effects that would
+ * announce it as news:
+ *
+ * - it cannot raise attention (see `applyEvent`), and
+ * - the flag rides the idle-debounce timers it arms, so the delayed event they
+ *   dispatch is still recognised as describing the past rather than arriving as
+ *   a fresh live tick after the replay is over.
+ */
+function applyDetection(
+  terminalId: string,
+  result: DetectionResult,
+  fromReplay = false,
+) {
   // Pi (and any agent that stamps a catalog id) emits OSC 133 A/B/C around
   // *message zones*, not shell prompts — A at the start of each render, C at
   // the end. Treating those as shell idle/working flickers the tab through a
@@ -679,14 +726,17 @@ function applyDetection(terminalId: string, result: DetectionResult) {
   }
 
   const plan = planDetection(result);
-  if (plan.shellTimerAction === "schedule") scheduleShellIdle(terminalId);
+  if (plan.shellTimerAction === "schedule")
+    scheduleShellIdle(terminalId, fromReplay);
   else if (plan.shellTimerAction === "clear") clearShellIdleTimer(terminalId);
-  if (plan.agentTimerAction === "schedule") scheduleAgentIdle(terminalId);
+  if (plan.agentTimerAction === "schedule")
+    scheduleAgentIdle(terminalId, fromReplay);
   else if (plan.agentTimerAction === "clear") clearAgentIdleTimer(terminalId);
   if (plan.dispatch) {
     applyEvent(
       terminalId,
       detectedEvent(terminalId, plan.dispatch.status, plan.dispatch.source),
+      fromReplay,
     );
   }
   // Identity detectors (pi's title) carry a catalog id — stamp it so a later
@@ -949,7 +999,13 @@ function noteForeground(
       (source === "tick" ? ` atPrompt=${fg.atPrompt}` : ""),
   );
   maybeResolveResumeHint(terminalId, fg.leader, fg.cwd);
-  checkPromptDemotion(terminalId, fg.atPrompt);
+  // The seed is the *baseline*, not a transition (RFC 0036). It reports the
+  // foreground this session was already sitting in when we attached, which
+  // says nothing about anything having just happened. Reducing it as a
+  // transition is how a reattached agent found at its shell prompt read as a
+  // turn that had just completed — indicator and bell included. Only a live
+  // tick means the shell reclaimed the prompt while we were watching.
+  if (source === "tick") checkPromptDemotion(terminalId, fg.atPrompt);
 }
 
 /**
@@ -1038,10 +1094,6 @@ function attachSession(terminalId: string) {
     agentPgid: null,
     agentCatalogId: null,
     hookSessionTimestamp: null,
-    // Only suppress when restore says "idle and already seen" — a restored
-    // needsAttention:true (never acked) or mid-working phase must still
-    // surface attention on the next idle.
-    suppressNextAttention: state.activity === "idle" && !state.needsAttention,
     fgSessionId: null,
     cleanupOsc: () => {},
     cleanupFg: () => {},
@@ -1061,14 +1113,19 @@ function attachSession(terminalId: string) {
       `${trackedAgents.size} tracked total)`,
   );
 
+  // Opt in to the scrollback the session host replays on attach (RFC 0036).
+  // It is the *only* evidence of which agent owns a reattached terminal —
+  // filtering it out silenced agent detection entirely — so it is taken as
+  // identity and passed to `applyDetection` marked as replay, which keeps it
+  // from announcing turns that were over before the app started.
   entry.cleanupOsc = getTerminalService().subscribeOsc(
     terminalId,
-    ({ code, payload }) => {
+    ({ code, payload }, { replay }) => {
       const detected = detectFromOsc(code, payload);
       logOscEvent(entry, terminalId, code, payload, detected);
       if (detected) {
         const wasAgent = entry.state.isAgent;
-        applyDetection(terminalId, detected);
+        applyDetection(terminalId, detected, replay);
         if (!wasAgent && entry.state.isAgent) {
           // Promotion from OSC alone. On Windows this is the *only* way a
           // terminal becomes an agent, so silence here meant an unexplained
@@ -1096,8 +1153,9 @@ function attachSession(terminalId: string) {
         wasAgentWorking,
         entry.agentCatalogId,
       );
-      if (idle) applyDetection(terminalId, idle);
+      if (idle) applyDetection(terminalId, idle, replay);
     },
+    { includeReplay: true },
   ).dispose;
 
   // Raw-PTY-output fallback (Cursor Agent's spinner, when its OSC status
@@ -1105,10 +1163,11 @@ function attachSession(terminalId: string) {
   // subscription above; a separate stream entirely.
   entry.cleanupOutput = getTerminalService().subscribeOutput(
     terminalId,
-    (chunk) => {
+    (chunk, { replay }) => {
       const result = detectFromOutput(chunk);
-      if (result) applyDetection(terminalId, result);
+      if (result) applyDetection(terminalId, result, replay);
     },
+    { includeReplay: true },
   ).dispose;
 
   // Bind the foreground stream (and seed it) to the current PTY session — a

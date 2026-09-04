@@ -121,9 +121,9 @@ ctx.subscriptions.push(
 );
 ```
 
-| Method                                                                                    | What it does                                                                                                                |
-| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| [`subscribeOsc(terminalId, handler)`](/api/types/interfaces/TerminalService#subscribeosc) | Subscribe to parsed OSC sequences from a terminal's PTY stream. Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+| Method                                                                                              | What it does                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`subscribeOsc(terminalId, handler, options?)`](/api/types/interfaces/TerminalService#subscribeosc) | Subscribe to parsed OSC sequences from a terminal's PTY stream. Live output only unless `{ includeReplay: true }` — see [Replayed scrollback](#replayed-scrollback). Returns a [`Disposable`](/api/types/interfaces/Disposable). |
 
 Each event is an [`OscEvent`](/api/types/interfaces/OscEvent).
 
@@ -149,9 +149,41 @@ ctx.subscriptions.push(
 );
 ```
 
-| Method                                                                                          | What it does                                                                                                    |
-| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| [`subscribeOutput(terminalId, handler)`](/api/types/interfaces/TerminalService#subscribeoutput) | Subscribe to raw PTY output chunks from a terminal. Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+| Method                                                                                                    | What it does                                                                                                    |
+| --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [`subscribeOutput(terminalId, handler, options?)`](/api/types/interfaces/TerminalService#subscribeoutput) | Subscribe to raw PTY output chunks from a terminal. Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+
+## Replayed scrollback
+
+A terminal session outlives the app. Attaching to one that is already running
+makes the session host replay its recent scrollback, and those bytes look
+exactly like output arriving right now.
+
+Both `subscribeOutput` and `subscribeOsc` deliver **live output only** by
+default, so you never have to think about this: re-attaching to a terminal
+cannot make your extension believe a burst of activity just happened. That
+default is what you want for anything that treats output as a signal — "the
+agent is working", "something changed", a notification.
+
+Pass `{ includeReplay: true }` when you want the history: rendering scrollback,
+or working out which program is running in a terminal you have only just
+attached to. Each chunk then arrives with an
+[`OutputOrigin`](/api/types/interfaces/OutputOrigin) saying which kind it is.
+
+```ts
+ctx.subscriptions.push(
+  ctx.terminals.subscribeOutput(
+    terminalId,
+    (chunk, { replay }) => {
+      identifyProgram(chunk); // history is evidence…
+      if (!replay) noteActivity(); // …but only live output is activity
+    },
+    { includeReplay: true },
+  ),
+);
+```
+
+See [`SubscribeOutputOptions`](/api/types/interfaces/SubscribeOutputOptions).
 
 ## Active terminal
 

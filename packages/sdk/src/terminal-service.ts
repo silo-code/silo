@@ -26,6 +26,53 @@ export interface OscEvent {
   payload: string;
 }
 
+/**
+ * Where a chunk of terminal output came from in time.
+ *
+ * A terminal session outlives the app, so re-attaching to one replays the
+ * session host's recent scrollback — bytes that are byte-for-byte identical to
+ * live output but describe things that already happened, sometimes long ago.
+ * Treating them as live is what makes a reattached agent terminal announce a
+ * turn that finished before the app started.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface OutputOrigin {
+  /**
+   * `true` when the chunk is scrollback the session host is replaying on
+   * attach, `false` when the session produced it just now.
+   *
+   * Only ever `true` for a subscription that opted in with
+   * {@link SubscribeOutputOptions.includeReplay}.
+   */
+  replay: boolean;
+}
+
+/**
+ * Options for {@link TerminalService.subscribeOutput} and
+ * {@link TerminalService.subscribeOsc}.
+ *
+ * @category Consumer Services
+ * @public
+ */
+export interface SubscribeOutputOptions {
+  /**
+   * Deliver the scrollback the session host replays when re-attaching to a
+   * terminal, in addition to live output. Defaults to `false`.
+   *
+   * Leave it off for anything that reads output as *activity* — "the agent is
+   * working", "something just happened", a notification — because replayed
+   * bytes would fire all of it for events that are already over.
+   *
+   * Turn it on for anything that needs the terminal's *history*: rendering the
+   * scrollback, or identifying which program is running in a terminal you have
+   * only just attached to. Each chunk then arrives with an
+   * {@link OutputOrigin} saying which kind it is.
+   */
+  includeReplay?: boolean;
+}
+
 // Re-export the terminal domain types so consumers can name them from the SDK.
 export type { TerminalKind, TerminalRecord } from "./domain-types";
 
@@ -234,10 +281,19 @@ export interface TerminalService extends TabAdornmentMethods {
    * });
    * ctx.subscriptions.push(sub);
    * ```
+   *
+   * @remarks
+   * OSC sequences ride the raw output stream, so the same replay rule applies
+   * as for {@link TerminalService.subscribeOutput}: by default only sequences
+   * from **live** output are delivered, and `{ includeReplay: true }` adds
+   * those found in the scrollback replayed on attach. Status titles are the
+   * usual reason to leave it off — a replayed "busy" title describes a turn
+   * that is already over.
    */
   subscribeOsc(
     terminalId: string,
-    handler: (event: OscEvent) => void,
+    handler: (event: OscEvent, origin: OutputOrigin) => void,
+    options?: SubscribeOutputOptions,
   ): Disposable;
 
   /**
@@ -256,21 +312,45 @@ export interface TerminalService extends TabAdornmentMethods {
    * not the underlying PTY session id, so it survives terminal recreation within
    * the same record.
    *
+   * By default only **live** output is delivered. A terminal session outlives
+   * the app, so attaching to one replays its recent scrollback; without this
+   * default every reattach would look like a burst of activity happening right
+   * now. Pass `{ includeReplay: true }` to receive that history too — each
+   * chunk then arrives with an {@link OutputOrigin} saying which kind it is.
+   *
    * Returns a {@link Disposable} that cancels the subscription.
    *
    * @example
    * ```ts
    * // Track the last time any output arrived to confirm agent activity.
+   * // Replayed scrollback is excluded by default, so re-attaching to a
+   * // long-idle terminal doesn't read as fresh activity.
    * let lastOutputAt = 0;
    * const sub = ctx.terminals.subscribeOutput(terminalId, () => {
    *   lastOutputAt = Date.now();
    * });
    * ctx.subscriptions.push(sub);
    * ```
+   *
+   * @example
+   * ```ts
+   * // Opt in to the replayed scrollback — needed to work out what is running
+   * // in a terminal you just attached to — and keep the two apart.
+   * const sub = ctx.terminals.subscribeOutput(
+   *   terminalId,
+   *   (chunk, { replay }) => {
+   *     identifyProgram(chunk);           // history is evidence
+   *     if (!replay) noteActivity();      // …but only live output is activity
+   *   },
+   *   { includeReplay: true },
+   * );
+   * ctx.subscriptions.push(sub);
+   * ```
    */
   subscribeOutput(
     terminalId: string,
-    handler: (data: string) => void,
+    handler: (data: string, origin: OutputOrigin) => void,
+    options?: SubscribeOutputOptions,
   ): Disposable;
 
   /**

@@ -1,6 +1,6 @@
 # ~~Interface: TerminalTabDecorationProvider~~
 
-Defined in: [packages/sdk/src/terminal-service.ts:49](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L49)
+Defined in: [packages/sdk/src/terminal-service.ts:96](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L96)
 
 ## Deprecated
 
@@ -15,7 +15,7 @@ trailing-indicator provider kept as a shim over the adornment registry.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:51](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L51)
+Defined in: [packages/sdk/src/terminal-service.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L98)
 
 Unique id — conventionally `"<extension-id>.tab-decoration"`.
 
@@ -29,7 +29,7 @@ provide(terminalId):
   | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:56](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L56)
+Defined in: [packages/sdk/src/terminal-service.ts:103](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L103)
 
 Called synchronously for each terminal tab during render. Return `null`
 to contribute nothing for this terminal.

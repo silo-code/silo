@@ -15,6 +15,7 @@ import {
   withRestoredMouseEncoding,
   type MouseEncoding,
 } from "./terminal-mouse-encoding";
+import { shouldPaintChunk } from "./terminal-replay";
 import {
   AgentIconGlyph,
   DND_MIME,
@@ -703,7 +704,11 @@ export function TerminalPanel(
         // restored snapshot has been written, then flushed in order — so the
         // redraw and cursor land after the history, not baked into the replay.
         let replayed = needsCreate; // created sessions have nothing to replay
-        const pendingLive: string[] = [];
+        // Whether the persisted `SerializeAddon` buffer supplied any scrollback
+        // on this attach. Decides what happens to the session host's own ring
+        // replay: see `shouldPaintChunk` (RFC 0036 / issue #500).
+        let restoredFromBuffer = false;
+        const pending: Array<{ data: string; replay: boolean }> = [];
         let lastActivityWrite = 0;
         const writeLive = (data: string) => {
           term.write(data);
@@ -714,23 +719,42 @@ export function TerminalPanel(
             tRec!.lastActiveAt = new Date(now).toISOString();
           }
         };
-        const outSub = session.onData((data) => {
-          if (!replayed) {
-            pendingLive.push(data);
+        const deliver = (data: string, replay: boolean) => {
+          if (!shouldPaintChunk(replay, restoredFromBuffer)) return;
+          // Replayed scrollback is history, not activity: paint it, but don't
+          // mark the buffer dirty or bump `lastActiveAt` for output that
+          // finished before this attach.
+          if (replay) {
+            term.write(data);
             return;
           }
           writeLive(data);
-        });
+        };
+        // Opt in to the ring replay: it is the only scrollback there is when no
+        // persisted buffer exists. Everything the session host sends is held
+        // until the restore below settles, because whether to paint the replay
+        // depends on what that restore produced.
+        const outSub = session.onData(
+          (data, { replay }) => {
+            if (!replayed) {
+              pending.push({ data, replay });
+              return;
+            }
+            deliver(data, replay);
+          },
+          { includeReplay: true },
+        );
 
-        // Restore the previous buffer on attach, then release buffered live output.
+        // Restore the previous buffer on attach, then release buffered output.
         if (!needsCreate) {
           const restored = await session.getBuffer();
           if (restored.length > 0) {
             term.write(restored);
           }
+          restoredFromBuffer = restored.length > 0;
           replayed = true;
-          for (const d of pendingLive) writeLive(d);
-          pendingLive.length = 0;
+          for (const p of pending) deliver(p.data, p.replay);
+          pending.length = 0;
         } else if (replayFromRef.current) {
           // Auto-recreated after a 404: replay the old session's persisted buffer
           // so scrollback survives the reboot, then flush any live output.
@@ -770,9 +794,13 @@ export function TerminalPanel(
             term.write(formatResumeBox(lines));
           }
           notifyTerminalSessionRecreated(terminalId);
+          // The old session's buffer is on screen, so a ring replay from the
+          // *new* session (there is none — it was just created) would be the
+          // same double-paint this guards against everywhere else.
+          restoredFromBuffer = restored.length > 0;
           replayed = true;
-          for (const d of pendingLive) writeLive(d);
-          pendingLive.length = 0;
+          for (const p of pending) deliver(p.data, p.replay);
+          pending.length = 0;
         }
 
         const saveTimer = window.setInterval(() => {

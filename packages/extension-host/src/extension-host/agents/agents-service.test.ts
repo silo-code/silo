@@ -91,7 +91,11 @@ const readNewHookEventsMock = vi.mocked(readNewHookEvents);
 
 const svc = getAgentsService();
 
-type OscCallback = (ev: { code: number; payload: string }) => void;
+type OscCallback = (
+  ev: { code: number; payload: string },
+  origin: { replay: boolean },
+) => void;
+type OutputCallback = (chunk: string, origin: { replay: boolean }) => void;
 type FgCallback = (fg: {
   pgid: number;
   atPrompt: boolean;
@@ -100,6 +104,7 @@ type FgCallback = (fg: {
 }) => void;
 
 const oscCallbacks = new Map<string, OscCallback>();
+const outputCallbacks = new Map<string, OutputCallback>();
 const fgCallbacks = new Map<string, FgCallback>();
 
 function makeWorkspace(id: string): WorkspaceInternal {
@@ -123,6 +128,7 @@ beforeEach(() => {
   getActive.mockReset().mockReturnValue(null);
   readNewHookEventsMock.mockReset().mockResolvedValue([]);
   oscCallbacks.clear();
+  outputCallbacks.clear();
   fgCallbacks.clear();
 
   subscribeOsc
@@ -131,7 +137,12 @@ beforeEach(() => {
       oscCallbacks.set(terminalId, cb);
       return { dispose: () => oscCallbacks.delete(terminalId) };
     });
-  subscribeOutput.mockReset().mockImplementation(() => ({ dispose: () => {} }));
+  subscribeOutput
+    .mockReset()
+    .mockImplementation((terminalId: string, cb: OutputCallback) => {
+      outputCallbacks.set(terminalId, cb);
+      return { dispose: () => outputCallbacks.delete(terminalId) };
+    });
   onTerminalForeground
     .mockReset()
     .mockImplementation((sessionId: string, cb: FgCallback) => {
@@ -641,8 +652,23 @@ describe("AgentsService — Grok session-file resume", () => {
   });
 });
 
-function osc(terminalId: string, code: number, payload: string) {
-  oscCallbacks.get(terminalId)?.({ code, payload });
+/**
+ * Deliver an OSC sequence to a terminal's detector. `replay` marks it as
+ * scrollback the session host replayed on attach rather than something the
+ * session just emitted (RFC 0036).
+ */
+function osc(
+  terminalId: string,
+  code: number,
+  payload: string,
+  replay = false,
+) {
+  oscCallbacks.get(terminalId)?.({ code, payload }, { replay });
+}
+
+/** Deliver a raw output chunk to a terminal's detector. See {@link osc}. */
+function output(terminalId: string, chunk: string, replay = false) {
+  outputCallbacks.get(terminalId)?.(chunk, { replay });
 }
 
 function foreground(
@@ -845,11 +871,17 @@ describe("AgentsService — demotion cancels pending agent-idle debounce", () =>
   });
 });
 
-describe("AgentsService — restored acknowledged idle does not re-flag attention", () => {
-  it("swallows the first post-restore working→idle, then flags a later real turn", async () => {
-    const id = "t-restored-idle";
-    const sessionId = "sess-restored-idle";
-    // Simulate a prior session the user already acknowledged before restart.
+// RFC 0036 / issue #500. Re-attaching replays the session host's ring, so the
+// detectors see a burst of old OSC titles — a whole finished turn, complete
+// with its "done" marker. Before replay was tagged, that read as a turn
+// finishing right now: indicators lit up and completion bells fired for work
+// that ended before the app started. The replay is still needed (it is the only
+// evidence of *which* agent owns a reattached terminal), so it is applied as
+// identity and state, but never as attention.
+describe("AgentsService — replayed output never raises attention", () => {
+  it("settles a replayed turn to idle without flagging attention", async () => {
+    const id = "t-replay-idle";
+    const sessionId = "sess-replay-idle";
     store.agentState[id] = {
       workspaceId: `ws-${id}`,
       isAgent: true,
@@ -863,30 +895,57 @@ describe("AgentsService — restored acknowledged idle does not re-flag attentio
 
     await attachTerminal(id, sessionId);
     getActive.mockReturnValue(null); // not the focused tab
-    expect(svc.getByTerminalId(id)?.needsAttention).toBe(false);
-    expect(svc.getByTerminalId(id)?.activity).toBe("idle");
 
-    // Reattach redraw: braille → ✳ debounce → idle. Must not look like a
-    // brand-new finished turn the user hasn't seen.
-    osc(id, 0, "⠀");
-    expect(svc.getByTerminalId(id)?.activity).toBe("working");
-    osc(id, 0, "✳ done");
+    // The whole turn arrives at once out of the ring.
+    osc(id, 0, "\u2800", true);
+    osc(id, 0, "\u2733 done", true);
     vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+
     expect(svc.getByTerminalId(id)?.activity).toBe("idle");
     expect(svc.getByTerminalId(id)?.needsAttention).toBe(false);
 
-    // A later real turn while still unfocused should raise attention.
-    osc(id, 0, "⠀");
+    // A genuinely live turn afterwards still flags attention normally.
+    osc(id, 0, "\u2800");
     expect(svc.getByTerminalId(id)?.activity).toBe("working");
-    osc(id, 0, "✳ done");
+    osc(id, 0, "\u2733 done");
     vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
     expect(svc.getByTerminalId(id)?.activity).toBe("idle");
     expect(svc.getByTerminalId(id)?.needsAttention).toBe(true);
   });
 
-  it("does not suppress when restore still had needsAttention pending", async () => {
-    const id = "t-restored-attn";
-    const sessionId = "sess-restored-attn";
+  it("suppresses attention for an agent persisted mid-working", async () => {
+    // The case the old `suppressNextAttention` guard missed: it only armed when
+    // the restored state was `idle && !needsAttention`, so a terminal saved
+    // while its agent was still working announced a phantom completion.
+    const id = "t-replay-midwork";
+    const sessionId = "sess-replay-midwork";
+    store.agentState[id] = {
+      workspaceId: `ws-${id}`,
+      isAgent: true,
+      activity: "working",
+      needsAttention: false,
+      workingSource: "agent",
+      workingSince: "2026-07-28T19:00:00.000Z",
+      agentId: "claude",
+      agentName: "Claude Code",
+      lastLiveAt: "2026-07-28T19:00:00.000Z",
+    };
+
+    await attachTerminal(id, sessionId);
+    getActive.mockReturnValue(null);
+
+    osc(id, 0, "\u2733 done", true);
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(false);
+  });
+
+  it("keeps an unacknowledged attention that was restored from disk", async () => {
+    // The user was owed this before the restart and never saw it. Suppression
+    // is about not *raising* attention from stale evidence, not about clearing
+    // attention that is still outstanding.
+    const id = "t-replay-attn";
+    const sessionId = "sess-replay-attn";
     store.agentState[id] = {
       workspaceId: `ws-${id}`,
       isAgent: true,
@@ -902,12 +961,68 @@ describe("AgentsService — restored acknowledged idle does not re-flag attentio
     await attachTerminal(id, sessionId);
     expect(svc.getByTerminalId(id)?.needsAttention).toBe(true);
 
-    // working→idle while unfocused should keep/refresh attention (guard off).
     getActive.mockReturnValue(null);
-    osc(id, 0, "⠀");
-    osc(id, 0, "✳ done");
+    osc(id, 0, "\u2800", true);
+    osc(id, 0, "\u2733 done", true);
     vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+
     expect(svc.getByTerminalId(id)?.needsAttention).toBe(true);
+  });
+
+  it("still identifies the agent from replayed output alone", async () => {
+    // Why the replay can't simply be dropped: on a reattached terminal it is
+    // often the only thing that says an agent is running here at all.
+    const id = "t-replay-identity";
+    const sessionId = "sess-replay-identity";
+    await attachTerminal(id, sessionId);
+    getActive.mockReturnValue(null);
+
+    expect(svc.getByTerminalId(id)?.isAgent).toBe(false);
+
+    osc(id, 0, "\u2800", true);
+
+    expect(svc.getByTerminalId(id)?.isAgent).toBe(true);
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(false);
+  });
+
+  it("applies the same rule to the raw-output detector", async () => {
+    // Cursor Agent's spinner is detected off raw PTY output rather than OSC —
+    // an independent stream with the identical staleness problem.
+    const id = "t-replay-output";
+    const sessionId = "sess-replay-output";
+    await attachTerminal(id, sessionId);
+    getActive.mockReturnValue(null);
+
+    output(id, "\u2801 Generating", true);
+
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(false);
+  });
+
+  it("keeps a debounced idle marked as replay when its timer fires", async () => {
+    // The idle transition rides a debounce timer that elapses long after the
+    // replay is over. If the flag didn't travel with it, the delayed event
+    // would arrive looking like an ordinary live tick and re-raise exactly the
+    // attention the replay suppression just prevented.
+    const id = "t-replay-timer";
+    const sessionId = "sess-replay-timer";
+    store.agentState[id] = {
+      workspaceId: `ws-${id}`,
+      isAgent: true,
+      activity: "idle",
+      needsAttention: false,
+      workingSource: null,
+      agentId: "claude",
+      agentName: "Claude Code",
+      lastLiveAt: "2026-07-28T19:00:00.000Z",
+    };
+
+    await attachTerminal(id, sessionId);
+    getActive.mockReturnValue(null);
+
+    osc(id, 0, "\u2733 done", true);
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS * 4);
+
+    expect(svc.getByTerminalId(id)?.needsAttention).toBe(false);
   });
 });
 

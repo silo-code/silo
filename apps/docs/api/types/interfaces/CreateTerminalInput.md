@@ -1,6 +1,6 @@
 # Interface: CreateTerminalInput
 
-Defined in: [packages/sdk/src/terminal-service.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L65)
+Defined in: [packages/sdk/src/terminal-service.ts:112](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L112)
 
 Input for [TerminalService.create](TerminalService.md#create).
 
@@ -12,7 +12,7 @@ Input for [TerminalService.create](TerminalService.md#create).
 optional kind?: TerminalKind;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:74](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L74)
+Defined in: [packages/sdk/src/terminal-service.ts:121](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L121)
 
 Terminal kind. Defaults to `"shell"`.
 
@@ -31,7 +31,7 @@ typed. Start agents via an Agent Profile instead.
 optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:76](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L76)
+Defined in: [packages/sdk/src/terminal-service.ts:123](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L123)
 
 Working directory; falls back to the workspace folder when absent.
 
@@ -43,6 +43,6 @@ Working directory; falls back to the workspace folder when absent.
 optional workspaceId?: string;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:78](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L78)
+Defined in: [packages/sdk/src/terminal-service.ts:125](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L125)
 
 Target workspace; defaults to the active workspace.

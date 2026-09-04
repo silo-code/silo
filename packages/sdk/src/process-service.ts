@@ -1,4 +1,5 @@
 import type { Disposable } from "./types";
+import type { OutputOrigin, SubscribeOutputOptions } from "./terminal-service";
 
 // `ctx.process` — persistent process / PTY sessions that survive app restarts.
 // The core primitive under the terminal (and future task runners / REPLs).
@@ -59,8 +60,20 @@ export interface ProcessSession {
   getBuffer(): Promise<string>;
   /** Persist an output buffer for later restore. */
   saveBuffer(data: string): Promise<void>;
-  /** Subscribe to output data. Dispose to stop listening. */
-  onData(listener: (data: string) => void): Disposable;
+  /**
+   * Subscribe to output data. Dispose to stop listening.
+   *
+   * By default only **live** output is delivered. A session survives app
+   * restarts, so re-attaching to one replays its recent scrollback; delivering
+   * that by default would make every reattach look like a burst of output
+   * arriving right now. Pass `{ includeReplay: true }` to receive the replayed
+   * history too — for instance to paint scrollback into a fresh view — and read
+   * `origin.replay` to tell the two apart.
+   */
+  onData(
+    listener: (data: string, origin: OutputOrigin) => void,
+    options?: SubscribeOutputOptions,
+  ): Disposable;
   /** Subscribe to session exit. Dispose to stop listening. */
   onExit(listener: (exitCode: number) => void): Disposable;
 }
