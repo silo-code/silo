@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.46.0](https://github.com/silo-code/silo/compare/sdk-v0.45.0...sdk-v0.46.0) (2026-09-04)
+
+
+### Features
+
+* **navigator:** add panelId to NavigatorViewProps ([#505](https://github.com/silo-code/silo/issues/505)) ([e012d9d](https://github.com/silo-code/silo/commit/e012d9d7f38c10d73068ff8de5b82cfad1900898))
+
 ## [0.45.0](https://github.com/silo-code/silo/compare/sdk-v0.44.0...sdk-v0.45.0) (2026-09-04)
 
 
