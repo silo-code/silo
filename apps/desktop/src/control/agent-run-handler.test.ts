@@ -25,7 +25,10 @@ vi.mock("@silo-code/extension-host/internal", async (importOriginal) => {
     await importOriginal<typeof import("@silo-code/extension-host/internal")>();
   return {
     ...actual,
-    createAgentProfilesService: () => ({ list: () => [], launch: launchProfile }),
+    createAgentProfilesService: () => ({
+      list: () => [],
+      launch: launchProfile,
+    }),
   };
 });
 
