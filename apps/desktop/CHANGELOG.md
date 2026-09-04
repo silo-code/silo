@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.64.0](https://github.com/silo-code/silo/compare/silo-v0.63.0...silo-v0.64.0) (2026-09-04)
+
+
+### Features
+
+* **agents:** deliver an opening prompt on launch, publish ctx.agents.profiles ([#498](https://github.com/silo-code/silo/issues/498)) ([195caca](https://github.com/silo-code/silo/commit/195caca96ea412ad7227b3b584692397de17a336))
+* **cli:** add a Control API return channel for the `silo` command (RFC 0034) ([#499](https://github.com/silo-code/silo/issues/499)) ([eba8531](https://github.com/silo-code/silo/commit/eba85314dd8b7e25f15c1ae2dd388f84b12faa71))
+* **navigator:** restore the active-workspace background fill ([#494](https://github.com/silo-code/silo/issues/494)) ([a3a70e1](https://github.com/silo-code/silo/commit/a3a70e1ccf8d7a20702956535e28426a6aff7f11))
+
+
+### Bug Fixes
+
+* **agents:** pulse the Agents navigator activity dots on first view ([#495](https://github.com/silo-code/silo/issues/495)) ([65bcc80](https://github.com/silo-code/silo/commit/65bcc80b78b2a13f0b90ec601ac51c065107d167))
+* **terminal:** reap the PTY a cancelled init spawned ([#492](https://github.com/silo-code/silo/issues/492)) ([8808c98](https://github.com/silo-code/silo/commit/8808c98bedcf7cca9e070f03370b682a32135b76))
+* **terminal:** tag reattach replay on the wire (RFC 0036) ([#502](https://github.com/silo-code/silo/issues/502)) ([18e498e](https://github.com/silo-code/silo/commit/18e498e256af20653ec856bbdd845bcf7d177757))
+
 ## [0.63.0](https://github.com/silo-code/silo/compare/silo-v0.62.0...silo-v0.63.0) (2026-09-02)
 
 
