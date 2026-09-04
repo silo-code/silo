@@ -678,6 +678,22 @@
   font-family: var(--silo-font-ui);
 }
 
+/* Branches modal title (ctx.ui.showModal's `title` — see BranchModalTitle):
+ * "Branches" plus the folder switcher in a multi-root workspace. */
+.git-branch-modal-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+/* Single-folder case: name the folder, but it isn't a control (nothing else
+ * to switch to) — muted and un-bolded so it doesn't compete with the heading. */
+.git-branch-modal-title-folder {
+  font-weight: 400;
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-lo);
+}
+
 /* Short how-to line above the worktree list (not a Callout — body copy). */
 .git-wt-lead {
   margin: 0;

@@ -468,7 +468,7 @@ export function GitView({
   // Open the branch manager modal. The host owns the chrome; refresh() re-reads
   // status after a switch/create so the header reflects the new branch.
   function openBranchManager() {
-    showBranchManager(ctx, { folder, onSwitched: refresh });
+    showBranchManager(ctx, { folder, workspaceId, onSwitched: refresh });
   }
 
   // Open the worktree manager modal for this repo. Everything inside is

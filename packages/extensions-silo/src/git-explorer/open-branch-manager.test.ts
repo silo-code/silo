@@ -11,11 +11,15 @@ const state = {
 
 describe("resolveManageBranchesTarget", () => {
   it("defaults to the active workspace's primary folder", () => {
-    expect(resolveManageBranchesTarget(state)).toEqual({ folder: "/repo-a" });
+    expect(resolveManageBranchesTarget(state)).toEqual({
+      workspaceId: "a",
+      folder: "/repo-a",
+    });
   });
 
   it("honors an explicit workspaceId", () => {
     expect(resolveManageBranchesTarget(state, { workspaceId: "b" })).toEqual({
+      workspaceId: "b",
       folder: "/repo-b",
     });
   });
@@ -26,7 +30,7 @@ describe("resolveManageBranchesTarget", () => {
         workspaceId: "a",
         folder: "/repo-a-feat",
       }),
-    ).toEqual({ folder: "/repo-a-feat" });
+    ).toEqual({ workspaceId: "a", folder: "/repo-a-feat" });
   });
 
   it("returns null when the workspace is missing", () => {

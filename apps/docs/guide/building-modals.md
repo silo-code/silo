@@ -34,7 +34,7 @@ if (name === null) return; // cancelled
 // 3. Custom content — you render the inside, the host renders the shell
 const result = await ctx.ui.showModal<string>(
   (close) => <MyPicker onPick={(id) => close(id)} />,
-  { title: "Switch branches", size: "md", dismissible: true },
+  { title: "Branches", size: "md", dismissible: true },
 );
 ```
 
@@ -112,7 +112,7 @@ Rules embodied above: primary action rightmost and disabled until valid;
 
 ## Recipe: a picker modal {#recipe-a-picker-modal}
 
-Filter-above-list — the pattern behind Switch Branches. There's no combined
+Filter-above-list — the pattern behind Branches. There's no combined
 component on purpose; the composition is the API:
 
 ```tsx
@@ -172,7 +172,7 @@ That renders as:
 
 <div class="silo-demo silo-demo-block">
   <div class="silo-demo-modal" style="max-width:460px;">
-    <div class="modal-title">Switch branches</div>
+    <div class="modal-title">Branches</div>
     <div class="silo-search-input" style="margin-bottom:10px;">
       <svg class="icon" width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5.2" stroke="currentColor" stroke-width="1.4"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
       <input placeholder="Filter branches…" readonly>
