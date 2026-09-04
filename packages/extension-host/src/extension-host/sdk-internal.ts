@@ -487,6 +487,13 @@ export {
   resolveProfileAgentId,
 } from "./agents/agent-prompt";
 
+// The same service `ctx.agents.profiles` is built from, for the **CLI's**
+// `agent.run` (RFC 0034). It is the one place the prompt precheck, the dialect
+// decision, and the launch stay in sync — so the Control handler delegates the
+// launch to it rather than re-deriving any of that, which is also why
+// composition and dialect selection above stay unexported.
+export { createAgentProfilesService } from "./agents/agent-profiles-service";
+
 // Tooltip — re-exported here so core.* extensions can still import it from the
 // internal barrel. The component itself is now public (@silo-code/sdk); the
 // host component file re-exports from SDK and owns the CSS load.

@@ -8,6 +8,10 @@ mod webview_bridge;
 pub use commands::cli::local_flag_response;
 pub use commands::session_env::{apply_bin_path, take_session_env};
 
+// The Control API's client half (RFC 0034) — dispatched from `main.rs` before
+// Tauri init, alongside the local-flag path above.
+pub use commands::control::client::{control_request, run as run_control_request};
+
 #[cfg(windows)]
 pub use commands::session_windows::run_daemon as run_win_session_host;
 
@@ -24,13 +28,15 @@ pub fn run() {
     // self-forked daemon inherits it from this process's env.
     #[cfg(unix)]
     {
-        let id = context.config().identifier.as_str();
-        let ns: &str = if id == "com.silo.desktop" {
-            "prod"
-        } else {
-            id.strip_prefix("com.silo.desktop.").unwrap_or("other")
-        };
-        std::env::set_var("SILO_PTY_NS", ns);
+        // `commands::identity` owns this mapping so the Control API's client
+        // half (RFC 0034), which runs before Tauri init in a process with no
+        // AppHandle, derives the same namespace from the same rule.
+        debug_assert_eq!(
+            context.config().identifier.as_str(),
+            commands::identity::IDENTIFIER,
+            "build.rs resolved a different identifier than the Tauri context"
+        );
+        std::env::set_var("SILO_PTY_NS", commands::identity::ns());
     }
 
     // Root for Silo's per-user runtime state (terminal session registry,
@@ -58,23 +64,8 @@ pub fn run() {
     // session-maintenance sweep reads workspace files from here to decide
     // which PTY sessions are still owned by a known workspace.
     #[cfg(unix)]
-    {
-        let config_root = std::env::var("SILO_CONFIG_DIR")
-            .ok()
-            .filter(|s| !s.is_empty())
-            .map(std::path::PathBuf::from)
-            .or_else(|| {
-                dirs::home_dir().map(|h| {
-                    h.join(".config").join(
-                        commands::session_maintenance::config_root_name(
-                            context.config().identifier.as_str(),
-                        ),
-                    )
-                })
-            });
-        if let Some(root) = config_root {
-            std::env::set_var("SILO_CONFIG_ROOT", root);
-        }
+    if let Some(root) = commands::identity::config_root() {
+        std::env::set_var("SILO_CONFIG_ROOT", root);
     }
 
     let builder = tauri::Builder::default();
@@ -135,6 +126,14 @@ pub fn run() {
             // SILO_AUTOMATION env var both required). Excluded from release.
             #[cfg(feature = "automation")]
             commands::automation::register(app.handle());
+
+            // The Control API listener (RFC 0034). Unlike automation above, this
+            // is in **every** build — the `0600` socket inside a `0700` runtime
+            // directory is what gates it, not a Cargo feature. Bound here rather
+            // than on webview-ready so socket presence means "the process is
+            // alive", which is the predicate `silo status` needs to be able to
+            // report a wedged webview at all.
+            commands::control::host::register(app.handle());
 
             // macOS: install a Shift-state monitor at the AppKit layer.
             // WebKit eats every JS key event during an HTML5 drag, but

@@ -679,11 +679,53 @@ _Avoid_: Top-level command (collides with the shorthand path form)
 Who answers a command: **Local** (the binary itself), **Disk-read** (the binary,
 reading ADR 0022's config tier — no GUI needed), **Forward** (the running app,
 fire-and-forget, exit 0), **Control** (the running app, round-trip, real stdout
-and exit code — the [Control API](proposals/0034-control-api/proposal.md), unbuilt). The
-dividing line: config lives on disk, live state needs Control.
+and exit code — the [Control API](proposals/0034-control-api.md)). The
+dividing line: config lives on disk, live state needs Control. A command may be
+**both**: `silo ws list` is Disk-read with a Control **overlay**, and the answer
+records whether the overlay was applied so "not open" and "unknown because
+nothing was running" stay distinguishable.
 _Avoid_: IPC / RPC as a synonym for Forward (the dev automation channel,
 [ADR 0012](decisions/0012-dev-automation-rpc.md), is a different surface);
 "async" for Forward (the problem is that there is no answer, not that it is late)
+
+**Control API**:
+The request/response channel a `silo` command uses to ask a running instance
+something and print the answer — an OS-gated Unix socket (Windows: named pipe)
+in ADR 0022's runtime tier, one newline-delimited request and one response per
+connection. Not reachable by a browser, a page, or the network; not reachable by
+extensions, which have `ctx`. Distinct from the **dev automation RPC**
+([ADR 0012](decisions/0012-dev-automation-rpc.md)), which is a loopback HTTP
+server compiled out of release builds.
+_Avoid_: "the CLI server" / "the daemon" (nothing long-running is added — the
+app itself listens); "the IPC channel" (Silo has several)
+
+**Envelope**:
+The one JSON shape every Control response takes, on the wire and on `--json`
+stdout: `v`, `ok`, then `data` **or** `error`, plus `silo` (version, identity).
+`v` versions the envelope as a whole and changes only on a breaking change to
+that shape; a command's own `data` is documented per verb and grows by adding
+fields.
+_Avoid_: Payload / result (those are `data`, the part _inside_ the envelope);
+"the response format" when the per-command `data` shape is what is meant
+
+**Op**:
+One named entry in the Control API's **allowlist** — `status`, `ws.live`,
+`agent.run`. A closed set: a name not in it is refused with `denied`, so the
+channel never becomes a passthrough to whatever the host can do. Each op is
+labelled **read** or **mutate**; the label is documentation and audit surface,
+not a second runtime gate (there is only one principal behind a `0600` socket).
+No op may require user confirmation — one that would is not admitted.
+_Avoid_: Command (a `silo` command may send an op, send none, or send one only
+as an overlay); endpoint / route (there is no URL space)
+
+**Readiness**:
+Whether a running instance's webview has registered its Control dispatcher and
+can serve ops. Reported by `silo status` as `webview: "ready" | "starting"`, and
+what `--launch` waits on. Deliberately **not** the same as the socket existing:
+the socket is bound at process start, so its presence means only "the process is
+alive" — which is what lets a wedged app be told apart from no app at all.
+_Avoid_: "running" / "up" for readiness (an instance can be running and unable
+to answer); "loaded"
 
 **CLI workspace identity**:
 How a workspace is addressed on the command line: the folder path of its primary

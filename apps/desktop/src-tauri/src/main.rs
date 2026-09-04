@@ -73,9 +73,26 @@ fn main() {
     // Local flags (ADR 0047): `-h` / `--help` / `-V` / `--version` are answered
     // by the binary itself, on stdout, with no GUI — so they neither focus a
     // running window nor cold-launch the app.
-    if let Some(text) = silo_lib::local_flag_response(&std::env::args().collect::<Vec<_>>()) {
+    let argv: Vec<String> = std::env::args().collect();
+    if let Some(text) = silo_lib::local_flag_response(&argv) {
         print!("{text}");
         std::process::exit(0);
+    }
+
+    // Control mode (RFC 0034): `silo status`, `silo ws list`, `silo agent run`
+    // round-trip to the running instance and report a real result and exit code
+    // here, on this process's stdout.
+    //
+    // Dispatched at this seam — after the local flags, before any Tauri init —
+    // for the same reason `--help` is: it keeps a Control command from going
+    // through `tauri-plugin-single-instance`, focusing a window, or cold-waking
+    // the app as a side effect of a read. Every non-Control invocation returns
+    // `None` and falls through to the Forward path untouched.
+    let cwd = std::env::current_dir()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| "/".to_string());
+    if let Some(request) = silo_lib::control_request(&argv, &cwd) {
+        std::process::exit(silo_lib::run_control_request(&request));
     }
 
     silo_lib::run()

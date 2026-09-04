@@ -40,21 +40,6 @@ const FIRST_SWEEP_DELAY: Duration = Duration::from_secs(90);
 const SECOND_SWEEP_DELAY: Duration = Duration::from_secs(10 * 60);
 const SWEEP_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
-/// Map a bundle identifier to its user-config root folder name under
-/// `~/.config` — must mirror `configRootName` in
-/// `packages/extension-host/src/services/user-config.ts` exactly, since the
-/// workspace files this sweep reads live under the TS-owned config root.
-pub fn config_root_name(identifier: &str) -> String {
-    const STABLE: &str = "com.silo.desktop";
-    if identifier == STABLE {
-        return "silo".to_string();
-    }
-    let suffix = identifier
-        .strip_prefix("com.silo.desktop.")
-        .unwrap_or(identifier);
-    format!("silo-{suffix}")
-}
-
 /// The `workspaces/` dir under the config root exported by `lib.rs::run()`
 /// as `SILO_CONFIG_ROOT` (mirroring the `SILO_DATA_DIR`/`SILO_PTY_NS`
 /// pattern). `None` when unset — the sweep then never runs.
@@ -299,13 +284,6 @@ mod tests {
             "an empty value (e.g. a forgotten `export FOO=`) must not disable it either"
         );
         assert!(auto_sweep_disabled(Some("1".to_string())));
-    }
-
-    #[test]
-    fn config_root_name_mirrors_ts_mapping() {
-        assert_eq!(config_root_name("com.silo.desktop"), "silo");
-        assert_eq!(config_root_name("com.silo.desktop.dev"), "silo-dev");
-        assert_eq!(config_root_name("com.example.other"), "silo-com.example.other");
     }
 
     #[test]

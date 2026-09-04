@@ -17,6 +17,7 @@ import {
 } from "@silo-code/extension-host";
 import { activateBuiltins } from "./builtins";
 import { initCliOpenHandler } from "./cli";
+import { initControlHandler } from "./control";
 
 // Install global error/rejection capture before anything else runs so boot
 // errors and extension errors are routed to the silo:errors Output channel.
@@ -73,7 +74,13 @@ userConfigDir()
   .then(hydrate)
   .then(() => {
     markStartupHydrated();
-    return initCliOpenHandler();
+    // Both after hydration: a directory open must match an existing workspace
+    // instead of creating a duplicate, and the Control ops read
+    // `store.workspaces` — answering `ws list` against an unhydrated store would
+    // report "no workspaces" to a caller that acts on it (RFC 0034 R10).
+    // Registering the Control handler is also what tells the host its webview is
+    // **ready**, which `silo status` reports and `--launch` waits on.
+    return Promise.all([initCliOpenHandler(), initControlHandler()]);
   })
   .catch((err) => {
     // Unblock the StatusBar sequence even if hydrate/cli fails.
