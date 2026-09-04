@@ -3,10 +3,12 @@ import type { GitBranch } from "../git/git-api";
 import {
   branchActions,
   filterBranches,
+  folderLabel,
   isPublished,
   localNameFor,
   orderBranches,
   remoteBranchNames,
+  workspaceFolders,
 } from "./branch-model";
 
 const local = (name: string, current = false): GitBranch => ({
@@ -131,5 +133,28 @@ describe("branchActions", () => {
   it("limits the current branch to push/publish (no switch/rename/delete)", () => {
     expect(branchActions(local("main", true), true)).toEqual(["push"]);
     expect(branchActions(local("main", true), false)).toEqual(["publish"]);
+  });
+});
+
+describe("folderLabel", () => {
+  it("returns the trailing path segment", () => {
+    expect(folderLabel("/Users/dave/code/silo")).toBe("silo");
+    expect(folderLabel("/repo/")).toBe("repo");
+  });
+
+  it("returns the input unchanged when there is no segment", () => {
+    expect(folderLabel("/")).toBe("/");
+  });
+});
+
+describe("workspaceFolders", () => {
+  it("puts the primary folder first, then any extras", () => {
+    expect(
+      workspaceFolders({ folder: "/repo", extraFolders: ["/wt-a", "/wt-b"] }),
+    ).toEqual(["/repo", "/wt-a", "/wt-b"]);
+  });
+
+  it("returns just the primary folder when there are no extras", () => {
+    expect(workspaceFolders({ folder: "/repo" })).toEqual(["/repo"]);
   });
 });

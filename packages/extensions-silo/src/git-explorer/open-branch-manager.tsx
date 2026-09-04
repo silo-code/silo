@@ -2,6 +2,8 @@ import type { ExtensionContext, NotifyOptions } from "@silo-code/sdk";
 import { GitErrorModal } from "./GitErrorModal";
 import { summarizeGitError } from "./notify-error";
 import { BranchManager } from "./BranchManager";
+import { BranchModalTitle } from "./BranchModalTitle";
+import { createFolderSelection } from "./folder-selection";
 
 /** Command id — opened from the Git panel menu, a keybinding, or the palette. */
 export const MANAGE_BRANCHES_COMMAND = "silo.git.manageBranches";
@@ -24,6 +26,7 @@ export function showBranchManager(
   ctx: ExtensionContext,
   opts: {
     folder: string;
+    workspaceId: string;
     /** Called after a switch/create so a live Git view can re-read status. */
     onSwitched?: () => void;
   },
@@ -46,17 +49,31 @@ export function showBranchManager(
     ctx.ui.notify("error", summary, options);
   };
 
+  // Shared with the title's folder switcher — see folder-selection.ts for why
+  // this can't just be component state.
+  const selection = createFolderSelection(opts.folder);
+
   ctx.ui.showModal(
     (close) => (
       <BranchManager
         ctx={ctx}
-        folder={opts.folder}
+        selection={selection}
         close={close}
         onSwitched={opts.onSwitched ?? (() => {})}
         notifyError={notifyError}
       />
     ),
-    { title: "Switch branches", size: "md", dismissible: true },
+    {
+      title: (
+        <BranchModalTitle
+          ctx={ctx}
+          workspaceId={opts.workspaceId}
+          selection={selection}
+        />
+      ),
+      size: "md",
+      dismissible: true,
+    },
   );
 }
 
@@ -70,10 +87,10 @@ export function resolveManageBranchesTarget(
     all: readonly { id: string; folder: string }[];
   },
   args?: ManageBranchesArgs,
-): { folder: string } | null {
+): { workspaceId: string; folder: string } | null {
   const ws = args?.workspaceId
     ? state.all.find((w) => w.id === args.workspaceId)
     : state.all.find((w) => w.id === state.activeId);
   if (!ws) return null;
-  return { folder: args?.folder ?? ws.folder };
+  return { workspaceId: ws.id, folder: args?.folder ?? ws.folder };
 }

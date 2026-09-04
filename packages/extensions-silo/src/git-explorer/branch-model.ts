@@ -77,3 +77,19 @@ export function branchActions(
   if (!branch.current) actions.push("rename", "delete");
   return actions;
 }
+
+/** Basename of a folder path, for the multi-root folder switcher's label. */
+export function folderLabel(folder: string): string {
+  return folder.split("/").filter(Boolean).pop() ?? folder;
+}
+
+/**
+ * A workspace's folders in display order — the primary folder first, then any
+ * extras (multi-root) — for the Branches modal's folder switcher.
+ */
+export function workspaceFolders(ws: {
+  folder: string;
+  extraFolders?: readonly string[];
+}): string[] {
+  return [ws.folder, ...(ws.extraFolders ?? [])];
+}

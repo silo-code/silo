@@ -2,7 +2,10 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import {
@@ -38,11 +41,15 @@ import {
 import { ForceDeleteDialog } from "./ForceDeleteDialog";
 import { BranchNameDialog } from "./BranchNameDialog";
 import { ICON_PUSH } from "./git-icons";
+import type { FolderSelection } from "./folder-selection";
 
 export interface BranchManagerProps {
   ctx: ExtensionContext;
-  /** The repo working directory whose branches are managed. */
-  folder: string;
+  /**
+   * Which repo working directory's branches are managed — shared with the
+   * modal title's folder switcher, see folder-selection.ts.
+   */
+  selection: FolderSelection;
   /** Close the host modal. */
   close: () => void;
   /** Called after a switch/create so the panel re-reads status. */
@@ -60,16 +67,42 @@ export interface BranchManagerProps {
  */
 export function BranchManager({
   ctx,
-  folder,
+  selection,
   close,
   onSwitched,
   notifyError,
 }: BranchManagerProps) {
+  // Shared with the modal title's folder switcher — see folder-selection.ts.
+  const folder = useSyncExternalStore(
+    selection.subscribe,
+    selection.get,
+    selection.get,
+  );
   const [branches, setBranches] = useState<GitBranch[] | null>(null);
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [pushing, setPushing] = useState<string | null>(null);
+  const [switching, setSwitching] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Picking a different folder starts over: an old query could otherwise
+  // hide every branch in the newly-selected repo.
+  useEffect(() => {
+    setQuery("");
+  }, [folder]);
+
+  // ↓ from the search box hands off to the list's own roving-tabindex item
+  // (List/useFocusGroup then own ↑/↓ + Enter from there).
+  function handleSearchKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key !== "ArrowDown") return;
+    const item = listRef.current?.querySelector<HTMLElement>(
+      '[data-focus-item][tabindex="0"]',
+    );
+    if (!item) return;
+    e.preventDefault();
+    item.focus();
+  }
 
   // ADR 0037. Branches aren't part of the store's live snapshot (they only
   // change via the mutators below, all of which live here) — reload() stays
@@ -185,7 +218,11 @@ export function BranchManager({
   async function switchTo(b: GitBranch) {
     if (b.current || busy) return;
     setBusy(true);
+    setSwitching(b.name);
     try {
+      // Paint the row as selected before switching: local checkouts resolve
+      // fast enough that closing right away reads as "nothing happened".
+      await new Promise((r) => setTimeout(r, 150));
       if (b.remote) await store.createBranch(localNameFor(b.name), b.name);
       else await store.switchBranch(b.name);
       onSwitched();
@@ -193,6 +230,7 @@ export function BranchManager({
     } catch (err) {
       notifyError(`Switch to "${b.name}" failed`, err);
       setBusy(false);
+      setSwitching(null);
     }
   }
 
@@ -283,6 +321,9 @@ export function BranchManager({
   }
 
   function rowTrailing(b: GitBranch) {
+    if (switching === b.name) {
+      return <ArrowsClockwise size={14} className="git-branch-spin" />;
+    }
     const parts: ReactNode[] = [];
     if (b.current) {
       parts.push(
@@ -300,6 +341,7 @@ export function BranchManager({
         >
           <IconButton
             size="sm"
+            tabIndex={-1}
             aria-label={published ? `Push ${b.name}` : `Publish ${b.name}`}
             disabled={pushing === b.name}
             onClick={() => void pushBranch(b)}
@@ -319,6 +361,7 @@ export function BranchManager({
           <Tooltip key="rename" content="Rename branch">
             <IconButton
               size="sm"
+              tabIndex={-1}
               aria-label={`Rename ${b.name}`}
               onClick={() => void rename(b)}
             >
@@ -328,6 +371,7 @@ export function BranchManager({
           <Tooltip key="delete" content="Delete branch">
             <IconButton
               size="sm"
+              tabIndex={-1}
               aria-label={`Delete ${b.name}`}
               onClick={() => void del(b)}
             >
@@ -342,14 +386,16 @@ export function BranchManager({
 
   return (
     <div className="git-branch-modal">
-      <SearchInput
-        value={query}
-        onValueChange={setQuery}
-        placeholder="Filter branches…"
-        autoFocus
-      />
+      <div onKeyDown={handleSearchKeyDown}>
+        <SearchInput
+          value={query}
+          onValueChange={setQuery}
+          placeholder="Filter branches…"
+          autoFocus
+        />
+      </div>
 
-      <div className="git-branch-list-scroll silo-scroll">
+      <div ref={listRef} className="git-branch-list-scroll silo-scroll">
         {branches === null ? (
           <EmptyState
             icon={<ArrowsClockwise size={22} className="git-branch-spin" />}
@@ -362,7 +408,7 @@ export function BranchManager({
             {visible.map((b) => (
               <ListRow
                 key={(b.remote ? "r:" : "l:") + b.name}
-                selected={b.current}
+                selected={switching ? switching === b.name : b.current}
                 leading={
                   b.remote ? <Cloud size={15} /> : <GitBranchIcon size={15} />
                 }

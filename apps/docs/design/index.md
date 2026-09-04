@@ -52,7 +52,7 @@ import {
 } from "@silo-code/sdk";
 
 ctx.ui.showModal((close) => <MyPicker onDone={close} />, {
-  title: "Switch branches",
+  title: "Branches",
   size: "md",
   dismissible: true,
 });
