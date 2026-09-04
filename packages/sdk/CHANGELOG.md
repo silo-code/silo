@@ -1,5 +1,17 @@
 # @silo-code/sdk
 
+## [0.45.0](https://github.com/silo-code/silo/compare/sdk-v0.44.0...sdk-v0.45.0) (2026-09-04)
+
+
+### Features
+
+* **agents:** deliver an opening prompt on launch, publish ctx.agents.profiles ([#498](https://github.com/silo-code/silo/issues/498)) ([195caca](https://github.com/silo-code/silo/commit/195caca96ea412ad7227b3b584692397de17a336))
+
+
+### Bug Fixes
+
+* **agents:** pulse the Agents navigator activity dots on first view ([#495](https://github.com/silo-code/silo/issues/495)) ([65bcc80](https://github.com/silo-code/silo/commit/65bcc80b78b2a13f0b90ec601ac51c065107d167))
+
 ## [0.44.0](https://github.com/silo-code/silo/compare/sdk-v0.43.0...sdk-v0.44.0) (2026-09-02)
 
 
