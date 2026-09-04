@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.65.0](https://github.com/silo-code/silo/compare/silo-v0.64.0...silo-v0.65.0) (2026-09-04)
+
+
+### Features
+
+* **git-explorer:** branches modal keyboard nav + folder switcher ([#503](https://github.com/silo-code/silo/issues/503)) ([4b1d8ce](https://github.com/silo-code/silo/commit/4b1d8ce957c51ea45f7cd2a2884ff8a58900c78f))
+* **navigator:** add panelId to NavigatorViewProps ([#505](https://github.com/silo-code/silo/issues/505)) ([e012d9d](https://github.com/silo-code/silo/commit/e012d9d7f38c10d73068ff8de5b82cfad1900898))
+
 ## [0.64.0](https://github.com/silo-code/silo/compare/silo-v0.63.0...silo-v0.64.0) (2026-09-04)
 
 
