@@ -10,33 +10,43 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
-/// The un-namespaced base for session sockets. These are **ephemeral runtime
-/// state, not editable config** (ADR 0022, tier 3), so they live in the OS
-/// runtime/temp dir — never under `~/.config/silo`. Prefer `$XDG_RUNTIME_DIR`
-/// (Linux — a 0700 tmpfs auto-cleared on logout); otherwise the per-user temp
-/// dir `$TMPDIR` (the macOS analog, `/var/folders/…/T`), which is auto-cleaned
-/// and short enough to keep socket paths under `sockaddr_un`'s ~104-byte
-/// `sun_path` limit; failing both, `/tmp`.
-fn base_dir() -> PathBuf {
-    resolve_base(
+/// The runtime tier's root — the directory Silo's ephemeral per-user sockets
+/// live *under*. These are **ephemeral runtime state, not editable config**
+/// (ADR 0022, tier 3), so they belong in the OS runtime/temp dir — never under
+/// `~/.config/silo`. Prefer `$XDG_RUNTIME_DIR` (Linux — a 0700 tmpfs
+/// auto-cleared on logout); otherwise the per-user temp dir `$TMPDIR` (the
+/// macOS analog, `/var/folders/…/T`), which is auto-cleaned and short enough to
+/// keep socket paths under `sockaddr_un`'s ~104-byte `sun_path` limit; failing
+/// both, `/tmp`.
+///
+/// Public because this precedence has exactly one owner: the Control API's
+/// socket (RFC 0034) is a sibling of the PTY sockets in the same tier, and
+/// duplicating the fallback chain would let the two drift.
+pub fn runtime_base() -> PathBuf {
+    resolve_runtime_base(
         std::env::var("XDG_RUNTIME_DIR").ok(),
         std::env::var("TMPDIR").ok(),
     )
 }
 
-/// Pick the runtime base from env values. Pure, for testing.
-fn resolve_base(xdg_runtime_dir: Option<String>, tmpdir: Option<String>) -> PathBuf {
+/// Pick the runtime tier's root from env values. Pure, for testing.
+fn resolve_runtime_base(xdg_runtime_dir: Option<String>, tmpdir: Option<String>) -> PathBuf {
     if let Some(x) = xdg_runtime_dir {
         if !x.is_empty() {
-            return PathBuf::from(x).join("silo-pty");
+            return PathBuf::from(x);
         }
     }
     if let Some(t) = tmpdir {
         if !t.is_empty() {
-            return PathBuf::from(t).join("silo-pty");
+            return PathBuf::from(t);
         }
     }
-    PathBuf::from("/tmp").join("silo-pty")
+    PathBuf::from("/tmp")
+}
+
+/// The un-namespaced base for session sockets: `<runtime-base>/silo-pty`.
+fn base_dir() -> PathBuf {
+    runtime_base().join("silo-pty")
 }
 
 /// Apply an optional namespace as a subdir of the base. Pure, for testing.
@@ -92,27 +102,37 @@ mod tests {
     }
 
     #[test]
-    fn base_prefers_xdg_then_tmpdir_then_tmp() {
+    fn runtime_base_prefers_xdg_then_tmpdir_then_tmp() {
         // XDG_RUNTIME_DIR wins (Linux).
         assert_eq!(
-            resolve_base(Some("/run/user/1000".into()), Some("/var/T".into())),
-            PathBuf::from("/run/user/1000/silo-pty")
+            resolve_runtime_base(Some("/run/user/1000".into()), Some("/var/T".into())),
+            PathBuf::from("/run/user/1000")
         );
         // No XDG → TMPDIR (macOS).
         assert_eq!(
-            resolve_base(None, Some("/var/folders/ab/cd/T".into())),
-            PathBuf::from("/var/folders/ab/cd/T/silo-pty")
+            resolve_runtime_base(None, Some("/var/folders/ab/cd/T".into())),
+            PathBuf::from("/var/folders/ab/cd/T")
         );
         // Empty values are treated as unset.
         assert_eq!(
-            resolve_base(Some(String::new()), Some("/var/T".into())),
-            PathBuf::from("/var/T/silo-pty")
+            resolve_runtime_base(Some(String::new()), Some("/var/T".into())),
+            PathBuf::from("/var/T")
         );
         // Neither set → /tmp.
-        assert_eq!(resolve_base(None, None), PathBuf::from("/tmp/silo-pty"));
+        assert_eq!(resolve_runtime_base(None, None), PathBuf::from("/tmp"));
         assert_eq!(
-            resolve_base(None, Some(String::new())),
-            PathBuf::from("/tmp/silo-pty")
+            resolve_runtime_base(None, Some(String::new())),
+            PathBuf::from("/tmp")
+        );
+    }
+
+    #[test]
+    fn session_base_hangs_off_the_runtime_base() {
+        // The PTY sockets are one namespace *inside* the shared runtime tier,
+        // which is what lets the Control socket sit beside them (RFC 0034).
+        assert_eq!(
+            resolve_runtime_base(Some("/run/user/1000".into()), None).join("silo-pty"),
+            PathBuf::from("/run/user/1000/silo-pty")
         );
     }
 }

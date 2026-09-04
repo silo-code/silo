@@ -122,7 +122,7 @@ per-listener `includeReplay` fan-out, the terminal's paint decision, and the
 agents service's identity-without-attention behavior.
 
 The durable decision is recorded in
-[ADR 0049](../decisions/0049-replay-is-tagged-not-filtered.md); `Replay` and
+[ADR 0050](../decisions/0050-replay-is-tagged-not-filtered.md); `Replay` and
 `Live Output` are in [the glossary](../domain-language.md); the public surface
 is on the roadmap and in the `ctx` reference.
 

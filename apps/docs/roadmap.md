@@ -206,8 +206,10 @@ opens/activates a workspace for that folder; `silo <file>` opens the file in the
 active workspace; `silo agent run [--profile <id>]` launches an Agent Profile
 (RFC 0033) into the workspace the shell is in. Built on
 `tauri-plugin-single-instance` — a second launch is forwarded to the running
-instance rather than opening a new window. Install the command from
-**File → Install `silo` Command in PATH**. See [the `silo` command](/guide/cli).
+instance rather than opening a new window. Commands that report a result
+(`status`, `ws list`, `agent run`) go through the Control API below instead.
+Install the command from **File → Install `silo` Command in PATH**. See
+[the `silo` command](/guide/cli).
 
 ### CLI noun grammar <Badge type="info" text="planned" />
 
@@ -223,14 +225,26 @@ opening in whichever workspace the app last focused, and `silo .` from a
 subdirectory switches to the project above it instead of creating a second
 workspace.
 
-### CLI Control API <Badge type="info" text="planned" />
+### CLI Control API <Badge type="tip" text="stable" />
 
-A return channel, so a `silo` command can answer: real stdout, a real exit
-code, and one `--json` envelope. Today the CLI is a one-way forwarder — argv in,
+A return channel, so a `silo` command can answer: real stdout, a real exit code,
+and one `--json` envelope. The CLI used to be a one-way forwarder — argv in,
 `exit 0` out — which is fine for "open this folder" and useless for "which
-workspaces exist" or "what id did that get". Workspace and profile _listings_
-don't need it (they read the config files on disk); live state, returning the id
-of something just created, and interactive pickers do.
+workspaces exist" or "what id did that get".
+
+`silo status` reports whether Silo is running and whether it is actually serving
+commands (so a wedged app looks different from no app). `silo ws list` reads
+your workspace files from disk — it works with Silo closed — and annotates each
+row with live state when Silo is up. `silo agent run` now returns the id of the
+terminal it created. Every one takes `--json` for one parseable line, and every
+one exits with a code you can branch on. `--launch` starts Silo and waits for it
+when nothing is running.
+
+The channel is a per-user Unix socket (Windows: a named pipe) that only
+processes running as you can reach — no port, nothing a web page can touch — and
+it accepts a closed list of named operations rather than anything the app can
+do. Extensions don't reach it; they have `ctx`. Separate from the dev-only
+Automation RPC below. See [the `silo` command](/guide/cli#commands-that-answer-back).
 
 ### Automation RPC <Badge type="warning" text="experimental" />
 

@@ -3,7 +3,7 @@ status: accepted
 date: 2026-09-03
 ---
 
-# 0049. Reattach replay is tagged on the wire, not filtered out
+# 0050. Reattach replay is tagged on the wire, not filtered out
 
 ## Context
 

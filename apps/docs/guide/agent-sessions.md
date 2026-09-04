@@ -32,7 +32,9 @@ Every profile is also addressable by name:
   **Set as default**). Bind **New Agent** once and it keeps working even if you
   rename the profile behind it.
 - **The shell** — `silo agent run --profile <id>` (or just `silo agent run` for
-  the default) starts the profile in whatever workspace your shell is in. See
+  the default) starts the profile in whatever workspace your shell is in, and
+  prints the id of the terminal it created. It needs Silo already running —
+  add `--launch` to start it first. See
   [the `silo` command](/guide/cli#launching-an-agent).
 
 A profile is just a way to start a terminal — everything after that is the

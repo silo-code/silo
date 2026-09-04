@@ -332,6 +332,49 @@ shipped Forward behavior.
 This tightens rule 7 rather than loosening it, and ratifies RFC 0034's split —
 it converts `agent run` and leaves `open` / `install` / `uninstall` alone.
 
+### Amendment 2026-09-03 — the Control channel shipped, and three things it changed
+
+RFC 0034 built the Control mode rule 6 described as "unbuilt": an OS-gated Unix
+socket / Windows named pipe, one shared `ok` / `data` / `error` / `silo`
+envelope, and a closed operation allowlist. `silo status`, `silo ws list`, and a
+converted `silo agent run` are its first consumers. Three amendments follow,
+each one a thing this ADR says needs a dated line.
+
+**1. Two global flags: `--json` and `--launch`.** Rule 7 already required
+`--json` on every command that returns data; it is now a real flag with a
+specified shape, and a top-level `v` versions that envelope as a whole. The
+error vocabulary rule 7 called for is **closed** — `invalid-args`,
+`not-running`, `not-found`, `denied`, `timeout`, `failed`, `internal` — each
+mapped to a distinct exit code, with exit 1 left unassigned so a crash stays
+distinguishable from every classified outcome. `--launch` is new: it is how a
+Control command opts into starting a cold app, and it waits on the instance
+reporting itself **ready** rather than on the socket existing, so a request is
+never delivered to an instance whose webview cannot serve it.
+
+**2. `ws list` is Disk-read _with a Control overlay_ — a blend of two of rule 6's
+four modes, not one of them.** The disk half is the answer and works with
+nothing running, exactly as rule 6 intends; a running instance then annotates
+each row with what disk cannot know (open vs. soft-closed, which is active).
+Rule 6's line — "config lives on disk, live state needs Control" — turns out to
+describe two halves of _one command_ rather than two separate commands. The
+obligation that comes with the blend is that the response must say **whether the
+overlay was applied**, so "not open" and "unknown because nothing was running"
+never look alike. Any future enumeration verb should expect the same shape.
+
+**3. `silo agent run` conforms to rule 5, and no longer cold-launches.** The
+divergence recorded in Consequences above — "`silo agent run` in a directory
+inside no workspace **creates** one rather than failing" — is fixed: it is now
+`not-found`. Reserving `ws` alongside `agent` is likewise live, so `silo ws open`
+reports usage instead of opening a folder. The deliberate break is the third
+change: with nothing running the command exits `not-running` (3) instead of
+stashing the request and running the agent on the next launch, and `--launch`
+restores that behavior explicitly. Taken while the command has no established
+users, because the alternative is a CLI whose cold behavior varies per verb —
+the thing an agent cannot learn once and rely on. The Forward commands keep
+their cold-launch arm untouched, per the 2026-09-02 amendment's entry test:
+`silo <path>`, `install`, and `uninstall` are `open(1)`-shaped, and opening Silo
+when Silo is closed is their normal case.
+
 ## Alternatives considered
 
 - **Keep the path form as the only way to open things** ("there is no
