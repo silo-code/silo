@@ -274,9 +274,27 @@ export function detectCodexIdleAfterWorking(
 /** Leading marker an OSC 0 title may carry: a spinner frame (either range),
  * Claude's `✳`, or Codex's action-required marker — plus trailing whitespace.
  * Built from the same constants the detectors match on, so a glyph Silo can
- * *detect* is always a glyph Silo can *strip*. */
+ * *detect* is always a glyph Silo can *strip*.
+ *
+ * OMP is the one agent whose status marker does **not** lead: it prints its
+ * `π` brand first and its state separator second (`π ⠋ label`, `π > label`).
+ * Honouring the invariant above therefore means allowing an optional `π `
+ * ahead of the marker set, plus a branch for OMP's three non-glyph separators
+ * (`>` idle, `!` waiting on you, `:` working on Windows). Both OMP branches
+ * are anchored behind the brand on purpose — a bare leading `>` is an
+ * ordinary thing for an unrelated program to put in a title, and stripping it
+ * generally would be wrong.
+ *
+ * pi is unaffected, and `agent-osc-detectors.test.ts` asserts it: `π - ` is
+ * neither a marker glyph nor one of OMP's separators, so `π - notes - repo`
+ * comes back untouched. */
+const OMP_BRAND_PREFIX_RE_SRC = `\\u03c0[ ]`;
 const LEADING_MARKER_RE = new RegExp(
-  `^(?:[\\u2800-\\u28ff\\u25d0-\\u25d3]|${CLAUDE_IDLE_CHAR}|\\[ [!.] \\])\\s*`,
+  `^(?:` +
+    `(?:${OMP_BRAND_PREFIX_RE_SRC})?` +
+    `(?:[\\u2800-\\u28ff\\u25d0-\\u25d3]|${CLAUDE_IDLE_CHAR}|\\[ [!.] \\])` +
+    `|${OMP_BRAND_PREFIX_RE_SRC}[>!:]` +
+    `)\\s*`,
 );
 
 /** Cursor Agent encodes status as a trailing `" - <emoji?> <status>"` segment
@@ -355,6 +373,120 @@ export function detectPiTitle(
     identity: true,
     agentId: "pi",
   };
+}
+
+// ---------------------------------------------------------------------------
+// OMP / Oh My Pi  (OSC 0 title — identity AND run state)
+// ---------------------------------------------------------------------------
+// OMP is a pi fork, and its title leads with the same `π` brand glyph — but
+// there the resemblance stops. Confirmed live against omp 18.1.10 (a real PTY
+// capture) and against its own `src/utils/title-generator.ts`, whose
+// `buildTerminalTitleWithState` composes the title as `π <separator> <label>`:
+//
+//   π > label      the user's turn                     → idle
+//   π ⠋ label      working (10 braille frames, 80 ms)  → working
+//   π ! label      blocked on the user (ask/approval)  → idle
+//   π: label       `tui.titleState` off                → idle, no state
+//   π              no label and disabled               → idle, no state
+//
+// `label` is the generated session name, falling back to the cwd basename;
+// when there is no label the separator trails the brand (`π >`), so the state
+// is present even before a session is named. On Windows the working separator
+// is a static `:` rather than an animated frame.
+//
+// This is the ONLY activity signal Silo reads for OMP, and deliberately so:
+// `tui.titleState` defaults to **true**, whereas OMP's OSC 9;4 progress is
+// gated behind `terminal.showProgress`, which defaults to false and lives in
+// a YAML config Silo has no writer for. The title is both the better signal
+// and the one that needs no setup.
+//
+// Two mappings worth stating outright:
+//
+//   - `!` is idle, not working. OMP is waiting on the *user*, which in Silo's
+//     model is exactly when a turn has ended and attention should be raised.
+//     Reporting "working" would leave the tab spinning while it is the user's
+//     move.
+//   - A spinner frame arms the agent-idle debounce rather than promising an
+//     explicit idle, because OMP *animates* the frame instead of re-announcing
+//     that it is still busy — so silence is what ends a turn, the same shape
+//     Copilot's working title uses. The explicit `>` normally arrives first
+//     and clears it; the debounce is the backstop for a turn that ends without
+//     one.
+//
+// DISJOINT FROM pi BY CONSTRUCTION: `-` is not a separator
+// `buildTerminalTitleWithState` can emit, so an OMP title never starts with
+// pi's `π - `; and `-` is none of `>`/`!`/`:`/braille, so a pi title never
+// matches here. `agent-osc-detectors.test.ts` asserts both directions, so an
+// edit to either literal that reintroduces an overlap fails loudly rather
+// than silently resurrecting the misidentification RFC 0037 was written for.
+//
+// Exported so `agent-catalog.ts` can reuse the exact literal as OMP's
+// `titleIdentityPrefix` — the brand is redundant once the tab shows OMP's own
+// icon, exactly as pi's and OpenCode's are.
+export const OMP_TITLE_PREFIX = "π ";
+
+/** The brand on its own — OMP's title with no label and no state separator. */
+const OMP_BRAND = "π";
+/**
+ * `tui.titleState` off: OMP joins brand and label with `": "` and reports no
+ * state at all (`π: my-project`). Note this is **not** the same string as the
+ * Windows *working* separator below, which is a colon surrounded by spaces
+ * (`π : my-project`) — OMP builds the two in different branches, and the
+ * difference is exactly one space. Tested here so a refactor can't merge them.
+ */
+const OMP_STATELESS_PREFIX = "π:";
+/** The user's turn. */
+const OMP_IDLE_SEPARATOR = ">";
+/** OMP is blocked on the user (an ask or an approval prompt). */
+const OMP_ATTENTION_SEPARATOR = "!";
+/**
+ * Windows (and any ConPTY-hosted terminal) gets a static `:` where every other
+ * platform animates a braille frame — OMP does not run a title spinner there.
+ * Without this branch, an OMP turn on Windows would emit no working signal at
+ * all, which is the platform that already has no foreground argv and no hook.
+ */
+const OMP_WINDOWS_WORKING_SEPARATOR = ":";
+
+export function detectOmpTitle(
+  code: number,
+  payload: string,
+): DetectionResult | null {
+  if (code !== 0) return null;
+  const title = payload.trim();
+  // Checked before the `"π "` split below: `π:` has no space after the brand,
+  // so it would otherwise fall through and match nothing.
+  if (title === OMP_BRAND || title.startsWith(OMP_STATELESS_PREFIX)) {
+    return { status: "idle", source: "agent", identity: true, agentId: "omp" };
+  }
+  if (!title.startsWith(OMP_TITLE_PREFIX)) return null;
+
+  const rest = title.slice(OMP_TITLE_PREFIX.length);
+  if (
+    startsWithSpinnerGlyph(rest) ||
+    rest.startsWith(OMP_WINDOWS_WORKING_SEPARATOR)
+  ) {
+    return {
+      status: "working",
+      source: "agent",
+      timer: "schedule-agent",
+      agentId: "omp",
+    };
+  }
+  if (
+    rest.startsWith(OMP_IDLE_SEPARATOR) ||
+    rest.startsWith(OMP_ATTENTION_SEPARATOR)
+  ) {
+    return {
+      status: "idle",
+      source: "agent",
+      identity: true,
+      timer: "clear",
+      agentId: "omp",
+    };
+  }
+  // Anything else after the brand is not a separator OMP emits — notably pi's
+  // `π - <session> - <cwd>`, which must fall through to `null` here.
+  return null;
 }
 
 /**

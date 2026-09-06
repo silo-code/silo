@@ -234,6 +234,27 @@ function PiIcon() {
   );
 }
 
+function OmpIcon() {
+  // OMP brands with the same π glyph pi uses, so the marketing mark mirrors
+  // the in-app one (`agent-icons.ts`): the glyph inside a rounded-square badge.
+  // The enclosure, not the glyph, is what tells the two apart at 16px.
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.2,2.4 H18.8 A2.8,2.8 0 0 1 21.6,5.2 V18.8 A2.8,2.8 0 0 1 18.8,21.6 H5.2 A2.8,2.8 0 0 1 2.4,18.8 V5.2 A2.8,2.8 0 0 1 5.2,2.4 Z M5.2,4.0 A1.2,1.2 0 0 0 4.0,5.2 V18.8 A1.2,1.2 0 0 0 5.2,20.0 H18.8 A1.2,1.2 0 0 0 20.0,18.8 V5.2 A1.2,1.2 0 0 0 18.8,4.0 Z"
+      />
+      <path d="M7.3,7.9 H16.7 A0.95,0.95 0 0 1 16.7,9.8 H7.3 A0.95,0.95 0 0 1 7.3,7.9 Z M9.5,9.8 A0.95,0.95 0 0 1 10.45,10.75 V15.6 A0.95,0.95 0 0 1 8.55,15.6 V10.75 A0.95,0.95 0 0 1 9.5,9.8 Z M14.5,9.8 A0.95,0.95 0 0 1 15.45,10.75 V14.1 A0.95,0.95 0 0 1 13.55,14.1 V10.75 A0.95,0.95 0 0 1 14.5,9.8 Z M13.55 13.9h1.9a1.9 1.9 0 0 0 1.9 1.9v1.9a3.8 3.8 0 0 1-3.8-3.8z" />
+    </svg>
+  );
+}
+
 function OpencodeIcon() {
   // OpenCode's official mark.
   return (
@@ -254,14 +275,32 @@ function OpencodeIcon() {
   );
 }
 
+/**
+ * Exhaustive on purpose. This used to end in a bare `return <OpencodeIcon />`,
+ * which meant adding an id to {@link AgentIconId} silently rendered someone
+ * else's brand in the trust band rather than failing — exactly how OMP first
+ * shipped here wearing OpenCode's mark. With every case named and no fallback,
+ * the next agent added to the union is a compile error until it brings a mark.
+ */
 function AgentIcon({ icon }: { icon: AgentIconId }) {
-  if (icon === "claude") return <ClaudeIcon />;
-  if (icon === "cursor") return <CursorIcon />;
-  if (icon === "codex") return <CodexIcon />;
-  if (icon === "copilot") return <CopilotIcon />;
-  if (icon === "grok") return <GrokIcon />;
-  if (icon === "pi") return <PiIcon />;
-  return <OpencodeIcon />;
+  switch (icon) {
+    case "claude":
+      return <ClaudeIcon />;
+    case "cursor":
+      return <CursorIcon />;
+    case "codex":
+      return <CodexIcon />;
+    case "copilot":
+      return <CopilotIcon />;
+    case "grok":
+      return <GrokIcon />;
+    case "pi":
+      return <PiIcon />;
+    case "omp":
+      return <OmpIcon />;
+    case "opencode":
+      return <OpencodeIcon />;
+  }
 }
 
 function XIcon() {

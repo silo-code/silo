@@ -126,3 +126,4 @@ don't get a proposal at all — see below.
 | [0034](./0034-control-api.md)                                 | Control API — a return channel for the `silo` command             | 2026-09-01 | implemented |
 | [0035](./0035-agent-prompt-composer.md)                       | Choosing an agent and reviewing a prompt before it runs           | 2026-09-03 | draft       |
 | [0036](./0036-replay-tagged-reattach.md)                      | Tagging reattach replay on the wire                               | 2026-09-03 | implemented |
+| [0037](./0037-omp-agent-catalog.md)                           | OMP as a standalone catalog agent                                 | 2026-09-04 | implemented |
