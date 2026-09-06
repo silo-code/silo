@@ -134,9 +134,9 @@ none of this is reliably documented upstream.
   OpenCode's is a project path, so appending a prompt there would set the
   project directory to the prompt text; Copilot's is a subcommand name and
   errors outright. Both are why the union has a `"flag"` member.
-- Recorded 2026-09-02, all seven confirmed by running them: `{ kind: "argv" }`
-  for `claude`, `codex`, `cursor-agent`, `grok`, `pi`;
-  `{ kind: "flag", flag: "--prompt" }` for `opencode`;
+- Recorded 2026-09-02 (`omp` added 2026-09-04), all eight confirmed by running
+  them: `{ kind: "argv" }` for `claude`, `codex`, `cursor-agent`, `grok`, `pi`,
+  `omp`; `{ kind: "flag", flag: "--prompt" }` for `opencode`;
   `{ kind: "flag", flag: "--interactive" }` for `copilot`. Each entry's
   `contract` carries its own evidence, positive and negative.
 

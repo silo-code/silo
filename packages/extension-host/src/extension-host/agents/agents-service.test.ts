@@ -767,6 +767,102 @@ describe("AgentsService — pi identity", () => {
     expect(info?.resumeCommand).toBe("was running pi in /proj");
   });
 
+  it("sticks Bun-wrapped OMP from the foreground pgid argv", async () => {
+    // The gap RFC 0037 / ADR 0051 close: `omp` ships as a Bun script, so its
+    // foreground leader is `bun`. Before this, `noteForeground` only read argv
+    // for a leader of exactly `node`, and an OMP terminal was never resolved
+    // from its process at all.
+    await attachTerminal("t-omp-bun", "sess-omp-bun");
+    invoke.mockImplementation((cmd: string, args?: { args?: string[] }) => {
+      if (cmd === "process_exec" && args?.args?.[0] === "-p") {
+        // Verbatim from a live `ps` poll (omp 18.1.10, 2026-09-04).
+        return Promise.resolve({ stdout: "bun /Users/x/.bun/bin/omp" });
+      }
+      return Promise.resolve(null);
+    });
+    foreground("sess-omp-bun", {
+      pgid: 6262,
+      atPrompt: false,
+      leader: "bun",
+      cwd: "/proj",
+    });
+    await Promise.resolve();
+    const info = svc.getByTerminalId("t-omp-bun");
+    expect(info?.agentId).toBe("omp");
+    expect(info?.agentName).toBe("OMP");
+    expect(info?.isAgent).toBe(true);
+  });
+
+  it("still reads argv for a node leader — the interpreter set widened, it did not move", async () => {
+    await attachTerminal("t-node-still", "sess-node-still");
+    invoke.mockImplementation((cmd: string, args?: { args?: string[] }) => {
+      if (cmd === "process_exec" && args?.args?.[0] === "-p") {
+        return Promise.resolve({
+          stdout: "node /Users/x/.nvm/versions/node/v24.19.0/bin/pi",
+        });
+      }
+      return Promise.resolve(null);
+    });
+    foreground("sess-node-still", {
+      pgid: 7373,
+      atPrompt: false,
+      leader: "node",
+      cwd: "/proj",
+    });
+    await Promise.resolve();
+    expect(svc.getByTerminalId("t-node-still")?.agentId).toBe("pi");
+  });
+
+  it("does not read argv while the terminal sits at its shell prompt", async () => {
+    // The `!atPrompt` guard is unchanged by the widening: a shell that merely
+    // has bun somewhere must not trigger a ps read.
+    await attachTerminal("t-bun-prompt", "sess-bun-prompt");
+    const execCalls: string[] = [];
+    invoke.mockImplementation((cmd: string) => {
+      execCalls.push(cmd);
+      return Promise.resolve(null);
+    });
+    foreground("sess-bun-prompt", {
+      pgid: 8484,
+      atPrompt: true,
+      leader: "bun",
+      cwd: "/proj",
+    });
+    await Promise.resolve();
+    expect(execCalls).not.toContain("process_exec");
+    expect(svc.getByTerminalId("t-bun-prompt")?.agentId).toBeFalsy();
+  });
+
+  it("identifies an OMP terminal from its title alone, with no process read", async () => {
+    // The Windows path, and the plain-shell path before the first foreground
+    // tick: OMP's own OSC 0 title is enough.
+    await attachTerminal("t-omp-title", "sess-omp-title");
+    osc("t-omp-title", 0, "π > omp-pty");
+    const info = svc.getByTerminalId("t-omp-title");
+    expect(info?.agentId).toBe("omp");
+    expect(info?.agentName).toBe("OMP");
+    expect(info?.isAgent).toBe(true);
+    expect(info?.activity).toBe("idle");
+
+    // ...and it tracks the turn from the same signal.
+    osc("t-omp-title", 0, "π ⠋ omp-pty");
+    expect(svc.getByTerminalId("t-omp-title")?.activity).toBe("working");
+    osc("t-omp-title", 0, "π > omp-pty");
+    expect(svc.getByTerminalId("t-omp-title")?.activity).toBe("idle");
+  });
+
+  it("does not let pi's title claim an OMP terminal, or the reverse", async () => {
+    await attachTerminal("t-pi-title", "sess-pi-title");
+    osc("t-pi-title", 0, "π - my session - repo");
+    expect(svc.getByTerminalId("t-pi-title")?.agentId).toBe("pi");
+
+    // The same terminal id must never flip to omp from a pi title, and an OMP
+    // terminal must never flip to pi — the two detectors are disjoint.
+    await attachTerminal("t-omp-title-2", "sess-omp-title-2");
+    osc("t-omp-title-2", 0, "π ! omp-pty");
+    expect(svc.getByTerminalId("t-omp-title-2")?.agentId).toBe("omp");
+  });
+
   it("recognizes a pi argv0 leader in the foreground poll", async () => {
     await attachTerminal("t-pi-leader", "sess-pi-leader");
     foreground("sess-pi-leader", {

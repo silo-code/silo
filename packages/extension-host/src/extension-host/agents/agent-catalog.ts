@@ -3,10 +3,9 @@ import {
   type DetectionResult,
 } from "./agent-osc-detectors";
 import { renderTrackSessionScript } from "./agent-hook-script";
-import {
-  renderPiTrackSessionExtension,
-  buildPiAgentDefinition,
-} from "./catalog/pi";
+import { renderPiTrackSessionExtension } from "./catalog/pi-extension-template";
+import { buildPiAgentDefinition } from "./catalog/pi";
+import { buildOmpAgentDefinition } from "./catalog/omp";
 import { buildClaudeAgentDefinition } from "./catalog/claude";
 import { buildCodexAgentDefinition } from "./catalog/codex";
 import { buildCursorAgentDefinition } from "./catalog/cursor";
@@ -477,12 +476,12 @@ function buildHookCommand(agentId: string): string {
 /**
  * What a thin, hook-resuming agent's `build<Id>AgentDefinition(deps)` factory
  * needs from this module rather than importing back — the same shape
- * `catalog/pi.ts`'s `PiAgentDeps` established (minus `trackScriptRel`, which
- * only pi's extension-file template needs). One shared interface here
- * because all four current implementers (`claude`, `codex`, `cursor`,
- * `copilot`) need exactly this and nothing more; an agent whose resume
- * doesn't need a hook at all (`grok`, `opencode`) skips this and exports a
- * plain object instead.
+ * `catalog/pi-extension-template.ts`'s `PiExtensionAgentDeps` established,
+ * minus `trackScriptRel`, which only an agent whose hook is a rendered
+ * extension file (pi, OMP) needs. One shared interface here because all four
+ * current implementers (`claude`, `codex`, `cursor`, `copilot`) need exactly
+ * this and nothing more; an agent whose resume doesn't need a hook at all
+ * (`grok`, `opencode`) skips this and exports a plain object instead.
  */
 export interface HookAgentDeps {
   /** {@link SILO_HOOK_MARKER} — passed through, not reimported. */
@@ -499,6 +498,11 @@ export interface HookAgentDeps {
 // module stays the SSOT for `SILO_HOOK_MARKER`/`buildHookCommand` with no
 // runtime import cycle back into any agent module.
 const pi: AgentDefinition = buildPiAgentDefinition({
+  marker: SILO_HOOK_MARKER,
+  trackScriptRel: TRACK_SCRIPT_REL,
+  buildHookCommand,
+});
+const omp: AgentDefinition = buildOmpAgentDefinition({
   marker: SILO_HOOK_MARKER,
   trackScriptRel: TRACK_SCRIPT_REL,
   buildHookCommand,
@@ -520,13 +524,32 @@ const copilot: AgentDefinition = buildCopilotAgentDefinition({
   buildHookCommand,
 });
 
-/** Every agent Silo knows about. Order is the detection-dispatch order. */
+/**
+ * Every agent Silo knows about.
+ *
+ * Order carries three separate meanings, so a reorder is never cosmetic:
+ *
+ * 1. **Detection dispatch order** — `detectFromOsc` / `detectFromOutput` /
+ *    `detectIdleAfterWorking` take the first non-null result.
+ * 2. **`processArgsMarkers` tie-break** — `agentByProcessArgs`'s package-path
+ *    pass returns the first entry whose marker matches, and markers CAN
+ *    overlap: pi's `pi-coding-agent` matches inside OMP's own
+ *    `@oh-my-pi/pi-coding-agent` path, which is why `omp` sits before `pi`
+ *    below. `agent-catalog.test.ts` pins that pair so a reorder fails loudly
+ *    instead of silently misidentifying an OMP install as pi (RFC 0037).
+ * 3. **User-visible list order** — `catalogAgentSummaries()` (the `+` menu),
+ *    `hookInstallableAgents()` (the Settings → Agents rows), and
+ *    `scanInstalledAgents()` ("Found on this machine") all preserve this
+ *    array's order.
+ */
 export const AGENT_CATALOG: AgentDefinition[] = [
   claude,
   codex,
   cursor,
   copilot,
   grokAgent,
+  // Before `pi` — see meaning 2 above. Not alphabetical, not arbitrary.
+  omp,
   pi,
   opencodeAgent,
 ];
@@ -578,8 +601,20 @@ export function agentByLeader(leader: string): AgentDefinition | undefined {
 
 /** Interpreters that run an agent CLI as a *script argument*, so argv0 names
  * the runtime rather than the agent. Node covers pi/Claude/Copilot-style
- * installs; bun and deno are here because the same shape applies to them. */
+ * installs; bun covers OMP (`bun /…/.bun/bin/omp`), and deno is here because
+ * the same shape applies to it. */
 const SCRIPT_INTERPRETERS = new Set(["node", "bun", "deno"]);
+
+/**
+ * Is this foreground leader an interpreter that might be *running* an agent
+ * rather than being one? The set above stated once, so `agents-service.ts`'s
+ * foreground handler and `agentByProcessArgs` below can never disagree about
+ * which leaders are worth an argv read (ADR 0051 — before it, the handler
+ * tested `=== "node"` inline and OMP's `bun` leader was never resolved).
+ */
+export function isScriptInterpreter(leader: string): boolean {
+  return SCRIPT_INTERPRETERS.has(leaderBasename(leader));
+}
 
 /**
  * Resolve an agent from a process's full argv when argv0 alone is ambiguous

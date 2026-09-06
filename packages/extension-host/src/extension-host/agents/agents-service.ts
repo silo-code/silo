@@ -24,7 +24,7 @@ import {
   agentById,
   agentByLeader,
   agentByProcessArgs,
-  leaderBasename,
+  isScriptInterpreter,
   catalogAgentSummaries,
   type AgentDefinition,
 } from "./agent-catalog";
@@ -943,9 +943,10 @@ function stickKnownAgentForeground(
   }
 }
 
-/** Node-wrapped agents (pi, Claude, Copilot, …) often report argv0 as `node`.
- * Read the foreground pgid's full command line and match safely. */
-async function resolveNodeWrappedAgent(
+/** Interpreter-wrapped agents report argv0 as the *runtime*, not the agent:
+ * `node` for pi/Claude/Copilot-style installs, `bun` for OMP. Read the
+ * foreground pgid's full command line and match safely (ADR 0051). */
+async function resolveInterpreterWrappedAgent(
   entry: TrackedAgent,
   terminalId: string,
   fg: TerminalForeground,
@@ -970,7 +971,7 @@ async function resolveNodeWrappedAgent(
   stickKnownAgentForeground(live, terminalId, fg, agent);
   maybeResolveResumeHint(terminalId, fg.leader, fg.cwd);
   agentsChannel.debug(
-    `terminal ${terminalId} foreground node-wrapped: pgid=${fg.pgid} resolved agent=${agent.id} argv="${stdout.trim()}"`,
+    `terminal ${terminalId} foreground interpreter-wrapped: pgid=${fg.pgid} leader="${fg.leader}" resolved agent=${agent.id} argv="${stdout.trim()}"`,
   );
 }
 
@@ -987,12 +988,11 @@ function noteForeground(
   if (fg.pgid > 0 && isKnownAgentLeader(fg.leader)) {
     const agent = agentByLeader(fg.leader);
     if (agent) stickKnownAgentForeground(entry, terminalId, fg, agent);
-  } else if (
-    fg.pgid > 0 &&
-    leaderBasename(fg.leader) === "node" &&
-    !fg.atPrompt
-  ) {
-    void resolveNodeWrappedAgent(entry, terminalId, fg);
+  } else if (fg.pgid > 0 && isScriptInterpreter(fg.leader) && !fg.atPrompt) {
+    // Any interpreter the catalog recognizes, not `node` alone: OMP ships as
+    // a Bun script, so its leader is `bun` and this is the only path that
+    // reaches its real argv (ADR 0051).
+    void resolveInterpreterWrappedAgent(entry, terminalId, fg);
   }
   agentsChannel.debug(
     `terminal ${terminalId} foreground ${source}: pgid=${fg.pgid} agentPgid=${entry.agentPgid} leader="${fg.leader}" cwd=${fg.cwd}` +

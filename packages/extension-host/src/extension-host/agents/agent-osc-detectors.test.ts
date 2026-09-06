@@ -5,6 +5,7 @@ import {
   detectCursorAgentOutput,
   detectCopilotCLI,
   detectPiTitle,
+  detectOmpTitle,
   detectCodexCLI,
   detectCodexIdleAfterWorking,
   detectShellIntegration,
@@ -286,6 +287,120 @@ describe("detectPiTitle", () => {
 // ---------------------------------------------------------------------------
 // Codex CLI
 // ---------------------------------------------------------------------------
+// OMP's ten title spinner frames, verbatim from its own
+// `src/utils/title-generator.ts` (TITLE_SPINNER_FRAMES) and seen in the live
+// PTY capture. Listed here rather than derived so a frame quietly dropped
+// upstream shows up as a failing case, not a silently narrower test.
+const OMP_SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+describe("detectOmpTitle — captured live from omp 18.1.10, 2026-09-04", () => {
+  it("reads `>` as the user's turn: idle, identified, promoted immediately", () => {
+    expect(detectOmpTitle(0, "π > omp-pty")).toEqual({
+      status: "idle",
+      source: "agent",
+      identity: true,
+      timer: "clear",
+      agentId: "omp",
+    });
+  });
+
+  it("reads every spinner frame as working, arming the agent-idle debounce", () => {
+    // OMP animates the frame rather than re-announcing that it is still busy,
+    // so silence has to be able to end the turn.
+    for (const frame of OMP_SPINNER_FRAMES) {
+      expect(detectOmpTitle(0, `π ${frame} omp-pty`)).toEqual({
+        status: "working",
+        source: "agent",
+        timer: "schedule-agent",
+        agentId: "omp",
+      });
+    }
+  });
+
+  it("reads `!` as idle, not working — OMP is blocked on the user", () => {
+    // This is precisely when a turn has ended and attention is owed; calling
+    // it "working" would leave the tab spinning while it is the user's move.
+    expect(detectOmpTitle(0, "π ! omp-pty")).toEqual({
+      status: "idle",
+      source: "agent",
+      identity: true,
+      timer: "clear",
+      agentId: "omp",
+    });
+  });
+
+  it("reads Windows' static `:` separator as working", () => {
+    // OMP runs no title spinner on Windows/ConPTY. Without this branch a turn
+    // there would emit no working signal at all — on the one platform with no
+    // foreground argv and no hook to fall back on.
+    expect(detectOmpTitle(0, "π : omp-pty")).toEqual({
+      status: "working",
+      source: "agent",
+      timer: "schedule-agent",
+      agentId: "omp",
+    });
+  });
+
+  it("still identifies OMP with `tui.titleState` off, reporting no state", () => {
+    // `π: label` — one space fewer than Windows' working `π : label`, and a
+    // different branch in OMP's own title builder.
+    expect(detectOmpTitle(0, "π: omp-pty")).toEqual({
+      status: "idle",
+      source: "agent",
+      identity: true,
+      agentId: "omp",
+    });
+  });
+
+  it("identifies the label-less forms emitted before a session is named", () => {
+    for (const title of ["π >", "π !", "π ⠋", "π"]) {
+      expect(detectOmpTitle(0, title)).toMatchObject({ agentId: "omp" });
+    }
+    expect(detectOmpTitle(0, "π ⠋")).toMatchObject({ status: "working" });
+    expect(detectOmpTitle(0, "π")).toMatchObject({ status: "idle" });
+  });
+
+  it("ignores a non-title OSC code", () => {
+    expect(detectOmpTitle(9, "π > omp-pty")).toBeNull();
+  });
+
+  it("ignores a title that merely contains π, or uses no known separator", () => {
+    expect(detectOmpTitle(0, "my π project")).toBeNull();
+    expect(detectOmpTitle(0, "π ~ omp-pty")).toBeNull();
+    expect(detectOmpTitle(0, "")).toBeNull();
+  });
+});
+
+describe("detectOmpTitle / detectPiTitle are disjoint", () => {
+  // The whole reason OMP needs no cross-agent identity arbitration (RFC 0037):
+  // `-` is not a separator OMP's title builder can emit, and it is none of
+  // OMP's `>` / `!` / `:` / braille. Asserted in BOTH directions so an edit to
+  // either literal that reintroduces an overlap fails here rather than
+  // silently misidentifying one agent as the other in the app.
+  const OMP_TITLES = [
+    "π > omp-pty",
+    "π ⠋ omp-pty",
+    "π ! omp-pty",
+    "π : omp-pty",
+    "π: omp-pty",
+    "π >",
+    "π",
+  ];
+  const PI_TITLES = ["π - my session - xerro-edit", "π - notes - repo"];
+
+  it("detectPiTitle claims no OMP title", () => {
+    for (const title of OMP_TITLES) {
+      expect(detectPiTitle(0, title)).toBeNull();
+    }
+  });
+
+  it("detectOmpTitle claims no pi title", () => {
+    for (const title of PI_TITLES) {
+      expect(detectOmpTitle(0, title)).toBeNull();
+    }
+  });
+});
+
 describe("detectCodexCLI", () => {
   it("returns idle+clear for empty OSC 0 (exited)", () => {
     expect(detectCodexCLI(0, "")).toEqual({
@@ -489,6 +604,30 @@ describe("stripAgentStatusMarkers", () => {
 
   it("does not strip a bare Cursor idle title (no status segment)", () => {
     expect(stripAgentStatusMarkers("Cursor Agent")).toBe("Cursor Agent");
+  });
+
+  it("strips OMP's state separator, which sits behind its brand not ahead of it", () => {
+    // OMP is the one agent whose status marker doesn't lead: `π ⠋ label`, not
+    // `⠋ label`. The invariant this module states — a glyph Silo can detect is
+    // a glyph Silo can strip — has to hold for it too.
+    expect(stripAgentStatusMarkers("π ⠋ omp-pty")).toBe("omp-pty");
+    expect(stripAgentStatusMarkers("π > omp-pty")).toBe("omp-pty");
+    expect(stripAgentStatusMarkers("π ! omp-pty")).toBe("omp-pty");
+    expect(stripAgentStatusMarkers("π : omp-pty")).toBe("omp-pty");
+  });
+
+  it("leaves pi's title untouched — the OMP branches must not reach it", () => {
+    // `π - ` is neither a marker glyph nor one of OMP's separators.
+    expect(stripAgentStatusMarkers("π - my session - xerro-edit")).toBe(
+      "π - my session - xerro-edit",
+    );
+  });
+
+  it("does not strip a bare leading separator from an unrelated title", () => {
+    // The OMP branches are anchored behind the π brand on purpose: plenty of
+    // programs put a `>` at the front of a window title.
+    expect(stripAgentStatusMarkers("> some prompt")).toBe("> some prompt");
+    expect(stripAgentStatusMarkers("! alert")).toBe("! alert");
   });
 
   it("does not eat a hyphenated title that isn't a Cursor status", () => {
