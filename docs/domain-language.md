@@ -328,10 +328,14 @@ agent" for anything but the launch line.
 vocabulary; Terminal Kind is neither.**
 
 - **Catalog Agent** (`AgentDefinition.id` in `AGENT_CATALOG`: `"claude" |
-"codex" | "cursor" | "copilot" | "grok" | "pi" | "opencode"`): a
+"codex" | "cursor" | "copilot" | "grok" | "omp" | "pi" | "opencode"`): a
   **detected-identity** classification, computed live from OSC/output signals
   against the sealed catalog. A terminal is upgraded to `isAgent: true` and
-  given an `agentId` only once detection says so.
+  given an `agentId` only once detection says so. `"omp"` and `"pi"` are
+  **separate** catalog agents, not one "pi family" — OMP is a fork with its
+  own binary, config home, and resume syntax (RFC 0037), and collapsing them
+  would put Silo's hook in the wrong directory and offer the wrong resume
+  command.
 - **Terminal Kind** (`TerminalKind`: `"shell" | "claude" | "pi"`): the
   `"claude"` / `"pi"` values are **deprecated** (RFC 0033). Nothing creates
   them, a persisted record carrying one is normalized to `"shell"` at load, and

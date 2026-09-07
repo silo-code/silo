@@ -549,6 +549,36 @@ describe("agentByProcessArgs", () => {
     expect(agentByProcessArgs("")).toBeUndefined();
   });
 
+  it("matches a Bun-wrapped OMP launched through its PATH shim", () => {
+    // The real shape, captured live (omp 18.1.10): `omp` on PATH is a Bun
+    // script, so `ps` reports comm=`bun` and args=`bun /…/.bun/bin/omp`. The
+    // script basename is the only identifier present.
+    expect(agentByProcessArgs("bun /Users/x/.bun/bin/omp")?.id).toBe("omp");
+  });
+
+  it("matches OMP by its scoped package path, NOT pi", () => {
+    // A real collision, not a hypothetical one: pi's `pi-coding-agent` marker
+    // occurs inside OMP's own `@oh-my-pi/pi-coding-agent` path preceded by a
+    // `/`, which `includesPathMarker` accepts as a boundary. Only catalog
+    // order decides this, which is what the ordering test below pins.
+    expect(
+      agentByProcessArgs(
+        "bun /Users/x/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent/dist/cli.js",
+      )?.id,
+    ).toBe("omp");
+  });
+
+  it("matches OMP's unscoped marker too, so neither marker is dead weight", () => {
+    // `includesPathMarker` takes the FIRST indexOf hit and treats `@` as an
+    // identifier character, so inside `@oh-my-pi/…` the bare `oh-my-pi` is
+    // rejected for its preceding `@` — the case above can only be carried by
+    // the scoped marker. This is the path the unscoped one exists for; without
+    // its own assertion it could be deleted and the suite would still pass.
+    expect(
+      agentByProcessArgs("bun /Users/x/src/oh-my-pi/dist/cli.js")?.id,
+    ).toBe("omp");
+  });
+
   it("does not match the package-path marker straddling an unrelated word", () => {
     // "pi-coding-agent" is a substring of "api-coding-agent" starting at
     // index 1 — a bare String#includes would false-positive here.
@@ -566,6 +596,23 @@ describe("agentByProcessArgs", () => {
         "node /Users/x/lib/node_modules/@earendil-works/pixel-tool/cli.js",
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("AGENT_CATALOG ordering", () => {
+  it("places omp before pi, so the shared marker resolves to OMP", () => {
+    // Load-bearing, not cosmetic (RFC 0037). `agentByProcessArgs`'s
+    // package-path pass returns the FIRST entry whose marker matches, and pi's
+    // `pi-coding-agent` matches inside `@oh-my-pi/pi-coding-agent`. A reorder
+    // would silently start reporting every package-file OMP install as pi —
+    // wrong hook path, wrong resume command, wrong name and icon — with no
+    // other test failing. Fail here instead.
+    const ids = AGENT_CATALOG.map((a) => a.id);
+    const omp = ids.indexOf("omp");
+    const pi = ids.indexOf("pi");
+    expect(omp).toBeGreaterThanOrEqual(0);
+    expect(pi).toBeGreaterThanOrEqual(0);
+    expect(omp).toBeLessThan(pi);
   });
 });
 
@@ -595,6 +642,26 @@ describe("stripAgentTitleIdentityPrefix", () => {
     expect(
       stripAgentTitleIdentityPrefix("claude", "✳ Fix the flaky test"),
     ).toBe("✳ Fix the flaky test");
+  });
+
+  it("strips OMP's brand but keeps its state separator", () => {
+    // Only the brand goes. The separator that follows it is NOT redundant
+    // with the icon — the icon says *who*, the separator says what it is
+    // doing — so the tab keeps it (RFC 0037 R3). Removing that as well is
+    // `stripAgentStatusMarkers`' job, gated on `hideAgentStatusGlyphs`.
+    expect(stripAgentTitleIdentityPrefix("omp", "π > omp-pty")).toBe(
+      "> omp-pty",
+    );
+    expect(stripAgentTitleIdentityPrefix("omp", "π ⠋ omp-pty")).toBe(
+      "⠋ omp-pty",
+    );
+  });
+
+  it("gives omp and pi prefixes that cannot strip each other's titles", () => {
+    // Both brand with π, so the prefixes have to differ or a mis-stamped
+    // terminal would mangle the other agent's title.
+    expect(agentById("omp")?.titleIdentityPrefix).toBe("π ");
+    expect(agentById("pi")?.titleIdentityPrefix).toBe("π - ");
   });
 
   it("leaves the title alone when it doesn't actually lead with the prefix", () => {
@@ -631,6 +698,10 @@ describe("hookInstallableAgents", () => {
     // (ADR 0041), but it is still an installable hook and belongs in the
     // Settings → Agents install list.
     expect(ids).toContain("pi");
+  });
+
+  it("includes OMP, whose hook is the same extension-file mechanism as pi's", () => {
+    expect(hookInstallableAgents().map((a) => a.id)).toContain("omp");
   });
 
   it("excludes OpenCode — resume is deliberately kind: none (ADR 0043)", () => {

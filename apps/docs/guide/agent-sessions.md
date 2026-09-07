@@ -174,6 +174,44 @@ Two things to know after installing:
   off, Silo still identifies pi terminals and still offers exact resume — they
   just never light up as busy.
 
+### OMP {#omp}
+
+|        |                                                 |
+| ------ | ----------------------------------------------- |
+| Config | `~/.omp/agent/extensions/silo-track-session.ts` |
+| Resume | `omp --resume <id>`                             |
+
+[OMP](https://omp.sh) is a fork of pi, and Silo treats it as its own agent —
+its own name, icon, config directory and resume command. Running both `omp` and
+`pi` side by side works exactly as you'd expect; neither is ever mistaken for
+the other.
+
+**OMP's install is a small TypeScript file, not a config entry** — the same
+mechanism as pi, because OMP kept pi's extension API. Silo writes it to
+`~/.omp/agent/extensions/`, and only there; your `~/.pi/` directory is never
+touched. The file is Silo-owned and safe to read: it runs the same
+session-tracking script every other agent runs, and Uninstall deletes it. Silo
+refuses to install if a file it didn't write already sits at that path.
+
+**Restart OMP after installing.** Extensions load at startup, so sessions you
+already have open won't be tracked until you restart them.
+
+**Working/idle status needs no setup.** Unlike pi, OMP reports its state in the
+terminal title out of the box, so a Silo tab tracks an OMP turn as soon as it
+starts — including showing the terminal as waiting when OMP asks you to approve
+something. This is how Silo recognizes OMP terminals too, which means it works
+the same on macOS, Linux, and Windows, whether you launched OMP from a profile
+or just typed `omp`.
+
+On Windows, OMP marks a turn in progress with a static `:` instead of the
+animated spinner it uses elsewhere. Silo reads both, so the tab tracks
+working and idle there exactly as it does on macOS and Linux — worth knowing
+only because the terminal title itself looks different.
+
+The one setting that changes this is OMP's own **Terminal Title Run State**
+(`tui.titleState`, on by default). If you turn it off, Silo still identifies
+OMP terminals and still offers exact resume — they just never light up as busy.
+
 ### OpenCode {#opencode}
 
 **No exact resume yet — no Install button.** Silo detects OpenCode terminals

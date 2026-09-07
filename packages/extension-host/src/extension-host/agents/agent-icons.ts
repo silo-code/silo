@@ -14,6 +14,14 @@
  *   OpenAI/xAI marks (both pulled after trademark requests).
  * - pi: no icon pack carries a mark — the geometric π glyph from the marketing
  *   site, three bars/legs plus a curled tail as one path.
+ * - omp: no icon pack carries a mark either, and OMP brands itself with the
+ *   same π glyph pi uses — which is exactly the collision to avoid at 16px.
+ *   So the mark is pi's π enclosed in a rounded square: the silhouette reads
+ *   as a *badge* rather than a bare glyph, which is what distinguishes the two
+ *   at tab size where the interior detail is a few pixels. Drawn as one
+ *   `evenodd` path (frame minus counter) so the enclosure is a genuine
+ *   outline, not a filled block, plus the π on its own layer via
+ *   {@link AgentIcon.accentPath}.
  * - opencode: OpenCode's official portrait-frame mark, rescaled from its
  *   `96 64 288 384` viewBox into this file's `0 0 24 24` convention; its two
  *   layers map onto {@link AgentIcon.path} / {@link AgentIcon.accentPath}.
@@ -62,6 +70,18 @@ const AGENT_ICONS: Record<string, AgentIcon> = {
     hexLight: "000000",
     hexDark: "FFFFFF",
     path: "M4.5,5.4 H19.5 A1.3,1.3 0 0 1 20.8,6.7 A1.3,1.3 0 0 1 19.5,8 H4.5 A1.3,1.3 0 0 1 3.2,6.7 A1.3,1.3 0 0 1 4.5,5.4 Z M7.9,8 A1.3,1.3 0 0 1 9.2,9.3 V18.1 A1.3,1.3 0 0 1 7.9,19.4 A1.3,1.3 0 0 1 6.6,18.1 V9.3 A1.3,1.3 0 0 1 7.9,8 Z M16.1,8 A1.3,1.3 0 0 1 17.4,9.3 V15.9 A1.3,1.3 0 0 1 16.1,17.2 A1.3,1.3 0 0 1 14.8,15.9 V9.3 A1.3,1.3 0 0 1 16.1,8 Z M14.8 15.6h2.6a2.6 2.6 0 0 0 2.6 2.6v2.6a5.2 5.2 0 0 1-5.2-5.2z",
+  },
+  omp: {
+    title: "OMP",
+    hexLight: "000000",
+    hexDark: "FFFFFF",
+    // Rounded-square frame (outer rect minus inner rect, hence evenodd) with
+    // a scaled π sitting inside it. The frame is the differentiator: pi is a
+    // bare glyph, OMP is a glyph in a badge, and that reads at 16px.
+    fillRule: "evenodd",
+    path: "M5.2,2.4 H18.8 A2.8,2.8 0 0 1 21.6,5.2 V18.8 A2.8,2.8 0 0 1 18.8,21.6 H5.2 A2.8,2.8 0 0 1 2.4,18.8 V5.2 A2.8,2.8 0 0 1 5.2,2.4 Z M5.2,4.0 A1.2,1.2 0 0 0 4.0,5.2 V18.8 A1.2,1.2 0 0 0 5.2,20.0 H18.8 A1.2,1.2 0 0 0 20.0,18.8 V5.2 A1.2,1.2 0 0 0 18.8,4.0 Z",
+    accentPath:
+      "M7.3,7.9 H16.7 A0.95,0.95 0 0 1 16.7,9.8 H7.3 A0.95,0.95 0 0 1 7.3,7.9 Z M9.5,9.8 A0.95,0.95 0 0 1 10.45,10.75 V15.6 A0.95,0.95 0 0 1 8.55,15.6 V10.75 A0.95,0.95 0 0 1 9.5,9.8 Z M14.5,9.8 A0.95,0.95 0 0 1 15.45,10.75 V14.1 A0.95,0.95 0 0 1 13.55,14.1 V10.75 A0.95,0.95 0 0 1 14.5,9.8 Z M13.55 13.9h1.9a1.9 1.9 0 0 0 1.9 1.9v1.9a3.8 3.8 0 0 1-3.8-3.8z",
   },
   opencode: {
     title: "OpenCode",
