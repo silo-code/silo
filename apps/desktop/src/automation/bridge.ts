@@ -1,4 +1,6 @@
 import { emit, listen } from "@tauri-apps/api/event";
+// ACP transport spike (docs/acp-recon.md) — remove with the `acpProbe` op.
+import { invoke } from "@tauri-apps/api/core";
 import type { editor as MonacoEditor } from "monaco-editor";
 import {
   ensureMonaco,
@@ -779,6 +781,82 @@ async function handleOp(
       const cmdArgs = Array.isArray(args.args) ? (args.args as string[]) : [];
       const cwd = args.cwd === undefined ? undefined : String(args.cwd);
       return getProcessService().exec(command, cmdArgs, { cwd });
+    }
+
+    // ACP transport spike (docs/acp-recon.md) — TEMPORARY, delete with the
+    // spike. Drives the `acp_*` Tauri commands end to end from the webview:
+    // spawn an agent, subscribe to its line events, send one `initialize`, and
+    // return what came back. Exists because `eval` cannot reach `invoke`
+    // (`withGlobalTauri` is off), so there is otherwise no way to prove the
+    // webview half of the transport.
+    case "acpProbe": {
+      const command = String(args.command ?? "");
+      const cmdArgs = Array.isArray(args.args) ? (args.args as string[]) : [];
+      const spawn = (await invoke("acp_spawn", {
+        command,
+        args: cmdArgs,
+        cwd: args.cwd === undefined ? undefined : String(args.cwd),
+        env: null,
+      })) as { connectionId: string; pid: number };
+
+      const lines: string[] = [];
+      const stderr: string[] = [];
+      let closed: unknown = null;
+      const subs = await Promise.all([
+        listen<string>(`acp_message:${spawn.connectionId}`, (e) =>
+          lines.push(e.payload),
+        ),
+        listen<string>(`acp_stderr:${spawn.connectionId}`, (e) =>
+          stderr.push(e.payload),
+        ),
+        listen<unknown>(`acp_closed:${spawn.connectionId}`, (e) => {
+          closed = e.payload;
+        }),
+      ]);
+
+      await invoke("acp_send", {
+        connectionId: spawn.connectionId,
+        message: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 0,
+          method: "initialize",
+          params: {
+            protocolVersion: 1,
+            clientCapabilities: {
+              fs: { readTextFile: true, writeTextFile: true },
+              terminal: true,
+            },
+            clientInfo: { name: "silo-spike", version: "0.0.1" },
+          },
+        }),
+      });
+
+      // Poll rather than sleep: `eval`-adjacent ops share the bridge's 5s
+      // reply budget, so this must return well inside it.
+      for (let i = 0; i < 40 && lines.length === 0 && closed === null; i++) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+
+      // Both of these fail once the connection has exited — `on_exit` evicts
+      // the registry entry, so a post-mortem read races it. Tolerated here so
+      // the probe can report whether the `acp_closed` payload still carried
+      // the diagnostic.
+      let tail: string[] | string;
+      try {
+        tail = (await invoke("acp_stderr_tail", {
+          connectionId: spawn.connectionId,
+        })) as string[];
+      } catch (e) {
+        tail = `stderr_tail failed: ${String(e)}`;
+      }
+      try {
+        await invoke("acp_close", { connectionId: spawn.connectionId });
+      } catch {
+        /* already gone */
+      }
+      for (const s of subs) s();
+
+      return { spawn, lines, stderr, stderrTail: tail, closed };
     }
 
     // Read entries from an output channel, with optional level / search / limit

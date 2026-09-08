@@ -1,0 +1,365 @@
+/**
+ * Spike (docs/acp-recon.md) — maps `@acp-components`' design tokens onto
+ * Silo's, and replaces the library's chrome with Silo's.
+ *
+ * This mapping is the whole reason this library was picked over a
+ * Tailwind-flavoured one: it references only `--acp-*` custom properties and
+ * hardcodes no colors, which is the same discipline ADR 0017 imposes on Silo
+ * extensions. Every value below is a `--silo-*` **design** token — no component
+ * or internal tokens — so this file would pass the extension token rule even
+ * though the library's own CSS (third-party, prebuilt) is not linted.
+ */
+
+/**
+ * The mapping has to land on **`[data-acp-theme]` as well as the root**.
+ *
+ * `AcpProvider` renders a div carrying `data-acp-theme="dark|light"` *inside*
+ * this panel, and the library's stylesheet defines its whole palette on
+ * `:root,[data-acp-theme=dark]`. Custom properties resolve from the nearest
+ * defining ancestor, so that inner div shadowed everything mapped on
+ * `.acp-chat-root` — the panel rendered in the library's own dark palette even
+ * under a light Silo theme. Import order does not help; the winning
+ * declaration has to be on the same element. `.acp-chat-root [data-acp-theme]`
+ * is (0,2,0) against the library's (0,1,0), so it wins outright.
+ */
+.acp-chat-root,
+.acp-chat-root [data-acp-theme] {
+  /* Surfaces */
+  --acp-color-bg-primary: var(--silo-color-content-bg);
+  --acp-color-bg-secondary: var(--silo-color-bg);
+  --acp-color-bg-tertiary: var(--silo-color-bg-hover);
+  --acp-color-bg-hover: var(--silo-color-bg-hover);
+  --acp-color-bg-selected: var(--silo-color-bg-active);
+  --acp-color-bg-input: var(--silo-color-input-bg);
+  --acp-color-bg-code: var(--silo-color-bg);
+  --acp-color-bg-overlay: var(--silo-color-content-bg);
+  --acp-color-bg-glass: var(--silo-color-content-bg);
+
+  /* Text */
+  --acp-color-text-primary: var(--silo-color-content-text);
+  --acp-color-text-secondary: var(--silo-color-text);
+  --acp-color-text-muted: var(--silo-color-text-lo);
+  --acp-color-text-inverse: var(--silo-color-button-text);
+
+  /* Borders */
+  --acp-color-border: var(--silo-color-border);
+  --acp-color-border-subtle: var(--silo-color-border);
+  --acp-color-border-accent: var(--silo-color-accent);
+
+  /* Accent */
+  --acp-color-accent: var(--silo-color-accent);
+  --acp-color-accent-hover: var(--silo-color-accent-2);
+  --acp-color-accent-muted: var(--silo-color-accent-2);
+  --acp-color-accent-text: var(--silo-color-button-text);
+
+  /* Message bubbles — the user's own turn takes the active tint, the agent's
+     the ordinary content surface, matching how Silo tints active vs. inert. */
+  --acp-color-user-bubble: var(--silo-color-bg-active);
+  --acp-color-user-text: var(--silo-color-content-text);
+  --acp-color-agent-bubble: transparent;
+  --acp-color-agent-text: var(--silo-color-content-text);
+
+  /* Status */
+  --acp-color-success: var(--silo-color-ok);
+  --acp-color-success-bg: var(--silo-color-bg);
+  --acp-color-success-muted: var(--silo-color-ok);
+  --acp-color-error: var(--silo-color-err);
+  --acp-color-error-bg: var(--silo-color-bg);
+  --acp-color-error-muted: var(--silo-color-err);
+  --acp-color-text-danger: var(--silo-color-err);
+  --acp-color-bg-danger: var(--silo-color-bg);
+  --acp-color-warning: var(--silo-color-warn);
+  --acp-color-warning-muted: var(--silo-color-warn);
+  --acp-color-info: var(--silo-color-accent);
+  --acp-color-info-muted: var(--silo-color-accent);
+  --acp-color-knob: var(--silo-color-text);
+  --acp-color-knob-shadow: var(--silo-color-border);
+
+  /* Type and shape */
+  --acp-font-sans: var(--silo-font-ui);
+  --acp-font-mono: var(--silo-font-mono);
+  --acp-radius-xs: var(--silo-radius-sm);
+  --acp-radius-sm: var(--silo-radius-sm);
+  --acp-radius-md: var(--silo-radius-md);
+  --acp-radius-lg: var(--silo-radius-md);
+  --acp-radius-xl: var(--silo-radius-md);
+}
+
+/* Layout belongs to the panel root only — the provider div above is a
+   variable carrier, not a box. */
+.acp-chat-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--silo-color-content-bg);
+  color: var(--silo-color-content-text);
+  font-family: var(--silo-font-ui);
+}
+
+/* The cwd line — same component and shape the terminal panel uses, so an
+   agent tab and a terminal tab read as the same kind of thing. */
+.acp-chat-toolbar {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.acp-chat-toolbar .breadcrumb {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/**
+ * The scroll chain.
+ *
+ * The library's own layout is already right — `.acp-chat-view` is
+ * `overflow: hidden` over an `overflow-y: auto` message list — but it only
+ * works if everything above it is height-bounded. `I18nProvider` and
+ * `AcpProvider` each render a plain `div` between this panel's root and the
+ * chat body, and those default to `flex: 0 1 auto` with `min-height: auto`, so
+ * they size to content: the view grew to ~6500px, the list never got a bounded
+ * height to scroll inside, and the composer was pushed off the bottom of the
+ * panel entirely.
+ *
+ * Every element from the root down to the message list therefore has to be a
+ * flex item that may shrink below its content — hence `min-height: 0` at each
+ * level, which is the part that is easy to miss.
+ */
+.acp-chat-root > div:not(.acp-chat-toolbar) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.acp-chat-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px 10px;
+  /* The positioning context the composer's action cluster is pulled into —
+     see "one box, one row" below. */
+  position: relative;
+}
+
+.acp-chat-body > [class*="acp-chat-view"] {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The view and its list paint their own surface, which reads as a second
+   panel floating on the workspace background (obvious in Solarized, where the
+   two greys differ). The transcript is the panel — let it inherit. */
+.acp-chat-body [class*="acp-chat-view"],
+.acp-chat-body [class*="acp-message-list"] {
+  background: transparent;
+}
+
+/* --- Replacing the library's chrome ------------------------------------- */
+
+/* Its header duplicates the tab title, and its footer is the control strip we
+   re-render inside the composer box below. */
+.acp-chat-body [class*="acp-chat-header"],
+.acp-chat-body [class*="acp-chat-footer"] {
+  display: none !important;
+}
+
+/* --- One composer box: prompt on top, controls beneath ------------------ */
+
+/* The composer and the controls row are separate elements (the row is ours,
+   rendered after ChatView). Drawing the border across both — bottom-open on
+   one, top-open on the other — is what makes them read as a single control. */
+.acp-chat-body [class*="acp-chat-composer"]:not([class*="__"]) {
+  flex: 0 0 auto;
+  border: 1px solid var(--silo-color-input-border);
+  border-bottom: none;
+  border-radius: var(--silo-radius-md) var(--silo-radius-md) 0 0;
+  /* Transparent rather than the input surface: the box is defined by its
+     border, so it sits quietly on the transcript instead of reading as a
+     second panel. */
+  background: transparent;
+  padding: 2px 4px 0;
+}
+
+.acp-chat-controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  /* Right padding keeps the selects clear of the send cluster parked above. */
+  padding: 6px 56px 10px 10px;
+  border: 1px solid var(--silo-color-input-border);
+  border-top: none;
+  border-radius: 0 0 var(--silo-radius-md) var(--silo-radius-md);
+  background: transparent;
+}
+
+/* --- One box, one row --------------------------------------------------- */
+
+/* The composer nests its own bordered input inside the bordered form, so the
+   default is a box inside a box inside our box — three outlines, and the
+   innermost one turns its focus colour on while the outer two stay static.
+   Only the outermost border survives; everything inside is bare. */
+.acp-chat-body [class*="acp-chat-composer__form"],
+.acp-chat-body [class*="acp-chat-composer__body"],
+.acp-chat-body [class*="acp-chat-composer__input"] {
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* The form is `position: relative`, which would capture the absolutely
+   positioned action cluster below and pin it to the form's own bottom-right —
+   above the control row rather than on it. Making these static hands the
+   positioning context back to `.acp-chat-body`. */
+/* `position: static` alone is not enough: the composer also carries
+   `backdrop-filter: blur(12px)`, and a backdrop-filter establishes a
+   containing block for absolutely positioned descendants regardless of
+   position. The glass effect is unwanted here anyway — the box is defined by
+   its border, not by a frosted surface. */
+.acp-chat-body [class*="acp-chat-composer"] {
+  position: static;
+  backdrop-filter: none;
+}
+
+/* The attach + send cluster belongs on the control row at the bottom right,
+   not stranded on a row of its own. It is a descendant of the composer while
+   the control row is a sibling, so CSS cannot reorder them — but both share
+   `.acp-chat-body` as a positioned ancestor, so the cluster can be lifted out
+   of flow and dropped onto the row. The row reserves height for it. */
+.acp-chat-body [class*="acp-chat-composer__actions"] {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The attach affordance is a hint, not a primary action — the boxed default
+   competes with send for attention. */
+.acp-chat-body [class*="acp-chat-composer__actions"] button:not(:last-child) {
+  background: transparent;
+  border: none;
+  opacity: 0.6;
+}
+
+.acp-chat-body
+  [class*="acp-chat-composer__actions"]
+  button:not(:last-child):hover {
+  opacity: 1;
+  background: var(--silo-color-bg-hover);
+}
+
+/* Send reads as the one committing action: a filled accent circle. */
+.acp-chat-body [class*="acp-chat-composer__actions"] button:last-child {
+  border-radius: 999px;
+  border: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--silo-color-accent);
+  color: var(--silo-color-button-text);
+}
+
+.acp-chat-body
+  [class*="acp-chat-composer__actions"]
+  button:last-child:disabled {
+  opacity: 0.4;
+}
+
+/* The library's config panel becomes a row of inline controls rather than a
+   labelled settings block: each value is already self-describing ("Agent",
+   "Auto Balance"), so the labels and help text are noise at this size. */
+.acp-chat-controls [class*="acp-session-config-panel"] {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.acp-chat-controls [class*="acp-session-config-item"] {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.acp-chat-controls [class*="acp-session-config-label"],
+.acp-chat-controls [class*="acp-session-config-description"] {
+  display: none;
+}
+
+/* One appearance for every control on the row, ours and the library's. */
+.acp-chat-controls select,
+.acp-chat-controls [class*="acp-session-config-select"] {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--silo-color-text-lo);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-chrome);
+  padding: 2px 6px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+  max-width: 180px;
+  text-overflow: ellipsis;
+}
+
+.acp-chat-controls select:hover,
+.acp-chat-controls [class*="acp-session-config-select"]:hover {
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-content-text);
+}
+
+/* Hairline separators between control groups, as in a segmented toolbar.
+   Drawn on the *select* rather than its wrapper so the rule lands whether the
+   control is ours or one the library wrapped in a config item. */
+.acp-chat-controls
+  [class*="acp-session-config-item"]
+  + [class*="acp-session-config-item"]
+  [class*="acp-session-config-select"],
+.acp-chat-controls
+  [class*="acp-session-config-panel"]
+  [class*="acp-session-config-item"]:first-child
+  [class*="acp-session-config-select"] {
+  border-left: 1px solid var(--silo-color-input-border);
+  border-radius: 0;
+  margin-left: 4px;
+  padding-left: 10px;
+}
+
+/* Values carry the meaning here (the labels are hidden), so they get the
+   ordinary content colour rather than the muted one. */
+.acp-chat-controls select {
+  color: var(--silo-color-text);
+}
+
+/* --- Notices ------------------------------------------------------------ */
+
+.acp-chat-notice {
+  padding: 16px;
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat-notice pre {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: var(--silo-radius-sm);
+  background: var(--silo-color-bg);
+  color: var(--silo-color-err);
+  white-space: pre-wrap;
+  font-family: var(--silo-font-mono);
+}

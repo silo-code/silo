@@ -5,6 +5,9 @@ pub mod network;
 pub mod webview;
 #[cfg(feature = "automation")]
 pub mod automation;
+// ACP transport spike (see docs/acp-recon.md): a long-lived child with piped
+// stdio speaking newline-delimited JSON-RPC. Not wired to any public surface.
+pub mod acp;
 pub mod cli;
 // The Control API (RFC 0034): a request/response channel into a running
 // instance. Unlike `automation` above, compiled into every build — the
