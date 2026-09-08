@@ -102,6 +102,38 @@ All three must agree on the version you just published. The last one is the
 actual updater endpoint — if it still reports the old version, existing installs
 will not see the update.
 
+## 6. Draft the release tweet
+
+Always produce a tweet draft as the final step — the user shouldn't have to ask.
+The "what's new" story is everything since the last **published** version (step 1),
+not just the target tag.
+
+Format (match it exactly — this is the house style for [@silo_code](https://x.com/silo_code)):
+
+```
+Silo vX.Y.Z is out 🚀
+
+- <headline feature — concrete, user-facing, one line>
+- <headline feature>
+- <headline feature>
+
+Fixes: <short comma-separated list of the notable fixes>
+```
+
+Rules:
+
+- Three headline bullets, max four. Pull them from the **Features** sections of
+  every version in the gap, not just the target. Pick what a user would notice —
+  collapse a multi-phase RFC (e.g. Agent Profiles phases 1–2) into one bullet.
+- Phrase bullets as an outcome, not a changelog line: "Git branches modal:
+  keyboard nav + folder switcher", not "git-explorer: branches modal keyboard
+  nav". Drop package/scope prefixes and issue numbers.
+- One `Fixes:` line, comma-separated, plain language. Skip internal-only fixes
+  (test flakes, release-please manifest resyncs, CI).
+- No hashtags, no links, no @-mentions. Keep it under ~280 chars if you can, but
+  readability wins over the limit.
+- Present it in the reply as a fenced block the user can copy. Don't post it.
+
 ## What publishing does _not_ fix
 
 - **The in-app update prompt** renders the `notes` field baked into the signed
@@ -114,7 +146,8 @@ will not see the update.
 ## Reporting back
 
 Lead with the release URL and confirmation that the updater endpoint serves the
-new version. Then name what's still outstanding — the in-app prompt's notes, any
-remaining drafts. If a release announcement or tweet is in flight, check it
-still matches: the "what's new" story is everything since the last **published**
-version, not since the last tag.
+new version. Then give the tweet draft from step 6, then name what's still
+outstanding — the in-app prompt's notes, any remaining drafts. If a separate
+release announcement is already in flight, check it still matches: the "what's
+new" story is everything since the last **published** version, not since the
+last tag.
