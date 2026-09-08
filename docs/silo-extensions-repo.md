@@ -32,13 +32,15 @@ Current folders: `agent-monitor`, `docs-panel`, `follow-ups`, `github-actions`,
 `system-monitor`, `tasks`.
 
 - **`tasks`** (`silo.tasks`) — Silo-managed task lists: a global personal list
-  and one per workspace, a right-side panel to scan / drill in / create / edit /
-  complete, and NDJSON storage in the extension's own directory (no repo writes,
-  `permissions: []`). Phase 1 of [RFC 0031](proposals/0031-tasks-extension/proposal.md);
-  the proposal stays in this monorepo. Depends on RFC 0032's storage directories,
-  so it needs a published SDK release carrying `ctx.storage.globalDir()` — until
-  then it builds against a linked local `packages/sdk` (see its `tsconfig.json`
-  / `vitest.config.ts` notes).
+  and one per workspace, and NDJSON storage in the extension's own directory (no
+  repo writes, `permissions: []`). Three surfaces over one loaded set of lists —
+  a right-side panel (the active workspace + personal, with quick-add), a
+  Navigator **Tasks** view across _every_ open workspace, and the **Tasks app**
+  dock sheet (`silo.tasks.open`) showing that same aggregated list wider.
+  Phases 1-2 of [RFC 0031](proposals/0031-tasks-extension/proposal.md); the
+  proposal stays in this monorepo. Depends on RFC 0032's storage directories
+  plus `ctx.storage.workspaceDirs()`, so it floors on published
+  `@silo-code/sdk` **0.44.0** / Silo **0.61.0**.
 
 ## It is NOT part of this pnpm workspace
 
