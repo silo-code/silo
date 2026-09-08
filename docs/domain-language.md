@@ -648,11 +648,42 @@ and any workspace. Marking a tab ≠ tracking work.
 **Task Source**:
 One resolved store of tasks, identified by its **locator** (a dedupe key — two
 workspaces resolving to the same locator are one source). The provider (Silo,
-and later Beads / dex) is an implementation detail _of_ a source. Phase 1 has
-two, both Silo-managed: one always-present **global** source ("Personal") and
-one per active workspace.
+and later Beads / dex) is an implementation detail _of_ a source. Since phase 2
+the resolved set is one always-present, deliberately **unnamed** global source
+plus one per **open** workspace — not just the active one. Tried naming it
+("Personal", then "My Tasks") twice; both read as one odd option in a list of
+workspace names, so it stays without a proper noun — a picker that needs
+_some_ text for it (the composer's list dropdown) uses the placeholder word
+"No list" (`lib/menus.ts`'s `NO_LIST_LABEL`) rather than naming the source
+itself; everywhere that would otherwise display its name (`TaskDetail`'s
+identity footer, a group header) shows nothing instead.
+_UI word_: "List" — `TaskDetail`'s identity footer and the sheet's table
+column both say "List", not "Source"; a table forces every header to be read
+literally, which is what surfaced the Arrange menu still saying "Source" for
+the same concept (fixed in the same change). The formal term stays **Task
+Source**; "List" is the copy word for it, the way "Task" is the term and a row
+just shows a title.
 _Avoid_: "Beads workspace" reaching any UI — Beads' own term for its unit
 collides with Silo's **Workspace**; the provider seam keeps it internal
+
+**Tasks app**:
+The **aggregated** task surface — every open workspace's list plus the personal
+one, in a single list grouped by source. Two presentations of the same view
+model — each keeping its **own** saved arrange/filter/sort settings, since the
+narrow Navigator rail and the full-width sheet are arranged differently — with a
+division of labour: the **Tasks** view
+in the Navigator is the _list_ (pick a task), and the dock-anchored sheet
+(`silo.tasks.open`) is where you _read and edit_ one — and, since the sheet's
+list page grew a composer, where you can also **create** a task into any
+resolved list, not only the active workspace's. Picking a task in the view
+opens it in the sheet — a Navigator view never pages itself into a detail view.
+Contrast the **Tasks panel**, which is _scoped_: the personal list plus the
+**active** workspace's, drills in place, and creates only into that active
+workspace (no list picker) — the sheet is no longer the only surface that
+creates tasks, but it is the only one that lets you pick which list.
+_Avoid_: "Tasks dashboard" / "global tasks" (the personal list is already the
+"global" source — this is the cross-workspace one); calling the Navigator view
+and the sheet two features (they are one surface, list and detail)
 
 **Lane**:
 The closed set `todo | in_progress | blocked | done` that every provider maps
