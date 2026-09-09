@@ -319,6 +319,138 @@ describe("buildAgeSections (staleDoneEnabled: true)", () => {
   });
 });
 
+describe("buildWorkspaceSections (staleDoneEnabled: true)", () => {
+  it("always returns the 'N+ hours old' heading, even with no agents at all", () => {
+    const sections = buildWorkspaceSections([], true, 8);
+    expect(sections.map((s) => s.header)).toEqual(["8+ hours old"]);
+    expect(sections[0]?.rows).toEqual([]);
+    expect(sections[0]?.collapsible).toBe(true);
+  });
+
+  it("keeps recent rows under their workspace and peels stale done rows into the shared heading", () => {
+    const sections = buildWorkspaceSections(
+      [
+        row({
+          terminalId: "fresh",
+          workspaceId: "w1",
+          workspaceName: "Alpha",
+          section: "working",
+          activity: "working",
+        }),
+        row({
+          terminalId: "recent-done",
+          workspaceId: "w1",
+          workspaceName: "Alpha",
+          section: "done",
+          activity: "idle",
+          since: hoursAgo(1),
+        }),
+        row({
+          terminalId: "stale-done",
+          workspaceId: "w1",
+          workspaceName: "Alpha",
+          section: "done",
+          activity: "idle",
+          since: hoursAgo(9),
+        }),
+        row({
+          terminalId: "long-working",
+          workspaceId: "w1",
+          workspaceName: "Alpha",
+          section: "working",
+          activity: "working",
+          since: hoursAgo(9),
+        }),
+      ],
+      true,
+      8,
+    );
+    expect(
+      sections.find((s) => s.header === "Alpha")?.rows.map((r) => r.terminalId),
+    ).toEqual(["long-working", "fresh", "recent-done"]);
+    expect(
+      sections
+        .find((s) => s.header === "8+ hours old")
+        ?.rows.map((r) => r.terminalId),
+    ).toEqual(["stale-done"]);
+  });
+
+  it("drops a workspace whose remaining rows are all stale", () => {
+    const sections = buildWorkspaceSections(
+      [
+        row({
+          terminalId: "stale-a",
+          workspaceId: "w-old",
+          workspaceName: "Old Only",
+          section: "done",
+          activity: "idle",
+          since: hoursAgo(9),
+        }),
+        row({
+          terminalId: "live",
+          workspaceId: "w-live",
+          workspaceName: "Still Live",
+          section: "working",
+          activity: "working",
+        }),
+      ],
+      true,
+      8,
+    );
+    expect(sections.map((s) => s.header)).toEqual([
+      "Still Live",
+      "8+ hours old",
+    ]);
+    expect(
+      sections
+        .find((s) => s.header === "8+ hours old")
+        ?.rows.map((r) => r.terminalId),
+    ).toEqual(["stale-a"]);
+  });
+
+  it("uses the configured threshold, not a hardcoded 8 hours", () => {
+    const sections = buildWorkspaceSections(
+      [
+        row({
+          terminalId: "t1",
+          section: "done",
+          activity: "idle",
+          since: hoursAgo(5),
+        }),
+      ],
+      true,
+      4,
+    );
+    expect(sections.map((s) => s.header)).toEqual(["4+ hours old"]);
+    expect(
+      sections
+        .find((s) => s.header === "4+ hours old")
+        ?.rows.map((r) => r.terminalId),
+    ).toEqual(["t1"]);
+  });
+});
+
+describe("buildWorkspaceSections (staleDoneEnabled: false)", () => {
+  it("omits the 'N+ hours old' heading and keeps old done rows under their workspace", () => {
+    const sections = buildWorkspaceSections(
+      [
+        row({
+          terminalId: "stale",
+          workspaceId: "w1",
+          workspaceName: "Alpha",
+          section: "done",
+          activity: "idle",
+          since: hoursAgo(9),
+        }),
+      ],
+      false,
+      8,
+    );
+    expect(sections.map((s) => s.header)).toEqual(["Alpha"]);
+    expect(sections[0]?.rows.map((r) => r.terminalId)).toEqual(["stale"]);
+  });
+});
+
 describe("buildAgeSections (staleDoneEnabled: false)", () => {
   it("omits the 'N+ hours old' heading entirely", () => {
     const sections = buildAgeSections([], false, 8, []);
@@ -392,6 +524,16 @@ describe("staleSectionStartsExpanded", () => {
     );
     expect(staleSectionStartsExpanded(sections)).toBe(true);
   });
+
+  it("is true in the workspace view when every workspace was hidden as stale", () => {
+    const sections = buildWorkspaceSections(
+      [row({ section: "done", since: hoursAgo(9) })],
+      true,
+      8,
+    );
+    expect(sections.map((s) => s.header)).toEqual(["8+ hours old"]);
+    expect(staleSectionStartsExpanded(sections)).toBe(true);
+  });
 });
 
 describe("subtitle axis", () => {
@@ -415,18 +557,21 @@ describe("subtitle axis", () => {
   it("is the status label in the by-workspace view, and is not marked as a workspace", () => {
     // The workspace is already the heading here, so a workspace glyph on the
     // subtitle would label the status as something it isn't.
-    const [group] = buildWorkspaceSections([r]);
+    const [group] = buildWorkspaceSections([r], false, 8);
     expect(group.subtitle(r)).toBe("Idle");
     expect(group.subtitleIsWorkspace).toBe(false);
   });
 
-  it("marks the stale heading the same way as the section it splits from", () => {
+  it("marks the stale heading with a workspace subtitle in every grouping", () => {
     const stale = row({ section: "done", since: hoursAgo(9) });
     for (const sections of [
       buildStatusSections([stale], true, 8),
       buildAgeSections([stale], true, 8, []),
+      buildWorkspaceSections([stale], true, 8),
     ]) {
-      expect(sections.every((s) => s.subtitleIsWorkspace)).toBe(true);
+      const staleSection = sections.find((s) => s.header === "8+ hours old");
+      expect(staleSection?.subtitleIsWorkspace).toBe(true);
+      expect(staleSection?.subtitle(stale)).toBe("ws");
     }
   });
 });

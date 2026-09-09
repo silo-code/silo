@@ -140,14 +140,39 @@ export function buildStatusSections(
 
 export function buildWorkspaceSections(
   rows: readonly AgentRow[],
+  staleDoneEnabled: boolean,
+  staleDoneHours: number,
 ): PanelSection[] {
-  return groupAgentRowsByWorkspace(rows).map((group) => ({
+  const isStale = (row: AgentRow) =>
+    staleDoneEnabled &&
+    row.section === "done" &&
+    isStaleDone(row, staleDoneHours);
+  // Workspaces whose every remaining row is stale disappear rather than
+  // sitting as an empty heading — the stale agents still show under the
+  // shared "N+ hours old" section below.
+  const workspaceSections = groupAgentRowsByWorkspace(
+    rows.filter((row) => !isStale(row)),
+  ).map((group) => ({
     key: group.workspaceId,
     header: group.workspaceName,
     rows: group.rows,
-    subtitle: (row) => SECTION_LABELS[row.section],
+    subtitle: (row: AgentRow) => SECTION_LABELS[row.section],
     subtitleIsWorkspace: false,
   }));
+  if (!staleDoneEnabled) return workspaceSections;
+  return [
+    ...workspaceSections,
+    {
+      key: STALE_DONE_SECTION_KEY,
+      header: `${staleDoneHours}+ hours old`,
+      rows: rows.filter(isStale).slice().sort(compareRows),
+      // Workspace is no longer the heading here, so the subtitle switches
+      // to the workspace name (same as Status / Recent's stale section).
+      subtitle: (row) => row.workspaceName,
+      subtitleIsWorkspace: true,
+      collapsible: true,
+    },
+  ];
 }
 
 /**
@@ -157,8 +182,8 @@ export function buildWorkspaceSections(
  * {@link orderAgeRows} / `manualOrder` (see `./manual-order`) — new agents
  * prepend at the top, and positions only change on drag-and-drop. There is
  * no automatic sort by duration/`since`. The one exception is the same
- * "N+ hours old" split `buildStatusSections` uses: a done row that's sat
- * past `staleDoneHours` still peels off into its own collapsible heading
+ * "N+ hours old" split Status and Workspace grouping use: a done row that's
+ * sat past `staleDoneHours` still peels off into its own collapsible heading
  * (tagged with the same `STALE_DONE_SECTION_KEY`, so the panel's existing
  * hover-to-reveal behavior applies unchanged, and it stays un-reorderable —
  * see `agents-panel.tsx`'s render, which only wires drag handlers for
@@ -618,7 +643,7 @@ export function AgentsPanel({
 
   const sections =
     groupBy === "workspace"
-      ? buildWorkspaceSections(rows)
+      ? buildWorkspaceSections(rows, staleDoneEnabled, staleDoneHours)
       : groupBy === "age"
         ? buildAgeSections(rows, staleDoneEnabled, staleDoneHours, manualOrder)
         : buildStatusSections(rows, staleDoneEnabled, staleDoneHours);
