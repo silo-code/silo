@@ -58,6 +58,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ClipboardEvent,
@@ -108,6 +109,18 @@ import {
   Tooltip,
 } from "@silo-code/sdk";
 import { chatProfiles, resolveChatProfile } from "./profile-selection";
+import {
+  applyRestoreStep,
+  isClampedScroll,
+  isPinnedToBottom,
+  persistedScroll,
+  restoreTargetFor,
+  scrollToBottom,
+  SCROLL_SAVE_DEBOUNCE_MS,
+  shouldAbandonRestore,
+  transcriptScrollKey,
+  type ScrollSnapshot,
+} from "./scroll";
 import { confirmProfileSwitch } from "./profile-switch";
 import { addAttachments, toAttachment, type Attachment } from "./attachments";
 import {
@@ -172,9 +185,6 @@ import {
 } from "./session-restore";
 import { LiveElapsed } from "./LiveElapsed";
 
-/** How close to the bottom still counts as "following the stream". */
-const AUTOSCROLL_THRESHOLD_PX = 24;
-
 export interface AcpChatPanelParams {
   /** Seed tab label, shown until the agent declares its own name. */
   title?: string;
@@ -199,6 +209,21 @@ export interface AcpChatPanelParams {
    * workspace folder is always what's actually sent to `connect()`.
    */
   cwd?: string;
+  /**
+   * Last transcript scroll offset — read when this panel is created (a
+   * restart, or a close-and-reopen from its `DockPanelRecord`). Only applies to
+   * the conversation it was saved for; see `persistedScroll`. Tab and
+   * workspace switches inside one panel's life are served from a ref, which
+   * doesn't wait on this field's debounce.
+   */
+  scrollTop?: number;
+  /**
+   * Whether {@link scrollTop} was at the bottom of the transcript. Saved
+   * alongside it because a transcript that gained entries while the panel was
+   * away should keep *following the stream* rather than come back to the
+   * absolute offset the bottom used to be at.
+   */
+  scrollPinned?: boolean;
 }
 
 /** What the panel is doing. `"no-profile"` is a state to render, not an error:
@@ -505,6 +530,7 @@ export function AcpChatPanel({
   api,
   params,
   workspaceId,
+  onScreen,
   ctx,
 }: DockPanelProps<AcpChatPanelParams> & { ctx: ExtensionContext }) {
   // This panel's own workspace, never "whichever one is active" — a
@@ -973,7 +999,14 @@ export function AcpChatPanel({
       // and resuming an unrelated one under a different profile is not a
       // thing `session/resume` / `session/load` are defined for.
       setRequestedId(nextId);
-      api.updateParameters({ profileId: nextId, sessionId: null });
+      api.updateParameters({
+        profileId: nextId,
+        sessionId: null,
+        // The new agent's transcript is empty; it should follow its own stream
+        // rather than inherit an offset measured against the old one.
+        scrollTop: 0,
+        scrollPinned: true,
+      });
     },
     [ctx, api, profileId, transcript, busy, agentName, profile?.label],
   );
@@ -1136,22 +1169,202 @@ export function AcpChatPanel({
       ?.scrollIntoView({ block: "nearest" });
   }, [showPalette, activePaletteIndex]);
 
-  // --- autoscroll ----------------------------------------------------------
-  // Only when the user is already at the bottom, so reading back through a
-  // long turn is not yanked forward by every chunk.
+  // --- transcript scroll ---------------------------------------------------
+  // **This panel mounts once and stays mounted for as long as its tab exists.**
+  // dockview renders React panels through a portal into a `<div>` it owns, and
+  // deselecting a tab only *detaches* that div: with the default
+  // `renderer: "onlyWhenVisible"`, `ContentContainer.renderPanel` does
+  // `removeChild` on the outgoing panel and `appendChild` on the incoming one
+  // — never a teardown, so the portal (and every ref and piece of state
+  // below) survives untouched. Backgrounding a workspace doesn't even do that;
+  // its dock stays in the tree behind `visibility: hidden`.
+  //
+  // So there is no remount for a restore to hang off. That is what sank both
+  // earlier attempts at this feature: the restore effect ran exactly once, at
+  // panel creation, when there was nothing to restore. What actually goes
+  // wrong is narrower — **detaching an element from the document discards its
+  // `scrollTop`** — so the transcript comes back at 0 with all of its React
+  // state still perfectly intact.
+  //
+  // Two rules follow, and they are the whole design:
+  //
+  // 1. Re-assert the remembered position on every transition back **on
+  //    screen** — `onScreen` (`DockPanelProps`), which the host resolves from
+  //    both the tab and the workspace. Neither transition is a mount, and
+  //    either can be the one that lost the offset.
+  // 2. Learn the position **only from live scroll events on an on-screen
+  //    scroller**. dockview detaches the element *before* it reports the
+  //    change, so anything read from the DOM once it is off screen is 0 —
+  //    reading it there is how the saved position got overwritten with 0.
+  //
+  // Two stores, and no third: `liveScrollRef` holds the current position (a
+  // ref is enough precisely because the panel outlives every switch), and
+  // `params.scrollTop` / `params.scrollPinned` in this panel's own
+  // `DockPanelRecord` (RFC 0041) carry it across a close-and-reopen or a
+  // restart, written on a debounce and flushed when the panel leaves screen.
+  const scrollBucket = transcriptScrollKey(
+    profileId,
+    sessionId ?? params.sessionId,
+  );
+
   const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const pinnedRef = useRef(true);
-  useEffect(() => {
-    const el = scrollerRef.current;
-    if (el && pinnedRef.current) el.scrollTop = el.scrollHeight;
-  }, [transcript, permissions]);
+  const onScreenRef = useRef(onScreen);
+  onScreenRef.current = onScreen;
+  // The live position, and the conversation it was measured in. Reset rather
+  // than reused when the bucket changes — an offset from the previous agent's
+  // transcript is meaningless in the new one.
+  const liveScrollRef = useRef<ScrollSnapshot | null>(null);
+  const liveScrollBucketRef = useRef(scrollBucket);
+  if (liveScrollBucketRef.current !== scrollBucket) {
+    liveScrollBucketRef.current = scrollBucket;
+    liveScrollRef.current = null;
+  }
+  const restoreDoneRef = useRef(false);
+  const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // What was last written into `params`, so a flush or a debounce that lands
+  // on an unchanged position doesn't churn the panel record — and re-render
+  // the whole dock — for nothing.
+  const writtenScrollRef = useRef<ScrollSnapshot | null>(null);
+  // When the transcript last changed shape, and whether it has painted
+  // anything at all — the two inputs `shouldAbandonRestore` needs, read from
+  // inside the retry loop rather than passed through its dependencies.
+  const lastTranscriptChangeRef = useRef(Date.now());
+  const hasEntriesRef = useRef(false);
+  hasEntriesRef.current = transcript.entries.length > 0;
+  // `params` as of this render, read by the restore driver without becoming
+  // one of its dependencies — see the comment there.
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
+
+  const writeScrollParams = useCallback(
+    (snap: ScrollSnapshot | null) => {
+      if (!snap) return;
+      const prev = writtenScrollRef.current;
+      if (prev && prev.top === snap.top && prev.pinned === snap.pinned) return;
+      writtenScrollRef.current = snap;
+      api.updateParameters({ scrollTop: snap.top, scrollPinned: snap.pinned });
+    },
+    [api],
+  );
+
   const onScroll = useCallback(() => {
+    // Rule 2. A detached scroller (this tab was just deselected) reads 0, and
+    // a restore still in flight is assigning clamped values that arrive here
+    // looking like user input. Neither is a position worth learning from.
+    if (!onScreenRef.current || !restoreDoneRef.current) return;
     const el = scrollerRef.current;
     if (!el) return;
-    pinnedRef.current =
-      el.scrollHeight - el.scrollTop - el.clientHeight <
-      AUTOSCROLL_THRESHOLD_PX;
+    // A transcript re-paint that momentarily shortens the content makes the
+    // browser clamp the offset, which arrives here indistinguishable from the
+    // user jumping to the top. Leave the remembered position alone.
+    if (isClampedScroll(el, liveScrollRef.current?.top)) return;
+    const snap = { top: el.scrollTop, pinned: isPinnedToBottom(el) };
+    liveScrollRef.current = snap;
+    if (scrollSaveTimerRef.current !== null) {
+      clearTimeout(scrollSaveTimerRef.current);
+    }
+    scrollSaveTimerRef.current = setTimeout(() => {
+      scrollSaveTimerRef.current = null;
+      writeScrollParams(snap);
+    }, SCROLL_SAVE_DEBOUNCE_MS);
+  }, [writeScrollParams]);
+
+  const finishRestore = useCallback((el: HTMLElement | null) => {
+    restoreDoneRef.current = true;
+    if (!el) return;
+    liveScrollRef.current = {
+      top: el.scrollTop,
+      pinned: isPinnedToBottom(el),
+    };
   }, []);
+
+  // Every transcript change is another chance for the content to grow tall
+  // enough to hold a saved offset, so it also extends the retry window below.
+  useEffect(() => {
+    lastTranscriptChangeRef.current = Date.now();
+  }, [transcript, permissions, phase.status]);
+
+  // The restore driver — rule 1. Re-runs on every transition on screen and on
+  // every change of conversation, then retries the target once per frame until
+  // it sticks. Frames rather than renders because the transcript's height also
+  // settles without React (a web font landing, an image in a tool result), and
+  // a `ResizeObserver` on the scroller can't see that either: its own box
+  // never changes as its content grows, which is exactly why the first attempt
+  // at this restored nothing.
+  //
+  // `params` is read through a ref on purpose: every later write to
+  // `params.scrollTop` is one of this panel's own saves, and re-arming on
+  // those would yank the scroller out from under the user mid-scroll.
+  useLayoutEffect(() => {
+    if (!onScreen) return;
+    const p = paramsRef.current;
+    const target = restoreTargetFor(
+      liveScrollRef.current ??
+        persistedScroll(
+          profileId,
+          p.sessionId,
+          p.scrollTop,
+          p.scrollPinned,
+          scrollBucket,
+        ),
+    );
+    restoreDoneRef.current = false;
+
+    const armedAt = Date.now();
+    lastTranscriptChangeRef.current = armedAt;
+    let frame = 0;
+    const attempt = () => {
+      const el = scrollerRef.current;
+      if (el && applyRestoreStep(el, target)) {
+        finishRestore(el);
+        return;
+      }
+      if (
+        shouldAbandonRestore(
+          Date.now(),
+          armedAt,
+          lastTranscriptChangeRef.current,
+          hasEntriesRef.current,
+        )
+      ) {
+        // The offset was never reachable — the conversation came back shorter
+        // than it was saved at (a `/clear`, a compaction, a journal that
+        // replayed fewer entries). Take the clamped position and hand control
+        // back, rather than suppressing saves for the life of the panel.
+        finishRestore(el);
+        return;
+      }
+      frame = requestAnimationFrame(attempt);
+    };
+    attempt();
+    return () => cancelAnimationFrame(frame);
+  }, [onScreen, scrollBucket, profileId, finishRestore]);
+
+  // Keep a transcript that was following the stream pinned to the bottom as
+  // entries arrive. No dependency array on purpose — every commit is a chance
+  // for the content to have grown — and idempotent, so running it on an
+  // unrelated re-render (a keystroke in the composer) changes nothing. Skipped
+  // while off screen: the offset there is either discarded (detached) or the
+  // user's parked position (backgrounded workspace), and neither wants
+  // scrolling.
+  useLayoutEffect(() => {
+    const el = scrollerRef.current;
+    if (!el || !onScreen || !restoreDoneRef.current) return;
+    if (liveScrollRef.current?.pinned === false) return;
+    scrollToBottom(el);
+  });
+
+  // Leaving the screen is the moment to get `params` current, in case the
+  // debounce above is still pending. The position comes from the ref, never
+  // the DOM — rule 2.
+  useEffect(() => {
+    if (onScreen || !restoreDoneRef.current) return;
+    if (scrollSaveTimerRef.current !== null) {
+      clearTimeout(scrollSaveTimerRef.current);
+      scrollSaveTimerRef.current = null;
+    }
+    writeScrollParams(liveScrollRef.current);
+  }, [onScreen, writeScrollParams]);
 
   const isMac =
     typeof navigator !== "undefined" &&
