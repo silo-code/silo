@@ -1,6 +1,6 @@
 # Interface: NewFileTemplate
 
-Defined in: [packages/sdk/src/types.ts:273](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L273)
+Defined in: [packages/sdk/src/types.ts:296](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L296)
 
 Describes how to bootstrap a new, never-saved buffer for a file type. Its
 mere presence on a FileType marks the type as creatable — it shows up in the
@@ -14,6 +14,6 @@ mere presence on a FileType marks the type as creatable — it shows up in the
 optional defaultName?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:275](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L275)
+Defined in: [packages/sdk/src/types.ts:298](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L298)
 
 Base name (no extension) for the untitled buffer. Defaults to "Untitled".

@@ -1,6 +1,6 @@
 # Interface: Keybinding
 
-Defined in: [packages/sdk/src/types.ts:494](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L494)
+Defined in: [packages/sdk/src/types.ts:517](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L517)
 
 Binds a keyboard shortcut to a [Command](Command.md).
 
@@ -19,7 +19,7 @@ applies to every command an extension exposes.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:496](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L496)
+Defined in: [packages/sdk/src/types.ts:519](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L519)
 
 Unique id for this binding.
 
@@ -31,7 +31,7 @@ Unique id for this binding.
 key: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:502](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L502)
+Defined in: [packages/sdk/src/types.ts:525](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L525)
 
 Shortcut spec like "cmd+s", "ctrl+shift+s", "cmd+1", "cmd+shift+=".
 Parsed against KeyboardEvent.code for layout-stable letter/digit keys
@@ -45,7 +45,7 @@ plus a small alias table for symbol keys (= → Equal, - → Minus, etc.).
 command: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:504](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L504)
+Defined in: [packages/sdk/src/types.ts:527](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L527)
 
 Id of the [Command](Command.md) to invoke.
 
@@ -57,7 +57,7 @@ Id of the [Command](Command.md) to invoke.
 optional when?: (ctx) => boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:506](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L506)
+Defined in: [packages/sdk/src/types.ts:529](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L529)
 
 Optional predicate against context keys; the binding is inert when false.
 

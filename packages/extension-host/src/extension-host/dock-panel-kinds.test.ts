@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { IDockviewPanelProps } from "dockview";
 import type { DockPanelKind } from "@silo-code/sdk";
 import {
+  dockPanelIsOnScreen,
   makeDockPanelApi,
   dockPanelKindRegistry,
   parseRecordedPanelId,
@@ -177,5 +178,32 @@ describe("parseRecordedPanelId / recordedPanelId (RFC 0041)", () => {
       kindId: "acp-chat",
       recordId: "a:b",
     });
+  });
+});
+
+describe("dockPanelIsOnScreen", () => {
+  it("needs both halves", () => {
+    expect(dockPanelIsOnScreen(true, "ws-a", "ws-a")).toBe(true);
+  });
+
+  it("is false for a deselected tab in the active workspace", () => {
+    expect(dockPanelIsOnScreen(false, "ws-a", "ws-a")).toBe(false);
+  });
+
+  it("is false for the selected tab of a backgrounded workspace", () => {
+    // The half dockview cannot see: it reports `isVisible: true` for the
+    // selected tab of every warmed dock, active workspace or not.
+    expect(dockPanelIsOnScreen(true, "ws-b", "ws-a")).toBe(false);
+  });
+
+  it("is false with no workspace open at all", () => {
+    expect(dockPanelIsOnScreen(true, null, "ws-a")).toBe(false);
+  });
+
+  it("is false for a panel whose workspace has not resolved yet", () => {
+    // A transient panel renders before its dock registers a workspace id.
+    // Off screen is the safe answer — a restore one render late beats one
+    // aimed at a panel nobody is looking at.
+    expect(dockPanelIsOnScreen(true, "ws-a", "")).toBe(false);
   });
 });

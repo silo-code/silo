@@ -73,7 +73,7 @@ A small, obvious choice needs neither.
 | [0031](./0031-update-check-analytics.md)                      | Update-check analytics via a Cloudflare Worker proxy               | 2026-08-01 | accepted |
 | [0032](./0032-dock-active-panel-authority.md)                 | One authority decides a dock's active panel                        | 2026-08-04 | accepted |
 | [0033](./0033-laptop-mode-independent-layout.md)              | Laptop Mode is a second independent layout                         | 2026-08-06 | accepted |
-| [0034](./0034-focus-and-activation-authority.md)              | Focus/activation: the live dock, and only the active panel         | 2026-08-07 | proposed |
+| [0034](./0034-focus-and-activation-authority.md)              | Focus/activation: the live dock, and only the active panel         | 2026-08-07 | accepted |
 | [0035](./0035-global-side-panel-layout.md)                    | Global Side Panel Layout is an opt-in shared arrangement           | 2026-08-08 | accepted |
 | [0036](./0036-unified-update-ui-and-changelog.md)             | Unified update UI, in-app changelog, and skip-version              | 2026-08-10 | accepted |
 | [0037](./0037-git-repo-watch-session.md)                      | A published, live git-state session (`GitAPI.watchRepo`)           | 2026-08-12 | accepted |
@@ -92,3 +92,4 @@ A small, obvious choice needs neither.
 | [0050](./0050-replay-is-tagged-not-filtered.md)               | Reattach replay is tagged on the wire, not filtered out            | 2026-09-03 | accepted |
 | [0051](./0051-interpreter-wrapped-foreground-resolution.md)   | Full-argv resolution for any script interpreter, not `node` alone  | 2026-09-04 | accepted |
 | [0052](./0052-chat-session-resurrection.md)                   | A Chat agent dies with the app; its session does not               | 2026-09-09 | accepted |
+| [0053](./0053-dock-panel-outlives-visibility.md)              | A dock panel outlives its visibility; the host resolves on screen  | 2026-09-11 | accepted |

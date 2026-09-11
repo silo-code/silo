@@ -2,9 +2,12 @@ import {
   createElement,
   useEffect,
   useMemo,
+  useSyncExternalStore,
   type FunctionComponent,
 } from "react";
+import { subscribe } from "valtio";
 import type { IDockviewPanelProps } from "dockview";
+import { store } from "../state/store";
 import { Registry } from "./registry";
 import { dockApiWorkspaceId } from "../docked/dock-api-registry";
 import { workspaceIdForPanelRecord } from "../state/workspaces";
@@ -101,6 +104,53 @@ export function makeDockPanelApi(dv: DockviewPanelApi): DockPanelApi {
 }
 
 /**
+ * The rule behind {@link DockPanelProps.onScreen}: both halves of "the user can
+ * see this panel", which the host owns and no extension should have to compose.
+ *
+ * The tab half comes from dockview, which knows nothing about workspaces. The
+ * workspace half has to come from the store, because `CenterDock` keeps every
+ * warmed workspace's dock mounted and merely hides the inactive ones
+ * (`visibility: hidden`) — so a panel reading dockview alone believes it is
+ * visible while its whole workspace sits behind another. That is the mistake
+ * this prop exists to stop, and the reason the answer is resolved here rather
+ * than in each panel (ADR 0032 / ADR 0034: one authority per question).
+ *
+ * A panel with no resolved workspace (`""` — a transient panel in a dock whose
+ * registration has not landed yet) is not on screen: better a restore that
+ * arrives a render late than one aimed at a panel nobody is looking at.
+ */
+export function dockPanelIsOnScreen(
+  tabVisible: boolean,
+  activeWorkspaceId: string | null,
+  workspaceId: string,
+): boolean {
+  if (!tabVisible || !workspaceId) return false;
+  return activeWorkspaceId === workspaceId;
+}
+
+/** {@link dockPanelIsOnScreen}, wired to dockview and the store reactively. */
+function useDockPanelOnScreen(
+  dv: DockviewPanelApi,
+  workspaceId: string,
+): boolean {
+  const tabVisible = useSyncExternalStore(
+    useMemo(
+      () => (cb: () => void) => dv.onDidVisibilityChange(cb).dispose,
+      [dv],
+    ),
+    () => dv.isVisible,
+  );
+  const activeWorkspaceId = useSyncExternalStore(
+    subscribeToStore,
+    getActiveWorkspaceId,
+  );
+  return dockPanelIsOnScreen(tabVisible, activeWorkspaceId, workspaceId);
+}
+
+const subscribeToStore = (cb: () => void) => subscribe(store, cb);
+const getActiveWorkspaceId = () => store.activeWorkspaceId;
+
+/**
  * Wrap a {@link DockPanelKind.component} so dockview (which passes
  * {@link IDockviewPanelProps}) mounts it with the SDK's {@link DockPanelProps}
  * — a {@link DockPanelApi} plus the panel's typed params. Also withdraws the
@@ -141,7 +191,13 @@ function toHostComponent(
       (recorded ? workspaceIdForPanelRecord(recorded.recordId) : null) ??
       dockApiWorkspaceId(props.containerApi) ??
       "";
-    const body = createElement(Component, { api, params, workspaceId });
+    const onScreen = useDockPanelOnScreen(props.api, workspaceId);
+    const body = createElement(Component, {
+      api,
+      params,
+      workspaceId,
+      onScreen,
+    });
     if (!toolbar) return body;
     return createElement(
       "div",

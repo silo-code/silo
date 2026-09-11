@@ -220,6 +220,23 @@ never "just" focus — it can silently change the visible Active Panel. Only
 the Active Panel may take focus (ADR 0034).
 _Avoid_: Treating "focused" and "active" as interchangeable
 
+**On screen**:
+Whether a Panel's pixels are actually in front of the user — its tab is the
+selected one in its Group **and** its Workspace is the active one. A third
+state, distinct from both _visible_ (the tab half alone: dockview knows nothing
+about Workspaces, so a Panel in a backgrounded Workspace still reports
+`isVisible: true`) and _active_ (focus — the single Panel in the whole dock that
+has it). The host resolves it and hands it to dock panels as
+`DockPanelProps.onScreen`; a Panel must not recombine the halves itself (one
+authority per question — ADR 0032 / ADR 0034).
+
+A Panel is **never unmounted** for going off screen: a deselected tab has its
+element detached from the document and re-attached later, while its component
+state survives. Detaching discards scroll offsets and anything else the browser
+keeps on a layout box, so DOM measurement and restoration belong on an
+_on-screen transition_, never on mount — mount happens once per tab.
+_Avoid_: Visible (means the tab half only), active (means focus), mounted
+
 **Split**:
 Dividing a Side Pane or Group into two or more sections, in a row (side by
 side) or a column (stacked).

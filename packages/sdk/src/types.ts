@@ -186,6 +186,29 @@ export interface DockPanelProps<T extends object = Record<string, unknown>> {
    * `connect()` defaulted to the active one.
    */
   workspaceId: string;
+  /**
+   * Whether this panel's pixels are actually on screen right now — its tab is
+   * the selected one in its group **and** its workspace is the one the user is
+   * looking at. The host resolves both halves; a panel must not reconstruct
+   * this from {@link DockPanelApi.isVisible} plus
+   * {@link ExtensionContext.workspaces} itself.
+   *
+   * Distinct from the two api members it is easy to confuse it with.
+   * {@link DockPanelApi.isVisible} covers only the tab half, so a panel in a
+   * background workspace still reports `isVisible: true`;
+   * {@link DockPanelApi.isActive} is about focus — the single panel in the
+   * whole dock that has it.
+   *
+   * A panel is **never unmounted** for going off screen, which is what makes
+   * this prop load-bearing rather than a convenience. A deselected tab has its
+   * DOM detached and later re-attached — discarding scroll offsets and
+   * anything else the browser keeps on a layout box — while its React state
+   * and refs survive untouched, and a background workspace's dock stays in the
+   * tree as it was. So whatever a panel measures from or restores into the DOM
+   * belongs on a transition of this flag, never on mount: mount happens once,
+   * when the tab is created, and never again.
+   */
+  onScreen: boolean;
 }
 
 /**

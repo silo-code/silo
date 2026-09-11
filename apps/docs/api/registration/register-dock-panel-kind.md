@@ -111,6 +111,42 @@ Trailing buttons arrive through
 via `t.workspaceId`. The built-in terminal declares `toolbar` too, so its
 toolbar items are ordinary `"panel"` items.
 
+### Your panel is never remounted — restore on `onScreen`
+
+A dock panel mounts **once**, when its tab is created, and stays mounted until
+the tab closes. Deselecting its tab does not unmount it: the host detaches your
+panel's element from the document and re-attaches it when the tab comes back, so
+your React state and refs survive untouched. Backgrounding the whole workspace
+does not even detach — that dock simply stops being shown.
+
+The catch is that a detached element loses everything the browser keeps on a
+layout box, **scroll offsets first among them**. So a panel that restores a
+scroll position, re-measures a canvas, or refits a terminal on mount will do it
+exactly once, when there is nothing yet to restore, and never again.
+
+Do that work on `onScreen` instead. It is `true` only when your tab is the
+selected one in its group _and_ its workspace is the one on screen — the host
+resolves both halves, so don't recombine
+[`DockPanelApi.isVisible`](/api/types/interfaces/DockPanelApi) (the tab half
+only: a panel in a backgrounded workspace still reports `true`) with
+[`ctx.workspaces`](/api/state/workspaces) yourself.
+
+```ts
+function AcmeChatPanel({ params, onScreen }: DockPanelProps<{ scrollTop?: number }>) {
+  const scroller = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!onScreen || !scroller.current) return;
+    scroller.current.scrollTop = params.scrollTop ?? 0;
+  }, [onScreen, params.scrollTop]);
+
+  return <div ref={scroller} />;
+}
+```
+
+Read the position back only while `onScreen` is `true` — the element is already
+detached by the time the flag flips to `false`, and reads `0` there.
+
 ### Recorded panels: reopen on restart <Badge type="warning" text="experimental" />
 
 By default a dock panel persists only as geometry in the saved dock layout — it
