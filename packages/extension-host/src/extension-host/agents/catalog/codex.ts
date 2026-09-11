@@ -34,14 +34,16 @@ export function buildCodexAgentDefinition(
     // it. Session 3.6 recon (2026-09-08) resolved the vendor prefix and pinned
     // the version. `initialize` PASSED (`agentInfo` title "Codex", version
     // 1.10.0, protocolVersion 1); `session/new` returned
-    // `Authentication required` because this machine has no codex login at all
+    // `Authentication required` because that machine had no codex login at all
     // (`~/.codex/auth.json` absent, `codex login status` → "Not logged in") —
-    // an auth state, not a bad launch line. That is the same outcome
-    // `pi-acp` gives against a fresh config dir, and the trap list's own rule
-    // ("the auth signal is `session/new` failing") is what it is diagnosed by,
-    // so the arm stays set rather than dropping to `undefined`: the launch
-    // spec is verified resolvable and verified to speak the protocol, which is
-    // the only thing this field claims.
+    // an auth state, not a bad launch line, which is why the arm stayed set:
+    // the launch spec was verified resolvable and verified to speak the
+    // protocol, the only thing this field claims. Re-probed 2026-09-11 on a
+    // logged-in machine and `session/new` succeeded, advertising four session
+    // `configOptions` (ids `mode`, `collaboration_mode`, `model`,
+    // `reasoning_effort`) — the arm is verified end to end. CODEX_HOME is
+    // honoured by the adapter too, proven the same day by an empty-dir probe
+    // failing while ambient ~/.codex succeeded (see `verificationNotes`).
     acpLaunch: {
       kind: "adapter",
       package: "@agentclientprotocol/codex-acp",
@@ -121,18 +123,32 @@ export function buildCodexAgentDefinition(
       "'@agentclientprotocol/codex-acp', title 'Codex', version '1.10.0' }, " +
       "protocolVersion 1 — so the pinned spec resolves and speaks the " +
       "protocol. `session/new` was NOT reached: it returned -32000 " +
-      "`Authentication required`, because this machine has no codex login " +
-      "(no ~/.codex/auth.json). PARTIALLY VERIFIED for that reason — re-probe " +
-      "`session/new` on a logged-in machine. Whether the adapter honours " +
-      "CODEX_HOME is likewise UNVERIFIED (blocked on the same auth step), so " +
-      "the editor's config-directory field for a Codex Chat profile rests on " +
-      "the CLI's own CODEX_HOME behaviour, not on an observed adapter probe.",
+      "`Authentication required`, because that machine had no codex login " +
+      "(no ~/.codex/auth.json). RESOLVED 2026-09-11 on a logged-in machine " +
+      "(`codex login` at the CLI, nothing else changed): `session/new` " +
+      "succeeded and advertised four `configOptions`, all `type: \'select\'` " +
+      "and all carrying a `description` — Mode (\'Approval and sandboxing " +
+      "preset for the session\'), Collaboration mode, Model, and Reasoning " +
+      "effort. So the auth failure was an auth state, exactly as the trap " +
+      "list\'s rule says, and the arm is now fully verified end to end. " +
+      "CODEX_HOME VERIFIED the same day, against codex-acp@1.10.0 over piped " +
+      "stdio with everything else held constant: unset (ambient ~/.codex, " +
+      "logged in) → `session/new` ok, configOptions ids [mode, " +
+      "collaboration_mode, model, reasoning_effort]; CODEX_HOME pointed at an " +
+      "empty directory → `initialize` still ok but `session/new` → -32000 " +
+      "`Authentication required`. The second run is the decisive one: " +
+      "~/.codex stayed logged in throughout, so an adapter ignoring " +
+      "CODEX_HOME would have found those credentials and succeeded. It did " +
+      "not, so the adapter reads the directory it is given and the editor\'s " +
+      "config-directory field is honoured on the Chat arm as well as by the " +
+      "CLI. (Empty-dir rather than a copied ~/.codex on purpose — it settles " +
+      "the same question without duplicating auth.json anywhere.)",
     upstreamRefs: [
       "https://developers.openai.com/codex/hooks",
       "https://developers.openai.com/codex/config-advanced",
       "https://github.com/openai/codex",
     ],
-    lastVerified: "2026-09-08",
+    lastVerified: "2026-09-11",
     verifiedAgainstVersion: "codex-cli@0.153.2",
   };
 }
