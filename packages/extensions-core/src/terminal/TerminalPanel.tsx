@@ -1179,11 +1179,16 @@ export function TerminalPanel(
     };
   }, [lifecycle.kind, props.api, terminalId]);
 
+  // Refit whenever this terminal comes back on screen. `onScreen`
+  // (`DockPanelProps`), not `api.isVisible`: the tab half alone reports true
+  // for a terminal in a backgrounded workspace, so a refit driven by it missed
+  // the workspace-switch case entirely — the dock is re-shown at a different
+  // size and xterm never re-measures.
   useEffect(() => {
-    const dispose = props.api.onDidVisibilityChange(() => {
-      if (props.api.isVisible) forceRefit();
-    });
+    if (props.onScreen) forceRefit();
+  }, [props.onScreen, forceRefit]);
 
+  useEffect(() => {
     function onRefitSignal() {
       // Two frames: first lets dockview's outer layout settle, second runs
       // when the inner panel size is final.
@@ -1191,10 +1196,9 @@ export function TerminalPanel(
     }
     window.addEventListener("app:refit-terminals", onRefitSignal);
     return () => {
-      dispose.dispose();
       window.removeEventListener("app:refit-terminals", onRefitSignal);
     };
-  }, [props.api, forceRefit]);
+  }, [forceRefit]);
 
   // File drops paste the path(s) into the shell. Shift-held (paste mode) or
   // native Finder drops always paste; plain copy-mode internal drops fall
