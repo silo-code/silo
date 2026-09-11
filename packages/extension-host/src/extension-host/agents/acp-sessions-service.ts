@@ -82,6 +82,7 @@ import {
   readJournalLines,
   type ChatSessionJournalWriter,
 } from "./chat-session-journal";
+import { sessionConfigToApply } from "./profile-session-config";
 
 /** How long `dispose()` gives `session/close` to land before killing the
  *  process regardless (RFC 0042: "call session/close, then kill the
@@ -1136,6 +1137,28 @@ export function createAgentSessionsService(
         resume: canResume ? resume : undefined,
         dispose: () => handle.dispose(),
       });
+
+      // Profile defaults apply only on a fresh session — a resumed one already
+      // carries whatever the agent had when it was last open.
+      if (
+        resumeOutcome === "new" &&
+        liveConnection &&
+        launch.sessionConfig &&
+        Object.keys(launch.sessionConfig).length > 0
+      ) {
+        for (const { id, value } of sessionConfigToApply(
+          launch.sessionConfig,
+          configOptions,
+        )) {
+          try {
+            await handle.setConfigOption(id, value);
+          } catch (err) {
+            agentsChannel.debug(
+              `[${label}] could not apply profile default "${id}=${value}": ${asError(err, "").message}`,
+            );
+          }
+        }
+      }
 
       return handle;
     },

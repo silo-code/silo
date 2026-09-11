@@ -342,6 +342,12 @@ export type AgentProfileLaunch =
       args: string[];
       /** Extra environment for the child, merged over the inherited env. */
       env?: Record<string, string>;
+      /**
+       * Session config defaults — opaque `configOptions` id → value pairs
+       * applied on a **fresh** connect via `setConfigOption` after
+       * `session/new`. Resumed sessions keep whatever the agent already had.
+       */
+      sessionConfig?: Readonly<Record<string, string>>;
     };
 
 /**

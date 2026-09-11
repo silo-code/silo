@@ -531,6 +531,17 @@ export type { AgentProfileStart } from "./agents/agent-profile-start";
 // author a Chat profile that nothing can open (RFC 0039 — replaces the
 // `chatAgents` flag; the same function the launch path resolves through).
 export { resolveChatProfileHost } from "./agents/chat-profile-host";
+export {
+  probeChatConfigOptions,
+  peekCachedChatConfigOptions,
+  chatConfigProbeCacheKey,
+  CHAT_CONFIG_PROBE_CACHE_TTL_MS,
+  type ChatLaunchProbe,
+} from "./agents/probe-chat-config-options";
+export {
+  sessionConfigToApply,
+  pruneSessionConfig,
+} from "./agents/profile-session-config";
 
 // Opening-prompt delivery (RFC 0033 phase 3). Core needs exactly one thing
 // from this module: whether a profile can be given an opening prompt, so the

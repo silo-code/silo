@@ -69,6 +69,11 @@ export interface ProfileEditorState {
    * saving cannot drop a key this editor has no field for.
    */
   chatEnv: Record<string, string>;
+  /**
+   * Session config defaults (`configOptions` id → value) applied when a Chat
+   * panel opens a **new** session for this profile.
+   */
+  sessionConfig: Record<string, string>;
 }
 
 /**
@@ -122,6 +127,7 @@ export function editorStateFromProfile(
     configDir: chat ? chatConfigDir : (terminal?.configDir ?? ""),
     chatChoice,
     chatEnv,
+    sessionConfig: { ...(chat?.sessionConfig ?? {}) },
   };
 }
 
@@ -155,7 +161,8 @@ export function launchFromEditorState(
   s: Pick<
     ProfileEditorState,
     "interfaceKind" | "terminalCommand" | "chatCommand" | "args" | "chatEnv"
-  >,
+  > &
+    Partial<Pick<ProfileEditorState, "sessionConfig">>,
   configDir: string,
   envVar?: string,
 ): AgentProfile["launch"] {
@@ -163,11 +170,15 @@ export function launchFromEditorState(
   if (s.interfaceKind === "chat") {
     const env = { ...s.chatEnv };
     if (envVar && configDir) env[envVar] = configDir;
+    const sessionConfig = Object.fromEntries(
+      Object.entries(s.sessionConfig ?? {}).filter(([, v]) => v),
+    );
     return {
       interface: "chat",
       command,
       args: parseArgs(s.args),
       ...(Object.keys(env).length > 0 ? { env } : {}),
+      ...(Object.keys(sessionConfig).length > 0 ? { sessionConfig } : {}),
     };
   }
   return {

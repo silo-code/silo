@@ -278,6 +278,19 @@
   font-size: var(--silo-font-size-sm);
 }
 
+/* One SettingRow per advertised option — a stack, not the wrapped chip row it
+   was before the rows gained labels. */
+.apf-session-config {
+  display: flex;
+  flex-direction: column;
+}
+
+.apf-session-config-probe {
+  display: inline-flex;
+  align-items: center;
+  color: var(--silo-color-text-lo);
+}
+
 /* Launch-line preview: a small caption over a read-only command readout. Uses
    the recessed panel background (not input chrome) so it doesn't read as a
    field you type into; Copy is tucked inside on the right. */

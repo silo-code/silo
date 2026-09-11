@@ -41,6 +41,7 @@ describe("editorStateFromProfile", () => {
       configDir: "",
       chatChoice: "",
       chatEnv: {},
+      sessionConfig: {},
     });
   });
 
@@ -195,10 +196,50 @@ describe("launchFromEditorState", () => {
           chatCommand: " cursor-agent ",
           args: " acp ",
           chatEnv: {},
+          sessionConfig: {},
         },
         "",
       ),
     ).toEqual({ interface: "chat", command: "cursor-agent", args: ["acp"] });
+  });
+
+  it("writes sessionConfig on the Chat arm when set", () => {
+    expect(
+      launchFromEditorState(
+        {
+          interfaceKind: "chat",
+          terminalCommand: "",
+          chatCommand: "cursor-agent",
+          args: "acp",
+          chatEnv: {},
+          sessionConfig: {
+            mode: "bypassPermissions",
+            model: "opus",
+          },
+        },
+        "",
+      ),
+    ).toEqual({
+      interface: "chat",
+      command: "cursor-agent",
+      args: ["acp"],
+      sessionConfig: { mode: "bypassPermissions", model: "opus" },
+    });
+  });
+
+  it("round-trips sessionConfig through the editor", () => {
+    const seed = {
+      launch: {
+        interface: "chat" as const,
+        command: "cursor-agent",
+        args: ["acp"],
+        sessionConfig: { mode: "bypassPermissions" },
+      },
+      assumedAgentId: "cursor",
+    };
+    const state = editorStateFromProfile(seed);
+    expect(state.sessionConfig).toEqual({ mode: "bypassPermissions" });
+    expect(launchFromEditorState(state, "")).toEqual(seed.launch);
   });
 
   // The same field, two destinations: Chat is `exec`'d with no shell, so there

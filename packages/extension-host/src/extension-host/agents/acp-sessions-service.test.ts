@@ -617,6 +617,72 @@ describe("session config options (RFC 0038 Session 3.1)", () => {
     expect(fakeClient.setConfigOption).not.toHaveBeenCalled();
   });
 
+  it("applies profile sessionConfig defaults on a fresh connect", async () => {
+    replaceAgentProfiles([
+      {
+        id: "claude-chat",
+        label: "Claude (chat)",
+        launch: {
+          interface: "chat",
+          command: "npx",
+          args: ["claude-acp"],
+          sessionConfig: { mode: "plan", model: "opus" },
+        },
+        assumedAgentId: "claude",
+      },
+    ]);
+    withConfig(cursorConfig);
+    fakeClient.setConfigOption
+      .mockResolvedValueOnce([
+        { ...cursorConfig[0], currentValue: "plan" },
+        cursorConfig[1],
+      ])
+      .mockResolvedValueOnce([
+        { ...cursorConfig[0], currentValue: "plan" },
+        { ...cursorConfig[1], currentValue: "opus" },
+      ]);
+    const handle = await service.connect("claude-chat");
+    expect(fakeClient.setConfigOption).toHaveBeenCalledWith(
+      "s1",
+      "mode",
+      "plan",
+    );
+    expect(fakeClient.setConfigOption).toHaveBeenCalledWith(
+      "s1",
+      "model",
+      "opus",
+    );
+    expect(handle.configOptions.map((o) => o.currentValue)).toEqual([
+      "plan",
+      "opus",
+    ]);
+  });
+
+  it("does not apply profile sessionConfig when resuming a session", async () => {
+    replaceAgentProfiles([
+      {
+        id: "claude-chat",
+        label: "Claude (chat)",
+        launch: {
+          interface: "chat",
+          command: "npx",
+          args: ["claude-acp"],
+          sessionConfig: { mode: "plan" },
+        },
+        assumedAgentId: "claude",
+      },
+    ]);
+    fakeClient.loadSession.mockResolvedValue({
+      sessionId: "prior",
+      configOptions: cursorConfig,
+    });
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "prior" },
+    });
+    expect(handle.resumeOutcome).toBe("resumed");
+    expect(fakeClient.setConfigOption).not.toHaveBeenCalled();
+  });
+
   it("folds a current_mode_update the agent sent itself back into currentValue", async () => {
     fakeClient.newSession.mockResolvedValue({
       sessionId: "s1",

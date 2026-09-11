@@ -42,8 +42,13 @@
  * `ctx.agents.sessions` needs. An agent with no verified ACP launch is left out
  * of the picker rather than offered with a warning.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
+import { ArrowsClockwise } from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+  AgentSessionConfigOption,
+  ExtensionContext,
+  MenuEntry,
+} from "@silo-code/sdk";
 import {
   AgentIconGlyph,
   Button,
@@ -54,6 +59,7 @@ import {
   RadioCard,
   RadioGroup,
   Section,
+  SettingRow,
   useServiceState,
 } from "@silo-code/sdk";
 import {
@@ -78,6 +84,9 @@ import {
   chatLaunchForAgent,
   formatArgs,
   parseArgs,
+  peekCachedChatConfigOptions,
+  probeChatConfigOptions,
+  pruneSessionConfig,
   type AgentProfile,
 } from "@silo-code/extension-host/internal";
 import {
@@ -96,6 +105,9 @@ const RAW_TEXT_INPUT = {
   autoComplete: "off",
   spellCheck: false,
 } as const;
+
+/** How long the launch line must stop changing before a probe spawns. */
+const CONFIG_PROBE_DEBOUNCE_MS = 600;
 
 export function ProfileEditorModal({
   ctx,
@@ -121,6 +133,13 @@ export function ProfileEditorModal({
     {},
   );
   const [saving, setSaving] = useState(false);
+  const [probedOptions, setProbedOptions] = useState<
+    readonly AgentSessionConfigOption[] | null
+  >(null);
+  const [probeError, setProbeError] = useState<string | undefined>();
+  const [probing, setProbing] = useState(false);
+  // Which probe is the live one — see `runConfigProbe`.
+  const probeGenerationRef = useRef(0);
   const configDirRef = useRef<HTMLInputElement | null>(null);
   const catalog = ctx.agents.catalog();
   const themeState = useServiceState(ctx.theme);
@@ -208,6 +227,114 @@ export function ProfileEditorModal({
     if (focusConfigDir) configDirRef.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const probeLaunchKey = useMemo(() => {
+    if (!isChat || chatNeedsPick || !command.trim()) return null;
+    return JSON.stringify({
+      chatCommand: s.chatCommand,
+      args: s.args,
+      chatChoice: s.chatChoice,
+      configDir: s.configDir,
+      chatEnv: s.chatEnv,
+      resolvedAgentId,
+    });
+  }, [
+    isChat,
+    chatNeedsPick,
+    command,
+    s.chatCommand,
+    s.args,
+    s.chatChoice,
+    s.configDir,
+    s.chatEnv,
+    resolvedAgentId,
+  ]);
+
+  const applyProbedOptions = useCallback(
+    (options: readonly AgentSessionConfigOption[]) => {
+      setProbedOptions(options);
+      setS((p) => ({
+        ...p,
+        sessionConfig: pruneSessionConfig(p.sessionConfig, options),
+      }));
+    },
+    [],
+  );
+
+  const runConfigProbe = useCallback(async () => {
+    if (!isChat || chatNeedsPick || !command.trim()) return;
+    // A probe outlives the edit that started it (up to
+    // `CHAT_CONFIG_PROBE_TIMEOUT_MS`), so a slow one can resolve after the
+    // user has typed on. Only the newest probe may write state.
+    const generation = ++probeGenerationRef.current;
+    const current = () => probeGenerationRef.current === generation;
+    setProbeError(undefined);
+    try {
+      const home = await ctx.system.homeDir().catch(() => "");
+      let configDir = s.configDir.trim();
+      if (configDir && home) configDir = expandTilde(configDir, home);
+      const probeEnvVar = configDirEnvVarForAgent(resolvedAgentId);
+      if (!probeEnvVar) configDir = "";
+      const launch = launchFromEditorState(
+        s,
+        configDir,
+        probeEnvVar || undefined,
+      );
+      if (launch.interface !== "chat") return;
+
+      const cached = peekCachedChatConfigOptions(launch);
+      if (cached) {
+        if (current()) applyProbedOptions(cached);
+        return;
+      }
+
+      setProbing(true);
+      const ws = ctx.workspaces.getState();
+      const cwd =
+        ws.all.find((w) => w.id === ws.activeId)?.folder ?? home ?? "/tmp";
+      const options = await probeChatConfigOptions(launch, cwd);
+      if (current()) applyProbedOptions(options);
+    } catch (err) {
+      if (current()) {
+        setProbedOptions(null);
+        setProbeError(
+          err instanceof Error
+            ? err.message
+            : "Could not detect session options.",
+        );
+      }
+    } finally {
+      if (current()) setProbing(false);
+    }
+  }, [
+    applyProbedOptions,
+    chatNeedsPick,
+    command,
+    ctx,
+    isChat,
+    resolvedAgentId,
+    s,
+  ]);
+
+  // Debounced, because a probe **spawns the agent**. `probeLaunchKey` folds in
+  // the command, args, env and config dir, so it changes on every keystroke in
+  // any of those fields — typing a command undebounced spawns one child per
+  // character, and nothing cancels the ones already in flight. Wait for the
+  // line to settle instead.
+  useEffect(() => {
+    if (!probeLaunchKey) {
+      setProbedOptions(null);
+      setProbeError(undefined);
+      return;
+    }
+    const timer = setTimeout(
+      () => void runConfigProbe(),
+      CONFIG_PROBE_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timer);
+    // Re-probe only when the launch line changes — not when sessionConfig edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [probeLaunchKey]);
 
   const launchLine = useMemo(
     () =>
@@ -528,6 +655,85 @@ export function ProfileEditorModal({
           Choose an agent to set a config directory.
         </span>
       )}
+
+      {isChat && !chatNeedsPick && command.trim() ? (
+        <Section label="Session defaults">
+          <span className="apf-field-hint">
+            Starting values for new Chat sessions.
+          </span>
+          {probing ? (
+            <span
+              className="apf-session-config-probe"
+              role="status"
+              aria-label="Detecting options"
+            >
+              <ArrowsClockwise
+                className="apf-refresh-spin"
+                size="1em"
+                aria-hidden="true"
+              />
+            </span>
+          ) : probeError ? (
+            <>
+              <span className="apf-field-err">{probeError}</span>
+              <Button size="sm" onClick={() => void runConfigProbe()}>
+                Retry
+              </Button>
+            </>
+          ) : probedOptions && probedOptions.length > 0 ? (
+            <div className="apf-session-config">
+              {probedOptions
+                .filter((opt) => opt.type === "select")
+                .map((opt) => {
+                  const value = s.sessionConfig[opt.id] ?? opt.currentValue;
+                  const label =
+                    opt.options.find((c) => c.value === value)?.name ?? value;
+                  return (
+                    // The agent names its own options, so the control alone
+                    // read as a bare value ("Manual") with nothing saying what
+                    // it set. `SettingRow` carries the agent's `name` — and
+                    // its `description` when it offers one — in the left
+                    // column (modal-design: label + control on one row).
+                    <SettingRow
+                      key={opt.id}
+                      label={opt.name}
+                      hint={opt.description}
+                    >
+                      <MenuButton
+                        variant="field"
+                        label={label}
+                        aria-label={opt.name}
+                        onClick={(e) =>
+                          void ctx.ui.showMenu({
+                            anchor: e.currentTarget,
+                            items: opt.options.map((choice) => ({
+                              label: choice.name,
+                              checked: choice.value === value,
+                              run: () =>
+                                setS((p) => {
+                                  const next = { ...p.sessionConfig };
+                                  if (choice.value === opt.currentValue) {
+                                    delete next[opt.id];
+                                  } else {
+                                    next[opt.id] = choice.value;
+                                  }
+                                  return { ...p, sessionConfig: next };
+                                }),
+                            })),
+                          })
+                        }
+                      />
+                    </SettingRow>
+                  );
+                })}
+            </div>
+          ) : probedOptions ? (
+            <span className="apf-field-hint">
+              This agent did not advertise any session options.
+            </span>
+          ) : null}
+        </Section>
+      ) : null}
 
       {!isChat && !acceptsPrompt && s.terminalCommand.trim() ? (
         <span className="apf-field-hint">

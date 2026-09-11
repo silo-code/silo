@@ -180,6 +180,23 @@ function loadProfileLaunch(
         }
         if (Object.keys(env).length > 0) launch.env = env;
       }
+      if (
+        l.sessionConfig &&
+        typeof l.sessionConfig === "object" &&
+        !Array.isArray(l.sessionConfig)
+      ) {
+        const sessionConfig: Record<string, string> = {};
+        for (const [k, v] of Object.entries(
+          l.sessionConfig as Record<string, unknown>,
+        )) {
+          if (typeof k === "string" && k && typeof v === "string" && v) {
+            sessionConfig[k] = v;
+          }
+        }
+        if (Object.keys(sessionConfig).length > 0) {
+          launch.sessionConfig = sessionConfig;
+        }
+      }
       return launch;
     }
     return null;
