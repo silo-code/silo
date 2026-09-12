@@ -140,7 +140,8 @@ AgentProfile {
   id, label, default?, assumedAgentId?      // addressing — unchanged
   launch:
     | { interface: "terminal", command: string, configDir? }   // a shell line
-    | { interface: "chat",     command: string, args: string[], env? }
+    | { interface: "chat",     command: string, args: string[], env?,
+        sessionConfig? }                                       // see below
 }
 ```
 
@@ -214,6 +215,15 @@ Three facts shape the design:
   the existing Claude Code login — verified by pointing `CLAUDE_CONFIG_DIR` at an
   empty directory and watching `session/new` succeed anyway. For the agents most
   likely to be used first, onboarding has **no auth step at all**.
+- **Whether an adapter honours the config dir is per-agent, and the line above
+  is not the general rule.** The same probe run against `codex-acp` (2026-09-11)
+  goes the other way: with `CODEX_HOME` pointed at an empty directory,
+  `initialize` still succeeds but `session/new` returns `Authentication
+required`, while the ambient logged-in `~/.codex` succeeds — so that adapter
+  reads the directory it is given. Two adapters, two answers, from the identical
+  experiment. `configDirEnvVar` says which variable an agent uses, never that
+  its ACP adapter respects it; that has to be probed per agent and recorded in
+  the catalog entry.
 - **Auth style is not declared in the ACP Registry** (`agent.schema.json` has no
   auth fields). It is discoverable only at runtime. A client must spawn first.
 
@@ -224,6 +234,62 @@ settings page to do this; Silo has one already. Their connection card
 (Connected · Provider · Plan · Account) is the piece worth matching, and none of
 it comes from ACP — it requires per-agent knowledge, which is one more argument
 for the curated catalog.
+
+### Session config defaults (phase 6)
+
+An agent advertises its own session controls — mode, model, reasoning effort,
+whatever it has — as `configOptions` on `session/new`, and accepts writes to
+them via `setConfigOption`. The list is **self-describing and agent-specific**:
+Silo hard-codes no per-provider schema, and the UI renders whatever comes back.
+A Chat panel already exposes them for the live session.
+
+What it could not do is remember them. Every new session started at whatever
+the agent's own default was, so a preference like "always start Codex on
+read-only" had to be re-set by hand each time. `sessionConfig` is that memory: an
+opaque `configOptions` id → value map on the profile's Chat arm, applied after
+`session/new`.
+
+Four constraints, each of which is the interesting part:
+
+- **Fresh sessions only.** A resumed session already carries whatever the agent
+  had when it was last open; re-applying a profile default over it would
+  silently undo a mid-conversation change the user made deliberately.
+- **Validated against what the agent actually advertised, per connection.** A
+  stored id the agent no longer offers, or a value no longer in its choice list,
+  is skipped rather than written blindly — and dropped from the profile the next
+  time the editor sees the real list. Agents change their options between
+  versions; a stale entry must decay, not error.
+- **Opaque on both sides.** Silo stores strings it does not interpret. That is
+  what lets this work for an agent nobody has written a schema for, and it is
+  the same bet `configOptions` itself makes.
+- **A wrong value is inert, not dangerous.** Nothing is blocked on a key
+  matching; an unrecognised one is simply never applied.
+
+The options are discovered by **probing**: spawning the agent briefly and
+reading what `session/new` advertises. This is unavoidable rather than chosen —
+`configOptions` exists nowhere else in the protocol, so there is no way to offer
+the user a list without creating a session first. Results are cached per launch
+line so reopening the editor does not respawn the agent.
+
+**The probe is the one place Silo spawns an agent outside the sessions
+service**, which means its child is not in the agent registry and nothing else
+will ever reap it — precisely the trap listed below ("ten orphaned
+`cursor-agent` processes in one afternoon"), re-entered through a new door.
+Three bounds keep it shut: a **timeout** (ACP requests have none of their own,
+so an agent that starts and never answers `initialize` would otherwise leave a
+child alive until Silo exits — and the timer must both kill the child and
+independently settle the caller, rather than relying on disposal to unblock it);
+a **debounce**, because the probe key folds in the command, args, env and config
+dir, all of which change per keystroke while someone types a command; and a
+**generation guard**, so a slow probe resolving after the user has typed on
+cannot overwrite newer state.
+
+An unauthenticated agent therefore cannot be probed at all — `session/new` is
+both the only source of the options and the auth signal (see **Auth** above).
+That is a real limit of this design, not a defect to fix: the remedy is to sign
+in. A later phase could instead harvest `configOptions` from a live session,
+which every working Chat panel already receives, and skip the probe entirely for
+any profile that has ever connected.
 
 ### The transport
 
@@ -278,6 +344,7 @@ way a conscious decision.
 | **3 — The Chat panel**               | One bundled transcript: streaming text, tool-call rows, inline permission, cancel. Deliberately not plan / modes / slash-commands / history.                                                                                                              |
 | **4 — Persistence**                  | Persist the session id; `session/load` on mount; the "cannot be restored" state.                                                                                                                                                                          |
 | **5 — Discovery, onboarding & auth** | The unified **Found on this machine** list; the Settings → Agents connection card; "Sign in" running the agent's own login in a Silo terminal; adapter fetch-on-first-use.                                                                                |
+| **6 — Session config defaults**      | `sessionConfig` on the profile's Chat arm: per-profile starting values for the agent's own `configOptions`, applied on a fresh `session/new`, discovered by a bounded probe. See above.                                                                   |
 
 ### Things any ACP client must handle (learned the hard way)
 
