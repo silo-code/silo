@@ -12,6 +12,7 @@ import {
   addPanelRecord,
   removePanelRecord,
   findPanelRecord,
+  workspaceIdForPanelRecord,
   setPanelRecordState,
   touchPanelRecord,
   openEditor,
@@ -700,5 +701,38 @@ describe("recorded dock panels (RFC 0041)", () => {
     store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
     addPanelRecord("w", { id: "p1", kindId: "acp-chat" });
     expect(findPanelRecord("w2", "p1")).toBeNull();
+  });
+});
+
+// A dock panel used to learn its workspace from the dock's own registration,
+// which is empty during its first render — so a panel that reported something
+// about itself right then (a Chat session connecting) filed it under whichever
+// workspace the user was standing in, and the session appeared to *move*.
+// The record knows from the start; that is what a panel is asked now.
+describe("workspaceIdForPanelRecord", () => {
+  beforeEach(() => {
+    store.workspaces = {
+      a: {
+        id: "a",
+        name: "a",
+        folder: "/a",
+        panels: [],
+      } as unknown as WorkspaceInternal,
+      b: {
+        id: "b",
+        name: "b",
+        folder: "/b",
+        panels: [],
+      } as unknown as WorkspaceInternal,
+    };
+  });
+
+  it("finds the workspace a recorded panel belongs to, wherever it is", () => {
+    addPanelRecord("b", { id: "p1", kindId: "acp-chat" });
+    expect(workspaceIdForPanelRecord("p1")).toBe("b");
+  });
+
+  it("is null for a record no workspace has", () => {
+    expect(workspaceIdForPanelRecord("nope")).toBeNull();
   });
 });

@@ -415,7 +415,13 @@ export {
 export {
   notifyTerminalSessionGone,
   notifyTerminalSessionRecreated,
+  getAgentsService,
 } from "./agents/agents-service";
+
+// Which dock tab is showing which Agent Session — read by the automation
+// bridge so a restart-fidelity check can assert a restored tab carries its
+// agent's chrome (icon, badge) before the panel mounts, not only after.
+export { agentSessionForPanel } from "./agents/agent-surface-registry";
 
 // The agent catalog (RFC 0018) — the single source of truth for every agent
 // Silo supports. Detection/resume-hint resolution consume it host-side; the

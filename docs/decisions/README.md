@@ -91,3 +91,4 @@ A small, obvious choice needs neither.
 | [0049](./0049-control-api-transport-and-authorization.md)     | The Control API: OS-gated socket, closed operation allowlist       | 2026-09-03 | accepted |
 | [0050](./0050-replay-is-tagged-not-filtered.md)               | Reattach replay is tagged on the wire, not filtered out            | 2026-09-03 | accepted |
 | [0051](./0051-interpreter-wrapped-foreground-resolution.md)   | Full-argv resolution for any script interpreter, not `node` alone  | 2026-09-04 | accepted |
+| [0052](./0052-chat-session-resurrection.md)                   | A Chat agent dies with the app; its session does not               | 2026-09-09 | accepted |

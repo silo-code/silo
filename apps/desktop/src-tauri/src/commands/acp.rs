@@ -210,6 +210,16 @@ fn next_connection_id() -> String {
 pub struct AcpSpawnResult {
     pub connection_id: String,
     pub pid: u32,
+    /// Effective values of the variables the caller asked about in
+    /// `report_env` — the explicit override when one was passed, otherwise
+    /// whatever this process inherited. Absent variables are omitted.
+    ///
+    /// An agent CLI reads its config directory (and with it, its *session
+    /// store*) from an env var, so which store a Chat session lands in is
+    /// decided by the environment Silo itself was launched from. Silo records
+    /// what the child actually got, so a later restore can spawn against the
+    /// same store instead of silently looking in a different one.
+    pub env_report: HashMap<String, String>,
 }
 
 /// Spawn an ACP agent. Emits `acp_message:<id>` per stdout line,
@@ -222,11 +232,23 @@ pub async fn acp_spawn(
     args: Vec<String>,
     cwd: Option<String>,
     env: Option<HashMap<String, String>>,
+    report_env: Option<Vec<String>>,
 ) -> Result<AcpSpawnResult, String> {
     use tauri::Emitter;
 
     let id = next_connection_id();
     let env = env.unwrap_or_default();
+    let env_report: HashMap<String, String> = report_env
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|name| {
+            let value = env
+                .get(&name)
+                .cloned()
+                .or_else(|| std::env::var(&name).ok())?;
+            Some((name, value))
+        })
+        .collect();
 
     let (a, b, c) = (app.clone(), app.clone(), app);
     let (m, s, x) = (
@@ -261,6 +283,7 @@ pub async fn acp_spawn(
     Ok(AcpSpawnResult {
         connection_id: id,
         pid,
+        env_report,
     })
 }
 

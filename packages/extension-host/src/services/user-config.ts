@@ -51,3 +51,14 @@ export async function userConfigDir(): Promise<string> {
 export async function userConfigPath(name: string): Promise<string> {
   return `${await userConfigDir()}/${name}`;
 }
+
+/**
+ * A workspace's own directory for host-managed state beside its persisted
+ * `<root>/workspaces/<id>.json` record — e.g. the Chat session transcript
+ * journal (RFC 0042) at `<workspace-state-dir>/chat-sessions/<sessionId>.jsonl`.
+ * Distinct from the `.json` file itself (a directory named `<id>` and a file
+ * named `<id>.json` never collide).
+ */
+export async function workspaceStateDir(workspaceId: string): Promise<string> {
+  return `${await userConfigDir()}/workspaces/${workspaceId}`;
+}

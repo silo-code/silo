@@ -501,6 +501,79 @@ render is a reportable gap in the surface, not a workaround to write.
 _Avoid_: "the wire format" for the update stream (they are deliberately
 different things); "raw fields" for anything modelled.
 
+**Chat session resurrection** (RFC 0042) — bringing a **Chat** Agent Session
+back after its process died with the app: the panel persists
+`{ sessionId, profileId, cwd }` in its **Dock Panel Record**, and on restore
+reconnects the agent's own context over **resume** (no replay) or **load**
+(replay), falling back to the **transcript journal**. The precise claim: the
+_session_ — the transcript plus the ability to keep talking — resurrects; the
+_process_ and any in-flight **Prompt Turn** do not. Inside a running app a
+background Chat agent stays alive; after RFC 0042 Phase 2 it also survives a
+webview reload; it never survives a quit.
+_Avoid_: "session restore" (too close to workspace/layout restore), "keeping the
+agent alive" (the agent process is exactly what does not survive).
+
+**Transcript journal** (RFC 0042) — the app's own append-only record of a Chat
+session, one **Update stream** entry (`SessionUpdate`) per line at
+`<workspace-state-dir>/chat-sessions/<sessionId>.jsonl`. It is durable, typed
+(not raw wire), and independent of the agent — so a panel paints instantly on
+reopen and an agent that replays nothing still shows its history. Distinct from
+the **frame log**.
+_Avoid_: "history" (that is the agent's own store), "cache" (it is a
+system-of-record, not a derived copy).
+
+**Dormant Chat session** (`chatResumeState: "dormant"`, RFC 0042) — a **Chat**
+Agent Session Silo knows about but has not connected to this run: its **Dock
+Panel Record** exists and its last-known status was persisted, but no agent
+process is alive and no `connect()` has run. This is what every Chat session in
+a workspace the user has not visited since launch looks like, and listing it is
+the point — the Agents navigator shows it with the title it last had, and
+revealing it activates the workspace and the tab, which is what starts the
+reconnect. Always `activity: "idle"`: there is no live turn to be working on.
+The Chat counterpart of a Terminal session tracked from its terminal record
+before anything attaches.
+_Avoid_: "stale" (that is the soft, self-clearing doubt about a restored
+_duration_ — a dormant session has no duration to doubt); "dead" (a dormant
+session is expected to reconnect on open; `activity: "dead"` is structural and
+does not); "cached session".
+
+**Frame log** (RFC 0042 Phase 2) — a bounded in-memory buffer of the raw
+JSON-RPC frames on one ACP connection, held in `acp.rs` with a pinned head (the
+`initialize` / `session/new` responses) and a visible truncation marker. It
+backs **reattach** across a webview reload: `acp_attach` replays it, then
+streams live, bracketed the way RFC 0036 brackets PTY replay. Distinct from the
+**transcript journal**, which is typed, durable, and the conversation-of-record;
+the frame log is untyped, ephemeral, and exists only to re-sync a live
+connection.
+_Avoid_: conflating it with the journal; "transport buffer" (it is protocol
+frames, keyed for id/answered tracking, not opaque bytes).
+
+**Resume vs. load** — two distinct ACP agent capabilities, not one.
+`session/resume` (gated on `sessionCapabilities.resume`) reconnects to a session
+**without** replaying its history — fast, and the only resume path in ACP v2.
+`session/load` (gated on `agentCapabilities.loadSession`) reconnects **and**
+replays every prior turn as `session/update` notifications. Silo prefers
+`resume` when both are advertised and renders the transcript from the
+**transcript journal** in that case. `loadSession` and `session/list` are
+universal across Silo's catalog, and `claude-agent-acp` 0.75.1 advertises
+`resume` too (probed directly 2026-09-10 — the earlier "not on claude" reading
+was Silo mis-parsing the capability, not the agent lacking it).
+**How a capability arrives is not fixed**: `true` and a details object
+(`resume: {}`) both mean supported, and the block may sit at the top level or
+nested under `agentCapabilities`. Read presence, never `=== true`.
+_Avoid_: "reload the session" for `resume` (it explicitly does not); treating
+`canResume` on `AgentInfo` as either specific method — it means "one of them
+works"; concluding an agent lacks a capability from one build's wire shape.
+
+**Reattach** (extended by RFC 0042) — re-establishing a client's connection to
+a still-running session it lost hold of. Already the **Terminal session** word
+for reconnecting to a daemon-held PTY after a restart; RFC 0042 Phase 2 gives a
+**Chat session** the same word for reconnecting to a `acp.rs`-held ACP
+connection after a webview reload, via the **frame log**. Reattach is a
+same-process reconnect; **Chat session resurrection** is the cross-quit rebuild.
+_Avoid_: using "reattach" for the cross-quit case (that is resurrection —
+the process is gone).
+
 **Chat panel** (`core.acp-chat`, RFC 0038 phase 3) — the bundled center-dock
 surface that holds one **Transcript** and its composer. One panel binds to one
 **Chat** Agent Profile; switching the profile is a teardown, not a re-render.

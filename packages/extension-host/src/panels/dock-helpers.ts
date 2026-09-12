@@ -103,3 +103,42 @@ export async function pickFileForWorkspace(
 export function shouldShowMaximizeButton(groupCount: number): boolean {
   return groupCount > 1;
 }
+
+/**
+ * The params a restored **recorded panel** should be re-seeded with, or `null`
+ * when what it already has is right.
+ *
+ * A recorded panel comes back two ways. If its group survived, `fromJSON`
+ * recreates it from the **layout** snapshot — carrying the params dockview
+ * happened to have when that snapshot was taken. If it did not, `WorkspaceDock`
+ * re-adds it from `DockPanelRecord.state`. Only the second is current: the
+ * record is the source of truth for a panel's restore state (`dockLayout` keeps
+ * its *geometry*), and it is written on every parameters change while the
+ * layout is snapshotted on a debounce.
+ *
+ * Left alone, the stale copy doesn't merely show for a moment — it *wins*: the
+ * panel's next partial `updateParameters` merges onto the stale params and the
+ * result replaces the record, silently dropping whatever the record knew and
+ * the layout didn't. That is how a Chat panel's persisted `title` disappeared
+ * after a restart (RFC 0042, 2026-09-10), taking the next restore's early
+ * title with it.
+ */
+export function recordedPanelParamsToRestore(
+  recordState: Readonly<Record<string, unknown>>,
+  panelParams: Readonly<Record<string, unknown>>,
+): Record<string, unknown> | null {
+  return sameParams(recordState, panelParams) ? null : { ...recordState };
+}
+
+/** Shallow equality over two panel-state bags — the gate on both directions of
+ *  the record ↔ params sync, so an unchanged panel writes nothing. */
+export function sameParams(
+  a: Readonly<Record<string, unknown>>,
+  b: Readonly<Record<string, unknown>>,
+): boolean {
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((k) => Object.is(a[k], b[k]))
+  );
+}

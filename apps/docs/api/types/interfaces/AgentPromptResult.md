@@ -1,6 +1,6 @@
 # Interface: AgentPromptResult
 
-Defined in: [packages/sdk/src/agents-service.ts:503](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L503)
+Defined in: [packages/sdk/src/agents-service.ts:549](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L549)
 
 **`Beta`**
 
@@ -16,6 +16,6 @@ instead, with the agent's own message where there is one.
 readonly stopReason: AgentStopReason;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:504](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L504)
+Defined in: [packages/sdk/src/agents-service.ts:550](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L550)
 
 **`Beta`**

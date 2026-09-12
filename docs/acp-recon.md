@@ -586,6 +586,15 @@ rather than relying on a component tree to imply it.
 
 **This is the finding that changes the architecture recommendation.**
 
+> **Updated 2026-09-09.** This section proved the agent _recalls_ its context; a
+> re-run in [`acp-process-ownership.md`](acp-process-ownership.md) §5.2 proved
+> the harder claim — the agent **replays the transcript to the client** on
+> `session/load` — for `claude`, `cursor`, `opencode` and `pi` by asserting
+> message _content_, not recall. It also found `loadSession` + `session/list`
+> universal across the catalog and `session/resume` on 3 of 5 (§5.1). The
+> capability table in §5h below predates those methods stabilising; §5.1 is
+> current. `codex` replay stays unverified (no login on the recon machine).
+
 Earlier this document argued that ACP sessions cannot survive an app restart
 without teaching the session-host daemon to own piped children. That is wrong.
 The agent **process** dies with the app, but the agent keeps the transcript on

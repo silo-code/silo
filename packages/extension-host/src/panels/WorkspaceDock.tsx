@@ -17,6 +17,7 @@ import {
 } from "dockview";
 import { store } from "../state/store";
 import { markStartupLayoutReady } from "../extension-host/startup-status";
+import { pruneOrphanedChatJournals } from "../extension-host/agents/chat-session-journal";
 import {
   openEditor,
   removeEditor,
@@ -61,7 +62,9 @@ import { GroupAddMenu } from "./GroupAddMenu";
 import {
   findEditorTargetGroup,
   panelToReactivateOnClose,
+  recordedPanelParamsToRestore,
   resolveActivationTarget,
+  sameParams,
 } from "./dock-helpers";
 import { reconcileRecordedPanels } from "./recorded-panel-reconcile";
 
@@ -144,6 +147,23 @@ export function WorkspaceDock({
             });
           }
         }
+        // A recorded panel comes back from the layout snapshot carrying the
+        // params dockview held when that snapshot was taken, which can be
+        // older than its record — the record is written on every parameters
+        // change, the layout on a debounce. Re-seed from the record (the
+        // source of truth for a panel's state; the layout owns its geometry)
+        // before the panel's first partial `updateParameters` merges onto the
+        // stale copy and writes *that* back over the record. Caught after a
+        // real restart: a Chat panel's persisted `title` vanished this way.
+        for (const rec of ws.panels) {
+          const p = api.getPanel(recordedPanelId(rec.kindId, rec.id));
+          if (!p) continue;
+          const seed = recordedPanelParamsToRestore(
+            rec.state as Record<string, unknown>,
+            (p.params ?? {}) as Record<string, unknown>,
+          );
+          if (seed) p.api.updateParameters(seed);
+        }
         api.panels.forEach((p) => mountedPanelIds.current.add(p.id));
       } catch (err) {
         console.warn("fromJSON failed, ignoring saved layout", err);
@@ -153,6 +173,17 @@ export function WorkspaceDock({
     // Cold-start StatusBar: how many tabs will attach an existing session?
     const restorable = (ws.terminals ?? []).filter((t) => !!t.sessionId).length;
     markStartupLayoutReady(restorable);
+    // Orphaned transcript journals (RFC 0042): prune on workspace load, never
+    // on quit — a crash-orphaned journal is sometimes the only copy of a
+    // conversation left. Best-effort and fire-and-forget; a recorded panel's
+    // `sessionId` is whatever it currently persists in `state`, regardless of
+    // its kind.
+    const referencedSessionIds = new Set(
+      ws.panels
+        .map((p) => p.state.sessionId)
+        .filter((id): id is string => typeof id === "string"),
+    );
+    void pruneOrphanedChatJournals(workspaceId, referencedSessionIds);
   }, [api, ws, snap.extensionsReady]);
 
   useEffect(() => {
@@ -259,6 +290,21 @@ export function WorkspaceDock({
         wsRef.dockLayout = api.toJSON();
       } catch (err) {
         console.warn("toJSON failed", err);
+      }
+      // `toJSON()` captures each panel's *live* params, so the layout can carry
+      // state the record hasn't heard about: the record's only writer is
+      // dockview's parameters event, and one missed event leaves it behind for
+      // good. Reconcile the pair here, in the same pass that snapshots the
+      // layout, so the two halves of a recorded panel — its geometry and its
+      // state — never disagree on disk. (Observed after a restart: the record
+      // had lost a Chat panel's `title` while the layout still had it.)
+      for (const p of api.panels) {
+        const parsed = parseRecordedPanelId(p.id);
+        if (!parsed) continue;
+        const rec = findPanelRecord(workspaceId, parsed.recordId);
+        const params = (p.params ?? {}) as Record<string, unknown>;
+        if (!rec || sameParams(rec.state, params)) continue;
+        setPanelRecordState(workspaceId, parsed.recordId, params);
       }
     }
     function schedule() {

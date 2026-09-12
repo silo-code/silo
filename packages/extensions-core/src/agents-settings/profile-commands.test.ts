@@ -231,6 +231,27 @@ describe("registerProfileCommands — placing what the dispatch returned", () =>
     expect(notify).not.toHaveBeenCalled();
   });
 
+  it("does not open the panel when the active workspace changed during the await", async () => {
+    // The Session 5b mishap: a `core.newAgent` fired, and by the time the
+    // dispatch resolved a sandbox delete had auto-activated a different
+    // workspace — the Chat panel opened there, surfacing an unrelated
+    // conversation. `ctx.layout.openPanel` targets the active dock, so the
+    // launch must abandon quietly rather than land in the wrong place.
+    store.activeWorkspaceId = "w";
+    startAgentProfile.mockImplementation(async () => {
+      store.activeWorkspaceId = "other"; // the world moved on mid-await
+      return asPanel;
+    });
+    addAgentProfile(chatProfile({ id: "cursor-chat" }));
+    dispose = registerProfileCommands(fakeCtx()).dispose;
+
+    commandRegistry.get("core.newAgent.cursor-chat")?.run();
+    await vi.waitFor(() => expect(startAgentProfile).toHaveBeenCalled());
+    await Promise.resolve();
+    expect(openPanel).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
   it("surfaces a refusal rather than doing nothing", async () => {
     // The silence this replaces is what sent the user hunting for a Chat panel
     // that was not installed.

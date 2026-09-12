@@ -28,6 +28,12 @@ export interface ChatSessionControls {
   /** Spawn a fresh agent process and `session/load` the conversation back
    *  (RFC 0038 phase 4). Only present when the agent advertised `session/load`. */
   resume?(): void | Promise<void>;
+  /** Tear the live connection down — `session/close` then kill the child. The
+   *  session handle's own `dispose`, so the host can reap a session whose
+   *  workspace was deleted without waiting for the panel to unmount
+   *  ({@link reapWorkspaceChatSessions}). Absent on a dormant / journal-only
+   *  entry, which has no process to reap. */
+  dispose?(): void;
 }
 
 interface Entry {
@@ -84,6 +90,25 @@ export function setChatAgentControls(
 
 export function removeChatAgent(id: string): void {
   if (entries.delete(id)) emit();
+}
+
+/**
+ * Reap every Chat session belonging to a deleted workspace — the Chat
+ * counterpart of `reapWorkspaceTerminals`. `WorkspaceService.delete()` calls
+ * this so a live ACP child does not outlive the workspace it was started in
+ * (criterion 1: Chat and Terminal behave alike). `dispose()` runs
+ * `session/close` then kills the process; a dormant / journal-only entry has
+ * no `dispose` and is just withdrawn. Safe to call for a workspace with no
+ * Chat sessions.
+ */
+export function reapWorkspaceChatSessions(workspaceId: string): void {
+  for (const { info, controls } of [...entries.values()]) {
+    if (info.workspaceId !== workspaceId) continue;
+    // `dispose()` calls `removeChatAgent(info.id)` itself; the explicit
+    // removal below is the fallback for an entry that has none.
+    if (controls.dispose) controls.dispose();
+    else removeChatAgent(info.id);
+  }
 }
 
 /** Fires after any register / patch / remove. `agents-service.ts` subscribes

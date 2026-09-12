@@ -26,6 +26,7 @@ import { getGlobalExtensionStorage } from "./extension-storage";
 import { executeCommand } from "./commands";
 import { closeMenu } from "./menu-controller";
 import { reapWorkspaceTerminals } from "./terminal-service";
+import { reapWorkspaceChatSessions } from "./agents/chat-agent-registry";
 
 // The **one** builder for the "Open workspace" menu — saved groups to restore,
 // closed workspaces to reopen, then New workspace… / New Group…. Three surfaces
@@ -43,7 +44,8 @@ import { reapWorkspaceTerminals } from "./terminal-service";
 // ticked from any of these surfaces suppresses the dialog on all of them.
 const workspacesStorage = getGlobalExtensionStorage("core.workspaces");
 
-/** Confirm, then hard-delete a workspace (terminals are reaped by delete). */
+/** Confirm, then hard-delete a workspace (terminals and Chat sessions are
+ *  reaped by delete). */
 async function confirmAndDeleteWorkspace(
   id: string,
   name: string,
@@ -57,8 +59,10 @@ async function confirmAndDeleteWorkspace(
   });
   if (!ok) return;
   // Same order as WorkspaceService.delete — reap first (it clears the terminal
-  // records synchronously) so no PTY is orphaned in the pty-host daemon.
+  // records synchronously) so no PTY is orphaned in the pty-host daemon, and
+  // reap live Chat sessions the same way so no ACP child outlives the workspace.
   void reapWorkspaceTerminals(id);
+  reapWorkspaceChatSessions(id);
   deleteWorkspace(id);
   // The menu snapshot is taken at open time; dismiss it so the delete reads as
   // having happened instead of leaving a stale row until click-away.

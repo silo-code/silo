@@ -166,6 +166,19 @@ function appendEntry(t: Transcript, make: (key: string) => TranscriptEntry) {
   return { entries: [...t.entries, make(`e${seq}`)], seq };
 }
 
+/**
+ * Seed a transcript from the **transcript journal** (RFC 0042) — prior turns
+ * to paint before subscribing to the live update stream, exactly the shape
+ * `AgentSessionHandle.journal` hands back. Folds each entry through
+ * {@link applyUpdate}, the same reducer live updates go through, so a
+ * restored panel and a freshly-connected one render identically.
+ */
+export function seedFromJournal(
+  journal: readonly AgentSessionUpdate[],
+): Transcript {
+  return journal.reduce(applyUpdate, emptyTranscript);
+}
+
 /** Append the user's own prompt. The stream does not echo it back, so the
  *  panel adds it when it sends the turn. `attachments` are the file names sent
  *  as `resource_link` blocks alongside the text. */

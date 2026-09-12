@@ -260,7 +260,7 @@ both live and at `activity === "dead"`.
 readonly canResume: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:182](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L182)
+Defined in: [packages/sdk/src/agents-service.ts:188](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L188)
 
 **`Beta`**
 
@@ -277,6 +277,12 @@ Whether this session can be resumed **through Silo** — i.e. whether
 - Chat session: `true` when the agent advertises `session/load`, so a
   fresh process can reload the transcript after the old one died.
 
+- Chat session: `true` when the agent advertises **either**
+  `sessionCapabilities.resume` or `agentCapabilities.loadSession` (RFC
+  0042) — the two are distinct capabilities (see [ChatResumeState](../type-aliases/ChatResumeState.md))
+  but either is enough for [AgentsService.resume](AgentsService.md#resume) to bring the
+  conversation back.
+
 ***
 
 ### agentName?
@@ -285,7 +291,7 @@ Whether this session can be resumed **through Silo** — i.e. whether
 readonly optional agentName?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:191](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L191)
+Defined in: [packages/sdk/src/agents-service.ts:197](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L197)
 
 **`Beta`**
 
@@ -304,7 +310,7 @@ known agent leader is detected at all (same moment
 readonly optional agentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:199](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L199)
+Defined in: [packages/sdk/src/agents-service.ts:205](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L205)
 
 **`Beta`**
 
@@ -313,3 +319,19 @@ Stable catalog key for the agent, e.g. `"claude"` or `"codex"` — unlike
 user), this is meant for an extension's own code to switch or compare
 on, and won't change if the display name is ever reworded. Populated at
 the same moment and lifecycle as `agentName`.
+
+***
+
+### chatResumeState?
+
+```ts
+readonly optional chatResumeState?: ChatResumeState;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:211](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L211)
+
+**`Beta`**
+
+For a `kind: "chat"` session, where it stands in **Chat session
+resurrection** (RFC 0042) — absent for a `kind: "terminal"` session, which
+has no such lifecycle. See [ChatResumeState](../type-aliases/ChatResumeState.md).

@@ -1,6 +1,6 @@
 # Interface: AgentSessionsService
 
-Defined in: [packages/sdk/src/agents-service.ts:1048](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1048)
+Defined in: [packages/sdk/src/agents-service.ts:1192](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1192)
 
 **`Beta`**
 
@@ -38,7 +38,7 @@ ctx.subscriptions.push(off, { dispose: () => session.dispose() });
 connect(profileId, options?): Promise<AgentSessionHandle>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1063](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1063)
+Defined in: [packages/sdk/src/agents-service.ts:1212](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1212)
 
 **`Beta`**
 
@@ -51,6 +51,10 @@ that id; the profile is a Terminal profile, not a Chat one; there is no
 target workspace; the agent needs authentication (its `session/new`
 failed); or the agent reported a startup error (the rejection carries its
 message).
+
+With [AgentSessionConnectOptions.resume](AgentSessionConnectOptions.md#resume), `connect()` still never
+rejects merely because the target has gone stale — it falls all the way
+through to a fresh `session/new` (RFC 0042); see [AgentSessionHandle.resumeOutcome](AgentSessionHandle.md#resumeoutcome).
 
 #### Parameters
 
@@ -68,3 +72,44 @@ message).
 #### Returns
 
 `Promise`\<[`AgentSessionHandle`](AgentSessionHandle.md)\>
+
+***
+
+### readJournal()
+
+```ts
+readJournal(sessionId, options?): Promise<readonly AgentSessionUpdate[]>;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1230](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1230)
+
+**`Beta`**
+
+Read a session's **transcript journal** (RFC 0042) without connecting —
+for painting a restored panel *before* `connect({ resume })` resolves,
+which itself also pays for the `session/resume` / `session/load` network
+round trip. This is the "paint from journal" half of the restore flow;
+`connect()` is the "reconnect the agent" half, and the two run
+independently on purpose.
+
+Resolves `[]` for a session that never wrote a journal entry, or an
+unknown id — never rejects on a merely-missing journal. Needs the
+`"agents"` [Permission](../type-aliases/Permission.md), same as [connect](#connect).
+
+#### Parameters
+
+##### sessionId
+
+`string`
+
+— an [AgentSessionHandle.sessionId](AgentSessionHandle.md#sessionid).
+
+##### options?
+
+###### workspaceId?
+
+`string`
+
+#### Returns
+
+`Promise`\<readonly [`AgentSessionUpdate`](AgentSessionUpdate.md)[]\>

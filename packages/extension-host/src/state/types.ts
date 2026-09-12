@@ -250,6 +250,66 @@ export interface PersistedAgentInfo {
 }
 
 /**
+ * Last-known status of a **Chat** Agent Session, keyed by its Agent Session id
+ * (`chat:<sessionId>`) in `AppState.chatSessionState`.
+ *
+ * A Chat agent's process dies with the app while its session does not (ADR
+ * 0052), and nothing reconnects it until its panel is actually mounted — which
+ * for a background workspace does not happen until the user visits it. This is
+ * what Silo still knows in the meantime: enough to list the session in the
+ * Agents navigator, and paint its row with the title it had, without spawning
+ * anything. The Chat counterpart of {@link PersistedAgentInfo}, which does the
+ * same job for a Terminal session off its terminal record (RFC 0042).
+ *
+ * Deliberately *not* a persisted `AgentInfo`: activity, attention and the
+ * resume state are all facts about a live connection, and a restored entry has
+ * none — it is always idle until something connects.
+ */
+export interface PersistedChatSession {
+  workspaceId: string;
+  /** The ACP session id a restore resumes — `AgentInfo.sessionId`, and the
+   *  `chat:`-less half of the map key. */
+  sessionId: string;
+  /** The title the session last showed. */
+  title: string;
+  agentName?: string;
+  /** Stable catalog key, e.g. "claude" — see AgentInfo.agentId's doc comment. */
+  agentId?: string;
+  /** Whether the agent advertised `session/resume` or `session/load` last time
+   *  it was connected. A hint for a consumer rendering the row, not a promise:
+   *  it is re-negotiated on the next real connect. */
+  canResume: boolean;
+  /**
+   * The agent's **config directory** at the moment this session was created —
+   * the value of the CLI's own config-dir variable (`CLAUDE_CONFIG_DIR`, …) as
+   * the child actually received it.
+   *
+   * An agent keeps its sessions inside that directory, so it is part of the
+   * session's identity, not an environmental detail: a restore that spawns
+   * against a different one is told the session does not exist. Silo inherits
+   * the variable from whatever environment it was launched in, which is not
+   * stable between a terminal launch and a Finder launch — recording it is what
+   * makes a restore independent of how Silo was started. Absent for an agent
+   * with no config-dir variable, and for sessions created before this was
+   * recorded.
+   */
+  configDir?: string;
+  /**
+   * The last-known live status — restored optimistically so a Chat session
+   * looks the same after a restart as it did before it. `"working"` is
+   * deliberately *not* carried over: the process it belonged to is gone, so the
+   * turn is over whether or not it finished. Attention is carried over, with
+   * its original timestamp, because "the agent finished and you haven't looked
+   * yet" is still true after a restart.
+   */
+  activity: AgentActivity;
+  needsAttention: boolean;
+  attentionSince?: string;
+  /** ISO timestamp of the last live update to any of the fields above. */
+  lastLiveAt: string;
+}
+
+/**
  * How an Agent Profile starts its agent (RFC 0038). A discriminated union so
  * the two ways differ **honestly** rather than sharing a `command` field whose
  * meaning changes:
@@ -358,6 +418,15 @@ export interface AppState extends SharedPanelState {
    * each `PersistedAgentInfo` carries its own `workspaceId`.
    */
   agentState: Record<string, PersistedAgentInfo>;
+  /**
+   * Host-owned last-known status of every **Chat** Agent Session, keyed by
+   * Agent Session id (`chat:<sessionId>`). Global for the same reason
+   * {@link AppState.agentState} is — the key is already unique and each entry
+   * names its own workspace. Read back at boot to show a session that exists
+   * on disk but has nothing running behind it yet (RFC 0042); pruned there of
+   * anything no recorded panel still references.
+   */
+  chatSessionState: Record<string, PersistedChatSession>;
   /**
    * User-defined Agent Profiles (RFC 0033), in menu / settings-list order.
    * Global (not per-workspace) — the same list appears in every workspace.

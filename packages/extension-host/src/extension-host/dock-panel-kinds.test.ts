@@ -21,6 +21,12 @@ import {
 type DockviewPanelApi = IDockviewPanelProps["api"];
 
 function fakeDockviewApi(id: string): DockviewPanelApi {
+  // A real dockview panel keeps whatever the last `updateParameters` call set
+  // and hands it back from `getParameters()` — the fake mirrors that so a
+  // test can assert on the merge `makeDockPanelApi` is responsible for
+  // (dockview itself replaces wholesale; see the doc comment on
+  // `makeDockPanelApi`'s `updateParameters`).
+  let params: Record<string, unknown> = {};
   return {
     id,
     isActive: true,
@@ -28,7 +34,10 @@ function fakeDockviewApi(id: string): DockviewPanelApi {
     setTitle: vi.fn(),
     close: vi.fn(),
     setActive: vi.fn(),
-    updateParameters: vi.fn(),
+    getParameters: vi.fn(() => params),
+    updateParameters: vi.fn((next: Record<string, unknown>) => {
+      params = next;
+    }),
     onDidActiveChange: vi.fn(() => ({ dispose: vi.fn() })),
     onDidVisibilityChange: vi.fn(() => ({ dispose: vi.fn() })),
   } as unknown as DockviewPanelApi;
@@ -78,6 +87,26 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
     const dv = fakeDockviewApi("acp-chat:p1");
     makeDockPanelApi(dv).updateParameters({ sessionId: "s-9" });
     expect(dv.updateParameters).toHaveBeenCalledWith({ sessionId: "s-9" });
+  });
+
+  // Caught live (2026-09-09): dockview's own `updateParameters` *replaces*
+  // the panel's params wholesale — no merge at all — the opposite of what
+  // `DockPanelApi.updateParameters` documents ("keys absent from params are
+  // left unchanged"). A Chat panel persisting just a new title was silently
+  // wiping its own `sessionId` / `profileId` / `cwd` (RFC 0042). This is the
+  // regression test for the merge `makeDockPanelApi` now does before handing
+  // off to dockview.
+  it("shallow-merges a partial patch onto the panel's existing params, per the documented contract", () => {
+    const dv = fakeDockviewApi("acp-chat:p1");
+    const api = makeDockPanelApi(dv);
+    api.updateParameters({ profileId: "c1", sessionId: "s-9", cwd: "/ws" });
+    api.updateParameters({ title: "Refactor the dock registry" });
+    expect(dv.updateParameters).toHaveBeenLastCalledWith({
+      profileId: "c1",
+      sessionId: "s-9",
+      cwd: "/ws",
+      title: "Refactor the dock registry",
+    });
   });
 
   it("delegates the plain DockPanelApi verbs to the dockview api", () => {

@@ -28,6 +28,7 @@ import { workspaceSectionRegistry } from "./workspace-section-registry";
 import { workspaceBadgeRegistry } from "./workspace-badge-registry";
 import { workspacePropertyPageRegistry } from "./workspace-property-page-registry";
 import { reapWorkspaceTerminals } from "./terminal-service";
+import { reapWorkspaceChatSessions } from "./agents/chat-agent-registry";
 import { resolveOpenWorkspaceMenuItems } from "./open-workspace-menu";
 import { buildWorkspaceMenuItems } from "./workspace-menu";
 
@@ -110,6 +111,11 @@ export function getWorkspaceService(): WorkspaceService {
       // returned promise only resolves once the PTYs are actually killed, for
       // callers that need that guarantee (e.g. the automation bridge).
       const reaped = reapWorkspaceTerminals(id);
+      // Same treatment for live Chat sessions — a Chat agent must not outlive
+      // its workspace any more than a Terminal one does (criterion 1). Synchronous
+      // like the terminal record removal: it withdraws the registry entries now,
+      // and each `dispose()` runs session/close + kill in the background.
+      reapWorkspaceChatSessions(id);
       deleteWorkspace(id);
       return reaped;
     },

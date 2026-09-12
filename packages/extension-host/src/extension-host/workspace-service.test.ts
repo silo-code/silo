@@ -10,6 +10,12 @@ vi.mock("../services/tauri-terminal-client", () => ({
 import { store } from "../state/store";
 import type { WorkspaceInternal } from "../state/types";
 import { getWorkspaceService } from "./workspace-service";
+import {
+  registerChatAgent,
+  removeChatAgent,
+  resetChatAgentRegistry,
+  chatAgentInfos,
+} from "./agents/chat-agent-registry";
 
 const svc = getWorkspaceService();
 
@@ -29,6 +35,7 @@ function makeWorkspace(id: string): WorkspaceInternal {
 
 beforeEach(() => {
   deleteTerminal.mockReset().mockResolvedValue(undefined);
+  resetChatAgentRegistry();
   const a = makeWorkspace("a");
   a.terminals = [
     { id: "t1", sessionId: "sess-1", kind: "shell", title: "Terminal" },
@@ -75,5 +82,45 @@ describe("WorkspaceService.delete", () => {
     svc.delete("nope");
     expect(deleteTerminal).not.toHaveBeenCalled();
     expect(Object.keys(store.workspaces)).toEqual(["a", "b"]);
+  });
+
+  it("reaps live Chat sessions in the workspace, leaving other workspaces' alone", () => {
+    // The real handle's dispose withdraws its own registry entry.
+    const disposeA = vi.fn(() => removeChatAgent("chat:a"));
+    const disposeB = vi.fn(() => removeChatAgent("chat:b"));
+    registerChatAgent(
+      {
+        id: "chat:a",
+        workspaceId: "a",
+        title: "Claude",
+        kind: "chat",
+        isAgent: true,
+        activity: "idle",
+        needsAttention: false,
+        stale: false,
+        canResume: false,
+      },
+      { dispose: disposeA },
+    );
+    registerChatAgent(
+      {
+        id: "chat:b",
+        workspaceId: "b",
+        title: "Claude",
+        kind: "chat",
+        isAgent: true,
+        activity: "idle",
+        needsAttention: false,
+        stale: false,
+        canResume: false,
+      },
+      { dispose: disposeB },
+    );
+
+    svc.delete("a");
+
+    expect(disposeA).toHaveBeenCalledTimes(1);
+    expect(disposeB).not.toHaveBeenCalled();
+    expect(chatAgentInfos().map((i) => i.id)).toEqual(["chat:b"]);
   });
 });

@@ -1,6 +1,6 @@
 # Interface: AgentToolCallLocation
 
-Defined in: [packages/sdk/src/agents-service.ts:589](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L589)
+Defined in: [packages/sdk/src/agents-service.ts:635](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L635)
 
 **`Beta`**
 
@@ -20,7 +20,7 @@ seen sending `line`.
 readonly path: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:591](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L591)
+Defined in: [packages/sdk/src/agents-service.ts:637](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L637)
 
 **`Beta`**
 
@@ -34,7 +34,7 @@ Absolute path to the file.
 readonly optional line?: number;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:593](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L593)
+Defined in: [packages/sdk/src/agents-service.ts:639](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L639)
 
 **`Beta`**
 

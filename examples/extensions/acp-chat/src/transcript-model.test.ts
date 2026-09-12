@@ -10,6 +10,7 @@ import {
   applyUpdate,
   emptyTranscript,
   planRows,
+  seedFromJournal,
   stopReasonNotice,
   toolContentLines,
   toolStatusTone,
@@ -372,5 +373,20 @@ describe("stopReasonNotice", () => {
     expect(stopReasonNotice("something_else")?.text).toContain(
       "something_else",
     );
+  });
+});
+
+// RFC 0042 — the transcript journal replayed before subscribing to onUpdate.
+describe("seedFromJournal", () => {
+  it("is empty for an empty journal", () => {
+    expect(seedFromJournal([])).toEqual(emptyTranscript);
+  });
+
+  it("folds journal entries through the same reducer as live updates", () => {
+    const journal = [
+      chunk("user_message_chunk", "are you there?", "m1"),
+      chunk("agent_message_chunk", "yes, still here", "m2"),
+    ];
+    expect(seedFromJournal(journal)).toEqual(fold(journal));
   });
 });

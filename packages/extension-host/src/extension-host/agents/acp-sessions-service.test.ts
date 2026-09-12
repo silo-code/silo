@@ -6,6 +6,8 @@ const fakeClient = {
   initialize: vi.fn(),
   newSession: vi.fn(),
   loadSession: vi.fn(),
+  resumeSession: vi.fn(),
+  closeSession: vi.fn(),
   prompt: vi.fn(),
   cancel: vi.fn(),
   setConfigOption: vi.fn(),
@@ -15,9 +17,28 @@ const fakeClient = {
 };
 let captured: AcpClientCallbacks;
 
+const transportCalls: Record<string, unknown>[] = [];
 vi.mock("./acp-transport", () => ({
-  createAcpTransport: vi.fn(() => ({})),
+  createAcpTransport: vi.fn((opts: Record<string, unknown>) => {
+    transportCalls.push(opts);
+    // The spawn reports the effective value of every variable the caller
+    // asked about — here, whatever `env` says, else the "inherited" one the
+    // fake stands in for.
+    const report = (opts.reportEnv as string[] | undefined) ?? [];
+    const env = (opts.env as Record<string, string> | undefined) ?? {};
+    const values: Record<string, string> = {};
+    for (const name of report) {
+      const value = env[name] ?? inheritedEnv[name];
+      if (value) values[name] = value;
+    }
+    (opts.onEnvReport as ((v: Record<string, string>) => void) | undefined)?.(
+      values,
+    );
+    return {};
+  }),
 }));
+/** Stands in for the environment Silo itself was launched with. */
+const inheritedEnv: Record<string, string> = {};
 vi.mock("./acp-jsonrpc", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./acp-jsonrpc")>();
   return {
@@ -26,6 +47,47 @@ vi.mock("./acp-jsonrpc", async (importOriginal) => {
       captured = cb;
       return fakeClient;
     }),
+  };
+});
+
+// --- mock the transcript journal — real disk I/O has no place in a unit test,
+// and every `connect()` now creates a writer regardless of a restore. Kept as
+// an in-memory fake per (workspaceId, sessionId) rather than plain `vi.fn()`s
+// so a test can seed a prior journal and assert what got appended to it.
+const journalFiles = new Map<string, string[]>();
+function journalKey(workspaceId: string, sessionId: string): string {
+  return `${workspaceId}:${sessionId}`;
+}
+vi.mock("./chat-session-journal", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("./chat-session-journal")>();
+  return {
+    ...actual,
+    readJournalLines: vi.fn(
+      async (workspaceId: string, sessionId: string) =>
+        journalFiles.get(journalKey(workspaceId, sessionId)) ?? [],
+    ),
+    createJournalWriter: vi.fn(
+      (workspaceId: string, sessionId: string, seed: readonly string[]) => {
+        const key = journalKey(workspaceId, sessionId);
+        const lines = [...seed];
+        return {
+          append: vi.fn((update: unknown) => {
+            lines.push(JSON.stringify(update));
+            journalFiles.set(key, lines);
+          }),
+          flush: vi.fn(async () => {
+            journalFiles.set(key, lines);
+          }),
+          dropSeed: vi.fn((n: number) => {
+            lines.splice(0, n);
+            journalFiles.set(key, lines);
+          }),
+          snapshotLines: vi.fn(() => [...lines]),
+          dispose: vi.fn(),
+        };
+      },
+    ),
   };
 });
 
@@ -38,6 +100,10 @@ import {
   resetChatAgentRegistry,
 } from "./chat-agent-registry";
 import { createAgentSessionsService } from "./acp-sessions-service";
+import {
+  _resetDormantChatSessionsForTests,
+  startChatSessionStatusPersistence,
+} from "./chat-session-restore";
 import {
   _resetAgentSurfaceRegistryForTests,
   setActiveDockPanel,
@@ -64,8 +130,16 @@ const service = createAgentSessionsService(() => hasAgentsPermission);
 beforeEach(() => {
   resetChatAgentRegistry();
   _resetAgentSurfaceRegistryForTests();
+  journalFiles.clear();
   store.workspaces = { active: ws("active"), other: ws("other") };
+  store.chatSessionState = {};
   store.activeWorkspaceId = "active";
+  transportCalls.length = 0;
+  for (const k of Object.keys(inheritedEnv)) delete inheritedEnv[k];
+  _resetDormantChatSessionsForTests();
+  // The status rows a restore reads back are written by this listener; without
+  // it the service would look like it persists nothing.
+  startChatSessionStatusPersistence();
   hasAgentsPermission = true;
   replaceAgentProfiles([
     {
@@ -89,7 +163,11 @@ beforeEach(() => {
   fakeClient.newSession
     .mockReset()
     .mockResolvedValue({ sessionId: "s1", configOptions: [], raw: {} });
-  fakeClient.loadSession.mockReset().mockResolvedValue(undefined);
+  fakeClient.loadSession
+    .mockReset()
+    .mockResolvedValue({ sessionId: "s1", configOptions: [] });
+  fakeClient.resumeSession.mockReset().mockResolvedValue({ configOptions: [] });
+  fakeClient.closeSession.mockReset().mockResolvedValue(undefined);
   fakeClient.prompt.mockReset().mockResolvedValue({ stopReason: "end_turn" });
   fakeClient.cancel.mockReset();
   fakeClient.setConfigOption.mockReset().mockResolvedValue(null);
@@ -540,5 +618,686 @@ describe("connect({ reveal })", () => {
     expect(() =>
       getChatAgentEntry("chat:s1")!.controls.reveal!(),
     ).not.toThrow();
+  });
+});
+
+// RFC 0042 Phase 1 — the restore flow: resume → load → journal.
+describe("connect({ resume }) — Chat session resurrection", () => {
+  function seedJournal(sessionId: string, updates: Record<string, unknown>[]) {
+    journalFiles.set(
+      journalKey("active", sessionId),
+      updates.map((u) => JSON.stringify(u)),
+    );
+  }
+
+  it("a plain connect (no resume) is resumeOutcome 'new' with an empty journal and chatResumeState 'live'", async () => {
+    const handle = await service.connect("claude-chat");
+    expect(handle.resumeOutcome).toBe("new");
+    expect(handle.journal).toEqual([]);
+    expect(handle.sessionId).toBe("s1");
+    expect(chatAgentInfos()[0].chatResumeState).toBe("live");
+    expect(fakeClient.resumeSession).not.toHaveBeenCalled();
+    expect(fakeClient.loadSession).not.toHaveBeenCalled();
+  });
+
+  // Dave's report (2026-09-09): after a restart, the tab reads a generic
+  // fallback until reconnect finishes, even though the agent's own title was
+  // already known before the app closed. `initialize` alone measured
+  // 3.7–6.5s live, well before `resume`/`load` even starts.
+  describe("the placeholder registered before the handshake resolves", () => {
+    it("shows the last-known title immediately, before initialize() resolves", async () => {
+      let resolveInit!: (v: unknown) => void;
+      fakeClient.initialize.mockReturnValue(
+        new Promise((r) => {
+          resolveInit = r;
+        }),
+      );
+
+      const connectPromise = service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+        title: "Refactor the dock registry",
+      });
+
+      // Still mid-handshake — nothing has resolved yet.
+      expect(chatAgentInfos()).toEqual([
+        expect.objectContaining({
+          id: "chat:old-id",
+          workspaceId: "active",
+          title: "Refactor the dock registry",
+          kind: "chat",
+          sessionId: "old-id",
+          chatResumeState: "resuming",
+        }),
+      ]);
+
+      resolveInit({
+        agentInfo: { title: "Claude Code" },
+        agentCapabilities: {},
+        sessionCapabilities: {},
+        authMethods: [],
+        raw: {},
+      });
+      await connectPromise;
+    });
+
+    it("falls back to the profile label when no title was passed", () => {
+      let resolveInit!: (v: unknown) => void;
+      fakeClient.initialize.mockReturnValue(
+        new Promise((r) => {
+          resolveInit = r;
+        }),
+      );
+      void service.connect("claude-chat", { resume: { sessionId: "old-id" } });
+      expect(chatAgentInfos()[0]).toMatchObject({ title: "Claude (chat)" });
+      resolveInit({
+        agentInfo: {},
+        agentCapabilities: {},
+        sessionCapabilities: {},
+        authMethods: [],
+        raw: {},
+      });
+    });
+
+    it("registers nothing for a plain connect with no resume target", () => {
+      let resolveInit!: (v: unknown) => void;
+      fakeClient.initialize.mockReturnValue(
+        new Promise((r) => {
+          resolveInit = r;
+        }),
+      );
+      void service.connect("claude-chat");
+      expect(chatAgentInfos()).toEqual([]);
+      resolveInit({
+        agentInfo: {},
+        agentCapabilities: {},
+        sessionCapabilities: {},
+        authMethods: [],
+        raw: {},
+      });
+    });
+
+    it("is removed, not left dangling, when initialize() itself fails", async () => {
+      fakeClient.initialize.mockRejectedValue(new Error("spawn failed"));
+      await expect(
+        service.connect("claude-chat", { resume: { sessionId: "old-id" } }),
+      ).rejects.toThrow();
+      expect(chatAgentInfos()).toEqual([]);
+    });
+
+    it("is overwritten in place, not duplicated, once the real registration lands under the same id", async () => {
+      // `loadSession` keeps the same id here (no adoption) — the case where
+      // the placeholder's id and the final id coincide.
+      fakeClient.loadSession.mockResolvedValue({
+        sessionId: "old-id",
+        configOptions: [],
+      });
+      const handle = await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+        title: "Was working on the CSS surface",
+      });
+      expect(chatAgentInfos()).toHaveLength(1);
+      expect(handle.id).toBe("chat:old-id");
+      expect(chatAgentInfos()[0].chatResumeState).not.toBe("resuming");
+    });
+
+    // Dave's report (2026-09-09, second round): the restored tab painted the
+    // right title, then snapped back to "Claude Agent" the moment the
+    // handshake finished — and stayed there until the next message. The
+    // placeholder was right; the *real* registration overwrote it with the
+    // agent's product name, and the panel then persisted that over the good
+    // title.
+    it("keeps the last-known title after the handshake resolves, rather than reverting to the agent's product name", async () => {
+      fakeClient.loadSession.mockResolvedValue({
+        sessionId: "old-id",
+        configOptions: [],
+      });
+      await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+        title: "Was working on the CSS surface",
+      });
+      expect(chatAgentInfos()[0]).toMatchObject({
+        title: "Was working on the CSS surface",
+        // The product name is still reported — as the agent's name, which is
+        // what that field is for.
+        agentName: "Claude Code",
+      });
+    });
+
+    it("keeps the last-known title across a session/load id adoption too", async () => {
+      fakeClient.initialize.mockResolvedValue({
+        agentInfo: { title: "Claude Code" },
+        agentCapabilities: { loadSession: true },
+        sessionCapabilities: {},
+        authMethods: [],
+        raw: {},
+      });
+      fakeClient.loadSession.mockResolvedValue({
+        sessionId: "adopted-id",
+        configOptions: [],
+      });
+      await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+        title: "Was working on the CSS surface",
+      });
+      expect(chatAgentInfos()[0]).toMatchObject({
+        id: "chat:adopted-id",
+        title: "Was working on the CSS surface",
+      });
+    });
+
+    // Same in-flight ordering that lost the journal's replay lines: a
+    // `session_info_update` inside a `session/load` replay is patched onto
+    // whatever id the session is filed under *at that moment*. With `infoId`
+    // still empty until after the handshake, every one of them was dropped —
+    // and the title the agent had just volunteered was then overwritten by
+    // the persisted one.
+    it("takes a title the agent volunteers mid-handshake over the persisted one", async () => {
+      fakeClient.initialize.mockResolvedValue({
+        agentInfo: { title: "Claude Code" },
+        agentCapabilities: { loadSession: true },
+        sessionCapabilities: {},
+        authMethods: [],
+        raw: {},
+      });
+      fakeClient.loadSession.mockImplementation(async () => {
+        captured.onUpdate({
+          sessionUpdate: "session_info_update",
+          title: "Fix the dock panel merge",
+        } as never);
+        return { sessionId: "old-id", configOptions: [] };
+      });
+
+      await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+        title: "Was working on the CSS surface",
+      });
+
+      expect(chatAgentInfos()).toHaveLength(1);
+      expect(chatAgentInfos()[0].title).toBe("Fix the dock panel merge");
+    });
+
+    // The panel's own copy of the title lives in its persisted panel state,
+    // which can go missing (a stale layout snapshot overwriting the record —
+    // seen live 2026-09-10). Silo's own record of the session is the backstop.
+    it("falls back to the title Silo itself remembers when the caller passes none", async () => {
+      store.chatSessionState = {
+        "chat:old-id": {
+          workspaceId: "active",
+          sessionId: "old-id",
+          title: "Refactor the dock registry",
+          canResume: true,
+          lastLiveAt: "2026-09-09T00:00:00.000Z",
+        },
+      };
+      fakeClient.loadSession.mockResolvedValue({
+        sessionId: "old-id",
+        configOptions: [],
+      });
+
+      await service.connect("claude-chat", { resume: { sessionId: "old-id" } });
+
+      expect(chatAgentInfos()[0].title).toBe("Refactor the dock registry");
+    });
+
+    it("prefers the caller's title over the remembered one — the panel is closer to the session", async () => {
+      store.chatSessionState = {
+        "chat:old-id": {
+          workspaceId: "active",
+          sessionId: "old-id",
+          title: "An older title",
+          canResume: true,
+          lastLiveAt: "2026-09-09T00:00:00.000Z",
+        },
+      };
+      fakeClient.loadSession.mockResolvedValue({
+        sessionId: "old-id",
+        configOptions: [],
+      });
+
+      await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+        title: "Was working on the CSS surface",
+      });
+
+      expect(chatAgentInfos()[0].title).toBe("Was working on the CSS surface");
+    });
+
+    it("a fresh session still falls back to the agent's own name — no prior title applies", async () => {
+      await service.connect("claude-chat", { title: "stale leftover" });
+      expect(chatAgentInfos()[0].title).toBe("Claude Code");
+    });
+
+    it("is removed, not left dangling, when session/load adopts a different id", async () => {
+      fakeClient.initialize.mockResolvedValue({
+        agentInfo: { title: "Claude Code" },
+        agentCapabilities: { loadSession: true },
+        sessionCapabilities: {},
+        authMethods: [],
+        raw: {},
+      });
+      fakeClient.loadSession.mockResolvedValue({
+        sessionId: "adopted-id",
+        configOptions: [],
+      });
+      await service.connect("claude-chat", {
+        resume: { sessionId: "old-id" },
+        title: "Was working on the CSS surface",
+      });
+      // Only the final, adopted-id entry remains — the placeholder registered
+      // under "old-id" must not survive as an orphan.
+      expect(chatAgentInfos()).toHaveLength(1);
+      expect(chatAgentInfos()[0].id).toBe("chat:adopted-id");
+    });
+  });
+
+  // The shape a real `claude-agent-acp` sends: capabilities as details objects,
+  // nested under `agentCapabilities`. Read as booleans, every one of them looked
+  // unsupported — so `session/resume` was never attempted against claude and
+  // every restore went through `session/load` (a fork on that adapter).
+  it("takes session/resume when the agent advertises capabilities as objects, not booleans", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: {} },
+      sessionCapabilities: { resume: {}, close: {}, list: {} },
+      authMethods: [],
+      raw: {},
+    });
+    seedJournal("old-id", [{ kind: "agent_message_chunk", text: "hi" }]);
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id" },
+    });
+
+    expect(fakeClient.resumeSession).toHaveBeenCalledWith(
+      "old-id",
+      "/ws/active",
+    );
+    expect(fakeClient.loadSession).not.toHaveBeenCalled();
+    expect(handle.resumeOutcome).toBe("resumed");
+    expect(handle.canResume).toBe(true);
+  });
+
+  it("still calls session/close on teardown when close is advertised as an object", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: {} },
+      sessionCapabilities: { close: {} },
+      authMethods: [],
+      raw: {},
+    });
+    const handle = await service.connect("claude-chat");
+    await handle.dispose();
+    expect(fakeClient.closeSession).toHaveBeenCalledWith("s1");
+  });
+
+  it("prefers session/resume when both capabilities are advertised, and paints the journal (no replay)", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: true },
+      sessionCapabilities: { resume: true, close: true },
+      authMethods: [],
+      raw: {},
+    });
+    seedJournal("old-id", [{ kind: "agent_message_chunk", text: "hi" }]);
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id" },
+    });
+
+    expect(fakeClient.resumeSession).toHaveBeenCalledWith(
+      "old-id",
+      "/ws/active",
+    );
+    expect(fakeClient.loadSession).not.toHaveBeenCalled();
+    expect(fakeClient.newSession).not.toHaveBeenCalled();
+    expect(handle.resumeOutcome).toBe("resumed");
+    expect(handle.sessionId).toBe("old-id");
+    expect(handle.journal).toEqual([
+      { kind: "agent_message_chunk", text: "hi" },
+    ]);
+    expect(chatAgentInfos()[0].chatResumeState).toBe("resumed");
+  });
+
+  it("falls back to session/load when resume isn't advertised, and adopts a returned sessionId", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: true },
+      sessionCapabilities: {},
+      authMethods: [],
+      raw: {},
+    });
+    fakeClient.loadSession.mockResolvedValue({
+      sessionId: "adopted-id",
+      configOptions: [],
+    });
+    seedJournal("old-id", [{ kind: "agent_message_chunk", text: "stale" }]);
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id" },
+    });
+
+    expect(fakeClient.loadSession).toHaveBeenCalledWith("old-id", "/ws/active");
+    expect(handle.resumeOutcome).toBe("resumed");
+    // `load` replays the whole transcript itself — the pre-existing journal
+    // is not also seeded in, or the replay would duplicate every turn.
+    expect(handle.journal).toEqual([]);
+    expect(handle.sessionId).toBe("adopted-id");
+    expect(chatAgentInfos()[0]).toMatchObject({
+      id: "chat:adopted-id",
+      sessionId: "adopted-id",
+    });
+  });
+
+  // Caught live (2026-09-09, real `claude`): a `session/load` replay's own
+  // `session/update`s arrive on `callbacks.onUpdate` *while `loadSession()` is
+  // still in flight* — well before `connect()` sees the result. A journal
+  // writer created only after that call resolves silently misses all of it,
+  // and a restored panel comes back with an empty transcript. This pins the
+  // ordering the fix depends on: the writer must already be listening before
+  // `loadSession`/`resumeSession` is called, not after.
+  it("captures a load replay that streams in mid-call, not just what arrives after", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: true },
+      sessionCapabilities: {},
+      authMethods: [],
+      raw: {},
+    });
+    seedJournal("old-id", []); // no prior journal — isolates the replay itself
+    fakeClient.loadSession.mockImplementation(async () => {
+      // Simulate the agent replaying before its RPC response comes back —
+      // exactly the order every catalog agent uses (recon §5.2).
+      captured.onUpdate({
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "are you there?" },
+      } as never);
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "yes, still here" },
+      } as never);
+      return { sessionId: "old-id", configOptions: [] };
+    });
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id" },
+    });
+
+    expect(handle.resumeOutcome).toBe("resumed");
+    expect(handle.journal.map((u) => u.kind)).toEqual([
+      "user_message_chunk",
+      "agent_message_chunk",
+    ]);
+    const lines = journalFiles.get(journalKey("active", "old-id")) ?? [];
+    expect(lines.map((l) => JSON.parse(l).kind)).toEqual([
+      "user_message_chunk",
+      "agent_message_chunk",
+    ]);
+  });
+
+  it("resume failing falls through to load", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: true },
+      sessionCapabilities: { resume: true },
+      authMethods: [],
+      raw: {},
+    });
+    fakeClient.resumeSession.mockRejectedValue(new Error("stale session"));
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id" },
+    });
+
+    expect(fakeClient.resumeSession).toHaveBeenCalled();
+    expect(fakeClient.loadSession).toHaveBeenCalledWith("old-id", "/ws/active");
+    expect(handle.resumeOutcome).toBe("resumed");
+  });
+
+  it("neither capability working, with a journal on disk, goes journal-only — never refuses to open", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: {},
+      sessionCapabilities: {},
+      authMethods: [],
+      raw: {},
+    });
+    seedJournal("old-id", [
+      { kind: "user_message_chunk", text: "are you there?" },
+    ]);
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id" },
+    });
+
+    expect(fakeClient.newSession).not.toHaveBeenCalled();
+    expect(fakeClient.dispose).toHaveBeenCalled(); // the unused initialized client is freed
+    expect(handle.resumeOutcome).toBe("journal-only");
+    expect(handle.sessionId).toBe("old-id");
+    expect(handle.journal).toEqual([
+      { kind: "user_message_chunk", text: "are you there?" },
+    ]);
+    expect(chatAgentInfos()[0]).toMatchObject({
+      chatResumeState: "journal-only",
+      activity: "dead",
+    });
+
+    await expect(
+      handle.prompt([{ type: "text", text: "hello?" }]),
+    ).rejects.toThrow(/journal-only/i);
+    expect(() => handle.cancel()).not.toThrow();
+  });
+
+  it("neither capability working, with no journal at all, falls through to a fresh session", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: {},
+      sessionCapabilities: {},
+      authMethods: [],
+      raw: {},
+    });
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "never-existed" },
+    });
+
+    expect(fakeClient.newSession).toHaveBeenCalled();
+    expect(handle.resumeOutcome).toBe("new");
+    expect(handle.sessionId).toBe("s1");
+  });
+
+  it("startFresh skips resume/load entirely, adopts the new id, and carries the journal over", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: true },
+      sessionCapabilities: { resume: true },
+      authMethods: [],
+      raw: {},
+    });
+    seedJournal("old-id", [
+      { kind: "user_message_chunk", text: "earlier turn" },
+    ]);
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id", startFresh: true },
+    });
+
+    expect(fakeClient.resumeSession).not.toHaveBeenCalled();
+    expect(fakeClient.loadSession).not.toHaveBeenCalled();
+    expect(fakeClient.newSession).toHaveBeenCalled();
+    expect(handle.resumeOutcome).toBe("new");
+    // Caught live (2026-09-09): keeping the *original*, already-known-dead id
+    // instead means every future restore keeps retrying an id the agent has
+    // never heard of, forever — even while the live conversation under the
+    // new id works fine turn after turn. Adopt the new id, same as a
+    // `session/load` id-adoption does, and carry the old journal into it.
+    expect(handle.sessionId).toBe("s1");
+    expect(handle.journal).toEqual([
+      { kind: "user_message_chunk", text: "earlier turn" },
+    ]);
+  });
+
+  it("appends the user's own prompt to the journal (the stream never echoes it)", async () => {
+    const handle = await service.connect("claude-chat");
+    await handle.prompt([{ type: "text", text: "hello there" }]);
+    const lines = journalFiles.get(journalKey("active", "s1")) ?? [];
+    const parsed = lines.map((l) => JSON.parse(l));
+    expect(parsed).toContainEqual(
+      expect.objectContaining({
+        kind: "user_message_chunk",
+        text: "hello there",
+      }),
+    );
+  });
+
+  it("calls session/close on a clean dispose when advertised, before killing the process", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: {},
+      sessionCapabilities: { close: true },
+      authMethods: [],
+      raw: {},
+    });
+    const handle = await service.connect("claude-chat");
+    handle.dispose();
+    await vi.waitFor(() => {
+      expect(fakeClient.closeSession).toHaveBeenCalledWith("s1");
+      expect(fakeClient.dispose).toHaveBeenCalled();
+    });
+  });
+
+  it("does not call session/close when the agent doesn't advertise it", async () => {
+    const handle = await service.connect("claude-chat"); // default mock: no sessionCapabilities
+    handle.dispose();
+    expect(fakeClient.closeSession).not.toHaveBeenCalled();
+    expect(fakeClient.dispose).toHaveBeenCalled();
+  });
+});
+
+// The "paint from journal" half of the restore flow, independent of
+// connect()'s "reconnect the agent" half (RFC 0042) — so a panel can read a
+// session's journal without paying for a resume/load round trip first.
+describe("readJournal()", () => {
+  it('rejects without the "agents" permission', async () => {
+    hasAgentsPermission = false;
+    await expect(service.readJournal("s1")).rejects.toThrow(
+      /"agents" permission/i,
+    );
+  });
+
+  it("resolves [] for a session with no journal", async () => {
+    await expect(service.readJournal("nope")).resolves.toEqual([]);
+  });
+
+  it("resolves [] when there is no target workspace, rather than rejecting", async () => {
+    store.activeWorkspaceId = null;
+    await expect(service.readJournal("s1")).resolves.toEqual([]);
+  });
+
+  it("reads the active workspace's journal for the given session id", async () => {
+    journalFiles.set(
+      journalKey("active", "s1"),
+      [{ kind: "agent_message_chunk", text: "hi" }].map((u) =>
+        JSON.stringify(u),
+      ),
+    );
+    await expect(service.readJournal("s1")).resolves.toEqual([
+      { kind: "agent_message_chunk", text: "hi" },
+    ]);
+  });
+
+  it("reads a named workspace's journal, not just the active one", async () => {
+    journalFiles.set(journalKey("other", "s2"), [
+      JSON.stringify({ kind: "plan", plan: [] }),
+    ]);
+    await expect(
+      service.readJournal("s2", { workspaceId: "other" }),
+    ).resolves.toEqual([{ kind: "plan", plan: [] }]);
+  });
+});
+
+// Caught live (2026-09-10): a real conversation was reported unresumable purely
+// because the app had been relaunched from a shell exporting a different
+// `CLAUDE_CONFIG_DIR`. An agent keeps its sessions inside its config directory,
+// so which directory the child got at creation is part of the session's
+// identity — not an environmental detail to re-derive on every launch.
+describe("the config directory a session lives in", () => {
+  it("records the directory the child actually ran with", async () => {
+    inheritedEnv.CLAUDE_CONFIG_DIR = "/Users/dave/.claude-personal";
+
+    await service.connect("claude-chat");
+
+    expect(transportCalls[0].reportEnv).toEqual(["CLAUDE_CONFIG_DIR"]);
+    expect(store.chatSessionState["chat:s1"].configDir).toBe(
+      "/Users/dave/.claude-personal",
+    );
+  });
+
+  it("spawns a restore against the recorded directory, not the ambient one", async () => {
+    store.chatSessionState = {
+      "chat:old-id": {
+        workspaceId: "active",
+        sessionId: "old-id",
+        title: "Refactor the dock registry",
+        canResume: true,
+        activity: "idle",
+        needsAttention: false,
+        configDir: "/Users/dave/.claude-personal",
+        lastLiveAt: "2026-09-10T00:00:00.000Z",
+      },
+    };
+    // The app was relaunched somewhere else this time.
+    inheritedEnv.CLAUDE_CONFIG_DIR = "/Users/dave/.claude";
+    fakeClient.loadSession.mockResolvedValue({
+      sessionId: "old-id",
+      configOptions: [],
+    });
+
+    await service.connect("claude-chat", { resume: { sessionId: "old-id" } });
+
+    expect(transportCalls[0].env).toMatchObject({
+      CLAUDE_CONFIG_DIR: "/Users/dave/.claude-personal",
+    });
+    expect(store.chatSessionState["chat:old-id"].configDir).toBe(
+      "/Users/dave/.claude-personal",
+    );
+  });
+
+  it("leaves the environment alone for an agent with no config-dir variable", async () => {
+    replaceAgentProfiles([
+      {
+        id: "claude-chat",
+        label: "Claude (chat)",
+        launch: { interface: "chat", command: "npx", args: ["acp"] },
+        assumedAgentId: "cursor-agent",
+      },
+    ]);
+
+    await service.connect("claude-chat");
+
+    expect(transportCalls[0].reportEnv).toBeUndefined();
+    expect(store.chatSessionState["chat:s1"].configDir).toBeUndefined();
+  });
+});
+
+// A dock panel reads its own workspace from the host, which answers `""` until
+// that dock's registration lands. Treating an empty string as a deliberate
+// choice failed the connect outright — "No workspace to connect the Chat
+// session in" on a panel sitting in a perfectly good workspace (2026-09-10).
+describe("which workspace a session is filed under", () => {
+  it("files the session under the workspace the caller names", async () => {
+    await service.connect("claude-chat", { workspaceId: "other" });
+    expect(chatAgentInfos()[0].workspaceId).toBe("other");
+  });
+
+  it("falls back to the active workspace for a blank one, rather than failing", async () => {
+    await service.connect("claude-chat", { workspaceId: "" });
+    expect(chatAgentInfos()[0].workspaceId).toBe("active");
+  });
+
+  it("still rejects when there is no workspace at all", async () => {
+    store.activeWorkspaceId = null;
+    await expect(
+      service.connect("claude-chat", { workspaceId: "" }),
+    ).rejects.toThrow(/no workspace/i);
   });
 });

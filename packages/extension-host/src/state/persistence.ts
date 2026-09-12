@@ -27,6 +27,7 @@ import {
   buildIndex,
   cloneExtensionState,
   cloneAgentState,
+  cloneChatSessionState,
   loadAgentProfiles,
   cloneGlobalPanelLayout,
   diffWorkspaceWrites,
@@ -167,6 +168,9 @@ export async function hydrate(configDir: string): Promise<void> {
     }
     store.agentState = index.agentState
       ? cloneAgentState(index.agentState)
+      : {};
+    store.chatSessionState = index.chatSessionState
+      ? cloneChatSessionState(index.chatSessionState)
       : {};
     // Agent Profiles (RFC 0033). Loaded here — inside `hydrate`, which
     // `main.tsx` awaits before `ExtensionManager.loadInstalled()` — so the
@@ -354,6 +358,7 @@ async function doPersist(): Promise<void> {
       smallScreenPeekWidthRightPx: store.smallScreenPeekWidthRightPx,
       globalExtensionState: store.globalExtensionState,
       agentState: store.agentState,
+      chatSessionState: store.chatSessionState,
       agentProfiles: [...store.agentProfiles],
       groups: store.groups,
       panelOrder: [...store.panelOrder],

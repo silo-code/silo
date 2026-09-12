@@ -116,6 +116,42 @@ export interface KeybindingState {
   effectiveKey: string | null;
 }
 
+/** One recorded dock panel as the automation bridge reports it. */
+export interface PanelRecordSnapshot {
+  id: string;
+  kindId: string;
+  workspaceId: string;
+  state: Record<string, unknown>;
+  createdAt: string;
+  lastActiveAt: string;
+}
+
+/** One Agent Profile as the automation bridge reports it. */
+export interface AgentProfileSnapshot {
+  id: string;
+  label: string;
+  default: boolean;
+  assumedAgentId?: string;
+  launch?: { interface?: string; command?: string; args?: string[] };
+}
+
+/** One Agent Session as the automation bridge reports it. */
+export interface AgentSnapshot {
+  id: string;
+  workspaceId: string;
+  title: string;
+  kind: "terminal" | "chat";
+  activity: string;
+  needsAttention: boolean;
+  attentionSince?: string;
+  stale: boolean;
+  canResume: boolean;
+  sessionId?: string;
+  agentId?: string;
+  agentName?: string;
+  chatResumeState?: string;
+}
+
 /** A typed wrapper around the automation RPC. One instance per app under test. */
 export class SiloAutomation {
   constructor(private readonly base: string = DEFAULT_BASE) {}
@@ -177,6 +213,31 @@ export class SiloAutomation {
 
   listWorkspaces(): Promise<WorkspaceList> {
     return this.call("listWorkspaces");
+  }
+
+  /** Recorded dock panels (RFC 0041) in a workspace — id, kind, and the
+   *  panel's own restore state. */
+  listPanels(workspaceId?: string): Promise<{ panels: PanelRecordSnapshot[] }> {
+    return this.call("listPanels", { workspaceId });
+  }
+
+  /** The user's Agent Profiles, as the `+` menu sees them. */
+  agentProfiles(): Promise<{ profiles: AgentProfileSnapshot[] }> {
+    return this.call("agentProfiles");
+  }
+
+  /** Every Agent Session Silo knows about, across all workspaces — identity,
+   *  status and resume state. What a restart-fidelity check diffs. */
+  listAgents(): Promise<{ agents: AgentSnapshot[] }> {
+    return this.call("listAgents");
+  }
+
+  /** The Agent Session a dock tab declares it is showing — the binding its own
+   *  chrome (agent icon, activity badge) resolves through. */
+  panelAgentSession(
+    panelId: string,
+  ): Promise<{ panelId: string; agentSessionId: string | null }> {
+    return this.call("panelAgentSession", { panelId });
   }
 
   openWorkspace(folder: string, name?: string): Promise<{ id: string }> {

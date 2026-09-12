@@ -59,6 +59,10 @@ import {
   patchChatAgent,
 } from "./chat-agent-registry";
 import {
+  startChatSessionStatusPersistence,
+  syncDormantChatSessions,
+} from "./chat-session-restore";
+import {
   agentSessionForPanel,
   getActiveAgentSession,
   panelControlsForAgentSession,
@@ -292,9 +296,13 @@ function notify() {
  *
  * `fromReplay` marks an event derived from output the session host replayed on
  * attach rather than from the session producing it now (RFC 0036). Such an
- * event still moves state — an agent that finished while the app was closed
- * really is idle — but it must not raise attention or ring the bell, because
- * the turn it describes was over before the app started.
+ * event still moves *identity* (`isAgent`, `sessionId`, `agentName`,
+ * `agentId`, `resumeCommand`) — replay is the only evidence of which agent
+ * owns a reattached terminal — but never `activity`/`workingSince`/`stale`
+ * and never attention: it describes a moment at or before the state already
+ * resolved to (persisted, or an earlier reattach this run), so it can only
+ * relitigate a decision already made from better information, never improve
+ * on it (ADR 0050 §5, "identity evidence, never activity").
  */
 function applyEvent(
   terminalId: string,
@@ -315,24 +323,45 @@ function applyEvent(
       ? reduced
       : resetOnDemotion(entry.state, reduced);
 
-  // Replayed evidence moves activity and identity but never touches attention.
+  // Replayed evidence moves identity only — never activity, never attention
+  // (ADR 0050 §5: "replayed bytes are identity evidence, never activity").
   //
-  // Raising it would announce a turn that finished before this app instance
-  // existed — the phantom indicators and bells of issue #500 (confirmed live:
-  // Claude/Codex/Copilot all flipped needsAttention on restart with identical
-  // attentionSince, while the focused Cursor tab stayed clear). Clearing it
-  // would be just as wrong in the other direction: a restored
-  // `needsAttention: true` was never acknowledged, and a replayed "working"
-  // marker in the ring would silently drop something the user is still owed —
-  // the ring can't say whether it predates or postdates the persisted flag.
+  // Attention: raising it would announce a turn that finished before this app
+  // instance existed — the phantom indicators and bells of issue #500
+  // (confirmed live: Claude/Codex/Copilot all flipped needsAttention on
+  // restart with identical attentionSince, while the focused Cursor tab
+  // stayed clear). Clearing it would be just as wrong in the other direction:
+  // a restored `needsAttention: true` was never acknowledged, and a replayed
+  // "working" marker in the ring would silently drop something the user is
+  // still owed — the ring can't say whether it predates or postdates the
+  // persisted flag.
   //
-  // So attention is owned by what restore produced plus live evidence, full
-  // stop. Whatever the reducer decided here is discarded.
+  // Activity: the same reasoning applies one field over, and it's the same
+  // contract `restoreState` already gives a cold-boot attach and
+  // `restoredActivity` gives a resurrected Chat session (RFC 0042) — a
+  // restored/replayed status is `stale` until a live signal confirms it,
+  // never overwritten by history. A byte in the ring describes a moment at or
+  // before `lastLiveAt`, which is exactly what `activity`/`workingSince`/
+  // `stale` already resolved to; replaying it can only relitigate a decision
+  // already made from better information (the persisted state, or an earlier
+  // reattach this run), never improve on it. Only a genuinely live tick — the
+  // agent's *next* real byte — gets to move these forward, the same way
+  // `isLiveSignal` already gates `stale` clearing.
+  //
+  // So both are owned by what restore produced plus live evidence, full stop.
+  // Whatever the reducer decided here from replayed evidence is discarded;
+  // identity (`isAgent`, `sessionId`, `resumeCommand`, `agentName`,
+  // `agentId`) still flows through `next`, which is the whole reason the
+  // replay is subscribed to at all (RFC 0036).
   if (fromReplay) {
     next = {
       ...next,
+      activity: entry.state.activity,
       needsAttention: entry.state.needsAttention,
       attentionSince: entry.state.attentionSince,
+      workingSince: entry.state.workingSince,
+      workingSource: entry.state.workingSource,
+      stale: entry.state.stale,
     };
   }
 
@@ -1282,6 +1311,10 @@ function syncSessions() {
     if (!known.has(tid)) detachSession(tid);
   }
   refreshTerminalTitles();
+  // The Chat half of the same reconciliation: a recorded Chat panel in *any*
+  // workspace gets a dormant entry off its persisted status, so a session
+  // waiting in a workspace this run hasn't visited is still listed (RFC 0042).
+  syncDormantChatSessions();
   notify();
 }
 
@@ -1291,6 +1324,9 @@ subscribe(store, syncSessions);
 // A Chat session's state changes (connect, turn start/end, permission, close)
 // arrive here so the same `notify()` fan-out serves both kinds.
 onChatAgentsChanged(notify);
+// …and are mirrored into persistence, so the next run can list the session
+// before anything reconnects it (RFC 0042).
+startChatSessionStatusPersistence();
 
 // ---- session-file / hook runtime boot ------------------------------------
 

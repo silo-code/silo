@@ -751,6 +751,23 @@ export function findPanelRecord(
   );
 }
 
+/**
+ * Which workspace a recorded panel belongs to, found by record id alone.
+ *
+ * A panel's workspace is a fact about the *record*, not about which dock
+ * happens to have registered itself yet — and a panel that reads it from the
+ * dock during its first render can get nothing, then file whatever it reports
+ * (an Agent Session, say) under whichever workspace the user is standing in.
+ */
+export function workspaceIdForPanelRecord(
+  panelRecordId: string,
+): string | null {
+  for (const [wsId, ws] of Object.entries(store.workspaces)) {
+    if (ws?.panels.some((p) => p.id === panelRecordId)) return wsId;
+  }
+  return null;
+}
+
 export function addPanelRecord(
   workspaceId: string,
   input: { id: string; kindId: string; state?: Record<string, unknown> },

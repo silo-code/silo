@@ -45,6 +45,7 @@ export const store = proxy<AppState>({
   ...structuredClone(DEFAULT_PANEL_STATE),
   globalExtensionState: {},
   agentState: {},
+  chatSessionState: {},
   agentProfiles: [],
   leftPanelCollapsed: false,
   rightPanelCollapsed: false,

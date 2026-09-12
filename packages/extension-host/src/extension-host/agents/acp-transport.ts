@@ -48,11 +48,27 @@ export interface AcpTransportOptions {
   /** Called for every stderr line, for diagnosing a connection that comes up
    * but never answers. */
   onStderr?: (line: string) => void;
+  /**
+   * Environment variables whose **effective** value the caller wants reported
+   * back through {@link onEnvReport} — the explicit {@link env} override when
+   * one was given, otherwise whatever Silo itself inherited.
+   *
+   * The case this exists for: an agent CLI reads its config directory, and
+   * with it its *session store*, from an env var. Which store a Chat session
+   * lands in is therefore decided by the environment Silo was launched from —
+   * invisible, and different between a terminal launch and a Finder launch.
+   * Recording what the child actually got is what lets a later restore address
+   * the same store.
+   */
+  reportEnv?: string[];
+  /** Effective values of {@link reportEnv}, delivered once per `connect()`. */
+  onEnvReport?: (values: Readonly<Record<string, string>>) => void;
 }
 
 interface SpawnResult {
   connectionId: string;
   pid: number;
+  envReport?: Record<string, string>;
 }
 
 interface AcpExit {
@@ -150,8 +166,10 @@ export function createAcpTransport(
         args: options.args ?? [],
         cwd: options.cwd,
         env: options.env ?? null,
+        reportEnv: options.reportEnv ?? null,
       });
       connectionId = spawned.connectionId;
+      if (options.onEnvReport) options.onEnvReport(spawned.envReport ?? {});
 
       let push: ((m: AcpMessage) => void) | null = null;
       let close: (() => void) | null = null;

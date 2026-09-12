@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   panelToReactivateOnClose,
+  recordedPanelParamsToRestore,
   resolveActivationTarget,
+  sameParams,
   shouldShowMaximizeButton,
 } from "./dock-helpers";
 
@@ -105,5 +107,64 @@ describe("shouldShowMaximizeButton", () => {
   it("shows once there's a split (2+ groups)", () => {
     expect(shouldShowMaximizeButton(2)).toBe(true);
     expect(shouldShowMaximizeButton(3)).toBe(true);
+  });
+});
+
+// A recorded panel restored by `fromJSON` carries the params the *layout*
+// snapshot happened to hold, which can lag its record. Left alone, the panel's
+// next partial `updateParameters` merges onto the stale copy and that result
+// replaces the record — which is how a Chat panel's persisted `title`
+// disappeared across a restart (RFC 0042, 2026-09-10).
+describe("recordedPanelParamsToRestore", () => {
+  it("re-seeds from the record when the layout's params are missing a key", () => {
+    expect(
+      recordedPanelParamsToRestore(
+        { sessionId: "s1", profileId: "claude", title: "Plum" },
+        { sessionId: "s1", profileId: "claude" },
+      ),
+    ).toEqual({ sessionId: "s1", profileId: "claude", title: "Plum" });
+  });
+
+  it("re-seeds when a value differs, record winning", () => {
+    expect(
+      recordedPanelParamsToRestore(
+        { title: "Plum" },
+        { title: "Claude Agent" },
+      ),
+    ).toEqual({ title: "Plum" });
+  });
+
+  it("leaves a panel alone when the two already agree — no write, no event", () => {
+    expect(
+      recordedPanelParamsToRestore(
+        { sessionId: "s1", title: "Plum" },
+        { sessionId: "s1", title: "Plum" },
+      ),
+    ).toBeNull();
+  });
+
+  it("re-seeds when the layout carries an extra key the record dropped", () => {
+    expect(
+      recordedPanelParamsToRestore(
+        { sessionId: "s1" },
+        { sessionId: "s1", stale: 1 },
+      ),
+    ).toEqual({ sessionId: "s1" });
+  });
+
+  it("handles an empty record state", () => {
+    expect(recordedPanelParamsToRestore({}, {})).toBeNull();
+    expect(recordedPanelParamsToRestore({}, { title: "x" })).toEqual({});
+  });
+});
+
+describe("sameParams", () => {
+  it("is order-independent and value-sensitive", () => {
+    expect(sameParams({ a: 1, b: "x" }, { b: "x", a: 1 })).toBe(true);
+    expect(sameParams({ a: 1 }, { a: 2 })).toBe(false);
+  });
+
+  it("counts a key present-but-undefined as a difference in size", () => {
+    expect(sameParams({ a: 1 }, { a: 1, b: undefined })).toBe(false);
   });
 });

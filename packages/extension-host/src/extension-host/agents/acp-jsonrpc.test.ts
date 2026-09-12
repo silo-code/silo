@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { AcpMessage, AcpTransportLike } from "./acp-transport";
 import {
+  capabilityEnabled,
   createAcpClient,
   parseConfigOptions,
   AcpRpcError,
@@ -267,6 +268,102 @@ describe("createAcpClient", () => {
     ]);
   });
 
+  it("initialize offers protocolVersion 2 and parses sessionCapabilities", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.initialize();
+    await flush();
+    expect(t.sent[0]).toMatchObject({
+      method: "initialize",
+      params: { protocolVersion: 2 },
+    });
+    t.emit({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        protocolVersion: 1,
+        agentCapabilities: { loadSession: true },
+        sessionCapabilities: { resume: true, close: true, list: true },
+      },
+    });
+    const init = await p;
+    expect(init.protocolVersion).toBe(1);
+    expect(init.sessionCapabilities?.resume).toBe(true);
+    expect(init.sessionCapabilities?.close).toBe(true);
+  });
+
+  it("initialize falls back to agentCapabilities.sessionCapabilities when nested there", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.initialize();
+    await flush();
+    t.emit({
+      jsonrpc: "2.0",
+      id: 1,
+      result: {
+        agentCapabilities: {
+          loadSession: true,
+          sessionCapabilities: { resume: true },
+        },
+      },
+    });
+    const init = await p;
+    expect(init.sessionCapabilities?.resume).toBe(true);
+  });
+
+  it("loadSession sends sessionId/cwd/mcpServers and adopts a returned sessionId", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.loadSession("old-id", "/ws");
+    await flush();
+    const req = t.sent.find((m) => m.method === "session/load");
+    expect(req).toMatchObject({
+      params: { sessionId: "old-id", cwd: "/ws", mcpServers: [] },
+    });
+    t.emit({
+      jsonrpc: "2.0",
+      id: req!.id as number,
+      result: { sessionId: "new-id", configOptions: [] },
+    });
+    const result = await p;
+    expect(result.sessionId).toBe("new-id");
+  });
+
+  it("loadSession falls back to the requested sessionId when the agent returns none", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.loadSession("old-id", "/ws");
+    await flush();
+    const req = t.sent.find((m) => m.method === "session/load");
+    t.emit({ jsonrpc: "2.0", id: req!.id as number, result: {} });
+    const result = await p;
+    expect(result.sessionId).toBe("old-id");
+  });
+
+  it("resumeSession sends sessionId/cwd/mcpServers and never returns a new id (no replay)", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.resumeSession("s1", "/ws");
+    await flush();
+    const req = t.sent.find((m) => m.method === "session/resume");
+    expect(req).toMatchObject({
+      params: { sessionId: "s1", cwd: "/ws", mcpServers: [] },
+    });
+    t.emit({ jsonrpc: "2.0", id: req!.id as number, result: {} });
+    await expect(p).resolves.toEqual({ configOptions: [] });
+  });
+
+  it("closeSession sends sessionId and resolves on the agent's empty response", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.closeSession("s1");
+    await flush();
+    const req = t.sent.find((m) => m.method === "session/close");
+    expect(req).toMatchObject({ params: { sessionId: "s1" } });
+    t.emit({ jsonrpc: "2.0", id: req!.id as number, result: {} });
+    await expect(p).resolves.toBeUndefined();
+  });
+
   // The parameter is `configId`, not `optionId` — an earlier probe passed the
   // wrong name, read the resulting -32602 as "the method is broken", and sent
   // the design down the typed-write path. Pinned so it cannot drift back.
@@ -392,5 +489,34 @@ describe("parseConfigOptions", () => {
         ],
       },
     ]);
+  });
+});
+
+// Probed against a live `claude-agent-acp` 0.75.1 outside the app (2026-09-10):
+// it advertises `sessionCapabilities: { resume: {}, close: {}, list: {}, … }`
+// nested under `agentCapabilities` — details objects, not booleans. Reading
+// those with `=== true` meant Silo never once attempted `session/resume`
+// against the catalog's most-used agent and always fell through to
+// `session/load`, which that adapter implements as a fork.
+describe("capabilityEnabled — both shapes an agent advertises", () => {
+  it("accepts a details object, the shape claude actually sends", () => {
+    expect(capabilityEnabled({})).toBe(true);
+    expect(capabilityEnabled({ maxSessions: 4 })).toBe(true);
+  });
+
+  it("accepts a bare boolean true", () => {
+    expect(capabilityEnabled(true)).toBe(true);
+  });
+
+  it("rejects absence and explicit false", () => {
+    expect(capabilityEnabled(undefined)).toBe(false);
+    expect(capabilityEnabled(null)).toBe(false);
+    expect(capabilityEnabled(false)).toBe(false);
+  });
+
+  it("rejects shapes that are not a capability at all", () => {
+    expect(capabilityEnabled([])).toBe(false);
+    expect(capabilityEnabled("resume")).toBe(false);
+    expect(capabilityEnabled(0)).toBe(false);
   });
 });

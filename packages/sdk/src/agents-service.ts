@@ -178,6 +178,12 @@ export interface AgentInfo {
    *   `resumeCommand` contract with.
    * - Chat session: `true` when the agent advertises `session/load`, so a
    *   fresh process can reload the transcript after the old one died.
+   *
+   * - Chat session: `true` when the agent advertises **either**
+   *   `sessionCapabilities.resume` or `agentCapabilities.loadSession` (RFC
+   *   0042) — the two are distinct capabilities (see {@link ChatResumeState})
+   *   but either is enough for {@link AgentsService.resume} to bring the
+   *   conversation back.
    */
   readonly canResume: boolean;
   /**
@@ -197,7 +203,47 @@ export interface AgentInfo {
    * the same moment and lifecycle as `agentName`.
    */
   readonly agentId?: string;
+  /**
+   * For a `kind: "chat"` session, where it stands in **Chat session
+   * resurrection** (RFC 0042) — absent for a `kind: "terminal"` session, which
+   * has no such lifecycle. See {@link ChatResumeState}.
+   */
+  readonly chatResumeState?: ChatResumeState;
 }
+
+/**
+ * Where a **Chat** Agent Session stands in Chat session resurrection (RFC
+ * 0042) — bringing its transcript, and the ability to keep talking, back after
+ * its process died with the app.
+ *
+ * - `"dormant"` — known only from persistence: the conversation exists and its
+ *   panel is recorded, but nothing has connected to it this run and no agent
+ *   process is alive. This is what a Chat session in a workspace you have not
+ *   visited since launching looks like — listing it is the point, and opening
+ *   it is what starts the reconnect. Its `activity` is always `"idle"`.
+ * - `"live"` — an ordinary, uninterrupted connection (a plain `session/new`
+ *   this run; never went through the resume machinery).
+ * - `"resuming"` — a restore is in flight: `session/resume` or `session/load`
+ *   is being probed and called.
+ * - `"resumed"` — reconnected: `session/resume` (no replay, the transcript
+ *   comes from the **transcript journal**) or `session/load` (replay,
+ *   reconciled against the journal) succeeded.
+ * - `"journal-only"` — the agent could do neither; the transcript is the
+ *   journal alone and the session cannot be prompted in place — the panel's
+ *   own "Continue in a new session" action is the way forward.
+ * - `"unavailable"` — no session id and no journal; nothing to show.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export type ChatResumeState =
+  | "dormant"
+  | "live"
+  | "resuming"
+  | "resumed"
+  | "journal-only"
+  | "unavailable";
 
 /**
  * A Catalog Agent's brand mark — SVG path data plus the two theme-dependent
@@ -897,6 +943,16 @@ export interface AgentSessionHandle {
    * Stable across a {@link AgentsService.resume}.
    */
   readonly id: string;
+  /**
+   * The agent's own session id (`session/new`'s `sessionId`, or the fresh id
+   * `session/load` adopted) — what to pass back as
+   * {@link AgentSessionRestore.sessionId} on a future {@link
+   * AgentSessionsService.connect} to restore this conversation (RFC 0042).
+   * Distinct from {@link AgentSessionHandle.id}, which is namespaced for
+   * `ctx.agents` and does not change even when this does (an adopted id after
+   * `session/load`).
+   */
+  readonly sessionId: string;
   /** The user's asserted catalog agent id for the profile, if any — the same
    *  value that selects the profile's `+`-menu icon. */
   readonly agentId?: string;
@@ -904,15 +960,42 @@ export interface AgentSessionHandle {
    *  falling back to the profile label when it declared none (recon Finding 4). */
   readonly agentName: string;
   /**
-   * Whether the agent advertises `session/load`, i.e. whether
-   * {@link AgentsService.resume} can bring this conversation back after the
-   * process dies. Mirrors {@link AgentInfo.canResume}.
+   * Whether the agent advertises `session/resume` or `session/load`, i.e.
+   * whether {@link AgentsService.resume} can bring this conversation back
+   * after the process dies. Mirrors {@link AgentInfo.canResume}.
    */
   readonly canResume: boolean;
   /**
+   * How this handle came to be connected (RFC 0042) — see
+   * {@link AgentSessionRestore}:
+   *
+   * - `"new"` — an ordinary `session/new` (no {@link
+   *   AgentSessionConnectOptions.resume} was given, or the persisted session
+   *   had gone stale and `connect()` fell through to a fresh one).
+   * - `"resumed"` — a persisted session reconnected, via `session/resume` or
+   *   `session/load`.
+   * - `"journal-only"` — the agent could do neither. There is no live
+   *   session: {@link prompt} rejects. Reconnect with
+   *   `resume: { sessionId, startFresh: true }` to continue in a new one,
+   *   preserving {@link journal} for continuity.
+   */
+  readonly resumeOutcome: "new" | "resumed" | "journal-only";
+  /**
+   * Prior turns to paint **before** subscribing to {@link onUpdate} — the
+   * **transcript journal** (RFC 0042), read from disk. Empty when
+   * {@link resumeOutcome} is `"new"` and nothing preceded this connection;
+   * populated for `"resumed"` (a `session/resume` reconnect, which itself
+   * replays nothing — this is the only record) and `"journal-only"`. Feed
+   * these through the same reducer as {@link onUpdate} before subscribing to
+   * it, e.g. `journal.reduce(applyUpdate, emptyTranscript)`.
+   */
+  readonly journal: readonly AgentSessionUpdate[];
+  /**
    * Send a prompt turn and resolve when it ends. Content is structured blocks,
    * never a shell string. Rejects if the turn cannot be completed (connection
-   * lost, agent error) — with the agent's message where it gave one.
+   * lost, agent error) — with the agent's message where it gave one. Also
+   * rejects immediately when {@link resumeOutcome} is `"journal-only"` — there
+   * is no live agent to prompt.
    */
   prompt(blocks: readonly AgentPromptBlock[]): Promise<AgentPromptResult>;
   /**
@@ -996,6 +1079,24 @@ export interface AgentSessionConnectOptions {
    *  {@link AgentInfo.workspaceId} and `reveal`). Defaults to the active one. */
   workspaceId?: string;
   /**
+   * A last-known display title, shown immediately with {@link resume} — before
+   * the connection (`initialize` alone can take several seconds) or a
+   * `session/resume` / `session/load` round trip resolves. Without it, a
+   * restoring session's dock tab, workspace row, and Agents navigator entry
+   * fall back to the profile's plain label for however long reconnecting
+   * takes, even when the agent volunteered a real title before the app
+   * closed. It **outlives the handshake**: it is still the session's title
+   * once the connection is up, until the agent volunteers a real one of its
+   * own (a `session_info_update`). The agent's product name from `initialize`
+   * (`agentInfo.title`, e.g. "Claude Agent") does *not* supersede it — that is
+   * the fallback for a session that has never had a title, not a replacement
+   * for one this conversation already earned. Persist whatever
+   * {@link AgentInfo.title} last was and pass it back here on the next
+   * restore. Ignored without {@link resume} — a fresh session has no prior
+   * title to show early.
+   */
+  title?: string;
+  /**
    * How to bring **your** UI for this session into view. Silo calls this from
    * {@link AgentsService.reveal} — after activating the session's workspace —
    * so a kind-agnostic caller (the Agents navigator, a notification, a
@@ -1013,6 +1114,49 @@ export interface AgentSessionConnectOptions {
    * can honestly do for a session whose UI it does not own.
    */
   reveal?: () => void;
+  /**
+   * Reconnect a previously-persisted session instead of starting a fresh one
+   * — Chat session resurrection (RFC 0042). Pass the {@link
+   * AgentSessionHandle.sessionId} a prior `connect()` on this same profile
+   * returned (what a recorded panel keeps in its `DockPanelState`).
+   *
+   * `connect()` never rejects because the target has gone stale: it probes
+   * `session/resume` and `session/load` separately (`resume` wins when both
+   * are advertised), and falls through to a fresh `session/new` if neither
+   * works and there is no journal to fall back to. See {@link
+   * AgentSessionHandle.resumeOutcome} for which path was taken.
+   */
+  resume?: AgentSessionRestore;
+}
+
+/**
+ * A restore target for {@link AgentSessionConnectOptions.resume} — Chat
+ * session resurrection (RFC 0042).
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentSessionRestore {
+  /**
+   * The session id to reconnect — an earlier connection's {@link
+   * AgentSessionHandle.sessionId}.
+   */
+  sessionId: string;
+  /**
+   * Skip probing `session/resume` / `session/load` and start a fresh
+   * `session/new` directly, carrying the **transcript journal** kept under
+   * {@link sessionId} into the new session's — "Continue in a new session"
+   * from a `"journal-only"` {@link AgentSessionHandle.resumeOutcome}. The new
+   * handle's {@link AgentSessionHandle.sessionId} is whatever `session/new`
+   * mints, **not** this `sessionId` — persist that returned id for the next
+   * restore, exactly as after a plain `connect()`. Keeping the original,
+   * already-known-unresumable id instead would mean every future restore
+   * keeps retrying an id the agent will never resume, forever, even while the
+   * new conversation itself works fine turn after turn (found live,
+   * 2026-09-09).
+   */
+  startFresh?: boolean;
 }
 
 /**
@@ -1057,6 +1201,11 @@ export interface AgentSessionsService {
    * failed); or the agent reported a startup error (the rejection carries its
    * message).
    *
+   * With {@link AgentSessionConnectOptions.resume}, `connect()` still never
+   * rejects merely because the target has gone stale — it falls all the way
+   * through to a fresh `session/new` (RFC 0042); see {@link
+   * AgentSessionHandle.resumeOutcome}.
+   *
    * @param profileId — an {@link AgentProfileSummary.id} whose profile uses the
    * `chat` launch arm.
    */
@@ -1064,6 +1213,24 @@ export interface AgentSessionsService {
     profileId: string,
     options?: AgentSessionConnectOptions,
   ): Promise<AgentSessionHandle>;
+  /**
+   * Read a session's **transcript journal** (RFC 0042) without connecting —
+   * for painting a restored panel *before* `connect({ resume })` resolves,
+   * which itself also pays for the `session/resume` / `session/load` network
+   * round trip. This is the "paint from journal" half of the restore flow;
+   * `connect()` is the "reconnect the agent" half, and the two run
+   * independently on purpose.
+   *
+   * Resolves `[]` for a session that never wrote a journal entry, or an
+   * unknown id — never rejects on a merely-missing journal. Needs the
+   * `"agents"` {@link Permission}, same as {@link connect}.
+   *
+   * @param sessionId — an {@link AgentSessionHandle.sessionId}.
+   */
+  readJournal(
+    sessionId: string,
+    options?: { workspaceId?: string },
+  ): Promise<readonly AgentSessionUpdate[]>;
 }
 
 /**
@@ -1244,9 +1411,11 @@ export interface AgentsService {
    * Resume a session **through Silo**, when {@link AgentInfo.canResume} is
    * `true`.
    *
-   * - Chat session: spawn a fresh agent process and `session/load` the
-   *   persisted id, so the transcript and context come back after the old
-   *   process died. Then {@link AgentsService.reveal} it.
+   * - Chat session: spawn a fresh agent process and reconnect the persisted
+   *   id over `session/resume` or `session/load` — whichever the agent
+   *   advertises, `resume` preferred (RFC 0042) — so the transcript and
+   *   context come back after the old process died. Then
+   *   {@link AgentsService.reveal} it.
    * - Terminal session: currently a no-op — a dead PTY cannot be re-run in
    *   place, and the resume path stays "the user runs
    *   {@link AgentInfo.resumeCommand}". Present on the surface so a

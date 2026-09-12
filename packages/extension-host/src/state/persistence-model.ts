@@ -20,6 +20,7 @@ import type {
   WorkspaceInternal,
   WorkspaceGroup,
   PersistedAgentInfo,
+  PersistedChatSession,
 } from "./types";
 
 /** The global index blob — everything in the old store *except* the workspaces
@@ -47,6 +48,11 @@ export interface PersistedIndex {
   // reason globalExtensionState is: not per-workspace-scoped. Absent in
   // older indexes (pre-ctx.agents installs).
   agentState?: Record<string, PersistedAgentInfo>;
+  // Host-owned last-known status of each Chat Agent Session, keyed by Agent
+  // Session id (RFC 0042). Global for the same reason `agentState` is. Absent
+  // in an older index, in which case a restored Chat session simply has no row
+  // until its panel connects.
+  chatSessionState?: Record<string, PersistedChatSession>;
   // User-defined Agent Profiles (RFC 0033). Global (not per-workspace), so it
   // lives in the index. Absent in an older index, in which case the list loads
   // empty. Order is the menu / settings-list order, preserved verbatim.
@@ -112,6 +118,16 @@ export function cloneAgentState(
   src: Record<string, PersistedAgentInfo>,
 ): Record<string, PersistedAgentInfo> {
   const out: Record<string, PersistedAgentInfo> = {};
+  for (const k of Object.keys(src)) out[k] = { ...src[k] };
+  return out;
+}
+
+/** Shallow-clone the Chat-session status map, for the same reason and on the
+ * same terms as {@link cloneAgentState}. */
+export function cloneChatSessionState(
+  src: Record<string, PersistedChatSession>,
+): Record<string, PersistedChatSession> {
+  const out: Record<string, PersistedChatSession> = {};
   for (const k of Object.keys(src)) out[k] = { ...src[k] };
   return out;
 }
@@ -316,6 +332,9 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
       : undefined,
     agentState: snapshot.agentState
       ? cloneAgentState(snapshot.agentState)
+      : undefined,
+    chatSessionState: snapshot.chatSessionState
+      ? cloneChatSessionState(snapshot.chatSessionState)
       : undefined,
     agentProfiles: snapshot.agentProfiles
       ? snapshot.agentProfiles.map((p) => ({ ...p }))

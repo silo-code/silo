@@ -173,6 +173,19 @@ export interface DockPanelProps<T extends object = Record<string, unknown>> {
   api: DockPanelApi;
   /** Serializable parameters forwarded to the panel at open time. */
   params: T;
+  /**
+   * The workspace this panel lives in.
+   *
+   * **Not** the same as "the active workspace": every open workspace keeps its
+   * dock mounted, so a background panel can be doing work while the user is
+   * somewhere else. Anything a panel reports about itself — an Agent Session it
+   * connects (`ctx.agents.sessions.connect({ workspaceId })`), a file it opens —
+   * belongs to *this* workspace, and reading `ctx.workspaces` for it instead
+   * files the result wherever the user happened to be standing. Caught live
+   * (2026-09-10): a Chat session moved workspaces mid-session because its
+   * `connect()` defaulted to the active one.
+   */
+  workspaceId: string;
 }
 
 /**

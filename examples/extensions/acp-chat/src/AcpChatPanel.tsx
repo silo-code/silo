@@ -37,6 +37,16 @@
  * Profile from a dock's **+** menu (or running `silo.acpChat.new`) opens it.
  * `ctx.agents.sessions` needs the `"agents"` permission, declared in this
  * example's `silo.permissions` and granted at install.
+ *
+ * ## Surviving a restart (RFC 0042)
+ *
+ * `params.sessionId` is this panel's `DockPanelState` (RFC 0041) — restored on
+ * mount, cleared on a profile switch. `ctx.agents.sessions.readJournal` paints
+ * the prior conversation the moment the panel mounts, independent of
+ * `connect({ resume })`, which separately negotiates `session/resume` /
+ * `session/load` and falls back to journal-only (composer disabled, "Continue
+ * in a new session" offered) rather than ever refusing to open. See
+ * `session-restore.ts` for the pure decision logic.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -60,12 +70,19 @@ import {
   appendUserMessage,
   applyUpdate,
   emptyTranscript,
+  seedFromJournal,
   stopReasonNotice,
   toolStatusTone,
   type Transcript,
 } from "./transcript-model";
 import { permissionButtonVariant } from "./permission-options";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
+import {
+  continueInNewSessionOption,
+  isReadOnly,
+  panelStateAfterConnect,
+  resumeOptionFor,
+} from "./session-restore";
 
 /** How close to the bottom still counts as "following the stream". */
 const AUTOSCROLL_THRESHOLD_PX = 24;
@@ -80,6 +97,20 @@ export interface AcpChatPanelParams {
    * rather than refusing to open — see `resolveChatProfile`.
    */
   profileId?: string;
+  /**
+   * The session to restore on mount — Chat session resurrection (RFC 0042).
+   * `null`/absent means a brand-new session; written back once connected
+   * (`AgentSessionHandle.sessionId`), and again whenever `ctx.agents` reports
+   * a different one (an in-place `session/load` id-adoption). Cleared on a
+   * profile switch — a session belongs to the agent that created it.
+   */
+  sessionId?: string | null;
+  /**
+   * The working directory the session was launched in, persisted alongside
+   * `sessionId` (RFC 0042 `ChatPanelState`). Informational — the live
+   * workspace folder is always what's actually sent to `connect()`.
+   */
+  cwd?: string;
 }
 
 /** What the panel is doing. `"no-profile"` is a state to render, not an error:
@@ -104,10 +135,17 @@ function errorMessage(err: unknown): string {
 export function AcpChatPanel({
   api,
   params,
+  workspaceId,
   ctx,
 }: DockPanelProps<AcpChatPanelParams> & { ctx: ExtensionContext }) {
+  // This panel's own workspace, never "whichever one is active" — a
+  // background workspace's dock stays mounted, so a re-render while the user
+  // is elsewhere (e.g. an agent-activity update mid-turn) must not recompute
+  // `cwd` off whatever workspace they've switched to. That mismatch fed the
+  // connect effect's dependency array below, tearing the live session down
+  // and reconnecting it under the wrong folder on every workspace switch.
   const ws = ctx.workspaces.getState();
-  const cwd = ws.all.find((w) => w.id === ws.activeId)?.folder ?? "";
+  const cwd = ws.all.find((w) => w.id === workspaceId)?.folder ?? "";
 
   // Bumped to retry a failed connection (or a first one that found no profile).
   const [nonce, setNonce] = useState(0);
@@ -135,6 +173,15 @@ export function AcpChatPanel({
   // The connected session's `AgentInfo.id`. Held in state (not just the handle
   // ref) because it is what the tab-chrome and title effects key on.
   const [sessionId, setSessionId] = useState<string | undefined>();
+  // How this connection came to be (RFC 0042) — `"journal-only"` is the one
+  // value that changes what the composer offers. Snapshotted once per
+  // connect(); the panel doesn't need to react to it changing afterward.
+  const [resumeOutcome, setResumeOutcome] =
+    useState<AgentSessionHandle["resumeOutcome"]>("new");
+  // Set by "Continue in a new session" just before bumping `nonce` — read and
+  // cleared at the top of the next connect attempt. A ref, not state: it must
+  // be visible to the very effect run it triggers, with no extra render.
+  const continueFreshRef = useRef(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   // The agent process dying is not a separate channel — it lands on this
@@ -166,6 +213,29 @@ export function AcpChatPanel({
   const apiRef = useRef(api);
   apiRef.current = api;
 
+  // Paint the transcript journal (RFC 0042) *before* connecting — a restored
+  // panel shows its prior conversation immediately, independent of however
+  // long `session/resume` / `session/load` takes. The connect effect below
+  // paints its own (possibly more current — a `load`'s own replay lands
+  // through it) copy of `handle.journal` once it resolves; this is only the
+  // instant-paint half.
+  useEffect(() => {
+    if (!params.sessionId) return;
+    let cancelled = false;
+    void ctx.agents.sessions.readJournal(params.sessionId).then((journal) => {
+      if (!cancelled) setTranscript(seedFromJournal(journal));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Also re-runs on `nonce` (Reconnect / Continue in a new session), so a
+    // manual reconnect gets the same instant paint a cold restart does.
+    // Deliberately **not** keyed on the rest of the connect effect's
+    // dependencies — this must run from whatever `params.sessionId` is right
+    // now, before any connect() has had a chance to move it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, params.sessionId, nonce]);
+
   // --- the connection ------------------------------------------------------
   // Keyed on the profile: switching agents is a **teardown**, not a prop
   // change. The old process is reaped, the transcript is dropped, and a fresh
@@ -177,11 +247,19 @@ export function AcpChatPanel({
     }
     let cancelled = false;
     const subs: Disposable[] = [];
+    // "Continue in a new session" (RFC 0042) set this just before bumping
+    // `nonce` to force this reconnect past resume/load and straight to a
+    // fresh `session/new`, while keeping the journal's identity. Consumed
+    // once — a later reconnect (a crash, "Reconnect") goes through the normal
+    // resume → load → journal flow again.
+    const startFresh = continueFreshRef.current;
+    continueFreshRef.current = false;
     setPhase({ status: "connecting" });
     setTranscript(emptyTranscript);
     setPermissions([]);
     setAgentName(undefined);
     setSessionId(undefined);
+    setResumeOutcome("new");
     // A profile switch mid-turn abandons that turn's `prompt()` promise, whose
     // `finally` sees a different handle and leaves `busy` alone — so clear it
     // here or the composer keeps offering Stop for a session that is gone.
@@ -191,8 +269,33 @@ export function AcpChatPanel({
     setDeadConfigIds(new Set());
     setAttachments([]);
 
+    // Restore a persisted session (RFC 0042 `ChatPanelState`) — `undefined`
+    // for a brand-new panel, which is an ordinary `session/new`.
+    const restoreSessionId = params.sessionId ?? undefined;
+    const resume = restoreSessionId
+      ? startFresh
+        ? continueInNewSessionOption(restoreSessionId)
+        : resumeOptionFor(restoreSessionId)
+      : undefined;
+
     void ctx.agents.sessions
       .connect(profileId, {
+        cwd,
+        resume,
+        // This panel's own workspace, never "whichever one is active": a
+        // background workspace's dock stays mounted, so a session connecting
+        // (or reconnecting) while the user is elsewhere would otherwise be
+        // filed under the workspace they are standing in — and would move
+        // again on the next restart, when it is restored from its panel's
+        // record. Caught by the restart-fidelity suite, 2026-09-10.
+        ...(workspaceId ? { workspaceId } : {}),
+        // The last title this session showed, painted immediately while
+        // reconnecting (RFC 0042) — `initialize` alone can take several
+        // seconds, and without this the tab, workspace row, and Agents
+        // navigator all sit on the plain profile label until it resolves,
+        // even though the agent's own title from before the app closed was
+        // already known.
+        title: params.title,
         // `ctx.agents.reveal(id)` — from the Agents navigator, a command, a
         // notification — activates the workspace and then calls this, so a
         // kind-agnostic caller focuses this transcript without knowing it is
@@ -207,6 +310,10 @@ export function AcpChatPanel({
           return;
         }
         handleRef.current = handle;
+        // Paint prior turns before subscribing to live ones — the journal
+        // (RFC 0042), whether from a `resume` reconnect (no replay: this is
+        // the only record) or a `"journal-only"` degraded session.
+        setTranscript(seedFromJournal(handle.journal));
         subs.push(
           handle.onUpdate((update) =>
             setTranscript((t) => applyUpdate(t, update)),
@@ -222,11 +329,19 @@ export function AcpChatPanel({
         );
         setAgentName(handle.agentName);
         setSessionId(handle.id);
+        setResumeOutcome(handle.resumeOutcome);
         setConfigOptions(handle.configOptions);
         subs.push(
           handle.onConfigOptionsChanged(() =>
             setConfigOptions(handle.configOptions),
           ),
+        );
+        // Persist the identity to restore next time — keyed on the handle's
+        // own `sessionId`, which may not be what was asked for (`session/load`
+        // adopting a fresh id; a `startFresh` continuation deliberately
+        // keeping the original — see `session-restore.ts`).
+        apiRef.current.updateParameters(
+          panelStateAfterConnect(profileId, handle, cwd),
         );
         setPhase({ status: "ready" });
       })
@@ -245,7 +360,14 @@ export function AcpChatPanel({
       // piled up in one afternoon.
       handle?.dispose();
     };
-  }, [ctx, profileId, nonce]);
+    // Deliberately **not** keyed on `params.sessionId`: this effect is what
+    // writes it (via `updateParameters` above), and re-running on every write
+    // would tear a freshly-connected session down to reconnect it right back.
+    // `nonce` covers every case where a reconnect using the *current*
+    // `params.sessionId` is wanted (Reconnect, Continue in a new session).
+    // `workspaceId` never changes for a mounted panel — a panel does not move
+    // workspaces — so it costs nothing here and keeps the lint rule honest.
+  }, [ctx, profileId, cwd, nonce, workspaceId]);
 
   // ## The panel is a subject of agent chrome, not an author of it
   //
@@ -292,11 +414,44 @@ export function AcpChatPanel({
       const info = sessionId ? all.find((a) => a.id === sessionId) : undefined;
       setLost(info?.activity === "error");
       api.setTitle(info?.title ?? params.title ?? profile?.label ?? "Agent");
+      // Keep `DockPanelState` current with whatever this session's *live*
+      // identity is, so the next restart's placeholder (RFC 0042 — painted
+      // before `connect()`'s handshake even resolves) shows the real thing
+      // instead of the plain profile label. Two independent facts can each
+      // have moved: the agent's own volunteered title (a
+      // `session_info_update` — never persisted before this, so it never
+      // survived a restart even though it stuck around for the rest of the
+      // live session), and the id itself (an in-place `ctx.agents.resume(id)`
+      // — a reconnect that doesn't remount this panel, e.g. from the Agents
+      // navigator — can adopt a new `session/load` id after this handle was
+      // returned).
+      const patch: {
+        profileId?: string;
+        sessionId?: string;
+        cwd?: string;
+        title?: string;
+      } = {};
+      if (info?.title && info.title !== params.title) patch.title = info.title;
+      if (info?.sessionId && profileId && info.sessionId !== params.sessionId) {
+        patch.profileId = profileId;
+        patch.sessionId = info.sessionId;
+        patch.cwd = cwd;
+      }
+      if (Object.keys(patch).length > 0) api.updateParameters(patch);
     };
     const sub = ctx.agents.subscribe(read, { allWorkspaces: true });
     read(ctx.agents.getState({ allWorkspaces: true }));
     return () => sub.dispose();
-  }, [ctx, api, sessionId, params.title, profile?.label]);
+  }, [
+    ctx,
+    api,
+    sessionId,
+    params.title,
+    params.sessionId,
+    profile?.label,
+    profileId,
+    cwd,
+  ]);
 
   // --- sending -------------------------------------------------------------
   const send = useCallback(async () => {
@@ -369,9 +524,12 @@ export function AcpChatPanel({
       );
       if (ask && !(await ctx.ui.confirm(ask))) return;
       // The tab remembers the choice, so reopening it comes back on the same
-      // agent. The effect above does the teardown.
+      // agent. The effect above does the teardown. `sessionId` is cleared,
+      // not carried over — a session belongs to the agent that created it,
+      // and resuming an unrelated one under a different profile is not a
+      // thing `session/resume` / `session/load` are defined for.
       setRequestedId(nextId);
-      api.updateParameters({ profileId: nextId });
+      api.updateParameters({ profileId: nextId, sessionId: null });
     },
     [ctx, api, profileId, transcript, busy, agentName, profile?.label],
   );
@@ -383,6 +541,19 @@ export function AcpChatPanel({
       // — drop it so the user is not left poking a Select that only errors.
       setDeadConfigIds((prev) => new Set(prev).add(id));
     });
+  }, []);
+
+  // `resumeOutcome === "journal-only"` (RFC 0042): the agent could resume
+  // neither over `session/resume` nor `session/load`. There is no live
+  // session to prompt — the transcript above is the journal alone — so the
+  // composer offers one thing: start a new one, same panel and profile,
+  // continuing the same journal. The connect effect's own
+  // `panelStateAfterConnect` call persists whatever *new* id that connect
+  // gets — never the one already known to be unresumable.
+  const readOnly = isReadOnly(resumeOutcome);
+  const continueInNewSession = useCallback(() => {
+    continueFreshRef.current = true;
+    setNonce((n) => n + 1);
   }, []);
 
   // --- autoscroll ----------------------------------------------------------
@@ -554,6 +725,23 @@ export function AcpChatPanel({
             </div>
           </div>
         ))}
+
+        {/* RFC 0042: neither `session/resume` nor `session/load` worked for
+            this persisted session. The transcript above is the journal alone
+            — there is no live agent to prompt in place. */}
+        {readOnly ? (
+          <div className="acp-chat__notice">
+            <EmptyState
+              title="This session can't be resumed"
+              description={`${agentName ?? profile?.label ?? "The agent"} could not reconnect this conversation. Nothing is lost — start a new one to keep going.`}
+              action={
+                <Button onClick={continueInNewSession}>
+                  Continue in a new session
+                </Button>
+              }
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="acp-chat__composer">
@@ -583,13 +771,15 @@ export function AcpChatPanel({
           value={draft}
           rows={2}
           placeholder={
-            lost
-              ? "The agent is no longer running."
-              : phase.status === "ready"
-                ? `Message ${agentName ?? profile?.label ?? "the agent"}…`
-                : "Waiting for the agent…"
+            readOnly
+              ? "This session is read-only — continue in a new one to keep talking."
+              : lost
+                ? "The agent is no longer running."
+                : phase.status === "ready"
+                  ? `Message ${agentName ?? profile?.label ?? "the agent"}…`
+                  : "Waiting for the agent…"
           }
-          disabled={phase.status !== "ready" || lost}
+          disabled={phase.status !== "ready" || lost || readOnly}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             // Enter sends; Shift+Enter is a newline — the convention every
@@ -627,7 +817,7 @@ export function AcpChatPanel({
                 className="acp-chat__config"
                 value={opt.currentValue}
                 aria-label={opt.name}
-                disabled={phase.status !== "ready" || lost}
+                disabled={phase.status !== "ready" || lost || readOnly}
                 onChange={(e) => setConfigOption(opt.id, e.target.value)}
               >
                 {opt.options.map((choice) => (
@@ -640,12 +830,16 @@ export function AcpChatPanel({
           <Button
             size="sm"
             aria-label="Attach a file"
-            disabled={phase.status !== "ready" || lost}
+            disabled={phase.status !== "ready" || lost || readOnly}
             onClick={() => void attachFile()}
           >
             Attach
           </Button>
-          {lost ? (
+          {readOnly ? (
+            <Button size="sm" variant="primary" onClick={continueInNewSession}>
+              Continue in a new session
+            </Button>
+          ) : lost ? (
             <Button size="sm" onClick={() => setNonce((n) => n + 1)}>
               Reconnect
             </Button>

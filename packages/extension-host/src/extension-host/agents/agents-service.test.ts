@@ -1194,6 +1194,43 @@ describe("AgentsService — replayed output never raises attention", () => {
     expect(svc.getByTerminalId(id)?.needsAttention).toBe(true);
   });
 
+  it("never flips activity to working while replaying, even mid-burst", async () => {
+    // ADR 0050 \u00a75: replayed bytes are identity evidence, never activity. A
+    // terminal warmed for the first time this run (switching into a
+    // workspace after restart) replays its whole ring in one burst \u2014 this
+    // must not show a transient "working" between the replayed start-marker
+    // and its matching "done", the same way it must never raise attention.
+    const id = "t-replay-no-working-flash";
+    const sessionId = "sess-replay-no-working-flash";
+    store.agentState[id] = {
+      workspaceId: `ws-${id}`,
+      isAgent: true,
+      activity: "idle",
+      needsAttention: false,
+      workingSource: null,
+      agentId: "claude",
+      agentName: "Claude Code",
+      lastLiveAt: "2026-07-28T19:00:00.000Z",
+    };
+
+    await attachTerminal(id, sessionId);
+    getActive.mockReturnValue(null);
+
+    osc(id, 0, "\u2800", true); // replayed "start working" \u2014 must not stick
+    expect(svc.getByTerminalId(id)?.activity).toBe("idle");
+
+    osc(id, 0, "\u2733 done", true);
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+    expect(svc.getByTerminalId(id)?.activity).toBe("idle");
+
+    // The identity evidence in that same replay still lands.
+    expect(svc.getByTerminalId(id)?.isAgent).toBe(true);
+
+    // A genuinely live turn afterwards is unaffected by the suppression above.
+    osc(id, 0, "\u2800");
+    expect(svc.getByTerminalId(id)?.activity).toBe("working");
+  });
+
   it("suppresses attention for an agent persisted mid-working", async () => {
     // The case the old `suppressNextAttention` guard missed: it only armed when
     // the restored state was `idle && !needsAttention`, so a terminal saved

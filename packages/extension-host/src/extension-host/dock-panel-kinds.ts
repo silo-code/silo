@@ -7,6 +7,7 @@ import {
 import type { IDockviewPanelProps } from "dockview";
 import { Registry } from "./registry";
 import { dockApiWorkspaceId } from "../docked/dock-api-registry";
+import { workspaceIdForPanelRecord } from "../state/workspaces";
 import { setPanelAgentSession } from "./agents/agent-surface-registry";
 import {
   setPanelBreadcrumb,
@@ -72,8 +73,20 @@ export function makeDockPanelApi(dv: DockviewPanelApi): DockPanelApi {
     },
     onDidVisibilityChange: (listener) =>
       dv.onDidVisibilityChange((e) => listener({ isVisible: e.isVisible })),
+    // Dockview's own `updateParameters` **replaces** the panel's params
+    // wholesale (`dockview-core`'s `PanelApiImpl` does `this._parameters =
+    // parameters` — no merge at all) — the opposite of the shallow-merge
+    // `DockPanelApi.updateParameters` documents. Merge here so the public
+    // contract holds: a caller patching one field (a Chat panel persisting
+    // just a new title — RFC 0042) must not silently wipe every other
+    // persisted field (`sessionId`, `profileId`, `cwd`) it didn't mention.
+    // Caught live (2026-09-09): a title-only patch was erasing the whole
+    // restore identity.
     updateParameters: (params) =>
-      dv.updateParameters(params as Record<string, unknown>),
+      dv.updateParameters({
+        ...dv.getParameters(),
+        ...(params as Record<string, unknown>),
+      }),
     setAgentSession: (agentSessionId: string | null) => {
       setPanelAgentSession(dv.id, agentSessionId, {
         // Closing the panel is what `ctx.agents.close(id)` means for a session
@@ -115,11 +128,21 @@ function toHostComponent(
       [panelId],
     );
     const params = props.params as Record<string, unknown>;
-    const body = createElement(Component, { api, params });
-    if (!toolbar) return body;
     // Each workspace has its own dock; this panel's chrome names the workspace
-    // it lives in so a `surface: "panel"` toolbar item can act on it (RFC 0041).
-    const workspaceId = dockApiWorkspaceId(props.containerApi) ?? "";
+    // it lives in so a `surface: "panel"` toolbar item can act on it (RFC 0041)
+    // — and the panel itself is told, so what it reports about itself is filed
+    // where it lives rather than wherever the user is standing.
+    //
+    // A **recorded** panel answers this from its own record, which is true from
+    // the first render; the dock's registration is the fallback, and is all a
+    // transient panel (no record) has.
+    const recorded = parseRecordedPanelId(panelId);
+    const workspaceId =
+      (recorded ? workspaceIdForPanelRecord(recorded.recordId) : null) ??
+      dockApiWorkspaceId(props.containerApi) ??
+      "";
+    const body = createElement(Component, { api, params, workspaceId });
+    if (!toolbar) return body;
     return createElement(
       "div",
       { className: "dock-panel-frame" },

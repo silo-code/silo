@@ -854,66 +854,102 @@ this (mirrors `listTerminals` / `listEditors`). Housekeeping commits also
 landed: the `acp-chat` "New chat" panel toolbar item, the two RFC drafts, and
 (in `silo-extensions`) the `follow-ups` RFC 0039 `"panel"`-surface migration.
 
-## Session 4 — persistence and the proof
+## Session 4 — persistence and the proof (RFC 0042 Phase 1)
 
-**Goal:** the three acceptance criteria, demonstrated.
+**Goal:** the three acceptance criteria, demonstrated. This session is **Phase 1
+of [RFC 0042](proposals/0042-chat-session-resurrection.md)**, which was accepted
+2026-09-09 on the strength of the process-ownership evaluation
+([`acp-process-ownership.md`](acp-process-ownership.md)) and the recon in its
+§5. Read RFC 0042 and that doc first — the design changed materially from the
+July recon it was originally sketched against.
 
-Session 4 now builds on the **`DockPanelRecord`** from Session 3.11 and
-[RFC 0042](proposals/0042-chat-session-resurrection.md): the Chat panel's
-`{ sessionId, profileId, cwd }` is persisted in `DockPanelRecord.state` (a
-structured field on a real record, not a value smuggled through dockview's
-layout serialization), and `WorkspaceDock` hands that state back as the panel's
-params when it recreates the tab on restart. The params round-trip that "never
-worked" is gone — the remaining work is the reload behaviour, the journal, and
-reaping.
+**What the eval settled, so this session does not relitigate it:**
 
-- Persist the session id in `DockPanelRecord.state`; `session/load` on mount; a
-  "cannot be restored" state for agents that lack it. (Protocol verified —
-  `acp-recon.md` §5d. The old panel wiring persisted `sessionId` through
-  `api.updateParameters` → `ws.dockLayout` and it did not carry back on
-  remount; RFC 0041's record removes the round-trip.)
-- Reap agent processes on panel close, workspace close, and app quit.
-- **`acp_close` kills the child, not the grandchild.** Observed 2026-09-08
-  (Session 3.7 verification): deleting a workspace with two live Cursor Chat
-  panels left **one `PPID 1`** process — and it was not `cursor-agent` itself
-  but `~/.local/share/cursor-agent/versions/<v>/node`, the interpreter
-  `cursor-agent` re-execs. So the wrapper died and its own child was adopted by
-  init. A kill that targets only the direct pid cannot reap an agent that
-  shells out to a real runtime, which is every `adapter`-kind agent (`npx` →
-  node) and Cursor too. Kill the **process group**, not the pid. This is a
-  third leak shape, distinct from the two below.
-- **Reap the previous page generation on a webview page load.** Measured
-  2026-09-08: **45 → 47** live ACP children across a single webview reload,
-  with **zero** `disposed.` lines logged and every child still `PPID` = the
-  app. A full page load has no unmount for cleanup to run in, while the Rust
-  connection registry keeps holding the children — so this, not orphan
-  reaping, is the common leak. (The architecture review proposed a boot-time
-  orphaned-pid sweep; it would have caught none of these, because the app
-  never restarted. A sweep is still worth having for the `SIGKILL` case from
-  3.1, but it is the rarer half.)
-- **ADR: agents die with the app, and the conversation does not.** Do _not_
-  build daemon-owned ACP children — the RFC's reasoning holds and
-  `session/load` is far cheaper. But write the decision down here, because this
-  session encodes it into the restore path. The honest shape of it: inside a
-  running app a background Chat agent _does_ stay alive, so the product's
-  "projects stay alive, agents intact" promise holds; across a restart a
-  terminal agent's PTY survives via the session-host daemon and a Chat agent's
-  process does not. That is an asymmetry **between kinds**, which RFC 0038
-  already places out of scope ("observation parity, not capability parity") —
-  so it is a documented limit rather than a contradiction. It still needs the
-  ADR, because a user who has learned that terminals survive a restart will
-  reasonably expect agents to.
-- **The proof, now carried by Session 3.9.** Criterion 2 was scoped as "an
-  `examples/extensions/` extension that drives a session end to end"; after 3.9
-  the real panel _is_ that extension, resolving `@silo-code/sdk` alone, so the
-  criterion is met by the shipping UI rather than by a demo written beside it.
-  Criterion 3 ("disable the bundled panel, confirm a replacement still works")
-  becomes stronger and simpler: there is no bundled panel, so every Chat session
-  in the product already runs through the public surface.
-- What remains here is the part 3.9 does not touch: **restore across a
-  restart**, and reaping. Verify criterion 1 against the moved example.
+- **No daemon.** A detached holder has no responder for the agent's permission /
+  `fs/*` / `terminal/*` requests, so "keeps working while the app is closed" is
+  false for any turn that needs approval. The conversation is what survives, and
+  `resume`/`load` + the journal deliver that. The daemon's revisit triggers are
+  written in RFC 0042.
+- **The frame buffer goes in-process in `acp.rs`, and it is Phase 2**, not this
+  session. This session is the durable state + restore flow + journal.
+- **Replay works.** The 2026-09-09 recon verified `claude` / `cursor` /
+  `opencode` / `pi` all replay full transcript **content** on `session/load`;
+  `loadSession` + `session/list` are universal; `session/resume` is on 3 of 5.
+  Cursor is _not_ a suspect case (Zed #56246 did not reproduce).
 
-**Done when:** all three criteria demonstrably hold. Only then consider `main`.
+### Phase 1 scope (this session)
+
+- **`ChatPanelState` in `DockPanelRecord.state`** — `{ sessionId, profileId,
+cwd }`. RFC 0041 Phase 1 landed the record and the round-trip (Session 3.11);
+  the example panel already declares `persistence: "recorded"`. This session
+  writes/reads the fields.
+- **The restore flow: `resume → load → journal`** (RFC 0042 §"The restore
+  flow"). Probe `sessionCapabilities.resume` and `agentCapabilities.loadSession`
+  **separately**; `resume` wins when both are present (fast, no replay, the v2
+  path) and the transcript renders from the journal. Always send `sessionId` +
+  `cwd` + `mcpServers: []`. Adopt the fresh `sessionId` `session/load` returns
+  on claude. Never refuse to open — a stale session falls through to
+  `session/new`.
+- **`protocolVersion` negotiation** — `acp-jsonrpc.ts` hardcodes `1`. Offer
+  `2`, use whatever the agent negotiates (all catalog agents accept the
+  `initialize` and negotiate down to 1 today).
+- **`session/close` on a clean panel close** (not a crash) when
+  `sessionCapabilities.close` is advertised, before killing the process.
+- **The transcript journal** — `.jsonl` of `SessionUpdate`, one per line, at
+  `<workspace-state-dir>/chat-sessions/<sessionId>.jsonl`. Writer + reader.
+  **No on-disk compaction** — window the render instead (mount recent N,
+  "load older" on demand). Prune on workspace load: no record references it
+  **and** no write in N days. Never prune on quit.
+- **`ChatResumeState`** on `AgentInfo` (`live` / `resuming` / `resumed` /
+  `journal-only` / `unavailable`) so a consumer can render the degraded state.
+- **The ADR** — `docs/decisions/`: "a Chat agent dies with the app; its session
+  does not." The precise claim: the _session_ (transcript + ability to continue)
+  resurrects; the _process_ and any in-flight turn do not. Inside a running app
+  a background Chat agent stays alive; after Phase 2 it also survives a webview
+  reload; it never survives a quit. Name which daemon trigger (if any) is close.
+- **Verify** against `claude` (real login) restoring across a full app restart,
+  and against one agent that has `resume` but not `load` if the catalog gains
+  one (none today — `opencode` has both). Confirm criterion 1 (Silo does not
+  care Chat vs Terminal) on the moved example.
+
+### Explicitly Phase 2, not this session
+
+- The in-process **frame log** + `acp_attach` + reap-on-unclaimed (webview
+  reload survival).
+- **`renderer: "always"`** on the recorded Chat panel — dockview does not mount
+  an inactive-added panel until first click, so restored Chat tabs are dead
+  until activated. Needs a small `DockPanelKind.renderer` field.
+- **Process-group kill** for the grandchild leak — `npx`→node,
+  `cursor-agent`→`~/.local/share/cursor-agent/versions/<v>/node` (observed
+  2026-09-08: deleting a workspace with two Cursor Chat panels left one `PPID 1`
+  node). Every `adapter` agent and Cursor re-exec a runtime; a pid-only kill
+  cannot reap them.
+- **Page-generation reap** — the measured leak (45→47 children across one
+  webview reload, zero `disposed.` lines). The frame log makes this a
+  reap-on-unclaimed instead.
+- **Record-keyed orphan sweep** on `close_all()` / boot — the rarer `SIGKILL`
+  half.
+
+### Recon still owed (RFC 0042 §"Recon still owed")
+
+- **`codex` replay** — no codex login on the recon machine; `session/new`
+  auth-failed. Re-run when a login exists.
+- **`pi` reboot resumability** — its `session/list` returned `[]` right after a
+  `session/new`; pi may not persist across processes. Verify before the catalog
+  claims resume for pi.
+
+### The proof (criteria 2 & 3, carried by Session 3.9)
+
+Criterion 2 ("an `examples/extensions/` extension drives a session end to end")
+is met by the shipping UI — after 3.9 the real panel _is_ that extension,
+resolving `@silo-code/sdk` alone. Criterion 3 ("disable the bundled panel,
+confirm a replacement works") is stronger: there is no bundled panel, so every
+Chat session already runs through the public surface.
+
+**Done when:** all three criteria hold, `claude` restores a conversation across
+a real app restart (paint from journal → `resume`/`load` reconnects → keep
+talking), and the ADR is written. Only then consider `main`. Phase 2 can land
+after the merge.
 
 ## Session 5 — discovery and onboarding
 
@@ -1962,3 +1998,555 @@ markup at all. `decoration-demo` migrated in-repo. `silo.follow-ups`
 terminal items stop rendering until it is republished; noted in the RFC.
 Verified live: every `.dock-panel-frame` has exactly one `.dock-panel-chrome`,
 no stray body toolbar. Gates green.
+
+**Session 4 (2026-09-09, Sonnet) — RFC 0042 Phase 1 landed.** All of it:
+`ChatPanelState`, the `resume → load → journal` restore flow, `protocolVersion`
+negotiation, `session/close` on clean teardown, the journal writer/reader +
+orphan pruning, `ChatResumeState`, and the ADR.
+
+- **`acp-jsonrpc.ts`**: offers `protocolVersion: 2`; `AcpInitializeResult`
+  carries `sessionCapabilities` (read defensively — top-level per the
+  2026-09-09 recon, or nested under `agentCapabilities` per the current schema
+  page); new `resumeSession()` / `closeSession()`; `loadSession()` now returns
+  `{ sessionId, configOptions }` (claude can adopt a new id — recon §5.3).
+- **`chat-session-journal.ts`** (new): `.jsonl` of `AgentSessionUpdate` at
+  `<workspace-state-dir>/chat-sessions/<sessionId>.jsonl` — a new
+  `workspaceStateDir()` in `user-config.ts`. No on-disk compaction: the writer
+  holds every line in memory and rewrites the whole file on a 250ms-debounced
+  flush (there is no `fs_append_text`). `pruneOrphanedChatJournals` runs once
+  per workspace from `WorkspaceDock`'s restore effect, age- and
+  reference-gated, never on quit.
+- **`acp-sessions-service.ts`**: `connect()` takes `resume?: { sessionId,
+startFresh? }` and runs resume → load → journal, probing
+  `sessionCapabilities.resume` and `agentCapabilities.loadSession`
+  _separately_ via a shared `tryResumeOrLoad` (also used by the in-place
+  `ctx.agents.resume(id)` control, which had a real bug: it only ever called
+  `loadSession` and ignored any adopted id, so a future prompt would have
+  addressed a session the agent no longer recognized). The handle gained
+  `sessionId` (a **live getter**, not a snapshot — an in-place resume can
+  still move it after the handle was returned), `resumeOutcome`, and
+  `journal`. A `"journal-only"` handle disposes its unused client immediately
+  and rejects `prompt()`. The user's own prompt is synthesized into the
+  journal as a `user_message_chunk` on send — the live stream never echoes it
+  (the panel adds it locally), so a resume-without-replay or journal-only
+  transcript would otherwise show only the agent's half.
+  `readJournal(sessionId)` is a **separate** method from `connect()` — reading
+  the journal is fast/local, while `connect({ resume })` also pays for the
+  resume/load network round trip, and the RFC's "paint from journal, then
+  resume/load reconnects" is a two-step _observable_ sequence, not one call.
+- **`AcpChatPanel.tsx`**: `params` gained `sessionId?: string | null` and
+  `cwd?: string` (`ChatPanelState`); a `readJournal`-backed effect paints
+  before `connect()` even starts; `connect()` passes `resume` from
+  `params.sessionId`; `"journal-only"` disables the composer and offers
+  "Continue in a new session" (`resume: { sessionId, startFresh: true }` —
+  keeps the _original_ id so the journal keeps one identity, even though the
+  live connection under it gets a throwaway new one each time; documented as
+  a known simplification in the RFC, since no agent hits this tier today).
+  `switchProfile` now clears `sessionId` — a session belongs to the profile
+  that created it. Pure decision logic split into `session-restore.ts`
+  (tested) per the testing skill's convention, mirroring `profile-switch.ts`.
+- **SDK**: `AgentSessionRestore`, `ChatResumeState`, `AgentSessionHandle.
+{sessionId,resumeOutcome,journal}`, `AgentSessionsService.readJournal()`.
+  `docs:api` regenerated; `apps/docs/api/agents/sessions.md` (`## Resume`) and
+  `index.md` updated; roadmap row noted. `chatResumeState` values actually
+  produced this phase: `"live"` / `"resumed"` / `"journal-only"` — `"resuming"`
+  and `"unavailable"` are typed for a future producer but nothing emits them
+  yet (the restore is one `connect()` call; there's no natural moment to
+  surface an in-flight "resuming" without a second registration pass, which
+  felt like complexity the acceptance bar didn't ask for).
+- **ADR 0052** (`docs/decisions/`) — "a Chat agent dies with the app; its
+  session does not," with the daemon revisit triggers carried over verbatim
+  from the eval.
+
+**Not done, and explicitly Phase 2+** (per the RFC): the in-process frame
+buffer, `renderer: "always"`, process-group kill, page-generation reap,
+record-keyed orphan sweep, `session/list` discovery. Recon still owed: `codex`
+replay, `pi` reboot resumability (both noted in the RFC, unchanged).
+
+**Verification status — gates green.** `pnpm test`, `tsc --noEmit`, `pnpm
+lint`, and `pnpm docs:build` are all green; the doc-indexes sync test covers
+the new ADR. Criterion 1 (Chat vs Terminal parity) isn't touched by this
+session and was already confirmed in 3.9a.
+
+**Live verification (Dave restarted the dev app; verifier-gui, sandbox,
+real `claude` login) found and fixed a real bug**, then confirmed the fix:
+
+- **Bug, caught live, not by any unit test:** a restored `claude` session came
+  back with an **empty transcript** on the very first resume attempt. Root
+  cause: `journalWriter` was created _after_ `tryResumeOrLoad()` resolved, but
+  a `session/load` replay's `session/update`s arrive on `callbacks.onUpdate`
+  _while that call is still in flight_ (confirmed by frame ordering — JSON-RPC
+  notifications on the wire are processed strictly before the response that
+  follows them) — so every replayed line was silently dropped by
+  `journalWriter?.append()` being a no-op against `null`. On-disk evidence:
+  the 9-line journal from a live "BANANA" exchange collapsed to 1 line
+  (`available_commands_update` only) after the first reconnect.
+- **Fix:** create `journalWriter` _before_ the resume/load attempt (seeded
+  with whatever is already on disk for the target id), so nothing in flight
+  is missed. A `session/load` outcome then calls the new `writer.dropSeed(n)`
+  to remove the pre-existing seed it was created with (the replay is
+  authoritative and was captured live, appended right after that seed) —
+  and re-keys the writer via the new `writer.snapshotLines()` when `load`
+  adopts a different id. Applied to both the connect()-time restore and the
+  in-place `ctx.agents.resume(id)` control, which has the same live-append
+  ordering but the opposite risk (duplication, not loss, since its writer
+  already existed before the call). Added a unit test that fires simulated
+  `onUpdate` calls from _inside_ the fake `loadSession()`'s implementation,
+  before it resolves — the one shape the original 47 restore-flow tests
+  didn't cover, because none of them modeled the agent talking before its
+  RPC response lands.
+- **Confirmed after the fix**, same live session, no restart needed to
+  observe (a `session/resume`/`session/load` reconnect is the identical code
+  path a real quit-and-relaunch takes): killed the `claude-agent-acp` child
+  twice in a row, clicked **Reconnect** each time — transcript came back
+  intact both times (`"Reply with exactly the word BANANA…"` / `"BANANA"`,
+  in order), composer re-enabled, `DockPanelRecord.state.sessionId` stable,
+  journal file held exactly 3 lines both times (no loss, no duplication).
+  Also confirmed: `session/close` fires (best-effort, no error) and the
+  process is fully reaped on a **clean** panel close (`session/close` →
+  `dispose()`, zero orphaned `claude-agent-acp` processes after), the
+  `DockPanelRecord` is removed, and a plain fresh `connect()` (no
+  `resume`) renders and journals a full turn (`user_message_chunk` +
+  `agent_message_chunk`) correctly the first time.
+- **Not exercised even by this pass:** a real app **quit and relaunch**
+  (only an in-process crash+reconnect was driven — the sandbox/attach
+  discipline in `verifier-gui` doesn't license a self-triggered restart, and
+  this session didn't ask for a second one after the fix). The restore path
+  a relaunch takes is the same `resume`/`load` branch just proven live, so
+  confidence is high, but it is the one scenario named in "Done when" that
+  remains formally unwitnessed. `journal-only` / `startFresh` and
+  `session/load`'s id-adoption also remain unit-tested only — no agent in
+  the catalog hits either live today (recon §5.1/§5.3 disagrees only in
+  the `sessionId`-on-load-of-a-still-live-session case, which this session
+  did not specifically re-probe).
+
+**Update: the literal quit-and-relaunch is now verified, and it found one more
+real bug.** Dave restarted the dev app twice more for this. First restart
+(clean sandbox, one real `claude` turn — asked it to remember PINEAPPLE,
+it replied PINEAPPLE): after the real quit-and-relaunch, `DockPanelRecord`
+correctly restored `{sessionId, profileId, cwd}`, the panel reopened, and the
+transcript **painted the PINEAPPLE exchange from the journal — this is the
+literal "paint from journal" criterion, across a real process death, proven**.
+`session/load` itself failed (`Resource not found` — this specific
+`claude-agent-acp` never persisted a native transcript for that id even
+though the turn genuinely ran; `sessionCapabilities.resume` was never
+attempted either across any run this session, so it may not be advertised by
+this build despite the July recon), so the panel correctly fell to
+**`journal-only`**: composer disabled, "This session can't be resumed —
+nothing is lost — start a new one", exactly the designed degraded tier,
+observed live for the first time with real content behind it (not just an
+unused session, unlike the first "journal-only" hit earlier in this same
+run).
+
+- **Bug #2, caught by clicking "Continue in a new session" and then
+  restarting again:** the very first version of `startFresh` kept the
+  _original_, already-proven-dead session id as the permanent persisted
+  identity "for journal continuity." Consequence, only visible across an
+  actual restart: every future restore then retries that same dead id
+  forever — falling to `journal-only` again every single time — even though
+  the _new_ live conversation underneath was working turn after turn. The
+  journal never lost anything (still painted correctly, dead id and all), but
+  the conversation could never regain a live connection again.
+- **Fix:** adopt the _new_ `session/new` id as `persistSessionId` after
+  `startFresh`, the same as any ordinary connect, and re-key the journal to
+  it (`writer.snapshotLines()` → dispose → recreate under the new id) — the
+  identical mechanism `session/load`'s id-adoption already needed. Updated
+  the SDK doc comment (`AgentSessionRestore.startFresh`), the hand-authored
+  `sessions.md`, the RFC's implementation note, and the one test that had
+  pinned the old (wrong) behavior. Verified via `listPanels` + the on-disk
+  journal immediately after the fix (HMR-loaded, not a full restart this
+  time): a second "Continue in a new session" click produced a **new**
+  `sessionId` and the old journal's 10 lines landed correctly at the front of
+  the new file.
+- **A real mishap along the way, disclosed to Dave and cleaned up:** an
+  earlier `core.newAgent` `exec` call got queued and fired later against
+  whatever workspace was _then_ active — which by that point was
+  `silo-extensions` (Silo's own default-next-workspace behavior after a
+  sandbox `deleteWorkspace`), not the sandbox it was meant for. It opened a
+  Chat tab there that, on connecting, surfaced a **pre-existing real
+  conversation** in that cwd slug (a `memory_search` result with Dave's
+  family details). Closed the tab immediately, confirmed `listPanels` for
+  that workspace was empty again and every other real tab untouched, no
+  orphaned process. Two separate findings from this, **not fixed this
+  session** (out of RFC 0042 Phase 1 scope):
+  1. `WorkspaceService.delete()` reaps terminals (`reapWorkspaceTerminals`)
+     but has no equivalent for live Chat sessions — one kept reconnecting on
+     its own well after its owning workspace was deleted, until the process
+     was killed by hand. Worth the same treatment terminals get, especially
+     given criterion 1 (Chat and Terminal should behave alike).
+  2. Something in the launch path (`pending-launch.ts` is the prime suspect,
+     unconfirmed) can fire a **queued** Chat-profile launch against whatever
+     workspace is active _at fire time_ rather than where it was requested —
+     a real correctness gap for automation and possibly for a slow extension
+     activation on a real cold boot too.
+
+**Gates green after this fix**, same as before (`pnpm test`, `tsc --noEmit`,
+`pnpm lint`, `pnpm docs:build`). `main` is unblocked on RFC 0042 Phase 1
+itself; the two findings above are follow-ups, not blockers, and are recorded
+here rather than fixed speculatively.
+
+**Bug #3 (Dave's own testing, post-verification): decoration waited on the
+reconnect it should have painted ahead of.** Restore a panel, and the tab
+title, the workspace row, and the Agents navigator entry all sat on the
+plain profile label until `resume`/`load` fully resolved — discarding a
+title the agent had already volunteered before the app closed. Root cause:
+`AgentInfo.title` was never persisted anywhere, and nothing registered an
+`AgentInfo` at all until the full handshake (`initialize` alone measured
+3.7–6.5s live) finished.
+
+Fix: `AgentSessionConnectOptions` gained `title?: string`; whenever `resume`
+is given, `connect()` now registers a placeholder `AgentInfo` **synchronously,
+before `client.initialize()` is even called** — carrying that title (or the
+profile label, honestly, if none was passed), `chatResumeState: "resuming"`
+(the first real producer of that value — it was typed but unemitted before
+this). The placeholder is overwritten in place by the real registration in
+the common case (`registerChatAgent` replaces by id), and explicitly removed
+if the id moves out from under it (`session/load` adoption, or the
+journal-less fallback to a brand-new `session/new`) or the whole attempt
+fails — no dangling phantom entries, covered by 5 new tests including one
+that inspects the registry mid-handshake via an unresolved `initialize()`
+promise. The panel persists `AgentInfo.title` into `ChatPanelState` the same
+way it already tracked `sessionId` (one combined `updateParameters` call
+covers both facts changing independently) and passes it back as `title` on
+the next `connect()`. `docs:api` regenerated; `sessions.md` gained a
+"Showing the right title while reconnecting" section. Gates green again
+(`pnpm test`: 1978; `tsc`; `pnpm lint`; `pnpm docs:build`).
+
+**Bug #4, found immediately by live-testing bug #3 (this is the more
+consequential one): `DockPanelApi.updateParameters` never actually merged —
+it silently replaced the panel's whole persisted state with whatever was
+passed.** The moment the title fix's persist call sent `{title}` alone (no
+prior call had ever patched fewer than all of `{profileId, sessionId, cwd}`
+together, which is why this stayed hidden through every restart test so
+far), `DockPanelRecord.state` collapsed to just `{title}` — a real Chat
+session's `sessionId` was wiped by writing its title. Root cause: `dockview-
+core`'s `PanelApiImpl.updateParameters` does `this._parameters = parameters`
+— a wholesale replace, not a merge — and `makeDockPanelApi` in
+`dock-panel-kinds.ts` passed straight through with no merge of its own,
+despite the SDK's own doc comment promising "keys absent from params are
+left unchanged." Fixed at that one seam: `updateParameters` now does
+`dv.updateParameters({ ...dv.getParameters(), ...params })`, so the
+documented contract is what every caller actually gets — every recorded
+panel's persistence (not just Chat), not only this one. Added the regression
+test dockview's own behavior doesn't provide: a partial patch preserves
+prior fields. Verified live: crashed the agent, clicked Reconnect, and
+`document.querySelectorAll(".dv-tab")` showed the last-known title
+immediately — confirmed via `eval`, not just inference — while `listPanels`
+after a real turn showed all four fields (`profileId`/`sessionId`/`cwd`/
+`title`) surviving a `{title}`-only patch. Gates green again (`pnpm test`:
+1979 — one more for the merge regression; `tsc`; `pnpm lint`).
+
+This is now the third distinct bug this sprint's live verification found that
+no unit test caught until the fix went in — each one because the test
+doubles (a fake `AcpClient`, a fake dockview `api`) modeled the _documented_
+contract, not the actual one, and the sprint's own tests were the first
+callers to exercise the gap between them. Worth remembering next time a fake
+is written from a doc comment rather than the read source.
+
+**Session 5 (2026-09-10, Opus) — the two things Dave's own testing found after
+Session 4, both fixed and both verified across real restarts.**
+
+**Issue 1: a Chat agent in another workspace was invisible until you went
+there.** Restart into workspace B and the Chat session still open in workspace
+A was missing from the Agents navigator — the one place you would look for it —
+until A was activated. Root cause is structural, not a slip: a Chat session's
+`AgentInfo` is born inside `connect()`, `connect()` runs when the panel mounts,
+and `CenterDock` mounts a `WorkspaceDock` only for workspaces _warmed this run_
+(`warmedIds`, seeded with the active one alone). A Terminal session never had
+this problem because `agents-service` tracks one per terminal record in **every**
+workspace off persisted state, with no UI involved.
+
+Fixed on the terminal side's terms — from persistence, not from UI (Dave's own
+framing: "save the status before restart and show that optimistically"):
+
+- **`AppState.chatSessionState`** (`PersistedChatSession`), the Chat counterpart
+  of `agentState`: workspace, session id, title, agent name/id, `canResume`,
+  keyed by Agent Session id. Written on any real identity change (a
+  timestamp-only diff writes nothing, so a turn costs no persistence).
+- **`chat-session-restore.ts`** — the read half. Every recorded Chat panel, in
+  every workspace, gets a **dormant** registration: the new
+  `ChatResumeState: "dormant"`, `activity: "idle"`, the title it last showed.
+  Registration requires _both_ a panel record and a persisted status, so a
+  closed tab's conversation stays closed; statuses nothing references are pruned
+  once per run. Reveal (and `resume`, which for a dormant session means the same
+  thing) records a panel-activation intent for that workspace's dock — the same
+  mechanism a cross-workspace `ctx.terminals.focus` uses. It runs from
+  `syncSessions()`, the same store subscription that reconciles terminals.
+- Nothing spawns an agent: **lazy connect-on-open is kept deliberately** (Dave
+  called it fine). The fix is that the session is _findable_ while it stays lazy.
+
+**Issue 2: a restored tab's title snapped back to "Claude Agent" once the
+handshake finished** and stayed there until the next message. Session 4's
+placeholder was right; the _real_ registration was not — it set `AgentInfo.
+title` from `initialize`'s product name unconditionally, discarding the
+persisted title it had just painted, and the panel then persisted that
+regression over the good one. The fallback is now written out in order:
+**volunteered this connect** → **last-known title** → agent's declared name →
+profile label. Two supporting fixes came with it:
+
+- `infoId` was `""` for the whole handshake, so a `session_info_update` the
+  agent volunteers _during_ a `session/load` replay was patched onto an id
+  nothing was filed under and dropped — the same in-flight ordering that lost
+  the journal's replay lines in Session 4. The placeholder now _names_ the
+  session from the moment it is registered.
+- The "last-known title" reads `options.title` **or**, failing that,
+  `chatSessionState` — Silo's own record. The caller's copy lives in its panel
+  state and can go missing; the host's cannot.
+
+**A third bug fell out of verifying those, and it is not Chat-specific:
+`DockPanelRecord.state` and the panel's live dockview params could diverge, and
+whichever was staler won.** A recorded panel restored by `fromJSON` gets the
+params the _layout snapshot_ held; the record is written from dockview's
+parameters event. Two writers, two schedules — on disk, after one restart, the
+record had lost a Chat panel's `title` while the layout still had it, and the
+panel's next partial `updateParameters` merged onto the stale copy and wrote
+_that_ back over the record. Both directions are now closed: `persist()`
+reconciles every recorded panel's record from its live params in the same pass
+that snapshots the layout, and layout restore re-seeds each panel from its
+record before the first `updateParameters` can merge onto a stale copy
+(`recordedPanelParamsToRestore` / `sameParams`, both pure and tested). This is
+the second time this seam has produced a silent data loss (Session 4's bug #4
+was the merge itself) — the lesson is the same one: **the record is the source
+of truth for a panel's state; the layout owns only its geometry**, and anything
+that lets the layout's copy of state win is a bug.
+
+**Verified live across two real quit-and-relaunch cycles** (dev app restarted by
+this session with Dave's go-ahead; two sandbox workspaces, real `claude`, both
+deleted afterward and the temp dirs removed):
+
+- Restart into sandbox **B** with a "Plum" session in sandbox **A**: the Agents
+  navigator listed `ACP-VERIFY-A › Plum · Idle` immediately, with **zero**
+  `claude-agent-acp` processes running — dormant, not connected. Clicking it
+  activated A _and_ its tab, which is when the connect happened.
+- That connect fell to `journal-only` (this `claude-agent-acp` again refused
+  the id) and the tab **stayed "Plum"** through the whole handshake. "Continue
+  in a new session" then minted a new id, kept the title, and left exactly one
+  registry entry — no dangling dormant twin.
+- Second restart, after another turn (title "Mango"): the session came back
+  `chatResumeState: "resumed"` with its transcript intact, composer live, and
+  the title still "Mango" after the handshake. The record and the panel params
+  agreed on disk-restore, healing the divergence the previous boot had left.
+- Closing the tab removed the record, withdrew the entry, and reaped the child
+  (0 `claude-agent-acp` processes).
+
+Docs: RFC 0042 gained both fixes under "Phase 1 — what actually shipped" plus a
+new "Sessions Silo can list before anything connects"; `domain-language.md`
+gained **Dormant Chat session**; `apps/docs/api/agents/sessions.md` gained
+"Sessions Silo lists before anything connects" and a corrected
+`AgentSessionConnectOptions.title` contract; roadmap row updated; `docs:api`
+regenerated. `pnpm test` (2012 in extension-host) / `tsc --noEmit` / `pnpm lint`
+/ `pnpm docs:build` green.
+
+**Still open, unchanged from Session 4** (neither was this session's scope —
+_both fixed in Session 6a, see below_):
+`WorkspaceService.delete()` reaps terminals but not live Chat sessions, and a
+queued Chat-profile launch can fire against whatever workspace is active at fire
+time. One new, smaller note: the navigator renders a dormant session exactly
+like a live idle one — the state is there (`chatResumeState: "dormant"`), but
+`silo.agents` does not yet distinguish it visually.
+
+**Session 5a (2026-09-10, Opus) — Silo was never attempting `session/resume`.**
+Dave asked why an existing Chat agent came back unresumable after the restarts
+above. Chasing it produced one non-bug and one real bug.
+
+**The non-bug (that session is genuinely gone).** Reproduced outside Silo with a
+bare `claude-agent-acp` 0.75.1 process — same session id, same cwd, no Silo in
+the picture: `session/load` **and** `session/resume` both return `-32002
+Resource not found`, and `session/list` (17 sessions for that folder) does not
+include the id, even though `~/.claude/projects/<slug>/<id>.jsonl` exists with
+both messages in it. The adapter's own session index does not know that session,
+so nothing Silo can send will bring it back. Silo's persisted id and cwd were
+exactly right. **Probing the agent directly, outside the app, is the cheapest
+way to settle "our bug or theirs" — it took one 30-line script.**
+
+**The real bug, found by that same probe: capability detection.** The adapter
+answers `initialize` with
+
+```json
+"agentCapabilities": { "loadSession": true,
+  "sessionCapabilities": { "resume": {}, "close": {}, "list": {}, "fork": {}, … } }
+```
+
+— details objects, not booleans, nested under `agentCapabilities`. Silo tested
+`sessionCapabilities.resume === true`, so **every** claude session read as
+"no resume support" and every restore went through `session/load`, which that
+adapter implements as a fork. The `AcpSessionCapabilities` doc comment had
+described both shapes correctly since Session 4; the code never implemented what
+the comment promised. Fixed with one reader — `capabilityEnabled(flag)` in
+`acp-jsonrpc.ts` (`true` or any details object = supported) — used for
+`loadSession`, `resume` and `close` alike. `tryResumeOrLoad` now also logs which
+capabilities were advertised and which call actually restored the session; both
+paths end in the same `"resumed"` state, so that line was previously the one
+missing piece of any restore post-mortem.
+
+Verified live (sandbox, real `claude`, full app restart): the log now reads
+`resume advertised, load advertised` → `Restored <id> via session/resume` on
+both the post-restart restore and a manual Reconnect, transcript intact from the
+journal, and the session's title held. That is the path RFC 0042 designed for
+and had never once taken.
+
+**The lesson, and it is the same one as Session 4's three bugs:** a doc comment
+describing the wire is not the wire. Two of this sprint's capability reads were
+written from a schema page rather than from a live `initialize` result, and both
+were wrong. `session/list` works and is cheap — RFC 0042 Phase 3 should use it
+to tell "this id is gone" _before_ attempting a restore, which would have turned
+this whole investigation into one log line.
+
+**Session 5b (2026-09-10, Opus) — restore fidelity, and why hand-verification
+kept missing things.** Dave restarted the app and found two more gaps by
+comparing screenshots: the Agents navigator showed _Idle · 2s_ where it had
+shown _Ready · 11s_, and a restored tab had lost the Claude icon until its agent
+finished initializing. Both were real, and so were three more found while
+fixing them.
+
+1. **Status was not restored, only identity.** `PersistedChatSession` now
+   carries `activity` / `needsAttention` / `attentionSince`; attention comes back
+   with its original timestamp, `working` deliberately does not come back at all
+   (the process is gone — it returns `idle` + `stale`).
+2. **The tab had no agent binding until its panel mounted.** The dormant
+   registration now writes the panel→session binding from the record, so tab
+   chrome resolves before anything connects.
+3. **A failed connect deleted the row.** `connect()` removes its registration
+   when it throws; the dormant sync used to register once and never again, so a
+   spawn failure left the session with no row anywhere. It is now a floor:
+   re-registered whenever the id is unclaimed.
+4. **A session could change workspace.** `connect()` defaulted to the _active_
+   workspace, so a background panel reconnecting while the user was elsewhere
+   filed its session in the wrong one — then "moved" on the next restart, when
+   the record decided. New `DockPanelProps.workspaceId`, resolved from the
+   panel's **record** (true from the first render, unlike the dock registration),
+   and passed through `connect({ workspaceId })`.
+5. **The store a session lives in is part of its identity.** An agent keeps its
+   sessions in its config directory, read from an env var Silo inherits from
+   whatever launched it — the root cause of the "unresumable" sessions earlier
+   in the day. `acp_spawn` now reports the effective value, it is persisted with
+   the session, and every restore spawns against it.
+
+**The durable answer to "why does this keep happening": there was no restart
+suite.** Added `apps/desktop/src/automation/chat-restart-fidelity.it.test.ts` —
+two workspaces, two sessions in different states, a real quit and relaunch, then
+a field-by-field diff of identity and status, the tab bindings, and a reconnect
+that must not degrade to `journal-only`. Opt-in via `SILO_IT_RESTART_APP=1`
+(it restarts the dev app) and needs a real Chat profile. Findings 3 and 4 above
+were found _by the suite_, not by a screenshot. Two new bridge ops back it:
+`listAgents` and `panelAgentSession`.
+
+**Traps this session paid for, worth remembering:**
+
+- **Verify in the environment the user has.** Every earlier "the adapter lost
+  the session" conclusion came from a dev app launched from inside a Claude Code
+  session, which exports `CLAUDE_CONFIG_DIR`. Sessions created there are stored
+  somewhere the user's own app never looks. Launch the app the way the user does
+  (`env -u CLAUDE_CONFIG_DIR pnpm dev`) before believing a restore result.
+- **A queued Chat launch is real.** `core.newAgent.<profile>` can answer
+  `ran: true` and open nothing for a long while (the pending-launch drain — the
+  Session 4 follow-up, still open). The suite retries rather than hanging, which
+  is a workaround, not a fix.
+- **An extension bundle does not hot-reload.** Editing `examples/extensions/*`
+  needs `node build.mjs` **and** an app restart before the change is under test.
+
+### Restart-fidelity recon, per agent (closed — Session 6)
+
+Ran `chat-restart-fidelity.it.test.ts` with `SILO_IT_CHAT_PROFILE=<id>` against
+each of the five remaining catalog agents, one real Chat profile per agent
+(built-ins pointed at their resolved binary path, not an alias — a Chat
+profile's command is exec'd with no shell; `codex`/`pi` as
+`npx -y <package>@<pinned version>`), launched the way Dave does
+(`env -u CLAUDE_CONFIG_DIR -u CLAUDE_CODE_ENTRYPOINT -u AI_AGENT pnpm dev`).
+
+| Agent    | Suite    | `sessionCapabilities` (initialize)                                                                                                          | Restore path                                                                                                          | Transcript source |
+| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| cursor   | 4/4 pass | `{ list: {} }` — no `resume`, no `close`, no `fork`                                                                                         | `session/load`                                                                                                        | agent             |
+| opencode | 4/4 pass | `{ close: {}, fork: {}, list: {}, resume: {} }`                                                                                             | `session/resume`                                                                                                      | agent             |
+| copilot  | 4/4 pass | `{ close: {}, list: {} }` — no `resume`, no `fork`                                                                                          | `session/load` **throws "Internal error" at runtime** for both real sessions tried; Silo falls back to `journal-only` | journal           |
+| codex    | blocked  | `{ resume: {}, list: {}, close: {}, delete: {}, fork: {}, additionalDirectories: {}, subagents: {} }` (same nested-details shape as claude) | untested — `session/new` never completes                                                                              | n/a               |
+| pi       | 4/4 pass | `{ list: {}, delete: {} }` — no `resume` at all                                                                                             | `session/load`                                                                                                        | agent             |
+
+All five capability shapes are read correctly by the one generic
+`capabilityEnabled()` reader from Session 5a — this recon is the first time it
+has been exercised against anything but `claude`, and it holds: absence of a
+key, `false`, and a details object are all handled, whichever agent sends it.
+No new capability-shape bug. No restore path degraded silently — copilot's is
+the interesting case, and it degrades exactly the way Session 5b designed for:
+`session/load` throws, the client is disposed, the row falls back to its
+dormant/journal state rather than vanishing, and the reopened tab still passes
+the suite's "must not be `journal-only`" assertion because a _later_, solo
+retry of the same call (once the other session's concurrent load is out of the
+way) succeeds. None of the four passing agents rename their session's title —
+the tab keeps its literal first-prompt text (`opencode`, `copilot`, `pi`) or the
+generic profile label (`cursor`); only `claude` sends `session_info_update`.
+
+**codex is blocked by environment, not by Silo.** `codex login status` reports
+"Not logged in" on this machine (Dave's `~/.codex/config.toml` is a custom
+enterprise setup, not a standard `codex login`), so `codex-acp` never completes
+`session/new` and the suite's retry loop (`core.newAgent.codex` firing every
+~30s) runs until the outer timeout. Its `initialize` response was probed
+directly (bypassing the suite) and advertises the same capability shape as
+`claude` — nothing here suggests Silo would mishandle a real resume once codex
+can authenticate. Filling this in needs a machine with a standard `codex login`
+session, not a code change.
+
+**Two things this recon reconfirmed, both already tracked, not new bugs:**
+
+- **The process-group leak** (Phase 2, "Process-group kill for the grandchild
+  leak") — restarting the app via SIGTERM never reaps a live ACP agent child
+  (`cursor-agent`, `opencode`, and the `npx`-spawned adapters all left orphaned
+  processes after their restart; cleaned up by hand each time).
+- **The queued-launch drain can outlive the run that queued it.** codex's
+  blocked run left at least one pending `npx codex-acp` spawn that did not fire
+  until a _later_ agent's test run, by which point `afterAll` had already
+  deleted the first run's tmpdir — it crashed on `ENOENT: process.cwd ... likely
+removed` rather than the target directory, harmlessly, but into a different
+  test's log. Same root cause as the Session 4 "queued Chat launch" finding
+  (`core.newAgent.<profile>` can answer `ran: true` and fire much later); this
+  shows the delay can span more than one restart. Still the Phase 2 follow-up,
+  not fixed here.
+- **`onlyWhenVisible` mounting explains a transient "connect then instantly
+  dispose" pair observed once per non-`claude` agent** at the moment
+  `activateWorkspace` + `activatePanel` switch which of the workspace's two Chat
+  tabs is active: the tab that loses focus unmounts (Dockview's default,
+  pre-Phase-2 `renderer: "always"`) and its panel's connect is torn down almost
+  immediately. Not a per-agent behavior difference — an artifact of the already
+  -documented Phase 2 item, visible here because two sessions share a
+  workspace.
+
+Full recon findings (capability probes, per-agent logs) folded into
+[RFC 0042](proposals/0042-chat-session-resurrection.md)'s restore-fidelity
+section.
+
+**Session 6a (2026-09-10, Sonnet) — the two Session 5b follow-ups, fixed.**
+Both were "Chat should behave like Terminal" gaps, closed on Terminal's own
+terms (from the host, not from UI unmount).
+
+1. **`WorkspaceService.delete()` now reaps live Chat sessions.**
+   `ChatSessionControls` gained an optional `dispose` — the session handle's
+   own teardown (`session/close`, then kill) — and `connect()` hands it to the
+   registry once `handle` exists. New `reapWorkspaceChatSessions(workspaceId)`
+   in `chat-agent-registry.ts` iterates the registry, `dispose()`s every live
+   entry in that workspace and withdraws dormant ones; it is wired into both
+   delete paths that already hand-reap terminals — `WorkspaceService.delete()`
+   (SDK / automation) and `open-workspace-menu.tsx`'s
+   `confirmAndDeleteWorkspace` (the UI menu). Dormant / journal-only entries
+   have no `dispose` and are just withdrawn (the store-diff already handled
+   those via `syncDormantChatSessions`, but the reap makes it synchronous with
+   the delete). Idempotent, so a later panel unmount calling `handle.dispose()`
+   again is a no-op.
+
+2. **A `core.newAgent.<id>` launch no longer opens its panel in the wrong
+   workspace.** `profile-commands.ts`'s `launch()` captures the active
+   workspace before awaiting `startAgentProfile`, and bails if the active
+   workspace changed by the time the dispatch resolves — `ctx.layout.openPanel`
+   targets the active dock, and the Session 5b mishap was exactly this window
+   (a sandbox delete auto-activated `silo-extensions`, and the queued launch
+   surfaced a Chat panel there against an unrelated conversation). The
+   `pending-launch.ts` "prime suspect" was wrong: a Chat profile never goes
+   through that queue (`launchAgentProfile` refuses a Chat arm); the real gap
+   was the async boundary in the command dispatch itself.
+
+Tests: `chat-agent-registry.test.ts` (reap disposes live, withdraws dormant,
+leaves other workspaces alone, no-op on an empty workspace),
+`workspace-service.test.ts` (delete reaps Chat sessions in the workspace only),
+`profile-commands.test.ts` (no `openPanel` when the active workspace moved
+during the await). `pnpm test` / `tsc --noEmit` / `pnpm lint` green.
+
+**Next:** Session 5 (discovery / onboarding), or collapse RFC 0042 and merge.

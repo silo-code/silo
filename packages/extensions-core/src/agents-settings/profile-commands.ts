@@ -37,6 +37,16 @@ async function launch(ctx: ExtensionContext, profileId: string): Promise<void> {
   if (!profile) return;
 
   const start = await startAgentProfile(profile, wsId);
+  // `startAgentProfile` awaited (a Terminal profile's folder picker; a Chat
+  // profile still crosses the async boundary). A programmatic caller —
+  // automation, or a `core.newAgent.<id>` fired during a cold-boot activation —
+  // can switch or delete the target workspace in that window, and `ctx.layout.
+  // openPanel` opens into whatever dock is active *now*. Opening then would
+  // surface the profile's Chat panel in the wrong workspace (observed once
+  // against `silo-extensions` after a sandbox delete auto-activated the next
+  // one). Bail if the workspace we resolved against is no longer in front — a
+  // deleted one can never be, so this covers that too.
+  if (store.activeWorkspaceId !== wsId) return;
   if (start.outcome === "panel") {
     ctx.layout.openPanel(start.panelKindId, start.params);
   } else if (start.outcome === "refused") {

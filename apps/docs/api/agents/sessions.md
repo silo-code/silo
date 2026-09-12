@@ -243,14 +243,109 @@ if (path) {
 }
 ```
 
-## Resume
+## Resume — Chat session resurrection
 
-`AgentSessionHandle.canResume` (and `AgentInfo.canResume`) is `true` when the
-agent advertises `session/load`. The agent process is a piped child of Silo and
-does **not** survive the app closing — but the agent keeps the transcript on
-its side, so [`ctx.agents.resume(id)`](/api/agents/) spawns a fresh process and
-loads the conversation back. Full restore-on-mount wiring lands in a later
-phase.
+The agent process is a piped child of Silo and does **not** survive the app
+closing — but the _session_ does (RFC 0042). `AgentSessionHandle.canResume`
+(and `AgentInfo.canResume`) is `true` when the agent advertises `session/resume`
+or `session/load`; [`ctx.agents.resume(id)`](/api/agents/) spawns a fresh
+process and reconnects the conversation through whichever the agent
+advertises.
+
+To restore your own panel's session across a restart, persist
+`AgentSessionHandle.sessionId` (e.g. in a recorded panel's `DockPanelState` —
+[RFC 0041](/api/registration/register-dock-panel-kind)) and pass it back as
+`resume` on your next `connect()`:
+
+```ts
+const session = await ctx.agents.sessions.connect(profileId, {
+  cwd,
+  resume: savedSessionId ? { sessionId: savedSessionId } : undefined,
+});
+
+// Paint prior turns before subscribing — the transcript journal, read from
+// disk. Empty for a brand-new session.
+let transcript = session.journal.reduce(applyUpdate, emptyTranscript);
+session.onUpdate((u) => (transcript = applyUpdate(transcript, u)));
+
+// Persist the identity to restore next time.
+saveSessionId(session.sessionId);
+```
+
+`connect()` probes `session/resume` (fast, no replay — the transcript comes
+from `journal` alone) and `session/load` (replay, reconciled against the
+journal) **separately**, preferring `resume`, and never rejects just because
+the target has gone stale: a vanished session falls all the way through to a
+fresh `session/new`. Check `session.resumeOutcome`:
+
+| `resumeOutcome`  | Meaning                                                                                                                           |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `"new"`          | An ordinary `session/new` — nothing to restore, or the target had gone stale.                                                     |
+| `"resumed"`      | Reconnected over `session/resume` or `session/load`.                                                                              |
+| `"journal-only"` | The agent could do neither. `journal` is the whole transcript; `prompt()` rejects. Offer "Continue in a new session" — see below. |
+
+**`session/load` may adopt a new session id** (observed on `claude`) — always
+read `session.sessionId` back after `connect()` resolves and persist _that_,
+not the id you passed in.
+
+### Showing the right title while reconnecting
+
+`initialize` alone can take several seconds (an adapter's own SDK bootstrap
+dominates it) — well before `resume`/`load` even starts. Pass the last title
+this session showed and `connect()` registers it immediately, so your tab (and
+the workspace row, and the Agents navigator) show it right away instead of
+the plain profile label for however long reconnecting takes:
+
+```ts
+const session = await ctx.agents.sessions.connect(profileId, {
+  cwd,
+  resume: { sessionId: savedSessionId },
+  title: savedTitle, // what AgentInfo.title last was, persisted alongside sessionId
+});
+```
+
+Ignored without `resume` — a fresh session has no prior title to show early.
+It **outlives the handshake**: it stays the session's title once the connection
+is up, until the agent volunteers a real one of its own (a title update). The
+agent's product name from `initialize` does _not_ replace it — that is the
+fallback for a session that never had a title, not a substitute for one this
+conversation already earned.
+
+### Sessions Silo lists before anything connects
+
+A Chat session's agent process dies with the app; the session does not. Silo
+remembers each one's identity and lists it in the Agents navigator on the next
+launch with `chatResumeState: "dormant"` — the conversation exists, its panel is
+recorded, and nothing is running behind it yet. This is what a session in a
+workspace the user has not visited this run looks like, and it is why they can
+find it at all: revealing one activates its workspace and its tab, at which
+point your panel mounts and its `connect({ resume })` takes over.
+
+A dormant entry is always `activity: "idle"`, and its `title` / `agentId` are
+whatever they last were. Nothing is asked of an extension to get this — it
+follows from persisting `sessionId` in your panel's state, exactly as the
+restore flow above already requires.
+
+### Continuing a `"journal-only"` session
+
+There is no live agent to prompt, but the conversation is not lost: reconnect
+with `startFresh` to start a new agent process while continuing to write into
+the same transcript journal —
+
+```ts
+const session = await ctx.agents.sessions.connect(profileId, {
+  cwd,
+  resume: { sessionId: savedSessionId, startFresh: true },
+});
+saveSessionId(session.sessionId); // the *new* id — same as any other connect
+```
+
+Persist `session.sessionId` afterward, exactly as after a plain `connect()` —
+**not** `savedSessionId`. Keeping the original id instead means every future
+restore keeps retrying an id the agent has already shown it can't resume,
+forever, even while the new conversation itself works fine turn after turn.
+The journal is carried into the new id's file for you, so nothing is lost by
+moving on from it.
 
 ## Reasons `connect()` rejects
 
@@ -268,6 +363,8 @@ phase.
 - [`AgentSessionsService`](/api/types/interfaces/AgentSessionsService)
 - [`AgentSessionHandle`](/api/types/interfaces/AgentSessionHandle)
 - [`AgentSessionConnectOptions`](/api/types/interfaces/AgentSessionConnectOptions)
+- [`AgentSessionRestore`](/api/types/interfaces/AgentSessionRestore)
+- [`ChatResumeState`](/api/types/type-aliases/ChatResumeState)
 - [`AgentPromptBlock`](/api/types/type-aliases/AgentPromptBlock)
 - [`AgentPromptResult`](/api/types/interfaces/AgentPromptResult)
 - [`AgentStopReason`](/api/types/type-aliases/AgentStopReason)

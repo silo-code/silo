@@ -40,6 +40,8 @@ import {
   addAgentProfile,
   updateAgentProfile,
   removeAgentProfile,
+  getAgentsService,
+  agentSessionForPanel,
 } from "@silo-code/extension-host/internal";
 import type { Disposable } from "@silo-code/sdk";
 
@@ -817,6 +819,40 @@ async function handleOp(
     // arm. Verifying a Chat profile means knowing exactly what it will spawn,
     // and the persisted index on disk is stale between writes (RFC 0038
     // verification — do not diagnose a profile from `app-state.json`).
+    // Every Agent Session Silo currently knows about, across all workspaces —
+    // the same snapshot the Agents navigator renders, plus which dock tab each
+    // one is bound to. The restart-fidelity suite diffs this either side of a
+    // relaunch: identity, status and tab chrome must all survive.
+    case "listAgents": {
+      const agents = getAgentsService()
+        .getState({ allWorkspaces: true })
+        .map((a) => ({
+          id: a.id,
+          workspaceId: a.workspaceId,
+          title: a.title,
+          kind: a.kind,
+          activity: a.activity,
+          needsAttention: a.needsAttention,
+          attentionSince: a.attentionSince,
+          stale: a.stale,
+          canResume: a.canResume,
+          sessionId: a.sessionId,
+          agentId: a.agentId,
+          agentName: a.agentName,
+          chatResumeState: a.chatResumeState,
+        }));
+      return { agents };
+    }
+
+    // Which Agent Session a dock tab declares it is showing — the map the tab's
+    // own chrome (agent icon, activity badge) resolves through.
+    case "panelAgentSession":
+      return {
+        panelId: String(args.panelId ?? ""),
+        agentSessionId:
+          agentSessionForPanel(String(args.panelId ?? "")) ?? null,
+      };
+
     case "agentProfiles":
       return {
         profiles: store.agentProfiles.map((p) => ({

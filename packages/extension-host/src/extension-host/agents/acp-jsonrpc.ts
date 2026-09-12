@@ -86,10 +86,46 @@ export interface AcpAgentInfo {
   version?: string;
 }
 
+/**
+ * `sessionCapabilities` — a sibling of `agentCapabilities` on `initialize`'s
+ * result (recon 2026-09-08/09), gating `session/resume`, `session/close` and
+ * `session/list`. Read defensively: the schema page for the same protocol
+ * version nests it under `agentCapabilities.sessionCapabilities` instead, and
+ * a value may arrive as a bare boolean or a details object (`resume: {}`) —
+ * either reads as "supported" here.
+ */
+export interface AcpSessionCapabilities {
+  resume?: AcpCapabilityFlag;
+  close?: AcpCapabilityFlag;
+  list?: AcpCapabilityFlag;
+  [k: string]: unknown;
+}
+
+/** How a capability arrives on the wire: a bare boolean, or the details object
+ *  the current schema uses (`resume: {}`, `close: {}`, …). */
+export type AcpCapabilityFlag = boolean | Record<string, unknown> | undefined;
+
+/**
+ * Whether a capability is advertised — the single reader for every one of them.
+ *
+ * `true` and a details object both mean **supported**; a details object is what
+ * `claude-agent-acp` 0.75.1 actually sends (`sessionCapabilities: { resume: {},
+ * close: {}, list: {}, … }`, nested under `agentCapabilities`). Testing
+ * `=== true` reads that as *unsupported*, which is exactly what happened: Silo
+ * never once attempted `session/resume` against claude and always fell through
+ * to `session/load` (a fork on that adapter). Verified against a live adapter
+ * outside the app, 2026-09-10.
+ */
+export function capabilityEnabled(flag: unknown): boolean {
+  if (flag === true) return true;
+  return typeof flag === "object" && flag !== null && !Array.isArray(flag);
+}
+
 export interface AcpInitializeResult {
   protocolVersion?: number;
   agentInfo?: AcpAgentInfo | null;
-  agentCapabilities?: { loadSession?: boolean; [k: string]: unknown };
+  agentCapabilities?: { loadSession?: AcpCapabilityFlag; [k: string]: unknown };
+  sessionCapabilities?: AcpSessionCapabilities;
   authMethods?: unknown[];
   raw: Record<string, unknown>;
 }
@@ -140,8 +176,34 @@ export interface AcpClient {
     configOptions: AcpConfigOption[];
     raw: Record<string, unknown>;
   }>;
-  /** ACP `session/load` — replay a prior conversation into a fresh process. */
-  loadSession(sessionId: string, cwd: string): Promise<void>;
+  /**
+   * ACP `session/load` — replay a prior conversation into a fresh process.
+   * **May adopt a new `sessionId`** (observed on `claude-agent-acp`, recon
+   * §5.3 — `session/load` behaves like a fork there); the returned id falls
+   * back to the one passed in when the agent's response carries none.
+   */
+  loadSession(
+    sessionId: string,
+    cwd: string,
+  ): Promise<{ sessionId: string; configOptions: AcpConfigOption[] }>;
+  /**
+   * ACP `session/resume` — reconnect to a session **without** replaying its
+   * history (gated on `sessionCapabilities.resume`; RFD stabilized
+   * 2026-04-22). Faster than {@link loadSession} and the only resume path ACP
+   * v2 keeps; Silo renders the reconnected transcript from its own journal
+   * rather than a replay.
+   */
+  resumeSession(
+    sessionId: string,
+    cwd: string,
+  ): Promise<{ configOptions: AcpConfigOption[] }>;
+  /**
+   * ACP `session/close` — free the agent's own resources for a session Silo is
+   * about to stop using (gated on `sessionCapabilities.close`). Best-effort:
+   * call before killing the process on a clean teardown, never required for
+   * one.
+   */
+  closeSession(sessionId: string): Promise<void>;
   /** ACP `session/prompt`. Resolves with the turn's stop reason. */
   prompt(
     sessionId: string,
@@ -416,19 +478,32 @@ export function createAcpClient(
   return {
     async initialize() {
       const result = (await request("initialize", {
-        protocolVersion: 1,
+        // Offer 2 (ACP v2 draft); every catalog agent accepts it and
+        // negotiates down to whatever it actually speaks (recon §5.1) — this
+        // is a safe no-op today and the seam v2 support hangs off later.
+        protocolVersion: 2,
         clientCapabilities: {
           fs: { readTextFile: false, writeTextFile: false },
           terminal: false,
         },
         clientInfo: { name: "silo", version: "0.0.0" },
       })) as Record<string, unknown>;
+      const agentCapabilities = result?.agentCapabilities as
+        | (AcpInitializeResult["agentCapabilities"] & {
+            sessionCapabilities?: AcpSessionCapabilities;
+          })
+        | undefined;
       return {
         protocolVersion: result?.protocolVersion as number | undefined,
         agentInfo: (result?.agentInfo ?? null) as AcpAgentInfo | null,
-        agentCapabilities: result?.agentCapabilities as
-          | AcpInitializeResult["agentCapabilities"]
-          | undefined,
+        agentCapabilities,
+        // Read both locations defensively (module doc comment on
+        // `AcpSessionCapabilities`) — Silo's 2026-09-09 recon found every
+        // catalog agent advertising this at the top level; the schema page
+        // for the same protocol version nests it under `agentCapabilities`.
+        sessionCapabilities:
+          (result?.sessionCapabilities as AcpSessionCapabilities | undefined) ??
+          agentCapabilities?.sessionCapabilities,
         authMethods: Array.isArray(result?.authMethods)
           ? (result.authMethods as unknown[])
           : [],
@@ -453,7 +528,28 @@ export function createAcpClient(
     },
 
     async loadSession(sessionId, cwd) {
-      await request("session/load", { sessionId, cwd, mcpServers: [] });
+      const result = (await request("session/load", {
+        sessionId,
+        cwd,
+        mcpServers: [],
+      })) as Record<string, unknown> | undefined;
+      return {
+        sessionId: (result?.sessionId as string | undefined) ?? sessionId,
+        configOptions: parseConfigOptions(result?.configOptions),
+      };
+    },
+
+    async resumeSession(sessionId, cwd) {
+      const result = (await request("session/resume", {
+        sessionId,
+        cwd,
+        mcpServers: [],
+      })) as Record<string, unknown> | undefined;
+      return { configOptions: parseConfigOptions(result?.configOptions) };
+    },
+
+    async closeSession(sessionId) {
+      await request("session/close", { sessionId });
     },
 
     async prompt(sessionId, blocks) {
