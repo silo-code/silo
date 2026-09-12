@@ -22,13 +22,15 @@ import type {
 // getActivities.
 //
 // `"panel"` is the third kind: a dock-panel tab (web viewer, Output, a Chat
-// transcript, any third-party `DockPanelKind`). Unlike editor/terminal, no
-// extension binds to it by target id — a panel has no stable domain id to key
-// on. Instead the panel drives *its own* tab imperatively through
-// `DockPanelApi` (`setTabActivity` / `setTabIcon`), and the host wrapper in
-// `dock-panel-kinds.ts` records those here keyed by the dockview panel id
-// (RFC 0038 Session 3.1: a Chat tab gets the same activity badge + agent icon
-// a terminal tab does).
+// transcript, any third-party `DockPanelKind`), keyed by the dockview panel id
+// — a panel has no domain id of its own to key on.
+//
+// An extension does not bind to a panel *by that id*, which it has no way to
+// know. `ctx.agents.bindActivity` / `bindIcon` bind by **Agent Session id** and
+// the host registers the binder for this kind too, translating panel → session
+// through `agents/agent-surface-registry.ts` (RFC 0038 Session 3.2). That is
+// what lets one kind-agnostic provider badge a terminal tab and a Chat
+// transcript tab identically.
 
 export type TabAdornmentKind = "editor" | "terminal" | "panel";
 
@@ -48,7 +50,10 @@ const indicatorSets = new Map<
   Map<string, TabIndicatorContribution>
 >();
 const activitySets = new Map<TargetKey, Map<string, TabActivityContribution>>();
-const iconBinders: TabIconBinder[] = [];
+const iconBinders: {
+  kind: TabAdornmentKind | "both";
+  binder: TabIconBinder;
+}[] = [];
 const highlightBinders: {
   kind: TabAdornmentKind | "both";
   binder: TabHighlightBinder;
@@ -61,7 +66,6 @@ const activityBinders: {
   kind: TabAdornmentKind | "both";
   binder: TabActivityBinder;
 }[] = [];
-const iconBinderKinds = new Map<string, TabAdornmentKind | "both">();
 const listeners = new Set<() => void>();
 const flashTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let flashSeq = 0;
@@ -91,11 +95,10 @@ function collectIcons(
   if (set) {
     for (const [id, c] of set) out.push({ id, ...c });
   }
-  for (const b of iconBinders) {
-    const binderKind = iconBinderKinds.get(b.id) ?? "both";
-    if (binderKind !== "both" && binderKind !== kind) continue;
-    const c = b.provide(targetId);
-    if (c !== null) out.push({ id: b.id, ...c });
+  for (const entry of iconBinders) {
+    if (entry.kind !== "both" && entry.kind !== kind) continue;
+    const c = entry.binder.provide(targetId);
+    if (c !== null) out.push({ id: entry.binder.id, ...c });
   }
   return out;
 }
@@ -195,15 +198,18 @@ export const tabAdornmentRegistry = {
     clearContribution(iconSets, kind, targetId, adornmentId);
   },
 
+  // Kind is tracked per *registration entry*, not per binder id — one binder
+  // may legitimately be registered for two kinds at once (`ctx.agents`
+  // registers the same provider for terminal tabs and panel tabs), and keying
+  // by id made the second registration silently overwrite the first's kind.
   bindIcon(kind: TabAdornmentKind | "both", binder: TabIconBinder): Disposable {
-    iconBinders.push(binder);
-    iconBinderKinds.set(binder.id, kind);
+    const entry = { kind, binder };
+    iconBinders.push(entry);
     notify();
     return {
       dispose() {
-        const i = iconBinders.indexOf(binder);
+        const i = iconBinders.indexOf(entry);
         if (i !== -1) iconBinders.splice(i, 1);
-        iconBinderKinds.delete(binder.id);
         notify();
       },
     };
@@ -426,7 +432,6 @@ export const tabAdornmentRegistry = {
     highlightBinders.length = 0;
     indicatorBinders.length = 0;
     activityBinders.length = 0;
-    iconBinderKinds.clear();
     listeners.clear();
     for (const t of flashTimers.values()) clearTimeout(t);
     flashTimers.clear();

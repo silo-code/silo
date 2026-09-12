@@ -15,12 +15,14 @@ const { subscribeOsc, subscribeOutput, getActive, focus } = vi.hoisted(() => ({
   getActive: vi.fn(() => null as string | null),
   focus: vi.fn(),
 }));
+const { close } = vi.hoisted(() => ({ close: vi.fn() }));
 vi.mock("../terminal-service", () => ({
   getTerminalService: () => ({
     subscribeOsc,
     subscribeOutput,
     getActive,
     focus,
+    close,
   }),
 }));
 
@@ -96,6 +98,13 @@ import {
   resetChatAgentRegistry,
 } from "./chat-agent-registry";
 import { AGENT_IDLE_DEBOUNCE_MS } from "./agent-detection-dispatch";
+import {
+  _resetAgentSurfaceRegistryForTests,
+  setActiveDockPanel,
+  setPanelAgentSession,
+} from "./agent-surface-registry";
+import { setActiveTerminal } from "../active-terminal-registry";
+import { tabAdornmentRegistry } from "../tab-adornment-registry";
 import { readNewHookEvents } from "./agent-hook-events";
 
 const readNewHookEventsMock = vi.mocked(readNewHookEvents);
@@ -137,6 +146,7 @@ beforeEach(() => {
   invoke.mockReset().mockResolvedValue(null);
   homeDir.mockReset().mockResolvedValue("/Users/test");
   getActive.mockReset().mockReturnValue(null);
+  close.mockReset();
   readNewHookEventsMock.mockReset().mockResolvedValue([]);
   oscCallbacks.clear();
   outputCallbacks.clear();
@@ -756,6 +766,7 @@ describe("AgentsService — Chat sessions (RFC 0038 phase 2)", () => {
       needsAttention: false,
       stale: false,
       canResume: true,
+      title: "Claude Code",
       agentName: "Claude Code",
     };
   }
@@ -1424,3 +1435,240 @@ describe("AgentsService — foreground stream follows PTY session recreation", (
     expect(info?.sessionId).toBe(resumedId);
   });
 });
+
+// ---------------------------------------------------------------------------
+// RFC 0038 Session 3.2 — one agent, one code path
+// ---------------------------------------------------------------------------
+
+describe("AgentInfo.title — one host-computed label for either kind", () => {
+  beforeEach(() => {
+    resetChatAgentRegistry();
+    _resetAgentSurfaceRegistryForTests();
+  });
+  afterEach(() => resetChatAgentRegistry());
+
+  it("falls back to the terminal's derived name", async () => {
+    const id = "t-title-plain";
+    await attachTerminal(id, "sess-title-plain");
+    expect(svc.getByTerminalId(id)?.title).toBe("Terminal");
+  });
+
+  it("strips the agent's own status markers out of the OSC title", async () => {
+    const id = "t-title-marker";
+    await attachTerminal(id, "sess-title-marker");
+    const ws = store.workspaces[`ws-${id}`]!;
+    ws.terminals = [
+      {
+        id,
+        sessionId: "sess-title-marker",
+        kind: "shell",
+        title: "⠋ my-project",
+      },
+    ];
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(svc.getByTerminalId(id)?.title).toBe("my-project");
+  });
+
+  it("a title that is nothing but a marker falls back rather than going blank", async () => {
+    // Claude emits a bare ✳ before its first conversation title exists.
+    const id = "t-title-bare";
+    await attachTerminal(id, "sess-title-bare");
+    const ws = store.workspaces[`ws-${id}`]!;
+    ws.terminals = [
+      { id, sessionId: "sess-title-bare", kind: "shell", title: "✳" },
+    ];
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(svc.getByTerminalId(id)?.title).toBe("✳");
+  });
+
+  it("the user's own name wins, and a rename lands on the next snapshot", async () => {
+    // The gap this closes: a rename changes no *activity*, so it produces no
+    // activity event — a status row keyed on this field would sit on the old
+    // name forever.
+    const id = "t-title-rename";
+    await attachTerminal(id, "sess-title-rename");
+    const seen = vi.fn();
+    const sub = svc.subscribe(seen, { allWorkspaces: true });
+    const ws = store.workspaces[`ws-${id}`]!;
+    ws.terminals = [
+      {
+        id,
+        sessionId: "sess-title-rename",
+        kind: "shell",
+        title: "⠋ my-project",
+        customName: "My Agent",
+      },
+    ];
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(svc.getByTerminalId(id)?.title).toBe("My Agent");
+    expect(seen).toHaveBeenCalled();
+    sub.dispose();
+  });
+
+  it("a Chat session carries whatever the sessions service registered", async () => {
+    const ws = makeWorkspace("ws-chat-title");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    store.activeWorkspaceId = ws.id;
+    await Promise.resolve();
+    registerChatAgent(chatSession("chat:title", ws.id));
+    expect(svc.getState().find((a) => a.id === "chat:title")?.title).toBe(
+      "Claude Agent",
+    );
+    // ...and an agent-volunteered title replaces it (the `session_info_update`
+    // fold in acp-sessions-service patches exactly this field).
+    patchChatAgent("chat:title", { title: "Refactor the dock registry" });
+    expect(svc.getState().find((a) => a.id === "chat:title")?.title).toBe(
+      "Refactor the dock registry",
+    );
+  });
+});
+
+describe("ctx.agents.getActive / subscribeActive", () => {
+  beforeEach(() => {
+    resetChatAgentRegistry();
+    _resetAgentSurfaceRegistryForTests();
+    setActiveTerminal(null);
+  });
+
+  it("reports the active terminal tab", () => {
+    setActiveTerminal("t-active");
+    expect(svc.getActive()).toBe("t-active");
+  });
+
+  it("reports the Chat session a declaring panel is showing", () => {
+    setPanelAgentSession("acp-chat:p1", "chat:abc");
+    setActiveDockPanel("acp-chat:p1");
+    expect(svc.getActive()).toBe("chat:abc");
+  });
+
+  it("subscribeActive fires across both kinds", () => {
+    const seen: (string | null)[] = [];
+    const sub = svc.subscribeActive((id) => seen.push(id));
+    setActiveTerminal("t-1");
+    setActiveTerminal(null);
+    setPanelAgentSession("acp-chat:p1", "chat:abc");
+    setActiveDockPanel("acp-chat:p1");
+    sub.dispose();
+    expect(seen).toEqual(["t-1", null, "chat:abc"]);
+  });
+});
+
+describe("ctx.agents.bindActivity / bindIcon — one binder, both tab kinds", () => {
+  beforeEach(() => {
+    resetChatAgentRegistry();
+    _resetAgentSurfaceRegistryForTests();
+    tabAdornmentRegistry._resetForTests();
+  });
+
+  it("routes a terminal tab straight through — its Agent Session id is its terminal id", () => {
+    const sub = svc.bindActivity({
+      id: "test.badge",
+      provide: (agentId) =>
+        agentId === "t-1" ? { activity: "working", tooltip: "go" } : null,
+    });
+    expect(tabAdornmentRegistry.getActivities("terminal", "t-1")).toEqual([
+      { id: "test.badge", activity: "working", tooltip: "go" },
+    ]);
+    expect(tabAdornmentRegistry.getActivities("terminal", "t-2")).toEqual([]);
+    sub.dispose();
+  });
+
+  it("translates a panel tab to the session it declared", () => {
+    setPanelAgentSession("acp-chat:p1", "chat:abc");
+    const sub = svc.bindActivity({
+      id: "test.badge",
+      provide: (agentId) =>
+        agentId === "chat:abc" ? { activity: "ready" } : null,
+    });
+    expect(tabAdornmentRegistry.getActivities("panel", "acp-chat:p1")).toEqual([
+      { id: "test.badge", activity: "ready" },
+    ]);
+    // A panel that declared nothing is not an agent surface and gets nothing —
+    // the Output panel, a web viewer, any third-party panel.
+    expect(tabAdornmentRegistry.getActivities("panel", "output:1")).toEqual([]);
+    sub.dispose();
+  });
+
+  it("bindIcon does the same, and one dispose removes both registrations", () => {
+    setPanelAgentSession("acp-chat:p1", "chat:abc");
+    const sub = svc.bindIcon({
+      id: "test.icon",
+      provide: (agentId) => (agentId === "chat:abc" ? { icon: "x" } : null),
+    });
+    expect(tabAdornmentRegistry.getIcons("panel", "acp-chat:p1")).toEqual([
+      { id: "test.icon", icon: "x" },
+    ]);
+    sub.dispose();
+    expect(tabAdornmentRegistry.getIcons("panel", "acp-chat:p1")).toEqual([]);
+    expect(tabAdornmentRegistry.getIcons("terminal", "chat:abc")).toEqual([]);
+  });
+
+  it("invalidateAdornments notifies subscribers so a setting change re-queries", () => {
+    const listener = vi.fn();
+    const sub = tabAdornmentRegistry.subscribe(listener);
+    svc.invalidateAdornments();
+    expect(listener).toHaveBeenCalled();
+    sub.dispose();
+  });
+});
+
+describe("ctx.agents.close — either kind", () => {
+  beforeEach(() => {
+    resetChatAgentRegistry();
+    _resetAgentSurfaceRegistryForTests();
+  });
+  afterEach(() => resetChatAgentRegistry());
+
+  it("closes a Terminal session's terminal", async () => {
+    const id = "t-close";
+    await attachTerminal(id, "sess-close");
+    svc.close(id);
+    expect(close).toHaveBeenCalledWith(id);
+  });
+
+  it("closes the panel showing a Chat session", async () => {
+    const ws = makeWorkspace("ws-close-chat");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    store.activeWorkspaceId = ws.id;
+    await Promise.resolve();
+    registerChatAgent(chatSession("chat:close", ws.id));
+    const panelClose = vi.fn();
+    setPanelAgentSession("acp-chat:p1", "chat:close", { close: panelClose });
+    svc.close("chat:close");
+    expect(panelClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a Chat session with no mounted panel alone", async () => {
+    const ws = makeWorkspace("ws-close-orphan");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    store.activeWorkspaceId = ws.id;
+    await Promise.resolve();
+    registerChatAgent(chatSession("chat:orphan", ws.id));
+    expect(() => svc.close("chat:orphan")).not.toThrow();
+    expect(close).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op for an unknown id", () => {
+    svc.close("nope");
+    expect(close).not.toHaveBeenCalled();
+  });
+});
+
+/** A registered Chat session, as `acp-sessions-service` would write it. */
+function chatSession(id: string, workspaceId: string) {
+  return {
+    id,
+    workspaceId,
+    kind: "chat" as const,
+    isAgent: true,
+    activity: "idle" as const,
+    needsAttention: false,
+    stale: false,
+    canResume: false,
+    title: "Claude Agent",
+    agentName: "Claude Agent",
+  };
+}

@@ -1,6 +1,6 @@
 # Interface: MenuContext
 
-Defined in: [packages/sdk/src/types.ts:389](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L389)
+Defined in: [packages/sdk/src/types.ts:383](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L383)
 
 The typed **context object** each [MenuSurface](../type-aliases/MenuSurface.md) passes to an invoked
 command (as its first argument) and to the contribution's
@@ -21,7 +21,7 @@ the workspace's metadata (id, folder, name) wholesale.
 explorer/item: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:390](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L390)
+Defined in: [packages/sdk/src/types.ts:384](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L384)
 
 #### path
 
@@ -49,7 +49,7 @@ workspaceId: string;
 editor/tab: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:391](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L391)
+Defined in: [packages/sdk/src/types.ts:385](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L385)
 
 #### editorId
 
@@ -77,7 +77,7 @@ viewId: string;
 terminal/tab: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:392](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L392)
+Defined in: [packages/sdk/src/types.ts:386](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L386)
 
 #### terminalId
 
@@ -99,7 +99,7 @@ workspaceId: string;
 terminal/link: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:400](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L400)
+Defined in: [packages/sdk/src/types.ts:394](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L394)
 
 The right-clicked link's kind (`"url"` for OSC-8/`WebLinksAddon`-detected
 links, `"path"` for Silo's own file-path provider) and its literal text
@@ -133,4 +133,4 @@ text: string;
 workspace: Workspace;
 ```
 
-Defined in: [packages/sdk/src/types.ts:401](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L401)
+Defined in: [packages/sdk/src/types.ts:395](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L395)

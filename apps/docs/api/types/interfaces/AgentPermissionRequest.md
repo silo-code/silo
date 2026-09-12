@@ -1,6 +1,6 @@
 # Interface: AgentPermissionRequest
 
-Defined in: [packages/sdk/src/agents-service.ts:557](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L557)
+Defined in: [packages/sdk/src/agents-service.ts:781](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L781)
 
 **`Beta`**
 
@@ -23,12 +23,12 @@ extension's behalf so the agent is never left hanging.
 readonly toolCallId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:560](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L560)
+Defined in: [packages/sdk/src/agents-service.ts:784](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L784)
 
 **`Beta`**
 
-The tool call this permission is for — matches a `tool_call`
- [AgentSessionUpdate](AgentSessionUpdate.md)'s `toolCallId` in `raw`.
+The tool call this permission is for — the same id as the matching
+ [AgentToolCall.toolCallId](AgentToolCall.md#toolcallid) in the update stream.
 
 ***
 
@@ -38,7 +38,7 @@ The tool call this permission is for — matches a `tool_call`
 readonly title: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:562](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L562)
+Defined in: [packages/sdk/src/agents-service.ts:786](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L786)
 
 **`Beta`**
 
@@ -52,11 +52,28 @@ A human-readable description of what the agent wants to do.
 readonly options: readonly AgentPermissionOption[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:564](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L564)
+Defined in: [packages/sdk/src/agents-service.ts:788](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L788)
 
 **`Beta`**
 
 The choices to present. Always at least one; order is the agent's.
+
+***
+
+### toolCall?
+
+```ts
+readonly optional toolCall?: AgentToolCall;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:795](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L795)
+
+**`Beta`**
+
+The call the agent is asking to make, when it sent one — the protocol's
+`toolCall` params, the same shape the update stream carries. It is how a
+Chat UI can show the diff **before** the user answers rather than only the
+title; `claude-agent-acp` 0.75.1 sends a full one including `content`.
 
 ***
 
@@ -66,7 +83,7 @@ The choices to present. Always at least one; order is the agent's.
 readonly raw: Readonly<Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:566](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L566)
+Defined in: [packages/sdk/src/agents-service.ts:797](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L797)
 
 **`Beta`**
 
@@ -80,7 +97,7 @@ The raw Agent Client Protocol `session/request_permission` params.
 respond(optionId): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:572](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L572)
+Defined in: [packages/sdk/src/agents-service.ts:803](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L803)
 
 **`Beta`**
 

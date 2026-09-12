@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import type { AgentSessionUpdate } from "@silo-code/sdk";
+import type {
+  AgentPlanEntry,
+  AgentSessionUpdate,
+  AgentToolCall,
+} from "@silo-code/sdk";
 import {
   appendNotice,
   appendUserMessage,
@@ -28,11 +32,24 @@ function chunk(
   };
 }
 
-function raw(
-  kind: string,
-  fields: Record<string, unknown>,
+/** A `tool_call` / `tool_call_update`, as the SDK delivers it — the modelled
+ *  `toolCall`, never the wire object. `raw` is still carried on every update,
+ *  and deliberately holds nothing this panel reads. */
+function tool(
+  kind: "tool_call" | "tool_call_update",
+  call: AgentToolCall,
 ): AgentSessionUpdate {
-  return { kind, raw: { sessionUpdate: kind, ...fields } };
+  return { kind, toolCall: call, raw: { sessionUpdate: kind } };
+}
+
+/** A `plan` update, with the whole plan the agent reissued. */
+function plan(entries: AgentPlanEntry[]): AgentSessionUpdate {
+  return { kind: "plan", plan: entries, raw: { sessionUpdate: "plan" } };
+}
+
+/** Any other kind, with nothing modelled on it. */
+function other(kind: string): AgentSessionUpdate {
+  return { kind, raw: { sessionUpdate: kind } };
 }
 
 function fold(updates: AgentSessionUpdate[], from = emptyTranscript) {
@@ -90,7 +107,7 @@ describe("applyUpdate — streaming text", () => {
   it("ends a text run at a tool call, so the next text is a new message", () => {
     const t = fold([
       chunk("agent_message_chunk", "before", "m1"),
-      raw("tool_call", { toolCallId: "c1", title: "Read file" }),
+      tool("tool_call", { toolCallId: "c1", title: "Read file" }),
       chunk("agent_message_chunk", "after", "m1"),
     ]);
     expect(t.entries.map((e) => e.type)).toEqual([
@@ -119,7 +136,7 @@ describe("applyUpdate — streaming text", () => {
 describe("applyUpdate — tool calls", () => {
   it("renders a tool call with its content lines", () => {
     const t = fold([
-      raw("tool_call", {
+      tool("tool_call", {
         toolCallId: "c1",
         title: "Read src/app.ts",
         kind: "read",
@@ -139,12 +156,12 @@ describe("applyUpdate — tool calls", () => {
 
   it("patches the existing row in place on tool_call_update", () => {
     const t = fold([
-      raw("tool_call", {
+      tool("tool_call", {
         toolCallId: "c1",
         title: "Run tests",
         status: "pending",
       }),
-      raw("tool_call_update", { toolCallId: "c1", status: "completed" }),
+      tool("tool_call_update", { toolCallId: "c1", status: "completed" }),
     ]);
     expect(t.entries).toHaveLength(1);
     expect(t.entries[0]).toMatchObject({
@@ -155,19 +172,19 @@ describe("applyUpdate — tool calls", () => {
 
   it("does not blank existing content when an update carries none", () => {
     const t = fold([
-      raw("tool_call", {
+      tool("tool_call", {
         toolCallId: "c1",
         title: "Run tests",
         content: [{ type: "content", content: { type: "text", text: "ok" } }],
       }),
-      raw("tool_call_update", { toolCallId: "c1", status: "completed" }),
+      tool("tool_call_update", { toolCallId: "c1", status: "completed" }),
     ]);
     expect((t.entries[0] as ToolEntry).lines).toEqual(["ok"]);
   });
 
   it("creates a row for an update whose tool_call never arrived", () => {
     const t = fold([
-      raw("tool_call_update", { toolCallId: "orphan", status: "failed" }),
+      tool("tool_call_update", { toolCallId: "orphan", status: "failed" }),
     ]);
     expect(t.entries[0]).toMatchObject({
       type: "tool",
@@ -179,9 +196,9 @@ describe("applyUpdate — tool calls", () => {
 
   it("keeps two different tool calls apart", () => {
     const t = fold([
-      raw("tool_call", { toolCallId: "c1", title: "A" }),
-      raw("tool_call", { toolCallId: "c2", title: "B" }),
-      raw("tool_call_update", { toolCallId: "c1", status: "completed" }),
+      tool("tool_call", { toolCallId: "c1", title: "A" }),
+      tool("tool_call", { toolCallId: "c2", title: "B" }),
+      tool("tool_call_update", { toolCallId: "c1", status: "completed" }),
     ]);
     expect(t.entries).toHaveLength(2);
     expect((t.entries[0] as ToolEntry).status).toBe("completed");
@@ -192,12 +209,10 @@ describe("applyUpdate — tool calls", () => {
 describe("applyUpdate — plan", () => {
   it("renders the plan rows", () => {
     const t = fold([
-      raw("plan", {
-        entries: [
-          { content: "Read the code", status: "completed", priority: "high" },
-          { content: "Write the fix", status: "in_progress" },
-        ],
-      }),
+      plan([
+        { content: "Read the code", status: "completed", priority: "high" },
+        { content: "Write the fix", status: "in_progress" },
+      ]),
     ]);
     expect(t.entries).toHaveLength(1);
     expect((t.entries[0] as PlanEntry).rows).toEqual([
@@ -208,16 +223,16 @@ describe("applyUpdate — plan", () => {
 
   it("replaces the plan in place — the agent reissues it in full", () => {
     const t = fold([
-      raw("plan", { entries: [{ content: "one", status: "pending" }] }),
+      plan([{ content: "one", status: "pending" }]),
       chunk("agent_message_chunk", "working", "m1"),
-      raw("plan", { entries: [{ content: "one", status: "completed" }] }),
+      plan([{ content: "one", status: "completed" }]),
     ]);
     expect(t.entries.filter((e) => e.type === "plan")).toHaveLength(1);
     expect((t.entries[0] as PlanEntry).rows[0]!.status).toBe("completed");
   });
 
   it("ignores a first plan with no usable rows", () => {
-    const t = applyUpdate(emptyTranscript, raw("plan", { entries: [] }));
+    const t = applyUpdate(emptyTranscript, plan([]));
     expect(t).toBe(emptyTranscript);
   });
 });
@@ -225,21 +240,23 @@ describe("applyUpdate — plan", () => {
 describe("applyUpdate — tolerance", () => {
   it("returns the same transcript for a kind it does not render", () => {
     const t = fold([chunk("agent_message_chunk", "hi", "m1")]);
-    const after = applyUpdate(t, raw("available_commands_update", {}));
+    const after = applyUpdate(t, other("available_commands_update"));
     expect(after).toBe(t);
   });
 
   it("does not throw on a vendor kind nobody has seen before", () => {
     expect(() =>
-      applyUpdate(emptyTranscript, raw("_vendor/something_new", { x: 1 })),
+      applyUpdate(emptyTranscript, other("_vendor/something_new")),
     ).not.toThrow();
   });
 
-  it("survives a tool_call whose fields are all the wrong type", () => {
-    const t = applyUpdate(
-      emptyTranscript,
-      raw("tool_call", { toolCallId: 7, title: null, content: "nope" }),
-    );
+  // The wire-level garbage this used to be fed is now caught upstream: the SDK
+  // drops a tool call it cannot give an id, so what reaches the panel is a
+  // `tool_call` with no `toolCall` at all. It is still a row, not a crash and
+  // not a silent drop. (Malformed-field coverage lives with the parser, in
+  // `acp-update-model.test.ts`.)
+  it("survives a tool_call the SDK could not model", () => {
+    const t = applyUpdate(emptyTranscript, other("tool_call"));
     expect(t.entries[0]).toMatchObject({
       type: "tool",
       toolCallId: "",
@@ -292,9 +309,9 @@ describe("appendUserMessage / appendNotice", () => {
 });
 
 describe("toolContentLines", () => {
-  it("returns nothing for a missing or non-array content", () => {
+  it("returns nothing when the call carried no content", () => {
     expect(toolContentLines(undefined)).toEqual([]);
-    expect(toolContentLines("text")).toEqual([]);
+    expect(toolContentLines([])).toEqual([]);
   });
 
   it("names a diff by its path", () => {
@@ -314,14 +331,14 @@ describe("toolContentLines", () => {
 });
 
 describe("planRows", () => {
-  it("drops entries with no content", () => {
-    expect(
-      planRows({ entries: [{ status: "pending" }, { content: "real" }] }),
-    ).toEqual([{ content: "real", status: "pending" }]);
+  it("fills in the status the protocol leaves optional", () => {
+    expect(planRows([{ content: "real" }])).toEqual([
+      { content: "real", status: "pending" },
+    ]);
   });
 
-  it("returns nothing when entries is absent", () => {
-    expect(planRows({})).toEqual([]);
+  it("returns nothing when the update carried no plan", () => {
+    expect(planRows(undefined)).toEqual([]);
   });
 });
 

@@ -1,6 +1,6 @@
 # Interface: AgentSessionConnectOptions
 
-Defined in: [packages/sdk/src/agents-service.ts:761](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L761)
+Defined in: [packages/sdk/src/agents-service.ts:992](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L992)
 
 **`Beta`**
 
@@ -14,7 +14,7 @@ Options for [AgentSessionsService.connect](AgentSessionsService.md#connect).
 optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:763](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L763)
+Defined in: [packages/sdk/src/agents-service.ts:994](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L994)
 
 **`Beta`**
 
@@ -28,7 +28,7 @@ Working directory for the agent. Defaults to the workspace folder.
 optional workspaceId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:766](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L766)
+Defined in: [packages/sdk/src/agents-service.ts:997](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L997)
 
 **`Beta`**
 
@@ -43,7 +43,7 @@ Which workspace the session belongs to (for
 optional reveal?: () => void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:784](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L784)
+Defined in: [packages/sdk/src/agents-service.ts:1015](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1015)
 
 **`Beta`**
 

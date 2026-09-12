@@ -36,24 +36,67 @@ export const extension: Extension = {
 };
 ```
 
-### Acknowledge finished runs when the user looks at the terminal
+### Acknowledge finished runs when the user looks at the session
 
 `needsAttention` is separate from `activity === "idle"`. The host never
-auto-clears attention on focus — that is a per-consumer policy:
+auto-clears attention on focus — that is a per-consumer policy. Use
+`subscribeActive`, which reports whichever Agent Session the user is looking
+at, terminal tab or Chat transcript alike:
 
 ```ts
 ctx.subscriptions.push(
-  ctx.terminals.subscribeActive((terminalId) => {
-    if (terminalId) ctx.agents.acknowledge(terminalId);
+  ctx.agents.subscribeActive((agentSessionId) => {
+    if (agentSessionId) ctx.agents.acknowledge(agentSessionId);
   }),
 );
 ```
+
+### Badge a session's tab, whichever kind it is
+
+`bindActivity` / `bindIcon` take an **Agent Session id**, so one provider
+paints a terminal tab and a Chat transcript tab identically. The host resolves
+which tab a session is showing on — a terminal tab, or a `DockPanelKind` panel
+that declared `api.setAgentSession(id)`.
+
+`provide` runs synchronously for every visible tab during render, so keep it a
+lookup:
+
+```ts
+const agents = new Map<string, AgentInfo>();
+ctx.subscriptions.push(
+  ctx.agents.subscribe(
+    (state) => {
+      agents.clear();
+      for (const a of state) agents.set(a.id, a);
+      // Something outside the snapshot (a setting, the theme) can also change
+      // what a provider returns — say so explicitly.
+      ctx.agents.invalidateAdornments();
+    },
+    { allWorkspaces: true },
+  ),
+);
+
+ctx.subscriptions.push(
+  ctx.agents.bindActivity({
+    id: "my-ext.agent-badge",
+    provide(agentSessionId) {
+      const info = agents.get(agentSessionId);
+      if (info?.activity !== "working") return null;
+      return { activity: "working", tooltip: "Agent working" };
+    },
+  }),
+);
+```
+
+Return `null` for "no adornment". With `bindIcon`, be careful that a component
+which renders nothing produces `null` rather than a truthy element descriptor,
+or the host reserves tab space for an icon that never appears.
 
 ### Read the agent catalog (icons + display names)
 
 `ctx.agents.catalog()` returns every coding agent Silo knows about as read-only
 `CatalogAgentSummary` records. The list is **memoized and deeply frozen** —
-safe to call inside a tab-render callback like `ctx.terminals.bindIcon`.
+safe to call inside a tab-render callback like `ctx.agents.bindIcon`.
 Render an agent's brand mark with the SDK's `AgentIconGlyph`:
 
 ```tsx
@@ -71,6 +114,15 @@ gate any tab chrome on the return value rather than rendering it blind.
 Detection stays sealed (ADR 0028) — `catalog()` is read-only, with no way to
 register into the list.
 
+### End a session, either kind
+
+`close(id)` closes a Terminal session's terminal tab or a Chat session's
+transcript panel — reaping the agent either way — with no branch on `kind`:
+
+```ts
+ctx.agents.close(info.id);
+```
+
 ### Start an agent
 
 This surface observes agents that are already running. To **start** one, use
@@ -79,16 +131,17 @@ recipes, which can also carry an opening prompt.
 
 ## What you get
 
-| Field                         | Meaning                                                                                                                                                                     |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                          | Stable Agent Session id — the key `reveal` / `resume` / `acknowledge` take. Equals `terminalId` for a Terminal session.                                                     |
-| `kind`                        | `terminal` \| `chat` — see [`AgentSessionKind`](/api/types/type-aliases/AgentSessionKind). Same fields for both.                                                            |
-| `terminalId`                  | The backing terminal record id — present for a Terminal session, absent for a Chat session.                                                                                 |
-| `activity`                    | `none` \| `working` \| `idle` \| `error` \| `dead`                                                                                                                          |
-| `needsAttention`              | Sticky "finished while you weren't looking" — cleared only by `acknowledge`                                                                                                 |
-| `sessionId` / `resumeCommand` | Exact resume when a Settings → Agents hook (or native session file) resolved an id; otherwise an honest session-id-less note. Silo **never** infers an id from cwd/recency. |
-| `canResume`                   | Whether `resume(id)` will do something. A Terminal session's is `true` only with an exact `sessionId`, and `resume()` is still a no-op for it — run `resumeCommand`.        |
-| `agentId` / `agentName`       | Catalog key + display name once a known agent leader is detected                                                                                                            |
+| Field                         | Meaning                                                                                                                                                                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                          | Stable Agent Session id — the key `reveal` / `resume` / `acknowledge` / `close` take. Equals `terminalId` for a Terminal session.                                                                                                                 |
+| `title`                       | The session's display label, host-computed for either kind: the agent's own words (an OSC title, or a Chat `session_info_update`) with status markers stripped, else the user's name, else a fallback. Render this rather than deriving your own. |
+| `kind`                        | `terminal` \| `chat` — see [`AgentSessionKind`](/api/types/type-aliases/AgentSessionKind). Same fields for both.                                                                                                                                  |
+| `terminalId`                  | The backing terminal record id — present for a Terminal session, absent for a Chat session.                                                                                                                                                       |
+| `activity`                    | `none` \| `working` \| `idle` \| `error` \| `dead`                                                                                                                                                                                                |
+| `needsAttention`              | Sticky "finished while you weren't looking" — cleared only by `acknowledge`                                                                                                                                                                       |
+| `sessionId` / `resumeCommand` | Exact resume when a Settings → Agents hook (or native session file) resolved an id; otherwise an honest session-id-less note. Silo **never** infers an id from cwd/recency.                                                                       |
+| `canResume`                   | Whether `resume(id)` will do something. A Terminal session's is `true` only with an exact `sessionId`, and `resume()` is still a no-op for it — run `resumeCommand`.                                                                              |
+| `agentId` / `agentName`       | Catalog key + display name once a known agent leader is detected                                                                                                                                                                                  |
 
 ## See also
 
@@ -99,6 +152,8 @@ recipes, which can also carry an opening prompt.
 - [`CatalogAgentSummary`](/api/types/interfaces/CatalogAgentSummary)
 - [`AgentIcon`](/api/types/interfaces/AgentIcon)
 - [`AgentIconMode`](/api/types/type-aliases/AgentIconMode)
+- [`TabActivityBinder`](/api/types/interfaces/TabActivityBinder) / [`TabIconBinder`](/api/types/interfaces/TabIconBinder)
+- [`DockPanelApi.setAgentSession`](/api/registration/register-dock-panel-kind) — how a panel declares the session it is showing
 - [`ctx.agents.profiles`](/api/agents/profiles) — start an agent from a user-defined profile
 - [Using agents with Silo](/guide/agent-sessions) — install hooks, platform notes
 - [Agent system architecture](/roadmap/agent-system)

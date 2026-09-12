@@ -15,6 +15,7 @@ function info(id: string, over: Partial<AgentInfo> = {}): AgentInfo {
   return {
     id,
     workspaceId: "w1",
+    title: "Claude Agent",
     kind: "chat",
     isAgent: true,
     activity: "idle",

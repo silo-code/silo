@@ -207,6 +207,18 @@
   min-width: 420px;
 }
 
+/* Two `<Section>`s side by side, each free to shrink (`min-width: 0`) so a long
+   value scrolls inside its input rather than widening the modal. */
+.apf-fieldrow {
+  display: flex;
+  gap: 12px;
+}
+
+.apf-fieldrow > * {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 /* Agent brand mark, sized to sit inline in the Agent picker trigger and its
    dropdown rows (matches the 1em menu-button chevron). */
 .apf-agent-icon {
@@ -261,16 +273,4 @@
   font-family: var(--silo-font-mono);
   font-size: var(--silo-font-size-sm);
   color: var(--silo-color-text-lo);
-}
-
-/* The Chat arm's "use the verified command" row — text, then the action. */
-.apf-suggest {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.apf-suggest > span {
-  flex: 1 1 auto;
-  min-width: 0;
 }

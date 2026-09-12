@@ -31,6 +31,7 @@ import {
   type SheetPlacement,
 } from "./sheet-geometry";
 import { getMenu } from "./menu-controller";
+import { modalStack } from "./modal-service";
 import { TABBABLE } from "./focus-dom";
 import "./Sheet.css";
 
@@ -344,6 +345,13 @@ export function Sheet({
       // A menu open on top of the sheet owns Escape — same ordering fix as
       // Modal.tsx: both listen on document/capture, sheet registered first.
       if (getMenu()) return;
+      // So does a modal: Settings opens a sheet, and a page inside it opens a
+      // `<Modal>` on top (the Agent Profile editor). Both listen on
+      // document/capture and the sheet mounted first, so without this the
+      // sheet wins and Escape closes Settings out from under a dialog the user
+      // was looking at, losing their edits. Read the stack rather than a
+      // snapshot: this runs from a listener, not a render.
+      if (modalStack.ids.length > 0) return;
       e.preventDefault();
       onClose();
     }

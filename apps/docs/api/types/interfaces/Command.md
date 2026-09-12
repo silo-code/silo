@@ -1,6 +1,6 @@
 # Interface: Command
 
-Defined in: [packages/sdk/src/types.ts:274](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L274)
+Defined in: [packages/sdk/src/types.ts:268](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L268)
 
 A named, invokable action. Register with
 [ExtensionContext.registerCommand](ExtensionContext.md#registercommand) and trigger from menu items,
@@ -14,7 +14,7 @@ keybindings, status items, or [ExtensionContext.executeCommand](ExtensionContext
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:276](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L276)
+Defined in: [packages/sdk/src/types.ts:270](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L270)
 
 Unique id, conventionally `area.verb` (e.g. `"view.toggleLeftPanel"`).
 
@@ -26,7 +26,7 @@ Unique id, conventionally `area.verb` (e.g. `"view.toggleLeftPanel"`).
 label: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:278](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L278)
+Defined in: [packages/sdk/src/types.ts:272](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L272)
 
 Human-readable label (shown where the command surfaces in UI).
 
@@ -38,7 +38,7 @@ Human-readable label (shown where the command surfaces in UI).
 run: (...args) => unknown;
 ```
 
-Defined in: [packages/sdk/src/types.ts:302](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L302)
+Defined in: [packages/sdk/src/types.ts:296](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L296)
 
 The action. May return a value (sync or async); `executeCommand` resolves
 with whatever this returns.

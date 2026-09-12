@@ -1,6 +1,6 @@
 # Interface: AgentsService
 
-Defined in: [packages/sdk/src/agents-service.ts:860](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L860)
+Defined in: [packages/sdk/src/agents-service.ts:1091](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1091)
 
 **`Beta`**
 
@@ -31,7 +31,7 @@ ctx.subscriptions.push(sub);
 catalog(): readonly CatalogAgentSummary[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:953](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L953)
+Defined in: [packages/sdk/src/agents-service.ts:1272](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1272)
 
 Every coding agent Silo knows about, as read-only
 [CatalogAgentSummary](CatalogAgentSummary.md) records. Detection stays sealed (ADR 0028) —
@@ -53,7 +53,7 @@ readonly [`CatalogAgentSummary`](CatalogAgentSummary.md)[]
 readonly profiles: AgentProfilesService;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:962](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L962)
+Defined in: [packages/sdk/src/agents-service.ts:1281](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1281)
 
 **`Beta`**
 
@@ -68,7 +68,7 @@ an opening prompt. See [AgentProfilesService](AgentProfilesService.md).
 readonly sessions: AgentSessionsService;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:973](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L973)
+Defined in: [packages/sdk/src/agents-service.ts:1292](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1292)
 
 **`Beta`**
 
@@ -85,7 +85,7 @@ spawned as an Agent Client Protocol child (RFC 0038 phase 2). See
 getState(options?): AgentInfo[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:866](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L866)
+Defined in: [packages/sdk/src/agents-service.ts:1097](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1097)
 
 **`Beta`**
 
@@ -113,7 +113,7 @@ instead.
 getByTerminalId(terminalId): AgentInfo | undefined;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:871](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L871)
+Defined in: [packages/sdk/src/agents-service.ts:1102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1102)
 
 **`Beta`**
 
@@ -140,7 +140,7 @@ Look up [AgentInfo](AgentInfo.md) for a specific terminal tab by its record id.
 subscribe(listener, options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:877](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L877)
+Defined in: [packages/sdk/src/agents-service.ts:1108](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1108)
 
 **`Beta`**
 
@@ -172,7 +172,7 @@ instead. Returns a [Disposable](Disposable.md) that cancels the subscription.
 acknowledge(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:908](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L908)
+Defined in: [packages/sdk/src/agents-service.ts:1139](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1139)
 
 **`Beta`**
 
@@ -215,13 +215,211 @@ ctx.subscriptions.push(
 
 ***
 
+### getActive()
+
+```ts
+getActive(): string | null;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1159](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1159)
+
+**`Beta`**
+
+The Agent Session the user is currently **looking at** — the one whose
+surface is the active tab — or `null` when the active tab is not an agent
+at all (an editor, a settings page, nothing).
+
+Kind-agnostic by construction: a terminal tab reports its Terminal
+session, and a dock panel that declared
+`DockPanelApi.setAgentSession` reports its Chat session. That is
+what lets one consumer implement "clear the badge for the session I'm
+watching" or "hide the row for the session I'm already looking at" without
+knowing which kind it got.
+
+#### Returns
+
+`string` \| `null`
+
+#### Example
+
+```ts
+// Hide the status row for whatever the user is already watching.
+const watching = ctx.agents.getActive();
+const rows = ctx.agents.getState().filter((a) => a.id !== watching);
+```
+
+***
+
+### subscribeActive()
+
+```ts
+subscribeActive(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1165](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1165)
+
+**`Beta`**
+
+Subscribe to changes in [AgentsService.getActive](#getactive) — fired with the
+new value (or `null`) whenever the active surface moves. Returns a
+[Disposable](Disposable.md) that cancels the subscription.
+
+#### Parameters
+
+##### listener
+
+(`id`) => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+***
+
+### bindActivity()
+
+```ts
+bindActivity(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1198](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1198)
+
+**`Beta`**
+
+Bind a provider of **activity badges** for Agent Session tabs — the
+host-owned `Activity` chrome (spinner / ready / warn / error) on the
+trailing edge of a tab.
+
+The binder's `provide` is handed an [AgentInfo.id](AgentInfo.md#id), and the host
+routes the result to whichever tab is showing that session: a terminal tab
+for a Terminal session, or the dock panel that declared
+`DockPanelApi.setAgentSession` for a Chat session. One binder,
+both kinds — which is the point: the `ctx.terminals` equivalent takes a
+*terminal* id, so an extension literally could not badge a Chat session.
+
+`provide` is called synchronously for every visible tab during render.
+Keep it a lookup: no allocation, no async, no work proportional to the
+number of sessions.
+
+#### Parameters
+
+##### binder
+
+[`TabActivityBinder`](TabActivityBinder.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Example
+
+```ts
+ctx.subscriptions.push(
+  ctx.agents.bindActivity({
+    id: "my-ext.agent-badge",
+    provide(agentSessionId) {
+      const info = ctx.agents
+        .getState({ allWorkspaces: true })
+        .find((a) => a.id === agentSessionId);
+      if (info?.activity !== "working") return null;
+      return { activity: "working", tooltip: "Agent working" };
+    },
+  }),
+);
+```
+
+***
+
+### bindIcon()
+
+```ts
+bindIcon(binder): Disposable;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1209](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1209)
+
+**`Beta`**
+
+Bind a provider of **leading icons** for Agent Session tabs — a brand mark
+so a tab running an agent is identifiable at a glance. Same routing and
+same synchronous-`provide` contract as
+[AgentsService.bindActivity](#bindactivity).
+
+Return `null` for "no icon". Take care that a component which renders
+nothing produces `null` here rather than a truthy element descriptor, or
+the host reserves tab space for an icon that never appears.
+
+#### Parameters
+
+##### binder
+
+[`TabIconBinder`](TabIconBinder.md)
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+***
+
+### invalidateAdornments()
+
+```ts
+invalidateAdornments(): void;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1216](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1216)
+
+**`Beta`**
+
+Re-query every bound [AgentsService.bindActivity](#bindactivity) /
+[AgentsService.bindIcon](#bindicon) provider. Call it when something *outside*
+the agent snapshot changed what a provider would return — a setting, the
+active theme — since the host cannot know about those.
+
+#### Returns
+
+`void`
+
+***
+
+### close()
+
+```ts
+close(id): void;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1227](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1227)
+
+**`Beta`**
+
+End an Agent Session, either kind: close its terminal tab, or close the
+dock panel that declared `DockPanelApi.setAgentSession` for it
+(which reaps the agent process as the panel unmounts).
+
+A no-op for an unknown id, or for a Chat session with no panel mounted —
+Silo will not kill a connection whose UI it cannot account for.
+
+#### Parameters
+
+##### id
+
+`string`
+
+— an [AgentInfo.id](AgentInfo.md#id).
+
+#### Returns
+
+`void`
+
+***
+
 ### reveal()
 
 ```ts
 reveal(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:922](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L922)
+Defined in: [packages/sdk/src/agents-service.ts:1241](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1241)
 
 **`Beta`**
 
@@ -255,7 +453,7 @@ A no-op for an unknown id, or when the session's backing surface is gone
 resume(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:940](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L940)
+Defined in: [packages/sdk/src/agents-service.ts:1259](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1259)
 
 **`Beta`**
 

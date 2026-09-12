@@ -275,6 +275,53 @@ same way it says _terminal_, not _PTY_); "Agent object".
 _classification of a terminal's activity_, still exposed as `AgentInfo`.
 _Avoid_: treating it as a distinct type from Agent Session — it is one kind.
 
+**Agent Surface** (RFC 0038 Session 3.2) — the dock tab an **Agent Session**
+is showing on: a terminal tab for a Terminal session, or a `DockPanelKind`
+panel that declared `DockPanelApi.setAgentSession(id)` for a Chat session. It
+is what the host resolves so that one kind-agnostic thing can happen to either:
+a tab badge routed to the right tab (`ctx.agents.bindActivity` / `bindIcon`
+take an Agent Session id, never a tab id), "is the user looking at this
+session" (`ctx.agents.getActive()`), and "end it" (`ctx.agents.close(id)`).
+
+The direction matters. A terminal is a **subject** — it draws a terminal and
+has no idea an agent badge exists; `silo.agents` observes `ctx.agents` and
+paints onto it. A Chat panel is a subject on exactly the same terms: it
+declares _what it is showing_ and nothing more. A panel that observed agent
+state and painted its own chrome would be an **author**, and would sit outside
+whatever settings and policy the observing extension owns.
+_Avoid_: "panel adornment API" (there isn't one — the panel declares, it does
+not adorn); "tab owner".
+
+**Session Title** (`AgentInfo.title`, RFC 0038 Session 3.2) — one
+host-computed display label per **Agent Session**, rendered verbatim by its
+dock tab, its workspace status row, and the `silo.agents` Navigator row. Three
+steps, and the two kinds are exact parallels: the agent's own words (a
+Terminal session's OSC window title, a Chat session's `session_info_update`
+title), then the user's name (`TerminalRecord.customName`; Chat has no rename
+gesture yet), then a fallback (the terminal's derived name; the declared agent
+name, else the profile label). Agent **status markers** are stripped from the
+agent's words — the status is already structured state on the same record.
+
+Volunteering a title is optional, and which agents do is a fact about the
+agent _and its adapter version_ rather than anything to branch on — Cursor
+sends `session_info_update`, and `claude-agent-acp` does too as of 0.75.1,
+where the 2026-09-08 recon found it sending none. A session that gets no title
+sits on the fallback. Silo does not invent a summary to hide that, any more
+than it invents an OSC title for a CLI that writes none.
+_Avoid_: deriving a label a second time in a consumer (that is how the tab and
+the status row drifted); "tab title" (the tab is one renderer of it).
+
+**Witnessed** (RFC 0038 Session 3.2) — whether the user was looking at an
+Agent Session's **Agent Surface** at the instant a **Prompt Turn** finished.
+The one input to the one attention rule, `needsAttention = isAgent &&
+!witnessed`, which lives in exactly one place (`agent-turn-model.ts`) and is
+called by both kinds. Watching a finish live _is_ seeing it, so no
+acknowledgment is owed. Not the same as the session's _workspace_ being active
+— keying it there once left a Chat turn finishing in a background tab of the
+foreground workspace with no badge at all.
+_Avoid_: "focused" (a surface can be visible without being active, and the
+rule is about the active one); re-deriving it in a consumer.
+
 **Agent Profile** (`AgentProfile`, RFC 0033; launch union RFC 0038) — a named,
 user-authored recipe for **starting** a coding agent: an `id`, a `label`, an
 optional `default` flag, an optional `assumedAgentId`, and a `launch`
@@ -285,12 +332,31 @@ kind:
 - **`launch.interface: "terminal"`** — `command` is a shell string (an alias /
   shell function / version-manager shim, not an argv array — Silo types it into
   an interactive login shell, never `exec`), plus an optional `configDir` for a
-  second account. This is the only arm anything launches today.
+  second account.
 - **`launch.interface: "chat"`** — `command` is an executable path, `args` an
   argv vector, `env` optional; Silo execs a pipe-connected child and speaks the
   Agent Client Protocol to it. Aliases do not resolve (no shell), which is why
-  the shape is a path plus args. Driven through **Chat Session Connection**
-  (below), gated on the `chatAgents` setting.
+  the shape is a path plus args. A second account rides `env` (keyed by the
+  agent's `configDirEnvVar`) rather than `configDir`, since there is no shell
+  line to prefix. Driven through **Chat Session Connection** (below), gated on
+  the `chatAgents` setting.
+
+**Composed Launch** (RFC 0038 Session 3.6) — a Chat `launch` that **Silo wrote,
+not the user**: built from the catalog agent's `acpLaunch`, either the builtin's
+own argv (`cursor-agent acp`) or a pinned adapter invocation
+(`npx -y @agentclientprotocol/claude-agent-acp@0.75.1`). The profile editor's
+Chat arm offers an **Agent picker** in place of a Command field, because the two
+arms know different things: a Terminal command is a fact about the _user's_
+shell, and a Chat command is a fact Silo established by recon. An agent with no
+verified `acpLaunch` is absent from that picker rather than offered with a
+warning. The counterpart is a **Custom launch** — the picker's `Custom…` entry,
+which reveals the command/argv fields for an ACP server Silo does not ship (a
+locally built binary, an adapter fork). Not a lesser path: it is the same
+authoring a third party driving `ctx.agents.sessions` needs. A saved launch is
+**classified, never rewritten** — one Silo recognises presents as its agent, and
+anything else presents as Custom…, so re-opening a profile cannot re-author it.
+_Avoid_: "suggested launch" / "prefill" (Session 3.4's superseded model, where
+the user typed the line and the catalog only offered a correction).
 
 **Profile Interface** is the user-facing name for which arm a profile uses —
 **Interface: Terminal or Chat** in the profile editor (shown only while the
@@ -388,6 +454,21 @@ itself drew and Silo cannot decompose.
 _Avoid_: "chat log" / "history" (history is the agent's own stored
 conversations, which Silo reaches via `session/load`, not what is on screen);
 "output" (that is the Output panel).
+
+**Update stream** (`AgentSessionUpdate`, RFC 0038 Session 3.8) — the normalized
+sequence of `session/update` notifications a **Chat Session Connection**
+delivers through `onUpdate`, and the SDK's projection of the Agent Client
+Protocol — **not** the wire format itself. Everything a **Transcript** must draw
+is a modelled field (`text` / `content` for the message kinds, `toolCall` for
+`tool_call` and `tool_call_update`, `plan` for `plan`); `raw` is the **escape
+hatch**, carrying the untouched protocol object for the kinds deliberately left
+unmodelled (`available_commands_update`, `usage_update`, a vendor's `_meta`).
+The distinction is the contract: **`raw` tracks the protocol, not Silo's
+semver**, so a field inside it can change under a consumer with no SDK major,
+while a modelled field cannot. Needing `raw` for something every Chat UI must
+render is a reportable gap in the surface, not a workaround to write.
+_Avoid_: "the wire format" for the update stream (they are deliberately
+different things); "raw fields" for anything modelled.
 
 **Chat panel** (`core.acp-chat`, RFC 0038 phase 3) — the bundled center-dock
 surface that holds one **Transcript** and its composer. One panel binds to one

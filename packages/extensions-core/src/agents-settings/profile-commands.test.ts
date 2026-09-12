@@ -2,31 +2,37 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { ExtensionContext } from "@silo-code/sdk";
 import type { AgentProfile } from "@silo-code/extension-host/internal";
 
-const {
-  openSettings,
-  pickWorkspaceFolder,
-  launchAgentProfile,
-  resolveChatProfileHost,
-} = vi.hoisted(() => ({
+// `startAgentProfile` is the host's one dispatch over the `launch` union
+// (Session 3.7) and owns the terminal-record side effect and the
+// resolve-the-Chat-host lookup. Both need a live registry no test populates, so
+// stub the *answer* here — what this unit is responsible for is placement, and
+// the dispatch itself is tested in `agents/agent-profile-start.test.ts`.
+const { openSettings, startAgentProfile } = vi.hoisted(() => ({
   openSettings: vi.fn(),
-  pickWorkspaceFolder: vi.fn(async () => "/ws"),
-  launchAgentProfile: vi.fn(() => ({ id: "term-1" })),
-  // The real resolver reads the live dock-panel-kind registry, which no test
-  // populates — stub the answer so the routing itself is what's under test.
-  resolveChatProfileHost: vi.fn(() => ({ id: "acp-chat" })),
+  startAgentProfile: vi.fn(async () => ({
+    outcome: "terminal" as const,
+    record: { id: "term-1", title: "term" },
+  })),
 }));
 
 vi.mock("@silo-code/extension-host/internal", async (importOriginal) => {
   const actual =
     await importOriginal<typeof import("@silo-code/extension-host/internal")>();
-  return {
-    ...actual,
-    openSettings,
-    pickWorkspaceFolder,
-    launchAgentProfile,
-    resolveChatProfileHost,
-  };
+  return { ...actual, openSettings, startAgentProfile };
 });
+
+/** The three outcomes this unit places, as `startAgentProfile` returns them. */
+const asTerminal = { outcome: "terminal", record: { id: "t1", title: "t" } };
+const asPanel = {
+  outcome: "panel",
+  panelKindId: "acp-chat",
+  title: "cursor chat",
+  params: { profileId: "cursor-chat", title: "cursor chat" },
+};
+const asRefused = {
+  outcome: "refused",
+  message: "“cursor chat” is a Chat profile and no Chat panel is installed.",
+};
 
 const {
   store,
@@ -82,8 +88,8 @@ beforeEach(() => {
   store.workspaces = {};
   store.activeWorkspaceId = null;
   openSettings.mockClear();
-  pickWorkspaceFolder.mockClear();
-  launchAgentProfile.mockClear();
+  startAgentProfile.mockClear();
+  startAgentProfile.mockResolvedValue(asTerminal);
 });
 
 function ids(): string[] {
@@ -165,7 +171,7 @@ describe("registerProfileCommands — generic command (R3)", () => {
     dispose = registerProfileCommands(fakeCtx()).dispose;
     commandRegistry.get("core.newAgent")?.run();
     expect(openSettings).toHaveBeenCalledWith("agents");
-    expect(launchAgentProfile).not.toHaveBeenCalled();
+    expect(startAgentProfile).not.toHaveBeenCalled();
   });
 
   it("launches the flagged default over list order", async () => {
@@ -176,8 +182,9 @@ describe("registerProfileCommands — generic command (R3)", () => {
 
     commandRegistry.get("core.newAgent")?.run();
     await vi.waitFor(() =>
-      expect(launchAgentProfile).toHaveBeenCalledWith(
-        expect.objectContaining({ profileId: "b" }),
+      expect(startAgentProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "b" }),
+        "w",
       ),
     );
   });
@@ -190,25 +197,27 @@ describe("registerProfileCommands — generic command (R3)", () => {
 
     commandRegistry.get("core.newAgent")?.run();
     await vi.waitFor(() =>
-      expect(launchAgentProfile).toHaveBeenCalledWith(
-        expect.objectContaining({ profileId: "first" }),
+      expect(startAgentProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "first" }),
+        "w",
       ),
     );
   });
 });
 
-// RFC 0038: a Chat profile has no PTY, so "start this profile" has to mean
-// "open a transcript panel" — otherwise the command (and the dock's + menu
-// entry, which shares this resolution) is a silent no-op.
-describe("registerProfileCommands — Chat profiles (RFC 0038)", () => {
+// Session 3.7: this unit no longer decides *what* starting a profile means —
+// `startAgentProfile` does, and the `+` menu shares it, so a keybinding and a
+// click cannot disagree. What is left here is placement, and a command has the
+// least of it: no dock group to target.
+describe("registerProfileCommands — placing what the dispatch returned", () => {
   beforeEach(() => {
     openPanel.mockClear();
     notify.mockClear();
-    resolveChatProfileHost.mockReturnValue({ id: "acp-chat" });
   });
 
-  it("opens the chat-profile host panel instead of launching a terminal", async () => {
+  it("opens a Chat profile's panel into the layout's default position", async () => {
     store.activeWorkspaceId = "w";
+    startAgentProfile.mockResolvedValue(asPanel);
     addAgentProfile(chatProfile({ id: "cursor-chat" }));
     dispose = registerProfileCommands(fakeCtx()).dispose;
 
@@ -219,39 +228,45 @@ describe("registerProfileCommands — Chat profiles (RFC 0038)", () => {
         expect.objectContaining({ profileId: "cursor-chat" }),
       ),
     );
-    expect(launchAgentProfile).not.toHaveBeenCalled();
-    // No PTY means no working-directory question to ask.
-    expect(pickWorkspaceFolder).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
   });
 
-  it("says so when no Chat panel is installed, rather than doing nothing", async () => {
+  it("surfaces a refusal rather than doing nothing", async () => {
+    // The silence this replaces is what sent the user hunting for a Chat panel
+    // that was not installed.
     store.activeWorkspaceId = "w";
-    resolveChatProfileHost.mockReturnValue(undefined);
+    startAgentProfile.mockResolvedValue(asRefused);
     addAgentProfile(chatProfile({ id: "cursor-chat" }));
     dispose = registerProfileCommands(fakeCtx()).dispose;
 
     commandRegistry.get("core.newAgent.cursor-chat")?.run();
     await vi.waitFor(() =>
-      expect(notify).toHaveBeenCalledWith(
-        "warn",
-        expect.stringMatching(/Chat/),
-      ),
+      expect(notify).toHaveBeenCalledWith("warn", asRefused.message),
     );
     expect(openPanel).not.toHaveBeenCalled();
-    expect(launchAgentProfile).not.toHaveBeenCalled();
   });
 
-  it("still launches a terminal for a Terminal profile", async () => {
+  it("places nothing for a Terminal profile — the record is what makes the tab", async () => {
     store.activeWorkspaceId = "w";
+    startAgentProfile.mockResolvedValue(asTerminal);
     addAgentProfile(p({ id: "claude-work" }));
     dispose = registerProfileCommands(fakeCtx()).dispose;
 
     commandRegistry.get("core.newAgent.claude-work")?.run();
-    await vi.waitFor(() =>
-      expect(launchAgentProfile).toHaveBeenCalledWith(
-        expect.objectContaining({ profileId: "claude-work" }),
-      ),
-    );
+    await vi.waitFor(() => expect(startAgentProfile).toHaveBeenCalled());
     expect(openPanel).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it("is silent on a cancelled start — a dismissed folder chooser is not an error", async () => {
+    store.activeWorkspaceId = "w";
+    startAgentProfile.mockResolvedValue({ outcome: "cancelled" });
+    addAgentProfile(p({ id: "claude-work" }));
+    dispose = registerProfileCommands(fakeCtx()).dispose;
+
+    commandRegistry.get("core.newAgent.claude-work")?.run();
+    await vi.waitFor(() => expect(startAgentProfile).toHaveBeenCalled());
+    expect(openPanel).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
   });
 });

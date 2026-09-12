@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  chatAgentForLaunch,
   chatExecPreview,
+  chatLaunchForAgent,
   formatArgs,
-  matchesChatSuggestion,
   parseArgs,
-  suggestChatLaunch,
 } from "./chat-launch-model";
+import { agentById } from "./agent-catalog";
 
 describe("parseArgs", () => {
   it("splits on whitespace", () => {
@@ -97,60 +98,115 @@ describe("chatExecPreview", () => {
   });
 });
 
-describe("suggestChatLaunch", () => {
-  it("offers the verified command and args for a built-in ACP agent", () => {
-    expect(suggestChatLaunch("cursor")).toEqual({
-      kind: "builtin",
+describe("chatLaunchForAgent", () => {
+  it("composes the verified command and args for a built-in ACP agent", () => {
+    expect(chatLaunchForAgent("cursor")).toEqual({
       command: "cursor-agent",
       args: ["acp"],
     });
-  });
-
-  it("names the adapter without guessing a command for an adapter agent", () => {
-    expect(suggestChatLaunch("claude")).toEqual({
-      kind: "adapter",
-      adapter: "claude-agent-acp",
+    expect(chatLaunchForAgent("copilot")).toEqual({
+      command: "copilot",
+      args: ["--acp"],
     });
   });
 
-  it("reports no ACP path for an agent that has none", () => {
-    expect(suggestChatLaunch("grok")).toEqual({ kind: "none" });
+  it("composes a pinned npx invocation for an adapter agent", () => {
+    expect(chatLaunchForAgent("claude")).toEqual({
+      command: "npx",
+      args: ["-y", "@agentclientprotocol/claude-agent-acp@0.75.1"],
+    });
+    expect(chatLaunchForAgent("pi")).toEqual({
+      command: "npx",
+      args: ["-y", "pi-acp@0.0.33"],
+    });
   });
 
-  it("distinguishes “no agent chosen” from “agent has no path”", () => {
-    expect(suggestChatLaunch(undefined)).toBeUndefined();
-    expect(suggestChatLaunch("not-an-agent")).toBeUndefined();
+  it("composes from the catalog rather than a literal, for every adapter", () => {
+    for (const id of ["claude", "codex", "pi"]) {
+      const acp = agentById(id)?.acpLaunch;
+      if (acp?.kind !== "adapter") throw new Error(`${id} is not an adapter`);
+      expect(chatLaunchForAgent(id)?.args).toEqual([
+        "-y",
+        `${acp.package}@${acp.version}`,
+      ]);
+    }
+  });
+
+  // The whole point of Session 3.6: an agent Silo cannot launch as a Chat
+  // session is left out of the picker, not offered with a warning attached.
+  it("is undefined for an agent with no verified ACP path", () => {
+    expect(chatLaunchForAgent("grok")).toBeUndefined();
+    expect(chatLaunchForAgent("omp")).toBeUndefined();
+  });
+
+  it("is undefined for no agent and for an unknown id", () => {
+    expect(chatLaunchForAgent(undefined)).toBeUndefined();
+    expect(chatLaunchForAgent("")).toBeUndefined();
+    expect(chatLaunchForAgent("not-an-agent")).toBeUndefined();
   });
 });
 
-describe("matchesChatSuggestion", () => {
-  const cursor = suggestChatLaunch("cursor");
+describe("chatAgentForLaunch", () => {
+  it("recognises a launch it composed itself", () => {
+    for (const id of [
+      "cursor",
+      "opencode",
+      "copilot",
+      "claude",
+      "codex",
+      "pi",
+    ]) {
+      const launch = chatLaunchForAgent(id);
+      if (!launch) throw new Error(`${id} has no chat launch`);
+      expect(chatAgentForLaunch(launch.command, launch.args)).toBe(id);
+    }
+  });
 
-  it("matches the verified invocation", () => {
-    expect(matchesChatSuggestion("cursor-agent", ["acp"], cursor)).toBe(true);
-    expect(matchesChatSuggestion("  cursor-agent  ", ["acp"], cursor)).toBe(
-      true,
-    );
+  // A catalog version bump must not silently reclassify every saved profile as
+  // Custom — the package identifies the agent, the version is the user's pin.
+  it("recognises an adapter at a different pinned version", () => {
+    expect(
+      chatAgentForLaunch("npx", [
+        "-y",
+        "@agentclientprotocol/claude-agent-acp@0.60.0",
+      ]),
+    ).toBe("claude");
+    expect(chatAgentForLaunch("npx", ["-y", "pi-acp@0.0.1"])).toBe("pi");
+  });
+
+  it("recognises an adapter with no version at all", () => {
+    expect(
+      chatAgentForLaunch("npx", ["-y", "@agentclientprotocol/codex-acp"]),
+    ).toBe("codex");
+  });
+
+  it("does not confuse a same-named fork from another vendor", () => {
+    expect(
+      chatAgentForLaunch("npx", ["-y", "@automatalabs/pi-acp@0.7.0"]),
+    ).toBe(undefined);
   });
 
   it("does not match the wrong binary — the bug that saved bare `cursor`", () => {
-    expect(matchesChatSuggestion("cursor", ["acp"], cursor)).toBe(false);
+    expect(chatAgentForLaunch("cursor", ["acp"])).toBeUndefined();
   });
 
-  it("does not match a missing or extra argument", () => {
-    expect(matchesChatSuggestion("cursor-agent", [], cursor)).toBe(false);
-    expect(matchesChatSuggestion("cursor-agent", ["acp", "-v"], cursor)).toBe(
-      false,
-    );
+  it("does not match a missing or extra argument on a builtin", () => {
+    expect(chatAgentForLaunch("cursor-agent", [])).toBeUndefined();
+    expect(chatAgentForLaunch("cursor-agent", ["acp", "-v"])).toBeUndefined();
   });
 
-  it("never matches when there is no built-in suggestion to compare against", () => {
+  it("ignores surrounding whitespace on the command", () => {
+    expect(chatAgentForLaunch("  cursor-agent  ", ["acp"])).toBe("cursor");
+  });
+
+  // Dave's `claude-personal` profile — a zsh alias that can never work under
+  // `exec`. It must present as Custom… so the editor shows it honestly instead
+  // of quietly replacing it with the catalog's answer.
+  it("returns undefined for a launch it did not compose", () => {
+    expect(chatAgentForLaunch("claude-personal", [])).toBeUndefined();
     expect(
-      matchesChatSuggestion("npx", ["x"], suggestChatLaunch("claude")),
-    ).toBe(false);
-    expect(matchesChatSuggestion("x", [], suggestChatLaunch("grok"))).toBe(
-      false,
-    );
-    expect(matchesChatSuggestion("x", [], undefined)).toBe(false);
+      chatAgentForLaunch("/usr/local/bin/my-acp", ["serve"]),
+    ).toBeUndefined();
+    expect(chatAgentForLaunch("", [])).toBeUndefined();
   });
 });

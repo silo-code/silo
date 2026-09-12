@@ -51,17 +51,10 @@ import type {
   DockPanelProps,
   ExtensionContext,
 } from "@silo-code/sdk";
-import {
-  AgentIconGlyph,
-  Badge,
-  Button,
-  EmptyState,
-  Select,
-  Textarea,
-} from "@silo-code/sdk";
+import { Badge, Button, EmptyState, Select, Textarea } from "@silo-code/sdk";
 import { Breadcrumb } from "../editor/Breadcrumb";
 import { chatProfiles, resolveChatProfile } from "./profile-selection";
-import { chatTabActivity } from "./tab-adornment";
+import { confirmProfileSwitch } from "./profile-switch";
 import { toAttachment, type Attachment } from "./attachments";
 import {
   appendNotice,
@@ -141,6 +134,9 @@ export function AcpChatPanel({
   const [permissions, setPermissions] = useState<PendingPermission[]>([]);
   const permissionSeq = useRef(0);
   const [agentName, setAgentName] = useState<string | undefined>();
+  // The connected session's `AgentInfo.id`. Held in state (not just the handle
+  // ref) because it is what the tab-chrome and title effects key on.
+  const [sessionId, setSessionId] = useState<string | undefined>();
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   // The agent process dying is not a separate channel — it lands on this
@@ -187,6 +183,7 @@ export function AcpChatPanel({
     setTranscript(emptyTranscript);
     setPermissions([]);
     setAgentName(undefined);
+    setSessionId(undefined);
     // A profile switch mid-turn abandons that turn's `prompt()` promise, whose
     // `finally` sees a different handle and leaves `busy` alone — so clear it
     // here or the composer keeps offering Stop for a session that is gone.
@@ -226,6 +223,7 @@ export function AcpChatPanel({
           ),
         );
         setAgentName(handle.agentName);
+        setSessionId(handle.id);
         setConfigOptions(handle.configOptions);
         subs.push(
           handle.onConfigOptionsChanged(() =>
@@ -251,77 +249,46 @@ export function AcpChatPanel({
     };
   }, [ctx, profileId, nonce]);
 
-  // The tab label follows what the agent declared about itself. `params.title`
-  // is only a **seed** for the label before that is known — whoever opened the
-  // panel (the `+` menu's profile list, `core.newAgent.<id>`) supplies the
-  // profile's label so the tab is never briefly nameless.
+  // ## The panel is a subject of agent chrome, not an author of it
+  //
+  // One declaration — `api.setAgentSession(id)` — tells the host what this tab
+  // is showing, and everything that used to be hand-rolled here follows from
+  // it: the activity badge and the brand icon are painted by whoever observes
+  // `ctx.agents` (`silo.agents`, or a replacement), which is also what makes
+  // them honour that extension's icon-mode and focus-behaviour settings; and
+  // the host can tell whether the user is looking at this session, so it never
+  // raises attention for a finish they watched. The panel used to acknowledge
+  // itself on becoming visible, which was a consumer reimplementing a host
+  // rule from the outside.
+  //
+  // Its *contents* stay its own — that is what `ctx.agents.sessions` is for.
+  // Its tab chrome is not its business.
   useEffect(() => {
-    api.setTitle(agentName ?? params.title ?? profile?.label ?? "Agent");
-  }, [api, params.title, agentName, profile?.label]);
+    if (!sessionId) return;
+    api.setAgentSession(sessionId);
+    return () => api.setAgentSession(null);
+  }, [api, sessionId]);
 
-  // Tab parity with a terminal tab (RFC 0038 criterion 1): the Chat tab shows
-  // the same activity badge a terminal running this agent would. The agent
-  // process dying is not a separate channel — it lands on this session's own
-  // `AgentInfo` as `activity: "error"`, so `lost` reads off the same snapshot.
+  // The tab label is `AgentInfo.title` — host-computed, so the dock tab, the
+  // workspace status row and the navigator row are the same string from the
+  // same source. `params.title` is only a **seed** for before the session
+  // exists: whoever opened the panel (the `+` menu's profile list,
+  // `core.newAgent.<id>`) supplies the profile's label so the tab is never
+  // briefly nameless.
+  //
+  // The agent process dying is not a separate channel either — it lands on
+  // this same `AgentInfo` as `activity: "error"`, so `lost` reads off the one
+  // snapshot and the composer stops offering to send into a dead pipe.
   useEffect(() => {
-    const check = (all: readonly AgentInfo[]) => {
-      const id = handleRef.current?.id;
-      const info = id ? all.find((a) => a.id === id) : undefined;
+    const read = (all: readonly AgentInfo[]) => {
+      const info = sessionId ? all.find((a) => a.id === sessionId) : undefined;
       setLost(info?.activity === "error");
-      // Watching a turn finish counts as having seen it. The host raises
-      // attention on every finish (it cannot know whether this panel is on
-      // screen); clearing it while visible is what makes a *background* Chat
-      // tab badge and a foreground one not — the terminal rule, where focus
-      // does the same job. The visibility effect below only fires on a
-      // visibility *change*, so a turn ending under an already-visible panel
-      // has to be cleared here.
-      if (info?.needsAttention && api.isVisible && id)
-        ctx.agents.acknowledge(id);
-      api.setTabActivity(chatTabActivity(info));
+      api.setTitle(info?.title ?? params.title ?? profile?.label ?? "Agent");
     };
-    const sub = ctx.agents.subscribe(check, { allWorkspaces: true });
-    check(ctx.agents.getState({ allWorkspaces: true }));
+    const sub = ctx.agents.subscribe(read, { allWorkspaces: true });
+    read(ctx.agents.getState({ allWorkspaces: true }));
     return () => sub.dispose();
-  }, [ctx, api, phase.status]);
-
-  // ...and the same brand icon. Driven imperatively onto this panel's own tab
-  // rather than through a host binder — the panel knows its session, so there
-  // is no panel-id → agent-id map to invent. `AgentIconGlyph` is *called*, not
-  // constructed as JSX: it returns `null` for an unknown agent, and that has
-  // to gate whether an icon is set at all (a truthy element descriptor makes
-  // the host reserve tab space for an icon that renders nothing).
-  useEffect(() => {
-    const paint = () => {
-      const agentId = handleRef.current?.agentId;
-      const iconData = agentId
-        ? ctx.agents.catalog().find((c) => c.id === agentId)?.icon
-        : undefined;
-      const scheme = ctx.theme.resolve(ctx.theme.getState().activeId).base;
-      const glyph = AgentIconGlyph({
-        icon: iconData,
-        mode: "color",
-        colorScheme: scheme,
-      });
-      api.setTabIcon(glyph ? { icon: glyph } : null);
-    };
-    paint();
-    const sub = ctx.theme.subscribe(paint);
-    return () => sub.dispose();
-  }, [ctx, api, agentName, phase.status]);
-
-  // Looking at the transcript counts as having seen it, so the session's
-  // attention badge clears the same way selecting a terminal tab clears one.
-  useEffect(() => {
-    const acknowledge = () => {
-      const id = handleRef.current?.id;
-      if (id) ctx.agents.acknowledge(id);
-    };
-    if (api.isVisible) acknowledge();
-    const sub = api.onDidVisibilityChange(({ isVisible }) => {
-      if (isVisible) acknowledge();
-    });
-    return () => sub.dispose();
-  }, [ctx, api, phase.status]);
+  }, [ctx, api, sessionId, params.title, profile?.label]);
 
   // --- sending -------------------------------------------------------------
   const send = useCallback(async () => {
@@ -377,6 +344,29 @@ export function AcpChatPanel({
       prev.some((a) => a.uri === next.uri) ? prev : [...prev, next],
     );
   }, [ctx, cwd]);
+
+  // Switching the profile is a teardown — the agent is reaped and the
+  // transcript dropped (see the connect effect). A `Select` in a composer does
+  // not look like that, so anything worth losing gets a confirmation first;
+  // `confirmProfileSwitch` owns the rule and returns `null` when the switch is
+  // free. Declining touches no state, and the Select is controlled off
+  // `profileId`, so it snaps back to the live agent on its own.
+  const switchProfile = useCallback(
+    async (nextId: string) => {
+      if (nextId === profileId) return;
+      const ask = confirmProfileSwitch(
+        transcript,
+        busy,
+        agentName ?? profile?.label ?? "The agent",
+      );
+      if (ask && !(await ctx.ui.confirm(ask))) return;
+      // The tab remembers the choice, so reopening it comes back on the same
+      // agent. The effect above does the teardown.
+      setRequestedId(nextId);
+      api.updateParameters({ profileId: nextId });
+    },
+    [ctx, api, profileId, transcript, busy, agentName, profile?.label],
+  );
 
   const setConfigOption = useCallback((id: string, value: string) => {
     handleRef.current?.setConfigOption(id, value).catch((err) => {
@@ -615,12 +605,7 @@ export function AcpChatPanel({
             className="acp-chat__profile"
             value={profileId ?? ""}
             aria-label="Chat agent profile"
-            onChange={(e) => {
-              // The tab remembers the choice, so reopening it comes back on
-              // the same agent. The effect above does the teardown.
-              setRequestedId(e.target.value);
-              api.updateParameters({ profileId: e.target.value });
-            }}
+            onChange={(e) => void switchProfile(e.target.value)}
           >
             {available.map((p) => (
               <option key={p.id} value={p.id}>

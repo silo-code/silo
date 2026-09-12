@@ -105,6 +105,10 @@ export function AgentsProfilesPanel({
         {
           title: opts?.profile ? "Edit agent profile" : "New agent profile",
           size: "md",
+          // Escape closes the editor, discarding edits exactly as Cancel does.
+          // Without this the editor consumed nothing and Escape fell through to
+          // the Settings sheet underneath, closing Settings instead.
+          dismissible: true,
         },
       );
     },

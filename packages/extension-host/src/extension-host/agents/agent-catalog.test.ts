@@ -1086,19 +1086,39 @@ describe("acpLaunch (RFC 0038 §5h)", () => {
     });
   });
 
-  it("adapter agents name the npm package that wraps them", () => {
+  it("adapter agents carry a resolvable npm package and a pinned version", () => {
     expect(agentById("claude")?.acpLaunch).toEqual({
       kind: "adapter",
-      package: "claude-agent-acp",
+      package: "@agentclientprotocol/claude-agent-acp",
+      version: "0.75.1",
     });
     expect(agentById("codex")?.acpLaunch).toEqual({
       kind: "adapter",
-      package: "codex-acp",
+      package: "@agentclientprotocol/codex-acp",
+      version: "1.10.0",
     });
     expect(agentById("pi")?.acpLaunch).toEqual({
       kind: "adapter",
       package: "pi-acp",
+      version: "0.0.33",
     });
+  });
+
+  // Session 3.6: the editor composes `npx -y <package>@<version>` for the user,
+  // so a floating tag would let an adapter's behaviour change under a saved
+  // profile with no bump and no recon date. Both adapters that moved mid-sprint
+  // did so between exact versions.
+  it("never floats an adapter version", () => {
+    for (const agent of AGENT_CATALOG) {
+      const acp = agent.acpLaunch;
+      if (acp?.kind !== "adapter") continue;
+      expect(acp.version, `${agent.id} pins an exact version`).toMatch(
+        /^\d+\.\d+\.\d+/,
+      );
+      expect(acp.package, `${agent.id} names a resolvable package`).not.toBe(
+        "",
+      );
+    }
   });
 
   it("is undefined for agents with no ACP path", () => {

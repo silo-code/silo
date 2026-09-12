@@ -9,7 +9,6 @@ import { Robot } from "@phosphor-icons/react";
 import {
   deriveStatusRow,
   deriveTab,
-  stripStatusMarker,
   staleSuffix,
   stoppedWorking,
 } from "./agent-view";
@@ -35,22 +34,27 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
   ctx.subscriptions.push(initDoneSince(ctx.storage.global));
   ctx.subscriptions.push(initManualOrder(ctx.storage.global));
 
-  // Latest host-computed agent state, keyed by terminal record id. Since Silo
-  // 0.39 the host (`ctx.agents`) owns every hard part — OSC detection, the
-  // working/idle/dead state machine, cross-restart persistence, and stale-gap
-  // recovery — so this extension only *projects* that shared state into rows,
-  // tab badges, and a chime. The map is read synchronously by the three
-  // binder `provide` callbacks below, so it's kept current on every agents
-  // change.
+  // Latest host-computed agent state, keyed by **Agent Session id**
+  // (`AgentInfo.id`) — never by terminal id. Since Silo 0.39 the host
+  // (`ctx.agents`) owns every hard part — detection, the working/idle/dead
+  // state machine, cross-restart persistence, stale-gap recovery, and (RFC
+  // 0038) the display title — so this extension only *projects* that shared
+  // state into rows, tab badges, and a chime. It does that identically for a
+  // Terminal session and a Chat session: nothing below branches on `kind`, and
+  // the one place that still needs a PTY (the tab context menu) says so out
+  // loud. The map is read synchronously by the two binder `provide` callbacks
+  // below, so it's kept current on every agents change.
   const agents = new Map<string, AgentInfo>();
-  // Terminals that have finished a run and not yet started another, mapped to
+  // Sessions that have finished a run and not yet started another, mapped to
   // when they finished. This is the extension's own "finished, unseen" record,
   // used *only* by the "Keep it until the next run" focus mode: the host clears
   // (or never raises) `needsAttention` for a finish you were watching live, so
   // this local flag is what keeps such a finish green until the agent works
   // again. The `clear`/`hide` modes ignore it and rely on host `needsAttention`.
   const finishedUnseen = new Map<string, string>();
-  let activeTerminalId = ctx.terminals.getActive();
+  // The Agent Session the user is looking at — a terminal tab or a Chat
+  // transcript tab, and this extension does not need to know which.
+  let activeAgentId = ctx.agents.getActive();
 
   // "color" icon mode needs to know the host's actual active light/dark base
   // to pick a hex with contrast — see AgentIconGlyph. Tracked imperatively
@@ -59,7 +63,7 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
   ctx.subscriptions.push(
     ctx.theme.subscribe(() => {
       colorScheme = ctx.theme.resolve(ctx.theme.getState().activeId).base;
-      ctx.terminals.invalidateTabAdornments();
+      ctx.agents.invalidateAdornments();
     }),
   );
 
@@ -68,11 +72,7 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
     const next = new Map<string, AgentInfo>();
     const liveIds = new Set<string>();
     for (const a of state) {
-      // This extension's decorations are terminal-tab and workspace-row chrome,
-      // keyed by terminal id — a Chat session (RFC 0038, no terminal) is not
-      // rendered here yet.
-      if (!a.terminalId) continue;
-      const key = a.terminalId;
+      const key = a.id;
       liveIds.add(key);
       // Chime once when any agent finishes a run, whether or not its terminal
       // is focused — the host lands watched finishes straight on idle too, so
@@ -85,7 +85,7 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
       if (a.activity === "working") finishedUnseen.delete(key);
       next.set(key, a);
     }
-    // Drop flags for terminals the host no longer tracks (closed).
+    // Drop flags for sessions the host no longer tracks (closed).
     for (const id of [...finishedUnseen.keys()]) {
       if (!liveIds.has(id)) finishedUnseen.delete(id);
     }
@@ -96,11 +96,10 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
     recordDoneSince(state);
     if (ring) maybePlayTransitionSound();
     ctx.workspaces.invalidateStatus();
-    ctx.terminals.invalidateTabDecorations();
-    // Refreshes bindActivity too, but that's already covered above — added
-    // for bindIcon (agentId can newly resolve after the terminal's already
-    // been seen once, e.g. once a hook confirms the session).
-    ctx.terminals.invalidateTabAdornments();
+    // Covers both binders below: `agentId` can newly resolve after a session
+    // has already been seen once (a hook confirming a terminal agent, or a
+    // Chat session's declared identity landing).
+    ctx.agents.invalidateAdornments();
   }
 
   ctx.subscriptions.push(
@@ -117,30 +116,29 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
     ctx.workspaces.bindStatus({
       id: "silo.agents.status",
       provide(workspaceId): WorkspaceStatusRow[] {
-        const ws = ctx.workspaces.get(workspaceId);
-        if (!ws) return [];
         // Opt-out: keep the Navigator's workspace rows quiet. The Agents view
         // and tab badges still read `agents` directly and are unaffected.
         if (!settingsService.getState().showWorkspaceStatusRows) return [];
         const rows: WorkspaceStatusRow[] = [];
         const behavior = settingsService.getState().focusBehavior;
         const hideFocusedRow = behavior === "hide";
-        for (const t of ws.terminals) {
-          const a = agents.get(t.id);
-          if (!a) continue;
-          if (hideFocusedRow && t.id === activeTerminalId) continue;
+        // Iterating the agent snapshot rather than `ws.terminals` is the whole
+        // of Session 3.2 in one line: a Chat session used to be dropped at this
+        // door, and with it the chime, done-since, and both settings below.
+        for (const a of agents.values()) {
+          if (a.workspaceId !== workspaceId) continue;
+          if (hideFocusedRow && a.id === activeAgentId) continue;
           // Only "none" mode holds a watched finish green (see finishedUnseen).
           const forcedSince =
-            behavior === "none" ? finishedUnseen.get(t.id) : undefined;
+            behavior === "none" ? finishedUnseen.get(a.id) : undefined;
           const row = deriveStatusRow(a, forcedSince);
           if (!row) continue;
-          const label = t.customName ?? stripStatusMarker(t.title);
           rows.push({
-            id: t.id,
+            id: a.id,
             // A restored busy/attention duration the host couldn't confirm
             // after a long app-closed gap is flagged rather than shown as if
             // freshly observed.
-            label: `${label}${staleSuffix(a.stale, "label")}`,
+            label: `${a.title}${staleSuffix(a.stale, "label")}`,
             activity: row.activity,
             startedAt: row.startedAt,
           });
@@ -151,14 +149,16 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
   );
 
   ctx.subscriptions.push(
-    ctx.terminals.bindActivity({
+    // Keyed by Agent Session id, so the host routes it to a terminal tab or a
+    // Chat transcript tab without this extension knowing which it got.
+    ctx.agents.bindActivity({
       id: "silo.agents.tab",
-      provide(terminalId) {
-        const a = agents.get(terminalId);
+      provide(agentId) {
+        const a = agents.get(agentId);
         if (!a) return null;
         const forceAttention =
           settingsService.getState().focusBehavior === "none" &&
-          finishedUnseen.has(terminalId);
+          finishedUnseen.has(agentId);
         const tab = deriveTab(a, forceAttention);
         if (!tab) return null;
         return { activity: tab.activity, tooltip: tab.tooltip };
@@ -167,10 +167,10 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
   );
 
   ctx.subscriptions.push(
-    ctx.terminals.bindIcon({
+    ctx.agents.bindIcon({
       id: "silo.agents.tab-icon",
-      provide(terminalId) {
-        const a = agents.get(terminalId);
+      provide(agentId) {
+        const a = agents.get(agentId);
         if (!a) return null;
         // Called as a plain function (not JSX) so `icon` is the component's
         // *actual* return value now — AgentIconGlyph renders null for "none"
@@ -190,26 +190,21 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
   );
 
   ctx.subscriptions.push(
-    ctx.terminals.subscribeActive((terminalId) => {
-      activeTerminalId = terminalId;
-      // Viewing a terminal acknowledges a pending finish (clears the green
+    ctx.agents.subscribeActive((agentId) => {
+      activeAgentId = agentId;
+      // Viewing a session acknowledges a pending finish (clears the green
       // "needs attention" flag) — unless the user chose "none", where focus
       // never touches status. `acknowledge` is a host-side no-op when the
-      // terminal wasn't pending, so calling it unconditionally is safe.
-      if (terminalId && settingsService.getState().focusBehavior !== "none") {
-        ctx.agents.acknowledge(terminalId);
+      // session wasn't pending, so calling it unconditionally is safe.
+      if (agentId && settingsService.getState().focusBehavior !== "none") {
+        ctx.agents.acknowledge(agentId);
       }
       // Re-render rows on every focus change so the "hide focused row" setting
-      // tracks the active terminal even when the acknowledge above was a no-op.
+      // tracks the active session even when the acknowledge above was a no-op.
       ctx.workspaces.invalidateStatus();
-    }),
-  );
-
-  ctx.subscriptions.push(
-    ctx.workspaces.subscribe(() => {
-      // Terminal titles/customNames live on workspace state, so status-row
-      // labels can change even when the agent state itself hasn't.
-      ctx.workspaces.invalidateStatus();
+      // ...and re-query the tab badge, whose "none"-mode branch reads the same
+      // focus state.
+      ctx.agents.invalidateAdornments();
     }),
   );
 
@@ -220,7 +215,7 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
       // changes which rows render.
       ctx.workspaces.invalidateStatus();
       // Toggling iconMode changes what silo.agents.tab-icon returns.
-      ctx.terminals.invalidateTabAdornments();
+      ctx.agents.invalidateAdornments();
       // The View by control's closed-state label names the active mode, so
       // it has to be re-registered (title isn't a function like when/checked)
       // whenever the mode actually flips — not on every unrelated setting.
@@ -341,8 +336,8 @@ export const extension: Extension<AgentsExtensionAPI> = {
   manifest: {
     name: "Agents",
     description:
-      "At-a-glance agent status: an Agents view in the Navigator groupable by status or workspace, status rows on each workspace, and terminal tab badges/icons, cleared when you view the terminal.",
-    version: "0.2.10",
+      "At-a-glance agent status for every agent, whether it runs in a terminal or a Chat transcript: an Agents view in the Navigator groupable by status or workspace, status rows on each workspace, and tab badges/icons, cleared when you look at the session.",
+    version: "0.3.0",
   },
   activate,
   deactivate,

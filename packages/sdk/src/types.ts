@@ -48,10 +48,6 @@ import type {
   ExtensionStorageScopes,
 } from "./extension-storage";
 import type { ToolbarItemContribution, ToolbarSurface } from "./toolbar-items";
-import type {
-  TabActivityContribution,
-  TabIconContribution,
-} from "./tab-adornment";
 
 /**
  * The teardown handle returned by every `register*` call on
@@ -116,27 +112,25 @@ export interface DockPanelApi {
    */
   updateParameters(params: object): void;
   /**
-   * Set — or, with `null`, clear — the trailing **activity** badge on this
-   * panel's own tab: the same host-owned {@link Activity} chrome
-   * (spinner / ready / warn / error) an editor or terminal tab shows through
-   * {@link EditorService.setActivity} / {@link TerminalService.setActivity}.
+   * Declare — or, with `null`, withdraw — the **Agent Session** this panel is
+   * showing (an `AgentInfo.id` — the `id` on the handle
+   * `ctx.agents.sessions.connect()` returned).
    *
-   * A panel drives its *own* tab, so there is no target id — call it from the
-   * component with whatever state the tab should reflect (a Chat panel mirrors
-   * its Agent Session's activity here, so its tab reads like a terminal tab
-   * running the same agent). The host clears it automatically when the panel
-   * unmounts.
+   * This is the only thing the host lacks about a Chat panel, and declaring it
+   * is what makes the panel an ordinary *subject* of agent chrome rather than
+   * an author of it. Once declared, the host routes this panel's tab through
+   * the same path a terminal tab takes: an {@link AgentsService.bindActivity} /
+   * {@link AgentsService.bindIcon} binder's `provide(agentSessionId)` reaches
+   * this tab, {@link AgentsService.getActive} reports the session while the tab
+   * is the active one (so a finish the user watched raises no badge), and
+   * {@link AgentsService.close} closes this panel. None of that requires the
+   * panel to know a badge exists.
+   *
+   * Call it once the session is connected, and again with `null` on a teardown
+   * that outlives the panel (switching to a different agent). The host
+   * withdraws it automatically when the panel unmounts.
    */
-  setTabActivity(adornment: TabActivityContribution | null): void;
-  /**
-   * Set — or, with `null`, clear — the leading **icon** on this panel's own
-   * tab: the counterpart to {@link EditorService.setIcon} /
-   * {@link TerminalService.setIcon} for a {@link DockPanelKind} tab. Use it for
-   * a brand mark (an agent logo, a provider glyph) so the tab is identifiable
-   * at a glance the way a terminal tab running an agent is. Cleared
-   * automatically on unmount.
-   */
-  setTabIcon(adornment: TabIconContribution | null): void;
+  setAgentSession(agentSessionId: string | null): void;
 }
 
 /**

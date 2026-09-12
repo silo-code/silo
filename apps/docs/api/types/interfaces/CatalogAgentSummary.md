@@ -1,6 +1,6 @@
 # Interface: CatalogAgentSummary
 
-Defined in: [packages/sdk/src/agents-service.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L220)
+Defined in: [packages/sdk/src/agents-service.ts:247](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L247)
 
 One Catalog Agent as an extension may read it through
 [AgentsService.catalog](AgentsService.md#catalog). Read-only — detection stays sealed (ADR 0028)
@@ -14,7 +14,7 @@ and there is no way to register into the catalog.
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:221](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L221)
+Defined in: [packages/sdk/src/agents-service.ts:248](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L248)
 
 ***
 
@@ -24,7 +24,7 @@ Defined in: [packages/sdk/src/agents-service.ts:221](https://github.com/silo-cod
 readonly displayName: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:222](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L222)
+Defined in: [packages/sdk/src/agents-service.ts:249](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L249)
 
 ***
 
@@ -34,4 +34,4 @@ Defined in: [packages/sdk/src/agents-service.ts:222](https://github.com/silo-cod
 readonly optional icon?: AgentIcon;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:223](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L223)
+Defined in: [packages/sdk/src/agents-service.ts:250](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L250)

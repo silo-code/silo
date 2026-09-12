@@ -6,11 +6,10 @@
  * ({@link groupAgentRows}: "ready"/needs-attention, then "working", then
  * "done") or by workspace ({@link groupAgentRowsByWorkspace}). `agents-panel.tsx`
  * is the thin component layer that wires this to React state, the view
- * toggle, and `ctx.terminals.focus`.
+ * toggle, and `ctx.agents.reveal`.
  */
 
 import type { AgentActivity, AgentInfo, Workspace } from "@silo-code/sdk";
-import { stripStatusMarker } from "./agent-view";
 
 export type AgentSection = "ready" | "working" | "done";
 
@@ -25,7 +24,8 @@ export interface AgentRow {
   terminalId?: string;
   workspaceId: string;
   section: AgentSection;
-  /** The tab's title (customName, or the OSC title with status markers stripped). */
+  /** The session's display label, straight from {@link AgentInfo.title} — the
+   *  same string its own dock tab shows, host-computed for either kind. */
   title: string;
   workspaceName: string;
   /** Raw host activity, kept so the component can pick a glyph within "done" (idle/error/dead). */
@@ -67,11 +67,15 @@ function sectionFor(a: AgentInfo): AgentSection | null {
 
 /**
  * Build the flat row list for every tracked agent that should appear in the
- * panel. Rows whose workspace or terminal record can no longer be found
- * (closed since the agent snapshot was taken) are silently dropped rather
- * than shown with placeholder text. `doneSince` supplies the locally-tracked
- * timestamp for "done" rows (see {@link updateDoneSince}); omit it only where
- * a duration for "done" rows isn't needed.
+ * panel. Rows whose workspace can no longer be found (closed since the agent
+ * snapshot was taken) are silently dropped rather than shown with placeholder
+ * text. `doneSince` supplies the locally-tracked timestamp for "done" rows
+ * (see {@link updateDoneSince}); omit it only where a duration for "done" rows
+ * isn't needed.
+ *
+ * Nothing here branches on {@link AgentInfo.kind}: a Chat session and a
+ * Terminal session produce the same row from the same fields, which is the
+ * point (RFC 0038).
  */
 export function buildAgentRows(
   agents: readonly AgentInfo[],
@@ -85,23 +89,12 @@ export function buildAgentRows(
     if (!section) continue;
     const ws = workspaceById.get(a.workspaceId);
     if (!ws) continue;
-    // A Terminal session's title comes from its terminal record (and the row is
-    // dropped if that record is gone). A Chat session (RFC 0038) has no
-    // terminal — its title is the agent's declared name.
-    let title: string;
-    if (a.terminalId) {
-      const terminal = ws.terminals.find((t) => t.id === a.terminalId);
-      if (!terminal) continue;
-      title = terminal.customName ?? stripStatusMarker(terminal.title);
-    } else {
-      title = a.agentName ?? "Agent";
-    }
     rows.push({
       id: a.id,
       terminalId: a.terminalId,
       workspaceId: a.workspaceId,
       section,
-      title,
+      title: a.title,
       workspaceName: ws.name,
       activity: a.activity,
       agentId: a.agentId,
@@ -121,13 +114,13 @@ export function buildAgentRows(
  * expose an equivalent to `attentionSince`/`workingSince` for "done", and
  * `TerminalRecord.lastActiveAt` isn't a safe substitute (see the caveat on
  * {@link AgentRow.since}). Call on every new {@link AgentInfo} snapshot,
- * threading the previous call's result back in as `prev`: a terminal keeps
+ * threading the previous call's result back in as `prev`: a session keeps
  * its first-seen timestamp for as long as it stays "done" *continuously*,
  * and gets re-stamped at `nowIso` the moment it re-enters "done" from another
  * section (ready or working) — including the very first time this extension
  * observes it, since `prev` starts empty.
  *
- * That first-seen moment would be a real gap on its own — a terminal that
+ * That first-seen moment would be a real gap on its own — a session that
  * was already done before this extension started watching would show a
  * duration counted from then, not from whenever it actually finished, and
  * every reload would reset every row to that same freshly-observed instant.
@@ -286,7 +279,7 @@ export function moveItem<T>(
 }
 
 /**
- * Merge newly-visible terminal ids into the "Recent" view's persisted order.
+ * Merge newly-visible Agent Session ids into the "Recent" view's persisted order.
  * Ids in `visibleIds` that aren't yet in `manualOrder` are prepended (newest
  * at the top, in the order they appear in `visibleIds`); known ids keep their
  * relative order; ids that dropped out of the flat section are removed.

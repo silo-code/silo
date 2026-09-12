@@ -157,3 +157,34 @@ describe("tabAdornmentRegistry", () => {
     sub.dispose();
   });
 });
+
+describe("bindIcon — kind is per registration, not per binder id", () => {
+  beforeEach(() => tabAdornmentRegistry._resetForTests());
+
+  it("registers the same binder for two kinds without one clobbering the other", () => {
+    // `ctx.agents.bindActivity` / `bindIcon` register one provider under both
+    // the terminal and panel kinds. Tracking kind in a `Map` keyed by
+    // `binder.id` made the second registration silently retag the first, so a
+    // terminal-tab icon vanished the moment the panel registration landed.
+    const binder = { id: "shared", provide: () => ({ icon: "x" }) };
+    const a = tabAdornmentRegistry.bindIcon("terminal", binder);
+    const b = tabAdornmentRegistry.bindIcon("panel", binder);
+
+    expect(tabAdornmentRegistry.getIcons("terminal", "t1")).toEqual([
+      { id: "shared", icon: "x" },
+    ]);
+    expect(tabAdornmentRegistry.getIcons("panel", "p1")).toEqual([
+      { id: "shared", icon: "x" },
+    ]);
+    expect(tabAdornmentRegistry.getIcons("editor", "e1")).toEqual([]);
+
+    // ...and disposing one leaves the other alone.
+    a.dispose();
+    expect(tabAdornmentRegistry.getIcons("terminal", "t1")).toEqual([]);
+    expect(tabAdornmentRegistry.getIcons("panel", "p1")).toEqual([
+      { id: "shared", icon: "x" },
+    ]);
+    b.dispose();
+    expect(tabAdornmentRegistry.getIcons("panel", "p1")).toEqual([]);
+  });
+});

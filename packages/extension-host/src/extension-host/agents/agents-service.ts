@@ -29,6 +29,7 @@ import {
   catalogAgentSummaries,
   type AgentDefinition,
 } from "./agent-catalog";
+import { stripAgentStatusMarkers } from "./agent-osc-detectors";
 import {
   shouldAcceptHookSessionId,
   hookEventCompatibleWithStickyAgent,
@@ -57,6 +58,18 @@ import {
   onChatAgentsChanged,
   patchChatAgent,
 } from "./chat-agent-registry";
+import {
+  agentSessionForPanel,
+  getActiveAgentSession,
+  panelControlsForAgentSession,
+  subscribeActiveAgentSession,
+} from "./agent-surface-registry";
+import { tabAdornmentRegistry } from "../tab-adornment-registry";
+import type {
+  TabActivityBinder,
+  TabIconBinder,
+  Disposable,
+} from "@silo-code/sdk";
 import { createAgentSessionsService } from "./acp-sessions-service";
 
 // `ctx.agents` — the host implementation. Public contract in
@@ -144,6 +157,27 @@ function findTerminalContext(terminalId: string) {
   return null;
 }
 
+/**
+ * A Terminal session's {@link AgentInfo.title} — the same three-step fallback
+ * the field documents, resolved against the live terminal record so a rename
+ * or a fresh OSC title lands on the next snapshot.
+ *
+ * The user's name wins where they set one. Otherwise it is the agent's own
+ * words with its status markers stripped, because the status is already
+ * structured state on the very record this label sits on. `""` is what
+ * {@link stripAgentStatusMarkers} returns for a title that was *nothing but* a
+ * marker (Claude emits a bare `✳` before its first conversation exists), so
+ * fall back to the raw title rather than showing an empty row.
+ */
+function terminalTitleFor(workspaceId: string, terminalId: string): string {
+  const rec = store.workspaces[workspaceId]?.terminals.find(
+    (t) => t.id === terminalId,
+  );
+  if (!rec) return "";
+  if (rec.customName) return rec.customName;
+  return stripAgentStatusMarkers(rec.title) || rec.title;
+}
+
 function toAgentInfo(
   terminalId: string,
   workspaceId: string,
@@ -155,6 +189,7 @@ function toAgentInfo(
     id: terminalId,
     terminalId,
     workspaceId,
+    title: terminalTitleFor(workspaceId, terminalId),
     kind: "terminal",
     isAgent: state.isAgent,
     activity: state.activity,
@@ -1221,6 +1256,21 @@ function detachSession(terminalId: string) {
   notify();
 }
 
+/**
+ * Re-derive every tracked Terminal session's {@link AgentInfo.title} from its
+ * terminal record. A rename or a new OSC title changes the label without
+ * changing any *activity*, so it produces no activity event and would
+ * otherwise never reach a subscriber — leaving a status row showing the old
+ * name. Driven off the same store subscription {@link syncSessions} uses.
+ */
+function refreshTerminalTitles(): void {
+  for (const [terminalId, entry] of trackedAgents) {
+    const title = terminalTitleFor(entry.info.workspaceId, terminalId);
+    if (title === entry.info.title) continue;
+    entry.info = { ...entry.info, title };
+  }
+}
+
 function syncSessions() {
   const known = new Set<string>();
   for (const ws of Object.values(store.workspaces)) {
@@ -1232,6 +1282,7 @@ function syncSessions() {
   for (const tid of trackedAgents.keys()) {
     if (!known.has(tid)) detachSession(tid);
   }
+  refreshTerminalTitles();
   notify();
 }
 
@@ -1312,6 +1363,38 @@ export function notifyTerminalSessionRecreated(terminalId: string): void {
 
 // ---- service ----------------------------------------------------------------
 
+/**
+ * Adapt an Agent-Session-keyed binder to one tab kind. `"terminal"` needs no
+ * translation (`AgentInfo.id === terminalId`); `"panel"` resolves the dockview
+ * panel id to whatever Agent Session that panel declared, and contributes
+ * nothing for a panel that declared none.
+ */
+function forKind<B extends TabActivityBinder | TabIconBinder>(
+  kind: "terminal" | "panel",
+  binder: B,
+): B {
+  if (kind === "terminal") return binder;
+  return {
+    ...binder,
+    provide: (panelId: string) => {
+      const sessionId = agentSessionForPanel(panelId);
+      return sessionId ? binder.provide(sessionId) : null;
+    },
+  } as B;
+}
+
+/** Register once per tab kind and dispose both together. */
+function bothKinds(
+  register: (kind: "terminal" | "panel") => Disposable,
+): Disposable {
+  const subs = [register("terminal"), register("panel")];
+  return {
+    dispose() {
+      for (const sub of subs) sub.dispose();
+    },
+  };
+}
+
 let agentsService: AgentsService | null = null;
 
 /** @internal — host factory; extensions receive this as `ctx.agents`. Fully
@@ -1338,6 +1421,40 @@ export function getAgentsService(): AgentsService {
           listeners.delete(entry);
         },
       };
+    },
+    getActive: getActiveAgentSession,
+    subscribeActive: subscribeActiveAgentSession,
+    // One binder, two tab kinds. A Terminal session's Agent Session id *is* its
+    // terminal record id, so the terminal registration passes `targetId`
+    // straight through; a panel tab's dockview id is translated to the session
+    // it declared. `provide` runs synchronously for every visible tab during
+    // render, so that translation is a single map read (see
+    // `agent-surface-registry.ts`).
+    bindActivity(binder) {
+      return bothKinds((kind) =>
+        tabAdornmentRegistry.bindActivity(kind, forKind(kind, binder)),
+      );
+    },
+    bindIcon(binder) {
+      return bothKinds((kind) =>
+        tabAdornmentRegistry.bindIcon(kind, forKind(kind, binder)),
+      );
+    },
+    invalidateAdornments() {
+      tabAdornmentRegistry.invalidate();
+    },
+    close(id) {
+      const chat = getChatAgentEntry(id);
+      if (chat) {
+        // Closing the surface, not the connection: the panel's unmount is what
+        // disposes the session handle and reaps the child. A session whose UI
+        // Silo cannot account for is left alone rather than half-killed.
+        panelControlsForAgentSession(id)?.close();
+        return;
+      }
+      // `id === terminalId` for a Terminal session.
+      if (!trackedAgents.has(id)) return;
+      getTerminalService().close(id);
     },
     acknowledge(id) {
       // `id` is an AgentInfo.id. Every Terminal session's id equals its

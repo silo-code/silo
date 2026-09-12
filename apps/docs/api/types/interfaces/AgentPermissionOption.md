@@ -1,6 +1,6 @@
 # Interface: AgentPermissionOption
 
-Defined in: [packages/sdk/src/agents-service.ts:530](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L530)
+Defined in: [packages/sdk/src/agents-service.ts:754](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L754)
 
 **`Beta`**
 
@@ -15,7 +15,7 @@ One choice offered by an [AgentPermissionRequest](AgentPermissionRequest.md) —
 readonly optionId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:531](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L531)
+Defined in: [packages/sdk/src/agents-service.ts:755](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L755)
 
 **`Beta`**
 
@@ -27,7 +27,7 @@ Defined in: [packages/sdk/src/agents-service.ts:531](https://github.com/silo-cod
 readonly name: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:534](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L534)
+Defined in: [packages/sdk/src/agents-service.ts:758](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L758)
 
 **`Beta`**
 
@@ -42,7 +42,7 @@ Label to show on the button, e.g. `"Allow"`, `"Allow for this session"`,
 readonly kind: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:538](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L538)
+Defined in: [packages/sdk/src/agents-service.ts:762](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L762)
 
 **`Beta`**
 

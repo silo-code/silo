@@ -16,6 +16,7 @@ import {
 function agent(over: Partial<AgentInfo> = {}): AgentInfo {
   return {
     id: over.terminalId ?? "t1",
+    title: "claude",
     terminalId: "t1",
     workspaceId: "w1",
     kind: "terminal",
@@ -71,12 +72,13 @@ describe("buildAgentRows", () => {
         title: "claude",
         workspaceName: "my-project",
         activity: "idle",
+        agentId: undefined,
         since: "2026-01-01T00:05:00Z",
       },
     ]);
   });
 
-  it("renders a Chat session (no terminal) as a row titled by the agent name", () => {
+  it("renders a Chat session (no terminal) as a row, titled from AgentInfo.title", () => {
     const rows = buildAgentRows(
       [
         {
@@ -89,6 +91,7 @@ describe("buildAgentRows", () => {
           stale: false,
           canResume: true,
           workingSince: "2026-01-01T00:00:00Z",
+          title: "Claude Code",
           agentName: "Claude Code",
         },
       ],
@@ -122,6 +125,7 @@ describe("buildAgentRows", () => {
           attentionSince: "2026-01-01T00:05:00Z",
           stale: false,
           canResume: false,
+          title: "Cursor",
           agentName: "Cursor",
         },
       ],
@@ -175,42 +179,27 @@ describe("buildAgentRows", () => {
     ).toBeUndefined();
   });
 
-  it("prefers customName over the OSC title, and strips status markers from the OSC title", () => {
+  it("takes the label from AgentInfo.title verbatim — the host owns that string", () => {
+    // Not re-derived from the terminal record: the host already resolved
+    // customName / OSC title / marker stripping, and the dock tab shows the
+    // same field. Deriving it a second time here is how they drifted.
     const ws = workspace({
       terminals: [
         { id: "t1", sessionId: "s1", kind: "claude", title: "⠋ raw-title" },
       ],
     });
     expect(
-      buildAgentRows([agent({ activity: "working" })], [ws])[0].title,
-    ).toBe("raw-title");
-
-    const wsNamed = workspace({
-      terminals: [
-        {
-          id: "t1",
-          sessionId: "s1",
-          kind: "claude",
-          title: "⠋ raw-title",
-          customName: "My Agent",
-        },
-      ],
-    });
-    expect(
-      buildAgentRows([agent({ activity: "working" })], [wsNamed])[0].title,
+      buildAgentRows(
+        [agent({ activity: "working", title: "My Agent" })],
+        [ws],
+      )[0].title,
     ).toBe("My Agent");
   });
 
-  it("drops rows whose workspace or terminal can no longer be found", () => {
+  it("drops rows whose workspace can no longer be found", () => {
     expect(
       buildAgentRows(
         [agent({ activity: "working", workspaceId: "missing" })],
-        [workspace()],
-      ),
-    ).toEqual([]);
-    expect(
-      buildAgentRows(
-        [agent({ activity: "working", terminalId: "missing" })],
         [workspace()],
       ),
     ).toEqual([]);
@@ -280,8 +269,8 @@ describe("groupAgentRows", () => {
   it("sorts done rows (no since) alphabetically by title", () => {
     const rows = buildAgentRows(
       [
-        agent({ terminalId: "t1", activity: "idle" }),
-        agent({ terminalId: "t2", activity: "idle" }),
+        agent({ terminalId: "t1", activity: "idle", title: "zebra" }),
+        agent({ terminalId: "t2", activity: "idle", title: "apple" }),
       ],
       [
         workspace({

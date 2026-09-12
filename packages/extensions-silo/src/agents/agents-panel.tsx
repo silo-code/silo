@@ -375,15 +375,16 @@ export function AgentsPanel({
     [ctx.workspaces],
   );
 
-  // The terminal currently focused in the center dock, wherever its
-  // workspace — `getActive`/`subscribeActive` return a single, globally
-  // unique terminal id, so a plain equality check is enough to mark its row.
-  const [activeTerminalId, setActiveTerminalId] = useState(() =>
-    ctx.terminals.getActive(),
+  // The Agent Session currently focused in the center dock, wherever its
+  // workspace — `getActive`/`subscribeActive` return a single, globally unique
+  // Agent Session id for either kind (a terminal tab or a Chat transcript
+  // tab), so a plain equality check is enough to mark its row.
+  const [activeAgentId, setActiveAgentId] = useState(() =>
+    ctx.agents.getActive(),
   );
   useEffect(
-    () => ctx.terminals.subscribeActive(setActiveTerminalId).dispose,
-    [ctx.terminals],
+    () => ctx.agents.subscribeActive(setActiveAgentId).dispose,
+    [ctx.agents],
   );
 
   // `groupBy` is a setting rather than a prop now: the two groupings were two
@@ -628,7 +629,7 @@ export function AgentsPanel({
   const staleStartsExpanded = staleSectionStartsExpanded(sections);
 
   // Keep `manualOrder` in sync with the flat section: prepend any newly
-  // visible terminal ids (so they stay at the top across reloads) and drop
+  // visible Agent Session ids (so they stay at the top across reloads) and drop
   // ids that left for good (closed, or aged into "N+ hours old"). Display
   // already applies the same rule via `orderAgeRows`; this only persists it.
   useEffect(() => {
@@ -675,25 +676,25 @@ export function AgentsPanel({
       items.push({ label: row.workspaceName, submenu: workspaceItems });
     }
 
-    if (row.terminalId) {
-      const terminalId = row.terminalId;
-      if (items.length > 0) items.push({ type: "separator" });
-      items.push({
-        label: "Close terminal",
-        danger: true,
-        run: () => {
-          void (async () => {
-            const ok = await ctx.ui.confirm({
-              title: "Close terminal?",
-              body: `"${row.title}" and anything running in it will be stopped.`,
-              confirmLabel: "Close",
-              danger: true,
-            });
-            if (ok) ctx.terminals.close(terminalId);
-          })();
-        },
-      });
-    }
+    // Ending the session, either kind — `ctx.agents.close` closes a terminal
+    // tab or a Chat transcript, and this row does not need to know which it
+    // has. Worded for the session, not the surface, for the same reason.
+    if (items.length > 0) items.push({ type: "separator" });
+    items.push({
+      label: "Close agent",
+      danger: true,
+      run: () => {
+        void (async () => {
+          const ok = await ctx.ui.confirm({
+            title: "Close agent?",
+            body: `"${row.title}" and anything running in it will be stopped.`,
+            confirmLabel: "Close",
+            danger: true,
+          });
+          if (ok) ctx.agents.close(row.id);
+        })();
+      },
+    });
 
     if (items.length === 0) return;
 
@@ -781,10 +782,7 @@ export function AgentsPanel({
                     row={row}
                     subtitle={section.subtitle(row)}
                     subtitleIsWorkspace={section.subtitleIsWorkspace}
-                    active={
-                      row.terminalId != null &&
-                      row.terminalId === activeTerminalId
-                    }
+                    active={row.id === activeAgentId}
                     icon={
                       ctx.agents.catalog().find((c) => c.id === row.agentId)
                         ?.icon

@@ -49,12 +49,12 @@ const FOCUS_OPTIONS: { value: FocusBehavior; label: string; hint: string }[] = [
   {
     value: "clear",
     label: "Clear the finished indicator",
-    hint: "Viewing the terminal acknowledges the run — the green check disappears and the status dot turns grey.",
+    hint: "Looking at the agent acknowledges the run — the green check disappears and the status dot turns grey.",
   },
   {
     value: "hide",
-    label: "Clear it, and hide the focused terminal's status row",
-    hint: "As above, plus the workspace status row is hidden entirely for whichever terminal you're currently viewing.",
+    label: "Clear it, and hide the focused agent's status row",
+    hint: "As above, plus the workspace status row is hidden entirely for whichever agent you're currently looking at.",
   },
   {
     value: "none",
@@ -80,12 +80,13 @@ export function AgentsBehaviorPanel() {
     <div className="am-options-panel">
       <div className="am-intro">
         <span className="am-intro-title">
-          When you view a finished agent's terminal
+          When you look at a finished agent
         </span>
         <span className="am-hint">
           An agent that finishes a run shows a green check on its tab and a
-          green dot in the workspace status until you look at it. Choose what
-          viewing its terminal should do.
+          green dot in the workspace status until you look at it — whether it is
+          running in a terminal or in a Chat transcript. Choose what looking at
+          it should do.
         </span>
         <div className="am-options">
           <RadioGroup
@@ -108,7 +109,7 @@ export function AgentsBehaviorPanel() {
       <Section label="Sound">
         <SettingRow
           label="Play a sound when an agent stops working"
-          hint="Plays whenever an agent stops working, whether or not you're watching its terminal."
+          hint="Plays whenever an agent stops working, whether or not you're watching it."
           enabled={s.soundEnabled}
           dependent={
             <div className="am-sound-control">
@@ -159,7 +160,7 @@ export function AgentsNavigatorPanel() {
       <Section label="Workspace rows">
         <SettingRow
           label="Show agent status on workspace rows"
-          hint="Adds a per-terminal status row (working / waiting / done) under each workspace in the Navigator."
+          hint="Adds a status row per agent (working / waiting / done) under each workspace in the Navigator — terminal agents and Chat sessions alike."
         >
           <Switch
             checked={s.showWorkspaceStatusRows}

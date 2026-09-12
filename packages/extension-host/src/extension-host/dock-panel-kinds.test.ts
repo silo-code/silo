@@ -1,7 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import type { IDockviewPanelProps } from "dockview";
 import { makeDockPanelApi } from "./dock-panel-kinds";
-import { tabAdornmentRegistry } from "./tab-adornment-registry";
+import {
+  _resetAgentSurfaceRegistryForTests,
+  agentSessionForPanel,
+  panelControlsForAgentSession,
+  panelForAgentSession,
+} from "./agents/agent-surface-registry";
 
 type DockviewPanelApi = IDockviewPanelProps["api"];
 
@@ -19,47 +24,31 @@ function fakeDockviewApi(id: string): DockviewPanelApi {
   } as unknown as DockviewPanelApi;
 }
 
-describe("makeDockPanelApi — panel-tab adornments (RFC 0038 Session 3.1)", () => {
-  beforeEach(() => tabAdornmentRegistry._resetForTests());
+describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
+  beforeEach(() => _resetAgentSurfaceRegistryForTests());
 
-  it("setTabActivity records under the 'panel' kind keyed by the panel id", () => {
+  it("records the declaration against this panel's dockview id", () => {
     const api = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"));
-    api.setTabActivity({ activity: "working", tooltip: "Agent working" });
-
-    const activities = tabAdornmentRegistry.getActivities(
-      "panel",
-      "acp-chat:p1",
-    );
-    expect(activities).toEqual([
-      {
-        id: "silo.dock-panel.self",
-        activity: "working",
-        tooltip: "Agent working",
-      },
-    ]);
+    api.setAgentSession("chat:abc");
+    expect(agentSessionForPanel("acp-chat:p1")).toBe("chat:abc");
+    expect(panelForAgentSession("chat:abc")).toBe("acp-chat:p1");
     // isolation: a different panel id is unaffected
-    expect(tabAdornmentRegistry.getActivities("panel", "acp-chat:p2")).toEqual(
-      [],
-    );
+    expect(agentSessionForPanel("acp-chat:p2")).toBeUndefined();
   });
 
-  it("setTabActivity(null) / setTabIcon(null) clear the panel's own adornment", () => {
+  it("setAgentSession(null) withdraws it", () => {
     const api = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"));
-    api.setTabActivity({ activity: "ready" });
-    api.setTabIcon({ icon: "x" });
-    expect(
-      tabAdornmentRegistry.getActivities("panel", "acp-chat:p1"),
-    ).toHaveLength(1);
-    expect(tabAdornmentRegistry.getIcons("panel", "acp-chat:p1")).toHaveLength(
-      1,
-    );
+    api.setAgentSession("chat:abc");
+    api.setAgentSession(null);
+    expect(agentSessionForPanel("acp-chat:p1")).toBeUndefined();
+    expect(panelForAgentSession("chat:abc")).toBeUndefined();
+  });
 
-    api.setTabActivity(null);
-    api.setTabIcon(null);
-    expect(tabAdornmentRegistry.getActivities("panel", "acp-chat:p1")).toEqual(
-      [],
-    );
-    expect(tabAdornmentRegistry.getIcons("panel", "acp-chat:p1")).toEqual([]);
+  it("hands the host a close control that closes this panel — what ctx.agents.close(id) means for a Chat session", () => {
+    const dv = fakeDockviewApi("acp-chat:p1");
+    makeDockPanelApi(dv).setAgentSession("chat:abc");
+    panelControlsForAgentSession("chat:abc")?.close();
+    expect(dv.close).toHaveBeenCalledTimes(1);
   });
 
   it("delegates the plain DockPanelApi verbs to the dockview api", () => {

@@ -16,48 +16,34 @@ import {
   store,
   getAgentProfiles,
   subscribeAgentProfiles,
-  pickWorkspaceFolder,
-  launchAgentProfile,
+  startAgentProfile,
   resolveDefaultProfile,
   profileCommandId,
-  resolveChatProfileHost,
-  chatProfileHostParams,
   openSettings,
   type AgentProfile,
 } from "@silo-code/extension-host/internal";
 
-/** Shared launch body: the `+` menu's `launchProfile` minus dock placement.
- *  Adding the terminal record is what makes a tab appear (like
- *  `core.newTerminal`); a keybinding has no dock group to target.
- *
- *  A **Chat** profile (RFC 0038) has no shell line and no PTY, so it opens a
- *  transcript panel instead — the same kind the `+` menu resolves, via
- *  `chatProfileHost`, so a keybinding and a menu click agree. */
+/** Start a profile from a keybinding or the palette — `startAgentProfile`
+ *  decides *what* that means, and this adds only the placement a command can
+ *  offer, which is none. A Terminal profile's tab appears from the record
+ *  itself (like `core.newTerminal`); a Chat profile opens into the layout's
+ *  default position, since a keybinding has no dock group to target the way
+ *  the `+` menu does. Both go through the same dispatch as the menu, so a
+ *  keybinding and a click cannot disagree. */
 async function launch(ctx: ExtensionContext, profileId: string): Promise<void> {
   const wsId = store.activeWorkspaceId;
   if (!wsId) return;
   const profile = getAgentProfiles().find((p) => p.id === profileId);
   if (!profile) return;
 
-  // `?.` guards a record that somehow predates the RFC 0038 launch union:
-  // falling through to the terminal path is what happened before, and
-  // `launchAgentProfile` refuses anything it cannot type.
-  if (profile.launch?.interface === "chat") {
-    const kind = resolveChatProfileHost();
-    if (!kind) {
-      ctx.ui.notify(
-        "warn",
-        `“${profile.label}” is a Chat profile and no Chat panel is installed to open it.`,
-      );
-      return;
-    }
-    ctx.layout.openPanel(kind.id, chatProfileHostParams(profile));
-    return;
+  const start = await startAgentProfile(profile, wsId);
+  if (start.outcome === "panel") {
+    ctx.layout.openPanel(start.panelKindId, start.params);
+  } else if (start.outcome === "refused") {
+    ctx.ui.notify("warn", start.message);
   }
-
-  const folder = await pickWorkspaceFolder(wsId);
-  if (!folder) return; // folder chooser dismissed → create nothing
-  launchAgentProfile({ profileId, workspaceId: wsId, cwd: folder });
+  // "terminal" needs nothing — the record is what makes the tab appear.
+  // "cancelled" is silent by design.
 }
 
 /** Register the two command shapes and keep the per-profile set synced.

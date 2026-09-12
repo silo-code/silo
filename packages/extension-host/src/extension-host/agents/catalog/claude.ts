@@ -31,8 +31,15 @@ export function buildClaudeAgentDefinition(
     promptDelivery: { kind: "argv" },
     // RFC 0038 §5h — `claude` does not speak ACP; `claude-agent-acp` (npx)
     // wraps it, reusing the existing Claude Code login (verified: an empty
-    // CLAUDE_CONFIG_DIR still let `session/new` succeed).
-    acpLaunch: { kind: "adapter", package: "claude-agent-acp" },
+    // CLAUDE_CONFIG_DIR still let `session/new` succeed). Session 3.6 recon
+    // (2026-09-08) resolved the vendor prefix and pinned the version: `npx -y
+    // @agentclientprotocol/claude-agent-acp@0.75.1` completed `initialize` and
+    // `session/new`, and honoured CLAUDE_CONFIG_DIR=~/.claude-personal.
+    acpLaunch: {
+      kind: "adapter",
+      package: "@agentclientprotocol/claude-agent-acp",
+      version: "0.75.1",
+    },
     activityDetectors: [detectClaudeCode],
     resume: {
       kind: "hook",
@@ -67,13 +74,21 @@ export function buildClaudeAgentDefinition(
       "opening prompt POSITIONALLY and stays interactive — run in a real PTY, " +
       "it answered the prompt and was still at its input box afterwards, so " +
       "`promptDelivery` is { kind: 'argv' }. `-p/--print` also takes prompt " +
-      "text but prints and exits, which is a NO for this field.",
+      "text but prints and exits, which is a NO for this field. RFC 0038 " +
+      "Session 3.6 ACP recon (2026-09-08, macOS, claude-code 2.1.252): `npx " +
+      "-y @agentclientprotocol/claude-agent-acp@0.75.1` over piped stdio " +
+      "answered `initialize` (agentInfo name " +
+      "'@agentclientprotocol/claude-agent-acp', protocolVersion 1) and then " +
+      "`session/new`, and honoured CLAUDE_CONFIG_DIR — which is what makes a " +
+      "second-account Chat profile authorable. The pinned version in " +
+      "`acpLaunch` is the version that probe ran against; bumping it is " +
+      "another probe, not a guess.",
     upstreamRefs: [
       "https://docs.claude.com/en/docs/claude-code/hooks",
       "https://docs.claude.com/en/docs/claude-code/settings",
       "https://docs.claude.com/en/docs/claude-code/cli-reference",
     ],
-    lastVerified: "2026-09-02",
+    lastVerified: "2026-09-08",
     verifiedAgainstVersion: "claude-code@2.1.252",
   };
 }

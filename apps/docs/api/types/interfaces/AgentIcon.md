@@ -1,6 +1,6 @@
 # Interface: AgentIcon
 
-Defined in: [packages/sdk/src/agents-service.ts:184](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L184)
+Defined in: [packages/sdk/src/agents-service.ts:211](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L211)
 
 A Catalog Agent's brand mark — SVG path data plus the two theme-dependent
 hexes. Consumed by [AgentIconGlyph](../functions/AgentIconGlyph.md); a single hex cannot have enough
@@ -15,7 +15,7 @@ contrast against both a light and a dark tab strip, so `"color"` mode picks
 title: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:186](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L186)
+Defined in: [packages/sdk/src/agents-service.ts:213](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L213)
 
 Display name, for the glyph's accessible label.
 
@@ -27,7 +27,7 @@ Display name, for the glyph's accessible label.
 hexLight: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:188](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L188)
+Defined in: [packages/sdk/src/agents-service.ts:215](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L215)
 
 The brand's color against a light background, no leading `#`.
 
@@ -39,7 +39,7 @@ The brand's color against a light background, no leading `#`.
 hexDark: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:190](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L190)
+Defined in: [packages/sdk/src/agents-service.ts:217](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L217)
 
 The brand's color against a dark background, no leading `#`.
 
@@ -51,7 +51,7 @@ The brand's color against a dark background, no leading `#`.
 path: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:192](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L192)
+Defined in: [packages/sdk/src/agents-service.ts:219](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L219)
 
 SVG path data, `viewBox="0 0 24 24"`.
 
@@ -63,7 +63,7 @@ SVG path data, `viewBox="0 0 24 24"`.
 optional fillRule?: "evenodd";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:195](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L195)
+Defined in: [packages/sdk/src/agents-service.ts:222](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L222)
 
 Set when the source path assumes `fill-rule: evenodd`; omit for the SVG
  default (`nonzero`).
@@ -76,7 +76,7 @@ Set when the source path assumes `fill-rule: evenodd`; omit for the SVG
 optional accentPath?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:198](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L198)
+Defined in: [packages/sdk/src/agents-service.ts:225](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L225)
 
 A second path (same viewBox) layered on [AgentIcon.path](#path) at 40%
  opacity, for a genuinely duotone mark (OpenCode's frame + inner panel).
@@ -89,6 +89,6 @@ A second path (same viewBox) layered on [AgentIcon.path](#path) at 40%
 optional accentFillRule?: "evenodd";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:200](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L200)
+Defined in: [packages/sdk/src/agents-service.ts:227](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L227)
 
 `fill-rule` for [AgentIcon.accentPath](#accentpath), independent of `fillRule`.

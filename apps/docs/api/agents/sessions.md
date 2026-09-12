@@ -41,6 +41,8 @@ const offUpdate = session.onUpdate((u) => {
 const offPermission = session.onPermission((req) => {
   // The agent is blocked until you answer. This is NOT a safety boundary —
   // an agent can touch the filesystem without asking.
+  // `req.toolCall` is the call it wants to make, in the same shape the update
+  // stream carries — so you can show the diff before they answer.
   req.respond(req.options[0].optionId);
 });
 
@@ -117,16 +119,77 @@ advertises at connect time.
 
 ## The update stream
 
-`onUpdate` delivers each Agent Client Protocol `session/update`, lightly
-normalized to `{ kind, text?, messageId?, raw }`. **Tolerate `kind` values you
-don't recognize** — agents emit different subsets and vendors add their own.
-Switch on the kinds you render (`agent_message_chunk`, `agent_thought_chunk`,
-`tool_call`, `tool_call_update`, `plan`, …) and ignore the rest; the full
-Agent Client Protocol object is on `raw`.
+`onUpdate` delivers each Agent Client Protocol `session/update` as an
+[`AgentSessionUpdate`](/api/types/interfaces/AgentSessionUpdate). **Tolerate
+`kind` values you don't recognize** — agents emit different subsets and vendors
+add their own. Switch on the kinds you render and ignore the rest.
+
+**Everything a transcript must draw is a modelled field.** You do not read the
+wire format to build a Chat UI:
+
+| `kind`                                                               | What to read                                                                                                       |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `agent_message_chunk` / `agent_thought_chunk` / `user_message_chunk` | `text` — or `content` for a block that isn't text ([`AgentContentBlock`](/api/types/interfaces/AgentContentBlock)) |
+| `tool_call` / `tool_call_update`                                     | `toolCall` — [`AgentToolCall`](/api/types/interfaces/AgentToolCall)                                                |
+| `plan`                                                               | `plan` — the whole list of [`AgentPlanEntry`](/api/types/interfaces/AgentPlanEntry)                                |
 
 `messageId` groups a run of streaming chunks into one bubble — **synthesized by
 Silo when the agent omits it**, which real agents do, so you never have to mint
 ids yourself.
+
+### Tool calls
+
+A `tool_call` opens a call; a `tool_call_update` changes one already open and
+**carries only what changed** — usually just `{ toolCallId, status }`. So key
+your rows by `toolCall.toolCallId` and patch the fields that are present. Every
+field but the id is optional, and an absent one means _unchanged_, never _empty_:
+
+```ts
+session.onUpdate((u) => {
+  if (u.kind !== "tool_call" && u.kind !== "tool_call_update") return;
+  const call = u.toolCall;
+  if (!call) return;
+  upsertRow(call.toolCallId, {
+    title: call.title, // present on the opening call, and on a relabel
+    kind: call.kind, // "read" | "edit" | "execute" | … | a vendor's own
+    status: call.status, // "pending" | "in_progress" | "completed" | "failed"
+    files: call.locations?.map((l) => l.path),
+    body: call.content, // text blocks, diffs, terminal pointers
+  });
+});
+```
+
+An update whose opening `tool_call` never arrived is a real shape — render it
+rather than dropping it. `rawInput` / `rawOutput` are the agent's own tool
+arguments and result: protocol-carried, but **vendor-shaped by definition**, so
+they are typed `unknown` and each agent's shape differs.
+
+### The plan
+
+A `plan` update carries the agent's plan **in full** — the agent reissues the
+whole list every time — so replace what you are showing rather than appending:
+
+```ts
+if (u.kind === "plan" && u.plan) setPlan(u.plan); // may be empty
+```
+
+### What `raw` is for
+
+`raw` is the **escape hatch**, not the way to render a transcript. It holds the
+untouched protocol object, and is there for the kinds deliberately left
+unmodelled: `available_commands_update` (an agent's slash commands — a menu, not
+a transcript row), `usage_update` (token counts, reported differently by every
+agent), and vendor extensions such as `claude-agent-acp`'s `_meta`. Two more —
+`current_mode_update` and `session_info_update` — are already surfaced as
+`configOptions` and `AgentInfo.title`, so you should not need `raw` for them
+either.
+
+**`raw` tracks the protocol, not this SDK's semver.** A field inside it can
+change shape, or vanish, when an agent or its adapter changes — no SDK major
+required. Read it defensively; and if you find yourself needing it for something
+every Chat UI must render, that is a gap in this surface worth reporting.
+
+Silo's own Chat panel is the proof this holds: it reads no `raw` field at all.
 
 ## Session controls (mode, model, …)
 
@@ -208,6 +271,11 @@ phase.
 - [`AgentPromptResult`](/api/types/interfaces/AgentPromptResult)
 - [`AgentStopReason`](/api/types/type-aliases/AgentStopReason)
 - [`AgentSessionUpdate`](/api/types/interfaces/AgentSessionUpdate)
+- [`AgentToolCall`](/api/types/interfaces/AgentToolCall)
+- [`AgentToolCallContent`](/api/types/interfaces/AgentToolCallContent)
+- [`AgentToolCallLocation`](/api/types/interfaces/AgentToolCallLocation)
+- [`AgentPlanEntry`](/api/types/interfaces/AgentPlanEntry)
+- [`AgentContentBlock`](/api/types/interfaces/AgentContentBlock)
 - [`AgentSessionConfigOption`](/api/types/interfaces/AgentSessionConfigOption)
 - [`AgentSessionConfigChoice`](/api/types/interfaces/AgentSessionConfigChoice)
 - [`AgentPermissionRequest`](/api/types/interfaces/AgentPermissionRequest)

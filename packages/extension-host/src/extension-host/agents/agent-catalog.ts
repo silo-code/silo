@@ -250,19 +250,32 @@ export type AgentPromptDelivery =
  *
  * - `"builtin"` — the installed CLI speaks ACP itself; `args` is the argv that
  *   selects that mode (`["acp"]`, `["--acp"]`). Nothing to fetch.
- * - `"adapter"` — the CLI does not, but a small published adapter wraps it;
- *   `package` is the npm package Silo fetches on first use (`claude-agent-acp`,
- *   `codex-acp`, `pi-acp`). Silo ships no Node runtime, so the fetch/run story
- *   is a phase-5 concern — the catalog only records *which* package.
+ * - `"adapter"` — the CLI does not, but a small published adapter wraps it.
+ *   `package` is the **resolvable npm package name** and `version` an
+ *   **exact pinned version**, together composing `npx -y <package>@<version>`.
+ *
+ * Both fields on the adapter arm are load-bearing, and Session 3.6 is why:
+ * the profile editor composes the launch line *for* the user instead of asking
+ * them to type it, so anything short of a spec npx can resolve produces a
+ * profile that fails at spawn. Earlier entries recorded only the adapter's
+ * short name (`claude-agent-acp`) — deliberately, because the vendor prefix
+ * had not been reconned — which is exactly why nothing could be composed then.
+ *
+ * **The version is pinned on purpose; never float `@latest`.** These adapters
+ * change their advertised behaviour between releases — `claude-agent-acp`
+ * moved twice inside RFC 0038's implementation (`session/set_config_option`,
+ * then `session_info_update`) — so a float turns the next such move into a
+ * silent breakage instead of a deliberate bump. Bumping one is a recon run
+ * that also refreshes {@link AgentDefinition.lastVerified}.
  *
  * Established by the same run-it recon as {@link AgentDefinition.promptDelivery}
- * (spawn the claimant and `initialize` over piped stdio), never a `--help` scan
- * — `grok`'s `--help` mentions ACP as an *output format* and would be a false
- * positive.
+ * (spawn the claimant, complete `initialize` *and* `session/new` over piped
+ * stdio), never a `--help` scan — `grok`'s `--help` mentions ACP as an *output
+ * format* and would be a false positive.
  */
 export type AgentAcpLaunch =
   | { kind: "builtin"; args: string[] }
-  | { kind: "adapter"; package: string };
+  | { kind: "adapter"; package: string; version: string };
 
 /**
  * Host behavior for an agent's terminal/session handling that is not resume,

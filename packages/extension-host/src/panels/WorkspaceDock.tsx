@@ -41,6 +41,7 @@ import {
 import { getDndService, resolveDndMode } from "../extension-host/dnd-service";
 import { DND_MIME } from "@silo-code/sdk";
 import { setActiveTerminal } from "../extension-host/active-terminal-registry";
+import { setActiveDockPanel } from "../extension-host/agents/agent-surface-registry";
 import { setContextKey } from "../extension-host/context-keys";
 import { resolveEditorForRecord } from "../extension-host/editor-registry";
 import { blurTextareaWithin } from "../extension-host/use-focus-retry";
@@ -314,6 +315,10 @@ export function WorkspaceDock({
               ?.terminalId ?? panel.id.slice("terminal:".length))
           : null,
       );
+      // The other half of "which Agent Session is the user looking at": a
+      // dock panel that declared one through `DockPanelApi.setAgentSession`
+      // (RFC 0038 Session 3.2). The registry resolves panel → session.
+      setActiveDockPanel(panel?.id ?? null);
       if (!panel || !panel.id.startsWith("editor:")) {
         setContextKey("activeEditorId", null);
         setContextKey("activeEditorViewId", null);
@@ -348,6 +353,7 @@ export function WorkspaceDock({
       subPanel.dispose();
       subGroup.dispose();
       setActiveTerminal(null);
+      setActiveDockPanel(null);
       setContextKey("activeEditorId", null);
       setContextKey("activeEditorViewId", null);
     };

@@ -45,6 +45,34 @@ than something reached by a separate route. With several kinds declaring it the
 first registered wins — disable the one you don't want on
 **Settings → Extensions**.
 
+### Declare the Agent Session your panel is showing <Badge type="warning" text="beta" />
+
+A panel that renders an Agent Session should say so, once it has one:
+
+```tsx
+function AcmeChatPanel({ api }: DockPanelProps<{ profileId?: string }>) {
+  const [sessionId, setSessionId] = useState<string>();
+  // …connect() and setSessionId(handle.id)
+
+  useEffect(() => {
+    if (!sessionId) return;
+    api.setAgentSession(sessionId);
+    return () => api.setAgentSession(null);
+  }, [api, sessionId]);
+}
+```
+
+That one declaration is all the host lacks. From it, your tab gets the same
+activity badge and brand icon a terminal tab running the same agent gets
+(painted by whoever observes [`ctx.agents`](/api/agents/), so it honours their
+settings); [`ctx.agents.getActive()`](/api/agents/) reports your session while
+your tab is the active one, so a turn the user watched raises no unread badge;
+and `ctx.agents.close(id)` closes your panel. Your panel implements none of
+that — see
+[tab adornments](/api/state/tab-adornments#a-dock-panel-tab-is-adorned-by-what-it-is-not-by-itself).
+
+The declaration is withdrawn automatically when the panel unmounts.
+
 ## Types
 
 Pass [`DockPanelKind`](/api/types/interfaces/DockPanelKind).

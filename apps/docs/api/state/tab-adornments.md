@@ -18,26 +18,31 @@ chrome ([RFC 0022](https://github.com/silo-code/silo/blob/main/docs/proposals/00
 
 Both expose the same verbs via [`TabAdornmentMethods`](/api/types/interfaces/TabAdornmentMethods).
 
-### A dock-panel tab adorns its own tab
+### A dock-panel tab is adorned by what it _is_, not by itself
 
 A [`DockPanelKind`](/api/types/interfaces/DockPanelKind) tab has no domain id
-for another extension to bind against — so instead the panel drives **its own**
-tab imperatively through its [`DockPanelApi`](/api/types/interfaces/DockPanelApi):
+for another extension to bind against, so a panel cannot be a target the way
+an editor or terminal tab is. It does **not** follow that the panel should
+paint its own chrome — a panel that both observes a subject and adorns itself
+sits outside whatever settings and policy the observing extension owns.
+
+Instead the panel declares what it is showing, and the ordinary binders reach
+it. Today that is Agent Sessions:
 
 ```tsx
 function ChatPanel({ api }: DockPanelProps) {
-  // mirror the session's activity onto this tab, like a terminal tab
-  api.setTabActivity({ activity: "working", tooltip: "Agent working" });
-  api.setTabIcon({
-    icon: <AgentIconGlyph icon={icon} mode="color" colorScheme={scheme} />,
-  });
-  // …pass null to either to clear it; both clear automatically on unmount
+  useEffect(() => {
+    // "this tab is that Agent Session" — and nothing more
+    api.setAgentSession(sessionId);
+    return () => api.setAgentSession(null);
+  }, [api, sessionId]);
 }
 ```
 
-Only `setTabActivity` (host-owned [`Activity`](/api/types/type-aliases/Activity))
-and `setTabIcon` (a leading `ReactNode`) are exposed — the same two adornments
-that make a terminal tab running an agent recognisable at a glance.
+From there [`ctx.agents.bindActivity` / `bindIcon`](/api/agents/) — which take
+an **Agent Session id**, not a tab id — badge this tab exactly as they badge a
+terminal tab running the same agent. The declaration is withdrawn automatically
+on unmount.
 
 ## Leading icon (`ReactNode`)
 

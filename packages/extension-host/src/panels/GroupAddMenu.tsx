@@ -21,11 +21,7 @@ import { pickWorkspaceFolder } from "../extension-host/pick-folder";
 import { listCreatableFileTypes } from "../extension-host/file-types";
 import { dockPanelKindRegistry } from "../extension-host/dock-panel-kinds";
 import { openMenu } from "../extension-host/menu-controller";
-import { launchAgentProfile } from "../extension-host/agents/agent-launch";
-import {
-  chatProfileHostParams,
-  resolveChatProfileHost,
-} from "../extension-host/agents/chat-profile-host";
+import { startAgentProfile } from "../extension-host/agents/agent-profile-start";
 import { pushToast } from "../extension-host/ui-service";
 import { agentIconFor } from "../extension-host/agents/agent-icons";
 import { openSettings } from "../extension-host/settings-sheet";
@@ -109,52 +105,41 @@ export function GroupAddMenu(props: IDockviewHeaderActionsProps) {
     });
   }
 
-  /** A Chat profile (RFC 0038) has no PTY — it opens a transcript panel. The
-   *  kind is whichever installed extension declares `chatProfileHost`, so the
-   *  host chrome never names one. */
-  function openChatProfile(profile: AgentProfile) {
-    const kind = resolveChatProfileHost();
-    if (!kind) {
-      // Reachable: the profile outlives whatever panel used to render it (the
-      // `chatAgents` gate went off, or the bundled panel was disabled with
-      // nothing installed in its place). Silence here is what sent the user
-      // hunting, so say what is missing.
-      pushToast(
-        "warn",
-        `“${profile.label}” is a Chat profile and no Chat panel is installed to open it.`,
-        { dedupKey: "no-chat-profile-host" },
-      );
-      return;
-    }
-    newPanelInGroup({
-      id: `${kind.id}:${crypto.randomUUID()}`,
-      component: kind.id,
-      title: profile.label,
-      params: chatProfileHostParams(profile),
-    });
-  }
-
+  /** What a profile starts is `startAgentProfile`'s call — a terminal record or
+   *  a transcript panel. All this adds is *where the tab goes*, which is the
+   *  one thing this menu knows and a keybinding does not: the group the user
+   *  clicked **+** in. */
   async function launchProfile(profile: AgentProfile) {
-    if (profile.launch.interface === "chat") {
-      openChatProfile(profile);
-      return;
-    }
     const wsId = store.activeWorkspaceId;
     if (!wsId) return;
-    const folder = await pickWorkspaceFolder(wsId);
-    if (!folder) return; // dismissed the folder chooser → create nothing
-    const rec = launchAgentProfile({
-      profileId: profile.id,
-      workspaceId: wsId,
-      cwd: folder,
-    });
-    if (!rec) return; // profile deleted between menu open and click → no error
-    newPanelInGroup({
-      id: `terminal:${rec.id}`,
-      component: "terminal",
-      title: rec.title,
-      params: { terminalId: rec.id },
-    });
+    const start = await startAgentProfile(profile, wsId);
+    switch (start.outcome) {
+      case "panel":
+        newPanelInGroup({
+          id: `${start.panelKindId}:${crypto.randomUUID()}`,
+          component: start.panelKindId,
+          title: start.title,
+          params: start.params,
+        });
+        return;
+      case "terminal":
+        newPanelInGroup({
+          id: `terminal:${start.record.id}`,
+          component: "terminal",
+          title: start.record.title,
+          params: { terminalId: start.record.id },
+        });
+        return;
+      case "refused":
+        pushToast("warn", start.message, {
+          dedupKey: "no-chat-profile-host",
+        });
+        return;
+      case "cancelled":
+        // The folder chooser was dismissed, or the profile was deleted between
+        // opening this menu and clicking it. Create nothing, say nothing.
+        return;
+    }
   }
 
   async function pickFile() {

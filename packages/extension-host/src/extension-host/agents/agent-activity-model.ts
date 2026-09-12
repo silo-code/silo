@@ -18,7 +18,11 @@
  *   something you already saw happen. (Earlier design: `activity` itself
  *   flipped between `"waiting"`/`"done"` depending on viewer state at that
  *   instant — dropped once it turned out `needsAttention` already carried
- *   that exact information on its own.)
+ *   that exact information on its own.) That turn lifecycle and that
+ *   attention rule are **not implemented here** — they are the kind-agnostic
+ *   core in `agent-turn-model.ts`, which a Chat session calls directly. This
+ *   file's job is resolving the ambiguity of detection *first*, then handing
+ *   the resolved turn transition to that core.
  * - `stale` is soft and self-clearing: a restored `working`/`needsAttention`
  *   duration after a long-enough gap can't be fully trusted, but the next
  *   live signal clears it automatically.
@@ -29,6 +33,7 @@
  */
 
 import type { AgentActivity, TerminalKind } from "@silo-code/sdk";
+import { beginTurn, endTurn, witnessTurn } from "./agent-turn-model";
 
 export type EventSource = "agent" | "shell" | "timer";
 
@@ -183,8 +188,10 @@ export function reduce(
   }
 
   if (ev.type === "activated") {
-    if (!prev.needsAttention) return prev;
-    return { ...prev, needsAttention: false, attentionSince: null };
+    // The shared "someone looked" rule — see agent-turn-model.ts.
+    const turn = witnessTurn(prev);
+    if (turn === prev) return prev;
+    return { ...prev, ...turn };
   }
 
   if (ev.type === "exited") {
@@ -229,14 +236,12 @@ export function reduce(
   if (prev.activity === "dead") return prev;
 
   let isAgent = prev.isAgent || ev.source === "agent";
-  let {
-    activity,
-    needsAttention,
-    attentionSince,
-    workingSince,
-    workingSource,
-    stale,
-  } = prev;
+  // Annotated rather than inferred: the `"dead"` guard above narrows
+  // `prev.activity`, but the shared turn core is typed over the full
+  // `AgentActivity` and assigning its result back must stay legal.
+  let activity: AgentActivity = prev.activity;
+  let { needsAttention, attentionSince, workingSince, workingSource, stale } =
+    prev;
 
   if (isLiveSignal(ev)) stale = false;
 
@@ -247,24 +252,32 @@ export function reduce(
         (ev.source === "timer" && prev.workingSource === "agent"));
 
     if (!blockDemotion) {
-      if (ev.status === "working") {
-        workingSince = ev.now;
-        workingSource = ev.source === "agent" ? "agent" : "shell";
-        needsAttention = false;
-        attentionSince = null;
-        activity = ev.status;
-      } else {
-        // ev.status is "idle" or "error". Only an idle transition out of a
-        // working phase is a viewer-dependent fact — "error" leaves
-        // needsAttention untouched, same as before this rename.
-        if (activity === "working" && ev.status === "idle") {
-          needsAttention = isAgent && !ev.isActiveTerminal;
-          attentionSince = needsAttention ? ev.now : null;
-        }
-        workingSince = null;
-        workingSource = null;
-        activity = ev.status;
-      }
+      // Ambiguity resolved (source gating, demotion blocking) — now the turn
+      // transition itself goes through the one shared core, the same one a
+      // Chat session calls. `isActiveTerminal` is this kind's answer to
+      // "was the finish witnessed".
+      const turn =
+        ev.status === "working"
+          ? beginTurn(
+              { activity, needsAttention, attentionSince, workingSince },
+              ev.now,
+            )
+          : endTurn(
+              { activity, needsAttention, attentionSince, workingSince },
+              {
+                now: ev.now,
+                isAgent,
+                witnessed: ev.isActiveTerminal,
+                outcome: ev.status === "idle" ? "finished" : "failed",
+              },
+            );
+      ({ activity, needsAttention, attentionSince, workingSince } = turn);
+      workingSource =
+        ev.status === "working"
+          ? ev.source === "agent"
+            ? "agent"
+            : "shell"
+          : null;
     }
   }
 

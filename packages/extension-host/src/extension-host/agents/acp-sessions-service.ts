@@ -18,6 +18,7 @@
  */
 
 import type {
+  AgentContentBlock,
   AgentInfo,
   AgentPermissionRequest,
   AgentPromptBlock,
@@ -45,10 +46,23 @@ import {
   type AcpSessionUpdate,
 } from "./acp-jsonrpc";
 import {
+  getChatAgentEntry,
   patchChatAgent,
   registerChatAgent,
   removeChatAgent,
 } from "./chat-agent-registry";
+import { getActiveAgentSession } from "./agent-surface-registry";
+import {
+  parseContentBlock,
+  parsePlanEntries,
+  parseToolCall,
+} from "./acp-update-model";
+import {
+  beginTurn,
+  endTurn,
+  type TurnOutcome,
+  type TurnPhase,
+} from "./agent-turn-model";
 
 const TEXT_KINDS = new Set([
   "agent_message_chunk",
@@ -100,18 +114,61 @@ function currentModeFromUpdate(u: AcpSessionUpdate): string | undefined {
   return undefined;
 }
 
+/**
+ * The title an agent volunteered in a `session_info_update`.
+ *
+ * This is the Chat analogue of an OSC window title, and just as optional:
+ * Cursor sends a generated summary of the turn, and so does `claude-agent-acp`
+ * as of 0.75.1 — the 2026-09-08 recon found Claude sending none, so treat
+ * "which agents volunteer a title" as a fact about the agent *and its adapter
+ * version*, never something to branch on. Read across the shapes the
+ * notification has been seen in (top-level, or nested under an info object)
+ * rather than pinning one, the same tolerance the update stream applies to
+ * unknown kinds.
+ */
+function titleFromSessionInfo(u: AcpSessionUpdate): string | undefined {
+  const record = u as Record<string, unknown>;
+  const direct = record.title;
+  if (typeof direct === "string" && direct.trim().length > 0)
+    return direct.trim();
+  for (const key of ["info", "sessionInfo"] as const) {
+    const nested = record[key];
+    if (nested && typeof nested === "object") {
+      const t = (nested as Record<string, unknown>).title;
+      if (typeof t === "string" && t.trim().length > 0) return t.trim();
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Project one wire frame onto the SDK's update.
+ *
+ * The rule this encodes: **everything a Chat UI must render is a modelled
+ * field** (RFC 0038 phase 3.8). `raw` rides along for the kinds deliberately
+ * left unmodelled, never as the way to read a tool call or the plan.
+ */
 function toSdkUpdate(u: AcpSessionUpdate): AgentSessionUpdate {
   const kind = u.sessionUpdate;
   let text: string | undefined;
+  let content: AgentContentBlock | undefined;
   if (TEXT_KINDS.has(kind)) {
-    const content = u.content as { text?: unknown } | undefined;
+    content = parseContentBlock(u.content);
     if (typeof content?.text === "string") text = content.text;
   }
+  const toolCall =
+    kind === "tool_call" || kind === "tool_call_update"
+      ? parseToolCall(u)
+      : undefined;
+  const plan = kind === "plan" ? parsePlanEntries(u.entries) : undefined;
   return {
     kind,
     text,
+    ...(content ? { content } : {}),
     messageId:
       typeof u.messageId === "string" ? (u.messageId as string) : undefined,
+    ...(toolCall ? { toolCall } : {}),
+    ...(plan ? { plan } : {}),
     raw: u as Readonly<Record<string, unknown>>,
   };
 }
@@ -176,6 +233,47 @@ export function createAgentSessionsService(): AgentSessionsService {
         }
       }
 
+      // The turn lifecycle goes through the one shared core
+      // (`agent-turn-model.ts`) — the same functions the terminal reducer
+      // calls once it has resolved the ambiguity of detection. A Chat session
+      // has no ambiguity to resolve, so it calls in directly.
+      //
+      // `witnessed` is the whole reason `DockPanelApi.setAgentSession` exists:
+      // the host can now tell whether the user is looking at *this session's*
+      // tab, so a finish they watched raises no badge and one they did not
+      // does — with no help from the panel. Before that, the panel had to
+      // acknowledge itself on becoming visible, which is a consumer
+      // reimplementing a host rule.
+      function currentPhase(): TurnPhase {
+        const info = getChatAgentEntry(infoId)?.info;
+        return {
+          activity: info?.activity ?? "idle",
+          needsAttention: info?.needsAttention ?? false,
+          attentionSince: info?.attentionSince ?? null,
+          workingSince: info?.workingSince ?? null,
+        };
+      }
+
+      function applyPhase(phase: TurnPhase): void {
+        patchChatAgent(infoId, {
+          activity: phase.activity,
+          needsAttention: phase.needsAttention,
+          attentionSince: phase.attentionSince ?? undefined,
+          workingSince: phase.workingSince ?? undefined,
+        });
+      }
+
+      function finishTurn(outcome: TurnOutcome): void {
+        applyPhase(
+          endTurn(currentPhase(), {
+            now: nowIso(),
+            isAgent: true,
+            witnessed: getActiveAgentSession() === infoId,
+            outcome,
+          }),
+        );
+      }
+
       const callbacks: AcpClientCallbacks = {
         onUpdate(update) {
           // The agent moved its own mode (e.g. a slash-command). Reflect it in
@@ -189,6 +287,14 @@ export function createAgentSessionsService(): AgentSessionsService {
               );
               fireConfigChanged();
             }
+          }
+          // The agent volunteered a label for the conversation. One signal,
+          // many consumers: it lands on `AgentInfo.title`, and the dock tab,
+          // the workspace status row and the navigator row all read it back
+          // from there rather than each deriving their own string.
+          if (update.sessionUpdate === "session_info_update") {
+            const title = titleFromSessionInfo(update);
+            if (title) patchChatAgent(infoId, { title });
           }
           const sdk = toSdkUpdate(update);
           for (const l of updateListeners) {
@@ -206,10 +312,15 @@ export function createAgentSessionsService(): AgentSessionsService {
             respond({ outcome: "cancelled" });
             return;
           }
-          patchChatAgent(infoId, {
-            needsAttention: true,
-            attentionSince: nowIso(),
-          });
+          // A blocked turn wants attention on the same terms a finished one
+          // does: only if nobody is looking at this session's surface. The
+          // user staring at the permission row does not need to be told.
+          if (getActiveAgentSession() !== infoId) {
+            patchChatAgent(infoId, {
+              needsAttention: true,
+              attentionSince: nowIso(),
+            });
+          }
           // No extension listener → answer cancelled so the agent isn't hung.
           // The pending turn still resolves and re-evaluates attention.
           if (permissionListeners.size === 0) {
@@ -235,12 +346,11 @@ export function createAgentSessionsService(): AgentSessionsService {
         },
         onClosed() {
           if (disposed) return;
-          patchChatAgent(infoId, {
-            activity: "error",
-            workingSince: undefined,
-            needsAttention: true,
-            attentionSince: nowIso(),
-          });
+          // A dead process is `activity: "error"` — a state every consumer
+          // renders loudly on its own, so the shared core deliberately leaves
+          // attention alone rather than stacking a second signal on it. Same
+          // as a Terminal session's error.
+          finishTurn("failed");
         },
         onLog(line) {
           agentsChannel.debug(`[${label}] ${line}`);
@@ -293,6 +403,11 @@ export function createAgentSessionsService(): AgentSessionsService {
       const baseInfo: AgentInfo = {
         id: infoId,
         workspaceId,
+        // Step 3 of the `AgentInfo.title` fallback: the agent's declared name,
+        // else the profile's label. Step 1 — a title the agent volunteers in a
+        // `session_info_update` — overwrites this if it ever arrives. Cursor
+        // sends one; Claude does not, and the difference stays visible.
+        title: agentName,
         kind: "chat",
         isAgent: true,
         activity: "idle",
@@ -359,44 +474,16 @@ export function createAgentSessionsService(): AgentSessionsService {
         async prompt(
           blocks: readonly AgentPromptBlock[],
         ): Promise<AgentPromptResult> {
-          patchChatAgent(infoId, {
-            activity: "working",
-            workingSince: nowIso(),
-            needsAttention: false,
-            attentionSince: undefined,
-          });
+          applyPhase(beginTurn(currentPhase(), nowIso()));
           try {
             const { stopReason } = await client.prompt(
               acpSessionId,
               toAcpBlocks(blocks),
             );
-            // A finished turn wants attention unless the user cancelled it —
-            // the *same rule a Terminal session uses*, which raises on every
-            // finish the focused tab did not witness
-            // (`agent-activity-model.ts`: `needsAttention = isAgent &&
-            // !ev.isActiveTerminal`) and relies on the surface being looked at
-            // to clear it. Keying this on "is the workspace active" instead
-            // meant a Chat turn finishing in a background *tab* of the active
-            // workspace raised nothing, where a terminal agent in exactly that
-            // position badges — the one place observation parity leaked. The
-            // clear side is the panel's `ctx.agents.acknowledge` while visible.
-            const wantsAttention = stopReason !== "cancelled";
-            patchChatAgent(infoId, {
-              activity: "idle",
-              workingSince: undefined,
-              needsAttention: wantsAttention,
-              attentionSince: wantsAttention ? nowIso() : undefined,
-            });
+            finishTurn(stopReason === "cancelled" ? "cancelled" : "finished");
             return { stopReason };
           } catch (err) {
-            if (!disposed) {
-              patchChatAgent(infoId, {
-                activity: "error",
-                workingSince: undefined,
-                needsAttention: true,
-                attentionSince: nowIso(),
-              });
-            }
+            if (!disposed) finishTurn("failed");
             throw asError(err, "The prompt turn failed");
           }
         },
@@ -499,10 +586,15 @@ function toSdkPermission(
   req: AcpPermissionRequest,
   respond: (outcome: AcpPermissionOutcome) => void,
 ): AgentPermissionRequest {
+  // The `toolCall` params are the same shape the update stream carries, so a
+  // Chat UI can show the diff it is being asked to approve without reading
+  // `raw` — the whole point of phase 3.8.
+  const toolCall = parseToolCall(req.raw.toolCall);
   return {
     toolCallId: req.toolCallId,
     title: req.title,
     options: req.options,
+    ...(toolCall ? { toolCall } : {}),
     raw: req.raw as Readonly<Record<string, unknown>>,
     respond(optionId: string) {
       const match = req.options.find((o) => o.optionId === optionId);

@@ -1,4 +1,5 @@
 import type { Disposable } from "./types";
+import type { TabActivityBinder, TabIconBinder } from "./tab-adornment";
 
 // `ctx.agents` — host-computed coding-agent activity and resume-identity
 // observability. See RFC 0018 (docs/proposals/0018-ctx-agents-surface.md).
@@ -79,6 +80,32 @@ export interface AgentInfo {
   readonly terminalId?: string;
   /** The workspace this session belongs to. */
   readonly workspaceId: string;
+  /**
+   * The session's display label — host-computed, the same string for either
+   * kind, and the one a consumer should render. A status row, a navigator row
+   * and the session's own dock tab all showing this field is what keeps them
+   * from drifting.
+   *
+   * It is a three-step fallback, and the two kinds are exact parallels:
+   *
+   * | step               | Terminal                            | Chat                              |
+   * | ------------------ | ----------------------------------- | --------------------------------- |
+   * | the agent's words  | the OSC window title                | `session_info_update.title`       |
+   * | the user's name    | `TerminalRecord.customName`   | *(no rename gesture yet)*         |
+   * | fallback           | the terminal's derived name         | declared agent name → profile label |
+   *
+   * The user's name wins where they set one; otherwise the agent's own words
+   * win, with agent **status markers stripped** (Claude's spinner, Cursor's
+   * trailing ` - Working …`) — the status is already structured state on this
+   * same record, so repeating it in the label is noise.
+   *
+   * Not every agent volunteers a title, and whether a given one does is its
+   * own choice — and its adapter's, version to version. A session that never
+   * gets one sits on the fallback, exactly as a terminal tab does for a CLI
+   * that writes no OSC title. Silo does not paper over that by inventing a
+   * summary from the first prompt.
+   */
+  readonly title: string;
   /**
    * Which kind of Agent Session this is — `"terminal"` or `"chat"`. See
    * {@link AgentSessionKind}. `ctx.agents` reports the same fields for both;
@@ -478,6 +505,163 @@ export interface AgentPromptResult {
 }
 
 /**
+ * One piece of agent-authored content — the Agent Client Protocol content
+ * block, which appears both in a streamed message chunk
+ * ({@link AgentSessionUpdate.content}) and inside a tool call's output
+ * ({@link AgentToolCallContent.content}).
+ *
+ * **`type` is deliberately a `string`, not a union.** The protocol names
+ * `"text"`, `"image"`, `"audio"`, `"resource_link"` and `"resource"`, and a
+ * vendor may add its own; the same tolerance rule the rest of this surface
+ * follows applies — render the types you know and **name, rather than drop**,
+ * one you do not, so a transcript never silently loses a block.
+ *
+ * Every field but `type` is optional because which ones arrive depends on the
+ * type _and_ the agent: only `"text"` blocks were seen from Cursor
+ * (2026.09.02) and `claude-agent-acp` (0.75.1) in the 2026-09-08 probe, so
+ * treat the rest as modelled-but-unverified and check before you read.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentContentBlock {
+  /** The protocol's block type — `"text"`, `"image"`, `"audio"`,
+   *  `"resource_link"`, `"resource"`, or a vendor's own. */
+  readonly type: string;
+  /** The text, for a `"text"` block. */
+  readonly text?: string;
+  /** MIME type, for an `"image"` / `"audio"` / `"resource_link"` block. */
+  readonly mimeType?: string;
+  /** Where the content lives, for a `"resource_link"` (or an image given by
+   *  reference rather than inline). Typically a `file://` URI. */
+  readonly uri?: string;
+  /** A short display name, for a `"resource_link"`. */
+  readonly name?: string;
+}
+
+/**
+ * One block of a tool call's content — what the agent wants shown _inside_ the
+ * tool row. The protocol wraps each in a `{ type }` envelope, and the three it
+ * names are `"content"` (an {@link AgentContentBlock}), `"diff"` (a file edit)
+ * and `"terminal"` (output streaming into an agent-side terminal).
+ *
+ * `type` is a `string` for the usual reason: tolerate what you do not know.
+ * The remaining fields are the union's arms flattened, so check `type` before
+ * reading them.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentToolCallContent {
+  /** `"content"`, `"diff"`, `"terminal"`, or a vendor's own. */
+  readonly type: string;
+  /** The content block, when `type` is `"content"`. */
+  readonly content?: AgentContentBlock;
+  /** The file being edited, when `type` is `"diff"`. */
+  readonly path?: string;
+  /** The file's contents before the edit, when `type` is `"diff"`. Absent for
+   *  a file the agent is creating — `claude-agent-acp` 0.75.1 sends `null`
+   *  there, which arrives here as `undefined`. */
+  readonly oldText?: string;
+  /** The file's contents after the edit, when `type` is `"diff"`. */
+  readonly newText?: string;
+  /** The agent-side terminal this call is streaming into, when `type` is
+   *  `"terminal"`. Silo declines `terminal/*` today, so a consumer can name the
+   *  block but cannot read its output. */
+  readonly terminalId?: string;
+}
+
+/**
+ * A file (and optionally a line) a tool call touches — the protocol's
+ * `locations`, which is how an agent says "this call is about _this_ file"
+ * independently of its title. A Chat UI can turn these into "open the file"
+ * affordances.
+ *
+ * Both agents probed on 2026-09-08 send it; only `claude-agent-acp` 0.75.1 was
+ * seen sending `line`.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentToolCallLocation {
+  /** Absolute path to the file. */
+  readonly path: string;
+  /** 1-based line the call is focused on, when the agent named one. */
+  readonly line?: number;
+}
+
+/**
+ * One tool call an agent is making, carried by a `tool_call` (the call opening)
+ * or a `tool_call_update` (a change to one already open) — see
+ * {@link AgentSessionUpdate.toolCall}.
+ *
+ * **Both kinds map to this same type, so only {@link toolCallId} is
+ * guaranteed.** A `tool_call` typically carries `title`, `kind` and `status`;
+ * a `tool_call_update` carries **only the fields that changed** (in the
+ * 2026-09-08 probe, most updates were `{ toolCallId, status }` alone). So a
+ * consumer keys rows by {@link toolCallId} and patches the fields that are
+ * present — never overwrite a title with `undefined`.
+ *
+ * A `tool_call_update` for a call whose opening `tool_call` never arrived is a
+ * real shape; render it rather than dropping it.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentToolCall {
+  /** The call's id — stable across its `tool_call` and every
+   *  `tool_call_update`, and the same id an
+   *  {@link AgentPermissionRequest.toolCallId} refers to. */
+  readonly toolCallId: string;
+  /** Human-readable label, e.g. `"Read notes.md"`. Present on the opening
+   *  `tool_call`, and on an update only when it changed — agents do relabel a
+   *  call as it progresses. */
+  readonly title?: string;
+  /** The protocol's coarse category: `"read"`, `"edit"`, `"delete"`,
+   *  `"move"`, `"search"`, `"execute"`, `"think"`, `"fetch"`,
+   *  `"switch_mode"`, `"other"`, or a vendor's own. Tolerate unknown values;
+   *  do not switch exhaustively. */
+  readonly kind?: string;
+  /** `"pending"`, `"in_progress"`, `"completed"`, `"failed"`, or a vendor's
+   *  own. Not every agent walks the whole ladder — `claude-agent-acp` 0.75.1
+   *  went `pending` → `completed` with no `in_progress`. */
+  readonly status?: string;
+  /** What to show inside the row. Absent on an update that changed something
+   *  else — treat that as "unchanged", not "now empty". */
+  readonly content?: readonly AgentToolCallContent[];
+  /** The files this call touches. */
+  readonly locations?: readonly AgentToolCallLocation[];
+  /** The arguments the agent passed to its own tool, exactly as it sent them.
+   *  **Vendor-shaped by definition** — the protocol places no schema on it, so
+   *  it is typed `unknown`: narrow it yourself, and expect a different shape
+   *  from each agent. */
+  readonly rawInput?: unknown;
+  /** The tool's own result, same caveat as {@link rawInput}. */
+  readonly rawOutput?: unknown;
+}
+
+/**
+ * One row of the agent's plan — the protocol's `plan` update entry.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentPlanEntry {
+  /** What the step is, in the agent's words. */
+  readonly content: string;
+  /** `"pending"`, `"in_progress"`, `"completed"`, or a vendor's own. */
+  readonly status?: string;
+  /** `"high"`, `"medium"`, `"low"`, or a vendor's own, when the agent ranked
+   *  the step. */
+  readonly priority?: string;
+}
+
+/**
  * One `session/update` notification from a **Chat session**, lightly
  * normalized. The Agent Client Protocol streams a turn as a sequence of these:
  * assistant text, agent "thinking", tool-call rows, plan updates, and more.
@@ -486,6 +670,11 @@ export interface AgentPromptResult {
  * emit different subsets and vendors add their own (recon §3). Switch on the
  * kinds you render and ignore the rest; never treat an unknown kind as an
  * error.
+ *
+ * Everything a Chat UI must draw to render a transcript is a modelled field:
+ * {@link text} / {@link content} for the message kinds, {@link toolCall} for
+ * `tool_call` and `tool_call_update`, {@link plan} for `plan`. {@link raw} is
+ * for what is deliberately left out — see its own note.
  *
  * @category Consumer Services
  * @public
@@ -501,9 +690,17 @@ export interface AgentSessionUpdate {
   /**
    * Text payload for the streaming-text kinds (`agent_message_chunk`,
    * `agent_thought_chunk`, `user_message_chunk`); `undefined` for every other
-   * kind.
+   * kind — and also for a text kind whose block is not text, in which case
+   * read {@link content}.
    */
   readonly text?: string;
+  /**
+   * The whole content block a streaming-text kind carried, of which
+   * {@link text} is the `"text"` shorthand. Read it when you want to render an
+   * image or a resource link an agent sent as a message rather than dropping
+   * it. `undefined` for every non-message kind.
+   */
+  readonly content?: AgentContentBlock;
   /**
    * Stable id for the run of chunks this update belongs to. Consecutive
    * same-kind chunks share one — **synthesized by Silo when the agent omits
@@ -512,9 +709,36 @@ export interface AgentSessionUpdate {
    */
   readonly messageId?: string;
   /**
-   * The raw Agent Client Protocol `update` object, for any kind this surface
-   * does not model yet (tool-call fields, plan entries, command lists). Treat
-   * it as read-only.
+   * The tool call, for `kind` `"tool_call"` and `"tool_call_update"`;
+   * `undefined` otherwise. Key rows by {@link AgentToolCall.toolCallId} and
+   * patch in place — an update carries only what changed.
+   */
+  readonly toolCall?: AgentToolCall;
+  /**
+   * The agent's plan **in full**, for `kind` `"plan"`; `undefined` otherwise.
+   * The agent reissues the entire list every time, so replace the plan you are
+   * showing rather than appending to it. May be empty.
+   */
+  readonly plan?: readonly AgentPlanEntry[];
+  /**
+   * The raw Agent Client Protocol `update` object — the **escape hatch**, for
+   * the kinds and fields this surface does not model.
+   *
+   * What is deliberately not modelled, and why: `available_commands_update`
+   * (an agent's slash commands — a menu, not a transcript row),
+   * `usage_update` (token counts, which no agent reports the same way),
+   * `current_mode_update` (already surfaced as
+   * {@link AgentSessionConfigOption.currentValue}), `session_info_update`
+   * (already surfaced as {@link AgentInfo.title}), and vendor extensions such
+   * as `claude-agent-acp`'s `_meta`. None is needed to draw a transcript; all
+   * are readable here.
+   *
+   * **`raw` tracks the protocol, not this SDK's semver.** A field inside it can
+   * change shape, or vanish, when an agent or its adapter changes — no SDK
+   * major required, and that has already happened three times inside one sprint.
+   * Read it defensively, and if you find yourself needing it for something
+   * every Chat UI must render, that is a gap in this surface worth reporting.
+   * Treat it as read-only.
    */
   readonly raw: Readonly<Record<string, unknown>>;
 }
@@ -555,13 +779,20 @@ export interface AgentPermissionOption {
  * @beta
  */
 export interface AgentPermissionRequest {
-  /** The tool call this permission is for — matches a `tool_call`
-   *  {@link AgentSessionUpdate}'s `toolCallId` in `raw`. */
+  /** The tool call this permission is for — the same id as the matching
+   *  {@link AgentToolCall.toolCallId} in the update stream. */
   readonly toolCallId: string;
   /** A human-readable description of what the agent wants to do. */
   readonly title: string;
   /** The choices to present. Always at least one; order is the agent's. */
   readonly options: readonly AgentPermissionOption[];
+  /**
+   * The call the agent is asking to make, when it sent one — the protocol's
+   * `toolCall` params, the same shape the update stream carries. It is how a
+   * Chat UI can show the diff **before** the user answers rather than only the
+   * title; `claude-agent-acp` 0.75.1 sends a full one including `content`.
+   */
+  readonly toolCall?: AgentToolCall;
   /** The raw Agent Client Protocol `session/request_permission` params. */
   readonly raw: Readonly<Record<string, unknown>>;
   /**
@@ -906,6 +1137,94 @@ export interface AgentsService {
    * passing a terminal id keep working; a Chat session's id works too.
    */
   acknowledge(id: string): void;
+  /**
+   * The Agent Session the user is currently **looking at** — the one whose
+   * surface is the active tab — or `null` when the active tab is not an agent
+   * at all (an editor, a settings page, nothing).
+   *
+   * Kind-agnostic by construction: a terminal tab reports its Terminal
+   * session, and a dock panel that declared
+   * `DockPanelApi.setAgentSession` reports its Chat session. That is
+   * what lets one consumer implement "clear the badge for the session I'm
+   * watching" or "hide the row for the session I'm already looking at" without
+   * knowing which kind it got.
+   *
+   * @example
+   * ```ts
+   * // Hide the status row for whatever the user is already watching.
+   * const watching = ctx.agents.getActive();
+   * const rows = ctx.agents.getState().filter((a) => a.id !== watching);
+   * ```
+   */
+  getActive(): string | null;
+  /**
+   * Subscribe to changes in {@link AgentsService.getActive} — fired with the
+   * new value (or `null`) whenever the active surface moves. Returns a
+   * {@link Disposable} that cancels the subscription.
+   */
+  subscribeActive(listener: (id: string | null) => void): Disposable;
+  /**
+   * Bind a provider of **activity badges** for Agent Session tabs — the
+   * host-owned `Activity` chrome (spinner / ready / warn / error) on the
+   * trailing edge of a tab.
+   *
+   * The binder's `provide` is handed an {@link AgentInfo.id}, and the host
+   * routes the result to whichever tab is showing that session: a terminal tab
+   * for a Terminal session, or the dock panel that declared
+   * `DockPanelApi.setAgentSession` for a Chat session. One binder,
+   * both kinds — which is the point: the `ctx.terminals` equivalent takes a
+   * *terminal* id, so an extension literally could not badge a Chat session.
+   *
+   * `provide` is called synchronously for every visible tab during render.
+   * Keep it a lookup: no allocation, no async, no work proportional to the
+   * number of sessions.
+   *
+   * @example
+   * ```ts
+   * ctx.subscriptions.push(
+   *   ctx.agents.bindActivity({
+   *     id: "my-ext.agent-badge",
+   *     provide(agentSessionId) {
+   *       const info = ctx.agents
+   *         .getState({ allWorkspaces: true })
+   *         .find((a) => a.id === agentSessionId);
+   *       if (info?.activity !== "working") return null;
+   *       return { activity: "working", tooltip: "Agent working" };
+   *     },
+   *   }),
+   * );
+   * ```
+   */
+  bindActivity(binder: TabActivityBinder): Disposable;
+  /**
+   * Bind a provider of **leading icons** for Agent Session tabs — a brand mark
+   * so a tab running an agent is identifiable at a glance. Same routing and
+   * same synchronous-`provide` contract as
+   * {@link AgentsService.bindActivity}.
+   *
+   * Return `null` for "no icon". Take care that a component which renders
+   * nothing produces `null` here rather than a truthy element descriptor, or
+   * the host reserves tab space for an icon that never appears.
+   */
+  bindIcon(binder: TabIconBinder): Disposable;
+  /**
+   * Re-query every bound {@link AgentsService.bindActivity} /
+   * {@link AgentsService.bindIcon} provider. Call it when something *outside*
+   * the agent snapshot changed what a provider would return — a setting, the
+   * active theme — since the host cannot know about those.
+   */
+  invalidateAdornments(): void;
+  /**
+   * End an Agent Session, either kind: close its terminal tab, or close the
+   * dock panel that declared `DockPanelApi.setAgentSession` for it
+   * (which reaps the agent process as the panel unmounts).
+   *
+   * A no-op for an unknown id, or for a Chat session with no panel mounted —
+   * Silo will not kill a connection whose UI it cannot account for.
+   *
+   * @param id — an {@link AgentInfo.id}.
+   */
+  close(id: string): void;
   /**
    * Bring an Agent Session into view: focus its terminal tab if it is a
    * Terminal session, or its transcript panel if it is a Chat session —

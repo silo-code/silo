@@ -20,6 +20,23 @@
  * The choice appears only while the `chatAgents` setting is on. With it off
  * this editor behaves exactly as it did before RFC 0038: Terminal only, with
  * no extra control on screen.
+ *
+ * ## Why the two arms have different controls (Session 3.6)
+ *
+ * Terminal shows a **Command** text field and Chat shows an **Agent picker**,
+ * and that asymmetry is the point rather than an inconsistency. A terminal
+ * command must be free text because the value that works is a fact about the
+ * *user's* shell — `claude-personal` is an alias only they can know. A Chat
+ * command is `exec`'d with no shell, so only a resolvable file works, and the
+ * one that works came out of recon in the catalog — so *Silo* is the one that
+ * knows it, and nothing the user can type is more correct.
+ *
+ * So the Chat arm does not ask. Picking the agent composes the launch, the
+ * "Silo will run" line shows what was composed, and **Custom…** reveals the
+ * text fields for the case that genuinely is the user's own — a locally built
+ * ACP server, which is the same authoring path a third party driving
+ * `ctx.agents.sessions` needs. An agent with no verified ACP launch is left out
+ * of the picker rather than offered with a warning.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
@@ -54,16 +71,16 @@ import {
   displayKey,
   getChatAgentsEnabled,
   chatExecPreview,
+  chatLaunchForAgent,
   formatArgs,
   parseArgs,
-  suggestChatLaunch,
-  matchesChatSuggestion,
   type AgentProfile,
 } from "@silo-code/extension-host/internal";
 import {
   activeCommand,
   editorStateFromProfile,
   launchFromEditorState,
+  CHAT_CHOICE_CUSTOM,
   type ProfileEditorState,
 } from "./profile-editor-model";
 
@@ -113,7 +130,7 @@ export function ProfileEditorModal({
   const setCommand = (value: string) =>
     setS((p) =>
       p.interfaceKind === "chat"
-        ? { ...p, chatCommand: value, chatLaunchEdited: true }
+        ? { ...p, chatCommand: value }
         : { ...p, terminalCommand: value },
     );
 
@@ -133,7 +150,35 @@ export function ProfileEditorModal({
   // fields they cannot currently create from scratch.
   const chatChoiceOffered = getChatAgentsEnabled();
   const isChat = s.interfaceKind === "chat";
-  const chatSuggestion = suggestChatLaunch(resolvedAgentId);
+
+  // The Chat arm's Agent picker: only agents with a recon-verified ACP launch,
+  // plus Custom…. An agent without one (`grok`) is **left out**, not listed
+  // with a warning — it stays a Terminal agent, and not offering it is
+  // strictly better than explaining why saving it will fail at spawn.
+  const chatAgents = useMemo(
+    () => catalog.filter((a) => chatLaunchForAgent(a.id) !== undefined),
+    [catalog],
+  );
+  const isCustomChat = isChat && s.chatChoice === CHAT_CHOICE_CUSTOM;
+  // A new Chat profile before anything is picked: there is no launch to save,
+  // and the Command field the generic validator complains about is not on
+  // screen, so the prompt belongs on the picker instead.
+  const chatNeedsPick = isChat && s.chatChoice === "";
+
+  /** Pick a catalog agent for the Chat arm — this *is* authoring the launch. */
+  const pickChatAgent = (agentId: string) => {
+    const launch = chatLaunchForAgent(agentId);
+    if (!launch) return;
+    setS((p) => ({
+      ...p,
+      chatChoice: agentId,
+      // The pick is also the agent assertion; there is no command text to
+      // detect one from any more.
+      agentOverride: agentId,
+      chatCommand: launch.command,
+      args: formatArgs(launch.args),
+    }));
+  };
 
   // R10: whether this profile could ever be given an **opening prompt** is a
   // static fact about the agent it resolves to, so it belongs here — where the
@@ -157,23 +202,6 @@ export function ProfileEditorModal({
     if (focusConfigDir) configDirRef.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Prefill the Chat arm from the catalog for an agent that speaks the
-  // protocol itself — those args are recon-verified, and expecting a user to
-  // know `cursor-agent acp` is expecting them to have read the RFC. Stops as
-  // soon as they type: their line is theirs, and a later change of agent must
-  // not silently rewrite it.
-  useEffect(() => {
-    if (!isChat || s.chatLaunchEdited) return;
-    if (chatSuggestion?.kind !== "builtin") return;
-    const chatCommand = chatSuggestion.command;
-    const args = formatArgs(chatSuggestion.args);
-    setS((p) =>
-      p.chatCommand === chatCommand && p.args === args
-        ? p
-        : { ...p, chatCommand, args },
-    );
-  }, [isChat, s.chatLaunchEdited, chatSuggestion]);
 
   const launchLine = useMemo(
     () =>
@@ -215,10 +243,11 @@ export function ProfileEditorModal({
 
     setSaving(true);
     try {
-      // Expand ~ now, once — never at launch time. A Chat profile has no
-      // config directory (the arm carries `env` instead), so none of this
-      // applies to one.
-      let configDir = isChat ? "" : s.configDir.trim();
+      // Expand ~ now, once — never at launch time. Both arms take a config
+      // directory; only the destination differs (`configDir` on a shell line
+      // vs. an `env` entry for an `exec`'d child), so the tilde expansion and
+      // the create-it-now offer are shared rather than reimplemented.
+      let configDir = s.configDir.trim();
       if (configDir) {
         const home = await ctx.system.homeDir().catch(() => "");
         if (home) configDir = expandTilde(configDir, home);
@@ -239,7 +268,7 @@ export function ProfileEditorModal({
       const next: AgentProfile = {
         id: idValue.trim(),
         label: s.label.trim(),
-        launch: launchFromEditorState(s, configDir),
+        launch: launchFromEditorState(s, configDir, envVar),
         ...(resolvedAgentId ? { assumedAgentId: resolvedAgentId } : {}),
       };
 
@@ -253,33 +282,39 @@ export function ProfileEditorModal({
 
   return (
     <div className="silo-modal-form apf-editor">
-      <Section label="Label">
-        <Input
-          block
-          value={s.label}
-          autoFocus={!focusConfigDir}
-          onChange={(e) => setS((p) => ({ ...p, label: e.target.value }))}
-          placeholder="Claude (work)"
-          {...RAW_TEXT_INPUT}
-        />
-        {errors.label && <span className="apf-field-err">{errors.label}</span>}
-      </Section>
+      {/* Label and Id share a row: they are the profile's *name*, one idea in
+          two fields, and the id is derived from the label until edited. */}
+      <div className="apf-fieldrow">
+        <Section label="Label">
+          <Input
+            block
+            value={s.label}
+            autoFocus={!focusConfigDir}
+            onChange={(e) => setS((p) => ({ ...p, label: e.target.value }))}
+            placeholder="Claude (work)"
+            {...RAW_TEXT_INPUT}
+          />
+          {errors.label && (
+            <span className="apf-field-err">{errors.label}</span>
+          )}
+        </Section>
 
-      <Section label="Id">
-        <Input
-          block
-          value={idValue}
-          onChange={(e) =>
-            setS((p) => ({ ...p, id: e.target.value, idEdited: true }))
-          }
-          placeholder="claude-work"
-          {...RAW_TEXT_INPUT}
-        />
-        <span className="apf-field-hint">
-          The value <code>silo agent run --profile &lt;id&gt;</code> takes.
-        </span>
-        {errors.id && <span className="apf-field-err">{errors.id}</span>}
-      </Section>
+        <Section label="Id">
+          <Input
+            block
+            value={idValue}
+            onChange={(e) =>
+              setS((p) => ({ ...p, id: e.target.value, idEdited: true }))
+            }
+            placeholder="claude-work"
+            {...RAW_TEXT_INPUT}
+          />
+          <span className="apf-field-hint">
+            <code>silo agent run --profile &lt;id&gt;</code>
+          </span>
+          {errors.id && <span className="apf-field-err">{errors.id}</span>}
+        </Section>
+      </div>
 
       {chatChoiceOffered || isChat ? (
         <Section label="Interface">
@@ -292,9 +327,6 @@ export function ProfileEditorModal({
                   : {
                       ...p,
                       interfaceKind: value === "chat" ? "chat" : "terminal",
-                      // Re-arm the catalog prefill on the way into Chat; the
-                      // user has not written this arm's line yet.
-                      chatLaunchEdited: false,
                     },
               )
             }
@@ -310,47 +342,95 @@ export function ProfileEditorModal({
               description="Silo renders the conversation and can stream tool calls into a panel. Work in progress."
             />
           </RadioGroup>
-          {isChat ? (
-            <Callout>
-              Chat agents are a <strong>work in progress</strong>. Expect rough
-              edges: a conversation is not yet restored when Silo restarts,
-              signing in has no guided flow, and an agent that needs a separate
-              adapter is not fetched for you.
-            </Callout>
-          ) : null}
         </Section>
       ) : null}
 
-      <Section label="Command">
-        <Input
-          block
-          value={command}
-          onChange={(e) => setCommand(e.target.value)}
-          placeholder={isChat ? "cursor-agent" : "claude-work"}
-          {...RAW_TEXT_INPUT}
-        />
-        <span className="apf-field-hint">
-          {isChat
-            ? "An executable resolved on PATH — no shell runs, so an alias or shell function will not work here."
-            : "Typed into an interactive shell — an alias, function, or version-manager shim all work."}
-        </span>
-        {errors.command && (
-          <span className="apf-field-err">{errors.command}</span>
-        )}
-      </Section>
-
       {isChat ? (
+        <Section label="Agent">
+          <MenuButton
+            variant="field"
+            label={
+              isCustomChat
+                ? "Custom…"
+                : s.chatChoice
+                  ? (chatAgents.find((a) => a.id === s.chatChoice)
+                      ?.displayName ?? s.chatChoice)
+                  : "Choose an agent"
+            }
+            onClick={(e) => {
+              const items: MenuEntry[] = [
+                ...chatAgents.map(
+                  (a): MenuEntry => ({
+                    label: a.displayName,
+                    checked: s.chatChoice === a.id,
+                    icon: (
+                      <AgentIconGlyph
+                        icon={a.icon}
+                        mode="color"
+                        colorScheme={colorScheme}
+                        className="apf-agent-icon"
+                      />
+                    ),
+                    run: () => pickChatAgent(a.id),
+                  }),
+                ),
+                { type: "separator" },
+                {
+                  label: "Custom…",
+                  checked: isCustomChat,
+                  run: () =>
+                    setS((p) => ({ ...p, chatChoice: CHAT_CHOICE_CUSTOM })),
+                },
+              ];
+              void ctx.ui.showMenu({ anchor: e.currentTarget, items });
+            }}
+          >
+            <AgentIconGlyph
+              icon={chatAgents.find((a) => a.id === s.chatChoice)?.icon}
+              mode="color"
+              colorScheme={colorScheme}
+              className="apf-agent-icon"
+            />
+          </MenuButton>
+          <span className="apf-field-hint">
+            {isCustomChat
+              ? "Point Silo at your own ACP server."
+              : "Only agents Silo has a verified launch for."}
+          </span>
+          {chatNeedsPick && errors.command && (
+            <span className="apf-field-err">
+              Choose an agent, or Custom… to supply your own command.
+            </span>
+          )}
+        </Section>
+      ) : null}
+
+      {!isChat || isCustomChat ? (
+        <Section label="Command">
+          <Input
+            block
+            value={command}
+            onChange={(e) => setCommand(e.target.value)}
+            placeholder={isChat ? "/usr/local/bin/my-acp-agent" : "claude-work"}
+            {...RAW_TEXT_INPUT}
+          />
+          <span className="apf-field-hint">
+            {isChat
+              ? "Resolved on PATH. No shell runs, so an alias will not work."
+              : "Typed into an interactive shell, so an alias or shim works."}
+          </span>
+          {errors.command && !chatNeedsPick && (
+            <span className="apf-field-err">{errors.command}</span>
+          )}
+        </Section>
+      ) : null}
+
+      {isCustomChat ? (
         <Section label="Arguments">
           <Input
             block
             value={s.args}
-            onChange={(e) =>
-              setS((p) => ({
-                ...p,
-                args: e.target.value,
-                chatLaunchEdited: true,
-              }))
-            }
+            onChange={(e) => setS((p) => ({ ...p, args: e.target.value }))}
             placeholder="acp"
             {...RAW_TEXT_INPUT}
           />
@@ -362,72 +442,59 @@ export function ProfileEditorModal({
         </Section>
       ) : null}
 
-      <Section label="Agent">
-        <MenuButton
-          variant="field"
-          label={
-            s.agentOverride
-              ? (catalog.find((a) => a.id === s.agentOverride)?.displayName ??
-                s.agentOverride)
-              : "Auto-detect from the command"
-          }
-          onClick={(e) => {
-            const items: MenuEntry[] = [
-              {
-                label: "Auto-detect from the command",
-                checked: s.agentOverride === "",
-                run: () =>
-                  setS((p) => ({
-                    ...p,
-                    agentOverride: "",
-                    chatLaunchEdited: false,
-                  })),
-              },
-              ...catalog.map(
-                (a): MenuEntry => ({
-                  label: a.displayName,
-                  checked: s.agentOverride === a.id,
-                  icon: (
-                    <AgentIconGlyph
-                      icon={a.icon}
-                      mode="color"
-                      colorScheme={colorScheme}
-                      className="apf-agent-icon"
-                    />
-                  ),
-                  // A deliberate agent pick is a stronger signal than whatever
-                  // is already in the command field, so it re-arms the catalog
-                  // prefill. Without this, typing anything before choosing the
-                  // agent disabled the suggestion permanently — which is how a
-                  // Cursor Chat profile got saved as bare `cursor`.
-                  run: () =>
-                    setS((p) => ({
-                      ...p,
-                      agentOverride: a.id,
-                      chatLaunchEdited: false,
-                    })),
-                }),
-              ),
-            ];
-            void ctx.ui.showMenu({ anchor: e.currentTarget, items });
-          }}
-        >
-          <AgentIconGlyph
-            icon={catalog.find((a) => a.id === resolvedAgentId)?.icon}
-            mode="color"
-            colorScheme={colorScheme}
-            className="apf-agent-icon"
-          />
-        </MenuButton>
-        {s.agentOverride === "" && resolvedAgentId && (
-          <span className="apf-field-hint">
-            Detected:{" "}
-            {catalog.find((a) => a.id === resolvedAgentId)?.displayName}
-          </span>
-        )}
-      </Section>
+      {isChat ? null : (
+        <Section label="Agent">
+          <MenuButton
+            variant="field"
+            label={
+              s.agentOverride
+                ? (catalog.find((a) => a.id === s.agentOverride)?.displayName ??
+                  s.agentOverride)
+                : "Auto-detect from the command"
+            }
+            onClick={(e) => {
+              const items: MenuEntry[] = [
+                {
+                  label: "Auto-detect from the command",
+                  checked: s.agentOverride === "",
+                  run: () => setS((p) => ({ ...p, agentOverride: "" })),
+                },
+                ...catalog.map(
+                  (a): MenuEntry => ({
+                    label: a.displayName,
+                    checked: s.agentOverride === a.id,
+                    icon: (
+                      <AgentIconGlyph
+                        icon={a.icon}
+                        mode="color"
+                        colorScheme={colorScheme}
+                        className="apf-agent-icon"
+                      />
+                    ),
+                    run: () => setS((p) => ({ ...p, agentOverride: a.id })),
+                  }),
+                ),
+              ];
+              void ctx.ui.showMenu({ anchor: e.currentTarget, items });
+            }}
+          >
+            <AgentIconGlyph
+              icon={catalog.find((a) => a.id === resolvedAgentId)?.icon}
+              mode="color"
+              colorScheme={colorScheme}
+              className="apf-agent-icon"
+            />
+          </MenuButton>
+          {s.agentOverride === "" && resolvedAgentId && (
+            <span className="apf-field-hint">
+              Detected:{" "}
+              {catalog.find((a) => a.id === resolvedAgentId)?.displayName}
+            </span>
+          )}
+        </Section>
+      )}
 
-      {isChat ? null : envVar ? (
+      {envVar && !chatNeedsPick ? (
         <Section label="Config directory">
           <Input
             ref={configDirRef}
@@ -438,11 +505,10 @@ export function ProfileEditorModal({
             {...RAW_TEXT_INPUT}
           />
           <span className="apf-field-hint">
-            Runs this profile against a separate account — <code>{envVar}</code>{" "}
-            is set on the launch line.
+            A separate account — sets <code>{envVar}</code>.
           </span>
         </Section>
-      ) : resolvedAgentKnown ? (
+      ) : isChat ? null : resolvedAgentKnown ? (
         s.configDir.trim() ? (
           <Callout>
             {catalog.find((a) => a.id === resolvedAgentId)?.displayName ??
@@ -453,65 +519,9 @@ export function ProfileEditorModal({
         ) : null
       ) : (
         <span className="apf-field-hint">
-          Choose an agent above to set a config directory (for two-account
-          setups).
+          Choose an agent to set a config directory.
         </span>
       )}
-
-      {isChat &&
-      chatSuggestion?.kind === "builtin" &&
-      !matchesChatSuggestion(
-        s.chatCommand,
-        parseArgs(s.args),
-        chatSuggestion,
-      ) ? (
-        <Callout>
-          <div className="apf-suggest">
-            <span>
-              {catalog.find((a) => a.id === resolvedAgentId)?.displayName ??
-                "This agent"}{" "}
-              speaks the protocol as{" "}
-              <code>
-                {chatExecPreview(chatSuggestion.command, chatSuggestion.args)}
-              </code>
-              . That is the invocation Silo has verified.
-            </span>
-            <Button
-              size="sm"
-              onClick={() =>
-                setS((p) => ({
-                  ...p,
-                  chatCommand: chatSuggestion.command,
-                  args: formatArgs(chatSuggestion.args),
-                  chatLaunchEdited: true,
-                }))
-              }
-            >
-              Use it
-            </Button>
-          </div>
-        </Callout>
-      ) : null}
-
-      {isChat && chatSuggestion?.kind === "adapter" ? (
-        <Callout>
-          {catalog.find((a) => a.id === resolvedAgentId)?.displayName ??
-            "This agent"}{" "}
-          does not speak the protocol itself — it needs the{" "}
-          <code>{chatSuggestion.adapter}</code> adapter as a separate process.
-          Silo does not fetch or run one for you yet, so point Command and
-          Arguments at an adapter you have already installed.
-        </Callout>
-      ) : null}
-
-      {isChat && chatSuggestion?.kind === "none" ? (
-        <Callout>
-          {catalog.find((a) => a.id === resolvedAgentId)?.displayName ??
-            "This agent"}{" "}
-          has no Chat mode that Silo has been able to verify. Saving this is
-          allowed, but connecting is likely to fail — use Terminal for it.
-        </Callout>
-      ) : null}
 
       {!isChat && !acceptsPrompt && s.terminalCommand.trim() ? (
         <span className="apf-field-hint">
@@ -519,8 +529,8 @@ export function ProfileEditorModal({
             ? `${
                 catalog.find((a) => a.id === resolvedAgentId)?.displayName ??
                 "This agent"
-              } can’t be given an opening prompt — extensions that offer one will skip this profile.`
-            : "This profile matches no known agent, so Silo can’t give it an opening prompt. Choose an agent above if you want that."}
+              } can’t take an opening prompt.`
+            : "Matches no known agent, so it can’t take an opening prompt."}
         </span>
       ) : null}
 

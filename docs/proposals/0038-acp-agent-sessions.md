@@ -351,3 +351,18 @@ Not yet decided — `draft`. Open questions:
    prompt composer is most of what a transcript already is.
 5. **Do we vendor adapters?** Conductor ships its own binaries; `claude-agent-acp`
    is `license: proprietary` and npx-distributed, and Silo ships no Node runtime.
+
+   _Narrowed 2026-09-08._ Vendoring is still open, but two sub-questions are
+   settled by use. **The catalog must hold a resolvable spec, pinned.**
+   `acpLaunch.package` records a short name (`claude-agent-acp`) that npx
+   cannot resolve — the real spec is `@agentclientprotocol/claude-agent-acp`,
+   verified at `0.75.1` — so an agent's Chat launch is not composable from the
+   catalog as it stands, and expecting a user to supply the difference is what
+   made a Chat profile authorable-but-broken. The version is **pinned rather
+   than floated**: this adapter changed its own advertised behaviour twice
+   inside one sprint (`session/set_config_option`, then `session_info_update`),
+   so a float would convert each such change into a silent breakage instead of
+   a bump with a `lastVerified` date, like every other catalog fact. And
+   whichever way vendoring goes, **`launch.env` needs a first-class authoring
+   path** — a second account is selected by `configDirEnvVar`, so without one
+   the adapter agents are single-account only.

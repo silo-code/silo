@@ -54,7 +54,12 @@ export function buildPiAgentDefinition(
     // opening message for the interactive session.
     promptDelivery: { kind: "argv" },
     // RFC 0038 §5h — `pi` has no built-in ACP mode; `pi-acp` (npx) wraps it.
-    acpLaunch: { kind: "adapter", package: "pi-acp" },
+    // Session 3.6 recon (2026-09-08) pinned the version and confirmed the
+    // package name needs no vendor prefix: `npx -y pi-acp@0.0.33` completed
+    // `initialize` and `session/new`, and honoured PI_CODING_AGENT_DIR — the
+    // adapter wrote `auth.json` / `models-store.json` / `sessions/` into the
+    // override, which is what makes a second-account pi Chat profile work.
+    acpLaunch: { kind: "adapter", package: "pi-acp", version: "0.0.33" },
     // Redundant once the tab shows pi's own icon — same literal detectPiTitle
     // matches on, reused rather than duplicated.
     titleIdentityPrefix: PI_TITLE_PREFIX,
@@ -174,7 +179,20 @@ export function buildPiAgentDefinition(
       'stays interactive — run in a real PTY, `pi "say hello"` answered ' +
       '"hello" and was still at its composer 45s later, so `promptDelivery` ' +
       "is { kind: 'argv' }. NOTE the hook/session findings above were " +
-      "confirmed at 0.84.2 and were not re-run at 0.84.3.",
+      "confirmed at 0.84.2 and were not re-run at 0.84.3. RFC 0038 Session " +
+      "3.6 ACP recon (2026-09-08, macOS, pi 0.85.0): `npx -y pi-acp@0.0.33` " +
+      "over piped stdio answered `initialize` — agentInfo { name 'pi-acp', " +
+      "title 'pi ACP adapter', version '0.0.33' }, protocolVersion 1 — and " +
+      "then `session/new`, returning a sessionId. The published package is " +
+      "UNSCOPED (`pi-acp`, from svkozak/pi-acp) — it needs no vendor prefix, " +
+      "unlike claude/codex, and several third-party forks of the same name " +
+      "exist on npm, which is why the exact spec is pinned here rather than " +
+      "resolved by short name. PI_CODING_AGENT_DIR is HONOURED by the " +
+      "adapter: pointed at an empty directory it created auth.json, " +
+      "models-store.json and sessions/ inside it, and `session/new` then " +
+      "failed -32000 `Authentication required` with a `pi_terminal_login` " +
+      "auth method — i.e. the override really did isolate credentials, which " +
+      "is the property a second-account Chat profile depends on.",
     upstreamRefs: [
       "https://pi.dev",
       "https://www.npmjs.com/package/@earendil-works/pi-coding-agent",
@@ -182,7 +200,7 @@ export function buildPiAgentDefinition(
       // API and session_start payload) and docs/sessions.md (--session
       // semantics) are the two Silo's contract depends on.
     ],
-    lastVerified: "2026-09-02",
-    verifiedAgainstVersion: "pi@0.84.3",
+    lastVerified: "2026-09-08",
+    verifiedAgainstVersion: "pi@0.85.0",
   };
 }

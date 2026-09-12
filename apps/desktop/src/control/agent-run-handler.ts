@@ -185,6 +185,12 @@ export function applyControlAgentRun(
     );
   }
 
+  // Deliberately **not** `startAgentProfile` (RFC 0038 Session 3.7), which the
+  // `+` menu and `core.newAgent.<id>` share. This is a headless control-API
+  // verb — there is no window to open a transcript in — so it refuses a Chat
+  // profile in its own words. Dispatching would silently turn
+  // `silo agent run --profile my-chat` into a panel appearing on someone's
+  // screen, which is not what the caller asked for.
   if (profile.launch.interface !== "terminal") {
     return fail(
       "failed",

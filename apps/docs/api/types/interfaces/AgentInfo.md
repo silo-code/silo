@@ -1,6 +1,6 @@
 # Interface: AgentInfo
 
-Defined in: [packages/sdk/src/agents-service.ts:62](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L62)
+Defined in: [packages/sdk/src/agents-service.ts:63](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L63)
 
 **`Beta`**
 
@@ -18,7 +18,7 @@ and [AgentsService.getByTerminalId](AgentsService.md#getbyterminalid); delivered
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:71](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L71)
+Defined in: [packages/sdk/src/agents-service.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L72)
 
 **`Beta`**
 
@@ -37,7 +37,7 @@ of session it is.
 readonly optional terminalId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:79](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L79)
+Defined in: [packages/sdk/src/agents-service.ts:80](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L80)
 
 **`Beta`**
 
@@ -55,11 +55,47 @@ check [AgentInfo.kind](#kind) first, or use [AgentsService.reveal](AgentsService
 readonly workspaceId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:81](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L81)
+Defined in: [packages/sdk/src/agents-service.ts:82](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L82)
 
 **`Beta`**
 
 The workspace this session belongs to.
+
+***
+
+### title
+
+```ts
+readonly title: string;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:108](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L108)
+
+**`Beta`**
+
+The session's display label — host-computed, the same string for either
+kind, and the one a consumer should render. A status row, a navigator row
+and the session's own dock tab all showing this field is what keeps them
+from drifting.
+
+It is a three-step fallback, and the two kinds are exact parallels:
+
+| step               | Terminal                            | Chat                              |
+| ------------------ | ----------------------------------- | --------------------------------- |
+| the agent's words  | the OSC window title                | `session_info_update.title`       |
+| the user's name    | `TerminalRecord.customName`   | *(no rename gesture yet)*         |
+| fallback           | the terminal's derived name         | declared agent name → profile label |
+
+The user's name wins where they set one; otherwise the agent's own words
+win, with agent **status markers stripped** (Claude's spinner, Cursor's
+trailing ` - Working …`) — the status is already structured state on this
+same record, so repeating it in the label is noise.
+
+Not every agent volunteers a title, and whether a given one does is its
+own choice — and its adapter's, version to version. A session that never
+gets one sits on the fallback, exactly as a terminal tab does for a CLI
+that writes no OSC title. Silo does not paper over that by inventing a
+summary from the first prompt.
 
 ***
 
@@ -69,7 +105,7 @@ The workspace this session belongs to.
 readonly kind: AgentSessionKind;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:92](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L92)
+Defined in: [packages/sdk/src/agents-service.ts:119](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L119)
 
 **`Beta`**
 
@@ -90,7 +126,7 @@ now.)
 readonly isAgent: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L98)
+Defined in: [packages/sdk/src/agents-service.ts:125](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L125)
 
 **`Beta`**
 
@@ -106,7 +142,7 @@ as one, or an agent-specific signal was observed in it (e.g. typing
 readonly activity: AgentActivity;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:100](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L100)
+Defined in: [packages/sdk/src/agents-service.ts:127](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L127)
 
 **`Beta`**
 
@@ -120,7 +156,7 @@ Current classified activity.
 readonly needsAttention: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:108](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L108)
+Defined in: [packages/sdk/src/agents-service.ts:135](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L135)
 
 **`Beta`**
 
@@ -138,7 +174,7 @@ live counts as already seen, no acknowledgment needed.
 readonly optional attentionSince?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:110](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L110)
+Defined in: [packages/sdk/src/agents-service.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L137)
 
 **`Beta`**
 
@@ -152,7 +188,7 @@ ISO timestamp of when `needsAttention` was set; undefined when not pending.
 readonly optional workingSince?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:112](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L112)
+Defined in: [packages/sdk/src/agents-service.ts:139](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L139)
 
 **`Beta`**
 
@@ -166,7 +202,7 @@ ISO timestamp of when the current `"working"` phase started; undefined otherwise
 readonly stale: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:121](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L121)
+Defined in: [packages/sdk/src/agents-service.ts:148](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L148)
 
 **`Beta`**
 
@@ -185,7 +221,7 @@ fact — see [AgentActivity](../type-aliases/AgentActivity.md).
 readonly optional sessionId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:131](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L131)
+Defined in: [packages/sdk/src/agents-service.ts:158](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L158)
 
 **`Beta`**
 
@@ -205,7 +241,7 @@ deferred to death), then persisted, so a consumer reacting to
 readonly optional resumeCommand?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:140](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L140)
+Defined in: [packages/sdk/src/agents-service.ts:167](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L167)
 
 **`Beta`**
 
@@ -224,7 +260,7 @@ both live and at `activity === "dead"`.
 readonly canResume: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:155](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L155)
+Defined in: [packages/sdk/src/agents-service.ts:182](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L182)
 
 **`Beta`**
 
@@ -249,7 +285,7 @@ Whether this session can be resumed **through Silo** — i.e. whether
 readonly optional agentName?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L164)
+Defined in: [packages/sdk/src/agents-service.ts:191](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L191)
 
 **`Beta`**
 
@@ -268,7 +304,7 @@ known agent leader is detected at all (same moment
 readonly optional agentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:172](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L172)
+Defined in: [packages/sdk/src/agents-service.ts:199](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L199)
 
 **`Beta`**
 

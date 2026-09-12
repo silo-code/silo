@@ -59,7 +59,7 @@ embedded — offer to open it in a browser instead."
 dispose(): void;
 ```
 
-Defined in: [packages/sdk/src/types.ts:67](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L67)
+Defined in: [packages/sdk/src/types.ts:63](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L63)
 
 #### Returns
 

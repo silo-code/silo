@@ -5,13 +5,13 @@ import {
   deriveTab,
   stoppedWorking,
   staleSuffix,
-  stripStatusMarker,
 } from "./agent-view";
 
 /** Build an AgentInfo with sensible defaults; override just the fields a test
  * cares about. Mirrors the host's shape at `ctx.agents`. */
 function agent(over: Partial<AgentInfo> = {}): AgentInfo {
   return {
+    title: "claude",
     id: over.terminalId ?? "t1",
     terminalId: "t1",
     workspaceId: "w1",
@@ -255,32 +255,5 @@ describe("staleSuffix", () => {
   it("uses terse wording for labels and a fuller one for tooltips", () => {
     expect(staleSuffix(true, "label")).toBe(" (unconfirmed)");
     expect(staleSuffix(true, "tooltip")).toBe(" (unconfirmed since restart)");
-  });
-});
-
-describe("stripStatusMarker", () => {
-  it("strips a leading Claude/Codex braille spinner glyph", () => {
-    expect(stripStatusMarker("⠋ my-project")).toBe("my-project");
-  });
-
-  it("strips Claude's ✳ idle marker", () => {
-    expect(stripStatusMarker("✳ my-project")).toBe("my-project");
-  });
-
-  it("strips Codex's [ ! ] / [ . ] action markers", () => {
-    expect(stripStatusMarker("[ ! ] my-project")).toBe("my-project");
-    expect(stripStatusMarker("[ . ] my-project")).toBe("my-project");
-  });
-
-  it("strips a trailing Cursor Agent status suffix", () => {
-    expect(stripStatusMarker("my-chat - ⏳ Working on it")).toBe("my-chat");
-    expect(stripStatusMarker("my-chat - ✅ Ready")).toBe("my-chat");
-    expect(stripStatusMarker("my-chat - Waiting for you (2 items)")).toBe(
-      "my-chat",
-    );
-  });
-
-  it("leaves an unmarked title untouched", () => {
-    expect(stripStatusMarker("plain-title")).toBe("plain-title");
   });
 });

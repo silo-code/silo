@@ -30,8 +30,23 @@ export function buildCodexAgentDefinition(
     // "<prompt>"` answered and stayed in the TUI. `codex exec` is the
     // non-interactive mode and is NOT what this field means.
     promptDelivery: { kind: "argv" },
-    // RFC 0038 §5h — `codex` has no built-in ACP mode; `codex-acp` (npx) wraps it.
-    acpLaunch: { kind: "adapter", package: "codex-acp" },
+    // RFC 0038 §5h — `codex` has no built-in ACP mode; `codex-acp` (npx) wraps
+    // it. Session 3.6 recon (2026-09-08) resolved the vendor prefix and pinned
+    // the version. `initialize` PASSED (`agentInfo` title "Codex", version
+    // 1.10.0, protocolVersion 1); `session/new` returned
+    // `Authentication required` because this machine has no codex login at all
+    // (`~/.codex/auth.json` absent, `codex login status` → "Not logged in") —
+    // an auth state, not a bad launch line. That is the same outcome
+    // `pi-acp` gives against a fresh config dir, and the trap list's own rule
+    // ("the auth signal is `session/new` failing") is what it is diagnosed by,
+    // so the arm stays set rather than dropping to `undefined`: the launch
+    // spec is verified resolvable and verified to speak the protocol, which is
+    // the only thing this field claims.
+    acpLaunch: {
+      kind: "adapter",
+      package: "@agentclientprotocol/codex-acp",
+      version: "1.10.0",
+    },
     // "Working" is the shared spinner detector in `detectClaudeCode` (Codex uses
     // the braille range Claude used to); detectCodexCLI covers its own explicit
     // "idle" signals (empty title, action-required markers, OSC 9 notifications).
@@ -100,13 +115,24 @@ export function buildCodexAgentDefinition(
       "`promptDelivery` is { kind: 'argv' }. `codex exec` also takes a prompt " +
       "but is the non-interactive mode, which is a NO for this field. NOTE " +
       "the resume/hook findings above were confirmed at 0.144.5 and were not " +
-      "re-run at 0.149.1.",
+      "re-run at 0.149.1. RFC 0038 Session 3.6 ACP recon (2026-09-08, macOS, " +
+      "codex-cli 0.153.2): `npx -y @agentclientprotocol/codex-acp@1.10.0` over " +
+      "piped stdio answered `initialize` — agentInfo { name " +
+      "'@agentclientprotocol/codex-acp', title 'Codex', version '1.10.0' }, " +
+      "protocolVersion 1 — so the pinned spec resolves and speaks the " +
+      "protocol. `session/new` was NOT reached: it returned -32000 " +
+      "`Authentication required`, because this machine has no codex login " +
+      "(no ~/.codex/auth.json). PARTIALLY VERIFIED for that reason — re-probe " +
+      "`session/new` on a logged-in machine. Whether the adapter honours " +
+      "CODEX_HOME is likewise UNVERIFIED (blocked on the same auth step), so " +
+      "the editor's config-directory field for a Codex Chat profile rests on " +
+      "the CLI's own CODEX_HOME behaviour, not on an observed adapter probe.",
     upstreamRefs: [
       "https://developers.openai.com/codex/hooks",
       "https://developers.openai.com/codex/config-advanced",
       "https://github.com/openai/codex",
     ],
-    lastVerified: "2026-09-02",
-    verifiedAgainstVersion: "codex-cli@0.149.1",
+    lastVerified: "2026-09-08",
+    verifiedAgainstVersion: "codex-cli@0.153.2",
   };
 }

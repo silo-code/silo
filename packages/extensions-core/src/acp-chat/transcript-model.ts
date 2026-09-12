@@ -13,13 +13,23 @@
  *
  * - **Tolerate unknown `kind`s.** Agents emit different subsets and vendors
  *   add their own; anything not projected here is dropped, never an error.
- * - **Read the rest off `raw`.** The SDK models the streaming-text fields and
- *   hands the whole Agent Client Protocol object over for the rest, so tool
- *   calls and plans are read defensively — every field may be missing or the
- *   wrong type.
+ * - **Never read `update.raw`.** Every field this panel renders is a modelled
+ *   one (RFC 0038 phase 3.8) — `update.toolCall`, `update.plan`,
+ *   `update.text`. That is the proof the surface is complete: a third-party
+ *   Chat UI can draw a transcript without knowing the Agent Client Protocol's
+ *   wire shapes, because the reference implementation doesn't either. If this
+ *   file ever needs `raw` back, the SDK has a gap.
+ *
+ * Fields still arrive **optional**, because the wire is: a `tool_call_update`
+ * carries only what changed, so "absent" means "unchanged", not "now empty".
  */
 
-import type { AgentSessionUpdate } from "@silo-code/sdk";
+import type {
+  AgentPlanEntry,
+  AgentSessionUpdate,
+  AgentToolCall,
+  AgentToolCallContent,
+} from "@silo-code/sdk";
 
 /** Which speaker a {@link MessageEntry} came from. `"thought"` is the agent
  *  thinking out loud (`agent_thought_chunk`), rendered as an aside. */
@@ -103,64 +113,52 @@ const CHUNK_ROLES: Record<string, TranscriptRole> = {
   user_message_chunk: "user",
 };
 
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
-}
-
-function str(v: unknown): string | undefined {
-  return typeof v === "string" && v.length > 0 ? v : undefined;
+function nonEmpty(v: string | undefined): string | undefined {
+  return v !== undefined && v.length > 0 ? v : undefined;
 }
 
 /**
- * Flatten a tool call's `content` array into display lines.
+ * Flatten a tool call's content blocks into display lines.
  *
- * The protocol wraps each block in a `{ type }` envelope: `"content"` holds a
+ * The protocol wraps each in a `{ type }` envelope: `"content"` holds a
  * content block (usually text), `"diff"` describes a file edit, `"terminal"`
  * points at a terminal Silo declined to provide. Anything else is named but
  * not expanded — better an honest `[image]` row than a silently empty call.
  */
-export function toolContentLines(content: unknown): string[] {
-  if (!Array.isArray(content)) return [];
+export function toolContentLines(
+  content: readonly AgentToolCallContent[] | undefined,
+): string[] {
+  if (!content) return [];
   const lines: string[] = [];
   for (const block of content) {
-    if (!isRecord(block)) continue;
     if (block.type === "content") {
       const inner = block.content;
-      if (isRecord(inner)) {
-        const text = str(inner.text);
-        if (text) {
-          lines.push(text);
-          continue;
-        }
-        lines.push(`[${str(inner.type) ?? "content"}]`);
-      }
+      if (!inner) continue;
+      const text = nonEmpty(inner.text);
+      lines.push(text ?? `[${nonEmpty(inner.type) ?? "content"}]`);
       continue;
     }
     if (block.type === "diff") {
-      lines.push(`diff ${str(block.path) ?? "(unnamed file)"}`);
+      lines.push(`diff ${nonEmpty(block.path) ?? "(unnamed file)"}`);
       continue;
     }
-    lines.push(`[${str(block.type) ?? "block"}]`);
+    lines.push(`[${nonEmpty(block.type) ?? "block"}]`);
   }
   return lines;
 }
 
-/** Read a `plan` update's rows off `raw`, dropping malformed entries. */
-export function planRows(raw: Readonly<Record<string, unknown>>): PlanRow[] {
-  const entries = raw.entries;
-  if (!Array.isArray(entries)) return [];
-  const rows: PlanRow[] = [];
-  for (const e of entries) {
-    if (!isRecord(e)) continue;
-    const content = str(e.content);
-    if (!content) continue;
-    rows.push({
-      content,
-      status: str(e.status) ?? "pending",
-      ...(str(e.priority) ? { priority: str(e.priority) } : {}),
-    });
-  }
-  return rows;
+/** Project a `plan` update's entries into rows. The SDK has already dropped
+ *  entries with nothing to show; this fills in the status default the panel
+ *  renders with, since the protocol leaves `status` optional. */
+export function planRows(
+  entries: readonly AgentPlanEntry[] | undefined,
+): PlanRow[] {
+  if (!entries) return [];
+  return entries.map((e) => ({
+    content: e.content,
+    status: nonEmpty(e.status) ?? "pending",
+    ...(nonEmpty(e.priority) ? { priority: e.priority } : {}),
+  }));
 }
 
 function appendEntry(t: Transcript, make: (key: string) => TranscriptEntry) {
@@ -236,9 +234,11 @@ export function applyUpdate(
   }
 
   if (update.kind === "tool_call" || update.kind === "tool_call_update") {
-    const raw = update.raw;
-    const toolCallId = str(raw.toolCallId) ?? "";
-    const lines = toolContentLines(raw.content);
+    // A call the SDK could not give an id is one nothing can be keyed by; it
+    // still gets a row of its own rather than vanishing.
+    const call: AgentToolCall = update.toolCall ?? { toolCallId: "" };
+    const toolCallId = call.toolCallId;
+    const lines = toolContentLines(call.content);
     const index = toolCallId
       ? t.entries.findIndex(
           (e) => e.type === "tool" && e.toolCallId === toolCallId,
@@ -246,11 +246,12 @@ export function applyUpdate(
       : -1;
     if (index >= 0) {
       const prev = t.entries[index] as ToolEntry;
+      const toolKind = nonEmpty(call.kind) ?? prev.toolKind;
       const next: ToolEntry = {
         ...prev,
-        title: str(raw.title) ?? prev.title,
-        status: str(raw.status) ?? prev.status,
-        ...(str(raw.kind) ? { toolKind: str(raw.kind) } : {}),
+        title: nonEmpty(call.title) ?? prev.title,
+        status: nonEmpty(call.status) ?? prev.status,
+        ...(toolKind ? { toolKind } : {}),
         // A `tool_call_update` carrying no content must not blank the rows the
         // original call already showed.
         lines: lines.length > 0 ? lines : prev.lines,
@@ -265,15 +266,15 @@ export function applyUpdate(
       type: "tool",
       key,
       toolCallId,
-      title: str(raw.title) ?? "Tool call",
-      status: str(raw.status) ?? "pending",
-      ...(str(raw.kind) ? { toolKind: str(raw.kind) } : {}),
+      title: nonEmpty(call.title) ?? "Tool call",
+      status: nonEmpty(call.status) ?? "pending",
+      ...(nonEmpty(call.kind) ? { toolKind: call.kind } : {}),
       lines,
     }));
   }
 
   if (update.kind === "plan") {
-    const rows = planRows(update.raw);
+    const rows = planRows(update.plan);
     const index = t.entries.findIndex((e) => e.type === "plan");
     if (index >= 0) {
       const entries = [...t.entries];

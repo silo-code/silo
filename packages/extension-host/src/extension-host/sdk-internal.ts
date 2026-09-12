@@ -462,7 +462,6 @@ export { scanInstalledAgents } from "./agents/agent-installed-scan";
 export type { InstalledAgent } from "./agents/agent-installed-scan";
 // ACP transport spike (docs/acp-recon.md) — remove with the spike. The host
 // owns the connection because an extension may not import `@tauri-apps/*`.
-export { createAcpTransport } from "./agents/acp-transport";
 export type {
   AcpTransportLike,
   AcpTransportOptions,
@@ -493,23 +492,25 @@ export type { AgentProfile } from "../state/types";
 // Authoring the `chat` launch arm (RFC 0038). Core needs these where the
 // profile is written: the argv text field ↔ argv vector round trip (argv is
 // not a shell string, and nothing here may become shell syntax), the exec
-// preview, and the catalog's verified suggestion for an agent that speaks the
-// protocol built in.
+// preview, and — since Session 3.6 — the catalog-composed launch the editor's
+// Agent picker writes, plus the reverse lookup that decides which picker entry
+// an already-saved profile is.
 export {
   parseArgs,
   formatArgs,
   chatExecPreview,
-  suggestChatLaunch,
-  matchesChatSuggestion,
+  chatLaunchForAgent,
+  chatAgentForLaunch,
 } from "./agents/chat-launch-model";
-export type { ChatLaunchSuggestion } from "./agents/chat-launch-model";
-// Which registered panel kind opens a Chat profile (RFC 0038). Core needs it
-// for `core.newAgent.<id>`, so a keybinding and the dock's + menu resolve the
-// same kind rather than each naming one.
-export {
-  resolveChatProfileHost,
-  chatProfileHostParams,
-} from "./agents/chat-profile-host";
+export type { ChatLaunch } from "./agents/chat-launch-model";
+// "Start this Agent Profile" — the one dispatch over the `launch` union
+// (RFC 0038 Session 3.7). Core needs it for `core.newAgent.<id>`, so a
+// keybinding and the dock's + menu cannot disagree about what starting a
+// profile means. Resolving *which* panel renders a Chat profile is an
+// implementation detail of it and is deliberately not exported: host chrome
+// asks "start this profile", never "which panel claims Chat profiles".
+export { startAgentProfile } from "./agents/agent-profile-start";
+export type { AgentProfileStart } from "./agents/agent-profile-start";
 // Activates/deactivates the bundled Chat panel to match the `chatAgents` gate.
 // Called from the app's hydrate chain (the flag is not readable before then)
 // and again when the user flips the switch — see the module for why a branch

@@ -38,6 +38,11 @@ import {
   resetChatAgentRegistry,
 } from "./chat-agent-registry";
 import { createAgentSessionsService } from "./acp-sessions-service";
+import {
+  _resetAgentSurfaceRegistryForTests,
+  setActiveDockPanel,
+  setPanelAgentSession,
+} from "./agent-surface-registry";
 
 function ws(id: string): WorkspaceInternal {
   return {
@@ -57,6 +62,7 @@ const service = createAgentSessionsService();
 
 beforeEach(() => {
   resetChatAgentRegistry();
+  _resetAgentSurfaceRegistryForTests();
   store.workspaces = { active: ws("active"), other: ws("other") };
   store.activeWorkspaceId = "active";
   store.chatAgents = true;
@@ -165,6 +171,46 @@ describe("connect() success", () => {
   });
 });
 
+describe("AgentInfo.title — the agent's own words, when it volunteers them", () => {
+  it("registers with the declared agent name as the fallback", async () => {
+    await service.connect("claude-chat");
+    expect(chatAgentInfos()[0].title).toBe("Claude Code");
+  });
+
+  it("a session_info_update replaces it", async () => {
+    await service.connect("claude-chat");
+    captured.onUpdate({
+      sessionUpdate: "session_info_update",
+      title: "Refactor the dock registry",
+    } as never);
+    expect(chatAgentInfos()[0].title).toBe("Refactor the dock registry");
+  });
+
+  it("reads a nested info object too, and ignores an empty title", async () => {
+    await service.connect("claude-chat");
+    captured.onUpdate({
+      sessionUpdate: "session_info_update",
+      info: { title: "  Wire up the badge  " },
+    } as never);
+    expect(chatAgentInfos()[0].title).toBe("Wire up the badge");
+
+    captured.onUpdate({
+      sessionUpdate: "session_info_update",
+      title: "   ",
+    } as never);
+    expect(chatAgentInfos()[0].title).toBe("Wire up the badge");
+  });
+
+  it("a session that never gets one keeps its declared name — no synthesised summary", async () => {
+    await service.connect("claude-chat");
+    captured.onUpdate({
+      sessionUpdate: "agent_message_chunk",
+      content: { text: "hello" },
+    } as never);
+    expect(chatAgentInfos()[0].title).toBe("Claude Code");
+  });
+});
+
 describe("turn lifecycle → ctx.agents status", () => {
   it("prompt() drives working → idle and raises attention on every finish", async () => {
     const handle = await service.connect("claude-chat", {
@@ -188,16 +234,30 @@ describe("turn lifecycle → ctx.agents status", () => {
     });
   });
 
-  // Parity with a Terminal session, which raises on any finish its focused tab
-  // did not witness and lets focus clear it — keying this on "is the workspace
-  // active" left a Chat turn finishing in a background *tab* of the active
-  // workspace with no badge. The panel acknowledges while it is visible.
-  it("raises attention even in the active workspace — the surface clears it", async () => {
+  // The one attention rule, from `agent-turn-model.ts`: a finish nobody
+  // witnessed raises. `witnessed` means "the user is looking at *this
+  // session's tab*" — not "its workspace is active", which was the drift that
+  // left a Chat turn finishing in a background tab of the foreground
+  // workspace with no badge at all.
+  it("raises attention for a finish nobody was looking at", async () => {
     const handle = await service.connect("claude-chat");
     await handle.prompt([{ type: "text", text: "hi" }]);
     expect(chatAgentInfos()[0]).toMatchObject({
       activity: "idle",
       needsAttention: true,
+    });
+  });
+
+  it("raises no attention for a finish the user watched — the host knows which tab is active", async () => {
+    const handle = await service.connect("claude-chat");
+    // Exactly what the Chat panel's `api.setAgentSession(id)` produces, plus
+    // the dock reporting that panel as active. No help from the panel needed.
+    setPanelAgentSession("acp-chat:p1", handle.id);
+    setActiveDockPanel("acp-chat:p1");
+    await handle.prompt([{ type: "text", text: "hi" }]);
+    expect(chatAgentInfos()[0]).toMatchObject({
+      activity: "idle",
+      needsAttention: false,
     });
   });
 
@@ -247,12 +307,14 @@ describe("turn lifecycle → ctx.agents status", () => {
     expect(respondSpy).toHaveBeenCalledWith({ outcome: "cancelled" });
   });
 
-  it("an abnormal connection close moves the session to error", async () => {
+  it("an abnormal connection close moves the session to error, without stacking an attention flag on it", async () => {
+    // Terminal parity: `activity: "error"` is a loud state every consumer
+    // renders on its own, so the shared turn core leaves attention alone.
     await service.connect("claude-chat");
     captured.onClosed(new Error("agent died"));
     expect(chatAgentInfos()[0]).toMatchObject({
       activity: "error",
-      needsAttention: true,
+      needsAttention: false,
     });
   });
 

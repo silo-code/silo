@@ -6,35 +6,25 @@ import {
 } from "react";
 import type { IDockviewPanelProps } from "dockview";
 import { Registry } from "./registry";
-import { tabAdornmentRegistry } from "./tab-adornment-registry";
+import { setPanelAgentSession } from "./agents/agent-surface-registry";
 import type {
   DockPanelApi,
   DockPanelKind,
   DockPanelProps,
-  TabActivityContribution,
-  TabIconContribution,
 } from "@silo-code/sdk";
 
 export const dockPanelKindRegistry = new Registry<DockPanelKind>();
-
-/**
- * The single leading-icon / trailing-activity adornment a dock panel drives on
- * its *own* tab through {@link DockPanelApi.setTabIcon} /
- * {@link DockPanelApi.setTabActivity}. Fixed id because there is exactly one
- * per panel — the panel is not stacking contributions, it is reflecting its
- * own state.
- */
-const PANEL_SELF_ADORNMENT_ID = "silo.dock-panel.self";
 
 type DockviewPanelApi = IDockviewPanelProps["api"];
 
 /**
  * Adapt a dockview panel api into the SDK's {@link DockPanelApi}. Most members
  * are a straight delegation — the two surfaces were deliberately kept
- * structurally compatible — but `setTabActivity` / `setTabIcon` are Silo's
- * own: they record into the tab-adornment registry under the `"panel"` kind,
- * keyed by this panel's dockview id, which is what `DockTab` reads back
- * (RFC 0038 Session 3.1).
+ * structurally compatible — but `setAgentSession` is Silo's own: it records
+ * into the agent-surface registry, which is how the host learns that this
+ * panel's tab is a surface for an Agent Session (RFC 0038 Session 3.2). The
+ * panel declares *what it is showing* and nothing more; every piece of agent
+ * chrome on its tab is painted by whoever observes `ctx.agents`.
  */
 export function makeDockPanelApi(dv: DockviewPanelApi): DockPanelApi {
   return {
@@ -53,29 +43,14 @@ export function makeDockPanelApi(dv: DockviewPanelApi): DockPanelApi {
       dv.onDidVisibilityChange((e) => listener({ isVisible: e.isVisible })),
     updateParameters: (params) =>
       dv.updateParameters(params as Record<string, unknown>),
-    setTabActivity: (adornment: TabActivityContribution | null) => {
-      if (adornment) {
-        tabAdornmentRegistry.setActivity("panel", dv.id, {
-          id: PANEL_SELF_ADORNMENT_ID,
-          ...adornment,
-        });
-      } else {
-        tabAdornmentRegistry.clearActivity(
-          "panel",
-          dv.id,
-          PANEL_SELF_ADORNMENT_ID,
-        );
-      }
-    },
-    setTabIcon: (adornment: TabIconContribution | null) => {
-      if (adornment) {
-        tabAdornmentRegistry.setIcon("panel", dv.id, {
-          id: PANEL_SELF_ADORNMENT_ID,
-          ...adornment,
-        });
-      } else {
-        tabAdornmentRegistry.clearIcon("panel", dv.id, PANEL_SELF_ADORNMENT_ID);
-      }
+    setAgentSession: (agentSessionId: string | null) => {
+      setPanelAgentSession(dv.id, agentSessionId, {
+        // Closing the panel is what `ctx.agents.close(id)` means for a session
+        // with no PTY: the transcript goes away and the panel's own unmount
+        // reaps the agent process, exactly as closing a terminal tab kills its
+        // child.
+        close: () => dv.close(),
+      });
     },
   };
 }
@@ -83,9 +58,9 @@ export function makeDockPanelApi(dv: DockviewPanelApi): DockPanelApi {
 /**
  * Wrap a {@link DockPanelKind.component} so dockview (which passes
  * {@link IDockviewPanelProps}) mounts it with the SDK's {@link DockPanelProps}
- * — a {@link DockPanelApi} plus the panel's typed params. Also clears the
- * panel's own tab adornments when it unmounts, so a closed Chat tab does not
- * leave a stale badge in the registry.
+ * — a {@link DockPanelApi} plus the panel's typed params. Also withdraws the
+ * panel's Agent Session declaration when it unmounts, so a closed Chat tab
+ * does not leave the host routing agent chrome at a tab that is gone.
  */
 function toHostComponent(
   kind: DockPanelKind,
@@ -96,16 +71,7 @@ function toHostComponent(
     const panelId = props.api.id;
     useEffect(
       () => () => {
-        tabAdornmentRegistry.clearActivity(
-          "panel",
-          panelId,
-          PANEL_SELF_ADORNMENT_ID,
-        );
-        tabAdornmentRegistry.clearIcon(
-          "panel",
-          panelId,
-          PANEL_SELF_ADORNMENT_ID,
-        );
+        setPanelAgentSession(panelId, null);
       },
       [panelId],
     );

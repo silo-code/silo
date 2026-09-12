@@ -221,6 +221,399 @@ constructing JSX vs. calling the component, which exists because a truthy
 element descriptor made the host reserve space for an icon that rendered
 nothing.
 
+## Session 3.2 — one agent, one code path
+
+**Goal:** the agent monitor stops knowing what an agent runs on.
+
+Session 3.1 shipped a Chat tab badge and Dave immediately found the next hole:
+the Chat session is missing from the **workspace status rows**. It is not a
+Chat bug. `silo.agents` opens with `if (!a.terminalId) continue;` and its status
+provider iterates `ws.terminals`, so every Chat session is dropped at the door —
+along with the chime, done-since, the icon-mode setting and the focus-behaviour
+setting, all of which live inside that extension.
+
+**This is one design gap surfacing repeatedly, not a run of unrelated bugs.**
+`ctx.agents` unified the _data_ in Session 1–2 — `getState()` is genuinely
+`[...trackedAgents, ...chatAgentInfos()]` — but every _consumer_ was written
+against `terminalId`, and the SDK still only hands out terminal-shaped
+affordances. `ctx.terminals.bindActivity(binder)` takes a **terminal id**, so an
+extension literally _cannot_ badge a Chat session. That is what pushed Session
+3.1 into adding `DockPanelApi.setTabActivity` / `setTabIcon` and having the panel
+adorn itself — which closed the visible gap and widened the architectural one:
+chat tab chrome now bypasses `silo.agents` entirely and cannot see its settings.
+
+The inversion to fix: a terminal is a **subject** — it draws a terminal and has
+no idea an agent badge exists; `silo.agents` observes `ctx.agents` and paints
+onto it. The Chat panel became an **author**, both observed and painting. It
+must become a subject too. Its _contents_ stay its own (that is what
+`ctx.agents.sessions` is for); its _tab chrome_ is not its business.
+
+### The rule
+
+> Observing an agent uses `AgentInfo.id` and never branches on `kind`. Reaching
+> for `terminalId` means deliberately leaving agent-land for terminal-land.
+
+Observation parity, not capability parity (RFC 0038). Renaming a PTY stays
+terminal-only, and says so.
+
+### The keystone
+
+**`DockPanelApi.setAgentSession(id | null)`** — a panel declares _what it is
+showing_. That single fact is all the host lacks: it already owns the dock, so
+from it it can route tab adornments to the panel's tab, decide whether the user
+is looking at that session, and clear on unmount. Four of the five SDK additions
+below exist only because this one does.
+
+Replaces `setTabActivity` / `setTabIcon`, which are **removed, not deprecated** —
+committed but unpublished, and behind `chatAgents`.
+
+### The nine terminal-shaped touchpoints in `silo.agents`
+
+Of 27 `ctx.*` calls, 18 are already kind-agnostic and do not move. These nine do:
+
+| Today                                           | For                       | Becomes                                            |
+| ----------------------------------------------- | ------------------------- | -------------------------------------------------- |
+| `ctx.workspaces.get(id)` → `ws.terminals` loop  | status rows **+ labels**  | iterate `getState()`; label from `AgentInfo.title` |
+| `ctx.terminals.bindActivity({provide(termId)})` | tab badge                 | `ctx.agents.bindActivity({provide(agentId)})`      |
+| `ctx.terminals.bindIcon({provide(termId)})`     | tab brand icon            | `ctx.agents.bindIcon({provide(agentId)})`          |
+| `ctx.terminals.invalidateTabAdornments()` ×3    | re-query binders          | `ctx.agents.invalidateAdornments()`                |
+| `ctx.terminals.invalidateTabDecorations()`      | legacy shim               | dropped                                            |
+| `ctx.terminals.subscribeActive()` ×2            | acknowledge; hide-focused | `ctx.agents.subscribeActive()`                     |
+| `ctx.terminals.getActive()` ×2                  | seed for the above        | `ctx.agents.getActive()`                           |
+| `ctx.terminals.close(termId)`                   | row → Close               | `ctx.agents.close(id)`                             |
+| `ctx.terminals.getTabMenuItems(termId)`         | row → right-click         | kept, **gated on `terminalId`** — honest           |
+
+### SDK additions
+
+```ts
+AgentInfo.title: string                  // host-computed label, either kind —
+                                         //   see "The title, and where it comes from"
+ctx.agents.bindActivity(binder)          // provide(agentSessionId); host routes to
+ctx.agents.bindIcon(binder)              //   the owning terminal tab or panel tab
+ctx.agents.invalidateAdornments()
+ctx.agents.getActive() / subscribeActive()   // the session the user is looking at
+ctx.agents.close(id)                     // end it, either kind
+DockPanelApi.setAgentSession(id | null)  // ← the keystone
+```
+
+### The title, and where it comes from
+
+Dave: _"the agent tab title does not update with a summary like we get with OSC
+and the terminal."_ Correct, and the protocol does carry one — probed
+2026-09-08, driving a real turn on both agents and logging every notification:
+
+| signal                             | cursor                                    | claude         |
+| ---------------------------------- | ----------------------------------------- | -------------- |
+| `session_info_update` → `title`    | **yes** — a generated summary of the turn | **never sent** |
+| `session/set_title` (client→agent) | `-32601`                                  | `-32601`       |
+
+So the agent volunteers a title, optionally — exactly like an OSC title, which
+not every CLI writes either. **Silo drops it on the floor today**:
+`session_info_update` is not a kind `acp-sessions-service.ts` looks at, and
+`transcript-model.ts` lists it under "not rendered, not an error". That is the
+whole reason the tab never retitles.
+
+`AgentInfo.title` is therefore a three-step fallback, and the parallel with the
+terminal is exact:
+
+| step                 | Terminal      | Chat                                |
+| -------------------- | ------------- | ----------------------------------- |
+| 1. the agent's words | OSC title     | `session_info_update.title`         |
+| 2. the user's name   | `customName`  | _(none yet — a later session)_      |
+| 3. fallback          | terminal name | declared agent name → profile label |
+
+Feed it in beside the existing `current_mode_update` fold in
+`acp-sessions-service.ts` — a few lines, same place, same shape.
+
+**And the panel reads it back.** `AcpChatPanel`'s `api.setTitle(agentName ??
+params.title ?? …)` chain is replaced by `AgentInfo.title`, so the dock tab and
+the monitor's row are the same string from the same source. Same "one signal,
+many consumers" move as the rest of this session.
+
+The asymmetry is honest and will be visible: Cursor tabs retitle themselves as
+the conversation moves, Claude tabs sit on "Claude Agent". That is the agent's
+choice, not a Silo gap — do not paper over it by synthesising a title from the
+first prompt.
+
+> **Corrected 2026-09-08 (Session 3.2a).** The design call above holds; the
+> fact underneath it does not. `claude-agent-acp` **0.75.1 does send
+> `session_info_update`** — a Claude tab retitled itself to "Pineapple"
+> mid-verification. The probe that recorded "never sent" was reading an
+> earlier adapter. So "which agents volunteer a title" is a fact about the
+> agent _and its adapter version_, and never something to branch on. Nothing
+> in the code changed — it already just renders whatever arrives — only the
+> prose that asserted an asymmetry.
+
+### One attention rule, not two
+
+Terminal activity is derived in `agent-activity-model.ts`; Chat activity is
+derived inline in `acp-sessions-service.ts`. Two reducers for one concept, which
+is exactly why the attention predicate drifted (Session 3.1a had to hand-copy the
+terminal rule across).
+
+**Do not route Chat through the whole terminal reducer.** Most of its event
+vocabulary — `exited` vs `process-gone`, `blockDemotion`, shell demotion,
+`source: shell | agent | timer` — exists _because terminal detection is
+ambiguous_. A Chat session is told, not inferred, and dragging that machinery
+across would be the opposite of this session's point.
+
+Extract the **kind-agnostic core** instead: the turn lifecycle plus the
+viewer-dependent attention rule, which is really this one line —
+
+```ts
+needsAttention = isAgent && !ev.isActiveTerminal;
+```
+
+— generalised to `witnessed` (from `getActive()`, either kind). Terminal resolves
+its OSC ambiguity first and _then_ calls the shared core; Chat calls it directly
+on turn start/end. Terminal-only demotion logic stays where it is.
+
+**Done when:** a Chat session appears in the workspace status rows, chimes on
+finish, honours the icon-mode and focus-behaviour settings, and a Cursor tab
+**retitles itself from `session_info_update`** as the conversation moves — with
+`silo.agents` containing no reference to `terminalId` outside the one gated
+context-menu call; `chatTabActivity`, `DockPanelApi.setTabActivity` /
+`setTabIcon` and the Chat panel's acknowledge-on-visible are all deleted; and
+the attention rule exists in exactly one place.
+
+**Watch for:** `provide` is called synchronously per tab during render — the
+host now resolves `agentId → tab`, so that lookup must be a map read, not a
+scan. And `AgentInfo.title` must track a terminal rename live, or status rows go
+stale where they used to be correct — `ctx.workspaces.subscribe` already exists
+in `silo.agents` for exactly this reason.
+
+## Sessions 3.7 / 3.8 / 3.6 — the running order
+
+An external architecture review (2026-09-08) found three things worth doing
+before Session 4. They run in this document's order — **3.7, then 3.8, then
+3.6** — which is not numeric order: 3.6 was scoped first but runs last because
+it is blocked on catalog recon. The review's own verdicts are recorded in each
+section, including the four places verifying it against the code changed the
+answer.
+
+## Session 3.7 — two seams, before they set
+
+**Goal:** remove a dead privileged export and collapse a dispatch that is
+about to be duplicated a fourth time. Neither is architecture; both get more
+expensive with every consumer.
+
+### `createAcpTransport` comes off the privileged barrel
+
+`sdk-internal.ts` exports it and **nothing imports it from there** — verified;
+`acp-sessions-service.ts`, the one real consumer, imports it by relative path.
+So the export is dead _and_ it hands any `core.*` extension exactly the thing
+Session 3 deleted from the Chat panel, contradicting the constraint
+`ctx.agents.sessions` was designed around (the connection is host-owned; the
+SDK deliberately does not hand out a transport). Five minutes.
+
+### One `startAgentProfile(profile)`, not a branch per caller
+
+"Start this profile" branches on `launch.interface` in **three** places today:
+
+| site                                     | what it does with a Chat profile            |
+| ---------------------------------------- | ------------------------------------------- |
+| `panels/GroupAddMenu.tsx:138`            | opens the `chatProfileHost` panel           |
+| `agents-settings/profile-commands.ts:45` | opens the `chatProfileHost` panel           |
+| `control/agent-run-handler.ts:188`       | refuses — `silo agent run` is terminal-only |
+
+(The review counted two and predicted `silo agent run` making it four; it is
+already a site, so the fourth is Start Task.) Collapse the dispatch into the
+agents module. That also removes the reason `resolveChatProfileHost` /
+`chatProfileHostParams` are on the privileged barrel at all — host chrome
+should ask "start this profile", not "which panel claims Chat profiles".
+
+**This is a prerequisite for 3.6**, not just tidying: 3.6 changes how a Chat
+profile is authored, and this dispatch is what opens one.
+
+### Considered and declined
+
+- **Move `setActiveDockPanel` out of the agents module.** The review called
+  this internal placement and said skip; agreed, but the reason is the
+  **name**, not the location. `setActiveDockPanel` is not an agent concept, yet
+  it lives in `agents/agent-surface-registry.ts` and `WorkspaceDock` now
+  imports the agents module to publish a general dock fact. Harmless with one
+  consumer. When a second wants "which panel is active", the _fact_ moves
+  beside `active-terminal-registry.ts` and the agents module derives from it.
+- **Generalize `applyChatAgentsGate` for a second flag.** The review withdrew
+  this citing this repo's own principles, and that is right: the deps object is
+  a test seam, not a generalization, and the extension id comes from the caller
+  precisely so the host never learns what the bundled panel is called. Correct
+  as written.
+
+## Session 3.8 — the update stream is not the wire format
+
+**Goal:** stop `AgentSessionUpdate.raw` being the only way to render a
+transcript. This is the one real architectural item the review found, and
+the sprint is actively recruiting extensions onto this surface.
+
+### Criterion 2 is passing on a technicality
+
+`AgentSessionUpdate` models `kind`, `text`, `messageId` and `raw`. Everything
+else comes off `raw` — verified in Silo's own panel
+(`transcript-model.ts:239-276`): `raw.toolCallId`, `raw.title`, `raw.status`,
+`raw.kind`, `raw.content`, and `raw.entries` for the plan. Tool calls and the
+plan are not garnish; they are most of what a transcript shows.
+
+So "an extension can build its own Chat UI using only `@silo-code/sdk`" is
+**true in letter and false in spirit**: it can, by reading undocumented ACP
+wire fields — and the bundled panel, the reference implementation a third party
+will copy, is what teaches them to. That is exactly the finding phase 3 existed
+to surface. The panel found it and worked around it instead of reporting it,
+which is the mistake to name: a workaround inside the reference implementation
+looks like a feature to everyone downstream.
+
+`@beta` does not save this. Re-typing the surface later burns precisely the
+early adopters the criterion exists to attract.
+
+### Scope
+
+- Model `tool_call` / `tool_call_update` as real SDK fields — id, title,
+  status, kind, content — since **every** Chat UI must render them.
+- Model `plan` too. The review omits it; `planRows` reads `raw.entries` and it
+  is the same shape of problem.
+- Keep `raw` as the documented escape hatch, and say in its TSDoc that it
+  **tracks the protocol, not semver** — an unmodelled field may change under a
+  consumer without an SDK major.
+- Rewrite `transcript-model.ts` against the modelled fields. It is the proof:
+  if the bundled panel still needs `raw` for anything a Chat UI must show, the
+  modelling is not finished.
+- Tolerance is unchanged — an unknown `kind` is skipped, never an error.
+
+**Done when:** `transcript-model.ts` reads no `raw` field for tool calls or the
+plan, and the `/api/agents/sessions` page documents what is modelled versus
+what `raw` is for.
+
+**Watch for:** model what the protocol _carries_, not what this panel happens
+to render. The temptation is to shape the fields around
+`transcript-model.ts`'s current output, which would bake one UI's choices into
+the SDK.
+
+**Done (2026-09-08) — see the handoff log.**
+
+## Session 3.6 — a Chat profile you cannot author wrongly
+
+**Goal:** picking the agent replaces typing its launch line. Silo already knows
+how each catalog agent runs in Chat; stop asking the user.
+
+Dave authored a Chat profile from his `claude-personal` shell alias and got
+`failed to spawn claude-personal: No such file or directory (os error 2)`. The
+profile was wrong, and the editor had every chance to prevent it.
+
+### Why the current field is the wrong control, not a badly-labelled one
+
+**Free text is right for Terminal and wrong for Chat**, and the asymmetry is
+structural rather than cosmetic:
+
+|                           | Terminal                                           | Chat                          |
+| ------------------------- | -------------------------------------------------- | ----------------------------- |
+| how Silo starts it        | typed into an interactive login shell              | `exec`, no shell              |
+| so `command` may be       | an alias, a shell function, a version-manager shim | only a resolvable file        |
+| who knows the right value | **the user** — it is their shell                   | **Silo** — it came from recon |
+
+A terminal command _must_ be free text: only the user knows that
+`claude-personal` is their alias for
+`CLAUDE_CONFIG_DIR=~/.claude-personal claude --dangerously-skip-permissions`.
+The Chat arm has the opposite property in both rows. Nobody guesses
+`@agentclientprotocol/claude-agent-acp`, and nothing a user can type is more
+correct than what `AgentDefinition.acpLaunch` already records. The editor today
+transplants the Terminal control onto that case and tries to rescue it with a
+"Use it" suggestion (Session 3.4) the user is free to wander away from — which
+is exactly what happened.
+
+So: **`acpLaunch` becomes the source, not a hint.** Same "one signal, many
+consumers" move as Session 3.2, applied to authoring instead of chrome.
+
+### The shape
+
+With **Interface: Chat**, the Command / Arguments fields are replaced by an
+**Agent** picker listing only catalog agents with a verified `acpLaunch`, plus
+a **Custom…** entry:
+
+- **`kind: "builtin"`** (cursor, opencode, copilot) — nothing more to ask.
+  Silo composes `cursor-agent acp`.
+- **`kind: "adapter"`** (claude, codex, pi) — Silo composes the npx invocation
+  from the catalog, and the only thing left to ask is the **config
+  directory**, for a second account.
+- **`acpLaunch: undefined`** (grok) — **not offered.** It stays in the Terminal
+  list. Today the editor shows an honest warning and still lets you save a
+  profile that cannot work; not offering it is strictly better than explaining
+  why it will fail.
+- **Custom…** — reveals today's command/args fields unchanged. This is not a
+  second-class escape hatch: acceptance criterion 2 says a third party can
+  drive a session, and a locally-built ACP binary is that same case. One
+  choice, not two parallel worlds.
+
+**Config directory comes back for Chat**, which Session 3.1 dropped on the
+grounds that the arm carries `env` rather than `configDir` — and then never
+surfaced `env` at all. So a Chat profile for a second Claude account is
+currently **unauthorable**: `claude-work-ui` is implicitly the work account only
+because `~/.claude` is the default. The same field the Terminal arm has, writing
+into `launch.env` keyed by `configDirEnvVarForAgent(agentId)`. **Verified**
+2026-09-08 — the adapter spawned with `CLAUDE_CONFIG_DIR=~/.claude-personal`
+answered `session/new` OK under that directory.
+
+### The blocker: the catalog does not hold a resolvable adapter spec
+
+`acpLaunch: { kind: "adapter", package: "claude-agent-acp" }` is a **short
+name**, not something npx can resolve — the real spec is
+`@agentclientprotocol/claude-agent-acp`. Session 3.1 recorded the short name
+and **deliberately refused to guess** the rest, which is why it prefills
+nothing for an adapter agent today. Nothing in this session can compose an npx
+line until that data exists.
+
+Only Claude's is verified (`@agentclientprotocol/claude-agent-acp@0.75.1`);
+**`codex-acp` and `pi-acp` are unprobed** and must not be filled in from a
+guess. **Do the recon first** — spawn each, run `initialize` + `session/new`,
+record the version — and drop the arm to `undefined` for any that does not
+work. This is the sprint's own rule: the check is a run, not a read of the docs.
+
+**Resolved 2026-09-08** — all three probed over piped stdio; the catalog now
+holds `@agentclientprotocol/claude-agent-acp@0.75.1`,
+`@agentclientprotocol/codex-acp@1.10.0` and `pi-acp@0.0.33` (unscoped — it
+needs no vendor prefix, and same-named third-party forks exist, which is why
+the spec is pinned rather than resolved by short name). Neither was dropped to
+`undefined`: `pi-acp` passed `initialize` **and** `session/new`, and `codex-acp`
+passed `initialize` and failed `session/new` with `Authentication required`
+only because this machine has no codex login at all. See the handoff log for
+why that distinction is the one that decides the arm.
+
+**Pin the version; do not float `@latest`.** The adapter has already moved
+under a recorded probe twice in this sprint — `session/set_config_option`
+(3.1a) and `session_info_update` appearing for Claude (3.2a). A float turns the
+next such move into a silent breakage instead of a deliberate bump, and a bump
+is then a recon run with a `lastVerified` date, like every other catalog fact.
+
+### Scope
+
+**Runs after 3.7** — its `startAgentProfile` collapse is what opens a Chat
+profile, and 3.6 changes how one is authored.
+
+- Catalog: a resolvable adapter spec + pinned version, reconned per agent.
+  This is RFC 0038 open question 5's "vendor vs. name-only" arriving early: the
+  review judged it a phase-5 question on the grounds that the user types the
+  command today, which 3.6 is precisely what stops being true.
+- `ProfileEditorModal` + `profile-editor-model.ts`: the Chat arm's Agent picker,
+  Custom…, and Config directory → `launch.env`.
+- Keep the composed launch **visible** — the "Silo will run" preview line
+  already exists and is how the user sees what the picker chose for them.
+- Migration: an existing Chat profile keeps editing as one. A saved profile
+  whose command matches a catalog agent's composed launch may present as that
+  agent; anything else presents as **Custom…** rather than being silently
+  rewritten. Re-authoring someone's saved profile because a model changed is
+  the mistake Session 3.1 already declined to make once.
+
+**Done when:** a Chat profile for a second Claude account can be authored
+without typing a command, `grok` is absent from the Chat picker, a
+locally-built ACP binary is still authorable through Custom…, and an existing
+profile survives a round-trip through the editor unchanged.
+
+**Watch for:** this does **not** attempt the "redo the whole profile editor"
+job — the editor is carrying two arms, a launch union, prompt delivery and
+resume readiness in one modal, and that is a real design debt worth its own
+proposal. Fix the arm whose control is structurally wrong; leave the rest.
+
+**Done (2026-09-08) — see the handoff log.**
+
 ## Session 4 — persistence and the proof
 
 **Goal:** the three acceptance criteria, demonstrated.
@@ -230,6 +623,36 @@ nothing.
   `acp-recon.md` §5d. The panel wiring was written but **never worked**; suspect
   params not carrying `sessionId` back on remount.)
 - Reap agent processes on panel close, workspace close, and app quit.
+- **`acp_close` kills the child, not the grandchild.** Observed 2026-09-08
+  (Session 3.7 verification): deleting a workspace with two live Cursor Chat
+  panels left **one `PPID 1`** process — and it was not `cursor-agent` itself
+  but `~/.local/share/cursor-agent/versions/<v>/node`, the interpreter
+  `cursor-agent` re-execs. So the wrapper died and its own child was adopted by
+  init. A kill that targets only the direct pid cannot reap an agent that
+  shells out to a real runtime, which is every `adapter`-kind agent (`npx` →
+  node) and Cursor too. Kill the **process group**, not the pid. This is a
+  third leak shape, distinct from the two below.
+- **Reap the previous page generation on a webview page load.** Measured
+  2026-09-08: **45 → 47** live ACP children across a single webview reload,
+  with **zero** `disposed.` lines logged and every child still `PPID` = the
+  app. A full page load has no unmount for cleanup to run in, while the Rust
+  connection registry keeps holding the children — so this, not orphan
+  reaping, is the common leak. (The architecture review proposed a boot-time
+  orphaned-pid sweep; it would have caught none of these, because the app
+  never restarted. A sweep is still worth having for the `SIGKILL` case from
+  3.1, but it is the rarer half.)
+- **ADR: agents die with the app, and the conversation does not.** Do _not_
+  build daemon-owned ACP children — the RFC's reasoning holds and
+  `session/load` is far cheaper. But write the decision down here, because this
+  session encodes it into the restore path. The honest shape of it: inside a
+  running app a background Chat agent _does_ stay alive, so the product's
+  "projects stay alive, agents intact" promise holds; across a restart a
+  terminal agent's PTY survives via the session-host daemon and a Chat agent's
+  process does not. That is an asymmetry **between kinds**, which RFC 0038
+  already places out of scope ("observation parity, not capability parity") —
+  so it is a documented limit rather than a contradiction. It still needs the
+  ADR, because a user who has learned that terminals survive a restart will
+  reasonably expect agents to.
 - **The proof:** an `examples/extensions/` extension that drives a session
   end to end through `ctx.agents.sessions` — that is criterion 2.
 - Disable `core.acp-chat` on Settings → Extensions, confirm the example
@@ -280,9 +703,26 @@ Each cost real time in the spike. Do not rediscover them.
   them from the Extensions page by design — a bundled feature meant to be
   replaceable has to be `silo.*`.
 - **`app-state.json` on disk is stale** — it holds 3 workspaces while the app
-  reports 9. Do not debug persistence from that file.
+  reports 9. Do not debug persistence from that file. Worse than "stale",
+  measured 2026-09-08: the dev file was **four months old** and had no
+  `agentProfiles` key at all. To read live host state from an automation
+  session, dynamic-`import()` the internal barrel by its `/@fs/…` path in an
+  `eval` and call the getter (`getAgentProfiles()`) — vite hands back the same
+  module instance the app is using, so the valtio store is the live one.
 - **The client is not a safety boundary.** Cursor writes files without asking and
   without calling `fs/write_text_file`. Never imply in UI that Silo gates writes.
+- **A Chat profile's `command` is `exec`'d — a shell alias can never work.**
+  There is no shell, so `claude-personal` (an alias) gives
+  `No such file or directory (os error 2)`, and a shell function or a
+  version-manager shim fails the same way. This has now cost time three
+  separate times (Session 3.4 twice, Session 3.6 once), which is why 3.6 stops
+  asking the user for the line at all. The Terminal arm is the opposite and
+  free text is correct there.
+- **An adapter's advertised behaviour moves between versions.** `claude-agent-acp`
+  changed twice inside this sprint: `session/set_config_option` (3.1a) and
+  `session_info_update` appearing where the recon found none (3.2a). Never
+  branch on "agent X does/doesn't do Y" — render what arrives, and treat any
+  recorded probe as true only for the version beside it.
 
 ## Verifying in the running app
 
@@ -471,7 +911,104 @@ still outstanding: `pnpm test` / `tsc --noEmit` / `pnpm lint` /
 panel. The path is now walkable end to end: Settings → Agents → Profiles →
 **Enable Chat agents**, restart, add a profile with **Interface: Chat** (pick
 Cursor or OpenCode for a zero-install path — both prefill correctly), then
-**New Agent Chat** from a dock's **+** menu. Next: Session 4.
+**New Agent Chat** from a dock's **+** menu. **Next:** written up as **Session 3.6 — a Chat profile you cannot author
+wrongly** above, after Dave hit `failed to spawn claude-personal` authoring a
+Chat profile from a shell alias. Two findings behind it: the Chat arm's
+free-text Command is the Terminal control transplanted onto a case where its
+premise (a shell resolves it) does not hold, and a second-account Chat profile
+is **unauthorable** today because Session 3.1 dropped Config directory for Chat
+without ever surfacing `launch.env`. Blocked on catalog recon: the adapter spec
+is a short name, not something npx can resolve.
+
+**Architecture review (2026-09-08, external agent) — checked against the code,
+four answers changed.** Dave had a separate agent review the architecture. Most
+of it held; verifying each claim against the source is what made it useful, and
+is recorded here because "an agent said so" is not evidence.
+
+- **Held, and understated: the raw passthrough.** Now Session 3.8. The review
+  argued that recruiting extensions onto `update.raw` makes ACP's wire format
+  the public contract. True, and the sharper version is that **Silo's own panel
+  already proves criterion 2 only passes on a technicality** — every tool-call
+  and plan field it renders comes off `raw`. A workaround inside the reference
+  implementation looks like a feature to everyone downstream. The review also
+  omitted `plan`, which is the same problem.
+- **Held: `createAcpTransport` on the privileged barrel.** Verified dead — the
+  one real consumer imports it by relative path. Now Session 3.7.
+- **Held but undercounted: the launch dispatch.** The review said two sites and
+  predicted `silo agent run` making it four; `agent-run-handler.ts:188` is
+  already a site, so it is three today. Its causal claim was right:
+  a single `startAgentProfile` removes the reason `resolveChatProfileHost`
+  is on the privileged barrel. Now Session 3.7, and a **prerequisite** for 3.6.
+- **Right conclusion, wrong reason: moving `setActiveDockPanel`.** Skip, yes —
+  but because the _name_ is not an agent concept, not because placement is
+  internal. Recorded under 3.7's declined items so the real trigger (a second
+  consumer of "which panel is active") is written down.
+- **Withdrawn, correctly: generalizing `applyChatAgentsGate`.** The review
+  withdrew its own item citing this repo's principles. Confirmed correct as
+  written.
+- **Materially wrong: the orphan sweep.** It proposed a boot-time orphaned-pid
+  sweep for leaked children. Measurement says otherwise — 45 → 47 children
+  across one webview reload, zero dispose lines, every child `PPID` = the app.
+  Those are not orphans and the app never restarted, so a boot sweep catches
+  none of them. Folded into Session 4 as the page-generation reap, with the
+  sweep kept for the rarer `SIGKILL` half. **The review could not have known
+  this** — the measurement is hours old — which is the useful lesson: a review
+  reasons from the code, and the code did not say which failure mode was
+  common.
+- **Overtaken: adapter provenance.** Judged low-risk "while phase 5 is
+  unbuilt, since the user writes the command themselves today" — which Session
+  3.6 stops being true. Now a 3.6 blocker rather than a phase-5 question.
+- **Held: the process-ownership ADR.** Agreed, and folded into Session 4 with
+  the tagline question answered rather than left rhetorical (see there).
+
+**Session 3.7 (2026-09-08, Opus) — two seams, closed.** Both landed as scoped.
+`createAcpTransport` is off `sdk-internal.ts` — it was dead there (the one real
+consumer imports it by relative path) _and_ it offered any `core.*` extension
+exactly what Session 3 deleted from the panel. And "start this profile" is now
+one function, `agents/agent-profile-start.ts`, returning a discriminated
+`AgentProfileStart` the caller places.
+
+**Placement stayed with the callers, deliberately.** They genuinely differ —
+the `+` menu has the dock group the user clicked **+** in, a keybinding has
+none — so the dispatch resolves _what to start_ and hands back
+`terminal | panel | refused | cancelled`. Taking a placement callback instead
+would have made one shape pretend to be two. `resolveChatProfileHost` /
+`chatProfileHostParams` came off the privileged barrel with it: host chrome now
+asks "start this profile", never "which panel claims Chat profiles".
+
+**`silo agent run` deliberately does not use it**, and now says why in a
+comment. It is a headless control-API verb with no window to open a transcript
+in, so it keeps its own refusal; routing it through the dispatch would have
+turned `silo agent run --profile my-chat` into a panel appearing on someone's
+screen. This was the one trap in the collapse and it is the reason the review's
+"one startAgentProfile" framing needed a caveat.
+
+Tests moved to where the behaviour moved: `profile-commands.test.ts` had been
+mocking `pickWorkspaceFolder` / `launchAgentProfile` / `resolveChatProfileHost`
+off the barrel, which the command no longer touches — it now stubs
+`startAgentProfile` and asserts only _placement_ (4 cases), while the dispatch
+itself gets `agent-profile-start.test.ts` (9 cases, including that a Chat
+profile never reaches the folder chooser and that a pre-launch-union record
+still falls through to the terminal path).
+
+**Verified live**, all four gestures in a sandbox workspace with throwaway
+`s37-cursor` / `s37-term` profiles (both removed): `core.newAgent.<id>` opened
+a connected Chat panel and, for the Terminal profile, created a terminal with
+no panel of its own; the **+** menu did both and placed each into the clicked
+group. Trap for the next session driving menus: `silo-menu-item` handles
+**`onMouseDown`**, not `onClick` — a `.click()` is a silent no-op.
+
+**One new finding, folded into Session 4.** Tearing the sandbox down left a
+single `PPID 1` process, and it was not `cursor-agent` but the
+`versions/<v>/node` interpreter it re-execs — so `acp_close` killed the wrapper
+and init adopted its child. Killing the pid cannot reap an agent that shells
+out to a real runtime, which is every adapter-kind agent (`npx` → node) and
+Cursor as well: it needs the process group. That is a **third** leak shape,
+independent of the reload leak and the `SIGKILL` one.
+
+`pnpm test` / `tsc --noEmit` / `pnpm lint` / `pnpm docs:build` green.
+
+Next: Session 3.8 (the update stream), then 3.6, then Session 4.
 
 **Session 3.2 (2026-09-08, Opus) — the dead menu row.** Dave enabled the gate,
 authored a Claude Chat profile, clicked it in a dock's **+** menu, and nothing
@@ -779,5 +1316,292 @@ all via `close_all`, so it is bounded, but Session 4 should find out which.
 **Note — not folded in:** moving `core.acp-chat` → `silo.*` (the Breadcrumb
 dependency) stayed a Session 4 trap, per the brief's own call.
 
-Next: Session 4 — persistence / `session/load` on mount, the `examples/`
-extension proof, the `silo.*` move, and (small) the signal-kill reap above.
+**Session 3.2 (2026-09-08, Opus) — one agent, one code path.** The inversion
+landed and `silo.agents` no longer knows what an agent runs on. Order was
+keystone-first, green at each step.
+
+**The keystone did the work the write-up predicted.** `DockPanelApi
+.setAgentSession(id | null)` plus a host **agent-surface registry**
+(`agents/agent-surface-registry.ts`) is the whole of it: `panelId → sessionId`
+is the primary index (a `provide` call must be a map read), `sessionId →
+panelId` the reverse, and the panel's own dockview api supplies a `close`
+control, so `ctx.agents.close(id)` needed no new SDK option. `getActive()`
+resolves the active terminal tab first — a Terminal session's id _is_ its
+terminal record id, so `active-terminal-registry.ts` already answered for one
+kind — else the active panel's declaration; `WorkspaceDock` publishes the
+active panel id from the same effect that already published the active
+terminal. Six SDK additions, all `@beta`, documented, `docs:api` regenerated,
+`silo-docs-sync` run: `AgentInfo.title`, `bindActivity`, `bindIcon`,
+`invalidateAdornments`, `getActive` / `subscribeActive`, `close`, and the
+keystone.
+
+**A latent bug fell out of the agent-keyed binders.** They register _one_
+provider under both the `terminal` and `panel` adornment kinds, and
+`tab-adornment-registry.ts` tracked icon-binder kind in a `Map` keyed by
+`binder.id` — so the second registration silently retagged the first and one
+dispose deleted both. `bindIcon` now uses the `{kind, binder}` entry shape the
+other three verbs already used. Regression test included.
+
+**The attention rule is now in exactly one place**, `agents/agent-turn-model
+.ts`: `beginTurn` / `endTurn` / `witnessTurn` over a four-field `TurnPhase`,
+with `needsAttention = isAgent && !witnessed` and a `TurnOutcome` of
+`finished | cancelled | failed`. The terminal reducer resolves its ambiguity
+(source gating, demotion blocking) and _then_ calls in; Chat calls in directly
+with `witnessed = getActiveAgentSession() === infoId`. None of `exited` /
+`process-gone` / `blockDemotion` / `workingSource` moved — that vocabulary
+exists because detection is ambiguous, and Chat is told. `agent-activity-model
+.test.ts`'s 28 existing cases passed unmodified, which was the point of
+extracting rather than rewriting. Two Chat behaviours changed to match
+terminal: a `failed` outcome (a dead process) no longer _also_ raises
+attention — `activity: "error"` is loud on its own — and a permission request
+raises only when unwitnessed.
+
+**Removals, as specified.** `DockPanelApi.setTabActivity` / `setTabIcon`,
+`acp-chat/tab-adornment.ts` + its test, and the panel's acknowledge-on-visible
+effect are gone. The panel's three tab-chrome effects collapsed to one
+`setAgentSession` declaration plus one subscription that reads `AgentInfo
+.title` and `activity === "error"` back. `stripStatusMarker` went too — the
+host's `stripAgentStatusMarkers` (strictly better: OMP separators, Cursor's
+derived status table) now feeds `AgentInfo.title`, so the extension's
+duplicate was dead. The `"panel"` `TabAdornmentKind` and the
+`dock-panel-kinds.ts` wrapper stayed, as instructed.
+
+**Title tracks a rename live** via a `refreshTerminalTitles()` pass in
+`syncSessions`, which already runs off `subscribe(store, …)`. This is the trap
+the write-up flagged: a rename changes no _activity_, so it fires no activity
+event, and a status row keyed on the field would have sat on the old name
+forever. `silo.agents`' own `ctx.workspaces.subscribe` was dropped as
+redundant once the host owns this.
+
+**Verified live** (`verifier-gui`, the dev app on `:7878` confirmed as this
+worktree's binary; throwaway `v32-cursor` / `v32-claude` profiles and a sandbox
+workspace, all removed afterwards). Driving a real Cursor turn produced, in one
+snapshot: the tab retitling itself from **"v32 cursor" → "Explain WeakMap
+Caching"** (`session_info_update` → `AgentInfo.title`), `aria-label: "Agent
+working"` on that tab, a brand icon on it, and a status row reading **"Explain
+WeakMap Caching | 2s"** — the same string in both places from the same field.
+Then, each in turn: a finish with the panel active raised **no** badge and the
+row went neutral grey (witnessed); a finish with an editor tab active raised
+**"Finished"** and a green counting row (unwitnessed) — with the panel doing no
+acknowledging at all; activating the tab cleared it via
+`ctx.agents.subscribeActive`; the **chime fired** (patched `window
+.AudioContext` and watched the count go 0 → 1 exactly at the finish, which a
+Chat session had never done); **icon-mode** `none` removed the icon from the
+Chat tab and `color` restored it (the panel used to hard-code `"color"`); and
+**focus-behaviour** `hide` removed the Chat session's status row while its tab
+was active and brought it back on switching away. Closing the tab withdrew the
+declaration, dropped the row, and logged `Chat session chat:… disposed.`
+Dave's settings were restored to their original values.
+
+**The open thread is diagnosed, and the first hypothesis was wrong.** It is not
+an HMR remount reconnecting without disposing. The children arrive in matched
+`cursor-agent` + `claude-agent-acp` **pairs** — one per open Chat panel — and a
+deliberate test settled it: 45 children before a webview reload, **47** after,
+with **zero** `disposed.` lines logged. A full page load has _no unmount for
+cleanup to run in_, so every reload strands one child per panel while the Rust
+connection registry keeps holding it. Same root cause as the `tauri dev`
+`SIGKILL` leak from 3.1 — the JS-side cleanup is simply never reached. The fix
+belongs host-side (reap the previous page generation's connections when a new
+page load registers, rather than trusting a `beforeunload` a webview may not
+deliver), and is Session 4's. Bounded by `close_all` on a graceful quit; Dave's
+app was carrying ~23 stale pairs, left in place because `close_all` cannot tell
+them from the two live ones.
+
+**Also:** `silo.agents`' user-facing prose said "terminal" throughout — the
+focus-behaviour cards, the sound hint, the workspace-rows hint — which stopped
+being true the moment a Chat session honoured those settings. Reworded to name
+the _session_. Glossary gained **Agent Surface**, **Session Title** and
+**Witnessed** (`docs/domain-language.md`); the roadmap's `ctx.agents` row names
+the new verbs.
+
+`pnpm test` (all 11 packages) / `tsc --noEmit` / `pnpm lint` / `pnpm docs:build`
+green; `docs:api` regenerated.
+
+**Session 3.2a (2026-09-08, Opus) — the dropdown that ate the conversation.**
+Dave looked at the composer's profile picker and asked the right question:
+what happens if you switch mid-chat, and should you be allowed to? What
+happened was a silent teardown — the handle disposed (reaping the agent), the
+transcript wiped, a new session connected, no confirmation, and mid-turn the
+in-flight prompt abandoned. Nothing broke or leaked; you just lost the
+conversation with one click on a control that reads like a filter. The
+behaviour was right and the gesture was wrong.
+
+Switching now confirms first, with the rule in a pure `profile-switch.ts`
+(`confirmProfileSwitch` / `hasConversation`, 7 tests) rather than inline in the
+component. Two cases stop, and deliberately nothing else: **a turn in flight**
+("Stop this turn and switch agents?" — cancelling someone's running turn from a
+dropdown is never what they meant, whatever else is on screen), and **a
+transcript with something in it**. Emptiness is judged on the agent's and the
+user's own words — Silo's own `NoticeEntry` lines do not count, so a panel that
+only ever managed "ACP connection closed" switches freely; making the user
+confirm past a failed connect to try a different agent would be the opposite of
+helpful. The message names the agent being _left_, since that is the half the
+dropdown stops showing them once they have chosen. Declining touches no state
+and the `Select` is controlled off `profileId`, so it snaps back on its own.
+
+Verified live across all four paths (sandbox workspace + `sw-cursor` /
+`sw-claude`, both removed): an empty transcript switched silently; a transcript
+with a message raised the conversation confirm naming "Claude Agent";
+**Cancel** snapped the picker back with the transcript intact; mid-turn raised
+the stop confirm (`busy=true` captured at the click); and **Stop and switch**
+completed the switch, wiped the transcript, logged the old session disposed,
+and connected Cursor.
+
+**One factual correction to Session 3.2, no code change.**
+`claude-agent-acp` 0.75.1 **does** send `session_info_update` — a Claude tab
+retitled itself to "Pineapple" during this verification, where 3.2 (following
+the recon) asserted Claude never sends one. The design call was always "render
+what the agent volunteers, never synthesise", so the implementation needed
+nothing; only the prose claiming a permanent Cursor/Claude asymmetry did. Now
+worded as a fact about the agent _and its adapter version_, in the SDK TSDoc,
+the host, the glossary and the Session 3.2 spec above. Worth keeping as a
+pattern: this is the third time in the sprint an adapter's behaviour moved
+under a recorded probe.
+
+Next: Session 4.
+
+**Session 3.8 (2026-09-08, Opus) — the update stream is no longer the wire
+format.** `transcript-model.ts` reads **no `raw` field at all** (grep-verified:
+the only occurrence in `packages/extensions-core/src/acp-chat/` is the doc
+comment saying not to). Six new `@public @beta` types carry what a transcript
+must draw: `AgentToolCall`, `AgentToolCallContent`, `AgentToolCallLocation`,
+`AgentPlanEntry`, `AgentContentBlock`, plus `AgentSessionUpdate.toolCall` /
+`.plan` / `.content` and `AgentPermissionRequest.toolCall`. Parsing lives in one
+host module, `agents/acp-update-model.ts` (`parseToolCall` / `parsePlanEntries` /
+`parseContentBlock`, 20 tests).
+
+**Recon first, then modelling — and it changed the shape.** Rather than reading
+the spec, I ran four real turns straight against the agents over stdio (script
+kept out of the repo) and modelled what actually arrived. What that bought:
+
+- **`tool_call_update` carries only what changed** — most frames were
+  `{ toolCallId, status }` alone. So one type serves both kinds and **only
+  `toolCallId` is required**; every other field is optional and absent means
+  _unchanged_, never _empty_. Modelling `title` as required (the obvious read of
+  the spec) would have been wrong on the majority of frames.
+- **`locations` and `rawInput` / `rawOutput` exist and the panel ignores them.**
+  Modelled anyway, per the brief: `locations` is how an agent says which file a
+  call is about (Cursor sends `path` only, `claude-agent-acp` 0.75.1 sometimes
+  `line` too), and the two `raw*` fields are protocol-carried but vendor-shaped,
+  so they are typed `unknown` with the caveat in their TSDoc.
+- **A `"diff"` block's `oldText` is `null` for a file being created** — collapsed
+  to `undefined` at the boundary rather than pushed onto consumers.
+- **Content-block and tool-content `type` are `string`, not unions**, following
+  the house pattern already set by `AgentSessionConfigOption.type`: tolerate the
+  unknown and let a UI _name_ a block it cannot expand rather than drop it.
+
+**`raw` stays, with its contract written down**: it is the escape hatch for what
+is deliberately unmodelled (`available_commands_update`, `usage_update`,
+`current_mode_update` and `session_info_update` — the last two already surfaced
+as `configOptions` / `AgentInfo.title` — and vendor `_meta`), and its TSDoc,
+`/api/agents/sessions` and the glossary all now say the thing that matters:
+**`raw` tracks the protocol, not semver.** A field inside it can change under a
+consumer with no SDK major. Also folded in: `AgentPermissionRequest.toolCall`,
+because the permission row is exactly where a UI wants to show the diff it is
+being asked to approve, and that was `raw`-only too.
+
+**The regression proof is a replay, not an eyeball.** A live agent turn is not
+reproducible — re-running the same prompt gets different prose and a different
+number of tool calls — so "renders the same transcript" was settled by folding
+the **four captured frame sets** (Cursor 2026.09.02, `claude-agent-acp` 0.75.1
+×2, `@zed-industries/claude-code-acp` 0.16.2) through the old `raw`-reading
+reducer and the new one, and asserting the entry arrays are equal. They are,
+including `seq`. That harness lived in the scratchpad and is gone with the old
+code it compared against; what survives in the repo is `acp-update-model.test.ts`,
+whose fixtures are lifted from those real frames. The existing
+`transcript-model.test.ts` assertions all survived — only fixture _shape_
+changed — with two deliberate exceptions, both because the behaviour moved
+upstream rather than away: wire-level garbage is now rejected by the parser, so
+the panel's "all the wrong type" case is now "a `tool_call` the SDK could not
+model" (still a row, still not a crash), and `planRows` is fed entries rather
+than a `raw` object.
+
+**Verified live** (`verifier-gui`, this worktree's app on `:7878`, sandbox
+workspace + throwaway `s38-cursor` / `s38-claude` / `s38-plan` profiles, all
+removed): a Cursor turn that read two files, wrote two and ran `ls` rendered
+title/kind/status/diff rows identically before and after; a Claude turn raised
+the inline permission row and completed through it; and the plan path rendered
+**live plan rows moving `pending` → `in_progress` → `completed`** and being
+replaced in place.
+
+**One finding worth keeping: no agent on this machine emits `plan` by default.**
+Cursor 2026.09.02 writes its plan as _prose_, and `claude-agent-acp` 0.75.1 does
+not map Claude's todo list onto the protocol's `plan` update at all. The one
+that does is the older `@zed-industries/claude-code-acp` (0.16.2, since renamed
+to `@agentclientprotocol/claude-agent-acp`), which is what the plan modelling and
+the live plan verification are built on. So the plan row in Silo's panel had, up
+to this session, **never rendered from a real agent**. Two consequences: use the
+Zed-named adapter when you need a plan to test against, and note that it refuses
+to start inside a Claude Code session (`Claude Code cannot be launched inside
+another Claude Code session` — `unset CLAUDECODE` to probe it from a terminal;
+the app spawns it fine).
+
+`pnpm test` (11 packages, 1900 in extension-host alone) / `tsc --noEmit` /
+`pnpm lint` / `pnpm docs:build` green; `docs:api` regenerated; `silo-docs-sync`
+run for all six new symbols (TSDoc, `@public`/`@beta` + `@category`, barrel, the
+`/api/agents/sessions` page rewritten to say what is modelled versus what `raw`
+is for, roadmap row). Glossary gained **Update stream**.
+
+Next: Session 3.6 (blocked on catalog recon), then Session 4.
+
+**Session 3.6 (2026-09-08, Opus):** Picking the agent now _is_ authoring the
+Chat launch. `AgentAcpLaunch`'s adapter arm carries a resolvable `package` plus
+a pinned `version`; `chatLaunchForAgent` composes `npx -y <package>@<version>`
+(or the builtin's own argv) and the editor writes that, so the Chat arm has an
+**Agent** picker where Terminal has a Command field — the asymmetry is the
+point, since only the user knows their shell and only Silo knows the ACP
+invocation. Session 3.4's rescue machinery is gone rather than left inert beside
+it: `suggestChatLaunch`, `matchesChatSuggestion`, the "Use it" Callout, the
+adapter/none Callouts and the `chatLaunchEdited` flag are deleted, replaced by
+`chatChoice` (an agent id, `custom`, or unset) derived from the saved launch via
+the new `chatAgentForLaunch`. Config directory came back for Chat, writing
+`launch.env[configDirEnvVarForAgent(id)]` — the same control as Terminal, only
+the destination differs.
+
+**The recon changed one catalog answer and nearly changed two.** `pi-acp@0.0.33`
+is **unscoped** (svkozak/pi-acp) — the short name was already correct, but
+several third-party forks share it on npm, so the spec is pinned rather than
+resolved by name. `codex-acp` needed the `@agentclientprotocol/` prefix and
+pinned at 1.10.0. **Judgement call worth reviewing:** codex passed `initialize`
+(agentInfo "Codex" 1.10.0, protocolVersion 1) but `session/new` returned
+`Authentication required` — and I kept the arm rather than dropping it to
+`undefined`. The reason is that the two failures the rule exists to catch are "the
+package doesn't resolve" and "the launch line is wrong", and this is neither:
+the same shape came back from `pi-acp` pointed at an empty `PI_CODING_AGENT_DIR`,
+where it is unambiguously an auth state, and the trap list's own rule says the
+auth signal _is_ `session/new` failing. This machine has no codex login at all
+(`codex login status` → "Not logged in", no `~/.codex/auth.json`), so it is a
+fact about the machine, not the catalog. Codex's `contract` records it as
+PARTIALLY VERIFIED with the re-probe named; **if you disagree, that entry is the
+one line to change.** Whether the adapter honours `CODEX_HOME` is blocked on the
+same step and is called out too — Claude's `CLAUDE_CONFIG_DIR` and pi's
+`PI_CODING_AGENT_DIR` were both observed working.
+
+Verified live in the dev app, all four picker shapes: Cursor (builtin — picker
+plus preview `cursor-agent acp`, nothing else asked), Claude (adapter — Config
+directory offered, preview the pinned npx line), `grok` **absent from the Chat
+picker while still listed for Terminal** (with OMP, same), and Custom… revealing
+Command/Arguments for `/Users/dweaver/.local/bin/cursor-agent acp --local`. A
+second-account Claude Chat profile authored **without typing a command** saved
+`env.CLAUDE_CONFIG_DIR=/Users/dweaver/.claude-personal`, started, and the
+transcript header read **"Claude Code (personal)"** — the account override
+reaching the adapter end to end. Round-trips are byte-identical: that profile,
+and a deliberately unrunnable `command: "claude-personal"` one that presents as
+**Custom…** and saves back unchanged rather than being re-authored.
+
+Two things for whoever is next. `app-state.json` is not merely stale, it is
+**four months old** (June) and contains no `agentProfiles` key at all — read
+live profiles by dynamic-`import()`ing the internal barrel's `getAgentProfiles`
+from the page, which shares the module instance. And `fallbackAgentForCommand`
+does not match an absolute path (`/…/bin/cursor-agent` resolved to no agent), so
+a **Custom…** Chat profile pointed at a path gets no `assumedAgentId` and
+therefore no Config directory field — pre-existing, small, and the one gap left
+in "authorable without typing".
+
+`pnpm test` (11 packages) / `tsc --noEmit` / `pnpm lint` / `pnpm docs:build`
+green; `docs:api` regenerated with no diff — no public SDK symbol changed, as
+scoped. `apps/docs/guide/` describes only Terminal profiles and never mentions
+the Chat arm (it is behind `chatAgents` and marked work-in-progress), so nothing
+there needed updating.
+
+Next: Session 4.

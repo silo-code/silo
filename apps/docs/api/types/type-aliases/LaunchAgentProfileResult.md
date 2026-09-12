@@ -12,7 +12,7 @@ type LaunchAgentProfileResult =
 };
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:357](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L357)
+Defined in: [packages/sdk/src/agents-service.ts:384](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L384)
 
 **`Beta`**
 
