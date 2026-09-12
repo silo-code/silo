@@ -21,6 +21,12 @@ line.
   (`ctx.registerSettingsPage`).
 - How the extension behaves _for this workspace_ → **workspace property tab**
   (`ctx.workspaces.registerPropertyPage`).
+- A **workspace surface** the user reads and works in while the rest of the app
+  stays live — a wide view of a side panel's own list, say (`silo.tasks`' Tasks
+  app) → **dock sheet** (`ctx.layout.openPanelSheet`), not a modal. It has no
+  scrim, `Escape` is inert at the shell, and its body owns list-vs-detail
+  paging. Content still follows the table below; the chrome rules are in
+  [`side-panel-design.md`](side-panel-design.md) → "Sheets specifically".
 
 Settings pages and property tabs persist **immediately** (no footer, no Save).
 Standalone modals persist **explicitly** (`ModalActions` with Cancel + one
