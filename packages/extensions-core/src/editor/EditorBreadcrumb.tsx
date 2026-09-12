@@ -1,9 +1,11 @@
 import { useSnapshot } from "valtio";
-import { store } from "@silo-code/extension-host/internal";
+import {
+  store,
+  Breadcrumb,
+  ContributedToolbar,
+} from "@silo-code/extension-host/internal";
 import type { ExtensionContext } from "@silo-code/sdk";
-import { Breadcrumb } from "./Breadcrumb";
 import { ViewSwitcher } from "./ViewSwitcher";
-import { ContributedToolbar } from "../shared/ContributedToolbar";
 import "./EditorBreadcrumb.css";
 
 interface Props {

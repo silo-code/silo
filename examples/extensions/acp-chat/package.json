@@ -1,0 +1,33 @@
+{
+  "name": "acp-chat",
+  "displayName": "Agent Chat",
+  "version": "0.1.0",
+  "description": "A center-dock transcript panel for an ACP Chat session — streaming text, thinking, tool calls, the plan, and inline permission requests. Drives ctx.agents.sessions and gets its chrome strip through the public SDK alone (RFC 0038 / 0039).",
+  "private": true,
+  "type": "module",
+  "silo": {
+    "id": "silo.acp-chat",
+    "engine": "^0.9",
+    "main": "dist/index.js",
+    "permissions": [
+      "agents"
+    ]
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@silo-code/sdk": "workspace:*",
+    "@types/react": "^19.0.0",
+    "esbuild": "^0.24.0",
+    "react": "^19.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.7"
+  }
+}

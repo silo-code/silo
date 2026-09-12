@@ -37,8 +37,8 @@ describe("toolbar items", () => {
       order: 1,
     });
     const d3 = registerToolbarItem({
-      id: "term",
-      surface: "terminal",
+      id: "pan",
+      surface: "panel",
       command: "demo.a",
     });
 
@@ -46,12 +46,51 @@ describe("toolbar items", () => {
       toolbarEntriesFor("editor", { editorId: "ed_1" }).map((e) => e.id),
     ).toEqual(["early", "late"]);
     expect(
-      toolbarEntriesFor("terminal", { terminalId: "t1" }).map((e) => e.id),
-    ).toEqual(["term"]);
+      toolbarEntriesFor("panel", {
+        panelId: "p1",
+        kindId: "terminal",
+        params: {},
+      }).map((e) => e.id),
+    ).toEqual(["pan"]);
 
     d1.dispose();
     d2.dispose();
     d3.dispose();
+  });
+
+  it('scopes a "panel" item to one kind via t.kindId and passes params to the command (RFC 0039)', () => {
+    const run = vi.fn();
+    commandRegistry.register({ id: "terminal.mark", label: "Mark", run });
+    const d = registerToolbarItem({
+      id: "mark",
+      surface: "panel",
+      command: "terminal.mark",
+      when: (_k, t) => t.kindId === "terminal",
+    });
+
+    expect(
+      toolbarEntriesFor("panel", {
+        panelId: "p1",
+        kindId: "acp-chat",
+        params: {},
+      }),
+    ).toEqual([]);
+    const entry = control(
+      toolbarEntriesFor("panel", {
+        panelId: "p1",
+        kindId: "terminal",
+        params: { terminalId: "t42" },
+      })[0],
+    );
+    entry.runCommand();
+    // the whole panel target — params included — reaches the command
+    expect(run).toHaveBeenCalledWith({
+      panelId: "p1",
+      kindId: "terminal",
+      params: { terminalId: "t42" },
+    });
+
+    d.dispose();
   });
 
   it("hides when when() returns false and surfaces checked", () => {
@@ -142,14 +181,12 @@ describe("toolbar items", () => {
     commandRegistry.register({ id: "demo.run", label: "Run", run });
     const d = registerToolbarItem({
       id: "run",
-      surface: "terminal",
+      surface: "navigator",
       command: "demo.run",
     });
 
-    control(
-      toolbarEntriesFor("terminal", { terminalId: "t42" })[0],
-    ).runCommand();
-    expect(run).toHaveBeenCalledWith({ terminalId: "t42" });
+    control(toolbarEntriesFor("navigator", { viewId: "v1" })[0]).runCommand();
+    expect(run).toHaveBeenCalledWith({ viewId: "v1" });
 
     d.dispose();
   });

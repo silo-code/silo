@@ -17,8 +17,9 @@ command" — an extension names a Chat profile the user defined on
 **Settings → Agents**; it cannot point Silo at an arbitrary binary to spawn
 with pipes.
 
-**Gated on the `chatAgents` setting** (RFC 0038, off by default): every
-`connect()` rejects while it is off.
+**Needs the `"agents"` permission** — declare it in your extension's
+`silo.permissions` (it is shown at install, like `fs:read`). Every `connect()`
+throws without it.
 
 The same session appears in [`ctx.agents`](/api/agents/) as an `AgentInfo` with
 `kind: "chat"` and the handle's `id` — so the Agents navigator, attention
@@ -253,7 +254,7 @@ phase.
 
 ## Reasons `connect()` rejects
 
-- the `chatAgents` setting is off;
+- the extension did not declare the `"agents"` permission;
 - no profile has that id;
 - the profile is a **Terminal** profile, not a Chat one;
 - there is no target workspace;

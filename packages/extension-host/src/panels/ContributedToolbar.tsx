@@ -6,13 +6,13 @@ import type {
   ToolbarItemContext,
   ToolbarSurface,
 } from "@silo-code/sdk";
+import { PhosphorToolbarIcon } from "../components/phosphor-icon";
 import {
-  PhosphorToolbarIcon,
   subscribeToolbarItems,
   toolbarEntriesFor,
   type ToolbarControlEntry,
   type ToolbarEntry,
-} from "@silo-code/extension-host/internal";
+} from "../extension-host/toolbar-items";
 import "./ContributedToolbar.css";
 
 type Props<S extends ToolbarSurface> = {
@@ -36,9 +36,11 @@ async function activateEntry(
 }
 
 /**
- * Trailing cluster of extension toolbar contributions for editor/terminal
- * breadcrumbs. Icons are {@link PhosphorIconName} strings resolved by the
- * host to bold 1em Phosphor glyphs. Core hosts only.
+ * Trailing cluster of extension toolbar contributions for host-drawn panel
+ * chrome (editor / terminal breadcrumbs, the Navigator header, and — RFC 0039
+ * — any dock panel that declares a toolbar). Icons are {@link PhosphorIconName}
+ * strings resolved by the host to bold 1em Phosphor glyphs. Host-owned; not
+ * public SDK surface.
  */
 export function ContributedToolbar<S extends ToolbarSurface>({
   surface,

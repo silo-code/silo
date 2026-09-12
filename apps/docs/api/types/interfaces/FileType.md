@@ -1,6 +1,6 @@
 # Interface: FileType
 
-Defined in: [packages/sdk/src/types.ts:249](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L249)
+Defined in: [packages/sdk/src/types.ts:275](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L275)
 
 Declarative metadata about a file extension — the open-ended counterpart to
 [Editor](Editor.md) (which is purely a presenter/renderer). A single source of
@@ -16,7 +16,7 @@ matched independently by extension at dispatch time.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:251](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L251)
+Defined in: [packages/sdk/src/types.ts:277](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L277)
 
 Unique id, conventionally namespaced.
 
@@ -28,7 +28,7 @@ Unique id, conventionally namespaced.
 label: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:253](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L253)
+Defined in: [packages/sdk/src/types.ts:279](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L279)
 
 Human label, e.g. "Foo File". Used to build "New {label}…" entries.
 
@@ -40,7 +40,7 @@ Human label, e.g. "Foo File". Used to build "New {label}…" entries.
 extensions: string[];
 ```
 
-Defined in: [packages/sdk/src/types.ts:255](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L255)
+Defined in: [packages/sdk/src/types.ts:281](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L281)
 
 Extensions this type owns — leading dot, lowercase. e.g. [".foo"].
 
@@ -52,6 +52,6 @@ Extensions this type owns — leading dot, lowercase. e.g. [".foo"].
 optional newFile?: NewFileTemplate;
 ```
 
-Defined in: [packages/sdk/src/types.ts:257](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L257)
+Defined in: [packages/sdk/src/types.ts:283](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L283)
 
 When present, the type can be created from "New File" surfaces.

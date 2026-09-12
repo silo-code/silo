@@ -1027,8 +1027,8 @@ export interface AgentSessionConnectOptions {
  * binary to spawn with pipes. The user defines a Chat profile on
  * Settings → Agents; an extension names it.
  *
- * The whole surface is **gated on the `chatAgents` setting** (RFC 0038, off by
- * default): {@link connect} rejects while it is off.
+ * Needs the **`"agents"` {@link Permission}**, declared in the extension's
+ * `silo.permissions` and granted at install: {@link connect} throws without it.
  *
  * @example
  * ```ts
@@ -1051,10 +1051,11 @@ export interface AgentSessionsService {
    * `initialize` + `session/new` handshake, and resolve with a live
    * {@link AgentSessionHandle}.
    *
-   * Rejects when: the `chatAgents` setting is off; no profile has that id; the
-   * profile is a Terminal profile, not a Chat one; there is no target
-   * workspace; the agent needs authentication (its `session/new` failed); or
-   * the agent reported a startup error (the rejection carries its message).
+   * Rejects when: the extension lacks the `"agents"` permission; no profile has
+   * that id; the profile is a Terminal profile, not a Chat one; there is no
+   * target workspace; the agent needs authentication (its `session/new`
+   * failed); or the agent reported a startup error (the rejection carries its
+   * message).
    *
    * @param profileId — an {@link AgentProfileSummary.id} whose profile uses the
    * `chat` launch arm.
@@ -1282,8 +1283,8 @@ export interface AgentsService {
   /**
    * Connect to and drive a **Chat session** — a user-authored `chat` profile
    * spawned as an Agent Client Protocol child (RFC 0038 phase 2). See
-   * {@link AgentSessionsService}. Gated on the `chatAgents` setting: every
-   * `connect()` rejects while it is off.
+   * {@link AgentSessionsService}. Needs the `"agents"` {@link Permission}:
+   * every `connect()` throws without it.
    *
    * @category Consumer Services
    * @public

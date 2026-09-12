@@ -38,6 +38,12 @@ export const extension: Extension = {
       component: (props: DockPanelProps<TerminalPanelParams>) => (
         <TerminalPanel {...props} ctx={ctx} />
       ),
+      // Host-drawn cwd breadcrumb (RFC 0039). The panel publishes its live
+      // working directory through `api.setBreadcrumb` and the dock frame draws
+      // the strip — the `terminalSettings.breadcrumbs` toggle becomes
+      // `setBreadcrumb(null)` when off. This is the second consumer of the
+      // declaration, after `examples/extensions/acp-chat`.
+      toolbar: { breadcrumb: true },
     });
     ctx.registerSettingsPage({
       id: "terminal",

@@ -198,3 +198,73 @@ withdraws it automatically when the panel unmounts.
 #### Returns
 
 `void`
+
+***
+
+### setBreadcrumb()
+
+```ts
+setBreadcrumb(crumb): void;
+```
+
+Defined in: [packages/sdk/src/types.ts:150](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L150)
+
+Publish the path this panel is showing, for the host-drawn breadcrumb
+strip — or, with `null`, show no path crumbs.
+
+Only meaningful for a [DockPanelKind](DockPanelKind.md) that declares
+`toolbar: { breadcrumb: true }`; the host draws the strip and this fills in
+its crumbs. `null` leaves a strip that carries only contributed
+`registerToolbarItem({ surface: "panel" })` items — which is also how a
+panel honours a "hide breadcrumbs" setting of its own.
+
+This is the shape of [DockPanelApi.setAgentSession](#setagentsession): the panel states
+a fact about itself and the host routes on it. The path is *not* part of
+the panel's persisted identity, so it goes here rather than through
+[DockPanelApi.updateParameters](#updateparameters). The host withdraws it automatically
+when the panel unmounts.
+
+#### Parameters
+
+##### crumb
+
+  \| \{
+  `filePath`: `string`;
+  `workspaceFolder?`: `string`;
+  `leafIcon?`: `"file"` \| `"folder"`;
+\}
+  \| `null`
+
+###### Type Literal
+
+\{
+  `filePath`: `string`;
+  `workspaceFolder?`: `string`;
+  `leafIcon?`: `"file"` \| `"folder"`;
+\}
+
+###### filePath
+
+`string`
+
+Absolute path shown as workspace-relative crumbs.
+
+###### workspaceFolder?
+
+`string`
+
+Workspace folder the path is relativised against, when it is inside one.
+
+###### leafIcon?
+
+`"file"` \| `"folder"`
+
+Glyph on the trailing crumb. Defaults to `"file"`.
+
+***
+
+`null`
+
+#### Returns
+
+`void`

@@ -467,23 +467,6 @@ export interface AppState extends SharedPanelState {
    * {@link globalActiveTabEnabled} is on. */
   globalActiveSidePanelTabs: Record<string, string>;
   /**
-   * The RFC 0038 **Chat agents** capability gate — default `false`, global,
-   * persisted in the index. Nothing user-visible changes until it is on.
-   *
-   * One flag, covering the whole capability: the `chat` arm of an Agent
-   * Profile's launch (the editor offers Interface: Terminal/Chat only while
-   * this is on), `ctx.agents.sessions`, Chat sessions in `ctx.agents`, and
-   * whether the bundled `core.acp-chat` transcript panel registers at all
-   * (the composition root reads it).
-   *
-   * Deliberately **not** a second flag for the bundled panel. Once the
-   * capability is on, "use a different Chat UI" is the same gesture as for any
-   * other extension — disable `core.acp-chat` on Settings → Extensions and
-   * install the one you want — so a dedicated toggle would be a second,
-   * weaker switch over a mechanism that already exists.
-   */
-  chatAgents: boolean;
-  /**
    * Named collapsible groups in the Workspaces panel, keyed by group id. A
    * group's `workspaceOrder` is the single source of truth for membership — a
    * workspace belongs to the group whose `workspaceOrder` contains it. The

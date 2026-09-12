@@ -78,8 +78,6 @@ import {
 import { deriveTitle, formatTitle, tmuxStatusTitle } from "./terminal-title";
 import { formatResumeBox } from "./resume-box";
 import { TerminalSearch } from "./TerminalSearch";
-import { Breadcrumb } from "../editor/Breadcrumb";
-import { ContributedToolbar } from "../shared/ContributedToolbar";
 import "@xterm/xterm/css/xterm.css";
 import "./TerminalPanel.css";
 
@@ -1462,22 +1460,26 @@ export function TerminalPanel(
     }
   }
 
+  // The cwd line in the host-drawn strip (RFC 0039). `terminalSettings.
+  // breadcrumbs` off is `setBreadcrumb(null)` — the strip then carries only
+  // any `registerToolbarItem({ surface: "panel" })` contributions the host
+  // draws for it (the terminal has no bespoke toolbar of its own).
+  const crumbPath = cwd || wsFolder || null;
+  useEffect(() => {
+    props.api.setBreadcrumb(
+      showBreadcrumb && crumbPath
+        ? {
+            filePath: crumbPath,
+            workspaceFolder: wsFolder,
+            leafIcon: "folder",
+          }
+        : null,
+    );
+    return () => props.api.setBreadcrumb(null);
+  }, [props.api, showBreadcrumb, crumbPath, wsFolder]);
+
   return (
     <div className="terminal-panel" onContextMenu={onContextMenu}>
-      {showBreadcrumb && (
-        <div className="terminal-toolbar">
-          <Breadcrumb
-            filePath={cwd || wsFolder || null}
-            workspaceFolder={wsFolder}
-            leafIcon="folder"
-          />
-          <ContributedToolbar
-            surface="terminal"
-            target={{ terminalId }}
-            showMenu={ctx.ui.showMenu}
-          />
-        </div>
-      )}
       <div className="terminal-panel__body">
         <div
           ref={containerRef}

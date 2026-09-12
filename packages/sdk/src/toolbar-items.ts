@@ -6,17 +6,25 @@ import type { MenuEntry } from "./ui-service";
  * Built-in surfaces that accept {@link ToolbarItemContribution}s. One surface
  * per registration.
  *
- * `"editor"` and `"terminal"` are CenterDock breadcrumb toolbars; `"navigator"`
- * is the header naming the Navigator's active view — the bar between its view
- * list and the view body — where contributions become that view's action
- * buttons. A navigator item's `when` receives the active
+ * `"editor"` is the editor breadcrumb toolbar (beside the Text | Preview view
+ * switcher). `"navigator"` is the header naming the Navigator's active view —
+ * the bar between its view list and the view body — where contributions become
+ * that view's action buttons; a navigator item's `when` receives the active
  * {@link NavigatorView | view}'s id, so an action can be scoped to one view or
  * left unscoped to follow the user across all of them.
+ *
+ * `"panel"` is the host-drawn strip above any {@link DockPanelKind} that
+ * declares `toolbar` (RFC 0039) — including the built-in **terminal**. Its
+ * target carries the panel instance id, its `kindId`, and the panel's own
+ * `params`, so an item meant for one kind of panel scopes itself with
+ * `when: (_keys, t) => t.kindId === "terminal"` and reads instance data off
+ * `t.params` (e.g. `t.params.terminalId`). Without a `kindId` guard a
+ * `"panel"` item shows on every panel that has a strip.
  *
  * @category Registration
  * @public
  */
-export type ToolbarSurface = "editor" | "terminal" | "navigator";
+export type ToolbarSurface = "editor" | "navigator" | "panel";
 
 /**
  * The typed target each {@link ToolbarSurface} passes to an invoked command
@@ -27,8 +35,18 @@ export type ToolbarSurface = "editor" | "terminal" | "navigator";
  */
 export interface ToolbarItemContext {
   editor: { editorId: string };
-  terminal: { terminalId: string };
   navigator: { viewId: string };
+  /**
+   * `panelId` and `kindId` identify the panel; `params` is the panel's own
+   * serialized parameters (`DockPanelProps["params"]`) — read-only, so an item
+   * can key on instance data (e.g. the terminal's `params.terminalId`) without
+   * a lookup the SDK does not offer.
+   */
+  panel: {
+    panelId: string;
+    kindId: string;
+    params: Readonly<Record<string, unknown>>;
+  };
 }
 
 /**
@@ -175,8 +193,9 @@ export interface ToolbarSpacerContribution<
 }
 
 /**
- * Adds a control or chrome element to the trailing cluster of a built-in
- * editor or terminal toolbar. Register via
+ * Adds a control or chrome element to the trailing cluster of a host-drawn
+ * toolbar — the editor breadcrumb, the Navigator header, or a dock panel's
+ * strip (the terminal included; see {@link ToolbarSurface}). Register via
  * {@link ExtensionContext.registerToolbarItem}.
  *
  * Interactive items set exactly one of

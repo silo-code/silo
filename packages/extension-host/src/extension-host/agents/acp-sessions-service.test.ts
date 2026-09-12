@@ -58,14 +58,15 @@ function ws(id: string): WorkspaceInternal {
   };
 }
 
-const service = createAgentSessionsService();
+let hasAgentsPermission = true;
+const service = createAgentSessionsService(() => hasAgentsPermission);
 
 beforeEach(() => {
   resetChatAgentRegistry();
   _resetAgentSurfaceRegistryForTests();
   store.workspaces = { active: ws("active"), other: ws("other") };
   store.activeWorkspaceId = "active";
-  store.chatAgents = true;
+  hasAgentsPermission = true;
   replaceAgentProfiles([
     {
       id: "claude-chat",
@@ -98,9 +99,11 @@ beforeEach(() => {
 });
 
 describe("connect() gating", () => {
-  it("rejects when the chatAgents setting is off", async () => {
-    store.chatAgents = false;
-    await expect(service.connect("claude-chat")).rejects.toThrow(/turned off/i);
+  it('rejects without the "agents" permission', async () => {
+    hasAgentsPermission = false;
+    await expect(service.connect("claude-chat")).rejects.toThrow(
+      /"agents" permission/i,
+    );
   });
 
   it("rejects an unknown profile id", async () => {

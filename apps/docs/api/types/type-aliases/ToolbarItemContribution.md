@@ -8,10 +8,11 @@ type ToolbarItemContribution<S> =
 | ToolbarSpacerContribution<S>;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:194](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L194)
+Defined in: [packages/sdk/src/toolbar-items.ts:213](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L213)
 
-Adds a control or chrome element to the trailing cluster of a built-in
-editor or terminal toolbar. Register via
+Adds a control or chrome element to the trailing cluster of a host-drawn
+toolbar — the editor breadcrumb, the Navigator header, or a dock panel's
+strip (the terminal included; see [ToolbarSurface](ToolbarSurface.md)). Register via
 [ExtensionContext.registerToolbarItem](../interfaces/ExtensionContext.md#registertoolbaritem).
 
 Interactive items set exactly one of

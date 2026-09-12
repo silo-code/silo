@@ -1,42 +1,42 @@
 /**
- * The bundled **Chat panel** (RFC 0038 phase 3) — a center-dock transcript for
- * one Chat session: streaming text, the agent's thinking, tool-call rows, its
- * plan, and inline permission requests.
+ * The **Chat panel** (RFC 0038 / 0039) — a center-dock transcript for one Chat
+ * session: streaming text, the agent's thinking, tool-call rows, its plan, and
+ * inline permission requests.
  *
  * ## It is built on the SDK and nothing else
  *
- * The whole panel runs on `ctx.agents.sessions` plus `@silo-code/sdk` types and
- * kit components. There is **no `@silo-code/extension-host/internal` import in
- * this directory** — no transport, no protocol client, no host state — which is
- * the point of the phase: everything this panel does, a third-party extension
- * can do. If something here had needed the privileged barrel, the SDK would be
- * wrong and the fix would be to widen `ctx.agents.sessions`, never to reach
- * around it.
+ * This is `examples/extensions/acp-chat` — an installed extension that resolves
+ * `@silo-code/sdk` **only**. There is no `@silo-code/extension-host/internal`
+ * import anywhere in it, and there physically cannot be: an example does not
+ * depend on the host package, so anything the panel needed from the privileged
+ * surface would fail to resolve rather than pass review. The whole panel runs
+ * on `ctx.agents.sessions` plus `@silo-code/sdk` types and kit components — if
+ * something here needed more, the fix is to widen `ctx`, never to reach around
+ * it (RFC 0038 acceptance criterion 2, now met by the shipping UI).
  *
- * The spike's `@acp-components` dependency is gone with it. That library owns
- * the protocol client and wants a *transport*, which the SDK deliberately does
- * not hand out (RFC 0038: the connection is host-owned); feeding it would have
- * meant re-encoding the SDK's stream back into JSON-RPC frames for a second
- * protocol client to re-parse. The transcript projection it used to provide now
- * lives in `transcript-model.ts` as a pure reducer over `AgentSessionUpdate` —
- * a fraction of the code, no second state library, and testable.
+ * The spike's `@acp-components` dependency is gone. That library owns the
+ * protocol client and wants a *transport*, which the SDK deliberately does not
+ * hand out (the connection is host-owned); feeding it would have meant
+ * re-encoding the SDK's stream back into JSON-RPC frames for a second protocol
+ * client to re-parse. The transcript projection it used to provide now lives in
+ * `transcript-model.ts` as a pure reducer over `AgentSessionUpdate` — a
+ * fraction of the code, no second state library, and testable.
  *
  * ## Chrome
  *
- * Silo's own: the same `Breadcrumb` the editor and terminal panels use for the
- * cwd line, the SDK kit for every control, and design tokens for every colour
- * — so a Chat tab and a terminal tab read as the same kind of thing, and both
- * follow the active theme.
+ * Host-drawn (RFC 0039). The panel kind declares `toolbar: { breadcrumb: true }`
+ * and the dock frame draws the cwd strip — the same one the editor and terminal
+ * panels get — which the panel fills through `api.setBreadcrumb`. The panel
+ * body is the SDK kit for every control and design tokens for every colour, so
+ * a Chat tab and a terminal tab read as the same kind of thing and both follow
+ * the active theme. Nothing in this directory imports a chrome component.
  *
- * ## Registration
+ * ## Reaching it
  *
- * Behind the `chatAgents` setting. The composition root
- * (`apps/desktop/src/builtins.ts`) leaves this extension out of the built-in
- * list while the capability is off, so the panel kind, its `+` menu entry and
- * its command do not exist at all. Once the capability is on, running a
- * *different* Chat UI is the ordinary extension gesture — disable
- * `core.acp-chat` on Settings → Extensions and install the one you want
- * (RFC 0038 acceptance criterion 3).
+ * The panel kind declares `chatProfileHost: true`, so picking a **Chat** Agent
+ * Profile from a dock's **+** menu (or running `silo.acpChat.new`) opens it.
+ * `ctx.agents.sessions` needs the `"agents"` permission, declared in this
+ * example's `silo.permissions` and granted at install.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -52,7 +52,6 @@ import type {
   ExtensionContext,
 } from "@silo-code/sdk";
 import { Badge, Button, EmptyState, Select, Textarea } from "@silo-code/sdk";
-import { Breadcrumb } from "../editor/Breadcrumb";
 import { chatProfiles, resolveChatProfile } from "./profile-selection";
 import { confirmProfileSwitch } from "./profile-switch";
 import { toAttachment, type Attachment } from "./attachments";
@@ -67,7 +66,6 @@ import {
 } from "./transcript-model";
 import { permissionButtonVariant } from "./permission-options";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
-import "./acp-chat.css";
 
 /** How close to the bottom still counts as "following the stream". */
 const AUTOSCROLL_THRESHOLD_PX = 24;
@@ -269,6 +267,16 @@ export function AcpChatPanel({
     return () => api.setAgentSession(null);
   }, [api, sessionId]);
 
+  // The cwd line in the host-drawn strip (RFC 0039). Same fact the panel used
+  // to hand a `<Breadcrumb>` it imported; now it states it and the dock frame
+  // draws it.
+  useEffect(() => {
+    api.setBreadcrumb(
+      cwd ? { filePath: cwd, workspaceFolder: cwd, leafIcon: "folder" } : null,
+    );
+    return () => api.setBreadcrumb(null);
+  }, [api, cwd]);
+
   // The tab label is `AgentInfo.title` — host-computed, so the dock tab, the
   // workspace status row and the navigator row are the same string from the
   // same source. `params.title` is only a **seed** for before the session
@@ -414,14 +422,6 @@ export function AcpChatPanel({
 
   return (
     <div className="acp-chat">
-      <div className="acp-chat__toolbar">
-        <Breadcrumb
-          filePath={cwd || null}
-          workspaceFolder={cwd}
-          leafIcon="folder"
-        />
-      </div>
-
       <div className="acp-chat__scroller" ref={scrollerRef} onScroll={onScroll}>
         {phase.status === "error" ? (
           <div className="acp-chat__notice">

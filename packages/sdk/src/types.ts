@@ -131,6 +131,32 @@ export interface DockPanelApi {
    * withdraws it automatically when the panel unmounts.
    */
   setAgentSession(agentSessionId: string | null): void;
+  /**
+   * Publish the path this panel is showing, for the host-drawn breadcrumb
+   * strip — or, with `null`, show no path crumbs.
+   *
+   * Only meaningful for a {@link DockPanelKind} that declares
+   * `toolbar: { breadcrumb: true }`; the host draws the strip and this fills in
+   * its crumbs. `null` leaves a strip that carries only contributed
+   * `registerToolbarItem({ surface: "panel" })` items — which is also how a
+   * panel honours a "hide breadcrumbs" setting of its own.
+   *
+   * This is the shape of {@link DockPanelApi.setAgentSession}: the panel states
+   * a fact about itself and the host routes on it. The path is *not* part of
+   * the panel's persisted identity, so it goes here rather than through
+   * {@link DockPanelApi.updateParameters}. The host withdraws it automatically
+   * when the panel unmounts.
+   */
+  setBreadcrumb(
+    crumb: {
+      /** Absolute path shown as workspace-relative crumbs. */
+      filePath: string;
+      /** Workspace folder the path is relativised against, when it is inside one. */
+      workspaceFolder?: string;
+      /** Glyph on the trailing crumb. Defaults to `"file"`. */
+      leafIcon?: "file" | "folder";
+    } | null,
+  ): void;
 }
 
 /**
@@ -609,6 +635,30 @@ export interface DockPanelKind<T extends object = Record<string, unknown>> {
   /** The React component that renders this panel; receives {@link DockPanelProps}. */
   component: React.ComponentType<DockPanelProps<T>>;
   /**
+   * Host-drawn chrome above this panel's component (RFC 0039). Omit for a bare
+   * frame — the default, and correct for a panel that fills its own space.
+   *
+   * With it set, the dock frame draws the same strip an editor gets: the
+   * breadcrumb path (fed by {@link DockPanelApi.setBreadcrumb}) plus a
+   * contribution point, so any extension can
+   * `registerToolbarItem({ surface: "panel", when: (_k, t) => t.kindId === "…" })`
+   * and its button lands here. A first-party panel's own controls arrive the
+   * same way — there is no `children` slot past the contribution point. The
+   * built-in terminal declares this, so its toolbar contributions are ordinary
+   * `"panel"` items.
+   *
+   * `toolbar: {}` — declared but empty — still reserves the strip, for a panel
+   * that wants only contributed items.
+   */
+  toolbar?: {
+    /**
+     * Draw path crumbs in the strip, filled in by
+     * {@link DockPanelApi.setBreadcrumb}. Without it the strip carries only
+     * contributed items.
+     */
+    breadcrumb?: boolean;
+  };
+  /**
    * Declares that this panel kind renders a **Chat session** for an Agent
    * Profile (RFC 0038), so Silo can open it on the user's behalf.
    *
@@ -775,19 +825,20 @@ export interface ExtensionContext {
   ): Disposable;
   /**
    * Register a {@link ToolbarItemContribution} (icon-only, text-only,
-   * icon+text, or dropdown) in the trailing cluster of an editor or terminal
-   * toolbar. Independent of {@link ExtensionContext.registerContextMenuItem}
-   * — register either, both, or neither. Hosts only show items while that
-   * surface's breadcrumbs setting is on. See
-   * {@link ExtensionContext.invalidateToolbarItems}.
+   * icon+text, or dropdown) in the trailing cluster of a host-drawn toolbar —
+   * the editor breadcrumb, the Navigator header, or a dock panel's strip (the
+   * terminal included). Independent of
+   * {@link ExtensionContext.registerContextMenuItem} — register either, both,
+   * or neither. Hosts only show items while that surface's breadcrumbs setting
+   * is on. See {@link ExtensionContext.invalidateToolbarItems}.
    */
   registerToolbarItem<S extends ToolbarSurface>(
     item: ToolbarItemContribution<S>,
   ): Disposable;
   /**
    * Signal that toolbar-item `when` / `checked` data changed. Causes every
-   * toolbar surface — editor, terminal, and the Navigator header — to re-query
-   * contributions and re-render.
+   * toolbar surface — the editor breadcrumb, the Navigator header, and every
+   * dock panel strip — to re-query contributions and re-render.
    */
   invalidateToolbarItems(): void;
   /** Register a {@link Keybinding} (bind a shortcut to a command). */

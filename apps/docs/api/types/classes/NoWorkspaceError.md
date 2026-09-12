@@ -1,6 +1,6 @@
 # Class: NoWorkspaceError
 
-Defined in: [packages/sdk/src/permissions.ts:88](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L88)
+Defined in: [packages/sdk/src/permissions.ts:97](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L97)
 
 Thrown when an API that needs the **active workspace** is called while no
 workspace is open — today, [ExtensionStorageScopes.workspaceDir](../interfaces/ExtensionStorageScopes.md#workspacedir).
@@ -31,7 +31,7 @@ try {
 new NoWorkspaceError(message?): NoWorkspaceError;
 ```
 
-Defined in: [packages/sdk/src/permissions.ts:89](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L89)
+Defined in: [packages/sdk/src/permissions.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L98)
 
 #### Parameters
 

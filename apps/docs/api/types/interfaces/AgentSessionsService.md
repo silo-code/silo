@@ -15,8 +15,8 @@ extension can prompt, watch and cancel.
 binary to spawn with pipes. The user defines a Chat profile on
 Settings → Agents; an extension names it.
 
-The whole surface is **gated on the `chatAgents` setting** (RFC 0038, off by
-default): [connect](#connect) rejects while it is off.
+Needs the **`"agents"` [Permission](../type-aliases/Permission.md)**, declared in the extension's
+`silo.permissions` and granted at install: [connect](#connect) throws without it.
 
 ## Example
 
@@ -38,7 +38,7 @@ ctx.subscriptions.push(off, { dispose: () => session.dispose() });
 connect(profileId, options?): Promise<AgentSessionHandle>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1062](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1062)
+Defined in: [packages/sdk/src/agents-service.ts:1063](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1063)
 
 **`Beta`**
 
@@ -46,10 +46,11 @@ Spawn the agent for the named Chat profile, run the Agent Client Protocol
 `initialize` + `session/new` handshake, and resolve with a live
 [AgentSessionHandle](AgentSessionHandle.md).
 
-Rejects when: the `chatAgents` setting is off; no profile has that id; the
-profile is a Terminal profile, not a Chat one; there is no target
-workspace; the agent needs authentication (its `session/new` failed); or
-the agent reported a startup error (the rejection carries its message).
+Rejects when: the extension lacks the `"agents"` permission; no profile has
+that id; the profile is a Terminal profile, not a Chat one; there is no
+target workspace; the agent needs authentication (its `session/new`
+failed); or the agent reported a startup error (the rejection carries its
+message).
 
 #### Parameters
 

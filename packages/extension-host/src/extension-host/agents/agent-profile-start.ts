@@ -77,9 +77,9 @@ export async function startAgentProfile(
     const kind = resolveChatProfileHost();
     if (!kind) {
       // Reachable: the profile outlives whatever panel used to render it (the
-      // `chatAgents` gate went off, or the bundled panel was disabled with
-      // nothing installed in its place). Silence here is what sent the user
-      // hunting, so say what is missing.
+      // Chat panel example was disabled or uninstalled with nothing in its
+      // place). Silence here is what sent the user hunting, so say what is
+      // missing.
       return {
         outcome: "refused",
         message: `“${profile.label}” is a Chat profile and no Chat panel is installed to open it.`,

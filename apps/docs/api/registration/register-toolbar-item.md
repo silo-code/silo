@@ -1,7 +1,9 @@
 # ctx.registerToolbarItem
 
-Add a control to the **trailing cluster** of a built-in editor or terminal
-toolbar (beside the host-owned Text | Preview switcher on editors).
+Add a control to the **trailing cluster** of a host-drawn toolbar — the editor
+breadcrumb (beside the Text | Preview switcher), the Navigator header, or a
+[dock panel that declares `toolbar`](/api/registration/register-dock-panel-kind#host-drawn-chrome-a-breadcrumb-a-contribution-point),
+the built-in **terminal** included.
 Independent of [`registerContextMenuItem`](/api/registration/register-context-menu-item)
 — register either, both, or neither.
 
@@ -17,9 +19,17 @@ ctx.registerToolbarItem<S extends ToolbarSurface>(
 ctx.invalidateToolbarItems(): void
 ```
 
-One `surface` (`"editor"` | `"terminal"`) per registration. Interactive items
-set exactly one of `command` or `menu`. Non-interactive chrome uses
-`type: "separator"` (light hairline) or `type: "spacer"` (`sm` / `md` / `lg`).
+One `surface` (`"editor"` | `"navigator"` | `"panel"`) per registration.
+Interactive items set exactly one of `command` or `menu`. Non-interactive chrome
+uses `type: "separator"` (light hairline) or `type: "spacer"` (`sm` / `md` /
+`lg`).
+
+A `"panel"` item's target is `{ panelId, kindId, params }` — scope it to one
+kind of dock panel with `when: (_keys, t) => t.kindId === "acme.chat"` (or it
+shows on every panel that has a toolbar), and read instance data off
+`t.params`. The built-in terminal is a `"panel"` kind, so a terminal toolbar
+item is `surface: "panel"`, `when: t => t.kindId === "terminal"`, with the id at
+`t.params.terminalId`.
 
 ## Chrome: icon / text / both
 

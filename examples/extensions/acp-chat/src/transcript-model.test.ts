@@ -323,7 +323,7 @@ describe("toolContentLines", () => {
   it("names a block it cannot expand rather than dropping it", () => {
     expect(
       toolContentLines([
-        { type: "content", content: { type: "image", data: "…" } },
+        { type: "content", content: { type: "image", mimeType: "image/png" } },
         { type: "terminal", terminalId: "t1" },
       ]),
     ).toEqual(["[image]", "[terminal]"]);

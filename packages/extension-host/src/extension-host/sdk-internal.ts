@@ -197,6 +197,19 @@ export { contextMenuEntriesFor } from "./context-menu-items";
 export { toolbarEntriesFor, subscribeToolbarItems } from "./toolbar-items";
 export type { ToolbarEntry, ToolbarControlEntry } from "./toolbar-items";
 
+// Host-drawn panel chrome (RFC 0039). `Breadcrumb` is the path strip; the
+// `core.editor` / `core.terminal` panels compose it into their own headers and
+// the dock frame draws it for any DockPanelKind that declares
+// `toolbar: { breadcrumb: true }`. `ContributedToolbar` renders the trailing
+// cluster of `registerToolbarItem` contributions for a surface. Both moved from
+// `extensions-core` into the host so a dock panel outside the privileged graph
+// gets this chrome drawn *for* it (via `DockPanelApi.setBreadcrumb` + the
+// `"panel"` surface) rather than importing a component. Deliberately **not**
+// public SDK surface — re-exported here only so the two bundled `core.*` panels
+// that still compose them by hand keep resolving.
+export { Breadcrumb } from "../panels/Breadcrumb";
+export { ContributedToolbar } from "../panels/ContributedToolbar";
+
 // Reading a command's menu placement back out (rather than registering one)
 // is a core-extension-only concern — today the sole caller is `core.keybindings`,
 // which uses it to group the shortcuts list by the same File/View/Window/Help
@@ -334,11 +347,6 @@ export {
 // `ctx.ui`) is deferred until a real public consumer exists — we don't expand
 // the `ctx` surface ahead of a requirement.
 export { bumpUiFontSize, resetUiFontSize } from "./app-settings";
-// The RFC 0038 Chat-agents capability gate — defaults false. Read by the
-// composition root (`apps/desktop/src/builtins.ts`) to decide whether the
-// bundled Chat panel registers, and toggled on the Agents settings page.
-// Remove/promote when the sprint lands.
-export { getChatAgentsEnabled, setChatAgentsEnabled } from "../state/store";
 export { openSettings, closeSettings } from "./settings-sheet";
 export { pickWorkspaceFolder } from "./pick-folder";
 // Dock/area keyboard navigation the base menu (core.menu) drives — cycling the
@@ -511,11 +519,12 @@ export type { ChatLaunch } from "./agents/chat-launch-model";
 // asks "start this profile", never "which panel claims Chat profiles".
 export { startAgentProfile } from "./agents/agent-profile-start";
 export type { AgentProfileStart } from "./agents/agent-profile-start";
-// Activates/deactivates the bundled Chat panel to match the `chatAgents` gate.
-// Called from the app's hydrate chain (the flag is not readable before then)
-// and again when the user flips the switch — see the module for why a branch
-// inside `activateBuiltins` could never work.
-export { applyChatAgentsGate } from "./agents/chat-panel-gate";
+// Whether any installed extension claims `chatProfileHost` — i.e. a Chat panel
+// is present to open a Chat Agent Profile. `core.agents-settings` gates the
+// profile editor's Interface: Terminal / Chat choice on this, so a user cannot
+// author a Chat profile that nothing can open (RFC 0039 — replaces the
+// `chatAgents` flag; the same function the launch path resolves through).
+export { resolveChatProfileHost } from "./agents/chat-profile-host";
 
 // Opening-prompt delivery (RFC 0033 phase 3). Core needs exactly one thing
 // from this module: whether a profile can be given an opening prompt, so the

@@ -9,7 +9,7 @@ type MenuSurface =
   | "workspace";
 ```
 
-Defined in: [packages/sdk/src/types.ts:361](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L361)
+Defined in: [packages/sdk/src/types.ts:387](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L387)
 
 The context menus of built-in surfaces that a
 [ContextMenuContribution](../interfaces/ContextMenuContribution.md) can target — distinct from the menubar

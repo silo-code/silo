@@ -67,7 +67,6 @@ export const store = proxy<AppState>({
   globalActiveTabEnabled: false,
   globalPanelLayout: structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT),
   globalActiveSidePanelTabs: {},
-  chatAgents: false,
   groups: {},
   panelOrder: [],
 });
@@ -240,20 +239,6 @@ export function swapCollapseMode(fallback: SideCollapseState): void {
 
 export function setSmallScreenModeEnabled(enabled: boolean) {
   store.smallScreenModeEnabled = enabled;
-}
-
-/**
- * The RFC 0038 **Chat agents** capability gate. Defaults `false` and persists
- * in the index; nothing user-visible changes until it is on. Gates the profile
- * editor's Interface choice, `ctx.agents.sessions`, and whether the bundled
- * Chat panel registers (read once by the composition root, so a change needs a
- * restart — the same as disabling any other built-in).
- */
-export function getChatAgentsEnabled(): boolean {
-  return store.chatAgents;
-}
-export function setChatAgentsEnabled(enabled: boolean) {
-  store.chatAgents = enabled;
 }
 
 export function setSmallScreenThresholdPx(px: number) {

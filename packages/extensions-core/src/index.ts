@@ -12,8 +12,6 @@
  */
 export { extension as menu } from "./menu";
 export { extension as terminal } from "./terminal";
-// ACP transport spike (docs/acp-recon.md) — remove with the spike.
-export { extension as acpChat } from "./acp-chat";
 export { extension as editor } from "./editor";
 export { extension as layout } from "./layout";
 export { extension as navigator } from "./navigator";

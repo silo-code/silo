@@ -41,6 +41,7 @@ import { getLayoutService } from "./layout-service";
 import { getScopedProcessService } from "./process-service";
 import { getScopedProcessesService } from "./processes-service";
 import { getAgentsService } from "./agents/agents-service";
+import { createAgentSessionsService } from "./agents/acp-sessions-service";
 import { getTerminalService } from "./terminal-service";
 import { getScopedFileService } from "./file-service";
 import { getScopedSearchService } from "./search-service";
@@ -230,7 +231,13 @@ export function createContext(
     layout: getLayoutService(),
     process: getScopedProcessService(scope),
     processes: getScopedProcessesService(scope),
-    agents: getAgentsService(),
+    agents: {
+      ...getAgentsService(),
+      // `sessions` is the one part of `ctx.agents` that is permission-gated:
+      // `connect()` spawns a process and speaks a protocol to it, so it needs
+      // the `"agents"` grant (RFC 0039). The rest of `ctx.agents` is unscoped.
+      sessions: createAgentSessionsService(() => permissions.has("agents")),
+    },
     terminals: getTerminalService(),
     files: getScopedFileService(scope),
     search: getScopedSearchService(scope),

@@ -614,6 +614,184 @@ proposal. Fix the arm whose control is structurally wrong; leave the rest.
 
 **Done (2026-09-08) — see the handoff log.**
 
+## Session 3.9 — the panel moves out (RFC 0039)
+
+**Goal:** the Chat panel stops being bundled and becomes
+`examples/extensions/acp-chat`, so it can be iterated without shipping a Silo
+release. Full design: [RFC 0039](proposals/0039-panel-toolbar-sdk.md).
+
+### Why this is sprint work and not a follow-up
+
+Session 4's acceptance proof is already "an `examples/extensions/` extension
+that drives a session end to end" plus "disable the bundled panel and confirm
+the example still works". This session is that proof, done properly: rather than
+a throwaway extension written beside the real panel, **the real panel becomes
+the example**. A second, simpler extension proves less — the bundled panel is
+the one with the demanding UI, so it is the one whose gaps are worth finding.
+
+### The blocker it removes
+
+`AcpChatPanel.tsx` imports `../editor/Breadcrumb`. That is legal inside
+`extensions-core` and unavailable to anything else — `@silo-code/extensions-silo`
+already depends on `@silo-code/sdk` alone, so a `silo.*` panel physically cannot
+resolve it, let alone an example. An editor never hits this because
+`EditorPanel` draws chrome _around_ it; a dock panel gets a bare frame and has to
+build its own.
+
+So: put a dock panel on the same seam an editor is on. A kind declares
+`toolbar: { breadcrumb: true }`, publishes its path via
+`DockPanelApi.setBreadcrumb(...)` — the shape `setAgentSession` already
+established — and the host frames it. `"panel"` joins `ToolbarSurface` with a
+`{ panelId, kindId }` target so contributed items land there too.
+
+**Nothing new goes in the design-system kit.** `Breadcrumb` and
+`ContributedToolbar` move into `extension-host` and stay private; the public
+additions are a declaration, a setter, and a surface name. That matters because
+a `<PanelToolbar>` component would have needed a `children` prop, and a
+`children` prop is a private door past the contribution point — the bundled
+panel's own controls have to arrive the way a third party's do, or the
+contribution API never gets tested.
+
+### The bundled copy is deleted, not kept
+
+Not `silo.acp-chat` alongside the example: two copies of a large panel is two
+things to keep in step, and the bundled one wins `chatProfileHost` by
+registration order anyway. A default install therefore ships **no** Chat UI for
+the duration — acceptable because the feature is behind the `chatAgents` gate
+and marked work in progress. It moves back in-tree when it is good enough to be
+a default.
+
+### The `chatAgents` setting goes away with it
+
+Once nothing Chat-related is bundled, the setting has nothing left to hide: a
+default install exposes no Chat UI because none is installed, which is what the
+flag was faking. But it gates **five** things, not one, and only the first
+disappears for free:
+
+1. **Bundled panel activation** (`chat-panel-gate.ts`, the inactive registration
+   in `builtins.ts`, `applyChatAgentsGate` in `main.tsx`). All of it deleted.
+   This mechanism exists _only_ because a bundled panel had to be conditionally
+   activated, and it is the sole reason for the "No boot-time branch may read an
+   index-persisted setting" trap below. That trap goes with it.
+2. **`connect()` rejecting when off** (`acp-sessions-service.ts`). Becomes a
+   permission — see below.
+3. **The Interface: Terminal / Chat radio** in the profile editor. Must be
+   re-gated, not simply un-gated — see below.
+4. **The toggle row** on Settings → Agents. Deleted.
+5. **`startAgentProfile`'s refusal** when no panel claims `chatProfileHost`.
+   Already correct and already derived from the registry; unchanged.
+
+**Re-gate the Interface radio on `resolveChatProfileHost() !== undefined`,** not
+on nothing. Un-gating it outright would let a user with no Chat panel installed
+author a Chat profile, save it, and meet "no Chat panel is installed to open it"
+at launch — an authorable-but-unusable profile, which is the exact state Session
+3.6 spent itself eliminating for `grok`. Deriving the offer from the registry is
+strictly better than the boolean was: it is a fact rather than a preference, it
+self-heals when a panel is installed or removed, and it makes the editor and the
+launch path resolve through the same function so they cannot disagree.
+
+Keep 3.6's other rule intact: an **existing** Chat profile still edits as one
+even with no panel installed. Silently re-authoring someone's saved profile into
+the other arm because their extension list changed is the mistake 3.1 and 3.6
+both declined to make.
+
+### `ctx.agents.sessions` becomes a declared permission
+
+Removing the flag makes the surface unconditionally live for **any** installed
+extension, not just a Chat panel — and it is currently the only capability with
+a global off switch. Two things still bound it (a user-authored Chat profile must
+exist, and the user must have installed the extension), but "spawn a process and
+speak a protocol to it" is a capability, so it gets the mechanism that exists for
+capabilities rather than losing its gate by side effect.
+
+Add `"agents"` to `Permission` (`packages/sdk/src/permissions.ts`, today
+`fs:read` / `fs:write` / `process` / `network` / `webview`). `connect()` throws
+without it, the way `FileService` throws `PathDeniedError` without `fs:read`, and
+the grant is shown at install like every other. The example extension declares it
+in its `silo.permissions` — which is also the first real exercise of that
+manifest field by something in this repo.
+
+Note the shape this settles: **`process` does not cover it.** An ACP child is
+spawned by the _host_ from a user-authored profile, not by the extension through
+`ctx.process`, so the existing permission does not apply and stretching it to
+would blur what `process` means.
+
+### Scope
+
+1. Move `Breadcrumb` + `ContributedToolbar` into the host. Pure move.
+2. `DockPanelKind.toolbar` + `DockPanelApi.setBreadcrumb`; the dock frame draws
+   the strip for kinds that declare it.
+3. `"panel"` surface + `ToolbarItemContext.panel`.
+4. `core.acp-chat` adopts it and deletes its own toolbar.
+5. The panel moves to `examples/extensions/acp-chat`; `core.acp-chat` is
+   deleted.
+6. Retire `chatAgents`: delete the gate machinery and the settings row, re-gate
+   the Interface radio on `resolveChatProfileHost()`, add the `"agents"`
+   permission. Drop the persisted key defensively — an index carrying
+   `chatAgents: false` must not resurrect anything.
+7. `core.terminal` migrates — the second consumer, which is what stops the
+   design being shaped around one caller.
+
+**Done when:** `examples/extensions/acp-chat` builds and runs resolving
+`@silo-code/sdk` alone, claims `chatProfileHost` through the public path, and is
+visually indistinguishable from what shipped bundled. `chatAgents` no longer
+exists anywhere in the tree; with the example uninstalled the profile editor
+offers **no** Interface choice and an existing Chat profile still edits as one.
+
+**Watch for:** phase 5 is where a gap surfaces if there is one. Anything the
+panel still needs from `extension-host/internal` **is the finding** — fix the
+surface, do not reach around it. Package visibility, not review, is what
+enforces this: an example simply cannot resolve the privileged barrel.
+
+**Done (2026-09-09) — see the handoff log.** All seven phases; no SDK gap in
+phase 5. One judgement call: `"terminal"` `ToolbarSurface` was kept (stable
+API), so folding it into `"panel"` is a follow-up in the collapsed RFC.
+
+## Session 3.10 — commands, skills, and context (RFC 0040)
+
+**Goal:** a Chat UI can offer a command palette and an attachment affordance
+without reading `raw`. Full design:
+[RFC 0040](proposals/0040-agent-commands-and-context.md).
+
+### Recon is already done (2026-09-09)
+
+`available_commands_update` arrives as a `session/update` **before any prompt is
+sent** — 70 commands from `claude-agent-acp@0.75.1` at ~2.3s, 13 from
+`pi-acp@0.0.33` at ~12.5s (behind its startup banner). Shape is
+`{ name, description?, input? }` in both. Silo drops the notification on the
+floor today.
+
+**Skills are commands, and the agents disagree about how to say so.** ACP has no
+separate skills concept. pi prefixes the name (`skill:code-review`, 5 of 13);
+Claude does not mark them at all outside a `(user)` / `(project)` marker in the
+description prose. So the surface is **one list**, and separating skills would be
+vendor-sniffing — the exact thing the trap list forbids.
+
+`promptCapabilities` (from `initialize`) is the context half: pi is
+`embeddedContext: false`, codex and Claude are `true`, and `audio` is _absent_
+rather than `false` in two of three. A real branch, not a formality.
+
+### Scope
+
+- `session.commands` + `onCommandsChanged`, shaped exactly like the existing
+  `configOptions` + `onConfigOptionsChanged`. One pattern for "things the agent
+  told us about itself".
+- Normalise `input`: Claude sends `input: null`, pi omits the key.
+- `session.promptCapabilities`, and the `AgentPromptBlock` members it unlocks.
+- **No `runCommand()`.** Invocation is already `prompt([{ type: "text", text:
+"/compact" }])`; a second door would imply a validation Silo does not do. The
+  gap is discovery, not invocation.
+- Fix `onUpdate`'s TSDoc: it claims updates fire "only between `prompt` and its
+  resolution", and pi emits an `agent_message_chunk` at connect (its banner). A
+  consumer trusting the current wording drops it.
+
+**Done when:** the example panel renders a `/` palette from `session.commands`
+and gates its attachment affordance on `promptCapabilities`, with no `raw` read
+for either.
+
+**Watch for:** `usage_update` (`{ used, size }`) came from Claude only. One agent
+is not a pattern — leave it on `raw` and note it for the next probe.
+
 ## Session 4 — persistence and the proof
 
 **Goal:** the three acceptance criteria, demonstrated.
@@ -653,10 +831,15 @@ proposal. Fix the arm whose control is structurally wrong; leave the rest.
   so it is a documented limit rather than a contradiction. It still needs the
   ADR, because a user who has learned that terminals survive a restart will
   reasonably expect agents to.
-- **The proof:** an `examples/extensions/` extension that drives a session
-  end to end through `ctx.agents.sessions` — that is criterion 2.
-- Disable `core.acp-chat` on Settings → Extensions, confirm the example
-  extension still works — that is criterion 3.
+- **The proof, now carried by Session 3.9.** Criterion 2 was scoped as "an
+  `examples/extensions/` extension that drives a session end to end"; after 3.9
+  the real panel _is_ that extension, resolving `@silo-code/sdk` alone, so the
+  criterion is met by the shipping UI rather than by a demo written beside it.
+  Criterion 3 ("disable the bundled panel, confirm a replacement still works")
+  becomes stronger and simpler: there is no bundled panel, so every Chat session
+  in the product already runs through the public surface.
+- What remains here is the part 3.9 does not touch: **restore across a
+  restart**, and reaping. Verify criterion 1 against the moved example.
 
 **Done when:** all three criteria demonstrably hold. Only then consider `main`.
 
@@ -670,6 +853,22 @@ proposal. Fix the arm whose control is structurally wrong; leave the rest.
 - "Sign in" runs the agent's own login command in a real Silo terminal, using
   the argv from `authMethods` (`acp-recon.md` §5f).
 - Adapter fetch-on-first-use for `claude`/`codex`/`pi`.
+
+## The Chat UI we are aiming at
+
+Dave named **Paseo**'s chat UI as the model to shoot for (2026-09-09). That
+target is **not yet characterised in this plan, and must not be guessed at** —
+nobody on this branch has written down what specifically it does better, so any
+session that starts building toward it is building toward an assumption.
+
+Before it drives any work, capture the specifics: what the transcript shows per
+turn, how commands and skills are surfaced, how context is attached and
+displayed, and what the composer does. Then it belongs in a proposal, not here.
+
+What is already true and load-bearing for it: after Session 3.9 the panel lives
+in `examples/extensions/acp-chat`, so iterating toward that target no longer
+costs a Silo release — which is the whole reason 3.9 is sprint work rather than
+cleanup.
 
 ---
 
@@ -698,7 +897,9 @@ Each cost real time in the spike. Do not rediscover them.
   `activateBuiltins()` runs synchronously before the first render; `hydrate()`
   loads the index afterwards. A flag read at activation time always sees its
   default. Register inactive and reconcile from the hydrate chain instead
-  (`chat-panel-gate.ts`).
+  (`chat-panel-gate.ts`). _Session 3.9 deletes `chat-panel-gate.ts` along with
+  the `chatAgents` flag — but the trap is about boot order, not that flag, so it
+  stays here for the next feature tempted to branch at activation time._
 - **`core.*` extensions are not user-disablable.** `builtinRows()` excludes
   them from the Extensions page by design — a bundled feature meant to be
   replaceable has to be `silo.*`.
@@ -1605,3 +1806,87 @@ the Chat arm (it is behind `chatAgents` and marked work-in-progress), so nothing
 there needed updating.
 
 Next: Session 4.
+
+**Session 3.9 (2026-09-09, Sonnet) — the panel moved out, and `chatAgents` is
+gone.** All seven phases landed. The chat panel is now
+`examples/extensions/acp-chat` — the real ~1,350-line panel plus its co-located
+Vitest, moved verbatim, resolving `@silo-code/sdk` alone; `core.acp-chat` is
+deleted and out of `builtins.ts`. `turbo run test` picks the example up (it has
+a `test` script — modelled on `terminal-monitor`), so its 57 tests, including
+the 376-line `transcript-model.test.ts`, still run in CI. **No SDK gap surfaced
+in phase 5** — the example's `tsc --noEmit` passes, which is only possible if
+nothing resolves `@silo-code/extension-host/internal`; the panel was already
+clean from Session 3.
+
+The SDK grew four additions, all onto existing `@public` types (TSDoc,
+`docs:api`, roadmap row, hand-authored `/api/registration/*` + `/api/agents/
+sessions` pages all updated): `DockPanelKind.toolbar?: { breadcrumb?: boolean }`,
+`DockPanelApi.setBreadcrumb(crumb | null)` (shaped exactly like `setAgentSession`
+— three-state: crumb / `null` = no crumbs / undefined = placeholder), `"panel"`
+on `ToolbarSurface` with `ToolbarItemContext.panel = { panelId, kindId }`, and
+`"agents"` on `Permission`. `Breadcrumb` + `ContributedToolbar` moved into
+`packages/extension-host/src/panels/` (still private, re-exported from the
+internal barrel for the two `core.*` panels that compose them by hand); a new
+`panel-chrome-registry.ts` + `DockPanelChrome` + the `dock-panel-kinds.ts` frame
+draw the strip for any kind that declares `toolbar`.
+
+**`chatAgents` retired.** `chat-panel-gate.ts` + `applyChatAgentsGate` +
+`CHAT_PANEL_EXTENSION_ID` deleted; the store field / persisted key / getters
+gone (an index carrying `chatAgents` is ignored, resurrects nothing). `connect()`
+now checks a `() => boolean` predicate `context.ts` binds to the extension's
+`"agents"` permission — `getAgentsService()` returns `Omit<AgentsService,
+"sessions">` and `context.ts` composes `sessions` on. **Two enforcement points
+beyond the `Permission` type had to change and only one was obvious**:
+`KNOWN_PERMISSIONS` in `extension-manager.ts` (a runtime allowlist — the example
+failed to load with "unknown permission agents" until this was added) and
+`PermissionConsent`'s `PERMISSION_META` (`Record<Permission, …>`, so `tsc`
+caught it). The profile editor's Interface radio is re-gated on
+`resolveChatProfileHost() !== undefined` (re-added to the internal barrel) — an
+existing Chat profile still edits as one via the `|| isChat` at the call site.
+
+**`core.terminal` migrated** — declares `toolbar: { breadcrumb: true }`,
+publishes its cwd via `setBreadcrumb`, `terminalSettings.breadcrumbs` off is
+`setBreadcrumb(null)`. **Judgement call, flagged loudly:** `"terminal"` stayed
+in `ToolbarSurface` (it is a _stable_ API and `decoration-demo` uses it), so the
+terminal panel still renders its own `<ContributedToolbar surface="terminal">`
+below the host strip — which draws nothing for a normal install. Folding
+`"terminal"` into `"panel"` + `kindId` and migrating `decoration-demo` is a
+clean follow-up but breaks a stable enum member, and RFC 0039 did not scope it.
+It is listed under Follow-ups in the collapsed RFC.
+
+**Verified live** (`verifier-gui`, this worktree's dev app on :7878, sandbox
+workspace + example installed then removed, all cleaned up): terminal breadcrumb
+host-drawn and the toggle works; the installed `acp-chat` example renders a
+strip with **one** border (`.dock-panel-chrome` has none, `.breadcrumb` inside
+has `1px`) visually identical to the bundled panel; `silo.agent-inspector`
+(third party) reads its session through `ctx.agents`; a contributed
+`surface: "panel"` item with `when: t => t.kindId === "acp-chat"` appears and one
+scoped to a different kind does not; with the example disabled
+`resolveChatProfileHost()` is `undefined` (new profile gets no Interface choice)
+while an existing Chat profile still reports `interface: "chat"`.
+
+RFC 0039 collapsed to `status: implemented`. `docs/domain-language.md` gained
+**Panel Chrome**. Gaps recorded in the RFC's Follow-ups: the `"terminal"`
+surface fold-in, and `examples/extensions/*/src/**/*.css` is outside
+`pnpm lint:css`'s glob (the moved `acp-chat.css` passes stylelint by hand).
+Known outstanding from 3.6 (`fallbackAgentForCommand` not matching an absolute
+path) is unchanged — not caused here.
+
+`pnpm test` / `tsc --noEmit` / `pnpm lint` / `pnpm docs:build` green; `docs:api`
+regenerated. Do not merge to `main`. Next: Session 3.10 (RFC 0040) or Session 4.
+
+**Session 3.9a (2026-09-09, Sonnet) — one strip, `"terminal"` folded in.** Dave's
+testing caught the terminal drawing a **second row**: its breadcrumb was
+host-drawn but its `surface: "terminal"` contributed items still rendered in the
+panel's own `<ContributedToolbar>`, so a `silo.follow-ups` flag sat below the
+breadcrumb. The deferred follow-up became the fix: `ToolbarSurface` drops
+`"terminal"` (the terminal is a dock-panel kind — items are `surface: "panel"`,
+`when: t => t.kindId === "terminal"`); `ToolbarItemContext.panel` gains
+`params: Readonly<Record<string, unknown>>` so a terminal item reads
+`t.params.terminalId` (RFC 0039 open question 1, now answered);
+`DockPanelChrome` threads `props.params`; `TerminalPanel` renders no toolbar
+markup at all. `decoration-demo` migrated in-repo. `silo.follow-ups`
+(silo-extensions, published-SDK lag) still uses `surface: "terminal"` — its
+terminal items stop rendering until it is republished; noted in the RFC.
+Verified live: every `.dock-panel-frame` has exactly one `.dock-panel-chrome`,
+no stray body toolbar. Gates green.

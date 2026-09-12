@@ -86,6 +86,12 @@ function FolderGlyph() {
  * Renders the workspace-relative path as chevron-separated segments, with a
  * leaf glyph on the trailing segment (a file for editors, a folder for the
  * terminal's working directory).
+ *
+ * Host-owned chrome (RFC 0039): the editor and terminal panels compose it into
+ * their own headers, and the dock frame draws it above any {@link DockPanelKind}
+ * that declares `toolbar: { breadcrumb: true }`. Not public SDK surface — a
+ * panel outside the workspace's privileged graph gets this strip drawn *for*
+ * it, via {@link DockPanelApi.setBreadcrumb}, rather than importing a component.
  */
 export function Breadcrumb({
   filePath,

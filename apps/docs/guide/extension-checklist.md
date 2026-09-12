@@ -17,7 +17,8 @@ doesn't repeat the reasoning, just the list.
 ## Permissions
 
 - [ ] `package.json`'s `silo.permissions` lists only what the extension
-      actually needs (`fs:read`, `fs:write`, `process`, `network`) — no
+      actually needs (`fs:read`, `fs:write`, `process`, `network`, `webview`,
+      `agents`) — no
       permission requested "just in case." See
       [Permissions & access](/guide/permissions).
 - [ ] File and process access uses workspace-relative paths where possible,

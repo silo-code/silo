@@ -73,6 +73,43 @@ that — see
 
 The declaration is withdrawn automatically when the panel unmounts.
 
+### Host-drawn chrome: a breadcrumb + a contribution point
+
+By default a dock panel gets a bare frame. Declare `toolbar` and the host draws
+the same strip an editor gets — a path breadcrumb, and a place other extensions
+can contribute toolbar buttons:
+
+```tsx
+ctx.registerDockPanelKind({
+  id: "acme.chat",
+  component: AcmeChatPanel,
+  toolbar: { breadcrumb: true },
+});
+
+function AcmeChatPanel({ api }: DockPanelProps) {
+  useEffect(() => {
+    api.setBreadcrumb({
+      filePath: cwd,
+      workspaceFolder: cwd,
+      leafIcon: "folder",
+    });
+    return () => api.setBreadcrumb(null);
+  }, [api, cwd]);
+}
+```
+
+`api.setBreadcrumb(crumb | null)` fills in the crumbs — same shape as
+`setAgentSession`: your panel states the path, the host draws it. `null` shows no
+crumbs (a "hide breadcrumbs" setting of your own, say). `toolbar: {}` still
+reserves the strip for contributed items only.
+
+Trailing buttons arrive through
+[`ctx.registerToolbarItem({ surface: "panel" })`](/api/registration/register-toolbar-item)
+— the same door your _own_ controls use. Scope an item to your kind with
+`when: (_keys, t) => t.kindId === "acme.chat"`, and read instance data off
+`t.params` (your `DockPanelProps["params"]`). The built-in terminal declares
+`toolbar` too, so its toolbar items are ordinary `"panel"` items.
+
 ## Types
 
 Pass [`DockPanelKind`](/api/types/interfaces/DockPanelKind).

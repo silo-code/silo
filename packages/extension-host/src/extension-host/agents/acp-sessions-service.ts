@@ -14,7 +14,11 @@
  * Chat session shows up in the Agents navigator with correct status having
  * never touched a terminal.
  *
- * The whole surface is gated on the `chatAgents` setting (off by default).
+ * `connect()` needs the `"agents"` {@link Permission}, declared in the calling
+ * extension's manifest and granted at install — the way {@link FileService}
+ * needs `fs:read`. The factory takes a predicate (`context.ts` binds it to the
+ * per-extension permission set) rather than reading a global, so the gate is a
+ * capability grant, not a setting (RFC 0039 retired the `chatAgents` flag).
  */
 
 import type {
@@ -175,16 +179,21 @@ function toSdkUpdate(u: AcpSessionUpdate): AgentSessionUpdate {
 
 /**
  * @internal — host factory; extensions receive this as `ctx.agents.sessions`.
+ *
+ * @param hasAgentsPermission - `true` when the calling extension declared the
+ *   `"agents"` {@link Permission}. `connect()` throws without it.
  */
-export function createAgentSessionsService(): AgentSessionsService {
+export function createAgentSessionsService(
+  hasAgentsPermission: () => boolean,
+): AgentSessionsService {
   return {
     async connect(
       profileId: string,
       options?: AgentSessionConnectOptions,
     ): Promise<AgentSessionHandle> {
-      if (!store.chatAgents) {
+      if (!hasAgentsPermission()) {
         throw new Error(
-          "Chat agents are turned off. Enable “Chat agents” on Settings → Agents.",
+          'ctx.agents.sessions.connect() needs the "agents" permission — add it to your extension\'s silo.permissions.',
         );
       }
       const profile = getAgentProfiles().find((p) => p.id === profileId);

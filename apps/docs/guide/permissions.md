@@ -100,6 +100,8 @@ user sees exactly what you're asking for when they install, and approves it once
       "fs:write", // write files outside the workspace
       "process", // run commands outside the workspace
       "network", // make outbound network requests
+      "webview", // script / screenshot embedded web content
+      "agents", // run a Chat agent (ctx.agents.sessions)
     ],
   },
 }
@@ -112,6 +114,8 @@ user sees exactly what you're asking for when they install, and approves it once
 | `fs:write` | write files anywhere on disk                                                      |
 | `process`  | run commands with any working directory                                           |
 | `network`  | make outbound network requests                                                    |
+| `webview`  | read, script, and screenshot pages in your `ctx.webview` panels                   |
+| `agents`   | start a Chat agent from a user's Chat profile via `ctx.agents.sessions`           |
 
 **Ask for the least you need.** An extension with no `permissions` installs with
 no prompt at all — the smoothest experience for your users. Every permission you

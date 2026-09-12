@@ -215,6 +215,9 @@ describe("validateManifestPermissions", () => {
   it("accepts the webview permission", () => {
     expect(validateManifestPermissions(["webview"], "x")).toEqual(["webview"]);
   });
+  it("accepts the agents permission", () => {
+    expect(validateManifestPermissions(["agents"], "x")).toEqual(["agents"]);
+  });
   it("throws on an unknown permission", () => {
     expect(() => validateManifestPermissions(["fs:delete"], "x")).toThrow(
       /unknown permission/,

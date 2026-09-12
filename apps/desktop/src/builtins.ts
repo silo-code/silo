@@ -2,7 +2,6 @@ import { activateExtensions } from "@silo-code/extension-host";
 import type { Extension } from "@silo-code/sdk";
 import {
   menu as coreMenu,
-  acpChat,
   terminal,
   output,
   editor,
@@ -42,10 +41,6 @@ const builtins: Extension[] = [
   // kinds runs (CenterDock's first render). core.editor registers both the
   // editor and diff kinds (text + diff + settings are its modules).
   terminal,
-  // The bundled Chat panel (RFC 0038). Present in the list so its panel kind
-  // exists for layout deserialization, but activated only once `chatAgents` is
-  // known to be on — see CHAT_PANEL_EXTENSION_ID below.
-  acpChat,
   output,
   // The text editor registers before markdown-preview so that, with both at
   // priority 0, a plain .md open ties to Text (the default view); Preview is
@@ -84,28 +79,18 @@ const builtins: Extension[] = [
 ];
 
 /**
- * The bundled Chat panel's extension id (RFC 0038).
- *
- * It is in `builtins` above but starts **inactive**: `chatAgents` lives in the
- * persisted index, which hydrates *after* this synchronous activation, so the
- * flag simply cannot be read here — an earlier attempt to branch on it was
- * dead code that never once evaluated true. `applyChatAgentsGate` activates it
- * from the hydrate chain instead (and again whenever the user flips the
- * switch). Registered-but-inactive is the state `activateExtensions` already
- * models for a disabled built-in, so nothing it contributes reaches the first
- * frame while the gate is off.
- */
-export const CHAT_PANEL_EXTENSION_ID = acpChat.id;
-
-/**
  * Activate the built-in set **synchronously**, before the first render — the
  * dock deserializes its saved layout at mount and needs the editor/terminal
  * panel kinds (registered by `core.editor`/`core.terminal`) already present, so
  * this must not be deferred behind a disk read. The user's persisted
  * disabled-built-in choices are applied just after, asynchronously, via
- * {@link ExtensionManager.applyDisabledBuiltins}; the Chat panel's gate is
- * applied from the hydrate chain via `applyChatAgentsGate`.
+ * {@link ExtensionManager.applyDisabledBuiltins}.
+ *
+ * The bundled Chat panel is gone (RFC 0039): it lives in
+ * `examples/extensions/acp-chat`, installed like any other extension, so there
+ * is no longer a built-in that has to be conditionally activated — and with it
+ * went the `chatAgents` gate and the boot-order dance it forced.
  */
 export function activateBuiltins(): void {
-  activateExtensions(builtins, new Set([CHAT_PANEL_EXTENSION_ID]));
+  activateExtensions(builtins);
 }

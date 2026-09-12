@@ -21,6 +21,14 @@
  *   including cross-origin content. Declare it because this reaches into
  *   arbitrary embedded pages, not because it touches the filesystem/network
  *   directly.
+ * - `agents` — use {@link AgentSessionsService} (`ctx.agents.sessions`) to
+ *   start a **Chat session**: the host spawns the process named by a
+ *   user-authored Chat Agent Profile and speaks the Agent Client Protocol to
+ *   it. {@link AgentSessionsService.connect | connect()} throws without this,
+ *   the way {@link FileService} throws {@link PathDeniedError} without
+ *   `fs:read`. Distinct from `process`: the child is spawned by the host from a
+ *   profile the user wrote, not by the extension through
+ *   {@link ExtensionContext.process}.
  *
  * @category Extension Contract
  * @public
@@ -30,7 +38,8 @@ export type Permission =
   | "fs:write"
   | "process"
   | "network"
-  | "webview";
+  | "webview"
+  | "agents";
 
 /**
  * Thrown by {@link FileService} and {@link ProcessService} when an extension

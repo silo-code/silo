@@ -519,10 +519,15 @@ export function DemoPanel({ ctx }: { ctx: ExtensionContext }) {
     const runToggle = (...args: unknown[]) => {
       const t = args[0] as
         | ToolbarItemContext["editor"]
-        | ToolbarItemContext["terminal"]
+        | ToolbarItemContext["panel"]
         | MenuContext["editor/tab"]
         | MenuContext["terminal/tab"];
       if ("editorId" in t) toggleMark("editor", t.editorId);
+      // The terminal's toolbar items are `surface: "panel"` now (RFC 0039), so
+      // the terminal id comes off `t.params`; the terminal/tab *menu* target
+      // still carries `terminalId` directly.
+      else if ("kindId" in t)
+        toggleMark("terminal", t.params.terminalId as string);
       else if ("terminalId" in t) toggleMark("terminal", t.terminalId);
       ctx.invalidateToolbarItems();
       ctx.editors.invalidateTabAdornments();
@@ -607,24 +612,27 @@ export function DemoPanel({ ctx }: { ctx: ExtensionContext }) {
         order: 40,
         menu: (t) => markMenu("editor", t.editorId),
       }),
-      // Terminal: icon-only + dropdown
+      // Terminal: icon-only + dropdown. `surface: "panel"` scoped to the
+      // built-in terminal kind (RFC 0039) — the terminal id is on `t.params`.
       ctx.registerToolbarItem({
         id: "silo.decoration-demo.toolbar-icon-terminal",
-        surface: "terminal",
+        surface: "panel",
         command: "silo.decoration-demo.toggleMark",
         icon: icons.mark,
         tooltip: "Icon-only mark",
         label: "Decos mark",
-        checked: (_k, t) => isMarked("terminal", t.terminalId),
+        when: (_k, t) => t.kindId === "terminal",
+        checked: (_k, t) => isMarked("terminal", t.params.terminalId as string),
         order: 10,
       }),
       ctx.registerToolbarItem({
         id: "silo.decoration-demo.toolbar-menu-terminal",
-        surface: "terminal",
+        surface: "panel",
         title: "Actions",
         tooltip: "Dropdown menu",
         order: 20,
-        menu: (t) => markMenu("terminal", t.terminalId),
+        when: (_k, t) => t.kindId === "terminal",
+        menu: (t) => markMenu("terminal", t.params.terminalId as string),
       }),
       ctx.registerContextMenuItem({
         surface: "editor/tab",

@@ -5,8 +5,8 @@ import { useFocusGroup, useServiceState } from "@silo-code/sdk";
 import {
   ErrorBoundary,
   navigatorViewRegistry,
+  ContributedToolbar,
 } from "@silo-code/extension-host/internal";
-import { ContributedToolbar } from "../shared/ContributedToolbar";
 import {
   activeViewIndex,
   buildViewRows,

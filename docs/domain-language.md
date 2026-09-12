@@ -159,6 +159,20 @@ handle that points to a Panel, not the Panel itself — see Tab)
 The UI handle used to switch between Panels within a Group.
 _Avoid_: Panel (the content it points to, not the handle itself)
 
+**Panel Chrome** (RFC 0039):
+The **one** host-drawn strip above a Dock Panel's content — a path
+**Breadcrumb** plus a contribution point for
+`registerToolbarItem({ surface: "panel" })` items. A **Dock Panel Kind** opts in
+with `toolbar: { breadcrumb: true }` and fills the crumbs via
+`DockPanelApi.setBreadcrumb`; the Terminal is a kind that declares it, so a
+terminal toolbar item is a `"panel"` item scoped by `kindId`. The Panel states
+its path and the host draws it — the same "state a fact, host routes on it"
+shape as **Agent Surface** — and a Panel never renders a toolbar of its own, so
+a contribution can never land on a second row. (An Editor's strip is a separate,
+Editor-owned composition — it carries the view switcher.)
+_Avoid_: Panel toolbar (the contribution cluster is one part of the chrome, not
+the whole), header (too generic — the Editor's is a different composition)
+
 **Active Panel**:
 The one Panel currently active within a Dock — a _different_ "active" than
 Navigator's Active View: dock-scoped, dockview-driven, and (per ADR 0032)

@@ -7,6 +7,10 @@ import {
   panelControlsForAgentSession,
   panelForAgentSession,
 } from "./agents/agent-surface-registry";
+import {
+  _resetPanelChromeRegistryForTests,
+  getPanelBreadcrumb,
+} from "./panel-chrome-registry";
 
 type DockviewPanelApi = IDockviewPanelProps["api"];
 
@@ -49,6 +53,19 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
     makeDockPanelApi(dv).setAgentSession("chat:abc");
     panelControlsForAgentSession("chat:abc")?.close();
     expect(dv.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("setBreadcrumb records the crumb against this panel; null clears the path crumbs (RFC 0039)", () => {
+    _resetPanelChromeRegistryForTests();
+    const api = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"));
+    expect(getPanelBreadcrumb("acp-chat:p1")).toBeUndefined();
+    api.setBreadcrumb({ filePath: "/w/proj", leafIcon: "folder" });
+    expect(getPanelBreadcrumb("acp-chat:p1")).toEqual({
+      filePath: "/w/proj",
+      leafIcon: "folder",
+    });
+    api.setBreadcrumb(null);
+    expect(getPanelBreadcrumb("acp-chat:p1")).toBeNull();
   });
 
   it("delegates the plain DockPanelApi verbs to the dockview api", () => {

@@ -7,6 +7,11 @@ import {
 import type { IDockviewPanelProps } from "dockview";
 import { Registry } from "./registry";
 import { setPanelAgentSession } from "./agents/agent-surface-registry";
+import {
+  setPanelBreadcrumb,
+  clearPanelBreadcrumb,
+} from "./panel-chrome-registry";
+import { DockPanelChrome } from "../panels/DockPanelChrome";
 import type {
   DockPanelApi,
   DockPanelKind,
@@ -52,6 +57,7 @@ export function makeDockPanelApi(dv: DockviewPanelApi): DockPanelApi {
         close: () => dv.close(),
       });
     },
+    setBreadcrumb: (crumb) => setPanelBreadcrumb(dv.id, crumb),
   };
 }
 
@@ -59,26 +65,48 @@ export function makeDockPanelApi(dv: DockviewPanelApi): DockPanelApi {
  * Wrap a {@link DockPanelKind.component} so dockview (which passes
  * {@link IDockviewPanelProps}) mounts it with the SDK's {@link DockPanelProps}
  * — a {@link DockPanelApi} plus the panel's typed params. Also withdraws the
- * panel's Agent Session declaration when it unmounts, so a closed Chat tab
- * does not leave the host routing agent chrome at a tab that is gone.
+ * panel's Agent Session declaration and breadcrumb when it unmounts, so a
+ * closed tab does not leave the host routing chrome at a tab that is gone.
+ *
+ * A kind that declares `toolbar` (RFC 0039) is framed: the host draws the
+ * chrome strip above the component, the same one an editor gets, fed by
+ * {@link DockPanelApi.setBreadcrumb} and `registerToolbarItem({ surface:
+ * "panel" })`. A kind that omits `toolbar` gets today's bare frame.
  */
 function toHostComponent(
   kind: DockPanelKind,
 ): FunctionComponent<IDockviewPanelProps> {
   const Component = kind.component as FunctionComponent<DockPanelProps>;
+  const { toolbar } = kind;
   function DockPanelHost(props: IDockviewPanelProps) {
     const api = useMemo(() => makeDockPanelApi(props.api), [props.api]);
     const panelId = props.api.id;
     useEffect(
       () => () => {
         setPanelAgentSession(panelId, null);
+        clearPanelBreadcrumb(panelId);
       },
       [panelId],
     );
-    return createElement(Component, {
-      api,
-      params: props.params as Record<string, unknown>,
-    });
+    const params = props.params as Record<string, unknown>;
+    const body = createElement(Component, { api, params });
+    if (!toolbar) return body;
+    return createElement(
+      "div",
+      { className: "dock-panel-frame" },
+      createElement(DockPanelChrome, {
+        key: "chrome",
+        panelId,
+        kindId: kind.id,
+        params,
+        toolbar,
+      }),
+      createElement(
+        "div",
+        { className: "dock-panel-frame__body", key: "body" },
+        body,
+      ),
+    );
   }
   DockPanelHost.displayName = `DockPanelHost(${kind.id})`;
   return DockPanelHost;

@@ -17,9 +17,13 @@
  *   to it. No shell is involved, so aliases do *not* resolve — which is
  *   exactly why the shape is a path plus args rather than one string.
  *
- * The choice appears only while the `chatAgents` setting is on. With it off
- * this editor behaves exactly as it did before RFC 0038: Terminal only, with
- * no extra control on screen.
+ * The Interface choice appears only when a Chat panel is installed to open one
+ * (`resolveChatProfileHost()` — RFC 0039, replacing the retired `chatAgents`
+ * flag). With none installed this editor is Terminal only, so a user cannot
+ * author a Chat profile that nothing can run — the exact authorable-but-unusable
+ * state Session 3.6 eliminated for `grok`. An **existing** Chat profile still
+ * edits as one regardless: the world changing is no reason to silently
+ * re-author a saved profile into the other arm.
  *
  * ## Why the two arms have different controls (Session 3.6)
  *
@@ -69,7 +73,7 @@ import {
   overrideKey,
   isRemoved,
   displayKey,
-  getChatAgentsEnabled,
+  resolveChatProfileHost,
   chatExecPreview,
   chatLaunchForAgent,
   formatArgs,
@@ -144,11 +148,13 @@ export function ProfileEditorModal({
   const envVar = configDirEnvVarForAgent(resolvedAgentId);
   const resolvedAgentKnown = resolvedAgentId != null;
 
-  // The Chat *choice* is gated on the setting; an existing Chat profile still
-  // edits as one either way. Silently re-authoring someone's saved profile
-  // into the other arm because a flag moved would be worse than showing them
-  // fields they cannot currently create from scratch.
-  const chatChoiceOffered = getChatAgentsEnabled();
+  // The Chat *choice* is offered only when a Chat panel is installed to open
+  // one (the same function the launch path resolves through, so the editor and
+  // the launch cannot disagree). An existing Chat profile still edits as one —
+  // the `|| isChat` at the radio's call site keeps it visible — because
+  // silently re-authoring a saved profile into the other arm when the
+  // extension list changed is worse than an unreachable field.
+  const chatChoiceOffered = resolveChatProfileHost() !== undefined;
   const isChat = s.interfaceKind === "chat";
 
   // The Chat arm's Agent picker: only agents with a recon-verified ACP launch,

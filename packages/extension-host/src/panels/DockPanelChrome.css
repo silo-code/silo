@@ -1,0 +1,44 @@
+/* Host-drawn panel strip (RFC 0039). A bare stretch flex wrapper, exactly like
+ * `.terminal-toolbar` / `.editor-breadcrumb`: `<Breadcrumb>` and
+ * `<ContributedToolbar>` each bring the toolbar background, padding and the
+ * single bottom border, so this wrapper paints nothing of its own — styling a
+ * border here too drew it twice (the double-rule bug `24aeaba3` fixed). With
+ * neither child rendering (a `toolbar: {}` kind with no contributions) it
+ * collapses to nothing. */
+.dock-panel-chrome {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.dock-panel-chrome .breadcrumb {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Flush the contribution cluster up against the path crumbs. */
+.dock-panel-chrome .breadcrumb:has(+ .contributed-toolbar) {
+  padding-right: 0;
+}
+
+/* No breadcrumb — the contribution cluster is the whole strip, so let it span
+ * the panel width and keep its trailing pad. */
+.dock-panel-chrome > .contributed-toolbar:only-child {
+  flex: 1 1 auto;
+  padding-right: 8px;
+}
+
+.dock-panel-frame {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  min-height: 0;
+}
+
+.dock-panel-frame__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}

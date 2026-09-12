@@ -1,6 +1,6 @@
 # Interface: EditorProps
 
-Defined in: [packages/sdk/src/types.ts:160](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L160)
+Defined in: [packages/sdk/src/types.ts:186](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L186)
 
 Props passed to an [Editor](Editor.md) component. An editor renders the contents of
 one editor tab (a presenter for a file type — distinct from
@@ -14,7 +14,7 @@ one editor tab (a presenter for a file type — distinct from
 editorId: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:162](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L162)
+Defined in: [packages/sdk/src/types.ts:188](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L188)
 
 Stable id of the editor tab this editor instance is rendering.
 
@@ -26,7 +26,7 @@ Stable id of the editor tab this editor instance is rendering.
 filePath: string | null;
 ```
 
-Defined in: [packages/sdk/src/types.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L164)
+Defined in: [packages/sdk/src/types.ts:190](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L190)
 
 Absolute path of the file, or `null` for an untitled buffer.
 
@@ -38,6 +38,6 @@ Absolute path of the file, or `null` for an untitled buffer.
 dockApi: DockPanelApi;
 ```
 
-Defined in: [packages/sdk/src/types.ts:166](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L166)
+Defined in: [packages/sdk/src/types.ts:192](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L192)
 
 Handle to the surrounding dock panel (title, close, focus).

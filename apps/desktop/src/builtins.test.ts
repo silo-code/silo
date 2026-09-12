@@ -9,37 +9,24 @@ vi.mock("@silo-code/extension-host", async (importOriginal) => ({
   activateExtensions,
 }));
 
-const { activateBuiltins, CHAT_PANEL_EXTENSION_ID } =
-  await import("./builtins");
+const { activateBuiltins } = await import("./builtins");
 
-// RFC 0038: the Chat panel must be *registered* (its panel kind has to exist
-// for layout deserialization and for `chatProfileHost` resolution) but must
-// not *activate* until the `chatAgents` gate is known — which is only after
-// hydrate, well past this synchronous call.
-describe("activateBuiltins — the Chat panel starts registered but inactive", () => {
-  it("hands the Chat panel to activateExtensions as an initially-disabled id", () => {
+// RFC 0039: the Chat panel moved to `examples/extensions/acp-chat`, so there is
+// no longer a bundled extension that has to be conditionally activated — and
+// the `chatAgents` gate and its boot-order dance went with it.
+describe("activateBuiltins", () => {
+  it("activates the built-in set with nothing force-disabled", () => {
     activateBuiltins();
     const [builtins, disabled] = activateExtensions.mock.calls[0]!;
-    expect(builtins.map((e: { id: string }) => e.id)).toContain(
-      CHAT_PANEL_EXTENSION_ID,
-    );
-    expect(disabled).toEqual(new Set([CHAT_PANEL_EXTENSION_ID]));
+    expect(builtins.length).toBeGreaterThan(0);
+    expect(disabled).toBeUndefined();
   });
 
-  it("names the bundled Chat panel", () => {
-    expect(CHAT_PANEL_EXTENSION_ID).toBe("core.acp-chat");
-  });
-
-  it("registers it right after core.terminal, so its + menu entry sits beside New Terminal", () => {
+  it("does not bundle a Chat panel", () => {
     activateBuiltins();
-    const ids = activateExtensions.mock.calls[0]![0].map(
+    const ids: string[] = activateExtensions.mock.calls[0]![0].map(
       (e: { id: string }) => e.id,
     );
-    expect(ids[ids.indexOf("core.terminal") + 1]).toBe(CHAT_PANEL_EXTENSION_ID);
-  });
-
-  it("disables nothing else", () => {
-    activateBuiltins();
-    expect(activateExtensions.mock.calls[0]![1].size).toBe(1);
+    expect(ids).not.toContain("core.acp-chat");
   });
 });

@@ -69,6 +69,7 @@ const KNOWN_PERMISSIONS: readonly Permission[] = [
   "process",
   "network",
   "webview",
+  "agents",
 ];
 
 /**

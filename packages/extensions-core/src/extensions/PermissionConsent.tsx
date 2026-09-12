@@ -35,6 +35,12 @@ const PERMISSION_META: Record<
       "Read, script, and screenshot pages shown in this extension's panels — including sites from other websites.",
     icon: <WindowIcon />,
   },
+  agents: {
+    label: "Run Chat agents",
+    detail:
+      "Start the coding agent named by one of your Chat agent profiles and hold a live conversation with it.",
+    icon: <TerminalIcon />,
+  },
 };
 
 /**

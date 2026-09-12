@@ -128,3 +128,5 @@ don't get a proposal at all — see below.
 | [0036](./0036-replay-tagged-reattach.md)                      | Tagging reattach replay on the wire                               | 2026-09-03 | implemented |
 | [0038](./0038-acp-agent-sessions.md)                          | Agent Sessions — running an agent over a protocol (ACP)           | 2026-09-07 | draft       |
 | [0037](./0037-omp-agent-catalog.md)                           | OMP as a standalone catalog agent                                 | 2026-09-04 | implemented |
+| [0039](./0039-panel-toolbar-sdk.md)                           | Host-drawn chrome for a dock panel                                | 2026-09-09 | implemented |
+| [0040](./0040-agent-commands-and-context.md)                  | Commands, skills, and context in the Agent Session surface        | 2026-09-09 | draft       |

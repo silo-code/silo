@@ -70,7 +70,6 @@ import type {
   TabIconBinder,
   Disposable,
 } from "@silo-code/sdk";
-import { createAgentSessionsService } from "./acp-sessions-service";
 
 // `ctx.agents` — the host implementation. Public contract in
 // @silo-code/sdk (agents-service.ts). See RFC 0018. Detection and
@@ -1395,11 +1394,18 @@ function bothKinds(
   };
 }
 
-let agentsService: AgentsService | null = null;
+/**
+ * Everything on `ctx.agents` except `sessions`. `sessions` is bound per
+ * extension in `context.ts` because {@link AgentSessionsService.connect} is
+ * gated on that extension's `"agents"` permission (RFC 0039); the rest is
+ * fully unscoped, matching `ctx.processes`'s precedent.
+ */
+export type UnscopedAgentsService = Omit<AgentsService, "sessions">;
 
-/** @internal — host factory; extensions receive this as `ctx.agents`. Fully
- * unscoped (no Permission gating), matching `ctx.processes`'s precedent. */
-export function getAgentsService(): AgentsService {
+let agentsService: UnscopedAgentsService | null = null;
+
+/** @internal — host factory; `context.ts` adds `sessions` to make `ctx.agents`. */
+export function getAgentsService(): UnscopedAgentsService {
   if (agentsService) return agentsService;
   agentsService = {
     getState(options) {
@@ -1517,9 +1523,6 @@ export function getAgentsService(): AgentsService {
       subscribeAgentProfiles(invalidateProfileSummaries);
       return createAgentProfilesService();
     })(),
-    // RFC 0038 phase 2. Gated on the `chatAgents` setting inside `connect()`,
-    // so the member is always present but inert until the flag is on.
-    sessions: createAgentSessionsService(),
   };
   return agentsService;
 }

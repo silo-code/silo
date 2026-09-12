@@ -1,6 +1,6 @@
 # Interface: DockPanelKind\<T\>
 
-Defined in: [packages/sdk/src/types.ts:606](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L606)
+Defined in: [packages/sdk/src/types.ts:632](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L632)
 
 Registers a kind of dock panel (a tab that can live in the center dock area,
 e.g. the terminal). Workspaces open panels of registered kinds by id. The
@@ -22,7 +22,7 @@ opened with — annotate your component with `DockPanelProps<T>` and
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:608](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L608)
+Defined in: [packages/sdk/src/types.ts:634](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L634)
 
 Unique id for this panel kind.
 
@@ -34,9 +34,44 @@ Unique id for this panel kind.
 component: ComponentType<DockPanelProps<T>>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:610](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L610)
+Defined in: [packages/sdk/src/types.ts:636](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L636)
 
 The React component that renders this panel; receives [DockPanelProps](DockPanelProps.md).
+
+***
+
+### toolbar?
+
+```ts
+optional toolbar?: object;
+```
+
+Defined in: [packages/sdk/src/types.ts:653](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L653)
+
+Host-drawn chrome above this panel's component (RFC 0039). Omit for a bare
+frame — the default, and correct for a panel that fills its own space.
+
+With it set, the dock frame draws the same strip an editor gets: the
+breadcrumb path (fed by [DockPanelApi.setBreadcrumb](DockPanelApi.md#setbreadcrumb)) plus a
+contribution point, so any extension can
+`registerToolbarItem({ surface: "panel", when: (_k, t) => t.kindId === "…" })`
+and its button lands here. A first-party panel's own controls arrive the
+same way — there is no `children` slot past the contribution point. The
+built-in terminal declares this, so its toolbar contributions are ordinary
+`"panel"` items.
+
+`toolbar: {}` — declared but empty — still reserves the strip, for a panel
+that wants only contributed items.
+
+#### breadcrumb?
+
+```ts
+optional breadcrumb?: boolean;
+```
+
+Draw path crumbs in the strip, filled in by
+[DockPanelApi.setBreadcrumb](DockPanelApi.md#setbreadcrumb). Without it the strip carries only
+contributed items.
 
 ***
 
@@ -46,7 +81,7 @@ The React component that renders this panel; receives [DockPanelProps](DockPanel
 optional chatProfileHost?: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:632](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L632)
+Defined in: [packages/sdk/src/types.ts:682](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L682)
 
 Declares that this panel kind renders a **Chat session** for an Agent
 Profile (RFC 0038), so Silo can open it on the user's behalf.
@@ -76,7 +111,7 @@ handed profiles it does not render.
 optional addMenuItem?: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:637](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L637)
+Defined in: [packages/sdk/src/types.ts:687](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L687)
 
 When set, this kind appears as an entry in the center dock's **+** add
 menu (the per-group header button). Omit to keep the kind internal.

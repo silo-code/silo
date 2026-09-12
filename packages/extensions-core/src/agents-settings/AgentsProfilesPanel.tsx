@@ -1,31 +1,17 @@
 /**
  * Settings → Agents → **Profiles** (RFC 0033 R13). The profile list (`List` /
  * `ListRow` / `AddRow` — ADR 0026), then a "Found on this machine"
- * one-click-add section, then the **Chat agents** capability gate (RFC 0038).
- * The editor is a host `Modal` (`ctx.ui.showModal`).
+ * one-click-add section. The editor is a host `Modal` (`ctx.ui.showModal`).
  *
- * The gate lives here, at the bottom of Profiles, because Profiles is where it
- * has an effect: turning it on is what gives the editor its
- * Interface: Terminal/Chat choice. It is the one switch for the whole
- * capability — see {@link setChatAgentsEnabled}.
+ * There is no Chat-agents capability switch: RFC 0039 retired the `chatAgents`
+ * flag. `ctx.agents.sessions` is a per-extension `"agents"` permission, and the
+ * editor's Interface: Terminal / Chat choice is offered when a Chat panel is
+ * installed (`resolveChatProfileHost()`), not behind a preference.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useSnapshot } from "valtio";
 import type { ExtensionContext } from "@silo-code/sdk";
+import { AddRow, List, useServiceState } from "@silo-code/sdk";
 import {
-  AddRow,
-  Callout,
-  List,
-  Section,
-  SettingRow,
-  Switch,
-  useServiceState,
-} from "@silo-code/sdk";
-import {
-  store,
-  getChatAgentsEnabled,
-  setChatAgentsEnabled,
-  applyChatAgentsGate,
   getAgentProfiles,
   subscribeAgentProfiles,
   removeAgentProfile,
@@ -189,54 +175,6 @@ export function AgentsProfilesPanel({
         existingProfileIds={existingProfileIds}
         colorScheme={colorScheme}
       />
-
-      <ChatAgentsGate />
     </div>
-  );
-}
-
-/**
- * The RFC 0038 **Chat agents** capability gate — the single switch for the
- * whole Chat path. On, the profile editor offers Interface: Terminal/Chat,
- * `ctx.agents.sessions` works, and the bundled Chat panel registers.
- *
- * There is deliberately no second toggle for the panel: once the capability is
- * on, running a different Chat UI is the same gesture as for any other
- * extension — disable `core.acp-chat` on Settings → Extensions and install the
- * one you want.
- */
-function ChatAgentsGate() {
-  // Subscribed rather than read once, so the Callout below appears the moment
-  // the switch moves.
-  useSnapshot(store);
-  const enabled = getChatAgentsEnabled();
-  return (
-    <Section label="Chat agents">
-      <SettingRow
-        label="Enable Chat agents (work in progress)"
-        hint="Adds an Interface choice to each agent profile: Terminal, where the agent draws its own interface, or Chat, where Silo renders the conversation. Off by default."
-      >
-        <Switch
-          checked={enabled}
-          onChange={(checked) => {
-            setChatAgentsEnabled(checked);
-            // Activate (or tear down) the bundled Chat panel to match, so the
-            // switch takes effect now rather than at the next launch. Its own
-            // id — this extension is `core.*` alongside it, and the host is
-            // told which extension to gate rather than knowing.
-            applyChatAgentsGate("core.acp-chat");
-          }}
-          aria-label="Enable Chat agents"
-        />
-      </SettingRow>
-      {enabled ? (
-        <Callout>
-          Add a profile above with <strong>Interface: Chat</strong>, then pick
-          it from a dock’s <strong>+</strong> menu. Cursor and OpenCode work
-          with nothing to install; Claude and Codex need a separate adapter you
-          supply yourself.
-        </Callout>
-      ) : null}
-    </Section>
   );
 }

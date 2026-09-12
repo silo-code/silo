@@ -183,8 +183,9 @@ export async function hydrate(configDir: string): Promise<void> {
       index.sharedColumnWidthsEnabled ?? DEFAULT_SHARED_COLUMN_WIDTHS;
     store.globalPanelLayoutEnabled = index.globalPanelLayoutEnabled ?? false;
     store.globalActiveTabEnabled = index.globalActiveTabEnabled ?? false;
-    // RFC 0038 sprint flags — absent in every index today; both default off.
-    store.chatAgents = index.chatAgents ?? false;
+    // `index.chatAgents` (RFC 0038 sprint flag) is deliberately ignored — the
+    // capability is a per-extension permission now (RFC 0039), so an old index
+    // carrying it resurrects nothing.
     store.globalPanelLayout = index.globalPanelLayout
       ? cloneGlobalPanelLayout(index.globalPanelLayout)
       : structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT);
@@ -356,7 +357,6 @@ async function doPersist(): Promise<void> {
       sharedColumnWidthsEnabled: store.sharedColumnWidthsEnabled,
       globalPanelLayoutEnabled: store.globalPanelLayoutEnabled,
       globalActiveTabEnabled: store.globalActiveTabEnabled,
-      chatAgents: store.chatAgents,
       // While the flag is on, live state is the source of truth; while off,
       // `store.globalPanelLayout`/`globalActiveSidePanelTabs` already hold
       // the frozen value from when it was last turned off.

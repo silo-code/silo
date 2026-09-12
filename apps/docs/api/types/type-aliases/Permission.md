@@ -1,10 +1,10 @@
 # Type Alias: Permission
 
 ```ts
-type Permission = "fs:read" | "fs:write" | "process" | "network" | "webview";
+type Permission = "fs:read" | "fs:write" | "process" | "network" | "webview" | "agents";
 ```
 
-Defined in: [packages/sdk/src/permissions.ts:28](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L28)
+Defined in: [packages/sdk/src/permissions.ts:36](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L36)
 
 A capability an extension declares in its manifest (`silo.permissions`) to
 request access **beyond the open workspace**. With none declared, an
@@ -23,3 +23,11 @@ and the user consents to the set at install.
   including cross-origin content. Declare it because this reaches into
   arbitrary embedded pages, not because it touches the filesystem/network
   directly.
+- `agents` — use [AgentSessionsService](../interfaces/AgentSessionsService.md) (`ctx.agents.sessions`) to
+  start a **Chat session**: the host spawns the process named by a
+  user-authored Chat Agent Profile and speaks the Agent Client Protocol to
+  it. [connect()](../interfaces/AgentSessionsService.md#connect) throws without this,
+  the way [FileService](../interfaces/FileService.md) throws [PathDeniedError](../classes/PathDeniedError.md) without
+  `fs:read`. Distinct from `process`: the child is spawned by the host from a
+  profile the user wrote, not by the extension through
+  [ExtensionContext.process](../interfaces/ExtensionContext.md#process).

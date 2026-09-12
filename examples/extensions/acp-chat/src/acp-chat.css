@@ -31,22 +31,8 @@
   font-size: var(--silo-font-size-base);
 }
 
-/* A bare flex wrapper, exactly like `.terminal-toolbar`: `<Breadcrumb>` already
-   *is* the strip — it brings the toolbar background, the padding and the
-   bottom border. Styling those here too drew the border twice, 4px apart, which
-   read as a double rule under the crumbs. The wrapper exists only to hold the
-   breadcrumb beside future trailing contributions. */
-.acp-chat__toolbar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: stretch;
-  min-width: 0;
-}
-
-.acp-chat__toolbar .breadcrumb {
-  flex: 1 1 auto;
-  min-width: 0;
-}
+/* The cwd breadcrumb strip is host-drawn (RFC 0039) — `.dock-panel-chrome`,
+   above this component, fed by `api.setBreadcrumb`. Nothing for it here. */
 
 .acp-chat__scroller {
   flex: 1 1 auto;
