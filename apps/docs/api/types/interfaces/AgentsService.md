@@ -1,6 +1,6 @@
 # Interface: AgentsService
 
-Defined in: [packages/sdk/src/agents-service.ts:379](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L379)
+Defined in: [packages/sdk/src/agents-service.ts:751](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L751)
 
 **`Beta`**
 
@@ -31,7 +31,7 @@ ctx.subscriptions.push(sub);
 catalog(): readonly CatalogAgentSummary[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:433](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L433)
+Defined in: [packages/sdk/src/agents-service.ts:844](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L844)
 
 Every coding agent Silo knows about, as read-only
 [CatalogAgentSummary](CatalogAgentSummary.md) records. Detection stays sealed (ADR 0028) —
@@ -53,12 +53,29 @@ readonly [`CatalogAgentSummary`](CatalogAgentSummary.md)[]
 readonly profiles: AgentProfilesService;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:442](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L442)
+Defined in: [packages/sdk/src/agents-service.ts:853](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L853)
 
 **`Beta`**
 
 The user's **Agent Profiles** — read them, and start one, optionally with
 an opening prompt. See [AgentProfilesService](AgentProfilesService.md).
+
+***
+
+### sessions
+
+```ts
+readonly sessions: AgentSessionsService;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:864](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L864)
+
+**`Beta`**
+
+Connect to and drive a **Chat session** — a user-authored `chat` profile
+spawned as an Agent Client Protocol child (RFC 0038 phase 2). See
+[AgentSessionsService](AgentSessionsService.md). Gated on the `chatAgents` setting: every
+`connect()` rejects while it is off.
 
 ## Other
 
@@ -68,7 +85,7 @@ an opening prompt. See [AgentProfilesService](AgentProfilesService.md).
 getState(options?): AgentInfo[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:385](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L385)
+Defined in: [packages/sdk/src/agents-service.ts:757](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L757)
 
 **`Beta`**
 
@@ -96,11 +113,14 @@ instead.
 getByTerminalId(terminalId): AgentInfo | undefined;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:387](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L387)
+Defined in: [packages/sdk/src/agents-service.ts:762](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L762)
 
 **`Beta`**
 
 Look up [AgentInfo](AgentInfo.md) for a specific terminal tab by its record id.
+ Only ever resolves a `kind: "terminal"` session — use
+ [AgentsService.getState](#getstate) and match on [AgentInfo.id](AgentInfo.md#id) to find a
+ Chat session.
 
 #### Parameters
 
@@ -120,7 +140,7 @@ Look up [AgentInfo](AgentInfo.md) for a specific terminal tab by its record id.
 subscribe(listener, options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:393](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L393)
+Defined in: [packages/sdk/src/agents-service.ts:768](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L768)
 
 **`Beta`**
 
@@ -149,10 +169,10 @@ instead. Returns a [Disposable](Disposable.md) that cancels the subscription.
 ### acknowledge()
 
 ```ts
-acknowledge(terminalId): void;
+acknowledge(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:420](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L420)
+Defined in: [packages/sdk/src/agents-service.ts:799](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L799)
 
 **`Beta`**
 
@@ -170,9 +190,13 @@ typically `ctx.terminals.subscribeActive`, but it doesn't have to be.
 
 #### Parameters
 
-##### terminalId
+##### id
 
 `string`
+
+— an [AgentInfo.id](AgentInfo.md#id). A terminal record id is one (every
+Terminal session's `id` equals its `terminalId`), so existing callers
+passing a terminal id keep working; a Chat session's id works too.
 
 #### Returns
 
@@ -188,3 +212,75 @@ ctx.subscriptions.push(
   }),
 );
 ```
+
+***
+
+### reveal()
+
+```ts
+reveal(id): void;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:813](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L813)
+
+**`Beta`**
+
+Bring an Agent Session into view: focus its terminal tab if it is a
+Terminal session, or its transcript panel if it is a Chat session —
+activating the owning workspace first. The caller does not need to know
+which kind it is, which is the whole point of the verb (RFC 0038): a
+consumer holding an [AgentInfo.id](AgentInfo.md#id) should never have to branch to
+`ctx.terminals.focus` vs. some chat-panel API.
+
+A no-op for an unknown id, or when the session's backing surface is gone
+(a closed terminal, a disposed panel).
+
+#### Parameters
+
+##### id
+
+`string`
+
+— an [AgentInfo.id](AgentInfo.md#id).
+
+#### Returns
+
+`void`
+
+***
+
+### resume()
+
+```ts
+resume(id): void;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:831](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L831)
+
+**`Beta`**
+
+Resume a session **through Silo**, when [AgentInfo.canResume](AgentInfo.md#canresume) is
+`true`.
+
+- Chat session: spawn a fresh agent process and `session/load` the
+  persisted id, so the transcript and context come back after the old
+  process died. Then [AgentsService.reveal](#reveal) it.
+- Terminal session: currently a no-op — a dead PTY cannot be re-run in
+  place, and the resume path stays "the user runs
+  [AgentInfo.resumeCommand](AgentInfo.md#resumecommand)". Present on the surface so a
+  kind-agnostic consumer can call it unconditionally once Chat sessions
+  ship (RFC 0038 phase 4).
+
+A no-op for an unknown id or one whose `canResume` is `false`.
+
+#### Parameters
+
+##### id
+
+`string`
+
+— an [AgentInfo.id](AgentInfo.md#id).
+
+#### Returns
+
+`void`

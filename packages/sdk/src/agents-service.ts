@@ -1,5 +1,4 @@
 import type { Disposable } from "./types";
-import type { TerminalKind } from "./domain-types";
 
 // `ctx.agents` — host-computed coding-agent activity and resume-identity
 // observability. See RFC 0018 (docs/proposals/0018-ctx-agents-surface.md).
@@ -29,10 +28,31 @@ import type { TerminalKind } from "./domain-types";
 export type AgentActivity = "none" | "working" | "idle" | "error" | "dead";
 
 /**
- * Live agent-activity and resume-identity state for one terminal, computed
- * once by the host and shared across every subscriber — never recomputed
- * per-extension. Returned by {@link AgentsService.getState} and
- * {@link AgentsService.getByTerminalId}; delivered to
+ * Which kind of **Agent Session** an {@link AgentInfo} describes (RFC 0038):
+ *
+ * - `"terminal"` — the agent runs in a PTY and draws its own TUI; Silo
+ *   *infers* what it is doing from OSC/output signals, and its identity comes
+ *   from detection (ADR 0028).
+ * - `"chat"` — the agent is an Agent Client Protocol child speaking structured
+ *   JSON-RPC over piped stdio; it *reports* what it is doing and declares its
+ *   identity at `initialize`, and Silo renders the conversation.
+ *
+ * `ctx.agents` reports **one shape regardless of kind** — the promise is
+ * observation parity, not capability parity. Most consumers never need to
+ * branch on this; use {@link AgentsService.reveal} to bring a session into
+ * view without knowing which kind it is.
+ *
+ * @category Core Types
+ * @public
+ * @beta
+ */
+export type AgentSessionKind = "terminal" | "chat";
+
+/**
+ * Live agent-activity and resume-identity state for one **Agent Session**
+ * (RFC 0038), computed once by the host and shared across every subscriber —
+ * never recomputed per-extension. Returned by {@link AgentsService.getState}
+ * and {@link AgentsService.getByTerminalId}; delivered to
  * {@link AgentsService.subscribe} listeners on every change.
  *
  * @category Consumer Services
@@ -40,20 +60,36 @@ export type AgentActivity = "none" | "working" | "idle" | "error" | "dead";
  * @beta
  */
 export interface AgentInfo {
-  /** The terminal record id this state belongs to. */
-  readonly terminalId: string;
-  /** The workspace this terminal belongs to. */
+  /**
+   * Stable id for this Agent Session — the key {@link AgentsService.reveal},
+   * {@link AgentsService.resume}, and {@link AgentsService.acknowledge} take.
+   * For a Terminal session this is the terminal record id; for a Chat session
+   * it is the session handle's id. Prefer this over
+   * {@link AgentInfo.terminalId} for anything that should not care which kind
+   * of session it is.
+   */
+  readonly id: string;
+  /**
+   * The terminal record id backing this session, when there is one — the same
+   * id {@link AgentsService.getByTerminalId} and `ctx.terminals` take.
+   * Present for every `kind: "terminal"` session; absent for a `kind: "chat"`
+   * session, which has no PTY. A consumer that needs a terminal-tab id should
+   * check {@link AgentInfo.kind} first, or use {@link AgentsService.reveal}.
+   */
+  readonly terminalId?: string;
+  /** The workspace this session belongs to. */
   readonly workspaceId: string;
   /**
-   * The terminal's kind at registration time.
+   * Which kind of Agent Session this is — `"terminal"` or `"chat"`. See
+   * {@link AgentSessionKind}. `ctx.agents` reports the same fields for both;
+   * this exists for the rare consumer that genuinely needs a PTY tab id or a
+   * transcript panel.
    *
-   * @deprecated Always `"shell"` after RFC 0033 — the deprecated `"claude"` /
-   * `"pi"` kinds are normalized away at load and nothing creates them, so a
-   * consumer branching on this is reading a constant. Use
-   * {@link AgentInfo.agentId} for which agent is running, and
-   * {@link AgentInfo.isAgent} for whether one is.
+   * (This field was the vestigial `TerminalKind` before RFC 0038 — always
+   * `"shell"` and read by nothing — and carries the session discriminator
+   * now.)
    */
-  readonly kind: TerminalKind;
+  readonly kind: AgentSessionKind;
   /**
    * Whether this terminal currently hosts an agent — true if it was created
    * as one, or an agent-specific signal was observed in it (e.g. typing
@@ -102,6 +138,21 @@ export interface AgentInfo {
    * both live and at `activity === "dead"`.
    */
   readonly resumeCommand?: string;
+  /**
+   * Whether this session can be resumed **through Silo** — i.e. whether
+   * {@link AgentsService.resume} will do something for this id.
+   *
+   * - Terminal session: `true` once an exact session id was resolved (a
+   *   Settings → Agents hook, or an agent's native session file), which is
+   *   also when {@link AgentInfo.resumeCommand} becomes exact rather than an
+   *   honest note. `resume()` is still a no-op for a Terminal session in this
+   *   release — the user runs `resumeCommand` themselves; the flag is the
+   *   forward-looking capability signal RFC 0038 replaces the shell-string
+   *   `resumeCommand` contract with.
+   * - Chat session: `true` when the agent advertises `session/load`, so a
+   *   fresh process can reload the transcript after the old one died.
+   */
+  readonly canResume: boolean;
   /**
    * Human-readable agent name, e.g. `"Claude Code"` or `"Codex CLI"`. Tells
    * you *which* agent CLI is running in this terminal, independent of
@@ -201,6 +252,22 @@ export interface AgentProfileSummary {
    * `"agent-takes-none"` after the user has already typed one.
    */
   readonly acceptsPrompt: boolean;
+  /**
+   * Which **interface** this profile starts the agent through — the profile's
+   * `launch` arm, expressed in the same {@link AgentSessionKind} vocabulary
+   * `AgentInfo.kind` uses (RFC 0038):
+   *
+   * - `"terminal"` — {@link AgentProfilesService.launch} runs it in a PTY and
+   *   the agent draws its own TUI.
+   * - `"chat"` — {@link AgentSessionsService.connect} speaks the Agent Client
+   *   Protocol to it and *you* render the conversation.
+   *
+   * The two are driven through different services, so a picker must filter on
+   * this rather than offer every profile to both: `launch()`ing a Chat profile
+   * and `connect()`ing a Terminal profile both fail, and the user should never
+   * be offered a profile that cannot work in the surface they are looking at.
+   */
+  readonly interface: AgentSessionKind;
 }
 
 /**
@@ -354,6 +421,311 @@ export interface AgentProfilesService {
 }
 
 /**
+ * One block of an outgoing prompt turn for a **Chat session**
+ * ({@link AgentSessionHandle.prompt}). Structured content, never a shell
+ * string — the entire quoting/escaping risk surface of a Terminal session's
+ * opening prompt (RFC 0033 phase 3) does not exist here.
+ *
+ * - `"text"` — a run of plain text. `$HOME`, backticks, quotes and newlines
+ *   are all literal.
+ * - `"resource_link"` — a pointer to a file (or other URI) the agent may read
+ *   if it chooses. `uri` is typically a `file://` path inside the workspace.
+ *
+ * Images and embedded binary context are deferred — the agent advertises what
+ * it accepts at connect time, and this union grows behind that.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export type AgentPromptBlock =
+  | { readonly type: "text"; readonly text: string }
+  | {
+      readonly type: "resource_link";
+      readonly uri: string;
+      /** A short display name for the link; defaults to the last path segment. */
+      readonly name?: string;
+    };
+
+/**
+ * Why a prompt turn ended, straight from the agent's Agent Client Protocol
+ * stop reason. `"end_turn"` is the normal completion; `"max_tokens"` /
+ * `"max_turn_requests"` are budget cutoffs; `"refusal"` means the agent
+ * declined the request; `"cancelled"` follows {@link AgentSessionHandle.cancel}.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export type AgentStopReason =
+  | "end_turn"
+  | "max_tokens"
+  | "max_turn_requests"
+  | "refusal"
+  | "cancelled";
+
+/**
+ * What {@link AgentSessionHandle.prompt} resolves to. A prompt that cannot be
+ * delivered — the connection dropped, the agent errored mid-turn — **rejects**
+ * instead, with the agent's own message where there is one.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentPromptResult {
+  readonly stopReason: AgentStopReason;
+}
+
+/**
+ * One `session/update` notification from a **Chat session**, lightly
+ * normalized. The Agent Client Protocol streams a turn as a sequence of these:
+ * assistant text, agent "thinking", tool-call rows, plan updates, and more.
+ *
+ * **A consumer must tolerate `kind` values it does not recognize** — agents
+ * emit different subsets and vendors add their own (recon §3). Switch on the
+ * kinds you render and ignore the rest; never treat an unknown kind as an
+ * error.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentSessionUpdate {
+  /**
+   * The Agent Client Protocol `sessionUpdate` discriminator, e.g.
+   * `"agent_message_chunk"`, `"agent_thought_chunk"`, `"tool_call"`,
+   * `"tool_call_update"`, `"plan"`, `"available_commands_update"`.
+   */
+  readonly kind: string;
+  /**
+   * Text payload for the streaming-text kinds (`agent_message_chunk`,
+   * `agent_thought_chunk`, `user_message_chunk`); `undefined` for every other
+   * kind.
+   */
+  readonly text?: string;
+  /**
+   * Stable id for the run of chunks this update belongs to. Consecutive
+   * same-kind chunks share one — **synthesized by Silo when the agent omits
+   * `messageId`**, which real agents do (recon Finding 7), so a consumer can
+   * group a streamed sentence into one bubble without minting ids itself.
+   */
+  readonly messageId?: string;
+  /**
+   * The raw Agent Client Protocol `update` object, for any kind this surface
+   * does not model yet (tool-call fields, plan entries, command lists). Treat
+   * it as read-only.
+   */
+  readonly raw: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * One choice offered by an {@link AgentPermissionRequest} — pass its
+ * {@link AgentPermissionOption.optionId} to {@link AgentPermissionRequest.respond}.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentPermissionOption {
+  readonly optionId: string;
+  /** Label to show on the button, e.g. `"Allow"`, `"Allow for this session"`,
+   *  `"Reject"`. */
+  readonly name: string;
+  /** The protocol's coarse category for the option, e.g. `"allow_once"`,
+   *  `"allow_always"`, `"reject_once"` — for styling a set of buttons
+   *  consistently. Tolerate unknown values. */
+  readonly kind: string;
+}
+
+/**
+ * The agent is **blocked on the user**: it wants permission to run a tool and
+ * the turn will not proceed until {@link AgentPermissionRequest.respond} is
+ * called. Delivered to {@link AgentSessionHandle.onPermission}.
+ *
+ * **This is not a safety boundary.** An agent routes a request through here
+ * only if it chooses to; nothing stops it touching the filesystem directly
+ * (recon Finding 1). Do not present this as Silo gating the agent's actions.
+ *
+ * If no `onPermission` listener is registered, Silo answers `cancelled` on the
+ * extension's behalf so the agent is never left hanging.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentPermissionRequest {
+  /** The tool call this permission is for — matches a `tool_call`
+   *  {@link AgentSessionUpdate}'s `toolCallId` in `raw`. */
+  readonly toolCallId: string;
+  /** A human-readable description of what the agent wants to do. */
+  readonly title: string;
+  /** The choices to present. Always at least one; order is the agent's. */
+  readonly options: readonly AgentPermissionOption[];
+  /** The raw Agent Client Protocol `session/request_permission` params. */
+  readonly raw: Readonly<Record<string, unknown>>;
+  /**
+   * Answer the request with one of {@link AgentPermissionRequest.options}.
+   * Idempotent — the first call wins, later calls are ignored. Passing an
+   * `optionId` that is not in `options` answers `cancelled`.
+   */
+  respond(optionId: string): void;
+}
+
+/**
+ * A live handle to one **Chat session** (RFC 0038) — an Agent Client Protocol
+ * child Silo spawned from a user-authored Chat profile, speaking structured
+ * JSON-RPC over piped stdio. Returned by {@link AgentSessionsService.connect}.
+ *
+ * The same session shows up in {@link AgentsService.getState} as an
+ * {@link AgentInfo} with `kind: "chat"` and this handle's {@link id} — so the
+ * Agents navigator, attention badges and status all work for it exactly as for
+ * a Terminal session, with no extra wiring.
+ *
+ * Drive one turn at a time: call {@link prompt}, await its
+ * {@link AgentPromptResult}, then prompt again.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentSessionHandle {
+  /**
+   * This session's {@link AgentInfo.id} — the key {@link AgentsService.reveal},
+   * {@link AgentsService.resume} and {@link AgentsService.acknowledge} take.
+   * Stable across a {@link AgentsService.resume}.
+   */
+  readonly id: string;
+  /** The user's asserted catalog agent id for the profile, if any — the same
+   *  value that selects the profile's `+`-menu icon. */
+  readonly agentId?: string;
+  /** Display name for the agent: what it declared at connect (`initialize`),
+   *  falling back to the profile label when it declared none (recon Finding 4). */
+  readonly agentName: string;
+  /**
+   * Whether the agent advertises `session/load`, i.e. whether
+   * {@link AgentsService.resume} can bring this conversation back after the
+   * process dies. Mirrors {@link AgentInfo.canResume}.
+   */
+  readonly canResume: boolean;
+  /**
+   * Send a prompt turn and resolve when it ends. Content is structured blocks,
+   * never a shell string. Rejects if the turn cannot be completed (connection
+   * lost, agent error) — with the agent's message where it gave one.
+   */
+  prompt(blocks: readonly AgentPromptBlock[]): Promise<AgentPromptResult>;
+  /**
+   * Ask the agent to stop the current turn (Agent Client Protocol
+   * `session/cancel`). The in-flight {@link prompt} promise then resolves with
+   * `stopReason: "cancelled"` rather than rejecting.
+   */
+  cancel(): void;
+  /**
+   * Subscribe to the turn's {@link AgentSessionUpdate} stream — streaming text,
+   * tool calls, plans. Fires only between {@link prompt} and its resolution,
+   * plus a replay of prior turns right after {@link AgentsService.resume}.
+   * Returns a {@link Disposable}.
+   */
+  onUpdate(listener: (update: AgentSessionUpdate) => void): Disposable;
+  /**
+   * Subscribe to {@link AgentPermissionRequest}s. Returns a {@link Disposable}.
+   * With at least one listener registered, answering is your responsibility;
+   * with none, Silo answers `cancelled`.
+   */
+  onPermission(listener: (request: AgentPermissionRequest) => void): Disposable;
+  /**
+   * Tear the session down: kill the agent process and drop it from
+   * {@link AgentsService.getState}. Idempotent. The process is a piped child of
+   * Silo — it does **not** survive this, and closing the workspace or quitting
+   * the app reaps it the same way.
+   */
+  dispose(): void;
+}
+
+/**
+ * Options for {@link AgentSessionsService.connect}.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentSessionConnectOptions {
+  /** Working directory for the agent. Defaults to the workspace folder. */
+  cwd?: string;
+  /** Which workspace the session belongs to (for
+   *  {@link AgentInfo.workspaceId} and `reveal`). Defaults to the active one. */
+  workspaceId?: string;
+  /**
+   * How to bring **your** UI for this session into view. Silo calls this from
+   * {@link AgentsService.reveal} — after activating the session's workspace —
+   * so a kind-agnostic caller (the Agents navigator, a notification, a
+   * command) can focus a Chat session's transcript without knowing that a
+   * transcript is what it is.
+   *
+   * Implement it with whatever "come to the front" means for your surface: a
+   * dock panel calls `api.setActive()` on its own `DockPanelApi`, a side
+   * panel reveals itself through `ctx.layout`. Called on the main thread,
+   * possibly more than once; keep it cheap and idempotent, and expect it after
+   * an `await` — capture the handle you need in a ref rather than closing over
+   * render-scoped state.
+   *
+   * Omit it and `reveal(id)` still activates the workspace, which is all Silo
+   * can honestly do for a session whose UI it does not own.
+   */
+  reveal?: () => void;
+}
+
+/**
+ * Connect to a **Chat session** and drive it — exposed as
+ * `ctx.agents.sessions` (RFC 0038 phase 2). The counterpart to
+ * {@link AgentProfilesService} for the `chat` launch arm: where `profiles`
+ * *starts a terminal and walks away*, this *holds a live connection* an
+ * extension can prompt, watch and cancel.
+ *
+ * **Sourced from user-authored profiles only.** There is deliberately no
+ * "connect to this command" — an extension cannot point Silo at an arbitrary
+ * binary to spawn with pipes. The user defines a Chat profile on
+ * Settings → Agents; an extension names it.
+ *
+ * The whole surface is **gated on the `chatAgents` setting** (RFC 0038, off by
+ * default): {@link connect} rejects while it is off.
+ *
+ * @example
+ * ```ts
+ * const session = await ctx.agents.sessions.connect("claude-chat");
+ * const off = session.onUpdate((u) => {
+ *   if (u.kind === "agent_message_chunk") appendToTranscript(u.messageId, u.text);
+ * });
+ * const result = await session.prompt([{ type: "text", text: "Explain this repo." }]);
+ * ctx.log.info(`turn ended: ${result.stopReason}`);
+ * ctx.subscriptions.push(off, { dispose: () => session.dispose() });
+ * ```
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentSessionsService {
+  /**
+   * Spawn the agent for the named Chat profile, run the Agent Client Protocol
+   * `initialize` + `session/new` handshake, and resolve with a live
+   * {@link AgentSessionHandle}.
+   *
+   * Rejects when: the `chatAgents` setting is off; no profile has that id; the
+   * profile is a Terminal profile, not a Chat one; there is no target
+   * workspace; the agent needs authentication (its `session/new` failed); or
+   * the agent reported a startup error (the rejection carries its message).
+   *
+   * @param profileId — an {@link AgentProfileSummary.id} whose profile uses the
+   * `chat` launch arm.
+   */
+  connect(
+    profileId: string,
+    options?: AgentSessionConnectOptions,
+  ): Promise<AgentSessionHandle>;
+}
+
+/**
  * Host-computed coding-agent observability — exposed as
  * {@link ExtensionContext.agents}. Detection (what OSC/output signals mean
  * for a given agent) and resume-hint resolution are both sealed inside the
@@ -383,7 +755,10 @@ export interface AgentsService {
    * instead.
    */
   getState(options?: { allWorkspaces?: boolean }): AgentInfo[];
-  /** Look up {@link AgentInfo} for a specific terminal tab by its record id. */
+  /** Look up {@link AgentInfo} for a specific terminal tab by its record id.
+   *  Only ever resolves a `kind: "terminal"` session — use
+   *  {@link AgentsService.getState} and match on {@link AgentInfo.id} to find a
+   *  Chat session. */
   getByTerminalId(terminalId: string): AgentInfo | undefined;
   /**
    * Subscribe to changes in the active workspace's agent state. Pass
@@ -416,8 +791,44 @@ export interface AgentsService {
    *   }),
    * );
    * ```
+   *
+   * @param id — an {@link AgentInfo.id}. A terminal record id is one (every
+   * Terminal session's `id` equals its `terminalId`), so existing callers
+   * passing a terminal id keep working; a Chat session's id works too.
    */
-  acknowledge(terminalId: string): void;
+  acknowledge(id: string): void;
+  /**
+   * Bring an Agent Session into view: focus its terminal tab if it is a
+   * Terminal session, or its transcript panel if it is a Chat session —
+   * activating the owning workspace first. The caller does not need to know
+   * which kind it is, which is the whole point of the verb (RFC 0038): a
+   * consumer holding an {@link AgentInfo.id} should never have to branch to
+   * `ctx.terminals.focus` vs. some chat-panel API.
+   *
+   * A no-op for an unknown id, or when the session's backing surface is gone
+   * (a closed terminal, a disposed panel).
+   *
+   * @param id — an {@link AgentInfo.id}.
+   */
+  reveal(id: string): void;
+  /**
+   * Resume a session **through Silo**, when {@link AgentInfo.canResume} is
+   * `true`.
+   *
+   * - Chat session: spawn a fresh agent process and `session/load` the
+   *   persisted id, so the transcript and context come back after the old
+   *   process died. Then {@link AgentsService.reveal} it.
+   * - Terminal session: currently a no-op — a dead PTY cannot be re-run in
+   *   place, and the resume path stays "the user runs
+   *   {@link AgentInfo.resumeCommand}". Present on the surface so a
+   *   kind-agnostic consumer can call it unconditionally once Chat sessions
+   *   ship (RFC 0038 phase 4).
+   *
+   * A no-op for an unknown id or one whose `canResume` is `false`.
+   *
+   * @param id — an {@link AgentInfo.id}.
+   */
+  resume(id: string): void;
   /**
    * Every coding agent Silo knows about, as read-only
    * {@link CatalogAgentSummary} records. Detection stays sealed (ADR 0028) —
@@ -440,4 +851,15 @@ export interface AgentsService {
    * @beta
    */
   readonly profiles: AgentProfilesService;
+  /**
+   * Connect to and drive a **Chat session** — a user-authored `chat` profile
+   * spawned as an Agent Client Protocol child (RFC 0038 phase 2). See
+   * {@link AgentSessionsService}. Gated on the `chatAgents` setting: every
+   * `connect()` rejects while it is off.
+   *
+   * @category Consumer Services
+   * @public
+   * @beta
+   */
+  readonly sessions: AgentSessionsService;
 }

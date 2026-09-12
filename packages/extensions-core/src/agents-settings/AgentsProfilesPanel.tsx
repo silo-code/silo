@@ -130,8 +130,7 @@ export function AgentsProfilesPanel({
                 onDuplicate={() =>
                   openEditor({
                     initial: {
-                      command: p.command,
-                      configDir: p.configDir,
+                      launch: p.launch,
                       assumedAgentId: p.assumedAgentId,
                       id: `${p.id}-copy`,
                       label: `${p.label} (copy)`,

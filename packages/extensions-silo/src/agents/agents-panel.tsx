@@ -267,7 +267,9 @@ function AgentRowItem({
   icon: AgentIcon | undefined;
   iconMode: IconMode;
   colorScheme: "dark" | "light";
-  onFocus: (terminalId: string) => void;
+  /** Called with the row's Agent Session id (`AgentRow.id`) — routed through
+   *  `ctx.agents.reveal`, which handles both a Terminal and a Chat session. */
+  onFocus: (id: string) => void;
   onContextMenu: (row: AgentRow, at: { x: number; y: number }) => void;
   drag?: RowDrag;
 }) {
@@ -283,9 +285,9 @@ function AgentRowItem({
       aria-selected={active}
       tabIndex={0}
       data-drag-index={drag?.index}
-      onClick={() => onFocus(row.terminalId)}
+      onClick={() => onFocus(row.id)}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onFocus(row.terminalId);
+        if (e.key === "Enter" || e.key === " ") onFocus(row.id);
       }}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -299,7 +301,7 @@ function AgentRowItem({
         activity={glyphFor(row)}
         size="md"
         className="ap-row-glyph"
-        jitterKey={row.terminalId}
+        jitterKey={row.id}
       />
       <div className="ap-row-text">
         <span className="ap-row-title-line">
@@ -541,7 +543,7 @@ export function AgentsPanel({
         // this is just rewriting positions from the drag.
         manualOrderService.set(
           moveItem(
-            sectionRows.map((r) => r.terminalId),
+            sectionRows.map((r) => r.id),
             from,
             finalIndex,
           ),
@@ -632,8 +634,7 @@ export function AgentsPanel({
   useEffect(() => {
     if (groupBy !== "age") return;
     const flatIds =
-      sections.find((s) => s.key === "age")?.rows.map((r) => r.terminalId) ??
-      [];
+      sections.find((s) => s.key === "age")?.rows.map((r) => r.id) ?? [];
     const next = reconcileAgeManualOrder(manualOrder, flatIds);
     if (
       next.length !== manualOrder.length ||
@@ -651,14 +652,17 @@ export function AgentsPanel({
     if (row.section === "ready") {
       items.push({
         label: "Mark as seen",
-        run: () => ctx.agents.acknowledge(row.terminalId),
+        run: () => ctx.agents.acknowledge(row.id),
       });
       items.push({ type: "separator" });
     }
 
     // Rename… and any `terminal/tab` contributions — the same rows the
-    // terminal's own tab offers, rather than a menu that drifts from it.
-    items.push(...ctx.terminals.getTabMenuItems(row.terminalId));
+    // terminal's own tab offers, rather than a menu that drifts from it. A
+    // Chat session (RFC 0038) has no terminal, so it gets none of these.
+    if (row.terminalId) {
+      items.push(...ctx.terminals.getTabMenuItems(row.terminalId));
+    }
 
     // The workspace this agent is running in. A submenu rather than inline
     // because rows span every workspace in the Agents view, so the actions
@@ -671,22 +675,27 @@ export function AgentsPanel({
       items.push({ label: row.workspaceName, submenu: workspaceItems });
     }
 
-    if (items.length > 0) items.push({ type: "separator" });
-    items.push({
-      label: "Close terminal",
-      danger: true,
-      run: () => {
-        void (async () => {
-          const ok = await ctx.ui.confirm({
-            title: "Close terminal?",
-            body: `"${row.title}" and anything running in it will be stopped.`,
-            confirmLabel: "Close",
-            danger: true,
-          });
-          if (ok) ctx.terminals.close(row.terminalId);
-        })();
-      },
-    });
+    if (row.terminalId) {
+      const terminalId = row.terminalId;
+      if (items.length > 0) items.push({ type: "separator" });
+      items.push({
+        label: "Close terminal",
+        danger: true,
+        run: () => {
+          void (async () => {
+            const ok = await ctx.ui.confirm({
+              title: "Close terminal?",
+              body: `"${row.title}" and anything running in it will be stopped.`,
+              confirmLabel: "Close",
+              danger: true,
+            });
+            if (ok) ctx.terminals.close(terminalId);
+          })();
+        },
+      });
+    }
+
+    if (items.length === 0) return;
 
     void ctx.ui.showMenu({ items, at, toggle: false });
   }
@@ -768,18 +777,21 @@ export function AgentsPanel({
               {expanded &&
                 section.rows.map((row, i) => (
                   <AgentRowItem
-                    key={row.terminalId}
+                    key={row.id}
                     row={row}
                     subtitle={section.subtitle(row)}
                     subtitleIsWorkspace={section.subtitleIsWorkspace}
-                    active={row.terminalId === activeTerminalId}
+                    active={
+                      row.terminalId != null &&
+                      row.terminalId === activeTerminalId
+                    }
                     icon={
                       ctx.agents.catalog().find((c) => c.id === row.agentId)
                         ?.icon
                     }
                     iconMode={iconMode}
                     colorScheme={colorScheme}
-                    onFocus={(terminalId) => ctx.terminals.focus(terminalId)}
+                    onFocus={(id) => ctx.agents.reveal(id)}
                     onContextMenu={openRowMenu}
                     drag={
                       isDraggableSection

@@ -317,54 +317,50 @@ describe("composePromptLaunchLine — refusals", () => {
 });
 
 describe("resolveProfileAgentId / profileAcceptsPrompt", () => {
+  // Fold the flat (assumedAgentId, command) into the RFC 0038 launch union.
+  const p = (assumedAgentId: string | undefined, command: string) => ({
+    assumedAgentId,
+    launch: { interface: "terminal" as const, command },
+  });
+
   it("prefers an explicit assumedAgentId", () => {
-    expect(
-      resolveProfileAgentId({ assumedAgentId: "pi", command: "claude" }),
-    ).toBe("pi");
+    expect(resolveProfileAgentId(p("pi", "claude"))).toBe("pi");
   });
 
   it("falls back to matching the command text", () => {
-    expect(
-      resolveProfileAgentId({
-        assumedAgentId: undefined,
-        command: "claude-work --foo",
-      }),
-    ).toBe("claude");
+    expect(resolveProfileAgentId(p(undefined, "claude-work --foo"))).toBe(
+      "claude",
+    );
   });
 
   it("resolves to nothing for a command that matches no catalog agent", () => {
-    expect(
-      resolveProfileAgentId({ assumedAgentId: undefined, command: "my-agent" }),
-    ).toBeUndefined();
+    expect(resolveProfileAgentId(p(undefined, "my-agent"))).toBeUndefined();
   });
 
   it("ignores an assumedAgentId the catalog does not carry", () => {
     // A profile written against a dropped agent falls through to the command
     // match rather than being taken at its word — otherwise a refusal names an
     // agent that does not exist.
-    expect(
-      resolveProfileAgentId({ assumedAgentId: "gone", command: "claude" }),
-    ).toBe("claude");
-    expect(
-      resolveProfileAgentId({ assumedAgentId: "gone", command: "my-agent" }),
-    ).toBeUndefined();
+    expect(resolveProfileAgentId(p("gone", "claude"))).toBe("claude");
+    expect(resolveProfileAgentId(p("gone", "my-agent"))).toBeUndefined();
   });
 
   it("reports acceptsPrompt from the catalog, for both delivery kinds", () => {
-    expect(
-      profileAcceptsPrompt({ assumedAgentId: "claude", command: "claude" }),
-    ).toBe(true);
-    expect(
-      profileAcceptsPrompt({ assumedAgentId: "opencode", command: "opencode" }),
-    ).toBe(true);
-    expect(
-      profileAcceptsPrompt({ assumedAgentId: "copilot", command: "copilot" }),
-    ).toBe(true);
+    expect(profileAcceptsPrompt(p("claude", "claude"))).toBe(true);
+    expect(profileAcceptsPrompt(p("opencode", "opencode"))).toBe(true);
+    expect(profileAcceptsPrompt(p("copilot", "copilot"))).toBe(true);
   });
 
   it("reports false when the profile resolves to no catalog agent", () => {
+    expect(profileAcceptsPrompt(p(undefined, "my-agent"))).toBe(false);
+  });
+
+  it("a Chat profile resolves via its command like any other", () => {
     expect(
-      profileAcceptsPrompt({ assumedAgentId: undefined, command: "my-agent" }),
-    ).toBe(false);
+      resolveProfileAgentId({
+        assumedAgentId: undefined,
+        launch: { interface: "chat", command: "claude-acp", args: [] },
+      }),
+    ).toBe("claude");
   });
 });

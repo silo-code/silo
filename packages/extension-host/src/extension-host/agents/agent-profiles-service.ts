@@ -41,6 +41,7 @@ import type {
  *
  * `acceptsPrompt` is derived from the catalog at build time rather than
  * persisted (R10) — it is a fact about the agent, not about the profile.
+ * `interface` is read straight off the persisted `launch` union (RFC 0038).
  */
 let summaries: readonly AgentProfileSummary[] | null = null;
 
@@ -58,6 +59,10 @@ function buildSummaries(): readonly AgentProfileSummary[] {
         label: p.label,
         isDefault: p.default === true,
         acceptsPrompt: profileAcceptsPrompt(p),
+        // The launch arm, in the same vocabulary `AgentInfo.kind` uses — a
+        // picker filters on it so a Chat profile is never offered to
+        // `launch()` (a PTY) nor a Terminal profile to `sessions.connect()`.
+        interface: p.launch.interface,
       }),
     ),
   );

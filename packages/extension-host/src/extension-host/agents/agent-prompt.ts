@@ -39,7 +39,7 @@ import {
   promptDeliveryForAgent,
   type AgentPromptDelivery,
 } from "./agent-catalog";
-import { fallbackAgentForCommand } from "./agent-profile-model";
+import { fallbackAgentForCommand, profileCommand } from "./agent-profile-model";
 import type { AgentProfile } from "../../state/types";
 
 /**
@@ -184,13 +184,13 @@ export function shellDialect(shell: string | undefined): ShellDialect {
  * an agent that does not exist, which names the wrong problem.
  */
 export function resolveProfileAgentId(
-  profile: Pick<AgentProfile, "assumedAgentId" | "command">,
+  profile: Pick<AgentProfile, "assumedAgentId" | "launch">,
 ): string | undefined {
   const assumed =
     profile.assumedAgentId && agentById(profile.assumedAgentId)
       ? profile.assumedAgentId
       : undefined;
-  return assumed ?? fallbackAgentForCommand(profile.command);
+  return assumed ?? fallbackAgentForCommand(profileCommand(profile));
 }
 
 /**
@@ -199,7 +199,7 @@ export function resolveProfileAgentId(
  * the profile editor and by `ctx.agents.profiles.list()`.
  */
 export function profileAcceptsPrompt(
-  profile: Pick<AgentProfile, "assumedAgentId" | "command">,
+  profile: Pick<AgentProfile, "assumedAgentId" | "launch">,
 ): boolean {
   return promptDeliveryForAgent(resolveProfileAgentId(profile)) !== undefined;
 }

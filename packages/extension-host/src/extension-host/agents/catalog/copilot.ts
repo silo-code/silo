@@ -24,6 +24,8 @@ export function buildCopilotAgentDefinition(
     // left the TUI up. The pre-recon design predicted `undefined` here; the
     // empirical run is what found the flag.
     promptDelivery: { kind: "flag", flag: "--interactive" },
+    // RFC 0038 §5h — `copilot --acp` speaks ACP built in (verified 2026-09-08).
+    acpLaunch: { kind: "builtin", args: ["--acp"] },
     // Title first: captured live on Windows (2026-08-24), Copilot emitted no
     // OSC 9;4 at all for a whole session, so the progress detector alone left
     // its activity permanently stale. The title is its per-turn signal and also

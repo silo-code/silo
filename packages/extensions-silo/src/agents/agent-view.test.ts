@@ -12,13 +12,15 @@ import {
  * cares about. Mirrors the host's shape at `ctx.agents`. */
 function agent(over: Partial<AgentInfo> = {}): AgentInfo {
   return {
+    id: over.terminalId ?? "t1",
     terminalId: "t1",
     workspaceId: "w1",
-    kind: "claude",
+    kind: "terminal",
     isAgent: true,
     activity: "none",
     needsAttention: false,
     stale: false,
+    canResume: false,
     ...over,
   };
 }

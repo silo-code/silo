@@ -24,6 +24,9 @@ export const grokAgent: AgentDefinition = {
   // answered and stayed in the TUI — its own `--help` calls the positional
   // "Initial prompt for the interactive session".
   promptDelivery: { kind: "argv" },
+  // RFC 0038 §5h — no ACP path. `grok --help` mentions ACP only as an *output
+  // format* ("one ACP session update per line"), not a server mode; spawning
+  // it confirmed no `initialize` handshake. `acpLaunch` stays undefined.
   // "Working" shares the spinner OSC 0 detector, on its braille branch — Grok's
   // TUI uses the U+2800–28FF glyph range Claude used until 2.1.228 (confirmed
   // live: Grok shows as an agent via this shared detector before any

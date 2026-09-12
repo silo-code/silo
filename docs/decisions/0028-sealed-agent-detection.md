@@ -33,6 +33,29 @@ activity split proved redundant.
    `needsAttention` is sticky UX cleared only by `acknowledge`. The host does
    not auto-acknowledge on focus.
 
+## Amendment — declared identity is accepted (RFC 0038, 2026-09-08)
+
+RFC 0038 adds a second kind of Agent Session — a **Chat session**, an Agent
+Client Protocol child that states its identity and status at `initialize`.
+Accepting that _declared_ identity does **not** reopen this ADR:
+
+- Sealing exists to prevent **divergent classifiers** — several consumers
+  inferring "is it working?" from ambiguous OSC signals and disagreeing. A Chat
+  session has no classifier; the agent reports turn boundaries and a typed stop
+  reason directly, so there is nothing to diverge.
+- There is still no public `registerAgent` / detector / resume-resolver API.
+  Which CLIs can be run as a Chat agent stays a **curated catalog fact**
+  (`AgentDefinition.acpLaunch`), set by the same run-it recon as every other
+  catalog field.
+- Decision 2 is unchanged: exact resume still requires an explicit identity
+  source. For a Chat session that source is `session/new` returning an id (no
+  hook needed); `session/load` is per-agent optional, so the model carries an
+  explicit "cannot be restored" state.
+
+So the sealed boundary holds: identity for a Terminal session is **observed**,
+for a Chat session it is **declared**, and `AgentProfile.assumedAgentId` stays
+a user **assertion** that never becomes either.
+
 ## Consequences
 
 - Adding a CLI means a catalog entry (+ optional installer), not a public

@@ -29,6 +29,10 @@ export function buildClaudeAgentDefinition(
     // "<prompt>"` answered the prompt and left the TUI up. `-p/--print` is
     // the non-interactive mode and is deliberately NOT what this field means.
     promptDelivery: { kind: "argv" },
+    // RFC 0038 §5h — `claude` does not speak ACP; `claude-agent-acp` (npx)
+    // wraps it, reusing the existing Claude Code login (verified: an empty
+    // CLAUDE_CONFIG_DIR still let `session/new` succeed).
+    acpLaunch: { kind: "adapter", package: "claude-agent-acp" },
     activityDetectors: [detectClaudeCode],
     resume: {
       kind: "hook",

@@ -9,6 +9,7 @@ import {
 
 function row(over: Partial<AgentRow> = {}): AgentRow {
   return {
+    id: over.id ?? over.terminalId ?? "t1",
     terminalId: "t1",
     workspaceId: "w1",
     section: "working",

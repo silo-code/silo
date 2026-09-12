@@ -15,13 +15,15 @@ import {
 
 function agent(over: Partial<AgentInfo> = {}): AgentInfo {
   return {
+    id: over.terminalId ?? "t1",
     terminalId: "t1",
     workspaceId: "w1",
-    kind: "claude",
+    kind: "terminal",
     isAgent: true,
     activity: "none",
     needsAttention: false,
     stale: false,
+    canResume: false,
     ...over,
   };
 }
@@ -62,6 +64,7 @@ describe("buildAgentRows", () => {
     );
     expect(rows).toEqual([
       {
+        id: "t1",
         terminalId: "t1",
         workspaceId: "w1",
         section: "ready",
@@ -71,6 +74,60 @@ describe("buildAgentRows", () => {
         since: "2026-01-01T00:05:00Z",
       },
     ]);
+  });
+
+  it("renders a Chat session (no terminal) as a row titled by the agent name", () => {
+    const rows = buildAgentRows(
+      [
+        {
+          id: "chat:s1",
+          workspaceId: "w1",
+          kind: "chat",
+          isAgent: true,
+          activity: "working",
+          needsAttention: false,
+          stale: false,
+          canResume: true,
+          workingSince: "2026-01-01T00:00:00Z",
+          agentName: "Claude Code",
+        },
+      ],
+      [workspace()],
+    );
+    expect(rows).toEqual([
+      {
+        id: "chat:s1",
+        terminalId: undefined,
+        workspaceId: "w1",
+        section: "working",
+        title: "Claude Code",
+        workspaceName: "my-project",
+        activity: "working",
+        agentId: undefined,
+        since: "2026-01-01T00:00:00Z",
+      },
+    ]);
+  });
+
+  it("sections a Chat session blocked on a permission as ready", () => {
+    const rows = buildAgentRows(
+      [
+        {
+          id: "chat:s2",
+          workspaceId: "w1",
+          kind: "chat",
+          isAgent: true,
+          activity: "working",
+          needsAttention: true,
+          attentionSince: "2026-01-01T00:05:00Z",
+          stale: false,
+          canResume: false,
+          agentName: "Cursor",
+        },
+      ],
+      [workspace()],
+    );
+    expect(rows[0]).toMatchObject({ id: "chat:s2", section: "ready" });
   });
 
   it("sections a working agent as working, carrying workingSince", () => {
@@ -494,6 +551,7 @@ describe("buildAgentRows + groupAgentRows with a doneSince map", () => {
 
 function row(over: Partial<AgentRow> = {}): AgentRow {
   return {
+    id: over.id ?? over.terminalId ?? "t1",
     terminalId: "t1",
     workspaceId: "w1",
     section: "working",

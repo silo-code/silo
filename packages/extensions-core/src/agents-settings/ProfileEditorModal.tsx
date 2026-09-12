@@ -56,13 +56,17 @@ interface EditorState {
 }
 
 function initialState(seed?: Partial<AgentProfile>): EditorState {
+  // This editor authors Terminal profiles only (RFC 0038 — the Chat arm has no
+  // UI yet). A seed that is somehow a Chat profile contributes only its
+  // addressing fields.
+  const tl = seed?.launch?.interface === "terminal" ? seed.launch : undefined;
   return {
     label: seed?.label ?? "",
     id: seed?.id ?? "",
     idEdited: seed != null && seed.id != null,
-    command: seed?.command ?? "",
+    command: tl?.command ?? "",
     agentOverride: seed?.assumedAgentId ?? "",
-    configDir: seed?.configDir ?? "",
+    configDir: tl?.configDir ?? "",
   };
 }
 
@@ -117,7 +121,7 @@ export function ProfileEditorModal({
   // that can't take one is still fully usable, and nothing new is persisted.
   const acceptsPrompt = profileAcceptsPrompt({
     assumedAgentId: resolvedAgentId,
-    command: s.command,
+    launch: { interface: "terminal", command: s.command },
   });
 
   // id tracks the label until the user edits the id field.
@@ -185,8 +189,11 @@ export function ProfileEditorModal({
       const next: AgentProfile = {
         id: idValue.trim(),
         label: s.label.trim(),
-        command: s.command.trim(),
-        ...(configDir ? { configDir } : {}),
+        launch: {
+          interface: "terminal",
+          command: s.command.trim(),
+          ...(configDir ? { configDir } : {}),
+        },
         ...(resolvedAgentId ? { assumedAgentId: resolvedAgentId } : {}),
       };
 

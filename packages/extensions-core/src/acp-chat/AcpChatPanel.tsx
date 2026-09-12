@@ -1,89 +1,100 @@
 /**
- * **Spike (docs/acp-recon.md) — not a shipped surface.** A center-dock panel
- * that runs a real ACP agent and renders the conversation, to answer whether
- * an ACP RFC is worth the effort before any SDK surface is designed.
+ * The bundled **Chat panel** (RFC 0038 phase 3) — a center-dock transcript for
+ * one Chat session: streaming text, the agent's thinking, tool-call rows, its
+ * plan, and inline permission requests.
  *
- * What is deliberately borrowed vs. owned:
+ * ## It is built on the SDK and nothing else
  *
- * - **Borrowed** (`@acp-components/react`, MIT, v0.1.0): the protocol client,
- *   the session/streaming/tool-call/permission state, and the transcript
- *   components. Re-implementing those is the expensive part and is not what
- *   this spike is trying to learn.
- * - **Owned**: the transport (Silo's own piped-stdio Rust commands, via the
- *   host's `createAcpTransport`), the chrome, and the theming bridge. Those
- *   are the parts a real implementation must own regardless.
+ * The whole panel runs on `ctx.agents.sessions` plus `@silo-code/sdk` types and
+ * kit components. There is **no `@silo-code/extension-host/internal` import in
+ * this directory** — no transport, no protocol client, no host state — which is
+ * the point of the phase: everything this panel does, a third-party extension
+ * can do. If something here had needed the privileged barrel, the SDK would be
+ * wrong and the fix would be to widen `ctx.agents.sessions`, never to reach
+ * around it.
+ *
+ * The spike's `@acp-components` dependency is gone with it. That library owns
+ * the protocol client and wants a *transport*, which the SDK deliberately does
+ * not hand out (RFC 0038: the connection is host-owned); feeding it would have
+ * meant re-encoding the SDK's stream back into JSON-RPC frames for a second
+ * protocol client to re-parse. The transcript projection it used to provide now
+ * lives in `transcript-model.ts` as a pure reducer over `AgentSessionUpdate` —
+ * a fraction of the code, no second state library, and testable.
  *
  * ## Chrome
  *
- * The panel wears **Silo's** chrome, not the library's: the same `Breadcrumb`
- * the terminal panel uses for its cwd line, and one composer box that holds
- * the prompt input and every per-turn control (harness, mode, model). The
- * library's own chat header and footer are hidden in CSS — its
- * `SessionConfigPanel` is re-rendered inside our composer box instead, so the
- * controls are where the user is already typing rather than in a separate
- * strip below.
+ * Silo's own: the same `Breadcrumb` the editor and terminal panels use for the
+ * cwd line, the SDK kit for every control, and design tokens for every colour
+ * — so a Chat tab and a terminal tab read as the same kind of thing, and both
+ * follow the active theme.
+ *
+ * ## Registration
+ *
+ * Behind the `bundledChatPanel` setting. The composition root
+ * (`apps/desktop/src/builtins.ts`) leaves this extension out of the built-in
+ * list while the flag is off, so the panel kind, its `+` menu entry and its
+ * command do not exist at all — turning it off is how a user runs a
+ * third-party Chat UI instead (RFC 0038 acceptance criterion 3).
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { DockPanelProps, ExtensionContext } from "@silo-code/sdk";
-import { createAcpTransport } from "@silo-code/extension-host/internal";
-import {
-  AcpProvider,
-  ChatView,
-  PermissionDialog,
-  I18nProvider,
-  SessionConfigPanel,
-  useSessions,
-  useConnectionStatus,
-  type AgentConfig,
-} from "@acp-components/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  AgentInfo,
+  AgentPermissionRequest,
+  AgentProfileSummary,
+  AgentSessionHandle,
+  Disposable,
+  DockPanelProps,
+  ExtensionContext,
+} from "@silo-code/sdk";
+import { Badge, Button, EmptyState, Select, Textarea } from "@silo-code/sdk";
 import { Breadcrumb } from "../editor/Breadcrumb";
-import "@acp-components/react/styles.css";
-import "./acp-theme.css";
+import { chatProfiles, resolveChatProfile } from "./profile-selection";
+import {
+  appendNotice,
+  appendUserMessage,
+  applyUpdate,
+  emptyTranscript,
+  stopReasonNotice,
+  toolStatusTone,
+  type Transcript,
+} from "./transcript-model";
+import { permissionButtonVariant } from "./permission-options";
+import "./acp-chat.css";
+
+/** How close to the bottom still counts as "following the stream". */
+const AUTOSCROLL_THRESHOLD_PX = 24;
 
 export interface AcpChatPanelParams {
-  /** Binary to run. Defaults to the one provider Spike A verified end to end. */
-  command?: string;
-  /** argv, not a shell string — ACP execs a pipe-connected child. */
-  args?: string[];
+  /** Tab label. Defaults to the connected agent's declared name. */
   title?: string;
-  /** Which harness this panel is bound to, so a restart restores the same one. */
-  presetId?: string;
   /**
-   * The agent's own session id, persisted so the conversation survives a
-   * restart. The agent process does **not** survive — it is a piped child of
-   * the app — but the agent keeps the transcript on its own side, so a fresh
-   * process can `session/load` this id and the context comes back. Verified
-   * against `claude-acp` and `cursor` by killing the process outright and
-   * asking for a fact from before the kill (see docs/acp-recon.md, Spike D).
+   * Which **Chat** Agent Profile this tab is bound to, persisted so a reopened
+   * panel comes back on the same agent. A profile the user has since deleted
+   * (or switched to the Terminal arm) falls back to another Chat profile
+   * rather than refusing to open — see `resolveChatProfile`.
    */
-  sessionId?: string;
+  profileId?: string;
 }
 
-/** Silo's active theme reduced to the light/dark axis the library understands. */
-function resolveColorScheme(ctx: ExtensionContext): "dark" | "light" {
-  try {
-    return ctx.theme.resolve(ctx.theme.getState().activeId).colorScheme;
-  } catch {
-    // A custom theme that fails to resolve should not blank the panel.
-    return "dark";
-  }
+/** What the panel is doing. `"no-profile"` is a state to render, not an error:
+ *  the user simply has no Chat profile yet. */
+type Phase =
+  | { status: "no-profile" }
+  | { status: "connecting" }
+  | { status: "ready" }
+  | { status: "error"; message: string };
+
+/** One unanswered {@link AgentPermissionRequest}, plus the key its row is
+ *  rendered under. */
+interface PendingPermission {
+  readonly key: string;
+  readonly request: AgentPermissionRequest;
 }
 
-/** Agents the spike offers. Hardcoded on purpose: profile integration is a
- * design question for the RFC, not something to guess at here. Both were
- * probed for real — see the recon doc's capability table. */
-const PRESETS: Record<
-  string,
-  { label: string; command: string; args: string[] }
-> = {
-  cursor: { label: "Cursor", command: "cursor-agent", args: ["acp"] },
-  claude: {
-    label: "Claude",
-    command: "npx",
-    args: ["-y", "@agentclientprotocol/claude-agent-acp@0.75.1"],
-  },
-};
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 export function AcpChatPanel({
   api,
@@ -92,237 +103,398 @@ export function AcpChatPanel({
 }: DockPanelProps<AcpChatPanelParams> & { ctx: ExtensionContext }) {
   const ws = ctx.workspaces.getState();
   const cwd = ws.all.find((w) => w.id === ws.activeId)?.folder ?? "";
-  const [presetId, setPresetId] = useState<string>(
-    () => params.presetId ?? "cursor",
-  );
-  const preset = PRESETS[presetId]!;
-  const command = params.command ?? preset.command;
-  const args = params.args ?? preset.args;
-  const [stderr, setStderr] = useState<string[]>([]);
 
-  // The library keeps its own light/dark palettes, and even though the CSS
-  // above overrides every colour it defines, `theme` still drives the
-  // `data-acp-theme` attribute that its own rules key on — so it has to agree
-  // with Silo's active theme or any token we haven't mapped resolves against
-  // the wrong side. Followed live: switching themes should not require
-  // reopening the panel.
-  const [colorScheme, setColorScheme] = useState<"dark" | "light">(() =>
-    resolveColorScheme(ctx),
+  // Bumped to retry a failed connection (or a first one that found no profile).
+  const [nonce, setNonce] = useState(0);
+  // Read on every render rather than memoized: `list()` is already memoized
+  // host-side and returns the same frozen array until the user edits their
+  // profiles, so this is one `filter` over a handful of entries — and a
+  // profile added on Settings → Agents while the panel is open shows up in the
+  // picker without a nudge.
+  const available = chatProfiles(ctx.agents.profiles.list());
+
+  const [requestedId, setRequestedId] = useState(params.profileId);
+  const profile: AgentProfileSummary | undefined = resolveChatProfile(
+    available,
+    requestedId,
   );
+  const profileId = profile?.id;
+
+  const [phase, setPhase] = useState<Phase>({ status: "connecting" });
+  const [transcript, setTranscript] = useState<Transcript>(emptyTranscript);
+  // A local seq, not `toolCallId`: nothing stops an agent asking twice about
+  // the same tool call, and two rows must never share a React key.
+  const [permissions, setPermissions] = useState<PendingPermission[]>([]);
+  const permissionSeq = useRef(0);
+  const [agentName, setAgentName] = useState<string | undefined>();
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  // The agent process dying is not a separate channel — it lands on this
+  // session's own `AgentInfo` as `activity: "error"`, exactly as it would for
+  // a Terminal session. Reading it back through `ctx.agents` rather than
+  // through a bespoke handle event is the observation-parity promise in
+  // action, and it means the composer stops offering to send into a dead pipe.
+  const [lost, setLost] = useState(false);
+
+  const handleRef = useRef<AgentSessionHandle | null>(null);
+  // `reveal` is invoked long after the connect() that registered it, so it
+  // reads the panel API through a ref rather than closing over one render's.
+  const apiRef = useRef(api);
+  apiRef.current = api;
+
+  // --- the connection ------------------------------------------------------
+  // Keyed on the profile: switching agents is a **teardown**, not a prop
+  // change. The old process is reaped, the transcript is dropped, and a fresh
+  // session is connected — the two conversations have nothing in common.
   useEffect(() => {
-    const sub = ctx.theme.subscribe(() =>
-      setColorScheme(resolveColorScheme(ctx)),
-    );
+    if (!profileId) {
+      setPhase({ status: "no-profile" });
+      return;
+    }
+    let cancelled = false;
+    const subs: Disposable[] = [];
+    setPhase({ status: "connecting" });
+    setTranscript(emptyTranscript);
+    setPermissions([]);
+    setAgentName(undefined);
+    // A profile switch mid-turn abandons that turn's `prompt()` promise, whose
+    // `finally` sees a different handle and leaves `busy` alone — so clear it
+    // here or the composer keeps offering Stop for a session that is gone.
+    setBusy(false);
+    setLost(false);
+
+    void ctx.agents.sessions
+      .connect(profileId, {
+        // `ctx.agents.reveal(id)` — from the Agents navigator, a command, a
+        // notification — activates the workspace and then calls this, so a
+        // kind-agnostic caller focuses this transcript without knowing it is
+        // one.
+        reveal: () => apiRef.current.setActive(),
+      })
+      .then((handle) => {
+        // A profile switch (or a closed panel) that lands mid-handshake still
+        // owes the agent process a kill — otherwise it orphans.
+        if (cancelled) {
+          handle.dispose();
+          return;
+        }
+        handleRef.current = handle;
+        subs.push(
+          handle.onUpdate((update) =>
+            setTranscript((t) => applyUpdate(t, update)),
+          ),
+        );
+        subs.push(
+          handle.onPermission((request) =>
+            setPermissions((prev) => [
+              ...prev,
+              { key: `p${++permissionSeq.current}`, request },
+            ]),
+          ),
+        );
+        setAgentName(handle.agentName);
+        setPhase({ status: "ready" });
+      })
+      .catch((err: unknown) => {
+        if (!cancelled)
+          setPhase({ status: "error", message: errorMessage(err) });
+      });
+
+    return () => {
+      cancelled = true;
+      for (const sub of subs) sub.dispose();
+      const handle = handleRef.current;
+      handleRef.current = null;
+      // Reap the process. Closing the tab, switching profiles and reloading
+      // the webview each used to leak an agent child during the spike — ten
+      // piled up in one afternoon.
+      handle?.dispose();
+    };
+  }, [ctx, profileId, nonce]);
+
+  // The tab label follows what the agent declared about itself, falling back
+  // to the user's profile label while connecting (or when it declared none).
+  useEffect(() => {
+    api.setTitle(params.title ?? agentName ?? profile?.label ?? "Agent");
+  }, [api, params.title, agentName, profile?.label]);
+
+  useEffect(() => {
+    const check = (all: readonly AgentInfo[]) => {
+      const id = handleRef.current?.id;
+      if (!id) return;
+      setLost(all.find((a) => a.id === id)?.activity === "error");
+    };
+    const sub = ctx.agents.subscribe(check, { allWorkspaces: true });
+    check(ctx.agents.getState({ allWorkspaces: true }));
     return () => sub.dispose();
-  }, [ctx]);
+  }, [ctx, phase.status]);
 
-  // The live transport, so it can be torn down. Without this the agent
-  // subprocess outlives the panel: closing the tab, switching providers, or
-  // reloading the webview each leaked a `cursor-agent` (ten of them piled up
-  // during one afternoon of iterating).
-  const transportRef = useRef<{ disconnect(): void } | null>(null);
-  useEffect(
-    () => () => {
-      transportRef.current?.disconnect();
-      transportRef.current = null;
-    },
-    [],
-  );
-
-  // One transport per (agent, cwd). Rebuilding it on every render would spawn
-  // a new agent process each time — the reason this is a memo and not a plain
-  // call. `presetId` is in the key so switching providers reconnects.
-  const agents: AgentConfig[] = useMemo(() => {
-    // Switching providers replaces the transport; retire the old one first.
-    transportRef.current?.disconnect();
-    const transport = createAcpTransport({
-      command,
-      args,
-      cwd,
-      onStderr: (line) => setStderr((prev) => [...prev.slice(-40), line]),
-    });
-    transportRef.current = transport;
-    return [
-      {
-        // Per-preset id, not a constant: the library keys connection and
-        // session state by agent id, so reusing one id across harnesses left
-        // the new connection wearing the old one's state.
-        id: `silo-acp-${presetId}`,
-        name: preset.label,
-        // The host's transport is typed structurally so the host takes no
-        // dependency on this PoC library; this cast is that seam. Narrower
-        // than it looks — the shapes match except that the host types a
-        // message as a plain object where the SDK types it as the
-        // `AnyMessage` request/response/notification union.
-        transport: {
-          type: "custom",
-          transport,
-        } as unknown as AgentConfig["transport"],
-      },
-    ];
-  }, [command, args, cwd, preset.label, presetId]);
-
+  // Looking at the transcript counts as having seen it, so the session's
+  // attention badge clears the same way selecting a terminal tab clears one.
   useEffect(() => {
-    api.setTitle(params.title ?? `Agent: ${preset.label}`);
-  }, [api, params.title, preset.label]);
+    const acknowledge = () => {
+      const id = handleRef.current?.id;
+      if (id) ctx.agents.acknowledge(id);
+    };
+    if (api.isVisible) acknowledge();
+    const sub = api.onDidVisibilityChange(({ isVisible }) => {
+      if (isVisible) acknowledge();
+    });
+    return () => sub.dispose();
+  }, [ctx, api, phase.status]);
+
+  // --- sending -------------------------------------------------------------
+  const send = useCallback(async () => {
+    const handle = handleRef.current;
+    const text = draft.trim();
+    if (!handle || busy || !text) return;
+    setDraft("");
+    setTranscript((t) => appendUserMessage(t, text));
+    setBusy(true);
+    try {
+      const { stopReason } = await handle.prompt([{ type: "text", text }]);
+      const notice = stopReasonNotice(stopReason);
+      if (notice) {
+        setTranscript((t) => appendNotice(t, notice.tone, notice.text));
+      }
+    } catch (err) {
+      setTranscript((t) => appendNotice(t, "error", errorMessage(err)));
+    } finally {
+      // The panel may have been torn down mid-turn; the state setters are
+      // no-ops then, but `busy` must not be left stuck for a live one.
+      if (handleRef.current === handle) setBusy(false);
+    }
+  }, [draft, busy]);
+
+  const answer = useCallback((pending: PendingPermission, optionId: string) => {
+    pending.request.respond(optionId);
+    setPermissions((prev) => prev.filter((p) => p !== pending));
+  }, []);
+
+  // --- autoscroll ----------------------------------------------------------
+  // Only when the user is already at the bottom, so reading back through a
+  // long turn is not yanked forward by every chunk.
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const pinnedRef = useRef(true);
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (el && pinnedRef.current) el.scrollTop = el.scrollHeight;
+  }, [transcript, permissions]);
+  const onScroll = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    pinnedRef.current =
+      el.scrollHeight - el.scrollTop - el.clientHeight <
+      AUTOSCROLL_THRESHOLD_PX;
+  }, []);
+
+  if (phase.status === "no-profile") {
+    return (
+      <div className="acp-chat">
+        <div className="acp-chat__notice">
+          <EmptyState
+            title="No Chat agent profile"
+            description="A Chat panel connects to an Agent Profile whose interface is Chat. Add one on Settings → Agents → Profiles, then check again."
+            action={
+              <Button onClick={() => setNonce((n) => n + 1)}>
+                Check again
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="acp-chat-root">
-      {/* Same crumbs the terminal panel shows, so an agent tab and a terminal
-          tab read as the same kind of thing. */}
-      <div className="acp-chat-toolbar">
+    <div className="acp-chat">
+      <div className="acp-chat__toolbar">
         <Breadcrumb
           filePath={cwd || null}
           workspaceFolder={cwd}
           leafIcon="folder"
         />
       </div>
-      <I18nProvider>
-        {/* Keyed on the harness so switching tears the whole session subtree
-            down and rebuilds it. Without this the provider kept the previous
-            agent's connection state and `SessionHost`'s "already started"
-            guard stayed set, so picking a different harness spawned nothing
-            and left the dead session on screen. */}
-        <AcpProvider
-          key={presetId}
-          agents={agents}
-          defaultCwd={cwd}
-          theme={colorScheme}
-        >
-          <SessionHost
-            stderr={stderr}
-            cwd={cwd}
-            agentId={`silo-acp-${presetId}`}
-            presetId={presetId}
-            restoreSessionId={
-              params.presetId === presetId ? params.sessionId : undefined
+
+      <div className="acp-chat__scroller" ref={scrollerRef} onScroll={onScroll}>
+        {phase.status === "error" ? (
+          <div className="acp-chat__notice">
+            <EmptyState
+              title={`Could not start ${profile?.label ?? "the agent"}`}
+              description={phase.message}
+              action={
+                <Button onClick={() => setNonce((n) => n + 1)}>Retry</Button>
+              }
+            />
+          </div>
+        ) : null}
+
+        {phase.status === "connecting" ? (
+          <div className="acp-chat__status">
+            Connecting to {profile?.label ?? "the agent"}…
+          </div>
+        ) : null}
+
+        {transcript.entries.map((entry) => {
+          if (entry.type === "message") {
+            return (
+              <div
+                key={entry.key}
+                className="acp-chat__message"
+                data-role={entry.role}
+              >
+                {entry.role === "thought" ? (
+                  <div className="acp-chat__thought-label">Thinking</div>
+                ) : null}
+                <div className="acp-chat__text">{entry.text}</div>
+              </div>
+            );
+          }
+          if (entry.type === "tool") {
+            return (
+              <div key={entry.key} className="acp-chat__tool">
+                <div className="acp-chat__tool-head">
+                  <span className="acp-chat__tool-title">{entry.title}</span>
+                  {entry.toolKind ? (
+                    <Badge tone="outline" size="sm">
+                      {entry.toolKind}
+                    </Badge>
+                  ) : null}
+                  <Badge tone={toolStatusTone(entry.status)} size="sm">
+                    {entry.status}
+                  </Badge>
+                </div>
+                {entry.lines.length > 0 ? (
+                  <pre className="acp-chat__tool-body">
+                    {entry.lines.join("\n")}
+                  </pre>
+                ) : null}
+              </div>
+            );
+          }
+          if (entry.type === "plan") {
+            return (
+              <div key={entry.key} className="acp-chat__plan">
+                <div className="acp-chat__plan-head">Plan</div>
+                <ul className="acp-chat__plan-list">
+                  {entry.rows.map((row, i) => (
+                    <li
+                      key={`${entry.key}-${i}`}
+                      className="acp-chat__plan-row"
+                      data-status={row.status}
+                    >
+                      {row.content}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          }
+          return (
+            <div
+              key={entry.key}
+              className="acp-chat__notice-line"
+              data-tone={entry.tone}
+            >
+              {entry.text}
+            </div>
+          );
+        })}
+
+        {/* Inline, in the flow of the transcript — never a modal. The agent is
+            blocked on this answer, and a modal would both hide the transcript
+            that explains what it is asking about and stop the user reading the
+            rest of the app. */}
+        {permissions.map((pending) => (
+          <div key={pending.key} className="acp-chat__permission">
+            <div className="acp-chat__permission-title">
+              {pending.request.title}
+            </div>
+            {/* Recon Finding 1: an agent may touch the filesystem without ever
+                asking. Silo must not imply it gates anything. */}
+            <div className="acp-chat__permission-note">
+              The agent asked before doing this. It is not required to — Silo
+              does not gate what an agent can do.
+            </div>
+            <div className="acp-chat__permission-actions">
+              {pending.request.options.map((option) => (
+                <Button
+                  key={option.optionId}
+                  size="sm"
+                  variant={permissionButtonVariant(option.kind)}
+                  onClick={() => answer(pending, option.optionId)}
+                >
+                  {option.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="acp-chat__composer">
+        <Textarea
+          className="acp-chat__input"
+          value={draft}
+          rows={2}
+          placeholder={
+            lost
+              ? "The agent is no longer running."
+              : phase.status === "ready"
+                ? `Message ${agentName ?? profile?.label ?? "the agent"}…`
+                : "Waiting for the agent…"
+          }
+          disabled={phase.status !== "ready" || lost}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter sends; Shift+Enter is a newline — the convention every
+            // chat composer in the category uses.
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void send();
             }
-            onSessionId={(id) =>
-              api.updateParameters({ presetId, sessionId: id })
-            }
-            onPresetChange={(id) => {
-              setStderr([]);
-              // A session id belongs to the harness that issued it — drop it
-              // when switching, or the new agent is handed a stranger's id.
-              api.updateParameters({ presetId: id, sessionId: undefined });
-              setPresetId(id);
+          }}
+        />
+        <div className="acp-chat__controls">
+          <Select
+            className="acp-chat__profile"
+            value={profileId ?? ""}
+            aria-label="Chat agent profile"
+            onChange={(e) => {
+              // The tab remembers the choice, so reopening it comes back on
+              // the same agent. The effect above does the teardown.
+              setRequestedId(e.target.value);
+              api.updateParameters({ profileId: e.target.value });
             }}
-          />
-        </AcpProvider>
-      </I18nProvider>
-    </div>
-  );
-}
-
-/**
- * Creates one session as soon as the agent connects, then renders it.
- *
- * Split out because `useSessions` / `useConnectionStatus` must run *inside*
- * `AcpProvider`, and because the connect→create→render sequence is the part
- * most likely to need iterating as the spike answers questions.
- */
-function SessionHost({
-  cwd,
-  stderr,
-  agentId,
-  presetId,
-  restoreSessionId,
-  onSessionId,
-  onPresetChange,
-}: {
-  cwd: string;
-  stderr: string[];
-  agentId: string;
-  presetId: string;
-  restoreSessionId?: string;
-  onSessionId: (id: string) => void;
-  onPresetChange: (id: string) => void;
-}) {
-  const { createSession, loadSession, activeSessionId, setActiveSession } =
-    useSessions();
-  const status = useConnectionStatus(agentId);
-  const [error, setError] = useState<string | null>(null);
-  // Guards against React 18 double-invoke and status churn spawning several
-  // sessions against one connection.
-  const started = useRef(false);
-
-  useEffect(() => {
-    if (!status.isConnected || started.current) return;
-    started.current = true;
-
-    // Restore before creating. The agent process died with the app, but the
-    // agent keeps the transcript on its side, so loading the persisted id
-    // brings the conversation back. Falling back to a new session on failure
-    // matters: an id can be stale (history pruned, a different machine), and
-    // a panel that refuses to open because an old session vanished would be
-    // worse than one that quietly starts fresh.
-    const restore = restoreSessionId
-      ? loadSession(restoreSessionId as never, cwd).then(() => restoreSessionId)
-      : Promise.reject(new Error("no session to restore"));
-
-    restore
-      .catch(() => createSession(agentId, cwd))
-      .then((id) => {
-        setActiveSession(id as never);
-        onSessionId(id);
-      })
-      .catch((e: unknown) => setError(String(e)));
-  }, [
-    status.isConnected,
-    createSession,
-    loadSession,
-    cwd,
-    agentId,
-    restoreSessionId,
-    onSessionId,
-    setActiveSession,
-  ]);
-
-  if (status.hasError || error) {
-    return (
-      <div className="acp-chat-notice">
-        <div>Could not start the agent.</div>
-        {error ? <pre>{error}</pre> : null}
-        {stderr.length > 0 ? <pre>{stderr.slice(-10).join("\n")}</pre> : null}
+          >
+            {available.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </Select>
+          {lost ? (
+            <Button size="sm" onClick={() => setNonce((n) => n + 1)}>
+              Reconnect
+            </Button>
+          ) : busy ? (
+            <Button size="sm" onClick={() => handleRef.current?.cancel()}>
+              Stop
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={
+                phase.status !== "ready" || lost || draft.trim().length === 0
+              }
+              onClick={() => void send()}
+            >
+              Send
+            </Button>
+          )}
+        </div>
       </div>
-    );
-  }
-
-  if (!activeSessionId) {
-    return (
-      <div className="acp-chat-notice">
-        {status.isConnecting || status.isConnected
-          ? "Starting a session…"
-          : "Connecting to the agent…"}
-      </div>
-    );
-  }
-
-  return (
-    <div className="acp-chat-body">
-      <ChatView sessionId={activeSessionId as never} />
-      {/* The control strip, rendered *after* ChatView and pulled up into the
-          composer's box by CSS. The library's own footer is hidden, so this is
-          the single row of per-turn controls: which harness, then whatever
-          that agent exposes (mode, model). */}
-      <div className="acp-chat-controls">
-        <select
-          className="acp-chat-controls__harness"
-          value={presetId}
-          onChange={(e) => onPresetChange(e.target.value)}
-          aria-label="Agent harness"
-        >
-          {Object.entries(PRESETS).map(([id, p]) => (
-            <option key={id} value={id}>
-              {p.label}
-            </option>
-          ))}
-        </select>
-        <SessionConfigPanel sessionId={activeSessionId as never} />
-      </div>
-      {/* Finding 1 in the recon doc still applies — an agent is free to skip
-          this and touch the filesystem directly, as Cursor did. */}
-      <PermissionDialog sessionId={activeSessionId as never} />
     </div>
   );
 }

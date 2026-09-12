@@ -1,19 +1,17 @@
 /**
- * **Spike (RFC 0038 exploration) — not a shipped surface.** Bridges the
- * `acp_*` Tauri commands (`apps/desktop/src-tauri/src/commands/acp.rs`) to the
- * `AcpTransport` shape `@acp-components/core` expects, so a UI built on that
- * library can drive a real ACP agent from inside Silo.
+ * The piped-stdio transport for a **Chat session** (RFC 0038): bridges the
+ * `acp_*` Tauri commands (`apps/desktop/src-tauri/src/commands/acp.rs`) into a
+ * pair of web streams carrying *parsed* JSON-RPC messages, which
+ * `acp-jsonrpc.ts` layers a protocol client on.
  *
- * Lives in the host rather than in the extension because an extension may not
- * import `@tauri-apps/*` (the platform ban — see AGENTS.md). That split is not
- * an accident of the spike: it is the shape the real thing wants too, with the
- * host owning the connection and an extension owning the UI.
+ * Lives in the host, never in an extension, because an extension may not
+ * import `@tauri-apps/*` (the platform ban — see AGENTS.md). That is the
+ * lasting split: the host owns the connection, an extension owns the UI, and
+ * `ctx.agents.sessions` is the seam between them.
  *
- * The contract is structural on purpose — this file does **not** import
- * `@acp-components/core`, so the host takes no dependency on a PoC library.
- * `Stream` here is the ACP SDK's `{ readable, writable }` pair of *parsed*
- * messages, not bytes: the Rust side already delivers whole lines, so all this
- * layer does is `JSON.parse` inbound and `JSON.stringify` outbound.
+ * `AcpStream` is `{ readable, writable }` over messages, not bytes: the Rust
+ * side already delivers whole lines, so all this layer does is `JSON.parse`
+ * inbound and `JSON.stringify` outbound.
  */
 
 import { invoke } from "@tauri-apps/api/core";
@@ -29,7 +27,8 @@ export interface AcpStream {
   writable: WritableStream<AcpMessage>;
 }
 
-/** Structurally compatible with `@acp-components/core`'s `AcpTransport`. */
+/** The transport contract `acp-jsonrpc.ts` consumes. Structural, so a test
+ *  can hand the client an in-memory pair instead of a real child process. */
 export interface AcpTransportLike {
   connect(): Promise<AcpStream>;
   disconnect(): void;
@@ -77,10 +76,10 @@ const RUN_BREAKING = new Set(["tool_call", "tool_call_update", "plan"]);
  * Give a streamed text chunk a stable `messageId` when the agent omits one.
  *
  * **`messageId` is optional in ACP and real agents skip it.** Cursor sends
- * `{ sessionUpdate, content }` and nothing else. Consumers that group chunks
- * by id — `@acp-components` does `messageId || randomUUID()` — then mint a
- * fresh id per chunk, so a sentence arrives as one message *per token*: the
- * one-word-per-line transcript and the shredded THOUGHT blocks are both this.
+ * `{ sessionUpdate, content }` and nothing else. A consumer that groups chunks
+ * by id and falls back to a fresh uuid mints one *per chunk*, so a sentence
+ * arrives as one message per token: the one-word-per-line transcript and the
+ * shredded THOUGHT blocks are both this.
  *
  * Synthesizing the id here is the client's job, not a workaround: the spec
  * makes the field optional, so grouping consecutive same-kind chunks is what a

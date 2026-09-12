@@ -67,6 +67,8 @@ export const store = proxy<AppState>({
   globalActiveTabEnabled: false,
   globalPanelLayout: structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT),
   globalActiveSidePanelTabs: {},
+  chatAgents: false,
+  bundledChatPanel: false,
   groups: {},
   panelOrder: [],
 });
@@ -239,6 +241,25 @@ export function swapCollapseMode(fallback: SideCollapseState): void {
 
 export function setSmallScreenModeEnabled(enabled: boolean) {
   store.smallScreenModeEnabled = enabled;
+}
+
+/**
+ * RFC 0038 sprint flags. Both default `false` and persist in the index; nothing
+ * user-visible changes until they are on. `chatAgents` gates the whole Chat
+ * capability; `bundledChatPanel` additionally gates the bundled transcript
+ * panel (read by the composition root).
+ */
+export function getChatAgentsEnabled(): boolean {
+  return store.chatAgents;
+}
+export function setChatAgentsEnabled(enabled: boolean) {
+  store.chatAgents = enabled;
+}
+export function getBundledChatPanelEnabled(): boolean {
+  return store.bundledChatPanel;
+}
+export function setBundledChatPanelEnabled(enabled: boolean) {
+  store.bundledChatPanel = enabled;
 }
 
 export function setSmallScreenThresholdPx(px: number) {

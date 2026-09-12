@@ -4,7 +4,34 @@
 // here, so the bulk of the coverage does too (`agent-profile-model.test.ts`).
 
 import { AGENT_CATALOG, agentById, leaderBasename } from "./agent-catalog";
-import type { AgentProfile } from "../../state/types";
+import type { AgentProfile, AgentProfileLaunch } from "../../state/types";
+
+/** The `terminal` arm of {@link AgentProfileLaunch} — the only one with a
+ *  shell command line and the only one anything launches today (RFC 0038). */
+export type TerminalProfileLaunch = Extract<
+  AgentProfileLaunch,
+  { interface: "terminal" }
+>;
+
+/**
+ * A profile's command — the shell line for a `terminal` profile, the
+ * executable path for a `chat` one. Both arms carry `command`; this is the
+ * single accessor every caller that used to read `profile.command` goes
+ * through. For the *terminal launch line* (env prefix + command) use
+ * {@link profileLaunchLine}, which is terminal-only by construction.
+ */
+export function profileCommand(profile: Pick<AgentProfile, "launch">): string {
+  return profile.launch.command;
+}
+
+/** A profile's config directory — `terminal` arm only; `undefined` otherwise. */
+export function profileConfigDir(
+  profile: Pick<AgentProfile, "launch">,
+): string | undefined {
+  return profile.launch.interface === "terminal"
+    ? profile.launch.configDir
+    : undefined;
+}
 
 /** The id shape a profile must match. Exported so the editor and validation
  *  reference one source. */
@@ -134,12 +161,12 @@ export function expandTilde(path: string, home: string): string {
  * prefix — R3 clears such a value rather than letting it rot).
  */
 export function buildLaunchLine(
-  profile: Pick<AgentProfile, "command" | "configDir">,
+  launch: { command: string; configDir?: string },
   configDirEnvVar: string | undefined,
 ): string {
-  const command = profile.command;
-  if (profile.configDir && configDirEnvVar) {
-    return `${configDirEnvVar}=${posixSingleQuote(profile.configDir)} ${command}`;
+  const command = launch.command;
+  if (launch.configDir && configDirEnvVar) {
+    return `${configDirEnvVar}=${posixSingleQuote(launch.configDir)} ${command}`;
   }
   return command;
 }
@@ -151,12 +178,13 @@ export function buildLaunchLine(
  * the terminal context menu's "run here" use.
  */
 export function profileLaunchLine(
-  profile: Pick<AgentProfile, "command" | "configDir" | "assumedAgentId">,
+  profile: Pick<AgentProfile, "launch" | "assumedAgentId">,
 ): string {
+  if (profile.launch.interface !== "terminal") return "";
   const envVar = profile.assumedAgentId
     ? agentById(profile.assumedAgentId)?.configDirEnvVar
     : undefined;
-  return buildLaunchLine(profile, envVar);
+  return buildLaunchLine(profile.launch, envVar);
 }
 
 /** The first shell token of a command string (whitespace-split). */

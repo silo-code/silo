@@ -11,6 +11,7 @@
 import { cloneTrees } from "./side-dock-tree";
 import type {
   AgentProfile,
+  AgentProfileLaunch,
   EditorSettings,
   GlobalPanelLayout,
   PanelStateSnapshot,
@@ -67,6 +68,9 @@ export interface PersistedIndex {
   sharedColumnWidthsEnabled?: boolean;
   globalPanelLayoutEnabled?: boolean;
   globalActiveTabEnabled?: boolean;
+  // RFC 0038 sprint flags. Absent in every index today; both hydrate to `false`.
+  chatAgents?: boolean;
+  bundledChatPanel?: boolean;
   globalPanelLayout?: GlobalPanelLayout;
   globalActiveSidePanelTabs?: Record<string, string>;
 }
@@ -116,10 +120,81 @@ export function cloneAgentState(
 }
 
 /**
- * Load Agent Profiles from a persisted index, defensively (RFC 0033). An entry
- * missing `id`, `label`, or `command` (or with the wrong type) is dropped with
- * a logged warning rather than failing hydration; the first occurrence of a
- * duplicate id wins; a non-array (or absent) value yields `[]`.
+ * Resolve an entry's {@link AgentProfileLaunch}, migrating the pre-RFC-0038
+ * flat shape. Returns `null` when there is no usable launch command at all
+ * (caller drops the whole entry).
+ *
+ * - New shape: `launch: { interface, command, ... }` — accepted for `terminal`
+ *   (with optional `configDir`) and `chat` (with an `args` array; a missing or
+ *   malformed `args` becomes `[]`). An unknown `interface` is rejected.
+ * - Legacy shape: a top-level `command` string (+ optional `configDir`) is
+ *   folded into the `terminal` arm — this is every profile written before
+ *   RFC 0038.
+ */
+function loadProfileLaunch(
+  e: Record<string, unknown>,
+): AgentProfileLaunch | null {
+  const raw = e.launch;
+  if (raw && typeof raw === "object") {
+    const l = raw as Record<string, unknown>;
+    if (
+      l.interface === "terminal" &&
+      typeof l.command === "string" &&
+      l.command
+    ) {
+      const launch: AgentProfileLaunch = {
+        interface: "terminal",
+        command: l.command,
+      };
+      if (typeof l.configDir === "string" && l.configDir) {
+        launch.configDir = l.configDir;
+      }
+      return launch;
+    }
+    if (l.interface === "chat" && typeof l.command === "string" && l.command) {
+      const args = Array.isArray(l.args)
+        ? l.args.filter((a): a is string => typeof a === "string")
+        : [];
+      const launch: AgentProfileLaunch = {
+        interface: "chat",
+        command: l.command,
+        args,
+      };
+      if (l.env && typeof l.env === "object" && !Array.isArray(l.env)) {
+        const env: Record<string, string> = {};
+        for (const [k, v] of Object.entries(l.env as Record<string, unknown>)) {
+          if (typeof v === "string") env[k] = v;
+        }
+        if (Object.keys(env).length > 0) launch.env = env;
+      }
+      return launch;
+    }
+    return null;
+  }
+  // Legacy flat shape — migrate into the terminal arm.
+  if (typeof e.command === "string" && e.command) {
+    const launch: AgentProfileLaunch = {
+      interface: "terminal",
+      command: e.command,
+    };
+    if (typeof e.configDir === "string" && e.configDir) {
+      launch.configDir = e.configDir;
+    }
+    return launch;
+  }
+  return null;
+}
+
+/**
+ * Load Agent Profiles from a persisted index, defensively (RFC 0033; launch
+ * union migration RFC 0038). An entry missing `id` / `label`, or with no usable
+ * launch command (neither a `launch` object nor a legacy top-level `command`),
+ * is dropped with a logged warning rather than failing hydration; the first
+ * occurrence of a duplicate id wins; a non-array (or absent) value yields `[]`.
+ *
+ * A profile written before RFC 0038 (flat `command` / `configDir`) is migrated
+ * into `launch: { interface: "terminal", ... }` here — see
+ * {@link loadProfileLaunch}.
  *
  * `default` (phase 2) is copied only when strictly `true` — a truthy non-boolean
  * is dropped, not coerced. The "at most one default" invariant the runtime
@@ -132,16 +207,19 @@ export function loadAgentProfiles(raw: unknown): AgentProfile[] {
   const seen = new Set<string>();
   let defaultClaimed = false;
   for (const entry of raw) {
-    const e = entry as Partial<AgentProfile> | null;
+    const e = entry as Record<string, unknown> | null;
     if (
       !e ||
       typeof e.id !== "string" ||
       typeof e.label !== "string" ||
-      typeof e.command !== "string" ||
       !e.id ||
-      !e.label ||
-      !e.command
+      !e.label
     ) {
+      console.warn("dropping malformed persisted agent profile", entry);
+      continue;
+    }
+    const launch = loadProfileLaunch(e);
+    if (!launch) {
       console.warn("dropping malformed persisted agent profile", entry);
       continue;
     }
@@ -153,11 +231,8 @@ export function loadAgentProfiles(raw: unknown): AgentProfile[] {
     const profile: AgentProfile = {
       id: e.id,
       label: e.label,
-      command: e.command,
+      launch,
     };
-    if (typeof e.configDir === "string" && e.configDir) {
-      profile.configDir = e.configDir;
-    }
     if (typeof e.assumedAgentId === "string" && e.assumedAgentId) {
       profile.assumedAgentId = e.assumedAgentId;
     }
@@ -253,6 +328,8 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
     sharedColumnWidthsEnabled: snapshot.sharedColumnWidthsEnabled,
     globalPanelLayoutEnabled: snapshot.globalPanelLayoutEnabled,
     globalActiveTabEnabled: snapshot.globalActiveTabEnabled,
+    chatAgents: snapshot.chatAgents,
+    bundledChatPanel: snapshot.bundledChatPanel,
     globalPanelLayout: snapshot.globalPanelLayout
       ? cloneGlobalPanelLayout(snapshot.globalPanelLayout)
       : undefined,

@@ -293,6 +293,20 @@ describe("buildIndex", () => {
     expect(index.globalActiveTabEnabled).toBeUndefined();
     expect(index.globalPanelLayout).toBeUndefined();
     expect(index.globalActiveSidePanelTabs).toBeUndefined();
+    // RFC 0038 sprint flags — absent, not defaulted, at the index layer.
+    expect(index.chatAgents).toBeUndefined();
+    expect(index.bundledChatPanel).toBeUndefined();
+  });
+
+  it("round-trips the RFC 0038 sprint flags when provided", () => {
+    const index = buildIndex({
+      workspaceOrder: [],
+      activeWorkspaceId: null,
+      chatAgents: true,
+      bundledChatPanel: false,
+    });
+    expect(index.chatAgents).toBe(true);
+    expect(index.bundledChatPanel).toBe(false);
   });
 
   it("round-trips small-screen-mode settings when provided", () => {
@@ -517,15 +531,72 @@ describe("loadAgentProfiles (RFC 0033 R2)", () => {
     expect(loadAgentProfiles({})).toEqual([]);
   });
 
-  it("drops entries missing id/label/command", () => {
+  it("drops entries missing id/label or with no usable launch command", () => {
     const out = loadAgentProfiles([
       { id: "ok", label: "OK", command: "claude" },
       { id: "no-cmd", label: "X" },
       { label: "no id", command: "c" },
       { id: "", label: "empty id", command: "c" },
+      { id: "bad-launch", label: "Y", launch: { interface: "nope" } },
       null,
     ]);
     expect(out.map((p) => p.id)).toEqual(["ok"]);
+  });
+
+  it("migrates a legacy flat profile into the terminal launch arm (RFC 0038)", () => {
+    const out = loadAgentProfiles([
+      { id: "p", label: "P", command: "claude-work", configDir: "/x" },
+    ]);
+    expect(out[0].launch).toEqual({
+      interface: "terminal",
+      command: "claude-work",
+      configDir: "/x",
+    });
+    // The flat fields do not linger at the top level.
+    expect(out[0]).not.toHaveProperty("command");
+    expect(out[0]).not.toHaveProperty("configDir");
+  });
+
+  it("accepts an already-migrated terminal launch object verbatim", () => {
+    const out = loadAgentProfiles([
+      {
+        id: "p",
+        label: "P",
+        launch: { interface: "terminal", command: "claude" },
+      },
+    ]);
+    expect(out[0].launch).toEqual({ interface: "terminal", command: "claude" });
+  });
+
+  it("loads a chat launch, coercing a missing/garbled args to []", () => {
+    const out = loadAgentProfiles([
+      {
+        id: "a",
+        label: "A",
+        launch: { interface: "chat", command: "cursor-agent", args: ["acp"] },
+      },
+      { id: "b", label: "B", launch: { interface: "chat", command: "gemini" } },
+      {
+        id: "c",
+        label: "C",
+        launch: { interface: "chat", command: "x", args: [1, "ok", null] },
+      },
+    ]);
+    expect(out[0].launch).toEqual({
+      interface: "chat",
+      command: "cursor-agent",
+      args: ["acp"],
+    });
+    expect(out[1].launch).toEqual({
+      interface: "chat",
+      command: "gemini",
+      args: [],
+    });
+    expect(out[2].launch).toEqual({
+      interface: "chat",
+      command: "x",
+      args: ["ok"],
+    });
   });
 
   it("keeps the first of a duplicate id", () => {
@@ -548,11 +619,9 @@ describe("loadAgentProfiles (RFC 0033 R2)", () => {
       },
       { id: "q", label: "Q", command: "c", configDir: "", assumedAgentId: "" },
     ]);
-    expect(out[0]).toMatchObject({
-      configDir: "/x",
-      assumedAgentId: "claude",
-    });
-    expect(out[1].configDir).toBeUndefined();
+    expect(out[0].assumedAgentId).toBe("claude");
+    expect(out[0].launch).toMatchObject({ configDir: "/x" });
+    expect((out[1].launch as { configDir?: string }).configDir).toBeUndefined();
     expect(out[1].assumedAgentId).toBeUndefined();
   });
 

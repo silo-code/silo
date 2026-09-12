@@ -1,0 +1,250 @@
+/*
+ * Chat panel chrome (RFC 0038 phase 3).
+ *
+ * Design tokens only — no literal colours, fonts or absolute type sizes, so
+ * the panel follows the active theme and `uiFontSize` scaling. Two token
+ * choices are deliberate:
+ *
+ * - Every control boundary is `--silo-color-input-border`, never
+ *   `--silo-color-border`: the latter is `transparent` in the high-contrast
+ *   themes, which silently erases a border that is load-bearing here (the
+ *   composer would merge into the transcript).
+ * - No `backdrop-filter` anywhere. It creates a containing block even at
+ *   `position: static`, which would trap the composer's own stacking and break
+ *   the scroller's sizing.
+ *
+ * The scroll chain is owned by exactly one element: `.acp-chat__scroller`.
+ * Everything above it is `min-height: 0` inside a full-height flex column, so
+ * the dock never gets a second scrollbar and a wheel event inside the
+ * transcript does not chain out into the workbench.
+ */
+
+.acp-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--silo-color-content-bg);
+  color: var(--silo-color-content-text);
+  font-family: var(--silo-font-ui);
+  font-size: var(--silo-font-size-base);
+}
+
+.acp-chat__toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 2px 8px;
+  background: var(--silo-color-toolbar-bg);
+  border-bottom: 1px solid var(--silo-color-input-border);
+}
+
+.acp-chat__scroller {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* The embedding app owns the outer scroll chain — keep ours to ourselves. */
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.acp-chat__notice {
+  margin: auto 0;
+}
+
+.acp-chat__status {
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+
+/* --- messages ----------------------------------------------------------- */
+
+.acp-chat__message {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 100%;
+}
+
+.acp-chat__message[data-role="user"] {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 6px 10px;
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg-active);
+}
+
+.acp-chat__message[data-role="thought"] {
+  color: var(--silo-color-text-lo);
+  border-left: 2px solid var(--silo-color-input-border);
+  padding-left: 10px;
+}
+
+.acp-chat__thought-label {
+  font-size: var(--silo-font-size-chrome);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.acp-chat__text {
+  /* The agent streams plain text with real newlines; honour them without
+     turning the transcript into a `<pre>`. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+/* --- tool calls --------------------------------------------------------- */
+
+.acp-chat__tool {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg);
+}
+
+.acp-chat__tool-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.acp-chat__tool-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--silo-font-size-sm);
+}
+
+.acp-chat__tool-body {
+  margin: 0;
+  max-height: 240px;
+  /* Wide output scrolls inside its own box — the page body never does. */
+  overflow: auto;
+  overscroll-behavior: contain;
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* --- plan --------------------------------------------------------------- */
+
+.acp-chat__plan {
+  padding: 8px 10px;
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: var(--silo-radius-md);
+}
+
+.acp-chat__plan-head {
+  font-size: var(--silo-font-size-chrome);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--silo-color-text-lo);
+  margin-bottom: 4px;
+}
+
+.acp-chat__plan-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--silo-font-size-sm);
+}
+
+.acp-chat__plan-row[data-status="completed"] {
+  color: var(--silo-color-text-lo);
+  text-decoration: line-through;
+}
+
+.acp-chat__plan-row[data-status="in_progress"] {
+  color: var(--silo-color-accent);
+}
+
+/* --- notices ------------------------------------------------------------ */
+
+.acp-chat__notice-line {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__notice-line[data-tone="warn"] {
+  color: var(--silo-color-warn);
+}
+
+.acp-chat__notice-line[data-tone="error"] {
+  color: var(--silo-color-err);
+}
+
+/* --- permission --------------------------------------------------------- */
+
+.acp-chat__permission {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--silo-color-accent);
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg);
+}
+
+.acp-chat__permission-title {
+  overflow-wrap: anywhere;
+}
+
+.acp-chat__permission-note {
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__permission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* --- composer ----------------------------------------------------------- */
+
+.acp-chat__composer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--silo-color-input-border);
+  background: var(--silo-color-content-bg);
+}
+
+.acp-chat__input {
+  /* The kit's `.silo-textarea` owns the treatment; only the geometry the
+     composer needs is set here. */
+  width: 100%;
+  min-height: 0;
+  resize: none;
+}
+
+.acp-chat__controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.acp-chat__profile {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-right: auto;
+}

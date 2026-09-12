@@ -6,6 +6,8 @@ import {
   expandTilde,
   buildLaunchLine,
   profileLaunchLine,
+  profileCommand,
+  profileConfigDir,
   fallbackAgentForCommand,
   profileCommandId,
   resolveDefaultProfile,
@@ -13,12 +15,25 @@ import {
 } from "./agent-profile-model";
 import type { AgentProfile } from "../../state/types";
 
-const profile = (over: Partial<AgentProfile>): AgentProfile => ({
-  id: "p",
-  label: "P",
-  command: "claude",
-  ...over,
-});
+// Test ergonomics: accept flat `command` / `configDir` overrides and fold them
+// into the RFC 0038 `launch: { interface: "terminal", ... }` shape.
+const profile = (
+  over: Partial<AgentProfile> & { command?: string; configDir?: string },
+): AgentProfile => {
+  const { command, configDir, launch, ...rest } = over;
+  return {
+    id: "p",
+    label: "P",
+    launch:
+      launch ??
+      ({
+        interface: "terminal",
+        command: command ?? "claude",
+        ...(configDir ? { configDir } : {}),
+      } as const),
+    ...rest,
+  };
+};
 
 describe("slugifyProfileId", () => {
   it("lowercases, strips punctuation, collapses runs, trims hyphens", () => {
@@ -108,14 +123,14 @@ describe("expandTilde", () => {
 describe("buildLaunchLine", () => {
   it("is the command verbatim with no configDir", () => {
     expect(
-      buildLaunchLine(profile({ command: "claude-work" }), "CLAUDE_CONFIG_DIR"),
+      buildLaunchLine({ command: "claude-work" }, "CLAUDE_CONFIG_DIR"),
     ).toBe("claude-work");
   });
 
   it("prefixes the env var when configDir and a var are both present", () => {
     expect(
       buildLaunchLine(
-        profile({ command: "claude-work", configDir: "/Users/d/.claude-work" }),
+        { command: "claude-work", configDir: "/Users/d/.claude-work" },
         "CLAUDE_CONFIG_DIR",
       ),
     ).toBe("CLAUDE_CONFIG_DIR='/Users/d/.claude-work' claude-work");
@@ -123,17 +138,14 @@ describe("buildLaunchLine", () => {
 
   it("emits no prefix when the agent has no configDirEnvVar", () => {
     expect(
-      buildLaunchLine(
-        profile({ command: "cursor-agent", configDir: "/x" }),
-        undefined,
-      ),
+      buildLaunchLine({ command: "cursor-agent", configDir: "/x" }, undefined),
     ).toBe("cursor-agent");
   });
 
   it("escapes a configDir containing a quote", () => {
     expect(
       buildLaunchLine(
-        profile({ command: "claude", configDir: "/it's/dir" }),
+        { command: "claude", configDir: "/it's/dir" },
         "CLAUDE_CONFIG_DIR",
       ),
     ).toBe("CLAUDE_CONFIG_DIR='/it'\\''s/dir' claude");
@@ -174,6 +186,38 @@ describe("profileLaunchLine", () => {
     expect(
       profileLaunchLine(profile({ command: "claude", configDir: "/x" })),
     ).toBe("claude");
+  });
+
+  it("is empty for a Chat profile — there is no shell line", () => {
+    expect(
+      profileLaunchLine(
+        profile({
+          launch: { interface: "chat", command: "cursor-agent", args: ["acp"] },
+          assumedAgentId: "cursor",
+        }),
+      ),
+    ).toBe("");
+  });
+});
+
+describe("profileCommand / profileConfigDir (RFC 0038 launch union)", () => {
+  it("reads the terminal arm", () => {
+    expect(
+      profileCommand(profile({ command: "claude-work", configDir: "/d/.cw" })),
+    ).toBe("claude-work");
+    expect(
+      profileConfigDir(
+        profile({ command: "claude-work", configDir: "/d/.cw" }),
+      ),
+    ).toBe("/d/.cw");
+  });
+
+  it("reads the chat arm's command; configDir is terminal-only", () => {
+    const chat = profile({
+      launch: { interface: "chat", command: "gemini", args: ["--acp"] },
+    });
+    expect(profileCommand(chat)).toBe("gemini");
+    expect(profileConfigDir(chat)).toBeUndefined();
   });
 });
 

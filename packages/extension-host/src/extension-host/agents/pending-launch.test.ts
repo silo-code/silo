@@ -52,8 +52,11 @@ describe("drainPendingLaunch", () => {
     addAgentProfile({
       id: "claude-work",
       label: "W",
-      command: "claude-work",
-      configDir: "/Users/d/.claude-work",
+      launch: {
+        interface: "terminal",
+        command: "claude-work",
+        configDir: "/Users/d/.claude-work",
+      },
       assumedAgentId: "claude",
     });
     requestProfileLaunch("t1", "claude-work");
@@ -92,7 +95,7 @@ function addClaudeProfile(): void {
   addAgentProfile({
     id: "claude",
     label: "Claude",
-    command: "claude",
+    launch: { interface: "terminal", command: "claude" },
     assumedAgentId: "claude",
   });
 }
@@ -158,7 +161,7 @@ describe("drainPendingLaunch — a claimed prompt", () => {
     addAgentProfile({
       id: "claude",
       label: "Claude",
-      command: "my-own-script",
+      launch: { interface: "terminal", command: "my-own-script" },
     });
     requestProfileLaunch("t1", "claude", "fix the CI", "posix");
     drainPendingLaunch("t1", "sess-1");

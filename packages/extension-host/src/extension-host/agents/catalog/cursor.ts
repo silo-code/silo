@@ -29,6 +29,9 @@ export function buildCursorAgentDefinition(
     // 2026.08.31-4057e58): `cursor-agent "<prompt>"` answered and stayed in
     // the TUI. `-p/--print` is the non-interactive mode.
     promptDelivery: { kind: "argv" },
+    // RFC 0038 §5h — `cursor-agent acp` speaks ACP built in (spawned and
+    // `initialize`d, 2026-09-08). Nothing to fetch.
+    acpLaunch: { kind: "builtin", args: ["acp"] },
     // OSC 0 title status (preferred), ported from silo-extensions/agent-monitor.
     // Only emitted when `display.showStatusIndicators` is true in
     // ~/.cursor/cli-config.json — the upstream *default is false* — so the raw

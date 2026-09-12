@@ -74,6 +74,23 @@ never have to discover it from a refusal:
 const promptable = ctx.agents.profiles.list().filter((p) => p.acceptsPrompt);
 ```
 
+### `launch()` only starts a Terminal profile
+
+A profile's `interface` says which arm it uses — `"terminal"` (a PTY the agent
+draws its own TUI in) or `"chat"` (an
+[Agent Client Protocol](https://agentclientprotocol.com) child driven through
+[`ctx.agents.sessions`](/api/agents/sessions)). The two are started by
+different services, so **filter before you offer**: `launch()`ing a Chat
+profile refuses, and `connect()`ing a Terminal profile rejects.
+
+```ts
+const all = ctx.agents.profiles.list();
+const launchable = all.filter((p) => p.interface === "terminal");
+const connectable = all.filter((p) => p.interface === "chat");
+```
+
+It is the same list and the same ids — only the verb differs.
+
 ### Start an agent without stealing the user's place
 
 `activate` defaults to `true` (activate the workspace, focus the new terminal).

@@ -18,6 +18,8 @@ export const opencodeAgent: AgentDefinition = {
   // prompt. `--prompt <string>` is the interactive form, and it answered and
   // stayed in the TUI. This entry is why the union has a `"flag"` member.
   promptDelivery: { kind: "flag", flag: "--prompt" },
+  // RFC 0038 §5h — `opencode acp` speaks ACP built in (verified 2026-09-08).
+  acpLaunch: { kind: "builtin", args: ["acp"] },
   // Its async session-naming rename (see `contract` below) leads with this —
   // redundant once the tab shows OpenCode's icon.
   titleIdentityPrefix: "OC | ",

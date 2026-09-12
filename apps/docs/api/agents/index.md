@@ -1,11 +1,19 @@
 # ctx.agents <Badge type="warning" text="beta" />
 
 Host-computed coding-agent activity and resume-identity observability — a
-live, read-only view of what each terminal's agent is doing, plus an honest
+live, read-only view of what each **Agent Session** is doing, plus an honest
 resume hint when a session's backend dies uncleanly. The companion to
 [`ctx.processes`](/api/processes/) (foreground process facts); this surface
 is for _agent_ activity and resume identity. Detection is sealed in the host
 — there is no `registerAgent` / detector API.
+
+An Agent Session is either a **Terminal session** (an agent drawing its own
+TUI in a PTY; Silo infers activity from OSC/output) or a **Chat session** (an
+Agent Client Protocol child that reports activity directly). `ctx.agents`
+reports the **same `AgentInfo` shape for both** — see
+[`AgentSessionKind`](/api/types/type-aliases/AgentSessionKind). Use
+`reveal(id)` to bring a session into view (its terminal tab or its transcript
+panel) without branching on which kind it is.
 
 ```ts
 ctx.agents: AgentsService
@@ -73,15 +81,20 @@ recipes, which can also carry an opening prompt.
 
 | Field                         | Meaning                                                                                                                                                                     |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                          | Stable Agent Session id — the key `reveal` / `resume` / `acknowledge` take. Equals `terminalId` for a Terminal session.                                                     |
+| `kind`                        | `terminal` \| `chat` — see [`AgentSessionKind`](/api/types/type-aliases/AgentSessionKind). Same fields for both.                                                            |
+| `terminalId`                  | The backing terminal record id — present for a Terminal session, absent for a Chat session.                                                                                 |
 | `activity`                    | `none` \| `working` \| `idle` \| `error` \| `dead`                                                                                                                          |
 | `needsAttention`              | Sticky "finished while you weren't looking" — cleared only by `acknowledge`                                                                                                 |
 | `sessionId` / `resumeCommand` | Exact resume when a Settings → Agents hook (or native session file) resolved an id; otherwise an honest session-id-less note. Silo **never** infers an id from cwd/recency. |
+| `canResume`                   | Whether `resume(id)` will do something. A Terminal session's is `true` only with an exact `sessionId`, and `resume()` is still a no-op for it — run `resumeCommand`.        |
 | `agentId` / `agentName`       | Catalog key + display name once a known agent leader is detected                                                                                                            |
 
 ## See also
 
 - [`AgentsService`](/api/types/interfaces/AgentsService)
 - [`AgentInfo`](/api/types/interfaces/AgentInfo)
+- [`AgentSessionKind`](/api/types/type-aliases/AgentSessionKind)
 - [`AgentActivity`](/api/types/type-aliases/AgentActivity)
 - [`CatalogAgentSummary`](/api/types/interfaces/CatalogAgentSummary)
 - [`AgentIcon`](/api/types/interfaces/AgentIcon)

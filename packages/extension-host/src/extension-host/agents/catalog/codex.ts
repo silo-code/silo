@@ -30,6 +30,8 @@ export function buildCodexAgentDefinition(
     // "<prompt>"` answered and stayed in the TUI. `codex exec` is the
     // non-interactive mode and is NOT what this field means.
     promptDelivery: { kind: "argv" },
+    // RFC 0038 §5h — `codex` has no built-in ACP mode; `codex-acp` (npx) wraps it.
+    acpLaunch: { kind: "adapter", package: "codex-acp" },
     // "Working" is the shared spinner detector in `detectClaudeCode` (Codex uses
     // the braille range Claude used to); detectCodexCLI covers its own explicit
     // "idle" signals (empty title, action-required markers, OSC 9 notifications).

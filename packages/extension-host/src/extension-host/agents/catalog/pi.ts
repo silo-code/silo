@@ -53,6 +53,8 @@ export function buildPiAgentDefinition(
     // answered and stayed in the TUI — its positional `[messages...]` is an
     // opening message for the interactive session.
     promptDelivery: { kind: "argv" },
+    // RFC 0038 §5h — `pi` has no built-in ACP mode; `pi-acp` (npx) wraps it.
+    acpLaunch: { kind: "adapter", package: "pi-acp" },
     // Redundant once the tab shows pi's own icon — same literal detectPiTitle
     // matches on, reused rather than duplicated.
     titleIdentityPrefix: PI_TITLE_PREFIX,

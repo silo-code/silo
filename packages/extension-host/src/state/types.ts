@@ -241,10 +241,50 @@ export interface PersistedAgentInfo {
 }
 
 /**
- * A named, user-authored recipe for starting a coding agent in a terminal
- * (RFC 0033). Host-owned global state. **Not** part of the public SDK surface
- * in phase 1 — it rides `@silo-code/extension-host/internal`; it becomes public
- * when `ctx.agents.profiles` does (phase 5).
+ * How an Agent Profile starts its agent (RFC 0038). A discriminated union so
+ * the two ways differ **honestly** rather than sharing a `command` field whose
+ * meaning changes:
+ *
+ * - `"terminal"` — `command` is a **shell string** typed into an interactive
+ *   login shell, so an alias (`claude-work`), shell function, or
+ *   version-manager shim resolves. This is RFC 0033's original launch, and the
+ *   only arm anything writes today.
+ * - `"chat"` — `command` is a **path** and `args` an argv vector; Silo execs a
+ *   pipe-connected child and speaks the Agent Client Protocol to it. Aliases
+ *   do not resolve (no shell), which is why the shape is a path plus args, not
+ *   a string. Inert until RFC 0038 phase 2 wires `ctx.agents.sessions`.
+ */
+export type AgentProfileLaunch =
+  | {
+      interface: "terminal";
+      /** The shell command line, typed verbatim into the terminal's
+       *  interactive shell — a string, not an argv array. */
+      command: string;
+      /** Absolute path to an agent config directory, for agents that declare a
+       *  `configDirEnvVar`. `~` is expanded at save time, never at launch.
+       *  Prefixed onto the launch line as `<VAR>='<path>' <command>`. */
+      configDir?: string;
+    }
+  | {
+      interface: "chat";
+      /** Executable to run, resolved on `PATH` — no shell. */
+      command: string;
+      /** Argument vector, e.g. `["acp"]` or `["--acp"]`. */
+      args: string[];
+      /** Extra environment for the child, merged over the inherited env. */
+      env?: Record<string, string>;
+    };
+
+/**
+ * A named, user-authored recipe for starting a coding agent (RFC 0033, launch
+ * union added in RFC 0038). Host-owned global state. **Not** part of the public
+ * SDK surface yet — it rides `@silo-code/extension-host/internal`; it becomes
+ * public when `ctx.agents.profiles` does.
+ *
+ * Addressing (`id`, `label`, `default`, `assumedAgentId`) is
+ * transport-agnostic — the durable idea in RFC 0033. Only {@link
+ * AgentProfile.launch} knows whether the agent is a Terminal or a Chat
+ * session.
  */
 export interface AgentProfile {
   /**
@@ -257,19 +297,11 @@ export interface AgentProfile {
   /** Shown in the `+` menu and the Profiles list. Freely editable. */
   label: string;
   /**
-   * The shell command line, typed into the terminal's interactive shell
-   * exactly as a user would type it — a **string**, not an argv array, so an
-   * alias (`claude-work`), shell function, or version-manager shim resolves.
-   * Silo launches agents by writing into an interactive login shell, never by
-   * `exec`, and this field's type encodes that.
+   * How this profile starts its agent — a Terminal or a Chat session. A
+   * persisted profile from before RFC 0038 (flat `command` / `configDir`) is
+   * migrated into the `terminal` arm at load (`loadAgentProfiles`).
    */
-  command: string;
-  /**
-   * Absolute path to an agent config directory, for agents that declare a
-   * `configDirEnvVar`. `~` is expanded at save time, never at launch. Prefixed
-   * onto the launch line as `<VAR>='<path>' <command>`.
-   */
-  configDir?: string;
+  launch: AgentProfileLaunch;
   /**
    * Which sealed catalog agent the user *asserts* this launches — matched from
    * the command text, overridable in the editor. Named `assumed…` deliberately:
@@ -434,6 +466,18 @@ export interface AppState extends SharedPanelState {
   /** The shared active-tab-per-slot map, live while
    * {@link globalActiveTabEnabled} is on. */
   globalActiveSidePanelTabs: Record<string, string>;
+  /**
+   * RFC 0038 sprint flags — both default `false`, nothing user-visible changes
+   * until they are on. Global, persisted in the index.
+   *
+   * `chatAgents` gates the whole Chat-session capability: the `chat` arm of an
+   * Agent Profile's launch, `ctx.agents.sessions`, and any Chat session in
+   * `ctx.agents`. `bundledChatPanel` additionally gates whether the bundled
+   * `core.acp-chat` transcript panel registers (composition root reads it) —
+   * off means Dave can run a third-party panel instead.
+   */
+  chatAgents: boolean;
+  bundledChatPanel: boolean;
   /**
    * Named collapsible groups in the Workspaces panel, keyed by group id. A
    * group's `workspaceOrder` is the single source of truth for membership — a

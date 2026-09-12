@@ -11,8 +11,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@acp-components/core": "^0.1.0",
-    "@acp-components/react": "^0.1.0",
     "@monaco-editor/react": "^4.7.0",
     "@phosphor-icons/react": "^2.1.10",
     "@silo-code/extension-host": "workspace:*",

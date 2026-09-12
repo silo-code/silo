@@ -68,17 +68,22 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
     const next = new Map<string, AgentInfo>();
     const liveIds = new Set<string>();
     for (const a of state) {
-      liveIds.add(a.terminalId);
+      // This extension's decorations are terminal-tab and workspace-row chrome,
+      // keyed by terminal id — a Chat session (RFC 0038, no terminal) is not
+      // rendered here yet.
+      if (!a.terminalId) continue;
+      const key = a.terminalId;
+      liveIds.add(key);
       // Chime once when any agent finishes a run, whether or not its terminal
       // is focused — the host lands watched finishes straight on idle too, so
       // this covers both. maybePlayTransitionSound debounces simultaneous ones.
-      if (stoppedWorking(agents.get(a.terminalId), a)) {
+      if (stoppedWorking(agents.get(key), a)) {
         ring = true;
-        finishedUnseen.set(a.terminalId, new Date().toISOString());
+        finishedUnseen.set(key, new Date().toISOString());
       }
       // A new run clears the finished flag — "until the next run" ends here.
-      if (a.activity === "working") finishedUnseen.delete(a.terminalId);
-      next.set(a.terminalId, a);
+      if (a.activity === "working") finishedUnseen.delete(key);
+      next.set(key, a);
     }
     // Drop flags for terminals the host no longer tracks (closed).
     for (const id of [...finishedUnseen.keys()]) {

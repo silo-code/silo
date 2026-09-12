@@ -75,6 +75,8 @@ export function buildOmpAgentDefinition(
     // stayed in the TUI — its `[MESSAGES...]` argument is an opening message
     // for the interactive session, exactly pi's shape.
     promptDelivery: { kind: "argv" },
+    // RFC 0038 §5h — OMP ships no ACP server and no adapter is published; the
+    // fork tracks pi but has not picked up `pi-acp`. `acpLaunch` stays undefined.
     // Redundant once the tab shows OMP's own icon. Only the brand is stripped,
     // not the state separator that follows it — the icon says *who*, the
     // separator says *what it is doing*. When the user asks for status glyphs

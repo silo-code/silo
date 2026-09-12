@@ -334,6 +334,15 @@ export {
 // `ctx.ui`) is deferred until a real public consumer exists — we don't expand
 // the `ctx` surface ahead of a requirement.
 export { bumpUiFontSize, resetUiFontSize } from "./app-settings";
+// RFC 0038 sprint flags — both default false. `bundledChatPanel` is read by the
+// composition root (`apps/desktop/src/builtins.ts`); both are surfaced on the
+// Agents settings page. Remove/promote when the sprint lands.
+export {
+  getChatAgentsEnabled,
+  setChatAgentsEnabled,
+  getBundledChatPanelEnabled,
+  setBundledChatPanelEnabled,
+} from "../state/store";
 export { openSettings, closeSettings } from "./settings-sheet";
 export { pickWorkspaceFolder } from "./pick-folder";
 // Dock/area keyboard navigation the base menu (core.menu) drives — cycling the
@@ -470,6 +479,8 @@ export {
   draftIsValid,
   buildLaunchLine,
   profileLaunchLine,
+  profileCommand,
+  profileConfigDir,
   expandTilde,
   firstToken,
   fallbackAgentForCommand,

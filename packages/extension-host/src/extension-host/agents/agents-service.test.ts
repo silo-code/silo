@@ -9,13 +9,19 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 
 // Mock terminal-service's OSC/output/active surface so tests can fire
 // per-terminal callbacks directly instead of driving a real PTY.
-const { subscribeOsc, subscribeOutput, getActive } = vi.hoisted(() => ({
+const { subscribeOsc, subscribeOutput, getActive, focus } = vi.hoisted(() => ({
   subscribeOsc: vi.fn(),
   subscribeOutput: vi.fn(),
   getActive: vi.fn(() => null as string | null),
+  focus: vi.fn(),
 }));
 vi.mock("../terminal-service", () => ({
-  getTerminalService: () => ({ subscribeOsc, subscribeOutput, getActive }),
+  getTerminalService: () => ({
+    subscribeOsc,
+    subscribeOutput,
+    getActive,
+    focus,
+  }),
 }));
 
 // Mock terminal-foreground so tests can fire foreground ticks (atPrompt/
@@ -84,6 +90,11 @@ function emitSessionFileChange() {
 import { store } from "../../state/store";
 import type { WorkspaceInternal } from "../../state/types";
 import { getAgentsService, notifyTerminalSessionGone } from "./agents-service";
+import {
+  patchChatAgent,
+  registerChatAgent,
+  resetChatAgentRegistry,
+} from "./chat-agent-registry";
 import { AGENT_IDLE_DEBOUNCE_MS } from "./agent-detection-dispatch";
 import { readNewHookEvents } from "./agent-hook-events";
 
@@ -696,6 +707,169 @@ async function attachTerminal(id: string, sessionId: string) {
   await Promise.resolve();
   await Promise.resolve();
 }
+
+describe("AgentsService — Agent Session shape (RFC 0038)", () => {
+  it("a Terminal session's id equals its terminalId, kind is 'terminal'", async () => {
+    const id = "t-shape";
+    await attachTerminal(id, "sess-shape");
+    foreground("sess-shape", {
+      pgid: 4242,
+      atPrompt: false,
+      leader: "claude",
+      cwd: "",
+    });
+    const info = svc.getByTerminalId(id);
+    expect(info?.id).toBe(id);
+    expect(info?.terminalId).toBe(id);
+    expect(info?.kind).toBe("terminal");
+    expect(info?.canResume).toBe(false); // no exact session id resolved
+  });
+
+  it("reveal(id) activates the workspace and focuses the terminal tab", async () => {
+    const id = "t-reveal";
+    await attachTerminal(id, "sess-reveal");
+    focus.mockClear();
+    svc.reveal(id);
+    expect(focus).toHaveBeenCalledWith(id);
+    expect(store.activeWorkspaceId).toBe(`ws-${id}`);
+  });
+
+  it("reveal / resume are no-ops for an unknown id", () => {
+    focus.mockClear();
+    expect(() => svc.reveal("nope")).not.toThrow();
+    expect(() => svc.resume("nope")).not.toThrow();
+    expect(focus).not.toHaveBeenCalled();
+  });
+});
+
+describe("AgentsService — Chat sessions (RFC 0038 phase 2)", () => {
+  beforeEach(() => resetChatAgentRegistry());
+  afterEach(() => resetChatAgentRegistry());
+
+  function chatInfo(id: string, workspaceId: string) {
+    return {
+      id,
+      workspaceId,
+      kind: "chat" as const,
+      isAgent: true,
+      activity: "idle" as const,
+      needsAttention: false,
+      stale: false,
+      canResume: true,
+      agentName: "Claude Code",
+    };
+  }
+
+  it("a registered Chat session shows up in getState() with the same shape, no terminal", async () => {
+    const ws = makeWorkspace("ws-chat");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    store.activeWorkspaceId = ws.id;
+    await Promise.resolve();
+
+    registerChatAgent(chatInfo("chat:s1", ws.id));
+
+    const state = svc.getState();
+    const chat = state.find((a) => a.id === "chat:s1");
+    expect(chat).toMatchObject({ kind: "chat", activity: "idle" });
+    expect(chat?.terminalId).toBeUndefined();
+    // getByTerminalId never resolves a Chat session
+    expect(svc.getByTerminalId("chat:s1")).toBeUndefined();
+  });
+
+  it("subscribe() fires when a Chat session's state changes", async () => {
+    const ws = makeWorkspace("ws-chat2");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    store.activeWorkspaceId = ws.id;
+    await Promise.resolve();
+
+    const seen = vi.fn();
+    const sub = svc.subscribe(seen);
+    registerChatAgent(chatInfo("chat:s2", ws.id));
+    patchChatAgent("chat:s2", { activity: "working" });
+    expect(seen).toHaveBeenCalled();
+    sub.dispose();
+  });
+
+  it("acknowledge(id) clears a Chat session's needsAttention", async () => {
+    const ws = makeWorkspace("ws-chat3");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    store.activeWorkspaceId = ws.id;
+    await Promise.resolve();
+
+    registerChatAgent({
+      ...chatInfo("chat:s3", ws.id),
+      needsAttention: true,
+      attentionSince: "2026-01-01T00:00:00Z",
+    });
+    svc.acknowledge("chat:s3");
+    expect(svc.getState().find((a) => a.id === "chat:s3")).toMatchObject({
+      needsAttention: false,
+    });
+  });
+
+  it("reveal(id) activates the Chat session's workspace without touching a terminal", async () => {
+    const ws = makeWorkspace("ws-chat4");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    if (!store.workspaceOrder.includes(ws.id)) store.workspaceOrder.push(ws.id);
+    store.activeWorkspaceId = "ws-other";
+    await Promise.resolve();
+    focus.mockClear();
+
+    registerChatAgent(chatInfo("chat:s4", ws.id));
+    svc.reveal("chat:s4");
+    expect(store.activeWorkspaceId).toBe(ws.id);
+    expect(focus).not.toHaveBeenCalled();
+  });
+
+  // RFC 0038 phase 3: the session's own UI does the focusing, and it can only
+  // do so once its workspace is live — so the order matters.
+  it("reveal(id) runs the session's reveal control, after activating its workspace", async () => {
+    const ws = makeWorkspace("ws-chat4b");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    if (!store.workspaceOrder.includes(ws.id)) store.workspaceOrder.push(ws.id);
+    store.activeWorkspaceId = "ws-other";
+    await Promise.resolve();
+
+    const seen: string[] = [];
+    registerChatAgent(chatInfo("chat:s4b", ws.id), {
+      reveal: () => seen.push(store.activeWorkspaceId ?? ""),
+    });
+    svc.reveal("chat:s4b");
+    expect(seen).toEqual([ws.id]);
+  });
+
+  it("reveal(id) still activates the workspace for a session with no reveal control", async () => {
+    const ws = makeWorkspace("ws-chat4c");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    if (!store.workspaceOrder.includes(ws.id)) store.workspaceOrder.push(ws.id);
+    store.activeWorkspaceId = "ws-other";
+    await Promise.resolve();
+
+    registerChatAgent(chatInfo("chat:s4c", ws.id));
+    expect(() => svc.reveal("chat:s4c")).not.toThrow();
+    expect(store.activeWorkspaceId).toBe(ws.id);
+  });
+
+  it("resume(id) runs the resume control only when canResume", async () => {
+    const ws = makeWorkspace("ws-chat5");
+    store.workspaces = { ...store.workspaces, [ws.id]: ws };
+    store.activeWorkspaceId = ws.id;
+    await Promise.resolve();
+
+    const resume = vi.fn();
+    registerChatAgent(chatInfo("chat:s5", ws.id), { resume });
+    svc.resume("chat:s5");
+    expect(resume).toHaveBeenCalled();
+
+    resume.mockClear();
+    registerChatAgent(
+      { ...chatInfo("chat:s6", ws.id), canResume: false },
+      { resume },
+    );
+    svc.resume("chat:s6");
+    expect(resume).not.toHaveBeenCalled();
+  });
+});
 
 describe("AgentsService — pi identity", () => {
   it("promotes a plain shell when pi's OSC 0 title appears", async () => {

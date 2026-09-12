@@ -41,13 +41,15 @@ function fakeStorage(initial: Record<string, unknown> = {}) {
 /** An agent `sectionFor` classifies as "done": idle and acknowledged. */
 function doneAgent(terminalId: string): AgentInfo {
   return {
+    id: terminalId,
     terminalId,
     workspaceId: "w1",
-    kind: "claude",
+    kind: "terminal",
     isAgent: true,
     activity: "idle",
     needsAttention: false,
     stale: false,
+    canResume: false,
   };
 }
 

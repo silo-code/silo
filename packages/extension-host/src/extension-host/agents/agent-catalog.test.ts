@@ -1070,6 +1070,43 @@ describe("configDirEnvVar (RFC 0033 R3)", () => {
   });
 });
 
+describe("acpLaunch (RFC 0038 §5h)", () => {
+  it("built-in ACP agents carry the arg vector that selects it", () => {
+    expect(agentById("cursor")?.acpLaunch).toEqual({
+      kind: "builtin",
+      args: ["acp"],
+    });
+    expect(agentById("opencode")?.acpLaunch).toEqual({
+      kind: "builtin",
+      args: ["acp"],
+    });
+    expect(agentById("copilot")?.acpLaunch).toEqual({
+      kind: "builtin",
+      args: ["--acp"],
+    });
+  });
+
+  it("adapter agents name the npm package that wraps them", () => {
+    expect(agentById("claude")?.acpLaunch).toEqual({
+      kind: "adapter",
+      package: "claude-agent-acp",
+    });
+    expect(agentById("codex")?.acpLaunch).toEqual({
+      kind: "adapter",
+      package: "codex-acp",
+    });
+    expect(agentById("pi")?.acpLaunch).toEqual({
+      kind: "adapter",
+      package: "pi-acp",
+    });
+  });
+
+  it("is undefined for agents with no ACP path", () => {
+    expect(agentById("grok")?.acpLaunch).toBeUndefined();
+    expect(agentById("omp")?.acpLaunch).toBeUndefined();
+  });
+});
+
 describe("catalogAgentSummaries (RFC 0033 R17)", () => {
   it("returns the same frozen reference across calls", () => {
     const a = catalogAgentSummaries();

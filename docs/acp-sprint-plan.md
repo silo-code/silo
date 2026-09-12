@@ -42,17 +42,16 @@ shipping.
 
 Working and tested — do not rebuild:
 
-| Piece                 | Where                                                                | State                                              |
-| --------------------- | -------------------------------------------------------------------- | -------------------------------------------------- |
-| Piped-stdio transport | `apps/desktop/src-tauri/src/commands/acp.rs`                         | 6 tests green, incl. a real-agent `#[ignore]` test |
-| Chunk grouper         | `packages/extension-host/src/extension-host/agents/acp-transport.ts` | 7 tests green                                      |
-| Chat panel            | `packages/extensions-core/src/acp-chat/`                             | works end to end                                   |
-| Debug op              | `acpProbe` in `apps/desktop/src/automation/bridge.ts`                | dev-only; keep for testing                         |
+| Piece                 | Where                                                                | State                                                     |
+| --------------------- | -------------------------------------------------------------------- | --------------------------------------------------------- |
+| Piped-stdio transport | `apps/desktop/src-tauri/src/commands/acp.rs`                         | 6 tests green, incl. a real-agent `#[ignore]` test        |
+| Chunk grouper         | `packages/extension-host/src/extension-host/agents/acp-transport.ts` | 7 tests green                                             |
+| Chat panel            | `packages/extensions-core/src/acp-chat/`                             | on `ctx.agents.sessions` alone; behind `bundledChatPanel` |
+| Debug op              | `acpProbe` in `apps/desktop/src/automation/bridge.ts`                | dev-only; keep for testing                                |
 
-**Known debts, deliberately carried:** the panel is built on `@acp-components`
-(v0.1.0, one author) and imports `createAcpTransport` from the **privileged**
-host barrel. Session 3 removes that import. The library stays for now — it is
-not going to users.
+**Debts paid in Session 3:** the privileged `createAcpTransport` import and the
+`@acp-components` dependency are both gone; the transcript is a pure reducer
+over `AgentSessionUpdate` in `transcript-model.ts`.
 
 ---
 
@@ -186,3 +185,115 @@ _Append one paragraph per session: what landed, what is next, what surprised you
 (`eacaa14f`); docs landed separately on `main` via PR #512. Nothing is flagged
 yet — the panel registers unconditionally in `builtins.ts`, which Session 1 must
 fix. Next: Session 1.
+
+**Session 1 (2026-09-08, Sonnet):** The model is no longer terminal-shaped.
+`AgentInfo` gained `id` (the Agent Session id; equals `terminalId` for a
+Terminal session), `canResume`, an optional `terminalId`, and `kind` repurposed
+from the vestigial `TerminalKind` to `"terminal" | "chat"` (`AgentSessionKind`,
+barrel-exported). `AgentsService` gained `reveal(id)` (focuses the terminal tab;
+Chat panel path is phase 3) and `resume(id)` (no-op for Terminal sessions —
+present so a kind-agnostic caller can call it unconditionally); `acknowledge`
+doc widened to "any `AgentInfo.id`". `AgentProfile` now carries a `launch`
+discriminated union (`terminal` | `chat`); `loadAgentProfiles` migrates every
+pre-0038 flat `command`/`configDir` profile into the `terminal` arm, and drops
+an entry with no usable launch as before. New catalog field
+`AgentDefinition.acpLaunch` filled from recon §5h (cursor/opencode/copilot
+built-in; claude/codex/pi adapter; grok/omp none). Two index-persisted flags
+`chatAgents` / `bundledChatPanel`, both default `false`, surfaced through the
+internal barrel for the composition root. Docs: `domain-language.md` (Agent
+Session / Terminal-Chat session / three identity provenances), ADR 0028
+amendment (declared identity is accepted, sealing holds), `api/agents/`,
+roadmap row, `pnpm docs:api` regenerated. All in-repo consumers updated
+(`core.agents-settings` editor/rows, `agent-run-handler`, silo `agents` panel —
+which skips terminal-less sessions until Session 2 gives them a row). `pnpm
+test` / `tsc --noEmit` / `pnpm lint` / `pnpm docs:build` green. Surprise: the
+one flaky failure under full-parallel `pnpm test` is the pre-existing Cursor
+setpgrp pgid test in `agent-catalog.test.ts` — passes standalone and in-file,
+unrelated to this change. Next: Session 2 (`ctx.agents.sessions`).
+
+**Session 2 (2026-09-08, Sonnet):** `ctx.agents.sessions` exists and a Chat
+session shows up in the `silo.agents` navigator with correct status, never
+having touched a terminal. New host pieces: `acp-jsonrpc.ts` (a JSON-RPC client
+on the _existing_ transport — request/response correlation, `session/update` →
+`onUpdate`, `session/request_permission` → a one-shot responder, and every
+other agent→client request answered `-32601`: `fs/*` and `terminal/*` declined
+in phase 1, unknown vendor methods non-fatal per Finding 2); `chat-agent-registry.ts`
+(the small shared store where live Chat sessions meet `agents-service.ts` —
+kept separate to avoid an import cycle, and `resetChatAgentRegistry()`
+deliberately does **not** clear listeners or it severs `notify`);
+`acp-sessions-service.ts` (`connect(profileId)` → handshake → an
+`AgentSessionHandle` with `prompt`/`cancel`/`onUpdate`/`onPermission`/`dispose`;
+sourced from `chat` profiles only, gated on `store.chatAgents` at call time).
+Activity derivation lives in the sessions service: `prompt()` → `working`,
+stop reason → `idle` (+ `needsAttention` off the active workspace, always on
+`refusal`), `session/request_permission` → `working` + `needsAttention`
+(there is no `"blocked"` in `AgentActivity`), abnormal close → `error`.
+`agents-service.ts` merges `chatAgentInfos()` into both snapshots, subscribes
+`onChatAgentsChanged(notify)`, and `acknowledge`/`reveal`/`resume` all branch
+to the chat registry first — `reveal` only activates the workspace (transcript
+panel is Session 3), `resume` runs a `session/load` control when `canResume`
+(set from the agent's `session/load` capability). `AgentRow` gained an `id`
+(the Agent Session id); `buildAgentRows` now renders a terminal-less Chat row
+titled by the agent's declared name, and the panel routes clicks through
+`ctx.agents.reveal(row.id)` instead of `ctx.terminals.focus`. SDK: eight new
+`@public @beta` types + `AgentsService.sessions`, barrel-exported, hand-authored
+`/api/agents/sessions` page, roadmap row, `pnpm docs:api` regenerated, domain
+glossary gained **Chat Session Connection** / **Prompt Turn**. `pnpm test`
+(570 across 11 pkgs) / `tsc --noEmit` / `pnpm lint` / `pnpm docs:build` green.
+Traps hit: Session 1 left the silo agent-panel test helpers type-broken
+(`kind: "claude"`, no `id`/`canResume`) — vitest doesn't typecheck so they ran;
+fixed the ones the `id` change touched. Next: Session 3 — delete the
+`createAcpTransport` import from `AcpChatPanel.tsx`, rebuild it on
+`ctx.agents.sessions` alone, and register it only behind `bundledChatPanel`.
+
+**Session 3 (2026-09-08, Opus):** The panel is on the real surface and the SDK
+held. `packages/extensions-core/src/acp-chat/` has **no**
+`@silo-code/extension-host/internal` import — `AcpChatPanel.tsx` is rebuilt on
+`ctx.agents.sessions` plus `@silo-code/sdk` types and kit components, and
+`@acp-components` is gone from the repo (dependency, lockfile and
+`acp-theme.css`). Dropping the library was forced rather than chosen: it owns
+the protocol client and wants a **transport**, which the SDK deliberately does
+not hand out — feeding it would have meant re-encoding the SDK's stream back
+into JSON-RPC frames for a second client to re-parse. What it provided is now
+`transcript-model.ts`, a pure reducer over `AgentSessionUpdate` (messageId
+grouping, thought asides, tool-call rows patched in place by `toolCallId`, the
+plan replaced in place because the agent reissues it whole, Silo's own notice
+lines), plus `profile-selection.ts` (requested id → default → first, falling
+through a deleted or re-armed profile) and `permission-options.ts`. All three
+are unit-tested; a reject is deliberately **not** `variant="danger"`, since
+declining is the safe answer. The panel binds to a user-authored Chat profile
+(picker in the composer, id persisted in panel params), connects on mount,
+disposes on unmount **and** on a profile switch — a switch is a teardown, and
+the `cancelled`-flag branch disposes a handle that lands mid-handshake, so
+nothing orphans. Permissions render inline in the transcript flow with the
+"Silo does not gate this" note (Finding 1), never a modal.
+
+**Two SDK additions, both needed and both documented** (`@beta`, TSDoc,
+`@public`/`@category`, barrel already covering them, hand-authored pages,
+`pnpm docs:api`): `AgentProfileSummary.interface: AgentSessionKind`, without
+which a picker cannot tell a Chat profile from a Terminal one and would offer
+profiles that `connect()` rejects; and `AgentSessionConnectOptions.reveal`, the
+extension's own "come to the front", which `acp-sessions-service.ts` registers
+as the session's `ChatSessionControls.reveal` (wrapped so a throwing callback
+cannot break a navigator click). `ctx.agents.reveal(id)` now activates the
+workspace **and then** focuses this panel via `api.setActive()` — ordering
+asserted in `agents-service.test.ts`, because a background workspace's panel
+cannot focus before its workspace is live. Registration is a
+_registration-time_ choice: `builtins.ts` splices `acpChat` in right after
+`core.terminal` only when `getBundledChatPanelEnabled()`, so with the flag off
+the panel kind, its `+` menu entry and `core.acpChat.new` do not exist at all —
+`builtinList()` is exported and tested for exactly that.
+
+**Surprise worth keeping:** the panel needed no new channel for "the agent
+died". It reads `activity === "error"` off its own `AgentInfo` through
+`ctx.agents.subscribe` and disables the composer, offering Reconnect — the
+observation-parity promise paying for itself inside the first consumer. **Not
+verified in the running app:** `pnpm test` (3389 across 11 packages) /
+`tsc --noEmit` / `pnpm lint` / `pnpm docs:build` are green, but nobody has
+driven a real agent through this panel yet, so "a Chat session shows correct
+status in the navigator" is verified by unit tests and the Session 2 wiring
+rather than by eye — turn both flags on, author a Chat profile, and watch the
+`silo.agents` view. Next: Session 4 — persist the session id in panel params,
+`session/load` on mount with a "cannot be restored" state, reap on workspace
+close and app quit, and the `examples/extensions/` proof that criterion 2 holds
+outside this repo's own packages.

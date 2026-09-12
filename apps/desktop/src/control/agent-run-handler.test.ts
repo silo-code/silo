@@ -78,7 +78,11 @@ beforeEach(() => {
 
 describe("applyControlAgentRun — success", () => {
   it("returns the terminal it created and the workspace it ran in", () => {
-    addAgentProfile({ id: "p", label: "P", command: "claude" });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+    });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
     store.workspaceOrder = ["w"];
 
@@ -99,8 +103,17 @@ describe("applyControlAgentRun — success", () => {
   });
 
   it("uses the default profile when none is named", () => {
-    addAgentProfile({ id: "first", label: "First", command: "codex" });
-    addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
+    addAgentProfile({
+      id: "first",
+      label: "First",
+      launch: { interface: "terminal", command: "codex" },
+    });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+      default: true,
+    });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
 
     const result = applyControlAgentRun({ cwd: "/proj" });
@@ -112,7 +125,12 @@ describe("applyControlAgentRun — success", () => {
     // Soft-closed is still a workspace: reopening it is the activation the
     // launch service performs, so what this handler owes is resolving to it
     // rather than falling through to "not inside any workspace".
-    addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+      default: true,
+    });
     store.workspaces = {
       w: makeWorkspace("w", "/proj", undefined, "2026-09-01T00:00:00Z"),
     };
@@ -130,7 +148,11 @@ describe("applyControlAgentRun — success", () => {
 
 describe("applyControlAgentRun — not-found", () => {
   it("refuses an unknown --profile without creating anything", () => {
-    addAgentProfile({ id: "real", label: "Real", command: "claude" });
+    addAgentProfile({
+      id: "real",
+      label: "Real",
+      launch: { interface: "terminal", command: "claude" },
+    });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
 
     const result = applyControlAgentRun({ cwd: "/proj", profileId: "ghost" });
@@ -150,7 +172,12 @@ describe("applyControlAgentRun — not-found", () => {
   });
 
   it("refuses an unresolvable --ws rather than falling back", () => {
-    addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+      default: true,
+    });
     store.workspaces = { a: makeWorkspace("a", "/proj-a") };
     store.activeWorkspaceId = "a";
 
@@ -168,7 +195,12 @@ describe("applyControlAgentRun — not-found", () => {
   it("refuses a cwd inside no workspace — never a silent create (ADR 0047 rule 5)", () => {
     // This is the conformance fix the conversion carries: the Forward
     // implementation logged a warning and exited 0.
-    addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+      default: true,
+    });
 
     const result = applyControlAgentRun({ cwd: "/fresh/repo" });
 
@@ -182,7 +214,11 @@ describe("applyControlAgentRun — failed vs. internal", () => {
   it("reports a profile with no command as failed, naming it", () => {
     // The environment, not a bug in Silo — so `failed` (exit 7), never
     // `internal` (exit 70). The distinction is why the vocabulary has both.
-    addAgentProfile({ id: "empty", label: "Empty", command: "   " });
+    addAgentProfile({
+      id: "empty",
+      label: "Empty",
+      launch: { interface: "terminal", command: "   " },
+    });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
 
     const result = applyControlAgentRun({ cwd: "/proj", profileId: "empty" });
@@ -196,7 +232,11 @@ describe("applyControlAgentRun — failed vs. internal", () => {
     // The service re-checks the profile and workspace this handler already
     // resolved, so this only fires if one went away mid-launch. It creates
     // nothing when it refuses, so there is no half-built terminal to clean up.
-    addAgentProfile({ id: "p", label: "P", command: "claude" });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+    });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
     launchProfile.mockReturnValueOnce({
       ok: false,
@@ -216,7 +256,12 @@ describe("applyControlAgentRun — --prompt", () => {
     // line-editor sanitizing, the dialect choice. This handler's whole job is
     // to carry the flag through and map a refusal onto an exit code, so what is
     // asserted is that the prompt reaches the service untouched.
-    addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+      default: true,
+    });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
 
     const result = applyControlAgentRun({
@@ -232,7 +277,12 @@ describe("applyControlAgentRun — --prompt", () => {
 
   it("omits the key entirely when no prompt is given", () => {
     // Not `prompt: undefined` — the service branches on the key's presence.
-    addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+      default: true,
+    });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
 
     expect(applyControlAgentRun({ cwd: "/proj" }).ok).toBe(true);
@@ -248,7 +298,12 @@ describe("applyControlAgentRun — --prompt", () => {
   ])("maps the %s prompt refusal to failed, never internal", (refusal) => {
     // Every prompt refusal is a fact about the environment the command ran in,
     // never a malfunction — so `failed` (exit 7), never `internal` (exit 70).
-    addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+      default: true,
+    });
     store.workspaces = { w: makeWorkspace("w", "/proj") };
     launchProfile.mockReturnValueOnce({ ok: false, refusal } as never);
 
@@ -260,7 +315,12 @@ describe("applyControlAgentRun — --prompt", () => {
 
 describe("applyControlAgentRun — an explicit --ws target", () => {
   beforeEach(() => {
-    addAgentProfile({ id: "p", label: "P", command: "claude", default: true });
+    addAgentProfile({
+      id: "p",
+      label: "P",
+      launch: { interface: "terminal", command: "claude" },
+      default: true,
+    });
     store.workspaces = {
       a: makeWorkspace("a", "/proj-a"),
       b: makeWorkspace("b", "/proj-b", ["/extra-b"]),

@@ -241,6 +241,30 @@ export type AgentPromptDelivery =
   | { kind: "flag"; flag: string };
 
 /**
+ * How this agent's CLI can be driven as an **Agent Client Protocol** server —
+ * the sealed-catalog fact behind the "Chat" option in **Found on this machine**
+ * (RFC 0038, recon `docs/acp-recon.md` §5h). `undefined` means the agent has
+ * no ACP path at all (`grok`, and `omp` until its fork ships one).
+ *
+ * A closed union of exactly the two shapes recon found:
+ *
+ * - `"builtin"` — the installed CLI speaks ACP itself; `args` is the argv that
+ *   selects that mode (`["acp"]`, `["--acp"]`). Nothing to fetch.
+ * - `"adapter"` — the CLI does not, but a small published adapter wraps it;
+ *   `package` is the npm package Silo fetches on first use (`claude-agent-acp`,
+ *   `codex-acp`, `pi-acp`). Silo ships no Node runtime, so the fetch/run story
+ *   is a phase-5 concern — the catalog only records *which* package.
+ *
+ * Established by the same run-it recon as {@link AgentDefinition.promptDelivery}
+ * (spawn the claimant and `initialize` over piped stdio), never a `--help` scan
+ * — `grok`'s `--help` mentions ACP as an *output format* and would be a false
+ * positive.
+ */
+export type AgentAcpLaunch =
+  | { kind: "builtin"; args: string[] }
+  | { kind: "adapter"; package: string };
+
+/**
  * Host behavior for an agent's terminal/session handling that is not resume,
  * install, or detection data — the runtime quirks ADR 0042 exists to pull out
  * of host string branches (`agents-service.ts` must not branch on agent id).
@@ -407,6 +431,13 @@ export interface AgentDefinition {
    * See `docs/adding-a-coding-agent.md` for the recon a new agent must do.
    */
   promptDelivery?: AgentPromptDelivery;
+  /**
+   * How this agent can be run as an ACP (Chat) server, or `undefined` when it
+   * has no ACP path (RFC 0038). See {@link AgentAcpLaunch}. Fill it by
+   * spawning the agent and completing `initialize` over piped stdio, exactly
+   * as `promptDelivery` is filled — never from `--help`.
+   */
+  acpLaunch?: AgentAcpLaunch;
 
   // ── provenance / maintenance (audit-skill rubric + checkpoint) ──────────
   /** Plain-language statement of exactly what upstream behavior our

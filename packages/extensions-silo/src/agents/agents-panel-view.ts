@@ -15,7 +15,14 @@ import { stripStatusMarker } from "./agent-view";
 export type AgentSection = "ready" | "working" | "done";
 
 export interface AgentRow {
-  terminalId: string;
+  /** The Agent Session id (`AgentInfo.id`) — the key everything the row does
+   *  goes through: `ctx.agents.reveal`, `acknowledge`, the "Recent" drag
+   *  order, the done-since map. Equals {@link AgentRow.terminalId} for a
+   *  Terminal session; a Chat session has only this. */
+  id: string;
+  /** The backing terminal record id — present for a Terminal session, absent
+   *  for a Chat session (RFC 0038). */
+  terminalId?: string;
   workspaceId: string;
   section: AgentSection;
   /** The tab's title (customName, or the OSC title with status markers stripped). */
@@ -78,13 +85,23 @@ export function buildAgentRows(
     if (!section) continue;
     const ws = workspaceById.get(a.workspaceId);
     if (!ws) continue;
-    const terminal = ws.terminals.find((t) => t.id === a.terminalId);
-    if (!terminal) continue;
+    // A Terminal session's title comes from its terminal record (and the row is
+    // dropped if that record is gone). A Chat session (RFC 0038) has no
+    // terminal — its title is the agent's declared name.
+    let title: string;
+    if (a.terminalId) {
+      const terminal = ws.terminals.find((t) => t.id === a.terminalId);
+      if (!terminal) continue;
+      title = terminal.customName ?? stripStatusMarker(terminal.title);
+    } else {
+      title = a.agentName ?? "Agent";
+    }
     rows.push({
+      id: a.id,
       terminalId: a.terminalId,
       workspaceId: a.workspaceId,
       section,
-      title: terminal.customName ?? stripStatusMarker(terminal.title),
+      title,
       workspaceName: ws.name,
       activity: a.activity,
       agentId: a.agentId,
@@ -93,7 +110,7 @@ export function buildAgentRows(
           ? a.attentionSince
           : section === "working"
             ? a.workingSince
-            : doneSince.get(a.terminalId),
+            : doneSince.get(a.id),
     });
   }
   return rows;
@@ -127,7 +144,7 @@ export function updateDoneSince(
   const next = new Map<string, string>();
   for (const a of agents) {
     if (sectionFor(a) !== "done") continue;
-    next.set(a.terminalId, prev.get(a.terminalId) ?? nowIso);
+    next.set(a.id, prev.get(a.id) ?? nowIso);
   }
   return next;
 }
@@ -303,10 +320,10 @@ export function orderAgeRows(
   rows: readonly AgentRow[],
   manualOrder: readonly string[],
 ): AgentRow[] {
-  const byId = new Map(rows.map((row) => [row.terminalId, row]));
+  const byId = new Map(rows.map((row) => [row.id, row]));
   const orderedIds = reconcileAgeManualOrder(
     manualOrder,
-    rows.map((row) => row.terminalId),
+    rows.map((row) => row.id),
   );
   const ordered: AgentRow[] = [];
   for (const id of orderedIds) {

@@ -4,6 +4,7 @@ import {
   getAgentProfiles,
   resolveDefaultProfile,
   createAgentProfilesService,
+  profileCommand,
 } from "@silo-code/extension-host/internal";
 import {
   findWorkspaceContaining,
@@ -184,7 +185,14 @@ export function applyControlAgentRun(
     );
   }
 
-  if (!profile.command.trim()) {
+  if (profile.launch.interface !== "terminal") {
+    return fail(
+      "failed",
+      `Agent profile "${profile.id}" is a Chat profile — \`silo agent run\` launches Terminal profiles only.`,
+    );
+  }
+
+  if (!profileCommand(profile).trim()) {
     return fail(
       "failed",
       `Agent profile "${profile.id}" has no command to run.`,

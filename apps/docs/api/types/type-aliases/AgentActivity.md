@@ -4,7 +4,7 @@
 type AgentActivity = "none" | "working" | "idle" | "error" | "dead";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:29](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L29)
+Defined in: [packages/sdk/src/agents-service.ts:28](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L28)
 
 **`Beta`**
 

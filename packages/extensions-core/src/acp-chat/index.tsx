@@ -1,12 +1,20 @@
 /**
- * **Spike (docs/acp-recon.md) — not a shipped surface.** Registers the ACP
- * chat panel as a center-dock kind, reachable from the dock's **+** menu next
- * to New Terminal.
+ * `core.acp-chat` — the bundled **Chat panel** (RFC 0038 phase 3): a
+ * center-dock transcript for one Chat session, reachable from the dock's **+**
+ * menu next to New Terminal.
  *
- * A `core.*` extension rather than `silo.*` because it reaches the host's
- * privileged barrel for `createAcpTransport` — an extension may not import
- * `@tauri-apps/*` itself (the platform ban), so the host owns the connection.
- * That split is what a real implementation would keep.
+ * **Registered only when the `bundledChatPanel` setting is on.** The
+ * composition root (`apps/desktop/src/builtins.ts`) reads the flag and leaves
+ * this extension out of the built-in list while it is off, so the panel kind,
+ * the menu entry and the command do not exist at all — which is what makes
+ * "turn off the bundled panel and use a third-party one instead" a real
+ * option rather than a fight over the same `+` menu row.
+ *
+ * A `core.*` extension by convention (it is bundled Silo UI, sequenced by the
+ * composition root), **not** because it needs privileges: it touches the app
+ * only through `ctx` and `@silo-code/sdk`, exactly as a third-party Chat panel
+ * would. There is no `@silo-code/extension-host/internal` import anywhere in
+ * this directory, and that is the phase's whole acceptance criterion.
  */
 
 import type { DockPanelProps, Extension } from "@silo-code/sdk";
@@ -21,15 +29,14 @@ export const extension: Extension = {
         <AcpChatPanel {...props} ctx={ctx} />
       ),
       addMenuItem: {
-        label: "New Agent Chat (ACP spike)",
-        params: { title: "Agent" },
+        label: "New Agent Chat",
       },
     });
     ctx.registerCommand({
       id: "core.acpChat.new",
-      label: "New Agent Chat (ACP spike)",
+      label: "New Agent Chat",
       run: () => {
-        ctx.layout.openPanel("acp-chat", { title: "Agent" });
+        ctx.layout.openPanel("acp-chat", {});
       },
     });
   },

@@ -13,6 +13,7 @@ import {
 } from "./agent-resume-hint";
 import { agentsChannel } from "./agents-channel";
 import { subscribeAgentProfiles } from "../../state/agent-profiles";
+import { activateWorkspace } from "../../state/workspaces";
 import {
   createAgentProfilesService,
   invalidateProfileSummaries,
@@ -50,6 +51,13 @@ import {
 } from "./agent-activity-model";
 import type { AgentInfo, AgentsService } from "@silo-code/sdk";
 import type { PersistedAgentInfo } from "../../state/types";
+import {
+  chatAgentInfos,
+  getChatAgentEntry,
+  onChatAgentsChanged,
+  patchChatAgent,
+} from "./chat-agent-registry";
+import { createAgentSessionsService } from "./acp-sessions-service";
 
 // `ctx.agents` — the host implementation. Public contract in
 // @silo-code/sdk (agents-service.ts). See RFC 0018. Detection and
@@ -142,9 +150,12 @@ function toAgentInfo(
   state: AgentActivityState,
 ): AgentInfo {
   return {
+    // A Terminal session's Agent Session id *is* its terminal record id (RFC
+    // 0038); Chat sessions (phase 2) mint their own.
+    id: terminalId,
     terminalId,
     workspaceId,
-    kind: state.kind,
+    kind: "terminal",
     isAgent: state.isAgent,
     activity: state.activity,
     needsAttention: state.needsAttention,
@@ -153,6 +164,12 @@ function toAgentInfo(
     stale: state.stale,
     sessionId: state.sessionId ?? undefined,
     resumeCommand: state.resumeCommand ?? undefined,
+    // For a Terminal session, an exact session id (a hook or native session
+    // file resolved one) is the only case where `resume()` could mean
+    // anything — and even then it stays a no-op in this release, the user runs
+    // `resumeCommand`. `canResume` is the forward-looking capability flag RFC
+    // 0038 replaces the shell-string `resumeCommand` contract with.
+    canResume: state.sessionId != null,
     agentName: state.agentName ?? undefined,
     agentId: state.agentId ?? undefined,
   };
@@ -182,13 +199,20 @@ function toPersisted(
 function activeWorkspaceInfos(): AgentInfo[] {
   const wsId = store.activeWorkspaceId;
   if (!wsId) return [];
-  return Array.from(trackedAgents.values())
+  const terminal = Array.from(trackedAgents.values())
     .filter((e) => e.info.workspaceId === wsId)
     .map((e) => e.info);
+  // Chat sessions (RFC 0038) carry no terminal — they live in the separate
+  // chat-agent-registry, fed by acp-sessions-service. Same `AgentInfo` shape.
+  const chat = chatAgentInfos().filter((i) => i.workspaceId === wsId);
+  return [...terminal, ...chat];
 }
 
 function allWorkspaceInfos(): AgentInfo[] {
-  return Array.from(trackedAgents.values()).map((e) => e.info);
+  return [
+    ...Array.from(trackedAgents.values(), (e) => e.info),
+    ...chatAgentInfos(),
+  ];
 }
 
 function sameByRef(a: AgentInfo[], b: AgentInfo[]): boolean {
@@ -1214,6 +1238,10 @@ function syncSessions() {
 syncSessions();
 subscribe(store, syncSessions);
 
+// A Chat session's state changes (connect, turn start/end, permission, close)
+// arrive here so the same `notify()` fan-out serves both kinds.
+onChatAgentsChanged(notify);
+
 // ---- session-file / hook runtime boot ------------------------------------
 
 void sessionFileResume.ensureSessionFileWatches();
@@ -1311,13 +1339,56 @@ export function getAgentsService(): AgentsService {
         },
       };
     },
-    acknowledge(terminalId) {
-      // Deliberately not wired to any host-side focus subscription — see
-      // AgentsService.acknowledge's public doc comment for why. Just
-      // forwards into the same reducer path every other event goes
-      // through; "activated" already no-ops when there's nothing pending
-      // (see agent-activity-model.ts's reduce()).
-      applyEvent(terminalId, { type: "activated" });
+    acknowledge(id) {
+      // `id` is an AgentInfo.id. Every Terminal session's id equals its
+      // terminalId, so a caller passing a terminal id (the pre-RFC-0038
+      // contract) still resolves. A Chat session's id resolves in the chat
+      // registry instead.
+      if (getChatAgentEntry(id)) {
+        patchChatAgent(id, {
+          needsAttention: false,
+          attentionSince: undefined,
+        });
+        return;
+      }
+      // Forwards into the same reducer path every other event goes through;
+      // "activated" already no-ops when there's nothing pending (see
+      // agent-activity-model.ts's reduce()).
+      applyEvent(id, { type: "activated" });
+    },
+    reveal(id) {
+      const chat = getChatAgentEntry(id);
+      if (chat) {
+        // Activate the owning workspace, then let the session's own UI bring
+        // itself to the front (RFC 0038 phase 3 — the bundled Chat panel
+        // registers `api.setActive()` through `connect({ reveal })`). A
+        // session that supplied no `reveal` gets the workspace switch alone,
+        // which is all Silo can honestly do for a UI it does not own.
+        activateWorkspace(chat.info.workspaceId);
+        chat.controls.reveal?.();
+        return;
+      }
+      // `id === terminalId` for a Terminal session.
+      const entry = trackedAgents.get(id);
+      if (!entry) return;
+      if (!findTerminalContext(id)) return; // terminal is gone
+      activateWorkspace(entry.info.workspaceId);
+      getTerminalService().focus(id);
+    },
+    resume(id) {
+      const chat = getChatAgentEntry(id);
+      if (chat) {
+        // Spawn a fresh agent process and `session/load` the conversation back
+        // (RFC 0038 phase 4). `canResume` is `false` unless the agent
+        // advertised `session/load`, in which case no `resume` control exists.
+        if (chat.info.canResume) void chat.controls.resume?.();
+        return;
+      }
+      // No-op for a Terminal session even when `canResume` is true (an exact
+      // session id was resolved): a dead PTY cannot be re-run in place, so the
+      // resume path stays "the user runs `resumeCommand`". Present on the
+      // surface so a kind-agnostic consumer can call it unconditionally.
+      void id;
     },
     catalog() {
       return catalogAgentSummaries();
@@ -1329,6 +1400,9 @@ export function getAgentsService(): AgentsService {
       subscribeAgentProfiles(invalidateProfileSummaries);
       return createAgentProfilesService();
     })(),
+    // RFC 0038 phase 2. Gated on the `chatAgents` setting inside `connect()`,
+    // so the member is always present but inert until the flag is on.
+    sessions: createAgentSessionsService(),
   };
   return agentsService;
 }

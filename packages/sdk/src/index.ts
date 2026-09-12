@@ -106,6 +106,7 @@ export type {
 export type {
   AgentsService,
   AgentInfo,
+  AgentSessionKind,
   AgentActivity,
   AgentIcon,
   AgentIconMode,
@@ -115,6 +116,15 @@ export type {
   LaunchAgentProfileOptions,
   LaunchAgentProfileResult,
   PromptRefusal,
+  AgentSessionsService,
+  AgentSessionHandle,
+  AgentSessionConnectOptions,
+  AgentPromptBlock,
+  AgentPromptResult,
+  AgentStopReason,
+  AgentSessionUpdate,
+  AgentPermissionRequest,
+  AgentPermissionOption,
 } from "./agents-service";
 export type {
   TerminalService,

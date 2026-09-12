@@ -1,28 +1,51 @@
 # Interface: AgentInfo
 
-Defined in: [packages/sdk/src/agents-service.ts:42](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L42)
+Defined in: [packages/sdk/src/agents-service.ts:62](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L62)
 
 **`Beta`**
 
-Live agent-activity and resume-identity state for one terminal, computed
-once by the host and shared across every subscriber — never recomputed
-per-extension. Returned by [AgentsService.getState](AgentsService.md#getstate) and
-[AgentsService.getByTerminalId](AgentsService.md#getbyterminalid); delivered to
+Live agent-activity and resume-identity state for one **Agent Session**
+(RFC 0038), computed once by the host and shared across every subscriber —
+never recomputed per-extension. Returned by [AgentsService.getState](AgentsService.md#getstate)
+and [AgentsService.getByTerminalId](AgentsService.md#getbyterminalid); delivered to
 [AgentsService.subscribe](AgentsService.md#subscribe) listeners on every change.
 
 ## Properties
 
-### terminalId
+### id
 
 ```ts
-readonly terminalId: string;
+readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:44](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L44)
+Defined in: [packages/sdk/src/agents-service.ts:71](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L71)
 
 **`Beta`**
 
-The terminal record id this state belongs to.
+Stable id for this Agent Session — the key [AgentsService.reveal](AgentsService.md#reveal),
+[AgentsService.resume](AgentsService.md#resume), and [AgentsService.acknowledge](AgentsService.md#acknowledge) take.
+For a Terminal session this is the terminal record id; for a Chat session
+it is the session handle's id. Prefer this over
+[AgentInfo.terminalId](#terminalid) for anything that should not care which kind
+of session it is.
+
+***
+
+### terminalId?
+
+```ts
+readonly optional terminalId?: string;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:79](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L79)
+
+**`Beta`**
+
+The terminal record id backing this session, when there is one — the same
+id [AgentsService.getByTerminalId](AgentsService.md#getbyterminalid) and `ctx.terminals` take.
+Present for every `kind: "terminal"` session; absent for a `kind: "chat"`
+session, which has no PTY. A consumer that needs a terminal-tab id should
+check [AgentInfo.kind](#kind) first, or use [AgentsService.reveal](AgentsService.md#reveal).
 
 ***
 
@@ -32,33 +55,32 @@ The terminal record id this state belongs to.
 readonly workspaceId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:46](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L46)
+Defined in: [packages/sdk/src/agents-service.ts:81](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L81)
 
 **`Beta`**
 
-The workspace this terminal belongs to.
+The workspace this session belongs to.
 
 ***
 
-### ~~kind~~
+### kind
 
 ```ts
-readonly kind: TerminalKind;
+readonly kind: AgentSessionKind;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:56](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L56)
+Defined in: [packages/sdk/src/agents-service.ts:92](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L92)
 
 **`Beta`**
 
-The terminal's kind at registration time.
+Which kind of Agent Session this is — `"terminal"` or `"chat"`. See
+[AgentSessionKind](../type-aliases/AgentSessionKind.md). `ctx.agents` reports the same fields for both;
+this exists for the rare consumer that genuinely needs a PTY tab id or a
+transcript panel.
 
-#### Deprecated
-
-Always `"shell"` after RFC 0033 — the deprecated `"claude"` /
-`"pi"` kinds are normalized away at load and nothing creates them, so a
-consumer branching on this is reading a constant. Use
-[AgentInfo.agentId](#agentid) for which agent is running, and
-[AgentInfo.isAgent](#isagent) for whether one is.
+(This field was the vestigial `TerminalKind` before RFC 0038 — always
+`"shell"` and read by nothing — and carries the session discriminator
+now.)
 
 ***
 
@@ -68,7 +90,7 @@ consumer branching on this is reading a constant. Use
 readonly isAgent: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:62](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L62)
+Defined in: [packages/sdk/src/agents-service.ts:98](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L98)
 
 **`Beta`**
 
@@ -84,7 +106,7 @@ as one, or an agent-specific signal was observed in it (e.g. typing
 readonly activity: AgentActivity;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L64)
+Defined in: [packages/sdk/src/agents-service.ts:100](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L100)
 
 **`Beta`**
 
@@ -98,7 +120,7 @@ Current classified activity.
 readonly needsAttention: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:72](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L72)
+Defined in: [packages/sdk/src/agents-service.ts:108](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L108)
 
 **`Beta`**
 
@@ -116,7 +138,7 @@ live counts as already seen, no acknowledgment needed.
 readonly optional attentionSince?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:74](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L74)
+Defined in: [packages/sdk/src/agents-service.ts:110](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L110)
 
 **`Beta`**
 
@@ -130,7 +152,7 @@ ISO timestamp of when `needsAttention` was set; undefined when not pending.
 readonly optional workingSince?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:76](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L76)
+Defined in: [packages/sdk/src/agents-service.ts:112](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L112)
 
 **`Beta`**
 
@@ -144,7 +166,7 @@ ISO timestamp of when the current `"working"` phase started; undefined otherwise
 readonly stale: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:85](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L85)
+Defined in: [packages/sdk/src/agents-service.ts:121](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L121)
 
 **`Beta`**
 
@@ -163,7 +185,7 @@ fact — see [AgentActivity](../type-aliases/AgentActivity.md).
 readonly optional sessionId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L95)
+Defined in: [packages/sdk/src/agents-service.ts:131](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L131)
 
 **`Beta`**
 
@@ -183,7 +205,7 @@ deferred to death), then persisted, so a consumer reacting to
 readonly optional resumeCommand?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:104](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L104)
+Defined in: [packages/sdk/src/agents-service.ts:140](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L140)
 
 **`Beta`**
 
@@ -196,13 +218,38 @@ both live and at `activity === "dead"`.
 
 ***
 
+### canResume
+
+```ts
+readonly canResume: boolean;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:155](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L155)
+
+**`Beta`**
+
+Whether this session can be resumed **through Silo** — i.e. whether
+[AgentsService.resume](AgentsService.md#resume) will do something for this id.
+
+- Terminal session: `true` once an exact session id was resolved (a
+  Settings → Agents hook, or an agent's native session file), which is
+  also when [AgentInfo.resumeCommand](#resumecommand) becomes exact rather than an
+  honest note. `resume()` is still a no-op for a Terminal session in this
+  release — the user runs `resumeCommand` themselves; the flag is the
+  forward-looking capability signal RFC 0038 replaces the shell-string
+  `resumeCommand` contract with.
+- Chat session: `true` when the agent advertises `session/load`, so a
+  fresh process can reload the transcript after the old one died.
+
+***
+
 ### agentName?
 
 ```ts
 readonly optional agentName?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L113)
+Defined in: [packages/sdk/src/agents-service.ts:164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L164)
 
 **`Beta`**
 
@@ -221,7 +268,7 @@ known agent leader is detected at all (same moment
 readonly optional agentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:121](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L121)
+Defined in: [packages/sdk/src/agents-service.ts:172](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L172)
 
 **`Beta`**
 

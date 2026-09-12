@@ -81,6 +81,7 @@ const apiSidebar = [
       { text: "ctx.processes", link: "/api/processes/" },
       { text: "ctx.agents", link: "/api/agents/" },
       { text: "ctx.agents.profiles", link: "/api/agents/profiles" },
+      { text: "ctx.agents.sessions", link: "/api/agents/sessions" },
       { text: "ctx.search", link: "/api/search/" },
       { text: "ctx.theme", link: "/api/theme/" },
       { text: "ctx.dnd", link: "/api/dnd/" },

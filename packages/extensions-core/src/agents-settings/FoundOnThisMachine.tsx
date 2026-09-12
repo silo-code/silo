@@ -75,7 +75,7 @@ export function FoundOnThisMachine({
               addAgentProfile({
                 id,
                 label: f.displayName,
-                command: f.command,
+                launch: { interface: "terminal", command: f.command },
                 assumedAgentId: f.id,
               });
             }}

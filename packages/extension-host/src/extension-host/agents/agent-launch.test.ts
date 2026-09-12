@@ -44,7 +44,11 @@ beforeEach(() => {
   ensureSession.mockClear().mockResolvedValue("sess-bg");
   sendInput.mockReset();
   onOutput.mockReset().mockReturnValue(() => {});
-  addAgentProfile({ id: "cw", label: "Claude (work)", command: "claude-work" });
+  addAgentProfile({
+    id: "cw",
+    label: "Claude (work)",
+    launch: { interface: "terminal", command: "claude-work" },
+  });
 });
 
 describe("launchAgentProfile (RFC 0033 R6)", () => {

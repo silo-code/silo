@@ -71,7 +71,7 @@ function addClaude(id = "claude"): void {
   addAgentProfile({
     id,
     label: `Claude ${id}`,
-    command: "claude",
+    launch: { interface: "terminal", command: "claude" },
     assumedAgentId: "claude",
   });
   invalidateProfileSummaries();
@@ -82,8 +82,11 @@ describe("list()", () => {
     addAgentProfile({
       id: "work",
       label: "Claude (work)",
-      command: "claude-work",
-      configDir: "/Users/d/.claude-work",
+      launch: {
+        interface: "terminal",
+        command: "claude-work",
+        configDir: "/Users/d/.claude-work",
+      },
       assumedAgentId: "claude",
     });
     invalidateProfileSummaries();
@@ -94,6 +97,7 @@ describe("list()", () => {
       label: "Claude (work)",
       isDefault: false,
       acceptsPrompt: true,
+      interface: "terminal",
     });
     // Launch details stay host-owned — nothing leaks through the summary.
     expect(summary).not.toHaveProperty("command");
@@ -125,8 +129,30 @@ describe("list()", () => {
     expect(service.list().map((p) => p.isDefault)).toEqual([false, true]);
   });
 
+  it("reports the launch arm as `interface`, so a picker can filter on it", () => {
+    addAgentProfile({
+      id: "chat",
+      label: "Claude (chat)",
+      launch: { interface: "chat", command: "npx", args: ["claude-acp"] },
+    });
+    addAgentProfile({
+      id: "term",
+      label: "Claude",
+      launch: { interface: "terminal", command: "claude" },
+    });
+    invalidateProfileSummaries();
+    expect(service.list().map((p) => [p.id, p.interface])).toEqual([
+      ["chat", "chat"],
+      ["term", "terminal"],
+    ]);
+  });
+
   it("reports acceptsPrompt false for a profile that matches no agent", () => {
-    addAgentProfile({ id: "mine", label: "Mine", command: "my-own-script" });
+    addAgentProfile({
+      id: "mine",
+      label: "Mine",
+      launch: { interface: "terminal", command: "my-own-script" },
+    });
     invalidateProfileSummaries();
     expect(service.list()[0].acceptsPrompt).toBe(false);
   });
@@ -224,7 +250,11 @@ describe("launch() — refusals are values, never throws", () => {
   });
 
   it("refuses a prompt for a profile that matches no agent", () => {
-    addAgentProfile({ id: "mine", label: "Mine", command: "my-own-script" });
+    addAgentProfile({
+      id: "mine",
+      label: "Mine",
+      launch: { interface: "terminal", command: "my-own-script" },
+    });
     invalidateProfileSummaries();
     expect(service.launch({ prompt: "hi" })).toEqual({
       ok: false,
@@ -239,7 +269,7 @@ describe("launch() — refusals are values, never throws", () => {
     addAgentProfile({
       id: "stale",
       label: "Stale",
-      command: "my-own-script",
+      launch: { interface: "terminal", command: "my-own-script" },
       assumedAgentId: "not-a-real-agent",
     });
     invalidateProfileSummaries();
@@ -277,7 +307,11 @@ describe("launch() — refusals are values, never throws", () => {
   });
 
   it("never lets a prompt check affect a promptless launch", () => {
-    addAgentProfile({ id: "mine", label: "Mine", command: "my-own-script" });
+    addAgentProfile({
+      id: "mine",
+      label: "Mine",
+      launch: { interface: "terminal", command: "my-own-script" },
+    });
     invalidateProfileSummaries();
     store.terminalSettings.shell = "/usr/local/bin/nu";
     expect(service.launch({ activate: false }).ok).toBe(true);

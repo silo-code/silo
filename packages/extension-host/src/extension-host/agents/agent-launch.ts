@@ -66,8 +66,11 @@ export function launchAgentProfile(
 ): TerminalRecord | undefined {
   const workspaceId = input.workspaceId ?? store.activeWorkspaceId;
   if (!workspaceId || !store.workspaces[workspaceId]) return undefined;
-  if (!getAgentProfiles().some((p) => p.id === input.profileId))
-    return undefined;
+  const profile = getAgentProfiles().find((p) => p.id === input.profileId);
+  if (!profile) return undefined;
+  // A Chat profile has no shell line to type into a PTY — launching one is a
+  // `ctx.agents.sessions` concern (RFC 0038 phase 2), not this path.
+  if (profile.launch.interface !== "terminal") return undefined;
 
   const rec = addTerminal(workspaceId, "shell", input.cwd, {
     profileId: input.profileId,

@@ -1,8 +1,8 @@
 import { activateExtensions } from "@silo-code/extension-host";
+import { getBundledChatPanelEnabled } from "@silo-code/extension-host/internal";
 import type { Extension } from "@silo-code/sdk";
 import {
   menu as coreMenu,
-  // ACP transport spike (docs/acp-recon.md) — remove with the spike.
   acpChat,
   terminal,
   output,
@@ -43,8 +43,8 @@ const builtins: Extension[] = [
   // kinds runs (CenterDock's first render). core.editor registers both the
   // editor and diff kinds (text + diff + settings are its modules).
   terminal,
-  // ACP transport spike (docs/acp-recon.md) — remove with the spike.
-  acpChat,
+  // (The bundled Chat panel registers right after core.terminal, but only
+  // when the `bundledChatPanel` setting is on — see `builtinList` below.)
   output,
   // The text editor registers before markdown-preview so that, with both at
   // priority 0, a plain .md open ties to Text (the default view); Preview is
@@ -83,6 +83,22 @@ const builtins: Extension[] = [
 ];
 
 /**
+ * The list to activate, with the bundled Chat panel spliced in when the
+ * `bundledChatPanel` setting is on.
+ *
+ * Exported for its unit test: "registers only behind the flag" is the phase's
+ * acceptance criterion, and the alternative is asserting on what
+ * `activateExtensions` was handed.
+ */
+export function builtinList(): Extension[] {
+  if (!getBundledChatPanelEnabled()) return builtins;
+  // Right after core.terminal, so "New Agent Chat" sits beside "New Terminal"
+  // in the + menu rather than at the bottom of it.
+  const at = builtins.indexOf(terminal) + 1;
+  return [...builtins.slice(0, at), acpChat, ...builtins.slice(at)];
+}
+
+/**
  * Activate the built-in set **synchronously**, before the first render — the
  * dock deserializes its saved layout at mount and needs the editor/terminal
  * panel kinds (registered by `core.editor`/`core.terminal`) already present, so
@@ -91,5 +107,12 @@ const builtins: Extension[] = [
  * {@link ExtensionManager.applyDisabledBuiltins}.
  */
 export function activateBuiltins(): void {
-  activateExtensions(builtins);
+  // RFC 0038 phase 3: the bundled Chat panel is a *registration-time* choice,
+  // not a runtime one. Registering it and then hiding its UI would still put
+  // its panel kind and `core.acpChat.new` command in the app, and criterion 3
+  // of the sprint is that turning the flag off leaves the surface genuinely
+  // free for a third-party Chat panel. Read once, here, before the first
+  // render — the flag is index-persisted and a change needs a restart, the
+  // same as a disabled built-in.
+  activateExtensions(builtinList());
 }

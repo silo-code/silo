@@ -246,23 +246,62 @@ _Avoid_: Extension registry (that's extensions.getsilo.dev), skill store
 
 ### Agents
 
-**Agent** (of a terminal):
-Not a separate entity — a _classification of a terminal's activity_, computed
-live by the host and exposed as `AgentInfo` (keyed by `terminalId`). There is
-no persisted `Agent` object with identity across time; `sessionId` (present
-only once an opt-in hook reports it) is the closest thing to one.
-_Avoid_: Agent session (no such persisted type exists — see Session Id),
-Agent object
+**Agent Session** (`AgentInfo`, RFC 0038) — the entity `ctx.agents` is keyed
+on: one running coding agent Silo is observing, live, with a stable `id`. Two
+kinds sit beneath it:
 
-**Agent Profile** (`AgentProfile`, RFC 0033) — a named, user-authored recipe for
-**starting** a coding agent in a terminal: an `id`, a `label`, a `command`
-string (an alias / shell function / version-manager shim, not an argv array —
-Silo launches by typing into an interactive login shell, never `exec`), an
-optional `configDir` for a second account, and an optional `assumedAgentId`.
+- **Terminal session** — the agent runs in a PTY and draws its own TUI; Silo
+  _infers_ activity from OSC/output signals and identity from detection (ADR
+  0028). `AgentInfo.terminalId` is set; `AgentInfo.id` equals it.
+- **Chat session** — the agent is an Agent Client Protocol child speaking
+  JSON-RPC over piped stdio; it _reports_ activity and _declares_ its identity
+  at `initialize`, and Silo renders the conversation. No `terminalId`.
+
+`ctx.agents` reports **the same `AgentInfo` shape for both** — the promise is
+observation parity, not capability parity (capabilities are advertised per
+agent, the way LSP does it). `reveal(id)` brings a session into view (its
+terminal tab or its transcript panel) without the caller knowing which kind it
+is; `resume(id)` reloads a Chat session's transcript after its process died
+(a no-op for a Terminal session — the user runs `resumeCommand`).
+
+There is still no _persisted_ `Agent` record with identity across time; a Chat
+session's `sessionId` (returned by `session/new`, reloadable via
+`session/load`) and a Terminal session's hook-reported `sessionId` are the
+closest thing.
+_Avoid_: "ACP session" in the UI (Silo says _Chat_, not the transport — the
+same way it says _terminal_, not _PTY_); "Agent object".
+
+**Agent** (of a terminal): the Terminal-session case of the above — a
+_classification of a terminal's activity_, still exposed as `AgentInfo`.
+_Avoid_: treating it as a distinct type from Agent Session — it is one kind.
+
+**Agent Profile** (`AgentProfile`, RFC 0033; launch union RFC 0038) — a named,
+user-authored recipe for **starting** a coding agent: an `id`, a `label`, an
+optional `default` flag, an optional `assumedAgentId`, and a `launch`
+discriminated union. Addressing (`id` / `label` / `default` / `assumedAgentId`)
+is transport-agnostic — the durable idea in RFC 0033; only `launch` knows the
+kind:
+
+- **`launch.interface: "terminal"`** — `command` is a shell string (an alias /
+  shell function / version-manager shim, not an argv array — Silo types it into
+  an interactive login shell, never `exec`), plus an optional `configDir` for a
+  second account. This is the only arm anything launches today.
+- **`launch.interface: "chat"`** — `command` is an executable path, `args` an
+  argv vector, `env` optional; Silo execs a pipe-connected child and speaks the
+  Agent Client Protocol to it. Aliases do not resolve (no shell), which is why
+  the shape is a path plus args. Driven through **Chat Session Connection**
+  (below), gated on the `chatAgents` setting.
+
+**Profile Interface** is the user-facing name for which arm a profile uses —
+**Interface: Terminal or Chat** in the editor, and `AgentProfileSummary.interface`
+on the public surface. It decides the _verb_: a Terminal profile is `launch()`ed,
+a Chat profile is `connect()`ed, and offering one to the other's service fails.
+_Avoid_: "transport" or "protocol" (the user never meets ACP); "mode".
+
 Host-owned global state; appears in the `+` menu, a terminal's right-click
-**Agents** submenu, and on Settings → Agents → **Profiles**. A profile is _a way
-to start a terminal, not a way to talk to an agent_ — everything downstream
-stays a PTY, a shell, and a TUI.
+**Agents** submenu, and on Settings → Agents → **Profiles**. A profile written
+before RFC 0038 (flat `command` / `configDir`) is migrated into the `terminal`
+arm at load.
 
 - `assumedAgentId` is a **user assertion** ("this launches Claude"), matched
   from the command text and overridable in the editor. It may pick the menu
@@ -324,14 +363,48 @@ _Avoid_: "initial message" / "seed prompt" (use Opening Prompt); calling a
 refusal an error (it is a returned value, not a throw); "sending a prompt to an
 agent" for anything but the launch line.
 
+**Chat Session Connection** (`ctx.agents.sessions`, `AgentSessionHandle`,
+RFC 0038 phase 2) — the live handle an extension holds on a **Chat session**.
+`connect(profileId)` spawns the agent for a user-authored `chat` **Agent
+Profile** (never a command an extension supplies), runs the Agent Client
+Protocol `initialize` + `session/new` handshake, and returns a handle to
+`prompt` / `cancel` / `dispose` and to watch via `onUpdate` / `onPermission`.
+Unlike an **Opening Prompt**, a **Prompt Turn** here is a full request/response
+exchange and there can be many in one session. The whole surface is gated on
+the `chatAgents` setting (off by default); every `connect()` rejects while it
+is off. The same session is registered into `ctx.agents` as an `AgentInfo`
+(`kind: "chat"`), its `activity` / `needsAttention` derived from the turn
+lifecycle — a `session/request_permission` maps to `working` + `needsAttention`
+(there is no `"blocked"` in `AgentActivity`).
+_Avoid_: "ACP client" / "ACP session" in user-facing text (Silo says _Chat_);
+calling `connect()` a "launch" (a launch is the Terminal-profile verb).
+
+**Transcript** (RFC 0038 phase 3) — the rendered conversation of a **Chat
+session**: the agent's streamed text, its thinking, its tool-call rows, its
+plan, and any inline permission request, projected from the `onUpdate` stream.
+A **Terminal session** has no transcript — it has _scrollback_, which the agent
+itself drew and Silo cannot decompose.
+_Avoid_: "chat log" / "history" (history is the agent's own stored
+conversations, which Silo reaches via `session/load`, not what is on screen);
+"output" (that is the Output panel).
+
+**Chat panel** (`core.acp-chat`, RFC 0038 phase 3) — the bundled center-dock
+surface that holds one **Transcript** and its composer. One panel binds to one
+**Chat** Agent Profile; switching the profile is a teardown, not a re-render.
+It is an ordinary extension built on `ctx.agents.sessions` and `@silo-code/sdk`
+alone — deliberately claiming no privilege a third-party Chat UI lacks — and
+registers only while the `bundledChatPanel` setting is on, so turning it off
+frees the surface for one.
+_Avoid_: "ACP panel" (Silo says _Chat_); "agent panel" (that is the
+`silo.agents` Navigator view, which lists every Agent Session); calling it the
+Chat session — the panel is the UI, the session is the running agent.
+
 **Agent Profile is the launch vocabulary; Catalog Agent is the identity
 vocabulary; Terminal Kind is neither.**
 
 - **Catalog Agent** (`AgentDefinition.id` in `AGENT_CATALOG`: `"claude" |
 "codex" | "cursor" | "copilot" | "grok" | "omp" | "pi" | "opencode"`): a
-  **detected-identity** classification, computed live from OSC/output signals
-  against the sealed catalog. A terminal is upgraded to `isAgent: true` and
-  given an `agentId` only once detection says so. `"omp"` and `"pi"` are
+  classification against the sealed catalog. `"omp"` and `"pi"` are
   **separate** catalog agents, not one "pi family" — OMP is a fork with its
   own binary, config home, and resume syntax (RFC 0037), and collapsing them
   would put Silo's hook in the wrong directory and offer the wrong resume
@@ -340,10 +413,26 @@ vocabulary; Terminal Kind is neither.**
   `"claude"` / `"pi"` values are **deprecated** (RFC 0033). Nothing creates
   them, a persisted record carrying one is normalized to `"shell"` at load, and
   `ctx.terminals.create({ kind: "claude" | "pi" })` now creates a `"shell"`
-  terminal (launching a matching profile if one exists). `AgentInfo.kind` is
-  likewise deprecated — always `"shell"` after normalization.
+  terminal (launching a matching profile if one exists). `AgentInfo.kind` no
+  longer carries Terminal Kind at all — as of RFC 0038 it is the Agent
+  Session discriminator (`"terminal" | "chat"`).
   _Avoid_: "agent type" or "agent kind" alone (ambiguous); treating Terminal
   Kind as either the launch or the identity vocabulary — it is a vestige.
+
+**Identity provenance** — how Silo comes to believe an Agent Session is a
+particular Catalog Agent. Three sources, in decreasing certainty:
+
+- **Observed** (`AgentInfo.agentId`) — a Terminal session's identity, proven
+  live from OSC/output signals against the sealed catalog. A terminal is
+  upgraded to `isAgent: true` and given an `agentId` only once detection says
+  so.
+- **Declared** (RFC 0038) — a Chat session's identity, stated by the agent
+  itself at `initialize`. Accepted, and _not_ a reopening of sealed detection
+  (ADR 0028): a Chat session has no classifier to diverge, so there is no
+  ambiguous signal for several consumers to disagree about.
+- **Asserted** (`AgentProfile.assumedAgentId`) — a user's claim on a profile
+  ("this launches Claude"). Picks the menu icon and the config-dir env var;
+  **never** written into `AgentInfo.agentId` or used to seed `isAgent`.
 
 > Earlier gaps this note recorded — `"pi"` terminals marked `isAgent: true` by
 > Terminal Kind with no catalog entry — closed when pi joined `AGENT_CATALOG`

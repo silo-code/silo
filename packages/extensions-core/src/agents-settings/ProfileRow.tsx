@@ -6,7 +6,11 @@
  */
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import { AgentIconGlyph, Badge, IconButton, ListRow } from "@silo-code/sdk";
-import type { AgentProfile } from "@silo-code/extension-host/internal";
+import {
+  profileCommand,
+  profileConfigDir,
+  type AgentProfile,
+} from "@silo-code/extension-host/internal";
 
 function DotsIcon() {
   return (
@@ -95,9 +99,9 @@ export function ProfileRow({
               Default
             </Badge>
           )}
-          {profile.configDir && (
+          {profileConfigDir(profile) && (
             <Badge size="sm" tone="neutral">
-              {shortDir(profile.configDir)}
+              {shortDir(profileConfigDir(profile)!)}
             </Badge>
           )}
           {bestEffortResume && (
@@ -128,7 +132,7 @@ export function ProfileRow({
     >
       <span className="apf-row-main">
         <span className="apf-row-label">{profile.label}</span>
-        <code className="apf-row-cmd">{profile.command}</code>
+        <code className="apf-row-cmd">{profileCommand(profile)}</code>
         {agent && <span className="apf-row-agent">{agent.displayName}</span>}
       </span>
     </ListRow>
