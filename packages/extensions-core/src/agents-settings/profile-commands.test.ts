@@ -51,6 +51,7 @@ const notify = vi.fn();
 function fakeCtx(): ExtensionContext {
   return {
     registerCommand: (cmd) => commandRegistry.register(cmd),
+    registerKeybinding: () => ({ dispose: () => {} }),
     layout: { openPanel },
     ui: { notify },
     subscriptions: [],

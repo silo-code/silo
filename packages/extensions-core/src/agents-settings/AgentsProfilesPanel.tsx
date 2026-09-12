@@ -20,11 +20,13 @@ import {
   clearDefaultAgentProfile,
   hookInstallableAgents,
   sessionFileAgents,
+  resolveChatProfileHost,
   type AgentProfile,
 } from "@silo-code/extension-host/internal";
 import { ProfileRow } from "./ProfileRow";
 import { ProfileEditorModal } from "./ProfileEditorModal";
 import { FoundOnThisMachine } from "./FoundOnThisMachine";
+import type { AgentMode } from "./found-on-machine-model";
 import { installerFor } from "./install-strategy";
 import { resolveHomeDir, settingsPathFor } from "./hook-self-heal";
 
@@ -114,10 +116,15 @@ export function AgentsProfilesPanel({
     [ctx],
   );
 
-  const covered = new Set(
-    profiles.map((p) => p.assumedAgentId).filter((x): x is string => !!x),
-  );
+  const coveredModesByAgent = new Map<string, Set<AgentMode>>();
+  for (const p of profiles) {
+    if (!p.assumedAgentId) continue;
+    const modes = coveredModesByAgent.get(p.assumedAgentId) ?? new Set();
+    modes.add(p.launch?.interface === "chat" ? "chat" : "terminal");
+    coveredModesByAgent.set(p.assumedAgentId, modes);
+  }
   const existingProfileIds = new Set(profiles.map((p) => p.id));
+  const chatHostInstalled = resolveChatProfileHost() !== undefined;
 
   return (
     <div className="apf-panel">
@@ -161,9 +168,8 @@ export function AgentsProfilesPanel({
         <div className="apf-empty">
           <p className="apf-empty-title">No agent profiles yet</p>
           <p className="apf-empty-desc">
-            A profile is a named way to start a coding agent in a terminal — a
-            label, a command, and optionally a second-account config directory.
-            Add one below, or create your own.
+            A saved way to start a coding agent — CLI or Chat. Add one below, or
+            from “Found on this machine”.
           </p>
           <AddRow onClick={() => openEditor()}>Add an agent profile…</AddRow>
         </div>
@@ -171,8 +177,9 @@ export function AgentsProfilesPanel({
 
       <FoundOnThisMachine
         ctx={ctx}
-        coveredAgentIds={covered}
+        coveredModesByAgent={coveredModesByAgent}
         existingProfileIds={existingProfileIds}
+        chatHostInstalled={chatHostInstalled}
         colorScheme={colorScheme}
       />
     </div>

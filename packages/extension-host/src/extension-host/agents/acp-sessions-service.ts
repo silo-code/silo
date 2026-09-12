@@ -790,12 +790,16 @@ export function createAgentSessionsService(
         // which for a `session/load` arrives mid-handshake, before this
         // registration), else the last title this session showed before the
         // app closed (step 2 — `options.title`, out of the panel's persisted
-        // state), else the agent's declared name and finally the profile's
-        // label (step 3). Reaching for `agentName` unconditionally here is
-        // what made a restored tab snap from its real title back to "Claude
-        // Agent" the moment the handshake finished (caught live, 2026-09-09) —
-        // and the panel then persisted that regression over the good title.
-        title: volunteeredTitle ?? restoredTitle ?? agentName,
+        // state), else the user's own profile label (step 3). Deliberately
+        // *not* `agentName`: for an adapter that is the adapter's product name
+        // ("pi ACP adapter", "Claude Agent"), which the user never chose and
+        // which just leaks the implementation. This also matches the
+        // placeholder registration above. `agentName` still rides along as its
+        // own field for a consumer that wants the declared name. Reaching for
+        // `agentName` here is what made a restored tab snap from its real title
+        // back to "Claude Agent" the moment the handshake finished (caught
+        // live, 2026-09-09).
+        title: volunteeredTitle ?? restoredTitle ?? label,
         kind: "chat",
         isAgent: true,
         activity: resumeOutcome === "journal-only" ? "dead" : "idle",

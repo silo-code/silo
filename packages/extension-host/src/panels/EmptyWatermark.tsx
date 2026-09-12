@@ -9,6 +9,10 @@ import {
 import { pickWorkspaceFolder } from "../extension-host/pick-folder";
 import { listCreatableFileTypes } from "../extension-host/file-types";
 import { pickFileForWorkspace } from "./dock-helpers";
+import { getAgentProfiles } from "../state/agent-profiles";
+import { executeCommand } from "../extension-host/commands";
+import { confirm } from "../extension-host/modal-service";
+import { openSettings } from "../extension-host/settings-sheet";
 
 // Empty watermark — shown when a workspace has no panels yet. Mirrors the
 // items in the per-group + dropdown so the user can bootstrap the workspace
@@ -31,6 +35,22 @@ export function EmptyWatermark() {
     const folder = await pickWorkspaceFolder(wsId);
     if (!folder) return;
     addTerminal(wsId, "shell", folder);
+  }
+  async function onNewAgent() {
+    if (!store.activeWorkspaceId) return;
+    // No profile means nothing to launch. Rather than silently opening
+    // Settings (what `core.newAgent` does on its own), say why first.
+    if (getAgentProfiles().length === 0) {
+      const ok = await confirm({
+        title: "No agent profiles yet",
+        body: "An agent profile is a saved way to start a coding agent — a name and a command. Set one up now?",
+        confirmLabel: "Set up…",
+      });
+      if (ok) openSettings("agents");
+      return;
+    }
+    // Same dispatch as the palette / a keybinding: launches the default profile.
+    executeCommand("core.newAgent");
   }
   const actionStyle: CSSProperties = {
     display: "flex",
@@ -100,6 +120,14 @@ export function EmptyWatermark() {
             <span style={{ display: "flex", gap: 3 }}>
               <kbd style={kbdStyle}>⌘</kbd>
               <kbd style={kbdStyle}>T</kbd>
+            </span>
+          </button>
+          <button style={actionStyle} onClick={onNewAgent}>
+            <span>New Agent</span>
+            <span style={{ display: "flex", gap: 3 }}>
+              <kbd style={kbdStyle}>⌘</kbd>
+              <kbd style={kbdStyle}>⌥</kbd>
+              <kbd style={kbdStyle}>I</kbd>
             </span>
           </button>
           <button style={actionStyle} onClick={() => onNewFile()}>

@@ -51,6 +51,9 @@ describe("scanInstalledAgents (RFC 0033 R12)", () => {
     expect(claude.resolvedPath).toBe(`${HOME}/.local/bin/claude`);
     expect(claude.command).toBe("claude");
     expect(claude.displayName).toBeTruthy();
+    // claude's ACP path is an adapter (npx package) — the card shows the
+    // "downloads on first use" note.
+    expect(claude.chat).toEqual({ adapter: true });
   });
 
   it("reports nothing when no candidate directory holds an agent", async () => {

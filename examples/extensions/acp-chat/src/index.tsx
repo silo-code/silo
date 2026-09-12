@@ -1,6 +1,8 @@
 /**
  * `silo.acp-chat` — the **Chat panel** (RFC 0038 / 0039): a center-dock
- * transcript for one ACP Chat session, reachable from the dock's **+** menu.
+ * transcript for one ACP Chat session, opened by starting a Chat Agent
+ * Profile (the + menu's agent-profile section, the "New Agent" watermark
+ * action, or `core.newAgent`).
  *
  * It was the bundled `core.acp-chat` until RFC 0039 moved it here, so it can be
  * iterated without shipping a Silo release. That move is also the proof the SDK
@@ -53,36 +55,10 @@ function activate(ctx: ExtensionContext) {
       // opens this panel with that profile's id. A declaration, not a
       // privilege — the same one the bundled panel used to make.
       chatProfileHost: true,
-      addMenuItem: {
-        label: "New Agent Chat",
-      },
-    }),
-  );
-
-  ctx.subscriptions.push(
-    ctx.registerCommand({
-      id: "silo.acpChat.new",
-      label: "New Agent Chat",
-      run: () => {
-        ctx.layout.openPanel("acp-chat", {});
-      },
-    }),
-  );
-
-  // A panel toolbar item on the host-drawn strip (RFC 0039). `surface: "panel"`
-  // is the one dock-panel toolbar surface; the `kindId` guard scopes this to
-  // this panel — without it the item would show on every panel with a strip
-  // (the terminal included). It also demonstrates that a panel kind defined
-  // outside the host gets contribution chrome through `@silo-code/sdk` alone.
-  ctx.subscriptions.push(
-    ctx.registerToolbarItem({
-      id: "silo.acpChat.toolbar.new",
-      surface: "panel",
-      command: "silo.acpChat.new",
-      icon: "Plus",
-      tooltip: "New Agent Chat",
-      label: "New chat",
-      when: (_k, t) => t.kindId === "acp-chat",
+      // No generic entry point (`addMenuItem`, a `silo.acpChat.new` command, a
+      // toolbar "+"): a Chat session starts from a *profile* — the
+      // agent-profile section of the + menu, the "New Agent" watermark action,
+      // or `core.newAgent` — never a profile-less picker.
     }),
   );
 }

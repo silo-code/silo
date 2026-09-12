@@ -253,9 +253,14 @@ describe("connect() success", () => {
 });
 
 describe("AgentInfo.title — the agent's own words, when it volunteers them", () => {
-  it("registers with the declared agent name as the fallback", async () => {
-    await service.connect("claude-chat");
-    expect(chatAgentInfos()[0].title).toBe("Claude Code");
+  it("falls back to the user's profile label, not the agent's declared name", async () => {
+    // `agentInfo.title` is "Claude Code" here, but for an adapter that string
+    // is the adapter's product name ("pi ACP adapter") — never what the user
+    // chose. The tab shows the profile label until the agent volunteers a real
+    // title; `agentName` still carries the declared name for consumers.
+    const handle = await service.connect("claude-chat");
+    expect(chatAgentInfos()[0].title).toBe("Claude (chat)");
+    expect(handle.agentName).toBe("Claude Code");
   });
 
   it("a session_info_update replaces it", async () => {
@@ -282,13 +287,13 @@ describe("AgentInfo.title — the agent's own words, when it volunteers them", (
     expect(chatAgentInfos()[0].title).toBe("Wire up the badge");
   });
 
-  it("a session that never gets one keeps its declared name — no synthesised summary", async () => {
+  it("a session that never gets one keeps the profile label — no synthesised summary", async () => {
     await service.connect("claude-chat");
     captured.onUpdate({
       sessionUpdate: "agent_message_chunk",
       content: { text: "hello" },
     } as never);
-    expect(chatAgentInfos()[0].title).toBe("Claude Code");
+    expect(chatAgentInfos()[0].title).toBe("Claude (chat)");
   });
 });
 
@@ -862,9 +867,9 @@ describe("connect({ resume }) — Chat session resurrection", () => {
       expect(chatAgentInfos()[0].title).toBe("Was working on the CSS surface");
     });
 
-    it("a fresh session still falls back to the agent's own name — no prior title applies", async () => {
+    it("a fresh session ignores options.title and falls back to the profile label", async () => {
       await service.connect("claude-chat", { title: "stale leftover" });
-      expect(chatAgentInfos()[0].title).toBe("Claude Code");
+      expect(chatAgentInfos()[0].title).toBe("Claude (chat)");
     });
 
     it("is removed, not left dangling, when session/load adopts a different id", async () => {

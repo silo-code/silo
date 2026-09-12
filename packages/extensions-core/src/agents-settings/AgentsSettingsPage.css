@@ -105,6 +105,38 @@
   max-width: 460px;
 }
 
+/* "Found on this machine" — set off from the profile list above it, with the
+   rescan control tucked against the heading rather than pushed to the far
+   edge (which reads as unrelated chrome). */
+.apf-found {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 28px;
+}
+
+.apf-found-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.apf-refresh-spin {
+  animation: apf-refresh-spin 0.8s linear infinite;
+}
+
+@keyframes apf-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apf-refresh-spin {
+    animation: none;
+  }
+}
+
 .apf-cards {
   display: flex;
   flex-direction: column;
@@ -166,9 +198,14 @@
   white-space: nowrap;
 }
 
-.apf-card-add {
-  color: var(--silo-color-accent);
+.apf-card-modes {
   font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.apf-card-actions {
+  display: flex;
+  gap: 6px;
   flex: none;
 }
 

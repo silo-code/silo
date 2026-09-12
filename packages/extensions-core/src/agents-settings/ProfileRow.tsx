@@ -3,6 +3,8 @@
  * (monospace) · agent icon + name · config directory when set · a `Default`
  * badge when this is the default profile · a resume-status badge · a `⋮` menu
  * (Edit / Duplicate / Set or Clear default / Move up / Move down / Delete).
+ * Clicking the row (or Enter) opens the editor; the trailing controls stop
+ * propagation so they don't.
  */
 import type { ExtensionContext, MenuEntry } from "@silo-code/sdk";
 import { AgentIconGlyph, Badge, IconButton, ListRow } from "@silo-code/sdk";
@@ -108,11 +110,9 @@ export function ProfileRow({
               Default
             </Badge>
           )}
-          {isChat && (
-            <Badge size="sm" tone="outline">
-              Chat
-            </Badge>
-          )}
+          <Badge size="sm" tone="outline">
+            {isChat ? "Chat" : "CLI"}
+          </Badge>
           {profileConfigDir(profile) && (
             <Badge size="sm" tone="neutral">
               {shortDir(profileConfigDir(profile)!)}
@@ -145,6 +145,7 @@ export function ProfileRow({
           </IconButton>
         </>
       }
+      onSelect={onEdit}
       onActivate={onEdit}
     >
       <span className="apf-row-main">

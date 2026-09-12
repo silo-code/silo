@@ -33,8 +33,9 @@
  *
  * ## Reaching it
  *
- * The panel kind declares `chatProfileHost: true`, so picking a **Chat** Agent
- * Profile from a dock's **+** menu (or running `silo.acpChat.new`) opens it.
+ * The panel kind declares `chatProfileHost: true`, so starting a **Chat** Agent
+ * Profile opens it — from the agent-profile section of a dock's **+** menu, the
+ * "New Agent" empty-workspace action, or `core.newAgent`.
  * `ctx.agents.sessions` needs the `"agents"` permission, declared in this
  * example's `silo.permissions` and granted at install.
  *
@@ -520,7 +521,7 @@ export function AcpChatPanel({
       const ask = confirmProfileSwitch(
         transcript,
         busy,
-        agentName ?? profile?.label ?? "The agent",
+        profile?.label ?? agentName ?? "The agent",
       );
       if (ask && !(await ctx.ui.confirm(ask))) return;
       // The tab remembers the choice, so reopening it comes back on the same
@@ -733,7 +734,7 @@ export function AcpChatPanel({
           <div className="acp-chat__notice">
             <EmptyState
               title="This session can't be resumed"
-              description={`${agentName ?? profile?.label ?? "The agent"} could not reconnect this conversation. Nothing is lost — start a new one to keep going.`}
+              description={`${profile?.label ?? agentName ?? "The agent"} could not reconnect this conversation. Nothing is lost — start a new one to keep going.`}
               action={
                 <Button onClick={continueInNewSession}>
                   Continue in a new session
@@ -776,7 +777,7 @@ export function AcpChatPanel({
               : lost
                 ? "The agent is no longer running."
                 : phase.status === "ready"
-                  ? `Message ${agentName ?? profile?.label ?? "the agent"}…`
+                  ? `Message ${profile?.label ?? agentName ?? "the agent"}…`
                   : "Waiting for the agent…"
           }
           disabled={phase.status !== "ready" || lost || readOnly}

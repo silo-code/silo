@@ -955,12 +955,17 @@ after the merge.
 
 **Goal:** what a new user meets. Lowest priority; skip if the day runs out.
 
-- Unified **Found on this machine** list — one row per agent showing
-  `Terminal · Chat` (`acp-recon.md` §5h has the verified table).
+- ✅ **Done (Session 5, below).** Unified **Found on this machine** list — one
+  row per agent showing `Terminal · Chat` (`acp-recon.md` §5h has the verified
+  table).
 - Settings → Agents connection card: Connected · Provider · Account.
 - "Sign in" runs the agent's own login command in a real Silo terminal, using
   the argv from `authMethods` (`acp-recon.md` §5f).
 - Adapter fetch-on-first-use for `claude`/`codex`/`pi`.
+
+The last three want their own proposal — the connection card is per-agent
+status-command knowledge (`acp-recon.md` §5g calls it the differentiator), not
+sprint cleanup.
 
 ## The Chat UI we are aiming at
 
@@ -2550,3 +2555,37 @@ leaves other workspaces alone, no-op on an empty workspace),
 during the await). `pnpm test` / `tsc --noEmit` / `pnpm lint` green.
 
 **Next:** Session 5 (discovery / onboarding), or collapse RFC 0042 and merge.
+
+**Session 5 (2026-09-10, Sonnet) — the unified "Found on this machine" list.**
+Scoped to the first of Session 5's four bullets (Dave's call); the connection
+card, terminal sign-in, and adapter fetch-on-first-use are deferred to their
+own RFC.
+
+Each found-agent row now shows the modes the agent supports — `Terminal · Chat`
+from the catalog's `acpLaunch`, or just `Terminal` — with the adapter agents
+(`claude` / `codex` / `pi`) carrying an "adapter downloads on first use" note.
+The card offers an add button per mode still open: `Terminal` + `Chat` on a
+fresh Chat-capable agent, a single `Add` when only one mode is left or the agent
+has no ACP path (`grok`, `omp`). A Chat add composes its launch from
+`chatLaunchForAgent` — `cursor-agent acp` for a built-in, `npx -y <pkg>@<ver>`
+for an adapter — and takes a `-chat`-suffixed profile id so both modes can
+coexist for one agent. The card narrows as modes are added and disappears once
+every supported mode is covered (or an id would collide with a hand-named
+profile).
+
+- `InstalledAgent` gained `chat?: { adapter: boolean }`, set from the catalog
+  entry's `acpLaunch` in `scanInstalledAgents` — internal type, no SDK surface.
+- `found-on-machine-model.ts`: `shouldShowFoundAgentCard` → `foundAgentActions`
+  (per-mode) + `foundAgentModesLabel`; `profileIdForCatalogAgent` takes a mode.
+- `AgentsProfilesPanel` passes `coveredModesByAgent` + `chatHostInstalled`
+  (`resolveChatProfileHost() !== undefined`) instead of a flat covered-ids set.
+
+**Verified live** (attached dev app, real machine): all eight installed agents
+render with the right modes and buttons, matching `acp-recon.md` §5h exactly.
+Adding Cursor as Chat wrote `{ interface: "chat", command: "cursor-agent",
+args: ["acp"] }`; adding Claude as Chat wrote the `npx` adapter line; adding
+Cursor's remaining Terminal mode made its card vanish. All three throwaway
+profiles removed afterward. `pnpm test` / `tsc --noEmit` / `pnpm lint` green.
+
+**Next:** collapse RFC 0042 and prep `feat/agent-sessions` for merge. The
+connection-card / sign-in / adapter-fetch trio wants its own proposal.

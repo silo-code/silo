@@ -379,7 +379,10 @@ export const extension: Extension = {
         id: "core.menu.toggleDevtools",
         menu: "window",
         command: "core.toggleDevtools",
-        accelerator: "CmdOrCtrl+Alt+I",
+        // Cmd+Alt+I (Firefox's / Electron's devtools chord) is reserved for
+        // "New Agent" (core.newAgent). Cmd+Alt+J is Chrome's "open devtools
+        // to the console" — close enough to keep the muscle memory.
+        accelerator: "CmdOrCtrl+Alt+J",
         group: "9_dev",
         order: -10,
       });

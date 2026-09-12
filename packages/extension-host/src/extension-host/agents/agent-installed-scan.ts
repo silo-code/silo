@@ -26,6 +26,11 @@ export interface InstalledAgent {
   command: string;
   /** Absolute path the probe found, for the card's subtitle. */
   resolvedPath: string;
+  /** Present when the catalog records an ACP (Chat) path for this agent
+   *  ({@link AgentDefinition.acpLaunch}). `adapter` is true when the first Chat
+   *  launch fetches a package over `npx` — the "downloads on first use" note.
+   *  Absent means Terminal is the only mode this agent offers. */
+  chat?: { adapter: boolean };
 }
 
 /**
@@ -52,6 +57,9 @@ export async function scanInstalledAgents(): Promise<InstalledAgent[]> {
             displayName: agent.displayName,
             command: name,
             resolvedPath,
+            ...(agent.acpLaunch
+              ? { chat: { adapter: agent.acpLaunch.kind === "adapter" } }
+              : {}),
           } satisfies InstalledAgent;
         }
       }

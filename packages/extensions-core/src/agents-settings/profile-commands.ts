@@ -115,6 +115,16 @@ export function registerProfileCommands(ctx: ExtensionContext): Disposable {
     },
   });
 
+  // Cmd+Alt+I — VS Code + Copilot Chat's "open chat" chord. Bound to the
+  // generic command (default profile, or Settings → Agents when there is
+  // none), the parallel of Cmd+T for a terminal. The dev-only "Inspect
+  // Element" that used to own this chord moved to Cmd+Alt+J.
+  const key = ctx.registerKeybinding({
+    id: "core.newAgent.key",
+    key: "cmd+alt+i",
+    command: "core.newAgent",
+  });
+
   reconcile();
   const unsubscribe = subscribeAgentProfiles(reconcile);
 
@@ -122,6 +132,7 @@ export function registerProfileCommands(ctx: ExtensionContext): Disposable {
     dispose() {
       unsubscribe();
       generic.dispose();
+      key.dispose();
       for (const entry of perProfile.values()) entry.dispose.dispose();
       perProfile.clear();
     },
