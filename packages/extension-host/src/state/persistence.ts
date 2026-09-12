@@ -30,6 +30,7 @@ import {
   loadAgentProfiles,
   cloneGlobalPanelLayout,
   diffWorkspaceWrites,
+  normalizeLoadedWorkspace,
   reconcilePanelOrder,
   reconcileWorkspaceListing,
   splitPersistedState,
@@ -206,7 +207,9 @@ export async function hydrate(configDir: string): Promise<void> {
           const s = await load(e.path, STORE_OPTS);
           const ws = await s.get<WorkspaceInternal>(WORKSPACE_KEY);
           if (ws && typeof ws.id === "string") {
-            workspaces[ws.id] = normalizeTerminalKinds(migratePanelIds(ws));
+            workspaces[ws.id] = normalizeLoadedWorkspace(
+              normalizeTerminalKinds(migratePanelIds(ws)),
+            );
             wsStores.set(ws.id, s);
           } else {
             await s.close();

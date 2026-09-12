@@ -22,6 +22,7 @@ function makeWorkspace(
     lastOpenedAt: "",
     terminals: [],
     editors: [],
+    panels: [],
     dockLayout: null,
     previewEditorId: null,
   };

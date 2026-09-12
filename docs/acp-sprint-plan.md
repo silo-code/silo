@@ -792,14 +792,86 @@ for either.
 **Watch for:** `usage_update` (`{ used, size }`) came from Claude only. One agent
 is not a pattern — leave it on `raw` and note it for the next probe.
 
+## Session 3.11 — the dock panel record (RFC 0041 Phase 1)
+
+**Goal:** give a dock panel the same persisted footing an editor / terminal has,
+so Session 4's restore has a real structure to write into instead of the
+params-in-`dockLayout` round-trip that never worked. Full design:
+[RFC 0041](proposals/0041-dock-panel-record.md) (accepted this session).
+
+### What landed
+
+- **`DockPanelRecord`** in the SDK (`packages/sdk/src/domain-types.ts`):
+  `id` / `kindId` / `workspaceId` / `state` (free-form
+  `Readonly<Record<string, unknown>>`) / `createdAt` / `lastActiveAt`.
+  `@public`, barrel-exported, `pnpm docs:api` regenerated, hand-authored page
+  updated, roadmap row added as **experimental**.
+- **`Workspace.panels: readonly DockPanelRecord[]`** — public projection of the
+  new `WorkspaceInternal.panels`. Editors and terminals keep their own lists
+  and shape (Decision 1: no fold now).
+- **`DockPanelKind.persistence: "recorded"`** — a kind opts in; a transient
+  panel (picker, preview) stays layout-only.
+- **Persistence + restore.** The record list is the source of truth for which
+  recorded panels exist; `dockLayout` stays geometry-only. `WorkspaceDock`
+  reconciles the two on restore exactly as it does editors/terminals:
+  `reconcileRecordedPanels` (pure, tested) computes the set difference;
+  `onDidAddPanel` creates the record for a panel opened after restore,
+  `onDidRemovePanel` deletes it, and each recorded panel's
+  `onDidParametersChange` writes back into `record.state` so a panel that
+  persists itself through `DockPanelApi.updateParameters` round-trips.
+  **Adopt, don't cull:** a recorded-kind panel found in the saved layout with
+  no record (opened before this build, or a record write that lagged the
+  layout) is adopted — a record is created from its params — never dropped, so
+  the release that adds `persistence: "recorded"` to a kind can't silently
+  close a user's open panel. A record with no geometry is floated back in.
+  Load-time normalization (`normalizeLoadedWorkspace`) fills `panels` on a
+  pre-0041 workspace file.
+- **`workspaceId` on the RFC 0039 `"panel"` toolbar target**
+  (`ToolbarItemContext["panel"]`). Threaded host-side: `WorkspaceDock.onReady`
+  registers its dock api → workspace id (`registerDockApiWorkspace`, covers
+  background docks too), `dock-panel-kinds.ts` reads it back and passes it to
+  `DockPanelChrome`, which puts it in the target. Additive.
+- **`acp-chat` example declares `persistence: "recorded"`** — the Phase 1 test
+  consumer. `sessionId` restore is **not** wired here; that is Session 4.
+
+### Explicit non-goals held
+
+No `ctx.panels` service, no panel tab adornments, no enumeration API (Phase 2).
+`EditorRecord` / `TerminalRecord` untouched — not made to extend the base
+(Phase 3). No session/load, no transcript journal (Session 4 / RFC 0042).
+
+`pnpm test` / `tsc --noEmit` / `pnpm lint` / `pnpm docs:build` green;
+`pnpm docs:api` regenerated. **Verified in the running dev app** (sandbox
+workspace, both after a webview reload and after Dave's full process restart):
+open the acp-chat panel → `listPanels` shows one `DockPanelRecord`; it persists
+to the workspace file; after a reload the record is unchanged (`id` preserved,
+`lastActiveAt` re-stamped) and the panel reopens with the editor and terminal
+beside it — no regression. **Float path proven distinctly:** hand-editing the
+`acp-chat:<id>` entry out of the saved `dockLayout` while keeping the record,
+then reloading, still brought the panel back — geometry could not have, so the
+record is genuinely load-bearing. A new `listPanels` automation-bridge op backs
+this (mirrors `listTerminals` / `listEditors`). Housekeeping commits also
+landed: the `acp-chat` "New chat" panel toolbar item, the two RFC drafts, and
+(in `silo-extensions`) the `follow-ups` RFC 0039 `"panel"`-surface migration.
+
 ## Session 4 — persistence and the proof
 
 **Goal:** the three acceptance criteria, demonstrated.
 
-- Persist the session id in panel params; `session/load` on mount; a
+Session 4 now builds on the **`DockPanelRecord`** from Session 3.11 and
+[RFC 0042](proposals/0042-chat-session-resurrection.md): the Chat panel's
+`{ sessionId, profileId, cwd }` is persisted in `DockPanelRecord.state` (a
+structured field on a real record, not a value smuggled through dockview's
+layout serialization), and `WorkspaceDock` hands that state back as the panel's
+params when it recreates the tab on restart. The params round-trip that "never
+worked" is gone — the remaining work is the reload behaviour, the journal, and
+reaping.
+
+- Persist the session id in `DockPanelRecord.state`; `session/load` on mount; a
   "cannot be restored" state for agents that lack it. (Protocol verified —
-  `acp-recon.md` §5d. The panel wiring was written but **never worked**; suspect
-  params not carrying `sessionId` back on remount.)
+  `acp-recon.md` §5d. The old panel wiring persisted `sessionId` through
+  `api.updateParameters` → `ws.dockLayout` and it did not carry back on
+  remount; RFC 0041's record removes the round-trip.)
 - Reap agent processes on panel close, workspace close, and app quit.
 - **`acp_close` kills the child, not the grandchild.** Observed 2026-09-08
   (Session 3.7 verification): deleting a workspace with two live Cursor Chat

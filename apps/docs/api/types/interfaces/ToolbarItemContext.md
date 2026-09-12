@@ -1,6 +1,6 @@
 # Interface: ToolbarItemContext
 
-Defined in: [packages/sdk/src/toolbar-items.ts:36](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L36)
+Defined in: [packages/sdk/src/toolbar-items.ts:37](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L37)
 
 The typed target each [ToolbarSurface](../type-aliases/ToolbarSurface.md) passes to an invoked command
 and to `when` / `checked` / [ToolbarMenuItemContribution.menu](ToolbarMenuItemContribution.md#menu) builders.
@@ -13,7 +13,7 @@ and to `when` / `checked` / [ToolbarMenuItemContribution.menu](ToolbarMenuItemCo
 editor: object;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:37](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L37)
+Defined in: [packages/sdk/src/toolbar-items.ts:38](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L38)
 
 #### editorId
 
@@ -29,7 +29,7 @@ editorId: string;
 navigator: object;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:38](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L38)
+Defined in: [packages/sdk/src/toolbar-items.ts:39](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L39)
 
 #### viewId
 
@@ -45,12 +45,14 @@ viewId: string;
 panel: object;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:45](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L45)
+Defined in: [packages/sdk/src/toolbar-items.ts:48](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L48)
 
-`panelId` and `kindId` identify the panel; `params` is the panel's own
-serialized parameters (`DockPanelProps["params"]`) — read-only, so an item
-can key on instance data (e.g. the terminal's `params.terminalId`) without
-a lookup the SDK does not offer.
+`panelId` and `kindId` identify the panel; `workspaceId` is the workspace
+whose dock the panel lives in (each workspace has its own dock, and the
+host knows which at the time it draws the strip); `params` is the panel's
+own serialized parameters (`DockPanelProps["params"]`) — read-only, so an
+item can key on instance data (e.g. the terminal's `params.terminalId`) or
+act on the owning workspace without a lookup the SDK does not offer.
 
 #### panelId
 
@@ -62,6 +64,12 @@ panelId: string;
 
 ```ts
 kindId: string;
+```
+
+#### workspaceId
+
+```ts
+workspaceId: string;
 ```
 
 #### params

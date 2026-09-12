@@ -6,6 +6,7 @@ export type {
   TerminalRecord,
   EditorMode,
   EditorRecord,
+  DockPanelRecord,
   SidePanelSlot,
   Workspace,
   ThemeBase,
@@ -21,6 +22,7 @@ import type {
   CustomTheme,
   TerminalRecord,
   EditorRecord,
+  DockPanelRecord,
   AgentActivity,
 } from "@silo-code/sdk";
 
@@ -35,6 +37,13 @@ export interface WorkspaceInternal
   extends Workspace, Partial<PanelStateSnapshot> {
   terminals: TerminalRecord[];
   editors: EditorRecord[];
+  /**
+   * Recorded dock panels (RFC 0041) — the mutable backing for the public
+   * {@link Workspace.panels}. The list is the source of truth for which
+   * recorded panels exist; {@link WorkspaceInternal.dockLayout} keeps only
+   * their geometry, and `WorkspaceDock` reconciles the two on restore.
+   */
+  panels: DockPanelRecord[];
   dockLayout: unknown | null;
   editorScrollPositions?: Record<string, { top: number; left: number }>;
   editorViewStates?: Record<string, unknown>;

@@ -105,13 +105,41 @@ handed profiles it does not render.
 
 ***
 
+### persistence?
+
+```ts
+optional persistence?: "recorded";
+```
+
+Defined in: [packages/sdk/src/types.ts:702](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L702)
+
+Opt this kind's panels into being **recorded** (RFC 0041). With
+`persistence: "recorded"`, every open panel of this kind gets a
+[DockPanelRecord](DockPanelRecord.md) in [Workspace.panels](Workspace.md#panels): it is enumerable,
+workspace-scoped, and — this is the point — **reopened from its record on
+restart**, the same way an editor or a terminal tab is, rather than
+surviving only as opaque geometry in the saved dock layout.
+
+On restore the host recreates the panel and hands
+[DockPanelRecord.state](DockPanelRecord.md#state) back as the component's params, so a panel
+that needs to restore itself (a Chat transcript restoring its session —
+RFC 0042) writes that state through [DockPanelApi.updateParameters](DockPanelApi.md#updateparameters)
+and reads it back from params on the next launch.
+
+Omit for a **transient** panel — a picker, a preview, anything that should
+not come back on its own. A transient panel still persists its position in
+the dock layout for the current session; it just has no record and is not
+recreated after a restart.
+
+***
+
 ### addMenuItem?
 
 ```ts
 optional addMenuItem?: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:687](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L687)
+Defined in: [packages/sdk/src/types.ts:707](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L707)
 
 When set, this kind appears as an entry in the center dock's **+** add
 menu (the per-group header button). Omit to keep the kind internal.

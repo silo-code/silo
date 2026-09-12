@@ -53,6 +53,7 @@ export type {
   Workspace,
   EditorMode,
   EditorRecord,
+  DockPanelRecord,
   SidePanelSlot,
 } from "./domain-types";
 

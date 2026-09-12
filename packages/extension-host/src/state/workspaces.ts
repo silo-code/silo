@@ -11,6 +11,7 @@ import {
   cloneExtensionState,
 } from "./panel-state";
 import type {
+  DockPanelRecord,
   EditorRecord,
   EditorSettingsOverride,
   TerminalKind,
@@ -52,6 +53,7 @@ export function createWorkspace(input: {
     lastOpenedAt: now,
     terminals: [],
     editors: [],
+    panels: [],
     dockLayout: null,
     closedAt: null,
   };
@@ -729,6 +731,77 @@ export function recreateTerminal(
   const rec = findTerminal(workspaceId, terminalId);
   if (!rec) return;
   rec.sessionId = "";
+  rec.lastActiveAt = new Date().toISOString();
+}
+
+// --- Recorded dock panels (RFC 0041) ---------------------------------------
+//
+// A DockPanelKind that declared `persistence: "recorded"` gets one of these per
+// open panel. The list is the source of truth for which recorded panels a
+// workspace has; `WorkspaceDock` reconciles it against `dockLayout` geometry on
+// restore, exactly as it does `terminals` / `editors`.
+
+export function findPanelRecord(
+  workspaceId: string,
+  panelRecordId: string,
+): DockPanelRecord | null {
+  return (
+    store.workspaces[workspaceId]?.panels.find((p) => p.id === panelRecordId) ??
+    null
+  );
+}
+
+export function addPanelRecord(
+  workspaceId: string,
+  input: { id: string; kindId: string; state?: Record<string, unknown> },
+): DockPanelRecord {
+  const ws = store.workspaces[workspaceId];
+  if (!ws) throw new Error(`workspace ${workspaceId} not found`);
+  const existing = ws.panels.find((p) => p.id === input.id);
+  if (existing) return existing;
+  const now = new Date().toISOString();
+  const rec: DockPanelRecord = {
+    id: input.id,
+    kindId: input.kindId,
+    workspaceId,
+    state: { ...(input.state ?? {}) },
+    createdAt: now,
+    lastActiveAt: now,
+  };
+  ws.panels.push(rec);
+  return rec;
+}
+
+export function removePanelRecord(
+  workspaceId: string,
+  panelRecordId: string,
+): DockPanelRecord | null {
+  const ws = store.workspaces[workspaceId];
+  if (!ws) return null;
+  const idx = ws.panels.findIndex((p) => p.id === panelRecordId);
+  if (idx === -1) return null;
+  const [rec] = ws.panels.splice(idx, 1);
+  return rec;
+}
+
+/** Replace a recorded panel's restore state (from `DockPanelApi.updateParameters`). */
+export function setPanelRecordState(
+  workspaceId: string,
+  panelRecordId: string,
+  state: Record<string, unknown>,
+): void {
+  const rec = findPanelRecord(workspaceId, panelRecordId);
+  if (!rec) return;
+  rec.state = { ...state };
+}
+
+/** Mark a recorded panel as the one last looked at. */
+export function touchPanelRecord(
+  workspaceId: string,
+  panelRecordId: string,
+): void {
+  const rec = findPanelRecord(workspaceId, panelRecordId);
+  if (!rec) return;
   rec.lastActiveAt = new Date().toISOString();
 }
 

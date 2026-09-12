@@ -444,6 +444,19 @@ export function withActiveNonGlobalPanelState(
 }
 
 /**
+ * Bring a workspace record loaded from disk up to the current shape. Today this
+ * only fills in {@link WorkspaceInternal.panels} (RFC 0041) — absent from every
+ * file written before it — so callers can iterate it unconditionally, the same
+ * guarantee `terminals` / `editors` already give. Mutates and returns `ws`.
+ */
+export function normalizeLoadedWorkspace(
+  ws: WorkspaceInternal,
+): WorkspaceInternal {
+  if (!Array.isArray(ws.panels)) ws.panels = [];
+  return ws;
+}
+
+/**
  * Reconcile the persisted order/active against the workspaces that actually
  * loaded from disk, **self-healingly**.
  *

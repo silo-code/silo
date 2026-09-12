@@ -9,6 +9,11 @@ vi.mock("./editor-backups", () => ({
 
 import { store } from "./store";
 import {
+  addPanelRecord,
+  removePanelRecord,
+  findPanelRecord,
+  setPanelRecordState,
+  touchPanelRecord,
   openEditor,
   openDiff,
   removeEditor,
@@ -38,6 +43,7 @@ function makeWorkspace(id: string): WorkspaceInternal {
     lastOpenedAt: "",
     terminals: [],
     editors: [],
+    panels: [],
     dockLayout: null,
     previewEditorId: null,
   };
@@ -613,5 +619,86 @@ describe("shared side panel widths", () => {
       left: 300,
       right: 900,
     });
+  });
+});
+
+describe("recorded dock panels (RFC 0041)", () => {
+  it("addPanelRecord appends a workspace-scoped record with timestamps", () => {
+    const rec = addPanelRecord("w", {
+      id: "p1",
+      kindId: "acp-chat",
+      state: { profileId: "prof-a" },
+    });
+    expect(rec.workspaceId).toBe("w");
+    expect(rec.kindId).toBe("acp-chat");
+    expect(rec.state).toEqual({ profileId: "prof-a" });
+    expect(rec.createdAt).not.toBe("");
+    expect(rec.lastActiveAt).toBe(rec.createdAt);
+    expect(store.workspaces.w.panels).toEqual([rec]);
+  });
+
+  it("addPanelRecord is idempotent for a known id (returns the existing record)", () => {
+    const first = addPanelRecord("w", {
+      id: "p1",
+      kindId: "acp-chat",
+      state: { profileId: "a" },
+    });
+    const again = addPanelRecord("w", {
+      id: "p1",
+      kindId: "acp-chat",
+      state: { profileId: "b" },
+    });
+    expect(store.workspaces.w.panels).toHaveLength(1);
+    // the second call did not overwrite the first record's state
+    expect(again.state).toEqual({ profileId: "a" });
+    expect(again.createdAt).toBe(first.createdAt);
+  });
+
+  it("defaults state to {} and does not alias the caller's object", () => {
+    const input = { a: 1 };
+    const rec = addPanelRecord("w", {
+      id: "p1",
+      kindId: "acp-chat",
+      state: input,
+    });
+    input.a = 2;
+    expect(rec.state).toEqual({ a: 1 });
+    expect(addPanelRecord("w", { id: "p2", kindId: "acp-chat" }).state).toEqual(
+      {},
+    );
+  });
+
+  it("findPanelRecord / removePanelRecord round-trip; remove is a no-op for an unknown id", () => {
+    addPanelRecord("w", { id: "p1", kindId: "acp-chat" });
+    expect(findPanelRecord("w", "p1")?.id).toBe("p1");
+    expect(removePanelRecord("w", "nope")).toBeNull();
+    expect(removePanelRecord("w", "p1")?.id).toBe("p1");
+    expect(findPanelRecord("w", "p1")).toBeNull();
+  });
+
+  it("setPanelRecordState replaces state without aliasing; no-op for unknown id", () => {
+    addPanelRecord("w", { id: "p1", kindId: "acp-chat", state: { x: 1 } });
+    const next = { sessionId: "s-1" };
+    setPanelRecordState("w", "p1", next);
+    next.sessionId = "mutated";
+    expect(findPanelRecord("w", "p1")?.state).toEqual({ sessionId: "s-1" });
+    expect(() => setPanelRecordState("w", "missing", {})).not.toThrow();
+  });
+
+  it("touchPanelRecord advances lastActiveAt and leaves createdAt", async () => {
+    const rec = addPanelRecord("w", { id: "p1", kindId: "acp-chat" });
+    const createdAt = rec.createdAt;
+    await new Promise((r) => setTimeout(r, 2));
+    touchPanelRecord("w", "p1");
+    const after = findPanelRecord("w", "p1")!;
+    expect(after.createdAt).toBe(createdAt);
+    expect(after.lastActiveAt >= createdAt).toBe(true);
+    expect(after.lastActiveAt).not.toBe(createdAt);
+  });
+
+  it("keeps records per workspace", () => {
+    store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
+    addPanelRecord("w", { id: "p1", kindId: "acp-chat" });
+    expect(findPanelRecord("w2", "p1")).toBeNull();
   });
 });

@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { activeCenterTarget, focusCenterDock } from "./dock-api-registry";
+import type { DockviewApi } from "dockview";
+import {
+  activeCenterTarget,
+  dockApiWorkspaceId,
+  focusCenterDock,
+  registerDockApiWorkspace,
+} from "./dock-api-registry";
 
 // focusCenterDock kicks off an async focus retry (requestAnimationFrame); stub
 // it to a no-op so these assert only the synchronous "is there content" verdict
@@ -90,5 +96,24 @@ describe("activeCenterTarget", () => {
     const host = dockHost();
     group(host, false);
     expect(activeCenterTarget()).toBe(host);
+  });
+});
+
+// Each workspace's dock is mapped to its workspace id (RFC 0041), so a panel's
+// host-drawn chrome — and its `surface: "panel"` toolbar target — can name the
+// owning workspace even for a background dock.
+describe("registerDockApiWorkspace / dockApiWorkspaceId", () => {
+  it("resolves a registered dock api to its workspace id", () => {
+    const api = {} as DockviewApi;
+    registerDockApiWorkspace(api, "ws-1");
+    expect(dockApiWorkspaceId(api)).toBe("ws-1");
+  });
+
+  it("is null for an unregistered dock api, and keeps instances distinct", () => {
+    const a = {} as DockviewApi;
+    const b = {} as DockviewApi;
+    registerDockApiWorkspace(a, "ws-a");
+    expect(dockApiWorkspaceId(b)).toBeNull();
+    expect(dockApiWorkspaceId(a)).toBe("ws-a");
   });
 });

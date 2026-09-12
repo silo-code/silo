@@ -106,15 +106,43 @@ reserves the strip for contributed items only.
 Trailing buttons arrive through
 [`ctx.registerToolbarItem({ surface: "panel" })`](/api/registration/register-toolbar-item)
 — the same door your _own_ controls use. Scope an item to your kind with
-`when: (_keys, t) => t.kindId === "acme.chat"`, and read instance data off
-`t.params` (your `DockPanelProps["params"]`). The built-in terminal declares
-`toolbar` too, so its toolbar items are ordinary `"panel"` items.
+`when: (_keys, t) => t.kindId === "acme.chat"`, read instance data off
+`t.params` (your `DockPanelProps["params"]`), and act on the owning workspace
+via `t.workspaceId`. The built-in terminal declares `toolbar` too, so its
+toolbar items are ordinary `"panel"` items.
+
+### Recorded panels: reopen on restart <Badge type="warning" text="experimental" />
+
+By default a dock panel persists only as geometry in the saved dock layout — it
+comes back where you left it _for the current session_, but a **transient**
+panel (a picker, a preview) is fine with that. Declare `persistence: "recorded"`
+and every open panel of your kind becomes a
+[`DockPanelRecord`](/api/types/interfaces/DockPanelRecord) on its workspace
+([`Workspace.panels`](/api/types/interfaces/Workspace)): workspace-scoped,
+enumerable, and **reopened from its record after a restart** — the same footing
+an editor or terminal tab has.
+
+```ts
+ctx.registerDockPanelKind({
+  id: "acme.chat",
+  component: ChatPanel,
+  persistence: "recorded",
+});
+```
+
+On restore the host recreates your panel and hands
+[`DockPanelRecord.state`](/api/types/interfaces/DockPanelRecord) back as its
+`params`. To restore _content_ (a chat session, a scroll position), write that
+state through `api.updateParameters({ … })` as it changes and read it back from
+`props.params` on the next launch — `state` is a serializable bag whose shape is
+your panel's own contract, not something the host inspects.
 
 ## Types
 
 Pass [`DockPanelKind`](/api/types/interfaces/DockPanelKind).
 
-Related: [`DockPanelApi`](/api/types/interfaces/DockPanelApi).
+Related: [`DockPanelApi`](/api/types/interfaces/DockPanelApi),
+[`DockPanelRecord`](/api/types/interfaces/DockPanelRecord).
 
 ## See also
 

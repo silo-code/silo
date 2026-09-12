@@ -173,6 +173,23 @@ Editor-owned composition — it carries the view switcher.)
 _Avoid_: Panel toolbar (the contribution cluster is one part of the chrome, not
 the whole), header (too generic — the Editor's is a different composition)
 
+**Dock Panel Record** (RFC 0041):
+The persisted identity and restore state of one Dock Panel — `DockPanelRecord`
+(`id`, `kindId`, `workspaceId`, `state`, timestamps), listed on
+`Workspace.panels`. It is what makes a Dock Panel first-class the way an Editor
+or a Terminal is: enumerable, workspace-scoped, and **reopened from its record
+on restart** rather than surviving only as opaque geometry in the saved dock
+layout. A **Dock Panel Kind** opts in with `persistence: "recorded"`; a kind
+that doesn't is **transient** — layout-only, not resurrected. The record list is
+the source of truth for _which_ recorded panels exist; the dock layout keeps
+only _where_ they sit, and the two are reconciled on restore exactly as Editors
+and Terminals already are. An Editor and a Terminal are not `DockPanelRecord`s
+today — `EditorRecord` / `TerminalRecord` keep their own shape; folding the
+three lists into one is a later phase.
+_Avoid_: Panel state (that is the `state` field, one part of the record),
+Content Panel Record (the record is not center-dock-only in principle), Dock
+Panel Kind (the kind is the class, the record is one instance)
+
 **Active Panel**:
 The one Panel currently active within a Dock — a _different_ "active" than
 Navigator's Active View: dock-scoped, dockview-driven, and (per ADR 0032)

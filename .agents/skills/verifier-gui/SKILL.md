@@ -169,14 +169,15 @@ editor ops below — `monaco` is not a page global, so `eval` can't reach it.
 
 **Editors / terminals**
 
-| Op              | Args                                    | Returns / use                                                               |
-| --------------- | --------------------------------------- | --------------------------------------------------------------------------- |
-| `openFile`      | `path`                                  | open an editor tab → `{editorId,panelId}`                                   |
-| `openDiff`      | `path,providerId,args?,title?,preview?` | open a diff tab via a content provider → `{diffId,panelId}`                 |
-| `listEditors`   | `workspaceId?`                          | `{previewEditorId, editors[{id,filePath,title,isPreview,mode,providerId}]}` |
-| `openTerminal`  | `cwd?`                                  | `ctx.terminals.create` → `{terminalId,panelId}`                             |
-| `sendText`      | `terminalId,text,addNewline?`           | write to a terminal's PTY (force-spawns if never mounted) → `{sent:true}`   |
-| `listTerminals` | `workspaceId?`                          | `{terminals[{id,title,sessionId,kind}]}`                                    |
+| Op              | Args                                    | Returns / use                                                                                                                                               |
+| --------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openFile`      | `path`                                  | open an editor tab → `{editorId,panelId}`                                                                                                                   |
+| `openDiff`      | `path,providerId,args?,title?,preview?` | open a diff tab via a content provider → `{diffId,panelId}`                                                                                                 |
+| `listEditors`   | `workspaceId?`                          | `{previewEditorId, editors[{id,filePath,title,isPreview,mode,providerId}]}`                                                                                 |
+| `openTerminal`  | `cwd?`                                  | `ctx.terminals.create` → `{terminalId,panelId}`                                                                                                             |
+| `sendText`      | `terminalId,text,addNewline?`           | write to a terminal's PTY (force-spawns if never mounted) → `{sent:true}`                                                                                   |
+| `listTerminals` | `workspaceId?`                          | `{terminals[{id,title,sessionId,kind}]}`                                                                                                                    |
+| `listPanels`    | `workspaceId?`                          | `{panels[{id,kindId,workspaceId,state,createdAt,lastActiveAt}]}` — recorded dock panels (RFC 0041); assert a panel reopens from its record across a restart |
 
 **Monaco introspection / drive** (authoritative — straight from Monaco's registry; `uri` matches by substring of the model URI)
 

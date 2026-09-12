@@ -23,16 +23,24 @@ import {
   removeTerminal,
   promotePreviewEditor,
   findEditor,
+  addPanelRecord,
+  removePanelRecord,
+  findPanelRecord,
+  setPanelRecordState,
+  touchPanelRecord,
 } from "../state/workspaces";
 import { tauriTerminalClient } from "../services/tauri-terminal-client";
 import {
   dockPanelKindRegistry,
   getDockComponents,
+  parseRecordedPanelId,
+  recordedPanelId,
 } from "../extension-host/dock-panel-kinds";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import {
   setActiveDockApi,
   focusPanelContent,
+  registerDockApiWorkspace,
 } from "../docked/dock-api-registry";
 import {
   peekPanelActivation,
@@ -55,6 +63,7 @@ import {
   panelToReactivateOnClose,
   resolveActivationTarget,
 } from "./dock-helpers";
+import { reconcileRecordedPanels } from "./recorded-panel-reconcile";
 
 const dnd = getDndService();
 
@@ -87,6 +96,10 @@ export function WorkspaceDock({
   function onReady(event: DockviewReadyEvent) {
     setApi(event.api);
     apiRef.current = event.api;
+    // Name this dock's workspace so a panel's host-drawn chrome (and its
+    // `surface: "panel"` toolbar target) can resolve `workspaceId` even for a
+    // background workspace (RFC 0041).
+    registerDockApiWorkspace(event.api, workspaceId);
   }
 
   useEffect(() => {
@@ -105,6 +118,32 @@ export function WorkspaceDock({
         for (const group of api.groups) {
           if (group.panels.length === 0) api.removeGroup(group);
         }
+        // Recorded panels (RFC 0041): a recorded-kind panel in the saved layout
+        // that has no record — a panel opened before this build (records did
+        // not exist yet), or a record write that lagged the layout write — is
+        // *adopted*, not dropped. Its params carry everything the record needs,
+        // so the layout is allowed to resurrect it; culling it would silently
+        // close a panel the user had open across the upgrade. Records with no
+        // geometry are floated in by the reconcile effect below. (Editors and
+        // terminals can't be adopted this way — their records hold data the
+        // panel doesn't, e.g. a filePath or a PTY session id.)
+        const { stale: orphans } = reconcileRecordedPanels({
+          recordPanelIds: ws.panels.map((r) => recordedPanelId(r.kindId, r.id)),
+          layoutPanelIds: api.panels
+            .map((p) => p.id)
+            .filter((id) => parseRecordedPanelId(id) != null),
+        });
+        for (const id of orphans) {
+          const parsed = parseRecordedPanelId(id);
+          const p = parsed && api.getPanel(id);
+          if (parsed && p) {
+            addPanelRecord(workspaceId, {
+              id: parsed.recordId,
+              kindId: parsed.kindId,
+              state: { ...(p.params as Record<string, unknown>) },
+            });
+          }
+        }
         api.panels.forEach((p) => mountedPanelIds.current.add(p.id));
       } catch (err) {
         console.warn("fromJSON failed, ignoring saved layout", err);
@@ -121,15 +160,20 @@ export function WorkspaceDock({
     const desired = new Set<string>();
     ws.terminals.forEach((t) => desired.add(`terminal:${t.id}`));
     ws.editors.forEach((e) => desired.add(`editor:${e.id}`));
+    // Recorded dock panels (RFC 0041) — the record list says which exist; their
+    // geometry is in dockLayout, reconciled here exactly as terminals/editors.
+    ws.panels.forEach((p) => desired.add(recordedPanelId(p.kindId, p.id)));
 
     for (const panelId of [...mountedPanelIds.current]) {
-      // Only reconcile panels owned by the workspace terminal/editor lists.
-      // Custom DockPanelKind panels (web-viewer, image-viewer, etc.) are not
-      // tracked in ws.terminals/ws.editors — they persist via ws.dockLayout and
-      // are restored by fromJSON. Removing them here would cull them on every
-      // workspace switch or terminal/editor change.
+      // Reconcile panels owned by a workspace record: terminals, editors, and
+      // recorded DockPanelKind panels. A *transient* DockPanelKind panel
+      // (web-viewer, image-viewer, a picker) is not in any record list — it
+      // persists only via ws.dockLayout / fromJSON, and removing it here would
+      // cull it on every workspace switch.
       const isManaged =
-        panelId.startsWith("terminal:") || panelId.startsWith("editor:");
+        panelId.startsWith("terminal:") ||
+        panelId.startsWith("editor:") ||
+        parseRecordedPanelId(panelId) != null;
       if (!isManaged) continue;
       if (!desired.has(panelId)) {
         const panel = api.getPanel(panelId);
@@ -180,7 +224,31 @@ export function WorkspaceDock({
       panel.api.setActive();
       mountedPanelIds.current.add(panelId);
     }
-  }, [api, ws, ws?.terminals.length, ws?.editors.length]);
+
+    for (const rec of ws.panels) {
+      const panelId = recordedPanelId(rec.kindId, rec.id);
+      if (mountedPanelIds.current.has(panelId)) continue;
+      if (api.getPanel(panelId)) {
+        mountedPanelIds.current.add(panelId);
+        continue;
+      }
+      // A record with no geometry: a panel opened while its layout was saved by
+      // an older build, or a panel whose group was pruned. Float it back in
+      // with its restore state as params (RFC 0041 / 0042). Newly-opened panels
+      // don't reach here — `onDidAddPanel` created their record from an
+      // already-mounted panel, so it's tracked.
+      const kind = dockPanelKindRegistry.get(rec.kindId);
+      if (!kind) continue; // kind's extension not installed — leave the record
+      const panel = api.addPanel({
+        id: panelId,
+        component: rec.kindId,
+        title: (rec.state.title as string | undefined) ?? rec.kindId,
+        params: { ...rec.state },
+      });
+      panel.api.setActive();
+      mountedPanelIds.current.add(panelId);
+    }
+  }, [api, ws, ws?.terminals.length, ws?.editors.length, ws?.panels.length]);
 
   useEffect(() => {
     if (!api) return;
@@ -319,6 +387,12 @@ export function WorkspaceDock({
       // dock panel that declared one through `DockPanelApi.setAgentSession`
       // (RFC 0038 Session 3.2). The registry resolves panel → session.
       setActiveDockPanel(panel?.id ?? null);
+      // Stamp a recorded panel's `lastActiveAt` when it becomes the active tab
+      // (RFC 0041) — the same signal `TerminalRecord.lastActiveAt` carries.
+      if (panel) {
+        const parsed = parseRecordedPanelId(panel.id);
+        if (parsed) touchPanelRecord(workspaceId, parsed.recordId);
+      }
       if (!panel || !panel.id.startsWith("editor:")) {
         setContextKey("activeEditorId", null);
         setContextKey("activeEditorViewId", null);
@@ -516,10 +590,72 @@ export function WorkspaceDock({
         }
       } else if (kind === "editor") {
         removeEditor(workspaceId, id);
+      } else {
+        // A recorded DockPanelKind panel (RFC 0041): closing the tab ends the
+        // panel, so its record goes too. A transient panel has no record and
+        // `removePanelRecord` is a no-op for it.
+        const parsed = parseRecordedPanelId(panel.id);
+        if (parsed) removePanelRecord(workspaceId, parsed.recordId);
       }
     });
     return () => sub.dispose();
   }, [api, workspaceId]);
+
+  // A recorded DockPanelKind panel (RFC 0041) becomes a DockPanelRecord the
+  // moment it mounts, and its `params` are the record's restore state — kept in
+  // sync so a panel that persists itself through `DockPanelApi.updateParameters`
+  // (a Chat panel storing its session — RFC 0042) round-trips across a restart.
+  useEffect(() => {
+    if (!api) return;
+    const paramSubs = new Map<string, { dispose: () => void }>();
+    function track(panelId: string): void {
+      const parsed = parseRecordedPanelId(panelId);
+      if (!parsed) return;
+      const panel = api!.getPanel(panelId);
+      if (!panel) return;
+      let record = findPanelRecord(workspaceId, parsed.recordId);
+      // Create a record only for a panel opened *after* layout restore — a
+      // genuine new panel. A recorded panel seen during `fromJSON` either
+      // already has its record (loaded from disk) or is stale layout the
+      // restore effect is about to drop; creating one here would resurrect it.
+      if (!record && layoutRestoredRef.current) {
+        record = addPanelRecord(workspaceId, {
+          id: parsed.recordId,
+          kindId: parsed.kindId,
+          state: { ...(panel.params as Record<string, unknown>) },
+        });
+      }
+      if (!record) return;
+      if (!paramSubs.has(panelId)) {
+        paramSubs.set(
+          panelId,
+          panel.api.onDidParametersChange((params) => {
+            setPanelRecordState(
+              workspaceId,
+              parsed.recordId,
+              params as Record<string, unknown>,
+            );
+          }),
+        );
+      }
+    }
+    // Panels already mounted (layout restore ran before this effect committed).
+    for (const p of api.panels) track(p.id);
+    const addSub = api.onDidAddPanel((p) => track(p.id));
+    const removeSub = api.onDidRemovePanel((p) => {
+      paramSubs.get(p.id)?.dispose();
+      paramSubs.delete(p.id);
+    });
+    return () => {
+      addSub.dispose();
+      removeSub.dispose();
+      for (const s of paramSubs.values()) s.dispose();
+      paramSubs.clear();
+    };
+    // `extensionsReady` gates layout restore; re-running here once it flips lets
+    // the initial sweep see restore as done (the restore effect is declared
+    // first, so it commits `layoutRestoredRef` before this effect re-runs).
+  }, [api, workspaceId, snap.extensionsReady]);
 
   // Promote a preview tab to permanent when the user drags it to a new location.
   useEffect(() => {

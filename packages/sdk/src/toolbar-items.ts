@@ -15,8 +15,9 @@ import type { MenuEntry } from "./ui-service";
  *
  * `"panel"` is the host-drawn strip above any {@link DockPanelKind} that
  * declares `toolbar` (RFC 0039) — including the built-in **terminal**. Its
- * target carries the panel instance id, its `kindId`, and the panel's own
- * `params`, so an item meant for one kind of panel scopes itself with
+ * target carries the panel instance id, its `kindId`, its `workspaceId`, and
+ * the panel's own `params`, so an item meant for one kind of panel scopes
+ * itself with
  * `when: (_keys, t) => t.kindId === "terminal"` and reads instance data off
  * `t.params` (e.g. `t.params.terminalId`). Without a `kindId` guard a
  * `"panel"` item shows on every panel that has a strip.
@@ -37,14 +38,17 @@ export interface ToolbarItemContext {
   editor: { editorId: string };
   navigator: { viewId: string };
   /**
-   * `panelId` and `kindId` identify the panel; `params` is the panel's own
-   * serialized parameters (`DockPanelProps["params"]`) — read-only, so an item
-   * can key on instance data (e.g. the terminal's `params.terminalId`) without
-   * a lookup the SDK does not offer.
+   * `panelId` and `kindId` identify the panel; `workspaceId` is the workspace
+   * whose dock the panel lives in (each workspace has its own dock, and the
+   * host knows which at the time it draws the strip); `params` is the panel's
+   * own serialized parameters (`DockPanelProps["params"]`) — read-only, so an
+   * item can key on instance data (e.g. the terminal's `params.terminalId`) or
+   * act on the owning workspace without a lookup the SDK does not offer.
    */
   panel: {
     panelId: string;
     kindId: string;
+    workspaceId: string;
     params: Readonly<Record<string, unknown>>;
   };
 }

@@ -130,3 +130,5 @@ don't get a proposal at all — see below.
 | [0037](./0037-omp-agent-catalog.md)                           | OMP as a standalone catalog agent                                 | 2026-09-04 | implemented |
 | [0039](./0039-panel-toolbar-sdk.md)                           | Host-drawn chrome for a dock panel                                | 2026-09-09 | implemented |
 | [0040](./0040-agent-commands-and-context.md)                  | Commands, skills, and context in the Agent Session surface        | 2026-09-09 | draft       |
+| [0041](./0041-dock-panel-record.md)                           | `DockPanelRecord` — one persisted model for every dock panel      | 2026-09-09 | accepted    |
+| [0042](./0042-chat-session-resurrection.md)                   | Chat session resurrection — across app restart and machine reboot | 2026-09-09 | draft       |

@@ -130,6 +130,50 @@ export interface EditorRecord {
 }
 
 /**
+ * The persisted identity and restore state of one dock panel — a
+ * {@link DockPanelKind} panel that declared `persistence: "recorded"` (RFC
+ * 0041).
+ *
+ * This is what makes a dock panel first-class the way an editor or a terminal
+ * is: it exists as a workspace-scoped record ({@link Workspace.panels}), not
+ * merely as opaque geometry inside the saved dock layout. The record list is
+ * the source of truth for *which* recorded panels a workspace has; the dock
+ * layout keeps only *where* they sit, and the two are reconciled on restore
+ * exactly as editors and terminals already are.
+ *
+ * An editor and a terminal are not `DockPanelRecord`s in this release —
+ * {@link EditorRecord} / {@link TerminalRecord} keep their own shape. Folding
+ * the three lists into one is deliberately left for a later phase.
+ *
+ * @category Core Types
+ * @public
+ */
+export interface DockPanelRecord {
+  /**
+   * Stable id, unique within the workspace. This is **not** the transient
+   * dock-view panel id — it survives the panel being closed and reopened from
+   * its record across a restart.
+   */
+  id: string;
+  /** The {@link DockPanelKind} id this panel is an instance of. */
+  kindId: string;
+  /** The id of the workspace this panel belongs to. */
+  workspaceId: string;
+  /**
+   * The panel kind's own restore state — a serializable bag whose shape is the
+   * panel's contract, not the host's (the host never inspects or validates it).
+   * The Agent Chat panel keeps `{ sessionId, profileId, cwd }` here (RFC
+   * 0042); a panel with nothing to restore leaves it `{}`. Handed back to the
+   * kind's component as its params when the panel is recreated on restore.
+   */
+  state: Readonly<Record<string, unknown>>;
+  /** ISO-8601 timestamp of when the panel was first opened. */
+  createdAt: string;
+  /** ISO-8601 timestamp of when the panel was last the active tab. */
+  lastActiveAt: string;
+}
+
+/**
  * The four fixed slots a side dock used to divide into.
  *
  * @deprecated A side dock is now a layout tree of freely-arranged panes, and a
@@ -176,6 +220,15 @@ export interface Workspace {
   terminals: readonly TerminalRecord[];
   /** Editor tabs — text editors and diffs alike (a diff is a record with `mode: "diff"`). */
   editors: readonly EditorRecord[];
+  /**
+   * Recorded dock panels — every panel of a {@link DockPanelKind} that declared
+   * `persistence: "recorded"` (RFC 0041). Editors and terminals are **not** in
+   * this list; they keep their own {@link Workspace.editors} /
+   * {@link Workspace.terminals} lists. A transient panel (a picker, a preview)
+   * whose kind did not opt in is absent here — it lives only in the saved dock
+   * layout.
+   */
+  panels: readonly DockPanelRecord[];
 }
 
 /**

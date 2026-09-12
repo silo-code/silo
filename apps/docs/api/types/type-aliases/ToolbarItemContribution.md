@@ -8,7 +8,7 @@ type ToolbarItemContribution<S> =
 | ToolbarSpacerContribution<S>;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:213](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L213)
+Defined in: [packages/sdk/src/toolbar-items.ts:217](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L217)
 
 Adds a control or chrome element to the trailing cluster of a host-drawn
 toolbar — the editor breadcrumb, the Navigator header, or a dock panel's

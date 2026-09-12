@@ -5,6 +5,7 @@ import {
   buildIndex,
   diffWorkspaceWrites,
   loadAgentProfiles,
+  normalizeLoadedWorkspace,
   reconcilePanelOrder,
   reconcileWorkspaceListing,
   splitPersistedState,
@@ -111,6 +112,36 @@ describe("splitPersistedState", () => {
     };
     const { workspaces } = splitPersistedState(legacy);
     expect(workspaces.a.sidePanelLocations).toEqual({ explorer: "left" });
+  });
+});
+
+describe("normalizeLoadedWorkspace (RFC 0041)", () => {
+  it("fills in an absent panels list (pre-0041 record)", () => {
+    const ws = makeWorkspace("a");
+    // simulate a file written before `panels` existed
+    delete (ws as Partial<WorkspaceInternal>).panels;
+    expect(normalizeLoadedWorkspace(ws).panels).toEqual([]);
+  });
+
+  it("leaves an existing panels list untouched (round-trips through the store)", () => {
+    const panels = [
+      {
+        id: "p1",
+        kindId: "acp-chat",
+        workspaceId: "a",
+        state: { sessionId: "s-1" },
+        createdAt: "2026-09-09T00:00:00.000Z",
+        lastActiveAt: "2026-09-09T00:01:00.000Z",
+      },
+    ];
+    const ws = makeWorkspace("a", { panels });
+    expect(normalizeLoadedWorkspace(ws).panels).toBe(panels);
+  });
+
+  it("replaces a non-array panels value", () => {
+    const ws = makeWorkspace("a");
+    (ws as { panels: unknown }).panels = null;
+    expect(normalizeLoadedWorkspace(ws).panels).toEqual([]);
   });
 });
 

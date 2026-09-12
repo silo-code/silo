@@ -508,6 +508,27 @@ async function handleOp(
       };
     }
 
+    // The recorded dock-panel model for a workspace (RFC 0041) — panels of a
+    // DockPanelKind that declared `persistence: "recorded"`. Lets a test assert
+    // a recorded panel reopens from its record across a restart, and inspect
+    // the per-panel `state` a panel persists through `updateParameters`.
+    case "listPanels": {
+      const wsId = args.workspaceId
+        ? String(args.workspaceId)
+        : store.activeWorkspaceId;
+      const ws = wsId ? store.workspaces[wsId] : null;
+      return {
+        panels: (ws?.panels ?? []).map((p) => ({
+          id: p.id,
+          kindId: p.kindId,
+          workspaceId: p.workspaceId,
+          state: p.state,
+          createdAt: p.createdAt,
+          lastActiveAt: p.lastActiveAt,
+        })),
+      };
+    }
+
     case "openDiff": {
       // Generic, extension-agnostic: the caller names the content provider
       // (e.g. "silo.git"). The bridge stays decoupled from any specific

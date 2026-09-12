@@ -72,6 +72,7 @@ describe("toolbar items", () => {
       toolbarEntriesFor("panel", {
         panelId: "p1",
         kindId: "acp-chat",
+        workspaceId: "ws-1",
         params: {},
       }),
     ).toEqual([]);
@@ -79,14 +80,17 @@ describe("toolbar items", () => {
       toolbarEntriesFor("panel", {
         panelId: "p1",
         kindId: "terminal",
+        workspaceId: "ws-1",
         params: { terminalId: "t42" },
       })[0],
     );
     entry.runCommand();
-    // the whole panel target — params included — reaches the command
+    // the whole panel target — workspaceId and params included — reaches the
+    // command (workspaceId is RFC 0041)
     expect(run).toHaveBeenCalledWith({
       panelId: "p1",
       kindId: "terminal",
+      workspaceId: "ws-1",
       params: { terminalId: "t42" },
     });
 

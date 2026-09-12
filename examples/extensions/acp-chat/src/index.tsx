@@ -43,6 +43,11 @@ function activate(ctx: ExtensionContext) {
       // strip and the panel fills it via `api.setBreadcrumb`. No chrome
       // component is imported here.
       toolbar: { breadcrumb: true },
+      // Recorded (RFC 0041): each open Chat panel becomes a DockPanelRecord on
+      // its workspace, so it reopens on restart rather than surviving only as
+      // dock-layout geometry. The panel's session state (RFC 0042) will ride in
+      // that record; for now it just guarantees the tab comes back.
+      persistence: "recorded",
       // Claims the Chat half of the Agent Profile list: picking a Chat profile
       // from a dock's + menu, or running its `core.newAgent.<id>` command,
       // opens this panel with that profile's id. A declaration, not a

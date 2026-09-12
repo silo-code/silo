@@ -12,6 +12,7 @@ import "./DockPanelChrome.css";
 interface Props {
   panelId: string;
   kindId: string;
+  workspaceId: string;
   params: Readonly<Record<string, unknown>>;
   toolbar: NonNullable<DockPanelKind["toolbar"]>;
 }
@@ -24,7 +25,13 @@ interface Props {
  * `registerToolbarItem({ surface: "panel" })` contributions, the same door a
  * first-party panel's own controls use.
  */
-export function DockPanelChrome({ panelId, kindId, params, toolbar }: Props) {
+export function DockPanelChrome({
+  panelId,
+  kindId,
+  workspaceId,
+  params,
+  toolbar,
+}: Props) {
   const crumb = useSyncExternalStore(
     useCallback(
       (cb) => subscribePanelBreadcrumb(panelId, cb).dispose,
@@ -50,7 +57,7 @@ export function DockPanelChrome({ panelId, kindId, params, toolbar }: Props) {
       ) : null}
       <ContributedToolbar
         surface="panel"
-        target={{ panelId, kindId, params }}
+        target={{ panelId, kindId, workspaceId, params }}
         showMenu={(opts) => openMenu(opts)}
       />
     </div>

@@ -6,6 +6,7 @@ import {
 } from "react";
 import type { IDockviewPanelProps } from "dockview";
 import { Registry } from "./registry";
+import { dockApiWorkspaceId } from "../docked/dock-api-registry";
 import { setPanelAgentSession } from "./agents/agent-surface-registry";
 import {
   setPanelBreadcrumb,
@@ -21,6 +22,31 @@ import type {
 export const dockPanelKindRegistry = new Registry<DockPanelKind>();
 
 type DockviewPanelApi = IDockviewPanelProps["api"];
+
+/**
+ * A recorded panel's dockview panel id is `${kindId}:${recordId}` — the same
+ * `kind:id` shape editor (`editor:…`) and terminal (`terminal:…`) panels use.
+ * Kind ids carry no colon by convention, so the split is unambiguous. Returns
+ * `null` for an id that is not `kind:id` shaped or whose kind is not registered
+ * as `persistence: "recorded"` (an editor, a terminal, a transient panel).
+ */
+export function parseRecordedPanelId(
+  panelId: string,
+): { kindId: string; recordId: string } | null {
+  const i = panelId.indexOf(":");
+  if (i <= 0) return null;
+  const kindId = panelId.slice(0, i);
+  const recordId = panelId.slice(i + 1);
+  if (!recordId) return null;
+  if (dockPanelKindRegistry.get(kindId)?.persistence !== "recorded")
+    return null;
+  return { kindId, recordId };
+}
+
+/** The dockview panel id for a recorded panel. */
+export function recordedPanelId(kindId: string, recordId: string): string {
+  return `${kindId}:${recordId}`;
+}
 
 /**
  * Adapt a dockview panel api into the SDK's {@link DockPanelApi}. Most members
@@ -91,6 +117,9 @@ function toHostComponent(
     const params = props.params as Record<string, unknown>;
     const body = createElement(Component, { api, params });
     if (!toolbar) return body;
+    // Each workspace has its own dock; this panel's chrome names the workspace
+    // it lives in so a `surface: "panel"` toolbar item can act on it (RFC 0041).
+    const workspaceId = dockApiWorkspaceId(props.containerApi) ?? "";
     return createElement(
       "div",
       { className: "dock-panel-frame" },
@@ -98,6 +127,7 @@ function toHostComponent(
         key: "chrome",
         panelId,
         kindId: kind.id,
+        workspaceId,
         params,
         toolbar,
       }),

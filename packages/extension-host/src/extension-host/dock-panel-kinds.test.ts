@@ -1,6 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { IDockviewPanelProps } from "dockview";
-import { makeDockPanelApi } from "./dock-panel-kinds";
+import type { DockPanelKind } from "@silo-code/sdk";
+import {
+  makeDockPanelApi,
+  dockPanelKindRegistry,
+  parseRecordedPanelId,
+  recordedPanelId,
+} from "./dock-panel-kinds";
 import {
   _resetAgentSurfaceRegistryForTests,
   agentSessionForPanel,
@@ -68,6 +74,12 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
     expect(getPanelBreadcrumb("acp-chat:p1")).toBeNull();
   });
 
+  it("passes updateParameters through so a recorded panel can persist its state (RFC 0041/0042)", () => {
+    const dv = fakeDockviewApi("acp-chat:p1");
+    makeDockPanelApi(dv).updateParameters({ sessionId: "s-9" });
+    expect(dv.updateParameters).toHaveBeenCalledWith({ sessionId: "s-9" });
+  });
+
   it("delegates the plain DockPanelApi verbs to the dockview api", () => {
     const dv = fakeDockviewApi("acp-chat:p1");
     const api = makeDockPanelApi(dv);
@@ -79,5 +91,62 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
     expect(dv.updateParameters).toHaveBeenCalledWith({ profileId: "c1" });
     expect(api.isActive).toBe(true);
     expect(api.isVisible).toBe(true);
+  });
+});
+
+describe("parseRecordedPanelId / recordedPanelId (RFC 0041)", () => {
+  const dummy = { component: (() => null) as unknown } as Pick<
+    DockPanelKind,
+    "component"
+  >;
+  let disposers: Array<() => void> = [];
+
+  function register(kind: DockPanelKind) {
+    disposers.push(dockPanelKindRegistry.register(kind).dispose);
+  }
+
+  beforeEach(() => {
+    register({
+      ...dummy,
+      id: "acp-chat",
+      persistence: "recorded",
+    } as DockPanelKind);
+    register({ ...dummy, id: "web-viewer" } as DockPanelKind); // transient
+  });
+  afterEach(() => {
+    for (const d of disposers) d();
+    disposers = [];
+  });
+
+  it("round-trips a recorded kind's panel id", () => {
+    const id = recordedPanelId("acp-chat", "rec-123");
+    expect(id).toBe("acp-chat:rec-123");
+    expect(parseRecordedPanelId(id)).toEqual({
+      kindId: "acp-chat",
+      recordId: "rec-123",
+    });
+  });
+
+  it("is null for a kind that did not opt into persistence", () => {
+    expect(parseRecordedPanelId("web-viewer:rec-1")).toBeNull();
+  });
+
+  it("is null for an unregistered kind, and for editor / terminal panels", () => {
+    expect(parseRecordedPanelId("nope:rec-1")).toBeNull();
+    expect(parseRecordedPanelId("editor:e1")).toBeNull();
+    expect(parseRecordedPanelId("terminal:t1")).toBeNull();
+  });
+
+  it("is null for a malformed id (no colon, empty record id, leading colon)", () => {
+    expect(parseRecordedPanelId("acp-chat")).toBeNull();
+    expect(parseRecordedPanelId("acp-chat:")).toBeNull();
+    expect(parseRecordedPanelId(":rec-1")).toBeNull();
+  });
+
+  it("keeps a record id that itself contains a colon (splits on the first only)", () => {
+    expect(parseRecordedPanelId("acp-chat:a:b")).toEqual({
+      kindId: "acp-chat",
+      recordId: "a:b",
+    });
   });
 });
