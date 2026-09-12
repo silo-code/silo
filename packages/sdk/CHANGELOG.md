@@ -14,6 +14,25 @@
 * **sdk:** DockPanelRecord — recorded panels reopen on restart (RFC 0041) ([09c3192](https://github.com/silo-code/silo/commit/09c31920757df50dab43dc3e3af2a48f577839e6))
 * **sdk:** resolve panel visibility as DockPanelProps.onScreen ([16d8e3f](https://github.com/silo-code/silo/commit/16d8e3f3cfa3d89db860ee209aaa4ad916be8732))
 
+### Notes for extension authors
+
+* **`DockPanelProps` gained a required `onScreen` field.** A panel *component*
+  needs no change — it just receives one more prop. Code that **constructs**
+  `DockPanelProps` will not compile until it supplies `onScreen: boolean`; in
+  practice that means a unit test building props by hand.
+
+  Reach for it instead of composing `DockPanelApi.isVisible` with
+  `ctx.workspaces`. `isVisible` covers only the tab half, so a panel in a
+  backgrounded workspace reports `true` while the user cannot see it; `onScreen`
+  is the host's answer to both halves.
+
+  It matters more than it looks: a dock panel mounts **once per tab** and is
+  never unmounted for going off screen. A deselected tab has its element
+  detached and re-attached, which discards scroll offsets and anything else the
+  browser keeps on a layout box, while component state survives. So scroll
+  restoration, canvas re-measurement and terminal refits belong on an `onScreen`
+  transition, not on mount — mount happens once and never again.
+
 ## [0.46.0](https://github.com/silo-code/silo/compare/sdk-v0.45.0...sdk-v0.46.0) (2026-09-04)
 
 
