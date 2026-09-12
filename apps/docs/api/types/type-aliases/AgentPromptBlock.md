@@ -10,10 +10,16 @@ type AgentPromptBlock =
   type: "resource_link";
   uri: string;
   name?: string;
+}
+  | {
+  type: "resource";
+  uri: string;
+  mimeType?: string;
+  text: string;
 };
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:514](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L514)
+Defined in: [packages/sdk/src/agents-service.ts:521](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L521)
 
 **`Beta`**
 
@@ -26,9 +32,16 @@ opening prompt (RFC 0033 phase 3) does not exist here.
   are all literal.
 - `"resource_link"` — a pointer to a file (or other URI) the agent may read
   if it chooses. `uri` is typically a `file://` path inside the workspace.
+  Always accepted — this is a pointer, not embedded content, so it needs no
+  [AgentPromptCapabilities](../interfaces/AgentPromptCapabilities.md) gate.
+- `"resource"` — the file's own text **inlined** into the prompt, rather
+  than a pointer the agent may or may not follow. Only send this to a
+  session whose [AgentSessionHandle.promptCapabilities](../interfaces/AgentSessionHandle.md#promptcapabilities) has
+  `embeddedContext: true`.
 
-Images and embedded binary context are deferred — the agent advertises what
-it accepts at connect time, and this union grows behind that.
+Images are deferred — no probe has yet checked what each agent actually
+accepts for one, and this union grows behind that once one has (RFC 0040
+open question 3).
 
 ## Union Members
 
@@ -72,3 +85,45 @@ readonly optional name?: string;
 ```
 
 A short display name for the link; defaults to the last path segment.
+
+***
+
+### Type Literal
+
+```ts
+{
+  type: "resource";
+  uri: string;
+  mimeType?: string;
+  text: string;
+}
+```
+
+#### type
+
+```ts
+readonly type: "resource";
+```
+
+#### uri
+
+```ts
+readonly uri: string;
+```
+
+The resource's own URI, e.g. a `file://` path.
+
+#### mimeType?
+
+```ts
+readonly optional mimeType?: string;
+```
+
+#### text
+
+```ts
+readonly text: string;
+```
+
+The embedded text content. Binary (blob) resources are not modelled —
+ nothing in Silo has needed to embed one yet.

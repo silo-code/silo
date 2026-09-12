@@ -1,6 +1,6 @@
 # Interface: AgentContentBlock
 
-Defined in: [packages/sdk/src/agents-service.ts:574](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L574)
+Defined in: [packages/sdk/src/agents-service.ts:590](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L590)
 
 **`Beta`**
 
@@ -28,7 +28,7 @@ treat the rest as modelled-but-unverified and check before you read.
 readonly type: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:577](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L577)
+Defined in: [packages/sdk/src/agents-service.ts:593](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L593)
 
 **`Beta`**
 
@@ -43,7 +43,7 @@ The protocol's block type — `"text"`, `"image"`, `"audio"`,
 readonly optional text?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:579](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L579)
+Defined in: [packages/sdk/src/agents-service.ts:595](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L595)
 
 **`Beta`**
 
@@ -57,7 +57,7 @@ The text, for a `"text"` block.
 readonly optional mimeType?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:581](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L581)
+Defined in: [packages/sdk/src/agents-service.ts:597](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L597)
 
 **`Beta`**
 
@@ -71,7 +71,7 @@ MIME type, for an `"image"` / `"audio"` / `"resource_link"` block.
 readonly optional uri?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:584](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L584)
+Defined in: [packages/sdk/src/agents-service.ts:600](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L600)
 
 **`Beta`**
 
@@ -86,7 +86,7 @@ Where the content lives, for a `"resource_link"` (or an image given by
 readonly optional name?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:586](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L586)
+Defined in: [packages/sdk/src/agents-service.ts:602](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L602)
 
 **`Beta`**
 

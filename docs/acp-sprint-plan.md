@@ -2839,3 +2839,172 @@ Session 7/6 UI work is no longer "spike polish before it matters" — it's the
 UI real users are seeing today.
 
 **Next:** Session 7 (commands, skills, context — RFC 0040).
+
+## Session 7 handoff (2026-09-10)
+
+RFC 0040 shipped: `session.commands` + `onCommandsChanged`, shaped exactly
+like `configOptions`/`onConfigOptionsChanged`, backed host-side by
+`available_commands_update` handling in `acp-sessions-service.ts` and a new
+`parseCommands`/`parseCommandInput` in `acp-update-model.ts`. Claude's `input:
+null` and pi's omitted `input` key both normalise to `AgentCommand.input ===
+undefined`. `session.promptCapabilities` reads `initialize`'s
+`promptCapabilities` once (a new `AcpInitializeResult` field, plain booleans
+via a new `promptCapabilityEnabled`, distinct from `capabilityEnabled`'s
+bool-or-object reading for `sessionCapabilities`) and defaults every field
+false when the agent omitted it. `AgentPromptBlock` grew a `"resource"` member
+(`{ uri, text, mimeType? }`) for embedded content — modelled directly off the
+protocol's documented shape, no probe needed for this one. `onUpdate`'s TSDoc
+is fixed to say updates are not confined to between a `prompt` and its
+resolution (pi's own startup banner disproved that). All new SDK surface
+carries `@public`/`@beta`/`@category Consumer Services` matching
+`configOptions`'s own tagging, barrel-exported from `packages/sdk/src/index.ts`,
+and `apps/docs/api/agents/sessions.md` grew **Commands (and skills)** and
+**Prompt capabilities** sections (removing `available_commands_update` from
+the "raw escape hatch" list it no longer belongs on) — `pnpm docs:api` /
+`pnpm docs:build` both green.
+
+**RFC 0040's three open questions, resolved as leaned** — empty-until-arrival
+for `commands` (never wait on `connect()`; pi's ~12.5s startup lag would make
+every connect feel broken if it did), `promptCapabilities` on the handle (same
+reasoning as `configOptions`), and `resource` landing now while an **image**
+block does not (no probe ran this session — the RFC always made that
+conditional, and it stays out rather than guessed). RFC 0040 flipped `draft` →
+`implemented`, with a blockquote at the top naming the image gap explicitly —
+see "Decision" in the proposal for the full resolution and the one tension
+found only while wiring the panel (see next paragraph).
+
+**The panel (`packages/extensions-silo/src/agents-chat-panel/`):** a new pure
+`command-palette.ts` (`commandQueryFromDraft`, `filterCommands`,
+`draftAfterCommandPick`, unit-tested) backs a `/` palette rendered with the
+SDK's `List`/`ListRow` — typing `/` and a partial name shows matching commands
+(skills included, unsplit, per the RFC), picking one inserts `/name ` into the
+draft. Deliberately minimal: no fuzzy matching, no argument-hint autocomplete,
+capped at 200px with its own scroll since Claude alone advertises 70 entries.
+**The attachment-gating acceptance line was not implemented literally** — see
+RFC 0040's Decision section for the full reasoning, confirmed with Dave this
+session: the protocol's own rule (a `resource_link` pointer needs no
+capability gate; only an embedded `resource` block does) overrides the sprint
+plan's shorthand, so the panel's existing Attach button (which only ever sends
+`resource_link`) stays ungated rather than being hidden for pi
+(`embeddedContext: false`) for no protocol reason. `promptCapabilities` is
+therefore modelled and tested end-to-end but has no consumer inside the
+bundled panel yet — the next session that wants to gate a real embedded/image
+affordance has the capability ready to read.
+
+New coverage: `acp-update-model.test.ts` (`parseCommands` — hinted argument,
+skill entries, `input: null` vs. omitted normalising identically, empty-input
+object, no-name drop, non-array payload), `acp-sessions-service.test.ts`
+(commands empty-until-arrival, `available_commands_update` wiring and
+replacement, `onCommandsChanged` firing, `promptCapabilities` defaulting and
+reading through from `initialize`), and `command-palette.test.ts` (query
+parsing, prefix filtering including a `skill:`-prefixed name, empty-query and
+no-match, the post-pick draft). `pnpm test` (2057 + 643 tests across the
+touched packages), `pnpm --filter silo exec tsc --noEmit`, and `pnpm lint` all
+green.
+
+**Verified live** (attached dev app, real machine, throwaway sandbox
+workspace): `core.newAgent.claude-chat` connected a real
+`claude-agent-acp@0.75.1` session; typing `/` into the composer populated the
+palette with all **73** real advertised entries (skills included, unmarked
+except the `(user)`/`(project)` suffix in their own descriptions, exactly as
+RFC 0040 described from the original recon) — confirmed via DOM query, not a
+screenshot, since this window's dock content renders `visibility: hidden`
+while it isn't the OS-frontmost window (a pre-existing, unrelated behavior,
+not a regression). Clicking the first row (`/code-review`) set the draft to
+`/code-review ` exactly as `draftAfterCommandPick` predicts — the full
+`available_commands_update` → `commands` → palette → pick path, proven against
+a live agent, not just its mocks. The existing Attach button was present and
+enabled throughout, confirming it was left ungated as decided above.
+
+**What Session 6 inherits:** `session.commands` and `promptCapabilities` as
+data surfaces, both consumed minimally (the palette; nothing yet on
+capabilities) — the redesign session can build real overlay/positioning
+polish for the palette and, if it wants a gated embedded-attachment
+affordance, the capability to read for it, without touching the SDK or host
+layers again.
+
+## Session 6 handoff (2026-09-10)
+
+**Characterisation (Phase 1):** watched
+`~/Desktop/Screen Recording 2026-09-10 at 8.51.53 PM.mov` frame-by-frame
+(`ffmpeg` @ 1/1.5s, contact sheets + full-res crops) and cross-read Paseo's own
+source at `repos/getpaseo-paseo` (`packages/app/src/agent-stream/`,
+`packages/app/src/composer/`, `packages/app/src/components/ui/autocomplete*.tsx`).
+Findings written to
+[`docs/proposals/0043-chat-panel-visual-polish.md`](proposals/0043-chat-panel-visual-polish.md)
+(now `status: implemented`) with file:line / frame-timestamp citations for
+each: (1) plain-text turns, boxed only when blocked on the user, with a
+`Worked for Ns` footer; (2) icon/pill composer affordances opening a floating
+host-drawn dropdown, not native `<select>`s; (3) the `/` palette floats over
+the transcript instead of pushing the composer down; (4) the permission card
+was already structurally right. One nuance was explicitly declined rather than
+guessed at: Paseo's palette also shows a "detail card" for the currently
+_highlighted_ row above the list — not built, because `List`/`ListRow`'s
+keyboard nav has no exposed focus-index callback to drive it, and extending
+that shared kit component is out of this session's scope (noted in the RFC's
+Alternatives section as a real, not rediscovered-later, gap).
+
+**Implementation (Phase 2):** all in
+`packages/extensions-silo/src/agents-chat-panel/`.
+
+- `transcript-model.ts` grew `groupTurns` (a pure entries → turns projection),
+  `elapsedLabel`/`workedForLabel`, and `nextEntryKey` (lets the component
+  predict a not-yet-appended message's key, so turn timing can be recorded
+  without a second read of the just-updated transcript). New
+  `LiveElapsed.tsx` is the one genuinely-a-component piece (a 1s ticking
+  readout); everything else stayed pure and testable.
+- `AcpChatPanel.tsx`: entries render grouped by turn (`.acp-chat__turn` /
+  `-body` / `-footer`) instead of one flat list; a routine tool call is now a
+  single-line row (icon + kind + title, no border) via an extracted
+  `renderTranscriptEntry`, with the permission card as the one remaining
+  boxed exception; turn timing lives in component state (`turnDurations`
+  keyed by the user message's entry key, `turnStartRef` for the in-flight
+  one) since it isn't part of the wire protocol or the journal — a
+  journal-restored turn simply shows no footer, the same "absent means
+  nothing to say" tolerance the reducer already applies elsewhere; the
+  profile picker and each `AgentSessionConfigOption` select became
+  `MenuButton` + `ctx.ui.showMenu` (the kit's own documented answer for "pick
+  one of these," and what gives Silo the same anchored floating-dropdown feel
+  Paseo's model/effort pickers have, which a native `<select>` cannot); the
+  Attach button became an icon-only `IconButton` + SDK `Tooltip`.
+- `acp-chat.css`: the tool-row box (border/background/padding) removed for
+  the default case; `.acp-chat__scroller`'s gap widened to 18px (now only
+  separating turns) with a new tight 4px `.acp-chat__turn-body` gap inside
+  one; `.acp-chat__command-palette` repositioned `position: absolute; bottom:
+100%` off a newly `position: relative` `.acp-chat__composer`, so it
+  overlays the transcript instead of participating in the composer's flex
+  layout — pure CSS, no portal.
+- Deliberately not built (see the RFC's Alternatives/findings for the "why"
+  behind each): the palette's detail card; a literal three-entry `+` attach
+  menu (Silo has one attach action, not three); a recoloured circular
+  Send/Stop (no token for it without inventing one, which the design-tokens
+  lint forbids).
+- New/changed tests: `transcript-model.test.ts` grew `groupTurns`,
+  `nextEntryKey`, `elapsedLabel`, `workedForLabel` coverage (leading turn with
+  no user message, a turn still awaiting a reply, multi-turn grouping,
+  second-rounding and minute formatting). `pnpm test` (all 11 packages),
+  `pnpm --filter silo exec tsc --noEmit`, and `pnpm lint` (including the
+  `silo/extension-design-tokens-only` stylelint rule) all green.
+
+**Verified live** (attached dev app — confirmed its `src-tauri` binary's cwd
+matched this worktree before touching it — throwaway sandbox workspace,
+`core.newAgent.claude-chat`): turn grouping and the footer both confirmed by
+DOM query — two prompts produced two independently-footed `.acp-chat__turn`
+blocks, the in-flight one reading a bare live-ticking duration and each
+completed one `"Worked for 14s"`; the `/` palette confirmed `position:
+absolute` with rows populated. **Not verified live:** the compact tool-row
+styling (finding 1's main visual change) — three consecutive prompts in that
+sandbox session each hit the same transient upstream failure (retry ×3, give
+up at 14s, no tool call ever issued), unrelated to this change. One
+DOM-hygiene note: two `.acp-chat__input` elements were briefly observed in
+the page — traced to an inert, zero-turn `.acp-chat` tree with no backing
+session, consistent with a Vite HMR ghost mount left over from this session's
+own repeated edits to `AcpChatPanel.tsx`/`acp-chat.css`, not a second real
+panel or workspace (confirmed via `listPanels`, which showed exactly one
+recorded `agents-chat-panel`, and via the "real" tree's turns matching my own
+typed prompts verbatim). Harmless, but worth knowing if it recurs.
+
+**Sign-off:** not yet Dave's — this handoff is the record for his pass. He
+should specifically re-check a live tool call (the one thing this session
+couldn't exercise) against the recording, alongside everything else, before
+merging `feat/agent-sessions` to `main`.

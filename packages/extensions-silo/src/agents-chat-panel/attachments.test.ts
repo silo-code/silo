@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { basename, fileUri, toAttachment } from "./attachments";
+import { addAttachments, basename, fileUri, toAttachment } from "./attachments";
 
 describe("basename", () => {
   it("takes the last segment of a posix or windows path", () => {
@@ -28,5 +28,13 @@ describe("toAttachment", () => {
       uri: "file:///Users/d/notes/todo.md",
       name: "todo.md",
     });
+  });
+});
+
+describe("addAttachments", () => {
+  it("appends new chips and skips a uri that is already staged", () => {
+    const a = toAttachment("/Users/d/a.ts");
+    const b = toAttachment("/Users/d/b.ts");
+    expect(addAttachments([a], [a, b])).toEqual([a, b]);
   });
 });

@@ -8,12 +8,18 @@ import {
   appendNotice,
   appendUserMessage,
   applyUpdate,
+  elapsedLabel,
   emptyTranscript,
+  formatToolInput,
+  groupTurns,
+  nextEntryKey,
   planRows,
   seedFromJournal,
   stopReasonNotice,
   toolContentLines,
+  toolOutputIsMarkdown,
   toolStatusTone,
+  workedForLabel,
   type MessageEntry,
   type PlanEntry,
   type ToolEntry,
@@ -155,6 +161,27 @@ describe("applyUpdate — tool calls", () => {
     });
   });
 
+  it("keeps a protocol diff on the row so the panel can paint a hunk", () => {
+    const t = fold([
+      tool("tool_call", {
+        toolCallId: "c1",
+        title: "Edit a.ts",
+        kind: "edit",
+        content: [
+          {
+            type: "diff",
+            path: "src/a.ts",
+            oldText: "old\n",
+            newText: "new\n",
+          },
+        ],
+      }),
+    ]);
+    expect(t.entries[0]).toMatchObject({
+      diffs: [{ path: "src/a.ts", oldText: "old\n", newText: "new\n" }],
+    });
+  });
+
   it("patches the existing row in place on tool_call_update", () => {
     const t = fold([
       tool("tool_call", {
@@ -204,6 +231,27 @@ describe("applyUpdate — tool calls", () => {
     expect(t.entries).toHaveLength(2);
     expect((t.entries[0] as ToolEntry).status).toBe("completed");
     expect((t.entries[1] as ToolEntry).status).toBe("pending");
+  });
+
+  it("carries rawInput through", () => {
+    const t = fold([
+      tool("tool_call", {
+        toolCallId: "c1",
+        title: "Shell",
+        rawInput: { command: "ls -la" },
+      }),
+    ]);
+    expect((t.entries[0] as ToolEntry).rawInput).toEqual({
+      command: "ls -la",
+    });
+  });
+
+  it("does not blank rawInput when an update carries none", () => {
+    const t = fold([
+      tool("tool_call", { toolCallId: "c1", title: "Shell", rawInput: "ls" }),
+      tool("tool_call_update", { toolCallId: "c1", status: "completed" }),
+    ]);
+    expect((t.entries[0] as ToolEntry).rawInput).toBe("ls");
   });
 });
 
@@ -309,6 +357,28 @@ describe("appendUserMessage / appendNotice", () => {
   });
 });
 
+describe("formatToolInput", () => {
+  it("shows nothing for undefined, null, or an empty object", () => {
+    expect(formatToolInput(undefined)).toBeUndefined();
+    expect(formatToolInput(null)).toBeUndefined();
+    expect(formatToolInput({})).toBeUndefined();
+  });
+
+  it("prints a bare string as-is", () => {
+    expect(formatToolInput("ls -la")).toBe("ls -la");
+  });
+
+  it("shows nothing for an empty string", () => {
+    expect(formatToolInput("")).toBeUndefined();
+  });
+
+  it("pretty-prints an object", () => {
+    expect(formatToolInput({ command: "ls -la" })).toBe(
+      JSON.stringify({ command: "ls -la" }, null, 2),
+    );
+  });
+});
+
 describe("toolContentLines", () => {
   it("returns nothing when the call carried no content", () => {
     expect(toolContentLines(undefined)).toEqual([]);
@@ -328,6 +398,18 @@ describe("toolContentLines", () => {
         { type: "terminal", terminalId: "t1" },
       ]),
     ).toEqual(["[image]", "[terminal]"]);
+  });
+});
+
+describe("toolOutputIsMarkdown", () => {
+  it("treats a fenced block as markdown — the ```console shell-result case", () => {
+    expect(toolOutputIsMarkdown("```console\nls\n```")).toBe(true);
+  });
+
+  it("leaves JSON and plain stdout literal, so underscores stay underscores", () => {
+    expect(toolOutputIsMarkdown('{\n  "project_path": "/tmp"\n}')).toBe(false);
+    expect(toolOutputIsMarkdown("agent-monitor:  30")).toBe(false);
+    expect(toolOutputIsMarkdown("")).toBe(false);
   });
 });
 
@@ -373,6 +455,80 @@ describe("stopReasonNotice", () => {
     expect(stopReasonNotice("something_else")?.text).toContain(
       "something_else",
     );
+  });
+});
+
+// RFC 0043 finding 1 — grouping entries into turns for spacing + a footer.
+describe("groupTurns", () => {
+  it("is empty for an empty transcript", () => {
+    expect(groupTurns([])).toEqual([]);
+  });
+
+  it("groups a user message with everything up to the next one", () => {
+    const t = fold([
+      chunk("user_message_chunk", "hi", "u1"),
+      chunk("agent_message_chunk", "hello", "a1"),
+      tool("tool_call", { toolCallId: "1", title: "Shell" }),
+      chunk("user_message_chunk", "thanks", "u2"),
+      chunk("agent_message_chunk", "np", "a2"),
+    ]);
+    const turns = groupTurns(t.entries);
+    expect(turns).toHaveLength(2);
+    expect(turns[0]?.user).toMatchObject({ role: "user", text: "hi" });
+    expect(turns[0]?.rest.map((e) => e.type)).toEqual(["message", "tool"]);
+    expect(turns[1]?.user).toMatchObject({ role: "user", text: "thanks" });
+    expect(turns[1]?.rest.map((e) => e.type)).toEqual(["message"]);
+  });
+
+  it("gives a leading turn (no user entry) to content before any user message", () => {
+    const t = fold([chunk("agent_message_chunk", "hello", "a1")]);
+    const turns = groupTurns(t.entries);
+    expect(turns).toHaveLength(1);
+    expect(turns[0]?.user).toBeUndefined();
+    expect(turns[0]?.rest.map((e) => e.type)).toEqual(["message"]);
+  });
+
+  it("keeps a keyless trailing turn for a user message with no reply yet", () => {
+    const t = fold([chunk("user_message_chunk", "hi", "u1")]);
+    const turns = groupTurns(t.entries);
+    expect(turns).toHaveLength(1);
+    expect(turns[0]?.user).toMatchObject({ text: "hi" });
+    expect(turns[0]?.rest).toEqual([]);
+  });
+});
+
+describe("nextEntryKey", () => {
+  it("predicts the key appendEntry will give the next entry", () => {
+    expect(nextEntryKey(emptyTranscript)).toBe("e1");
+    const t = fold([chunk("user_message_chunk", "hi", "u1")]);
+    expect(nextEntryKey(t)).toBe(`e${t.seq + 1}`);
+    const next = appendUserMessage(t, "again");
+    expect(next.entries[next.entries.length - 1]?.key).toBe(nextEntryKey(t));
+  });
+});
+
+describe("elapsedLabel", () => {
+  it("formats seconds under a minute", () => {
+    expect(elapsedLabel(18_000)).toBe("18s");
+  });
+
+  it("formats a duration at or over a minute as minutes and seconds", () => {
+    expect(elapsedLabel(90_000)).toBe("1m 30s");
+  });
+
+  it("rounds to the nearest second", () => {
+    expect(elapsedLabel(1_700)).toBe("2s");
+  });
+
+  it("floors a negative duration to zero rather than reading backwards", () => {
+    expect(elapsedLabel(-50)).toBe("0s");
+  });
+});
+
+describe("workedForLabel", () => {
+  it("prefixes the elapsed label", () => {
+    expect(workedForLabel(18_000)).toBe("Worked for 18s");
+    expect(workedForLabel(90_000)).toBe("Worked for 1m 30s");
   });
 });
 

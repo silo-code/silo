@@ -25,9 +25,7 @@ import { AgentsPanel } from "./agents-panel";
 import { initDoneSince, recordDoneSince } from "./done-since";
 import { initManualOrder } from "./manual-order";
 import { AgentIconGlyph } from "@silo-code/sdk";
-import styles from "./styles.css?inline";
-
-const STYLE_ID = "silo-agents-styles";
+import "./styles.css";
 
 function activate(ctx: ExtensionContext): AgentsExtensionAPI {
   ctx.subscriptions.push(initSettings(ctx.storage.global));
@@ -309,8 +307,6 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
   registerGroupByToolbarItem();
   ctx.subscriptions.push({ dispose: () => groupByToolbarItem?.dispose() });
 
-  injectStyles();
-
   return {
     BehaviorPanel: AgentsBehaviorPanel,
     NavigatorPanel: AgentsNavigatorPanel,
@@ -319,16 +315,7 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
 }
 
 function deactivate() {
-  document.getElementById(STYLE_ID)?.remove();
   clearSettingsListeners();
-}
-
-function injectStyles() {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = styles;
-  document.head.appendChild(style);
 }
 
 export const extension: Extension<AgentsExtensionAPI> = {

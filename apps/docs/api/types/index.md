@@ -114,6 +114,8 @@ the published reference is exactly this surface — no more, no less.
 - [AgentPermissionRequest](interfaces/AgentPermissionRequest.md)
 - [AgentSessionConfigChoice](interfaces/AgentSessionConfigChoice.md)
 - [AgentSessionConfigOption](interfaces/AgentSessionConfigOption.md)
+- [AgentCommand](interfaces/AgentCommand.md)
+- [AgentPromptCapabilities](interfaces/AgentPromptCapabilities.md)
 - [AgentSessionHandle](interfaces/AgentSessionHandle.md)
 - [AgentSessionConnectOptions](interfaces/AgentSessionConnectOptions.md)
 - [AgentSessionRestore](interfaces/AgentSessionRestore.md)

@@ -1,6 +1,6 @@
 # Interface: AgentSessionConnectOptions
 
-Defined in: [packages/sdk/src/agents-service.ts:1075](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1075)
+Defined in: [packages/sdk/src/agents-service.ts:1173](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1173)
 
 **`Beta`**
 
@@ -14,7 +14,7 @@ Options for [AgentSessionsService.connect](AgentSessionsService.md#connect).
 optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1077](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1077)
+Defined in: [packages/sdk/src/agents-service.ts:1175](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1175)
 
 **`Beta`**
 
@@ -28,7 +28,7 @@ Working directory for the agent. Defaults to the workspace folder.
 optional workspaceId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1080](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1080)
+Defined in: [packages/sdk/src/agents-service.ts:1178](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1178)
 
 **`Beta`**
 
@@ -43,7 +43,7 @@ Which workspace the session belongs to (for
 optional title?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1098](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1098)
+Defined in: [packages/sdk/src/agents-service.ts:1196](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1196)
 
 **`Beta`**
 
@@ -71,7 +71,7 @@ title to show early.
 optional reveal?: () => void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1116](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1116)
+Defined in: [packages/sdk/src/agents-service.ts:1214](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1214)
 
 **`Beta`**
 
@@ -103,7 +103,7 @@ can honestly do for a session whose UI it does not own.
 optional resume?: AgentSessionRestore;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1129](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1129)
+Defined in: [packages/sdk/src/agents-service.ts:1227](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1227)
 
 **`Beta`**
 

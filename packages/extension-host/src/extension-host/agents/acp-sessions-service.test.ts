@@ -94,6 +94,7 @@ vi.mock("./chat-session-journal", async (importOriginal) => {
 import { store } from "../../state/store";
 import type { WorkspaceInternal } from "../../state/types";
 import { replaceAgentProfiles } from "../../state/agent-profiles";
+import { outputStore } from "../output-store";
 import {
   chatAgentInfos,
   getChatAgentEntry,
@@ -357,6 +358,44 @@ describe("turn lifecycle → ctx.agents status", () => {
     });
   });
 
+  // A turn an agent handles entirely on its own — a retry loop it never
+  // reports as a JSON-RPC error, ending in an ordinary `stopReason` — leaves
+  // nothing else in this channel to diagnose from (recon 2026-09-10: pi-acp's
+  // own auto-retry surfaces only as prose in the transcript). The duration is
+  // the one signal Silo can log for free, regardless of what the agent chose
+  // to report.
+  it("logs a session/prompt turn's outcome and duration to the Agents channel", async () => {
+    const handle = await service.connect("claude-chat");
+    fakeClient.prompt.mockResolvedValue({ stopReason: "end_turn" });
+    outputStore.channels["silo:agents"]!.entries.length = 0;
+
+    await handle.prompt([{ type: "text", text: "hi" }]);
+
+    const entries = outputStore.channels["silo:agents"]!.entries;
+    const line = entries.find((e) =>
+      e.message.includes(`session/prompt for ${handle.sessionId}`),
+    );
+    expect(line?.message).toMatch(
+      /session\/prompt for .+ finished \(end_turn\) in \d+ms\./,
+    );
+  });
+
+  it("logs a session/prompt failure to the Agents channel, not just to the caller", async () => {
+    const handle = await service.connect("claude-chat");
+    fakeClient.prompt.mockRejectedValue(new Error("Internal error"));
+    outputStore.channels["silo:agents"]!.entries.length = 0;
+
+    await expect(
+      handle.prompt([{ type: "text", text: "hi" }]),
+    ).rejects.toThrow();
+
+    const entries = outputStore.channels["silo:agents"]!.entries;
+    const line = entries.find((e) =>
+      e.message.includes(`session/prompt failed for ${handle.sessionId}`),
+    );
+    expect(line?.message).toContain("Internal error");
+  });
+
   it("a permission request raises attention; answering clears it", async () => {
     const handle = await service.connect("claude-chat");
     const seen = vi.fn();
@@ -596,6 +635,80 @@ describe("session config options (RFC 0038 Session 3.1)", () => {
       handle.configOptions.find((o) => o.id === "mode")!.currentValue,
     ).toBe("plan");
     expect(changed).toHaveBeenCalledTimes(1);
+  });
+});
+
+// RFC 0040 — commands (skills included, unsplit) and prompt capabilities.
+describe("session commands and prompt capabilities (RFC 0040)", () => {
+  it("is empty until the agent's first available_commands_update", async () => {
+    const handle = await service.connect("claude-chat");
+    expect(handle.commands).toEqual([]);
+  });
+
+  it("surfaces commands from available_commands_update, skills included", async () => {
+    const handle = await service.connect("claude-chat");
+    const changed = vi.fn();
+    handle.onCommandsChanged(changed);
+
+    captured.onUpdate({
+      sessionUpdate: "available_commands_update",
+      availableCommands: [
+        {
+          name: "compact",
+          description: "Manually compact the session context",
+          input: { hint: "optional custom instructions" },
+        },
+        { name: "skill:code-review", description: "Review the changes" },
+      ],
+    });
+
+    expect(handle.commands).toEqual([
+      {
+        name: "compact",
+        description: "Manually compact the session context",
+        input: { hint: "optional custom instructions" },
+      },
+      { name: "skill:code-review", description: "Review the changes" },
+    ]);
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces the whole list on a later available_commands_update", async () => {
+    const handle = await service.connect("claude-chat");
+    captured.onUpdate({
+      sessionUpdate: "available_commands_update",
+      availableCommands: [{ name: "compact" }],
+    });
+    captured.onUpdate({
+      sessionUpdate: "available_commands_update",
+      availableCommands: [{ name: "review" }],
+    });
+    expect(handle.commands.map((c) => c.name)).toEqual(["review"]);
+  });
+
+  it("defaults every promptCapabilities field to false when the agent sent none", async () => {
+    const handle = await service.connect("claude-chat");
+    expect(handle.promptCapabilities).toEqual({
+      image: false,
+      audio: false,
+      embeddedContext: false,
+    });
+  });
+
+  it("reads promptCapabilities from initialize, defaulting an absent field to false", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: true },
+      promptCapabilities: { image: true, embeddedContext: true },
+      authMethods: [],
+      raw: {},
+    });
+    const handle = await service.connect("claude-chat");
+    expect(handle.promptCapabilities).toEqual({
+      image: true,
+      audio: false,
+      embeddedContext: true,
+    });
   });
 });
 

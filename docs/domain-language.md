@@ -275,6 +275,17 @@ The public Agent Skills directory / leaderboard used to discover and install
 Skills (`npx skills add …`).
 _Avoid_: Extension registry (that's extensions.getsilo.dev), skill store
 
+**Naming collision (RFC 0040):** a Chat session's `AgentCommand` list
+(`session.commands`) can include entries that _are_ Agent Skills the agent
+loaded — `claude-agent-acp` marks them with a `(user)` / `(project)` suffix in
+`description`, echoing this same **Project skill** / **User skill**
+distinction, and `pi-acp` marks them with a `skill:` name prefix instead. Silo
+deliberately does not split them into a second list (the Agent Client Protocol
+has no separate skills concept, and the two agents disagree on how to mark
+them) — they render in the same `/` palette as any other command. Don't call
+an `AgentCommand` a "Skill" in code or docs; it is a protocol-level command
+that _might be_ backed by one.
+
 ### Agents
 
 **Agent Session** (`AgentInfo`, RFC 0038) — the entity `ctx.agents` is keyed
@@ -493,7 +504,8 @@ Protocol — **not** the wire format itself. Everything a **Transcript** must dr
 is a modelled field (`text` / `content` for the message kinds, `toolCall` for
 `tool_call` and `tool_call_update`, `plan` for `plan`); `raw` is the **escape
 hatch**, carrying the untouched protocol object for the kinds deliberately left
-unmodelled (`available_commands_update`, `usage_update`, a vendor's `_meta`).
+unmodelled (`usage_update`, a vendor's `_meta`). `available_commands_update` is
+no longer one of them (RFC 0040) — it lands on `AgentSessionHandle.commands`.
 The distinction is the contract: **`raw` tracks the protocol, not Silo's
 semver**, so a field inside it can change under a consumer with no SDK major,
 while a modelled field cannot. Needing `raw` for something every Chat UI must

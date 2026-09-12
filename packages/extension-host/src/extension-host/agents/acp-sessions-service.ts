@@ -22,10 +22,12 @@
  */
 
 import type {
+  AgentCommand,
   AgentContentBlock,
   AgentInfo,
   AgentPermissionRequest,
   AgentPromptBlock,
+  AgentPromptCapabilities,
   AgentPromptResult,
   AgentSessionConfigOption,
   AgentSessionConnectOptions,
@@ -44,6 +46,7 @@ import {
   AcpRpcError,
   capabilityEnabled,
   createAcpClient,
+  promptCapabilityEnabled,
   type AcpClient,
   type AcpClientCallbacks,
   type AcpConfigOption,
@@ -62,6 +65,7 @@ import {
 import { getActiveAgentSession } from "./agent-surface-registry";
 import { noteChatSessionConfigDir } from "./chat-session-restore";
 import {
+  parseCommands,
   parseContentBlock,
   parsePlanEntries,
   parseToolCall,
@@ -95,15 +99,36 @@ function nowIso(): string {
 }
 
 function toAcpBlocks(blocks: readonly AgentPromptBlock[]): AcpContentBlock[] {
-  return blocks.map((b) =>
-    b.type === "text"
-      ? { type: "text", text: b.text }
-      : {
-          type: "resource_link",
+  return blocks.map((b) => {
+    if (b.type === "text") return { type: "text", text: b.text };
+    if (b.type === "resource")
+      return {
+        type: "resource",
+        resource: {
           uri: b.uri,
-          ...(b.name ? { name: b.name } : {}),
+          text: b.text,
+          ...(b.mimeType ? { mimeType: b.mimeType } : {}),
         },
-  );
+      };
+    return {
+      type: "resource_link",
+      uri: b.uri,
+      ...(b.name ? { name: b.name } : {}),
+    };
+  });
+}
+
+/** `initialize`'s `promptCapabilities`, normalised so a missing field (Claude
+ *  and codex both omit `audio`) reads as `false` rather than `undefined` —
+ *  RFC 0040. */
+function toSdkPromptCapabilities(
+  raw: { image?: unknown; audio?: unknown; embeddedContext?: unknown } = {},
+): AgentPromptCapabilities {
+  return {
+    image: promptCapabilityEnabled(raw.image),
+    audio: promptCapabilityEnabled(raw.audio),
+    embeddedContext: promptCapabilityEnabled(raw.embeddedContext),
+  };
 }
 
 function toSdkConfigOptions(
@@ -395,6 +420,7 @@ export function createAgentSessionsService(
         (r: AgentPermissionRequest) => void
       >();
       const configListeners = new Set<() => void>();
+      const commandListeners = new Set<() => void>();
       let disposed = false;
       // The **live RPC** session id — empty when `resumeOutcome` is
       // `"journal-only"` (no live connection to send it to). See
@@ -409,6 +435,11 @@ export function createAgentSessionsService(
       // `setConfigOption` and a `current_mode_update` the agent sends itself
       // replace it (immutably) and fire `configListeners`.
       let configOptions: AgentSessionConfigOption[] = [];
+      // Live snapshot, same shape: empty until the agent's first
+      // `available_commands_update` (RFC 0040) — `connect()` does not wait
+      // for it, since nothing in the protocol requires an agent to ever send
+      // one.
+      let commands: readonly AgentCommand[] = [];
 
       function fireConfigChanged(): void {
         for (const l of configListeners) {
@@ -417,6 +448,18 @@ export function createAgentSessionsService(
           } catch (err) {
             agentsChannel.debug(
               `chat session onConfigOptionsChanged listener threw: ${err}`,
+            );
+          }
+        }
+      }
+
+      function fireCommandsChanged(): void {
+        for (const l of commandListeners) {
+          try {
+            l();
+          } catch (err) {
+            agentsChannel.debug(
+              `chat session onCommandsChanged listener threw: ${err}`,
             );
           }
         }
@@ -465,6 +508,12 @@ export function createAgentSessionsService(
 
       const callbacks: AcpClientCallbacks = {
         onUpdate(update) {
+          // The agent's slash-command / skill list (RFC 0040) — a live
+          // snapshot, replaced wholesale each time exactly like `configOptions`.
+          if (update.sessionUpdate === "available_commands_update") {
+            commands = parseCommands(update.availableCommands);
+            fireCommandsChanged();
+          }
           // The agent moved its own mode (e.g. a slash-command). Reflect it in
           // the `mode` config option so a bound Select is never stale.
           if (update.sessionUpdate === "current_mode_update") {
@@ -616,6 +665,11 @@ export function createAgentSessionsService(
       const canResumeCap = capabilityEnabled(init.sessionCapabilities?.resume);
       const canCloseCap = capabilityEnabled(init.sessionCapabilities?.close);
       const resumeCaps = { resume: canResumeCap, load: canLoadSession };
+      // Read once, fixed for the session's life (RFC 0040) — unlike
+      // `configOptions` / `commands`, nothing renegotiates this mid-session.
+      const promptCapabilities = toSdkPromptCapabilities(
+        init.promptCapabilities,
+      );
 
       async function startFreshSession(): Promise<{
         sessionId: string;
@@ -925,15 +979,29 @@ export function createAgentSessionsService(
             `silo-journal-user-${++userMsgSeq}`,
           );
           if (journalUpdate) journalWriter?.append(journalUpdate);
+          // `session/prompt` itself is otherwise unlogged: an agent that
+          // silently retries and gives up *inside* its own turn (no JSON-RPC
+          // error, `stopReason: "end_turn"` either way) leaves nothing in this
+          // channel to diagnose from — only the transcript, which shows
+          // whatever prose the agent chose to print. The duration is the one
+          // signal Silo can add for free: a turn that took many times longer
+          // than usual is the tell, even when the agent reports success.
+          const startedAt = Date.now();
           try {
             const { stopReason } = await client.prompt(
               acpSessionId,
               toAcpBlocks(blocks),
             );
+            agentsChannel.debug(
+              `[${label}] session/prompt for ${persistSessionId} finished (${stopReason}) in ${Date.now() - startedAt}ms.`,
+            );
             finishTurn(stopReason === "cancelled" ? "cancelled" : "finished");
             return { stopReason };
           } catch (err) {
             if (!disposed) finishTurn("failed");
+            agentsChannel.debug(
+              `[${label}] session/prompt failed for ${persistSessionId} after ${Date.now() - startedAt}ms: ${asError(err, "").message}`,
+            );
             throw asError(err, "The prompt turn failed");
           }
         },
@@ -1004,6 +1072,17 @@ export function createAgentSessionsService(
           return { dispose: () => configListeners.delete(listener) };
         },
 
+        get commands(): readonly AgentCommand[] {
+          return commands;
+        },
+
+        onCommandsChanged(listener: () => void): Disposable {
+          commandListeners.add(listener);
+          return { dispose: () => commandListeners.delete(listener) };
+        },
+
+        promptCapabilities,
+
         onUpdate(listener: (update: AgentSessionUpdate) => void): Disposable {
           updateListeners.add(listener);
           return { dispose: () => updateListeners.delete(listener) };
@@ -1041,6 +1120,7 @@ export function createAgentSessionsService(
           updateListeners.clear();
           permissionListeners.clear();
           configListeners.clear();
+          commandListeners.clear();
           agentsChannel.info(`Chat session ${infoId} disposed.`);
         },
       };

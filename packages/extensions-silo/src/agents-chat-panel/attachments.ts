@@ -44,3 +44,15 @@ export function fileUri(path: string): string {
 export function toAttachment(path: string): Attachment {
   return { uri: fileUri(path), name: basename(path) };
 }
+
+/** Append attachments, skipping any whose `uri` is already staged. */
+export function addAttachments(
+  prev: readonly Attachment[],
+  incoming: readonly Attachment[],
+): Attachment[] {
+  const next = [...prev];
+  for (const att of incoming) {
+    if (!next.some((a) => a.uri === att.uri)) next.push(att);
+  }
+  return next;
+}

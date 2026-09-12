@@ -23,21 +23,9 @@ import type {
   ExtensionContext,
 } from "@silo-code/sdk";
 import { AcpChatPanel, type AcpChatPanelParams } from "./AcpChatPanel";
-import styles from "./acp-chat.css?inline";
-
-const STYLE_ID = "silo-agents-chat-panel-styles";
-
-function injectStyles() {
-  if (document.getElementById(STYLE_ID)) return;
-  const el = document.createElement("style");
-  el.id = STYLE_ID;
-  el.textContent = styles;
-  document.head.appendChild(el);
-}
+import "./acp-chat.css";
 
 function activate(ctx: ExtensionContext) {
-  injectStyles();
-
   ctx.subscriptions.push(
     ctx.registerDockPanelKind({
       id: "agents-chat-panel",
@@ -66,10 +54,6 @@ function activate(ctx: ExtensionContext) {
   );
 }
 
-function deactivate() {
-  document.getElementById(STYLE_ID)?.remove();
-}
-
 export const extension: Extension = {
   id: "silo.agents-chat-panel",
   manifest: {
@@ -78,5 +62,4 @@ export const extension: Extension = {
       "A center-dock transcript panel for an ACP Chat session — streaming text, thinking, tool calls, the plan, and inline permission requests.",
   },
   activate,
-  deactivate,
 };

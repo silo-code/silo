@@ -7,8 +7,8 @@
  *
  * - Every control boundary is `--silo-color-input-border`, never
  *   `--silo-color-border`: the latter is `transparent` in the high-contrast
- *   themes, which silently erases a border that is load-bearing here (the
- *   composer would merge into the transcript).
+ *   themes, which silently erases a border that is load-bearing here (a tool
+ *   row or code block would lose its outline entirely).
  * - No `backdrop-filter` anywhere. It creates a containing block even at
  *   `position: static`, which would trap the composer's own stacking and break
  *   the scroller's sizing.
@@ -28,7 +28,13 @@
   background: var(--silo-color-content-bg);
   color: var(--silo-color-content-text);
   font-family: var(--silo-font-ui);
-  font-size: var(--silo-font-size-base);
+  /* A point above the theme's base (Dave's call) — relative to the token, not
+     a literal size, so it still tracks `uiFontSize` scaling. */
+  font-size: calc(var(--silo-font-size-base) + 1px);
+  /* The app shell sets user-select: none on chrome; opt the transcript back
+     in so Copy / Select All have something to grab. */
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* The cwd breadcrumb strip is host-drawn (RFC 0039) — `.dock-panel-chrome`,
@@ -43,17 +49,62 @@
   overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  /* Turn-to-turn spacing (Dave's call) — the break after a reply and
+     before the next user bubble. */
+  gap: 40px;
   padding: 12px 14px;
+}
+
+/* --- turns --------------------------------------------------------------- */
+/* One user message plus everything the agent produced in reply, grouped for
+   spacing and a completion footer (RFC 0043 finding 1). */
+
+.acp-chat__turn {
+  display: flex;
+  flex-direction: column;
+  /* User prompt → reply stays 50px; the "Worked for…" footer sits closer
+     (Dave's call: half that gap). */
+}
+
+.acp-chat__turn > * + * {
+  margin-top: 50px;
+}
+
+.acp-chat__turn > .acp-chat__turn-body + .acp-chat__turn-footer,
+.acp-chat__turn > .acp-chat__message + .acp-chat__turn-footer {
+  margin-top: 25px;
+}
+
+.acp-chat__turn-body {
+  display: flex;
+  flex-direction: column;
+  /* Tool ↔ text stays 30px; consecutive tool rows stack tighter so a burst
+     of calls reads as one group (Dave's call). */
+}
+
+.acp-chat__turn-body > * + * {
+  margin-top: 30px;
+}
+
+.acp-chat__turn-body > .acp-chat__tool + .acp-chat__tool {
+  margin-top: 8px;
+}
+
+.acp-chat__turn-footer {
+  font-size: var(--silo-font-size-base);
+  color: var(--silo-color-text-lo);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.acp-chat__turn-footer[data-running] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .acp-chat__notice {
   margin: auto 0;
-}
-
-.acp-chat__status {
-  color: var(--silo-color-text-lo);
-  font-size: var(--silo-font-size-sm);
 }
 
 /* --- messages ----------------------------------------------------------- */
@@ -63,6 +114,9 @@
   flex-direction: column;
   gap: 2px;
   max-width: 100%;
+  /* User + agent prose — another point above the panel (Dave's call). Tool
+     rows and the composer keep the panel's +1px. */
+  font-size: calc(var(--silo-font-size-base) + 2px);
 }
 
 .acp-chat__message[data-role="user"] {
@@ -93,16 +147,34 @@
   line-height: 1.5;
 }
 
+/* Terminal-style dashed underline (ADR 0027). Plain click selects; ⌘/Ctrl
+   + click opens. */
+.acp-chat__link {
+  color: inherit;
+  text-decoration: underline dashed;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+.acp-chat__link:hover {
+  color: var(--silo-color-accent);
+}
+
 /* --- tool calls --------------------------------------------------------- */
+/* Collapsed: a single plain line (RFC 0043 finding 1). Expanded: a bordered
+   card with sunken Input / Output wells — the Cursor-shaped disclosure. */
 
 .acp-chat__tool {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
+  gap: 2px;
+}
+
+.acp-chat__tool[data-expanded] {
+  gap: 0;
   border: 1px solid var(--silo-color-input-border);
   border-radius: var(--silo-radius-md);
-  background: var(--silo-color-bg);
+  overflow: hidden;
 }
 
 .acp-chat__tool-head {
@@ -110,6 +182,80 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
+  /* The row title is chrome — skip it when drag-selecting the transcript.
+     Expanded Input / Output re-enables selection on `.acp-chat__tool-body`. */
+  user-select: none;
+  -webkit-user-select: none;
+  /* The padding + negative margin trick: the hover/expanded background below
+     gets room to breathe without shifting the row's own position in normal
+     flow (no padding would mean the highlight hugs the glyphs edge-to-edge). */
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--silo-radius-sm);
+}
+
+.acp-chat__tool-head[data-interactive] {
+  cursor: pointer;
+}
+
+/* Collapsed by default (Dave's call) — hover highlights the row, and only a
+   row with something to expand gets the hover/focus treatment at all. */
+.acp-chat__tool-head[data-interactive]:hover,
+.acp-chat__tool-head[data-interactive]:focus-visible {
+  background: var(--silo-color-bg-hover);
+}
+
+.acp-chat__tool-icon-stack {
+  position: relative;
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+}
+
+.acp-chat__tool-icon {
+  flex: 0 0 auto;
+  color: var(--silo-color-text-lo);
+}
+
+/* The two icons in the stack overlay each other; only one is ever visible.
+   Hovering (or expanding) the row swaps the tool glyph for a chevron —
+   pointing right while collapsed, rotated down once expanded, the usual
+   disclosure convention. */
+.acp-chat__tool-icon-stack .acp-chat__tool-icon {
+  position: absolute;
+  inset: 0;
+}
+
+.acp-chat__tool-icon-stack .acp-chat__tool-icon--hover {
+  opacity: 0;
+}
+
+.acp-chat__tool-head[data-interactive]:hover
+  .acp-chat__tool-icon-stack
+  .acp-chat__tool-icon--default,
+.acp-chat__tool[data-expanded]
+  .acp-chat__tool-icon-stack
+  .acp-chat__tool-icon--default {
+  opacity: 0;
+}
+
+.acp-chat__tool-head[data-interactive]:hover
+  .acp-chat__tool-icon-stack
+  .acp-chat__tool-icon--hover,
+.acp-chat__tool[data-expanded]
+  .acp-chat__tool-icon-stack
+  .acp-chat__tool-icon--hover {
+  opacity: 1;
+}
+
+.acp-chat__tool[data-expanded]
+  .acp-chat__tool-icon-stack
+  .acp-chat__tool-icon--hover {
+  transform: rotate(90deg);
+}
+
+.acp-chat__tool-kind {
+  flex: 0 0 auto;
 }
 
 .acp-chat__tool-title {
@@ -118,20 +264,127 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__tool[data-expanded] .acp-chat__tool-head {
+  padding: 8px 10px;
+  margin: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--silo-color-input-border);
+}
+
+.acp-chat__tool[data-expanded] .acp-chat__tool-title {
+  color: inherit;
 }
 
 .acp-chat__tool-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 0 20px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.acp-chat__tool[data-expanded] .acp-chat__tool-body {
+  gap: 10px;
+  margin: 0;
+  padding: 10px;
+}
+
+.acp-chat__tool-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.acp-chat__tool-section-label {
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__tool-inline-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 0 20px;
+  /* The tool title is chrome; the hunk is content. */
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.acp-chat__diff {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+}
+
+.acp-chat__diff-line {
+  display: flex;
+  gap: 8px;
+  padding: 0 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.acp-chat__diff-gutter {
+  flex: 0 0 auto;
+  min-width: 2ch;
+  text-align: right;
+  color: var(--silo-color-text-lo);
+  font-variant-numeric: tabular-nums;
+}
+
+.acp-chat__diff-mark {
+  flex: 0 0 auto;
+  width: 0.75em;
+  color: inherit;
+}
+
+.acp-chat__diff-line[data-kind="eq"] {
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__diff-line[data-kind="add"] {
+  color: var(--silo-color-ok);
+  background: color-mix(in srgb, var(--silo-color-ok) 14%, transparent);
+}
+
+.acp-chat__diff-line[data-kind="del"] {
+  color: var(--silo-color-err);
+  background: color-mix(in srgb, var(--silo-color-err) 14%, transparent);
+}
+
+.acp-chat__tool-pre {
   margin: 0;
   max-height: 240px;
   /* Wide output scrolls inside its own box — the page body never does. */
   overflow: auto;
   overscroll-behavior: contain;
+  padding: 10px 12px;
+  border-radius: var(--silo-radius-sm);
+  background: var(--silo-color-bg);
   font-family: var(--silo-font-mono);
   font-size: var(--silo-font-size-sm);
   color: var(--silo-color-text-lo);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* A fenced block already lives in this well — don't paint a second box. */
+.acp-chat__tool-pre--md .acp-chat__md pre {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.acp-chat__tool-pre--md .acp-chat__md pre code,
+.acp-chat__tool-pre--md .acp-chat__md code {
+  background: none;
+  padding: 0;
 }
 
 /* --- plan --------------------------------------------------------------- */
@@ -190,7 +443,6 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px;
-  border: 1px solid var(--silo-color-accent);
   border-radius: var(--silo-radius-md);
   background: var(--silo-color-bg);
 }
@@ -214,11 +466,14 @@
 
 .acp-chat__composer {
   flex: 0 0 auto;
+  /* Anchors `.acp-chat__command-palette`, which positions itself relative to
+     this box rather than its own place in the flex column (RFC 0043
+     finding 3). */
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 8px 10px;
-  border-top: 1px solid var(--silo-color-input-border);
   background: var(--silo-color-content-bg);
 }
 
@@ -230,10 +485,53 @@
   resize: none;
 }
 
+/* Dave's call: this field skips the app-wide `:focus-visible` ring (theme.css)
+   — beats its specificity (a `textarea:focus-visible:not(...)` selector) via
+   an extra class instead of `!important`. */
+.acp-chat__input:focus-visible:not([data-focus-item]) {
+  outline: none;
+}
+
 .acp-chat__controls {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+/* Centered under the textarea, out of the flex flow so the profile stays
+   left and Send stays right while Attach / session pills are hidden. */
+.acp-chat__connecting {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 12em);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  pointer-events: none;
+}
+
+.acp-chat__spin {
+  flex: 0 0 auto;
+  animation: acp-chat-spin 0.8s linear infinite;
+}
+
+@keyframes acp-chat-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acp-chat__spin {
+    animation: none;
+  }
 }
 
 .acp-chat__profile {
@@ -243,11 +541,83 @@
 }
 
 /* One per advertised session control (mode, model, …). Sits between the
-   profile picker and the Attach / Send buttons. */
+   Attach icon and the Send slot. */
 .acp-chat__config {
   flex: 0 1 auto;
   min-width: 0;
   max-width: 40%;
+}
+
+/* Pins Send/Stop (or the Continue/Reconnect text buttons) to the far right,
+   regardless of how many pills come before it. */
+.acp-chat__send-slot {
+  margin-left: auto;
+}
+
+/* Send and Stop (Dave's call): filled circles, not text buttons — the
+   `--silo-button-primary-*` / `--silo-button-danger-*` pair is the same
+   semantic tokens `Button`'s own `variant="primary"` / a destructive action
+   use, just applied to a circle instead of a pill. */
+.acp-chat__send,
+.acp-chat__stop {
+  border-radius: 50%;
+  width: 2em;
+  height: 2em;
+}
+
+.acp-chat__send {
+  background: var(--silo-button-primary-bg);
+  color: var(--silo-button-primary-text);
+}
+
+.acp-chat__stop {
+  background: var(--silo-button-danger-bg);
+  color: var(--silo-button-danger-text);
+}
+
+/* --- command palette (RFC 0040 data, RFC 0043 finding 3 placement) ------- */
+/* Floats over the transcript, anchored to the composer's top edge, instead of
+   sitting in normal flow and pushing the input down — Paseo's own popover
+   does exactly this (`autocomplete-popover.tsx`: `position: absolute; bottom:
+   <anchor's top>`). A `claude-agent-acp` session advertises 70 commands
+   (skills included) — cap the palette's height and let it scroll inside
+   itself rather than growing past the transcript. */
+.acp-chat__command-palette {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 100%;
+  margin-bottom: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg);
+  /* Elevation only — matches the sibling extensions that already float a
+     panel over other content (`agents/styles.css`, `file-search/…`); not a
+     themed colour, so it's outside the design-tokens-only rule. */
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+}
+
+.acp-chat__command-palette .silo-list-row {
+  font-size: 1em;
+}
+
+.acp-chat__cmd-title {
+  font-weight: 500;
+}
+
+.acp-chat__cmd-desc {
+  margin-left: 0.5em;
+  color: var(--silo-color-text-lo);
+  font-weight: 400;
+}
+
+.acp-chat__cmd-slash {
+  color: var(--silo-color-text-lo);
+  font-size: calc(1em - 1px);
 }
 
 /* --- file attachments ------------------------------------------------- */
@@ -330,7 +700,7 @@
 .acp-chat__md h5,
 .acp-chat__md h6 {
   margin: 12px 0 6px;
-  font-size: var(--silo-font-size-base);
+  font-size: 1em;
   font-weight: 600;
 }
 

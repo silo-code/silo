@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  parseCommands,
   parseContentBlock,
   parsePlanEntries,
   parseToolCall,
@@ -195,5 +196,58 @@ describe("parseContentBlock", () => {
   it("returns nothing without a type to switch on", () => {
     expect(parseContentBlock({ text: "orphan" })).toBeUndefined();
     expect(parseContentBlock(null)).toBeUndefined();
+  });
+});
+
+// RFC 0040 — commands (and, unmarked or `skill:`-prefixed, skills) advertised
+// over `available_commands_update`.
+describe("parseCommands", () => {
+  it("reads a command with a hinted argument", () => {
+    expect(
+      parseCommands([
+        {
+          name: "compact",
+          description: "Manually compact the session context",
+          input: { hint: "optional custom instructions" },
+        },
+      ]),
+    ).toEqual([
+      {
+        name: "compact",
+        description: "Manually compact the session context",
+        input: { hint: "optional custom instructions" },
+      },
+    ]);
+  });
+
+  it("keeps a skill in the same list, prefix and all — never split out", () => {
+    expect(
+      parseCommands([{ name: "skill:code-review", description: "Review…" }]),
+    ).toEqual([{ name: "skill:code-review", description: "Review…" }]);
+  });
+
+  // Claude sends `input: null`; pi omits the key. Both must normalise to the
+  // same thing so a consumer never has to check for two spellings of "none".
+  it("normalises input: null and an omitted input to the same absence", () => {
+    const [withNull] = parseCommands([{ name: "compact", input: null }]);
+    const [omitted] = parseCommands([{ name: "compact" }]);
+    expect(withNull).toEqual({ name: "compact" });
+    expect(omitted).toEqual({ name: "compact" });
+    expect("input" in withNull).toBe(false);
+    expect("input" in omitted).toBe(false);
+  });
+
+  it("keeps input present-but-empty when the agent gave no hint", () => {
+    const [cmd] = parseCommands([{ name: "compact", input: {} }]);
+    expect(cmd.input).toEqual({});
+  });
+
+  it("drops an entry with no usable name", () => {
+    expect(parseCommands([{ description: "orphan" }])).toEqual([]);
+  });
+
+  it("returns nothing for a non-array payload", () => {
+    expect(parseCommands(undefined)).toEqual([]);
+    expect(parseCommands(null)).toEqual([]);
   });
 });

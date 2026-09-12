@@ -503,9 +503,16 @@ export interface AgentProfilesService {
  *   are all literal.
  * - `"resource_link"` — a pointer to a file (or other URI) the agent may read
  *   if it chooses. `uri` is typically a `file://` path inside the workspace.
+ *   Always accepted — this is a pointer, not embedded content, so it needs no
+ *   {@link AgentPromptCapabilities} gate.
+ * - `"resource"` — the file's own text **inlined** into the prompt, rather
+ *   than a pointer the agent may or may not follow. Only send this to a
+ *   session whose {@link AgentSessionHandle.promptCapabilities} has
+ *   `embeddedContext: true`.
  *
- * Images and embedded binary context are deferred — the agent advertises what
- * it accepts at connect time, and this union grows behind that.
+ * Images are deferred — no probe has yet checked what each agent actually
+ * accepts for one, and this union grows behind that once one has (RFC 0040
+ * open question 3).
  *
  * @category Consumer Services
  * @public
@@ -518,6 +525,15 @@ export type AgentPromptBlock =
       readonly uri: string;
       /** A short display name for the link; defaults to the last path segment. */
       readonly name?: string;
+    }
+  | {
+      readonly type: "resource";
+      /** The resource's own URI, e.g. a `file://` path. */
+      readonly uri: string;
+      readonly mimeType?: string;
+      /** The embedded text content. Binary (blob) resources are not modelled —
+       *  nothing in Silo has needed to embed one yet. */
+      readonly text: string;
     };
 
 /**
@@ -920,6 +936,64 @@ export interface AgentSessionConfigOption {
 }
 
 /**
+ * One command the agent advertises (Agent Client Protocol
+ * `available_commands_update`, RFC 0040). **Skills arrive in this list too**
+ * — the protocol has no separate skills concept, and the two agents probed
+ * mark them differently: pi prefixes the name (`skill:code-review`), Claude
+ * does not mark them at all outside a `(user)` / `(project)` suffix in
+ * {@link description}'s prose. Splitting them back out would mean
+ * vendor-sniffing a label neither agent is contractually bound to keep, so
+ * this surface deliberately does not try.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentCommand {
+  /** What to send after `/` to invoke it — `prompt([{ type: "text", text:
+   *  "/" + name }])`. There is no separate invocation method. */
+  readonly name: string;
+  /** One-line summary for a palette row. */
+  readonly description?: string;
+  /**
+   * Present when the command takes a free-text argument; `hint` is the
+   * agent's own placeholder, when it gave one. Absent means the command takes
+   * none — normalised at the host boundary, since Claude sends `input: null`
+   * where pi omits the key entirely; this type only ever sees one spelling.
+   */
+  readonly input?: { readonly hint?: string };
+}
+
+/**
+ * What a Chat session accepts as prompt content, read once from `initialize`
+ * and fixed for the session's life (RFC 0040). A UI gates its attachment
+ * affordance on this rather than offering one that fails at prompt time.
+ *
+ * A field the agent's `initialize` response omitted defaults to `false`
+ * rather than being left `undefined` — both `codex-acp` and `claude-agent-acp`
+ * omit `audio` entirely (recon 2026-09-09), so treating an absent field as
+ * "not accepted" is the only reading that doesn't require every consumer to
+ * repeat the same `?? false`.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentPromptCapabilities {
+  /** Image content blocks are accepted. Not yet a sendable
+   *  {@link AgentPromptBlock} — see its doc comment. */
+  readonly image: boolean;
+  /** Audio content blocks are accepted. */
+  readonly audio: boolean;
+  /**
+   * Embedded `"resource"` {@link AgentPromptBlock}s are accepted. A
+   * `"resource_link"` (a pointer the agent may read itself) is always
+   * allowed and is not gated on this.
+   */
+  readonly embeddedContext: boolean;
+}
+
+/**
  * A live handle to one **Chat session** (RFC 0038) — an Agent Client Protocol
  * child Silo spawned from a user-authored Chat profile, speaking structured
  * JSON-RPC over piped stdio. Returned by {@link AgentSessionsService.connect}.
@@ -1006,9 +1080,12 @@ export interface AgentSessionHandle {
   cancel(): void;
   /**
    * Subscribe to the turn's {@link AgentSessionUpdate} stream — streaming text,
-   * tool calls, plans. Fires only between {@link prompt} and its resolution,
-   * plus a replay of prior turns right after {@link AgentsService.resume}.
-   * Returns a {@link Disposable}.
+   * tool calls, plans. **Not confined to between {@link prompt} and its
+   * resolution**: some agents send one at connect, before any prompt at all
+   * (pi's own startup banner arrives as an `agent_message_chunk` — recon
+   * 2026-09-09), and a replay of prior turns can follow
+   * {@link AgentsService.resume}. Subscribe before assuming nothing will
+   * arrive yet. Returns a {@link Disposable}.
    */
   onUpdate(listener: (update: AgentSessionUpdate) => void): Disposable;
   /**
@@ -1056,6 +1133,27 @@ export interface AgentSessionHandle {
    * Returns a {@link Disposable}.
    */
   onConfigOptionsChanged(listener: () => void): Disposable;
+  /**
+   * The commands the agent advertises, live — a `/` palette's data source
+   * (RFC 0040). **Empty until the agent's first
+   * `available_commands_update`**: both agents probed send one at connect,
+   * before any prompt, but nothing in the protocol requires it, and pi took
+   * ~12.5s to get there (behind its startup banner) — `connect()` does not
+   * wait for it. Subscribe with {@link onCommandsChanged} and re-read.
+   *
+   * There is no `runCommand()`. Invoke one the same way you'd send anything
+   * else: `prompt([{ type: "text", text: "/" + command.name }])`.
+   */
+  readonly commands: readonly AgentCommand[];
+  /** Fires whenever {@link commands} is replaced. Returns a
+   *  {@link Disposable}. */
+  onCommandsChanged(listener: () => void): Disposable;
+  /**
+   * What this session accepts as prompt content, read once from `initialize`
+   * and fixed for its life (RFC 0040) — unlike {@link commands}, this never
+   * changes, so there is no change event for it.
+   */
+  readonly promptCapabilities: AgentPromptCapabilities;
   /**
    * Tear the session down: kill the agent process and drop it from
    * {@link AgentsService.getState}. Idempotent. The process is a piped child of

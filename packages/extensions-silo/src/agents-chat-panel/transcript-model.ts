@@ -30,6 +30,7 @@ import type {
   AgentToolCall,
   AgentToolCallContent,
 } from "@silo-code/sdk";
+import { resolveToolDiffs, type ToolDiff } from "./tool-diff";
 
 /** Which speaker a {@link MessageEntry} came from. `"thought"` is the agent
  *  thinking out loud (`agent_thought_chunk`), rendered as an aside. */
@@ -60,8 +61,20 @@ export interface ToolEntry {
   /** The protocol's coarse tool category (`"read"`, `"edit"`, `"execute"`, …),
    *  when it gave one. */
   readonly toolKind?: string;
-  /** Human-readable lines pulled out of the call's content blocks. */
+  /** Human-readable lines pulled out of the call's content blocks — the
+   *  tool's **output**. */
   readonly lines: readonly string[];
+  /** Structured file edits, when the call carried a protocol `"diff"` or
+   *  an Edit-shaped `rawInput`. Rendered as a hunk in the expanded row. */
+  readonly diffs?: readonly ToolDiff[];
+  /** The arguments the agent passed to its own tool (`AgentToolCall.rawInput`)
+   *  — the tool's **input**, shown as its own section when the row is
+   *  expanded. Vendor-shaped and typed `unknown` by the SDK itself (the
+   *  protocol places no schema on it); {@link formatToolInput} is the one
+   *  place this panel narrows it, for display only. Carrying this through is
+   *  reading a modelled `AgentToolCall` field, not the wire's `raw` escape
+   *  hatch this file otherwise refuses. */
+  readonly rawInput?: unknown;
 }
 
 /** One row of the agent's plan. */
@@ -147,6 +160,37 @@ export function toolContentLines(
   return lines;
 }
 
+/**
+ * Whether a tool call's output should go through the transcript markdown
+ * renderer rather than a literal `<pre>`.
+ *
+ * Claude (and others) wrap shell results in a fenced block (` ```console `);
+ * dumping that fence as characters is the thing a reader notices. JSON and
+ * plain stdout have no fence and must stay literal — markdown would italicize
+ * `project_path` and similar.
+ */
+export function toolOutputIsMarkdown(text: string): boolean {
+  return text.includes("```");
+}
+
+/**
+ * A tool call's `rawInput` (RFC 0043 tweak: the expanded row's **Input**
+ * section) for display — vendor-shaped and `unknown` by the SDK's own
+ * definition, so this narrows it only enough to print it, never to interpret
+ * it. A bare string prints as-is (the common case — a shell command, a file
+ * path); anything else is pretty-printed JSON. `undefined`/`null`/`{}` (an
+ * agent that sent `rawInput` but with nothing in it) show nothing, the same
+ * "absent means nothing to say" rule the rest of this file follows.
+ */
+export function formatToolInput(rawInput: unknown): string | undefined {
+  if (rawInput === undefined || rawInput === null) return undefined;
+  if (typeof rawInput === "string") return nonEmpty(rawInput);
+  if (typeof rawInput === "object" && Object.keys(rawInput).length === 0) {
+    return undefined;
+  }
+  return JSON.stringify(rawInput, null, 2);
+}
+
 /** Project a `plan` update's entries into rows. The SDK has already dropped
  *  entries with nothing to show; this fills in the status default the panel
  *  renders with, since the protocol leaves `status` optional. */
@@ -164,6 +208,14 @@ export function planRows(
 function appendEntry(t: Transcript, make: (key: string) => TranscriptEntry) {
   const seq = t.seq + 1;
   return { entries: [...t.entries, make(`e${seq}`)], seq };
+}
+
+/** The key {@link appendEntry} will give the *next* entry appended to `t` —
+ *  predictable ahead of the append itself, so a caller starting a turn (the
+ *  panel, tracking `Worked for …` timing — RFC 0043 finding 1) can key that
+ *  timing to the user message before `appendUserMessage` runs. */
+export function nextEntryKey(t: Transcript): string {
+  return `e${t.seq + 1}`;
 }
 
 /**
@@ -252,6 +304,7 @@ export function applyUpdate(
     const call: AgentToolCall = update.toolCall ?? { toolCallId: "" };
     const toolCallId = call.toolCallId;
     const lines = toolContentLines(call.content);
+    const diffs = resolveToolDiffs(call.content, call.rawInput);
     const index = toolCallId
       ? t.entries.findIndex(
           (e) => e.type === "tool" && e.toolCallId === toolCallId,
@@ -268,6 +321,10 @@ export function applyUpdate(
         // A `tool_call_update` carrying no content must not blank the rows the
         // original call already showed.
         lines: lines.length > 0 ? lines : prev.lines,
+        diffs: diffs.length > 0 ? diffs : prev.diffs,
+        // Same tolerance: an update rarely repeats the original input, so
+        // `undefined` here means "unchanged", not "now empty".
+        rawInput: call.rawInput !== undefined ? call.rawInput : prev.rawInput,
       };
       const entries = [...t.entries];
       entries[index] = next;
@@ -283,6 +340,8 @@ export function applyUpdate(
       status: nonEmpty(call.status) ?? "pending",
       ...(nonEmpty(call.kind) ? { toolKind: call.kind } : {}),
       lines,
+      ...(diffs.length > 0 ? { diffs } : {}),
+      ...(call.rawInput !== undefined ? { rawInput: call.rawInput } : {}),
     }));
   }
 
@@ -320,6 +379,71 @@ export function toolStatusTone(
     default:
       return "neutral";
   }
+}
+
+/** One conversational turn: the user's message (absent only for a leading
+ *  turn — entries the agent produced before any user message, which the live
+ *  panel never has but a journal in principle could) plus everything the
+ *  agent produced in reply, up to (excluding) the next user message. */
+export interface Turn {
+  readonly key: string;
+  readonly user: MessageEntry | undefined;
+  readonly rest: readonly TranscriptEntry[];
+}
+
+/**
+ * Group a transcript's flat entry list into {@link Turn}s (RFC 0043) — the
+ * unit the panel groups spacing and a completion footer by. A pure
+ * projection of `entries`; carries no timing (turn duration is not part of
+ * the wire protocol or the journal, so the component tracks that itself,
+ * keyed by a turn's index in the array this returns).
+ */
+export function groupTurns(
+  entries: readonly TranscriptEntry[],
+): readonly Turn[] {
+  const turns: Turn[] = [];
+  let current: TranscriptEntry[] = [];
+  let user: MessageEntry | undefined;
+  let started = false;
+
+  const flush = () => {
+    if (!started) return;
+    turns.push({ key: `t${turns.length}`, user, rest: current });
+    current = [];
+    user = undefined;
+  };
+
+  for (const entry of entries) {
+    if (entry.type === "message" && entry.role === "user") {
+      flush();
+      started = true;
+      user = entry;
+      continue;
+    }
+    started = true;
+    current.push(entry);
+  }
+  flush();
+  return turns;
+}
+
+/** `"18s"` / `"1m 30s"` — a bare duration, for the turn footer's *live*
+ *  ticking readout (RFC 0043 finding 1: Paseo shows the elapsed time on its
+ *  own while a turn is running, and only prefixes "Worked for" once it's
+ *  done — see {@link workedForLabel}). Never negative: a duration this panel
+ *  measures itself can't be, but a clock can still jitter by a tick. */
+export function elapsedLabel(durationMs: number): string {
+  const totalSeconds = Math.max(0, Math.round(durationMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
+
+/** `"Worked for 18s"` — the completed-turn footer label, matched to Paseo's
+ *  own string (`packages/app/src/components/message.tsx:637` in the Paseo
+ *  clone) — RFC 0043 finding 1. */
+export function workedForLabel(durationMs: number): string {
+  return `Worked for ${elapsedLabel(durationMs)}`;
 }
 
 /**

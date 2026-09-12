@@ -55,8 +55,37 @@
  * `session-restore.ts` for the pure decision logic.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type ComponentType,
+  type MouseEvent,
+} from "react";
+import {
+  ArrowRight,
+  ArrowUp,
+  ArrowsClockwise,
+  ArrowsLeftRight,
+  CaretRight,
+  Command,
+  FileText,
+  Globe,
+  Lightbulb,
+  MagnifyingGlass,
+  PencilSimple,
+  Plug,
+  Plus,
+  Stop as StopIcon,
+  TerminalWindow,
+  Trash,
+  Wrench,
+  type IconProps,
+} from "@phosphor-icons/react";
 import type {
+  AgentCommand,
   AgentInfo,
   AgentPermissionRequest,
   AgentProfileSummary,
@@ -67,28 +96,81 @@ import type {
   DockPanelProps,
   ExtensionContext,
 } from "@silo-code/sdk";
-import { Badge, Button, EmptyState, Select, Textarea } from "@silo-code/sdk";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  IconButton,
+  List,
+  ListRow,
+  MenuButton,
+  Textarea,
+  Tooltip,
+} from "@silo-code/sdk";
 import { chatProfiles, resolveChatProfile } from "./profile-selection";
 import { confirmProfileSwitch } from "./profile-switch";
-import { toAttachment, type Attachment } from "./attachments";
+import { addAttachments, toAttachment, type Attachment } from "./attachments";
+import {
+  classifyClipboardPaste,
+  pastedFileName,
+  pastedFilePath,
+} from "./paste-attachments";
+import {
+  clampPaletteIndex,
+  commandDisplayTitle,
+  commandQueryFromDraft,
+  draftAfterCommandPick,
+  filterCommands,
+  paletteNavAction,
+  stepPaletteIndex,
+} from "./command-palette";
+import {
+  composerCanSend,
+  composerInputEnabled,
+  composerPlaceholder,
+  composerShowConnecting,
+} from "./composer-model";
 import {
   appendNotice,
   appendUserMessage,
   applyUpdate,
   emptyTranscript,
+  formatToolInput,
+  groupTurns,
+  toolOutputIsMarkdown,
+  nextEntryKey,
   seedFromJournal,
   stopReasonNotice,
   toolStatusTone,
+  workedForLabel,
+  type TranscriptEntry,
   type Transcript,
 } from "./transcript-model";
 import { permissionButtonVariant } from "./permission-options";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
+import { LinkifiedText, chatLinkFromTarget } from "./LinkifiedText";
+import { isLinkActivationClick } from "./link-policy";
+import { resolveChatFilePath } from "./resolve-chat-path";
+import { buildChatSelectionMenu } from "./selection-menu";
+import {
+  formatToolKindLabel,
+  toolIconId,
+  type ToolIconId,
+} from "./tool-display";
+import {
+  diffHeading,
+  diffLines,
+  toolInputIsDiffOnly,
+  toolShowsInlineDiff,
+  type ToolDiff,
+} from "./tool-diff";
 import {
   continueInNewSessionOption,
   isReadOnly,
   panelStateAfterConnect,
   resumeOptionFor,
 } from "./session-restore";
+import { LiveElapsed } from "./LiveElapsed";
 
 /** How close to the bottom still counts as "following the stream". */
 const AUTOSCROLL_THRESHOLD_PX = 24;
@@ -136,6 +218,287 @@ interface PendingPermission {
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+/** FileList first (Finder / a copied file); fall back to `items` for a
+ *  screenshot that never got a path. */
+function filesFromDataTransfer(data: DataTransfer): File[] {
+  if (data.files.length > 0) return Array.from(data.files);
+  const out: File[] = [];
+  for (const item of Array.from(data.items)) {
+    if (item.kind !== "file") continue;
+    const file = item.getAsFile();
+    if (file) out.push(file);
+  }
+  return out;
+}
+
+/** What a tool row needs beyond its own `TranscriptEntry` — whether *this*
+ *  row is expanded, and how to toggle it. Lifted to the panel (not local
+ *  state on a row component) because it must survive the row's own content
+ *  changing shape mid-stream (a `tool_call_update` patches the entry in
+ *  place; a component keyed on `entry.key` never remounts, so this doesn't
+ *  strictly need lifting for that reason — it's lifted because collapse
+ *  state is conceptually part of *the transcript's* interaction state, kept
+ *  alongside `permissions` and the rest, not a single row's own business. */
+interface ToolRowState {
+  readonly expandedTools: ReadonlySet<string>;
+  readonly onToggleTool: (key: string) => void;
+}
+
+const TOOL_ICONS: Readonly<Record<ToolIconId, ComponentType<IconProps>>> = {
+  shell: TerminalWindow,
+  read: FileText,
+  write: PencilSimple,
+  search: MagnifyingGlass,
+  delete: Trash,
+  move: ArrowRight,
+  think: Lightbulb,
+  fetch: Globe,
+  switch: ArrowsLeftRight,
+  mcp: Plug,
+  other: Wrench,
+};
+
+function ToolDiffBlock({ diff, inline }: { diff: ToolDiff; inline?: boolean }) {
+  const lines = diffLines(diff.oldText, diff.newText);
+  if (lines.length === 0) return null;
+  return (
+    <div
+      className={
+        inline ? "acp-chat__tool-inline-diff" : "acp-chat__tool-section"
+      }
+    >
+      <div className="acp-chat__tool-section-label">
+        {diffHeading(diff, lines)}
+      </div>
+      <div
+        className="acp-chat__diff"
+        role="region"
+        aria-label={diffHeading(diff, lines)}
+      >
+        {lines.map((line, i) => (
+          <div
+            key={`${line.kind}-${i}`}
+            className="acp-chat__diff-line"
+            data-kind={line.kind}
+          >
+            <span className="acp-chat__diff-gutter" aria-hidden="true">
+              {line.line}
+            </span>
+            <span className="acp-chat__diff-mark" aria-hidden="true">
+              {line.kind === "add" ? "+" : line.kind === "del" ? "-" : " "}
+            </span>
+            {line.text}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ToolKindGlyph({
+  kind,
+  title,
+  className,
+}: {
+  kind?: string;
+  title: string;
+  className?: string;
+}) {
+  const Glyph = TOOL_ICONS[toolIconId(kind, title)];
+  return <Glyph className={className} size="1em" aria-hidden="true" />;
+}
+
+/**
+ * One transcript entry (RFC 0043 finding 1). A plain function, not a
+ * component: every `TranscriptEntry` (plus, for a tool row, {@link
+ * ToolRowState}) carries everything its row needs, so this is reusable for a
+ * turn's user message and its `rest` alike without threading the rest of the
+ * panel's state through it.
+ *
+ * A routine tool call is a single compact line — kind glyph, a display
+ * label from {@link formatToolKindLabel} (when the agent gave a kind), its
+ * title. Only a call blocked on the user earns a
+ * box while collapsed (`.acp-chat__permission`). `status` only earns a badge
+ * when it's informative: `"pending"`/`"completed"` are the expected states a
+ * call passes through silently. Collapsed by default: clicking a row with
+ * something to show expands it into a bordered card with **Input** / **Output**
+ * wells (`rawInput` vs. the modelled `content` lines).
+ */
+function renderTranscriptEntry(entry: TranscriptEntry, tools: ToolRowState) {
+  if (entry.type === "message") {
+    return (
+      <div key={entry.key} className="acp-chat__message" data-role={entry.role}>
+        {entry.role === "thought" ? (
+          <div className="acp-chat__thought-label">Thinking</div>
+        ) : null}
+        {/* The agent writes markdown; the user wrote literal text and their
+            asterisks must stay their asterisks. */}
+        {entry.role === "user" ? (
+          <div className="acp-chat__text">
+            <LinkifiedText text={entry.text} />
+          </div>
+        ) : (
+          <TranscriptMarkdown text={entry.text} />
+        )}
+        {entry.attachments && entry.attachments.length > 0 ? (
+          <div className="acp-chat__attachments">
+            {entry.attachments.map((name, i) => (
+              <span key={`${entry.key}-att-${i}`} className="acp-chat__chip">
+                {name}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+  if (entry.type === "tool") {
+    const diffs = entry.diffs ?? [];
+    const hideInput = diffs.length > 0 && toolInputIsDiffOnly(entry.rawInput);
+    const inputText = hideInput ? undefined : formatToolInput(entry.rawInput);
+    const outputIsDiffPlaceholder =
+      diffs.length > 0 &&
+      entry.lines.length > 0 &&
+      entry.lines.every((line) => line.startsWith("diff "));
+    const outputText =
+      outputIsDiffPlaceholder || entry.lines.length === 0
+        ? ""
+        : entry.lines.join("\n");
+    const showInlineDiff = toolShowsInlineDiff(entry.toolKind, diffs.length);
+    const hasExtras = inputText !== undefined || outputText.length > 0;
+    const hasBody = (!showInlineDiff && diffs.length > 0) || hasExtras;
+    const expanded = hasBody && tools.expandedTools.has(entry.key);
+    const toggle = () => tools.onToggleTool(entry.key);
+    const kindLabel = formatToolKindLabel(entry.toolKind, entry.title);
+    return (
+      <div
+        key={entry.key}
+        className="acp-chat__tool"
+        data-status={entry.status}
+        data-expanded={expanded || undefined}
+      >
+        <div
+          className="acp-chat__tool-head"
+          data-interactive={hasBody || undefined}
+          role={hasBody ? "button" : undefined}
+          tabIndex={hasBody ? 0 : undefined}
+          aria-expanded={hasBody ? expanded : undefined}
+          onClick={hasBody ? toggle : undefined}
+          onKeyDown={
+            hasBody
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggle();
+                  }
+                }
+              : undefined
+          }
+        >
+          {hasBody ? (
+            <span className="acp-chat__tool-icon-stack" aria-hidden="true">
+              <ToolKindGlyph
+                kind={entry.toolKind}
+                title={entry.title}
+                className="acp-chat__tool-icon acp-chat__tool-icon--default"
+              />
+              <CaretRight
+                className="acp-chat__tool-icon acp-chat__tool-icon--hover"
+                size="1em"
+              />
+            </span>
+          ) : (
+            <ToolKindGlyph
+              kind={entry.toolKind}
+              title={entry.title}
+              className="acp-chat__tool-icon"
+            />
+          )}
+          {kindLabel ? (
+            <span className="acp-chat__tool-kind">{kindLabel}</span>
+          ) : null}
+          <span className="acp-chat__tool-title">{entry.title}</span>
+          {entry.status === "in_progress" || entry.status === "failed" ? (
+            <Badge tone={toolStatusTone(entry.status)} size="sm">
+              {entry.status}
+            </Badge>
+          ) : null}
+        </div>
+        {showInlineDiff
+          ? diffs.map((diff, i) => (
+              <ToolDiffBlock
+                key={`${diff.path ?? "file"}-${i}`}
+                diff={diff}
+                inline
+              />
+            ))
+          : null}
+        {expanded ? (
+          <div className="acp-chat__tool-body">
+            {!showInlineDiff
+              ? diffs.map((diff, i) => (
+                  <ToolDiffBlock
+                    key={`${diff.path ?? "file"}-${i}`}
+                    diff={diff}
+                  />
+                ))
+              : null}
+            {inputText !== undefined ? (
+              <div className="acp-chat__tool-section">
+                <div className="acp-chat__tool-section-label">Input</div>
+                <pre className="acp-chat__tool-pre">
+                  <LinkifiedText text={inputText} />
+                </pre>
+              </div>
+            ) : null}
+            {outputText.length > 0 ? (
+              <div className="acp-chat__tool-section">
+                <div className="acp-chat__tool-section-label">Output</div>
+                {toolOutputIsMarkdown(outputText) ? (
+                  <div className="acp-chat__tool-pre acp-chat__tool-pre--md">
+                    <TranscriptMarkdown text={outputText} />
+                  </div>
+                ) : (
+                  <pre className="acp-chat__tool-pre">
+                    <LinkifiedText text={outputText} />
+                  </pre>
+                )}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+  if (entry.type === "plan") {
+    return (
+      <div key={entry.key} className="acp-chat__plan">
+        <div className="acp-chat__plan-head">Plan</div>
+        <ul className="acp-chat__plan-list">
+          {entry.rows.map((row, i) => (
+            <li
+              key={`${entry.key}-${i}`}
+              className="acp-chat__plan-row"
+              data-status={row.status}
+            >
+              {row.content}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+  return (
+    <div
+      key={entry.key}
+      className="acp-chat__notice-line"
+      data-tone={entry.tone}
+    >
+      {entry.text}
+    </div>
+  );
 }
 
 export function AcpChatPanel({
@@ -189,7 +552,21 @@ export function AcpChatPanel({
   // be visible to the very effect run it triggers, with no extra render.
   const continueFreshRef = useRef(false);
   const [draft, setDraft] = useState("");
+  const [paletteIndex, setPaletteIndex] = useState(0);
+  const [paletteDismissed, setPaletteDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The turn footer's "Worked for …" (RFC 0043 finding 1) — timing lives here,
+  // not in `transcript-model.ts`, because a turn's start/end isn't part of the
+  // wire protocol or the journal; it's only ever what this panel measured
+  // itself. Keyed by the user message's own entry key (predicted via
+  // `nextEntryKey` before `send()` appends it) rather than a turn index, so a
+  // duration survives entries being re-grouped and never points at the wrong
+  // turn. A turn with no entry here (a journal-restored one, or the very
+  // first render of a still-running one) simply shows no footer.
+  const [turnDurations, setTurnDurations] = useState<
+    Readonly<Record<string, number>>
+  >({});
+  const turnStartRef = useRef<{ key: string; startedAt: number } | null>(null);
   // The agent process dying is not a separate channel — it lands on this
   // session's own `AgentInfo` as `activity: "error"`, exactly as it would for
   // a Terminal session. Reading it back through `ctx.agents` rather than
@@ -202,8 +579,26 @@ export function AcpChatPanel({
   const [configOptions, setConfigOptions] = useState<
     readonly AgentSessionConfigOption[]
   >([]);
+  // The agent's slash commands (and, unmarked, its skills — RFC 0040): a live
+  // snapshot backing the composer's `/` palette. Empty until the agent's
+  // first `available_commands_update`, which is not guaranteed to ever come.
+  const [commands, setCommands] = useState<readonly AgentCommand[]>([]);
   // Files staged for the next turn, sent as `resource_link` prompt blocks.
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Which tool rows are expanded (a tweak on top of RFC 0043) — collapsed by
+  // default, toggled by clicking the row. Keyed by the entry's own key, not
+  // `toolCallId`, matching how the transcript already keys everything else.
+  const [expandedTools, setExpandedTools] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const toggleTool = useCallback((key: string) => {
+    setExpandedTools((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
   // Config options the agent advertised but then rejected a write for. An
   // advertisement is not a guarantee: `claude-agent-acp` lists a `fast` entry
   // its own handler answers `-32603 Unknown config option: fast` for. Once a
@@ -274,6 +669,10 @@ export function AcpChatPanel({
     setConfigOptions([]);
     setDeadConfigIds(new Set());
     setAttachments([]);
+    setCommands([]);
+    setTurnDurations({});
+    turnStartRef.current = null;
+    setExpandedTools(new Set());
 
     // Restore a persisted session (RFC 0042 `ChatPanelState`) — `undefined`
     // for a brand-new panel, which is an ordinary `session/new`.
@@ -342,6 +741,8 @@ export function AcpChatPanel({
             setConfigOptions(handle.configOptions),
           ),
         );
+        setCommands(handle.commands);
+        subs.push(handle.onCommandsChanged(() => setCommands(handle.commands)));
         // Persist the identity to restore next time — keyed on the handle's
         // own `sessionId`, which may not be what was asked for (`session/load`
         // adopting a fresh id; a `startFresh` continuation deliberately
@@ -464,9 +865,26 @@ export function AcpChatPanel({
     const handle = handleRef.current;
     const text = draft.trim();
     const files = attachments;
-    if (!handle || busy || (!text && files.length === 0)) return;
+    if (
+      !handle ||
+      busy ||
+      !composerCanSend({
+        ready: phase.status === "ready",
+        lost,
+        draft,
+        attachmentCount: files.length,
+      })
+    ) {
+      return;
+    }
     setDraft("");
     setAttachments([]);
+    // Predicted before the append below runs (RFC 0043 finding 1) — this
+    // turn's footer is keyed to the user message's own entry key.
+    turnStartRef.current = {
+      key: nextEntryKey(transcript),
+      startedAt: Date.now(),
+    };
     setTranscript((t) =>
       appendUserMessage(
         t,
@@ -497,29 +915,49 @@ export function AcpChatPanel({
       // The panel may have been torn down mid-turn; the state setters are
       // no-ops then, but `busy` must not be left stuck for a live one.
       if (handleRef.current === handle) setBusy(false);
+      const started = turnStartRef.current;
+      if (started) {
+        const durationMs = Date.now() - started.startedAt;
+        setTurnDurations((prev) => ({ ...prev, [started.key]: durationMs }));
+        turnStartRef.current = null;
+      }
     }
-  }, [draft, busy, attachments]);
+  }, [draft, busy, attachments, transcript, phase.status, lost]);
 
   const answer = useCallback((pending: PendingPermission, optionId: string) => {
     pending.request.respond(optionId);
     setPermissions((prev) => prev.filter((p) => p !== pending));
   }, []);
 
+  const stageAttachments = useCallback((incoming: readonly Attachment[]) => {
+    setAttachments((prev) => addAttachments(prev, incoming));
+  }, []);
+
   const attachFile = useCallback(async () => {
     const picked = await ctx.ui.pickFile({ defaultPath: cwd || undefined });
     if (!picked) return;
-    const next = toAttachment(picked);
-    setAttachments((prev) =>
-      prev.some((a) => a.uri === next.uri) ? prev : [...prev, next],
-    );
-  }, [ctx, cwd]);
+    stageAttachments([toAttachment(picked)]);
+  }, [ctx, cwd, stageAttachments]);
+
+  const pickCommand = useCallback((command: AgentCommand) => {
+    const next = draftAfterCommandPick(command);
+    setDraft(next);
+    setPaletteDismissed(false);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(next.length, next.length);
+    });
+  }, []);
 
   // Switching the profile is a teardown — the agent is reaped and the
-  // transcript dropped (see the connect effect). A `Select` in a composer does
-  // not look like that, so anything worth losing gets a confirmation first;
-  // `confirmProfileSwitch` owns the rule and returns `null` when the switch is
-  // free. Declining touches no state, and the Select is controlled off
-  // `profileId`, so it snaps back to the live agent on its own.
+  // transcript dropped (see the connect effect). A menu pick in a composer
+  // does not look like that, so anything worth losing gets a confirmation
+  // first; `confirmProfileSwitch` owns the rule and returns `null` when the
+  // switch is free. Declining touches no state, and the profile MenuButton's
+  // label is derived from `profileId` on every render, so it snaps back to
+  // the live agent on its own.
   const switchProfile = useCallback(
     async (nextId: string) => {
       if (nextId === profileId) return;
@@ -544,7 +982,7 @@ export function AcpChatPanel({
     handleRef.current?.setConfigOption(id, value).catch((err) => {
       setTranscript((t) => appendNotice(t, "error", errorMessage(err)));
       // The agent advertised this control but will not accept a write for it
-      // — drop it so the user is not left poking a Select that only errors.
+      // — drop it so the user is not left poking a control that only errors.
       setDeadConfigIds((prev) => new Set(prev).add(id));
     });
   }, []);
@@ -557,10 +995,146 @@ export function AcpChatPanel({
   // `panelStateAfterConnect` call persists whatever *new* id that connect
   // gets — never the one already known to be unresumable.
   const readOnly = isReadOnly(resumeOutcome);
+  const inputEnabled = composerInputEnabled(lost, readOnly);
+
+  const pasteClipboardFiles = useCallback(
+    async (files: File[]) => {
+      try {
+        const dir = await ctx.storage.workspaceDir(workspaceId);
+        const stamp = Date.now();
+        const incoming: Attachment[] = [];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (!file) continue;
+          const name = pastedFileName(file.name, file.type);
+          const dest = pastedFilePath(dir, name, stamp + i);
+          await ctx.files.writeBytes(dest, await file.arrayBuffer());
+          incoming.push(toAttachment(dest));
+        }
+        stageAttachments(incoming);
+      } catch (err) {
+        setTranscript((t) => appendNotice(t, "error", errorMessage(err)));
+      }
+    },
+    [ctx, workspaceId, stageAttachments],
+  );
+
+  const onComposerPaste = useCallback(
+    (e: ClipboardEvent<HTMLTextAreaElement>) => {
+      if (!inputEnabled) return;
+      const data = e.clipboardData;
+      if (!data) return;
+      const files = filesFromDataTransfer(data);
+      const classified = classifyClipboardPaste({
+        getData: (type) => data.getData(type),
+        fileCount: files.length,
+      });
+      if (classified.kind === "none") return;
+      e.preventDefault();
+      if (classified.kind === "paths") {
+        stageAttachments(classified.paths.map(toAttachment));
+        return;
+      }
+      void pasteClipboardFiles(files);
+    },
+    [inputEnabled, stageAttachments, pasteClipboardFiles],
+  );
+  const canSend = composerCanSend({
+    ready: phase.status === "ready",
+    lost,
+    draft,
+    attachmentCount: attachments.length,
+  });
+  const connecting = composerShowConnecting(phase.status);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Dockview shuffles DOM focus when a tab becomes active; a single
+  // `focus()` loses that race. Retry across frames while this panel is
+  // still the active tab — the same problem the terminal/editor viewers
+  // solve with host `useFocusOnActive`, which a silo.* extension cannot
+  // import. The input is enabled during connect, so this runs as soon as
+  // the panel is created — they can draft before the agent is live.
+  useEffect(() => {
+    if (!inputEnabled) return;
+
+    let raf = 0;
+    let frames = 0;
+    let landed = false;
+    const tick = () => {
+      if (!api.isActive) return;
+      const el = inputRef.current;
+      if (!el) return;
+      const active = document.activeElement;
+      if (active === el) {
+        landed = true;
+      } else if (
+        active instanceof Element &&
+        active.closest("[data-silo-menu], [role='menu']")
+      ) {
+        return;
+      } else if (!landed || active === null || active === document.body) {
+        el.focus();
+      }
+      frames += 1;
+      if (frames < 20 && api.isActive) raf = requestAnimationFrame(tick);
+    };
+    const start = () => {
+      if (!api.isActive) return;
+      frames = 0;
+      landed = false;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(tick);
+    };
+
+    start();
+    const sub = api.onDidActiveChange(({ isActive }) => {
+      if (isActive) start();
+    });
+    return () => {
+      cancelAnimationFrame(raf);
+      sub.dispose();
+    };
+  }, [api, inputEnabled]);
+
   const continueInNewSession = useCallback(() => {
     continueFreshRef.current = true;
     setNonce((n) => n + 1);
   }, []);
+
+  // The `/` command palette (RFC 0040) — a filtered list on `session.commands`
+  // while the draft is authoring a command name, no raw read. `commandQuery`
+  // is `undefined` once a space follows the `/` (the user is now typing the
+  // argument), which also closes the palette.
+  const commandQuery = commandQueryFromDraft(draft);
+  const paletteCommands =
+    commandQuery !== undefined ? filterCommands(commands, commandQuery) : [];
+  const showPalette =
+    paletteCommands.length > 0 &&
+    !paletteDismissed &&
+    phase.status === "ready" &&
+    !lost &&
+    !readOnly;
+  const activePaletteIndex = clampPaletteIndex(
+    paletteIndex,
+    paletteCommands.length,
+  );
+  const paletteKey = paletteCommands.map((c) => c.name).join("\0");
+
+  useEffect(() => {
+    setPaletteIndex(0);
+  }, [paletteKey]);
+
+  useEffect(() => {
+    setPaletteDismissed(false);
+  }, [commandQuery]);
+
+  const paletteRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!showPalette) return;
+    paletteRef.current
+      ?.querySelector<HTMLElement>('[data-selected="true"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [showPalette, activePaletteIndex]);
 
   // --- autoscroll ----------------------------------------------------------
   // Only when the user is already at the bottom, so reading back through a
@@ -578,6 +1152,77 @@ export function AcpChatPanel({
       el.scrollHeight - el.scrollTop - el.clientHeight <
       AUTOSCROLL_THRESHOLD_PX;
   }, []);
+
+  const isMac =
+    typeof navigator !== "undefined" &&
+    navigator.platform.toUpperCase().includes("MAC");
+  const cmdKey = isMac ? "⌘" : "Ctrl";
+
+  const openChatLink = useCallback(
+    (kind: "url" | "path", text: string) => {
+      if (kind === "url") {
+        void ctx.ui.openExternal(text);
+        return;
+      }
+      void (async () => {
+        const home = text.startsWith("~/")
+          ? (await ctx.system.homeDir()).replace(/\/$/, "")
+          : undefined;
+        ctx.editors.open(resolveChatFilePath(text, cwd, home), {
+          workspaceId,
+        });
+      })();
+    },
+    [ctx, cwd, workspaceId],
+  );
+
+  const onTranscriptClick = useCallback(
+    (e: MouseEvent) => {
+      const link = chatLinkFromTarget(e.target);
+      if (!link || !isLinkActivationClick(e, isMac)) return;
+      e.preventDefault();
+      openChatLink(link.kind, link.text);
+    },
+    [openChatLink],
+  );
+
+  const onTranscriptContextMenu = useCallback(
+    (e: MouseEvent) => {
+      e.preventDefault();
+      const selection = window.getSelection()?.toString() ?? "";
+      const link = chatLinkFromTarget(e.target);
+      void ctx.ui.showMenu({
+        at: { x: e.clientX, y: e.clientY },
+        items: buildChatSelectionMenu({
+          selection,
+          link,
+          cmdKey,
+          onCopy: () => void navigator.clipboard.writeText(selection),
+          onSelectAll: () => {
+            const el = scrollerRef.current;
+            if (!el) return;
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+          },
+          onOpenLink: link
+            ? () => openChatLink(link.kind, link.text)
+            : undefined,
+          onCopyLink: link
+            ? () => void navigator.clipboard.writeText(link.text)
+            : undefined,
+        }),
+      });
+    },
+    [ctx, openChatLink],
+  );
+
+  const toolRowState: ToolRowState = {
+    expandedTools,
+    onToggleTool: toggleTool,
+  };
 
   if (phase.status === "no-profile") {
     return (
@@ -599,7 +1244,13 @@ export function AcpChatPanel({
 
   return (
     <div className="acp-chat">
-      <div className="acp-chat__scroller" ref={scrollerRef} onScroll={onScroll}>
+      <div
+        className="acp-chat__scroller"
+        ref={scrollerRef}
+        onScroll={onScroll}
+        onClick={onTranscriptClick}
+        onContextMenu={onTranscriptContextMenu}
+      >
         {phase.status === "error" ? (
           <div className="acp-chat__notice">
             <EmptyState
@@ -612,92 +1263,42 @@ export function AcpChatPanel({
           </div>
         ) : null}
 
-        {phase.status === "connecting" ? (
-          <div className="acp-chat__status">
-            Connecting to {profile?.label ?? "the agent"}…
-          </div>
-        ) : null}
-
-        {transcript.entries.map((entry) => {
-          if (entry.type === "message") {
-            return (
-              <div
-                key={entry.key}
-                className="acp-chat__message"
-                data-role={entry.role}
-              >
-                {entry.role === "thought" ? (
-                  <div className="acp-chat__thought-label">Thinking</div>
-                ) : null}
-                {/* The agent writes markdown; the user wrote literal text and
-                    their asterisks must stay their asterisks. */}
-                {entry.role === "user" ? (
-                  <div className="acp-chat__text">{entry.text}</div>
-                ) : (
-                  <TranscriptMarkdown text={entry.text} />
-                )}
-                {entry.attachments && entry.attachments.length > 0 ? (
-                  <div className="acp-chat__attachments">
-                    {entry.attachments.map((name, i) => (
-                      <span
-                        key={`${entry.key}-att-${i}`}
-                        className="acp-chat__chip"
-                      >
-                        {name}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            );
-          }
-          if (entry.type === "tool") {
-            return (
-              <div key={entry.key} className="acp-chat__tool">
-                <div className="acp-chat__tool-head">
-                  <span className="acp-chat__tool-title">{entry.title}</span>
-                  {entry.toolKind ? (
-                    <Badge tone="outline" size="sm">
-                      {entry.toolKind}
-                    </Badge>
-                  ) : null}
-                  <Badge tone={toolStatusTone(entry.status)} size="sm">
-                    {entry.status}
-                  </Badge>
-                </div>
-                {entry.lines.length > 0 ? (
-                  <pre className="acp-chat__tool-body">
-                    {entry.lines.join("\n")}
-                  </pre>
-                ) : null}
-              </div>
-            );
-          }
-          if (entry.type === "plan") {
-            return (
-              <div key={entry.key} className="acp-chat__plan">
-                <div className="acp-chat__plan-head">Plan</div>
-                <ul className="acp-chat__plan-list">
-                  {entry.rows.map((row, i) => (
-                    <li
-                      key={`${entry.key}-${i}`}
-                      className="acp-chat__plan-row"
-                      data-status={row.status}
-                    >
-                      {row.content}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          }
+        {groupTurns(transcript.entries).map((turn, i, all) => {
+          const running = busy && i === all.length - 1;
+          const durationMs = turn.user
+            ? turnDurations[turn.user.key]
+            : undefined;
           return (
-            <div
-              key={entry.key}
-              className="acp-chat__notice-line"
-              data-tone={entry.tone}
-            >
-              {entry.text}
+            <div key={turn.key} className="acp-chat__turn">
+              {turn.user
+                ? renderTranscriptEntry(turn.user, toolRowState)
+                : null}
+              {turn.rest.length > 0 ? (
+                <div className="acp-chat__turn-body">
+                  {turn.rest.map((e) => renderTranscriptEntry(e, toolRowState))}
+                </div>
+              ) : null}
+              {/* The footer is per turn (RFC 0043 finding 1): "Worked for …"
+                  once this panel measured a duration for it, a live ticking
+                  readout for the turn currently streaming, and nothing for a
+                  leading (no user message) or journal-only turn — there's
+                  nothing this panel ever timed for either. */}
+              {running ? (
+                <div className="acp-chat__turn-footer" data-running>
+                  <ArrowsClockwise
+                    className="acp-chat__spin"
+                    size="1em"
+                    aria-hidden="true"
+                  />
+                  <LiveElapsed
+                    startedAt={turnStartRef.current?.startedAt ?? Date.now()}
+                  />
+                </div>
+              ) : durationMs !== undefined ? (
+                <div className="acp-chat__turn-footer">
+                  {workedForLabel(durationMs)}
+                </div>
+              ) : null}
             </div>
           );
         })}
@@ -772,22 +1373,69 @@ export function AcpChatPanel({
             ))}
           </div>
         ) : null}
+        {showPalette ? (
+          <div ref={paletteRef} className="acp-chat__command-palette">
+            <List
+              aria-label="Slash commands"
+              onActivate={(i) => pickCommand(paletteCommands[i])}
+            >
+              {paletteCommands.map((command, i) => (
+                <ListRow
+                  key={command.name}
+                  selected={i === activePaletteIndex}
+                  leading={<Command size="1em" aria-hidden="true" />}
+                  trailing={
+                    <span className="acp-chat__cmd-slash">/{command.name}</span>
+                  }
+                  onSelect={() => pickCommand(command)}
+                >
+                  <span className="acp-chat__cmd-title">
+                    {commandDisplayTitle(command.name)}
+                  </span>
+                  {command.description ? (
+                    <span className="acp-chat__cmd-desc">
+                      {command.description}
+                    </span>
+                  ) : null}
+                </ListRow>
+              ))}
+            </List>
+          </div>
+        ) : null}
         <Textarea
+          ref={inputRef}
           className="acp-chat__input"
           value={draft}
           rows={2}
-          placeholder={
-            readOnly
-              ? "This session is read-only — continue in a new one to keep talking."
-              : lost
-                ? "The agent is no longer running."
-                : phase.status === "ready"
-                  ? `Message ${profile?.label ?? agentName ?? "the agent"}…`
-                  : "Waiting for the agent…"
-          }
-          disabled={phase.status !== "ready" || lost || readOnly}
+          placeholder={composerPlaceholder(lost, readOnly)}
+          disabled={!inputEnabled}
+          autoCapitalize="off"
           onChange={(e) => setDraft(e.target.value)}
+          onPaste={onComposerPaste}
           onKeyDown={(e) => {
+            if (showPalette) {
+              const nav = paletteNavAction(e.key, e.shiftKey);
+              if (nav) {
+                e.preventDefault();
+                if (nav === "up" || nav === "down") {
+                  setPaletteIndex(
+                    stepPaletteIndex(
+                      activePaletteIndex,
+                      nav,
+                      paletteCommands.length,
+                    ),
+                  );
+                  return;
+                }
+                if (nav === "pick") {
+                  const command = paletteCommands[activePaletteIndex];
+                  if (command) pickCommand(command);
+                  return;
+                }
+                setPaletteDismissed(true);
+                return;
+              }
+            }
             // Enter sends; Shift+Enter is a newline — the convention every
             // chat composer in the category uses.
             if (e.key === "Enter" && !e.shiftKey) {
@@ -796,77 +1444,125 @@ export function AcpChatPanel({
             }
           }}
         />
-        <div className="acp-chat__controls">
-          <Select
+        <div
+          className="acp-chat__controls"
+          data-connecting={connecting ? "true" : undefined}
+        >
+          {/* Pill + chevron, opening the host's own floating dropdown —
+              Paseo's model/effort/permission-mode pickers are exactly this
+              shape (RFC 0043 finding 2), and it's the kit's own documented
+              answer for "pick one of these" (`AgentProfilesService`'s own
+              doc example: build it from `list()` and `ctx.ui.showMenu`). A
+              native `<select>` can't float over the transcript the way this
+              does — its popup is OS chrome, not the host's. */}
+          <MenuButton
             className="acp-chat__profile"
-            value={profileId ?? ""}
+            label={profile?.label ?? "Profile"}
             aria-label="Chat agent profile"
-            onChange={(e) => void switchProfile(e.target.value)}
-          >
-            {available.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </Select>
-          {/* One Select per advertised control — no per-agent code. Cursor
-              gets mode + model; Claude gets its permission mode. An entry
-              whose `type` we do not recognise is skipped, the same tolerance
-              rule the update stream follows. */}
-          {configOptions
-            .filter(
-              (opt) => opt.type === "select" && !deadConfigIds.has(opt.id),
-            )
-            .map((opt) => (
-              <Select
-                key={opt.id}
-                className="acp-chat__config"
-                value={opt.currentValue}
-                aria-label={opt.name}
-                disabled={phase.status !== "ready" || lost || readOnly}
-                onChange={(e) => setConfigOption(opt.id, e.target.value)}
-              >
-                {opt.options.map((choice) => (
-                  <option key={choice.value} value={choice.value}>
-                    {choice.name}
-                  </option>
-                ))}
-              </Select>
-            ))}
-          <Button
-            size="sm"
-            aria-label="Attach a file"
-            disabled={phase.status !== "ready" || lost || readOnly}
-            onClick={() => void attachFile()}
-          >
-            Attach
-          </Button>
-          {readOnly ? (
-            <Button size="sm" variant="primary" onClick={continueInNewSession}>
-              Continue in a new session
-            </Button>
-          ) : lost ? (
-            <Button size="sm" onClick={() => setNonce((n) => n + 1)}>
-              Reconnect
-            </Button>
-          ) : busy ? (
-            <Button size="sm" onClick={() => handleRef.current?.cancel()}>
-              Stop
-            </Button>
+            onClick={(e) =>
+              void ctx.ui.showMenu({
+                anchor: e.currentTarget,
+                items: available.map((p) => ({
+                  label: p.label,
+                  checked: p.id === profileId,
+                  run: () => void switchProfile(p.id),
+                })),
+              })
+            }
+          />
+          {connecting ? (
+            <div className="acp-chat__connecting" aria-live="polite">
+              <ArrowsClockwise
+                className="acp-chat__spin"
+                size="1em"
+                aria-hidden="true"
+              />
+              Connecting to agent…
+            </div>
           ) : (
-            <Button
-              size="sm"
-              variant="primary"
-              disabled={
-                phase.status !== "ready" ||
-                lost ||
-                (draft.trim().length === 0 && attachments.length === 0)
-              }
-              onClick={() => void send()}
-            >
-              Send
-            </Button>
+            <>
+              {/* A plus icon, not the paperclip — sized up (`size="normal"`, not
+                  `"sm"`) to read as its own affordance next to the pill buttons
+                  rather than a stray toolbar glyph. */}
+              <Tooltip content="Attach a file">
+                <IconButton
+                  aria-label="Attach a file"
+                  disabled={phase.status !== "ready" || lost || readOnly}
+                  onClick={() => void attachFile()}
+                >
+                  <Plus size="1em" aria-hidden="true" />
+                </IconButton>
+              </Tooltip>
+              {/* One control per advertised session control — no per-agent code.
+                  Cursor gets mode + model; Claude gets its permission mode. An
+                  entry whose `type` we do not recognise is skipped, the same
+                  tolerance rule the update stream follows. */}
+              {configOptions
+                .filter(
+                  (opt) => opt.type === "select" && !deadConfigIds.has(opt.id),
+                )
+                .map((opt) => (
+                  <MenuButton
+                    key={opt.id}
+                    className="acp-chat__config"
+                    label={
+                      opt.options.find((c) => c.value === opt.currentValue)
+                        ?.name ?? opt.currentValue
+                    }
+                    aria-label={opt.name}
+                    disabled={phase.status !== "ready" || lost || readOnly}
+                    onClick={(e) =>
+                      void ctx.ui.showMenu({
+                        anchor: e.currentTarget,
+                        items: opt.options.map((choice) => ({
+                          label: choice.name,
+                          checked: choice.value === opt.currentValue,
+                          run: () => setConfigOption(opt.id, choice.value),
+                        })),
+                      })
+                    }
+                  />
+                ))}
+            </>
           )}
+          {/* Pinned to the far right regardless of how many config pills the
+              agent advertised. */}
+          <div className="acp-chat__send-slot">
+            {readOnly ? (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={continueInNewSession}
+              >
+                Continue in a new session
+              </Button>
+            ) : lost ? (
+              <Button size="sm" onClick={() => setNonce((n) => n + 1)}>
+                Reconnect
+              </Button>
+            ) : busy ? (
+              <Tooltip content="Stop">
+                <IconButton
+                  className="acp-chat__stop"
+                  aria-label="Stop"
+                  onClick={() => handleRef.current?.cancel()}
+                >
+                  <StopIcon size="1em" weight="fill" aria-hidden="true" />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Tooltip content="Send">
+                <IconButton
+                  className="acp-chat__send"
+                  aria-label="Send"
+                  disabled={!canSend}
+                  onClick={() => void send()}
+                >
+                  <ArrowUp size="1em" weight="bold" aria-hidden="true" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -4,11 +4,11 @@
  *
  * This is where "the wire format is not the update stream" is actually
  * enforced: everything a Chat UI must draw — a tool call's id, title, kind,
- * status, content and locations, and the agent's plan — is read **here**, once,
- * defensively, so no consumer has to reach into `AgentSessionUpdate.raw` for it.
- * `raw` stays on the update as the escape hatch for the kinds this file
- * deliberately leaves alone (`available_commands_update`, `usage_update`,
- * vendor `_meta`, …).
+ * status, content and locations, the agent's plan, and (RFC 0040) its
+ * `available_commands_update` — is read **here**, once, defensively, so no
+ * consumer has to reach into `AgentSessionUpdate.raw` for it. `raw` stays on
+ * the update as the escape hatch for the kinds this file deliberately leaves
+ * alone (`usage_update`, vendor `_meta`, …).
  *
  * Every reader below tolerates a missing or wrongly-typed field, because the
  * wire genuinely varies: in the 2026-09-08 probe a `tool_call_update` was
@@ -18,6 +18,7 @@
  */
 
 import type {
+  AgentCommand,
   AgentContentBlock,
   AgentPlanEntry,
   AgentToolCall,
@@ -151,6 +152,44 @@ export function parsePlanEntries(
       content,
       ...(status !== undefined ? { status } : {}),
       ...(priority !== undefined ? { priority } : {}),
+    });
+  }
+  return out;
+}
+
+/**
+ * `input` on one `available_commands_update` entry (RFC 0040). Claude sends
+ * `input: null` for a command that takes none; pi omits the key entirely —
+ * both normalise to `undefined` here, so `AgentCommand` only ever sees one
+ * spelling of "no argument". A record with no `hint` still means the command
+ * *takes* an argument, just with no placeholder to show.
+ */
+function parseCommandInput(v: unknown): AgentCommand["input"] {
+  if (!isRecord(v)) return undefined;
+  const hint = str(v.hint);
+  return hint !== undefined ? { hint } : {};
+}
+
+/**
+ * `available_commands_update`'s `availableCommands` list (RFC 0040). **Skills
+ * arrive in this same list** — see `AgentCommand`'s doc comment; this parser
+ * makes no attempt to split them out. An entry with no usable `name` is
+ * dropped, since that is the one field needed to invoke it (`prompt([{ type:
+ * "text", text: "/" + name }])`).
+ */
+export function parseCommands(v: unknown): readonly AgentCommand[] {
+  if (!Array.isArray(v)) return [];
+  const out: AgentCommand[] = [];
+  for (const entry of v) {
+    if (!isRecord(entry)) continue;
+    const name = str(entry.name);
+    if (name === undefined) continue;
+    const description = str(entry.description);
+    const input = parseCommandInput(entry.input);
+    out.push({
+      name,
+      ...(description !== undefined ? { description } : {}),
+      ...(input !== undefined ? { input } : {}),
     });
   }
   return out;

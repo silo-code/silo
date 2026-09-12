@@ -17,13 +17,30 @@
  *   document.
  * - **GFM on**, for tables, strikethrough and task lists, which agents use.
  *
- * Only the agent's own prose goes through here. A **user** message is rendered
- * literally: it is what they typed, and silently reinterpreting their
- * asterisks would be wrong.
+ * Agent prose and fenced tool-call output go through here. A **user**
+ * message is rendered literally: it is what they typed, and silently
+ * reinterpreting their asterisks would be wrong.
  */
 
+import { Children, cloneElement, isValidElement, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { kindFromHref } from "./link-match";
+import { LinkifiedText } from "./LinkifiedText";
+
+function linkifyNodes(children: ReactNode): ReactNode {
+  return Children.map(children, (child) => {
+    if (typeof child === "string") return <LinkifiedText text={child} />;
+    if (!isValidElement<{ children?: ReactNode; className?: string }>(child)) {
+      return child;
+    }
+    if (child.props.className?.includes("acp-chat__link")) return child;
+    if (child.props.children == null) return child;
+    return cloneElement(child, {
+      children: linkifyNodes(child.props.children),
+    });
+  });
+}
 
 export function TranscriptMarkdown({ text }: { text: string }) {
   return (
@@ -31,12 +48,26 @@ export function TranscriptMarkdown({ text }: { text: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          // Links open in the user's browser, not inside the webview — a
-          // navigated-away webview would take the whole workbench with it.
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noreferrer noopener">
-              {children}
-            </a>
+          // Marked-up like terminal links: dashed underline, ⌘/Ctrl-click
+          // to open. A real <a> would navigate the webview on a plain click.
+          a: ({ href, children }) =>
+            href ? (
+              <span
+                className="acp-chat__link"
+                data-acp-link={kindFromHref(href)}
+                data-href={href}
+              >
+                {children}
+              </span>
+            ) : (
+              <>{children}</>
+            ),
+          p: ({ children }) => <p>{linkifyNodes(children)}</p>,
+          li: ({ children }) => <li>{linkifyNodes(children)}</li>,
+          td: ({ children }) => <td>{linkifyNodes(children)}</td>,
+          th: ({ children }) => <th>{linkifyNodes(children)}</th>,
+          code: ({ children, className }) => (
+            <code className={className}>{linkifyNodes(children)}</code>
           ),
         }}
       >

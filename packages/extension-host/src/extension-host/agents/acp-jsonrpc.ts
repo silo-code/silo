@@ -121,11 +121,32 @@ export function capabilityEnabled(flag: unknown): boolean {
   return typeof flag === "object" && flag !== null && !Array.isArray(flag);
 }
 
+/**
+ * `initialize`'s `promptCapabilities` (recon 2026-09-09) — plain booleans on
+ * the wire, unlike {@link AcpSessionCapabilities}'s bool-or-details-object
+ * shapes. `audio` is absent rather than `false` from two of the three agents
+ * probed, so read every field through {@link promptCapabilityEnabled} rather
+ * than trusting its presence.
+ */
+export interface AcpPromptCapabilities {
+  image?: unknown;
+  audio?: unknown;
+  embeddedContext?: unknown;
+  [k: string]: unknown;
+}
+
+/** A `promptCapabilities` field reads `true` for accepted, everything else
+ *  (`false`, absent, wrongly typed) for not — see {@link AcpPromptCapabilities}. */
+export function promptCapabilityEnabled(flag: unknown): boolean {
+  return flag === true;
+}
+
 export interface AcpInitializeResult {
   protocolVersion?: number;
   agentInfo?: AcpAgentInfo | null;
   agentCapabilities?: { loadSession?: AcpCapabilityFlag; [k: string]: unknown };
   sessionCapabilities?: AcpSessionCapabilities;
+  promptCapabilities?: AcpPromptCapabilities;
   authMethods?: unknown[];
   raw: Record<string, unknown>;
 }
@@ -504,6 +525,9 @@ export function createAcpClient(
         sessionCapabilities:
           (result?.sessionCapabilities as AcpSessionCapabilities | undefined) ??
           agentCapabilities?.sessionCapabilities,
+        promptCapabilities: result?.promptCapabilities as
+          | AcpPromptCapabilities
+          | undefined,
         authMethods: Array.isArray(result?.authMethods)
           ? (result.authMethods as unknown[])
           : [],

@@ -1,9 +1,18 @@
 ---
-status: draft
+status: implemented
 created: 2026-09-09
 ---
 
 # 0040. Commands, skills, and context in the Agent Session surface
+
+> Implemented 2026-09-10 (Agent Sessions sprint Session 7). `session.commands`
+> / `onCommandsChanged`, `session.promptCapabilities`, and the `"resource"`
+> `AgentPromptBlock` member all shipped as designed below. The one piece this
+> RFC always left conditional — an **image** `AgentPromptBlock` — did not:
+> Session 7 ran no probe of what any agent actually accepts for one, so it
+> stays unmodelled rather than guessed. That is not a partial core mechanism;
+> it is open question 3, resolved below as "still needs a probe" — the next
+> session that touches this surface should run one before adding it.
 
 ## Summary
 
@@ -229,19 +238,40 @@ wire and already useful; modelling it now costs one interface.
 
 ## Decision
 
-Not yet decided — `draft`.
+Accepted and implemented (Session 7, 2026-09-10). The three open questions
+resolved as leaned, with one addition surfaced only during implementation:
 
-Open questions for review:
+1. **`commands` is empty-until-arrival.** `connect()` does not wait for a
+   first `available_commands_update` — `AgentSessionHandle.commands` starts
+   `[]` and `onCommandsChanged` does the work once one lands. Waiting would
+   have made `connect()` hang against an agent (or `AcpClient` test double)
+   that never sends one, and pi's own ~12.5s lag behind its startup banner
+   would have made every connect feel broken even on an agent that does.
+2. **`promptCapabilities` lives on `AgentSessionHandle`, not `AgentInfo`.**
+   Read once from `initialize` and fixed for the session's life, for the same
+   reason `configOptions` lives on the handle: a consumer meets the capability
+   check through the handle it is already holding, not a separate registry
+   lookup.
+3. **`resource` landed; an image block did not.** `AgentPromptBlock` grew a
+   `"resource"` member (`{ uri, text, mimeType? }`) — embedded text content,
+   gated on `embeddedContext`, modelled directly off the protocol's own
+   documented shape (no probe needed — unlike an image block, this shape was
+   never in question). Binary (`blob`) resources are not modelled either;
+   nothing in Silo has needed to embed one yet. An image block still needs the
+   probe this RFC always said it would, and none happened this session — it
+   stays out rather than guessed.
 
-1. **Should `commands` be empty-until-arrival, or should `connect()` wait for the
-   first `available_commands_update`?** Both agents send one at connect, but pi
-   took ~12.5s (behind its startup banner) and nothing in the protocol requires
-   it at all. Waiting would make `connect()` hang on an agent that never sends
-   one. Leaning empty-until-arrival, with the change signal doing the work.
-2. **Does `promptCapabilities` belong on the handle, or on `AgentInfo`?** It is a
-   property of the agent, not the session, but a consumer meets it through the
-   handle. Leaning the handle, for the same reason `configOptions` lives there.
-3. **Which `AgentPromptBlock` members land now?** `resource` is clearly needed
-   for `embeddedContext`. An image block needs a probe of what each agent
-   actually accepts — no agent has been sent one yet, and this surface's rule is
-   that the check is a run, not a read of the docs.
+**One tension found only while wiring the panel, not anticipated by the
+original design:** the RFC's own protocol distinction says a `"resource_link"`
+(pointer) needs no capability gate at all — only embedded `"resource"` content
+does. But the sprint plan's acceptance line ("gates its attachment affordance
+on `promptCapabilities`") was written against the panel's **existing**
+file-attach feature, which only ever sends `resource_link`. Gating that
+literally would have hidden a working, always-valid affordance from pi
+(`embeddedContext: false`) for no protocol reason. Resolved (with Dave,
+2026-09-10) by keeping the panel's existing Attach button ungated — the
+protocol's own rule wins over the sprint plan's shorthand — and reserving the
+`embeddedContext` gate for a future affordance that actually sends a
+`"resource"` block, which the panel does not build this session (no `fs:read`
+plumbing exists in it, and building that is a Session 6-sized addition, not a
+data-surface wiring one).

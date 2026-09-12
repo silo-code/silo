@@ -110,13 +110,14 @@ A prompt is **structured blocks**, never a shell string — the entire
 quoting/escaping risk surface of a Terminal session's opening prompt does not
 exist here.
 
-| Block                                   | Meaning                                                            |
-| --------------------------------------- | ------------------------------------------------------------------ |
-| `{ type: "text", text }`                | A run of plain text. `$HOME`, backticks, newlines — all literal.   |
-| `{ type: "resource_link", uri, name? }` | A pointer to a file (usually a `file://` path) the agent may read. |
+| Block                                        | Meaning                                                                                                                                  |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `{ type: "text", text }`                     | A run of plain text. `$HOME`, backticks, newlines — all literal.                                                                         |
+| `{ type: "resource_link", uri, name? }`      | A pointer to a file (usually a `file://` path) the agent may read. Always allowed — no capability gate.                                  |
+| `{ type: "resource", uri, text, mimeType? }` | The file's own text **inlined** into the prompt. Only send this when `session.promptCapabilities.embeddedContext` is `true` — see below. |
 
-Images and embedded binary context are deferred behind what the agent
-advertises at connect time.
+Images are deferred behind a probe of what each agent actually accepts for
+one (RFC 0040 open question 3 — no agent has been sent one yet).
 
 ## The update stream
 
@@ -178,12 +179,11 @@ if (u.kind === "plan" && u.plan) setPlan(u.plan); // may be empty
 
 `raw` is the **escape hatch**, not the way to render a transcript. It holds the
 untouched protocol object, and is there for the kinds deliberately left
-unmodelled: `available_commands_update` (an agent's slash commands — a menu, not
-a transcript row), `usage_update` (token counts, reported differently by every
-agent), and vendor extensions such as `claude-agent-acp`'s `_meta`. Two more —
-`current_mode_update` and `session_info_update` — are already surfaced as
-`configOptions` and `AgentInfo.title`, so you should not need `raw` for them
-either.
+unmodelled: `usage_update` (token counts, reported differently by every agent)
+and vendor extensions such as `claude-agent-acp`'s `_meta`. Three more —
+`current_mode_update`, `session_info_update`, and `available_commands_update` —
+are already surfaced as `configOptions`, `AgentInfo.title`, and `commands`
+(RFC 0040), so you should not need `raw` for them either.
 
 **`raw` tracks the protocol, not this SDK's semver.** A field inside it can
 change shape, or vanish, when an agent or its adapter changes — no SDK major
@@ -227,6 +227,63 @@ entry's options — and with the agent's own message when the agent refuses.
 its own handler answers `-32603 Unknown config option` for. Treat a rejected
 `setConfigOption` as "stop offering this control" — the bundled panel drops it
 from the composer.
+
+## Commands (and skills) — RFC 0040
+
+The agent advertises its slash commands live, from the moment the session
+connects — before any prompt, for both agents probed:
+
+```ts
+for (const cmd of session.commands) {
+  renderPaletteRow(cmd.name, cmd.description, cmd.input?.hint);
+}
+
+const off = session.onCommandsChanged(() => rerender(session.commands));
+```
+
+**Empty until the agent's first `available_commands_update`.** Both agents
+probed send one at connect (`claude-agent-acp@0.75.1` at ~2.3s, `pi-acp@0.0.33`
+at ~12.5s, behind its startup banner) — but nothing in the protocol requires
+one, ever, so `connect()` does not wait for it. `input` is normalised for you:
+Claude sends `input: null` for a command that takes no argument, pi omits the
+key entirely, and `AgentCommand.input` only ever sees `undefined` for both.
+
+**Skills arrive in this same list — there is no `session.skills`.** ACP has no
+separate skills concept. The two agents probed mark them differently: pi
+prefixes the name (`skill:code-review`), Claude does not mark them at all
+outside a `(user)` / `(project)` suffix buried in `description`'s prose.
+Splitting them back into a second list would mean pattern-matching a label
+neither agent is contractually bound to keep — so render one palette, not two.
+
+**There is no `runCommand()`.** Invocation is what `prompt` already does:
+
+```ts
+await session.prompt([{ type: "text", text: "/" + command.name }]);
+```
+
+Silo's own Chat panel is the proof this is enough: its `/` palette inserts the
+name into the composer and sends it through the ordinary path.
+
+## Prompt capabilities — what the agent will accept
+
+```ts
+const caps = session.promptCapabilities; // { image, audio, embeddedContext }
+showAttachAffordance(caps.embeddedContext); // or `caps.image`, once modelled
+```
+
+Read once from `initialize` and fixed for the session's life — unlike
+`commands`, there is no change event for it. A field the agent's `initialize`
+omitted reads `false`, not `undefined`: both `codex-acp` and
+`claude-agent-acp` omit `audio` entirely (recon 2026-09-09), so treating an
+absent field as "not accepted" is the only reading that does not push a `??
+false` onto every consumer.
+
+Gate a `"resource"` prompt block on `embeddedContext` specifically —
+`"resource_link"` is a pointer the agent may or may not read, always allowed,
+and not gated on anything here. Silo's own Chat panel deliberately leaves its
+existing file-attach affordance (`resource_link`) ungated for this reason; it
+would gate a future embedded-content or image affordance the same way once one
+exists.
 
 ## Attaching a file
 
@@ -376,6 +433,8 @@ moving on from it.
 - [`AgentContentBlock`](/api/types/interfaces/AgentContentBlock)
 - [`AgentSessionConfigOption`](/api/types/interfaces/AgentSessionConfigOption)
 - [`AgentSessionConfigChoice`](/api/types/interfaces/AgentSessionConfigChoice)
+- [`AgentCommand`](/api/types/interfaces/AgentCommand)
+- [`AgentPromptCapabilities`](/api/types/interfaces/AgentPromptCapabilities)
 - [`AgentPermissionRequest`](/api/types/interfaces/AgentPermissionRequest)
 - [`AgentPermissionOption`](/api/types/interfaces/AgentPermissionOption)
 - [`ctx.agents`](/api/agents/) — the shared activity/status view both session kinds feed

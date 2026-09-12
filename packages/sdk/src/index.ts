@@ -135,6 +135,8 @@ export type {
   AgentSessionConfigChoice,
   AgentPermissionRequest,
   AgentPermissionOption,
+  AgentCommand,
+  AgentPromptCapabilities,
 } from "./agents-service";
 export type {
   TerminalService,
