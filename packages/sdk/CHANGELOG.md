@@ -1,5 +1,19 @@
 # @silo-code/sdk
 
+## [0.47.0](https://github.com/silo-code/silo/compare/sdk-v0.46.0...sdk-v0.47.0) (2026-09-12)
+
+
+### Features
+
+* **agents:** Agent Sessions over ACP (RFC 0038 phases 1-3) ([741ab45](https://github.com/silo-code/silo/commit/741ab459e4e367d37d4aba34db1fd024509d3cd4))
+* **agents:** author Chat profiles, and reach parity at the edges ([5fd0eb5](https://github.com/silo-code/silo/commit/5fd0eb5fd49e6095ec9e5773e50755cdf750f92d))
+* **agents:** chat sessions survive a restart (RFC 0042 phase 1) ([17a24eb](https://github.com/silo-code/silo/commit/17a24eb76ba78f750d4218f795b2a34a5d4413ce))
+* **agents:** host-drawn panel chrome (RFC 0039) ([61c852f](https://github.com/silo-code/silo/commit/61c852f42e3864e00e9f33b8dabc71dda3637045))
+* **agents:** key agent chrome on the Agent Session, not the terminal ([7e324eb](https://github.com/silo-code/silo/commit/7e324ebd35b30e3d09d0d540b4afbc7974876ab2))
+* **agents:** redesign the chat transcript and composer ([7fe18db](https://github.com/silo-code/silo/commit/7fe18dbbd5de55a6a2aa8989c63e4dcbb8eaa3d1))
+* **sdk:** DockPanelRecord — recorded panels reopen on restart (RFC 0041) ([09c3192](https://github.com/silo-code/silo/commit/09c31920757df50dab43dc3e3af2a48f577839e6))
+* **sdk:** resolve panel visibility as DockPanelProps.onScreen ([16d8e3f](https://github.com/silo-code/silo/commit/16d8e3f3cfa3d89db860ee209aaa4ad916be8732))
+
 ## [0.46.0](https://github.com/silo-code/silo/compare/sdk-v0.45.0...sdk-v0.46.0) (2026-09-04)
 
 
