@@ -126,7 +126,7 @@ don't get a proposal at all — see below.
 | [0034](./0034-control-api.md)                                 | Control API — a return channel for the `silo` command             | 2026-09-01 | implemented |
 | [0035](./0035-agent-prompt-composer.md)                       | Choosing an agent and reviewing a prompt before it runs           | 2026-09-03 | draft       |
 | [0036](./0036-replay-tagged-reattach.md)                      | Tagging reattach replay on the wire                               | 2026-09-03 | implemented |
-| [0038](./0038-acp-agent-sessions.md)                          | Agent Sessions — running an agent over a protocol (ACP)           | 2026-09-07 | draft       |
+| [0038](./0038-acp-agent-sessions.md)                          | Agent Sessions — running an agent over a protocol (ACP)           | 2026-09-07 | accepted    |
 | [0037](./0037-omp-agent-catalog.md)                           | OMP as a standalone catalog agent                                 | 2026-09-04 | implemented |
 | [0039](./0039-panel-toolbar-sdk.md)                           | Host-drawn chrome for a dock panel                                | 2026-09-09 | implemented |
 | [0040](./0040-agent-commands-and-context.md)                  | Commands, skills, and context in the Agent Session surface        | 2026-09-09 | implemented |

@@ -1,9 +1,15 @@
 ---
-status: draft # draft | accepted | implemented | rejected | superseded-by NNNN
+status: accepted # phases 1–4 + 6 shipped; phase 5 partially, see the table
 created: 2026-09-07
 ---
 
 # 0038. Agent Sessions — Terminal and Chat
+
+**Phases 1–4 and 6 have shipped; phase 5 is partially delivered.** The `status`
+is `accepted` rather than `implemented` because phase 5 still owes the
+connection card and "Sign in"; see the phase table for what each one landed.
+Phase 4 was delivered by [RFC 0042](./0042-chat-session-resurrection.md), which
+took persistence further than this proposal sketched it.
 
 ## Summary
 
@@ -337,14 +343,14 @@ way a conscious decision.
 
 ### Phases
 
-| Phase                                | Scope                                                                                                                                                                                                                                                     |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1 — Model + transport**            | `Agent Session` as the `ctx.agents` identity; `reveal()` / `resume()` verbs; the `AgentProfile` launch union; the `acpLaunch` catalog field; the piped-stdio Rust command family with stderr capture. Domain-language change + ADR 0028 amendment. No UI. |
-| **2 — `ctx.agents.sessions`**        | `@beta` SDK surface: connect, prompt, cancel, the typed update stream, permission plumbing. Sourced from user-authored profiles only.                                                                                                                     |
-| **3 — The Chat panel**               | One bundled transcript: streaming text, tool-call rows, inline permission, cancel. Deliberately not plan / modes / slash-commands / history.                                                                                                              |
-| **4 — Persistence**                  | Persist the session id; `session/load` on mount; the "cannot be restored" state.                                                                                                                                                                          |
-| **5 — Discovery, onboarding & auth** | The unified **Found on this machine** list; the Settings → Agents connection card; "Sign in" running the agent's own login in a Silo terminal; adapter fetch-on-first-use.                                                                                |
-| **6 — Session config defaults**      | `sessionConfig` on the profile's Chat arm: per-profile starting values for the agent's own `configOptions`, applied on a fresh `session/new`, discovered by a bounded probe. See above.                                                                   |
+| Phase                                | Scope                                                                                                                                                                                                                                                     | Status                                                                                                                  |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **1 — Model + transport**            | `Agent Session` as the `ctx.agents` identity; `reveal()` / `resume()` verbs; the `AgentProfile` launch union; the `acpLaunch` catalog field; the piped-stdio Rust command family with stderr capture. Domain-language change + ADR 0028 amendment. No UI. | shipped                                                                                                                 |
+| **2 — `ctx.agents.sessions`**        | `@beta` SDK surface: connect, prompt, cancel, the typed update stream, permission plumbing. Sourced from user-authored profiles only.                                                                                                                     | shipped                                                                                                                 |
+| **3 — The Chat panel**               | One bundled transcript: streaming text, tool-call rows, inline permission, cancel. Deliberately not plan / modes / slash-commands / history.                                                                                                              | shipped, and since grown well past its "deliberately not" list — plan, modes, slash commands and attachments all landed |
+| **4 — Persistence**                  | Persist the session id; `session/load` on mount; the "cannot be restored" state.                                                                                                                                                                          | shipped, via RFC 0042                                                                                                   |
+| **5 — Discovery, onboarding & auth** | The unified **Found on this machine** list; the Settings → Agents connection card; "Sign in" running the agent's own login in a Silo terminal; adapter fetch-on-first-use.                                                                                | **partial** — **Found on this machine** shipped; the connection card and "Sign in" have not                             |
+| **6 — Session config defaults**      | `sessionConfig` on the profile's Chat arm: per-profile starting values for the agent's own `configOptions`, applied on a fresh `session/new`, discovered by a bounded probe. See above.                                                                   | shipped                                                                                                                 |
 
 ### Things any ACP client must handle (learned the hard way)
 
