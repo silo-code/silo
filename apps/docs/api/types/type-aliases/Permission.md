@@ -4,7 +4,7 @@
 type Permission = "fs:read" | "fs:write" | "process" | "network" | "webview" | "agents";
 ```
 
-Defined in: [packages/sdk/src/permissions.ts:36](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L36)
+Defined in: [packages/sdk/src/permissions.ts:39](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L39)
 
 A capability an extension declares in its manifest (`silo.permissions`) to
 request access **beyond the open workspace**. With none declared, an
@@ -30,4 +30,7 @@ and the user consents to the set at install.
   the way [FileService](../interfaces/FileService.md) throws [PathDeniedError](../classes/PathDeniedError.md) without
   `fs:read`. Distinct from `process`: the child is spawned by the host from a
   profile the user wrote, not by the extension through
-  [ExtensionContext.process](../interfaces/ExtensionContext.md#process).
+  [ExtensionContext.process](../interfaces/ExtensionContext.md#process). Trusted (built-in) extensions are exempt,
+  the same way they're exempt from declaring `fs:*`/`process` — a narrower
+  grant than either, since it only launches a profile the user already
+  authored.

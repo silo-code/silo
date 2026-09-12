@@ -574,13 +574,18 @@ same-process reconnect; **Chat session resurrection** is the cross-quit rebuild.
 _Avoid_: using "reattach" for the cross-quit case (that is resurrection —
 the process is gone).
 
-**Chat panel** (`core.acp-chat`, RFC 0038 phase 3) — the bundled center-dock
-surface that holds one **Transcript** and its composer. One panel binds to one
-**Chat** Agent Profile; switching the profile is a teardown, not a re-render.
-It is an ordinary extension built on `ctx.agents.sessions` and `@silo-code/sdk`
-alone — deliberately claiming no privilege a third-party Chat UI lacks — and
-registers only while the `chatAgents` gate is on, and is disabled and replaced
-the same way as any other extension.
+**Chat panel** (`silo.agents-chat-panel`, `packages/extensions-silo/src/agents-chat-panel/`,
+RFC 0038 phase 3) — the bundled center-dock surface that holds one
+**Transcript** and its composer. One panel binds to one **Chat** Agent
+Profile; switching the profile is a teardown, not a re-render. It is an
+ordinary bundled extension built on `ctx.agents.sessions` and
+`@silo-code/sdk` alone — deliberately claiming no privilege a third-party
+Chat UI lacks — registers unconditionally (there is no `chatAgents` gate;
+RFC 0039 retired it), and is disabled and replaced the same way as any other
+`silo.*` extension. Was `core.acp-chat` until RFC 0039 moved it to
+`examples/extensions/acp-chat` (`silo.acp-chat`) for release-free iteration;
+Session 8 of the Agent Sessions sprint moved it back in-tree under its
+current id for the same property with Vite HMR.
 _Avoid_: "ACP panel" (Silo says _Chat_); "agent panel" (that is the
 `silo.agents` Navigator view, which lists every Agent Session); calling it the
 Chat session — the panel is the UI, the session is the running agent.

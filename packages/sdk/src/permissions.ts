@@ -28,7 +28,10 @@
  *   the way {@link FileService} throws {@link PathDeniedError} without
  *   `fs:read`. Distinct from `process`: the child is spawned by the host from a
  *   profile the user wrote, not by the extension through
- *   {@link ExtensionContext.process}.
+ *   {@link ExtensionContext.process}. Trusted (built-in) extensions are exempt,
+ *   the same way they're exempt from declaring `fs:*`/`process` — a narrower
+ *   grant than either, since it only launches a profile the user already
+ *   authored.
  *
  * @category Extension Contract
  * @public

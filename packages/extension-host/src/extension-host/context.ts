@@ -82,7 +82,10 @@ import {
  * granted at install.
  */
 export interface ContextOptions {
-  /** First-party (bundled) extension — unscoped `files`/`process`. */
+  /**
+   * First-party (bundled) extension — unscoped `files`/`process`, and exempt
+   * from declaring the `"agents"` permission for `ctx.agents.sessions`.
+   */
   trusted?: boolean;
   /** Human-readable display name for this extension's Output channel. Falls back to extensionId. */
   displayName?: string;
@@ -235,8 +238,13 @@ export function createContext(
       ...getAgentsService(),
       // `sessions` is the one part of `ctx.agents` that is permission-gated:
       // `connect()` spawns a process and speaks a protocol to it, so it needs
-      // the `"agents"` grant (RFC 0039). The rest of `ctx.agents` is unscoped.
-      sessions: createAgentSessionsService(() => permissions.has("agents")),
+      // the `"agents"` grant (RFC 0039) unless the extension is trusted — the
+      // same bypass `files`/`process` already get, and a narrower capability
+      // than either (it only launches a profile the user already authored).
+      // The rest of `ctx.agents` is unscoped.
+      sessions: createAgentSessionsService(
+        () => options.trusted === true || permissions.has("agents"),
+      ),
     },
     terminals: getTerminalService(),
     files: getScopedFileService(scope),

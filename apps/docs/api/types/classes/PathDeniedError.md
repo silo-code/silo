@@ -1,6 +1,6 @@
 # Class: PathDeniedError
 
-Defined in: [packages/sdk/src/permissions.ts:61](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L61)
+Defined in: [packages/sdk/src/permissions.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L64)
 
 Thrown by [FileService](../interfaces/FileService.md) and [ProcessService](../interfaces/ProcessService.md) when an extension
 touches a path — or runs a process with a working directory — outside the open
@@ -27,7 +27,7 @@ try {
 new PathDeniedError(path, message?): PathDeniedError;
 ```
 
-Defined in: [packages/sdk/src/permissions.ts:65](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L65)
+Defined in: [packages/sdk/src/permissions.ts:68](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L68)
 
 #### Parameters
 
@@ -57,7 +57,7 @@ Error.constructor
 readonly path: string;
 ```
 
-Defined in: [packages/sdk/src/permissions.ts:63](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L63)
+Defined in: [packages/sdk/src/permissions.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/permissions.ts#L66)
 
 The offending path, exactly as the extension passed it.
 

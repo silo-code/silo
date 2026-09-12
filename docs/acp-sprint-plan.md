@@ -4,7 +4,11 @@
 [RFC 0038](./proposals/0038-acp-agent-sessions.md); the evidence is
 [`acp-recon.md`](./acp-recon.md).
 
-**Branch:** `feat/agent-sessions`. Do not merge to `main` until Session 4 passes.
+**Branch:** `feat/agent-sessions`. Session 4 was the correctness gate and it
+passed; the branch now also carries **Sessions 8, 7, 6** before merge, in that
+run order — the panel's move from `examples/` into `silo.*` as
+`silo.agents-chat-panel` (8), commands/skills/context per RFC 0040 (7), then
+Chat-UI parity with Paseo (6). Do not merge to `main` until 6 lands.
 **Docs already on `main`** via PR #512 (`docs/rfc-0038-agent-sessions`).
 
 ---
@@ -958,14 +962,19 @@ after the merge.
 - ✅ **Done (Session 5, below).** Unified **Found on this machine** list — one
   row per agent showing `Terminal · Chat` (`acp-recon.md` §5h has the verified
   table).
-- Settings → Agents connection card: Connected · Provider · Account.
-- "Sign in" runs the agent's own login command in a real Silo terminal, using
-  the argv from `authMethods` (`acp-recon.md` §5f).
-- Adapter fetch-on-first-use for `claude`/`codex`/`pi`.
+- ~~Settings → Agents connection card: Connected · Provider · Account.~~
+- ~~"Sign in" runs the agent's own login command in a real Silo terminal, using
+  the argv from `authMethods` (`acp-recon.md` §5f).~~
+- ~~Adapter fetch-on-first-use for `claude`/`codex`/`pi`.~~
 
-The last three want their own proposal — the connection card is per-agent
-status-command knowledge (`acp-recon.md` §5g calls it the differentiator), not
-sprint cleanup.
+**The last three are cut from this sprint** (Dave, 2026-09-10) and move to their
+own proposal — the connection card is per-agent status-command knowledge
+(`acp-recon.md` §5g calls it the differentiator), not sprint cleanup. Note the
+adapter fetch already works mechanically: an `adapter`-kind agent's first Chat
+launch runs `npx -y <package>@<version>` (`chat-launch-model.ts`) and the
+"Found on this machine" row already carries the "downloads on first use" note.
+What the proposal owes is the onboarding polish around a slow first run (a
+visible "fetching adapter…" state, optional cache pre-warm), not the fetch.
 
 ## The Chat UI we are aiming at
 
@@ -978,10 +987,166 @@ Before it drives any work, capture the specifics: what the transcript shows per
 turn, how commands and skills are surfaced, how context is attached and
 displayed, and what the composer does. Then it belongs in a proposal, not here.
 
-What is already true and load-bearing for it: after Session 3.9 the panel lives
-in `examples/extensions/acp-chat`, so iterating toward that target no longer
-costs a Silo release — which is the whole reason 3.9 is sprint work rather than
-cleanup.
+**Session 6 does exactly that** — characterise the target from the video and
+Paseo's own bundle, write the proposal, then close the gap. **Runs last, after
+Sessions 8 and 7** — see "Sessions 8 / 7 / 6 — the running order" below.
+
+What is already true and load-bearing for it: after Session 3.9 the panel does
+not require a Silo release to iterate on, which is the whole reason 3.9 is
+sprint work rather than cleanup. Session 8 (below) moves it from
+`examples/extensions/acp-chat` — a separately built package the host loads
+like any installed extension — into `packages/extensions-silo/`, a workspace
+package the app's own Vite dev server serves with normal HMR. Same "no release
+needed" property during the sprint; faster inner loop for the redesign work
+that follows.
+
+---
+
+## Sessions 8 / 7 / 6 — the running order
+
+Run **8, then 7, then 6** — reversed from numeric order, same reasoning as the
+3.7/3.8/3.6 precedent above. As with that precedent, the sections below appear
+in run order, not numeric order.
+
+- **8 first, for the dev loop.** `examples/extensions/acp-chat` is loaded like
+  any installed extension — every edit needs `node build.mjs` and a reload
+  before it shows up (see the standing note in `.claude/…/memory/`).
+  `packages/extensions-silo` is plain workspace TS that `apps/desktop`'s Vite
+  dev server HMRs directly. Doing the relocation first means Sessions 7 and
+  6 — the sessions that actually iterate on the panel — get the fast loop for
+  the whole rest of the work, instead of paying the manual-rebuild tax through
+  both of them and then moving the (by-then-larger) diff afterward.
+- **7 before 6.** Session 7's `session.commands` / `promptCapabilities` are the
+  stable data (a small, pattern-matched SDK addition); Session 6's
+  composer/transcript redesign is what churns. Building 6 first means
+  designing a `/` affordance against a stub or `raw`, then re-touching it once
+  7 lands the real data — backwards. With 7 done first, Session 6 designs the
+  palette and attachment gating against Paseo's actual behaviour, for real,
+  once.
+
+---
+
+## Session 8 — the panel becomes `silo.*`
+
+**Goal:** promote `examples/extensions/acp-chat` to a bundled first-party
+extension at `packages/extensions-silo/src/agents-chat-panel/` (`silo.*`), wired
+in by the composition root (`apps/desktop/src/builtins.ts`). Runs **first** of
+the three, purely for the faster dev loop it gives Sessions 7 and 6 — see
+"Sessions 8 / 7 / 6 — the running order" above.
+
+**Why it is safe:** `@silo-code/extensions-silo` depends on `@silo-code/sdk`
+alone — the exact constraint the example already lives under — so this is a
+package relocation, not a rewrite.
+
+### The id: `silo.acp-chat` → `silo.agents-chat-panel`
+
+Renamed (Dave's call, 2026-09-10) so a user deciding whether to disable the
+bundled UI and install a third-party one in its place can tell what it is from
+the id alone. `docs/domain-language.md` already has the vocabulary for this —
+its **Chat panel** entry ("the panel is the UI, the session is the running
+agent") is the exact distinction the name should carry, and that entry's
+`core.acp-chat` reference is stale from before Session 3.9 and gets fixed here
+too. `displayName` stays `"Agent Chat"`. Considered and rejected:
+`silo.agents-chat-ui` (reads as a settings surface, not a dock panel kind —
+inconsistent with `silo.image-viewer` / `silo.git-explorer`'s `-viewer`/
+`-explorer` pattern), `silo.agent-chats-panel` (pluralizes the wrong noun — one
+panel _kind_ opens many chats, it isn't a panel _of_ chats), and
+`silo.agent-chat-panel` — this session's own first draft, corrected by Dave
+mid-session to `silo.agents-chat-panel`: the extension is scoped to the
+**Agents** feature area (`silo.agents` already owns that namespace segment for
+the Navigator/status view), with "chat-panel" naming which surface within it,
+not "agent chat" as a compound noun.
+
+### Scope
+
+- Relocate the source into `packages/extensions-silo/src/agents-chat-panel/`,
+  re-export from that package's `src/index.ts`, register in `builtins.ts`
+  through `activateExtensions`. Model the wiring on `image-viewer` (`silo.*`
+  editor). Rename the registered dock-panel-kind id and the extension id from
+  `acp-chat` to `agents-chat-panel` in the same change — no transitional alias,
+  this hasn't shipped to a real user yet.
+- Decide the fate of `examples/extensions/acp-chat` — keep a trimmed example or
+  delete it. Criterion 3 ("a third party can build their own") is already
+  proven and does not depend on the example surviving.
+- ~~The `chatAgents` gate — does the bundled panel stay gated, or does this
+  session turn it on for real?~~ **Stale premise, caught mid-session:** RFC
+  0039 had already retired `chatAgents` before this session ran — there is no
+  flag left to keep it gated behind. `resolveChatProfileHost()` is the only
+  remaining gate, and registering this panel kind satisfies it unconditionally.
+  Dave's call was to ship it live — see the Session 8 handoff below.
+- Run the [extension checklist](apps/docs/guide/extension-checklist.md).
+- Update RFC 0038 / 0039 / the roadmap / `domain-language.md` wherever they
+  name the panel `core.acp-chat`, `silo.acp-chat`, or describe it as an
+  example.
+
+**Done when:** starting a Chat profile opens the bundled `silo.agents-chat-panel`
+panel via `packages/extensions-silo/src/agents-chat-panel/`, the gates are
+green, and the extension checklist is done. Sessions 7 and 6 build on top of
+this location — the merge gate for the branch is Session 6, not this one.
+
+---
+
+## Session 7 — commands, skills, and context (RFC 0040)
+
+Sketched above as **Session 3.10**; renumbered here, still owed. Full design:
+[RFC 0040](proposals/0040-agent-commands-and-context.md) (`status: draft`).
+Recon is already done (2026-09-09 — see the 3.10 section):
+`available_commands_update` and `promptCapabilities` both arrive today and Silo
+drops them on the floor. Runs against `packages/extensions-silo/src/agents-chat-panel/`
+— Session 8 has already relocated the panel by the time this starts.
+
+**Scope / Done when** are unchanged from the Session 3.10 section:
+`session.commands` + `onCommandsChanged` shaped like the existing
+`configOptions` pair, `session.promptCapabilities` and the `AgentPromptBlock`
+members it unlocks, the `onUpdate` TSDoc fix, and **no `runCommand()`**. The
+`silo.agents-chat-panel` panel renders a `/` palette from `session.commands` and
+gates its attachment affordance on `promptCapabilities`, with no `raw` read for
+either.
+
+Runs **before** Session 6 — see "Sessions 8 / 7 / 6 — the running order" above.
+
+---
+
+## Session 6 — Chat UI cleanup, to the Paseo bar
+
+**Goal:** `silo.agents-chat-panel` (`packages/extensions-silo/src/agents-chat-panel/`
+— relocated in Session 8) stops looking like a spike. The reference is
+**Paseo**'s chat UI (Dave, 2026-09-09). This session first _characterises_ that
+target from real evidence and writes it down as a proposal, then closes the gap
+against it. Runs **last** of the three — see "Sessions 8 / 7 / 6 — the running
+order" above.
+
+### Evidence to work from — do not design from memory
+
+- **The screen recording** — `~/Desktop/Screen Recording 2026-09-10 at
+8.51.53 PM.mov` (Dave to confirm which file). Watch it before touching code.
+- **Paseo's own bundle** — `/Applications/Paseo.app/Contents/Resources/`:
+  `app.asar` (extract with `npx @electron/asar extract`) plus
+  `app-dist/_expo/static/js/web/`. Expo / React-Native-Web + Electron,
+  minified but readable. Read out the transcript layout, the per-turn model,
+  the composer, and how commands / attachments surface.
+- Fold the findings into a short proposal in `docs/proposals/` **before**
+  building — this is the "capture the specifics… then it belongs in a proposal"
+  step the section above demands.
+
+### Scope (sharpen once the evidence is in)
+
+- **The turn** — how a user message, the agent's thinking, tool-call rows, the
+  plan, and the final answer are grouped, ordered, and spaced within one turn.
+- **The composer** — affordances, multiline behaviour, send / stop, and the `/`
+  palette + attachment gating Session 7 already wired — this session designs
+  their _placement and feel_ against Paseo, not their data source.
+- **Streaming feel** — how in-progress text, live tool rows, and turn status
+  read while a prompt is running.
+- Stays on `ctx.agents.sessions` + `@silo-code/sdk` types + kit components +
+  `--silo-*` design tokens. A gap is a signal to widen `ctx`, never to reach
+  around it. SDK `Tooltip`, never native `title`. No hard-coded colour / px.
+- Tests in the same change — pure-logic split per `.agents/skills/silo-testing`.
+
+**Done when:** the panel matches the proposal's characterisation, the proposal
+is written, `pnpm test` / `tsc --noEmit` / `pnpm lint` are green, and Dave has
+eyeballed the running panel against the video. This is the merge gate for the
+branch.
 
 ---
 
@@ -2589,3 +2754,88 @@ profiles removed afterward. `pnpm test` / `tsc --noEmit` / `pnpm lint` green.
 
 **Next:** collapse RFC 0042 and prep `feat/agent-sessions` for merge. The
 connection-card / sign-in / adapter-fetch trio wants its own proposal.
+
+**Session 8 (2026-09-10, Sonnet) — the panel becomes `silo.agents-chat-panel`.**
+Relocated `examples/extensions/acp-chat` into
+`packages/extensions-silo/src/agents-chat-panel/` and wired it into
+`builtins.ts` as a regular bundled `silo.*` extension. The id is
+**`silo.agents-chat-panel`** (Dave's correction, 2026-09-10) — not
+`silo.agent-chat-panel` as this section originally proposed; the dock-panel-kind
+id is `agents-chat-panel` to match. `examples/extensions/acp-chat` was deleted
+outright (its `package.json`/`build.mjs`/`tsconfig.json`/`vitest.config.ts`,
+its row in `examples/extensions/README.md`): criterion 3 was already proven and
+a second copy is one more thing to keep in step, per RFC 0039's own reasoning
+for deleting the bundled copy when the example was created.
+
+Two findings surfaced along the way that the prompt for this session didn't
+anticipate:
+
+1. **There is no `chatAgents` flag to gate this behind.** RFC 0039 already
+   retired it (`persistence.ts`, `AgentsProfilesPanel.tsx`,
+   `acp-sessions-service.ts` all say so explicitly) — the only gate left is
+   `resolveChatProfileHost()` (does any registered dock panel kind declare
+   `chatProfileHost: true`?). So wiring the panel into `builtins.ts`
+   unconditionally doesn't relocate an inert feature — it **turns Chat on for
+   every Silo user**, live, the moment this merges. Flagged to Dave; his call
+   was to ship it live rather than invent a new gate for work that was always
+   going to ship eventually.
+2. **Built-in extensions get zero permissions today**, `"agents"` included.
+   `builtins-registry.ts`'s `activate()` calls `createContext(id, { trusted:
+true })` with no `permissions` array, ever — `trusted` only unscopes
+   `files`/`process` (`context.ts`), it does not imply `"agents"`. No existing
+   builtin had ever called `ctx.agents.sessions`, so this was latent: the
+   panel would have thrown `needs the "agents" permission` on every
+   `connect()`/`readJournal()` call, unconditionally, the instant it activated
+   as a builtin. Fixed at the source — `context.ts` now lets a **trusted**
+   extension bypass the `"agents"` gate the same way it already bypasses
+   `fs:*`/`process` (a narrower grant than either: it only launches a profile
+   the user already authored). Updated the `Permission`/`ContextOptions.trusted`
+   TSDoc accordingly and regenerated `apps/docs/api` (`pnpm docs:api`). New
+   coverage: three cases in `context.test.ts` (trusted bypasses; untrusted
+   without the permission is denied; untrusted with it granted passes).
+
+Everything else was mechanical: barrel export (`agentsChatPanel` from
+`extensions-silo/src/index.ts`), `builtins.ts` import + placement (grouped with
+`agents` — no ordering dependency between them, see the comment there), the
+`acp-chat.css` import switched from esbuild's `loader: { ".css": "text" }` to
+Vite's `?inline` (matching `silo.agents`'s pattern) with the now-dead `css.d.ts`
+deleted, and a `manifest: { name, description }` added so the extension shows
+correctly on the Extensions settings page (third-party manifests come from
+`package.json`; builtins need it on the `Extension` object itself). No CSS
+class names or component/file basenames were renamed — `.acp-chat__*` and
+`AcpChatPanel.tsx` stay as they are; only the two ids the prompt named
+(`Extension.id`, the dock-panel-kind id) changed. Stale references fixed in
+`docs/domain-language.md`'s **Chat panel** entry, `apps/docs/roadmap.md`
+(flipped `planned` → `beta`, matching `ctx.agents.sessions`'s own badge), RFC
+0039 (superseded-note + follow-up bullets marked done), RFC 0041, and a handful
+of code comments (`chat-profile-host.ts`, `terminal/index.tsx`,
+`builtins.ts`/`builtins.test.ts`). Left alone, deliberately: the many
+`"acp-chat"` strings used as arbitrary example ids in host-internal tests
+(`dock-panel-kinds.test.ts`, `workspaces.test.ts`, etc. — not about this
+extension), and `docs/acp-recon.md` / `docs/acp-process-ownership.md` (historical
+recon, same carve-out as this file's own past handoff entries).
+
+**Verified live** (attached dev app, real machine, throwaway sandbox
+workspace): after a full reload (dock-panel-kind registration only happens at
+boot), `silo.agents-chat-panel` activated with no errors in the extension-host
+log. `core.newAgent` opened it via the default Chat profile and it connected —
+composer went from "Waiting for the agent…" to live controls, no permission
+error anywhere, `outputLogs` clean. Editing `AcpChatPanel.tsx` (an `aria-label`)
+while the session stayed connected propagated in ~2s with **no page reload** —
+the actual point of this session. One incidental observation: this dev
+identity has a stale third-party `silo.acp-chat` install under
+`~/.config/silo-dev/extensions/` from earlier manual testing; it loads after
+builtins and `resolveChatProfileHost` is first-registered-wins, so it's
+correctly shadowed and inert — not a repo issue, not touched.
+
+Gates green: `pnpm test` (11 packages, 3200+ tests), `pnpm --filter silo exec
+tsc --noEmit`, `pnpm lint`, `pnpm docs:api`, `pnpm docs:build`.
+
+**What Session 7 inherits:** `packages/extensions-silo/src/agents-chat-panel/`
+with real Vite HMR — no `node build.mjs` step. RFC 0040's `session.commands` /
+`promptCapabilities` work lands directly against this location. The panel is
+now genuinely live for any user with a Chat-capable agent on their machine, so
+Session 7/6 UI work is no longer "spike polish before it matters" — it's the
+UI real users are seeing today.
+
+**Next:** Session 7 (commands, skills, context — RFC 0040).

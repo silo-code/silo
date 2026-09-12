@@ -42,7 +42,7 @@ export const extension: Extension = {
       // working directory through `api.setBreadcrumb` and the dock frame draws
       // the strip — the `terminalSettings.breadcrumbs` toggle becomes
       // `setBreadcrumb(null)` when off. This is the second consumer of the
-      // declaration, after `examples/extensions/acp-chat`.
+      // declaration, after `silo.agents-chat-panel`.
       toolbar: { breadcrumb: true },
     });
     ctx.registerSettingsPage({

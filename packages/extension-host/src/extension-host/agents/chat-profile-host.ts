@@ -6,8 +6,10 @@
  * menu, `core.newAgent.<id>`) needs a transcript UI instead, and the host does
  * not own one. A panel kind claims the job by declaring
  * `DockPanelKind.chatProfileHost`, which is a **declaration, not a privilege**:
- * `examples/extensions/acp-chat` claims it exactly as any third-party Chat
- * panel would (RFC 0039 moved the panel out of the bundle).
+ * the bundled `silo.agents-chat-panel` claims it exactly as any third-party
+ * Chat panel would (RFC 0039 first moved the panel out of the bundle into
+ * `examples/extensions/acp-chat`; Session 8 of the Agent Sessions sprint moved
+ * it back in-tree as an optional `silo.*` extension).
  *
  * `resolveChatProfileHost` is also the profile editor's authoring gate: the
  * Interface: Terminal / Chat choice is offered only when this returns a kind,

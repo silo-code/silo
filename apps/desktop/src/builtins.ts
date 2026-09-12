@@ -26,6 +26,7 @@ import {
   git,
   gitExplorer,
   agents,
+  agentsChatPanel,
   themePresets,
 } from "@silo-code/extensions-silo";
 
@@ -59,6 +60,11 @@ const builtins: Extension[] = [
   // consume its published GitAPI.
   git,
   gitExplorer,
+  // No ordering dependency between these two — agentsChatPanel's
+  // registerDockPanelKind and agents's Navigator/status view are independent
+  // surfaces over ctx.agents (`.sessions` vs. the unscoped status API).
+  // Grouped here because both are agent-related.
+  agentsChatPanel,
   agents,
   // Register presets before the themes UI so the picker has them on first paint.
   themePresets,
@@ -86,10 +92,18 @@ const builtins: Extension[] = [
  * disabled-built-in choices are applied just after, asynchronously, via
  * {@link ExtensionManager.applyDisabledBuiltins}.
  *
- * The bundled Chat panel is gone (RFC 0039): it lives in
- * `examples/extensions/acp-chat`, installed like any other extension, so there
- * is no longer a built-in that has to be conditionally activated — and with it
- * went the `chatAgents` gate and the boot-order dance it forced.
+ * The Chat panel (`silo.agents-chat-panel`) is a regular bundled `silo.*`
+ * extension, activated unconditionally like every other entry here — no
+ * boot-order dance. There is no `chatAgents` flag to gate it behind: RFC 0039
+ * already retired that setting in favor of `resolveChatProfileHost()` (does
+ * any registered dock panel kind declare `chatProfileHost: true`?) plus the
+ * `"agents"` permission on `connect()`. So registering this panel kind here
+ * makes Chat a real, working feature for any user who authors a Chat Agent
+ * Profile — not gated behind anything (Dave's call, 2026-09-10). RFC 0039
+ * first moved the panel out to `examples/extensions/acp-chat` for a
+ * release-free inner loop; Session 8 of the Agent Sessions sprint moved it
+ * back in-tree, into `packages/extensions-silo`, for the same property with
+ * Vite HMR instead of a manual rebuild.
  */
 export function activateBuiltins(): void {
   activateExtensions(builtins);

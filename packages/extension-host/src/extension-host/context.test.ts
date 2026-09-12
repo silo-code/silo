@@ -312,3 +312,31 @@ describe("createContext storage directories", () => {
     ).rejects.toBeInstanceOf(PathDeniedError);
   });
 });
+
+// ctx.agents.sessions.connect()/readJournal() are gated on the "agents"
+// permission (RFC 0039). Distinguishing the permission error from the "no
+// such profile" error (reached only once the gate is passed, with no agent
+// profiles configured) pins the gate itself without mocking session/process
+// internals.
+describe("createContext agents permission gate", () => {
+  it("bypasses the gate for a trusted (builtin) extension", async () => {
+    const ctx = createContext("silo.agents-chat-panel", { trusted: true });
+    await expect(ctx.agents.sessions.connect("missing")).rejects.toThrow(
+      /No agent profile/,
+    );
+  });
+
+  it("denies an untrusted extension with no granted permission", async () => {
+    const ctx = createContext("third.party");
+    await expect(ctx.agents.sessions.connect("missing")).rejects.toThrow(
+      /needs the "agents" permission/,
+    );
+  });
+
+  it("lifts the gate for an untrusted extension with the granted permission", async () => {
+    const ctx = createContext("third.party", { permissions: ["agents"] });
+    await expect(ctx.agents.sessions.connect("missing")).rejects.toThrow(
+      /No agent profile/,
+    );
+  });
+});

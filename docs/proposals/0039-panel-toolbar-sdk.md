@@ -151,6 +151,14 @@ type Permission =
 
 ### The chat panel is an example, not a bundle
 
+> **Superseded (Session 8 of the Agent Sessions sprint, 2026-09-10):** the
+> panel moved back in-tree, into `packages/extensions-silo/src/agents-chat-panel/`
+> as the bundled `silo.agents-chat-panel`, for the same release-free iteration
+> property with Vite HMR instead of a manual `node build.mjs`. It still
+> resolves `@silo-code/sdk` alone — the boundary this section describes is
+> unchanged, only the package it lives in. See `docs/domain-language.md`'s
+> **Chat panel** entry for the current id and location.
+
 `examples/extensions/acp-chat` — the real panel (~1,350 lines across
 `AcpChatPanel.tsx`, `transcript-model.ts` and five small pure modules, all
 co-located Vitest) moved verbatim. It declares `chatProfileHost: true`,
@@ -282,7 +290,13 @@ gets no Interface choice while an existing Chat profile still reports
   the same `surface: "panel"` / `t.params.terminalId` migration once a `"panel"`
   SDK ships.
 - `examples/extensions/*/src/**/*.css` is not covered by `pnpm lint:css` (the
-  `silo/extension-design-tokens-only` rule) — the moved `acp-chat.css` passes
-  it when run by hand, but the glob should be widened.
-- Move the chat panel back in-tree once it is good enough to be a default
-  (RFC 0038 acceptance criteria decide when).
+  `silo/extension-design-tokens-only` rule); the glob should still be widened
+  for whatever examples remain there. Moot for `acp-chat.css` itself — Session
+  8 relocated it into `packages/extensions-silo`, which the
+  `packages/extensions-*/src/**/*.css` glob already covers.
+- ~~Move the chat panel back in-tree once it is good enough to be a default~~
+  **Done (Session 8, 2026-09-10)** — moved into `packages/extensions-silo` as
+  `silo.agents-chat-panel`, wired into `builtins.ts` unconditionally. Not
+  gated on "good enough to be a default": RFC 0039 had already retired the
+  `chatAgents` flag by the time Session 8 ran, so there was no gate left to
+  hold it behind — Dave's call was to ship it live rather than invent one.

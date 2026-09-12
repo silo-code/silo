@@ -5,12 +5,16 @@
  *
  * ## It is built on the SDK and nothing else
  *
- * This is `examples/extensions/acp-chat` — an installed extension that resolves
- * `@silo-code/sdk` **only**. There is no `@silo-code/extension-host/internal`
- * import anywhere in it, and there physically cannot be: an example does not
- * depend on the host package, so anything the panel needed from the privileged
- * surface would fail to resolve rather than pass review. The whole panel runs
- * on `ctx.agents.sessions` plus `@silo-code/sdk` types and kit components — if
+ * `silo.agents-chat-panel` (`packages/extensions-silo/src/agents-chat-panel/`)
+ * depends on `@silo-code/sdk` **only** — `@silo-code/extensions-silo` resolves
+ * the privileged `@silo-code/extension-host/internal` surface nowhere in its
+ * dependency graph, so anything this panel needed from it would fail to
+ * resolve rather than pass review. It started life as
+ * `examples/extensions/acp-chat`, a separately-built example package proving
+ * the same constraint from outside the workspace; Session 8 of the Agent
+ * Sessions sprint relocated it here (same constraint, faster inner loop — Vite
+ * HMR instead of a manual `node build.mjs`). The whole panel runs on
+ * `ctx.agents.sessions` plus `@silo-code/sdk` types and kit components — if
  * something here needed more, the fix is to widen `ctx`, never to reach around
  * it (RFC 0038 acceptance criterion 2, now met by the shipping UI).
  *
@@ -36,8 +40,9 @@
  * The panel kind declares `chatProfileHost: true`, so starting a **Chat** Agent
  * Profile opens it — from the agent-profile section of a dock's **+** menu, the
  * "New Agent" empty-workspace action, or `core.newAgent`.
- * `ctx.agents.sessions` needs the `"agents"` permission, declared in this
- * example's `silo.permissions` and granted at install.
+ * `ctx.agents.sessions` needs the `"agents"` permission; as a trusted built-in
+ * this extension is exempt from declaring it, the same way built-ins are
+ * exempt from `fs:*`/`process`.
  *
  * ## Surviving a restart (RFC 0042)
  *

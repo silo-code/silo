@@ -1,17 +1,20 @@
 /**
- * `silo.acp-chat` — the **Chat panel** (RFC 0038 / 0039): a center-dock
- * transcript for one ACP Chat session, opened by starting a Chat Agent
- * Profile (the + menu's agent-profile section, the "New Agent" watermark
- * action, or `core.newAgent`).
+ * `silo.agents-chat-panel` — the **Chat panel** (RFC 0038 / 0039): a
+ * center-dock transcript for one ACP Chat session, opened by starting a Chat
+ * Agent Profile (the + menu's agent-profile section, the "New Agent"
+ * watermark action, or `core.newAgent`).
  *
- * It was the bundled `core.acp-chat` until RFC 0039 moved it here, so it can be
- * iterated without shipping a Silo release. That move is also the proof the SDK
- * is sufficient: an example resolves `@silo-code/sdk` **only**, so the panel
- * drives `ctx.agents.sessions` — and gets its chrome strip — entirely through
- * the public surface, with nothing from `@silo-code/extension-host/internal`.
+ * It was the bundled `core.acp-chat` until RFC 0039 moved it to
+ * `examples/extensions/acp-chat` (`silo.acp-chat`) so it could be iterated
+ * without shipping a Silo release; Session 8 of the Agent Sessions sprint
+ * relocated it again, into this bundled `silo.*` package, for the same
+ * release-free iteration with a faster Vite-HMR inner loop. The panel drives
+ * `ctx.agents.sessions` — and gets its chrome strip — entirely through the
+ * public SDK, with nothing from `@silo-code/extension-host/internal`.
  *
- * It declares the `"agents"` permission (`ctx.agents.sessions.connect()` throws
- * without it) and `chatProfileHost: true` (so a Chat Agent Profile opens here).
+ * It declares `chatProfileHost: true` (so a Chat Agent Profile opens here).
+ * `ctx.agents.sessions.connect()` needs the `"agents"` permission; as a
+ * trusted built-in this extension is exempt from declaring it.
  */
 
 import type {
@@ -20,9 +23,9 @@ import type {
   ExtensionContext,
 } from "@silo-code/sdk";
 import { AcpChatPanel, type AcpChatPanelParams } from "./AcpChatPanel";
-import styles from "./acp-chat.css";
+import styles from "./acp-chat.css?inline";
 
-const STYLE_ID = "silo-acp-chat-styles";
+const STYLE_ID = "silo-agents-chat-panel-styles";
 
 function injectStyles() {
   if (document.getElementById(STYLE_ID)) return;
@@ -37,7 +40,7 @@ function activate(ctx: ExtensionContext) {
 
   ctx.subscriptions.push(
     ctx.registerDockPanelKind({
-      id: "acp-chat",
+      id: "agents-chat-panel",
       component: (props: DockPanelProps<AcpChatPanelParams>) => (
         <AcpChatPanel {...props} ctx={ctx} />
       ),
@@ -55,8 +58,8 @@ function activate(ctx: ExtensionContext) {
       // opens this panel with that profile's id. A declaration, not a
       // privilege — the same one the bundled panel used to make.
       chatProfileHost: true,
-      // No generic entry point (`addMenuItem`, a `silo.acpChat.new` command, a
-      // toolbar "+"): a Chat session starts from a *profile* — the
+      // No generic entry point (`addMenuItem`, a `silo.agentsChatPanel.new`
+      // command, a toolbar "+"): a Chat session starts from a *profile* — the
       // agent-profile section of the + menu, the "New Agent" watermark action,
       // or `core.newAgent` — never a profile-less picker.
     }),
@@ -68,7 +71,12 @@ function deactivate() {
 }
 
 export const extension: Extension = {
-  id: "silo.acp-chat",
+  id: "silo.agents-chat-panel",
+  manifest: {
+    name: "Agent Chat",
+    description:
+      "A center-dock transcript panel for an ACP Chat session — streaming text, thinking, tool calls, the plan, and inline permission requests.",
+  },
   activate,
   deactivate,
 };

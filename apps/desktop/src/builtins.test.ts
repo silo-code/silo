@@ -11,9 +11,9 @@ vi.mock("@silo-code/extension-host", async (importOriginal) => ({
 
 const { activateBuiltins } = await import("./builtins");
 
-// RFC 0039: the Chat panel moved to `examples/extensions/acp-chat`, so there is
-// no longer a bundled extension that has to be conditionally activated — and
-// the `chatAgents` gate and its boot-order dance went with it.
+// Session 8 (Agent Sessions sprint) moved the Chat panel back in-tree as a
+// regular bundled `silo.*` extension — activated unconditionally, like every
+// other entry here, with no `chatAgents` gate (RFC 0039 already retired it).
 describe("activateBuiltins", () => {
   it("activates the built-in set with nothing force-disabled", () => {
     activateBuiltins();
@@ -22,11 +22,12 @@ describe("activateBuiltins", () => {
     expect(disabled).toBeUndefined();
   });
 
-  it("does not bundle a Chat panel", () => {
+  it("bundles the Chat panel unconditionally", () => {
     activateBuiltins();
     const ids: string[] = activateExtensions.mock.calls[0]![0].map(
       (e: { id: string }) => e.id,
     );
+    expect(ids).toContain("silo.agents-chat-panel");
     expect(ids).not.toContain("core.acp-chat");
   });
 });

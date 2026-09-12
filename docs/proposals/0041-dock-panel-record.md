@@ -234,7 +234,9 @@ without `toolbar` stays chrome-less today.
 Session 3.11): the `DockPanelRecord` type, `Workspace.panels`,
 `DockPanelKind.persistence: "recorded"`, `workspaceId` on the `"panel"` toolbar
 target, and the record ⟷ dock-layout reconciliation in `WorkspaceDock`. The
-`acp-chat` example declares `persistence: "recorded"` as the first consumer.
+`acp-chat` example (since Session 8 of the Agent Sessions sprint, the bundled
+`silo.agents-chat-panel`) declares `persistence: "recorded"` as the first
+consumer.
 
 The four open questions resolve as follows, checked against the code:
 
