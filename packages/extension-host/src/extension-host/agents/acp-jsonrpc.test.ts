@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { AcpMessage, AcpTransportLike } from "./acp-transport";
 import {
   createAcpClient,
+  parseConfigOptions,
   AcpRpcError,
   type AcpClientCallbacks,
 } from "./acp-jsonrpc";
@@ -229,6 +230,117 @@ describe("createAcpClient", () => {
     expect(onClosed).toHaveBeenCalled();
   });
 
+  it("session/new parses configOptions off the result", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.newSession("/ws");
+    await flush();
+    const id = t.sent.find((m) => m.method === "session/new")!.id as number;
+    t.emit({
+      jsonrpc: "2.0",
+      id,
+      result: {
+        sessionId: "s1",
+        configOptions: [
+          {
+            id: "mode",
+            name: "Mode",
+            category: "mode",
+            type: "select",
+            currentValue: "agent",
+            options: [{ value: "agent", name: "Agent" }],
+          },
+        ],
+      },
+    });
+    const { sessionId, configOptions } = await p;
+    expect(sessionId).toBe("s1");
+    expect(configOptions).toEqual([
+      {
+        id: "mode",
+        name: "Mode",
+        category: "mode",
+        type: "select",
+        currentValue: "agent",
+        options: [{ value: "agent", name: "Agent" }],
+      },
+    ]);
+  });
+
+  // The parameter is `configId`, not `optionId` — an earlier probe passed the
+  // wrong name, read the resulting -32602 as "the method is broken", and sent
+  // the design down the typed-write path. Pinned so it cannot drift back.
+  it("setConfigOption sends configId and returns the agent's updated list", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.setConfigOption("s1", "effort", "high");
+    await flush();
+    const req = t.sent.find((m) => m.method === "session/set_config_option");
+    expect(req).toMatchObject({
+      params: { sessionId: "s1", configId: "effort", value: "high" },
+    });
+    t.emit({
+      jsonrpc: "2.0",
+      id: req!.id as number,
+      result: {
+        configOptions: [
+          {
+            id: "effort",
+            name: "Effort",
+            category: "thought_level",
+            type: "select",
+            currentValue: "high",
+            options: [{ value: "high", name: "High" }],
+          },
+        ],
+      },
+    });
+    expect(await p).toEqual([
+      {
+        id: "effort",
+        name: "Effort",
+        category: "thought_level",
+        type: "select",
+        currentValue: "high",
+        options: [{ value: "high", name: "High" }],
+      },
+    ]);
+  });
+
+  it("setConfigOption resolves null when the agent echoes nothing back", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.setConfigOption("s1", "mode", "plan");
+    await flush();
+    const req = t.sent.find((m) => m.method === "session/set_config_option");
+    t.emit({ jsonrpc: "2.0", id: req!.id as number, result: {} });
+    expect(await p).toBeNull();
+  });
+
+  it("setMode / setModel send the typed set_* requests", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    void client.initialize();
+    await flush();
+    t.emit({ jsonrpc: "2.0", id: 1, result: {} });
+
+    void client.setMode("s1", "plan");
+    void client.setModel("s1", "opus");
+    await flush();
+    expect(t.sent).toContainEqual(
+      expect.objectContaining({
+        method: "session/set_mode",
+        params: { sessionId: "s1", modeId: "plan" },
+      }),
+    );
+    expect(t.sent).toContainEqual(
+      expect.objectContaining({
+        method: "session/set_model",
+        params: { sessionId: "s1", modelId: "opus" },
+      }),
+    );
+  });
+
   it("rejects an agent error response as an AcpRpcError carrying its message", async () => {
     const t = fakeTransport();
     const client = createAcpClient(t.transport, noopCallbacks());
@@ -246,5 +358,39 @@ describe("createAcpClient", () => {
       message: "This client is no longer supported",
     });
     expect(new AcpRpcError({ message: "x" })).toBeInstanceOf(Error);
+  });
+});
+
+describe("parseConfigOptions", () => {
+  it("returns [] for a missing or non-array value", () => {
+    expect(parseConfigOptions(undefined)).toEqual([]);
+    expect(parseConfigOptions({})).toEqual([]);
+  });
+
+  it("drops an entry with no id or no options, and fills defaults", () => {
+    const parsed = parseConfigOptions([
+      { name: "no id", options: [{ value: "a", name: "A" }] },
+      { id: "empty", options: [] },
+      {
+        id: "mode",
+        options: [
+          { value: "agent", name: "Agent", description: "default" },
+          { value: "plan" },
+        ],
+      },
+    ]);
+    expect(parsed).toEqual([
+      {
+        id: "mode",
+        name: "mode",
+        category: "",
+        type: "select",
+        currentValue: "agent",
+        options: [
+          { value: "agent", name: "Agent", description: "default" },
+          { value: "plan", name: "plan" },
+        ],
+      },
+    ]);
   });
 });

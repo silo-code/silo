@@ -293,8 +293,9 @@ kind:
   (below), gated on the `chatAgents` setting.
 
 **Profile Interface** is the user-facing name for which arm a profile uses —
-**Interface: Terminal or Chat** in the editor, and `AgentProfileSummary.interface`
-on the public surface. It decides the _verb_: a Terminal profile is `launch()`ed,
+**Interface: Terminal or Chat** in the profile editor (shown only while the
+`chatAgents` gate is on), and `AgentProfileSummary.interface` on the public
+surface. It decides the _verb_: a Terminal profile is `launch()`ed,
 a Chat profile is `connect()`ed, and offering one to the other's service fails.
 _Avoid_: "transport" or "protocol" (the user never meets ACP); "mode".
 
@@ -393,8 +394,8 @@ surface that holds one **Transcript** and its composer. One panel binds to one
 **Chat** Agent Profile; switching the profile is a teardown, not a re-render.
 It is an ordinary extension built on `ctx.agents.sessions` and `@silo-code/sdk`
 alone — deliberately claiming no privilege a third-party Chat UI lacks — and
-registers only while the `bundledChatPanel` setting is on, so turning it off
-frees the surface for one.
+registers only while the `chatAgents` gate is on, and is disabled and replaced
+the same way as any other extension.
 _Avoid_: "ACP panel" (Silo says _Chat_); "agent panel" (that is the
 `silo.agents` Navigator view, which lists every Agent Session); calling it the
 Chat session — the panel is the UI, the session is the running agent.

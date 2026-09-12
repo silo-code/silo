@@ -262,3 +262,15 @@
   font-size: var(--silo-font-size-sm);
   color: var(--silo-color-text-lo);
 }
+
+/* The Chat arm's "use the verified command" row — text, then the action. */
+.apf-suggest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.apf-suggest > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}

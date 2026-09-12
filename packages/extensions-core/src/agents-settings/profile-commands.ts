@@ -20,16 +20,41 @@ import {
   launchAgentProfile,
   resolveDefaultProfile,
   profileCommandId,
+  resolveChatProfileHost,
+  chatProfileHostParams,
   openSettings,
   type AgentProfile,
 } from "@silo-code/extension-host/internal";
 
 /** Shared launch body: the `+` menu's `launchProfile` minus dock placement.
  *  Adding the terminal record is what makes a tab appear (like
- *  `core.newTerminal`); a keybinding has no dock group to target. */
-async function launch(profileId: string): Promise<void> {
+ *  `core.newTerminal`); a keybinding has no dock group to target.
+ *
+ *  A **Chat** profile (RFC 0038) has no shell line and no PTY, so it opens a
+ *  transcript panel instead — the same kind the `+` menu resolves, via
+ *  `chatProfileHost`, so a keybinding and a menu click agree. */
+async function launch(ctx: ExtensionContext, profileId: string): Promise<void> {
   const wsId = store.activeWorkspaceId;
   if (!wsId) return;
+  const profile = getAgentProfiles().find((p) => p.id === profileId);
+  if (!profile) return;
+
+  // `?.` guards a record that somehow predates the RFC 0038 launch union:
+  // falling through to the terminal path is what happened before, and
+  // `launchAgentProfile` refuses anything it cannot type.
+  if (profile.launch?.interface === "chat") {
+    const kind = resolveChatProfileHost();
+    if (!kind) {
+      ctx.ui.notify(
+        "warn",
+        `“${profile.label}” is a Chat profile and no Chat panel is installed to open it.`,
+      );
+      return;
+    }
+    ctx.layout.openPanel(kind.id, chatProfileHostParams(profile));
+    return;
+  }
+
   const folder = await pickWorkspaceFolder(wsId);
   if (!folder) return; // folder chooser dismissed → create nothing
   launchAgentProfile({ profileId, workspaceId: wsId, cwd: folder });
@@ -46,7 +71,7 @@ export function registerProfileCommands(ctx: ExtensionContext): Disposable {
     const dispose = ctx.registerCommand({
       id: profileCommandId(p.id),
       label: `New Agent: ${p.label}`,
-      run: () => void launch(p.id),
+      run: () => void launch(ctx, p.id),
     });
     perProfile.set(p.id, { dispose, label: p.label });
   }
@@ -90,7 +115,7 @@ export function registerProfileCommands(ctx: ExtensionContext): Disposable {
         openSettings("agents");
         return;
       }
-      void launch(target.id);
+      void launch(ctx, target.id);
     },
   });
 

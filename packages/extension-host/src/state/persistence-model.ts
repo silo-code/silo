@@ -70,7 +70,6 @@ export interface PersistedIndex {
   globalActiveTabEnabled?: boolean;
   // RFC 0038 sprint flags. Absent in every index today; both hydrate to `false`.
   chatAgents?: boolean;
-  bundledChatPanel?: boolean;
   globalPanelLayout?: GlobalPanelLayout;
   globalActiveSidePanelTabs?: Record<string, string>;
 }
@@ -329,7 +328,6 @@ export function buildIndex(snapshot: PersistedIndex): PersistedIndex {
     globalPanelLayoutEnabled: snapshot.globalPanelLayoutEnabled,
     globalActiveTabEnabled: snapshot.globalActiveTabEnabled,
     chatAgents: snapshot.chatAgents,
-    bundledChatPanel: snapshot.bundledChatPanel,
     globalPanelLayout: snapshot.globalPanelLayout
       ? cloneGlobalPanelLayout(snapshot.globalPanelLayout)
       : undefined,

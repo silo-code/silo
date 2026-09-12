@@ -68,7 +68,6 @@ export const store = proxy<AppState>({
   globalPanelLayout: structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT),
   globalActiveSidePanelTabs: {},
   chatAgents: false,
-  bundledChatPanel: false,
   groups: {},
   panelOrder: [],
 });
@@ -244,22 +243,17 @@ export function setSmallScreenModeEnabled(enabled: boolean) {
 }
 
 /**
- * RFC 0038 sprint flags. Both default `false` and persist in the index; nothing
- * user-visible changes until they are on. `chatAgents` gates the whole Chat
- * capability; `bundledChatPanel` additionally gates the bundled transcript
- * panel (read by the composition root).
+ * The RFC 0038 **Chat agents** capability gate. Defaults `false` and persists
+ * in the index; nothing user-visible changes until it is on. Gates the profile
+ * editor's Interface choice, `ctx.agents.sessions`, and whether the bundled
+ * Chat panel registers (read once by the composition root, so a change needs a
+ * restart — the same as disabling any other built-in).
  */
 export function getChatAgentsEnabled(): boolean {
   return store.chatAgents;
 }
 export function setChatAgentsEnabled(enabled: boolean) {
   store.chatAgents = enabled;
-}
-export function getBundledChatPanelEnabled(): boolean {
-  return store.bundledChatPanel;
-}
-export function setBundledChatPanelEnabled(enabled: boolean) {
-  store.bundledChatPanel = enabled;
 }
 
 export function setSmallScreenThresholdPx(px: number) {

@@ -48,6 +48,10 @@ import type {
   ExtensionStorageScopes,
 } from "./extension-storage";
 import type { ToolbarItemContribution, ToolbarSurface } from "./toolbar-items";
+import type {
+  TabActivityContribution,
+  TabIconContribution,
+} from "./tab-adornment";
 
 /**
  * The teardown handle returned by every `register*` call on
@@ -111,6 +115,28 @@ export interface DockPanelApi {
    * state (e.g. the open URL in a web-viewer panel) consistent with the UI.
    */
   updateParameters(params: object): void;
+  /**
+   * Set — or, with `null`, clear — the trailing **activity** badge on this
+   * panel's own tab: the same host-owned {@link Activity} chrome
+   * (spinner / ready / warn / error) an editor or terminal tab shows through
+   * {@link EditorService.setActivity} / {@link TerminalService.setActivity}.
+   *
+   * A panel drives its *own* tab, so there is no target id — call it from the
+   * component with whatever state the tab should reflect (a Chat panel mirrors
+   * its Agent Session's activity here, so its tab reads like a terminal tab
+   * running the same agent). The host clears it automatically when the panel
+   * unmounts.
+   */
+  setTabActivity(adornment: TabActivityContribution | null): void;
+  /**
+   * Set — or, with `null`, clear — the leading **icon** on this panel's own
+   * tab: the counterpart to {@link EditorService.setIcon} /
+   * {@link TerminalService.setIcon} for a {@link DockPanelKind} tab. Use it for
+   * a brand mark (an agent logo, a provider glyph) so the tab is identifiable
+   * at a glance the way a terminal tab running an agent is. Cleared
+   * automatically on unmount.
+   */
+  setTabIcon(adornment: TabIconContribution | null): void;
 }
 
 /**
@@ -588,6 +614,28 @@ export interface DockPanelKind<T extends object = Record<string, unknown>> {
   id: string;
   /** The React component that renders this panel; receives {@link DockPanelProps}. */
   component: React.ComponentType<DockPanelProps<T>>;
+  /**
+   * Declares that this panel kind renders a **Chat session** for an Agent
+   * Profile (RFC 0038), so Silo can open it on the user's behalf.
+   *
+   * A Chat-armed Agent Profile has no terminal to launch — it needs a
+   * transcript UI, and Silo does not own one. With this set, picking such a
+   * profile from the center dock's **+** menu (or running its
+   * `core.newAgent.<id>` command) opens this kind with
+   * `params.profileId` set to that profile's id; your component passes it to
+   * {@link AgentSessionsService.connect}. Terminal-armed profiles are
+   * unaffected and still launch a terminal.
+   *
+   * This is how a third-party Chat panel becomes a first-class way to start an
+   * agent rather than something the user has to reach by a different route: it
+   * is a declaration, not a privilege, and the bundled panel claims it exactly
+   * the same way. With more than one such kind registered, the first
+   * registered wins — disable the one you don't want on Settings → Extensions.
+   *
+   * Requires `params.profileId` to be honoured; a kind that ignores it will be
+   * handed profiles it does not render.
+   */
+  chatProfileHost?: boolean;
   /**
    * When set, this kind appears as an entry in the center dock's **+** add
    * menu (the per-group header button). Omit to keep the kind internal.

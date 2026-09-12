@@ -123,6 +123,8 @@ export type {
   AgentPromptResult,
   AgentStopReason,
   AgentSessionUpdate,
+  AgentSessionConfigOption,
+  AgentSessionConfigChoice,
   AgentPermissionRequest,
   AgentPermissionOption,
 } from "./agents-service";

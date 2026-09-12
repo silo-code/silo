@@ -1,49 +1,45 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 // `builtins.ts` imports every bundled extension, so this file pulls in the
-// whole workbench. Only the flag getter is stubbed — the real internal barrel
-// stays, because the extensions themselves read from it at module scope.
+// whole workbench. `activateExtensions` is stubbed so importing it registers
+// nothing; the rest is real.
+const activateExtensions = vi.hoisted(() => vi.fn());
 vi.mock("@silo-code/extension-host", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@silo-code/extension-host")>()),
-  activateExtensions: vi.fn(),
-}));
-vi.mock("@silo-code/extension-host/internal", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@silo-code/extension-host/internal")
-  >()),
-  getBundledChatPanelEnabled: vi.fn(() => false),
+  activateExtensions,
 }));
 
-const { getBundledChatPanelEnabled } =
-  await import("@silo-code/extension-host/internal");
-const { builtinList } = await import("./builtins");
+const { activateBuiltins, CHAT_PANEL_EXTENSION_ID } =
+  await import("./builtins");
 
-const flag = vi.mocked(getBundledChatPanelEnabled);
-
-beforeEach(() => flag.mockReset());
-
-describe("builtinList — the bundledChatPanel gate (RFC 0038 phase 3)", () => {
-  it("leaves the Chat panel out while the flag is off", () => {
-    flag.mockReturnValue(false);
-    expect(builtinList().map((e) => e.id)).not.toContain("core.acp-chat");
+// RFC 0038: the Chat panel must be *registered* (its panel kind has to exist
+// for layout deserialization and for `chatProfileHost` resolution) but must
+// not *activate* until the `chatAgents` gate is known — which is only after
+// hydrate, well past this synchronous call.
+describe("activateBuiltins — the Chat panel starts registered but inactive", () => {
+  it("hands the Chat panel to activateExtensions as an initially-disabled id", () => {
+    activateBuiltins();
+    const [builtins, disabled] = activateExtensions.mock.calls[0]!;
+    expect(builtins.map((e: { id: string }) => e.id)).toContain(
+      CHAT_PANEL_EXTENSION_ID,
+    );
+    expect(disabled).toEqual(new Set([CHAT_PANEL_EXTENSION_ID]));
   });
 
-  it("includes it when the flag is on", () => {
-    flag.mockReturnValue(true);
-    expect(builtinList().map((e) => e.id)).toContain("core.acp-chat");
+  it("names the bundled Chat panel", () => {
+    expect(CHAT_PANEL_EXTENSION_ID).toBe("core.acp-chat");
   });
 
   it("registers it right after core.terminal, so its + menu entry sits beside New Terminal", () => {
-    flag.mockReturnValue(true);
-    const ids = builtinList().map((e) => e.id);
-    expect(ids[ids.indexOf("core.terminal") + 1]).toBe("core.acp-chat");
+    activateBuiltins();
+    const ids = activateExtensions.mock.calls[0]![0].map(
+      (e: { id: string }) => e.id,
+    );
+    expect(ids[ids.indexOf("core.terminal") + 1]).toBe(CHAT_PANEL_EXTENSION_ID);
   });
 
-  it("changes nothing else about the list", () => {
-    flag.mockReturnValue(false);
-    const off = builtinList().map((e) => e.id);
-    flag.mockReturnValue(true);
-    const on = builtinList().map((e) => e.id);
-    expect(on.filter((id) => id !== "core.acp-chat")).toEqual(off);
+  it("disables nothing else", () => {
+    activateBuiltins();
+    expect(activateExtensions.mock.calls[0]![1].size).toBe(1);
   });
 });

@@ -37,6 +37,31 @@ export interface AcpPermissionOption {
   kind: string;
 }
 
+/** One choice inside an {@link AcpConfigOption}. */
+export interface AcpConfigChoice {
+  value: string;
+  name: string;
+  description?: string;
+}
+
+/**
+ * One entry of `session/new`'s `configOptions` list (recon 2026-09-08). The
+ * protocol makes it self-describing and it subsumes the older `modes` /
+ * `models` fields. Only `type: "select"` is understood; the write path is
+ * typed per `category` (`"mode"` → `session/set_mode`, `"model"` →
+ * `session/set_model`) because `session/set_config_option` does not work
+ * (-32603 on Cursor for every shape probed).
+ */
+export interface AcpConfigOption {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+  type: string;
+  currentValue: string;
+  options: AcpConfigChoice[];
+}
+
 export interface AcpPermissionRequest {
   toolCallId: string;
   title: string;
@@ -108,10 +133,13 @@ export interface AcpClient {
    *  (phase 1 — recon Finding 1: the client is not a safety boundary). */
   initialize(): Promise<AcpInitializeResult>;
   /** ACP `session/new`. Rejects with an {@link AcpRpcError} when the agent
-   *  needs auth or reports a business failure. */
-  newSession(
-    cwd: string,
-  ): Promise<{ sessionId: string; raw: Record<string, unknown> }>;
+   *  needs auth or reports a business failure. `configOptions` is the parsed
+   *  (possibly empty) session-control list. */
+  newSession(cwd: string): Promise<{
+    sessionId: string;
+    configOptions: AcpConfigOption[];
+    raw: Record<string, unknown>;
+  }>;
   /** ACP `session/load` — replay a prior conversation into a fresh process. */
   loadSession(sessionId: string, cwd: string): Promise<void>;
   /** ACP `session/prompt`. Resolves with the turn's stop reason. */
@@ -121,11 +149,84 @@ export interface AcpClient {
   ): Promise<{ stopReason: AcpStopReason }>;
   /** ACP `session/cancel` (a notification — returns immediately). */
   cancel(sessionId: string): void;
+  /**
+   * ACP `session/set_config_option` — the **generic** setter that pairs with
+   * `session/new`'s `configOptions`, and the one to reach for first. Verified
+   * on both probed agents (2026-09-08) for every advertised category,
+   * including ones with no typed method of their own (`thought_level`).
+   *
+   * The parameter is **`configId`**, not `optionId` — an earlier probe missed
+   * this and concluded the method was broken. Resolves with the agent's
+   * updated `configOptions` when it returned them (both agents do), so the
+   * caller can replace its snapshot rather than patch it.
+   *
+   * Rejects `-32601` on an agent that does not implement it; the caller falls
+   * back to {@link setMode} / {@link setModel}.
+   */
+  setConfigOption(
+    sessionId: string,
+    configId: string,
+    value: string,
+  ): Promise<AcpConfigOption[] | null>;
+  /** ACP `session/set_mode` — fallback for an agent with no generic setter. */
+  setMode(sessionId: string, modeId: string): Promise<void>;
+  /** ACP `session/set_model` — fallback only. `-32601` on Claude, which
+   *  reaches the generic setter instead. */
+  setModel(sessionId: string, modelId: string): Promise<void>;
   /** Kill the transport and fail every in-flight request. */
   dispose(): void;
 }
 
 const DECLINED_METHOD_PREFIXES = ["fs/", "terminal/"];
+
+function asString(v: unknown): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
+/**
+ * Parse `session/new`'s `configOptions` defensively — every field may be
+ * missing or the wrong type. An entry with no `id` or no `options` is dropped;
+ * a missing `type` defaults to `"select"` (the only shape the protocol
+ * defines today) and a missing `currentValue` falls back to the first option.
+ */
+export function parseConfigOptions(raw: unknown): AcpConfigOption[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AcpConfigOption[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const e = entry as Record<string, unknown>;
+    const id = asString(e.id);
+    if (!id) continue;
+    const rawOptions = Array.isArray(e.options) ? e.options : [];
+    const options: AcpConfigChoice[] = [];
+    for (const o of rawOptions) {
+      if (typeof o !== "object" || o === null) continue;
+      const oo = o as Record<string, unknown>;
+      const value = asString(oo.value);
+      if (value === undefined) continue;
+      options.push({
+        value,
+        name: asString(oo.name) ?? value,
+        ...(asString(oo.description)
+          ? { description: asString(oo.description) }
+          : {}),
+      });
+    }
+    if (options.length === 0) continue;
+    out.push({
+      id,
+      name: asString(e.name) ?? id,
+      ...(asString(e.description)
+        ? { description: asString(e.description) }
+        : {}),
+      category: asString(e.category) ?? "",
+      type: asString(e.type) ?? "select",
+      currentValue: asString(e.currentValue) ?? options[0].value,
+      options,
+    });
+  }
+  return out;
+}
 
 export function createAcpClient(
   transport: AcpTransportLike,
@@ -134,6 +235,14 @@ export function createAcpClient(
   let writer: WritableStreamDefaultWriter<AcpMessage> | null = null;
   let connected: Promise<void> | null = null;
   let closed: Error | "clean" | null = null;
+  // The transport's last diagnostic — an exit code plus the agent's own stderr
+  // tail. It arrives *before* the close event (see `acp-transport.ts`'s
+  // `acp_closed` listener), which is what makes it usable as the reason a
+  // pending request failed. Without this, an agent that dies during the
+  // handshake reports a bare "ACP connection closed" to the user while the
+  // sentence explaining why goes only to a debug log — the exact opposite of
+  // what stderr capture exists for.
+  let lastTransportError: Error | null = null;
   let nextId = 1;
   const pending = new Map<
     number,
@@ -249,11 +358,14 @@ export function createAcpClient(
     if (connected) return connected;
     connected = (async () => {
       transport.onClose?.(() => {
-        if (!closed) closed = "clean";
-        failAllPending(new Error("ACP connection closed"));
-        cb.onClosed();
+        const reason = lastTransportError ?? new Error("ACP connection closed");
+        if (!closed) closed = lastTransportError ?? "clean";
+        failAllPending(reason);
+        cb.onClosed(lastTransportError ?? undefined);
       });
       transport.onError?.((err) => {
+        lastTransportError =
+          err instanceof Error ? err : new Error(String(err));
         cb.onLog?.(String(err));
       });
       const stream = await transport.connect();
@@ -333,7 +445,11 @@ export function createAcpClient(
       if (!sessionId) {
         throw new Error("session/new returned no sessionId");
       }
-      return { sessionId, raw: result };
+      return {
+        sessionId,
+        configOptions: parseConfigOptions(result?.configOptions),
+        raw: result,
+      };
     },
 
     async loadSession(sessionId, cwd) {
@@ -354,6 +470,24 @@ export function createAcpClient(
         method: "session/cancel",
         params: { sessionId },
       }).catch((err) => cb.onLog?.(`cancel failed: ${String(err)}`));
+    },
+
+    async setConfigOption(sessionId, configId, value) {
+      const result = (await request("session/set_config_option", {
+        sessionId,
+        configId,
+        value,
+      })) as Record<string, unknown> | undefined;
+      const updated = parseConfigOptions(result?.configOptions);
+      return updated.length > 0 ? updated : null;
+    },
+
+    async setMode(sessionId, modeId) {
+      await request("session/set_mode", { sessionId, modeId });
+    },
+
+    async setModel(sessionId, modelId) {
+      await request("session/set_model", { sessionId, modelId });
     },
 
     dispose() {

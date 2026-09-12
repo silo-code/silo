@@ -334,15 +334,11 @@ export {
 // `ctx.ui`) is deferred until a real public consumer exists — we don't expand
 // the `ctx` surface ahead of a requirement.
 export { bumpUiFontSize, resetUiFontSize } from "./app-settings";
-// RFC 0038 sprint flags — both default false. `bundledChatPanel` is read by the
-// composition root (`apps/desktop/src/builtins.ts`); both are surfaced on the
-// Agents settings page. Remove/promote when the sprint lands.
-export {
-  getChatAgentsEnabled,
-  setChatAgentsEnabled,
-  getBundledChatPanelEnabled,
-  setBundledChatPanelEnabled,
-} from "../state/store";
+// The RFC 0038 Chat-agents capability gate — defaults false. Read by the
+// composition root (`apps/desktop/src/builtins.ts`) to decide whether the
+// bundled Chat panel registers, and toggled on the Agents settings page.
+// Remove/promote when the sprint lands.
+export { getChatAgentsEnabled, setChatAgentsEnabled } from "../state/store";
 export { openSettings, closeSettings } from "./settings-sheet";
 export { pickWorkspaceFolder } from "./pick-folder";
 // Dock/area keyboard navigation the base menu (core.menu) drives — cycling the
@@ -494,6 +490,31 @@ export type {
   ProfileDraftErrors,
 } from "./agents/agent-profile-model";
 export type { AgentProfile } from "../state/types";
+// Authoring the `chat` launch arm (RFC 0038). Core needs these where the
+// profile is written: the argv text field ↔ argv vector round trip (argv is
+// not a shell string, and nothing here may become shell syntax), the exec
+// preview, and the catalog's verified suggestion for an agent that speaks the
+// protocol built in.
+export {
+  parseArgs,
+  formatArgs,
+  chatExecPreview,
+  suggestChatLaunch,
+  matchesChatSuggestion,
+} from "./agents/chat-launch-model";
+export type { ChatLaunchSuggestion } from "./agents/chat-launch-model";
+// Which registered panel kind opens a Chat profile (RFC 0038). Core needs it
+// for `core.newAgent.<id>`, so a keybinding and the dock's + menu resolve the
+// same kind rather than each naming one.
+export {
+  resolveChatProfileHost,
+  chatProfileHostParams,
+} from "./agents/chat-profile-host";
+// Activates/deactivates the bundled Chat panel to match the `chatAgents` gate.
+// Called from the app's hydrate chain (the flag is not readable before then)
+// and again when the user flips the switch — see the module for why a branch
+// inside `activateBuiltins` could never work.
+export { applyChatAgentsGate } from "./agents/chat-panel-gate";
 
 // Opening-prompt delivery (RFC 0033 phase 3). Core needs exactly one thing
 // from this module: whether a profile can be given an opening prompt, so the

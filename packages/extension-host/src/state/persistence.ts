@@ -185,7 +185,6 @@ export async function hydrate(configDir: string): Promise<void> {
     store.globalActiveTabEnabled = index.globalActiveTabEnabled ?? false;
     // RFC 0038 sprint flags — absent in every index today; both default off.
     store.chatAgents = index.chatAgents ?? false;
-    store.bundledChatPanel = index.bundledChatPanel ?? false;
     store.globalPanelLayout = index.globalPanelLayout
       ? cloneGlobalPanelLayout(index.globalPanelLayout)
       : structuredClone(DEFAULT_GLOBAL_PANEL_LAYOUT);
@@ -358,7 +357,6 @@ async function doPersist(): Promise<void> {
       globalPanelLayoutEnabled: store.globalPanelLayoutEnabled,
       globalActiveTabEnabled: store.globalActiveTabEnabled,
       chatAgents: store.chatAgents,
-      bundledChatPanel: store.bundledChatPanel,
       // While the flag is on, live state is the source of truth; while off,
       // `store.globalPanelLayout`/`globalActiveSidePanelTabs` already hold
       // the frozen value from when it was last turned off.

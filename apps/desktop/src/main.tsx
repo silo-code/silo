@@ -15,7 +15,8 @@ import {
   markStartupHydrated,
   markStartupExtensionsReady,
 } from "@silo-code/extension-host";
-import { activateBuiltins } from "./builtins";
+import { applyChatAgentsGate } from "@silo-code/extension-host/internal";
+import { activateBuiltins, CHAT_PANEL_EXTENSION_ID } from "./builtins";
 import { initCliOpenHandler } from "./cli";
 import { initControlHandler } from "./control";
 
@@ -74,6 +75,10 @@ userConfigDir()
   .then(hydrate)
   .then(() => {
     markStartupHydrated();
+    // Only now is `chatAgents` readable (RFC 0038) — it lives in the persisted
+    // index, which `hydrate` just loaded. `activateBuiltins` above registered
+    // the Chat panel without activating it, so this is what turns it on.
+    applyChatAgentsGate(CHAT_PANEL_EXTENSION_ID);
     // Both after hydration: a directory open must match an existing workspace
     // instead of creating a duplicate, and the Control ops read
     // `store.workspaces` — answering `ws list` against an unhydrated store would

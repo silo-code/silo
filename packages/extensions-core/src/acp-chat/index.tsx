@@ -3,12 +3,16 @@
  * center-dock transcript for one Chat session, reachable from the dock's **+**
  * menu next to New Terminal.
  *
- * **Registered only when the `bundledChatPanel` setting is on.** The
- * composition root (`apps/desktop/src/builtins.ts`) reads the flag and leaves
- * this extension out of the built-in list while it is off, so the panel kind,
- * the menu entry and the command do not exist at all — which is what makes
- * "turn off the bundled panel and use a third-party one instead" a real
- * option rather than a fight over the same `+` menu row.
+ * **Registered only when the `chatAgents` setting is on.** The composition
+ * root (`apps/desktop/src/builtins.ts`) reads the gate and leaves this
+ * extension out of the built-in list while it is off, so the panel kind, the
+ * menu entry and the command do not exist at all.
+ *
+ * There is deliberately no *second* flag for this panel. Once the capability
+ * is on, "use a third-party Chat UI instead" is the same gesture as for any
+ * other extension — disable `core.acp-chat` on Settings → Extensions and
+ * install the one you want — so a dedicated toggle would be a weaker switch
+ * over a mechanism that already exists.
  *
  * A `core.*` extension by convention (it is bundled Silo UI, sequenced by the
  * composition root), **not** because it needs privileges: it touches the app
@@ -28,6 +32,11 @@ export const extension: Extension = {
       component: (props: DockPanelProps<AcpChatPanelParams>) => (
         <AcpChatPanel {...props} ctx={ctx} />
       ),
+      // Claims the Chat half of the Agent Profile list: picking a Chat profile
+      // from a dock's + menu, or running its `core.newAgent.<id>` command,
+      // opens this panel with that profile's id. A third-party Chat panel
+      // claims it the same way — it is a declaration, not a privilege.
+      chatProfileHost: true,
       addMenuItem: {
         label: "New Agent Chat",
       },

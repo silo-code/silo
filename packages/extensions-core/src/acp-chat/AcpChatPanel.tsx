@@ -30,11 +30,13 @@
  *
  * ## Registration
  *
- * Behind the `bundledChatPanel` setting. The composition root
+ * Behind the `chatAgents` setting. The composition root
  * (`apps/desktop/src/builtins.ts`) leaves this extension out of the built-in
- * list while the flag is off, so the panel kind, its `+` menu entry and its
- * command do not exist at all — turning it off is how a user runs a
- * third-party Chat UI instead (RFC 0038 acceptance criterion 3).
+ * list while the capability is off, so the panel kind, its `+` menu entry and
+ * its command do not exist at all. Once the capability is on, running a
+ * *different* Chat UI is the ordinary extension gesture — disable
+ * `core.acp-chat` on Settings → Extensions and install the one you want
+ * (RFC 0038 acceptance criterion 3).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -42,14 +44,25 @@ import type {
   AgentInfo,
   AgentPermissionRequest,
   AgentProfileSummary,
+  AgentPromptBlock,
+  AgentSessionConfigOption,
   AgentSessionHandle,
   Disposable,
   DockPanelProps,
   ExtensionContext,
 } from "@silo-code/sdk";
-import { Badge, Button, EmptyState, Select, Textarea } from "@silo-code/sdk";
+import {
+  AgentIconGlyph,
+  Badge,
+  Button,
+  EmptyState,
+  Select,
+  Textarea,
+} from "@silo-code/sdk";
 import { Breadcrumb } from "../editor/Breadcrumb";
 import { chatProfiles, resolveChatProfile } from "./profile-selection";
+import { chatTabActivity } from "./tab-adornment";
+import { toAttachment, type Attachment } from "./attachments";
 import {
   appendNotice,
   appendUserMessage,
@@ -60,13 +73,14 @@ import {
   type Transcript,
 } from "./transcript-model";
 import { permissionButtonVariant } from "./permission-options";
+import { TranscriptMarkdown } from "./TranscriptMarkdown";
 import "./acp-chat.css";
 
 /** How close to the bottom still counts as "following the stream". */
 const AUTOSCROLL_THRESHOLD_PX = 24;
 
 export interface AcpChatPanelParams {
-  /** Tab label. Defaults to the connected agent's declared name. */
+  /** Seed tab label, shown until the agent declares its own name. */
   title?: string;
   /**
    * Which **Chat** Agent Profile this tab is bound to, persisted so a reopened
@@ -135,6 +149,22 @@ export function AcpChatPanel({
   // through a bespoke handle event is the observation-parity promise in
   // action, and it means the composer stops offering to send into a dead pipe.
   const [lost, setLost] = useState(false);
+  // Whatever session controls the agent advertised (Cursor: mode + model;
+  // Claude: permission mode only). Kept in sync with the handle — a mode the
+  // agent moves itself lands here too.
+  const [configOptions, setConfigOptions] = useState<
+    readonly AgentSessionConfigOption[]
+  >([]);
+  // Files staged for the next turn, sent as `resource_link` prompt blocks.
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  // Config options the agent advertised but then rejected a write for. An
+  // advertisement is not a guarantee: `claude-agent-acp` lists a `fast` entry
+  // its own handler answers `-32603 Unknown config option: fast` for. Once a
+  // control is known not to work, stop offering it rather than leaving a
+  // Select that only ever errors.
+  const [deadConfigIds, setDeadConfigIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
 
   const handleRef = useRef<AgentSessionHandle | null>(null);
   // `reveal` is invoked long after the connect() that registered it, so it
@@ -162,6 +192,9 @@ export function AcpChatPanel({
     // here or the composer keeps offering Stop for a session that is gone.
     setBusy(false);
     setLost(false);
+    setConfigOptions([]);
+    setDeadConfigIds(new Set());
+    setAttachments([]);
 
     void ctx.agents.sessions
       .connect(profileId, {
@@ -193,6 +226,12 @@ export function AcpChatPanel({
           ),
         );
         setAgentName(handle.agentName);
+        setConfigOptions(handle.configOptions);
+        subs.push(
+          handle.onConfigOptionsChanged(() =>
+            setConfigOptions(handle.configOptions),
+          ),
+        );
         setPhase({ status: "ready" });
       })
       .catch((err: unknown) => {
@@ -212,22 +251,63 @@ export function AcpChatPanel({
     };
   }, [ctx, profileId, nonce]);
 
-  // The tab label follows what the agent declared about itself, falling back
-  // to the user's profile label while connecting (or when it declared none).
+  // The tab label follows what the agent declared about itself. `params.title`
+  // is only a **seed** for the label before that is known — whoever opened the
+  // panel (the `+` menu's profile list, `core.newAgent.<id>`) supplies the
+  // profile's label so the tab is never briefly nameless.
   useEffect(() => {
-    api.setTitle(params.title ?? agentName ?? profile?.label ?? "Agent");
+    api.setTitle(agentName ?? params.title ?? profile?.label ?? "Agent");
   }, [api, params.title, agentName, profile?.label]);
 
+  // Tab parity with a terminal tab (RFC 0038 criterion 1): the Chat tab shows
+  // the same activity badge a terminal running this agent would. The agent
+  // process dying is not a separate channel — it lands on this session's own
+  // `AgentInfo` as `activity: "error"`, so `lost` reads off the same snapshot.
   useEffect(() => {
     const check = (all: readonly AgentInfo[]) => {
       const id = handleRef.current?.id;
-      if (!id) return;
-      setLost(all.find((a) => a.id === id)?.activity === "error");
+      const info = id ? all.find((a) => a.id === id) : undefined;
+      setLost(info?.activity === "error");
+      // Watching a turn finish counts as having seen it. The host raises
+      // attention on every finish (it cannot know whether this panel is on
+      // screen); clearing it while visible is what makes a *background* Chat
+      // tab badge and a foreground one not — the terminal rule, where focus
+      // does the same job. The visibility effect below only fires on a
+      // visibility *change*, so a turn ending under an already-visible panel
+      // has to be cleared here.
+      if (info?.needsAttention && api.isVisible && id)
+        ctx.agents.acknowledge(id);
+      api.setTabActivity(chatTabActivity(info));
     };
     const sub = ctx.agents.subscribe(check, { allWorkspaces: true });
     check(ctx.agents.getState({ allWorkspaces: true }));
     return () => sub.dispose();
-  }, [ctx, phase.status]);
+  }, [ctx, api, phase.status]);
+
+  // ...and the same brand icon. Driven imperatively onto this panel's own tab
+  // rather than through a host binder — the panel knows its session, so there
+  // is no panel-id → agent-id map to invent. `AgentIconGlyph` is *called*, not
+  // constructed as JSX: it returns `null` for an unknown agent, and that has
+  // to gate whether an icon is set at all (a truthy element descriptor makes
+  // the host reserve tab space for an icon that renders nothing).
+  useEffect(() => {
+    const paint = () => {
+      const agentId = handleRef.current?.agentId;
+      const iconData = agentId
+        ? ctx.agents.catalog().find((c) => c.id === agentId)?.icon
+        : undefined;
+      const scheme = ctx.theme.resolve(ctx.theme.getState().activeId).base;
+      const glyph = AgentIconGlyph({
+        icon: iconData,
+        mode: "color",
+        colorScheme: scheme,
+      });
+      api.setTabIcon(glyph ? { icon: glyph } : null);
+    };
+    paint();
+    const sub = ctx.theme.subscribe(paint);
+    return () => sub.dispose();
+  }, [ctx, api, agentName, phase.status]);
 
   // Looking at the transcript counts as having seen it, so the session's
   // attention badge clears the same way selecting a terminal tab clears one.
@@ -247,12 +327,30 @@ export function AcpChatPanel({
   const send = useCallback(async () => {
     const handle = handleRef.current;
     const text = draft.trim();
-    if (!handle || busy || !text) return;
+    const files = attachments;
+    if (!handle || busy || (!text && files.length === 0)) return;
     setDraft("");
-    setTranscript((t) => appendUserMessage(t, text));
+    setAttachments([]);
+    setTranscript((t) =>
+      appendUserMessage(
+        t,
+        text,
+        files.map((f) => f.name),
+      ),
+    );
     setBusy(true);
+    const blocks: AgentPromptBlock[] = [
+      ...files.map(
+        (f): AgentPromptBlock => ({
+          type: "resource_link",
+          uri: f.uri,
+          name: f.name,
+        }),
+      ),
+      ...(text ? [{ type: "text" as const, text }] : []),
+    ];
     try {
-      const { stopReason } = await handle.prompt([{ type: "text", text }]);
+      const { stopReason } = await handle.prompt(blocks);
       const notice = stopReasonNotice(stopReason);
       if (notice) {
         setTranscript((t) => appendNotice(t, notice.tone, notice.text));
@@ -264,11 +362,29 @@ export function AcpChatPanel({
       // no-ops then, but `busy` must not be left stuck for a live one.
       if (handleRef.current === handle) setBusy(false);
     }
-  }, [draft, busy]);
+  }, [draft, busy, attachments]);
 
   const answer = useCallback((pending: PendingPermission, optionId: string) => {
     pending.request.respond(optionId);
     setPermissions((prev) => prev.filter((p) => p !== pending));
+  }, []);
+
+  const attachFile = useCallback(async () => {
+    const picked = await ctx.ui.pickFile({ defaultPath: cwd || undefined });
+    if (!picked) return;
+    const next = toAttachment(picked);
+    setAttachments((prev) =>
+      prev.some((a) => a.uri === next.uri) ? prev : [...prev, next],
+    );
+  }, [ctx, cwd]);
+
+  const setConfigOption = useCallback((id: string, value: string) => {
+    handleRef.current?.setConfigOption(id, value).catch((err) => {
+      setTranscript((t) => appendNotice(t, "error", errorMessage(err)));
+      // The agent advertised this control but will not accept a write for it
+      // — drop it so the user is not left poking a Select that only errors.
+      setDeadConfigIds((prev) => new Set(prev).add(id));
+    });
   }, []);
 
   // --- autoscroll ----------------------------------------------------------
@@ -346,7 +462,25 @@ export function AcpChatPanel({
                 {entry.role === "thought" ? (
                   <div className="acp-chat__thought-label">Thinking</div>
                 ) : null}
-                <div className="acp-chat__text">{entry.text}</div>
+                {/* The agent writes markdown; the user wrote literal text and
+                    their asterisks must stay their asterisks. */}
+                {entry.role === "user" ? (
+                  <div className="acp-chat__text">{entry.text}</div>
+                ) : (
+                  <TranscriptMarkdown text={entry.text} />
+                )}
+                {entry.attachments && entry.attachments.length > 0 ? (
+                  <div className="acp-chat__attachments">
+                    {entry.attachments.map((name, i) => (
+                      <span
+                        key={`${entry.key}-att-${i}`}
+                        className="acp-chat__chip"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             );
           }
@@ -433,6 +567,27 @@ export function AcpChatPanel({
       </div>
 
       <div className="acp-chat__composer">
+        {attachments.length > 0 ? (
+          <div className="acp-chat__attachments" data-pending>
+            {attachments.map((att) => (
+              <span key={att.uri} className="acp-chat__chip">
+                {att.name}
+                <button
+                  type="button"
+                  className="acp-chat__chip-remove"
+                  aria-label={`Remove ${att.name}`}
+                  onClick={() =>
+                    setAttachments((prev) =>
+                      prev.filter((a) => a.uri !== att.uri),
+                    )
+                  }
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
         <Textarea
           className="acp-chat__input"
           value={draft}
@@ -473,6 +628,38 @@ export function AcpChatPanel({
               </option>
             ))}
           </Select>
+          {/* One Select per advertised control — no per-agent code. Cursor
+              gets mode + model; Claude gets its permission mode. An entry
+              whose `type` we do not recognise is skipped, the same tolerance
+              rule the update stream follows. */}
+          {configOptions
+            .filter(
+              (opt) => opt.type === "select" && !deadConfigIds.has(opt.id),
+            )
+            .map((opt) => (
+              <Select
+                key={opt.id}
+                className="acp-chat__config"
+                value={opt.currentValue}
+                aria-label={opt.name}
+                disabled={phase.status !== "ready" || lost}
+                onChange={(e) => setConfigOption(opt.id, e.target.value)}
+              >
+                {opt.options.map((choice) => (
+                  <option key={choice.value} value={choice.value}>
+                    {choice.name}
+                  </option>
+                ))}
+              </Select>
+            ))}
+          <Button
+            size="sm"
+            aria-label="Attach a file"
+            disabled={phase.status !== "ready" || lost}
+            onClick={() => void attachFile()}
+          >
+            Attach
+          </Button>
           {lost ? (
             <Button size="sm" onClick={() => setNonce((n) => n + 1)}>
               Reconnect
@@ -486,7 +673,9 @@ export function AcpChatPanel({
               size="sm"
               variant="primary"
               disabled={
-                phase.status !== "ready" || lost || draft.trim().length === 0
+                phase.status !== "ready" ||
+                lost ||
+                (draft.trim().length === 0 && attachments.length === 0)
               }
               onClick={() => void send()}
             >

@@ -248,3 +248,147 @@
   min-width: 0;
   margin-right: auto;
 }
+
+/* One per advertised session control (mode, model, …). Sits between the
+   profile picker and the Attach / Send buttons. */
+.acp-chat__config {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 40%;
+}
+
+/* --- file attachments ------------------------------------------------- */
+/* Chips: staged files under the composer, and the same treatment echoed
+   under a sent user message. */
+.acp-chat__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.acp-chat__message[data-role="user"] .acp-chat__attachments {
+  margin-top: 6px;
+}
+
+.acp-chat__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: var(--silo-radius-sm);
+  background: var(--silo-color-bg);
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__chip-remove {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: var(--silo-font-size-base);
+  line-height: 1;
+}
+
+/* --- rendered markdown -------------------------------------------------- */
+/* Agent prose goes through react-markdown, so the block elements it emits
+   need the transcript's rhythm rather than the browser's defaults. Tuned for
+   a *message*, not a document: tight vertical margins, no huge headings. */
+
+.acp-chat__md {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.acp-chat__md > :first-child {
+  margin-top: 0;
+}
+
+.acp-chat__md > :last-child {
+  margin-bottom: 0;
+}
+
+.acp-chat__md p,
+.acp-chat__md ul,
+.acp-chat__md ol,
+.acp-chat__md blockquote,
+.acp-chat__md pre,
+.acp-chat__md table {
+  margin: 0 0 8px;
+}
+
+.acp-chat__md ul,
+.acp-chat__md ol {
+  padding-left: 20px;
+}
+
+.acp-chat__md li {
+  margin: 2px 0;
+}
+
+/* A message's headings are emphasis, not document structure — keep them close
+   to body size so an agent's `##` cannot shout over the rest of the panel. */
+.acp-chat__md h1,
+.acp-chat__md h2,
+.acp-chat__md h3,
+.acp-chat__md h4,
+.acp-chat__md h5,
+.acp-chat__md h6 {
+  margin: 12px 0 6px;
+  font-size: var(--silo-font-size-base);
+  font-weight: 600;
+}
+
+.acp-chat__md code {
+  font-family: var(--silo-font-mono);
+  font-size: var(--silo-font-size-sm);
+  background: var(--silo-color-bg);
+  border-radius: var(--silo-radius-sm);
+  padding: 1px 4px;
+}
+
+.acp-chat__md pre {
+  background: var(--silo-color-bg);
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: var(--silo-radius-md);
+  padding: 8px 10px;
+  /* A wide code block scrolls inside its own box; the transcript never does. */
+  overflow-x: auto;
+  overscroll-behavior: contain;
+}
+
+.acp-chat__md pre code {
+  background: none;
+  padding: 0;
+}
+
+.acp-chat__md blockquote {
+  border-left: 2px solid var(--silo-color-input-border);
+  padding-left: 10px;
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__md a {
+  color: var(--silo-color-accent);
+}
+
+.acp-chat__md table {
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+}
+
+.acp-chat__md th,
+.acp-chat__md td {
+  border: 1px solid var(--silo-color-input-border);
+  padding: 3px 8px;
+  text-align: left;
+}
+
+.acp-chat__md hr {
+  border: 0;
+  border-top: 1px solid var(--silo-color-input-border);
+  margin: 12px 0;
+}

@@ -33,6 +33,9 @@ export interface MessageEntry {
   /** The `messageId` this run was grouped by, when the stream carried one. */
   readonly messageId?: string;
   readonly text: string;
+  /** File names the user attached to this turn (`role === "user"` only) —
+   *  rendered as chips under the message. */
+  readonly attachments?: readonly string[];
 }
 
 /** One tool call, updated in place as `tool_call_update`s arrive. */
@@ -166,13 +169,19 @@ function appendEntry(t: Transcript, make: (key: string) => TranscriptEntry) {
 }
 
 /** Append the user's own prompt. The stream does not echo it back, so the
- *  panel adds it when it sends the turn. */
-export function appendUserMessage(t: Transcript, text: string): Transcript {
+ *  panel adds it when it sends the turn. `attachments` are the file names sent
+ *  as `resource_link` blocks alongside the text. */
+export function appendUserMessage(
+  t: Transcript,
+  text: string,
+  attachments: readonly string[] = [],
+): Transcript {
   return appendEntry(t, (key) => ({
     type: "message",
     key,
     role: "user",
     text,
+    ...(attachments.length > 0 ? { attachments } : {}),
   }));
 }
 

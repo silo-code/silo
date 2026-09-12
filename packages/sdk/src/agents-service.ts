@@ -573,6 +573,76 @@ export interface AgentPermissionRequest {
 }
 
 /**
+ * One selectable value inside an {@link AgentSessionConfigOption}.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentSessionConfigChoice {
+  /** The value to pass to {@link AgentSessionHandle.setConfigOption}. */
+  readonly value: string;
+  /** Label to show, e.g. `"Claude Sonnet"`, `"Plan"`. */
+  readonly name: string;
+  /** A longer explanation, when the agent gave one. */
+  readonly description?: string;
+}
+
+/**
+ * One session-level control the agent advertised at connect — the Agent Client
+ * Protocol `session/new` `configOptions` list (recon 2026-09-08). It is
+ * **self-describing and subsumes** the older `modes` / `models` fields: Cursor
+ * advertises a `"mode"` entry and a `"model"` entry, Claude a single `"mode"`
+ * entry (its permission mode), and a vendor may add its own.
+ *
+ * The write path is **generic too**:
+ * {@link AgentSessionHandle.setConfigOption} goes through the protocol's
+ * `session/set_config_option`, so a category Silo has never heard of still
+ * works — Claude's `"thought_level"` (Effort) has no typed method anywhere in
+ * the protocol and sets fine. Silo keeps `session/set_mode` /
+ * `session/set_model` only as a fallback for an agent that does not implement
+ * the generic setter.
+ *
+ * Render one control per entry and **skip an entry whose {@link type} you do
+ * not recognise** — the same tolerance rule {@link AgentSessionUpdate} follows
+ * for unknown `kind`s. Do not assume every advertised entry is settable: an
+ * adapter may list an id its own handler rejects, so treat a failed
+ * {@link AgentSessionHandle.setConfigOption} as "stop offering this one".
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentSessionConfigOption {
+  /** Stable id — pass it to {@link AgentSessionHandle.setConfigOption}. */
+  readonly id: string;
+  /** Label for the control, e.g. `"Mode"`, `"Model"`. */
+  readonly name: string;
+  /** A longer explanation, when the agent gave one. */
+  readonly description?: string;
+  /**
+   * The protocol category that decides how a write is delivered — `"mode"`,
+   * `"model"`, or a vendor's own. {@link AgentSessionHandle.setConfigOption}
+   * rejects a category with no verified writer.
+   */
+  readonly category: string;
+  /**
+   * The control shape. Only `"select"` is modelled today; treat any other
+   * value as "do not render".
+   */
+  readonly type: string;
+  /**
+   * The currently-selected {@link AgentSessionConfigChoice.value}. Kept
+   * current when the agent moves it itself (an ACP `current_mode_update`), so
+   * a bound control always reflects reality — subscribe with
+   * {@link AgentSessionHandle.onConfigOptionsChanged}.
+   */
+  readonly currentValue: string;
+  /** The choices, in the agent's order. */
+  readonly options: readonly AgentSessionConfigChoice[];
+}
+
+/**
  * A live handle to one **Chat session** (RFC 0038) — an Agent Client Protocol
  * child Silo spawned from a user-authored Chat profile, speaking structured
  * JSON-RPC over piped stdio. Returned by {@link AgentSessionsService.connect}.
@@ -633,6 +703,45 @@ export interface AgentSessionHandle {
    * with none, Silo answers `cancelled`.
    */
   onPermission(listener: (request: AgentPermissionRequest) => void): Disposable;
+  /**
+   * The session-level controls the agent advertised at connect — mode, model,
+   * and whatever else it offers, each a self-describing
+   * {@link AgentSessionConfigOption}. Empty when it advertised none.
+   *
+   * This is a **live snapshot**: {@link setConfigOption} and a mode the agent
+   * changes itself both update it in place. Subscribe with
+   * {@link onConfigOptionsChanged} and re-read.
+   */
+  readonly configOptions: readonly AgentSessionConfigOption[];
+  /**
+   * Change one advertised control. `id` names an entry in
+   * {@link configOptions}; `value` is one of that entry's
+   * {@link AgentSessionConfigChoice.value}s.
+   *
+   * Works for **any** category the agent advertises, including ones Silo has
+   * never heard of — the host writes through the protocol's generic
+   * `session/set_config_option`, falling back to the typed
+   * `session/set_mode` / `session/set_model` only for an agent that does not
+   * implement it.
+   *
+   * Rejects, with nothing written, on an unknown `id` or a `value` outside
+   * that entry's options — and with the agent's own message when the agent
+   * refuses (an adapter may advertise an entry its own handler does not know).
+   * A rejection is a signal to stop offering that control.
+   *
+   * Resolves once the agent has acknowledged the change. {@link configOptions}
+   * is then replaced from the agent's own updated list — setting one option can
+   * move another — and {@link onConfigOptionsChanged} fires just before it
+   * resolves.
+   */
+  setConfigOption(id: string, value: string): Promise<void>;
+  /**
+   * Fires whenever {@link configOptions} changes — a {@link setConfigOption}
+   * landing, or the agent moving a value on its own (an ACP
+   * `current_mode_update`). Re-read {@link configOptions} from the handle.
+   * Returns a {@link Disposable}.
+   */
+  onConfigOptionsChanged(listener: () => void): Disposable;
   /**
    * Tear the session down: kill the agent process and drop it from
    * {@link AgentsService.getState}. Idempotent. The process is a piped child of

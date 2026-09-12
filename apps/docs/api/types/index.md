@@ -106,6 +106,8 @@ the published reference is exactly this surface — no more, no less.
 - [AgentSessionUpdate](interfaces/AgentSessionUpdate.md)
 - [AgentPermissionOption](interfaces/AgentPermissionOption.md)
 - [AgentPermissionRequest](interfaces/AgentPermissionRequest.md)
+- [AgentSessionConfigChoice](interfaces/AgentSessionConfigChoice.md)
+- [AgentSessionConfigOption](interfaces/AgentSessionConfigOption.md)
 - [AgentSessionHandle](interfaces/AgentSessionHandle.md)
 - [AgentSessionConnectOptions](interfaces/AgentSessionConnectOptions.md)
 - [AgentSessionsService](interfaces/AgentSessionsService.md)

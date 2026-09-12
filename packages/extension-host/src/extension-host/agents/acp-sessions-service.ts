@@ -22,6 +22,7 @@ import type {
   AgentPermissionRequest,
   AgentPromptBlock,
   AgentPromptResult,
+  AgentSessionConfigOption,
   AgentSessionConnectOptions,
   AgentSessionHandle,
   AgentSessionUpdate,
@@ -37,6 +38,7 @@ import {
   createAcpClient,
   type AcpClient,
   type AcpClientCallbacks,
+  type AcpConfigOption,
   type AcpContentBlock,
   type AcpPermissionOutcome,
   type AcpPermissionRequest,
@@ -68,6 +70,34 @@ function toAcpBlocks(blocks: readonly AgentPromptBlock[]): AcpContentBlock[] {
           ...(b.name ? { name: b.name } : {}),
         },
   );
+}
+
+function toSdkConfigOptions(
+  opts: readonly AcpConfigOption[],
+): AgentSessionConfigOption[] {
+  return opts.map((o) => ({
+    id: o.id,
+    name: o.name,
+    ...(o.description ? { description: o.description } : {}),
+    category: o.category,
+    type: o.type,
+    currentValue: o.currentValue,
+    options: o.options.map((c) => ({
+      value: c.value,
+      name: c.name,
+      ...(c.description ? { description: c.description } : {}),
+    })),
+  }));
+}
+
+/** The new selected value carried by a `current_mode_update` notification —
+ *  read defensively since the exact field is not nailed down in recon. */
+function currentModeFromUpdate(u: AcpSessionUpdate): string | undefined {
+  for (const key of ["currentModeId", "currentValue", "modeId"] as const) {
+    const v = (u as Record<string, unknown>)[key];
+    if (typeof v === "string" && v.length > 0) return v;
+  }
+  return undefined;
 }
 
 function toSdkUpdate(u: AcpSessionUpdate): AgentSessionUpdate {
@@ -125,12 +155,41 @@ export function createAgentSessionsService(): AgentSessionsService {
       const permissionListeners = new Set<
         (r: AgentPermissionRequest) => void
       >();
+      const configListeners = new Set<() => void>();
       let disposed = false;
       let acpSessionId = "";
       let infoId = "";
+      // Live snapshot: the handle exposes it through a getter, and both
+      // `setConfigOption` and a `current_mode_update` the agent sends itself
+      // replace it (immutably) and fire `configListeners`.
+      let configOptions: AgentSessionConfigOption[] = [];
+
+      function fireConfigChanged(): void {
+        for (const l of configListeners) {
+          try {
+            l();
+          } catch (err) {
+            agentsChannel.debug(
+              `chat session onConfigOptionsChanged listener threw: ${err}`,
+            );
+          }
+        }
+      }
 
       const callbacks: AcpClientCallbacks = {
         onUpdate(update) {
+          // The agent moved its own mode (e.g. a slash-command). Reflect it in
+          // the `mode` config option so a bound Select is never stale.
+          if (update.sessionUpdate === "current_mode_update") {
+            const next = currentModeFromUpdate(update);
+            const idx = configOptions.findIndex((o) => o.category === "mode");
+            if (next && idx >= 0 && configOptions[idx].currentValue !== next) {
+              configOptions = configOptions.map((o, i) =>
+                i === idx ? { ...o, currentValue: next } : o,
+              );
+              fireConfigChanged();
+            }
+          }
           const sdk = toSdkUpdate(update);
           for (const l of updateListeners) {
             try {
@@ -227,6 +286,7 @@ export function createAgentSessionsService(): AgentSessionsService {
 
       acpSessionId = session.sessionId;
       infoId = `chat:${acpSessionId}`;
+      configOptions = toSdkConfigOptions(session.configOptions ?? []);
       const canResume = init.agentCapabilities?.loadSession === true;
       const agentName = init.agentInfo?.title ?? init.agentInfo?.name ?? label;
 
@@ -310,10 +370,17 @@ export function createAgentSessionsService(): AgentSessionsService {
               acpSessionId,
               toAcpBlocks(blocks),
             );
-            const workspaceInactive = store.activeWorkspaceId !== workspaceId;
-            const wantsAttention =
-              stopReason === "refusal" ||
-              (stopReason !== "cancelled" && workspaceInactive);
+            // A finished turn wants attention unless the user cancelled it —
+            // the *same rule a Terminal session uses*, which raises on every
+            // finish the focused tab did not witness
+            // (`agent-activity-model.ts`: `needsAttention = isAgent &&
+            // !ev.isActiveTerminal`) and relies on the surface being looked at
+            // to clear it. Keying this on "is the workspace active" instead
+            // meant a Chat turn finishing in a background *tab* of the active
+            // workspace raised nothing, where a terminal agent in exactly that
+            // position badges — the one place observation parity leaked. The
+            // clear side is the panel's `ctx.agents.acknowledge` while visible.
+            const wantsAttention = stopReason !== "cancelled";
             patchChatAgent(infoId, {
               activity: "idle",
               workingSince: undefined,
@@ -338,6 +405,67 @@ export function createAgentSessionsService(): AgentSessionsService {
           client.cancel(acpSessionId);
         },
 
+        get configOptions(): readonly AgentSessionConfigOption[] {
+          return configOptions;
+        },
+
+        async setConfigOption(id: string, value: string): Promise<void> {
+          const option = configOptions.find((o) => o.id === id);
+          if (!option) {
+            throw new Error(`No session config option "${id}".`);
+          }
+          if (!option.options.some((c) => c.value === value)) {
+            throw new Error(`"${value}" is not a choice for "${option.name}".`);
+          }
+          if (option.currentValue === value) return;
+          // **Generic write first.** `session/set_config_option` is what the
+          // protocol pairs with the generic `configOptions` list, and both
+          // probed agents implement it for every category they advertise —
+          // including `thought_level`, which has no typed method at all. An
+          // earlier probe concluded it was broken by passing `optionId`; the
+          // parameter is `configId`.
+          //
+          // The typed `set_mode` / `set_model` are the fallback, for an agent
+          // that answers `-32601`. Category dispatch is a last resort, not the
+          // design: it can only ever cover the categories Silo has hard-coded,
+          // which is exactly the coupling `configOptions` exists to remove.
+          let updated: AcpConfigOption[] | null = null;
+          try {
+            updated = await client.setConfigOption(acpSessionId, id, value);
+          } catch (err) {
+            if (!(err instanceof AcpRpcError) || err.code !== -32601) throw err;
+            agentsChannel.debug(
+              `[${label}] no generic set_config_option; falling back to the typed setter for "${option.category}"`,
+            );
+            if (option.category === "mode") {
+              await client.setMode(acpSessionId, value);
+            } else if (option.category === "model") {
+              await client.setModel(acpSessionId, value);
+            } else {
+              throw new Error(
+                `${label} has no way to set "${option.name}" (category "${
+                  option.category || "(none)"
+                }").`,
+              );
+            }
+          }
+          // The agent echoes the whole updated list back — prefer it over a
+          // local patch, since setting one option can move another (Cursor's
+          // model values encode effort/context, Claude's mode gates edits).
+          configOptions =
+            updated !== null
+              ? toSdkConfigOptions(updated)
+              : configOptions.map((o) =>
+                  o.id === id ? { ...o, currentValue: value } : o,
+                );
+          fireConfigChanged();
+        },
+
+        onConfigOptionsChanged(listener: () => void): Disposable {
+          configListeners.add(listener);
+          return { dispose: () => configListeners.delete(listener) };
+        },
+
         onUpdate(listener: (update: AgentSessionUpdate) => void): Disposable {
           updateListeners.add(listener);
           return { dispose: () => updateListeners.delete(listener) };
@@ -357,6 +485,7 @@ export function createAgentSessionsService(): AgentSessionsService {
           removeChatAgent(infoId);
           updateListeners.clear();
           permissionListeners.clear();
+          configListeners.clear();
           agentsChannel.info(`Chat session ${infoId} disposed.`);
         },
       };

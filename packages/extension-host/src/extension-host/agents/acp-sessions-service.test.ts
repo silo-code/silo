@@ -8,6 +8,9 @@ const fakeClient = {
   loadSession: vi.fn(),
   prompt: vi.fn(),
   cancel: vi.fn(),
+  setConfigOption: vi.fn(),
+  setMode: vi.fn(),
+  setModel: vi.fn(),
   dispose: vi.fn(),
 };
 let captured: AcpClientCallbacks;
@@ -78,10 +81,13 @@ beforeEach(() => {
   });
   fakeClient.newSession
     .mockReset()
-    .mockResolvedValue({ sessionId: "s1", raw: {} });
+    .mockResolvedValue({ sessionId: "s1", configOptions: [], raw: {} });
   fakeClient.loadSession.mockReset().mockResolvedValue(undefined);
   fakeClient.prompt.mockReset().mockResolvedValue({ stopReason: "end_turn" });
   fakeClient.cancel.mockReset();
+  fakeClient.setConfigOption.mockReset().mockResolvedValue(null);
+  fakeClient.setMode.mockReset().mockResolvedValue(undefined);
+  fakeClient.setModel.mockReset().mockResolvedValue(undefined);
   fakeClient.dispose.mockReset();
 });
 
@@ -160,7 +166,7 @@ describe("connect() success", () => {
 });
 
 describe("turn lifecycle → ctx.agents status", () => {
-  it("prompt() drives working → idle, raising attention only off the active workspace", async () => {
+  it("prompt() drives working → idle and raises attention on every finish", async () => {
     const handle = await service.connect("claude-chat", {
       workspaceId: "other",
     });
@@ -176,15 +182,28 @@ describe("turn lifecycle → ctx.agents status", () => {
 
     resolvePrompt({ stopReason: "end_turn" });
     await p;
-    // session is in "other", active workspace is "active" → needs attention
     expect(chatAgentInfos()[0]).toMatchObject({
       activity: "idle",
       needsAttention: true,
     });
   });
 
-  it("prompt() on the active workspace ends idle with no attention", async () => {
+  // Parity with a Terminal session, which raises on any finish its focused tab
+  // did not witness and lets focus clear it — keying this on "is the workspace
+  // active" left a Chat turn finishing in a background *tab* of the active
+  // workspace with no badge. The panel acknowledges while it is visible.
+  it("raises attention even in the active workspace — the surface clears it", async () => {
     const handle = await service.connect("claude-chat");
+    await handle.prompt([{ type: "text", text: "hi" }]);
+    expect(chatAgentInfos()[0]).toMatchObject({
+      activity: "idle",
+      needsAttention: true,
+    });
+  });
+
+  it("a cancelled turn raises no attention — the user is already there", async () => {
+    const handle = await service.connect("claude-chat");
+    fakeClient.prompt.mockResolvedValue({ stopReason: "cancelled" });
     await handle.prompt([{ type: "text", text: "hi" }]);
     expect(chatAgentInfos()[0]).toMatchObject({
       activity: "idle",
@@ -249,6 +268,186 @@ describe("turn lifecycle → ctx.agents status", () => {
     const handle = await service.connect("claude-chat");
     handle.cancel();
     expect(fakeClient.cancel).toHaveBeenCalledWith("s1");
+  });
+});
+
+describe("session config options (RFC 0038 Session 3.1)", () => {
+  const cursorConfig = [
+    {
+      id: "mode",
+      name: "Mode",
+      category: "mode",
+      type: "select",
+      currentValue: "agent",
+      options: [
+        { value: "agent", name: "Agent" },
+        { value: "plan", name: "Plan" },
+      ],
+    },
+    {
+      id: "model",
+      name: "Model",
+      category: "model",
+      type: "select",
+      currentValue: "auto",
+      options: [
+        { value: "auto", name: "Auto" },
+        { value: "opus", name: "Opus" },
+      ],
+    },
+  ];
+
+  it("surfaces whatever configOptions the agent advertised", async () => {
+    fakeClient.newSession.mockResolvedValue({
+      sessionId: "s1",
+      configOptions: cursorConfig,
+      raw: {},
+    });
+    const handle = await service.connect("claude-chat");
+    expect(handle.configOptions.map((o) => o.id)).toEqual(["mode", "model"]);
+    expect(handle.configOptions[1]).toMatchObject({
+      category: "model",
+      currentValue: "auto",
+    });
+  });
+
+  it("is empty when the agent advertised none", async () => {
+    const handle = await service.connect("claude-chat");
+    expect(handle.configOptions).toEqual([]);
+  });
+
+  const withConfig = (configOptions: unknown[]) =>
+    fakeClient.newSession.mockResolvedValue({
+      sessionId: "s1",
+      configOptions,
+      raw: {},
+    });
+
+  it("writes through the generic session/set_config_option", async () => {
+    withConfig(cursorConfig);
+    const handle = await service.connect("claude-chat");
+    const changed = vi.fn();
+    handle.onConfigOptionsChanged(changed);
+
+    await handle.setConfigOption("mode", "plan");
+    expect(fakeClient.setConfigOption).toHaveBeenCalledWith(
+      "s1",
+      "mode",
+      "plan",
+    );
+    expect(fakeClient.setMode).not.toHaveBeenCalled();
+    expect(
+      handle.configOptions.find((o) => o.id === "mode")!.currentValue,
+    ).toBe("plan");
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
+  it("works for a category Silo has no typed method for", async () => {
+    withConfig([
+      {
+        id: "effort",
+        name: "Effort",
+        category: "thought_level",
+        type: "select",
+        currentValue: "default",
+        options: [
+          { value: "default", name: "Default" },
+          { value: "high", name: "High" },
+        ],
+      },
+    ]);
+    const handle = await service.connect("claude-chat");
+    await handle.setConfigOption("effort", "high");
+    expect(fakeClient.setConfigOption).toHaveBeenCalledWith(
+      "s1",
+      "effort",
+      "high",
+    );
+    expect(handle.configOptions[0].currentValue).toBe("high");
+  });
+
+  it("replaces the whole snapshot from the agent's response", async () => {
+    withConfig(cursorConfig);
+    // Setting the model moved the mode too — the agent is authoritative.
+    fakeClient.setConfigOption.mockResolvedValue([
+      { ...cursorConfig[0], currentValue: "plan" },
+      { ...cursorConfig[1], currentValue: "opus" },
+    ]);
+    const handle = await service.connect("claude-chat");
+    await handle.setConfigOption("model", "opus");
+    expect(handle.configOptions.map((o) => o.currentValue)).toEqual([
+      "plan",
+      "opus",
+    ]);
+  });
+
+  it("falls back to the typed setter when the agent has no generic one", async () => {
+    const { AcpRpcError } =
+      await vi.importActual<typeof import("./acp-jsonrpc")>("./acp-jsonrpc");
+    withConfig(cursorConfig);
+    fakeClient.setConfigOption.mockRejectedValue(
+      new AcpRpcError({ code: -32601, message: "Method not found" }),
+    );
+    const handle = await service.connect("claude-chat");
+
+    await handle.setConfigOption("mode", "plan");
+    expect(fakeClient.setMode).toHaveBeenCalledWith("s1", "plan");
+    await handle.setConfigOption("model", "opus");
+    expect(fakeClient.setModel).toHaveBeenCalledWith("s1", "opus");
+  });
+
+  it("surfaces an agent-side refusal rather than swallowing it", async () => {
+    const { AcpRpcError } =
+      await vi.importActual<typeof import("./acp-jsonrpc")>("./acp-jsonrpc");
+    withConfig(cursorConfig);
+    // Not -32601: the agent has the method and rejected this option.
+    fakeClient.setConfigOption.mockRejectedValue(
+      new AcpRpcError({
+        code: -32603,
+        message: "Unknown config option: model",
+      }),
+    );
+    const handle = await service.connect("claude-chat");
+    await expect(handle.setConfigOption("model", "opus")).rejects.toThrow(
+      /Unknown config option/,
+    );
+    expect(fakeClient.setModel).not.toHaveBeenCalled();
+    // and the stale value is not optimistically moved
+    expect(
+      handle.configOptions.find((o) => o.id === "model")!.currentValue,
+    ).toBe("auto");
+  });
+
+  it("rejects an unknown id or a value outside the entry's options", async () => {
+    withConfig(cursorConfig);
+    const handle = await service.connect("claude-chat");
+    await expect(handle.setConfigOption("nope", "x")).rejects.toThrow(
+      /no session config option/i,
+    );
+    await expect(handle.setConfigOption("mode", "bogus")).rejects.toThrow(
+      /not a choice/i,
+    );
+    expect(fakeClient.setConfigOption).not.toHaveBeenCalled();
+  });
+
+  it("folds a current_mode_update the agent sent itself back into currentValue", async () => {
+    fakeClient.newSession.mockResolvedValue({
+      sessionId: "s1",
+      configOptions: cursorConfig,
+      raw: {},
+    });
+    const handle = await service.connect("claude-chat");
+    const changed = vi.fn();
+    handle.onConfigOptionsChanged(changed);
+
+    captured.onUpdate({
+      sessionUpdate: "current_mode_update",
+      currentModeId: "plan",
+    });
+    expect(
+      handle.configOptions.find((o) => o.id === "mode")!.currentValue,
+    ).toBe("plan");
+    expect(changed).toHaveBeenCalledTimes(1);
   });
 });
 

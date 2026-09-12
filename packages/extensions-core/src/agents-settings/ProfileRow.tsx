@@ -9,6 +9,7 @@ import { AgentIconGlyph, Badge, IconButton, ListRow } from "@silo-code/sdk";
 import {
   profileCommand,
   profileConfigDir,
+  chatExecPreview,
   type AgentProfile,
 } from "@silo-code/extension-host/internal";
 
@@ -82,6 +83,14 @@ export function ProfileRow({
     void ctx.ui.showMenu({ items, at });
   }
 
+  const isChat = profile.launch.interface === "chat";
+  // The Chat arm is a path plus an argv vector — showing only `command` would
+  // hide the half that says which mode the agent is being started in.
+  const commandText =
+    profile.launch.interface === "chat"
+      ? chatExecPreview(profile.launch.command, profile.launch.args)
+      : profileCommand(profile);
+
   return (
     <ListRow
       leading={
@@ -99,12 +108,20 @@ export function ProfileRow({
               Default
             </Badge>
           )}
+          {isChat && (
+            <Badge size="sm" tone="outline">
+              Chat
+            </Badge>
+          )}
           {profileConfigDir(profile) && (
             <Badge size="sm" tone="neutral">
               {shortDir(profileConfigDir(profile)!)}
             </Badge>
           )}
-          {bestEffortResume && (
+          {/* Terminal-only: a Chat session is resumed through the agent's own
+              `session/load`, so hook/session-file readiness says nothing about
+              it. */}
+          {bestEffortResume && !isChat && (
             <button
               type="button"
               className="apf-badge-button"
@@ -132,7 +149,7 @@ export function ProfileRow({
     >
       <span className="apf-row-main">
         <span className="apf-row-label">{profile.label}</span>
-        <code className="apf-row-cmd">{profileCommand(profile)}</code>
+        <code className="apf-row-cmd">{commandText}</code>
         {agent && <span className="apf-row-agent">{agent.displayName}</span>}
       </span>
     </ListRow>

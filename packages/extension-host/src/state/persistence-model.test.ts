@@ -293,20 +293,25 @@ describe("buildIndex", () => {
     expect(index.globalActiveTabEnabled).toBeUndefined();
     expect(index.globalPanelLayout).toBeUndefined();
     expect(index.globalActiveSidePanelTabs).toBeUndefined();
-    // RFC 0038 sprint flags — absent, not defaulted, at the index layer.
+    // RFC 0038 Chat-agents gate — absent, not defaulted, at the index layer.
     expect(index.chatAgents).toBeUndefined();
-    expect(index.bundledChatPanel).toBeUndefined();
   });
 
-  it("round-trips the RFC 0038 sprint flags when provided", () => {
-    const index = buildIndex({
-      workspaceOrder: [],
-      activeWorkspaceId: null,
-      chatAgents: true,
-      bundledChatPanel: false,
-    });
-    expect(index.chatAgents).toBe(true);
-    expect(index.bundledChatPanel).toBe(false);
+  it("round-trips the RFC 0038 Chat-agents gate when provided", () => {
+    expect(
+      buildIndex({
+        workspaceOrder: [],
+        activeWorkspaceId: null,
+        chatAgents: true,
+      }).chatAgents,
+    ).toBe(true);
+    expect(
+      buildIndex({
+        workspaceOrder: [],
+        activeWorkspaceId: null,
+        chatAgents: false,
+      }).chatAgents,
+    ).toBe(false);
   });
 
   it("round-trips small-screen-mode settings when provided", () => {

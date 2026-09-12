@@ -1,6 +1,6 @@
 # Interface: AgentSessionHandle
 
-Defined in: [packages/sdk/src/agents-service.ts:592](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L592)
+Defined in: [packages/sdk/src/agents-service.ts:662](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L662)
 
 **`Beta`**
 
@@ -24,7 +24,7 @@ Drive one turn at a time: call [prompt](#prompt), await its
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:598](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L598)
+Defined in: [packages/sdk/src/agents-service.ts:668](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L668)
 
 **`Beta`**
 
@@ -40,7 +40,7 @@ Stable across a [AgentsService.resume](AgentsService.md#resume).
 readonly optional agentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:601](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L601)
+Defined in: [packages/sdk/src/agents-service.ts:671](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L671)
 
 **`Beta`**
 
@@ -55,7 +55,7 @@ The user's asserted catalog agent id for the profile, if any — the same
 readonly agentName: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:604](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L604)
+Defined in: [packages/sdk/src/agents-service.ts:674](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L674)
 
 **`Beta`**
 
@@ -70,13 +70,33 @@ Display name for the agent: what it declared at connect (`initialize`),
 readonly canResume: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:610](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L610)
+Defined in: [packages/sdk/src/agents-service.ts:680](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L680)
 
 **`Beta`**
 
 Whether the agent advertises `session/load`, i.e. whether
 [AgentsService.resume](AgentsService.md#resume) can bring this conversation back after the
 process dies. Mirrors [AgentInfo.canResume](AgentInfo.md#canresume).
+
+***
+
+### configOptions
+
+```ts
+readonly configOptions: readonly AgentSessionConfigOption[];
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:715](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L715)
+
+**`Beta`**
+
+The session-level controls the agent advertised at connect — mode, model,
+and whatever else it offers, each a self-describing
+[AgentSessionConfigOption](AgentSessionConfigOption.md). Empty when it advertised none.
+
+This is a **live snapshot**: [setConfigOption](#setconfigoption) and a mode the agent
+changes itself both update it in place. Subscribe with
+[onConfigOptionsChanged](#onconfigoptionschanged) and re-read.
 
 ## Methods
 
@@ -86,7 +106,7 @@ process dies. Mirrors [AgentInfo.canResume](AgentInfo.md#canresume).
 prompt(blocks): Promise<AgentPromptResult>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:616](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L616)
+Defined in: [packages/sdk/src/agents-service.ts:686](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L686)
 
 **`Beta`**
 
@@ -112,7 +132,7 @@ readonly [`AgentPromptBlock`](../type-aliases/AgentPromptBlock.md)[]
 cancel(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:622](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L622)
+Defined in: [packages/sdk/src/agents-service.ts:692](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L692)
 
 **`Beta`**
 
@@ -132,7 +152,7 @@ Ask the agent to stop the current turn (Agent Client Protocol
 onUpdate(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:629](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L629)
+Defined in: [packages/sdk/src/agents-service.ts:699](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L699)
 
 **`Beta`**
 
@@ -159,7 +179,7 @@ Returns a [Disposable](Disposable.md).
 onPermission(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:635](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L635)
+Defined in: [packages/sdk/src/agents-service.ts:705](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L705)
 
 **`Beta`**
 
@@ -179,13 +199,86 @@ with none, Silo answers `cancelled`.
 
 ***
 
+### setConfigOption()
+
+```ts
+setConfigOption(id, value): Promise<void>;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:737](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L737)
+
+**`Beta`**
+
+Change one advertised control. `id` names an entry in
+[configOptions](#configoptions); `value` is one of that entry's
+[AgentSessionConfigChoice.value](AgentSessionConfigChoice.md#value)s.
+
+Works for **any** category the agent advertises, including ones Silo has
+never heard of — the host writes through the protocol's generic
+`session/set_config_option`, falling back to the typed
+`session/set_mode` / `session/set_model` only for an agent that does not
+implement it.
+
+Rejects, with nothing written, on an unknown `id` or a `value` outside
+that entry's options — and with the agent's own message when the agent
+refuses (an adapter may advertise an entry its own handler does not know).
+A rejection is a signal to stop offering that control.
+
+Resolves once the agent has acknowledged the change. [configOptions](#configoptions)
+is then replaced from the agent's own updated list — setting one option can
+move another — and [onConfigOptionsChanged](#onconfigoptionschanged) fires just before it
+resolves.
+
+#### Parameters
+
+##### id
+
+`string`
+
+##### value
+
+`string`
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
+### onConfigOptionsChanged()
+
+```ts
+onConfigOptionsChanged(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:744](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L744)
+
+**`Beta`**
+
+Fires whenever [configOptions](#configoptions) changes — a [setConfigOption](#setconfigoption)
+landing, or the agent moving a value on its own (an ACP
+`current_mode_update`). Re-read [configOptions](#configoptions) from the handle.
+Returns a [Disposable](Disposable.md).
+
+#### Parameters
+
+##### listener
+
+() => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+***
+
 ### dispose()
 
 ```ts
 dispose(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:642](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L642)
+Defined in: [packages/sdk/src/agents-service.ts:751](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L751)
 
 **`Beta`**
 

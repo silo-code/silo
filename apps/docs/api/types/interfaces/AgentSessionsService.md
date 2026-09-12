@@ -1,6 +1,6 @@
 # Interface: AgentSessionsService
 
-Defined in: [packages/sdk/src/agents-service.ts:708](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L708)
+Defined in: [packages/sdk/src/agents-service.ts:817](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L817)
 
 **`Beta`**
 
@@ -38,7 +38,7 @@ ctx.subscriptions.push(off, { dispose: () => session.dispose() });
 connect(profileId, options?): Promise<AgentSessionHandle>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:722](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L722)
+Defined in: [packages/sdk/src/agents-service.ts:831](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L831)
 
 **`Beta`**
 

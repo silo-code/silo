@@ -1,6 +1,6 @@
 # Interface: AgentsService
 
-Defined in: [packages/sdk/src/agents-service.ts:751](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L751)
+Defined in: [packages/sdk/src/agents-service.ts:860](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L860)
 
 **`Beta`**
 
@@ -31,7 +31,7 @@ ctx.subscriptions.push(sub);
 catalog(): readonly CatalogAgentSummary[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:844](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L844)
+Defined in: [packages/sdk/src/agents-service.ts:953](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L953)
 
 Every coding agent Silo knows about, as read-only
 [CatalogAgentSummary](CatalogAgentSummary.md) records. Detection stays sealed (ADR 0028) —
@@ -53,7 +53,7 @@ readonly [`CatalogAgentSummary`](CatalogAgentSummary.md)[]
 readonly profiles: AgentProfilesService;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:853](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L853)
+Defined in: [packages/sdk/src/agents-service.ts:962](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L962)
 
 **`Beta`**
 
@@ -68,7 +68,7 @@ an opening prompt. See [AgentProfilesService](AgentProfilesService.md).
 readonly sessions: AgentSessionsService;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:864](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L864)
+Defined in: [packages/sdk/src/agents-service.ts:973](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L973)
 
 **`Beta`**
 
@@ -85,7 +85,7 @@ spawned as an Agent Client Protocol child (RFC 0038 phase 2). See
 getState(options?): AgentInfo[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:757](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L757)
+Defined in: [packages/sdk/src/agents-service.ts:866](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L866)
 
 **`Beta`**
 
@@ -113,7 +113,7 @@ instead.
 getByTerminalId(terminalId): AgentInfo | undefined;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:762](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L762)
+Defined in: [packages/sdk/src/agents-service.ts:871](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L871)
 
 **`Beta`**
 
@@ -140,7 +140,7 @@ Look up [AgentInfo](AgentInfo.md) for a specific terminal tab by its record id.
 subscribe(listener, options?): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:768](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L768)
+Defined in: [packages/sdk/src/agents-service.ts:877](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L877)
 
 **`Beta`**
 
@@ -172,7 +172,7 @@ instead. Returns a [Disposable](Disposable.md) that cancels the subscription.
 acknowledge(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:799](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L799)
+Defined in: [packages/sdk/src/agents-service.ts:908](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L908)
 
 **`Beta`**
 
@@ -221,7 +221,7 @@ ctx.subscriptions.push(
 reveal(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:813](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L813)
+Defined in: [packages/sdk/src/agents-service.ts:922](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L922)
 
 **`Beta`**
 
@@ -255,7 +255,7 @@ A no-op for an unknown id, or when the session's backing surface is gone
 resume(id): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:831](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L831)
+Defined in: [packages/sdk/src/agents-service.ts:940](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L940)
 
 **`Beta`**
 

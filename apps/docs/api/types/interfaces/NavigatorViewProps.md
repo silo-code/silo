@@ -1,6 +1,6 @@
 # Interface: NavigatorViewProps
 
-Defined in: [packages/sdk/src/types.ts:507](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L507)
+Defined in: [packages/sdk/src/types.ts:533](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L533)
 
 Props passed to a [NavigatorView](NavigatorView.md) component.
 
@@ -12,7 +12,7 @@ Props passed to a [NavigatorView](NavigatorView.md) component.
 active: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:514](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L514)
+Defined in: [packages/sdk/src/types.ts:540](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L540)
 
 Whether this view is the one currently on screen. A view mounts the first
 time it is selected and then stays mounted — hidden, not unmounted — so it
@@ -27,7 +27,7 @@ the view is off screen.
 panelId: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:521](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L521)
+Defined in: [packages/sdk/src/types.ts:547](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L547)
 
 The [SidePanel.id](SidePanel.md#id) of the side panel hosting the Navigator. Pass it
 to [LayoutService.openPanelSheet](LayoutService.md#openpanelsheet) so a sheet the view opens anchors

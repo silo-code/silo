@@ -1,5 +1,4 @@
 import { activateExtensions } from "@silo-code/extension-host";
-import { getBundledChatPanelEnabled } from "@silo-code/extension-host/internal";
 import type { Extension } from "@silo-code/sdk";
 import {
   menu as coreMenu,
@@ -43,8 +42,10 @@ const builtins: Extension[] = [
   // kinds runs (CenterDock's first render). core.editor registers both the
   // editor and diff kinds (text + diff + settings are its modules).
   terminal,
-  // (The bundled Chat panel registers right after core.terminal, but only
-  // when the `bundledChatPanel` setting is on — see `builtinList` below.)
+  // The bundled Chat panel (RFC 0038). Present in the list so its panel kind
+  // exists for layout deserialization, but activated only once `chatAgents` is
+  // known to be on — see CHAT_PANEL_EXTENSION_ID below.
+  acpChat,
   output,
   // The text editor registers before markdown-preview so that, with both at
   // priority 0, a plain .md open ties to Text (the default view); Preview is
@@ -83,20 +84,18 @@ const builtins: Extension[] = [
 ];
 
 /**
- * The list to activate, with the bundled Chat panel spliced in when the
- * `bundledChatPanel` setting is on.
+ * The bundled Chat panel's extension id (RFC 0038).
  *
- * Exported for its unit test: "registers only behind the flag" is the phase's
- * acceptance criterion, and the alternative is asserting on what
- * `activateExtensions` was handed.
+ * It is in `builtins` above but starts **inactive**: `chatAgents` lives in the
+ * persisted index, which hydrates *after* this synchronous activation, so the
+ * flag simply cannot be read here — an earlier attempt to branch on it was
+ * dead code that never once evaluated true. `applyChatAgentsGate` activates it
+ * from the hydrate chain instead (and again whenever the user flips the
+ * switch). Registered-but-inactive is the state `activateExtensions` already
+ * models for a disabled built-in, so nothing it contributes reaches the first
+ * frame while the gate is off.
  */
-export function builtinList(): Extension[] {
-  if (!getBundledChatPanelEnabled()) return builtins;
-  // Right after core.terminal, so "New Agent Chat" sits beside "New Terminal"
-  // in the + menu rather than at the bottom of it.
-  const at = builtins.indexOf(terminal) + 1;
-  return [...builtins.slice(0, at), acpChat, ...builtins.slice(at)];
-}
+export const CHAT_PANEL_EXTENSION_ID = acpChat.id;
 
 /**
  * Activate the built-in set **synchronously**, before the first render — the
@@ -104,15 +103,9 @@ export function builtinList(): Extension[] {
  * panel kinds (registered by `core.editor`/`core.terminal`) already present, so
  * this must not be deferred behind a disk read. The user's persisted
  * disabled-built-in choices are applied just after, asynchronously, via
- * {@link ExtensionManager.applyDisabledBuiltins}.
+ * {@link ExtensionManager.applyDisabledBuiltins}; the Chat panel's gate is
+ * applied from the hydrate chain via `applyChatAgentsGate`.
  */
 export function activateBuiltins(): void {
-  // RFC 0038 phase 3: the bundled Chat panel is a *registration-time* choice,
-  // not a runtime one. Registering it and then hiding its UI would still put
-  // its panel kind and `core.acpChat.new` command in the app, and criterion 3
-  // of the sprint is that turning the flag off leaves the surface genuinely
-  // free for a third-party Chat panel. Read once, here, before the first
-  // render — the flag is index-persisted and a change needs a restart, the
-  // same as a disabled built-in.
-  activateExtensions(builtinList());
+  activateExtensions(builtins, new Set([CHAT_PANEL_EXTENSION_ID]));
 }

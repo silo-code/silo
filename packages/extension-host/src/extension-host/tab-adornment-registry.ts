@@ -20,8 +20,17 @@ import type {
 // CenterDock tab adornments (ADR 0029 / 0030). Editors and terminals share one
 // registry keyed by kind + target id. DockTab reads getIcons / getIndicators /
 // getActivities.
+//
+// `"panel"` is the third kind: a dock-panel tab (web viewer, Output, a Chat
+// transcript, any third-party `DockPanelKind`). Unlike editor/terminal, no
+// extension binds to it by target id — a panel has no stable domain id to key
+// on. Instead the panel drives *its own* tab imperatively through
+// `DockPanelApi` (`setTabActivity` / `setTabIcon`), and the host wrapper in
+// `dock-panel-kinds.ts` records those here keyed by the dockview panel id
+// (RFC 0038 Session 3.1: a Chat tab gets the same activity badge + agent icon
+// a terminal tab does).
 
-export type TabAdornmentKind = "editor" | "terminal";
+export type TabAdornmentKind = "editor" | "terminal" | "panel";
 
 type TargetKey = `${TabAdornmentKind}:${string}`;
 

@@ -293,6 +293,24 @@ pub async fn acp_close(connection_id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Kill every live ACP child. Wired into `RunEvent::Exit` in `lib.rs`.
+///
+/// Unlike a PTY session — which is owned by a detached daemon and deliberately
+/// survives the UI process — an ACP connection is a *piped child of this
+/// process*. Nothing reparents it cleanly: on quit it is inherited by `init`
+/// and keeps running. `acp_close` already does the right thing per connection;
+/// nothing was calling it on app exit, so every quit with a live session leaked
+/// an agent (69 found orphaned on 2026-09-08, all `PPID 1`).
+pub fn close_all() {
+    let conns: Vec<Arc<AcpConnection>> = {
+        let mut r = registry().lock().unwrap();
+        r.drain().map(|(_, conn)| conn).collect()
+    };
+    for conn in conns {
+        conn.close();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -447,6 +465,36 @@ mod tests {
         // The ring keeps the *tail* — the lines nearest the failure.
         assert!(exit.stderr.last().unwrap().contains(&format!("line{}", STDERR_RING * 3 - 1)));
         conn.close();
+    }
+
+    /// `close_all` drains the registry and closes every live connection — the
+    /// app-exit reap that stops ACP agents orphaning on every quit.
+    #[test]
+    fn close_all_reaps_every_connection() {
+        let ids: Vec<String> = (0..3)
+            .map(|_| {
+                let conn =
+                    AcpConnection::spawn("cat", &[], None, &env(), |_| {}, |_| {}, |_| {})
+                        .expect("spawn cat");
+                let id = next_connection_id();
+                registry()
+                    .lock()
+                    .unwrap()
+                    .insert(id.clone(), Arc::new(conn));
+                id
+            })
+            .collect();
+
+        assert!(ids
+            .iter()
+            .all(|id| registry().lock().unwrap().contains_key(id)));
+
+        close_all();
+
+        assert!(
+            registry().lock().unwrap().is_empty(),
+            "close_all left connections in the registry"
+        );
     }
 
     /// The end-to-end claim: a **real** ACP agent, initialized through this

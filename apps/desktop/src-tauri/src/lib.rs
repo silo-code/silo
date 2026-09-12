@@ -248,6 +248,14 @@ pub fn run() {
             commands::system::default_shell,
             commands::app_paths::app_config_dir_override,
         ])
-        .run(context)
-        .expect("error while running tauri application");
+        .build(context)
+        .expect("error while building tauri application")
+        .run(|_app, event| {
+            // Reap ACP agent children on quit. They are piped children of this
+            // process, not daemon-backed PTY sessions, so nothing kills them on
+            // exit — see `commands::acp::close_all`.
+            if let tauri::RunEvent::Exit = event {
+                commands::acp::close_all();
+            }
+        });
 }

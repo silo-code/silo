@@ -37,6 +37,9 @@ import {
   defaultKey,
   overrideKey,
   effectiveKey,
+  addAgentProfile,
+  updateAgentProfile,
+  removeAgentProfile,
 } from "@silo-code/extension-host/internal";
 import type { Disposable } from "@silo-code/sdk";
 
@@ -789,6 +792,44 @@ async function handleOp(
     // return what came back. Exists because `eval` cannot reach `invoke`
     // (`withGlobalTauri` is off), so there is otherwise no way to prove the
     // webview half of the transport.
+    // Dev-only: the live Agent Profile list, including each profile's launch
+    // arm. Verifying a Chat profile means knowing exactly what it will spawn,
+    // and the persisted index on disk is stale between writes (RFC 0038
+    // verification — do not diagnose a profile from `app-state.json`).
+    case "agentProfiles":
+      return {
+        profiles: store.agentProfiles.map((p) => ({
+          id: p.id,
+          label: p.label,
+          default: p.default === true,
+          assumedAgentId: p.assumedAgentId,
+          launch: p.launch,
+        })),
+      };
+
+    // Dev-only: create/remove a throwaway Agent Profile so verification can
+    // drive the real `ctx.agents.sessions` path without editing the user's
+    // own profiles by hand. Always paired — create, verify, remove.
+    case "addAgentProfile": {
+      const profile = args.profile as Parameters<typeof addAgentProfile>[0];
+      addAgentProfile(profile);
+      return { added: profile.id };
+    }
+
+    case "updateAgentProfile": {
+      const id = String(args.id ?? "");
+      updateAgentProfile(
+        id,
+        args.patch as Parameters<typeof updateAgentProfile>[1],
+      );
+      return { updated: id };
+    }
+
+    case "removeAgentProfile": {
+      removeAgentProfile(String(args.id ?? ""));
+      return { removed: String(args.id ?? "") };
+    }
+
     case "acpProbe": {
       const command = String(args.command ?? "");
       const cmdArgs = Array.isArray(args.args) ? (args.args as string[]) : [];

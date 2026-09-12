@@ -18,6 +18,27 @@ chrome ([RFC 0022](https://github.com/silo-code/silo/blob/main/docs/proposals/00
 
 Both expose the same verbs via [`TabAdornmentMethods`](/api/types/interfaces/TabAdornmentMethods).
 
+### A dock-panel tab adorns its own tab
+
+A [`DockPanelKind`](/api/types/interfaces/DockPanelKind) tab has no domain id
+for another extension to bind against — so instead the panel drives **its own**
+tab imperatively through its [`DockPanelApi`](/api/types/interfaces/DockPanelApi):
+
+```tsx
+function ChatPanel({ api }: DockPanelProps) {
+  // mirror the session's activity onto this tab, like a terminal tab
+  api.setTabActivity({ activity: "working", tooltip: "Agent working" });
+  api.setTabIcon({
+    icon: <AgentIconGlyph icon={icon} mode="color" colorScheme={scheme} />,
+  });
+  // …pass null to either to clear it; both clear automatically on unmount
+}
+```
+
+Only `setTabActivity` (host-owned [`Activity`](/api/types/type-aliases/Activity))
+and `setTabIcon` (a leading `ReactNode`) are exposed — the same two adornments
+that make a terminal tab running an agent recognisable at a glance.
+
 ## Leading icon (`ReactNode`)
 
 ```ts

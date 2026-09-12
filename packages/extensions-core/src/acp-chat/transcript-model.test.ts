@@ -259,6 +259,19 @@ describe("appendUserMessage / appendNotice", () => {
     });
   });
 
+  it("records attachment names on the user message, omitting the field when empty", () => {
+    expect(
+      (
+        appendUserMessage(emptyTranscript, "look", ["a.ts", "b.ts"])
+          .entries[0] as MessageEntry
+      ).attachments,
+    ).toEqual(["a.ts", "b.ts"]);
+    expect(
+      "attachments" in
+        (appendUserMessage(emptyTranscript, "look", []).entries[0] as object),
+    ).toBe(false);
+  });
+
   it("keeps a user prompt separate from the agent's reply", () => {
     let t: Transcript = appendUserMessage(emptyTranscript, "hi");
     t = applyUpdate(t, chunk("agent_message_chunk", "hello", "m1"));

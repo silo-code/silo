@@ -46,13 +46,18 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
   const contentRef = useRef<HTMLSpanElement>(null);
   const [isTruncated, setIsTruncated] = useState(false);
   const snap = useSnapshot(store);
+  // editor/terminal tabs are keyed by their domain id; every other dock-panel
+  // tab (web viewer, Output, a Chat transcript, any third-party DockPanelKind)
+  // is the `"panel"` kind keyed by the full dockview panel id — the same id the
+  // host wrapper in `dock-panel-kinds.ts` records `DockPanelApi.setTabActivity`
+  // / `setTabIcon` under (RFC 0038 Session 3.1).
   const adornKind =
     editorId != null
       ? ("editor" as const)
       : terminalId != null
         ? ("terminal" as const)
-        : null;
-  const adornTargetId = editorId ?? terminalId;
+        : ("panel" as const);
+  const adornTargetId = editorId ?? terminalId ?? panelId;
   const [tabIcons, setTabIcons] = useState<TabIconAdornment[]>(() =>
     adornKind && adornTargetId
       ? tabAdornmentRegistry.getIcons(adornKind, adornTargetId)

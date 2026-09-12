@@ -82,6 +82,25 @@ need through a ref rather than closing over one render's props. Omit it and
 `reveal(id)` still activates the workspace — which is all Silo can honestly do
 for a surface it does not own.
 
+## Being the place a Chat profile opens
+
+A profile whose `interface` is `"chat"` cannot be launched into a terminal, so
+the gestures that start an agent — a dock's **+** menu, the profile's
+`core.newAgent.<id>` command — need a panel to open instead. Declare
+[`chatProfileHost`](/api/registration/register-dock-panel-kind) on your dock
+panel kind and Silo opens yours, passing `params.profileId`:
+
+```tsx
+ctx.registerDockPanelKind({
+  id: "acme.chat",
+  component: AcmeChatPanel, // reads params.profileId, calls connect()
+  chatProfileHost: true,
+});
+```
+
+Without it your panel still works — the user just has to reach it your way
+rather than through the profile list.
+
 ## Content blocks
 
 A prompt is **structured blocks**, never a shell string — the entire
@@ -108,6 +127,57 @@ Agent Client Protocol object is on `raw`.
 `messageId` groups a run of streaming chunks into one bubble — **synthesized by
 Silo when the agent omits it**, which real agents do, so you never have to mint
 ids yourself.
+
+## Session controls (mode, model, …)
+
+The agent advertises its session-level controls at connect — a Cursor session
+carries a **mode** and a **model** entry, a Claude session its permission
+**mode** — and the handle surfaces them as one list:
+
+```ts
+for (const opt of session.configOptions) {
+  if (opt.type !== "select") continue; // tolerate a shape you don't render
+  renderSelect(opt.name, opt.currentValue, opt.options);
+}
+
+// change one — the host dispatches on opt.category
+await session.setConfigOption("model", "claude-opus-4");
+
+// reflect a mode the agent moved on its own
+const off = session.onConfigOptionsChanged(() =>
+  rerender(session.configOptions),
+);
+```
+
+`configOptions` is **self-describing**, and so is the write — render one control
+per entry and you get whatever the agent offers with no per-agent code, whatever
+the category. `setConfigOption` goes through the protocol's generic
+`session/set_config_option`; Silo keeps `session/set_mode` / `session/set_model`
+only as a fallback for an agent that does not implement it. Claude's "effort"
+(`category: "thought_level"`) has no typed method anywhere in the protocol and
+sets fine through the generic path.
+
+It **rejects**, with nothing written, on an unknown id or a value outside that
+entry's options — and with the agent's own message when the agent refuses.
+**Not every advertisement is settable:** `claude-agent-acp` lists a `fast` entry
+its own handler answers `-32603 Unknown config option` for. Treat a rejected
+`setConfigOption` as "stop offering this control" — the bundled panel drops it
+from the composer.
+
+## Attaching a file
+
+`resource_link` blocks carry files into a turn. Pair `ctx.ui.pickFile` with a
+`file://` URI:
+
+```ts
+const path = await ctx.ui.pickFile({ defaultPath: workspaceFolder });
+if (path) {
+  await session.prompt([
+    { type: "resource_link", uri: `file://${path}`, name: basename(path) },
+    { type: "text", text: "Review this." },
+  ]);
+}
+```
 
 ## Resume
 
@@ -138,6 +208,8 @@ phase.
 - [`AgentPromptResult`](/api/types/interfaces/AgentPromptResult)
 - [`AgentStopReason`](/api/types/type-aliases/AgentStopReason)
 - [`AgentSessionUpdate`](/api/types/interfaces/AgentSessionUpdate)
+- [`AgentSessionConfigOption`](/api/types/interfaces/AgentSessionConfigOption)
+- [`AgentSessionConfigChoice`](/api/types/interfaces/AgentSessionConfigChoice)
 - [`AgentPermissionRequest`](/api/types/interfaces/AgentPermissionRequest)
 - [`AgentPermissionOption`](/api/types/interfaces/AgentPermissionOption)
 - [`ctx.agents`](/api/agents/) — the shared activity/status view both session kinds feed
