@@ -217,6 +217,12 @@ pub fn run() {
             commands::install::download_extract,
             commands::watch::start_watch,
             commands::watch::stop_watch,
+            // ACP transport spike (docs/acp-recon.md). Registered so the
+            // webview half can be driven next; nothing calls these yet.
+            commands::acp::acp_spawn,
+            commands::acp::acp_send,
+            commands::acp::acp_stderr_tail,
+            commands::acp::acp_close,
             commands::process::process_exec,
             commands::process::process_exec_kill,
             commands::process::process_kill_group,

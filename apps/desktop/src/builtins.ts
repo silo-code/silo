@@ -2,6 +2,8 @@ import { activateExtensions } from "@silo-code/extension-host";
 import type { Extension } from "@silo-code/sdk";
 import {
   menu as coreMenu,
+  // ACP transport spike (docs/acp-recon.md) — remove with the spike.
+  acpChat,
   terminal,
   output,
   editor,
@@ -41,6 +43,8 @@ const builtins: Extension[] = [
   // kinds runs (CenterDock's first render). core.editor registers both the
   // editor and diff kinds (text + diff + settings are its modules).
   terminal,
+  // ACP transport spike (docs/acp-recon.md) — remove with the spike.
+  acpChat,
   output,
   // The text editor registers before markdown-preview so that, with both at
   // priority 0, a plain .md open ties to Text (the default view); Preview is

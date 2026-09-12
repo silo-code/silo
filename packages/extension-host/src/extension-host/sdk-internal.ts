@@ -455,6 +455,15 @@ export { launchAgentProfile } from "./agents/agent-launch";
 export { takePendingLaunch, drainPendingLaunch } from "./agents/pending-launch";
 export { scanInstalledAgents } from "./agents/agent-installed-scan";
 export type { InstalledAgent } from "./agents/agent-installed-scan";
+// ACP transport spike (docs/acp-recon.md) — remove with the spike. The host
+// owns the connection because an extension may not import `@tauri-apps/*`.
+export { createAcpTransport } from "./agents/acp-transport";
+export type {
+  AcpTransportLike,
+  AcpTransportOptions,
+  AcpStream,
+  AcpMessage,
+} from "./agents/acp-transport";
 export {
   slugifyProfileId,
   validateProfileDraft,
