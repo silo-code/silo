@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.66.0](https://github.com/silo-code/silo/compare/silo-v0.65.0...silo-v0.66.0) (2026-09-12)
+
+
+### Features
+
+* **agents:** add OMP as a standalone catalog agent (RFC 0037) ([#507](https://github.com/silo-code/silo/issues/507)) ([69e84d0](https://github.com/silo-code/silo/commit/69e84d0bee12a99986969ad1c1f9c6165765e5a7))
+* **agents:** Agent Sessions over ACP (RFC 0038 phases 1-3) ([741ab45](https://github.com/silo-code/silo/commit/741ab459e4e367d37d4aba34db1fd024509d3cd4))
+* **agents:** author Chat profiles, and reach parity at the edges ([5fd0eb5](https://github.com/silo-code/silo/commit/5fd0eb5fd49e6095ec9e5773e50755cdf750f92d))
+* **agents:** chat sessions survive a restart (RFC 0042 phase 1) ([17a24eb](https://github.com/silo-code/silo/commit/17a24eb76ba78f750d4218f795b2a34a5d4413ce))
+* **agents:** Found on this machine, and the New Agent entry points ([6e35c31](https://github.com/silo-code/silo/commit/6e35c31341b8f2df4efe11827e768fd490091fab))
+* **agents:** host-drawn panel chrome (RFC 0039) ([61c852f](https://github.com/silo-code/silo/commit/61c852f42e3864e00e9f33b8dabc71dda3637045))
+* **agents:** key agent chrome on the Agent Session, not the terminal ([7e324eb](https://github.com/silo-code/silo/commit/7e324ebd35b30e3d09d0d540b4afbc7974876ab2))
+* **agents:** redesign the chat transcript and composer ([7fe18db](https://github.com/silo-code/silo/commit/7fe18dbbd5de55a6a2aa8989c63e4dcbb8eaa3d1))
+* **agents:** session config defaults on a Chat profile ([14e301c](https://github.com/silo-code/silo/commit/14e301c5e1474d477c86a751998e10576c803cc0))
+* **agents:** split older agents out of the Workspace view ([#513](https://github.com/silo-code/silo/issues/513)) ([64b6c6a](https://github.com/silo-code/silo/commit/64b6c6a9642881427fa88360ab8b75cd92762e36))
+* **sdk:** DockPanelRecord — recorded panels reopen on restart (RFC 0041) ([09c3192](https://github.com/silo-code/silo/commit/09c31920757df50dab43dc3e3af2a48f577839e6))
+* **sdk:** resolve panel visibility as DockPanelProps.onScreen ([16d8e3f](https://github.com/silo-code/silo/commit/16d8e3f3cfa3d89db860ee209aaa4ad916be8732))
+
+
+### Bug Fixes
+
+* **agents:** keep chat transcript scroll across tab and workspace switches ([c39af93](https://github.com/silo-code/silo/commit/c39af932e2f7eac5754ad60acac516ba4746d9f0))
+* **terminal:** refit when returning to a backgrounded workspace ([8440e0f](https://github.com/silo-code/silo/commit/8440e0f298e0c24fbc54d589b761d546c1613a7b))
+
 ## [0.65.0](https://github.com/silo-code/silo/compare/silo-v0.64.0...silo-v0.65.0) (2026-09-04)
 
 
