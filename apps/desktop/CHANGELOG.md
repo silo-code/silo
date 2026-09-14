@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.66.1](https://github.com/silo-code/silo/compare/silo-v0.66.0...silo-v0.66.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **agents:** resolve Chat agents against the login-shell PATH ([#520](https://github.com/silo-code/silo/issues/520)) ([4d3d47a](https://github.com/silo-code/silo/commit/4d3d47ace97fee221f240e4e5237ca92a7977dff))
+
 ## [0.66.0](https://github.com/silo-code/silo/compare/silo-v0.65.0...silo-v0.66.0) (2026-09-12)
 
 
