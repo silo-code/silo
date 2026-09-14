@@ -31,6 +31,7 @@ import type {
   AgentToolCallContent,
 } from "@silo-code/sdk";
 import { resolveToolDiffs, type ToolDiff } from "./tool-diff";
+import { formatToolKindLabel } from "./tool-display";
 
 /** Which speaker a {@link MessageEntry} came from. `"thought"` is the agent
  *  thinking out loud (`agent_thought_chunk`), rendered as an aside. */
@@ -106,6 +107,24 @@ export type TranscriptEntry =
   | ToolEntry
   | PlanEntry
   | NoticeEntry;
+
+/** A run of {@link TOOL_GROUP_THRESHOLD}+ consecutive non-diff tool calls,
+ *  folded under one collapsible header at render time (Dave's call) — a burst
+ *  of grep/Read-shaped calls otherwise reads as one row per call. Not a
+ *  {@link TranscriptEntry}: it never enters `Transcript.entries` itself, only
+ *  the view {@link foldToolRuns} produces from them. */
+export interface ToolGroupEntry {
+  readonly type: "tool-group";
+  readonly key: string;
+  readonly tools: readonly ToolEntry[];
+  /** Whether any call in the run ended `"failed"` — the panel must never let
+   *  this fold hide a failure behind "N more, expand to see them all". */
+  readonly hasError: boolean;
+}
+
+/** What the transcript view renders, one turn's entries at a time — either an
+ *  ordinary entry or a folded run of them. */
+export type RenderEntry = TranscriptEntry | ToolGroupEntry;
 
 /**
  * The reduced transcript. `seq` is the key counter — carried in the state so
@@ -472,6 +491,74 @@ export function groupTurns(
   }
   flush();
   return turns;
+}
+
+/** A run this long or longer folds under a collapsible group. */
+export const TOOL_GROUP_THRESHOLD = 6;
+/** How many of a group's most recent calls stay visible inline once folded;
+ *  the rest sit behind "N more, expand to see them all". */
+export const TOOL_GROUP_INLINE_COUNT = 5;
+
+/**
+ * Fold one turn's entries into {@link RenderEntry}s (RFC 0043 companion) —
+ * the transcript's spacing/grouping unit for tool calls, the way
+ * {@link groupTurns} is for turns. A pure projection, recomputed at render
+ * time rather than stored on `Transcript`, so it never has to be kept in sync
+ * as `applyUpdate` patches a call in place.
+ *
+ * A run of {@link TOOL_GROUP_THRESHOLD}+ consecutive tool calls, none of them
+ * carrying a diff, folds into one {@link ToolGroupEntry}. A diff-producing
+ * call (an Edit/Write) — and anything that isn't a tool call at all, e.g. the
+ * agent's own prose between two calls — breaks the run and renders in full,
+ * on its own; folding resumes only after another run this long follows it.
+ */
+export function foldToolRuns(
+  entries: readonly TranscriptEntry[],
+): readonly RenderEntry[] {
+  const out: RenderEntry[] = [];
+  let run: ToolEntry[] = [];
+
+  const flushRun = () => {
+    if (run.length >= TOOL_GROUP_THRESHOLD) {
+      out.push({
+        type: "tool-group",
+        key: `g${run[0]!.key}`,
+        tools: run,
+        hasError: run.some((tool) => tool.status === "failed"),
+      });
+    } else {
+      out.push(...run);
+    }
+    run = [];
+  };
+
+  for (const entry of entries) {
+    if (entry.type === "tool" && (entry.diffs?.length ?? 0) === 0) {
+      run.push(entry);
+      continue;
+    }
+    flushRun();
+    out.push(entry);
+  }
+  flushRun();
+  return out;
+}
+
+/** The folded group's header label — e.g. `"14 Shell · 3 Read"` — so a
+ *  collapsed run still says what it did, not just "Tool calls...". Counts by
+ *  the same display label the row itself would show, falling back to "Tool"
+ *  for a call with no kind (rather than dropping it from the tally), sorted
+ *  most-frequent first. */
+export function toolGroupLabel(group: ToolGroupEntry): string {
+  const counts = new Map<string, number>();
+  for (const tool of group.tools) {
+    const label = formatToolKindLabel(tool.toolKind, tool.title) ?? "Tool";
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return [...counts]
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => `${count} ${label}`)
+    .join(" · ");
 }
 
 /** `"18s"` / `"1m 30s"` — a bare duration, for the turn footer's *live*

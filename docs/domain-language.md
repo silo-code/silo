@@ -514,6 +514,20 @@ _Avoid_: "chat log" / "history" (history is the agent's own stored
 conversations, which Silo reaches via `session/load`, not what is on screen);
 "output" (that is the Output panel).
 
+**Tool call group** — a run of `TOOL_GROUP_THRESHOLD` (6) or more consecutive
+tool-call rows in a **Transcript** with no diff-producing call among them,
+folded under one collapsible header (`ToolGroupEntry`, produced by
+`foldToolRuns` in `transcript-model.ts`) instead of one row per call, so a long
+burst of grep/Read-shaped calls doesn't dominate the panel. A diff-producing
+call (an Edit/Write) always breaks the run and renders in full on its own;
+folding resumes only after another qualifying run follows it. A call that
+ended `"failed"` forces its group open — never foldable behind "N more,
+expand to see them all" — so a failure is never hidden. Purely a render-time
+projection, recomputed by `foldToolRuns` on every render rather than stored:
+`Transcript.entries` never contains one.
+_Avoid_: "tool call" for the group itself (a group holds several); letting an
+errored call stay inside the fold.
+
 **Update stream** (`AgentSessionUpdate`, RFC 0038 Session 3.8) — the normalized
 sequence of `session/update` notifications a **Chat Session Connection**
 delivers through `onUpdate`, and the SDK's projection of the Agent Client

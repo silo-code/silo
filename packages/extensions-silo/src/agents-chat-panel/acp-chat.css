@@ -403,6 +403,85 @@
   padding: 0;
 }
 
+/* --- tool groups ---------------------------------------------------------
+   A folded run of ≥6 routine tool calls (feature request: group consecutive
+   tool calls). Same disclosure shape as a single `.acp-chat__tool` row —
+   a compact head, an indented body — so a folded run reads as one more kind
+   of transcript row, not a bolted-on control. */
+
+.acp-chat__tool-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acp-chat__tool-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--silo-radius-sm);
+}
+
+.acp-chat__tool-group-head[data-interactive] {
+  cursor: pointer;
+}
+
+.acp-chat__tool-group-head[data-interactive]:hover,
+.acp-chat__tool-group-head[data-interactive]:focus-visible {
+  background: var(--silo-color-bg-hover);
+}
+
+.acp-chat__tool-group-caret {
+  flex: 0 0 auto;
+  color: var(--silo-color-text-lo);
+  transition: transform 0.1s ease;
+}
+
+.acp-chat__tool-group[data-expanded] .acp-chat__tool-group-caret {
+  transform: rotate(90deg);
+}
+
+.acp-chat__tool-group-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__tool-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 0 20px;
+}
+
+.acp-chat__tool-group-body > .acp-chat__tool + .acp-chat__tool {
+  margin-top: 8px;
+}
+
+.acp-chat__tool-group-more {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+}
+
+.acp-chat__tool-group-more:hover,
+.acp-chat__tool-group-more:focus-visible {
+  color: var(--silo-color-accent);
+}
+
 /* --- plan --------------------------------------------------------------- */
 
 .acp-chat__plan {

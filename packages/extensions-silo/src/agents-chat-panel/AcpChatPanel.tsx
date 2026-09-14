@@ -160,16 +160,19 @@ import {
   applyUpdate,
   closeDanglingTools,
   emptyTranscript,
+  foldToolRuns,
   formatToolInput,
   groupTurns,
   toolOutputIsMarkdown,
   nextEntryKey,
   seedFromJournal,
   stopReasonNotice,
+  toolGroupLabel,
   toolStatusTone,
   userPromptHistory,
   workedForLabel,
-  type TranscriptEntry,
+  TOOL_GROUP_INLINE_COUNT,
+  type RenderEntry,
   type Transcript,
 } from "./transcript-model";
 import {
@@ -381,11 +384,11 @@ function ToolKindGlyph({
 }
 
 /**
- * One transcript entry (RFC 0043 finding 1). A plain function, not a
- * component: every `TranscriptEntry` (plus, for a tool row, {@link
+ * One transcript row (RFC 0043 finding 1). A plain function, not a
+ * component: every `RenderEntry` (plus, for a tool row, {@link
  * ToolRowState}) carries everything its row needs, so this is reusable for a
- * turn's user message and its `rest` alike without threading the rest of the
- * panel's state through it.
+ * turn's user message, its `rest`, and a folded group's own members alike
+ * without threading the rest of the panel's state through it.
  *
  * A routine tool call is a single compact line — kind glyph, a display
  * label from {@link formatToolKindLabel} (when the agent gave a kind), its
@@ -395,8 +398,14 @@ function ToolKindGlyph({
  * call passes through silently. Collapsed by default: clicking a row with
  * something to show expands it into a bordered card with **Input** / **Output**
  * wells (`rawInput` vs. the modelled `content` lines).
+ *
+ * A `"tool-group"` is the one case {@link foldToolRuns} produces rather than
+ * the transcript reducer itself — a long run of routine calls, folded to a
+ * header plus its {@link TOOL_GROUP_INLINE_COUNT} most recent members. A run
+ * with a failed call inside always renders fully open (its `hasError` flag)
+ * so a failure is never one click away from view, it is already in it.
  */
-function renderTranscriptEntry(entry: TranscriptEntry, tools: ToolRowState) {
+function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
   if (entry.type === "message") {
     return (
       <div key={entry.key} className="acp-chat__message" data-role={entry.role}>
@@ -559,6 +568,73 @@ function renderTranscriptEntry(entry: TranscriptEntry, tools: ToolRowState) {
             ) : null}
           </div>
         ) : null}
+      </div>
+    );
+  }
+  if (entry.type === "tool-group") {
+    // A run with a failed call inside can't be collapsed at all — see the
+    // doc comment above this function. Nothing to toggle, so the head isn't
+    // interactive, matching how a bodiless tool row already treats `hasBody`.
+    const canToggle = !entry.hasError;
+    const expanded = entry.hasError || tools.expandedTools.has(entry.key);
+    const toggle = () => tools.onToggleTool(entry.key);
+    // "Most recent" is the end of the run — entries stream in chronological
+    // order, so the calls still worth a glance without expanding are the
+    // last ones, not the first.
+    const visible = expanded
+      ? entry.tools
+      : entry.tools.slice(-TOOL_GROUP_INLINE_COUNT);
+    const hiddenCount = entry.tools.length - visible.length;
+    return (
+      <div
+        key={entry.key}
+        className="acp-chat__tool-group"
+        data-expanded={expanded || undefined}
+      >
+        <div
+          className="acp-chat__tool-group-head"
+          data-interactive={canToggle || undefined}
+          role={canToggle ? "button" : undefined}
+          tabIndex={canToggle ? 0 : undefined}
+          aria-expanded={canToggle ? expanded : undefined}
+          onClick={canToggle ? toggle : undefined}
+          onKeyDown={
+            canToggle
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggle();
+                  }
+                }
+              : undefined
+          }
+        >
+          <CaretRight
+            className="acp-chat__tool-group-caret"
+            size="1em"
+            aria-hidden="true"
+          />
+          <span className="acp-chat__tool-group-label">
+            {toolGroupLabel(entry)}
+          </span>
+          {entry.hasError ? (
+            <Badge tone="err" size="sm">
+              error
+            </Badge>
+          ) : null}
+        </div>
+        <div className="acp-chat__tool-group-body">
+          {visible.map((tool) => renderTranscriptEntry(tool, tools))}
+          {!expanded && hiddenCount > 0 ? (
+            <button
+              type="button"
+              className="acp-chat__tool-group-more"
+              onClick={toggle}
+            >
+              {hiddenCount} more, expand to see them all
+            </button>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -1671,7 +1747,9 @@ export function AcpChatPanel({
                 : null}
               {turn.rest.length > 0 ? (
                 <div className="acp-chat__turn-body">
-                  {turn.rest.map((e) => renderTranscriptEntry(e, toolRowState))}
+                  {foldToolRuns(turn.rest).map((e) =>
+                    renderTranscriptEntry(e, toolRowState),
+                  )}
                 </div>
               ) : null}
               {/* The footer is per turn (RFC 0043 finding 1): "Worked for …"

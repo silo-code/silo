@@ -11,6 +11,7 @@ import {
   closeDanglingTools,
   elapsedLabel,
   emptyTranscript,
+  foldToolRuns,
   formatToolInput,
   groupTurns,
   nextEntryKey,
@@ -18,13 +19,16 @@ import {
   seedFromJournal,
   stopReasonNotice,
   toolContentLines,
+  toolGroupLabel,
   toolOutputIsMarkdown,
   toolStatusTone,
   userPromptHistory,
   workedForLabel,
+  TOOL_GROUP_THRESHOLD,
   type MessageEntry,
   type PlanEntry,
   type ToolEntry,
+  type ToolGroupEntry,
   type Transcript,
 } from "./transcript-model";
 
@@ -54,6 +58,39 @@ function tool(
 /** A `plan` update, with the whole plan the agent reissued. */
 function plan(entries: AgentPlanEntry[]): AgentSessionUpdate {
   return { kind: "plan", plan: entries, raw: { sessionUpdate: "plan" } };
+}
+
+let readCallSeq = 0;
+
+/** A run of plain, non-diff tool calls — `readCalls(3)` gives three distinct
+ *  `"read"`-kind calls, each its own `toolCallId`, none of them failed. */
+function readCalls(
+  count: number,
+  overrides: Partial<AgentToolCall> = {},
+): AgentSessionUpdate[] {
+  return Array.from({ length: count }, () => {
+    const id = `r${++readCallSeq}`;
+    return tool("tool_call", {
+      toolCallId: id,
+      title: `Read file-${id}.ts`,
+      kind: "read",
+      status: "completed",
+      ...overrides,
+    });
+  });
+}
+
+/** A tool call carrying a protocol diff — the one shape that breaks a
+ *  {@link foldToolRuns} run regardless of run length. */
+function editCall(toolCallId = "edit1"): AgentSessionUpdate {
+  return tool("tool_call", {
+    toolCallId,
+    title: "Edit a.ts",
+    kind: "edit",
+    content: [
+      { type: "diff", path: "src/a.ts", oldText: "old\n", newText: "new\n" },
+    ],
+  });
 }
 
 /** Any other kind, with nothing modelled on it. */
@@ -555,6 +592,110 @@ describe("groupTurns", () => {
     expect(turns).toHaveLength(1);
     expect(turns[0]?.user).toMatchObject({ text: "hi" });
     expect(turns[0]?.rest).toEqual([]);
+  });
+});
+
+describe("foldToolRuns", () => {
+  it("is empty for an empty transcript", () => {
+    expect(foldToolRuns([])).toEqual([]);
+  });
+
+  it("leaves a run shorter than the threshold alone", () => {
+    const t = fold(readCalls(TOOL_GROUP_THRESHOLD - 1));
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual(
+      Array(TOOL_GROUP_THRESHOLD - 1).fill("tool"),
+    );
+  });
+
+  it("folds a run at or beyond the threshold into one group", () => {
+    const t = fold(readCalls(TOOL_GROUP_THRESHOLD));
+    const folded = foldToolRuns(t.entries);
+    expect(folded).toHaveLength(1);
+    const group = folded[0] as ToolGroupEntry;
+    expect(group.type).toBe("tool-group");
+    expect(group.tools).toHaveLength(TOOL_GROUP_THRESHOLD);
+    expect(group.hasError).toBe(false);
+  });
+
+  it("breaks the run on a diff-producing call and resumes after it", () => {
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+      editCall(),
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual([
+      "tool-group",
+      "tool",
+      "tool-group",
+    ]);
+    expect((folded[1] as ToolEntry).diffs).toHaveLength(1);
+  });
+
+  it("never folds a run the diff-producing call keeps under the threshold", () => {
+    const t = fold([...readCalls(3), editCall(), ...readCalls(3)]);
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual([
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+    ]);
+  });
+
+  it("breaks the run on a non-tool entry too", () => {
+    const t = fold([
+      ...readCalls(3),
+      chunk("agent_message_chunk", "hang on", "a1"),
+      ...readCalls(3),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual([
+      "tool",
+      "tool",
+      "tool",
+      "message",
+      "tool",
+      "tool",
+      "tool",
+    ]);
+  });
+
+  it("marks a group hasError when any call inside it failed", () => {
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD - 1),
+      ...readCalls(1, { status: "failed" }),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    const group = folded[0] as ToolGroupEntry;
+    expect(group.hasError).toBe(true);
+  });
+});
+
+describe("toolGroupLabel", () => {
+  it("summarizes the group by kind, most-frequent first", () => {
+    const t = fold([
+      ...readCalls(3),
+      ...Array.from({ length: 14 }, (_, i) =>
+        tool("tool_call", {
+          toolCallId: `s${i}`,
+          title: `Run step ${i}`,
+          kind: "execute",
+        }),
+      ),
+    ]);
+    const group = foldToolRuns(t.entries)[0] as ToolGroupEntry;
+    expect(toolGroupLabel(group)).toBe("14 Shell · 3 Read");
+  });
+
+  it("falls back to Tool for a call with no kind", () => {
+    const t = fold(readCalls(TOOL_GROUP_THRESHOLD, { kind: undefined }));
+    const group = foldToolRuns(t.entries)[0] as ToolGroupEntry;
+    expect(toolGroupLabel(group)).toBe(`${TOOL_GROUP_THRESHOLD} Tool`);
   });
 });
 
