@@ -68,6 +68,13 @@ pub fn run() {
         std::env::set_var("SILO_CONFIG_ROOT", root);
     }
 
+    // Ask the user's login shell what PATH it has, off the startup path. A
+    // Finder-launched app inherits launchd's four-directory PATH, which holds
+    // no agent CLI; Chat sessions resolve their binary against the answer.
+    // Warming it here keeps the login shell's few hundred ms off the first
+    // session (`commands::user_path`).
+    commands::user_path::prime();
+
     let builder = tauri::Builder::default();
 
     // Single-instance must be the FIRST plugin (per its docs). A second `silo

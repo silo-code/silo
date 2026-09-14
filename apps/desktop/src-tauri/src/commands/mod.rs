@@ -40,4 +40,8 @@ pub mod session_registry;
 pub mod terminal;
 pub mod terminal_buffer;
 pub mod terminal_io;
+// The user's login-shell PATH, for children Silo execs without a shell
+// (Chat sessions) — a Finder-launched app inherits launchd's PATH, not one
+// that holds any agent CLI.
+pub mod user_path;
 pub mod window_chrome;
