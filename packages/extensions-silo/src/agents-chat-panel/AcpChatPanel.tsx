@@ -115,6 +115,7 @@ import {
   isClampedScroll,
   isPinnedToBottom,
   persistedScroll,
+  restoreIsStable,
   restoreTargetFor,
   scrollToBottom,
   SCROLL_SAVE_DEBOUNCE_MS,
@@ -1344,12 +1345,31 @@ export function AcpChatPanel({
     const armedAt = Date.now();
     lastTranscriptChangeRef.current = armedAt;
     let frame = 0;
+    // Caught live (2026-09-14, Dave's words: "right for a split second, then
+    // scrolls to top"): a workspace switch can read `scrollTop` back as
+    // correct within the first couple of frames, then have it silently
+    // clamped again a beat later — observed on WebKit, with no `scroll` event
+    // to mark the change, so nothing downstream notices. Continuing to
+    // re-assert the target across the whole `SCROLL_RESTORE_GUARD_MS` window
+    // — instead of trusting the first good frame — is what catches that:
+    // `applyRestoreStep` unconditionally re-writes `scrollTop` on every call,
+    // so a late clamp gets overwritten on the very next retry instead of
+    // standing unnoticed. See `restoreIsStable`.
+    let firstReachedAt: number | null = null;
     const attempt = () => {
       const el = scrollerRef.current;
-      if (el && applyRestoreStep(el, target)) {
-        finishRestore(el);
+      const reached = !!el && applyRestoreStep(el, target);
+      if (reached) {
+        const now = Date.now();
+        if (firstReachedAt === null) firstReachedAt = now;
+        if (restoreIsStable(now, firstReachedAt)) {
+          finishRestore(el);
+          return;
+        }
+        frame = requestAnimationFrame(attempt);
         return;
       }
+      firstReachedAt = null;
       if (
         shouldAbandonRestore(
           Date.now(),
