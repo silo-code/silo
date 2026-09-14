@@ -237,7 +237,29 @@ pub async fn acp_spawn(
     use tauri::Emitter;
 
     let id = next_connection_id();
-    let env = env.unwrap_or_default();
+    let mut env = env.unwrap_or_default();
+
+    // Resolve the agent binary against the *user's* PATH, not the one this
+    // process inherited. A Finder-launched app gets launchd's
+    // `/usr/bin:/bin:/usr/sbin:/sbin`, where no agent CLI lives — Homebrew,
+    // nvm and `~/.local/bin` are all missing — so every Chat session died with
+    // `failed to spawn npx: No such file or directory`, while the same build
+    // started from a terminal worked. Terminals never saw it because a PTY
+    // session runs a login shell that re-derives PATH; a Chat session `exec`s
+    // with no shell in between (see this module's header). See `user_path`.
+    //
+    // The child gets that PATH too: `npx` immediately looks up `node`, so
+    // resolving only the first binary would move the failure one level down.
+    let path = env
+        .get("PATH")
+        .cloned()
+        .unwrap_or_else(super::user_path::effective_path);
+    let program = super::user_path::resolve_program(&command, &path).ok_or_else(|| {
+        format!("failed to spawn {command}: not found on PATH. Silo reads PATH from your login shell — make sure {command} is on it.")
+    })?;
+    env.insert("PATH".to_string(), path);
+    let env = env;
+
     let env_report: HashMap<String, String> = report_env
         .unwrap_or_default()
         .into_iter()
@@ -259,7 +281,7 @@ pub async fn acp_spawn(
     let evicted = id.clone();
 
     let conn = AcpConnection::spawn(
-        &command,
+        &program.to_string_lossy(),
         &args,
         cwd.as_deref(),
         &env,
