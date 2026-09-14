@@ -19,6 +19,7 @@ import {
   toolContentLines,
   toolOutputIsMarkdown,
   toolStatusTone,
+  userPromptHistory,
   workedForLabel,
   type MessageEntry,
   type PlanEntry,
@@ -354,6 +355,31 @@ describe("appendUserMessage / appendNotice", () => {
       tone: "error",
       text: "boom",
     });
+  });
+});
+
+describe("userPromptHistory", () => {
+  it("lists the user's own prompts, oldest first, skipping agent replies", () => {
+    let t: Transcript = appendUserMessage(emptyTranscript, "first");
+    t = applyUpdate(t, chunk("agent_message_chunk", "hi there", "m1"));
+    t = appendUserMessage(t, "second");
+    expect(userPromptHistory(t)).toEqual(["first", "second"]);
+  });
+
+  it("skips a blank/whitespace-only prompt (an attachment-only send)", () => {
+    const t = appendUserMessage(emptyTranscript, "   ", ["a.ts"]);
+    expect(userPromptHistory(t)).toEqual([]);
+  });
+
+  it("is empty for a fresh transcript", () => {
+    expect(userPromptHistory(emptyTranscript)).toEqual([]);
+  });
+
+  it("keeps only a resent prompt's most recent send, in that position", () => {
+    let t: Transcript = appendUserMessage(emptyTranscript, "yes");
+    t = appendUserMessage(t, "do the thing");
+    t = appendUserMessage(t, "yes");
+    expect(userPromptHistory(t)).toEqual(["do the thing", "yes"]);
   });
 });
 

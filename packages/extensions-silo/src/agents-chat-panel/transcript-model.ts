@@ -248,6 +248,26 @@ export function appendUserMessage(
   }));
 }
 
+/** Every non-empty prompt the user has sent in this session, oldest first —
+ *  what the composer's ↑/↓ history recall steps through. Draws on the same
+ *  `entries` a restored panel seeds from ({@link seedFromJournal}), so
+ *  recall reaches back before this mount, not just this run's own sends.
+ *
+ *  A resent prompt keeps only its most recent send — re-sending "yes" five
+ *  times across a session shouldn't make ↑ walk through "yes" five times
+ *  before reaching anything else (shell history's `HISTCONTROL=erasedups`). */
+export function userPromptHistory(t: Transcript): readonly string[] {
+  const texts: string[] = [];
+  for (const e of t.entries) {
+    if (e.type === "message" && e.role === "user" && e.text.trim().length > 0) {
+      texts.push(e.text);
+    }
+  }
+  const lastIndex = new Map<string, number>();
+  texts.forEach((text, i) => lastIndex.set(text, i));
+  return texts.filter((text, i) => lastIndex.get(text) === i);
+}
+
 /** Append one of Silo's own notices (a stop reason, a dropped connection). */
 export function appendNotice(
   t: Transcript,

@@ -140,11 +140,18 @@ import {
   stepPaletteIndex,
 } from "./command-palette";
 import {
+  caretOnFirstLine,
+  caretOnLastLine,
   composerCanSend,
   composerInputEnabled,
   composerPlaceholder,
   composerShowConnecting,
   composerTextareaHeightPx,
+  historyNavDown,
+  historyNavUp,
+  isDoubleEscape,
+  NOT_NAVIGATING_HISTORY,
+  type HistoryNavState,
 } from "./composer-model";
 import {
   appendNotice,
@@ -158,6 +165,7 @@ import {
   seedFromJournal,
   stopReasonNotice,
   toolStatusTone,
+  userPromptHistory,
   workedForLabel,
   type TranscriptEntry,
   type Transcript,
@@ -234,6 +242,17 @@ export interface AcpChatPanelParams {
    * absolute offset the bottom used to be at.
    */
   scrollPinned?: boolean;
+  /**
+   * The last value seen for each `AgentSessionConfigOption.id` this tab has
+   * advertised — permission mode, model, whatever the agent offers. A
+   * reconnect (a real restart, or a dev-only Fast Refresh remount) spins up
+   * a *new* agent process for `session/resume`, which has no memory of a
+   * config choice that only ever lived in that process's own head; this is
+   * what lets the panel reassert it instead of falling back to the fresh
+   * process's default. Kept current whenever {@link configOptions} changes,
+   * from the user's own pick or the agent moving one itself.
+   */
+  configOptionValues?: Readonly<Record<string, string>>;
 }
 
 /** What the panel is doing. `"no-profile"` is a state to render, not an error:
@@ -618,6 +637,13 @@ export function AcpChatPanel({
   // be visible to the very effect run it triggers, with no extra render.
   const continueFreshRef = useRef(false);
   const [draft, setDraft] = useState("");
+  // ↑/↓ prompt history state, and the last Escape's timestamp for the
+  // double-tap-to-clear gesture — a ref, since a timestamp on its own
+  // doesn't need to trigger a render the way `historyNav` does.
+  const [historyNav, setHistoryNav] = useState<HistoryNavState>(
+    NOT_NAVIGATING_HISTORY,
+  );
+  const lastEscapeAtRef = useRef(0);
   const [paletteIndex, setPaletteIndex] = useState(0);
   const [paletteDismissed, setPaletteDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -645,6 +671,17 @@ export function AcpChatPanel({
   const [configOptions, setConfigOptions] = useState<
     readonly AgentSessionConfigOption[]
   >([]);
+  // Snapshot every advertised control's current value into `params` (see
+  // `AcpChatPanelParams.configOptionValues`) whenever it changes — the
+  // user's own pick, or the agent moving one itself. Skipped while empty
+  // (connecting, or between sessions) so a reconnect never overwrites the
+  // choice it is trying to restore with nothing.
+  useEffect(() => {
+    if (configOptions.length === 0) return;
+    const values: Record<string, string> = {};
+    for (const opt of configOptions) values[opt.id] = opt.currentValue;
+    api.updateParameters({ configOptionValues: values });
+  }, [api, configOptions]);
   // The agent's slash commands (and, unmarked, its skills — RFC 0040): a live
   // snapshot backing the composer's `/` palette. Empty until the agent's
   // first `available_commands_update`, which is not guaranteed to ever come.
@@ -807,6 +844,27 @@ export function AcpChatPanel({
             setConfigOptions(handle.configOptions),
           ),
         );
+        // Reassert this tab's last-known config choices — a resumed session
+        // is a *new* agent process with no memory of the mode/model the old
+        // one was left on (see `AcpChatPanelParams.configOptionValues`).
+        // Only for a value the fresh session still actually offers; an
+        // agent that rejects it lands in `deadConfigIds`, same as a live
+        // pick that fails.
+        const desiredConfig = params.configOptionValues;
+        if (desiredConfig) {
+          for (const opt of handle.configOptions) {
+            const want = desiredConfig[opt.id];
+            if (
+              want !== undefined &&
+              want !== opt.currentValue &&
+              opt.options.some((c) => c.value === want)
+            ) {
+              handle.setConfigOption(opt.id, want).catch(() => {
+                setDeadConfigIds((prev) => new Set(prev).add(opt.id));
+              });
+            }
+          }
+        }
         setCommands(handle.commands);
         subs.push(handle.onCommandsChanged(() => setCommands(handle.commands)));
         // Persist the identity to restore next time — keyed on the handle's
@@ -944,6 +1002,7 @@ export function AcpChatPanel({
       return;
     }
     setDraft("");
+    setHistoryNav(NOT_NAVIGATING_HISTORY);
     setAttachments([]);
     // Predicted before the append below runs (RFC 0043 finding 1) — this
     // turn's footer is keyed to the user message's own entry key.
@@ -1723,7 +1782,13 @@ export function AcpChatPanel({
           placeholder={composerPlaceholder(lost, readOnly)}
           disabled={!inputEnabled}
           autoCapitalize="off"
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            // Any real edit detaches from the recalled entry — the same way
+            // a shell's readline history works.
+            if (historyNav.index !== null)
+              setHistoryNav(NOT_NAVIGATING_HISTORY);
+          }}
           onPaste={onComposerPaste}
           onKeyDown={(e) => {
             if (showPalette) {
@@ -1748,6 +1813,82 @@ export function AcpChatPanel({
                 setPaletteDismissed(true);
                 return;
               }
+            }
+            // ↑/↓ recall past prompts (terminal-shell convention) — but only
+            // once the caret is already on the draft's first/last line, so a
+            // multi-line draft still gets normal caret movement first.
+            if (e.key === "ArrowUp" && !e.shiftKey) {
+              const el = e.currentTarget;
+              if (caretOnFirstLine(draft, el.selectionStart ?? 0)) {
+                const next = historyNavUp(
+                  userPromptHistory(transcript),
+                  historyNav,
+                  draft,
+                );
+                if (next) {
+                  e.preventDefault();
+                  setHistoryNav(next.state);
+                  setDraft(next.draft);
+                  requestAnimationFrame(() => {
+                    el.setSelectionRange(next.draft.length, next.draft.length);
+                  });
+                }
+              }
+              return;
+            }
+            if (e.key === "ArrowDown" && !e.shiftKey) {
+              const el = e.currentTarget;
+              if (caretOnLastLine(draft, el.selectionStart ?? 0)) {
+                const next = historyNavDown(
+                  userPromptHistory(transcript),
+                  historyNav,
+                );
+                if (next) {
+                  e.preventDefault();
+                  setHistoryNav(next.state);
+                  setDraft(next.draft);
+                  requestAnimationFrame(() => {
+                    el.setSelectionRange(next.draft.length, next.draft.length);
+                  });
+                }
+              }
+              return;
+            }
+            // A single Escape while a turn is in flight cancels it and hands
+            // the just-sent prompt back to the composer — "let me fix that"
+            // is the whole reason to interrupt, so the text goes with it,
+            // discarding whatever unrelated draft was mid-typing underneath.
+            // Otherwise a *second* Escape within DOUBLE_ESCAPE_MS of the
+            // first clears the draft; a lone Escape does nothing special.
+            if (e.key === "Escape") {
+              if (busy) {
+                e.preventDefault();
+                handleRef.current?.cancel();
+                const history = userPromptHistory(transcript);
+                const lastSent = history[history.length - 1];
+                setHistoryNav(NOT_NAVIGATING_HISTORY);
+                if (lastSent !== undefined) {
+                  setDraft(lastSent);
+                  requestAnimationFrame(() => {
+                    inputRef.current?.setSelectionRange(
+                      lastSent.length,
+                      lastSent.length,
+                    );
+                  });
+                }
+                lastEscapeAtRef.current = 0;
+                return;
+              }
+              const now = Date.now();
+              if (isDoubleEscape(lastEscapeAtRef.current, now)) {
+                lastEscapeAtRef.current = 0;
+                e.preventDefault();
+                setDraft("");
+                setHistoryNav(NOT_NAVIGATING_HISTORY);
+              } else {
+                lastEscapeAtRef.current = now;
+              }
+              return;
             }
             // Enter sends; Shift+Enter is a newline — the convention every
             // chat composer in the category uses.
