@@ -144,7 +144,7 @@ export function AgentsBehaviorPanel() {
         </SettingRow>
         <SettingRow
           label="Play a sound when an agent needs a permission answer"
-          hint="Plays the instant a Chat session blocks on a permission request, even on the tab you're already looking at."
+          hint="Plays the instant a Chat session blocks on a permission request, even on the tab you're already looking at. Not supported for CLI agents running in a terminal — their permission prompts aren't detectable yet (RFC 0044)."
           enabled={s.blockedSoundEnabled}
           dependent={
             <div className="am-sound-control">

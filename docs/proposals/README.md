@@ -133,3 +133,4 @@ don't get a proposal at all — see below.
 | [0041](./0041-dock-panel-record.md)                           | `DockPanelRecord` — one persisted model for every dock panel      | 2026-09-09 | accepted    |
 | [0042](./0042-chat-session-resurrection.md)                   | Chat session resurrection — across app restart and machine reboot | 2026-09-09 | accepted    |
 | [0043](./0043-chat-panel-visual-polish.md)                    | Chat panel visual polish — to the Paseo bar                       | 2026-09-10 | implemented |
+| [0044](./0044-terminal-agent-permission-block-detection.md)   | Terminal-agent permission-block detection                         | 2026-09-14 | draft       |
