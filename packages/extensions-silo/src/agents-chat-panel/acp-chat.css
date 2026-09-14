@@ -569,6 +569,17 @@
   max-width: 40%;
 }
 
+/* The Auto Accept toggle — fixed, short text, so unlike `.acp-chat__config`
+   it never needs to shrink or ellipsize; `inline-flex` + `nowrap` keep the
+   icon and label from wrapping onto their own lines as the row narrows. */
+.acp-chat__auto-accept {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 /* Pins Send/Stop (or the Continue/Reconnect text buttons) to the far right,
    regardless of how many pills come before it. */
 .acp-chat__send-slot {

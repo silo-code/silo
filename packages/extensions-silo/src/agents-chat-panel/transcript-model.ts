@@ -382,6 +382,33 @@ export function applyUpdate(
   return t;
 }
 
+/**
+ * Force every tool call still `"pending"` / `"in_progress"` to `"failed"`.
+ *
+ * A turn that ends without a final `tool_call_update` for a call it started
+ * — the agent's own connection dropped mid-tool-call, a permission request
+ * it was waiting on sat unanswered until the upstream connection gave up,
+ * the turn was canceled — otherwise leaves that row's spinner badge showing
+ * forever, since nothing in the stream will ever move it out of that
+ * status. Call once a turn's `prompt()` has settled, success or not; only
+ * one turn runs at a time, so anything still non-terminal at that point
+ * belongs to the turn that just ended.
+ */
+export function closeDanglingTools(t: Transcript): Transcript {
+  let changed = false;
+  const entries = t.entries.map((e) => {
+    if (
+      e.type === "tool" &&
+      (e.status === "pending" || e.status === "in_progress")
+    ) {
+      changed = true;
+      return { ...e, status: "failed" };
+    }
+    return e;
+  });
+  return changed ? { ...t, entries } : t;
+}
+
 /** Badge tone for a tool call's protocol status. Unknown statuses read as
  *  neutral rather than guessing at success or failure. */
 export function toolStatusTone(

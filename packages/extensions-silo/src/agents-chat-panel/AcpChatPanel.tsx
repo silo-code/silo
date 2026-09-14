@@ -80,6 +80,7 @@ import {
   PencilSimple,
   Plug,
   Plus,
+  Shield,
   Stop as StopIcon,
   TerminalWindow,
   Trash,
@@ -157,6 +158,7 @@ import {
   appendNotice,
   appendUserMessage,
   applyUpdate,
+  closeDanglingTools,
   emptyTranscript,
   formatToolInput,
   groupTurns,
@@ -170,7 +172,11 @@ import {
   type TranscriptEntry,
   type Transcript,
 } from "./transcript-model";
-import { permissionButtonVariant } from "./permission-options";
+import {
+  agentHasBypassMode,
+  autoAcceptOptionId,
+  permissionButtonVariant,
+} from "./permission-options";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
 import {
   ChatLinkSpan,
@@ -623,6 +629,15 @@ export function AcpChatPanel({
   // the same tool call, and two rows must never share a React key.
   const [permissions, setPermissions] = useState<PendingPermission[]>([]);
   const permissionSeq = useRef(0);
+  // Auto Accept (Dave's call, ported from Paseo): answers every permission
+  // request itself instead of showing it. Off by default, and per-session —
+  // deliberately not persisted the way `configOptionValues` is, so a
+  // reconnect never silently carries a "stop asking me" choice forward. A
+  // ref because `onPermission` below is wired once per connect, not
+  // per-render, and needs the *current* value at request time.
+  const [autoAccept, setAutoAccept] = useState(false);
+  const autoAcceptRef = useRef(autoAccept);
+  autoAcceptRef.current = autoAccept;
   const [agentName, setAgentName] = useState<string | undefined>();
   // The connected session's `AgentInfo.id`. Held in state (not just the handle
   // ref) because it is what the tab-chrome and title effects key on.
@@ -828,12 +843,21 @@ export function AcpChatPanel({
           ),
         );
         subs.push(
-          handle.onPermission((request) =>
+          handle.onPermission((request) => {
+            if (autoAcceptRef.current) {
+              const optionId = autoAcceptOptionId(request.options);
+              if (optionId !== undefined) {
+                request.respond(optionId);
+                return;
+              }
+              // A genuine chooser (or no allow option at all) — nothing
+              // safe to guess, so it still surfaces below like normal.
+            }
             setPermissions((prev) => [
               ...prev,
               { key: `p${++permissionSeq.current}`, request },
-            ]),
-          ),
+            ]);
+          }),
         );
         setAgentName(handle.agentName);
         setSessionId(handle.id);
@@ -1040,6 +1064,14 @@ export function AcpChatPanel({
       // The panel may have been torn down mid-turn; the state setters are
       // no-ops then, but `busy` must not be left stuck for a live one.
       if (handleRef.current === handle) setBusy(false);
+      // Whatever ended the turn — success, an error like the upstream
+      // connection dropping while a permission request sat unanswered, or a
+      // cancel — any tool call still mid-flight gets no final update from a
+      // dead stream, and any permission request from it can no longer be
+      // answered into anything. Only one turn runs at a time, so both are
+      // unconditionally this turn's own leftovers, not a later one's.
+      setTranscript((t) => closeDanglingTools(t));
+      setPermissions([]);
       const started = turnStartRef.current;
       if (started) {
         const durationMs = Date.now() - started.startedAt;
@@ -1258,6 +1290,9 @@ export function AcpChatPanel({
     phase.status === "ready" &&
     !lost &&
     !readOnly;
+  // Hide the Auto Accept toggle whenever the agent already advertises its
+  // own full-bypass mode (Claude's) — see `agentHasBypassMode`.
+  const showAutoAccept = !agentHasBypassMode(configOptions);
   const activePaletteIndex = clampPaletteIndex(
     paletteIndex,
     paletteCommands.length,
@@ -1977,6 +2012,33 @@ export function AcpChatPanel({
                     }
                   />
                 ))}
+              {/* Client-side stand-in for agents with no "stop asking me"
+                  mode of their own (ported from Paseo) — hidden whenever
+                  the agent already offers one (`showAutoAccept`), so this
+                  never sits next to Claude's own Bypass mode as a second,
+                  confusing way to do the same thing. */}
+              {showAutoAccept ? (
+                <Tooltip
+                  content={
+                    autoAccept
+                      ? "Auto Accept: on — answering every permission request itself"
+                      : "Auto Accept: off — click to answer every permission request itself, without asking"
+                  }
+                >
+                  <Button
+                    size="sm"
+                    variant={autoAccept ? "primary" : "normal"}
+                    className="acp-chat__auto-accept"
+                    aria-label="Auto Accept permission requests"
+                    aria-pressed={autoAccept}
+                    disabled={phase.status !== "ready" || lost || readOnly}
+                    onClick={() => setAutoAccept((v) => !v)}
+                  >
+                    <Shield size="1em" weight="bold" aria-hidden="true" />
+                    Auto Accept
+                  </Button>
+                </Tooltip>
+              ) : null}
             </>
           )}
           {/* Pinned to the far right regardless of how many config pills the

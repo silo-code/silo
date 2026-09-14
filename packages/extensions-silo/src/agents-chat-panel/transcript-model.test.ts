@@ -8,6 +8,7 @@ import {
   appendNotice,
   appendUserMessage,
   applyUpdate,
+  closeDanglingTools,
   elapsedLabel,
   emptyTranscript,
   formatToolInput,
@@ -461,6 +462,40 @@ describe("toolStatusTone", () => {
 
   it("reads an unknown status as neutral rather than guessing", () => {
     expect(toolStatusTone("vendor_thing")).toBe("neutral");
+  });
+});
+
+describe("closeDanglingTools", () => {
+  it("fails a tool call still pending or in progress", () => {
+    const t = fold([
+      tool("tool_call", {
+        toolCallId: "c1",
+        title: "Read a.ts",
+        status: "pending",
+      }),
+      tool("tool_call", {
+        toolCallId: "c2",
+        title: "Edit b.ts",
+        status: "in_progress",
+      }),
+    ]);
+    const closed = closeDanglingTools(t);
+    expect(closed.entries.map((e) => (e as ToolEntry).status)).toEqual([
+      "failed",
+      "failed",
+    ]);
+  });
+
+  it("leaves a completed or already-failed call alone", () => {
+    const t = fold([
+      tool("tool_call", { toolCallId: "c1", title: "a", status: "completed" }),
+      tool("tool_call", { toolCallId: "c2", title: "b", status: "failed" }),
+    ]);
+    expect(closeDanglingTools(t)).toBe(t);
+  });
+
+  it("returns the same reference when nothing needs closing", () => {
+    expect(closeDanglingTools(emptyTranscript)).toBe(emptyTranscript);
   });
 });
 
