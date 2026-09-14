@@ -1293,12 +1293,18 @@ export function AcpChatPanel({
   // lets it *shrink* back down too (e.g. on Send clearing the draft):
   // `scrollHeight` only ever reports a size at least as tall as whatever
   // height is already set, so skipping the reset would ratchet upward only.
+  // Skipped while backgrounded: a hidden dock tab (`display: none`) reports
+  // `scrollHeight` 0, which would collapse the textarea (e.g. on a hot
+  // reload that re-runs this effect for every mounted panel, not just the
+  // active one) — `onScreen` in the deps re-measures correctly once this
+  // panel is shown again.
   useLayoutEffect(() => {
+    if (!onScreen) return;
     const el = inputRef.current;
     if (!el) return;
     el.style.height = "auto";
     el.style.height = `${composerTextareaHeightPx(el.scrollHeight)}px`;
-  }, [draft]);
+  }, [draft, onScreen]);
 
   // Dockview shuffles DOM focus when a tab becomes active; a single
   // `focus()` loses that race. Retry across frames while this panel is
