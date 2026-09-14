@@ -57,9 +57,9 @@ function activate(ctx: ExtensionContext) {
 export const extension: Extension = {
   id: "silo.agents-chat-panel",
   manifest: {
-    name: "Agent Chat",
+    name: "Agents Chat Panel",
     description:
-      "A center-dock transcript panel for an ACP Chat session — streaming text, thinking, tool calls, the plan, and inline permission requests.",
+      "The chat panel for talking with an agent — streaming responses, tool calls, and permission requests, all in one transcript.",
   },
   activate,
 };

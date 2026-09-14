@@ -29,12 +29,20 @@ describe("the bundled icon map", () => {
     }
   });
 
-  it("gives each extension a distinct glyph", () => {
+  it("gives each extension a distinct glyph, except intentional companions", () => {
     // Two identical icons in one grid are worse than none — the point is to
-    // tell the cards apart.
-    const glyphs = iconedExtensionIds().map(
-      (id) => extensionIconFor(id)?.glyph,
+    // tell the cards apart. The one deliberate exception: `silo.agents` and
+    // `silo.agents-chat-panel` are one "Agents" feature split across two
+    // extensions (the Navigator status view vs. the Chat transcript panel),
+    // so they share a tile on purpose rather than reading as unrelated.
+    const sharedGlyphGroups = [["silo.agents", "silo.agents-chat-panel"]];
+    const representativeIds = iconedExtensionIds().filter(
+      (id) =>
+        !sharedGlyphGroups.some(
+          (group) => group.includes(id) && group[0] !== id,
+        ),
     );
+    const glyphs = representativeIds.map((id) => extensionIconFor(id)?.glyph);
     expect(new Set(glyphs).size).toBe(glyphs.length);
   });
 

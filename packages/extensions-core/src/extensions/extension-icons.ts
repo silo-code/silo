@@ -118,6 +118,7 @@ const BUILTIN_ICONS = new Map<string, ExtensionIconSpec>(
     "silo.git": spec(GitCommit, TINT.orange),
     "silo.git-explorer": spec(GitBranch, TINT.orange),
     "silo.agents": spec(Robot, TINT.teal),
+    "silo.agents-chat-panel": spec(Robot, TINT.teal),
     "silo.image-viewer": spec(Image, TINT.rose),
     "silo.markdown-preview": spec(MarkdownLogo, TINT.blue),
     "silo.theme-presets": spec(Swatches, TINT.purple),
