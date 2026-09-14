@@ -8,8 +8,23 @@ import {
   toolDiffFromRawInput,
   toolDiffsFromContent,
   toolInputIsDiffOnly,
+  toolPathFromRawInput,
   toolShowsInlineDiff,
 } from "./tool-diff";
+
+describe("toolPathFromRawInput", () => {
+  it("reads file_path or path", () => {
+    expect(toolPathFromRawInput({ file_path: "a.ts" })).toBe("a.ts");
+    expect(toolPathFromRawInput({ path: "b.ts" })).toBe("b.ts");
+  });
+
+  it("returns undefined when there's no path-shaped field", () => {
+    expect(toolPathFromRawInput({ command: "ls" })).toBeUndefined();
+    expect(toolPathFromRawInput(undefined)).toBeUndefined();
+    expect(toolPathFromRawInput(null)).toBeUndefined();
+    expect(toolPathFromRawInput("a.ts")).toBeUndefined();
+  });
+});
 
 describe("toolDiffsFromContent", () => {
   it("keeps oldText and newText from a protocol diff block", () => {

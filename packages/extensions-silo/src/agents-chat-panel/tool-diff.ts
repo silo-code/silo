@@ -95,6 +95,22 @@ export function toolDiffFromRawInput(rawInput: unknown): ToolDiff | undefined {
   };
 }
 
+/** The file a Read/Edit/Write/Delete-shaped `rawInput` names, from whichever
+ *  of `file_path` / `path` the agent used. Used to make a tool row's title
+ *  open its file even when the title itself is a bare filename (no `/`, so
+ *  the transcript's generic path regex — which requires one — won't catch
+ *  it). */
+export function toolPathFromRawInput(rawInput: unknown): string | undefined {
+  if (
+    rawInput === undefined ||
+    rawInput === null ||
+    typeof rawInput !== "object"
+  ) {
+    return undefined;
+  }
+  return pickStr(rawInput as Record<string, unknown>, PATH_KEYS);
+}
+
 /** Content diffs win; otherwise a replacement sitting on `rawInput`. */
 export function resolveToolDiffs(
   content: readonly AgentToolCallContent[] | undefined,
@@ -264,17 +280,28 @@ export function diffFileName(path: string | undefined): string {
   return parts[parts.length - 1] || path;
 }
 
+/** `diffHeading`, split around the filename so the row can link just that
+ *  part (`diff.path` is the real path — no need to guess from display text,
+ *  the way the transcript's generic link matcher does for freeform prose). */
+export function diffHeadingParts(
+  diff: ToolDiff,
+  lines: readonly DiffLine[],
+): { prefix: string; name: string; suffix: string } {
+  const { added, removed } = diffStats(lines);
+  const name = diffFileName(diff.path);
+  if (diff.oldText.length === 0 && diff.newText.length > 0) {
+    return { prefix: "Created ", name, suffix: ` +${added}` };
+  }
+  if (diff.newText.length === 0 && diff.oldText.length > 0) {
+    return { prefix: "Deleted ", name, suffix: ` -${removed}` };
+  }
+  return { prefix: "Edited ", name, suffix: ` +${added} -${removed}` };
+}
+
 export function diffHeading(
   diff: ToolDiff,
   lines: readonly DiffLine[],
 ): string {
-  const { added, removed } = diffStats(lines);
-  const name = diffFileName(diff.path);
-  if (diff.oldText.length === 0 && diff.newText.length > 0) {
-    return `Created ${name} +${added}`;
-  }
-  if (diff.newText.length === 0 && diff.oldText.length > 0) {
-    return `Deleted ${name} -${removed}`;
-  }
-  return `Edited ${name} +${added} -${removed}`;
+  const { prefix, name, suffix } = diffHeadingParts(diff, lines);
+  return `${prefix}${name}${suffix}`;
 }

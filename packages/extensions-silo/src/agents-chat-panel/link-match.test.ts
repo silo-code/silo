@@ -41,6 +41,17 @@ describe("matchChatLinks", () => {
   it("skips extension-less noise", () => {
     expect(texts("1/2")).toEqual([]);
   });
+
+  it("matches a bare filename (no directory) with a 3-char extension", () => {
+    expect(texts("Edit tool-demo.txt")).toEqual(["tool-demo.txt"]);
+    expect(texts("see log.out for details")).toEqual(["log.out"]);
+  });
+
+  it("skips a bare filename whose extension isn't 3 chars", () => {
+    expect(texts("using Node.js")).toEqual([]);
+    expect(texts("edited notes.md")).toEqual([]);
+    expect(texts("wrote config.json")).toEqual([]);
+  });
 });
 
 describe("kindFromHref", () => {

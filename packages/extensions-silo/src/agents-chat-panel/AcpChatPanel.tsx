@@ -164,7 +164,11 @@ import {
 } from "./transcript-model";
 import { permissionButtonVariant } from "./permission-options";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
-import { LinkifiedText, chatLinkFromTarget } from "./LinkifiedText";
+import {
+  ChatLinkSpan,
+  LinkifiedText,
+  chatLinkFromTarget,
+} from "./LinkifiedText";
 import { isLinkActivationClick } from "./link-policy";
 import { resolveChatFilePath } from "./resolve-chat-path";
 import { buildChatSelectionMenu } from "./selection-menu";
@@ -175,11 +179,14 @@ import {
 } from "./tool-display";
 import {
   diffHeading,
+  diffHeadingParts,
   diffLines,
   toolInputIsDiffOnly,
+  toolPathFromRawInput,
   toolShowsInlineDiff,
   type ToolDiff,
 } from "./tool-diff";
+import { matchChatLinks } from "./link-match";
 import {
   continueInNewSessionOption,
   isReadOnly,
@@ -272,6 +279,7 @@ function filesFromDataTransfer(data: DataTransfer): File[] {
 interface ToolRowState {
   readonly expandedTools: ReadonlySet<string>;
   readonly onToggleTool: (key: string) => void;
+  readonly isMac: boolean;
 }
 
 const TOOL_ICONS: Readonly<Record<ToolIconId, ComponentType<IconProps>>> = {
@@ -291,6 +299,7 @@ const TOOL_ICONS: Readonly<Record<ToolIconId, ComponentType<IconProps>>> = {
 function ToolDiffBlock({ diff, inline }: { diff: ToolDiff; inline?: boolean }) {
   const lines = diffLines(diff.oldText, diff.newText);
   if (lines.length === 0) return null;
+  const heading = diffHeadingParts(diff, lines);
   return (
     <div
       className={
@@ -298,7 +307,15 @@ function ToolDiffBlock({ diff, inline }: { diff: ToolDiff; inline?: boolean }) {
       }
     >
       <div className="acp-chat__tool-section-label">
-        {diffHeading(diff, lines)}
+        {heading.prefix}
+        {diff.path ? (
+          <ChatLinkSpan kind="path" href={diff.path}>
+            {heading.name}
+          </ChatLinkSpan>
+        ) : (
+          heading.name
+        )}
+        {heading.suffix}
       </div>
       <div
         className="acp-chat__diff"
@@ -399,7 +416,27 @@ function renderTranscriptEntry(entry: TranscriptEntry, tools: ToolRowState) {
     const hasBody = (!showInlineDiff && diffs.length > 0) || hasExtras;
     const expanded = hasBody && tools.expandedTools.has(entry.key);
     const toggle = () => tools.onToggleTool(entry.key);
+    const onHeadClick = (e: MouseEvent) => {
+      const link = chatLinkFromTarget(e.target);
+      if (link && isLinkActivationClick(e, tools.isMac)) return;
+      toggle();
+    };
     const kindLabel = formatToolKindLabel(entry.toolKind, entry.title);
+    // A title with no `/` (e.g. "Edit tool-demo.txt") doesn't match the
+    // transcript's generic path regex, which requires one to avoid false
+    // positives on things like version numbers. When the tool call names its
+    // file directly (a diff's path, or rawInput's `file_path`/`path`), link
+    // the whole title to it instead of leaving it dead text.
+    const titleFallbackPath =
+      diffs[0]?.path ?? toolPathFromRawInput(entry.rawInput);
+    const titleNode =
+      titleFallbackPath && matchChatLinks(entry.title).length === 0 ? (
+        <ChatLinkSpan kind="path" href={titleFallbackPath}>
+          {entry.title}
+        </ChatLinkSpan>
+      ) : (
+        <LinkifiedText text={entry.title} />
+      );
     return (
       <div
         key={entry.key}
@@ -413,7 +450,7 @@ function renderTranscriptEntry(entry: TranscriptEntry, tools: ToolRowState) {
           role={hasBody ? "button" : undefined}
           tabIndex={hasBody ? 0 : undefined}
           aria-expanded={hasBody ? expanded : undefined}
-          onClick={hasBody ? toggle : undefined}
+          onClick={hasBody ? onHeadClick : undefined}
           onKeyDown={
             hasBody
               ? (e) => {
@@ -447,7 +484,7 @@ function renderTranscriptEntry(entry: TranscriptEntry, tools: ToolRowState) {
           {kindLabel ? (
             <span className="acp-chat__tool-kind">{kindLabel}</span>
           ) : null}
-          <span className="acp-chat__tool-title">{entry.title}</span>
+          <span className="acp-chat__tool-title">{titleNode}</span>
           {entry.status === "in_progress" || entry.status === "failed" ? (
             <Badge tone={toolStatusTone(entry.status)} size="sm">
               {entry.status}
@@ -1486,6 +1523,7 @@ export function AcpChatPanel({
   const toolRowState: ToolRowState = {
     expandedTools,
     onToggleTool: toggleTool,
+    isMac,
   };
 
   if (phase.status === "no-profile") {

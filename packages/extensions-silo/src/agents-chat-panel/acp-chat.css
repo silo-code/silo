@@ -148,11 +148,16 @@
 }
 
 /* Terminal-style dashed underline (ADR 0027). Plain click selects; ⌘/Ctrl
-   + click opens. */
+   + click opens.
+   `border-bottom`, not `text-decoration`: WebKit doesn't paint a
+   `text-decoration` on this span when its ellipsis-truncated ancestor
+   (`.acp-chat__tool-title`) has `overflow: hidden` — the computed style
+   still reports `underline`, but nothing renders. A dashed bottom border
+   isn't drawn through the same text-decoration ink path, so it survives
+   that ancestor untouched. */
 .acp-chat__link {
   color: inherit;
-  text-decoration: underline dashed;
-  text-underline-offset: 0.15em;
+  border-bottom: 1px dashed currentColor;
   cursor: pointer;
 }
 
@@ -186,9 +191,9 @@
      Expanded Input / Output re-enables selection on `.acp-chat__tool-body`. */
   user-select: none;
   -webkit-user-select: none;
-  /* The padding + negative margin trick: the hover/expanded background below
-     gets room to breathe without shifting the row's own position in normal
-     flow (no padding would mean the highlight hugs the glyphs edge-to-edge). */
+  /* Padding widens the click/hover target beyond the glyphs' own box; the
+     matching negative margin cancels it back out so the row doesn't shift in
+     normal flow. */
   padding: 2px 4px;
   margin: -2px -4px;
   border-radius: var(--silo-radius-sm);
@@ -198,18 +203,29 @@
   cursor: pointer;
 }
 
-/* Collapsed by default (Dave's call) — hover highlights the row, and only a
-   row with something to expand gets the hover/focus treatment at all. */
-.acp-chat__tool-head[data-interactive]:hover,
-.acp-chat__tool-head[data-interactive]:focus-visible {
-  background: var(--silo-color-bg-hover);
-}
-
 .acp-chat__tool-icon-stack {
   position: relative;
   flex: 0 0 auto;
   width: 1em;
   height: 1em;
+}
+
+/* The row itself no longer highlights on hover (Dave's call) — just this
+   small chip behind the glyph, so the disclosure affordance is the icon
+   swapping to a chevron, not the whole line lighting up. */
+.acp-chat__tool-icon-stack::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--silo-radius-sm);
+  background: transparent;
+}
+
+.acp-chat__tool-head[data-interactive]:hover .acp-chat__tool-icon-stack::before,
+.acp-chat__tool-head[data-interactive]:focus-visible
+  .acp-chat__tool-icon-stack::before,
+.acp-chat__tool[data-expanded] .acp-chat__tool-icon-stack::before {
+  background: var(--silo-color-bg-hover);
 }
 
 .acp-chat__tool-icon {
