@@ -20,3 +20,8 @@ apps/desktop/src-tauri/Cargo.lock
 # Icons / binary assets
 apps/desktop/src-tauri/icons/
 apps/desktop/src-tauri/icons-dev/
+
+# Graft's generated helpers and skill (graft rewrites these in its own style on
+# every install/upgrade; formatting them here just starts a ping-pong)
+.claude/helpers/graft-*.cjs
+.claude/skills/graft/SKILL.md

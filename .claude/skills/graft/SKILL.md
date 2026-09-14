@@ -20,10 +20,8 @@ answer; don't chain tools hoping for more. Most tasks need one call.**
 ## The tools
 
 ### 1 · `graft ask "<question>" --source`: locate + understand (the default)
-
 Ranked retrieval over the graph, routed automatically between prose nodes and
 the wiring graph, returning the top hits with exact `file:line`.
-
 - `--source` inlines the code at each hit, the ≤8-line **crux** of each
   definition, so the result IS the code you need, no follow-up file read. Add
   `--full` only when the crux is too small to act on.
@@ -35,12 +33,10 @@ the wiring graph, returning the top hits with exact `file:line`.
   switch tool (grep / skeleton / callers), don't re-ask.
 
 ### 2 · `graft grep "<pattern>"`: exhaustive find
-
 Regex (or `--fixed` for a literal) over every indexed file, hits **grouped by
 enclosing symbol** and ranked by coupling; it also reports files it couldn't read.
-
 - **Use it when** you need every occurrence: all call sites, all uses of a
-  constant, all providers. `ask` is ranked top-N and _will_ miss instances;
+  constant, all providers. `ask` is ranked top-N and *will* miss instances;
   grep won't. One grep replaces a spray of asks.
 - Search a **short symbol name or literal**, not a full guessed signature: an
   over-specific regex (`func (s *Server) GenerateHandler`) returns nothing even
@@ -51,19 +47,15 @@ enclosing symbol** and ranked by coupling; it also reports files it couldn't rea
   only for files graft genuinely doesn't index (docs, configs, brand-new files).
 
 ### 3 · `graft skeleton <file>`: a file's API at a glance
-
 Signatures-only view of one file (every function / method / type with its span)
 in ~200 tokens, ~10x cheaper than reading the file.
-
 - **Use it when** you need "what's in this file / what can I call here" before
   editing or wiring into it. One skeleton is the whole answer for a file; don't
   re-skeleton the same file, and don't skeleton every file `map` already named.
 
 ### 4 · `graft callers <symbol>`: the exact edges
-
 Precomputed call/reference edges, not a text search. Symbol can be bare
 (`Foo`), qualified (`Class.method`), or package-qualified (`pkg.Fn`).
-
 - default `--direction in`: **who calls/references** this; run before you
   rename, delete, or change its signature.
 - `--direction out`: **what this symbol itself calls/depends on** (the old `callees`).
@@ -75,16 +67,13 @@ Precomputed call/reference edges, not a text search. Symbol can be bare
   variants, a module you must split out) that a single-file edit would miss.
 
 ### 5 · `graft map`: orientation for an unfamiliar repo or area
-
 A token-budgeted tour: directory clusters, per-directory hubs, and global
 hotspots, straight from the wiring graph.
-
 - **Use it when** you land in a repo cold or are asked for "the architecture".
   `map` alone is the answer: read the hub cards it names; do NOT then skeleton
   or ask your way through every subsystem it lists. `--max-dirs N` widens it.
 
 ### 6 · Lifecycle: `graft build` / `graft check`
-
 Every tool above refreshes the graph itself before answering, so what those tools
 return always describes the code as it is right now — including edits you just made
 and have not committed. You do **not** need to run `build` after editing.
@@ -99,27 +88,26 @@ stale if you have edited that file this turn.
 
 ## Scenarios: the shortest path through a coding task
 
-| When you're…                                  | Reach for                                                                             | Calls      |
-| --------------------------------------------- | ------------------------------------------------------------------------------------- | ---------- |
-| Onboarding / "explain this codebase"          | `graft map`, then read the named hub cards                                            | 1          |
-| Understanding a flow ("how does X work")      | `graft ask "<flow>" --source`                                                         | 1          |
-| Finding where a change belongs                | `graft ask "where is <behavior>" --source`                                            | 1          |
-| Editing a symbol you can already name         | `graft grep "<symbol>"`, edit at the `file:line` (skip `ask` — you know where it is)  | 1          |
-| Renaming / deleting / changing a signature    | `graft callers <sym> --depth 2` first                                                 | 1          |
-| Refactor / multi-file change (before editing) | `graft callers <sym> --depth all` — map every connected file, don't stop at the first | 1          |
-| "What does this depend on?"                   | `graft callers <sym> --direction out`                                                 | 1          |
-| Finding every occurrence of a pattern         | `graft grep "<literal>"`                                                              | 1          |
-| "What's the API of this file?"                | `graft skeleton <file>`                                                               | 1          |
-| Debugging a failure in area X                 | `graft ask "<symptom>" --source`, then `callers` on the suspect                       | 1–2        |
-| Judging a diff's risk before merge            | `graft callers <changed sym> --depth 2`                                               | 1 / symbol |
-| Working inside one repo of a monorepo         | add `--in <scope>/` to ask / grep / callers                                           | n/a        |
+| When you're… | Reach for | Calls |
+|---|---|---|
+| Onboarding / "explain this codebase" | `graft map`, then read the named hub cards | 1 |
+| Understanding a flow ("how does X work") | `graft ask "<flow>" --source` | 1 |
+| Finding where a change belongs | `graft ask "where is <behavior>" --source` | 1 |
+| Editing a symbol you can already name | `graft grep "<symbol>"`, edit at the `file:line` (skip `ask` — you know where it is) | 1 |
+| Renaming / deleting / changing a signature | `graft callers <sym> --depth 2` first | 1 |
+| Refactor / multi-file change (before editing) | `graft callers <sym> --depth all` — map every connected file, don't stop at the first | 1 |
+| "What does this depend on?" | `graft callers <sym> --direction out` | 1 |
+| Finding every occurrence of a pattern | `graft grep "<literal>"` | 1 |
+| "What's the API of this file?" | `graft skeleton <file>` | 1 |
+| Debugging a failure in area X | `graft ask "<symptom>" --source`, then `callers` on the suspect | 1–2 |
+| Judging a diff's risk before merge | `graft callers <changed sym> --depth 2` | 1 / symbol |
+| Working inside one repo of a monorepo | add `--in <scope>/` to ask / grep / callers | n/a |
 
 In a multi-repo workspace, graft ranks fairly so the biggest repo can't drown
 the rest, and every hit carries a `[scope/]` label naming its sub-project; when
 you already know where you're working, narrow with `graft ask "<task>" --in <scope>/`.
 
 ## Spend the fewest calls
-
 - A node's `covers:` list already gives exact `file:line` for every symbol, so
   cite straight from it. The spans are generated from source and authoritative;
   don't re-open or re-grep files to "double-check".
@@ -134,7 +122,6 @@ you already know where you're working, narrow with `graft ask "<task>" --in <sco
   the symbol to find where it lives now, or run `graft build` to refresh.
 
 ## Report what graft saved, every turn
-
 Each retrieval tool **opens** its output with a `[graft] tokens saved ≈ N` line:
 the estimated tokens that call saved versus reading the files it covers whole.
 Whenever you used any graft tool in a turn, close your reply with a one-line
@@ -150,7 +137,6 @@ asked for, and it silently drops the savings line the statusline's running
 total is parsed from.
 
 ## When graft isn't enough
-
 - Span truncated ("+N more lines"): open the file at that exact range.
 - A node lacks a detail: ask a more specific question; only then read source at
   the exact `file:line`, never a whole file to rebuild understanding graft gives.
