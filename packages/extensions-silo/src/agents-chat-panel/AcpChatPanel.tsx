@@ -70,6 +70,7 @@ import {
   ArrowUp,
   ArrowsClockwise,
   ArrowsLeftRight,
+  CaretDown,
   CaretRight,
   Command,
   FileText,
@@ -142,6 +143,7 @@ import {
   composerInputEnabled,
   composerPlaceholder,
   composerShowConnecting,
+  composerTextareaHeightPx,
 } from "./composer-model";
 import {
   appendNotice,
@@ -1081,6 +1083,18 @@ export function AcpChatPanel({
   const connecting = composerShowConnecting(phase.status);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Grows the composer with the draft, up to a cap — before paint, so there
+  // is never a flash of the wrong height. Resetting to "auto" first is what
+  // lets it *shrink* back down too (e.g. on Send clearing the draft):
+  // `scrollHeight` only ever reports a size at least as tall as whatever
+  // height is already set, so skipping the reset would ratchet upward only.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${composerTextareaHeightPx(el.scrollHeight)}px`;
+  }, [draft]);
+
   // Dockview shuffles DOM focus when a tab becomes active; a single
   // `focus()` loses that race. Retry across frames while this panel is
   // still the active tab — the same problem the terminal/editor viewers
@@ -1219,6 +1233,10 @@ export function AcpChatPanel({
     liveScrollBucketRef.current = scrollBucket;
     liveScrollRef.current = null;
   }
+  // Mirrors `liveScrollRef.current?.pinned` into render — a ref alone can't
+  // drive the "jump to latest" button's visibility. Starts `true` so a fresh
+  // or still-restoring panel never flashes the button before it knows better.
+  const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const restoreDoneRef = useRef(false);
   const scrollSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // What was last written into `params`, so a flush or a debounce that lands
@@ -1260,6 +1278,7 @@ export function AcpChatPanel({
     if (isClampedScroll(el, liveScrollRef.current?.top)) return;
     const snap = { top: el.scrollTop, pinned: isPinnedToBottom(el) };
     liveScrollRef.current = snap;
+    setPinnedToBottom(snap.pinned);
     if (scrollSaveTimerRef.current !== null) {
       clearTimeout(scrollSaveTimerRef.current);
     }
@@ -1272,11 +1291,23 @@ export function AcpChatPanel({
   const finishRestore = useCallback((el: HTMLElement | null) => {
     restoreDoneRef.current = true;
     if (!el) return;
-    liveScrollRef.current = {
-      top: el.scrollTop,
-      pinned: isPinnedToBottom(el),
-    };
+    const pinned = isPinnedToBottom(el);
+    liveScrollRef.current = { top: el.scrollTop, pinned };
+    setPinnedToBottom(pinned);
   }, []);
+
+  // The "jump to latest" button's click handler — scrolls to the bottom and,
+  // by recording `pinned: true`, hands the transcript back to the autoscroll
+  // effect below so it keeps following the stream, not just this one jump.
+  const jumpToBottom = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    scrollToBottom(el);
+    const snap = { top: el.scrollTop, pinned: true };
+    liveScrollRef.current = snap;
+    setPinnedToBottom(true);
+    writeScrollParams(snap);
+  }, [writeScrollParams]);
 
   // Every transcript change is another chance for the content to grow tall
   // enough to hold a saved offset, so it also extends the retry window below.
@@ -1565,6 +1596,17 @@ export function AcpChatPanel({
       </div>
 
       <div className="acp-chat__composer">
+        {pinnedToBottom ? null : (
+          <Tooltip content="Jump to latest">
+            <IconButton
+              className="acp-chat__jump-to-bottom"
+              aria-label="Jump to latest"
+              onClick={jumpToBottom}
+            >
+              <CaretDown size="1em" weight="bold" aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+        )}
         {attachments.length > 0 ? (
           <div className="acp-chat__attachments" data-pending>
             {attachments.map((att) => (

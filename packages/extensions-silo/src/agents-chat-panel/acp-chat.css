@@ -479,9 +479,14 @@
 
 .acp-chat__input {
   /* The kit's `.silo-textarea` owns the treatment; only the geometry the
-     composer needs is set here. */
+     composer needs is set here. Height itself is set inline by the panel
+     (see its `useLayoutEffect`), growing with the draft up to
+     COMPOSER_MAX_HEIGHT_PX; overflow-y here is what makes it scroll
+     internally, rather than grow further, once it hits that cap. */
   width: 100%;
   min-height: 0;
+  max-height: 200px;
+  overflow-y: auto;
   resize: none;
 }
 
@@ -512,7 +517,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--silo-color-text-lo);
+  color: var(--silo-color-ok);
   font-size: var(--silo-font-size-sm);
   pointer-events: none;
 }
@@ -573,6 +578,34 @@
 .acp-chat__stop {
   background: var(--silo-button-danger-bg);
   color: var(--silo-button-danger-text);
+}
+
+/* Floats just above the composer, centered, overlapping the transcript's own
+   bottom edge — same anchor-to-`.acp-chat__composer` idiom as `.acp-chat__
+   connecting` and `.acp-chat__command-palette` above. Same circle shape as
+   Send/Stop, but deliberately quieter (Dave's call): this is an ambient
+   affordance the user glances past most of the time, not the one action
+   that matters right now, so it wears the muted surface/icon tokens
+   `.silo-icon-button` itself defaults to, plus a border to read as a
+   distinct pill over the transcript rather than a stray hover state. */
+.acp-chat__jump-to-bottom {
+  position: absolute;
+  /* Centered via `left` + a fixed negative margin, not `transform:
+     translateX(-50%)` — the base `.silo-icon-button:active` rule sets its
+     own `transform: scale(0.92)` on press, which *replaces* rather than
+     combines with a transform set here (same property, higher specificity),
+     so a translateX-based center would lose its offset and visibly jump on
+     click. Margin doesn't collide with that rule. */
+  left: 50%;
+  bottom: 100%;
+  margin-bottom: 8px;
+  margin-left: -1em;
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: 50%;
+  width: 2em;
+  height: 2em;
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-lo);
 }
 
 /* --- command palette (RFC 0040 data, RFC 0043 finding 3 placement) ------- */

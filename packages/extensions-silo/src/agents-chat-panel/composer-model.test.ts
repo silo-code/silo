@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
+  COMPOSER_MAX_HEIGHT_PX,
   composerCanSend,
   composerInputEnabled,
   composerPlaceholder,
   composerShowConnecting,
+  composerTextareaHeightPx,
 } from "./composer-model";
 
 describe("composerInputEnabled", () => {
@@ -68,5 +70,21 @@ describe("composerPlaceholder", () => {
   it("explains the locked states", () => {
     expect(composerPlaceholder(false, true)).toMatch(/read-only/);
     expect(composerPlaceholder(true, false)).toMatch(/no longer running/);
+  });
+});
+
+describe("composerTextareaHeightPx", () => {
+  it("fits a short draft's own content height", () => {
+    expect(composerTextareaHeightPx(48)).toBe(48);
+  });
+
+  it("caps a long draft at the max height instead of growing forever", () => {
+    expect(composerTextareaHeightPx(1000)).toBe(COMPOSER_MAX_HEIGHT_PX);
+  });
+
+  it("is exact at the boundary", () => {
+    expect(composerTextareaHeightPx(COMPOSER_MAX_HEIGHT_PX)).toBe(
+      COMPOSER_MAX_HEIGHT_PX,
+    );
   });
 });

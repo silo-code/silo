@@ -43,3 +43,14 @@ export function composerPlaceholder(lost: boolean, readOnly: boolean): string {
   }
   return "Message the agent or use /commands and /skills";
 }
+
+/** The composer grows with a multi-line draft up to this height, past which
+ *  it scrolls internally instead of crowding out the transcript above it. */
+export const COMPOSER_MAX_HEIGHT_PX = 200;
+
+/** Height to apply to the textarea element for its current content
+ *  (`scrollHeight` with the height reset, so it can shrink back down too),
+ *  clamped to {@link COMPOSER_MAX_HEIGHT_PX}. */
+export function composerTextareaHeightPx(scrollHeightPx: number): number {
+  return Math.min(scrollHeightPx, COMPOSER_MAX_HEIGHT_PX);
+}
