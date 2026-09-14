@@ -3,6 +3,7 @@ import type { AgentInfo } from "@silo-code/sdk";
 import {
   deriveStatusRow,
   deriveTab,
+  startedBlocking,
   stoppedWorking,
   staleSuffix,
 } from "./agent-view";
@@ -71,6 +72,12 @@ describe("deriveStatusRow", () => {
     });
   });
 
+  it("shows an amber warn row for a turn blocked on a permission answer", () => {
+    expect(
+      deriveStatusRow(agent({ activity: "blocked", needsAttention: false })),
+    ).toEqual({ activity: "warn" });
+  });
+
   it("holds an acknowledged idle row green when forcedAttentionSince is given", () => {
     // "Keep it until the next run" mode: a watched finish the host never
     // flagged still shows green, carrying the local finish timestamp.
@@ -125,6 +132,15 @@ describe("deriveTab", () => {
     expect(deriveTab(agent({ activity: "working" }))).toEqual({
       activity: "working",
       tooltip: "Agent working",
+    });
+  });
+
+  it("badges a permission-blocked agent as warn, even on the active session", () => {
+    expect(
+      deriveTab(agent({ activity: "blocked", needsAttention: false })),
+    ).toEqual({
+      activity: "warn",
+      tooltip: "Waiting for permission",
     });
   });
 
@@ -241,6 +257,56 @@ describe("stoppedWorking", () => {
       stoppedWorking(
         agent({ activity: "working" }),
         agent({ activity: "idle", isAgent: false }),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("startedBlocking", () => {
+  it("is true on a working → blocked transition for an agent", () => {
+    expect(
+      startedBlocking(
+        agent({ activity: "working" }),
+        agent({ activity: "blocked" }),
+      ),
+    ).toBe(true);
+  });
+
+  it("never fires on the first snapshot (undefined prev)", () => {
+    expect(startedBlocking(undefined, agent({ activity: "blocked" }))).toBe(
+      false,
+    );
+  });
+
+  it("does not fire on blocked → blocked (repeated frames while still waiting)", () => {
+    expect(
+      startedBlocking(
+        agent({ activity: "blocked" }),
+        agent({ activity: "blocked" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not fire once the block resolves (blocked → working/idle)", () => {
+    expect(
+      startedBlocking(
+        agent({ activity: "blocked" }),
+        agent({ activity: "working" }),
+      ),
+    ).toBe(false);
+    expect(
+      startedBlocking(
+        agent({ activity: "blocked" }),
+        agent({ activity: "idle" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("does not fire when the session isn't an agent", () => {
+    expect(
+      startedBlocking(
+        agent({ activity: "working" }),
+        agent({ activity: "blocked", isAgent: false }),
       ),
     ).toBe(false);
   });

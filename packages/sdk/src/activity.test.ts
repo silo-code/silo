@@ -36,6 +36,10 @@ describe("activityFromAgent", () => {
     expect(activityFromAgent("none")).toBeNull();
     expect(activityFromAgent("dead")).toBeNull();
   });
+
+  it("maps blocked to warn unconditionally, unlike dead", () => {
+    expect(activityFromAgent("blocked")).toBe("warn");
+  });
 });
 
 describe("activityJitterStyle", () => {

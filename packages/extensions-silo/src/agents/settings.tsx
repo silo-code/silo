@@ -72,7 +72,7 @@ const ICON_MODE_OPTIONS: { value: IconMode; label: string }[] = [
 /**
  * Embeddable behavior block — composed into the `core.agents-settings`
  * **Behavior** tab via `getExtension`. Covers what viewing a finished agent
- * does to its status, and the stop-working sound.
+ * does to its status, and the stop-working / permission-block sounds.
  */
 export function AgentsBehaviorPanel() {
   const s = useServiceState(settingsService);
@@ -140,6 +140,45 @@ export function AgentsBehaviorPanel() {
             checked={s.soundEnabled}
             onChange={(soundEnabled) => settingsService.set({ soundEnabled })}
             aria-label="Play a sound when an agent stops working"
+          />
+        </SettingRow>
+        <SettingRow
+          label="Play a sound when an agent needs a permission answer"
+          hint="Plays the instant a Chat session blocks on a permission request, even on the tab you're already looking at."
+          enabled={s.blockedSoundEnabled}
+          dependent={
+            <div className="am-sound-control">
+              <Select
+                value={s.blockedSoundId}
+                onChange={(e) =>
+                  settingsService.set({
+                    blockedSoundId: e.target.value as SoundName,
+                  })
+                }
+                aria-label="Permission-request notification sound"
+              >
+                {SOUND_IDS.map((name) => (
+                  <option key={name} value={name}>
+                    {soundLabel(name)}
+                  </option>
+                ))}
+              </Select>
+              <IconButton
+                size="sm"
+                onClick={() => previewSound(s.blockedSoundId)}
+                aria-label={`Preview ${soundLabel(s.blockedSoundId)} sound`}
+              >
+                ▶
+              </IconButton>
+            </div>
+          }
+        >
+          <Switch
+            checked={s.blockedSoundEnabled}
+            onChange={(blockedSoundEnabled) =>
+              settingsService.set({ blockedSoundEnabled })
+            }
+            aria-label="Play a sound when an agent needs a permission answer"
           />
         </SettingRow>
       </Section>

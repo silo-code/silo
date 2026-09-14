@@ -172,6 +172,62 @@ describe("agent-monitor sound settings", () => {
   });
 });
 
+describe("agent-monitor blocked (permission) sound settings", () => {
+  beforeEach(() => {
+    clearSettingsListeners();
+    initSettings(
+      fakeStorage({ blockedSoundEnabled: false, blockedSoundId: "bloom" }),
+    ).dispose();
+  });
+
+  it('defaults to enabled with "bloom" when nothing is persisted', () => {
+    // Restore module to compiled defaults before testing empty storage —
+    // initSettings falls back to the in-memory singleton when a key is missing.
+    initSettings(
+      fakeStorage({ blockedSoundEnabled: true, blockedSoundId: "bloom" }),
+    ).dispose();
+    const storage = fakeStorage();
+    const sub = initSettings(storage);
+    expect(settingsService.getState().blockedSoundEnabled).toBe(true);
+    expect(settingsService.getState().blockedSoundId).toBe("bloom");
+    sub.dispose();
+  });
+
+  it("hydrates a persisted enabled/blockedSoundId pair", () => {
+    const storage = fakeStorage({
+      blockedSoundEnabled: true,
+      blockedSoundId: "sparkle",
+    });
+    const sub = initSettings(storage);
+    expect(settingsService.getState().blockedSoundEnabled).toBe(true);
+    expect(settingsService.getState().blockedSoundId).toBe("sparkle");
+    sub.dispose();
+  });
+
+  it("coerces an invalid persisted blockedSoundId to the default", () => {
+    const storage = fakeStorage({ blockedSoundId: "not-a-real-sound" });
+    const sub = initSettings(storage);
+    expect(settingsService.getState().blockedSoundId).toBe("bloom");
+    sub.dispose();
+  });
+
+  it("coerces a non-boolean persisted blockedSoundEnabled to the default", () => {
+    const storage = fakeStorage({ blockedSoundEnabled: "yes" });
+    const sub = initSettings(storage);
+    expect(settingsService.getState().blockedSoundEnabled).toBe(true);
+    sub.dispose();
+  });
+
+  it("persists blockedSoundEnabled/blockedSoundId through settingsService.set", () => {
+    const storage = fakeStorage();
+    const sub = initSettings(storage);
+    settingsService.set({ blockedSoundEnabled: true, blockedSoundId: "tick" });
+    expect(storage.get<boolean>("blockedSoundEnabled")).toBe(true);
+    expect(storage.get<string>("blockedSoundId")).toBe("tick");
+    sub.dispose();
+  });
+});
+
 describe("agent-monitor iconMode setting", () => {
   beforeEach(() => {
     clearSettingsListeners();

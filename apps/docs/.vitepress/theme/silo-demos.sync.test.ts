@@ -55,6 +55,12 @@ const KNOWN_DIVERGENCES: Record<string, Record<string, string>> = {
     "animation-delay":
       "host desyncs multiple dots via a per-instance --silo-activity-jitter set inline in JS; the static demo shows one canonical instance",
   },
+  ".silo-activity-warn": {
+    animation:
+      "docs renames the keyframes to silo-demo-* to avoid colliding with global page styles",
+    "animation-delay":
+      "host desyncs multiple dots via a per-instance --silo-activity-jitter set inline in JS; the static demo shows one canonical instance",
+  },
   ".silo-activity-working::before": {
     animation:
       "docs renames the keyframes to silo-demo-* to avoid colliding with global page styles",

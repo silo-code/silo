@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ExtensionStorage } from "@silo-code/sdk";
 import { clearSettingsListeners, initSettings } from "./settings-store";
-import { maybePlayTransitionSound, previewSound } from "./sound";
+import {
+  maybePlayBlockedSound,
+  maybePlayTransitionSound,
+  previewSound,
+} from "./sound";
 
 const playMock = vi.hoisted(() => vi.fn());
 vi.mock("./synth", () => ({
@@ -74,6 +78,50 @@ describe("maybePlayTransitionSound", () => {
     maybePlayTransitionSound(40_000);
     maybePlayTransitionSound(40_800);
     expect(playMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("maybePlayBlockedSound", () => {
+  beforeEach(() => {
+    playMock.mockClear();
+    clearSettingsListeners();
+    initSettings(
+      fakeStorage({ blockedSoundEnabled: true, blockedSoundId: "bloom" }),
+    ).dispose();
+  });
+
+  it("does nothing when disabled", () => {
+    initSettings(
+      fakeStorage({ blockedSoundEnabled: false, blockedSoundId: "bloom" }),
+    ).dispose();
+    maybePlayBlockedSound(50_000);
+    expect(playMock).not.toHaveBeenCalled();
+  });
+
+  it("plays the configured sound (bloom by default) when enabled", () => {
+    maybePlayBlockedSound(60_000);
+    expect(playMock).toHaveBeenCalledWith("bloom");
+  });
+
+  it("debounces a second call inside the window", () => {
+    maybePlayBlockedSound(70_000);
+    maybePlayBlockedSound(70_200);
+    expect(playMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares its debounce window with maybePlayTransitionSound, so the two never overlap", () => {
+    initSettings(
+      fakeStorage({
+        soundEnabled: true,
+        soundId: "chime",
+        blockedSoundEnabled: true,
+        blockedSoundId: "bloom",
+      }),
+    ).dispose();
+    maybePlayTransitionSound(80_000);
+    maybePlayBlockedSound(80_200);
+    expect(playMock).toHaveBeenCalledTimes(1);
+    expect(playMock).toHaveBeenCalledWith("chime");
   });
 });
 

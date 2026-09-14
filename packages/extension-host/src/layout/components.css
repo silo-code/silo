@@ -639,6 +639,8 @@
 
 .silo-activity-warn {
   color: var(--silo-activity-warn);
+  animation: silo-activity-pulse-subtle 1.4s ease-in-out infinite;
+  animation-delay: var(--silo-activity-jitter, 0s);
 }
 
 .silo-activity-error {

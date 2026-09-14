@@ -14,6 +14,11 @@
  *
  * - **working** → a working Activity row (with `workingSince` so the host
  *   renders elapsed time) and a spinner tab badge.
+ * - **blocked** → an amber `warn` row + badge: the agent is suspended on a
+ *   permission answer. Unlike `idle + needsAttention` below, this shows
+ *   regardless of whether the session is the one on screen — see
+ *   `AgentActivity`'s own doc for why that's not a repeat of the dropped
+ *   `"waiting"` state.
  * - **idle + needsAttention** → the "finished, unseen" state: a green `ready`
  *   row + check tab badge, sticky until the user looks at the session (at
  *   which point the host clears `needsAttention` via
@@ -51,6 +56,8 @@ export function deriveStatusRow(
   switch (a.activity) {
     case "working":
       return { activity: "working", startedAt: a.workingSince };
+    case "blocked":
+      return { activity: "warn" };
     case "error":
       return { activity: "error" };
     case "dead":
@@ -89,6 +96,8 @@ export function deriveTab(
   switch (a.activity) {
     case "working":
       return { activity: "working", tooltip: withStale(a, "Agent working") };
+    case "blocked":
+      return { activity: "warn", tooltip: "Waiting for permission" };
     case "error":
       return { activity: "error", tooltip: withStale(a, "Agent error") };
     case "dead":
@@ -122,6 +131,26 @@ export function stoppedWorking(
 ): boolean {
   return (
     next.isAgent && prev?.activity === "working" && next.activity === "idle"
+  );
+}
+
+/**
+ * Whether this snapshot represents an agent that just *started* blocking on a
+ * permission answer — the notification chime's other trigger, mirroring
+ * {@link stoppedWorking}. `prev` must exist and not already be `"blocked"`,
+ * so a session seen for the first time already blocked (a resume landing
+ * mid-request) doesn't ring, and a repeated snapshot while still blocked
+ * doesn't ring again.
+ */
+export function startedBlocking(
+  prev: AgentInfo | undefined,
+  next: AgentInfo,
+): boolean {
+  return (
+    next.isAgent &&
+    prev !== undefined &&
+    prev.activity !== "blocked" &&
+    next.activity === "blocked"
   );
 }
 

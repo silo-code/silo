@@ -1,6 +1,6 @@
 # Interface: AgentToolCallContent
 
-Defined in: [packages/sdk/src/agents-service.ts:619](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L619)
+Defined in: [packages/sdk/src/agents-service.ts:635](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L635)
 
 **`Beta`**
 
@@ -21,7 +21,7 @@ reading them.
 readonly type: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:621](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L621)
+Defined in: [packages/sdk/src/agents-service.ts:637](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L637)
 
 **`Beta`**
 
@@ -35,7 +35,7 @@ Defined in: [packages/sdk/src/agents-service.ts:621](https://github.com/silo-cod
 readonly optional content?: AgentContentBlock;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:623](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L623)
+Defined in: [packages/sdk/src/agents-service.ts:639](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L639)
 
 **`Beta`**
 
@@ -49,7 +49,7 @@ The content block, when `type` is `"content"`.
 readonly optional path?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:625](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L625)
+Defined in: [packages/sdk/src/agents-service.ts:641](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L641)
 
 **`Beta`**
 
@@ -63,7 +63,7 @@ The file being edited, when `type` is `"diff"`.
 readonly optional oldText?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:629](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L629)
+Defined in: [packages/sdk/src/agents-service.ts:645](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L645)
 
 **`Beta`**
 
@@ -79,7 +79,7 @@ The file's contents before the edit, when `type` is `"diff"`. Absent for
 readonly optional newText?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:631](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L631)
+Defined in: [packages/sdk/src/agents-service.ts:647](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L647)
 
 **`Beta`**
 
@@ -93,7 +93,7 @@ The file's contents after the edit, when `type` is `"diff"`.
 readonly optional terminalId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:635](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L635)
+Defined in: [packages/sdk/src/agents-service.ts:651](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L651)
 
 **`Beta`**
 

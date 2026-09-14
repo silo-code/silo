@@ -134,6 +134,34 @@ describe("buildAgentRows", () => {
     expect(rows[0]).toMatchObject({ id: "chat:s2", section: "ready" });
   });
 
+  it("sections a permission-blocked Chat session as working when its own tab is the one on screen", () => {
+    // Unlike the unfocused case above, the host never raised needsAttention
+    // here (the user is already looking at this session) — activity:
+    // "blocked" alone must still keep it out of "done".
+    const rows = buildAgentRows(
+      [
+        {
+          id: "chat:s3",
+          workspaceId: "w1",
+          kind: "chat",
+          isAgent: true,
+          activity: "blocked",
+          needsAttention: false,
+          stale: false,
+          canResume: false,
+          title: "Cursor",
+          agentName: "Cursor",
+        },
+      ],
+      [workspace()],
+    );
+    expect(rows[0]).toMatchObject({
+      id: "chat:s3",
+      section: "working",
+      activity: "blocked",
+    });
+  });
+
   it("sections a working agent as working, carrying workingSince", () => {
     const rows = buildAgentRows(
       [agent({ activity: "working", workingSince: "2026-01-01T00:00:00Z" })],

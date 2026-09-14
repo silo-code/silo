@@ -57,6 +57,13 @@ export interface AgentMonitorSettings {
   soundEnabled: boolean;
   /** Which synthesized sound to play. */
   soundId: SoundName;
+  /** Whether a sound plays when a Chat session starts blocking on a
+   *  permission answer (`activity: "blocked"`) — independent of
+   *  {@link soundEnabled}, since "the agent needs you" and "the agent is
+   *  done" are different enough alerts to want separately. */
+  blockedSoundEnabled: boolean;
+  /** Which synthesized sound to play for a permission block. */
+  blockedSoundId: SoundName;
   /** How the Agents panel shows each row's agent icon. */
   iconMode: IconMode;
   /** Which axis the Agents view groups its rows by. */
@@ -85,6 +92,8 @@ export interface AgentMonitorSettings {
 const STORAGE_KEY_FOCUS = "focusBehavior";
 const STORAGE_KEY_SOUND_ENABLED = "soundEnabled";
 const STORAGE_KEY_SOUND_ID = "soundId";
+const STORAGE_KEY_BLOCKED_SOUND_ENABLED = "blockedSoundEnabled";
+const STORAGE_KEY_BLOCKED_SOUND_ID = "blockedSoundId";
 const STORAGE_KEY_ICON_MODE = "agentsIconMode";
 const STORAGE_KEY_GROUP_BY = "agentsGroupBy";
 const STORAGE_KEY_SHOW_WS_STATUS_ROWS = "agentsShowWorkspaceStatusRows";
@@ -95,6 +104,8 @@ const STORAGE_KEY_STALE_HOVER_EXPAND_ENABLED = "agentsStaleHoverExpandEnabled";
 const DEFAULT_BEHAVIOR: FocusBehavior = "clear";
 const DEFAULT_SOUND_ENABLED = true;
 const DEFAULT_SOUND_ID: SoundName = "chime";
+const DEFAULT_BLOCKED_SOUND_ENABLED = true;
+const DEFAULT_BLOCKED_SOUND_ID: SoundName = "bloom";
 const DEFAULT_ICON_MODE: IconMode = "color";
 const DEFAULT_GROUP_BY: GroupMode = "age";
 export const DEFAULT_SHOW_WS_STATUS_ROWS = true;
@@ -131,6 +142,16 @@ function coerceSoundId(v: unknown): SoundName {
   return SOUND_IDS.includes(v as SoundName)
     ? (v as SoundName)
     : DEFAULT_SOUND_ID;
+}
+
+function coerceBlockedSoundEnabled(v: unknown): boolean {
+  return typeof v === "boolean" ? v : DEFAULT_BLOCKED_SOUND_ENABLED;
+}
+
+function coerceBlockedSoundId(v: unknown): SoundName {
+  return SOUND_IDS.includes(v as SoundName)
+    ? (v as SoundName)
+    : DEFAULT_BLOCKED_SOUND_ID;
 }
 
 function coerceIconMode(v: unknown): IconMode {
@@ -173,6 +194,8 @@ let settings: AgentMonitorSettings = {
   focusBehavior: DEFAULT_BEHAVIOR,
   soundEnabled: DEFAULT_SOUND_ENABLED,
   soundId: DEFAULT_SOUND_ID,
+  blockedSoundEnabled: DEFAULT_BLOCKED_SOUND_ENABLED,
+  blockedSoundId: DEFAULT_BLOCKED_SOUND_ID,
   iconMode: DEFAULT_ICON_MODE,
   groupBy: DEFAULT_GROUP_BY,
   showWorkspaceStatusRows: DEFAULT_SHOW_WS_STATUS_ROWS,
@@ -196,6 +219,11 @@ export const settingsService: ReactiveService<AgentMonitorSettings> & {
     backingStorage?.set(STORAGE_KEY_FOCUS, settings.focusBehavior);
     backingStorage?.set(STORAGE_KEY_SOUND_ENABLED, settings.soundEnabled);
     backingStorage?.set(STORAGE_KEY_SOUND_ID, settings.soundId);
+    backingStorage?.set(
+      STORAGE_KEY_BLOCKED_SOUND_ENABLED,
+      settings.blockedSoundEnabled,
+    );
+    backingStorage?.set(STORAGE_KEY_BLOCKED_SOUND_ID, settings.blockedSoundId);
     backingStorage?.set(STORAGE_KEY_ICON_MODE, settings.iconMode);
     backingStorage?.set(STORAGE_KEY_GROUP_BY, settings.groupBy);
     backingStorage?.set(
@@ -235,6 +263,18 @@ export function initSettings(storage: ExtensionStorage): {
     const soundId = coerceSoundId(
       storage.get<string>(STORAGE_KEY_SOUND_ID, settings.soundId),
     );
+    const blockedSoundEnabled = coerceBlockedSoundEnabled(
+      storage.get<boolean>(
+        STORAGE_KEY_BLOCKED_SOUND_ENABLED,
+        settings.blockedSoundEnabled,
+      ),
+    );
+    const blockedSoundId = coerceBlockedSoundId(
+      storage.get<string>(
+        STORAGE_KEY_BLOCKED_SOUND_ID,
+        settings.blockedSoundId,
+      ),
+    );
     const iconMode = coerceIconMode(
       storage.get<string>(STORAGE_KEY_ICON_MODE, settings.iconMode),
     );
@@ -269,6 +309,8 @@ export function initSettings(storage: ExtensionStorage): {
       focusBehavior !== settings.focusBehavior ||
       soundEnabled !== settings.soundEnabled ||
       soundId !== settings.soundId ||
+      blockedSoundEnabled !== settings.blockedSoundEnabled ||
+      blockedSoundId !== settings.blockedSoundId ||
       iconMode !== settings.iconMode ||
       groupBy !== settings.groupBy ||
       showWorkspaceStatusRows !== settings.showWorkspaceStatusRows ||
@@ -281,6 +323,8 @@ export function initSettings(storage: ExtensionStorage): {
         focusBehavior,
         soundEnabled,
         soundId,
+        blockedSoundEnabled,
+        blockedSoundId,
         iconMode,
         groupBy,
         showWorkspaceStatusRows,

@@ -10,9 +10,10 @@ import {
   deriveStatusRow,
   deriveTab,
   staleSuffix,
+  startedBlocking,
   stoppedWorking,
 } from "./agent-view";
-import { maybePlayTransitionSound } from "./sound";
+import { maybePlayBlockedSound, maybePlayTransitionSound } from "./sound";
 import {
   initSettings,
   clearSettingsListeners,
@@ -67,6 +68,7 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
 
   function applySnapshot(state: AgentInfo[]) {
     let ring = false;
+    let blocked = false;
     const next = new Map<string, AgentInfo>();
     const liveIds = new Set<string>();
     for (const a of state) {
@@ -79,6 +81,9 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
         ring = true;
         finishedUnseen.set(key, new Date().toISOString());
       }
+      // Chime the other way when one starts waiting on a permission answer —
+      // same "whether or not you're watching" rule as a finish.
+      if (startedBlocking(agents.get(key), a)) blocked = true;
       // A new run clears the finished flag — "until the next run" ends here.
       if (a.activity === "working") finishedUnseen.delete(key);
       next.set(key, a);
@@ -93,6 +98,7 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
     // "done for 3h" durations keep accruing even with no agent view open.
     recordDoneSince(state);
     if (ring) maybePlayTransitionSound();
+    if (blocked) maybePlayBlockedSound();
     ctx.workspaces.invalidateStatus();
     // Covers both binders below: `agentId` can newly resolve after a session
     // has already been seen once (a hook confirming a terminal agent, or a
