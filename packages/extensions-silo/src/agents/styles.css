@@ -58,6 +58,17 @@
   margin-top: 8px;
 }
 
+/* A touch of the general warn color — enough to read as a caveat worth
+   noticing next to the dropdown, short of a full Callout for one line.
+   `--silo-color-warn`, not the activity-dot-specific `--silo-activity-warn`:
+   extensions pick a kind for Activity glyphs, never hand-reference their
+   internal palette (see apps/docs/design/components/activity.md). */
+.am-sound-note {
+  font-size: calc(var(--settings-font) - 2px);
+  color: var(--silo-color-warn);
+  margin-bottom: 6px;
+}
+
 .am-sound-control {
   display: flex;
   align-items: center;

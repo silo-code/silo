@@ -144,33 +144,38 @@ export function AgentsBehaviorPanel() {
         </SettingRow>
         <SettingRow
           label="Play a sound when an agent needs a permission answer"
-          hint="Plays the instant a Chat session blocks on a permission request, even on the tab you're already looking at. Not supported for CLI agents running in a terminal — their permission prompts aren't detectable yet (RFC 0044)."
+          hint="Plays the instant a Chat session blocks on a permission request, even on the tab you're already looking at."
           enabled={s.blockedSoundEnabled}
           dependent={
-            <div className="am-sound-control">
-              <Select
-                value={s.blockedSoundId}
-                onChange={(e) =>
-                  settingsService.set({
-                    blockedSoundId: e.target.value as SoundName,
-                  })
-                }
-                aria-label="Permission-request notification sound"
-              >
-                {SOUND_IDS.map((name) => (
-                  <option key={name} value={name}>
-                    {soundLabel(name)}
-                  </option>
-                ))}
-              </Select>
-              <IconButton
-                size="sm"
-                onClick={() => previewSound(s.blockedSoundId)}
-                aria-label={`Preview ${soundLabel(s.blockedSoundId)} sound`}
-              >
-                ▶
-              </IconButton>
-            </div>
+            <>
+              <div className="am-sound-note">
+                Not yet supported for CLI agents running in a terminal.
+              </div>
+              <div className="am-sound-control">
+                <Select
+                  value={s.blockedSoundId}
+                  onChange={(e) =>
+                    settingsService.set({
+                      blockedSoundId: e.target.value as SoundName,
+                    })
+                  }
+                  aria-label="Permission-request notification sound"
+                >
+                  {SOUND_IDS.map((name) => (
+                    <option key={name} value={name}>
+                      {soundLabel(name)}
+                    </option>
+                  ))}
+                </Select>
+                <IconButton
+                  size="sm"
+                  onClick={() => previewSound(s.blockedSoundId)}
+                  aria-label={`Preview ${soundLabel(s.blockedSoundId)} sound`}
+                >
+                  ▶
+                </IconButton>
+              </div>
+            </>
           }
         >
           <Switch
