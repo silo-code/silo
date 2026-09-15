@@ -46,6 +46,33 @@ Orientation docs (read when relevant):
   extension (bundled or third-party): boundaries, permissions, styling,
   lifecycle, packaging, stability.
 
+## Explaining your work
+
+Answer at the level of the system, not the file. The reader of your summaries
+and PR prose thinks in Silo's architecture — the Host, the public surface,
+`ctx`, trust tiers, the boundary — and is usually deciding whether a change is
+_architecturally right_, not whether a particular line is correct.
+
+- **Lead with the contract.** What moved on the host ↔ extension boundary: did
+  this widen the public surface, add a capability to `ctx`, lean on the
+  privileged surface, or stay entirely inside one extension? If nothing moved,
+  say that — it's the most useful sentence in the summary.
+- **Use the glossary's nouns.** `docs/domain-language.md` exists so a change can
+  be described in shared terms. Reach for the term, not a paraphrase, and if the
+  right term doesn't exist yet, that's a signal to add it (see "Domain language"
+  above) rather than to invent a one-off synonym.
+- **Paths are supporting evidence, not the explanation.** Name a file when the
+  reader needs to find something or when the location _is_ the point (which
+  package a capability landed in, for instance). A summary that is mostly file
+  and symbol names has described the diff without explaining the change.
+- **Be brief and lead with the answer.** State the outcome first, then the
+  reasoning that changes what someone would do about it. Detail is available on
+  request; volume is not a substitute for altitude.
+
+This governs prose — summaries, PR descriptions, review notes, answers to
+questions. It is not a reason to skip the precision a code comment or an ADR
+needs.
+
 ## Engineering principles
 
 - Choose the simplest implementation that fully meets the current
@@ -132,7 +159,10 @@ down the moment it crystallizes, not after the fact — per the workflow in
 ## Architecture boundaries — enforced, don't regress
 
 The repo is a pnpm workspace; the boundary is now expressed by the **package
-graph**. The relevant packages:
+graph**. This section is the mechanics; the vocabulary for talking about it —
+Host, public surface, privileged surface, trust tier, boundary — is defined
+under "Platform Architecture" in `docs/domain-language.md`. The relevant
+packages:
 
 - `@silo-code/sdk` (`packages/sdk`) — the public, types-first leaf. The only
   surface `silo.*` and third-party extensions may import.
