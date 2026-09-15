@@ -6,6 +6,7 @@ type MenuSurface =
   | "editor/tab"
   | "terminal/tab"
   | "terminal/link"
+  | "panel/tab"
   | "workspace";
 ```
 

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  customTitleForPanelId,
   panelToReactivateOnClose,
   recordedPanelParamsToRestore,
   resolveActivationTarget,
+  restoredPanelTitle,
   sameParams,
   shouldShowMaximizeButton,
 } from "./dock-helpers";
@@ -155,6 +157,61 @@ describe("recordedPanelParamsToRestore", () => {
   it("handles an empty record state", () => {
     expect(recordedPanelParamsToRestore({}, {})).toBeNull();
     expect(recordedPanelParamsToRestore({}, { title: "x" })).toEqual({});
+  });
+});
+
+// A renamed tab (RFC 0046) is the user's word over the panel's own. These two
+// are the whole of that precedence — the tab reads one, the restore reads the
+// other, and they must not disagree.
+describe("customTitleForPanelId", () => {
+  const workspaces = {
+    a: { panels: [{ id: "p1", customTitle: "Auth refactor" }] },
+    b: { panels: [{ id: "p2" }] },
+  };
+
+  it("finds a name in a workspace that isn't the active one", () => {
+    // A background workspace keeps its dock mounted, so its tabs ask this too.
+    expect(customTitleForPanelId("silo.chat:p1", workspaces)).toBe(
+      "Auth refactor",
+    );
+  });
+
+  it("is undefined for a panel nobody renamed", () => {
+    expect(customTitleForPanelId("silo.chat:p2", workspaces)).toBeUndefined();
+  });
+
+  it("is undefined for an unknown panel or a malformed id", () => {
+    expect(customTitleForPanelId("silo.chat:p9", workspaces)).toBeUndefined();
+    expect(customTitleForPanelId("nocolon", workspaces)).toBeUndefined();
+    expect(customTitleForPanelId("silo.chat:", workspaces)).toBeUndefined();
+    expect(customTitleForPanelId(":p1", workspaces)).toBeUndefined();
+  });
+
+  it("tolerates a workspace slot that is undefined", () => {
+    expect(
+      customTitleForPanelId("silo.chat:p1", { a: undefined, ...workspaces }),
+    ).toBe("Auth refactor");
+  });
+});
+
+describe("restoredPanelTitle", () => {
+  it("brings a renamed tab back renamed, before the panel has said anything", () => {
+    expect(
+      restoredPanelTitle({
+        kindId: "silo.chat",
+        customTitle: "Auth refactor",
+        state: { title: "Claude" },
+      }),
+    ).toBe("Auth refactor");
+  });
+
+  it("falls back to the panel's own last title, then to the kind id", () => {
+    expect(
+      restoredPanelTitle({ kindId: "silo.chat", state: { title: "Claude" } }),
+    ).toBe("Claude");
+    expect(restoredPanelTitle({ kindId: "silo.chat", state: {} })).toBe(
+      "silo.chat",
+    );
   });
 });
 

@@ -1,6 +1,6 @@
 # Interface: DockPanelKind\<T\>
 
-Defined in: [packages/sdk/src/types.ts:668](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L668)
+Defined in: [packages/sdk/src/types.ts:688](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L688)
 
 Registers a kind of dock panel (a tab that can live in the center dock area,
 e.g. the terminal). Workspaces open panels of registered kinds by id. The
@@ -22,7 +22,7 @@ opened with — annotate your component with `DockPanelProps<T>` and
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:670](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L670)
+Defined in: [packages/sdk/src/types.ts:690](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L690)
 
 Unique id for this panel kind.
 
@@ -34,7 +34,7 @@ Unique id for this panel kind.
 component: ComponentType<DockPanelProps<T>>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:672](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L672)
+Defined in: [packages/sdk/src/types.ts:692](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L692)
 
 The React component that renders this panel; receives [DockPanelProps](DockPanelProps.md).
 
@@ -46,7 +46,7 @@ The React component that renders this panel; receives [DockPanelProps](DockPanel
 optional toolbar?: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:689](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L689)
+Defined in: [packages/sdk/src/types.ts:709](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L709)
 
 Host-drawn chrome above this panel's component (RFC 0039). Omit for a bare
 frame — the default, and correct for a panel that fills its own space.
@@ -81,7 +81,7 @@ contributed items.
 optional chatProfileHost?: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:718](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L718)
+Defined in: [packages/sdk/src/types.ts:738](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L738)
 
 Declares that this panel kind renders a **Chat session** for an Agent
 Profile (RFC 0038), so Silo can open it on the user's behalf.
@@ -111,7 +111,7 @@ handed profiles it does not render.
 optional persistence?: "recorded";
 ```
 
-Defined in: [packages/sdk/src/types.ts:738](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L738)
+Defined in: [packages/sdk/src/types.ts:758](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L758)
 
 Opt this kind's panels into being **recorded** (RFC 0041). With
 `persistence: "recorded"`, every open panel of this kind gets a
@@ -133,13 +133,38 @@ recreated after a restart.
 
 ***
 
+### renamable?
+
+```ts
+optional renamable?: boolean;
+```
+
+Defined in: [packages/sdk/src/types.ts:775](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L775)
+
+Whether the user may **rename this kind's tabs** from the tab's right-click
+menu. Defaults to `persistence === "recorded"`, so a recorded panel is
+renamable without declaring anything — including a third-party panel that
+never heard of this field.
+
+A chosen name is host-owned ([DockPanelRecord.customTitle](DockPanelRecord.md#customtitle)) and wins
+over whatever the panel passes to [DockPanelApi.setTitle](DockPanelApi.md#settitle), so a panel
+that retitles itself as its content changes cannot undo the user's choice.
+Clearing the name restores the panel's own title.
+
+Set `false` to opt out — for a panel whose label *is* its identity and would
+be confusing to change (an Output view naming its channel). Setting `true`
+on a transient kind works, but the name lasts only for the session: there is
+no record to persist it in.
+
+***
+
 ### addMenuItem?
 
 ```ts
 optional addMenuItem?: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:743](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L743)
+Defined in: [packages/sdk/src/types.ts:780](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L780)
 
 When set, this kind appears as an entry in the center dock's **+** add
 menu (the per-group header button). Omit to keep the kind internal.

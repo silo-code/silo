@@ -58,9 +58,12 @@ export type AgentProfileStart =
  * Resolve what starting `profile` means, doing the side effect that belongs to
  * the host (creating the terminal record) but never placing a tab.
  *
- * Chat is decided first and without touching the folder chooser: a transcript
- * runs in the workspace folder, so prompting for a directory would be asking a
- * question the answer to which is unused.
+ * The folder chooser runs for **both** arms (RFC 0046). A Chat agent works a
+ * directory exactly as a terminal agent does, so in a multi-root workspace the
+ * question "which of these folders?" is as real for a transcript as for a PTY —
+ * answering it for the user by always picking the primary folder made the other
+ * roots unreachable from the Chat arm. `pickWorkspaceFolder` short-circuits on a
+ * single-folder workspace, so this costs a one-folder user nothing.
  */
 export async function startAgentProfile(
   profile: AgentProfile,
@@ -73,28 +76,34 @@ export async function startAgentProfile(
   // `?.` guards a record predating the RFC 0038 launch union: falling through
   // to the terminal path is what happened before it existed, and
   // `launchAgentProfile` refuses anything it cannot type.
-  if (profile.launch?.interface === "chat") {
-    const kind = resolveChatProfileHost();
-    if (!kind) {
-      // Reachable: the profile outlives whatever panel used to render it (the
-      // Chat panel example was disabled or uninstalled with nothing in its
-      // place). Silence here is what sent the user hunting, so say what is
-      // missing.
-      return {
-        outcome: "refused",
-        message: `“${profile.label}” is a Chat profile and no Chat panel is installed to open it.`,
-      };
-    }
+  const isChat = profile.launch?.interface === "chat";
+
+  // Resolve the host *before* prompting: refusing after the user has picked a
+  // folder wastes the answer, and "no Chat panel is installed" is knowable now.
+  const kind = isChat ? resolveChatProfileHost() : undefined;
+  if (isChat && !kind) {
+    // Reachable: the profile outlives whatever panel used to render it (the
+    // Chat panel example was disabled or uninstalled with nothing in its
+    // place). Silence here is what sent the user hunting, so say what is
+    // missing.
     return {
-      outcome: "panel",
-      panelKindId: kind.id,
-      title: profile.label,
-      params: chatProfileHostParams(profile),
+      outcome: "refused",
+      message: `“${profile.label}” is a Chat profile and no Chat panel is installed to open it.`,
     };
   }
 
   const folder = await pickWorkspaceFolder(workspaceId);
   if (!folder) return { outcome: "cancelled" };
+
+  if (kind) {
+    return {
+      outcome: "panel",
+      panelKindId: kind.id,
+      title: profile.label,
+      params: chatProfileHostParams(profile, folder),
+    };
+  }
+
   const record = launchAgentProfile({
     profileId: profile.id,
     workspaceId,

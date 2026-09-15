@@ -14,9 +14,11 @@ import { promotePreviewEditor } from "../state/workspaces";
 import { tabAdornmentRegistry } from "../extension-host/tab-adornment-registry";
 import { contextMenuEntriesFor } from "../extension-host/context-menu-items";
 import { buildTerminalTabMenuItems } from "../extension-host/terminal-tab-menu";
+import { buildPanelTabMenuItems } from "../extension-host/panel-tab-menu";
 import { openMenu } from "../extension-host/menu-controller";
 import { Tooltip } from "../components/Tooltip";
 import { TabIndicatorGlyph } from "./TabIndicatorGlyph";
+import { customTitleForPanelId } from "./dock-helpers";
 
 // Custom tab: mirrors dockview's default tab DOM, but renders the dirty marker
 // as its own styled span so we can size/color it independently. (DockviewDefaultTab
@@ -113,6 +115,13 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
     return () => sub.dispose();
   }, [api]);
 
+  // A user-renamed panel tab (RFC 0046). Layered here rather than intercepting
+  // `DockPanelApi.setTitle`, which stays an unconditional pass-through: this is
+  // the only place a panel's title is ever read, so overriding at render time is
+  // enough — and a panel that retitles itself mid-session (a Chat transcript
+  // following its agent) can't undo the user's choice.
+  const displayTitle = customTitleForPanelId(panelId, snap.workspaces) ?? title;
+
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
@@ -121,7 +130,7 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
     const ro = new ResizeObserver(check);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [title, isDirty]);
+  }, [displayTitle, isDirty]);
 
   // Re-read getParameters() on each change rather than trusting the event
   // payload, which only carries the keys that changed in that update.
@@ -208,11 +217,10 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
     event.preventDefault();
   }, []);
 
-  // Right-click → real menu: Rename (terminals) + extension contributions
-  // on editor/tab or terminal/tab (RFC 0021 / RFC 0013).
+  // Right-click → real menu: Rename (terminals, renamable panels) + extension
+  // contributions on editor/tab, terminal/tab or panel/tab (RFC 0021 / 0013 / 0046).
   const onTabContextMenu = useCallback(
     (event: React.MouseEvent) => {
-      if (!editorId && !terminalId) return;
       event.preventDefault();
       event.stopPropagation();
 
@@ -238,6 +246,17 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
             onRenamed: (name) => api.setTitle(name),
           }),
         );
+      } else {
+        // Every other tab is a dock panel of some kind — the bundled Chat
+        // transcript, Output, a third-party panel. The builder decides what it
+        // offers from the kind's own declarations; nothing here knows which
+        // panel this is.
+        items.push(
+          ...buildPanelTabMenuItems(panelId, {
+            params: api.getParameters(),
+            onRenamed: (name) => api.setTitle(name),
+          }),
+        );
       }
 
       if (items.length === 0) return;
@@ -247,7 +266,7 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
         toggle: false,
       });
     },
-    [api, editorId, terminalId, wsId],
+    [api, editorId, terminalId, wsId, panelId],
   );
 
   return (
@@ -259,7 +278,7 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
       onDoubleClick={onTabDoubleClick}
       onContextMenu={onTabContextMenu}
     >
-      <Tooltip content={title} disabled={!isTruncated}>
+      <Tooltip content={displayTitle} disabled={!isTruncated}>
         <span
           ref={contentRef}
           className={`dv-default-tab-content${isPreview ? " preview-title" : ""}${isDeleted ? " deleted-title" : ""}`}
@@ -270,7 +289,7 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
             </span>
           ))}
           {isDirty && <span className="dvi-dirty-indicator">●</span>}
-          {title}
+          {displayTitle}
         </span>
       </Tooltip>
       {tabIndicators.map((indicator) => (

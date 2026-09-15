@@ -3,8 +3,11 @@
 Add a command to the right-click context menu of a built-in surface — the file-explorer entry, an editor tab, a terminal tab, a link inside a terminal, or a workspace row. Unlike [`registerMenuItem`](/api/registration/register-menu-item) (the menubar), the invoked command receives a typed **target** — which file, which editor, which workspace — as its first argument, and the same target is threaded into the `when` (visibility) and `checked` (toggle checkmark) predicates.
 
 ::: info Surface status
-`"workspace"`, `"terminal/link"`, `"editor/tab"`, and `"terminal/tab"` dispatch
-today (`DockTab` builds a real menu — Rename on terminals, then contributions).
+`"workspace"`, `"terminal/link"`, `"editor/tab"`, `"terminal/tab"`, and
+`"panel/tab"` dispatch today (`DockTab` builds a real menu — Rename… on
+terminals and renamable dock panels, then contributions). `"panel/tab"` fires
+for every Dock Panel Kind's tab, not just one — scope a contribution with
+`when` the same way a `surface: "panel"` toolbar item does.
 `"explorer/item"` remains typed but not yet dispatched (see the
 [Roadmap](/roadmap#context-menus)).
 :::

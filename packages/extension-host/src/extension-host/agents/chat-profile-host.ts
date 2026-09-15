@@ -38,11 +38,22 @@ export function resolveChatProfileHost(
   return kinds.find((k) => k.chatProfileHost === true);
 }
 
-/** The params a chat-profile host is opened with. `title` seeds the tab label
- *  before the agent has declared its own name. */
-export function chatProfileHostParams(profile: {
-  id: string;
-  label: string;
-}): Record<string, unknown> {
-  return { profileId: profile.id, title: profile.label };
+/**
+ * The params a chat-profile host is opened with. `title` seeds the tab label
+ * before the agent has declared its own name; `cwd` is the workspace folder the
+ * user chose to run in (RFC 0046), which the panel is expected to hand to
+ * `connect()` and persist as part of its restore state.
+ *
+ * An empty `cwd` is omitted rather than passed along — a panel falling back to
+ * its workspace's folder is right, while one pinned to `""` is not.
+ */
+export function chatProfileHostParams(
+  profile: { id: string; label: string },
+  cwd?: string,
+): Record<string, unknown> {
+  return {
+    profileId: profile.id,
+    title: profile.label,
+    ...(cwd ? { cwd } : {}),
+  };
 }

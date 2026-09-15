@@ -64,6 +64,7 @@ import {
   panelToReactivateOnClose,
   recordedPanelParamsToRestore,
   resolveActivationTarget,
+  restoredPanelTitle,
   sameParams,
 } from "./dock-helpers";
 import { reconcileRecordedPanels } from "./recorded-panel-reconcile";
@@ -273,7 +274,7 @@ export function WorkspaceDock({
       const panel = api.addPanel({
         id: panelId,
         component: rec.kindId,
-        title: (rec.state.title as string | undefined) ?? rec.kindId,
+        title: restoredPanelTitle(rec),
         params: { ...rec.state },
       });
       panel.api.setActive();

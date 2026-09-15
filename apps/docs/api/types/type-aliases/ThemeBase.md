@@ -4,6 +4,6 @@
 type ThemeBase = "dark" | "light";
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:240](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L240)
+Defined in: [packages/sdk/src/domain-types.ts:252](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L252)
 
 Light or dark theme base.

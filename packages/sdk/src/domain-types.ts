@@ -167,6 +167,18 @@ export interface DockPanelRecord {
    * kind's component as its params when the panel is recreated on restore.
    */
   state: Readonly<Record<string, unknown>>;
+  /**
+   * The name the **user** gave this tab, if any — set from the tab's right-click
+   * menu on a {@link DockPanelKind.renamable | renamable} kind, cleared by
+   * renaming to an empty string.
+   *
+   * Host-owned, and deliberately a sibling of {@link DockPanelRecord.state}
+   * rather than a key inside it: `state` is the panel kind's own bag, replaced
+   * wholesale from {@link DockPanelApi.updateParameters}, so a panel writing its
+   * own state would eventually erase a host key living there. When set, it wins
+   * over the title the panel reports, both on the tab and on restore.
+   */
+  customTitle?: string;
   /** ISO-8601 timestamp of when the panel was first opened. */
   createdAt: string;
   /** ISO-8601 timestamp of when the panel was last the active tab. */

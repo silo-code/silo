@@ -130,6 +130,50 @@ export function recordedPanelParamsToRestore(
   return sameParams(recordState, panelParams) ? null : { ...recordState };
 }
 
+/**
+ * The tab label a recorded panel comes back with. A user's name outranks the
+ * title the panel last reported, which outranks the kind id as a last resort —
+ * so a renamed tab is renamed the moment it reappears, not after the panel has
+ * reconnected and retitled itself.
+ */
+export function restoredPanelTitle(rec: {
+  kindId: string;
+  customTitle?: string;
+  state: Readonly<Record<string, unknown>>;
+}): string {
+  return (
+    rec.customTitle ?? (rec.state.title as string | undefined) ?? rec.kindId
+  );
+}
+
+/**
+ * The user-set name for the panel a dockview tab is showing, or `undefined`.
+ *
+ * Searched across every workspace rather than the active one: a background
+ * workspace keeps its dock mounted, so a tab asking this question is not
+ * necessarily in the workspace the user is standing in. Record ids are unique
+ * app-wide, so the search cannot land on the wrong panel.
+ */
+export function customTitleForPanelId(
+  panelId: string,
+  workspaces: Readonly<
+    Record<
+      string,
+      { panels: readonly { id: string; customTitle?: string }[] } | undefined
+    >
+  >,
+): string | undefined {
+  const i = panelId.indexOf(":");
+  if (i <= 0) return undefined;
+  const recordId = panelId.slice(i + 1);
+  if (!recordId) return undefined;
+  for (const ws of Object.values(workspaces)) {
+    const hit = ws?.panels.find((p) => p.id === recordId);
+    if (hit) return hit.customTitle;
+  }
+  return undefined;
+}
+
 /** Shallow equality over two panel-state bags — the gate on both directions of
  *  the record ↔ params sync, so an unchanged panel writes nothing. */
 export function sameParams(
