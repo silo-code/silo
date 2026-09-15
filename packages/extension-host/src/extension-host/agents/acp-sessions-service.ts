@@ -597,29 +597,14 @@ export function createAgentSessionsService(
             respond({ outcome: "cancelled" });
             return;
           }
-          // A blocked turn wants attention on the same terms a finished one
-          // does: only if nobody is looking at this session's surface. The
-          // user staring at the permission row does not need to be told.
-          if (getActiveAgentSession() !== infoId) {
-            patchChatAgent(infoId, {
-              needsAttention: true,
-              attentionSince: nowIso(),
-            });
-          }
           // No extension listener → answer cancelled so the agent isn't hung.
-          // The pending turn still resolves and re-evaluates attention.
           if (permissionListeners.size === 0) {
             respond({ outcome: "cancelled" });
             return;
           }
-          // Unlike `needsAttention` above, `activity: "blocked"` is
-          // unconditional — it should read "waiting on you" even on the
-          // session you're already looking at. A turn that ends before this
-          // resolves (error, cancel, dropped connection) still gets
-          // corrected: `finishTurn` below patches `activity` again as part
-          // of ending the turn, superseding whatever this left behind.
-          patchChatAgent(infoId, { activity: "blocked" });
+          let answered = false;
           const sdkReq = toSdkPermission(request, (outcome) => {
+            answered = true;
             respond(outcome);
             patchChatAgent(infoId, {
               needsAttention: false,
@@ -636,6 +621,28 @@ export function createAgentSessionsService(
               );
             }
           }
+          // A listener (e.g. a chat panel's Auto Accept) may have answered
+          // synchronously above — that isn't a turn blocked on the user, so
+          // it must not raise the attention/sound chrome below at all. Only
+          // a request still pending once every listener has run is genuinely
+          // waiting on a human.
+          if (answered) return;
+          // A blocked turn wants attention on the same terms a finished one
+          // does: only if nobody is looking at this session's surface. The
+          // user staring at the permission row does not need to be told.
+          if (getActiveAgentSession() !== infoId) {
+            patchChatAgent(infoId, {
+              needsAttention: true,
+              attentionSince: nowIso(),
+            });
+          }
+          // Unlike `needsAttention` above, `activity: "blocked"` is
+          // unconditional — it should read "waiting on you" even on the
+          // session you're already looking at. A turn that ends before this
+          // resolves (error, cancel, dropped connection) still gets
+          // corrected: `finishTurn` below patches `activity` again as part
+          // of ending the turn, superseding whatever this left behind.
+          patchChatAgent(infoId, { activity: "blocked" });
         },
         onClosed() {
           if (disposed) return;
