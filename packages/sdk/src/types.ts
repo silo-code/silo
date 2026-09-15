@@ -34,6 +34,7 @@ import type { ProcessService } from "./process-service";
 import type { ProcessesService } from "./processes-service";
 import type { AgentsService } from "./agents-service";
 import type { TerminalService } from "./terminal-service";
+import type { PanelService } from "./panel-service";
 import type { FileService } from "./file-service";
 import type { SearchService } from "./search-service";
 import type { ThemeService, ThemePreset } from "./theme-service";
@@ -686,7 +687,14 @@ export interface NavigatorView {
  * @public
  */
 export interface DockPanelKind<T extends object = Record<string, unknown>> {
-  /** Unique id for this panel kind. */
+  /**
+   * Unique id for this panel kind. Must not contain `:` — the host composes a
+   * recorded panel's dockview id from the kind id and the record id separated
+   * by a colon, and splits on the first colon to recover the kind, so a kind id
+   * carrying its own colon would not survive the round trip. That composed id
+   * is host-owned: read it from {@link DockPanelRecord.panelId} rather than
+   * building or parsing it yourself.
+   */
   id: string;
   /** The React component that renders this panel; receives {@link DockPanelProps}. */
   component: React.ComponentType<DockPanelProps<T>>;
@@ -1027,6 +1035,15 @@ export interface ExtensionContext {
    * {@link ExtensionContext.process}.
    */
   readonly terminals: TerminalService;
+  /**
+   * Tab chrome (icon / highlight / indicator / activity) for a dock panel tab
+   * of any {@link DockPanelKind} — the Chat transcript, a web viewer, a
+   * third-party panel. The same {@link TabAdornmentMethods} contract
+   * {@link ExtensionContext.editors} and {@link ExtensionContext.terminals}
+   * offer for their own kind, so a panel tab isn't a special case. See
+   * {@link PanelService}.
+   */
+  readonly panels: PanelService;
   /**
    * Host-mediated filesystem access — read / write / list / watch, all routed
    * through the host rather than raw Tauri. The single privileged chokepoint

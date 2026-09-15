@@ -1,6 +1,6 @@
 # Interface: ExtensionContext
 
-Defined in: [packages/sdk/src/types.ts:882](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L882)
+Defined in: [packages/sdk/src/types.ts:890](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L890)
 
 The object handed to [Extension.activate](Extension.md#activate). It is the *only* sanctioned
 way an extension touches the running app: register contributions, invoke
@@ -16,7 +16,7 @@ commands, and read/drive state through the typed consumer services. Every
 readonly extensionId: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:884](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L884)
+Defined in: [packages/sdk/src/types.ts:892](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L892)
 
 The activating extension's id (its [Extension.id](Extension.md#id)).
 
@@ -28,7 +28,7 @@ The activating extension's id (its [Extension.id](Extension.md#id)).
 readonly subscriptions: Disposable[];
 ```
 
-Defined in: [packages/sdk/src/types.ts:886](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L886)
+Defined in: [packages/sdk/src/types.ts:894](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L894)
 
 Disposables tracked for this extension; the host disposes them on teardown.
 
@@ -40,7 +40,7 @@ Disposables tracked for this extension; the host disposes them on teardown.
 readonly storage: ExtensionStorageScopes;
 ```
 
-Defined in: [packages/sdk/src/types.ts:902](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L902)
+Defined in: [packages/sdk/src/types.ts:910](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L910)
 
 Persisted, per-extension key/value storage, in two scopes
 ([ExtensionStorageScopes](ExtensionStorageScopes.md)): `global` (shared across all workspaces —
@@ -64,7 +64,7 @@ scope keyed by panel id, for panel-local UI state.)
 readonly workspaces: WorkspaceService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:985](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L985)
+Defined in: [packages/sdk/src/types.ts:993](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L993)
 
 Consumer API for driving workspace state — create, rename, reorder,
 activate, soft close/reopen, and hard delete. Subscribe to a frozen
@@ -78,7 +78,7 @@ state for read access without depending on Valtio.
 readonly editors: EditorService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:991](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L991)
+Defined in: [packages/sdk/src/types.ts:999](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L999)
 
 The editor & document domain — open files into editor tabs, drive the
 active editor (save / close), and register editor save handlers. Opening
@@ -92,7 +92,7 @@ editors lives here, not on [ExtensionContext.workspaces](#workspaces).
 readonly layout: LayoutService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:997](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L997)
+Defined in: [packages/sdk/src/types.ts:1005](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1005)
 
 Consumer API for app layout — side-panel collapse state. Read via
 getState/useServiceState/subscribe; drive via toggleSidePanel /
@@ -106,7 +106,7 @@ setSidePanelCollapsed.
 readonly process: ProcessService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1003](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1003)
+Defined in: [packages/sdk/src/types.ts:1011](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1011)
 
 Persistent process / PTY sessions that **survive app restarts** — the core
 primitive under the terminal (and future task runners, REPLs). Spawn or
@@ -120,7 +120,7 @@ re-attach a session and drive it via the returned `ProcessSession`.
 readonly processes: ProcessesService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1011](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1011)
+Defined in: [packages/sdk/src/types.ts:1019](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1019)
 
 Workspace process observability — a live view of what is running in each
 terminal, with optional CPU/memory stats and a surgical kill that leaves the
@@ -136,7 +136,7 @@ See [ProcessesService](ProcessesService.md) for the full API.
 readonly agents: AgentsService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1021](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1021)
+Defined in: [packages/sdk/src/types.ts:1029](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1029)
 
 Host-computed coding-agent activity and resume-identity observability —
 a live, read-only view of what each terminal's agent is doing
@@ -154,7 +154,7 @@ registration API. **@beta** — the shape may still change. See
 readonly terminals: TerminalService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1029](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1029)
+Defined in: [packages/sdk/src/types.ts:1037](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1037)
 
 Consumer API for the terminal domain — open a terminal tab in a workspace
 (`create`) or reap a workspace's terminals (`closeWorkspace`). The terminal
@@ -164,13 +164,30 @@ from the workspace's records, and PTY sessions live on
 
 ***
 
+### panels
+
+```ts
+readonly panels: PanelService;
+```
+
+Defined in: [packages/sdk/src/types.ts:1046](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1046)
+
+Tab chrome (icon / highlight / indicator / activity) for a dock panel tab
+of any [DockPanelKind](DockPanelKind.md) — the Chat transcript, a web viewer, a
+third-party panel. The same [TabAdornmentMethods](TabAdornmentMethods.md) contract
+[ExtensionContext.editors](#editors) and [ExtensionContext.terminals](#terminals)
+offer for their own kind, so a panel tab isn't a special case. See
+[PanelService](PanelService.md).
+
+***
+
 ### files
 
 ```ts
 readonly files: FileService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1035](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1035)
+Defined in: [packages/sdk/src/types.ts:1052](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1052)
 
 Host-mediated filesystem access — read / write / list / watch, all routed
 through the host rather than raw Tauri. The single privileged chokepoint
@@ -184,7 +201,7 @@ for the filesystem; watcher lifecycle is host-owned (see [FileService](FileServi
 readonly search: SearchService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1042](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1042)
+Defined in: [packages/sdk/src/types.ts:1059](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1059)
 
 Cross-file content search over the workspace — the core primitive under the
 Search panel (and future quick-open / find-references). Runs a native search
@@ -199,7 +216,7 @@ with matches grouped by file. See [SearchService](SearchService.md).
 readonly theme: ThemeService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1049](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1049)
+Defined in: [packages/sdk/src/types.ts:1066](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1066)
 
 Consumer API for the theme domain — read the merged preset set + active
 theme, switch themes, and manage custom themes. Read via getState /
@@ -214,7 +231,7 @@ subscribe; contribute a new preset via
 readonly dnd: DndService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1056](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1056)
+Defined in: [packages/sdk/src/types.ts:1073](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1073)
 
 Drag-and-drop — be a drag source ([DndService.beginDrag](DndService.md#begindrag)) and a drop
 target ([DndService.registerDropTarget](DndService.md#registerdroptarget)), with typed payloads
@@ -229,7 +246,7 @@ drag affordance and the modifier-mode resolution.
 readonly ui: UiService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1063](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1063)
+Defined in: [packages/sdk/src/types.ts:1080](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1080)
 
 User-interaction — the only sanctioned way to talk to the user (the host
 renders the chrome). Native file/folder pickers ([UiService.pickFolder](UiService.md#pickfolder),
@@ -244,7 +261,7 @@ notifications ([UiService.notify](UiService.md#notify)). Mirrors VS Code's `wind
 readonly net: NetworkService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1071](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1071)
+Defined in: [packages/sdk/src/types.ts:1088](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1088)
 
 Server-side HTTP client — makes requests from the Rust backend, bypassing
 the browser's CORS policy. Use when browser `fetch` is insufficient:
@@ -260,7 +277,7 @@ loading a URL. See [NetworkService](NetworkService.md) for the full API.
 readonly webview: WebviewService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1078](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1078)
+Defined in: [packages/sdk/src/types.ts:1095](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1095)
 
 Real DOM access, navigation control, and native pixel capture inside an
 `<iframe>` you own — including cross-origin content the browser's
@@ -275,7 +292,7 @@ same-origin policy would otherwise fully sandbox. Requires the
 readonly system: SystemService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1086](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1086)
+Defined in: [packages/sdk/src/types.ts:1103](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1103)
 
 Static host-platform metadata — the OS, CPU architecture, and running Silo
 version. Values are baked into the binary at build time and never change
@@ -291,7 +308,7 @@ See [SystemService](SystemService.md) for the full API.
 readonly log: LogService;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1099](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1099)
+Defined in: [packages/sdk/src/types.ts:1116](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1116)
 
 Write-only structured logger scoped to this extension. Entries appear in
 the **Output** panel under the extension's display name. A channel is
@@ -312,7 +329,7 @@ ctx.log.show(); // open the Output panel, select this extension's channel
 registerEditor(editor): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:904](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L904)
+Defined in: [packages/sdk/src/types.ts:912](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L912)
 
 Register an [Editor](Editor.md) (a presenter for a file type's editor tab).
 
@@ -334,7 +351,7 @@ Register an [Editor](Editor.md) (a presenter for a file type's editor tab).
 registerFileType(type): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:906](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L906)
+Defined in: [packages/sdk/src/types.ts:914](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L914)
 
 Register a [FileType](FileType.md) (declarative file metadata).
 
@@ -356,7 +373,7 @@ Register a [FileType](FileType.md) (declarative file metadata).
 registerCommand(cmd): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:908](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L908)
+Defined in: [packages/sdk/src/types.ts:916](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L916)
 
 Register a [Command](Command.md) (a named, invokable action).
 
@@ -378,7 +395,7 @@ Register a [Command](Command.md) (a named, invokable action).
 registerMenuItem(item): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:910](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L910)
+Defined in: [packages/sdk/src/types.ts:918](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L918)
 
 Register a [MenuItemContribution](MenuItemContribution.md) (place a command in a menu).
 
@@ -400,7 +417,7 @@ Register a [MenuItemContribution](MenuItemContribution.md) (place a command in a
 registerContextMenuItem<S>(item): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:916](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L916)
+Defined in: [packages/sdk/src/types.ts:924](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L924)
 
 Register a [ContextMenuContribution](ContextMenuContribution.md) (add a command to a built-in
 surface's right-click context menu). The invoked command receives the
@@ -430,7 +447,7 @@ surface's [MenuContext](MenuContext.md) target as its first argument.
 registerToolbarItem<S>(item): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:928](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L928)
+Defined in: [packages/sdk/src/types.ts:936](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L936)
 
 Register a [ToolbarItemContribution](../type-aliases/ToolbarItemContribution.md) (icon-only, text-only,
 icon+text, or dropdown) in the trailing cluster of a host-drawn toolbar —
@@ -464,7 +481,7 @@ is on. See [ExtensionContext.invalidateToolbarItems](#invalidatetoolbaritems).
 invalidateToolbarItems(): void;
 ```
 
-Defined in: [packages/sdk/src/types.ts:936](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L936)
+Defined in: [packages/sdk/src/types.ts:944](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L944)
 
 Signal that toolbar-item `when` / `checked` data changed. Causes every
 toolbar surface — the editor breadcrumb, the Navigator header, and every
@@ -482,7 +499,7 @@ dock panel strip — to re-query contributions and re-render.
 registerKeybinding(binding): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:938](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L938)
+Defined in: [packages/sdk/src/types.ts:946](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L946)
 
 Register a [Keybinding](Keybinding.md) (bind a shortcut to a command).
 
@@ -504,7 +521,7 @@ Register a [Keybinding](Keybinding.md) (bind a shortcut to a command).
 registerSidePanel(panel): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:940](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L940)
+Defined in: [packages/sdk/src/types.ts:948](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L948)
 
 Register a [SidePanel](SidePanel.md) (a left/right column panel).
 
@@ -526,7 +543,7 @@ Register a [SidePanel](SidePanel.md) (a left/right column panel).
 registerNavigatorView(view): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:946](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L946)
+Defined in: [packages/sdk/src/types.ts:954](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L954)
 
 Register a [NavigatorView](NavigatorView.md) — a projection the user can switch the
 Navigator panel to. Prefer this over a second side panel when your surface
@@ -550,7 +567,7 @@ is another way to navigate the app.
 registerDockPanelKind<T>(kind): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:952](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L952)
+Defined in: [packages/sdk/src/types.ts:960](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L960)
 
 Register a [DockPanelKind](DockPanelKind.md) (a center-dock tab kind). The params
 generic `T` is inferred from the component's [DockPanelProps](DockPanelProps.md)
@@ -580,7 +597,7 @@ annotation, so kinds with typed params register without casts.
 registerStatusItem(item): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:956](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L956)
+Defined in: [packages/sdk/src/types.ts:964](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L964)
 
 Register a [StatusItem](StatusItem.md) (a status-bar widget).
 
@@ -602,7 +619,7 @@ Register a [StatusItem](StatusItem.md) (a status-bar widget).
 registerSettingsPage(page): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:958](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L958)
+Defined in: [packages/sdk/src/types.ts:966](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L966)
 
 Register a [SettingsPage](SettingsPage.md) (a page in the Settings dialog).
 
@@ -624,7 +641,7 @@ Register a [SettingsPage](SettingsPage.md) (a page in the Settings dialog).
 registerThemePreset(preset): Disposable;
 ```
 
-Defined in: [packages/sdk/src/types.ts:964](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L964)
+Defined in: [packages/sdk/src/types.ts:972](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L972)
 
 Register a [ThemePreset](ThemePreset.md) (a selectable theme in the picker).
 
@@ -651,7 +668,7 @@ Use [ctx.theme.registerPreset()](ThemeService.md#registerpreset) instead.
 executeCommand<T>(id, ...args): Promise<T>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:979](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L979)
+Defined in: [packages/sdk/src/types.ts:987](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L987)
 
 Invoke a registered command by id — including commands contributed by
 other extensions. The minimal "operate" primitive; pairs with the typed
@@ -694,7 +711,7 @@ Expected return type of the command (defaults to `unknown`).
 getExtension<API>(id): ExtensionHandle<API> | undefined;
 ```
 
-Defined in: [packages/sdk/src/types.ts:1113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1113)
+Defined in: [packages/sdk/src/types.ts:1130](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L1130)
 
 Resolve a handle to another extension in order to consume the API it
 published (the value its [Extension.activate](Extension.md#activate) returned). This is how

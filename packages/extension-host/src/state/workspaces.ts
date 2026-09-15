@@ -3,6 +3,7 @@ import { basename } from "@tauri-apps/api/path";
 import { path } from "@silo-code/sdk";
 import { store } from "./store";
 import { clearEditorBackup } from "./editor-backups";
+import { recordedPanelId } from "./recorded-panel-id";
 import {
   applyPanelState,
   capturePanelState,
@@ -779,6 +780,7 @@ export function addPanelRecord(
   const now = new Date().toISOString();
   const rec: DockPanelRecord = {
     id: input.id,
+    panelId: recordedPanelId(input.kindId, input.id),
     kindId: input.kindId,
     workspaceId,
     state: { ...(input.state ?? {}) },

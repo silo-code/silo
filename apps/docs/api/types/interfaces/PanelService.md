@@ -1,16 +1,26 @@
-# Interface: TabAdornmentMethods
+# Interface: PanelService
 
-Defined in: [packages/sdk/src/tab-adornment.ts:228](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L228)
+Defined in: [packages/sdk/src/panel-service.ts:26](https://github.com/silo-code/silo/blob/main/packages/sdk/src/panel-service.ts#L26)
 
-Shared adorn verbs for CenterDock editor and terminal tabs. Implemented by
-[EditorService](EditorService.md) and [TerminalService](TerminalService.md) (target id is the editor
-or terminal session id respectively).
+Tab-chrome verbs for a dock panel tab of any [DockPanelKind](DockPanelKind.md) — the
+bundled Chat transcript, a web viewer, a third-party panel. Target id is
+the panel's own dockview id — the same string a `"panel/tab"` context-menu
+hit or a `"panel"` toolbar hit carries as `panelId`.
 
-## Extended by
+Parallel to [EditorService](EditorService.md) / [TerminalService](TerminalService.md), which offer
+the same [TabAdornmentMethods](TabAdornmentMethods.md) scoped to their own kind — a panel tab
+is a first-class third citizen for icon/highlight/indicator/activity
+chrome, not a special case extensions have to work around.
 
-- [`EditorService`](EditorService.md)
-- [`PanelService`](PanelService.md)
-- [`TerminalService`](TerminalService.md)
+To enumerate a workspace's recorded panels rather than adorn one you were
+already handed, read [Workspace.panels](Workspace.md#panels) and take each entry's
+[DockPanelRecord.panelId](DockPanelRecord.md#panelid) — that field is the id these methods want.
+Don't compose it from [DockPanelRecord.id](DockPanelRecord.md#id) and
+[DockPanelRecord.kindId](DockPanelRecord.md#kindid): the format is host-owned and may change.
+
+## Extends
+
+- [`TabAdornmentMethods`](TabAdornmentMethods.md)
 
 ## Methods
 
@@ -36,6 +46,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:229](https://github.com/silo-code
 
 `void`
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setIcon`](TabAdornmentMethods.md#seticon)
+
 ***
 
 ### clearIcon()
@@ -60,6 +74,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:230](https://github.com/silo-code
 
 `void`
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearIcon`](TabAdornmentMethods.md#clearicon)
+
 ***
 
 ### bindIcon()
@@ -79,6 +97,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:231](https://github.com/silo-code
 #### Returns
 
 [`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindIcon`](TabAdornmentMethods.md#bindicon)
 
 ***
 
@@ -104,6 +126,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:233](https://github.com/silo-code
 
 `void`
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setHighlight`](TabAdornmentMethods.md#sethighlight)
+
 ***
 
 ### clearHighlight()
@@ -128,6 +154,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:234](https://github.com/silo-code
 
 `void`
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearHighlight`](TabAdornmentMethods.md#clearhighlight)
+
 ***
 
 ### bindHighlight()
@@ -147,6 +177,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:235](https://github.com/silo-code
 #### Returns
 
 [`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindHighlight`](TabAdornmentMethods.md#bindhighlight)
 
 ***
 
@@ -172,6 +206,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:237](https://github.com/silo-code
 
 `void`
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setIndicator`](TabAdornmentMethods.md#setindicator)
+
 ***
 
 ### clearIndicator()
@@ -195,6 +233,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:238](https://github.com/silo-code
 #### Returns
 
 `void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearIndicator`](TabAdornmentMethods.md#clearindicator)
 
 ***
 
@@ -220,6 +262,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:239](https://github.com/silo-code
 
 `void`
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`flashIndicator`](TabAdornmentMethods.md#flashindicator)
+
 ***
 
 ### bindIndicator()
@@ -239,6 +285,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:240](https://github.com/silo-code
 #### Returns
 
 [`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindIndicator`](TabAdornmentMethods.md#bindindicator)
 
 ***
 
@@ -264,6 +314,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:242](https://github.com/silo-code
 
 `void`
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`setActivity`](TabAdornmentMethods.md#setactivity)
+
 ***
 
 ### clearActivity()
@@ -287,6 +341,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:243](https://github.com/silo-code
 #### Returns
 
 `void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`clearActivity`](TabAdornmentMethods.md#clearactivity)
 
 ***
 
@@ -312,6 +370,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:244](https://github.com/silo-code
 
 `void`
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`flashActivity`](TabAdornmentMethods.md#flashactivity)
+
 ***
 
 ### bindActivity()
@@ -331,6 +393,10 @@ Defined in: [packages/sdk/src/tab-adornment.ts:245](https://github.com/silo-code
 #### Returns
 
 [`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`bindActivity`](TabAdornmentMethods.md#bindactivity)
 
 ***
 
@@ -353,6 +419,10 @@ All leading icons for `targetId`, in set/bind order.
 #### Returns
 
 [`TabIconAdornment`](TabIconAdornment.md)[]
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getIcons`](TabAdornmentMethods.md#geticons)
 
 ***
 
@@ -377,6 +447,10 @@ applies — first found across `set`/`bind` order.
 
 [`TabHighlightAdornment`](TabHighlightAdornment.md) \| `null`
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getHighlight`](TabAdornmentMethods.md#gethighlight)
+
 ***
 
 ### getIndicators()
@@ -398,6 +472,10 @@ All trailing indicators for `targetId`, in set/bind/flash order.
 #### Returns
 
 [`TabIndicatorAdornment`](TabIndicatorAdornment.md)[]
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getIndicators`](TabAdornmentMethods.md#getindicators)
 
 ***
 
@@ -421,6 +499,10 @@ All trailing activities for `targetId`, in set/bind/flash order.
 
 [`TabActivityAdornment`](TabActivityAdornment.md)[]
 
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`getActivities`](TabAdornmentMethods.md#getactivities)
+
 ***
 
 ### invalidateTabAdornments()
@@ -436,6 +518,10 @@ Signal that binder data changed — re-query `provide` and re-render.
 #### Returns
 
 `void`
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`invalidateTabAdornments`](TabAdornmentMethods.md#invalidatetabadornments)
 
 ***
 
@@ -456,3 +542,7 @@ Defined in: [packages/sdk/src/tab-adornment.ts:260](https://github.com/silo-code
 #### Returns
 
 [`Disposable`](Disposable.md)
+
+#### Inherited from
+
+[`TabAdornmentMethods`](TabAdornmentMethods.md).[`subscribeTabAdornments`](TabAdornmentMethods.md#subscribetabadornments)

@@ -33,6 +33,11 @@ owner-only.
    - `ctx.editors.setIcon` / `clearIcon` / `bindIcon` and
      `setIndicator` / `clearIndicator` / `flashIndicator` / `bindIndicator`
    - `ctx.terminals` mirrors the same verbs for session ids
+   - `ctx.panels` mirrors them again for a dock panel tab of **any**
+     `DockPanelKind` — keyed on the panel's own id (`DockPanelRecord.panelId`),
+     not on a record id, so a transient panel is adornable too. (Amended by
+     RFC 0046; a third target joined the two above — the decision that adorn
+     verbs live on the existing domain services is unchanged.)
 4. **Leading icon** = `ReactNode` (app artwork). **Trailing** chrome on
    CenterDock tabs is either a **static Phosphor indicator** (optional chip /
    filled / color) or a host-owned **Activity** ([ADR 0030](./0030-activity-chrome.md))
@@ -78,4 +83,6 @@ owner-only.
   wording for toolbar + tab chrome)
 - [RFC 0022](../proposals/0022-side-panel-tab-adornments.md) (side-panel owner
   handle — draft)
+- [RFC 0046](../proposals/0046-generic-dock-panel-tabs.md) (`ctx.panels` as the
+  third CenterDock adorn target)
 - ADR 0002 (imperative registration)

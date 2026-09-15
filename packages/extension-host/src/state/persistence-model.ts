@@ -9,6 +9,7 @@
 // panel-state merge, and the write/delete reconciliation.
 
 import { cloneTrees } from "./side-dock-tree";
+import { recordedPanelId } from "./recorded-panel-id";
 import type {
   AgentProfile,
   AgentProfileLaunch,
@@ -480,15 +481,28 @@ export function withActiveNonGlobalPanelState(
 }
 
 /**
- * Bring a workspace record loaded from disk up to the current shape. Today this
- * only fills in {@link WorkspaceInternal.panels} (RFC 0041) — absent from every
- * file written before it — so callers can iterate it unconditionally, the same
- * guarantee `terminals` / `editors` already give. Mutates and returns `ws`.
+ * Bring a workspace record loaded from disk up to the current shape. Mutates
+ * and returns `ws`. Two fixes, both about {@link WorkspaceInternal.panels}
+ * (RFC 0041):
+ *
+ * 1. Fill in the list itself — absent from every file written before RFC 0041 —
+ *    so callers can iterate it unconditionally, the same guarantee
+ *    `terminals` / `editors` already give.
+ * 2. **Restamp** every record's `panelId`. It rides along to disk because a
+ *    record is persisted whole, but the stored copy is never authoritative:
+ *    recomputing it on load is what keeps the dockview id format host-owned, so
+ *    changing it takes effect for records written by any older version rather
+ *    than stranding them on a stale string.
  */
 export function normalizeLoadedWorkspace(
   ws: WorkspaceInternal,
 ): WorkspaceInternal {
   if (!Array.isArray(ws.panels)) ws.panels = [];
+  else
+    ws.panels = ws.panels.map((p) => ({
+      ...p,
+      panelId: recordedPanelId(p.kindId, p.id),
+    }));
   return ws;
 }
 

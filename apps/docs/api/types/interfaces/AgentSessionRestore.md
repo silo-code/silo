@@ -1,6 +1,6 @@
 # Interface: AgentSessionRestore
 
-Defined in: [packages/sdk/src/agents-service.ts:1254](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1254)
+Defined in: [packages/sdk/src/agents-service.ts:1269](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1269)
 
 **`Beta`**
 
@@ -15,7 +15,7 @@ session resurrection (RFC 0042).
 sessionId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1259](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1259)
+Defined in: [packages/sdk/src/agents-service.ts:1274](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1274)
 
 **`Beta`**
 
@@ -29,7 +29,7 @@ The session id to reconnect — an earlier connection's [AgentSessionHandle.sess
 optional startFresh?: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1273](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1273)
+Defined in: [packages/sdk/src/agents-service.ts:1288](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1288)
 
 **`Beta`**
 

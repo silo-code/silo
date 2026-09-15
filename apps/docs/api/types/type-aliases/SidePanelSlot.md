@@ -4,7 +4,7 @@
 type SidePanelSlot = "left" | "right" | "left-bottom" | "right-bottom";
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:204](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L204)
+Defined in: [packages/sdk/src/domain-types.ts:222](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L222)
 
 The four fixed slots a side dock used to divide into.
 

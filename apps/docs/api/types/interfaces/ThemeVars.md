@@ -1,6 +1,6 @@
 # Interface: ThemeVars
 
-Defined in: [packages/sdk/src/domain-types.ts:266](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L266)
+Defined in: [packages/sdk/src/domain-types.ts:284](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L284)
 
 The full theme-override surface, in type form: every `--silo-*` token a theme
 preset's `vars` may recolor. Per the theming contract it spans **the design
@@ -21,7 +21,7 @@ docs/architecture-audit/theming-contract.md
 --silo-color-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:268](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L268)
+Defined in: [packages/sdk/src/domain-types.ts:286](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L286)
 
 ***
 
@@ -31,7 +31,7 @@ Defined in: [packages/sdk/src/domain-types.ts:268](https://github.com/silo-code/
 --silo-color-bg-hover: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:269](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L269)
+Defined in: [packages/sdk/src/domain-types.ts:287](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L287)
 
 ***
 
@@ -41,7 +41,7 @@ Defined in: [packages/sdk/src/domain-types.ts:269](https://github.com/silo-code/
 --silo-color-bg-active: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:270](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L270)
+Defined in: [packages/sdk/src/domain-types.ts:288](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L288)
 
 ***
 
@@ -51,7 +51,7 @@ Defined in: [packages/sdk/src/domain-types.ts:270](https://github.com/silo-code/
 --silo-color-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:271](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L271)
+Defined in: [packages/sdk/src/domain-types.ts:289](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L289)
 
 ***
 
@@ -61,7 +61,7 @@ Defined in: [packages/sdk/src/domain-types.ts:271](https://github.com/silo-code/
 --silo-color-text-hi: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:272](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L272)
+Defined in: [packages/sdk/src/domain-types.ts:290](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L290)
 
 ***
 
@@ -71,7 +71,7 @@ Defined in: [packages/sdk/src/domain-types.ts:272](https://github.com/silo-code/
 --silo-color-text-lo: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:273](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L273)
+Defined in: [packages/sdk/src/domain-types.ts:291](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L291)
 
 ***
 
@@ -81,7 +81,7 @@ Defined in: [packages/sdk/src/domain-types.ts:273](https://github.com/silo-code/
 --silo-color-accent: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:274](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L274)
+Defined in: [packages/sdk/src/domain-types.ts:292](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L292)
 
 ***
 
@@ -91,7 +91,7 @@ Defined in: [packages/sdk/src/domain-types.ts:274](https://github.com/silo-code/
 --silo-color-accent-2: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:275](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L275)
+Defined in: [packages/sdk/src/domain-types.ts:293](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L293)
 
 ***
 
@@ -101,7 +101,7 @@ Defined in: [packages/sdk/src/domain-types.ts:275](https://github.com/silo-code/
 --silo-color-border: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:276](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L276)
+Defined in: [packages/sdk/src/domain-types.ts:294](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L294)
 
 ***
 
@@ -111,7 +111,7 @@ Defined in: [packages/sdk/src/domain-types.ts:276](https://github.com/silo-code/
 --silo-color-border-strong: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:277](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L277)
+Defined in: [packages/sdk/src/domain-types.ts:295](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L295)
 
 ***
 
@@ -121,7 +121,7 @@ Defined in: [packages/sdk/src/domain-types.ts:277](https://github.com/silo-code/
 --silo-color-ok: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:278](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L278)
+Defined in: [packages/sdk/src/domain-types.ts:296](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L296)
 
 ***
 
@@ -131,7 +131,7 @@ Defined in: [packages/sdk/src/domain-types.ts:278](https://github.com/silo-code/
 --silo-color-warn: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:279](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L279)
+Defined in: [packages/sdk/src/domain-types.ts:297](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L297)
 
 ***
 
@@ -141,7 +141,7 @@ Defined in: [packages/sdk/src/domain-types.ts:279](https://github.com/silo-code/
 --silo-color-err: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:280](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L280)
+Defined in: [packages/sdk/src/domain-types.ts:298](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L298)
 
 ***
 
@@ -151,7 +151,7 @@ Defined in: [packages/sdk/src/domain-types.ts:280](https://github.com/silo-code/
 --silo-color-input-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:281](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L281)
+Defined in: [packages/sdk/src/domain-types.ts:299](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L299)
 
 ***
 
@@ -161,7 +161,7 @@ Defined in: [packages/sdk/src/domain-types.ts:281](https://github.com/silo-code/
 --silo-color-input-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:282](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L282)
+Defined in: [packages/sdk/src/domain-types.ts:300](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L300)
 
 ***
 
@@ -171,7 +171,7 @@ Defined in: [packages/sdk/src/domain-types.ts:282](https://github.com/silo-code/
 --silo-color-input-border: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:283](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L283)
+Defined in: [packages/sdk/src/domain-types.ts:301](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L301)
 
 ***
 
@@ -181,7 +181,7 @@ Defined in: [packages/sdk/src/domain-types.ts:283](https://github.com/silo-code/
 --silo-color-button-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:284](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L284)
+Defined in: [packages/sdk/src/domain-types.ts:302](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L302)
 
 ***
 
@@ -191,7 +191,7 @@ Defined in: [packages/sdk/src/domain-types.ts:284](https://github.com/silo-code/
 --silo-color-button-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:285](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L285)
+Defined in: [packages/sdk/src/domain-types.ts:303](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L303)
 
 ***
 
@@ -201,7 +201,7 @@ Defined in: [packages/sdk/src/domain-types.ts:285](https://github.com/silo-code/
 --silo-color-toolbar-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:287](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L287)
+Defined in: [packages/sdk/src/domain-types.ts:305](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L305)
 
 ***
 
@@ -211,7 +211,7 @@ Defined in: [packages/sdk/src/domain-types.ts:287](https://github.com/silo-code/
 --silo-color-toolbar-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:288](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L288)
+Defined in: [packages/sdk/src/domain-types.ts:306](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L306)
 
 ***
 
@@ -221,7 +221,7 @@ Defined in: [packages/sdk/src/domain-types.ts:288](https://github.com/silo-code/
 --silo-color-toolbar-text-disabled: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:289](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L289)
+Defined in: [packages/sdk/src/domain-types.ts:307](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L307)
 
 ***
 
@@ -231,7 +231,7 @@ Defined in: [packages/sdk/src/domain-types.ts:289](https://github.com/silo-code/
 --silo-color-toolbar-input-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:290](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L290)
+Defined in: [packages/sdk/src/domain-types.ts:308](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L308)
 
 ***
 
@@ -241,7 +241,7 @@ Defined in: [packages/sdk/src/domain-types.ts:290](https://github.com/silo-code/
 --silo-color-content-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:292](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L292)
+Defined in: [packages/sdk/src/domain-types.ts:310](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L310)
 
 ***
 
@@ -251,7 +251,7 @@ Defined in: [packages/sdk/src/domain-types.ts:292](https://github.com/silo-code/
 --silo-color-content-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:293](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L293)
+Defined in: [packages/sdk/src/domain-types.ts:311](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L311)
 
 ***
 
@@ -261,7 +261,7 @@ Defined in: [packages/sdk/src/domain-types.ts:293](https://github.com/silo-code/
 --silo-button-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:299](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L299)
+Defined in: [packages/sdk/src/domain-types.ts:317](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L317)
 
 ***
 
@@ -271,7 +271,7 @@ Defined in: [packages/sdk/src/domain-types.ts:299](https://github.com/silo-code/
 --silo-button-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:300](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L300)
+Defined in: [packages/sdk/src/domain-types.ts:318](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L318)
 
 ***
 
@@ -281,7 +281,7 @@ Defined in: [packages/sdk/src/domain-types.ts:300](https://github.com/silo-code/
 --silo-button-border: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:301](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L301)
+Defined in: [packages/sdk/src/domain-types.ts:319](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L319)
 
 ***
 
@@ -291,7 +291,7 @@ Defined in: [packages/sdk/src/domain-types.ts:301](https://github.com/silo-code/
 --silo-button-primary-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:302](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L302)
+Defined in: [packages/sdk/src/domain-types.ts:320](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L320)
 
 ***
 
@@ -301,7 +301,7 @@ Defined in: [packages/sdk/src/domain-types.ts:302](https://github.com/silo-code/
 --silo-button-primary-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:303](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L303)
+Defined in: [packages/sdk/src/domain-types.ts:321](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L321)
 
 ***
 
@@ -311,7 +311,7 @@ Defined in: [packages/sdk/src/domain-types.ts:303](https://github.com/silo-code/
 --silo-button-danger-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:304](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L304)
+Defined in: [packages/sdk/src/domain-types.ts:322](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L322)
 
 ***
 
@@ -321,7 +321,7 @@ Defined in: [packages/sdk/src/domain-types.ts:304](https://github.com/silo-code/
 --silo-button-danger-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:305](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L305)
+Defined in: [packages/sdk/src/domain-types.ts:323](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L323)
 
 ***
 
@@ -331,7 +331,7 @@ Defined in: [packages/sdk/src/domain-types.ts:305](https://github.com/silo-code/
 optional --silo-font-ui?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:307](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L307)
+Defined in: [packages/sdk/src/domain-types.ts:325](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L325)
 
 ***
 
@@ -341,7 +341,7 @@ Defined in: [packages/sdk/src/domain-types.ts:307](https://github.com/silo-code/
 optional --silo-font-mono?: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:308](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L308)
+Defined in: [packages/sdk/src/domain-types.ts:326](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L326)
 
 ***
 
@@ -351,7 +351,7 @@ Defined in: [packages/sdk/src/domain-types.ts:308](https://github.com/silo-code/
 --silo-content-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:310](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L310)
+Defined in: [packages/sdk/src/domain-types.ts:328](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L328)
 
 ***
 
@@ -361,7 +361,7 @@ Defined in: [packages/sdk/src/domain-types.ts:310](https://github.com/silo-code/
 --silo-content-terminal-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:311](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L311)
+Defined in: [packages/sdk/src/domain-types.ts:329](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L329)
 
 ***
 
@@ -371,7 +371,7 @@ Defined in: [packages/sdk/src/domain-types.ts:311](https://github.com/silo-code/
 --silo-content-editor-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:312](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L312)
+Defined in: [packages/sdk/src/domain-types.ts:330](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L330)
 
 ***
 
@@ -381,7 +381,7 @@ Defined in: [packages/sdk/src/domain-types.ts:312](https://github.com/silo-code/
 --silo-content-editor-selection: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:313](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L313)
+Defined in: [packages/sdk/src/domain-types.ts:331](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L331)
 
 ***
 
@@ -391,7 +391,7 @@ Defined in: [packages/sdk/src/domain-types.ts:313](https://github.com/silo-code/
 --silo-content-editor-selection-inactive: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:314](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L314)
+Defined in: [packages/sdk/src/domain-types.ts:332](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L332)
 
 ***
 
@@ -401,7 +401,7 @@ Defined in: [packages/sdk/src/domain-types.ts:314](https://github.com/silo-code/
 --silo-content-editor-text-dim: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:315](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L315)
+Defined in: [packages/sdk/src/domain-types.ts:333](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L333)
 
 ***
 
@@ -411,7 +411,7 @@ Defined in: [packages/sdk/src/domain-types.ts:315](https://github.com/silo-code/
 --silo-content-editor-text-faint: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:316](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L316)
+Defined in: [packages/sdk/src/domain-types.ts:334](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L334)
 
 ***
 
@@ -421,7 +421,7 @@ Defined in: [packages/sdk/src/domain-types.ts:316](https://github.com/silo-code/
 --silo-content-tab-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:317](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L317)
+Defined in: [packages/sdk/src/domain-types.ts:335](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L335)
 
 ***
 
@@ -431,7 +431,7 @@ Defined in: [packages/sdk/src/domain-types.ts:317](https://github.com/silo-code/
 --silo-content-tab-tray-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:318](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L318)
+Defined in: [packages/sdk/src/domain-types.ts:336](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L336)
 
 ***
 
@@ -441,7 +441,7 @@ Defined in: [packages/sdk/src/domain-types.ts:318](https://github.com/silo-code/
 --silo-content-tab-tray-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:319](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L319)
+Defined in: [packages/sdk/src/domain-types.ts:337](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L337)
 
 ***
 
@@ -451,7 +451,7 @@ Defined in: [packages/sdk/src/domain-types.ts:319](https://github.com/silo-code/
 --silo-content-tab-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:320](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L320)
+Defined in: [packages/sdk/src/domain-types.ts:338](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L338)
 
 ***
 
@@ -461,7 +461,7 @@ Defined in: [packages/sdk/src/domain-types.ts:320](https://github.com/silo-code/
 --silo-content-tab-text-inactive: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:321](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L321)
+Defined in: [packages/sdk/src/domain-types.ts:339](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L339)
 
 ***
 
@@ -471,7 +471,7 @@ Defined in: [packages/sdk/src/domain-types.ts:321](https://github.com/silo-code/
 --silo-content-tab-text-active: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:322](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L322)
+Defined in: [packages/sdk/src/domain-types.ts:340](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L340)
 
 ***
 
@@ -481,7 +481,7 @@ Defined in: [packages/sdk/src/domain-types.ts:322](https://github.com/silo-code/
 --silo-statusbar-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:324](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L324)
+Defined in: [packages/sdk/src/domain-types.ts:342](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L342)
 
 ***
 
@@ -491,7 +491,7 @@ Defined in: [packages/sdk/src/domain-types.ts:324](https://github.com/silo-code/
 --silo-statusbar-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:325](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L325)
+Defined in: [packages/sdk/src/domain-types.ts:343](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L343)
 
 ***
 
@@ -501,7 +501,7 @@ Defined in: [packages/sdk/src/domain-types.ts:325](https://github.com/silo-code/
 --silo-statusbar-bg-hover: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:326](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L326)
+Defined in: [packages/sdk/src/domain-types.ts:344](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L344)
 
 ***
 
@@ -511,7 +511,7 @@ Defined in: [packages/sdk/src/domain-types.ts:326](https://github.com/silo-code/
 --silo-tab-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:328](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L328)
+Defined in: [packages/sdk/src/domain-types.ts:346](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L346)
 
 ***
 
@@ -521,7 +521,7 @@ Defined in: [packages/sdk/src/domain-types.ts:328](https://github.com/silo-code/
 --silo-tab-text-active: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:329](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L329)
+Defined in: [packages/sdk/src/domain-types.ts:347](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L347)
 
 ***
 
@@ -531,7 +531,7 @@ Defined in: [packages/sdk/src/domain-types.ts:329](https://github.com/silo-code/
 --silo-tab-bg-hover: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:330](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L330)
+Defined in: [packages/sdk/src/domain-types.ts:348](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L348)
 
 ***
 
@@ -541,7 +541,7 @@ Defined in: [packages/sdk/src/domain-types.ts:330](https://github.com/silo-code/
 --silo-tab-border-active: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:331](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L331)
+Defined in: [packages/sdk/src/domain-types.ts:349](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L349)
 
 ***
 
@@ -551,7 +551,7 @@ Defined in: [packages/sdk/src/domain-types.ts:331](https://github.com/silo-code/
 --silo-menu-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:333](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L333)
+Defined in: [packages/sdk/src/domain-types.ts:351](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L351)
 
 ***
 
@@ -561,7 +561,7 @@ Defined in: [packages/sdk/src/domain-types.ts:333](https://github.com/silo-code/
 --silo-menu-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:334](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L334)
+Defined in: [packages/sdk/src/domain-types.ts:352](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L352)
 
 ***
 
@@ -571,7 +571,7 @@ Defined in: [packages/sdk/src/domain-types.ts:334](https://github.com/silo-code/
 --silo-menu-item-hover-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:335](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L335)
+Defined in: [packages/sdk/src/domain-types.ts:353](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L353)
 
 ***
 
@@ -581,7 +581,7 @@ Defined in: [packages/sdk/src/domain-types.ts:335](https://github.com/silo-code/
 --silo-menu-border: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:336](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L336)
+Defined in: [packages/sdk/src/domain-types.ts:354](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L354)
 
 ***
 
@@ -591,7 +591,7 @@ Defined in: [packages/sdk/src/domain-types.ts:336](https://github.com/silo-code/
 --silo-modal-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:338](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L338)
+Defined in: [packages/sdk/src/domain-types.ts:356](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L356)
 
 ***
 
@@ -601,7 +601,7 @@ Defined in: [packages/sdk/src/domain-types.ts:338](https://github.com/silo-code/
 --silo-modal-border: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:339](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L339)
+Defined in: [packages/sdk/src/domain-types.ts:357](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L357)
 
 ***
 
@@ -611,7 +611,7 @@ Defined in: [packages/sdk/src/domain-types.ts:339](https://github.com/silo-code/
 --silo-notify-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:341](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L341)
+Defined in: [packages/sdk/src/domain-types.ts:359](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L359)
 
 ***
 
@@ -621,7 +621,7 @@ Defined in: [packages/sdk/src/domain-types.ts:341](https://github.com/silo-code/
 --silo-notify-text: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:342](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L342)
+Defined in: [packages/sdk/src/domain-types.ts:360](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L360)
 
 ***
 
@@ -631,7 +631,7 @@ Defined in: [packages/sdk/src/domain-types.ts:342](https://github.com/silo-code/
 --silo-notify-text-hi: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:343](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L343)
+Defined in: [packages/sdk/src/domain-types.ts:361](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L361)
 
 ***
 
@@ -641,7 +641,7 @@ Defined in: [packages/sdk/src/domain-types.ts:343](https://github.com/silo-code/
 --silo-list-radius: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:345](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L345)
+Defined in: [packages/sdk/src/domain-types.ts:363](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L363)
 
 ***
 
@@ -651,7 +651,7 @@ Defined in: [packages/sdk/src/domain-types.ts:345](https://github.com/silo-code/
 --silo-list-inset: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:346](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L346)
+Defined in: [packages/sdk/src/domain-types.ts:364](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L364)
 
 ***
 
@@ -661,7 +661,7 @@ Defined in: [packages/sdk/src/domain-types.ts:346](https://github.com/silo-code/
 --silo-list-hover-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:347](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L347)
+Defined in: [packages/sdk/src/domain-types.ts:365](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L365)
 
 ***
 
@@ -671,7 +671,7 @@ Defined in: [packages/sdk/src/domain-types.ts:347](https://github.com/silo-code/
 --silo-list-active-bg: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:348](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L348)
+Defined in: [packages/sdk/src/domain-types.ts:366](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L366)
 
 ***
 
@@ -681,6 +681,6 @@ Defined in: [packages/sdk/src/domain-types.ts:348](https://github.com/silo-code/
 --silo-list-active-outline: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:350](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L350)
+Defined in: [packages/sdk/src/domain-types.ts:368](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L368)
 
 Selected-row outline — use a bordered selection instead of (or with) a fill.
