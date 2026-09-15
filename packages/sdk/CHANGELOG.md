@@ -1,5 +1,17 @@
 # @silo-code/sdk
 
+## [0.49.0](https://github.com/silo-code/silo/compare/sdk-v0.48.0...sdk-v0.49.0) (2026-09-15)
+
+
+### Features
+
+* **dock-panels:** generic dock-panel tabs — rename, tab menu, working folder ([#525](https://github.com/silo-code/silo/issues/525)) ([0d3f0ca](https://github.com/silo-code/silo/commit/0d3f0ca345ab80c06a173b5259a77f893f8ed928))
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** abort in-flight ACP handshake on panel close ([#526](https://github.com/silo-code/silo/issues/526)) ([7fde611](https://github.com/silo-code/silo/commit/7fde611d52d67575219c165f54af60654d7876bc))
+
 ## [0.48.0](https://github.com/silo-code/silo/compare/sdk-v0.47.0...sdk-v0.48.0) (2026-09-15)
 
 
