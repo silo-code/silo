@@ -18,6 +18,9 @@ import {
   _resetPanelChromeRegistryForTests,
   getPanelBreadcrumb,
 } from "./panel-chrome-registry";
+import { store } from "../state/store";
+import { addPanelRecord } from "../state/workspaces";
+import type { WorkspaceInternal } from "../state/types";
 
 type DockviewPanelApi = IDockviewPanelProps["api"];
 
@@ -178,6 +181,30 @@ describe("parseRecordedPanelId / recordedPanelId (RFC 0041)", () => {
       kindId: "acp-chat",
       recordId: "a:b",
     });
+  });
+
+  // The public contract behind `DockPanelRecord.panelId`: what an extension
+  // reads off an enumerated record is the very id the host resolves back to
+  // that record. An extension never composes the string, so this round-trip is
+  // the only thing keeping the two ends honest if the format ever changes.
+  it("a record's panelId is the id the host parses back to that record", () => {
+    store.workspaces.w = {
+      id: "w",
+      name: "w",
+      folder: "/ws/w",
+      createdAt: "",
+      lastOpenedAt: "",
+      terminals: [],
+      editors: [],
+      panels: [],
+      dockLayout: null,
+    } as unknown as WorkspaceInternal;
+    const rec = addPanelRecord("w", { id: "rec-123", kindId: "acp-chat" });
+    expect(parseRecordedPanelId(rec.panelId)).toEqual({
+      kindId: "acp-chat",
+      recordId: rec.id,
+    });
+    delete store.workspaces.w;
   });
 });
 

@@ -52,6 +52,7 @@ importing the store or touching the platform directly. Opening files lives on
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`ctx.editors`](/api/editors/)                | open files into editor tabs; `save` / `saveAs` / `closeActive`; `registerSaveHandler`; reactive active-editor state via `getState` / `subscribe` ([`EditorService`](/api/types/interfaces/EditorService))           |
 | [`ctx.terminals`](/api/state/terminals)       | open / reap terminal tabs; tab adornments via `setIndicator` / `bindIndicator` ([`TerminalService`](/api/types/interfaces/TerminalService)); see [tab adornments](/api/state/tab-adornments)                        |
+| [`ctx.panels`](/api/state/panels)             | tab adornments (icon / highlight / indicator / activity) for a dock panel tab of any kind ([`PanelService`](/api/types/interfaces/PanelService)); see [tab adornments](/api/state/tab-adornments)                   |
 | [`ctx.workspaces`](/api/state/workspaces)     | workspaces &amp; editor tabs; status / badges via adorn `set`/`clear`/`bind` ([`WorkspaceService`](/api/types/interfaces/WorkspaceService)); `registerSection` for React sections                                   |
 | [`ctx.layout`](/api/state/layout)             | side-panel collapse state ([`LayoutService`](/api/types/interfaces/LayoutService))                                                                                                                                  |
 | [`ctx.storage`](/api/storage/)                | persisted per-extension key/value storage, `global` &amp; `workspace` scopes ([`ExtensionStorageScopes`](/api/types/interfaces/ExtensionStorageScopes))                                                             |
@@ -72,12 +73,12 @@ importing the store or touching the platform directly. Opening files lives on
 ## Chrome
 
 Pin ephemeral signals onto host chrome (not a `ctx.*` service of its own —
-verbs live on `ctx.editors` / `ctx.terminals` / `ctx.workspaces`).
+verbs live on `ctx.editors` / `ctx.terminals` / `ctx.panels` / `ctx.workspaces`).
 
-| Topic                                            | Purpose                                                                             |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| [Tab adornments](/api/state/tab-adornments)      | Leading icons, trailing indicators, and Activity on CenterDock editor/terminal tabs |
-| [Activity (Design)](/design/components/activity) | `ActivityGlyph` for the same dots in your own UI                                    |
+| Topic                                            | Purpose                                                                                   |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| [Tab adornments](/api/state/tab-adornments)      | Leading icons, trailing indicators, and Activity on CenterDock editor/terminal/panel tabs |
+| [Activity (Design)](/design/components/activity) | `ActivityGlyph` for the same dots in your own UI                                          |
 
 ## Other
 

@@ -428,6 +428,34 @@ describe("turn lifecycle → ctx.agents status", () => {
     });
   });
 
+  it("a permission request answered synchronously by a listener never raises attention or activity: blocked", async () => {
+    // Mirrors a chat panel's Auto Accept: the listener calls `respond()`
+    // before `onPermission` returns, so the turn was never actually
+    // blocked on the user — it must not flash the "blocked" sound/chrome.
+    const handle = await service.connect("claude-chat");
+    handle.onPermission((request) => request.respond("allow"));
+
+    const respondSpy = vi.fn();
+    captured.onPermission(
+      {
+        toolCallId: "tc1",
+        title: "Write a file",
+        options: [{ optionId: "allow", name: "Allow", kind: "allow_once" }],
+        raw: {},
+      },
+      respondSpy,
+    );
+
+    expect(respondSpy).toHaveBeenCalledWith({
+      outcome: "selected",
+      optionId: "allow",
+    });
+    expect(chatAgentInfos()[0]).toMatchObject({
+      needsAttention: false,
+      activity: "working",
+    });
+  });
+
   it("a permission request sets activity: blocked even on the active session, unlike needsAttention", async () => {
     const handle = await service.connect("claude-chat");
     handle.onPermission(vi.fn());

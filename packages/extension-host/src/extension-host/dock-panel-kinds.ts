@@ -47,10 +47,11 @@ export function parseRecordedPanelId(
   return { kindId, recordId };
 }
 
-/** The dockview panel id for a recorded panel. */
-export function recordedPanelId(kindId: string, recordId: string): string {
-  return `${kindId}:${recordId}`;
-}
+// The formatter half of the pair lives in the `state/` leaf (the record writer
+// and the load-path backfill both stamp `DockPanelRecord.panelId` from it, and
+// neither may import out of `state/`). Re-exported here so the parse/compose
+// pair stays discoverable together.
+export { recordedPanelId } from "../state/recorded-panel-id";
 
 /**
  * Adapt a dockview panel api into the SDK's {@link DockPanelApi}. Most members

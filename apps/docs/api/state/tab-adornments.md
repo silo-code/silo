@@ -1,7 +1,8 @@
 # Tab adornments (CenterDock)
 
-Ephemeral chrome on **editor** and **terminal** tabs — leading identity icons,
-trailing Phosphor indicators, and host-owned **Activity**. Uses the **adorn**
+Ephemeral chrome on **editor**, **terminal**, and **panel** tabs — leading
+identity icons, trailing Phosphor indicators, a whole-tab highlight, and
+host-owned **Activity**. Uses the **adorn**
 metaphor (`set` / `clear` / `flash` / `bind`), not `register*`. See
 [ADR 0029](https://github.com/silo-code/silo/blob/main/docs/decisions/0029-adornments-vs-registration.md)
 and [ADR 0030](https://github.com/silo-code/silo/blob/main/docs/decisions/0030-activity-chrome.md).
@@ -11,23 +12,28 @@ chrome ([RFC 0022](https://github.com/silo-code/silo/blob/main/docs/proposals/00
 
 ## Surfaces
 
-| Service                                 | Target id           |
-| --------------------------------------- | ------------------- |
-| [`ctx.editors`](/api/editors/)          | Editor tab id       |
-| [`ctx.terminals`](/api/state/terminals) | Terminal session id |
+| Service                                 | Target id                                                                                           |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [`ctx.editors`](/api/editors/)          | Editor tab id                                                                                       |
+| [`ctx.terminals`](/api/state/terminals) | Terminal session id                                                                                 |
+| [`ctx.panels`](/api/state/panels)       | Panel's dockview id — [`DockPanelRecord.panelId`](/api/types/interfaces/DockPanelRecord) (RFC 0046) |
 
-Both expose the same verbs via [`TabAdornmentMethods`](/api/types/interfaces/TabAdornmentMethods).
+All three expose the same verbs via [`TabAdornmentMethods`](/api/types/interfaces/TabAdornmentMethods).
 
-### A dock-panel tab is adorned by what it _is_, not by itself
+### A panel tab shouldn't paint its own chrome
 
-A [`DockPanelKind`](/api/types/interfaces/DockPanelKind) tab has no domain id
-for another extension to bind against, so a panel cannot be a target the way
-an editor or terminal tab is. It does **not** follow that the panel should
-paint its own chrome — a panel that both observes a subject and adorns itself
-sits outside whatever settings and policy the observing extension owns.
+`ctx.panels` targets a panel by its own id, the same way `ctx.editors` /
+`ctx.terminals` target theirs — ordinary third-party adornment, the same
+shape `registerContextMenuItem({ surface: "panel/tab" })` and
+`registerToolbarItem({ surface: "panel" })` already use to act on a panel by
+that same id (RFC 0046).
 
-Instead the panel declares what it is showing, and the ordinary binders reach
-it. Today that is Agent Sessions:
+What's still a real anti-pattern: a panel adorning **its own** tab from
+inside itself, based on its own internal state. That sits outside whatever
+settings and policy some other extension owns for that chrome, and two
+extensions doing it to the same tab collide (at most one highlight wins).
+Prefer declaring what the panel is showing and letting an ordinary binder
+reach it from the outside — today that's Agent Sessions:
 
 ```tsx
 function ChatPanel({ api }: DockPanelProps) {
@@ -42,7 +48,10 @@ function ChatPanel({ api }: DockPanelProps) {
 From there [`ctx.agents.bindActivity` / `bindIcon`](/api/agents/) — which take
 an **Agent Session id**, not a tab id — badge this tab exactly as they badge a
 terminal tab running the same agent. The declaration is withdrawn automatically
-on unmount.
+on unmount. An extension with no such indirection available — e.g. it's
+adorning an arbitrary tab a user flagged, regardless of kind — binds on
+`ctx.panels` directly by panel id instead, same as it already would for an
+editor or terminal tab.
 
 ## Leading icon (`ReactNode`)
 
@@ -152,6 +161,7 @@ shipped against the older terminal-only API.
 ## See also
 
 - [Activity](/design/components/activity) — `ActivityGlyph` in panel content
+- [`ctx.panels`](/api/state/panels) — the same verbs for a dock panel tab of any kind
 - [`registerToolbarItem`](/api/registration/register-toolbar-item) — active toggle in the breadcrumb bar.
 - [`ctx.workspaces` status / badges](/api/state/workspaces) — adorn verbs; status rows use `activity`.
 - [ADR 0029](https://github.com/silo-code/silo/blob/main/docs/decisions/0029-adornments-vs-registration.md) ·

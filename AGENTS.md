@@ -14,6 +14,14 @@ orientation (architecture, boundaries, commands), not marketing copy.
 
 Orientation docs (read when relevant):
 
+- `docs/architecture.md` — the structural map: packages and their dependency
+  edges, layering inside the host, the Rust/webview process split, persistence
+  destinations, and the two published surfaces. Facts-only and drift-checked;
+  start here when you don't yet know where something lives. The rules for
+  staying inside those boundaries are below, under "Architecture boundaries".
+- `docs/architecture-review-workflow.md` — how a change gets an architectural
+  review end to end: the `silo-architecture-review` skill, spot-checking its
+  findings, and the author → reviewer → fixer session split.
 - `docs/decisions/` — ADRs: the architecture decisions of record (the durable "why").
 - `docs/proposals/` — RFCs: forward-looking designs not yet decided.
 - `docs/change-planning-convention.md` — how a substantial change is planned:

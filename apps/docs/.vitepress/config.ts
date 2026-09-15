@@ -73,6 +73,7 @@ const apiSidebar = [
     items: [
       { text: "ctx.editors", link: "/api/editors/" },
       { text: "ctx.terminals", link: "/api/state/terminals" },
+      { text: "ctx.panels", link: "/api/state/panels" },
       { text: "ctx.workspaces", link: "/api/state/workspaces" },
       { text: "ctx.layout", link: "/api/state/layout" },
       { text: "ctx.storage", link: "/api/storage/" },

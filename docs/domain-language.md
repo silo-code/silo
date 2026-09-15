@@ -175,7 +175,7 @@ the whole), header (too generic — the Editor's is a different composition)
 
 **Dock Panel Record** (RFC 0041):
 The persisted identity and restore state of one Dock Panel — `DockPanelRecord`
-(`id`, `kindId`, `workspaceId`, `state`, timestamps), listed on
+(`id`, `panelId`, `kindId`, `workspaceId`, `state`, timestamps), listed on
 `Workspace.panels`. It is what makes a Dock Panel first-class the way an Editor
 or a Terminal is: enumerable, workspace-scoped, and **reopened from its record
 on restart** rather than surviving only as opaque geometry in the saved dock
@@ -186,9 +186,30 @@ only _where_ they sit, and the two are reconciled on restore exactly as Editors
 and Terminals already are. An Editor and a Terminal are not `DockPanelRecord`s
 today — `EditorRecord` / `TerminalRecord` keep their own shape; folding the
 three lists into one is a later phase.
+A record carries **two ids, and they are different things**: `id` is its
+_record identity_ — stable across close-and-reopen and across a restart — while
+`panelId` is the _live tab's_ id, the one every panel-targeting API speaks
+(`ctx.panels` adornments, the `panelId` on a `"panel/tab"` menu hit or a
+`"panel"` toolbar hit). `panelId` is the supported bridge from enumerating a
+workspace's panels to acting on one: extensions **read** it and never compose
+it, so its format stays host-owned (the host restamps it on every load).
 _Avoid_: Panel state (that is the `state` field, one part of the record),
 Content Panel Record (the record is not center-dock-only in principle), Dock
-Panel Kind (the kind is the class, the record is one instance)
+Panel Kind (the kind is the class, the record is one instance), using "panel id"
+loosely for `DockPanelRecord.id` (that is the record id)
+
+**Dock Panel Id** (RFC 0046):
+The live identity of one open Dock Panel's Tab — the `panelId` every
+panel-targeting API speaks: `ctx.panels` adornments, and the `panelId` a
+`"panel/tab"` menu hit or a `"panel"` toolbar hit carries. It belongs to the
+open Panel, not to a **Dock Panel Record**: a transient Panel has a Dock Panel
+Id and no record at all. For how it differs from the record's own `id`, and why
+extensions read it rather than compose it, see **Dock Panel Record**.
+_Avoid_: "panel id" unqualified — it collides two ways: with a **Dock Panel
+Record**'s own `id` (say Dock Panel Id, or record id for that one), and with a
+**Side Panel**'s id, which the host also calls a panel id (the workspace record's
+side-panel rename migration, `NavigatorViewProps.panelId`) and which names a
+docked column, not a tab
 
 **Renamable panel** (RFC 0046):
 Whether a Dock Panel Kind's Tabs can be renamed from the tab's right-click
@@ -372,9 +393,14 @@ has no idea an agent badge exists; `silo.agents` observes `ctx.agents` and
 paints onto it. A Chat panel is a subject on exactly the same terms: it
 declares _what it is showing_ and nothing more. A panel that observed agent
 state and painted its own chrome would be an **author**, and would sit outside
-whatever settings and policy the observing extension owns.
-_Avoid_: "panel adornment API" (there isn't one — the panel declares, it does
-not adorn); "tab owner".
+whatever settings and policy the observing extension owns — this is why agent
+chrome routes through an Agent Session id (`ctx.agents.bindActivity` /
+`bindIcon`), not a panel's own id, even though `ctx.panels` (RFC 0046) _can_
+target a panel by its own id for chrome that isn't agent-specific (e.g. a
+third-party extension flagging an arbitrary tab).
+_Avoid_: "tab owner"; assuming every panel-tab badge needs `ctx.panels` — agent
+activity specifically still routes through `ctx.agents`, for the kind-agnostic
+routing above.
 
 **Session Title** (`AgentInfo.title`, RFC 0038 Session 3.2) — one
 host-computed display label per **Agent Session**, rendered verbatim by its

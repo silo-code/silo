@@ -115,3 +115,28 @@ returned (what a recorded panel keeps in its `DockPanelState`).
 `session/resume` and `session/load` separately (`resume` wins when both
 are advertised), and falls through to a fresh `session/new` if neither
 works and there is no journal to fall back to. See [AgentSessionHandle.resumeOutcome](AgentSessionHandle.md#resumeoutcome) for which path was taken.
+
+***
+
+### signal?
+
+```ts
+optional signal?: AbortSignal;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1258](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1258)
+
+**`Beta`**
+
+An AbortSignal that cancels the in-flight handshake. When
+aborted, `connect()` disposes the spawned agent process and rejects with
+an `AbortError`. Use this to prevent backend processes from leaking when
+the caller's React effect re-runs or the component unmounts before the
+multi-step handshake (`initialize` → `session/new` or `session/resume`)
+resolves.
+
+```ts
+const controller = new AbortController();
+ctx.agents.sessions.connect(profileId, { signal: controller.signal });
+return () => controller.abort(); // effect cleanup
+```
