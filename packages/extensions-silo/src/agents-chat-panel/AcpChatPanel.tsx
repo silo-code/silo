@@ -56,9 +56,11 @@
  */
 
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ClipboardEvent,
@@ -163,6 +165,7 @@ import {
   foldToolRuns,
   formatToolInput,
   groupTurns,
+  sameTurn,
   toolOutputIsMarkdown,
   nextEntryKey,
   seedFromJournal,
@@ -174,6 +177,7 @@ import {
   TOOL_GROUP_INLINE_COUNT,
   type RenderEntry,
   type Transcript,
+  type Turn,
 } from "./transcript-model";
 import {
   agentHasBypassMode,
@@ -624,7 +628,9 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
           ) : null}
         </div>
         <div className="acp-chat__tool-group-body">
-          {visible.map((tool) => renderTranscriptEntry(tool, tools))}
+          {visible.map((tool) => (
+            <TranscriptRow key={tool.key} entry={tool} tools={tools} />
+          ))}
           {!expanded && hiddenCount > 0 ? (
             <button
               type="button"
@@ -666,6 +672,98 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
     </div>
   );
 }
+
+/**
+ * {@link renderTranscriptEntry} as a memoized component — the unit React is
+ * allowed to skip.
+ *
+ * Both props are stable for a row nothing happened to: `applyUpdate` shares
+ * every entry it didn't patch, and the panel memoizes the {@link
+ * ToolRowState} object. So the renders that have nothing to do with any
+ * particular row — a workspace switch flipping `onScreen`, a chunk landing at
+ * the bottom of a long transcript — reconcile one element per row and stop,
+ * instead of rebuilding the whole transcript's subtree.
+ *
+ * `expandedTools` is deliberately passed as the whole set rather than a
+ * per-row `expanded` boolean: a toggle is a rare, user-initiated render where
+ * re-running every row is cheap (the markdown underneath is memoized on its
+ * own text and stays cached), and threading one set is simpler than threading
+ * a boolean through a folded group down to its members.
+ */
+const TranscriptRow = memo(function TranscriptRow({
+  entry,
+  tools,
+}: {
+  entry: RenderEntry;
+  tools: ToolRowState;
+}) {
+  return renderTranscriptEntry(entry, tools);
+});
+
+/**
+ * One turn — its user message, its folded body, and its footer — memoized on
+ * {@link sameTurn}.
+ *
+ * `groupTurns` rebuilds every `Turn` object on each call, so the default
+ * shallow compare would never hit; `sameTurn` compares the entries inside
+ * instead, which do keep identity. That makes the folding work
+ * ({@link foldToolRuns}) and the row reconciliation below it skippable for
+ * every turn except the one currently streaming.
+ */
+const TranscriptTurn = memo(
+  function TranscriptTurn({
+    turn,
+    tools,
+    running,
+    durationMs,
+    startedAt,
+  }: {
+    turn: Turn;
+    tools: ToolRowState;
+    running: boolean;
+    durationMs: number | undefined;
+    startedAt: number | undefined;
+  }) {
+    const rest = useMemo(() => foldToolRuns(turn.rest), [turn.rest]);
+    return (
+      <div className="acp-chat__turn">
+        {turn.user ? <TranscriptRow entry={turn.user} tools={tools} /> : null}
+        {rest.length > 0 ? (
+          <div className="acp-chat__turn-body">
+            {rest.map((e) => (
+              <TranscriptRow key={e.key} entry={e} tools={tools} />
+            ))}
+          </div>
+        ) : null}
+        {/* The footer is per turn (RFC 0043 finding 1): "Worked for …"
+            once this panel measured a duration for it, a live ticking
+            readout for the turn currently streaming, and nothing for a
+            leading (no user message) or journal-only turn — there's
+            nothing this panel ever timed for either. */}
+        {running ? (
+          <div className="acp-chat__turn-footer" data-running>
+            <ArrowsClockwise
+              className="acp-chat__spin"
+              size="1em"
+              aria-hidden="true"
+            />
+            <LiveElapsed startedAt={startedAt ?? Date.now()} />
+          </div>
+        ) : durationMs !== undefined ? (
+          <div className="acp-chat__turn-footer">
+            {workedForLabel(durationMs)}
+          </div>
+        ) : null}
+      </div>
+    );
+  },
+  (a, b) =>
+    a.tools === b.tools &&
+    a.running === b.running &&
+    a.durationMs === b.durationMs &&
+    a.startedAt === b.startedAt &&
+    sameTurn(a.turn, b.turn),
+);
 
 export function AcpChatPanel({
   api,
@@ -1696,11 +1794,21 @@ export function AcpChatPanel({
     [ctx, openChatLink],
   );
 
-  const toolRowState: ToolRowState = {
-    expandedTools,
-    onToggleTool: toggleTool,
-    isMac,
-  };
+  // Memoized because it is a prop of every memoized row: rebuilt each render,
+  // it would defeat `TranscriptRow` entirely. `expandedTools` only changes
+  // identity on a toggle, and the other two never do.
+  const toolRowState: ToolRowState = useMemo(
+    () => ({ expandedTools, onToggleTool: toggleTool, isMac }),
+    [expandedTools, toggleTool, isMac],
+  );
+  // The turn projection is pure in `entries`, and `entries` only changes when
+  // the transcript does — so a render triggered by anything else (a workspace
+  // switch, a composer keystroke) reuses it rather than re-grouping the whole
+  // session.
+  const turns = useMemo(
+    () => groupTurns(transcript.entries),
+    [transcript.entries],
+  );
 
   if (phase.status === "no-profile") {
     return (
@@ -1741,45 +1849,21 @@ export function AcpChatPanel({
           </div>
         ) : null}
 
-        {groupTurns(transcript.entries).map((turn, i, all) => {
+        {turns.map((turn, i, all) => {
           const running = busy && i === all.length - 1;
-          const durationMs = turn.user
-            ? turnDurations[turn.user.key]
-            : undefined;
           return (
-            <div key={turn.key} className="acp-chat__turn">
-              {turn.user
-                ? renderTranscriptEntry(turn.user, toolRowState)
-                : null}
-              {turn.rest.length > 0 ? (
-                <div className="acp-chat__turn-body">
-                  {foldToolRuns(turn.rest).map((e) =>
-                    renderTranscriptEntry(e, toolRowState),
-                  )}
-                </div>
-              ) : null}
-              {/* The footer is per turn (RFC 0043 finding 1): "Worked for …"
-                  once this panel measured a duration for it, a live ticking
-                  readout for the turn currently streaming, and nothing for a
-                  leading (no user message) or journal-only turn — there's
-                  nothing this panel ever timed for either. */}
-              {running ? (
-                <div className="acp-chat__turn-footer" data-running>
-                  <ArrowsClockwise
-                    className="acp-chat__spin"
-                    size="1em"
-                    aria-hidden="true"
-                  />
-                  <LiveElapsed
-                    startedAt={turnStartRef.current?.startedAt ?? Date.now()}
-                  />
-                </div>
-              ) : durationMs !== undefined ? (
-                <div className="acp-chat__turn-footer">
-                  {workedForLabel(durationMs)}
-                </div>
-              ) : null}
-            </div>
+            <TranscriptTurn
+              key={turn.key}
+              turn={turn}
+              tools={toolRowState}
+              running={running}
+              durationMs={turn.user ? turnDurations[turn.user.key] : undefined}
+              // Only the running turn is told when the turn started —
+              // otherwise every *finished* turn would take a new `startedAt`
+              // the moment the next one begins, and all of them would
+              // re-render for a value none of them shows.
+              startedAt={running ? turnStartRef.current?.startedAt : undefined}
+            />
           );
         })}
 

@@ -15,6 +15,7 @@ import {
   formatToolInput,
   groupTurns,
   nextEntryKey,
+  sameTurn,
   planRows,
   seedFromJournal,
   stopReasonNotice,
@@ -592,6 +593,74 @@ describe("groupTurns", () => {
     expect(turns).toHaveLength(1);
     expect(turns[0]?.user).toMatchObject({ text: "hi" });
     expect(turns[0]?.rest).toEqual([]);
+  });
+});
+
+describe("sameTurn", () => {
+  const base = [
+    chunk("user_message_chunk", "hi", "u1"),
+    chunk("agent_message_chunk", "hello", "a1"),
+    tool("tool_call", { toolCallId: "1", title: "Shell" }),
+    chunk("user_message_chunk", "thanks", "u2"),
+    chunk("agent_message_chunk", "np", "a2"),
+  ];
+
+  it("holds across a re-projection of an unchanged transcript", () => {
+    const t = fold(base);
+    const a = groupTurns(t.entries);
+    const b = groupTurns(t.entries);
+    // The projection rebuilds the objects, so this is exactly the case the
+    // default shallow compare would miss.
+    expect(a[0]).not.toBe(b[0]);
+    expect(a.every((turn, i) => sameTurn(turn, b[i]!))).toBe(true);
+  });
+
+  it("holds for earlier turns when the last one streams on", () => {
+    const t = fold(base);
+    const before = groupTurns(t.entries);
+    const after = groupTurns(
+      fold([chunk("agent_message_chunk", " problem", "a2")], t).entries,
+    );
+    expect(sameTurn(before[0]!, after[0]!)).toBe(true);
+    expect(sameTurn(before[1]!, after[1]!)).toBe(false);
+  });
+
+  it("fails for the turn whose tool call was patched in place", () => {
+    const t = fold(base);
+    const before = groupTurns(t.entries);
+    const after = groupTurns(
+      fold(
+        [tool("tool_call_update", { toolCallId: "1", status: "completed" })],
+        t,
+      ).entries,
+    );
+    expect(sameTurn(before[0]!, after[0]!)).toBe(false);
+    expect(sameTurn(before[1]!, after[1]!)).toBe(true);
+  });
+
+  it("fails for a turn that gained an entry", () => {
+    const t = fold(base);
+    const before = groupTurns(t.entries);
+    const after = groupTurns(
+      fold([tool("tool_call", { toolCallId: "2", title: "Read" })], t).entries,
+    );
+    expect(before[1]?.rest).toHaveLength(1);
+    expect(after[1]?.rest).toHaveLength(2);
+    expect(sameTurn(before[1]!, after[1]!)).toBe(false);
+  });
+
+  it("fails when a new turn takes the same key as an old one's position", () => {
+    // Turn keys are positional (`t0`, `t1`, …), so a turn can keep its key
+    // while being an entirely different turn — the entry compare is what
+    // catches that, not the key.
+    const a = groupTurns(
+      fold([chunk("user_message_chunk", "hi", "u1")]).entries,
+    );
+    const b = groupTurns(
+      fold([chunk("user_message_chunk", "different", "u9")]).entries,
+    );
+    expect(a[0]?.key).toBe(b[0]?.key);
+    expect(sameTurn(a[0]!, b[0]!)).toBe(false);
   });
 });
 

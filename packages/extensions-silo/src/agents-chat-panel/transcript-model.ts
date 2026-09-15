@@ -493,6 +493,23 @@ export function groupTurns(
   return turns;
 }
 
+/**
+ * Whether two {@link Turn}s describe the same entries — the equality the
+ * panel memoizes a rendered turn on.
+ *
+ * {@link groupTurns} is a projection: it builds fresh `Turn` objects (and
+ * fresh `rest` arrays) on every call, so two runs over an unchanged
+ * transcript are never `===`. The *entries* inside them are what's stable —
+ * {@link applyUpdate} replaces only the entry it patches and shares the rest
+ * — so identity per entry is the signal worth comparing. A streaming turn
+ * fails this and re-renders; every turn above it passes and doesn't.
+ */
+export function sameTurn(a: Turn, b: Turn): boolean {
+  if (a.key !== b.key || a.user !== b.user) return false;
+  if (a.rest.length !== b.rest.length) return false;
+  return a.rest.every((entry, i) => entry === b.rest[i]);
+}
+
 /** A run this long or longer folds under a collapsible group. */
 export const TOOL_GROUP_THRESHOLD = 6;
 /** How many of a group's most recent calls stay visible inline once folded;

@@ -4,7 +4,7 @@
  * via `data-acp-link` / `data-href` — this component only marks them up.
  */
 
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Tooltip } from "@silo-code/sdk";
 import { matchChatLinks, type ChatLinkKind } from "./link-match";
 import { linkMenuLabels, linkModifierLabel } from "./link-policy";
@@ -37,7 +37,15 @@ export function ChatLinkSpan({
   );
 }
 
-export function LinkifiedText({ text }: { text: string }) {
+/** Memoized on `text`, its whole input — the same reason
+ *  {@link TranscriptMarkdown} is. This is what renders a user message and
+ *  every tool row's Input/Output well, so it runs its link regex over the
+ *  transcript as many times as the panel re-renders otherwise. */
+export const LinkifiedText = memo(function LinkifiedText({
+  text,
+}: {
+  text: string;
+}) {
   const spans = matchChatLinks(text);
   if (spans.length === 0) return <>{text}</>;
   const parts: ReactNode[] = [];
@@ -59,7 +67,7 @@ export function LinkifiedText({ text }: { text: string }) {
   });
   if (cursor < text.length) parts.push(text.slice(cursor));
   return <>{parts}</>;
-}
+});
 
 /** The link under `target`, if the event landed on a marked-up span. */
 export function chatLinkFromTarget(
