@@ -6,6 +6,93 @@ Workspaces keep terminals, agents, and layout intact; switch instantly.
 
 ## Language
 
+### Platform Architecture
+
+The layer every other section sits on: who owns what, and what an extension is
+allowed to reach. Prefer these terms over file paths when explaining a change —
+"this widens the public surface" says more than the name of the file it landed
+in.
+
+**Host**:
+Everything Silo owns and an extension cannot reach directly — application state,
+services, layout, docks, panels, window chrome, the filesystem and process
+access behind them. The counterparty in every "host ↔ extension" sentence.
+_Avoid_: Core (that names the `ctx` **capability** rule of
+[ADR 0007](decisions/0007-core-primitive-vs-extension-test.md), not the runtime);
+"the app" (ambiguous between the Host and the shipped product)
+
+**Extension Host**:
+The Host's runtime package (`@silo-code/extension-host`) — the registry and
+loader that construct `ctx` and call `activate(ctx)`, plus the state, services,
+layout, and panels they hand out. In Silo this runs **in-process**: there is no
+process or worker isolation
+([ADR 0001](decisions/0001-in-process-extension-architecture.md) deferred
+sandboxing), so the name does **not** carry VS Code's separate-process meaning.
+_Avoid_: Sandbox / extension process (nothing is isolated today); "the workbench"
+as a standalone noun
+
+**Extension**:
+The unit every Silo feature is built as — a module the Extension Host activates
+with `activate(ctx)`. Load-bearing features are extensions on purpose (git is an
+extension; the terminal is core), per
+[ADR 0007](decisions/0007-core-primitive-vs-extension-test.md)'s test.
+_Avoid_: Plugin, add-on
+
+**Public surface**:
+The contract a third-party extension compiles against: the `@silo-code/sdk`
+barrel and nothing else. **Types-first**
+([ADR 0004](decisions/0004-sdk-types-first.md)) — contribution-point types plus
+small runtime helpers and the design-system kit, with the Host injecting the real
+implementation at activation. Every symbol here carries breaking-change cost.
+_Avoid_: "the API" unqualified (the Host has several); SDK when the **package**
+isn't what's meant
+
+**`ctx` (ExtensionContext)**:
+The single object through which an extension reaches the Host — the seam where
+capability is granted. An extension needing something the Host has asks for it
+here; the answer to a missing capability is **to add it to `ctx`**, never to
+reach past it.
+_Avoid_: "the context" (collides with React context); handle, API object
+
+**Privileged surface**:
+`@silo-code/extension-host/internal` — live Host runtime, importable by `core.*`
+only ([ADR 0013](decisions/0013-trust-tiers-two-barrel-sdk.md)). Deliberately a
+subpath of the Host package, not of the SDK, so the published SDK stays a
+dependency-free leaf. Its size is a health metric: capability belongs on the
+public surface unless it is genuinely core-only and unsafe.
+_Avoid_: Internal SDK / `@silo-code/sdk/internal` (the pre-2026-06-04 name);
+"private API"
+
+**Trust tier**:
+Which surface an extension may import, by id prefix
+([ADR 0013](decisions/0013-trust-tiers-two-barrel-sdk.md)): **`core.*`** —
+bundled, identity-defining, may use the privileged surface; **`silo.*`** —
+bundled optional features, public surface only; **third-party** — public surface
+only. `silo.*` holding the same rule as third-party is what keeps
+"first-party = third-party" mechanically true rather than aspirational.
+_Avoid_: Permission level (that's `silo.permissions`, a runtime grant, not a
+compile-time tier)
+
+**Bundled extension**:
+An extension shipped inside the app (`core.*` or `silo.*`) and wired in by the
+composition root. Contrast **installed extension** — loaded at runtime from disk
+([ADR 0019](decisions/0019-runtime-extension-loading.md)), which is how
+third-party code arrives. Bundled is about _delivery_; trust tier is about
+_capability_ — a `silo.*` extension is bundled yet no more privileged than a
+third-party one.
+_Avoid_: Built-in (fine in prose, but it blurs delivery with privilege);
+"first-party" as a synonym for bundled
+
+**Boundary**:
+The rule that extensions touch the Host only through `ctx` and the public
+surface — enforced first by the **package graph** (a package resolves only what
+it depends on, so `silo.*` physically cannot import the privileged surface), then
+by lint for what the graph can't express: the platform ban on raw
+`@tauri-apps/*` / `node:*`, Host-internal layering, and the design-token-only CSS
+rule.
+_Avoid_: Sandbox (nothing is isolated at runtime — this is a build-time and
+lint-time boundary); "the rules"
+
 ### Workspaces
 
 **Workspace**:
