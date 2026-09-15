@@ -147,22 +147,14 @@
   line-height: 1.5;
 }
 
-/* Terminal-style dashed underline (ADR 0027). Plain click selects; ⌘/Ctrl
-   + click opens.
-   `border-bottom`, not `text-decoration`: WebKit doesn't paint a
-   `text-decoration` on this span when its ellipsis-truncated ancestor
-   (`.acp-chat__tool-title`) has `overflow: hidden` — the computed style
-   still reports `underline`, but nothing renders. A dashed bottom border
-   isn't drawn through the same text-decoration ink path, so it survives
-   that ancestor untouched. */
 .acp-chat__link {
-  color: inherit;
-  border-bottom: 1px dashed currentColor;
+  color: var(--silo-color-accent);
   cursor: pointer;
+  transition: text-decoration 0.1s ease;
 }
 
 .acp-chat__link:hover {
-  color: var(--silo-color-accent);
+  text-decoration: underline;
 }
 
 /* --- tool calls --------------------------------------------------------- */
