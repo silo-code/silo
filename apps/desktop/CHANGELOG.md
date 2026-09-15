@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.67.0](https://github.com/silo-code/silo/compare/silo-v0.66.1...silo-v0.67.0) (2026-09-15)
+
+
+### Features
+
+* **agents-chat-panel:** polish composer and transcript rendering ([#522](https://github.com/silo-code/silo/issues/522)) ([aa21ada](https://github.com/silo-code/silo/commit/aa21ada748c2052133c8a25ccb1392787c0067da))
+
 ## [0.66.1](https://github.com/silo-code/silo/compare/silo-v0.66.0...silo-v0.66.1) (2026-09-14)
 
 
