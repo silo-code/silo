@@ -665,6 +665,16 @@ export function createAgentSessionsService(
         throw asError(err, `Could not start ${label}`);
       }
 
+      // Guard against the panel effect re-running mid-handshake (nonce bump,
+      // profile switch, unmount). `initialize` alone takes 4-7 s, so the most
+      // common case is an abort that arrived while we were blocked there. The
+      // second check below covers the session-routing awaits.
+      if (options?.signal?.aborted) {
+        client.dispose();
+        if (placeholderId) removeChatAgent(placeholderId);
+        throw new DOMException("connect aborted", "AbortError");
+      }
+
       // Every capability is read through `capabilityEnabled`: agents send both
       // shapes (`true` and a details object), and the details object is what
       // the catalog's most-used adapter actually sends.
@@ -833,6 +843,16 @@ export function createAgentSessionsService(
       // `session/new` — leaving the placeholder as a dangling phantom entry.
       if (placeholderId && placeholderId !== infoId)
         removeChatAgent(placeholderId);
+
+      // Second abort check — covers the session-routing awaits (session/new,
+      // session/resume, session/load, journal reads). If the caller aborted
+      // while we were in that block, dispose now before registering anything.
+      if (options?.signal?.aborted) {
+        client.dispose();
+        journalWriter?.dispose();
+        removeChatAgent(infoId);
+        throw new DOMException("connect aborted", "AbortError");
+      }
       configOptions = toSdkConfigOptions(session.configOptions ?? []);
       const canResume = canLoadSession || canResumeCap;
       const agentName = init.agentInfo?.title ?? init.agentInfo?.name ?? label;
