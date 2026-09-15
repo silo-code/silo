@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { DEFAULT_SHARED_COLUMN_WIDTHS } from "./types";
-import type { WorkspaceInternal } from "./types";
+import type { DockPanelRecord, WorkspaceInternal } from "./types";
 import {
   buildIndex,
   diffWorkspaceWrites,
@@ -30,6 +30,18 @@ function makeWorkspace(
     editors: [],
     dockLayout: null,
     ...extra,
+  };
+}
+
+function panelRecord(id: string): DockPanelRecord {
+  return {
+    id,
+    panelId: `acp-chat:${id}`,
+    kindId: "acp-chat",
+    workspaceId: "a",
+    state: { sessionId: "s-1" },
+    createdAt: "2026-09-09T00:00:00.000Z",
+    lastActiveAt: "2026-09-09T00:01:00.000Z",
   };
 }
 
@@ -123,25 +135,39 @@ describe("normalizeLoadedWorkspace (RFC 0041)", () => {
     expect(normalizeLoadedWorkspace(ws).panels).toEqual([]);
   });
 
-  it("leaves an existing panels list untouched (round-trips through the store)", () => {
-    const panels = [
-      {
-        id: "p1",
-        kindId: "acp-chat",
-        workspaceId: "a",
-        state: { sessionId: "s-1" },
-        createdAt: "2026-09-09T00:00:00.000Z",
-        lastActiveAt: "2026-09-09T00:01:00.000Z",
-      },
-    ];
+  it("keeps an existing panels list's records (round-trips through the store)", () => {
+    const panels = [panelRecord("p1")];
     const ws = makeWorkspace("a", { panels });
-    expect(normalizeLoadedWorkspace(ws).panels).toBe(panels);
+    expect(normalizeLoadedWorkspace(ws).panels).toEqual([
+      { ...panels[0], panelId: "acp-chat:p1" },
+    ]);
   });
 
   it("replaces a non-array panels value", () => {
     const ws = makeWorkspace("a");
     (ws as { panels: unknown }).panels = null;
     expect(normalizeLoadedWorkspace(ws).panels).toEqual([]);
+  });
+
+  // `panelId` is the supported bridge from `Workspace.panels` to `ctx.panels`
+  // (RFC 0046). It rides to disk because a record is persisted whole, but the
+  // stored copy is never authoritative — restamping on load is what keeps the
+  // format host-owned rather than something an old file can pin.
+  it("stamps panelId onto a record written before the field existed", () => {
+    const rec = panelRecord("p1");
+    delete (rec as Partial<DockPanelRecord>).panelId;
+    const [out] = normalizeLoadedWorkspace(
+      makeWorkspace("a", { panels: [rec] }),
+    ).panels;
+    expect(out.panelId).toBe("acp-chat:p1");
+  });
+
+  it("restamps a stale persisted panelId rather than trusting it", () => {
+    const rec = { ...panelRecord("p1"), panelId: "old-format/p1" };
+    const [out] = normalizeLoadedWorkspace(
+      makeWorkspace("a", { panels: [rec] }),
+    ).panels;
+    expect(out.panelId).toBe("acp-chat:p1");
   });
 });
 

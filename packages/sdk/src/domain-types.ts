@@ -152,9 +152,27 @@ export interface DockPanelRecord {
   /**
    * Stable id, unique within the workspace. This is **not** the transient
    * dock-view panel id — it survives the panel being closed and reopened from
-   * its record across a restart.
+   * its record across a restart. For that id, read
+   * {@link DockPanelRecord.panelId}.
    */
   id: string;
+  /**
+   * The live dockview panel id of this panel's tab, composed by the host — the
+   * id every panel-targeting API speaks: {@link PanelService} tab adornments,
+   * and the `panelId` a `"panel/tab"` context-menu hit or a `"panel"` toolbar
+   * hit carries.
+   *
+   * This is the supported bridge from *enumerating* a workspace's panels
+   * ({@link Workspace.panels}) to *acting* on one. Read it; never compose it.
+   * Its format is host-owned and deliberately unspecified — an extension that
+   * derived it from {@link DockPanelRecord.id} and
+   * {@link DockPanelRecord.kindId} would break the day the host changed it.
+   *
+   * Unlike {@link DockPanelRecord.id}, this is not persisted identity: the host
+   * restamps it whenever the record is loaded, so it always matches the tab
+   * that is on screen now.
+   */
+  readonly panelId: string;
   /** The {@link DockPanelKind} id this panel is an instance of. */
   kindId: string;
   /** The id of the workspace this panel belongs to. */

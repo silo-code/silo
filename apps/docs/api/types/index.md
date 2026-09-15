@@ -144,6 +144,7 @@ the published reference is exactly this surface — no more, no less.
 - [NetworkService](interfaces/NetworkService.md)
 - [LogLevel](type-aliases/LogLevel.md)
 - [LogService](interfaces/LogService.md)
+- [PanelService](interfaces/PanelService.md)
 - [ProcessSpawnOptions](interfaces/ProcessSpawnOptions.md)
 - [ProcessSession](interfaces/ProcessSession.md)
 - [ProcessExecOptions](interfaces/ProcessExecOptions.md)

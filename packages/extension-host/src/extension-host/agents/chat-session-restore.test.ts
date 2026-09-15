@@ -55,6 +55,7 @@ function chatPanel(
 ): DockPanelRecord {
   return {
     id,
+    panelId: `acp-chat:${id}`,
     kindId: "acp-chat",
     workspaceId,
     state,

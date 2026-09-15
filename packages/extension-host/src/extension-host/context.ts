@@ -37,6 +37,7 @@ import { editorRegistry } from "./editor-registry";
 import { fileTypeRegistry } from "./file-types";
 import { getWorkspaceService } from "./workspace-service";
 import { getEditorService } from "./editor-service";
+import { getPanelService } from "./panel-service";
 import { getLayoutService } from "./layout-service";
 import { getScopedProcessService } from "./process-service";
 import { getScopedProcessesService } from "./processes-service";
@@ -247,6 +248,7 @@ export function createContext(
       ),
     },
     terminals: getTerminalService(),
+    panels: getPanelService(),
     files: getScopedFileService(scope),
     search: getScopedSearchService(scope),
     theme: {

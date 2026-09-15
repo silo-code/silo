@@ -84,6 +84,7 @@ export type {
   EditorsState,
   EditorSaveEvent,
 } from "./editor-service";
+export type { PanelService } from "./panel-service";
 export type {
   LayoutService,
   LayoutState,

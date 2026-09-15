@@ -1,6 +1,6 @@
 # Interface: DockPanelProps\<T\>
 
-Defined in: [packages/sdk/src/types.ts:171](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L171)
+Defined in: [packages/sdk/src/types.ts:172](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L172)
 
 Props handed to a [DockPanelKind](DockPanelKind.md) component. Use this type to annotate
 your component instead of importing from the underlying dock framework
@@ -21,7 +21,7 @@ host implementation details. The optional generic `T` narrows `params`.
 api: DockPanelApi;
 ```
 
-Defined in: [packages/sdk/src/types.ts:173](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L173)
+Defined in: [packages/sdk/src/types.ts:174](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L174)
 
 The panel API — drives the tab (title, close, focus, params).
 
@@ -33,7 +33,7 @@ The panel API — drives the tab (title, close, focus, params).
 params: T;
 ```
 
-Defined in: [packages/sdk/src/types.ts:175](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L175)
+Defined in: [packages/sdk/src/types.ts:176](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L176)
 
 Serializable parameters forwarded to the panel at open time.
 
@@ -45,7 +45,7 @@ Serializable parameters forwarded to the panel at open time.
 workspaceId: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:188](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L188)
+Defined in: [packages/sdk/src/types.ts:189](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L189)
 
 The workspace this panel lives in.
 
@@ -66,7 +66,7 @@ files the result wherever the user happened to be standing. Caught live
 onScreen: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:211](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L211)
+Defined in: [packages/sdk/src/types.ts:212](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L212)
 
 Whether this panel's pixels are actually on screen right now — its tab is
 the selected one in its group **and** its workspace is the one the user is

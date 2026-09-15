@@ -8,6 +8,7 @@ vi.mock("./editor-backups", () => ({
 }));
 
 import { store } from "./store";
+import { recordedPanelId } from "./recorded-panel-id";
 import {
   addPanelRecord,
   removePanelRecord,
@@ -633,6 +634,7 @@ describe("recorded dock panels (RFC 0041)", () => {
     });
     expect(rec.workspaceId).toBe("w");
     expect(rec.kindId).toBe("acp-chat");
+    expect(rec.panelId).toBe(recordedPanelId("acp-chat", "p1"));
     expect(rec.state).toEqual({ profileId: "prof-a" });
     expect(rec.createdAt).not.toBe("");
     expect(rec.lastActiveAt).toBe(rec.createdAt);
