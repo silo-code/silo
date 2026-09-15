@@ -44,4 +44,23 @@ describe("chatProfileHostParams", () => {
       chatProfileHostParams({ id: "claude-chat", label: "Claude (chat)" }),
     ).toEqual({ profileId: "claude-chat", title: "Claude (chat)" });
   });
+
+  it("carries the chosen working folder (RFC 0046)", () => {
+    expect(
+      chatProfileHostParams(
+        { id: "claude-chat", label: "Claude (chat)" },
+        "/ws/packages/api",
+      ),
+    ).toEqual({
+      profileId: "claude-chat",
+      title: "Claude (chat)",
+      cwd: "/ws/packages/api",
+    });
+  });
+
+  it("omits an empty folder rather than pinning the panel to nowhere", () => {
+    expect(
+      chatProfileHostParams({ id: "claude-chat", label: "Claude (chat)" }, ""),
+    ).not.toHaveProperty("cwd");
+  });
 });

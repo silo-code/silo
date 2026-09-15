@@ -212,6 +212,7 @@ import {
   continueInNewSessionOption,
   isReadOnly,
   panelStateAfterConnect,
+  resolveChatCwd,
   resumeOptionFor,
 } from "./session-restore";
 import { LiveElapsed } from "./LiveElapsed";
@@ -235,9 +236,11 @@ export interface AcpChatPanelParams {
    */
   sessionId?: string | null;
   /**
-   * The working directory the session was launched in, persisted alongside
-   * `sessionId` (RFC 0042 `ChatPanelState`). Informational — the live
-   * workspace folder is always what's actually sent to `connect()`.
+   * The working directory this session runs in, persisted alongside `sessionId`
+   * (RFC 0042 `ChatPanelState`) and **authoritative** since RFC 0046: it is the
+   * folder the user chose when starting the profile, which in a multi-root
+   * workspace is not necessarily the primary one. Absent (or empty) falls back
+   * to the workspace's primary folder — see `resolveChatCwd`.
    */
   cwd?: string;
   /**
@@ -779,7 +782,14 @@ export function AcpChatPanel({
   // connect effect's dependency array below, tearing the live session down
   // and reconnecting it under the wrong folder on every workspace switch.
   const ws = ctx.workspaces.getState();
-  const cwd = ws.all.find((w) => w.id === workspaceId)?.folder ?? "";
+  // The folder picked when this panel was started outranks the workspace's
+  // primary one (RFC 0046) — that's the whole point in a multi-root workspace.
+  // Safe in the connect effect's deps: it's a string compared by value, and the
+  // write-back below stores the same value it read, so this is a fixed point.
+  const cwd = resolveChatCwd(
+    params.cwd,
+    ws.all.find((w) => w.id === workspaceId)?.folder ?? "",
+  );
 
   // Bumped to retry a failed connection (or a first one that found no profile).
   const [nonce, setNonce] = useState(0);

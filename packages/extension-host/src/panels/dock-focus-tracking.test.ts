@@ -101,4 +101,21 @@ describe("installDockFocusTracking", () => {
     vi.advanceTimersByTime(150);
     expect(dock.classList.contains("dock-has-focus")).toBe(true);
   });
+
+  it("tolerates a torn-down environment instead of throwing — the leak this singleton can't avoid outside tests", () => {
+    // `installDockFocusTracking()` runs once at module load (`CenterDock.tsx`)
+    // and its interval has no way to be cancelled — in the app that's fine
+    // (`document` lives for the whole process), but in a test run any other
+    // file that imports that module keeps this interval ticking past its own
+    // file's teardown. Simulate that: the poll tick must no-op, not throw,
+    // once `document` is gone.
+    const realDocument = globalThis.document;
+    // @ts-expect-error — simulating a torn-down jsdom environment
+    delete globalThis.document;
+    try {
+      expect(() => vi.advanceTimersByTime(150)).not.toThrow();
+    } finally {
+      globalThis.document = realDocument;
+    }
+  });
 });

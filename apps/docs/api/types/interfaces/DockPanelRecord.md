@@ -73,13 +73,33 @@ kind's component as its params when the panel is recreated on restore.
 
 ***
 
+### customTitle?
+
+```ts
+optional customTitle?: string;
+```
+
+Defined in: [packages/sdk/src/domain-types.ts:181](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L181)
+
+The name the **user** gave this tab, if any — set from the tab's right-click
+menu on a [renamable](DockPanelKind.md#renamable) kind, cleared by
+renaming to an empty string.
+
+Host-owned, and deliberately a sibling of [DockPanelRecord.state](#state)
+rather than a key inside it: `state` is the panel kind's own bag, replaced
+wholesale from [DockPanelApi.updateParameters](DockPanelApi.md#updateparameters), so a panel writing its
+own state would eventually erase a host key living there. When set, it wins
+over the title the panel reports, both on the tab and on restore.
+
+***
+
 ### createdAt
 
 ```ts
 createdAt: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:171](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L171)
+Defined in: [packages/sdk/src/domain-types.ts:183](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L183)
 
 ISO-8601 timestamp of when the panel was first opened.
 
@@ -91,6 +111,6 @@ ISO-8601 timestamp of when the panel was first opened.
 lastActiveAt: string;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:173](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L173)
+Defined in: [packages/sdk/src/domain-types.ts:185](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L185)
 
 ISO-8601 timestamp of when the panel was last the active tab.

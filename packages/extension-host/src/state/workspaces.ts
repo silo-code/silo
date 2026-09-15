@@ -812,6 +812,26 @@ export function setPanelRecordState(
   rec.state = { ...state };
 }
 
+/**
+ * Name a recorded panel's tab, or clear the name with an empty string.
+ *
+ * The terminal twin of this is `renameTerminal`, which also writes `title` —
+ * a terminal's title is store state the tab reads. A panel's title is dockview's,
+ * set by the panel itself, so there is nothing here to keep in sync: `customTitle`
+ * is the override and `DockTab` layers it over whatever the panel reports.
+ */
+export function renamePanelRecord(
+  workspaceId: string,
+  panelRecordId: string,
+  name: string,
+): void {
+  const rec = findPanelRecord(workspaceId, panelRecordId);
+  if (!rec) return;
+  const trimmed = name.trim();
+  if (trimmed) rec.customTitle = trimmed;
+  else delete rec.customTitle;
+}
+
 /** Mark a recorded panel as the one last looked at. */
 export function touchPanelRecord(
   workspaceId: string,

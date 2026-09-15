@@ -31,18 +31,41 @@ export function continueInNewSessionOption(
 }
 
 /**
+ * The folder this panel's session runs in: the one chosen when it was started
+ * (RFC 0046), falling back to the workspace's primary folder.
+ *
+ * `||`, not `??`, on purpose. A panel whose workspace lookup failed persists
+ * `cwd: ""`, and `??` would treat that empty string as a real answer — pinning
+ * the panel to no working directory for the rest of its life. The persisted
+ * value is authoritative precisely *because* it can differ from the primary
+ * folder; it just can't be empty.
+ */
+export function resolveChatCwd(
+  persisted: string | undefined,
+  workspaceFolder: string,
+): string {
+  return persisted || workspaceFolder;
+}
+
+/**
  * What to persist into `DockPanelState` once a session connects. Keyed on
  * {@link AgentSessionHandle.sessionId} — not necessarily the id that was
  * asked for, since `session/load` may have adopted a new one, and a
- * `startFresh` continuation deliberately keeps the original. `cwd` is the
- * live workspace folder, never a stale persisted one.
+ * `startFresh` continuation deliberately keeps the original.
+ *
+ * An empty `cwd` is left out entirely rather than written, so a bad connect
+ * can't persist one and strand every later restore on it.
  */
 export function panelStateAfterConnect(
   profileId: string,
   handle: Pick<AgentSessionHandle, "sessionId">,
   cwd: string,
-): { profileId: string; sessionId: string; cwd: string } {
-  return { profileId, sessionId: handle.sessionId, cwd };
+): { profileId: string; sessionId: string; cwd?: string } {
+  return {
+    profileId,
+    sessionId: handle.sessionId,
+    ...(cwd ? { cwd } : {}),
+  };
 }
 
 /**

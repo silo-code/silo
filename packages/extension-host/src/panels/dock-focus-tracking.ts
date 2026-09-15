@@ -36,5 +36,17 @@ export function installDockFocusTracking() {
   // case doesn't fire `focusin` for anything, so it needs its own listener.
   window.addEventListener("blur", () => apply(null));
 
-  setInterval(() => apply(document.activeElement), POLL_INTERVAL_MS);
+  setInterval(() => {
+    // `installDockFocusTracking()` runs as a module-load side effect
+    // (`CenterDock.tsx`), so this interval is a real, un-cancelable one for
+    // the app's whole lifetime — `document` always exists there. In a test
+    // process, though, any file that imports that module (even transitively)
+    // starts this ticking for the rest of the worker, and it outlives that
+    // file's own jsdom environment; a later file's teardown removes
+    // `document` out from under this tick, throwing an unhandled
+    // `ReferenceError` unrelated to whatever test happens to be running at
+    // that moment. A no-op here is correct in both worlds.
+    if (typeof document === "undefined") return;
+    apply(document.activeElement);
+  }, POLL_INTERVAL_MS);
 }

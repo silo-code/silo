@@ -13,6 +13,7 @@ import {
   removePanelRecord,
   findPanelRecord,
   workspaceIdForPanelRecord,
+  renamePanelRecord,
   setPanelRecordState,
   touchPanelRecord,
   openEditor,
@@ -701,6 +702,30 @@ describe("recorded dock panels (RFC 0041)", () => {
     store.workspaces = { w: makeWorkspace("w"), w2: makeWorkspace("w2") };
     addPanelRecord("w", { id: "p1", kindId: "acp-chat" });
     expect(findPanelRecord("w2", "p1")).toBeNull();
+  });
+
+  it("renamePanelRecord sets the user's name, trimmed", () => {
+    addPanelRecord("w", { id: "p1", kindId: "acp-chat" });
+    renamePanelRecord("w", "p1", "  Auth refactor  ");
+    expect(findPanelRecord("w", "p1")?.customTitle).toBe("Auth refactor");
+  });
+
+  it("renamePanelRecord clears the name on empty, restoring the panel's own title", () => {
+    addPanelRecord("w", { id: "p1", kindId: "acp-chat" });
+    renamePanelRecord("w", "p1", "Auth refactor");
+    renamePanelRecord("w", "p1", "   ");
+    expect(findPanelRecord("w", "p1")).not.toHaveProperty("customTitle");
+  });
+
+  it("renamePanelRecord leaves the panel's own state alone; no-op for unknown id", () => {
+    addPanelRecord("w", {
+      id: "p1",
+      kindId: "acp-chat",
+      state: { sessionId: "s-1" },
+    });
+    renamePanelRecord("w", "p1", "Auth refactor");
+    expect(findPanelRecord("w", "p1")?.state).toEqual({ sessionId: "s-1" });
+    expect(() => renamePanelRecord("w", "missing", "x")).not.toThrow();
   });
 });
 

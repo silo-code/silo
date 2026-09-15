@@ -101,14 +101,25 @@ describe("startAgentProfile — Chat profiles", () => {
       outcome: "panel",
       panelKindId: "acp-chat",
       title: "cursor chat",
-      params: { profileId: "cursor-chat", title: "cursor chat" },
+      params: { profileId: "cursor-chat", title: "cursor chat", cwd: "/ws" },
     });
     expect(launchAgentProfile).not.toHaveBeenCalled();
   });
 
-  it("never asks for a working directory — a transcript has no cwd question", async () => {
-    await startAgentProfile(chatProfile(), "w");
-    expect(pickWorkspaceFolder).not.toHaveBeenCalled();
+  it("asks for a working directory too — a transcript works a folder like a PTY does (RFC 0046)", async () => {
+    pickWorkspaceFolder.mockResolvedValue("/ws/packages/api");
+    const start = await startAgentProfile(chatProfile(), "w");
+    expect(pickWorkspaceFolder).toHaveBeenCalledWith("w");
+    expect(start.outcome === "panel" && start.params.cwd).toBe(
+      "/ws/packages/api",
+    );
+  });
+
+  it("cancels silently when the folder chooser is dismissed — opening nothing", async () => {
+    pickWorkspaceFolder.mockResolvedValue(null);
+    expect(await startAgentProfile(chatProfile(), "w")).toEqual({
+      outcome: "cancelled",
+    });
   });
 
   it("refuses with a message when no installed panel claims the job", async () => {
@@ -118,6 +129,12 @@ describe("startAgentProfile — Chat profiles", () => {
     const start = await startAgentProfile(chatProfile(), "w");
     expect(start.outcome).toBe("refused");
     expect(start.outcome === "refused" && start.message).toMatch(/Chat panel/);
+  });
+
+  it("refuses before prompting — the answer would be thrown away", async () => {
+    resolveChatProfileHost.mockReturnValue(undefined);
+    await startAgentProfile(chatProfile(), "w");
+    expect(pickWorkspaceFolder).not.toHaveBeenCalled();
   });
 });
 

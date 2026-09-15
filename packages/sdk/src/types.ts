@@ -425,6 +425,7 @@ export type MenuSurface =
   | "editor/tab" // right-click on an editor tab
   | "terminal/tab" // right-click on a terminal tab
   | "terminal/link" // right-click landing directly on a link inside a terminal
+  | "panel/tab" // right-click on any dock panel's tab, of any kind
   | "workspace"; // right-click on a workspace row in the Workspaces panel
 
 /**
@@ -454,6 +455,25 @@ export interface MenuContext {
    * for the shared link contract this surface hooks into.
    */
   "terminal/link": { terminalId: string; kind: "url" | "path"; text: string };
+  /**
+   * A dock panel's tab, of **any** {@link DockPanelKind} — the bundled Chat
+   * transcript, a web viewer, your own panel. Field-for-field the same shape as
+   * a panel toolbar item's target (`ToolbarItemContext["panel"]`), because both
+   * describe the same thing.
+   *
+   * There is no per-kind surface: an item registered here appears on *every*
+   * panel tab unless it scopes itself, exactly as a `surface: "panel"` toolbar
+   * item does — `when: (_keys, t) => t.kindId === "silo.agents-chat-panel"`.
+   * Instance state arrives as {@link DockPanelRecord.state | the panel's params}.
+   *
+   * `params` is a copy taken when the menu opened; mutating it changes nothing.
+   */
+  "panel/tab": {
+    panelId: string;
+    kindId: string;
+    workspaceId: string;
+    params: Readonly<Record<string, unknown>>;
+  };
   workspace: Workspace;
 }
 
@@ -736,6 +756,23 @@ export interface DockPanelKind<T extends object = Record<string, unknown>> {
    * recreated after a restart.
    */
   persistence?: "recorded";
+  /**
+   * Whether the user may **rename this kind's tabs** from the tab's right-click
+   * menu. Defaults to `persistence === "recorded"`, so a recorded panel is
+   * renamable without declaring anything — including a third-party panel that
+   * never heard of this field.
+   *
+   * A chosen name is host-owned ({@link DockPanelRecord.customTitle}) and wins
+   * over whatever the panel passes to {@link DockPanelApi.setTitle}, so a panel
+   * that retitles itself as its content changes cannot undo the user's choice.
+   * Clearing the name restores the panel's own title.
+   *
+   * Set `false` to opt out — for a panel whose label *is* its identity and would
+   * be confusing to change (an Output view naming its channel). Setting `true`
+   * on a transient kind works, but the name lasts only for the session: there is
+   * no record to persist it in.
+   */
+  renamable?: boolean;
   /**
    * When set, this kind appears as an entry in the center dock's **+** add
    * menu (the per-group header button). Omit to keep the kind internal.

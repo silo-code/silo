@@ -190,6 +190,31 @@ _Avoid_: Panel state (that is the `state` field, one part of the record),
 Content Panel Record (the record is not center-dock-only in principle), Dock
 Panel Kind (the kind is the class, the record is one instance)
 
+**Renamable panel** (RFC 0046):
+Whether a Dock Panel Kind's Tabs can be renamed from the tab's right-click
+menu — `DockPanelKind.renamable`, defaulting to `persistence === "recorded"`
+so an opted-in **Dock Panel Record** is renamable without declaring anything.
+A chosen name is host-owned (`DockPanelRecord.customTitle`) and wins over
+whatever the Panel itself reports via `DockPanelApi.setTitle`, both on the
+live tab and on restore; renaming to empty restores the Panel's own title.
+The Content-Panel counterpart of Terminal rename (`renameTerminal` /
+`TerminalRecord.title`) — same UX, a different record, since a Panel's title
+is the Panel's own to report rather than store state a rename can just
+overwrite.
+_Avoid_: "rename the panel" (the Panel itself never changes; only the Tab's
+displayed label does)
+
+**Panel tab menu** (RFC 0046):
+The `"panel/tab"` `MenuSurface` — the right-click menu on **any** Dock Panel's
+Tab, of any **Dock Panel Kind**. Every tab gets Rename… when its kind is a
+renamable panel, then whatever extensions contributed on that surface, built
+by `buildPanelTabMenuItems` — the Content-Panel twin of `terminal-tab-menu.ts`'s
+builder for a Terminal Tab. Generic across every kind by design, the same
+"one surface, scope yourself with `when`" shape **Panel Chrome**'s toolbar
+point already uses for `surface: "panel"` items.
+_Avoid_: conflating with **Panel Chrome** (that is the always-visible strip
+above a Panel's content; this is the right-click menu on its Tab)
+
 **Active Panel**:
 The one Panel currently active within a Dock — a _different_ "active" than
 Navigator's Active View: dock-scoped, dockview-driven, and (per ADR 0032)

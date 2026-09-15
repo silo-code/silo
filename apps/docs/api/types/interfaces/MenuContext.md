@@ -1,6 +1,6 @@
 # Interface: MenuContext
 
-Defined in: [packages/sdk/src/types.ts:445](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L445)
+Defined in: [packages/sdk/src/types.ts:446](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L446)
 
 The typed **context object** each [MenuSurface](../type-aliases/MenuSurface.md) passes to an invoked
 command (as its first argument) and to the contribution's
@@ -21,7 +21,7 @@ the workspace's metadata (id, folder, name) wholesale.
 explorer/item: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:446](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L446)
+Defined in: [packages/sdk/src/types.ts:447](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L447)
 
 #### path
 
@@ -49,7 +49,7 @@ workspaceId: string;
 editor/tab: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:447](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L447)
+Defined in: [packages/sdk/src/types.ts:448](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L448)
 
 #### editorId
 
@@ -77,7 +77,7 @@ viewId: string;
 terminal/tab: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:448](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L448)
+Defined in: [packages/sdk/src/types.ts:449](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L449)
 
 #### terminalId
 
@@ -99,7 +99,7 @@ workspaceId: string;
 terminal/link: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:456](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L456)
+Defined in: [packages/sdk/src/types.ts:457](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L457)
 
 The right-clicked link's kind (`"url"` for OSC-8/`WebLinksAddon`-detected
 links, `"path"` for Silo's own file-path provider) and its literal text
@@ -127,10 +127,56 @@ text: string;
 
 ***
 
+### panel/tab
+
+```ts
+panel/tab: object;
+```
+
+Defined in: [packages/sdk/src/types.ts:471](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L471)
+
+A dock panel's tab, of **any** [DockPanelKind](DockPanelKind.md) — the bundled Chat
+transcript, a web viewer, your own panel. Field-for-field the same shape as
+a panel toolbar item's target (`ToolbarItemContext["panel"]`), because both
+describe the same thing.
+
+There is no per-kind surface: an item registered here appears on *every*
+panel tab unless it scopes itself, exactly as a `surface: "panel"` toolbar
+item does — `when: (_keys, t) => t.kindId === "silo.agents-chat-panel"`.
+Instance state arrives as [the panel's params](DockPanelRecord.md#state).
+
+`params` is a copy taken when the menu opened; mutating it changes nothing.
+
+#### panelId
+
+```ts
+panelId: string;
+```
+
+#### kindId
+
+```ts
+kindId: string;
+```
+
+#### workspaceId
+
+```ts
+workspaceId: string;
+```
+
+#### params
+
+```ts
+params: Readonly<Record<string, unknown>>;
+```
+
+***
+
 ### workspace
 
 ```ts
 workspace: Workspace;
 ```
 
-Defined in: [packages/sdk/src/types.ts:457](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L457)
+Defined in: [packages/sdk/src/types.ts:477](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L477)
