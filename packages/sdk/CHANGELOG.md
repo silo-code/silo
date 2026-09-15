@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.50.0](https://github.com/silo-code/silo/compare/sdk-v0.49.0...sdk-v0.50.0) (2026-09-15)
+
+
+### Features
+
+* **dock-panels:** add ctx.panels tab adornments and DockPanelRecord.panelId ([#533](https://github.com/silo-code/silo/issues/533)) ([94b52a7](https://github.com/silo-code/silo/commit/94b52a7e390843ffc42f87b7b4cadb6c1be1553d))
+
 ## [0.49.0](https://github.com/silo-code/silo/compare/sdk-v0.48.0...sdk-v0.49.0) (2026-09-15)
 
 
