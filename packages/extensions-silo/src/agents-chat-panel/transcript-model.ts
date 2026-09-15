@@ -31,6 +31,7 @@ import type {
   AgentToolCallContent,
 } from "@silo-code/sdk";
 import { resolveToolDiffs, type ToolDiff } from "./tool-diff";
+import { formatToolKindLabel } from "./tool-display";
 
 /** Which speaker a {@link MessageEntry} came from. `"thought"` is the agent
  *  thinking out loud (`agent_thought_chunk`), rendered as an aside. */
@@ -106,6 +107,24 @@ export type TranscriptEntry =
   | ToolEntry
   | PlanEntry
   | NoticeEntry;
+
+/** A run of {@link TOOL_GROUP_THRESHOLD}+ consecutive non-diff tool calls,
+ *  folded under one collapsible header at render time (Dave's call) — a burst
+ *  of grep/Read-shaped calls otherwise reads as one row per call. Not a
+ *  {@link TranscriptEntry}: it never enters `Transcript.entries` itself, only
+ *  the view {@link foldToolRuns} produces from them. */
+export interface ToolGroupEntry {
+  readonly type: "tool-group";
+  readonly key: string;
+  readonly tools: readonly ToolEntry[];
+  /** Whether any call in the run ended `"failed"` — the panel must never let
+   *  this fold hide a failure behind "N more, expand to see them all". */
+  readonly hasError: boolean;
+}
+
+/** What the transcript view renders, one turn's entries at a time — either an
+ *  ordinary entry or a folded run of them. */
+export type RenderEntry = TranscriptEntry | ToolGroupEntry;
 
 /**
  * The reduced transcript. `seq` is the key counter — carried in the state so
@@ -248,6 +267,26 @@ export function appendUserMessage(
   }));
 }
 
+/** Every non-empty prompt the user has sent in this session, oldest first —
+ *  what the composer's ↑/↓ history recall steps through. Draws on the same
+ *  `entries` a restored panel seeds from ({@link seedFromJournal}), so
+ *  recall reaches back before this mount, not just this run's own sends.
+ *
+ *  A resent prompt keeps only its most recent send — re-sending "yes" five
+ *  times across a session shouldn't make ↑ walk through "yes" five times
+ *  before reaching anything else (shell history's `HISTCONTROL=erasedups`). */
+export function userPromptHistory(t: Transcript): readonly string[] {
+  const texts: string[] = [];
+  for (const e of t.entries) {
+    if (e.type === "message" && e.role === "user" && e.text.trim().length > 0) {
+      texts.push(e.text);
+    }
+  }
+  const lastIndex = new Map<string, number>();
+  texts.forEach((text, i) => lastIndex.set(text, i));
+  return texts.filter((text, i) => lastIndex.get(text) === i);
+}
+
 /** Append one of Silo's own notices (a stop reason, a dropped connection). */
 export function appendNotice(
   t: Transcript,
@@ -362,6 +401,33 @@ export function applyUpdate(
   return t;
 }
 
+/**
+ * Force every tool call still `"pending"` / `"in_progress"` to `"failed"`.
+ *
+ * A turn that ends without a final `tool_call_update` for a call it started
+ * — the agent's own connection dropped mid-tool-call, a permission request
+ * it was waiting on sat unanswered until the upstream connection gave up,
+ * the turn was canceled — otherwise leaves that row's spinner badge showing
+ * forever, since nothing in the stream will ever move it out of that
+ * status. Call once a turn's `prompt()` has settled, success or not; only
+ * one turn runs at a time, so anything still non-terminal at that point
+ * belongs to the turn that just ended.
+ */
+export function closeDanglingTools(t: Transcript): Transcript {
+  let changed = false;
+  const entries = t.entries.map((e) => {
+    if (
+      e.type === "tool" &&
+      (e.status === "pending" || e.status === "in_progress")
+    ) {
+      changed = true;
+      return { ...e, status: "failed" };
+    }
+    return e;
+  });
+  return changed ? { ...t, entries } : t;
+}
+
 /** Badge tone for a tool call's protocol status. Unknown statuses read as
  *  neutral rather than guessing at success or failure. */
 export function toolStatusTone(
@@ -425,6 +491,91 @@ export function groupTurns(
   }
   flush();
   return turns;
+}
+
+/**
+ * Whether two {@link Turn}s describe the same entries — the equality the
+ * panel memoizes a rendered turn on.
+ *
+ * {@link groupTurns} is a projection: it builds fresh `Turn` objects (and
+ * fresh `rest` arrays) on every call, so two runs over an unchanged
+ * transcript are never `===`. The *entries* inside them are what's stable —
+ * {@link applyUpdate} replaces only the entry it patches and shares the rest
+ * — so identity per entry is the signal worth comparing. A streaming turn
+ * fails this and re-renders; every turn above it passes and doesn't.
+ */
+export function sameTurn(a: Turn, b: Turn): boolean {
+  if (a.key !== b.key || a.user !== b.user) return false;
+  if (a.rest.length !== b.rest.length) return false;
+  return a.rest.every((entry, i) => entry === b.rest[i]);
+}
+
+/** A run this long or longer folds under a collapsible group. */
+export const TOOL_GROUP_THRESHOLD = 6;
+/** How many of a group's most recent calls stay visible inline once folded;
+ *  the rest sit behind "N more, expand to see them all". */
+export const TOOL_GROUP_INLINE_COUNT = 5;
+
+/**
+ * Fold one turn's entries into {@link RenderEntry}s (RFC 0043 companion) —
+ * the transcript's spacing/grouping unit for tool calls, the way
+ * {@link groupTurns} is for turns. A pure projection, recomputed at render
+ * time rather than stored on `Transcript`, so it never has to be kept in sync
+ * as `applyUpdate` patches a call in place.
+ *
+ * A run of {@link TOOL_GROUP_THRESHOLD}+ consecutive tool calls, none of them
+ * carrying a diff, folds into one {@link ToolGroupEntry}. A diff-producing
+ * call (an Edit/Write) — and anything that isn't a tool call at all, e.g. the
+ * agent's own prose between two calls — breaks the run and renders in full,
+ * on its own; folding resumes only after another run this long follows it.
+ */
+export function foldToolRuns(
+  entries: readonly TranscriptEntry[],
+): readonly RenderEntry[] {
+  const out: RenderEntry[] = [];
+  let run: ToolEntry[] = [];
+
+  const flushRun = () => {
+    if (run.length >= TOOL_GROUP_THRESHOLD) {
+      out.push({
+        type: "tool-group",
+        key: `g${run[0]!.key}`,
+        tools: run,
+        hasError: run.some((tool) => tool.status === "failed"),
+      });
+    } else {
+      out.push(...run);
+    }
+    run = [];
+  };
+
+  for (const entry of entries) {
+    if (entry.type === "tool" && (entry.diffs?.length ?? 0) === 0) {
+      run.push(entry);
+      continue;
+    }
+    flushRun();
+    out.push(entry);
+  }
+  flushRun();
+  return out;
+}
+
+/** The folded group's header label — e.g. `"14 Shell · 3 Read"` — so a
+ *  collapsed run still says what it did, not just "Tool calls...". Counts by
+ *  the same display label the row itself would show, falling back to "Tool"
+ *  for a call with no kind (rather than dropping it from the tally), sorted
+ *  most-frequent first. */
+export function toolGroupLabel(group: ToolGroupEntry): string {
+  const counts = new Map<string, number>();
+  for (const tool of group.tools) {
+    const label = formatToolKindLabel(tool.toolKind, tool.title) ?? "Tool";
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return [...counts]
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => `${count} ${label}`)
+    .join(" · ");
 }
 
 /** `"18s"` / `"1m 30s"` — a bare duration, for the turn footer's *live*

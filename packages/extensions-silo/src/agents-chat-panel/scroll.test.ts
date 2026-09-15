@@ -8,7 +8,9 @@ import {
   isValidScrollTop,
   maxScrollTop,
   persistedScroll,
+  restoreIsStable,
   restoreTargetFor,
+  SCROLL_RESTORE_GUARD_MS,
   SCROLL_RESTORE_SETTLE_MS,
   SCROLL_RESTORE_TIMEOUT_MS,
   scrollToBottom,
@@ -207,6 +209,38 @@ describe("shouldAbandonRestore", () => {
         armed,
         armed + SCROLL_RESTORE_TIMEOUT_MS,
         false,
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("restoreIsStable", () => {
+  const firstReachedAt = 1_000;
+
+  it("is not satisfied the instant the target is first reached", () => {
+    expect(restoreIsStable(firstReachedAt, firstReachedAt)).toBe(false);
+  });
+
+  it("is not satisfied a moment short of the guard window", () => {
+    expect(
+      restoreIsStable(
+        firstReachedAt + SCROLL_RESTORE_GUARD_MS - 1,
+        firstReachedAt,
+      ),
+    ).toBe(false);
+  });
+
+  it("is satisfied once the target has held for the full guard window", () => {
+    expect(
+      restoreIsStable(firstReachedAt + SCROLL_RESTORE_GUARD_MS, firstReachedAt),
+    ).toBe(true);
+  });
+
+  it("stays satisfied past the guard window", () => {
+    expect(
+      restoreIsStable(
+        firstReachedAt + SCROLL_RESTORE_GUARD_MS + 5_000,
+        firstReachedAt,
       ),
     ).toBe(true);
   });

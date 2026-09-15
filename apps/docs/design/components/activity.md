@@ -43,11 +43,11 @@ import { ActivityGlyph, type Activity } from "@silo-code/sdk";
 <ActivityGlyph size="sm" />  // omit activity → gray neutral
 ```
 
-| Prop        | Type                                         | Default | Notes                                                                                                                                                                                                                                                                 |
-| ----------- | -------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `activity`  | `"working" \| "ready" \| "warn" \| "error"`? | —       | Omit only for the gray neutral fallback                                                                                                                                                                                                                               |
-| `size`      | `"sm" \| "md"`                               | `"sm"`  | `sm` (8px at default) is the workbench size — workspace status rows and tabs; `md` (10px) is for a list that leads with the dot. Both track `uiFontSize` — a proportion of the base size rounded to an even pixel, not fixed px.                                      |
-| `jitterKey` | `string`?                                    | —       | A stable id (row / terminal id — not an array index). Give each glyph in a list one: it desynchronizes the `working` / `ready` pulse from its neighbours and makes the animation mount already running instead of freezing on first paint. Inert on the static kinds. |
+| Prop        | Type                                         | Default | Notes                                                                                                                                                                                                                                                                          |
+| ----------- | -------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `activity`  | `"working" \| "ready" \| "warn" \| "error"`? | —       | Omit only for the gray neutral fallback                                                                                                                                                                                                                                        |
+| `size`      | `"sm" \| "md"`                               | `"sm"`  | `sm` (8px at default) is the workbench size — workspace status rows and tabs; `md` (10px) is for a list that leads with the dot. Both track `uiFontSize` — a proportion of the base size rounded to an even pixel, not fixed px.                                               |
+| `jitterKey` | `string`?                                    | —       | A stable id (row / terminal id — not an array index). Give each glyph in a list one: it desynchronizes the `working` / `ready` / `warn` pulse from its neighbours and makes the animation mount already running instead of freezing on first paint. Inert on the static kinds. |
 
 ## Kinds
 
@@ -55,7 +55,7 @@ import { ActivityGlyph, type Activity } from "@silo-code/sdk";
 | --------- | ----------------------------- | ----------------------------------------------------------------------------- |
 | `working` | In progress                   | Blue dot + expanding rings                                                    |
 | `ready`   | Available / waiting for input | Green subtle throb                                                            |
-| `warn`    | Needs caution                 | Amber static                                                                  |
+| `warn`    | Needs caution                 | Amber subtle throb                                                            |
 | `error`   | Failed                        | Red static                                                                    |
 | _(omit)_  | Neutral / unconfirmed         | Gray static — workspace status rows only; in panels prefer omitting the glyph |
 

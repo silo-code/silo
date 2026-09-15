@@ -22,7 +22,13 @@
  * reinterpreting their asterisks would be wrong.
  */
 
-import { Children, cloneElement, isValidElement, type ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  memo,
+  type ReactNode,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { kindFromHref } from "./link-match";
@@ -42,7 +48,19 @@ function linkifyNodes(children: ReactNode): ReactNode {
   });
 }
 
-export function TranscriptMarkdown({ text }: { text: string }) {
+/**
+ * Memoized on `text` alone, which is the whole of its input. Parsing markdown
+ * is a full remark/rehype pipeline run per message, and the panel re-renders
+ * for reasons that have nothing to do with any message's text — a workspace
+ * switch flipping `onScreen`, a tool row expanding, a chunk landing at the
+ * bottom of a long transcript. Without this, every one of those re-parses the
+ * entire transcript, and the cost grows with the session.
+ */
+export const TranscriptMarkdown = memo(function TranscriptMarkdown({
+  text,
+}: {
+  text: string;
+}) {
   return (
     <div className="acp-chat__md">
       <ReactMarkdown
@@ -75,4 +93,4 @@ export function TranscriptMarkdown({ text }: { text: string }) {
       </ReactMarkdown>
     </div>
   );
-}
+});

@@ -3,8 +3,15 @@
  *
  * Path matching is borrowed from
  * `packages/extensions-core/src/terminal/terminal-link-match.ts` — a silo.*
- * extension cannot import that package, and the rules must stay the same so
- * a path underlined in a terminal is underlined here too.
+ * extension cannot import that package, and the rules should otherwise stay
+ * the same so a path underlined in a terminal is underlined here too. One
+ * intentional divergence: a bare filename with no directory component (no
+ * `/` at all, e.g. a tool call titled just `tool-demo.txt`) still links here
+ * as long as it has a exactly-3-character extension (Dave's call — the
+ * terminal has no equivalent "the agent named its own file" case driving
+ * this). A shorter or longer extension doesn't count, which is also what
+ * keeps this from lighting up every "Node.js" or "config.json" mentioned in
+ * prose.
  */
 
 export type ChatLinkKind = "url" | "path";
@@ -16,8 +23,9 @@ export interface ChatLinkSpan {
 }
 
 const PATH_CHARS = String.raw`[A-Za-z0-9_./\-@+]`;
+const BARE_FILENAME_3 = String.raw`[A-Za-z0-9_\-@+]+\.[A-Za-z0-9]{3}(?![A-Za-z0-9])`;
 function pathBody(chars: string): string {
-  return String.raw`(?:(?:~|\.{1,2})?\/${chars}+|\.?[A-Za-z0-9_\-@+]+\/${chars}*\.[A-Za-z0-9_\-@+]+)`;
+  return String.raw`(?:(?:~|\.{1,2})?\/${chars}+|\.?[A-Za-z0-9_\-@+]+\/${chars}*\.[A-Za-z0-9_\-@+]+|${BARE_FILENAME_3})`;
 }
 const LINE_COL_SUFFIX = String.raw`(?::\d+(?::\d+)?)?`;
 const BARE = String.raw`(?<![A-Za-z0-9_.:/\-@+])${pathBody(PATH_CHARS)}${LINE_COL_SUFFIX}`;

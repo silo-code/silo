@@ -148,11 +148,16 @@
 }
 
 /* Terminal-style dashed underline (ADR 0027). Plain click selects; ⌘/Ctrl
-   + click opens. */
+   + click opens.
+   `border-bottom`, not `text-decoration`: WebKit doesn't paint a
+   `text-decoration` on this span when its ellipsis-truncated ancestor
+   (`.acp-chat__tool-title`) has `overflow: hidden` — the computed style
+   still reports `underline`, but nothing renders. A dashed bottom border
+   isn't drawn through the same text-decoration ink path, so it survives
+   that ancestor untouched. */
 .acp-chat__link {
   color: inherit;
-  text-decoration: underline dashed;
-  text-underline-offset: 0.15em;
+  border-bottom: 1px dashed currentColor;
   cursor: pointer;
 }
 
@@ -186,9 +191,9 @@
      Expanded Input / Output re-enables selection on `.acp-chat__tool-body`. */
   user-select: none;
   -webkit-user-select: none;
-  /* The padding + negative margin trick: the hover/expanded background below
-     gets room to breathe without shifting the row's own position in normal
-     flow (no padding would mean the highlight hugs the glyphs edge-to-edge). */
+  /* Padding widens the click/hover target beyond the glyphs' own box; the
+     matching negative margin cancels it back out so the row doesn't shift in
+     normal flow. */
   padding: 2px 4px;
   margin: -2px -4px;
   border-radius: var(--silo-radius-sm);
@@ -198,18 +203,29 @@
   cursor: pointer;
 }
 
-/* Collapsed by default (Dave's call) — hover highlights the row, and only a
-   row with something to expand gets the hover/focus treatment at all. */
-.acp-chat__tool-head[data-interactive]:hover,
-.acp-chat__tool-head[data-interactive]:focus-visible {
-  background: var(--silo-color-bg-hover);
-}
-
 .acp-chat__tool-icon-stack {
   position: relative;
   flex: 0 0 auto;
   width: 1em;
   height: 1em;
+}
+
+/* The row itself no longer highlights on hover (Dave's call) — just this
+   small chip behind the glyph, so the disclosure affordance is the icon
+   swapping to a chevron, not the whole line lighting up. */
+.acp-chat__tool-icon-stack::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: var(--silo-radius-sm);
+  background: transparent;
+}
+
+.acp-chat__tool-head[data-interactive]:hover .acp-chat__tool-icon-stack::before,
+.acp-chat__tool-head[data-interactive]:focus-visible
+  .acp-chat__tool-icon-stack::before,
+.acp-chat__tool[data-expanded] .acp-chat__tool-icon-stack::before {
+  background: var(--silo-color-bg-hover);
 }
 
 .acp-chat__tool-icon {
@@ -316,7 +332,7 @@
 
 .acp-chat__diff {
   font-family: var(--silo-font-mono);
-  font-size: var(--silo-font-size-sm);
+  font-size: var(--silo-font-size-base);
 }
 
 .acp-chat__diff-line {
@@ -365,7 +381,7 @@
   border-radius: var(--silo-radius-sm);
   background: var(--silo-color-bg);
   font-family: var(--silo-font-mono);
-  font-size: var(--silo-font-size-sm);
+  font-size: var(--silo-font-size-base);
   color: var(--silo-color-text-lo);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -385,6 +401,85 @@
 .acp-chat__tool-pre--md .acp-chat__md code {
   background: none;
   padding: 0;
+}
+
+/* --- tool groups ---------------------------------------------------------
+   A folded run of ≥6 routine tool calls (feature request: group consecutive
+   tool calls). Same disclosure shape as a single `.acp-chat__tool` row —
+   a compact head, an indented body — so a folded run reads as one more kind
+   of transcript row, not a bolted-on control. */
+
+.acp-chat__tool-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acp-chat__tool-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--silo-radius-sm);
+}
+
+.acp-chat__tool-group-head[data-interactive] {
+  cursor: pointer;
+}
+
+.acp-chat__tool-group-head[data-interactive]:hover,
+.acp-chat__tool-group-head[data-interactive]:focus-visible {
+  background: var(--silo-color-bg-hover);
+}
+
+.acp-chat__tool-group-caret {
+  flex: 0 0 auto;
+  color: var(--silo-color-text-lo);
+  transition: transform 0.1s ease;
+}
+
+.acp-chat__tool-group[data-expanded] .acp-chat__tool-group-caret {
+  transform: rotate(90deg);
+}
+
+.acp-chat__tool-group-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__tool-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 0 20px;
+}
+
+.acp-chat__tool-group-body > .acp-chat__tool + .acp-chat__tool {
+  margin-top: 8px;
+}
+
+.acp-chat__tool-group-more {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+}
+
+.acp-chat__tool-group-more:hover,
+.acp-chat__tool-group-more:focus-visible {
+  color: var(--silo-color-accent);
 }
 
 /* --- plan --------------------------------------------------------------- */
@@ -479,9 +574,14 @@
 
 .acp-chat__input {
   /* The kit's `.silo-textarea` owns the treatment; only the geometry the
-     composer needs is set here. */
+     composer needs is set here. Height itself is set inline by the panel
+     (see its `useLayoutEffect`), growing with the draft up to
+     COMPOSER_MAX_HEIGHT_PX; overflow-y here is what makes it scroll
+     internally, rather than grow further, once it hits that cap. */
   width: 100%;
   min-height: 0;
+  max-height: 200px;
+  overflow-y: auto;
   resize: none;
 }
 
@@ -512,7 +612,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--silo-color-text-lo);
+  color: var(--silo-color-ok);
   font-size: var(--silo-font-size-sm);
   pointer-events: none;
 }
@@ -548,6 +648,17 @@
   max-width: 40%;
 }
 
+/* The Auto Accept toggle — fixed, short text, so unlike `.acp-chat__config`
+   it never needs to shrink or ellipsize; `inline-flex` + `nowrap` keep the
+   icon and label from wrapping onto their own lines as the row narrows. */
+.acp-chat__auto-accept {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 /* Pins Send/Stop (or the Continue/Reconnect text buttons) to the far right,
    regardless of how many pills come before it. */
 .acp-chat__send-slot {
@@ -573,6 +684,34 @@
 .acp-chat__stop {
   background: var(--silo-button-danger-bg);
   color: var(--silo-button-danger-text);
+}
+
+/* Floats just above the composer, centered, overlapping the transcript's own
+   bottom edge — same anchor-to-`.acp-chat__composer` idiom as `.acp-chat__
+   connecting` and `.acp-chat__command-palette` above. Same circle shape as
+   Send/Stop, but deliberately quieter (Dave's call): this is an ambient
+   affordance the user glances past most of the time, not the one action
+   that matters right now, so it wears the muted surface/icon tokens
+   `.silo-icon-button` itself defaults to, plus a border to read as a
+   distinct pill over the transcript rather than a stray hover state. */
+.acp-chat__jump-to-bottom {
+  position: absolute;
+  /* Centered via `left` + a fixed negative margin, not `transform:
+     translateX(-50%)` — the base `.silo-icon-button:active` rule sets its
+     own `transform: scale(0.92)` on press, which *replaces* rather than
+     combines with a transform set here (same property, higher specificity),
+     so a translateX-based center would lose its offset and visibly jump on
+     click. Margin doesn't collide with that rule. */
+  left: 50%;
+  bottom: 100%;
+  margin-bottom: 8px;
+  margin-left: -1em;
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: 50%;
+  width: 2em;
+  height: 2em;
+  background: var(--silo-color-bg-hover);
+  color: var(--silo-color-text-lo);
 }
 
 /* --- command palette (RFC 0040 data, RFC 0043 finding 3 placement) ------- */

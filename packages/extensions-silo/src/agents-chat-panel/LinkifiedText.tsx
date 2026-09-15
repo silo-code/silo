@@ -4,10 +4,48 @@
  * via `data-acp-link` / `data-href` — this component only marks them up.
  */
 
-import type { ReactNode } from "react";
-import { matchChatLinks } from "./link-match";
+import { memo, type ReactNode } from "react";
+import { Tooltip } from "@silo-code/sdk";
+import { matchChatLinks, type ChatLinkKind } from "./link-match";
+import { linkMenuLabels, linkModifierLabel } from "./link-policy";
 
-export function LinkifiedText({ text }: { text: string }) {
+const IS_MAC =
+  typeof navigator !== "undefined" &&
+  navigator.platform.toUpperCase().includes("MAC");
+
+/** One `data-acp-link` span with a tooltip naming the modifier that opens
+ *  it — a plain click alone gives no hint that the row it's part of (a tool
+ *  title, a message line) needs a held key to activate the link. */
+export function ChatLinkSpan({
+  kind,
+  href,
+  children,
+}: {
+  kind: ChatLinkKind;
+  href: string;
+  children: ReactNode;
+}) {
+  const { open } = linkMenuLabels(kind);
+  return (
+    <Tooltip
+      content={`${linkModifierLabel(IS_MAC)}-click to ${open.toLowerCase()}`}
+    >
+      <span className="acp-chat__link" data-acp-link={kind} data-href={href}>
+        {children}
+      </span>
+    </Tooltip>
+  );
+}
+
+/** Memoized on `text`, its whole input — the same reason
+ *  {@link TranscriptMarkdown} is. This is what renders a user message and
+ *  every tool row's Input/Output well, so it runs its link regex over the
+ *  transcript as many times as the panel re-renders otherwise. */
+export const LinkifiedText = memo(function LinkifiedText({
+  text,
+}: {
+  text: string;
+}) {
   const spans = matchChatLinks(text);
   if (spans.length === 0) return <>{text}</>;
   const parts: ReactNode[] = [];
@@ -17,20 +55,19 @@ export function LinkifiedText({ text }: { text: string }) {
       parts.push(text.slice(cursor, span.index));
     }
     parts.push(
-      <span
+      <ChatLinkSpan
         key={`${span.index}-${i}`}
-        className="acp-chat__link"
-        data-acp-link={span.kind}
-        data-href={span.text}
+        kind={span.kind}
+        href={span.text}
       >
         {span.text}
-      </span>,
+      </ChatLinkSpan>,
     );
     cursor = span.index + span.text.length;
   });
   if (cursor < text.length) parts.push(text.slice(cursor));
   return <>{parts}</>;
-}
+});
 
 /** The link under `target`, if the event landed on a marked-up span. */
 export function chatLinkFromTarget(

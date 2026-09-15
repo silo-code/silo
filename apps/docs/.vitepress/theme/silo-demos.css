@@ -1067,6 +1067,7 @@ html.dark .silo-demo {
 }
 .silo-demo .silo-activity-warn {
   color: var(--silo-activity-warn);
+  animation: silo-demo-activity-pulse-subtle 1.4s ease-in-out infinite;
 }
 .silo-demo .silo-activity-error {
   color: var(--silo-activity-error);

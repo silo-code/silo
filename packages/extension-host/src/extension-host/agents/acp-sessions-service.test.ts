@@ -411,7 +411,10 @@ describe("turn lifecycle → ctx.agents status", () => {
       },
       respondSpy,
     );
-    expect(chatAgentInfos()[0]).toMatchObject({ needsAttention: true });
+    expect(chatAgentInfos()[0]).toMatchObject({
+      needsAttention: true,
+      activity: "blocked",
+    });
     expect(seen).toHaveBeenCalledOnce();
 
     seen.mock.calls[0][0].respond("allow");
@@ -419,7 +422,31 @@ describe("turn lifecycle → ctx.agents status", () => {
       outcome: "selected",
       optionId: "allow",
     });
-    expect(chatAgentInfos()[0]).toMatchObject({ needsAttention: false });
+    expect(chatAgentInfos()[0]).toMatchObject({
+      needsAttention: false,
+      activity: "working",
+    });
+  });
+
+  it("a permission request sets activity: blocked even on the active session, unlike needsAttention", async () => {
+    const handle = await service.connect("claude-chat");
+    handle.onPermission(vi.fn());
+    setPanelAgentSession("acp-chat:p1", handle.id);
+    setActiveDockPanel("acp-chat:p1");
+
+    captured.onPermission(
+      {
+        toolCallId: "tc1",
+        title: "Write a file",
+        options: [{ optionId: "allow", name: "Allow", kind: "allow_once" }],
+        raw: {},
+      },
+      vi.fn(),
+    );
+    expect(chatAgentInfos()[0]).toMatchObject({
+      needsAttention: false,
+      activity: "blocked",
+    });
   });
 
   it("answers a permission request cancelled when no listener is registered", async () => {

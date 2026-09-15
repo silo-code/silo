@@ -8,21 +8,28 @@ import {
   appendNotice,
   appendUserMessage,
   applyUpdate,
+  closeDanglingTools,
   elapsedLabel,
   emptyTranscript,
+  foldToolRuns,
   formatToolInput,
   groupTurns,
   nextEntryKey,
+  sameTurn,
   planRows,
   seedFromJournal,
   stopReasonNotice,
   toolContentLines,
+  toolGroupLabel,
   toolOutputIsMarkdown,
   toolStatusTone,
+  userPromptHistory,
   workedForLabel,
+  TOOL_GROUP_THRESHOLD,
   type MessageEntry,
   type PlanEntry,
   type ToolEntry,
+  type ToolGroupEntry,
   type Transcript,
 } from "./transcript-model";
 
@@ -52,6 +59,39 @@ function tool(
 /** A `plan` update, with the whole plan the agent reissued. */
 function plan(entries: AgentPlanEntry[]): AgentSessionUpdate {
   return { kind: "plan", plan: entries, raw: { sessionUpdate: "plan" } };
+}
+
+let readCallSeq = 0;
+
+/** A run of plain, non-diff tool calls — `readCalls(3)` gives three distinct
+ *  `"read"`-kind calls, each its own `toolCallId`, none of them failed. */
+function readCalls(
+  count: number,
+  overrides: Partial<AgentToolCall> = {},
+): AgentSessionUpdate[] {
+  return Array.from({ length: count }, () => {
+    const id = `r${++readCallSeq}`;
+    return tool("tool_call", {
+      toolCallId: id,
+      title: `Read file-${id}.ts`,
+      kind: "read",
+      status: "completed",
+      ...overrides,
+    });
+  });
+}
+
+/** A tool call carrying a protocol diff — the one shape that breaks a
+ *  {@link foldToolRuns} run regardless of run length. */
+function editCall(toolCallId = "edit1"): AgentSessionUpdate {
+  return tool("tool_call", {
+    toolCallId,
+    title: "Edit a.ts",
+    kind: "edit",
+    content: [
+      { type: "diff", path: "src/a.ts", oldText: "old\n", newText: "new\n" },
+    ],
+  });
 }
 
 /** Any other kind, with nothing modelled on it. */
@@ -357,6 +397,31 @@ describe("appendUserMessage / appendNotice", () => {
   });
 });
 
+describe("userPromptHistory", () => {
+  it("lists the user's own prompts, oldest first, skipping agent replies", () => {
+    let t: Transcript = appendUserMessage(emptyTranscript, "first");
+    t = applyUpdate(t, chunk("agent_message_chunk", "hi there", "m1"));
+    t = appendUserMessage(t, "second");
+    expect(userPromptHistory(t)).toEqual(["first", "second"]);
+  });
+
+  it("skips a blank/whitespace-only prompt (an attachment-only send)", () => {
+    const t = appendUserMessage(emptyTranscript, "   ", ["a.ts"]);
+    expect(userPromptHistory(t)).toEqual([]);
+  });
+
+  it("is empty for a fresh transcript", () => {
+    expect(userPromptHistory(emptyTranscript)).toEqual([]);
+  });
+
+  it("keeps only a resent prompt's most recent send, in that position", () => {
+    let t: Transcript = appendUserMessage(emptyTranscript, "yes");
+    t = appendUserMessage(t, "do the thing");
+    t = appendUserMessage(t, "yes");
+    expect(userPromptHistory(t)).toEqual(["do the thing", "yes"]);
+  });
+});
+
 describe("formatToolInput", () => {
   it("shows nothing for undefined, null, or an empty object", () => {
     expect(formatToolInput(undefined)).toBeUndefined();
@@ -438,6 +503,40 @@ describe("toolStatusTone", () => {
   });
 });
 
+describe("closeDanglingTools", () => {
+  it("fails a tool call still pending or in progress", () => {
+    const t = fold([
+      tool("tool_call", {
+        toolCallId: "c1",
+        title: "Read a.ts",
+        status: "pending",
+      }),
+      tool("tool_call", {
+        toolCallId: "c2",
+        title: "Edit b.ts",
+        status: "in_progress",
+      }),
+    ]);
+    const closed = closeDanglingTools(t);
+    expect(closed.entries.map((e) => (e as ToolEntry).status)).toEqual([
+      "failed",
+      "failed",
+    ]);
+  });
+
+  it("leaves a completed or already-failed call alone", () => {
+    const t = fold([
+      tool("tool_call", { toolCallId: "c1", title: "a", status: "completed" }),
+      tool("tool_call", { toolCallId: "c2", title: "b", status: "failed" }),
+    ]);
+    expect(closeDanglingTools(t)).toBe(t);
+  });
+
+  it("returns the same reference when nothing needs closing", () => {
+    expect(closeDanglingTools(emptyTranscript)).toBe(emptyTranscript);
+  });
+});
+
 describe("stopReasonNotice", () => {
   it("says nothing for a normal end of turn", () => {
     expect(stopReasonNotice("end_turn")).toBeUndefined();
@@ -494,6 +593,178 @@ describe("groupTurns", () => {
     expect(turns).toHaveLength(1);
     expect(turns[0]?.user).toMatchObject({ text: "hi" });
     expect(turns[0]?.rest).toEqual([]);
+  });
+});
+
+describe("sameTurn", () => {
+  const base = [
+    chunk("user_message_chunk", "hi", "u1"),
+    chunk("agent_message_chunk", "hello", "a1"),
+    tool("tool_call", { toolCallId: "1", title: "Shell" }),
+    chunk("user_message_chunk", "thanks", "u2"),
+    chunk("agent_message_chunk", "np", "a2"),
+  ];
+
+  it("holds across a re-projection of an unchanged transcript", () => {
+    const t = fold(base);
+    const a = groupTurns(t.entries);
+    const b = groupTurns(t.entries);
+    // The projection rebuilds the objects, so this is exactly the case the
+    // default shallow compare would miss.
+    expect(a[0]).not.toBe(b[0]);
+    expect(a.every((turn, i) => sameTurn(turn, b[i]!))).toBe(true);
+  });
+
+  it("holds for earlier turns when the last one streams on", () => {
+    const t = fold(base);
+    const before = groupTurns(t.entries);
+    const after = groupTurns(
+      fold([chunk("agent_message_chunk", " problem", "a2")], t).entries,
+    );
+    expect(sameTurn(before[0]!, after[0]!)).toBe(true);
+    expect(sameTurn(before[1]!, after[1]!)).toBe(false);
+  });
+
+  it("fails for the turn whose tool call was patched in place", () => {
+    const t = fold(base);
+    const before = groupTurns(t.entries);
+    const after = groupTurns(
+      fold(
+        [tool("tool_call_update", { toolCallId: "1", status: "completed" })],
+        t,
+      ).entries,
+    );
+    expect(sameTurn(before[0]!, after[0]!)).toBe(false);
+    expect(sameTurn(before[1]!, after[1]!)).toBe(true);
+  });
+
+  it("fails for a turn that gained an entry", () => {
+    const t = fold(base);
+    const before = groupTurns(t.entries);
+    const after = groupTurns(
+      fold([tool("tool_call", { toolCallId: "2", title: "Read" })], t).entries,
+    );
+    expect(before[1]?.rest).toHaveLength(1);
+    expect(after[1]?.rest).toHaveLength(2);
+    expect(sameTurn(before[1]!, after[1]!)).toBe(false);
+  });
+
+  it("fails when a new turn takes the same key as an old one's position", () => {
+    // Turn keys are positional (`t0`, `t1`, …), so a turn can keep its key
+    // while being an entirely different turn — the entry compare is what
+    // catches that, not the key.
+    const a = groupTurns(
+      fold([chunk("user_message_chunk", "hi", "u1")]).entries,
+    );
+    const b = groupTurns(
+      fold([chunk("user_message_chunk", "different", "u9")]).entries,
+    );
+    expect(a[0]?.key).toBe(b[0]?.key);
+    expect(sameTurn(a[0]!, b[0]!)).toBe(false);
+  });
+});
+
+describe("foldToolRuns", () => {
+  it("is empty for an empty transcript", () => {
+    expect(foldToolRuns([])).toEqual([]);
+  });
+
+  it("leaves a run shorter than the threshold alone", () => {
+    const t = fold(readCalls(TOOL_GROUP_THRESHOLD - 1));
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual(
+      Array(TOOL_GROUP_THRESHOLD - 1).fill("tool"),
+    );
+  });
+
+  it("folds a run at or beyond the threshold into one group", () => {
+    const t = fold(readCalls(TOOL_GROUP_THRESHOLD));
+    const folded = foldToolRuns(t.entries);
+    expect(folded).toHaveLength(1);
+    const group = folded[0] as ToolGroupEntry;
+    expect(group.type).toBe("tool-group");
+    expect(group.tools).toHaveLength(TOOL_GROUP_THRESHOLD);
+    expect(group.hasError).toBe(false);
+  });
+
+  it("breaks the run on a diff-producing call and resumes after it", () => {
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+      editCall(),
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual([
+      "tool-group",
+      "tool",
+      "tool-group",
+    ]);
+    expect((folded[1] as ToolEntry).diffs).toHaveLength(1);
+  });
+
+  it("never folds a run the diff-producing call keeps under the threshold", () => {
+    const t = fold([...readCalls(3), editCall(), ...readCalls(3)]);
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual([
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+    ]);
+  });
+
+  it("breaks the run on a non-tool entry too", () => {
+    const t = fold([
+      ...readCalls(3),
+      chunk("agent_message_chunk", "hang on", "a1"),
+      ...readCalls(3),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual([
+      "tool",
+      "tool",
+      "tool",
+      "message",
+      "tool",
+      "tool",
+      "tool",
+    ]);
+  });
+
+  it("marks a group hasError when any call inside it failed", () => {
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD - 1),
+      ...readCalls(1, { status: "failed" }),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    const group = folded[0] as ToolGroupEntry;
+    expect(group.hasError).toBe(true);
+  });
+});
+
+describe("toolGroupLabel", () => {
+  it("summarizes the group by kind, most-frequent first", () => {
+    const t = fold([
+      ...readCalls(3),
+      ...Array.from({ length: 14 }, (_, i) =>
+        tool("tool_call", {
+          toolCallId: `s${i}`,
+          title: `Run step ${i}`,
+          kind: "execute",
+        }),
+      ),
+    ]);
+    const group = foldToolRuns(t.entries)[0] as ToolGroupEntry;
+    expect(toolGroupLabel(group)).toBe("14 Shell · 3 Read");
+  });
+
+  it("falls back to Tool for a call with no kind", () => {
+    const t = fold(readCalls(TOOL_GROUP_THRESHOLD, { kind: undefined }));
+    const group = foldToolRuns(t.entries)[0] as ToolGroupEntry;
+    expect(toolGroupLabel(group)).toBe(`${TOOL_GROUP_THRESHOLD} Tool`);
   });
 });
 

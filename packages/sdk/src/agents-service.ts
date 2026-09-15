@@ -8,8 +8,9 @@ import type { TabActivityBinder, TabIconBinder } from "./tab-adornment";
 // ever read this surface.
 
 /**
- * What a terminal's agent is currently doing, as classified by the host from
- * OSC/output signals. `"none"` means no agent activity has been observed
+ * What an agent is currently doing — classified by the host from OSC/output
+ * signals for a terminal-kind session, or reported directly by the protocol
+ * for a chat-kind one. `"none"` means no agent activity has been observed
  * (including plain, non-agent shells). `"idle"` means the agent finished its
  * last turn and is waiting for the next input — this is purely a fact about
  * the agent itself, independent of whether anyone is looking at the
@@ -22,11 +23,26 @@ import type { TabActivityBinder, TabIconBinder } from "./tab-adornment";
  * gone (no daemon to reattach to) after an unclean shutdown; nothing will
  * arrive to resolve this on its own.
  *
+ * `"blocked"` (chat-kind only) is a turn suspended on
+ * {@link AgentSessionHandle.onPermission} — a concrete, protocol-reported
+ * question, not the inferred "no output for a while" guess `"idle"` is. It
+ * does not repeat the earlier `"waiting"` mistake: unlike a merely-idle
+ * agent, it stays `"blocked"` even while its own session is the one on
+ * screen, since "the agent needs you to answer something" is worth showing
+ * regardless of whether you are already looking — where `needsAttention`
+ * exists to be suppressed exactly then.
+ *
  * @category Core Types
  * @public
  * @beta
  */
-export type AgentActivity = "none" | "working" | "idle" | "error" | "dead";
+export type AgentActivity =
+  | "none"
+  | "working"
+  | "blocked"
+  | "idle"
+  | "error"
+  | "dead";
 
 /**
  * Which kind of **Agent Session** an {@link AgentInfo} describes (RFC 0038):

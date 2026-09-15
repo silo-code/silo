@@ -28,7 +28,8 @@ export interface AgentRow {
    *  same string its own dock tab shows, host-computed for either kind. */
   title: string;
   workspaceName: string;
-  /** Raw host activity, kept so the component can pick a glyph within "done" (idle/error/dead). */
+  /** Raw host activity, kept so the component can pick a glyph within
+   *  "done" (idle/error/dead) or "working" (working/blocked). */
   activity: AgentActivity;
   /** Stable catalog key (e.g. `"claude"`, `"codex"`) for the icon column, or
    * undefined before the host has resolved which agent this is. */
@@ -54,14 +55,18 @@ export interface AgentRow {
  * Which section an agent belongs in, or `null` for no row at all — mirrors
  * {@link deriveStatusRow}'s "no row" cases (non-agents, and agents that have
  * never run). `needsAttention` wins regardless of `activity` (an idle agent
- * with a pending finish is "ready", not "done"); everything else that isn't
- * actively `"working"` — acknowledged idle, `error`, `dead` — settles into
+ * with a pending finish is "ready", not "done"); `"blocked"` counts as
+ * `"working"` — a turn suspended on a permission answer is still a running
+ * turn, just paused, not a finish (see `AgentActivity`'s doc) — so it only
+ * ever reaches here for a session that's already the one on screen, where
+ * `needsAttention` was deliberately never raised. Everything else that isn't
+ * actively running — acknowledged idle, `error`, `dead` — settles into
  * "done".
  */
 function sectionFor(a: AgentInfo): AgentSection | null {
   if (!a.isAgent || a.activity === "none") return null;
   if (a.needsAttention) return "ready";
-  if (a.activity === "working") return "working";
+  if (a.activity === "working" || a.activity === "blocked") return "working";
   return "done";
 }
 

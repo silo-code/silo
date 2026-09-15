@@ -25,7 +25,9 @@ export type ActivitySize = "sm" | "md";
 /**
  * Map {@link AgentActivity} onto UI {@link Activity}. Returns `null` when there
  * is nothing to paint (`none` / `dead` — callers may map `dead` → `"error"`
- * themselves if they want chrome).
+ * themselves if they want chrome). `"blocked"` (waiting on a permission
+ * answer) maps to `"warn"` unconditionally — unlike `"dead"` it is never
+ * ambiguous chrome, so there is no reason for a caller to want it suppressed.
  *
  * @category Core Types
  * @public
@@ -34,6 +36,8 @@ export function activityFromAgent(a: AgentActivity): Activity | null {
   switch (a) {
     case "working":
       return "working";
+    case "blocked":
+      return "warn";
     case "idle":
       return "ready";
     case "error":

@@ -233,13 +233,15 @@ export function buildAgeSections(
 }
 
 /** The glyph for a row's section — "done" still distinguishes error/dead from
- * a plain acknowledged-idle finish (which gets the neutral gray dot). */
+ * a plain acknowledged-idle finish (which gets the neutral gray dot);
+ * "working" distinguishes a `"blocked"` turn (amber — waiting on a
+ * permission answer) from one actually running (blue). */
 function glyphFor(row: AgentRow): Activity | undefined {
   switch (row.section) {
     case "ready":
       return "ready";
     case "working":
-      return "working";
+      return row.activity === "blocked" ? "warn" : "working";
     case "done":
       if (row.activity === "error") return "error";
       if (row.activity === "dead") return "warn";

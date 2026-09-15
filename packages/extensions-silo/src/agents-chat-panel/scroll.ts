@@ -48,6 +48,22 @@ export const SCROLL_RESTORE_SETTLE_MS = 1000;
  */
 export const SCROLL_RESTORE_TIMEOUT_MS = 5000;
 
+/**
+ * How long a restored position must hold, once first reached, before it is
+ * trusted. Caught live (2026-09-14, a long-lived workspace switched away and
+ * back): `applyRestoreStep` reads back a just-assigned `scrollTop` as correct
+ * within the first couple of frames, yet a reflow *visibly a beat later* (Dave's
+ * own words: "right for a split second, then scrolls to top") clamps it again —
+ * observed on WebKit, with no `scroll` event marking the change, so nothing
+ * downstream notices. A few extra frames of confirmation (tried first) came
+ * back well under this — the clamp lands closer to a second later, not a
+ * frame or two. Continuing to re-assert the target across this whole window
+ * is what catches it: `applyRestoreStep` unconditionally re-writes `scrollTop`
+ * on every call, so a late clamp gets overwritten again on the very next
+ * retry instead of standing unnoticed.
+ */
+export const SCROLL_RESTORE_GUARD_MS = 1000;
+
 /** A remembered position: the offset plus whether it was following the stream. */
 export interface ScrollSnapshot {
   readonly top: number;
@@ -131,6 +147,15 @@ export function shouldAbandonRestore(
 ): boolean {
   if (now - armedAt >= SCROLL_RESTORE_TIMEOUT_MS) return true;
   return hasEntries && now - lastChangeAt >= SCROLL_RESTORE_SETTLE_MS;
+}
+
+/**
+ * Whether a restore that has read back as correct since `firstReachedAt` can
+ * be trusted and hand control back to the user, rather than the first good
+ * frame — see {@link SCROLL_RESTORE_GUARD_MS}.
+ */
+export function restoreIsStable(now: number, firstReachedAt: number): boolean {
+  return now - firstReachedAt >= SCROLL_RESTORE_GUARD_MS;
 }
 
 /** The largest `scrollTop` the scroller can currently hold. */

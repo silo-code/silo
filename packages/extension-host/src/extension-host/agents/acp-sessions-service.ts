@@ -574,11 +574,19 @@ export function createAgentSessionsService(
             respond({ outcome: "cancelled" });
             return;
           }
+          // Unlike `needsAttention` above, `activity: "blocked"` is
+          // unconditional — it should read "waiting on you" even on the
+          // session you're already looking at. A turn that ends before this
+          // resolves (error, cancel, dropped connection) still gets
+          // corrected: `finishTurn` below patches `activity` again as part
+          // of ending the turn, superseding whatever this left behind.
+          patchChatAgent(infoId, { activity: "blocked" });
           const sdkReq = toSdkPermission(request, (outcome) => {
             respond(outcome);
             patchChatAgent(infoId, {
               needsAttention: false,
               attentionSince: undefined,
+              activity: "working",
             });
           });
           for (const l of permissionListeners) {
