@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.48.0](https://github.com/silo-code/silo/compare/sdk-v0.47.0...sdk-v0.48.0) (2026-09-15)
+
+
+### Features
+
+* **agents-chat-panel:** polish composer and transcript rendering ([#522](https://github.com/silo-code/silo/issues/522)) ([aa21ada](https://github.com/silo-code/silo/commit/aa21ada748c2052133c8a25ccb1392787c0067da))
+
 ## [0.47.0](https://github.com/silo-code/silo/compare/sdk-v0.46.0...sdk-v0.47.0) (2026-09-14)
 
 
