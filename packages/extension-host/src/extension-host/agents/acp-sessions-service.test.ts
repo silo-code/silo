@@ -1316,6 +1316,38 @@ describe("connect({ resume }) — Chat session resurrection", () => {
     expect(handle.sessionId).toBe("s1");
   });
 
+  it("neither capability working, with a metadata-only journal (available_commands_update etc.), falls through to a fresh session — not journal-only", async () => {
+    // Regression: an empty chat session (no user messages sent) still gets
+    // journal entries like available_commands_update and session_info_update
+    // written immediately after the handshake. On restart, resume fails (the
+    // agent has no record of the session) and the host used to hit the
+    // journal-only branch because priorLines.length > 0 — locking the panel
+    // in read-only mode with an empty transcript and a "reconnect" button.
+    // The correct behaviour is to treat metadata-only journals as empty and
+    // fall through to a fresh session.
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: {},
+      sessionCapabilities: {},
+      authMethods: [],
+      raw: {},
+    });
+    seedJournal("empty-session-id", [
+      { kind: "available_commands_update", raw: {} },
+      { kind: "session_info_update", raw: {} },
+      { kind: "current_mode_update", raw: {} },
+    ]);
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "empty-session-id" },
+    });
+
+    expect(fakeClient.newSession).toHaveBeenCalled();
+    expect(handle.resumeOutcome).toBe("new");
+    expect(handle.sessionId).toBe("s1");
+    expect(handle.journal).toEqual([]); // metadata lines not surfaced as content
+  });
+
   it("startFresh skips resume/load entirely, adopts the new id, and carries the journal over", async () => {
     fakeClient.initialize.mockResolvedValue({
       agentInfo: { title: "Claude Code" },

@@ -95,6 +95,44 @@ const TEXT_KINDS = new Set([
   "user_message_chunk",
 ]);
 
+/**
+ * Update kinds that carry no conversation content — pure session housekeeping
+ * emitted by the agent immediately after `session/new` before any user turn.
+ * A journal whose every line is one of these has nothing worth showing the
+ * user, so a failed resume should fall through to a fresh session rather than
+ * locking the panel in journal-only mode with an empty (but non-zero-length)
+ * transcript.
+ */
+const JOURNAL_METADATA_ONLY_KINDS = new Set([
+  "available_commands_update",
+  "session_info_update",
+  "current_mode_update",
+]);
+
+/**
+ * True when `lines` contains at least one journal entry whose kind is real
+ * conversation content (a message chunk, tool call, plan, …) rather than
+ * session-level metadata. Used to distinguish a session that was opened but
+ * never used from one that actually has a transcript worth preserving.
+ */
+function hasConversationContent(lines: readonly string[]): boolean {
+  for (const line of lines) {
+    try {
+      const parsed = JSON.parse(line) as { kind?: string };
+      if (
+        parsed?.kind &&
+        typeof parsed.kind === "string" &&
+        !JOURNAL_METADATA_ONLY_KINDS.has(parsed.kind)
+      ) {
+        return true;
+      }
+    } catch {
+      // Skip malformed lines — same policy as parseJournalLines.
+    }
+  }
+  return false;
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -808,11 +846,12 @@ export function createAgentSessionsService(
               void journalWriter.flush();
             }
           }
-        } else if (priorLines.length > 0) {
-          // Neither capability worked, but there is a journal: journal-only.
-          // No live session to hold open — free the process it never used.
-          // `journalWriter` stays as created above (seeded with priorLines;
-          // nothing else was ever going to arrive on a connection this dead).
+        } else if (hasConversationContent(priorLines)) {
+          // Neither capability worked, but the journal has real conversation
+          // content: journal-only. No live session to hold open — free the
+          // process it never used. `journalWriter` stays as created above
+          // (seeded with priorLines; nothing else was ever going to arrive on
+          // a connection this dead).
           client.dispose();
           session = { sessionId: resumeTarget.sessionId, configOptions: [] };
           acpSessionId = "";
@@ -820,7 +859,9 @@ export function createAgentSessionsService(
           resumeOutcome = "journal-only";
           liveConnection = false;
         } else {
-          // Nothing to restore at all (a stale id with no journal either) —
+          // Nothing to restore: either the journal is empty, or it contains
+          // only session-level metadata (available_commands_update, etc.) with
+          // no actual conversation turns. Treat the same as a stale id —
           // never refuse to open the panel; fall through to a fresh session.
           // The writer created above was for that dead, journal-less id —
           // drop it (nothing to lose) and start clean under the fresh one.
