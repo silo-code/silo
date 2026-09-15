@@ -949,6 +949,7 @@ export function AcpChatPanel({
       return;
     }
     let cancelled = false;
+    const abortController = new AbortController();
     const subs: Disposable[] = [];
     // "Continue in a new session" (RFC 0042) set this just before bumping
     // `nonce` to force this reconnect past resume/load and straight to a
@@ -1008,6 +1009,12 @@ export function AcpChatPanel({
         // kind-agnostic caller focuses this transcript without knowing it is
         // one.
         reveal: () => apiRef.current.setActive(),
+        // Lets the effect cleanup abort a connect that is still in the
+        // multi-step handshake (initialize → session/new or session/resume).
+        // Without this, re-running the effect mid-handshake (nonce bump,
+        // profile switch, unmount) leaves the spawned backend alive with no
+        // owner — the root cause of the ACP backend accumulation bug.
+        signal: abortController.signal,
       })
       .then((handle) => {
         // A profile switch (or a closed panel) that lands mid-handshake still
@@ -1091,12 +1098,16 @@ export function AcpChatPanel({
 
     return () => {
       cancelled = true;
+      // Abort any in-flight handshake (initialize → session/new or
+      // session/resume). Must fire before handle?.dispose() so the service
+      // can kill the process even when connect() hasn't resolved yet and
+      // handleRef.current is still null.
+      abortController.abort();
       for (const sub of subs) sub.dispose();
       const handle = handleRef.current;
       handleRef.current = null;
-      // Reap the process. Closing the tab, switching profiles and reloading
-      // the webview each used to leak an agent child during the spike — ten
-      // piled up in one afternoon.
+      // Reap the process for a successfully-connected session (the abort
+      // above covers the in-flight case; this covers the already-resolved one).
       handle?.dispose();
     };
     // Deliberately **not** keyed on `params.sessionId`: this effect is what

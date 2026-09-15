@@ -1241,6 +1241,21 @@ export interface AgentSessionConnectOptions {
    * AgentSessionHandle.resumeOutcome} for which path was taken.
    */
   resume?: AgentSessionRestore;
+  /**
+   * An {@link AbortSignal} that cancels the in-flight handshake. When
+   * aborted, `connect()` disposes the spawned agent process and rejects with
+   * an `AbortError`. Use this to prevent backend processes from leaking when
+   * the caller's React effect re-runs or the component unmounts before the
+   * multi-step handshake (`initialize` → `session/new` or `session/resume`)
+   * resolves.
+   *
+   * ```ts
+   * const controller = new AbortController();
+   * ctx.agents.sessions.connect(profileId, { signal: controller.signal });
+   * return () => controller.abort(); // effect cleanup
+   * ```
+   */
+  signal?: AbortSignal;
 }
 
 /**
