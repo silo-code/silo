@@ -16,6 +16,8 @@ import { contextMenuEntriesFor } from "../extension-host/context-menu-items";
 import { buildTerminalTabMenuItems } from "../extension-host/terminal-tab-menu";
 import { buildPanelTabMenuItems } from "../extension-host/panel-tab-menu";
 import { openMenu } from "../extension-host/menu-controller";
+import { requestPanelFocus } from "../extension-host/panel-focus-registry";
+import { dockApiWorkspaceId } from "../docked/dock-api-registry";
 import { Tooltip } from "../components/Tooltip";
 import { TabIndicatorGlyph } from "./TabIndicatorGlyph";
 import { customTitleForPanelId } from "./dock-helpers";
@@ -217,6 +219,22 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
     event.preventDefault();
   }, []);
 
+  // Report every qualifying tab click to `DockPanelApi.onDidRequestFocus` —
+  // not just the ones that change dockview's active panel. Clicking an
+  // already-active tab (the common way to bring focus back from a side panel
+  // or the status bar) is a complete no-op for dockview itself (see
+  // `panel-focus-registry.ts`), so this is the only signal a panel gets for
+  // that gesture. Neither the close button nor a middle-click is mistaken for
+  // a focus request, but for different reasons: the close button's own click
+  // handler (`onClose`) calls `stopPropagation`, so the click never reaches
+  // this element; a middle-click never produces a `click` event at all —
+  // browsers dispatch `auxclick` for non-primary buttons, which React's
+  // `onClick` doesn't listen for. (`onTabMouseDown`'s `stopPropagation` stops
+  // only the mousedown; it has no effect on a later click event.)
+  const onTabClick = useCallback(() => {
+    requestPanelFocus(dockApiWorkspaceId(props.containerApi) ?? "", panelId);
+  }, [props.containerApi, panelId]);
+
   // Right-click → real menu: Rename (terminals, renamable panels) + extension
   // contributions on editor/tab, terminal/tab or panel/tab (RFC 0021 / 0013 / 0046).
   const onTabContextMenu = useCallback(
@@ -275,6 +293,7 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
       data-testid="dockview-dv-default-tab"
       data-color={tabHighlight ? (tabHighlight.color ?? "accent") : undefined}
       onMouseDown={onTabMouseDown}
+      onClick={onTabClick}
       onDoubleClick={onTabDoubleClick}
       onContextMenu={onTabContextMenu}
     >

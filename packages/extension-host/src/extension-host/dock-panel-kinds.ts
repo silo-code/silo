@@ -16,6 +16,7 @@ import {
   setPanelBreadcrumb,
   clearPanelBreadcrumb,
 } from "./panel-chrome-registry";
+import { onPanelFocusRequested } from "./panel-focus-registry";
 import { DockPanelChrome } from "../panels/DockPanelChrome";
 import type {
   DockPanelApi,
@@ -62,7 +63,10 @@ export { recordedPanelId } from "../state/recorded-panel-id";
  * panel declares *what it is showing* and nothing more; every piece of agent
  * chrome on its tab is painted by whoever observes `ctx.agents`.
  */
-export function makeDockPanelApi(dv: DockviewPanelApi): DockPanelApi {
+export function makeDockPanelApi(
+  dv: DockviewPanelApi,
+  workspaceId: string,
+): DockPanelApi {
   return {
     setTitle: (title) => dv.setTitle(title),
     close: () => dv.close(),
@@ -72,6 +76,8 @@ export function makeDockPanelApi(dv: DockviewPanelApi): DockPanelApi {
     },
     onDidActiveChange: (listener) =>
       dv.onDidActiveChange((e) => listener({ isActive: e.isActive })),
+    onDidRequestFocus: (listener) =>
+      onPanelFocusRequested(workspaceId, dv.id, listener),
     get isVisible() {
       return dv.isVisible;
     },
@@ -169,7 +175,6 @@ function toHostComponent(
   const Component = kind.component as FunctionComponent<DockPanelProps>;
   const { toolbar } = kind;
   function DockPanelHost(props: IDockviewPanelProps) {
-    const api = useMemo(() => makeDockPanelApi(props.api), [props.api]);
     const panelId = props.api.id;
     useEffect(
       () => () => {
@@ -192,6 +197,14 @@ function toHostComponent(
       (recorded ? workspaceIdForPanelRecord(recorded.recordId) : null) ??
       dockApiWorkspaceId(props.containerApi) ??
       "";
+    // Computed after workspaceId: `onDidRequestFocus` (see panel-focus-registry.ts)
+    // is keyed on the (workspaceId, panelId) pair, not panelId alone, since a
+    // singleton panel's dockview id is the bare kind id and collides across
+    // every warmed workspace's own dockview instance.
+    const api = useMemo(
+      () => makeDockPanelApi(props.api, workspaceId),
+      [props.api, workspaceId],
+    );
     const onScreen = useDockPanelOnScreen(props.api, workspaceId);
     const body = createElement(Component, {
       api,

@@ -91,6 +91,37 @@ export interface DockPanelApi {
     listener: (event: { readonly isActive: boolean }) => void,
   ): Disposable;
   /**
+   * Subscribe to the user asking, by gesture, for keyboard focus in this
+   * panel — fired on every click of its tab, including one that leaves
+   * {@link DockPanelApi.isActive | isActive} unchanged because the tab was
+   * already active.
+   *
+   * That already-active case is why the event exists: it has no other signal.
+   * {@link DockPanelApi.onDidActiveChange | onDidActiveChange} only fires on a
+   * real transition, so clicking back into an already-active tab from
+   * elsewhere (a side panel, the status bar) is otherwise silent even though
+   * the user's intent — "put keyboard focus here" — is identical to a genuine
+   * activation. A panel that drives its own entry focus from
+   * `onDidActiveChange` should drive it from this event too, guarded on
+   * `isActive`, so both paths land focus the same way.
+   *
+   * The name is the intent, but today exactly one gesture carries it:
+   *
+   * - **Fires** on a primary click of this panel's tab, whether or not the
+   *   panel was already the active one.
+   * - **Does not fire** for activation from anywhere else —
+   *   {@link DockPanelApi.setActive | setActive}, a keybinding, a command or
+   *   command-palette jump, or the host restoring a saved layout. Those change
+   *   which panel is active, so they surface as `onDidActiveChange` instead;
+   *   none of them reaches this event.
+   * - **Does not fire** for a click inside the panel's own content (focus
+   *   there is yours to manage), the tab's close button, or a middle-click
+   *   close.
+   *
+   * Returns a {@link Disposable} that cancels the subscription.
+   */
+  onDidRequestFocus(listener: () => void): Disposable;
+  /**
    * `true` while this panel is visible — its tab is the selected one in its
    * group. Distinct from {@link DockPanelApi.isActive | isActive}: with split
    * groups, every group's selected tab is visible but only one panel in the

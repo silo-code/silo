@@ -346,6 +346,28 @@ for a caller outside a Dock — a cross-workspace jump, e.g. — to ask for a
 specific Panel (ADR 0032).
 _Avoid_: Pending activation, activation intent
 
+**Focus Request**:
+A transient notification that the user asked for keyboard focus in a Panel —
+fired on a click of its Tab even when that click leaves the Active Panel
+unchanged. The inverse of an **Activation Request** in every respect: nothing
+is recorded, no authority applies it, and it changes no state, least of all
+which Panel is active (ADR 0034).
+_Avoid_: Activation Request (a recorded intent an authority applies later —
+this is the gesture itself, already over by the time it's delivered), focus
+event, refocus
+
+**Entry Focus**:
+The keyboard focus a Panel lands in its own content when the user enters it —
+an Activation or a **Focus Request**, treated identically. It is the Panel's
+job, not the Dock's: only the Panel knows what to focus (a composer, an editor,
+a terminal) and when its content is ready to accept focus. The one sanctioned
+implementation is the SDK's `usePanelEntryFocus`, which owns both entry
+signals, the `isActive` guard, and the frame retry that wins dockview's focus
+shuffle (RFC 0049) — a Panel hand-rolling those is how the three variants that
+hook replaced came to disagree.
+_Avoid_: Auto-focus (says nothing about when), initial focus (it is not only
+the first time), focus-on-mount (mount is not entry — ADR 0034)
+
 **Focus vs Activation**:
 Two distinct things dockview conflates: keyboard/DOM focus landing inside a
 Panel automatically activates its Group. An unguarded focus grab is therefore

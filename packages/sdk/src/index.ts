@@ -6,9 +6,9 @@
  *
  * **What's here:** the types-first extension contract (see `types.ts`) plus a
  * small set of blessed runtime helpers (`Tooltip`, the modal design-system
- * kit, `useFocusGroup`, `useServiceState`, `DND_MIME`, `PathDeniedError`,
- * `NetworkError`). The SDK peer-depends on React 19; changes to the runtime
- * helpers can be breaking even when the types are unchanged.
+ * kit, `useFocusGroup`, `usePanelEntryFocus`, `useServiceState`, `DND_MIME`,
+ * `PathDeniedError`, `NetworkError`). The SDK peer-depends on React 19; changes
+ * to the runtime helpers can be breaking even when the types are unchanged.
  *
  * This is also the entry point the API-reference generator (TypeDoc) reads, so
  * the published reference is exactly this surface — no more, no less.
@@ -356,10 +356,19 @@ export type {
   FocusGroupNavQuery,
 } from "./use-focus-group";
 
-// Host/InlineEdit coordination for InlineEdit's two-stage Escape (RFC 0016).
+// Entry focus for a dock panel (RFC 0049): both entry signals + the
+// `isActive`-guarded frame retry that wins dockview's focus shuffle, in one
+// call. The one sanctioned way for panel content to take focus on entry.
+export { usePanelEntryFocus } from "./use-panel-entry-focus";
+export type { PanelEntryFocusTarget } from "./use-panel-entry-focus";
+
+// Host/InlineEdit coordination for InlineEdit's two-stage Escape (RFC 0016),
+// and the raw focus retry behind `usePanelEntryFocus` for the non-React
+// callers that can't use the hook (RFC 0049).
 // @internal — host-only plumbing, not part of the documented reference;
 // extension authors never call these directly.
 export {
   setActiveInlineEditCancel,
   yieldEscapeToInlineEdit,
 } from "./inline-edit-controller";
+export { retryFocus } from "./use-panel-entry-focus";

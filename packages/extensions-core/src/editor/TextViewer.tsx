@@ -4,6 +4,7 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import {
   DND_MIME,
+  usePanelEntryFocus,
   useServiceState,
   type Disposable,
   type EditorProps,
@@ -28,8 +29,6 @@ import {
   languageFromPath,
   toTextEditorOptions,
   setupMonacoEditor,
-  retryFocus,
-  useFocusOnActive,
   blurTextareaWithin,
   isTextareaFocusedWithin,
   takePendingReveal,
@@ -455,6 +454,14 @@ export function TextViewer({
     ];
   }
 
+  // Entry focus: activation, a click on an already-active tab, and the
+  // mount-time grab below all run the same guarded retry (RFC 0049).
+  const focusEditor = usePanelEntryFocus(dockApi, {
+    focus: () => editorRef.current?.focus(),
+    isFocused: () => isTextareaFocusedWithin(editorRef.current?.getDomNode()),
+    blur: () => blurTextareaWithin(editorRef.current?.getDomNode()),
+  });
+
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     // Shared core setup: app themes + active theme + strip the broken
@@ -545,27 +552,15 @@ export function TextViewer({
     // `editor.focus()` only takes effect after Monaco's internal textarea is
     // laid out with non-zero dimensions, so retry across frames until it lands.
     //
-    // Gated on this panel actually being the active tab, both up front and for
-    // the life of the retry: mount is NOT only "the user just created this
-    // editor". Re-entering a workspace re-mounts every panel in its dock, so
-    // an unguarded grab here fires for background editors too and yanks focus
-    // off the tab the user actually left active — which dockview then treats
-    // as a real focus, flipping the visible active tab to this editor. Same
-    // guard TerminalPanel uses for its own post-spawn focus. See ADR 0034.
-    if (!dockApi.isActive) return;
-    retryFocus(
-      () => editor.focus(),
-      () => isTextareaFocusedWithin(editor.getDomNode()),
-      () => dockApi.isActive,
-    );
+    // `focusEditor` is gated on this panel actually being the active tab, both
+    // up front and for the life of the retry: mount is NOT only "the user just
+    // created this editor". Re-entering a workspace re-mounts every panel in
+    // its dock, so an unguarded grab here would fire for background editors too
+    // and yank focus off the tab the user actually left active — which dockview
+    // then treats as a real focus, flipping the visible active tab to this
+    // editor. See ADR 0034.
+    focusEditor();
   };
-
-  useFocusOnActive(
-    dockApi,
-    () => editorRef.current?.focus(),
-    () => isTextareaFocusedWithin(editorRef.current?.getDomNode()),
-    () => blurTextareaWithin(editorRef.current?.getDomNode()),
-  );
 
   // Shift-held file drops insert the path at the editor caret. Plain
   // (copy-mode) drops fall through to dockview, which opens the file as a new

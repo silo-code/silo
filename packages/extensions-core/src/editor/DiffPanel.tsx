@@ -9,6 +9,7 @@ import { useSnapshot } from "valtio";
 import { DiffEditor, type DiffOnMount } from "@monaco-editor/react";
 import type { editor as MonacoEditor } from "monaco-editor";
 import {
+  usePanelEntryFocus,
   useServiceState,
   type DockPanelApi,
   type ExtensionContext,
@@ -21,8 +22,6 @@ import {
   toDiffEditorOptions,
   setupMonacoEditor,
   getDiffContentProvider,
-  retryFocus,
-  useFocusOnActive,
   blurTextareaWithin,
   isTextareaFocusedWithin,
 } from "@silo-code/extension-host/internal";
@@ -127,6 +126,15 @@ export function DiffViewer({
     };
   }, [rec?.filePath, refetch, ctx.files]);
 
+  // Entry focus: activation, a click on an already-active tab, and the
+  // mount-time grab below all run the same guarded retry (RFC 0049).
+  const focusDiff = usePanelEntryFocus(dockApi, {
+    focus: () => editorRef.current?.focus(),
+    isFocused: () =>
+      isTextareaFocusedWithin(editorRef.current?.getContainerDomNode()),
+    blur: () => blurTextareaWithin(editorRef.current?.getContainerDomNode()),
+  });
+
   const onMount: DiffOnMount = (diffEditor, monaco) => {
     editorRef.current = diffEditor;
     // Shared core setup over both inner editors of the diff (each has its own
@@ -137,26 +145,14 @@ export function DiffViewer({
       diffEditor.getModifiedEditor(),
     ]);
 
-    // Gated on this panel actually being the active tab — mount is not only
-    // "the user just opened this diff": re-entering a workspace re-mounts
-    // every panel in its dock, and an unguarded grab would steal focus from
-    // the tab the user actually left active (and, via dockview's
+    // `focusDiff` is gated on this panel actually being the active tab — mount
+    // is not only "the user just opened this diff": re-entering a workspace
+    // re-mounts every panel in its dock, and an unguarded grab would steal
+    // focus from the tab the user actually left active (and, via dockview's
     // focus-follows-active wiring, change the visible tab). Mirrors
     // TextViewer's text-mode guard. See ADR 0034.
-    if (!dockApi.isActive) return;
-    retryFocus(
-      () => diffEditor.focus(),
-      () => isTextareaFocusedWithin(diffEditor.getContainerDomNode()),
-      () => dockApi.isActive,
-    );
+    focusDiff();
   };
-
-  useFocusOnActive(
-    dockApi,
-    () => editorRef.current?.focus(),
-    () => isTextareaFocusedWithin(editorRef.current?.getContainerDomNode()),
-    () => blurTextareaWithin(editorRef.current?.getContainerDomNode()),
-  );
 
   if (!rec || rec.mode !== "diff" || rec.filePath === null) {
     return <div className="placeholder">Diff record not found.</div>;

@@ -105,6 +105,10 @@ const apiSidebar = [
       { text: "ctx.getExtension", link: "/api/other/get-extension" },
       { text: "useServiceState", link: "/api/other/use-service-state" },
       { text: "useFocusGroup", link: "/api/other/use-focus-group" },
+      {
+        text: "usePanelEntryFocus",
+        link: "/api/other/use-panel-entry-focus",
+      },
       { text: "Tooltip", link: "/api/other/tooltip" },
       {
         text: "focusGroupNextIndex",

@@ -19,6 +19,7 @@ import { shouldPaintChunk } from "./terminal-replay";
 import {
   AgentIconGlyph,
   DND_MIME,
+  usePanelEntryFocus,
   type DockPanelProps,
   type Disposable,
   type EditorService,
@@ -33,8 +34,6 @@ import {
   tauriTerminalClient,
   logTerminalAttachTrace,
   getThemeBase,
-  retryFocus,
-  useFocusOnActive,
   onTerminalForeground,
   terminalForegroundSnapshot,
   registerSelectionSource,
@@ -1414,33 +1413,16 @@ export function TerminalPanel(
     live.term.focus();
   }
 
-  // A freshly-created terminal (Cmd+T / "New Terminal") is set active by the
-  // dock the instant it mounts — before its xterm/PTY has spawned. The
-  // activation focus below fires then, finds `term` still null, and gives up
-  // within its frame budget, so focus is left on nothing. Re-assert focus once
-  // the terminal is ready, if its tab is still the active one.
-  useEffect(() => {
-    if (lifecycle.kind !== "ready" || !props.api.isActive) return;
-    retryFocus(
-      () => liveRef.current?.term.focus(),
-      () => {
-        const ta = liveRef.current?.term.textarea;
-        return ta != null && document.activeElement === ta;
-      },
-      () => props.api.isActive,
-    );
-  }, [lifecycle.kind, props.api]);
-
-  // xterm has no `hasTextFocus()`, but it exposes its helper textarea — focus
-  // has landed once that element is the document's active element.
-  useFocusOnActive(
-    props.api,
-    () => liveRef.current?.term.focus(),
-    () => {
+  // Entry focus. xterm has no `hasTextFocus()`, but it exposes its helper
+  // textarea — focus has landed once that element is the document's active
+  // element.
+  const focusTerminal = usePanelEntryFocus(props.api, {
+    focus: () => liveRef.current?.term.focus(),
+    isFocused: () => {
       const ta = liveRef.current?.term.textarea;
       return ta != null && document.activeElement === ta;
     },
-    () => {
+    blur: () => {
       const ta = liveRef.current?.term.textarea;
       if (!ta) return;
       if (document.activeElement === ta) {
@@ -1452,7 +1434,17 @@ export function TerminalPanel(
         ta.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
       }
     },
-  );
+  });
+
+  // A freshly-created terminal (Cmd+T / "New Terminal") is set active by the
+  // dock the instant it mounts — before its xterm/PTY has spawned. The
+  // activation retry fires then, finds `term` still null, and gives up within
+  // its frame budget, so focus is left on nothing. Re-assert focus once the
+  // terminal is ready; `focusTerminal` re-checks the tab is still active.
+  useEffect(() => {
+    if (lifecycle.kind !== "ready") return;
+    focusTerminal();
+  }, [lifecycle.kind, focusTerminal]);
 
   // The terminal's workspace folder (this terminal may live in a backgrounded
   // workspace, so resolve by membership rather than assuming the active one).

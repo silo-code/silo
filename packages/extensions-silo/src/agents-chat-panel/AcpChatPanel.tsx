@@ -112,6 +112,7 @@ import {
   MenuButton,
   Textarea,
   Tooltip,
+  usePanelEntryFocus,
 } from "@silo-code/sdk";
 import { chatProfiles, resolveChatProfile } from "./profile-selection";
 import {
@@ -202,6 +203,7 @@ import {
   chatLinkFromTarget,
 } from "./LinkifiedText";
 import { isLinkActivationClick } from "./link-policy";
+import { isPanelBackgroundClick } from "./panel-focus";
 import { resolveChatFilePath } from "./resolve-chat-path";
 import { buildChatSelectionMenu } from "./selection-menu";
 import {
@@ -1541,53 +1543,25 @@ export function AcpChatPanel({
     el.style.height = `${composerTextareaHeightPx(el.scrollHeight)}px`;
   }, [draft, onScreen]);
 
-  // Dockview shuffles DOM focus when a tab becomes active; a single
-  // `focus()` loses that race. Retry across frames while this panel is
-  // still the active tab — the same problem the terminal/editor viewers
-  // solve with host `useFocusOnActive`, which a silo.* extension cannot
-  // import. The input is enabled during connect, so this runs as soon as
-  // the panel is created — they can draft before the agent is live.
+  // Entry focus: the composer is the one thing this panel has to type into, so
+  // it takes the caret whenever the user enters the panel — on activation and
+  // on a click of an already-active tab alike. The hook owns both signals and
+  // the guarded frame retry that wins dockview's focus shuffle (RFC 0049); a
+  // disabled composer makes `focus()` a no-op, so a lost/read-only session
+  // needs no extra guard here.
+  const focusComposer = usePanelEntryFocus(api, {
+    focus: () => inputRef.current?.focus(),
+    isFocused: () => document.activeElement === inputRef.current,
+  });
+
+  // The moment the composer accepts input is neither a mount nor an
+  // activation, so it's the one entry point the hook can't see: drive it
+  // imperatively. Fires on create — the input is enabled during connect, so
+  // you can draft before the agent is live — and again if a read-only or lost
+  // session becomes writable.
   useEffect(() => {
-    if (!inputEnabled) return;
-
-    let raf = 0;
-    let frames = 0;
-    let landed = false;
-    const tick = () => {
-      if (!api.isActive) return;
-      const el = inputRef.current;
-      if (!el) return;
-      const active = document.activeElement;
-      if (active === el) {
-        landed = true;
-      } else if (
-        active instanceof Element &&
-        active.closest("[data-silo-menu], [role='menu']")
-      ) {
-        return;
-      } else if (!landed || active === null || active === document.body) {
-        el.focus();
-      }
-      frames += 1;
-      if (frames < 20 && api.isActive) raf = requestAnimationFrame(tick);
-    };
-    const start = () => {
-      if (!api.isActive) return;
-      frames = 0;
-      landed = false;
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(tick);
-    };
-
-    start();
-    const sub = api.onDidActiveChange(({ isActive }) => {
-      if (isActive) start();
-    });
-    return () => {
-      cancelAnimationFrame(raf);
-      sub.dispose();
-    };
-  }, [api, inputEnabled]);
+    if (inputEnabled) focusComposer();
+  }, [inputEnabled, focusComposer]);
 
   const continueInNewSession = useCallback(() => {
     const target = params.sessionId ?? sessionId;
@@ -1978,6 +1952,31 @@ export function AcpChatPanel({
     [canReset, isMac, requestReset],
   );
 
+  // Anything else in the panel that already handles its own click (a link
+  // activation, a tool/tool-group toggle, any button) runs first and, for
+  // the link case, calls preventDefault — this only fires for the
+  // "background" of the panel, so clicking near the composer works like
+  // clicking a text field instead of requiring the textarea itself.
+  //
+  // A single `focus()` is enough, even though the effect above needs a whole
+  // rAF retry loop to beat dockview's focus shuffle. The two divide the work:
+  // a background click on a panel that *isn't* active activates it, which
+  // fires `onDidActiveChange`, and the retry loop takes it from there. This
+  // handler uniquely serves the already-active case — no activation, so no
+  // shuffle, so no race to lose.
+  //
+  // It is also deliberately unguarded, unlike every `retryFocus` caller. ADR
+  // 0034 made `stillWanted` required to kill unguarded focus grabs, but those
+  // were mount- and restore-time steals that ran without the user asking for
+  // anything; a direct click on this panel *is* the activation intent — the
+  // one case where focus and activation genuinely agree.
+  const onPanelClick = useCallback((e: MouseEvent) => {
+    if (e.defaultPrevented) return;
+    const hasSelection = (window.getSelection()?.toString() ?? "") !== "";
+    if (!isPanelBackgroundClick(e.target, hasSelection)) return;
+    inputRef.current?.focus();
+  }, []);
+
   // Memoized because it is a prop of every memoized row: rebuilt each render,
   // it would defeat `TranscriptRow` entirely. `expandedTools` only changes
   // identity on a toggle, and the other two never do.
@@ -2013,7 +2012,12 @@ export function AcpChatPanel({
   }
 
   return (
-    <div className="acp-chat" ref={rootRef} onKeyDown={onPanelKeyDown}>
+    <div
+      className="acp-chat"
+      ref={rootRef}
+      onClick={onPanelClick}
+      onKeyDown={onPanelKeyDown}
+    >
       <div
         className="acp-chat__scroller"
         ref={scrollerRef}

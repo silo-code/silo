@@ -123,7 +123,7 @@ describe.skipIf(!canFocus)("keyboard navigation", () => {
     // cap elapse before cycling in — otherwise it yanks focus back to the center
     // editor right after the region cycle lands it on the row. A user naturally
     // waits between switching workspaces and cycling docks; the test makes that
-    // explicit. See use-focus-retry.ts (DEFAULT_CAP).
+    // explicit. See packages/sdk/src/use-panel-entry-focus.ts (DEFAULT_CAP).
     await new Promise((r) => setTimeout(r, 450));
     await silo.eval(
       "document.activeElement && document.activeElement.blur && document.activeElement.blur()",
