@@ -104,6 +104,7 @@ import type {
 import {
   Badge,
   Button,
+  DND_MIME,
   EmptyState,
   IconButton,
   List,
@@ -1674,6 +1675,33 @@ export function AcpChatPanel({
   );
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  // Shift-held file drops stage the file as an attachment — the same landing
+  // spot a pasted path already takes via `classifyClipboardPaste`'s "paths"
+  // case above. Plain (copy-mode) drops fall through to dockview, which opens
+  // the file as a new editor pane. Capture phase keeps the event off
+  // dockview's bubble-phase drop handler, matching the terminal and editor
+  // panels' own drop targets.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const node = rootRef.current;
+    if (!node) return;
+    const reg = ctx.dnd.registerDropTarget(node, {
+      accepts: [DND_MIME.filePath],
+      capture: true,
+      onDrop({ mode, items }) {
+        if (!inputEnabled || mode !== "paste") return;
+        const paths = items
+          .filter((i) => i.mime === DND_MIME.filePath)
+          .map((i) => i.value);
+        if (!paths.length) return;
+        stageAttachments(paths.map(toAttachment));
+        return true; // handled — host preventDefault + stopPropagation
+      },
+    });
+    return () => reg.dispose();
+  }, [ctx, inputEnabled, stageAttachments]);
+
   const onScreenRef = useRef(onScreen);
   onScreenRef.current = onScreen;
   // The live position, and the conversation it was measured in. Reset rather
@@ -1968,7 +1996,7 @@ export function AcpChatPanel({
 
   if (phase.status === "no-profile") {
     return (
-      <div className="acp-chat">
+      <div className="acp-chat" ref={rootRef}>
         <div className="acp-chat__notice">
           <EmptyState
             title="No Chat agent profile"
@@ -1985,7 +2013,7 @@ export function AcpChatPanel({
   }
 
   return (
-    <div className="acp-chat" onKeyDown={onPanelKeyDown}>
+    <div className="acp-chat" ref={rootRef} onKeyDown={onPanelKeyDown}>
       <div
         className="acp-chat__scroller"
         ref={scrollerRef}
