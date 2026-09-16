@@ -66,6 +66,7 @@ import {
   resolveActivationTarget,
   restoredPanelTitle,
   sameParams,
+  shouldReassertActivePanel,
 } from "./dock-helpers";
 import { reconcileRecordedPanels } from "./recorded-panel-reconcile";
 
@@ -498,11 +499,13 @@ export function WorkspaceDock({
           /* no-op */
         }
       }
-      // Restore the correct active panel unconditionally — both to counter any
-      // active-slot change layout() made, and to trigger useFocusOnActive inside
-      // the panel so its retryFocus loop starts. This runs even when the layout
-      // call was skipped (zero dims) so focus is always driven on activation.
-      savedPanel?.api.setActive();
+      // Counter an active-slot change layout() made — but only when it really
+      // moved. Re-asserting a panel that is *already* active detaches and
+      // reattaches its DOM inside dockview, discarding scroll offsets; see
+      // `shouldReassertActivePanel`.
+      if (shouldReassertActivePanel(savedPanel, liveApi.activePanel)) {
+        savedPanel?.api.setActive();
+      }
       window.dispatchEvent(new CustomEvent("app:refit-terminals"));
     }
     let raf2 = 0;
