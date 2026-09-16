@@ -1286,6 +1286,23 @@ export interface AgentSessionRestore {
    * 2026-09-09).
    */
   startFresh?: boolean;
+  /**
+   * What becomes of the **transcript journal** kept under {@link sessionId}
+   * when {@link startFresh} skips straight to `session/new` (RFC 0048):
+   *
+   * - `"carry"` (the default) — the journal moves into the new session's
+   *   file, so the conversation continues under a working id. This is
+   *   "Continue in a new session".
+   * - `"discard"` — the journal is deleted and the new session starts with an
+   *   empty one. This is **Clear**: a user asked for the conversation to be
+   *   thrown away, agent context and transcript alike.
+   *
+   * Read **only** alongside `startFresh`. A plain resume/load restore never
+   * deletes a journal, whatever this says — the journal is the only record of
+   * a session the agent can neither `resume` nor `load`, so nothing but an
+   * explicit, user-initiated clear removes it.
+   */
+  transcript?: "carry" | "discard";
 }
 
 /**

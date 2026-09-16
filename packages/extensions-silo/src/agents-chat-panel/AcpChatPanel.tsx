@@ -139,13 +139,23 @@ import {
   commandQueryFromDraft,
   draftAfterCommandPick,
   filterCommands,
+  clearShortcutLabel,
+  isClearShortcut,
+  isReservedDraft,
   paletteNavAction,
   stepPaletteIndex,
+  withReservedCommands,
 } from "./command-palette";
+import {
+  ClearSessionDialog,
+  type ClearSessionChoice,
+} from "./ClearSessionDialog";
+import { chatPanelSettingsService } from "./settings-store";
 import {
   caretOnFirstLine,
   caretOnLastLine,
   composerCanSend,
+  composerSubmitAction,
   composerInputEnabled,
   composerPlaceholder,
   composerShowConnecting,
@@ -209,11 +219,11 @@ import {
 } from "./tool-diff";
 import { matchChatLinks } from "./link-match";
 import {
-  continueInNewSessionOption,
   isReadOnly,
   panelStateAfterConnect,
   resolveChatCwd,
-  resumeOptionFor,
+  restoreOptionFor,
+  type RestartIntent,
 } from "./session-restore";
 import { LiveElapsed } from "./LiveElapsed";
 
@@ -831,10 +841,16 @@ export function AcpChatPanel({
   // connect(); the panel doesn't need to react to it changing afterward.
   const [resumeOutcome, setResumeOutcome] =
     useState<AgentSessionHandle["resumeOutcome"]>("new");
-  // Set by "Continue in a new session" just before bumping `nonce` — read and
-  // cleared at the top of the next connect attempt. A ref, not state: it must
-  // be visible to the very effect run it triggers, with no extra render.
-  const continueFreshRef = useRef(false);
+  // Why the next reconnect is happening — set by "Continue in a new session"
+  // or by Clear (RFC 0048) just before bumping `nonce`, read and cleared at
+  // the top of the connect attempt it triggers. A ref, not state: it must be
+  // visible to that very effect run, with no extra render. `null` for a
+  // remount or "Reconnect", which take the normal resume → load → journal
+  // path.
+  const restartIntentRef = useRef<{
+    intent: RestartIntent;
+    sessionId: string;
+  } | null>(null);
   const [draft, setDraft] = useState("");
   // ↑/↓ prompt history state, and the last Escape's timestamp for the
   // double-tap-to-clear gesture — a ref, since a timestamp on its own
@@ -951,13 +967,14 @@ export function AcpChatPanel({
     let cancelled = false;
     const abortController = new AbortController();
     const subs: Disposable[] = [];
-    // "Continue in a new session" (RFC 0042) set this just before bumping
-    // `nonce` to force this reconnect past resume/load and straight to a
-    // fresh `session/new`, while keeping the journal's identity. Consumed
-    // once — a later reconnect (a crash, "Reconnect") goes through the normal
-    // resume → load → journal flow again.
-    const startFresh = continueFreshRef.current;
-    continueFreshRef.current = false;
+    // "Continue in a new session" (RFC 0042) and Clear (RFC 0048) set this
+    // just before bumping `nonce` to force this reconnect past resume/load
+    // and straight to a fresh `session/new` — carrying the journal for the
+    // first, discarding it for the second. Consumed once: a later reconnect
+    // (a crash, "Reconnect") goes through the normal resume → load → journal
+    // flow again.
+    const restart = restartIntentRef.current;
+    restartIntentRef.current = null;
     setPhase({ status: "connecting" });
     setTranscript(emptyTranscript);
     setPermissions([]);
@@ -979,12 +996,11 @@ export function AcpChatPanel({
 
     // Restore a persisted session (RFC 0042 `ChatPanelState`) — `undefined`
     // for a brand-new panel, which is an ordinary `session/new`.
-    const restoreSessionId = params.sessionId ?? undefined;
-    const resume = restoreSessionId
-      ? startFresh
-        ? continueInNewSessionOption(restoreSessionId)
-        : resumeOptionFor(restoreSessionId)
-      : undefined;
+    // The restart's own id wins over the persisted one: a panel that has
+    // connected but not yet written its `DockPanelRecord` still has a live
+    // session (and a journal) to continue or clear.
+    const restoreSessionId = restart?.sessionId ?? params.sessionId;
+    const resume = restoreOptionFor(restoreSessionId, restart?.intent ?? null);
 
     void ctx.agents.sessions
       .connect(profileId, {
@@ -1203,23 +1219,113 @@ export function AcpChatPanel({
     cwd,
   ]);
 
+  /**
+   * **Clear** — the session reset (RFC 0048), behind ⌘⇧K, the transcript
+   * context menu, and a typed `/clear` alike. Ends this session, starts a new
+   * one on the same profile and folder, and discards the transcript journal
+   * the old one was writing.
+   *
+   * Nothing is repainted here: the reconnect effect below already resets the
+   * transcript, permissions, commands, config options, attachments and turn
+   * state on every run, so bumping `nonce` *is* the empty transcript. A
+   * panel-local `setTranscript(emptyTranscript)` would only blank the view
+   * while the agent and the journal remembered everything — which is the
+   * behavior this replaced.
+   */
+  // Whether there is a session to reset at all — the same test `resetSession`
+  // makes, hoisted so the menu row and the shortcut can stay quiet without it.
+  const canReset = Boolean(params.sessionId ?? sessionId);
+
+  const resetSession = useCallback(() => {
+    // The persisted id first, the live one as the fallback for a session that
+    // has connected but whose panel record has not been written yet. With
+    // neither there is no journal and no agent context to clear, so a reset
+    // would just be a reconnect.
+    const target = params.sessionId ?? sessionId;
+    if (!target) return;
+    restartIntentRef.current = { intent: "reset", sessionId: target };
+    setNonce((n) => n + 1);
+  }, [params.sessionId, sessionId]);
+
+  /**
+   * The gesture behind every Clear Session entry point: confirm, then reset.
+   *
+   * The confirmation is the *entry point's* job, not `resetSession`'s — the
+   * reconnect effect must be able to run a reset it has already been told to
+   * do without asking again. Every gesture goes through here (⌘⇧K, the menu
+   * row, and a typed `/clear` alike) so "do I get asked?" never depends on
+   * which one the user reached for, the same reason R1 gave them one reset
+   * path in the first place.
+   *
+   * Skipping the dialog is a persisted preference, not a modifier: it is set
+   * from the dialog's own "Don't ask again" box and turned back on at
+   * Settings → Agents → Chat, so it is never a one-way door.
+   */
+  const requestReset = useCallback(async (): Promise<boolean> => {
+    if (!canReset) return false;
+    if (!chatPanelSettingsService.getState().confirmBeforeClear) {
+      resetSession();
+      return true;
+    }
+    const choice = await ctx.ui.showModal<ClearSessionChoice | undefined>(
+      (close) => (
+        <ClearSessionDialog
+          journalIsOnlyCopy={isReadOnly(resumeOutcome)}
+          close={close}
+        />
+      ),
+      {
+        title: "Clear session?",
+        size: "sm",
+        dismissible: true,
+        ariaLabel: "Clear session?",
+      },
+    );
+    if (!choice) return false;
+    if (choice.dontAskAgain) {
+      chatPanelSettingsService.set({ confirmBeforeClear: false });
+    }
+    resetSession();
+    return true;
+  }, [canReset, ctx, resetSession, resumeOutcome]);
+
   // --- sending -------------------------------------------------------------
   const send = useCallback(async () => {
     const handle = handleRef.current;
     const text = draft.trim();
     const files = attachments;
-    if (
-      !handle ||
-      busy ||
-      !composerCanSend({
-        ready: phase.status === "ready",
-        lost,
-        draft,
-        attachmentCount: files.length,
-      })
-    ) {
+    // `/clear` is reserved (RFC 0048): Silo answers it with a session
+    // reset and the agent never sees it, so what the user typed matches what
+    // happens whichever agent is connected — and the journal goes with the
+    // agent's context, which an agent's own `/clear` leaves behind. The
+    // precedence — a reset outranks the send guard rather than sitting
+    // behind it — lives in `composerSubmitAction`, so the typed entry point
+    // reaches the same `resetSession()` on the same `canReset` gate as ⌘⇧K
+    // and the tab menu (R1: one implementation of clear).
+    const action = composerSubmitAction({
+      draft,
+      reserved: isReservedDraft(text),
+      canReset,
+      hasHandle: Boolean(handle),
+      busy,
+      ready: phase.status === "ready",
+      lost,
+      attachmentCount: files.length,
+    });
+    if (action === "none") return;
+    if (action === "reset") {
+      // The draft is cleared only once the reset is confirmed — cancelling
+      // leaves the typed `/clear` in the composer to edit or re-send, rather
+      // than swallowing it on the user's behalf.
+      const confirmed = await requestReset();
+      if (!confirmed) return;
+      setDraft("");
+      setHistoryNav(NOT_NAVIGATING_HISTORY);
+      setAttachments([]);
       return;
     }
+    // Narrowing only — `action === "send"` already implies `hasHandle`.
+    if (!handle) return;
     setDraft("");
     setHistoryNav(NOT_NAVIGATING_HISTORY);
     setAttachments([]);
@@ -1274,7 +1380,16 @@ export function AcpChatPanel({
         turnStartRef.current = null;
       }
     }
-  }, [draft, busy, attachments, transcript, phase.status, lost]);
+  }, [
+    draft,
+    busy,
+    attachments,
+    transcript,
+    phase.status,
+    lost,
+    canReset,
+    requestReset,
+  ]);
 
   const answer = useCallback((pending: PendingPermission, optionId: string) => {
     pending.request.respond(optionId);
@@ -1474,9 +1589,11 @@ export function AcpChatPanel({
   }, [api, inputEnabled]);
 
   const continueInNewSession = useCallback(() => {
-    continueFreshRef.current = true;
+    const target = params.sessionId ?? sessionId;
+    if (!target) return;
+    restartIntentRef.current = { intent: "continue-fresh", sessionId: target };
     setNonce((n) => n + 1);
-  }, []);
+  }, [params.sessionId, sessionId]);
 
   // The `/` command palette (RFC 0040) — a filtered list on `session.commands`
   // while the draft is authoring a command name, no raw read. `commandQuery`
@@ -1484,7 +1601,9 @@ export function AcpChatPanel({
   // argument), which also closes the palette.
   const commandQuery = commandQueryFromDraft(draft);
   const paletteCommands =
-    commandQuery !== undefined ? filterCommands(commands, commandQuery) : [];
+    commandQuery !== undefined
+      ? filterCommands(withReservedCommands(commands), commandQuery)
+      : [];
   const showPalette =
     paletteCommands.length > 0 &&
     !paletteDismissed &&
@@ -1809,10 +1928,26 @@ export function AcpChatPanel({
           onCopyLink: link
             ? () => void navigator.clipboard.writeText(link.text)
             : undefined,
+          // Hidden while there is no session yet — nothing to reset.
+          onClear: canReset ? () => void requestReset() : undefined,
+          clearAccelerator: clearShortcutLabel(isMac),
         }),
       });
     },
-    [ctx, openChatLink],
+    [ctx, openChatLink, cmdKey, isMac, canReset, requestReset],
+  );
+
+  // ⌘⇧K / Ctrl+Shift+K anywhere in the panel, including the composer — a
+  // panel-local listener rather than a document one, so a terminal's own ⌘⇧K
+  // (the `core.terminal.clear` keybinding) is untouched and a background Chat
+  // panel never answers for the one the user is looking at.
+  const onPanelKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!canReset || !isClearShortcut(e, isMac)) return;
+      e.preventDefault();
+      void requestReset();
+    },
+    [canReset, isMac, requestReset],
   );
 
   // Memoized because it is a prop of every memoized row: rebuilt each render,
@@ -1850,7 +1985,7 @@ export function AcpChatPanel({
   }
 
   return (
-    <div className="acp-chat">
+    <div className="acp-chat" onKeyDown={onPanelKeyDown}>
       <div
         className="acp-chat__scroller"
         ref={scrollerRef}

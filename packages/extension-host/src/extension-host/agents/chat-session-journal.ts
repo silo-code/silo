@@ -118,6 +118,20 @@ export interface ChatSessionJournalWriter {
    *  abandoned outright (e.g. the connect handshake failed before any turn
    *  ran). */
   dispose(): void;
+  /**
+   * Kill the writer for good and resolve once any write already in flight has
+   * settled — for a **session reset** (RFC 0048), which deletes this journal
+   * immediately afterward.
+   *
+   * Stronger than {@link dispose} in the two ways deletion needs.
+   * `dispose()` stops the timer but leaves the buffer dirty, so a later
+   * {@link flush} — the handle's own unawaited teardown flush, say — still
+   * rewrites the whole file and puts a deleted journal straight back. An
+   * abandoned writer ignores every subsequent {@link append} and
+   * {@link flush}. And awaiting it means the unlink cannot lose a race with a
+   * write that was already past its `dirty` check.
+   */
+  abandon(): Promise<void>;
 }
 
 /**
@@ -134,9 +148,14 @@ export function createJournalWriter(
   let dirty = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
+  let abandoned = false;
+  // The write currently in flight, if any — `abandon()` awaits it so a caller
+  // about to delete this journal cannot lose a race with a write that already
+  // passed its `dirty` check.
+  let inflight: Promise<void> | null = null;
 
   async function writeNow(): Promise<void> {
-    if (!dirty) return;
+    if (abandoned || !dirty) return;
     dirty = false;
     const stateDir = await workspaceStateDir(workspaceId);
     const dir = chatSessionsDir(stateDir);
@@ -153,13 +172,22 @@ export function createJournalWriter(
     }
   }
 
+  /** Run a write, remembering it as {@link inflight} for `abandon()`. */
+  function startWrite(): Promise<void> {
+    const write = writeNow().finally(() => {
+      if (inflight === write) inflight = null;
+    });
+    inflight = write;
+    return write;
+  }
+
   function schedule(): void {
     if (disposed) return;
     dirty = true;
     if (timer) return;
     timer = setTimeout(() => {
       timer = null;
-      void writeNow();
+      void startWrite();
     }, FLUSH_DEBOUNCE_MS);
   }
 
@@ -170,11 +198,12 @@ export function createJournalWriter(
       schedule();
     },
     async flush() {
+      if (abandoned) return;
       if (timer) {
         clearTimeout(timer);
         timer = null;
       }
-      await writeNow();
+      await startWrite();
     },
     dropSeed(n) {
       if (disposed || n <= 0) return;
@@ -191,7 +220,48 @@ export function createJournalWriter(
         timer = null;
       }
     },
+    async abandon() {
+      abandoned = true;
+      disposed = true;
+      dirty = false;
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      await inflight;
+    },
   };
+}
+
+/**
+ * Delete one session's journal file — a **session reset** (RFC 0048) throwing
+ * the prior conversation away at the user's explicit request. Host-internal:
+ * an extension reaches this only through `connect({ resume: { startFresh:
+ * true, transcript: "discard" } })`, never as a file operation of its own.
+ *
+ * Best-effort, like {@link pruneOrphanedChatJournals} — a failed unlink is
+ * logged and swallowed rather than sinking the reset. The worst case is a
+ * stale file for an id nothing references any more, which the orphan prune
+ * eventually collects.
+ *
+ * Abandon the session's live writer ({@link ChatSessionJournalWriter.abandon})
+ * **before** calling this, or its buffer writes the file straight back.
+ */
+export async function deleteJournalFile(
+  workspaceId: string,
+  sessionId: string,
+): Promise<void> {
+  try {
+    const stateDir = await workspaceStateDir(workspaceId);
+    const path = journalPath(stateDir, sessionId);
+    if (!(await fsPathExists(path))) return;
+    await fsDelete(path);
+    agentsChannel.debug(`discarded chat session journal ${path}`);
+  } catch (err) {
+    agentsChannel.debug(
+      `could not discard chat session journal for ${sessionId}: ${err}`,
+    );
+  }
 }
 
 const DEFAULT_MAX_ORPHAN_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days

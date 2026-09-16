@@ -31,6 +31,7 @@ vi.mock("../../services/user-config", () => ({
 
 import {
   createJournalWriter,
+  deleteJournalFile,
   parseJournalLines,
   pruneOrphanedChatJournals,
   readJournal,
@@ -152,6 +153,45 @@ describe("createJournalWriter", () => {
     expect(fsWriteText).not.toHaveBeenCalled();
   });
 
+  it("abandon() makes a later flush() write nothing", async () => {
+    // The teardown path a session reset races: the panel's effect cleanup
+    // fires `void writer.flush()` without awaiting it, well after the discard
+    // has unlinked the file. `dispose()` alone leaves the buffer dirty, so
+    // that flush would rewrite the whole journal and undo the clear.
+    const writer = createJournalWriter("ws1", "s1");
+    writer.append(update("agent_message_chunk", "a"));
+    await writer.abandon();
+    await writer.flush();
+    writer.append(update("agent_message_chunk", "b"));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(fsWriteText).not.toHaveBeenCalled();
+  });
+
+  it("abandon() resolves only once a write already in flight has settled", async () => {
+    let release: () => void = () => {};
+    fsWriteText.mockImplementationOnce(
+      () =>
+        new Promise<void>((r) => {
+          release = () => r();
+        }),
+    );
+    const writer = createJournalWriter("ws1", "s1");
+    writer.append(update("agent_message_chunk", "a"));
+    const flushing = writer.flush();
+    await flush();
+    let settled = false;
+    const abandoning = writer.abandon().then(() => {
+      settled = true;
+    });
+    await flush();
+    // The write is still in flight — an unlink now would lose the race.
+    expect(settled).toBe(false);
+    release();
+    await flushing;
+    await abandoning;
+    expect(settled).toBe(true);
+  });
+
   it("snapshotLines() reflects appends without needing a flush", () => {
     const writer = createJournalWriter("ws1", "s1", ['{"kind":"old"}']);
     writer.append(update("new-kind"));
@@ -248,5 +288,27 @@ describe("pruneOrphanedChatJournals", () => {
     await expect(
       pruneOrphanedChatJournals("ws1", new Set()),
     ).resolves.toBeUndefined();
+  });
+});
+
+describe("deleteJournalFile", () => {
+  it("deletes the session's journal", async () => {
+    fsPathExists.mockResolvedValue(true);
+    await deleteJournalFile("ws1", "s1");
+    expect(fsDelete).toHaveBeenCalledWith(
+      "/cfg/workspaces/ws1/chat-sessions/s1.jsonl",
+    );
+  });
+
+  it("is a no-op when there is no journal to delete", async () => {
+    fsPathExists.mockResolvedValue(false);
+    await deleteJournalFile("ws1", "s1");
+    expect(fsDelete).not.toHaveBeenCalled();
+  });
+
+  it("swallows a failed unlink rather than sinking the reset", async () => {
+    fsPathExists.mockResolvedValue(true);
+    fsDelete.mockRejectedValueOnce(new Error("permission denied"));
+    await expect(deleteJournalFile("ws1", "s1")).resolves.toBeUndefined();
   });
 });

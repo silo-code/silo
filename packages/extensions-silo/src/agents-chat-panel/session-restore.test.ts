@@ -4,7 +4,9 @@ import {
   isReadOnly,
   panelStateAfterConnect,
   resolveChatCwd,
+  restoreOptionFor,
   resumeOptionFor,
+  sessionResetOption,
 } from "./session-restore";
 
 describe("resumeOptionFor", () => {
@@ -66,5 +68,38 @@ describe("isReadOnly", () => {
     expect(isReadOnly("new")).toBe(false);
     expect(isReadOnly("resumed")).toBe(false);
     expect(isReadOnly(undefined)).toBe(false);
+  });
+});
+
+describe("sessionResetOption", () => {
+  it("skips resume/load and discards the journal — Clear, not recovery", () => {
+    expect(sessionResetOption("s1")).toEqual({
+      sessionId: "s1",
+      startFresh: true,
+      transcript: "discard",
+    });
+  });
+});
+
+describe("restoreOptionFor", () => {
+  it("takes the normal resume path with no intent", () => {
+    expect(restoreOptionFor("s1", null)).toEqual({ sessionId: "s1" });
+  });
+
+  it("carries the journal for a continuation and drops it for a reset", () => {
+    expect(restoreOptionFor("s1", "continue-fresh")).toEqual({
+      sessionId: "s1",
+      startFresh: true,
+    });
+    expect(restoreOptionFor("s1", "reset")).toEqual({
+      sessionId: "s1",
+      startFresh: true,
+      transcript: "discard",
+    });
+  });
+
+  it("is undefined without a session id, whatever the intent", () => {
+    expect(restoreOptionFor(undefined, "reset")).toBeUndefined();
+    expect(restoreOptionFor(null, null)).toBeUndefined();
   });
 });

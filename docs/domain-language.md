@@ -703,6 +703,32 @@ the **frame log**.
 _Avoid_: "history" (that is the agent's own store), "cache" (it is a
 system-of-record, not a derived copy).
 
+**Session reset** (RFC 0048) — ending a **Chat session** and starting a new one
+in its place, discarding the old session's **transcript journal**: the agent
+forgets the conversation and so does Silo. **Clear Session** is its user-facing
+label, and ⌘⇧K, the transcript's Clear Session menu item, and a typed `/clear`
+are all the same operation — each confirms first, unless the user has turned
+that off. The inverse of the recovery path in **Chat session resurrection**,
+which uses the same `session/new` mechanism to _carry_ a journal forward under
+a working id.
+_Avoid_: "clear the transcript" (blanking the view while the agent and the
+journal remember everything is the behavior this replaced); "new session" (that
+is the gesture, not the discard).
+
+**Reserved slash command** (RFC 0048, ADR 0054) — a slash command Silo's
+**Chat** panel answers itself rather than forwarding to the agent,
+substituted into its `/` palette in place of the agent's own entry of that
+name. `clear` is the only one, justified because Silo's **session reset** is a
+strict superset of an agent's `/clear`: the same fresh context, plus the
+journal. A convention of the Chat panel, not a platform mechanism — `ctx.agents`
+hands every consumer the agent's command list unchanged, so a third-party Chat
+UI forwards `clear` unless it opts in. See **Naming collision (RFC 0040)** for
+the general rule that commands come from the agent.
+_Avoid_: "host-reserved command" (neither the host nor the SDK knows the name
+is reserved); "built-in command" (Silo's **Command** registry is a different
+surface — these are composer slash commands); "override" (the agent's command
+is replaced by a superset, not altered).
+
 **Dormant Chat session** (`chatResumeState: "dormant"`, RFC 0042) — a **Chat**
 Agent Session Silo knows about but has not connected to this run: its **Dock
 Panel Record** exists and its last-known status was persisted, but no agent

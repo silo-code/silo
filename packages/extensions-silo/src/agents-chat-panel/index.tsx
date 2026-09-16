@@ -23,9 +23,20 @@ import type {
   ExtensionContext,
 } from "@silo-code/sdk";
 import { AcpChatPanel, type AcpChatPanelParams } from "./AcpChatPanel";
+import type { ChatPanelExtensionAPI } from "./chat-panel-api";
+import {
+  ChatPanelSettingsPanel,
+  clearChatPanelSettingsListeners,
+  initChatPanelSettings,
+} from "./settings";
 import "./acp-chat.css";
 
-function activate(ctx: ExtensionContext) {
+function activate(ctx: ExtensionContext): ChatPanelExtensionAPI {
+  // The Clear Session confirmation preference (RFC 0048). Global, not
+  // per-workspace — "ask me before throwing a conversation away" is a
+  // behavior preference, not a property of a project.
+  ctx.subscriptions.push(initChatPanelSettings(ctx.storage.global));
+
   ctx.subscriptions.push(
     ctx.registerDockPanelKind({
       id: "agents-chat-panel",
@@ -52,9 +63,11 @@ function activate(ctx: ExtensionContext) {
       // or `core.newAgent` — never a profile-less picker.
     }),
   );
+
+  return { SettingsPanel: ChatPanelSettingsPanel };
 }
 
-export const extension: Extension = {
+export const extension: Extension<ChatPanelExtensionAPI> = {
   id: "silo.agents-chat-panel",
   manifest: {
     name: "Agents Chat Panel",
@@ -62,4 +75,7 @@ export const extension: Extension = {
       "The chat panel for talking with an agent — streaming responses, tool calls, and permission requests, all in one transcript.",
   },
   activate,
+  deactivate() {
+    clearChatPanelSettingsListeners();
+  },
 };
