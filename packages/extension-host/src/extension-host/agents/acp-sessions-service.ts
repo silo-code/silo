@@ -78,6 +78,7 @@ import {
 } from "./agent-turn-model";
 import {
   createJournalWriter,
+  deleteJournalFile,
   parseJournalLines,
   readJournalLines,
   type ChatSessionJournalWriter,
@@ -359,6 +360,36 @@ async function tryResumeOrLoad(
 export function createAgentSessionsService(
   hasAgentsPermission: () => boolean,
 ): AgentSessionsService {
+  // Live journal writers, keyed by the session id whose **file** each owns —
+  // after a `session/load` id-adoption or a `startFresh` re-key that is the
+  // new id, not the one `connect()` was asked for. The service needs this
+  // handle on writer lifetime for a **session reset** (RFC 0048): a discard
+  // has to silence the writer buffering that journal in memory before it
+  // deletes the file, and only the connection that created it could reach it
+  // otherwise. One live writer per session id — a second registration for the
+  // same id is a re-key replacing its own predecessor.
+  //
+  // The invariant: **a writer stays reachable from this map for as long as it
+  // can still write.** Registration is not tied to the handle being alive —
+  // a disposed handle's teardown flush is still a write, so its writer stays
+  // registered until that flush settles (see `dispose()`).
+  const liveWriters = new Map<string, ChatSessionJournalWriter>();
+
+  function trackWriter(
+    sessionId: string,
+    writer: ChatSessionJournalWriter,
+  ): ChatSessionJournalWriter {
+    liveWriters.set(sessionId, writer);
+    return writer;
+  }
+
+  function untrackWriter(
+    sessionId: string,
+    writer: ChatSessionJournalWriter,
+  ): void {
+    if (liveWriters.get(sessionId) === writer) liveWriters.delete(sessionId);
+  }
+
   return {
     async connect(
       profileId: string,
@@ -469,6 +500,10 @@ export function createAgentSessionsService(
       // false only for a `"journal-only"` handle (RFC 0042).
       let liveConnection = true;
       let journalWriter: ChatSessionJournalWriter | null = null;
+      // The session id `journalWriter`'s file is keyed under — the key it is
+      // registered with in the service's `liveWriters` map, which a re-key
+      // moves. Kept in step by `tracked` / `releaseJournalWriter`.
+      let journalWriterId: string | null = null;
       let userMsgSeq = 0;
       // Live snapshot: the handle exposes it through a getter, and both
       // `setConfigOption` and a `current_mode_update` the agent sends itself
@@ -479,6 +514,38 @@ export function createAgentSessionsService(
       // for it, since nothing in the protocol requires an agent to ever send
       // one.
       let commands: readonly AgentCommand[] = [];
+
+      /**
+       * Register `writer` in the service's `liveWriters` map under the id
+       * whose file it owns, unregistering whatever this connection had before
+       * it (RFC 0048), and hand it back to be assigned to `journalWriter`.
+       *
+       * Written as `journalWriter = tracked(id, createJournalWriter(...))`
+       * rather than as a setter so the registry cannot drift from the
+       * variable — and so TypeScript still narrows `journalWriter` to non-null
+       * the way a direct assignment does. Disposing the outgoing writer stays
+       * the caller's business: a re-key deliberately snapshots its lines
+       * first.
+       */
+      function tracked(
+        sessionId: string,
+        writer: ChatSessionJournalWriter,
+      ): ChatSessionJournalWriter {
+        releaseJournalWriter();
+        journalWriterId = sessionId;
+        trackWriter(sessionId, writer);
+        return writer;
+      }
+
+      /** Drop this connection's writer from the service's map — it is being
+       *  replaced by a re-key, and the outgoing one will never write again.
+       *  Teardown does *not* go through here: a disposing handle still has a
+       *  flush to run, so `dispose()` unregisters only once that has settled. */
+      function releaseJournalWriter(): void {
+        if (journalWriter && journalWriterId)
+          untrackWriter(journalWriterId, journalWriter);
+        journalWriterId = null;
+      }
 
       function fireConfigChanged(): void {
         for (const l of configListeners) {
@@ -767,7 +834,40 @@ export function createAgentSessionsService(
         session = await startFreshSession();
         acpSessionId = session.sessionId;
         persistSessionId = session.sessionId;
-        journalWriter = createJournalWriter(workspaceId, persistSessionId, []);
+        journalWriter = tracked(
+          persistSessionId,
+          createJournalWriter(workspaceId, persistSessionId, []),
+        );
+      } else if (
+        resumeTarget.startFresh &&
+        resumeTarget.transcript === "discard"
+      ) {
+        // **Session reset** (RFC 0048) — "Clear": the user asked for this
+        // conversation to be thrown away, agent context and transcript alike.
+        // A fresh `session/new` is the reset (ACP has no protocol-level
+        // clear), and the prior journal goes with it.
+        //
+        // Order matters, and it is the whole reason the service tracks live
+        // writers. The writer for this id is a closure of whichever
+        // connection created it and holds every line of the session in
+        // memory, because a flush is a whole-file rewrite. Deleting the file
+        // without silencing that writer first means the next flush — the
+        // outgoing handle's own unawaited teardown flush, most likely —
+        // writes the whole transcript straight back, and the clear only
+        // appears to stick when nothing happens to flush before disposal.
+        // `abandon()` makes it inert *and* waits out any write already in
+        // flight, so the unlink cannot lose that race either.
+        await liveWriters.get(resumeTarget.sessionId)?.abandon();
+        await deleteJournalFile(workspaceId, resumeTarget.sessionId);
+        session = await startFreshSession();
+        acpSessionId = session.sessionId;
+        persistSessionId = session.sessionId;
+        // Seeded empty on purpose: nothing is read back, nothing is carried,
+        // and the new id gets a journal of its own from its first update.
+        journalWriter = tracked(
+          persistSessionId,
+          createJournalWriter(workspaceId, persistSessionId, []),
+        );
       } else if (resumeTarget.startFresh) {
         // "Continue in a new session" from a prior `"journal-only"` handle —
         // the agent is already known not to support `resume`/`load` for this
@@ -790,6 +890,7 @@ export function createAgentSessionsService(
           resumeTarget.sessionId,
           priorLines,
         );
+        journalWriter = tracked(resumeTarget.sessionId, writer);
         session = await startFreshSession();
         acpSessionId = session.sessionId;
         persistSessionId = session.sessionId;
@@ -801,9 +902,9 @@ export function createAgentSessionsService(
             session.sessionId,
             captured,
           );
+          journalWriter = tracked(session.sessionId, writer);
           void writer.flush();
         }
-        journalWriter = writer;
       } else {
         const priorLines = await readJournalLines(
           workspaceId,
@@ -815,11 +916,12 @@ export function createAgentSessionsService(
         // writer created only afterward silently misses every one of them.
         // (Caught live in RFC 0042 Phase 1 verification, 2026-09-09 — a
         // restored `claude` session came back with an empty transcript.)
-        journalWriter = createJournalWriter(
+        let writer = createJournalWriter(
           workspaceId,
           resumeTarget.sessionId,
           priorLines,
         );
+        journalWriter = tracked(resumeTarget.sessionId, writer);
         const attempt = await tryResumeOrLoad(
           client,
           resumeCaps,
@@ -841,16 +943,17 @@ export function createAgentSessionsService(
             // seed — drop the seed so the restore doesn't show every turn
             // twice. Re-key to an adopted id (observed on claude) so future
             // writes — and the next restore attempt — target the live id.
-            journalWriter.dropSeed(priorLines.length);
+            writer.dropSeed(priorLines.length);
             if (attempt.sessionId !== resumeTarget.sessionId) {
-              const captured = journalWriter.snapshotLines();
-              journalWriter.dispose();
-              journalWriter = createJournalWriter(
+              const captured = writer.snapshotLines();
+              writer.dispose();
+              writer = createJournalWriter(
                 workspaceId,
                 attempt.sessionId,
                 captured,
               );
-              void journalWriter.flush();
+              journalWriter = tracked(attempt.sessionId, writer);
+              void writer.flush();
             }
           }
         } else if (hasConversationContent(priorLines)) {
@@ -872,15 +975,12 @@ export function createAgentSessionsService(
           // never refuse to open the panel; fall through to a fresh session.
           // The writer created above was for that dead, journal-less id —
           // drop it (nothing to lose) and start clean under the fresh one.
-          journalWriter.dispose();
+          writer.dispose();
           session = await startFreshSession();
           acpSessionId = session.sessionId;
           persistSessionId = session.sessionId;
-          journalWriter = createJournalWriter(
-            workspaceId,
-            persistSessionId,
-            [],
-          );
+          writer = createJournalWriter(workspaceId, persistSessionId, []);
+          journalWriter = tracked(persistSessionId, writer);
         }
       }
 
@@ -963,16 +1063,18 @@ export function createAgentSessionsService(
             throw new Error(`${label} could not resume or load the session`);
           }
           if (attempt.via === "load" && journalWriter) {
-            journalWriter.dropSeed(linesBeforeResume);
+            const prior = journalWriter;
+            prior.dropSeed(linesBeforeResume);
             if (attempt.sessionId !== acpSessionId) {
-              const captured = journalWriter.snapshotLines();
-              journalWriter.dispose();
-              journalWriter = createJournalWriter(
+              const captured = prior.snapshotLines();
+              prior.dispose();
+              const rekeyed = createJournalWriter(
                 workspaceId,
                 attempt.sessionId,
                 captured,
               );
-              void journalWriter.flush();
+              journalWriter = tracked(attempt.sessionId, rekeyed);
+              void rekeyed.flush();
             }
           }
           client.dispose();
@@ -1176,10 +1278,30 @@ export function createAgentSessionsService(
           if (disposed) return;
           disposed = true;
           const writer = journalWriter;
+          const writerId = journalWriterId;
+          // Deliberately *not* `releaseJournalWriter()` here. The invariant
+          // the `liveWriters` map exists to hold is that **a writer stays
+          // reachable from the map for as long as it can still write** — and
+          // the teardown flush below is exactly such a write, scheduled
+          // unawaited and, when the agent advertises `session/close`, behind
+          // a further round trip. Dropping the registration synchronously
+          // would orphan a writer that has not written yet, so a session
+          // reset arriving in between (the real order: React runs the
+          // reconnect effect's cleanup — this `dispose()` — *before* the
+          // effect body re-runs `connect()`) would find nothing to
+          // `abandon()` and the flush would rewrite the journal after the
+          // unlink. The entry is removed once the flush has settled, below.
           journalWriter = null;
+          journalWriterId = null;
           const finishTeardown = () => {
             client.dispose();
-            void writer?.flush().finally(() => writer?.dispose());
+            if (!writer) return;
+            void writer.flush().finally(() => {
+              writer.dispose();
+              // Identity-guarded (see `untrackWriter`): a newer connection
+              // may already have registered its own writer under this id.
+              if (writerId) untrackWriter(writerId, writer);
+            });
           };
           // Clean teardown (not a crash — `onClosed` never reaches here):
           // `session/close` first, so the agent can free its own resources,

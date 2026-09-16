@@ -18,6 +18,13 @@ export interface ChatSelectionMenuInput {
   readonly onSelectAll: () => void;
   readonly onOpenLink?: () => void;
   readonly onCopyLink?: () => void;
+  /** **Clear Session** — the session reset (RFC 0048). Omitted while there is
+   *  no session to reset, which hides the row rather than offering a no-op. */
+  readonly onClear?: () => void;
+  /** Accelerator label for the **Clear Session** row — `clearShortcutLabel()`.
+   *  Passed in rather than composed from {@link cmdKey}, which carries no
+   *  modifier separator and so can't spell a shifted binding on Windows. */
+  readonly clearAccelerator?: string;
 }
 
 export function buildChatSelectionMenu(
@@ -35,6 +42,20 @@ export function buildChatSelectionMenu(
       accelerator: `${input.cmdKey}A`,
       run: input.onSelectAll,
     },
+    ...(input.onClear
+      ? ([
+          { type: "separator" },
+          {
+            // Destructive, and separated from the read-only actions above for
+            // it: this ends the session and throws the transcript away. Named
+            // for the *session*, not the view — "Clear" next to "Copy" and
+            // "Select All" reads as a third thing done to the text on screen.
+            label: "Clear Session",
+            accelerator: input.clearAccelerator,
+            run: input.onClear,
+          },
+        ] satisfies MenuEntry[])
+      : []),
   ];
   if (!input.link || !input.onOpenLink || !input.onCopyLink) return generic;
   const labels = linkMenuLabels(input.link.kind);

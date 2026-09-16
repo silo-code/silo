@@ -886,3 +886,9 @@
   border-top: 1px solid var(--silo-color-input-border);
   margin: 12px 0;
 }
+
+/* Clear Session confirmation (RFC 0048) — content of the host modal. */
+.acp-chat-clear-confirm-lead {
+  margin: 0 0 12px;
+  line-height: 1.5;
+}

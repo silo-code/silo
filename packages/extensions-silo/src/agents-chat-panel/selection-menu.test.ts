@@ -65,3 +65,44 @@ describe("buildChatSelectionMenu", () => {
     expect(item(items, "Copy Path")).toBeDefined();
   });
 });
+
+describe("buildChatSelectionMenu — Clear Session", () => {
+  it("adds a separated Clear Session row with the supplied accelerator", () => {
+    const onClear = vi.fn();
+    const items = buildChatSelectionMenu({
+      ...base,
+      selection: "",
+      onClear,
+      clearAccelerator: "⌘⇧K",
+    });
+    expect(items.map((e) => ("label" in e ? e.label : `<${e.type}>`))).toEqual([
+      "Copy",
+      "Select All",
+      "<separator>",
+      "Clear Session",
+    ]);
+    const clear = item(items, "Clear Session");
+    expect(clear?.accelerator).toBe("⌘⇧K");
+    clear?.run?.();
+    expect(onClear).toHaveBeenCalled();
+  });
+
+  it("is omitted when there is no session to reset", () => {
+    const items = buildChatSelectionMenu({ ...base, selection: "" });
+    expect(item(items, "Clear Session")).toBeUndefined();
+  });
+
+  it("stays below the link actions when the click landed on a link", () => {
+    const items = buildChatSelectionMenu({
+      ...base,
+      selection: "",
+      link: { kind: "url", text: "https://example.com" },
+      onOpenLink: () => {},
+      onCopyLink: () => {},
+      onClear: () => {},
+      clearAccelerator: "⌘⇧K",
+    });
+    const labels = items.map((e) => ("label" in e ? e.label : `<${e.type}>`));
+    expect(labels[labels.length - 1]).toBe("Clear Session");
+  });
+});

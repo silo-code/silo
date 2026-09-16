@@ -214,6 +214,30 @@ been pointing.
   commands is the extension's design problem, and the whole point of RFC 0039 is
   that we get to iterate on that outside a Silo release.
 
+### Reserved commands (added by RFC 0048)
+
+This surface hardcodes no commands: `session.commands` is populated purely from
+the agent's `available_commands_update`, and that remains the rule for every
+consumer — the host substitutes nothing and every Chat UI gets the agent's list
+as the agent sent it.
+
+**Silo's own Chat panel reserves exactly one name, `clear`.** When an agent
+advertises a command by that name, the panel substitutes its own entry — same
+name, Silo's description, Silo's handler — and a typed `/clear` is intercepted
+before it reaches `prompt()`. The panel offers the entry even when the agent
+advertises none, so what its palette lists always matches what typing it does.
+A third-party Chat UI on this surface sees the agent's `clear` and forwards it,
+unless it opts in to the same convention.
+
+The bar a reservation has to clear, and the reason this one does: **the panel's
+action is a strict superset of the agent's.** Its `/clear` drops the agent's
+context; Silo's [session reset](./0048-clear-as-session-reset.md) drops that
+_and_ the transcript journal underneath it, which the agent cannot reach.
+Nothing is hidden — a subset is replaced by a superset that means what the user
+read. A reservation that merely renames, restricts, or reinterprets an agent's
+command fails that test. This is a reserved name, not an open namespace — see
+[ADR 0054](../decisions/0054-reserved-slash-commands.md).
+
 ## Alternatives considered
 
 **Leave it on `raw`.** An extension can read `update.raw.availableCommands`
