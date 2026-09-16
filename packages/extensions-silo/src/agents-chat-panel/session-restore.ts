@@ -31,6 +31,41 @@ export function continueInNewSessionOption(
 }
 
 /**
+ * The `connect()` option for a **session reset** (RFC 0048) — what Clear
+ * means: skip straight to `session/new` *and* discard the journal this id was
+ * writing, so neither the agent nor the transcript remembers the conversation
+ * the user just threw away.
+ *
+ * The same mechanism as {@link continueInNewSessionOption}, opposite intent on
+ * the journal: recovery carries the conversation forward, a clear does not.
+ */
+export function sessionResetOption(sessionId: string): AgentSessionRestore {
+  return { sessionId, startFresh: true, transcript: "discard" };
+}
+
+/**
+ * Why a reconnect is happening, as the panel knows it just before it bumps
+ * `nonce` — `null` for an ordinary connect, remount, or "Reconnect", which
+ * take the normal resume → load → journal path.
+ */
+export type RestartIntent = "continue-fresh" | "reset";
+
+/**
+ * The restore option for one reconnect: the panel's persisted session id read
+ * through whichever intent set off this reconnect. `undefined` when there is
+ * nothing to restore (a brand-new panel), which is an ordinary `session/new`.
+ */
+export function restoreOptionFor(
+  sessionId: string | null | undefined,
+  intent: RestartIntent | null,
+): AgentSessionRestore | undefined {
+  if (!sessionId) return undefined;
+  if (intent === "reset") return sessionResetOption(sessionId);
+  if (intent === "continue-fresh") return continueInNewSessionOption(sessionId);
+  return resumeOptionFor(sessionId);
+}
+
+/**
  * The folder this panel's session runs in: the one chosen when it was started
  * (RFC 0046), falling back to the workspace's primary folder.
  *

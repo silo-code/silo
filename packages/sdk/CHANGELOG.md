@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.51.0](https://github.com/silo-code/silo/compare/sdk-v0.50.0...sdk-v0.51.0) (2026-09-16)
+
+
+### Features
+
+* **agents-chat-panel:** clear is a session reset, confirmed before it runs ([#538](https://github.com/silo-code/silo/issues/538)) ([b66e7f2](https://github.com/silo-code/silo/commit/b66e7f208a3eba35fce0e54e867dde5fd0a2c747))
+
 ## [0.50.0](https://github.com/silo-code/silo/compare/sdk-v0.49.0...sdk-v0.50.0) (2026-09-15)
 
 

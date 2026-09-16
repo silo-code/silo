@@ -174,6 +174,33 @@ export function customTitleForPanelId(
   return undefined;
 }
 
+/**
+ * Whether a workspace coming back on screen should re-assert its active panel.
+ *
+ * Only when `layout(force=true)` actually moved the active slot. **Never when
+ * the saved panel is already the active one** — `api.setActive()` is not a
+ * no-op there. It routes through `openPanel`, which takes the
+ * `this._activePanel === panel` branch and calls `ContentContainer.renderPanel`
+ * anyway; that `removeChild`es the panel's content element and `appendChild`es
+ * it straight back. A DOM detach discards every layout-box value the browser
+ * holds for that subtree — scroll offsets above all — so a Chat transcript that
+ * was showing the *correct* position when the workspace became visible got
+ * yanked to the top a couple of frames later, then put back by its own restore
+ * loop. That is the transcript "flash to top" on every workspace switch
+ * (measured 2026-09-16: the wipe lands 34–52ms after the dock becomes visible,
+ * on 4 of 4 switches).
+ *
+ * The same branch returns *before* `doSetActivePanel`, so an already-active
+ * panel never fired `onDidActiveChange` either — the call could not drive
+ * `useFocusOnActive` the way its old call-site comment claimed.
+ */
+export function shouldReassertActivePanel<T>(
+  savedPanel: T | undefined,
+  liveActivePanel: T | undefined,
+): boolean {
+  return savedPanel != null && savedPanel !== liveActivePanel;
+}
+
 /** Shallow equality over two panel-state bags — the gate on both directions of
  *  the record ↔ params sync, so an unchanged panel writes nothing. */
 export function sameParams(

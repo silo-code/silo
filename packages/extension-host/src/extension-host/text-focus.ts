@@ -2,7 +2,7 @@
 //
 // The focus *retry* itself — and the `usePanelEntryFocus` hook that drives it
 // from a panel's entry signals — is public SDK surface (`@silo-code/sdk`, RFC
-// 0048), so `silo.*` and third-party panels get the same implementation the
+// 0049), so `silo.*` and third-party panels get the same implementation the
 // bundled viewers use. What stays here is the part that isn't general: Monaco
 // and xterm keep their own focus trackers, which dockview's show/hide shuffle
 // desynchronizes, and only the host and `core.*` viewers deal with that.

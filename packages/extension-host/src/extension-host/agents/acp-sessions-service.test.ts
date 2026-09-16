@@ -71,13 +71,38 @@ vi.mock("./chat-session-journal", async (importOriginal) => {
       (workspaceId: string, sessionId: string, seed: readonly string[]) => {
         const key = journalKey(workspaceId, sessionId);
         const lines = [...seed];
+        // Mirrors the real writer's abandoned state, which is the whole point
+        // of the discard path: once abandoned, neither an append nor a flush
+        // may put the file back.
+        let abandoned = false;
+        // A real flush awaits `workspaceStateDir()` and an fs write — Tauri
+        // IPC, a full turn of the event loop, not a microtask. That is the
+        // window the discard races: a fake that resolved synchronously (or
+        // even on a microtask) would always land its write *before* the
+        // unlink and hide the bug entirely. So the write takes a tick, and
+        // `abandon()` waits out whatever is in flight the way the real
+        // writer does.
+        let inflight: Promise<void> | null = null;
         return {
           append: vi.fn((update: unknown) => {
+            if (abandoned) return;
             lines.push(JSON.stringify(update));
             journalFiles.set(key, lines);
           }),
           flush: vi.fn(async () => {
-            journalFiles.set(key, lines);
+            // Entry check only, like the real writer: a write that already
+            // started does land, and `abandon()` waits it out rather than
+            // cancelling it, so the unlink that follows cannot lose the race.
+            if (abandoned) return;
+            const write = new Promise<void>((resolve) =>
+              setTimeout(() => {
+                journalFiles.set(key, lines);
+                resolve();
+              }, 0),
+            );
+            inflight = write;
+            await write;
+            if (inflight === write) inflight = null;
           }),
           dropSeed: vi.fn((n: number) => {
             lines.splice(0, n);
@@ -85,9 +110,16 @@ vi.mock("./chat-session-journal", async (importOriginal) => {
           }),
           snapshotLines: vi.fn(() => [...lines]),
           dispose: vi.fn(),
+          abandon: vi.fn(async () => {
+            abandoned = true;
+            await inflight;
+          }),
         };
       },
     ),
+    deleteJournalFile: vi.fn(async (workspaceId: string, sessionId: string) => {
+      journalFiles.delete(journalKey(workspaceId, sessionId));
+    }),
   };
 });
 
@@ -1405,6 +1437,88 @@ describe("connect({ resume }) — Chat session resurrection", () => {
     expect(handle.journal).toEqual([
       { kind: "user_message_chunk", text: "earlier turn" },
     ]);
+  });
+
+  it("transcript 'discard' throws the prior journal away and starts the new session empty", async () => {
+    seedJournal("old-id", [
+      { kind: "user_message_chunk", text: "earlier turn" },
+    ]);
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id", startFresh: true, transcript: "discard" },
+    });
+
+    expect(fakeClient.resumeSession).not.toHaveBeenCalled();
+    expect(fakeClient.loadSession).not.toHaveBeenCalled();
+    expect(handle.sessionId).toBe("s1");
+    expect(handle.journal).toEqual([]);
+    expect(journalFiles.has(journalKey("active", "old-id"))).toBe(false);
+  });
+
+  it("transcript 'carry' is the default behaviour, stated explicitly", async () => {
+    seedJournal("old-id", [
+      { kind: "user_message_chunk", text: "earlier turn" },
+    ]);
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id", startFresh: true, transcript: "carry" },
+    });
+
+    expect(handle.journal).toEqual([
+      { kind: "user_message_chunk", text: "earlier turn" },
+    ]);
+  });
+
+  it("a live writer cannot resurrect a discarded journal on its teardown flush", async () => {
+    // The bug a service-level unlink cannot fix on its own: the writer is a
+    // closure of the *previous* connection and holds every line in memory, so
+    // its (unawaited) teardown flush lands after the delete and rewrites the
+    // whole file. The service tracks live writers precisely so the discard can
+    // abandon this one first.
+    const first = await service.connect("claude-chat");
+    await first.prompt([{ type: "text", text: "hello there" }]);
+    expect(journalFiles.has(journalKey("active", "s1"))).toBe(true);
+
+    // **Dispose first, then reconnect** — the order the panel actually
+    // produces. React runs an effect's cleanup (`handle.dispose()`) before
+    // the effect body re-runs (`connect()`), so the outgoing writer is always
+    // already tearing down by the time the discard looks for it. The reverse
+    // order is the one arrangement in which a `dispose()` that unregistered
+    // its writer synchronously still passes.
+    first.dispose();
+
+    fakeClient.newSession.mockResolvedValue({ sessionId: "s2", raw: {} });
+    const second = await service.connect("claude-chat", {
+      resume: { sessionId: "s1", startFresh: true, transcript: "discard" },
+    });
+    expect(journalFiles.has(journalKey("active", "s1"))).toBe(false);
+
+    // Let every unawaited teardown continuation drain — the deferred flush is
+    // the one that used to rewrite the file after the unlink.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(journalFiles.has(journalKey("active", "s1"))).toBe(false);
+    expect(second.sessionId).toBe("s2");
+  });
+
+  it("transcript 'discard' without startFresh deletes nothing", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: true },
+      sessionCapabilities: {},
+      authMethods: [],
+      raw: {},
+    });
+    fakeClient.loadSession.mockResolvedValue({ sessionId: "old-id", raw: {} });
+    seedJournal("old-id", [
+      { kind: "user_message_chunk", text: "earlier turn" },
+    ]);
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id", transcript: "discard" },
+    });
+
+    expect(handle.resumeOutcome).toBe("resumed");
+    expect(journalFiles.has(journalKey("active", "old-id"))).toBe(true);
   });
 
   it("appends the user's own prompt to the journal (the stream never echoes it)", async () => {

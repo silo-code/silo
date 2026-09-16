@@ -455,7 +455,7 @@ export function TextViewer({
   }
 
   // Entry focus: activation, a click on an already-active tab, and the
-  // mount-time grab below all run the same guarded retry (RFC 0048).
+  // mount-time grab below all run the same guarded retry (RFC 0049).
   const focusEditor = usePanelEntryFocus(dockApi, {
     focus: () => editorRef.current?.focus(),
     isFocused: () => isTextareaFocusedWithin(editorRef.current?.getDomNode()),

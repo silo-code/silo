@@ -538,6 +538,16 @@ frame buffer rather than a daemon, per `acp-process-ownership.md`. Phasing:
    "Continue in a new session" action that runs `session/new` and appends to the
    **same** journal with a visible divider. Silently stitching two agent
    contexts into one transcript misrepresents what the agent knows.
+
+   Carrying the journal stays the **default** on that path
+   (`resume: { startFresh: true }`). [RFC 0048](./0048-clear-as-session-reset.md)
+   adds the deliberate-clear sibling on the same axis —
+   `transcript: "discard"`, which runs the same `session/new` and throws the
+   journal away instead. Not a reversal of this answer: recovery carries the
+   conversation forward because the user wanted to keep talking; a **session
+   reset** discards it because the user asked for it to be gone. One mechanism,
+   two intents, and only the explicit gesture deletes.
+
 3. **The ADR — where and what.** `docs/decisions/`, and this RFC's stronger
    wording is correct: **the session resurrects; the process and any in-flight
    turn do not.** With the nuance the sprint plan was reaching for: inside a

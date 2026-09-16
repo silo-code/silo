@@ -330,7 +330,7 @@ export {
 } from "./terminal-core";
 // Monaco/xterm focus-tracker resync — host DOM plumbing, not a public
 // capability. The focus retry itself and the `usePanelEntryFocus` hook that
-// drives it are public SDK surface (RFC 0048); import those from
+// drives it are public SDK surface (RFC 0049); import those from
 // `@silo-code/sdk`, which `core.*` already depends on.
 export { blurTextareaWithin, isTextareaFocusedWithin } from "./text-focus";
 

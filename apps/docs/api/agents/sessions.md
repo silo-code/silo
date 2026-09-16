@@ -404,6 +404,40 @@ forever, even while the new conversation itself works fine turn after turn.
 The journal is carried into the new id's file for you, so nothing is lost by
 moving on from it.
 
+### Clearing a session
+
+**Clear is a session reset.** The same options carry the opposite intent:
+`transcript: "discard"` ends the current session, starts a new one, and throws
+the old transcript journal away, so neither the agent's context nor Silo's own
+record survives —
+
+```ts
+const session = await ctx.agents.sessions.connect(profileId, {
+  cwd,
+  resume: {
+    sessionId: savedSessionId,
+    startFresh: true,
+    transcript: "discard",
+  },
+});
+saveSessionId(session.sessionId); // the new id, as always
+```
+
+`"carry"` is the default, so leaving `transcript` off keeps the behavior above.
+The field is read **only** alongside `startFresh`: an ordinary restore never
+deletes a journal, whatever it says — for a session the agent can neither
+`resume` nor `load`, that file is the only copy of the conversation. Reach for
+`"discard"` when a user explicitly asked for the conversation to go away (a
+Clear command, a ⌘⇧K), never as cleanup.
+
+In Silo's own Chat panel this is what ⌘⇧K, the transcript's **Clear Session** menu item,
+and a typed `/clear` all do — that panel reserves the name `clear` and answers
+it itself, so it means the same thing whichever agent is connected. That is a
+convention of Silo's panel, not of this surface: `session.commands` gives your
+extension the agent's own list, `clear` included, and forwarding it sends it to
+the agent like any other command. Reserve it yourself if you want the same
+behavior.
+
 ## Reasons `connect()` rejects
 
 - the extension did not declare the `"agents"` permission;

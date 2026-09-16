@@ -31,11 +31,17 @@ interface SiloAgentsSettingsAPI {
   DisplayPanel: ComponentType;
 }
 
+/** Mirror of `silo.agents-chat-panel`'s `ChatPanelExtensionAPI`. */
+interface SiloChatPanelSettingsAPI {
+  SettingsPanel: ComponentType;
+}
+
 type AgentsSettingsTab =
   | "profiles"
   | "behavior"
   | "navigator"
   | "display"
+  | "chat"
   | "sessions";
 
 /** The live `silo.agents` extension entry, for its `active` flag and API. */
@@ -47,6 +53,17 @@ function getSiloAgents(ctx: ExtensionContext) {
 function siloAgentsApi(ctx: ExtensionContext): SiloAgentsSettingsAPI | null {
   const ext = getSiloAgents(ctx);
   return ext?.active ? (ext.api ?? null) : null;
+}
+
+/** The live `silo.agents-chat-panel` entry, for its `active` flag and API. */
+function getSiloChatPanel(ctx: ExtensionContext) {
+  return ctx.getExtension<SiloChatPanelSettingsAPI>("silo.agents-chat-panel");
+}
+
+function AgentsChatTab({ ctx }: { ctx: ExtensionContext }) {
+  const ext = getSiloChatPanel(ctx);
+  const api = ext?.active ? (ext.api ?? null) : null;
+  return api?.SettingsPanel != null ? <api.SettingsPanel /> : null;
 }
 
 function AgentsBehaviorTab({ ctx }: { ctx: ExtensionContext }) {
@@ -90,14 +107,20 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
   // The Navigator tab's content is entirely `silo.agents`' — drop the tab
   // when that extension isn't active rather than show an empty panel.
   const hasNavigator = getSiloAgents(ctx)?.active === true;
+  // Same rule for the Chat tab: its content is entirely the Chat panel
+  // extension's, so drop the tab when that extension isn't active.
+  const hasChatPanel = getSiloChatPanel(ctx)?.active === true;
   const activeTab: AgentsSettingsTab =
-    tab === "navigator" && !hasNavigator ? "profiles" : tab;
+    (tab === "navigator" && !hasNavigator) || (tab === "chat" && !hasChatPanel)
+      ? "profiles"
+      : tab;
 
   const tabs: TabItem<AgentsSettingsTab>[] = [
     { id: "profiles", label: "Profiles" },
     { id: "behavior", label: "Behavior" },
     ...(hasNavigator ? [{ id: "navigator" as const, label: "Navigator" }] : []),
     { id: "display", label: "Display" },
+    ...(hasChatPanel ? [{ id: "chat" as const, label: "Chat" }] : []),
     { id: "sessions", label: "Sessions" },
   ];
 
@@ -118,6 +141,8 @@ function AgentsSettingsPage({ ctx }: { ctx: ExtensionContext }) {
               <AgentsNavigatorTab ctx={ctx} />
             ) : activeTab === "display" ? (
               <AgentsDisplayTab ctx={ctx} />
+            ) : activeTab === "chat" ? (
+              <AgentsChatTab ctx={ctx} />
             ) : (
               <AgentsHooksPanel ctx={ctx} />
             )}

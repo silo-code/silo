@@ -9,6 +9,7 @@ import {
   composerInputEnabled,
   composerPlaceholder,
   composerShowConnecting,
+  composerSubmitAction,
   composerTextareaHeightPx,
   historyNavDown,
   historyNavUp,
@@ -25,6 +26,68 @@ describe("composerInputEnabled", () => {
     expect(composerInputEnabled(true, false)).toBe(false);
     expect(composerInputEnabled(false, true)).toBe(false);
     expect(composerInputEnabled(true, true)).toBe(false);
+  });
+});
+
+describe("composerSubmitAction", () => {
+  const live = {
+    draft: "hello",
+    reserved: false,
+    canReset: true,
+    hasHandle: true,
+    busy: false,
+    ready: true,
+    lost: false,
+    attachmentCount: 0,
+  };
+  const clear = { ...live, draft: "/clear", reserved: true };
+
+  it("sends an ordinary draft to a live, idle agent", () => {
+    expect(composerSubmitAction(live)).toBe("send");
+  });
+
+  it("resets on the reserved draft", () => {
+    expect(composerSubmitAction(clear)).toBe("reset");
+  });
+
+  // RFC 0048 R6 / R1 — the bug this encodes: `/clear` used to sit *behind*
+  // the send guard, so typing it mid-turn did nothing at all while ⌘⇧K and the
+  // tab menu (gated on `canReset` alone) reset just fine. Every state that
+  // blocks a prompt must still reset.
+  it("resets mid-turn, while connecting, when lost, and with no live handle", () => {
+    expect(composerSubmitAction({ ...clear, busy: true })).toBe("reset");
+    expect(composerSubmitAction({ ...clear, ready: false })).toBe("reset");
+    expect(composerSubmitAction({ ...clear, lost: true })).toBe("reset");
+    expect(composerSubmitAction({ ...clear, hasHandle: false })).toBe("reset");
+  });
+
+  it("does nothing on `/clear` with no session to reset", () => {
+    expect(composerSubmitAction({ ...clear, canReset: false })).toBe("none");
+  });
+
+  it("still sends `/clear` with an argument — it is not reserved", () => {
+    // `reserved` is `isReservedDraft`'s answer, and it says no here.
+    expect(
+      composerSubmitAction({
+        ...live,
+        draft: "/clear the decks",
+        reserved: false,
+      }),
+    ).toBe("send");
+  });
+
+  it("blocks an ordinary draft mid-turn, with no handle, or when unsendable", () => {
+    expect(composerSubmitAction({ ...live, busy: true })).toBe("none");
+    expect(composerSubmitAction({ ...live, hasHandle: false })).toBe("none");
+    expect(composerSubmitAction({ ...live, ready: false })).toBe("none");
+    expect(composerSubmitAction({ ...live, lost: true })).toBe("none");
+    expect(composerSubmitAction({ ...live, draft: "   " })).toBe("none");
+  });
+
+  it("sends on attachments alone, with an empty draft", () => {
+    expect(
+      composerSubmitAction({ ...live, draft: "", attachmentCount: 1 }),
+    ).toBe("send");
   });
 });
 

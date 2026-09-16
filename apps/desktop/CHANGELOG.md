@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.68.0](https://github.com/silo-code/silo/compare/silo-v0.67.0...silo-v0.68.0) (2026-09-16)
+
+
+### Features
+
+* **agents-chat-panel:** clear is a session reset, confirmed before it runs ([#538](https://github.com/silo-code/silo/issues/538)) ([b66e7f2](https://github.com/silo-code/silo/commit/b66e7f208a3eba35fce0e54e867dde5fd0a2c747))
+* **dock-panels:** add ctx.panels tab adornments and DockPanelRecord.panelId ([#533](https://github.com/silo-code/silo/issues/533)) ([94b52a7](https://github.com/silo-code/silo/commit/94b52a7e390843ffc42f87b7b4cadb6c1be1553d))
+* **dock-panels:** generic dock-panel tabs — rename, tab menu, working folder ([#525](https://github.com/silo-code/silo/issues/525)) ([0d3f0ca](https://github.com/silo-code/silo/commit/0d3f0ca345ab80c06a173b5259a77f893f8ed928))
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** abort in-flight ACP handshake on panel close ([#526](https://github.com/silo-code/silo/issues/526)) ([7fde611](https://github.com/silo-code/silo/commit/7fde611d52d67575219c165f54af60654d7876bc))
+* **agents-chat-panel:** shift-drop from file explorer stages an attachment ([#542](https://github.com/silo-code/silo/issues/542)) ([8237e3c](https://github.com/silo-code/silo/commit/8237e3c85cbb172d4e757d2a58d31e1d020d9e9b))
+* **agents-chat-panel:** tab also selects the highlighted palette entry ([#541](https://github.com/silo-code/silo/issues/541)) ([69593c6](https://github.com/silo-code/silo/commit/69593c6432c18a85614e188e91134106d9c55deb))
+* **agents:** only beep on permission block if turn is genuinely pending ([#531](https://github.com/silo-code/silo/issues/531)) ([f6f8c61](https://github.com/silo-code/silo/commit/f6f8c61f7eccf1f86771989f8b0e7e5ceb4e6cab))
+* **agents:** treat metadata-only journal as empty on restore ([#529](https://github.com/silo-code/silo/issues/529)) ([da39c64](https://github.com/silo-code/silo/commit/da39c642a014c79e36082b409a89c9fca4d8c3d2))
+
 ## [0.67.0](https://github.com/silo-code/silo/compare/silo-v0.66.1...silo-v0.67.0) (2026-09-15)
 
 

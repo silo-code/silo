@@ -171,7 +171,7 @@ nothing and activates nothing — see **Focus Request** vs **Activation
 Request** in `docs/domain-language.md`.
 
 That guarded consumer is now a single published one. `usePanelEntryFocus`
-(`@silo-code/sdk`, RFC 0048) is the one implementation of **Entry Focus**
+(`@silo-code/sdk`, RFC 0049) is the one implementation of **Entry Focus**
 for panel content — both subscriptions, the `isActive` guard, and the frame
 retry — so `silo.*` and third-party panels get the shape this ADR describes
 rather than re-deriving it. Before that hook the retry was host-`@internal`,

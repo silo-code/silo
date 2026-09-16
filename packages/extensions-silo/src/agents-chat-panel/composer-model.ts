@@ -29,6 +29,36 @@ export function composerCanSend(opts: {
   );
 }
 
+/**
+ * What pressing Send (or ⏎) does with the current composer state — the one
+ * place the precedence between a **session reset** and an ordinary prompt is
+ * decided (RFC 0048 R1: no second implementation of clear anywhere in the
+ * panel).
+ *
+ * The reset wins over the send guard, it is not subject to it. `/clear` never
+ * reaches the agent — it tears the connection down and reconnects fresh — so
+ * none of what gates a prompt applies: not `busy` (R6 commits to a mid-turn
+ * reset ending the in-flight turn, the way a profile switch already does),
+ * not `ready`, not `lost`, not a live handle. The only thing a reset needs is
+ * a session to reset, which is `canReset`. Checking the guard first is what
+ * made a typed `/clear` inert mid-turn while ⌘⇧K and the tab menu — gated on
+ * `canReset` alone — reset just fine.
+ */
+export function composerSubmitAction(opts: {
+  readonly draft: string;
+  readonly reserved: boolean;
+  readonly canReset: boolean;
+  readonly hasHandle: boolean;
+  readonly busy: boolean;
+  readonly ready: boolean;
+  readonly lost: boolean;
+  readonly attachmentCount: number;
+}): "reset" | "send" | "none" {
+  if (opts.reserved) return opts.canReset ? "reset" : "none";
+  if (!opts.hasHandle || opts.busy) return "none";
+  return composerCanSend(opts) ? "send" : "none";
+}
+
 /** The control-row status that replaces Attach / session pills. */
 export function composerShowConnecting(status: string): boolean {
   return status === "connecting";

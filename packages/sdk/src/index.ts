@@ -356,7 +356,7 @@ export type {
   FocusGroupNavQuery,
 } from "./use-focus-group";
 
-// Entry focus for a dock panel (RFC 0048): both entry signals + the
+// Entry focus for a dock panel (RFC 0049): both entry signals + the
 // `isActive`-guarded frame retry that wins dockview's focus shuffle, in one
 // call. The one sanctioned way for panel content to take focus on entry.
 export { usePanelEntryFocus } from "./use-panel-entry-focus";
@@ -364,7 +364,7 @@ export type { PanelEntryFocusTarget } from "./use-panel-entry-focus";
 
 // Host/InlineEdit coordination for InlineEdit's two-stage Escape (RFC 0016),
 // and the raw focus retry behind `usePanelEntryFocus` for the non-React
-// callers that can't use the hook (RFC 0048).
+// callers that can't use the hook (RFC 0049).
 // @internal — host-only plumbing, not part of the documented reference;
 // extension authors never call these directly.
 export {

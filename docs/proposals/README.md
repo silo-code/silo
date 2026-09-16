@@ -137,4 +137,5 @@ don't get a proposal at all — see below.
 | [0045](./0045-chat-context-usage.md)                          | Context usage in the Chat panel                                   | 2026-09-14 | draft       |
 | [0046](./0046-generic-dock-panel-tabs.md)                     | Generic dock-panel tabs — rename, tab menu, working folder        | 2026-09-14 | implemented |
 | [0047](./0047-yolo-mode.md)                                   | YOLO mode — permission bypass as an Agent Profile property        | 2026-09-15 | draft       |
-| [0048](./0048-panel-entry-focus-hook.md)                      | `usePanelEntryFocus` — entry focus as one published call          | 2026-09-16 | implemented |
+| [0048](./0048-clear-as-session-reset.md)                      | Clear is a session reset                                          | 2026-09-15 | implemented |
+| [0049](./0049-panel-entry-focus-hook.md)                      | `usePanelEntryFocus` — entry focus as one published call          | 2026-09-16 | implemented |

@@ -3,7 +3,7 @@ status: implemented
 created: 2026-09-16
 ---
 
-# 0048. `usePanelEntryFocus` — entry focus as one published call
+# 0049. `usePanelEntryFocus` — entry focus as one published call
 
 ## Summary
 
