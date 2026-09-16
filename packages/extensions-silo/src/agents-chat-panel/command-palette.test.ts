@@ -67,16 +67,16 @@ describe("draftAfterCommandPick", () => {
 });
 
 describe("paletteNavAction", () => {
-  it("maps arrows, Enter, and Escape", () => {
+  it("maps arrows, Enter, Tab, and Escape", () => {
     expect(paletteNavAction("ArrowDown", false)).toBe("down");
     expect(paletteNavAction("ArrowUp", false)).toBe("up");
     expect(paletteNavAction("Enter", false)).toBe("pick");
+    expect(paletteNavAction("Tab", false)).toBe("pick");
     expect(paletteNavAction("Escape", false)).toBe("dismiss");
   });
 
   it("leaves Shift+Enter and other keys to the textarea", () => {
     expect(paletteNavAction("Enter", true)).toBeUndefined();
-    expect(paletteNavAction("Tab", false)).toBeUndefined();
     expect(paletteNavAction("a", false)).toBeUndefined();
   });
 });

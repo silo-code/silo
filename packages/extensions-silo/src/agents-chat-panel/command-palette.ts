@@ -122,8 +122,8 @@ export function draftAfterCommandPick(command: AgentCommand): string {
   return `/${command.name} `;
 }
 
-/** Keys the textarea steals while the palette is open, so ↑/↓/Enter don't
- *  move the caret or send. */
+/** Keys the textarea steals while the palette is open, so ↑/↓/Enter/Tab don't
+ *  move the caret, send, or shift focus. */
 export type PaletteNavAction = "up" | "down" | "pick" | "dismiss";
 
 export function paletteNavAction(
@@ -133,6 +133,7 @@ export function paletteNavAction(
   if (key === "ArrowDown") return "down";
   if (key === "ArrowUp") return "up";
   if (key === "Enter" && !shiftKey) return "pick";
+  if (key === "Tab") return "pick";
   if (key === "Escape") return "dismiss";
   return undefined;
 }
