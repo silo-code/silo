@@ -6,6 +6,7 @@ import {
   resolveActivationTarget,
   restoredPanelTitle,
   sameParams,
+  shouldReassertActivePanel,
   shouldShowMaximizeButton,
 } from "./dock-helpers";
 
@@ -223,5 +224,36 @@ describe("sameParams", () => {
 
   it("counts a key present-but-undefined as a difference in size", () => {
     expect(sameParams({ a: 1 }, { a: 1, b: undefined })).toBe(false);
+  });
+});
+
+// A workspace coming back on screen re-asserts its active panel only when
+// `layout(force=true)` actually moved the active slot. Re-asserting the panel
+// that is already active is what detached its DOM and wiped a Chat
+// transcript's scroll position — see `shouldReassertActivePanel`.
+describe("shouldReassertActivePanel", () => {
+  const a = { id: "a" };
+  const b = { id: "b" };
+
+  it("re-asserts when layout moved the active slot", () => {
+    expect(shouldReassertActivePanel(a, b)).toBe(true);
+  });
+
+  it("does NOT re-assert the panel that is already active", () => {
+    expect(shouldReassertActivePanel(a, a)).toBe(false);
+  });
+
+  it("compares by identity, not by shape", () => {
+    // Two structurally equal panels are still different dockview panels.
+    expect(shouldReassertActivePanel({ id: "a" }, { id: "a" })).toBe(true);
+  });
+
+  it("does nothing when there was no active panel to restore", () => {
+    expect(shouldReassertActivePanel(undefined, a)).toBe(false);
+    expect(shouldReassertActivePanel(undefined, undefined)).toBe(false);
+  });
+
+  it("re-asserts when layout left the dock with no active panel", () => {
+    expect(shouldReassertActivePanel(a, undefined)).toBe(true);
   });
 });
