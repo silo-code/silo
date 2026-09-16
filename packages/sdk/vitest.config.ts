@@ -4,6 +4,10 @@ import { defineConfig, configDefaults } from "vitest/config";
 // is a types-first leaf with one behavioral helper family; we test the pure
 // pieces in a plain node env — no jsdom / React renderer needed (see the repo
 // testing guide: extract pure logic and test that, not rendered React).
+//
+// The one exception is `usePanelEntryFocus`, whose retry reads the live
+// `document.activeElement` — that file opts into jsdom with a
+// `@vitest-environment jsdom` docblock rather than making it the default here.
 export default defineConfig({
   test: {
     name: "unit",

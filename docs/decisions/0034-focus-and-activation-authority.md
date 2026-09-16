@@ -153,6 +153,31 @@ Concretely:
    any mount-time side effect that touches focus must ask whether it is the
    active tab first.
 
+**A tab click is a third signal under invariant (ii).** A panel deciding when
+to land its own entry focus had two signals to work from: its mount, and
+`DockPanelApi.onDidActiveChange`. Neither sees a click on a tab that is
+_already_ active — dockview's `DockviewGroupPanelModel.openPanel` returns
+early when the clicked panel is already `_activePanel`, so a non-transition
+click emits nothing at all, even though the user's intent ("put my cursor back
+here", clicking in from a side panel or the status bar) is identical to a
+genuine activation. `DockTab` therefore reports every qualifying tab click —
+the close button and a middle-click both `stopPropagation` first, so neither
+counts — through `panel-focus-registry.ts`, and `makeDockPanelApi` surfaces it
+as the public `DockPanelApi.onDidRequestFocus`. This extends the model with a
+signal, not with an exception: the event says only that the user asked, so a
+consumer must guard it on `isActive` exactly as an `onDidActiveChange`
+consumer does, both up front and for the life of any retry. It records
+nothing and activates nothing — see **Focus Request** vs **Activation
+Request** in `docs/domain-language.md`.
+
+That guarded consumer is now a single published one. `usePanelEntryFocus`
+(`@silo-code/sdk`, RFC 0048) is the one implementation of **Entry Focus**
+for panel content — both subscriptions, the `isActive` guard, and the frame
+retry — so `silo.*` and third-party panels get the shape this ADR describes
+rather than re-deriving it. Before that hook the retry was host-`@internal`,
+which is precisely why a `silo.*` panel and the public docs each carried
+their own, differently-wrong copy.
+
 ## Consequences
 
 - `ctx.terminals.focus()` — and by extension any future cross-workspace
@@ -233,6 +258,12 @@ Concretely:
   had the guard), but that's an inference, not something re-verified live.
 - `window-focus-restore.it.test.ts` — symptom 3's live numeric baseline,
   blocked on window focus in this environment (see Consequences above).
+- `packages/extension-host/src/extension-host/panel-focus-registry.ts` +
+  `panel-focus-registry.test.ts`, `packages/extension-host/src/panels/DockTab.tsx`
+  (`onTabClick`), and `DockPanelApi.onDidRequestFocus` in
+  `packages/sdk/src/types.ts` — the tab-click signal added under invariant (ii)
+  above, with `dock-panel-kinds.test.ts` covering the per-panel routing and
+  `packages/sdk/src/use-panel-entry-focus.ts` the guarded consumer.
 - `packages/extension-host/src/extension-host/terminal-service.ts` (`focus()`),
   `packages/extension-host/src/docked/dock-api-registry.ts`
   (`getActiveDockWorkspaceId`), `packages/extension-host/src/extension-host/focus-restore.ts`

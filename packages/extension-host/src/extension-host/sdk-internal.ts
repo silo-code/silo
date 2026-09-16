@@ -328,14 +328,11 @@ export {
   MAX_TERMINAL_SCROLL_SENSITIVITY,
   MAX_TERMINAL_FAST_SCROLL_SENSITIVITY,
 } from "./terminal-core";
-// Focus-retry helpers that win dockview's focus shuffle for Monaco/xterm — host
-// DOM/focus plumbing, not a public capability.
-export {
-  retryFocus,
-  useFocusOnActive,
-  blurTextareaWithin,
-  isTextareaFocusedWithin,
-} from "./use-focus-retry";
+// Monaco/xterm focus-tracker resync — host DOM plumbing, not a public
+// capability. The focus retry itself and the `usePanelEntryFocus` hook that
+// drives it are public SDK surface (RFC 0048); import those from
+// `@silo-code/sdk`, which `core.*` already depends on.
+export { blurTextareaWithin, isTextareaFocusedWithin } from "./text-focus";
 
 // App-shell operations the base menu (`core.menu`) drives — core-only **by
 // design**, not stopgaps. UI-font scale (zoom) is app chrome (see

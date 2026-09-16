@@ -1,6 +1,6 @@
 # Interface: SettingsPage
 
-Defined in: [packages/sdk/src/types.ts:852](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L852)
+Defined in: [packages/sdk/src/types.ts:883](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L883)
 
 A page in the Settings dialog, listed in the left rail.
 
@@ -12,7 +12,7 @@ A page in the Settings dialog, listed in the left rail.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:854](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L854)
+Defined in: [packages/sdk/src/types.ts:885](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L885)
 
 Unique id for this settings page.
 
@@ -24,7 +24,7 @@ Unique id for this settings page.
 title: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:859](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L859)
+Defined in: [packages/sdk/src/types.ts:890](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L890)
 
 Label shown in the Settings left rail **and** as the host-owned page
 title in the pane. Do not render your own `<h2>` — the host draws this.
@@ -37,7 +37,7 @@ title in the pane. Do not render your own `<h2>` — the host draws this.
 optional group?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:866](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L866)
+Defined in: [packages/sdk/src/types.ts:897](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L897)
 
 Optional grouping key for the left rail (groups sorted lexically, separated
 by a divider). Honored only for `core.*` pages; a page contributed by any
@@ -52,7 +52,7 @@ ignored for those.
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:868](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L868)
+Defined in: [packages/sdk/src/types.ts:899](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L899)
 
 Sort order within the group. Lower sorts first. Defaults to 0.
 
@@ -64,7 +64,7 @@ Sort order within the group. Lower sorts first. Defaults to 0.
 component: ComponentType;
 ```
 
-Defined in: [packages/sdk/src/types.ts:870](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L870)
+Defined in: [packages/sdk/src/types.ts:901](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L901)
 
 Renders the right-hand pane when this page is selected.
 
@@ -77,7 +77,7 @@ optional badge?: ComponentType<{
 }>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:877](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L877)
+Defined in: [packages/sdk/src/types.ts:908](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L908)
 
 Optional small indicator rendered after the title in the left rail (e.g.
 an update-available count). Rendered as its own component — separate from

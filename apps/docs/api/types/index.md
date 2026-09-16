@@ -7,9 +7,9 @@ host-internal and may change without notice.
 
 **What's here:** the types-first extension contract (see `types.ts`) plus a
 small set of blessed runtime helpers (`Tooltip`, the modal design-system
-kit, `useFocusGroup`, `useServiceState`, `DND_MIME`, `PathDeniedError`,
-`NetworkError`). The SDK peer-depends on React 19; changes to the runtime
-helpers can be breaking even when the types are unchanged.
+kit, `useFocusGroup`, `usePanelEntryFocus`, `useServiceState`, `DND_MIME`,
+`PathDeniedError`, `NetworkError`). The SDK peer-depends on React 19; changes
+to the runtime helpers can be breaking even when the types are unchanged.
 
 This is also the entry point the API-reference generator (TypeDoc) reads, so
 the published reference is exactly this surface — no more, no less.
@@ -190,6 +190,7 @@ the published reference is exactly this surface — no more, no less.
 - [UiService](interfaces/UiService.md)
 - [focusGroupNextIndex](functions/focusGroupNextIndex.md)
 - [useFocusGroup](functions/useFocusGroup.md)
+- [usePanelEntryFocus](functions/usePanelEntryFocus.md)
 - [ReactiveService](interfaces/ReactiveService.md)
 - [useServiceState](functions/useServiceState.md)
 - [WebFrame](interfaces/WebFrame.md)
@@ -265,6 +266,7 @@ the published reference is exactly this surface — no more, no less.
 - [FocusGroupItemProps](interfaces/FocusGroupItemProps.md)
 - [FocusGroup](interfaces/FocusGroup.md)
 - [FocusGroupNavQuery](interfaces/FocusGroupNavQuery.md)
+- [PanelEntryFocusTarget](interfaces/PanelEntryFocusTarget.md)
 - [WebviewNavType](type-aliases/WebviewNavType.md)
 - [WebviewNavigateEvent](interfaces/WebviewNavigateEvent.md)
 - [WebviewRect](interfaces/WebviewRect.md)

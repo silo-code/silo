@@ -1,6 +1,6 @@
 # Interface: Editor
 
-Defined in: [packages/sdk/src/types.ts:262](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L262)
+Defined in: [packages/sdk/src/types.ts:293](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L293)
 
 Contributes a presenter for a file type — everything that opens in the editor
 area is an `Editor` (a read-write text editor, a read-only image viewer, …).
@@ -18,7 +18,7 @@ The host picks one per file by calling each registered editor's
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:264](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L264)
+Defined in: [packages/sdk/src/types.ts:295](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L295)
 
 Unique id, conventionally namespaced (e.g. `"core.text-editor"`).
 
@@ -30,7 +30,7 @@ Unique id, conventionally namespaced (e.g. `"core.text-editor"`).
 optional label?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:271](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L271)
+Defined in: [packages/sdk/src/types.ts:302](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L302)
 
 Human-facing name of this *view* of a file, e.g. `"Text"` or `"Preview"`.
 Surfaces in the breadcrumb view-switcher and the explorer "Open With" menu
@@ -45,7 +45,7 @@ where a label is needed but none is given.
 match: (path) => boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:273](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L273)
+Defined in: [packages/sdk/src/types.ts:304](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L304)
 
 Returns true if this editor should handle the given path (`null` = untitled).
 
@@ -67,7 +67,7 @@ Returns true if this editor should handle the given path (`null` = untitled).
 component: ComponentType<EditorProps>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:275](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L275)
+Defined in: [packages/sdk/src/types.ts:306](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L306)
 
 The React component rendered for matched tabs.
 
@@ -79,7 +79,7 @@ The React component rendered for matched tabs.
 optional priority?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:284](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L284)
+Defined in: [packages/sdk/src/types.ts:315](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L315)
 
 Higher wins when multiple editors match the same file. Defaults to 0. On a
 tie the first-registered editor wins — so a second editor for a type can
@@ -96,6 +96,6 @@ view per-tab via "Open With" / the view-switcher
 optional capabilities?: EditorCapabilities;
 ```
 
-Defined in: [packages/sdk/src/types.ts:286](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L286)
+Defined in: [packages/sdk/src/types.ts:317](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L317)
 
 Optional routing hints — see [EditorCapabilities](EditorCapabilities.md).

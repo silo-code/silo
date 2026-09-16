@@ -53,7 +53,7 @@ import { setActiveTerminal } from "../extension-host/active-terminal-registry";
 import { setActiveDockPanel } from "../extension-host/agents/agent-surface-registry";
 import { setContextKey } from "../extension-host/context-keys";
 import { resolveEditorForRecord } from "../extension-host/editor-registry";
-import { blurTextareaWithin } from "../extension-host/use-focus-retry";
+import { blurTextareaWithin } from "../extension-host/text-focus";
 import { confirm } from "../extension-host/modal-service";
 import { getThemeBase } from "../layout/presets";
 import { DockTab } from "./DockTab";

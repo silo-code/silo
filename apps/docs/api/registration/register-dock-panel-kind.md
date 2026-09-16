@@ -147,6 +147,66 @@ function AcmeChatPanel({ params, onScreen }: DockPanelProps<{ scrollTop?: number
 Read the position back only while `onScreen` is `true` — the element is already
 detached by the time the flag flips to `false`, and reads `0` there.
 
+### Entry focus: use `usePanelEntryFocus`
+
+If your panel puts the cursor somewhere on entry — a chat composer, a search
+box, an editor — reach for
+[`usePanelEntryFocus`](/api/other/use-panel-entry-focus). It is the whole job in
+one call, and hand-rolling it is where panels go wrong:
+
+```tsx
+import { usePanelEntryFocus, type DockPanelProps } from "@silo-code/sdk";
+
+function AcmeChatPanel({ api }: DockPanelProps) {
+  const input = useRef<HTMLTextAreaElement | null>(null);
+
+  usePanelEntryFocus(api, {
+    focus: () => input.current?.focus(),
+    isFocused: () => document.activeElement === input.current,
+  });
+
+  return <textarea ref={input} />;
+}
+```
+
+Three things have to be right, and the hook does all three:
+
+**Both entry signals.** Clicking a panel's tab when that tab is **already
+active** changes nothing about which panel is active, so dockview fires no
+active-change event at all. But that click is exactly the "put my cursor back
+here" gesture: the user was typing in a side panel or clicked the status bar,
+focus left your panel, and they clicked your tab to get it back. Driving entry
+focus from [`onDidActiveChange`](/api/types/interfaces/DockPanelApi) alone
+misses it entirely. [`onDidRequestFocus`](/api/types/interfaces/DockPanelApi)
+fires on every click of your tab, already-active included — and stays quiet for
+`setActive()`, a keybinding, a command-palette jump and a layout restore, which
+all arrive as `onDidActiveChange`. That's why both are needed, and why the hook
+subscribes to both.
+
+**A guard.** Focus may only be taken while your panel is the active one. Mount
+is not "the user just created this panel" — re-entering a workspace re-mounts
+every panel in its dock — and DOM focus landing inside a panel makes dockview
+activate that panel's group, so an unguarded grab silently changes which tab the
+user is looking at.
+
+**A retry.** A single `focus()` loses dockview's focus shuffle, and rich content
+(a code editor, a terminal) only accepts focus once its internal textarea has
+been laid out. The hook retries across animation frames until `isFocused()`
+reports focus landed, standing down early if your panel stops being active or
+if focus moves into an open context menu.
+
+If your content becomes focusable at some other moment — a session finishing its
+connect, an editor finishing its own mount — call the function the hook returns.
+It runs the same guarded retry on demand and is referentially stable:
+
+```tsx
+const focusComposer = usePanelEntryFocus(api, { focus, isFocused });
+
+useEffect(() => {
+  if (ready) focusComposer();
+}, [ready, focusComposer]);
+```
+
 ### Recorded panels: reopen on restart <Badge type="warning" text="experimental" />
 
 By default a dock panel persists only as geometry in the saved dock layout — it

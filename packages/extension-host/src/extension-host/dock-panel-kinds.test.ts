@@ -18,6 +18,10 @@ import {
   _resetPanelChromeRegistryForTests,
   getPanelBreadcrumb,
 } from "./panel-chrome-registry";
+import {
+  _resetPanelFocusRegistryForTests,
+  requestPanelFocus,
+} from "./panel-focus-registry";
 import { store } from "../state/store";
 import { addPanelRecord } from "../state/workspaces";
 import type { WorkspaceInternal } from "../state/types";
@@ -51,7 +55,7 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
   beforeEach(() => _resetAgentSurfaceRegistryForTests());
 
   it("records the declaration against this panel's dockview id", () => {
-    const api = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"));
+    const api = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"), "ws-a");
     api.setAgentSession("chat:abc");
     expect(agentSessionForPanel("acp-chat:p1")).toBe("chat:abc");
     expect(panelForAgentSession("chat:abc")).toBe("acp-chat:p1");
@@ -60,7 +64,7 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
   });
 
   it("setAgentSession(null) withdraws it", () => {
-    const api = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"));
+    const api = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"), "ws-a");
     api.setAgentSession("chat:abc");
     api.setAgentSession(null);
     expect(agentSessionForPanel("acp-chat:p1")).toBeUndefined();
@@ -69,14 +73,14 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
 
   it("hands the host a close control that closes this panel — what ctx.agents.close(id) means for a Chat session", () => {
     const dv = fakeDockviewApi("acp-chat:p1");
-    makeDockPanelApi(dv).setAgentSession("chat:abc");
+    makeDockPanelApi(dv, "ws-a").setAgentSession("chat:abc");
     panelControlsForAgentSession("chat:abc")?.close();
     expect(dv.close).toHaveBeenCalledTimes(1);
   });
 
   it("setBreadcrumb records the crumb against this panel; null clears the path crumbs (RFC 0039)", () => {
     _resetPanelChromeRegistryForTests();
-    const api = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"));
+    const api = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"), "ws-a");
     expect(getPanelBreadcrumb("acp-chat:p1")).toBeUndefined();
     api.setBreadcrumb({ filePath: "/w/proj", leafIcon: "folder" });
     expect(getPanelBreadcrumb("acp-chat:p1")).toEqual({
@@ -87,9 +91,38 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
     expect(getPanelBreadcrumb("acp-chat:p1")).toBeNull();
   });
 
+  it("onDidRequestFocus fires from a tab click reported against this panel's id, scoped per panel", () => {
+    _resetPanelFocusRegistryForTests();
+    const api1 = makeDockPanelApi(fakeDockviewApi("acp-chat:p1"), "ws-a");
+    const api2 = makeDockPanelApi(fakeDockviewApi("acp-chat:p2"), "ws-a");
+    const l1 = vi.fn();
+    const l2 = vi.fn();
+    api1.onDidRequestFocus(l1);
+    api2.onDidRequestFocus(l2);
+    requestPanelFocus("ws-a", "acp-chat:p1");
+    expect(l1).toHaveBeenCalledTimes(1);
+    expect(l2).not.toHaveBeenCalled();
+  });
+
+  // A singleton panel's dockview id is the bare kind id, so the same id is
+  // live in a second workspace's own dockview instance at once — a click in
+  // one workspace must not wake the same-named panel backgrounded in another.
+  it("onDidRequestFocus is scoped by workspace, not just panel id", () => {
+    _resetPanelFocusRegistryForTests();
+    const api1 = makeDockPanelApi(fakeDockviewApi("output"), "ws-a");
+    const api2 = makeDockPanelApi(fakeDockviewApi("output"), "ws-b");
+    const l1 = vi.fn();
+    const l2 = vi.fn();
+    api1.onDidRequestFocus(l1);
+    api2.onDidRequestFocus(l2);
+    requestPanelFocus("ws-a", "output");
+    expect(l1).toHaveBeenCalledTimes(1);
+    expect(l2).not.toHaveBeenCalled();
+  });
+
   it("passes updateParameters through so a recorded panel can persist its state (RFC 0041/0042)", () => {
     const dv = fakeDockviewApi("acp-chat:p1");
-    makeDockPanelApi(dv).updateParameters({ sessionId: "s-9" });
+    makeDockPanelApi(dv, "ws-a").updateParameters({ sessionId: "s-9" });
     expect(dv.updateParameters).toHaveBeenCalledWith({ sessionId: "s-9" });
   });
 
@@ -102,7 +135,7 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
   // off to dockview.
   it("shallow-merges a partial patch onto the panel's existing params, per the documented contract", () => {
     const dv = fakeDockviewApi("acp-chat:p1");
-    const api = makeDockPanelApi(dv);
+    const api = makeDockPanelApi(dv, "ws-a");
     api.updateParameters({ profileId: "c1", sessionId: "s-9", cwd: "/ws" });
     api.updateParameters({ title: "Refactor the dock registry" });
     expect(dv.updateParameters).toHaveBeenLastCalledWith({
@@ -115,7 +148,7 @@ describe("makeDockPanelApi — setAgentSession (RFC 0038 Session 3.2)", () => {
 
   it("delegates the plain DockPanelApi verbs to the dockview api", () => {
     const dv = fakeDockviewApi("acp-chat:p1");
-    const api = makeDockPanelApi(dv);
+    const api = makeDockPanelApi(dv, "ws-a");
     api.setTitle("Claude");
     api.setActive();
     api.updateParameters({ profileId: "c1" });

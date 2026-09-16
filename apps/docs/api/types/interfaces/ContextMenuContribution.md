@@ -1,6 +1,6 @@
 # Interface: ContextMenuContribution\<S\>
 
-Defined in: [packages/sdk/src/types.ts:493](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L493)
+Defined in: [packages/sdk/src/types.ts:524](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L524)
 
 Adds a command to the right-click context menu of a built-in surface.
 Register via [ExtensionContext.registerContextMenuItem](ExtensionContext.md#registercontextmenuitem).
@@ -24,7 +24,7 @@ and dispatches the chosen command with the target as its first argument.
 surface: S;
 ```
 
-Defined in: [packages/sdk/src/types.ts:495](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L495)
+Defined in: [packages/sdk/src/types.ts:526](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L526)
 
 Which context menu to contribute to.
 
@@ -36,7 +36,7 @@ Which context menu to contribute to.
 command: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:497](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L497)
+Defined in: [packages/sdk/src/types.ts:528](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L528)
 
 The command to run; receives the surface's [MenuContext\[S\]](MenuContext.md) as its first arg.
 
@@ -48,7 +48,7 @@ The command to run; receives the surface's [MenuContext\[S\]](MenuContext.md) as
 optional label?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:499](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L499)
+Defined in: [packages/sdk/src/types.ts:530](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L530)
 
 Menu label (falls back to the command's label).
 
@@ -60,7 +60,7 @@ Menu label (falls back to the command's label).
 optional icon?: ReactNode;
 ```
 
-Defined in: [packages/sdk/src/types.ts:501](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L501)
+Defined in: [packages/sdk/src/types.ts:532](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L532)
 
 Leading glyph for the row (e.g. a Phosphor icon element), same as [MenuItem.icon](MenuItem.md#icon).
 
@@ -72,7 +72,7 @@ Leading glyph for the row (e.g. a Phosphor icon element), same as [MenuItem.icon
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:503](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L503)
+Defined in: [packages/sdk/src/types.ts:534](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L534)
 
 Ordering within the menu; lower sorts first.
 
@@ -84,7 +84,7 @@ Ordering within the menu; lower sorts first.
 optional group?: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:509](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L509)
+Defined in: [packages/sdk/src/types.ts:540](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L540)
 
 Optional group id — items with the same group render together with a
 separator between groups. Group names sort lexically; defaults to
@@ -98,7 +98,7 @@ separator between groups. Group names sort lexically; defaults to
 optional when?: (ctx, target) => boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:514](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L514)
+Defined in: [packages/sdk/src/types.ts:545](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L545)
 
 Enable/visibility predicate. Receives the same per-surface context as the
 command plus the current context keys. Returning false hides the item.
@@ -125,7 +125,7 @@ command plus the current context keys. Returning false hides the item.
 optional checked?: (ctx, target) => boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:522](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L522)
+Defined in: [packages/sdk/src/types.ts:553](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L553)
 
 Toggle-row predicate. When provided, the item renders with a checkmark
 in the leading gutter whenever this returns true — the same rendering

@@ -1,6 +1,6 @@
 import type { DockviewApi } from "dockview";
+import { retryFocus } from "@silo-code/sdk";
 import { cycleSidePaneTab } from "../layout/side-pane-registry";
-import { retryFocus } from "../extension-host/use-focus-retry";
 import { TABBABLE, focusFirstOrContainer } from "../extension-host/focus-dom";
 
 let activeApi: DockviewApi | null = null;
