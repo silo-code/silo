@@ -2141,6 +2141,9 @@ export function AcpChatPanel({
           placeholder={composerPlaceholder(lost, readOnly)}
           disabled={!inputEnabled}
           autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
           onChange={(e) => {
             setDraft(e.target.value);
             // Any real edit detaches from the recalled entry — the same way
@@ -2270,6 +2273,7 @@ export function AcpChatPanel({
               does — its popup is OS chrome, not the host's. */}
           <MenuButton
             className="acp-chat__profile"
+            size="sm"
             label={profile?.label ?? "Profile"}
             aria-label="Chat agent profile"
             onClick={(e) =>
@@ -2315,26 +2319,31 @@ export function AcpChatPanel({
                   (opt) => opt.type === "select" && !deadConfigIds.has(opt.id),
                 )
                 .map((opt) => (
-                  <MenuButton
+                  <div
                     key={opt.id}
-                    className="acp-chat__config"
-                    label={
-                      opt.options.find((c) => c.value === opt.currentValue)
-                        ?.name ?? opt.currentValue
-                    }
-                    aria-label={opt.name}
-                    disabled={phase.status !== "ready" || lost || readOnly}
-                    onClick={(e) =>
-                      void ctx.ui.showMenu({
-                        anchor: e.currentTarget,
-                        items: opt.options.map((choice) => ({
-                          label: choice.name,
-                          checked: choice.value === opt.currentValue,
-                          run: () => setConfigOption(opt.id, choice.value),
-                        })),
-                      })
-                    }
-                  />
+                    className="acp-chat__option acp-chat__config"
+                  >
+                    <span className="acp-chat__option-label">{opt.name}</span>
+                    <MenuButton
+                      size="sm"
+                      label={
+                        opt.options.find((c) => c.value === opt.currentValue)
+                          ?.name ?? opt.currentValue
+                      }
+                      aria-label={opt.name}
+                      disabled={phase.status !== "ready" || lost || readOnly}
+                      onClick={(e) =>
+                        void ctx.ui.showMenu({
+                          anchor: e.currentTarget,
+                          items: opt.options.map((choice) => ({
+                            label: choice.name,
+                            checked: choice.value === opt.currentValue,
+                            run: () => setConfigOption(opt.id, choice.value),
+                          })),
+                        })
+                      }
+                    />
+                  </div>
                 ))}
               {/* Client-side stand-in for agents with no "stop asking me"
                   mode of their own (ported from Paseo) — hidden whenever

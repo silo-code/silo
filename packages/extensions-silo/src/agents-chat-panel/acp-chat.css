@@ -587,7 +587,11 @@
 .acp-chat__controls {
   position: relative;
   display: flex;
-  align-items: center;
+  /* Bottom-align rather than center: `.acp-chat__option` columns (a small
+     caption above the pill) sit taller than the plain Attach / Auto Accept /
+     Send buttons next to them, and flex-end keeps every control's pill/button
+     on one visual baseline regardless of which ones carry a caption. */
+  align-items: flex-end;
   gap: 6px;
 }
 
@@ -626,6 +630,38 @@
   }
 }
 
+/* Wraps a pill (profile or config) with its caption — see `.acp-chat__option-label`. */
+.acp-chat__option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acp-chat__option-label {
+  /* Two notches below `--silo-font-size-chrome` (already the smallest named
+     size token) and `--silo-color-text-lo` (already the most muted text
+     token) — a caption, not a second row of readable text. Left padding
+     matches `.silo-menu-button`'s own `padding-left: 10px` so the caption
+     lines up over the pill's text rather than its outer edge. */
+  font-size: calc(var(--silo-font-size-chrome) - 2px);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--silo-color-text-lo);
+  padding-left: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Bumped a notch above the shared `.silo-menu-button-sm` / `.silo-button-sm`
+   default (`--silo-font-size-chrome`) — scoped to this row so Profile, the
+   config pills, and Auto Accept read a little larger without changing the
+   `sm` size everywhere else it's used. */
+.acp-chat__controls .silo-menu-button-sm,
+.acp-chat__controls .silo-button-sm {
+  font-size: var(--silo-font-size-sm);
+}
+
 .acp-chat__profile {
   flex: 0 1 auto;
   min-width: 0;
@@ -649,6 +685,24 @@
   gap: 5px;
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+/* Off state (variant="normal") reads too close to "on" with the shared
+   `.silo-button` fill — quiet it to a bordered, transparent ghost button so
+   flipping to the accent-filled primary variant on toggle actually reads as
+   a state change. `:not(.silo-button-primary)` scopes this to "off" only. */
+.acp-chat__auto-accept:not(.silo-button-primary) {
+  background: transparent;
+  border-color: var(--silo-color-input-border);
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__auto-accept:not(.silo-button-primary):hover:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+}
+
+.acp-chat__auto-accept:not(.silo-button-primary):active:not(:disabled) {
+  background: var(--silo-color-bg-active);
 }
 
 /* Pins Send/Stop (or the Continue/Reconnect text buttons) to the far right,
