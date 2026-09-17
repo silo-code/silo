@@ -1,5 +1,5 @@
 /**
- * When a Chat panel keeps its transcript rows in the DOM (RFC 0049).
+ * When a Chat panel keeps its transcript rows in the DOM (RFC 0050).
  *
  * The rules live here rather than in `AcpChatPanel` because both of them were
  * arrived at by measurement and each one is a regression waiting to happen:

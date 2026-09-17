@@ -139,3 +139,4 @@ don't get a proposal at all — see below.
 | [0047](./0047-yolo-mode.md)                                   | YOLO mode — permission bypass as an Agent Profile property        | 2026-09-15 | draft       |
 | [0048](./0048-clear-as-session-reset.md)                      | Clear is a session reset                                          | 2026-09-15 | implemented |
 | [0049](./0049-panel-entry-focus-hook.md)                      | `usePanelEntryFocus` — entry focus as one published call          | 2026-09-16 | implemented |
+| [0050](./0050-chat-transcript-scale.md)                       | Chat transcript scale                                             | 2026-09-16 | draft       |

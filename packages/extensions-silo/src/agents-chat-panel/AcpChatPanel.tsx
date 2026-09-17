@@ -2075,7 +2075,7 @@ export function AcpChatPanel({
          *
          * Not a paint optimization — the browser already skips painting a
          * hidden dock. This is about **render-tree size**, which is the second
-         * of the two factors behind RFC 0049's stall:
+         * of the two factors behind RFC 0050's stall:
          *
          *  1. Once the WebContent process crosses WebKit's memory-pressure
          *     threshold (measured cliff 1.5-1.8 GB), WebKit's pressure handler
