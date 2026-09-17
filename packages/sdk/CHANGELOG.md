@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.52.0](https://github.com/silo-code/silo/compare/sdk-v0.51.0...sdk-v0.52.0) (2026-09-17)
+
+
+### Features
+
+* **sdk:** publish usePanelEntryFocus and DockPanelApi.onDidRequestFocus ([#546](https://github.com/silo-code/silo/issues/546)) ([5fba63e](https://github.com/silo-code/silo/commit/5fba63ebd8143e15209c0056e41789b23a3e13a6))
+
 ## [0.51.0](https://github.com/silo-code/silo/compare/sdk-v0.50.0...sdk-v0.51.0) (2026-09-16)
 
 
