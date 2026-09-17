@@ -229,6 +229,7 @@ import {
   type RestartIntent,
 } from "./session-restore";
 import { LiveElapsed } from "./LiveElapsed";
+import { planIdleDrop, transcriptRowsMounted } from "./transcript-mount";
 
 export interface AcpChatPanelParams {
   /** Seed tab label, shown until the agent declares its own name. */
@@ -1650,6 +1651,39 @@ export function AcpChatPanel({
 
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
+  // Whether the transcript's rows are in the DOM. See the long comment at the
+  // render site for *why* they are dropped; this is the *when*.
+  //
+  // Not simply `onScreen`. Dropping the rows the instant a panel leaves screen
+  // and rebuilding them on return costs ~1.4 s of main thread per switch
+  // against a real 14,826-node transcript, versus ~0.44 s for leaving them
+  // mounted — measured 2026-09-17, four warmed workspaces. Trading a ~3× worse
+  // workspace switch for a smaller render tree is a bad deal in the one app
+  // whose premise is instant switching.
+  //
+  // The cost only lands on a workspace you come *back to* soon, so the rows
+  // survive a grace period. Bouncing between two or three workspaces stays
+  // free; a workspace left alone for longer is released and stops contributing
+  // to the document's render tree. That is where the multiplier actually comes
+  // from — the six workspaces you have not looked at in minutes, not the one
+  // you just left.
+  // Rules and rationale in `transcript-mount.ts`. Two things matter here:
+  // `idleDropped` is only ever *set* by the grace timer, and whether rows
+  // render is **derived during render** rather than stored — an effect runs
+  // after paint, so storing it flashed one empty frame on every return to a
+  // dropped panel.
+  const [idleDropped, setIdleDropped] = useState(false);
+  const transcriptMounted = transcriptRowsMounted({ onScreen, idleDropped });
+  useEffect(() => {
+    const plan = planIdleDrop({ onScreen });
+    if (plan.kind === "cancel") {
+      setIdleDropped(false);
+      return;
+    }
+    const t = setTimeout(() => setIdleDropped(true), plan.delayMs);
+    return () => clearTimeout(t);
+  }, [onScreen]);
+
   // Shift-held file drops stage the file as an attachment — the same landing
   // spot a pasted path already takes via `classifyClipboardPaste`'s "paths"
   // case above. Plain (copy-mode) drops fall through to dockview, which opens
@@ -2037,23 +2071,62 @@ export function AcpChatPanel({
           </div>
         ) : null}
 
-        {turns.map((turn, i, all) => {
-          const running = busy && i === all.length - 1;
-          return (
-            <TranscriptTurn
-              key={turn.key}
-              turn={turn}
-              tools={toolRowState}
-              running={running}
-              durationMs={turn.user ? turnDurations[turn.user.key] : undefined}
-              // Only the running turn is told when the turn started —
-              // otherwise every *finished* turn would take a new `startedAt`
-              // the moment the next one begins, and all of them would
-              // re-render for a value none of them shows.
-              startedAt={running ? turnStartRef.current?.startedAt : undefined}
-            />
-          );
-        })}
+        {/* Off screen, the transcript renders no rows at all.
+         *
+         * Not a paint optimization — the browser already skips painting a
+         * hidden dock. This is about **render-tree size**, which is the second
+         * of the two factors behind RFC 0049's stall:
+         *
+         *  1. Once the WebContent process crosses WebKit's memory-pressure
+         *     threshold (measured cliff 1.5-1.8 GB), WebKit's pressure handler
+         *     starts dropping the style resolver and inline-layout caches. That
+         *     invalidates style and layout for the **entire document**, on
+         *     WebKit's own timer, with no JavaScript involved.
+         *  2. The cost of each of those is proportional to the whole document's
+         *     render tree — 390 ms at 87k nodes versus 52 ms at 698.
+         *
+         * `CenterDock` keeps every warmed workspace's dock in that one
+         * document, and a real transcript is ~15,000 nodes, so N warmed
+         * workspaces multiply factor 2 by N. Rendering only the on-screen
+         * transcript keeps the tree at one transcript's worth no matter how
+         * many workspaces are warm.
+         *
+         * Safe to drop the rows because **the panel does not unmount** — this
+         * is the same component, returning fewer children. `transcript.entries`
+         * stays in memory, so there is no re-seed from the journal, no second
+         * fold, and no entry-identity churn. The only thing DOM detachment
+         * costs is `scrollTop`, which this panel already stores twice over
+         * (`liveScrollRef` plus `params.scrollTop` in its `DockPanelRecord`)
+         * and already re-asserts on every transition back on screen — see the
+         * scroll-restore design comment above.
+         *
+         * Terminals are deliberately untouched: this is why the fix lives here
+         * and not in `CenterDock`. Unmounting a whole dock would force an xterm
+         * refit, which is the very thing the warmed-dock design exists to avoid.
+         */}
+        {transcriptMounted
+          ? turns.map((turn, i, all) => {
+              const running = busy && i === all.length - 1;
+              return (
+                <TranscriptTurn
+                  key={turn.key}
+                  turn={turn}
+                  tools={toolRowState}
+                  running={running}
+                  durationMs={
+                    turn.user ? turnDurations[turn.user.key] : undefined
+                  }
+                  // Only the running turn is told when the turn started —
+                  // otherwise every *finished* turn would take a new
+                  // `startedAt` the moment the next one begins, and all of them
+                  // would re-render for a value none of them shows.
+                  startedAt={
+                    running ? turnStartRef.current?.startedAt : undefined
+                  }
+                />
+              );
+            })
+          : null}
 
         {/* Inline, in the flow of the transcript — never a modal. The agent is
             blocked on this answer, and a modal would both hide the transcript
