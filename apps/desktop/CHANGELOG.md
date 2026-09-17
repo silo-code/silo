@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.69.0](https://github.com/silo-code/silo/compare/silo-v0.68.0...silo-v0.69.0) (2026-09-17)
+
+
+### Features
+
+* **sdk:** publish usePanelEntryFocus and DockPanelApi.onDidRequestFocus ([#546](https://github.com/silo-code/silo/issues/546)) ([5fba63e](https://github.com/silo-code/silo/commit/5fba63ebd8143e15209c0056e41789b23a3e13a6))
+
+
+### Bug Fixes
+
+* **extension-host:** stop wiping panel scroll on workspace switch ([#544](https://github.com/silo-code/silo/issues/544)) ([e1f7228](https://github.com/silo-code/silo/commit/e1f72288d07ff8527df2388a26bba6160229bec0))
+
+
+### Performance Improvements
+
+* **agents-chat-panel:** drop an idle transcript's rows from the render tree ([#549](https://github.com/silo-code/silo/issues/549)) ([3ec8c6a](https://github.com/silo-code/silo/commit/3ec8c6a832cd0958a06f15354679565b2cf64755))
+
 ## [0.68.0](https://github.com/silo-code/silo/compare/silo-v0.67.0...silo-v0.68.0) (2026-09-16)
 
 
