@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.69.1](https://github.com/silo-code/silo/compare/silo-v0.69.0...silo-v0.69.1) (2026-09-18)
+
+
+### Performance Improvements
+
+* **agents-chat-panel:** keep a tail mounted, stand a spacer in for the head ([#551](https://github.com/silo-code/silo/issues/551)) ([c742407](https://github.com/silo-code/silo/commit/c7424072b6b8b578fd7a7d2d54f7288eea888cff))
+
 ## [0.69.0](https://github.com/silo-code/silo/compare/silo-v0.68.0...silo-v0.69.0) (2026-09-17)
 
 
