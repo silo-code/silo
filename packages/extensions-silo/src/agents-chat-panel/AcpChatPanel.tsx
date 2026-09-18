@@ -229,7 +229,17 @@ import {
   type RestartIntent,
 } from "./session-restore";
 import { LiveElapsed } from "./LiveElapsed";
-import { planIdleDrop, transcriptRowsMounted } from "./transcript-mount";
+import {
+  HEAD_MEASURE_DEBOUNCE_MS,
+  HEAD_REVEAL_SETTLE_MS,
+  headBoundary,
+  TRANSCRIPT_TAIL_TURNS,
+  planIdleDrop,
+  revealScrollAdjustment,
+  shouldRevealHead,
+  spacerHeightPx,
+  transcriptWindow,
+} from "./transcript-mount";
 
 export interface AcpChatPanelParams {
   /** Seed tab label, shown until the agent declares its own name. */
@@ -1668,19 +1678,85 @@ export function AcpChatPanel({
   // from — the six workspaces you have not looked at in minutes, not the one
   // you just left.
   // Rules and rationale in `transcript-mount.ts`. Two things matter here:
-  // `idleDropped` is only ever *set* by the grace timer, and whether rows
-  // render is **derived during render** rather than stored — an effect runs
-  // after paint, so storing it flashed one empty frame on every return to a
-  // dropped panel.
+  // neither `idleDropped` nor `droppedFrom` is consulted directly — what
+  // renders is **derived during render** by `transcriptWindow`, because an
+  // effect runs after paint and storing the decision flashed one empty frame
+  // on every return to a dropped panel.
   const [idleDropped, setIdleDropped] = useState(false);
-  const transcriptMounted = transcriptRowsMounted({ onScreen, idleDropped });
+  // First turn still rendered once the head has been dropped, frozen at that
+  // moment — see `transcriptWindow`. `null` means everything renders.
+  const [droppedFrom, setDroppedFrom] = useState<number | null>(null);
+  const turnCountRef = useRef(0);
+  // Height of everything above the tail, measured while on screen. Kept in a
+  // ref rather than measured at drop time: by then the panel may be a
+  // `display: none` tab, where every offset reads 0.
+  const headSpanRef = useRef<number | null>(null);
+  const [spacerPx, setSpacerPx] = useState<number | null>(null);
+
+  // Swapping the spacer for the real head changes the content's height by
+  // however wrong the measurement was. Recording the height before the swap
+  // lets the layout effect below nudge `scrollTop` by exactly that error, so
+  // what the user was reading stays put instead of jumping.
+  const pendingRevealRef = useRef<number | null>(null);
+  const revealHead = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    pendingRevealRef.current = el.scrollHeight;
+    setDroppedFrom(null);
+  }, []);
+  // Its own listener rather than a branch inside `onScroll`. That handler
+  // exists to *learn* a position and is guarded accordingly — it bails while a
+  // restore is in flight and ignores anything that looks like a clamp, which is
+  // exactly what a jump to the top looks like. Revealing the head is unrelated
+  // to learning a position and must not inherit those guards.
+  useEffect(() => {
+    if (droppedFrom === null || !onScreen || spacerPx === null) return;
+    const el = scrollerRef.current;
+    if (!el) return;
+    const check = () => {
+      if (shouldRevealHead({ scrollTop: el.scrollTop, spacerPx })) revealHead();
+    };
+    el.addEventListener("scroll", check, { passive: true });
+    // The scroll restore fires a scroll event of its own, which `check` picks
+    // up. This backstop covers the case where it does not have to move the
+    // scroller at all — without it the panel would sit showing the spacer's
+    // blank space until the user happened to scroll.
+    const settle = setTimeout(check, HEAD_REVEAL_SETTLE_MS);
+    return () => {
+      clearTimeout(settle);
+      el.removeEventListener("scroll", check);
+    };
+  }, [droppedFrom, onScreen, spacerPx, revealHead]);
+
+  useLayoutEffect(() => {
+    if (droppedFrom !== null) return;
+    const before = pendingRevealRef.current;
+    pendingRevealRef.current = null;
+    const el = scrollerRef.current;
+    if (before === null || !el) return;
+    const delta = revealScrollAdjustment({
+      scrollHeightBefore: before,
+      scrollHeightAfter: el.scrollHeight,
+    });
+    if (delta !== 0) el.scrollTop += delta;
+  }, [droppedFrom]);
   useEffect(() => {
     const plan = planIdleDrop({ onScreen });
     if (plan.kind === "cancel") {
       setIdleDropped(false);
       return;
     }
-    const t = setTimeout(() => setIdleDropped(true), plan.delayMs);
+    const t = setTimeout(() => {
+      setIdleDropped(true);
+      // Coming back should cost the tail, not the whole transcript. Only hide
+      // the head if we have a believable height to stand in for it.
+      const span = headSpanRef.current;
+      const from = headBoundary({ turnCount: turnCountRef.current });
+      if (span !== null && span > 0 && from !== null) {
+        setSpacerPx(span);
+        setDroppedFrom(from);
+      }
+    }, plan.delayMs);
     return () => clearTimeout(t);
   }, [onScreen]);
 
@@ -2027,6 +2103,45 @@ export function AcpChatPanel({
     [transcript.entries],
   );
 
+  turnCountRef.current = turns.length;
+  const window_ = transcriptWindow({
+    onScreen,
+    idleDropped,
+    droppedFrom,
+    spacerPx,
+  });
+
+  // Keep the head's height current while it is on screen and fully rendered,
+  // so the drop timer has a believable number to hand the spacer. Skipped
+  // unless everything is rendered — measuring a tail-only transcript would
+  // record the wrong span.
+  //
+  // A plain timeout, deliberately not `requestAnimationFrame`: rAF is
+  // suspended while Silo's window is not frontmost, so a panel that is only
+  // ever on screen in a background window would never get measured and would
+  // never drop its head. The delay doubles as a debounce — a streaming
+  // transcript changes many times a second, and each measurement forces a
+  // layout read.
+  useEffect(() => {
+    if (!onScreen || window_.kind !== "all") return;
+    const id = setTimeout(() => {
+      const el = scrollerRef.current;
+      if (!el) return;
+      const rows = el.querySelectorAll<HTMLElement>(":scope > .acp-chat__turn");
+      const boundary = rows.length - TRANSCRIPT_TAIL_TURNS;
+      if (boundary <= 0) return;
+      const first = rows[0];
+      const cut = rows[boundary];
+      if (!first || !cut) return;
+      const gap = Number.parseFloat(getComputedStyle(el).rowGap) || 0;
+      headSpanRef.current = spacerHeightPx({
+        headSpanPx: cut.offsetTop - first.offsetTop,
+        rowGapPx: gap,
+      });
+    }, HEAD_MEASURE_DEBOUNCE_MS);
+    return () => clearTimeout(id);
+  }, [onScreen, window_.kind, turns]);
+
   if (phase.status === "no-profile") {
     return (
       <div className="acp-chat" ref={rootRef}>
@@ -2104,28 +2219,41 @@ export function AcpChatPanel({
          * and not in `CenterDock`. Unmounting a whole dock would force an xterm
          * refit, which is the very thing the warmed-dock design exists to avoid.
          */}
-        {transcriptMounted
-          ? turns.map((turn, i, all) => {
-              const running = busy && i === all.length - 1;
-              return (
-                <TranscriptTurn
-                  key={turn.key}
-                  turn={turn}
-                  tools={toolRowState}
-                  running={running}
-                  durationMs={
-                    turn.user ? turnDurations[turn.user.key] : undefined
-                  }
-                  // Only the running turn is told when the turn started —
-                  // otherwise every *finished* turn would take a new
-                  // `startedAt` the moment the next one begins, and all of them
-                  // would re-render for a value none of them shows.
-                  startedAt={
-                    running ? turnStartRef.current?.startedAt : undefined
-                  }
-                />
-              );
-            })
+        {/* Stands in for the turns above the tail, at their measured height, so
+            total content height — and therefore `scrollTop` — is unchanged by
+            the swap. Scrolling up into it calls `revealHead`. */}
+        {window_.kind === "tail" ? (
+          <div
+            className="acp-chat__head-spacer"
+            style={{ height: window_.spacerPx }}
+            aria-hidden="true"
+          />
+        ) : null}
+
+        {window_.kind !== "dropped"
+          ? (window_.kind === "tail" ? turns.slice(window_.from) : turns).map(
+              (turn, i, all) => {
+                const running = busy && i === all.length - 1;
+                return (
+                  <TranscriptTurn
+                    key={turn.key}
+                    turn={turn}
+                    tools={toolRowState}
+                    running={running}
+                    durationMs={
+                      turn.user ? turnDurations[turn.user.key] : undefined
+                    }
+                    // Only the running turn is told when the turn started —
+                    // otherwise every *finished* turn would take a new
+                    // `startedAt` the moment the next one begins, and all of them
+                    // would re-render for a value none of them shows.
+                    startedAt={
+                      running ? turnStartRef.current?.startedAt : undefined
+                    }
+                  />
+                );
+              },
+            )
           : null}
 
         {/* Inline, in the flow of the transcript — never a modal. The agent is

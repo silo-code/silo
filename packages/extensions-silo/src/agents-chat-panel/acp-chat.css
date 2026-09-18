@@ -40,6 +40,14 @@
 /* The cwd breadcrumb strip is host-drawn (RFC 0039) — `.dock-panel-chrome`,
    above this component, fed by `api.setBreadcrumb`. Nothing for it here. */
 
+/* Stands in for the turns above the tail while they are not rendered (RFC
+   0050). `flex: none` matters: the scroller is a flex column, and a shrinkable
+   spacer would not hold the height it was measured for — which is the whole
+   point of it. */
+.acp-chat__head-spacer {
+  flex: none;
+}
+
 .acp-chat__scroller {
   flex: 1 1 auto;
   min-height: 0;
