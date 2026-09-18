@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   HEAD_REVEAL_MARGIN_PX,
   TRANSCRIPT_IDLE_DROP_MS,
+  headBoundary,
   planIdleDrop,
   revealScrollAdjustment,
   shouldRevealHead,
@@ -13,9 +14,8 @@ import {
 const base = {
   onScreen: true,
   idleDropped: false,
-  headRevealed: true,
-  turnCount: 40,
-  spacerPx: 5_000,
+  droppedFrom: null as number | null,
+  spacerPx: 5_000 as number | null,
 };
 
 describe("transcriptWindow", () => {
@@ -23,9 +23,29 @@ describe("transcriptWindow", () => {
     expect(transcriptWindow(base)).toEqual({ kind: "all" });
   });
 
-  it("drops every row once an off-screen panel passes the grace period", () => {
+  // Holding the tail off screen rather than dropping to nothing is what makes
+  // a return free: what the user will see is already rendered, so there is no
+  // rebuild to pay for. Measured 0.09-0.14 s per switch against 0.13-0.46 s
+  // when the panel dropped to nothing and rebuilt the tail on return.
+  it("holds the tail off screen once past the grace period", () => {
     expect(
-      transcriptWindow({ ...base, onScreen: false, idleDropped: true }),
+      transcriptWindow({
+        ...base,
+        onScreen: false,
+        idleDropped: true,
+        droppedFrom: 36,
+      }),
+    ).toEqual({ kind: "tail", from: 36, spacerPx: 5_000 });
+  });
+
+  it("drops to nothing off screen when it has no measurement to tail with", () => {
+    expect(
+      transcriptWindow({
+        ...base,
+        onScreen: false,
+        idleDropped: true,
+        droppedFrom: null,
+      }),
     ).toEqual({ kind: "dropped" });
   });
 
@@ -43,28 +63,30 @@ describe("transcriptWindow", () => {
       transcriptWindow({
         ...base,
         idleDropped: true,
-        headRevealed: false,
+        droppedFrom: 36,
         onScreen: true,
       }),
     ).toEqual({ kind: "tail", from: 36, spacerPx: 5_000 });
   });
 
-  it("returns to the tail with a spacer when the head is not revealed", () => {
-    expect(
-      transcriptWindow({ ...base, headRevealed: false, tailTurns: 4 }),
-    ).toEqual({ kind: "tail", from: 36, spacerPx: 5_000 });
+  // The boundary is frozen at drop time precisely so streaming cannot move it.
+  // Re-deriving it from the turn count would push turns out of the tail that
+  // the spacer never covered, shrinking content height under the user.
+  it("holds the frozen boundary as the transcript keeps growing", () => {
+    const w = transcriptWindow({ ...base, droppedFrom: 36 });
+    expect(w).toEqual({ kind: "tail", from: 36, spacerPx: 5_000 });
   });
 
-  it("renders everything when the transcript is shorter than the tail", () => {
-    expect(
-      transcriptWindow({ ...base, headRevealed: false, turnCount: 3 }),
-    ).toEqual({ kind: "all" });
+  it("renders everything once the head has been revealed", () => {
+    expect(transcriptWindow({ ...base, droppedFrom: null })).toEqual({
+      kind: "all",
+    });
   });
 
-  it("renders everything when the transcript is exactly the tail length", () => {
-    expect(
-      transcriptWindow({ ...base, headRevealed: false, turnCount: 4 }),
-    ).toEqual({ kind: "all" });
+  it("renders everything when the boundary is at or before the first turn", () => {
+    expect(transcriptWindow({ ...base, droppedFrom: 0 })).toEqual({
+      kind: "all",
+    });
   });
 
   // A wrong spacer height moves the user's scroll position, which is worse
@@ -72,20 +94,32 @@ describe("transcriptWindow", () => {
   // rendering everything rather than guessing.
   it("falls back to everything when the spacer height was never measured", () => {
     expect(
-      transcriptWindow({ ...base, headRevealed: false, spacerPx: null }),
+      transcriptWindow({ ...base, droppedFrom: 36, spacerPx: null }),
     ).toEqual({ kind: "all" });
   });
 
   it("falls back to everything when the measurement came back zero", () => {
-    expect(
-      transcriptWindow({ ...base, headRevealed: false, spacerPx: 0 }),
-    ).toEqual({ kind: "all" });
+    expect(transcriptWindow({ ...base, droppedFrom: 36, spacerPx: 0 })).toEqual(
+      { kind: "all" },
+    );
+  });
+});
+
+describe("headBoundary", () => {
+  it("leaves the last few turns in the tail", () => {
+    expect(headBoundary({ turnCount: 40 })).toBe(36);
   });
 
   it("honours a custom tail length", () => {
-    expect(
-      transcriptWindow({ ...base, headRevealed: false, tailTurns: 10 }),
-    ).toEqual({ kind: "tail", from: 30, spacerPx: 5_000 });
+    expect(headBoundary({ turnCount: 40, tailTurns: 10 })).toBe(30);
+  });
+
+  it("declines to split a transcript shorter than the tail", () => {
+    expect(headBoundary({ turnCount: 3 })).toBeNull();
+  });
+
+  it("declines to split a transcript exactly the tail length", () => {
+    expect(headBoundary({ turnCount: 4 })).toBeNull();
   });
 });
 

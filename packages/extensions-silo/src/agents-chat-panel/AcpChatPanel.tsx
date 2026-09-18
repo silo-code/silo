@@ -232,6 +232,7 @@ import { LiveElapsed } from "./LiveElapsed";
 import {
   HEAD_MEASURE_DEBOUNCE_MS,
   HEAD_REVEAL_SETTLE_MS,
+  headBoundary,
   TRANSCRIPT_TAIL_TURNS,
   planIdleDrop,
   revealScrollAdjustment,
@@ -1677,12 +1678,15 @@ export function AcpChatPanel({
   // from — the six workspaces you have not looked at in minutes, not the one
   // you just left.
   // Rules and rationale in `transcript-mount.ts`. Two things matter here:
-  // neither `idleDropped` nor `headRevealed` is consulted directly — what
+  // neither `idleDropped` nor `droppedFrom` is consulted directly — what
   // renders is **derived during render** by `transcriptWindow`, because an
   // effect runs after paint and storing the decision flashed one empty frame
   // on every return to a dropped panel.
   const [idleDropped, setIdleDropped] = useState(false);
-  const [headRevealed, setHeadRevealed] = useState(true);
+  // First turn still rendered once the head has been dropped, frozen at that
+  // moment — see `transcriptWindow`. `null` means everything renders.
+  const [droppedFrom, setDroppedFrom] = useState<number | null>(null);
+  const turnCountRef = useRef(0);
   // Height of everything above the tail, measured while on screen. Kept in a
   // ref rather than measured at drop time: by then the panel may be a
   // `display: none` tab, where every offset reads 0.
@@ -1698,7 +1702,7 @@ export function AcpChatPanel({
     const el = scrollerRef.current;
     if (!el) return;
     pendingRevealRef.current = el.scrollHeight;
-    setHeadRevealed(true);
+    setDroppedFrom(null);
   }, []);
   // Its own listener rather than a branch inside `onScroll`. That handler
   // exists to *learn* a position and is guarded accordingly — it bails while a
@@ -1706,7 +1710,7 @@ export function AcpChatPanel({
   // exactly what a jump to the top looks like. Revealing the head is unrelated
   // to learning a position and must not inherit those guards.
   useEffect(() => {
-    if (headRevealed || !onScreen || spacerPx === null) return;
+    if (droppedFrom === null || !onScreen || spacerPx === null) return;
     const el = scrollerRef.current;
     if (!el) return;
     const check = () => {
@@ -1722,10 +1726,10 @@ export function AcpChatPanel({
       clearTimeout(settle);
       el.removeEventListener("scroll", check);
     };
-  }, [headRevealed, onScreen, spacerPx, revealHead]);
+  }, [droppedFrom, onScreen, spacerPx, revealHead]);
 
   useLayoutEffect(() => {
-    if (!headRevealed) return;
+    if (droppedFrom !== null) return;
     const before = pendingRevealRef.current;
     pendingRevealRef.current = null;
     const el = scrollerRef.current;
@@ -1735,7 +1739,7 @@ export function AcpChatPanel({
       scrollHeightAfter: el.scrollHeight,
     });
     if (delta !== 0) el.scrollTop += delta;
-  }, [headRevealed]);
+  }, [droppedFrom]);
   useEffect(() => {
     const plan = planIdleDrop({ onScreen });
     if (plan.kind === "cancel") {
@@ -1747,9 +1751,10 @@ export function AcpChatPanel({
       // Coming back should cost the tail, not the whole transcript. Only hide
       // the head if we have a believable height to stand in for it.
       const span = headSpanRef.current;
-      if (span !== null && span > 0) {
+      const from = headBoundary({ turnCount: turnCountRef.current });
+      if (span !== null && span > 0 && from !== null) {
         setSpacerPx(span);
-        setHeadRevealed(false);
+        setDroppedFrom(from);
       }
     }, plan.delayMs);
     return () => clearTimeout(t);
@@ -2098,11 +2103,11 @@ export function AcpChatPanel({
     [transcript.entries],
   );
 
+  turnCountRef.current = turns.length;
   const window_ = transcriptWindow({
     onScreen,
     idleDropped,
-    headRevealed,
-    turnCount: turns.length,
+    droppedFrom,
     spacerPx,
   });
 

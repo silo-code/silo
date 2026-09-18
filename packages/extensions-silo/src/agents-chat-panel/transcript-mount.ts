@@ -27,11 +27,20 @@
  */
 
 /**
- * How long a Chat panel keeps its transcript rows after leaving screen. Long
- * enough that switching away and back is free; short enough that workspaces
- * left idle stop inflating the document's render tree.
+ * How long a Chat panel keeps its transcript rows after leaving screen.
+ *
+ * Was 30 s, chosen when returning meant rebuilding the whole transcript
+ * (~1.4 s) and a grace period was the only thing making a quick switch-and-back
+ * free. The tail window made a return cost ~0.2 s instead, so the grace no
+ * longer earns its keep — and it had a real cost, because for its whole
+ * duration the workspace you just left still inflates the document and makes
+ * every *other* switch slower.
+ *
+ * Not zero: `onScreen` can flicker during a switch, and dropping on a transient
+ * false would churn. Half a second is long enough to ride that out and short
+ * enough that nothing feels sticky.
  */
-export const TRANSCRIPT_IDLE_DROP_MS = 30_000;
+export const TRANSCRIPT_IDLE_DROP_MS = 500;
 
 /**
  * How many recent turns come back when a dropped panel returns to screen.
@@ -85,20 +94,50 @@ export type TranscriptWindow =
 export function transcriptWindow(input: {
   readonly onScreen: boolean;
   readonly idleDropped: boolean;
-  readonly headRevealed: boolean;
-  readonly turnCount: number;
+  /**
+   * Index of the first turn still rendered, **frozen when the head was
+   * dropped** — not re-derived from the current turn count. A streaming
+   * transcript keeps appending turns, and re-deriving would march the boundary
+   * forward, pushing turns out of the tail that the spacer was never measured
+   * to cover. Content height would shrink under the user and the scroll would
+   * jump. Freezing it means new turns simply grow the tail until the next drop.
+   *
+   * `null` once the head has been revealed, or before any drop.
+   */
+  readonly droppedFrom: number | null;
   readonly spacerPx: number | null;
-  readonly tailTurns?: number;
 }): TranscriptWindow {
-  if (!input.onScreen && input.idleDropped) return { kind: "dropped" };
-  if (input.headRevealed) return { kind: "all" };
+  const canTail =
+    input.droppedFrom !== null &&
+    input.droppedFrom > 0 &&
+    input.spacerPx !== null &&
+    input.spacerPx > 0;
 
-  const tail = input.tailTurns ?? TRANSCRIPT_TAIL_TURNS;
-  const from = input.turnCount - tail;
-  if (from <= 0) return { kind: "all" };
-  if (input.spacerPx === null || input.spacerPx <= 0) return { kind: "all" };
+  // Off screen and past the grace period: the tail if we can, nothing if we
+  // cannot. Holding the tail rather than dropping to nothing is what makes a
+  // return free — there is no rebuild, because what the user will see is
+  // already rendered. A tail is a few thousand nodes against the ~15,000 a
+  // whole transcript costs, so N warmed workspaces stay cheap either way.
+  if (!input.onScreen && input.idleDropped) {
+    return canTail
+      ? { kind: "tail", from: input.droppedFrom!, spacerPx: input.spacerPx! }
+      : { kind: "dropped" };
+  }
+  if (!canTail) return { kind: "all" };
 
-  return { kind: "tail", from, spacerPx: input.spacerPx };
+  return { kind: "tail", from: input.droppedFrom!, spacerPx: input.spacerPx! };
+}
+
+/**
+ * Where the head ends and the tail begins, chosen at the moment of the drop.
+ * Returns `null` when the transcript is too short to be worth splitting.
+ */
+export function headBoundary(input: {
+  readonly turnCount: number;
+  readonly tailTurns?: number;
+}): number | null {
+  const from = input.turnCount - (input.tailTurns ?? TRANSCRIPT_TAIL_TURNS);
+  return from > 0 ? from : null;
 }
 
 /** What the grace-period timer should do for the current `onScreen` value. */
