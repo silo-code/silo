@@ -4,6 +4,7 @@ import {
   parseContentBlock,
   parsePlanEntries,
   parseToolCall,
+  parseUsage,
 } from "./acp-update-model";
 
 describe("parseToolCall", () => {
@@ -249,5 +250,45 @@ describe("parseCommands", () => {
   it("returns nothing for a non-array payload", () => {
     expect(parseCommands(undefined)).toEqual([]);
     expect(parseCommands(null)).toEqual([]);
+  });
+});
+
+describe("parseUsage", () => {
+  it("reads used and size", () => {
+    expect(parseUsage({ used: 1536, size: 8192 })).toEqual({
+      used: 1536,
+      size: 8192,
+    });
+  });
+
+  it("reads an attached cost", () => {
+    expect(
+      parseUsage({
+        used: 1536,
+        size: 8192,
+        cost: { amount: 0.42, currency: "USD" },
+      }),
+    ).toEqual({
+      used: 1536,
+      size: 8192,
+      cost: { amount: 0.42, currency: "USD" },
+    });
+  });
+
+  it("drops a cost missing either field, keeping used/size", () => {
+    expect(parseUsage({ used: 1, size: 2, cost: { amount: 0.1 } })).toEqual({
+      used: 1,
+      size: 2,
+    });
+  });
+
+  // Most agents never send `usage_update` at all — "not reported" must not
+  // look like an error.
+  it("returns undefined when used or size is missing or non-numeric", () => {
+    expect(parseUsage({ size: 8192 })).toBeUndefined();
+    expect(parseUsage({ used: 1536 })).toBeUndefined();
+    expect(parseUsage({ used: "a lot", size: 8192 })).toBeUndefined();
+    expect(parseUsage(undefined)).toBeUndefined();
+    expect(parseUsage(null)).toBeUndefined();
   });
 });

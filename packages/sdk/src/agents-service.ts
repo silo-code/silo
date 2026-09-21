@@ -750,6 +750,30 @@ export interface AgentPlanEntry {
 }
 
 /**
+ * Session context/cost state from a `usage_update` — the protocol's own
+ * `used` / `size` naming. **Sender-optional**: many agents never emit this,
+ * and those that do report `used` and `size` differently (recon), so a
+ * missing {@link AgentSessionUpdate.usage} on a given update is normal, not
+ * an error — never synthesize a reading when the agent hasn't sent one.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentSessionUsage {
+  /** Tokens currently consumed in the session context. */
+  readonly used: number;
+  /** Total token capacity for the session. */
+  readonly size: number;
+  /** Cumulative session cost, when the agent reports one. */
+  readonly cost?: {
+    readonly amount: number;
+    /** ISO 4217 currency code, e.g. `"USD"`. */
+    readonly currency: string;
+  };
+}
+
+/**
  * One `session/update` notification from a **Chat session**, lightly
  * normalized. The Agent Client Protocol streams a turn as a sequence of these:
  * assistant text, agent "thinking", tool-call rows, plan updates, and more.
@@ -761,8 +785,9 @@ export interface AgentPlanEntry {
  *
  * Everything a Chat UI must draw to render a transcript is a modelled field:
  * {@link text} / {@link content} for the message kinds, {@link toolCall} for
- * `tool_call` and `tool_call_update`, {@link plan} for `plan`. {@link raw} is
- * for what is deliberately left out — see its own note.
+ * `tool_call` and `tool_call_update`, {@link plan} for `plan`, {@link usage}
+ * for `usage_update`. {@link raw} is for what is deliberately left out — see
+ * its own note.
  *
  * @category Consumer Services
  * @public
@@ -809,12 +834,17 @@ export interface AgentSessionUpdate {
    */
   readonly plan?: readonly AgentPlanEntry[];
   /**
+   * Session context/cost state, for `kind` `"usage_update"`; `undefined`
+   * otherwise, and also whenever the connected agent doesn't send this
+   * notification at all — see {@link AgentSessionUsage}.
+   */
+  readonly usage?: AgentSessionUsage;
+  /**
    * The raw Agent Client Protocol `update` object — the **escape hatch**, for
    * the kinds and fields this surface does not model.
    *
    * What is deliberately not modelled, and why: `available_commands_update`
    * (an agent's slash commands — a menu, not a transcript row),
-   * `usage_update` (token counts, which no agent reports the same way),
    * `current_mode_update` (already surfaced as
    * {@link AgentSessionConfigOption.currentValue}), `session_info_update`
    * (already surfaced as {@link AgentInfo.title}), and vendor extensions such

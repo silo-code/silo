@@ -134,6 +134,7 @@ wire format to build a Chat UI:
 | `agent_message_chunk` / `agent_thought_chunk` / `user_message_chunk` | `text` — or `content` for a block that isn't text ([`AgentContentBlock`](/api/types/interfaces/AgentContentBlock)) |
 | `tool_call` / `tool_call_update`                                     | `toolCall` — [`AgentToolCall`](/api/types/interfaces/AgentToolCall)                                                |
 | `plan`                                                               | `plan` — the whole list of [`AgentPlanEntry`](/api/types/interfaces/AgentPlanEntry)                                |
+| `usage_update`                                                       | `usage` — [`AgentSessionUsage`](/api/types/interfaces/AgentSessionUsage)                                           |
 
 `messageId` groups a run of streaming chunks into one bubble — **synthesized by
 Silo when the agent omits it**, which real agents do, so you never have to mint
@@ -175,12 +176,24 @@ whole list every time — so replace what you are showing rather than appending:
 if (u.kind === "plan" && u.plan) setPlan(u.plan); // may be empty
 ```
 
+### Session usage
+
+A `usage_update` carries session context state — **sender-optional**: most
+agents never emit it, so `u.usage` is `undefined` for the whole session on
+those, not a placeholder zero to render:
+
+```ts
+if (u.kind === "usage_update" && u.usage) {
+  const { used, size, cost } = u.usage; // cost is itself optional
+  setContextMeter(used / size);
+}
+```
+
 ### What `raw` is for
 
 `raw` is the **escape hatch**, not the way to render a transcript. It holds the
 untouched protocol object, and is there for the kinds deliberately left
-unmodelled: `usage_update` (token counts, reported differently by every agent)
-and vendor extensions such as `claude-agent-acp`'s `_meta`. Three more —
+unmodelled: vendor extensions such as `claude-agent-acp`'s `_meta`. Three more —
 `current_mode_update`, `session_info_update`, and `available_commands_update` —
 are already surfaced as `configOptions`, `AgentInfo.title`, and `commands`
 (RFC 0040), so you should not need `raw` for them either.

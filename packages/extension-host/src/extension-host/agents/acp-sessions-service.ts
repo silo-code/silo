@@ -69,6 +69,7 @@ import {
   parseContentBlock,
   parsePlanEntries,
   parseToolCall,
+  parseUsage,
 } from "./acp-update-model";
 import {
   beginTurn,
@@ -246,6 +247,7 @@ function toSdkUpdate(u: AcpSessionUpdate): AgentSessionUpdate {
       ? parseToolCall(u)
       : undefined;
   const plan = kind === "plan" ? parsePlanEntries(u.entries) : undefined;
+  const usage = kind === "usage_update" ? parseUsage(u) : undefined;
   return {
     kind,
     text,
@@ -254,6 +256,7 @@ function toSdkUpdate(u: AcpSessionUpdate): AgentSessionUpdate {
       typeof u.messageId === "string" ? (u.messageId as string) : undefined,
     ...(toolCall ? { toolCall } : {}),
     ...(plan ? { plan } : {}),
+    ...(usage ? { usage } : {}),
     raw: u as Readonly<Record<string, unknown>>,
   };
 }

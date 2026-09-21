@@ -1,6 +1,6 @@
 # Interface: AgentSessionUpdate
 
-Defined in: [packages/sdk/src/agents-service.ts:771](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L771)
+Defined in: [packages/sdk/src/agents-service.ts:796](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L796)
 
 **`Beta`**
 
@@ -15,8 +15,9 @@ error.
 
 Everything a Chat UI must draw to render a transcript is a modelled field:
 [text](#text) / [content](#content) for the message kinds, [toolCall](#toolcall) for
-`tool_call` and `tool_call_update`, [plan](#plan) for `plan`. [raw](#raw) is
-for what is deliberately left out — see its own note.
+`tool_call` and `tool_call_update`, [plan](#plan) for `plan`, [usage](#usage)
+for `usage_update`. [raw](#raw) is for what is deliberately left out — see
+its own note.
 
 ## Properties
 
@@ -26,7 +27,7 @@ for what is deliberately left out — see its own note.
 readonly kind: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:777](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L777)
+Defined in: [packages/sdk/src/agents-service.ts:802](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L802)
 
 **`Beta`**
 
@@ -42,7 +43,7 @@ The Agent Client Protocol `sessionUpdate` discriminator, e.g.
 readonly optional text?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:784](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L784)
+Defined in: [packages/sdk/src/agents-service.ts:809](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L809)
 
 **`Beta`**
 
@@ -59,7 +60,7 @@ read [content](#content).
 readonly optional content?: AgentContentBlock;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:791](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L791)
+Defined in: [packages/sdk/src/agents-service.ts:816](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L816)
 
 **`Beta`**
 
@@ -76,7 +77,7 @@ it. `undefined` for every non-message kind.
 readonly optional messageId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:798](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L798)
+Defined in: [packages/sdk/src/agents-service.ts:823](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L823)
 
 **`Beta`**
 
@@ -93,7 +94,7 @@ group a streamed sentence into one bubble without minting ids itself.
 readonly optional toolCall?: AgentToolCall;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:804](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L804)
+Defined in: [packages/sdk/src/agents-service.ts:829](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L829)
 
 **`Beta`**
 
@@ -109,7 +110,7 @@ patch in place — an update carries only what changed.
 readonly optional plan?: readonly AgentPlanEntry[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:810](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L810)
+Defined in: [packages/sdk/src/agents-service.ts:835](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L835)
 
 **`Beta`**
 
@@ -119,13 +120,29 @@ showing rather than appending to it. May be empty.
 
 ***
 
+### usage?
+
+```ts
+readonly optional usage?: AgentSessionUsage;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:841](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L841)
+
+**`Beta`**
+
+Session context/cost state, for `kind` `"usage_update"`; `undefined`
+otherwise, and also whenever the connected agent doesn't send this
+notification at all — see [AgentSessionUsage](AgentSessionUsage.md).
+
+***
+
 ### raw
 
 ```ts
 readonly raw: Readonly<Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:831](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L831)
+Defined in: [packages/sdk/src/agents-service.ts:861](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L861)
 
 **`Beta`**
 
@@ -134,7 +151,6 @@ the kinds and fields this surface does not model.
 
 What is deliberately not modelled, and why: `available_commands_update`
 (an agent's slash commands — a menu, not a transcript row),
-`usage_update` (token counts, which no agent reports the same way),
 `current_mode_update` (already surfaced as
 [AgentSessionConfigOption.currentValue](AgentSessionConfigOption.md#currentvalue)), `session_info_update`
 (already surfaced as [AgentInfo.title](AgentInfo.md#title)), and vendor extensions such

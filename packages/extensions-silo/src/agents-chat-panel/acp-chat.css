@@ -723,6 +723,31 @@
   background: var(--silo-color-bg-active);
 }
 
+/* The Context option — a captioned, read-only value (see `.acp-chat__option`)
+   rather than a `MenuButton` pill, since there's nothing to pick. Fixed,
+   short text, same reasoning as `.acp-chat__auto-accept`: never shrinks or
+   wraps as the row narrows. */
+.acp-chat__usage {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Matches `.acp-chat__controls .silo-menu-button-sm`'s size/padding so the
+   value lines up with the config pills' baseline next to it. */
+.acp-chat__usage-value {
+  padding: 3px 6px 3px 10px;
+  color: var(--silo-color-text);
+  font-size: var(--silo-font-size-sm);
+}
+
+.acp-chat__usage-value--warn {
+  color: var(--silo-color-warn);
+}
+
+.acp-chat__usage-value--err {
+  color: var(--silo-color-err);
+}
+
 /* Pins Send/Stop (or the Continue/Reconnect text buttons) to the far right,
    regardless of how many pills come before it. */
 .acp-chat__send-slot {

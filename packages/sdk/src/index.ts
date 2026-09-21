@@ -127,6 +127,7 @@ export type {
   AgentPromptResult,
   AgentStopReason,
   AgentSessionUpdate,
+  AgentSessionUsage,
   AgentContentBlock,
   AgentToolCall,
   AgentToolCallContent,

@@ -109,6 +109,7 @@ the published reference is exactly this surface — no more, no less.
 - [AgentToolCallLocation](interfaces/AgentToolCallLocation.md)
 - [AgentToolCall](interfaces/AgentToolCall.md)
 - [AgentPlanEntry](interfaces/AgentPlanEntry.md)
+- [AgentSessionUsage](interfaces/AgentSessionUsage.md)
 - [AgentSessionUpdate](interfaces/AgentSessionUpdate.md)
 - [AgentPermissionOption](interfaces/AgentPermissionOption.md)
 - [AgentPermissionRequest](interfaces/AgentPermissionRequest.md)

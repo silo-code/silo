@@ -4,11 +4,11 @@
  *
  * This is where "the wire format is not the update stream" is actually
  * enforced: everything a Chat UI must draw — a tool call's id, title, kind,
- * status, content and locations, the agent's plan, and (RFC 0040) its
- * `available_commands_update` — is read **here**, once, defensively, so no
- * consumer has to reach into `AgentSessionUpdate.raw` for it. `raw` stays on
- * the update as the escape hatch for the kinds this file deliberately leaves
- * alone (`usage_update`, vendor `_meta`, …).
+ * status, content and locations, the agent's plan, session usage, and
+ * (RFC 0040) its `available_commands_update` — is read **here**, once,
+ * defensively, so no consumer has to reach into `AgentSessionUpdate.raw` for
+ * it. `raw` stays on the update as the escape hatch for the kinds this file
+ * deliberately leaves alone (vendor `_meta`, …).
  *
  * Every reader below tolerates a missing or wrongly-typed field, because the
  * wire genuinely varies: in the 2026-09-08 probe a `tool_call_update` was
@@ -21,6 +21,7 @@ import type {
   AgentCommand,
   AgentContentBlock,
   AgentPlanEntry,
+  AgentSessionUsage,
   AgentToolCall,
   AgentToolCallContent,
   AgentToolCallLocation,
@@ -193,4 +194,27 @@ export function parseCommands(v: unknown): readonly AgentCommand[] {
     });
   }
   return out;
+}
+
+function parseCost(v: unknown): AgentSessionUsage["cost"] {
+  if (!isRecord(v)) return undefined;
+  const amount = num(v.amount);
+  const currency = str(v.currency);
+  return amount !== undefined && currency !== undefined
+    ? { amount, currency }
+    : undefined;
+}
+
+/**
+ * A `usage_update` payload. **Sender-optional** — most agents never emit
+ * this at all, and returning `undefined` here (a missing or non-numeric
+ * `used`/`size`) is that same "not reported" case, not a parse error.
+ */
+export function parseUsage(v: unknown): AgentSessionUsage | undefined {
+  if (!isRecord(v)) return undefined;
+  const used = num(v.used);
+  const size = num(v.size);
+  if (used === undefined || size === undefined) return undefined;
+  const cost = parseCost(v.cost);
+  return { used, size, ...(cost ? { cost } : {}) };
 }

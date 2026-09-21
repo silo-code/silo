@@ -97,6 +97,7 @@ import type {
   AgentPromptBlock,
   AgentSessionConfigOption,
   AgentSessionHandle,
+  AgentSessionUsage,
   Disposable,
   DockPanelProps,
   ExtensionContext,
@@ -231,6 +232,7 @@ import {
   type RestartIntent,
 } from "./session-restore";
 import { LiveElapsed } from "./LiveElapsed";
+import { usagePercent, usageTone, usageValueText } from "./usage-model";
 import {
   HEAD_MEASURE_DEBOUNCE_MS,
   HEAD_REVEAL_SETTLE_MS,
@@ -835,6 +837,10 @@ export function AcpChatPanel({
 
   const [phase, setPhase] = useState<Phase>({ status: "connecting" });
   const [transcript, setTranscript] = useState<Transcript>(emptyTranscript);
+  // Latest `usage_update` reading, not folded into `transcript` — it isn't a
+  // transcript row, it's a live header stat. Sender-optional: stays
+  // `undefined` for the whole session on any agent that never sends one.
+  const [usage, setUsage] = useState<AgentSessionUsage | undefined>();
   // A local seq, not `toolCallId`: nothing stops an agent asking twice about
   // the same tool call, and two rows must never share a React key.
   const [permissions, setPermissions] = useState<PendingPermission[]>([]);
@@ -1008,6 +1014,7 @@ export function AcpChatPanel({
     restartIntentRef.current = null;
     setPhase({ status: "connecting" });
     setTranscript(emptyTranscript);
+    setUsage(undefined);
     setPermissions([]);
     setAgentName(undefined);
     setAgentId(undefined);
@@ -1077,9 +1084,12 @@ export function AcpChatPanel({
         // the only record) or a `"journal-only"` degraded session.
         setTranscript(seedFromJournal(handle.journal));
         subs.push(
-          handle.onUpdate((update) =>
-            setTranscript((t) => applyUpdate(t, update)),
-          ),
+          handle.onUpdate((update) => {
+            setTranscript((t) => applyUpdate(t, update));
+            if (update.kind === "usage_update" && update.usage) {
+              setUsage(update.usage);
+            }
+          }),
         );
         subs.push(
           handle.onPermission((request) => {
@@ -2639,6 +2649,23 @@ export function AcpChatPanel({
                   </Button>
                 </Tooltip>
               ) : null}
+              {/* `usage_update` is sender-optional — Claude, Codex, and
+                  Copilot send it; Cursor and Gemini don't (2026-09
+                  survey). Shown alongside the config pills either way, so
+                  "this agent doesn't report it" reads the same as any other
+                  unset value rather than the row disappearing. */}
+              <div className="acp-chat__option acp-chat__usage">
+                <span className="acp-chat__option-label">Context</span>
+                <span
+                  className={
+                    usage
+                      ? `acp-chat__usage-value acp-chat__usage-value--${usageTone(usagePercent(usage))}`
+                      : "acp-chat__usage-value"
+                  }
+                >
+                  {usage ? usageValueText(usage) : "—"}
+                </span>
+              </div>
             </>
           )}
           {/* Pinned to the far right regardless of how many config pills the
