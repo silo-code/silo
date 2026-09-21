@@ -357,6 +357,16 @@ export interface AgentProfileSummary {
    * be offered a profile that cannot work in the surface they are looking at.
    */
   readonly interface: AgentSessionKind;
+  /**
+   * The catalog agent this profile resolves to, if any — the same id
+   * {@link AgentsService.catalog} keys on, and the same resolution
+   * {@link AgentSessionHandle.agentId} reports once a Chat session is live
+   * (the profile's explicit assertion, or an auto-detect match from its
+   * command line). Look up {@link CatalogAgentSummary.icon} with it to show
+   * a profile's brand mark in a picker *before* connecting — `undefined`
+   * when the profile resolves to no known agent.
+   */
+  readonly agentId?: string;
 }
 
 /**

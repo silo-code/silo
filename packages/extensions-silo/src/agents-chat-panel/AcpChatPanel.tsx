@@ -102,6 +102,7 @@ import type {
   ExtensionContext,
 } from "@silo-code/sdk";
 import {
+  AgentIconGlyph,
   Badge,
   Button,
   DND_MIME,
@@ -113,6 +114,7 @@ import {
   Textarea,
   Tooltip,
   usePanelEntryFocus,
+  useServiceState,
 } from "@silo-code/sdk";
 import { chatProfiles, resolveChatProfile } from "./profile-selection";
 import {
@@ -847,9 +849,24 @@ export function AcpChatPanel({
   const autoAcceptRef = useRef(autoAccept);
   autoAcceptRef.current = autoAccept;
   const [agentName, setAgentName] = useState<string | undefined>();
+  // The connected session's catalog key (`AgentSessionHandle.agentId`) — a
+  // fallback for `profile.agentId` (same value) for the moments a session is
+  // live but `profile` isn't resolved, e.g. reconnecting on a since-edited
+  // profile id.
+  const [agentId, setAgentId] = useState<string | undefined>();
   // The connected session's `AgentInfo.id`. Held in state (not just the handle
   // ref) because it is what the tab-chrome and title effects key on.
   const [sessionId, setSessionId] = useState<string | undefined>();
+  const themeState = useServiceState(ctx.theme);
+  const colorScheme = ctx.theme.resolve(themeState.activeId).base;
+  const catalog = ctx.agents.catalog();
+  // The profile pill's leading brand mark — `profile.agentId` resolves
+  // before a session ever connects (RFC 0033's `resolveProfileAgentId`), so
+  // the icon shows immediately rather than popping in once `connect()`
+  // returns.
+  const profileIcon = catalog.find(
+    (a) => a.id === (profile?.agentId ?? agentId),
+  )?.icon;
   // How this connection came to be (RFC 0042) — `"journal-only"` is the one
   // value that changes what the composer offers. Snapshotted once per
   // connect(); the panel doesn't need to react to it changing afterward.
@@ -993,6 +1010,7 @@ export function AcpChatPanel({
     setTranscript(emptyTranscript);
     setPermissions([]);
     setAgentName(undefined);
+    setAgentId(undefined);
     setSessionId(undefined);
     setResumeOutcome("new");
     // A profile switch mid-turn abandons that turn's `prompt()` promise, whose
@@ -1081,6 +1099,7 @@ export function AcpChatPanel({
           }),
         );
         setAgentName(handle.agentName);
+        setAgentId(handle.agentId);
         setSessionId(handle.id);
         setResumeOutcome(handle.resumeOutcome);
         setConfigOptions(handle.configOptions);
@@ -2515,11 +2534,26 @@ export function AcpChatPanel({
                 items: available.map((p) => ({
                   label: p.label,
                   checked: p.id === profileId,
+                  icon: (
+                    <AgentIconGlyph
+                      icon={catalog.find((a) => a.id === p.agentId)?.icon}
+                      mode="color"
+                      colorScheme={colorScheme}
+                      className="acp-chat__profile-icon"
+                    />
+                  ),
                   run: () => void switchProfile(p.id),
                 })),
               })
             }
-          />
+          >
+            <AgentIconGlyph
+              icon={profileIcon}
+              mode="color"
+              colorScheme={colorScheme}
+              className="acp-chat__profile-icon"
+            />
+          </MenuButton>
           {connecting ? (
             <div className="acp-chat__connecting" aria-live="polite">
               <ArrowsClockwise
