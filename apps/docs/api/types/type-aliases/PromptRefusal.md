@@ -4,7 +4,7 @@
 type PromptRefusal = "no-agent" | "agent-takes-none" | "unsupported-shell" | "too-large";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:371](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L371)
+Defined in: [packages/sdk/src/agents-service.ts:381](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L381)
 
 **`Beta`**
 

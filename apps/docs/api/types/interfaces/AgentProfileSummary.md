@@ -98,3 +98,23 @@ The two are driven through different services, so a picker must filter on
 this rather than offer every profile to both: `launch()`ing a Chat profile
 and `connect()`ing a Terminal profile both fail, and the user should never
 be offered a profile that cannot work in the surface they are looking at.
+
+***
+
+### agentId?
+
+```ts
+readonly optional agentId?: string;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:369](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L369)
+
+**`Beta`**
+
+The catalog agent this profile resolves to, if any — the same id
+[AgentsService.catalog](AgentsService.md#catalog) keys on, and the same resolution
+[AgentSessionHandle.agentId](AgentSessionHandle.md#agentid) reports once a Chat session is live
+(the profile's explicit assertion, or an auto-detect match from its
+command line). Look up [CatalogAgentSummary.icon](CatalogAgentSummary.md#icon) with it to show
+a profile's brand mark in a picker *before* connecting — `undefined`
+when the profile resolves to no known agent.

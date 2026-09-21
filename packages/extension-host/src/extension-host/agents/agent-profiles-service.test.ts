@@ -98,6 +98,7 @@ describe("list()", () => {
       isDefault: false,
       acceptsPrompt: true,
       interface: "terminal",
+      agentId: "claude",
     });
     // Launch details stay host-owned — nothing leaks through the summary.
     expect(summary).not.toHaveProperty("command");
@@ -155,6 +156,37 @@ describe("list()", () => {
     });
     invalidateProfileSummaries();
     expect(service.list()[0].acceptsPrompt).toBe(false);
+  });
+
+  it("resolves agentId by auto-detect from the command when assumedAgentId is unset", () => {
+    addAgentProfile({
+      id: "term",
+      label: "Claude",
+      launch: { interface: "terminal", command: "claude" },
+    });
+    invalidateProfileSummaries();
+    expect(service.list()[0].agentId).toBe("claude");
+  });
+
+  it("falls through a stale assumedAgentId to the command auto-detect", () => {
+    addAgentProfile({
+      id: "stale",
+      label: "Stale",
+      launch: { interface: "terminal", command: "claude" },
+      assumedAgentId: "not-a-real-agent",
+    });
+    invalidateProfileSummaries();
+    expect(service.list()[0].agentId).toBe("claude");
+  });
+
+  it("leaves agentId undefined for a profile that matches no known agent", () => {
+    addAgentProfile({
+      id: "mine",
+      label: "Mine",
+      launch: { interface: "terminal", command: "my-own-script" },
+    });
+    invalidateProfileSummaries();
+    expect(service.list()[0].agentId).toBeUndefined();
   });
 });
 

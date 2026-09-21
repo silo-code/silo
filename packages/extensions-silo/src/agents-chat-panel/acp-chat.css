@@ -676,6 +676,16 @@
   margin-right: auto;
 }
 
+/* The profile pill's (and its dropdown rows') leading brand mark, sized to
+   match the trailing chevron (`.silo-menu-button-chevron` is 1em) so the icon
+   reads as part of the same control rather than a stray glyph. Absent for a
+   profile that resolves to no known catalog agent. */
+.acp-chat__profile-icon {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
 /* One per advertised session control (mode, model, …). Sits between the
    Attach icon and the Send slot. */
 .acp-chat__config {

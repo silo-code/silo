@@ -42,6 +42,8 @@ import type {
  * `acceptsPrompt` is derived from the catalog at build time rather than
  * persisted (R10) — it is a fact about the agent, not about the profile.
  * `interface` is read straight off the persisted `launch` union (RFC 0038).
+ * `agentId` goes through `resolveProfileAgentId`, the same resolution the
+ * launch path and the `+`-menu icon use, so it never disagrees with them.
  */
 let summaries: readonly AgentProfileSummary[] | null = null;
 
@@ -63,6 +65,10 @@ function buildSummaries(): readonly AgentProfileSummary[] {
         // picker filters on it so a Chat profile is never offered to
         // `launch()` (a PTY) nor a Terminal profile to `sessions.connect()`.
         interface: p.launch.interface,
+        // Same resolution the launch path and the `+`-menu icon use — an
+        // explicit `assumedAgentId`, else an auto-detect match from the
+        // command line.
+        agentId: resolveProfileAgentId(p),
       }),
     ),
   );

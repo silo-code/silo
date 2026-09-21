@@ -1,6 +1,6 @@
 # Interface: AgentPermissionRequest
 
-Defined in: [packages/sdk/src/agents-service.ts:859](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L859)
+Defined in: [packages/sdk/src/agents-service.ts:869](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L869)
 
 **`Beta`**
 
@@ -23,7 +23,7 @@ extension's behalf so the agent is never left hanging.
 readonly toolCallId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:862](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L862)
+Defined in: [packages/sdk/src/agents-service.ts:872](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L872)
 
 **`Beta`**
 
@@ -38,7 +38,7 @@ The tool call this permission is for — the same id as the matching
 readonly title: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:864](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L864)
+Defined in: [packages/sdk/src/agents-service.ts:874](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L874)
 
 **`Beta`**
 
@@ -52,7 +52,7 @@ A human-readable description of what the agent wants to do.
 readonly options: readonly AgentPermissionOption[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:866](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L866)
+Defined in: [packages/sdk/src/agents-service.ts:876](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L876)
 
 **`Beta`**
 
@@ -66,7 +66,7 @@ The choices to present. Always at least one; order is the agent's.
 readonly optional toolCall?: AgentToolCall;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:873](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L873)
+Defined in: [packages/sdk/src/agents-service.ts:883](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L883)
 
 **`Beta`**
 
@@ -83,7 +83,7 @@ title; `claude-agent-acp` 0.75.1 sends a full one including `content`.
 readonly raw: Readonly<Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:875](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L875)
+Defined in: [packages/sdk/src/agents-service.ts:885](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L885)
 
 **`Beta`**
 
@@ -97,7 +97,7 @@ The raw Agent Client Protocol `session/request_permission` params.
 respond(optionId): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:881](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L881)
+Defined in: [packages/sdk/src/agents-service.ts:891](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L891)
 
 **`Beta`**
 
