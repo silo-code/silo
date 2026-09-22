@@ -192,9 +192,6 @@ export interface AgentInfo {
    *   release — the user runs `resumeCommand` themselves; the flag is the
    *   forward-looking capability signal RFC 0038 replaces the shell-string
    *   `resumeCommand` contract with.
-   * - Chat session: `true` when the agent advertises `session/load`, so a
-   *   fresh process can reload the transcript after the old one died.
-   *
    * - Chat session: `true` when the agent advertises **either**
    *   `sessionCapabilities.resume` or `agentCapabilities.loadSession` (RFC
    *   0042) — the two are distinct capabilities (see {@link ChatResumeState})

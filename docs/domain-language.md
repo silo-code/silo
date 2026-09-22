@@ -532,12 +532,17 @@ the status row drifted); "tab title" (the tab is one renderer of it).
 
 **Witnessed** (RFC 0038 Session 3.2) — whether the user was looking at an
 Agent Session's **Agent Surface** at the instant a **Prompt Turn** finished.
-The one input to the one attention rule, `needsAttention = isAgent &&
-!witnessed`, which lives in exactly one place (`agent-turn-model.ts`) and is
-called by both kinds. Watching a finish live _is_ seeing it, so no
-acknowledgment is owed. Not the same as the session's _workspace_ being active
-— keying it there once left a Chat turn finishing in a background tab of the
-foreground workspace with no badge at all.
+The input to the ordinary attention rule, `needsAttention = isAgent &&
+!witnessed`, which lives in `agent-turn-model.ts` and is called by both
+kinds. Watching a finish live _is_ seeing it, so no acknowledgment is owed.
+Not the same as the session's _workspace_ being active — keying it there once
+left a Chat turn finishing in a background tab of the foreground workspace
+with no badge at all. A second, unconditional path also raises
+`needsAttention`: a Chat session blocked on `session/request_permission` sets
+it directly (`acp-sessions-service.ts`, alongside `activity: "blocked"`) —
+watching a permission block live does not clear it the way watching a turn
+finish does, so `witnessed` is not the only input to `needsAttention` overall,
+only to the finish-a-turn case.
 _Avoid_: "focused" (a surface can be visible without being active, and the
 rule is about the active one); re-deriving it in a consumer.
 
@@ -557,8 +562,9 @@ kind:
   Agent Client Protocol to it. Aliases do not resolve (no shell), which is why
   the shape is a path plus args. A second account rides `env` (keyed by the
   agent's `configDirEnvVar`) rather than `configDir`, since there is no shell
-  line to prefix. Driven through **Chat Session Connection** (below), gated on
-  the `chatAgents` setting.
+  line to prefix. Driven through **Chat Session Connection** (below) — gated
+  on the `"agents"` permission, not a setting; RFC 0039 retired the earlier
+  `chatAgents` flag.
 
 **Composed Launch** (RFC 0038 Session 3.6) — a Chat `launch` that **Silo wrote,
 not the user**: built from the catalog agent's `acpLaunch`, either the builtin's
@@ -578,9 +584,9 @@ _Avoid_: "suggested launch" / "prefill" (Session 3.4's superseded model, where
 the user typed the line and the catalog only offered a correction).
 
 **Profile Interface** is the user-facing name for which arm a profile uses —
-**Interface: Terminal or Chat** in the profile editor (shown only while the
-`chatAgents` gate is on), and `AgentProfileSummary.interface` on the public
-surface. It decides the _verb_: a Terminal profile is `launch()`ed,
+**Interface: Terminal or Chat** in the profile editor, and
+`AgentProfileSummary.interface` on the public surface. It decides the _verb_:
+a Terminal profile is `launch()`ed,
 a Chat profile is `connect()`ed, and offering one to the other's service fails.
 _Avoid_: "transport" or "protocol" (the user never meets ACP); "mode".
 
@@ -649,6 +655,16 @@ _Avoid_: "initial message" / "seed prompt" (use Opening Prompt); calling a
 refusal an error (it is a returned value, not a throw); "sending a prompt to an
 agent" for anything but the launch line.
 
+**Prompt Turn** — one full request/response exchange on a **Chat Session
+Connection**: `AgentSessionHandle.prompt(blocks)` sends it and resolves with
+an `AgentPromptResult` (a stop reason) once the agent finishes. Distinct from
+an **Opening Prompt**, which rides the launch line and has no reply to wait
+for — a Chat session can run many Prompt Turns, one at a time, over its life.
+**Witnessed** and `needsAttention` are keyed on when a Prompt Turn finishes.
+_Avoid_: "message" alone (ambiguous with a single `AgentSessionUpdate` chunk
+inside the turn's stream); "request" (an ACP `session/prompt` call is the
+wire mechanics; a Prompt Turn is the whole exchange it starts).
+
 **Chat Session Connection** (`ctx.agents.sessions`, `AgentSessionHandle`,
 RFC 0038 phase 2) — the live handle an extension holds on a **Chat session**.
 `connect(profileId)` spawns the agent for a user-authored `chat` **Agent
@@ -657,11 +673,12 @@ Protocol `initialize` + `session/new` handshake, and returns a handle to
 `prompt` / `cancel` / `dispose` and to watch via `onUpdate` / `onPermission`.
 Unlike an **Opening Prompt**, a **Prompt Turn** here is a full request/response
 exchange and there can be many in one session. The whole surface is gated on
-the `chatAgents` setting (off by default); every `connect()` rejects while it
-is off. The same session is registered into `ctx.agents` as an `AgentInfo`
+the `"agents"` permission (RFC 0039 retired the earlier `chatAgents` setting;
+a trusted built-in is exempt from declaring it); `connect()` rejects without
+it. The same session is registered into `ctx.agents` as an `AgentInfo`
 (`kind: "chat"`), its `activity` / `needsAttention` derived from the turn
-lifecycle — a `session/request_permission` maps to `working` + `needsAttention`
-(there is no `"blocked"` in `AgentActivity`).
+lifecycle — a `session/request_permission` sets `activity: "blocked"` and
+`needsAttention` directly, unconditionally (see **Witnessed** above).
 _Avoid_: "ACP client" / "ACP session" in user-facing text (Silo says _Chat_);
 calling `connect()` a "launch" (a launch is the Terminal-profile verb).
 
@@ -786,7 +803,8 @@ replays every prior turn as `session/update` notifications. Silo prefers
 **transcript journal** in that case. `loadSession` and `session/list` are
 universal across Silo's catalog, and `claude-agent-acp` 0.75.1 advertises
 `resume` too (probed directly 2026-09-10 — the earlier "not on claude" reading
-was Silo mis-parsing the capability, not the agent lacking it).
+was Silo mis-parsing the capability, not the agent lacking it). See **Session
+Discovery** below for what `session/list` itself is used for.
 **How a capability arrives is not fixed**: `true` and a details object
 (`resume: {}`) both mean supported, and the block may sit at the top level or
 nested under `agentCapabilities`. Read presence, never `=== true`.
@@ -884,11 +902,16 @@ _Avoid_: Pi-specific branches in shared host files; conflating runtime policy
 with resume or install metadata
 
 **Activity** (`AgentActivity`):
-What an agent is currently doing, classified from OSC/output signals: `"none"`
-(no agent activity observed) | `"working"` | `"idle"` (finished its last turn,
-waiting for input) | `"error"` | `"dead"` (backend confirmed gone after an
-unclean shutdown; nothing self-resolves this). Purely a fact about the agent —
-independent of whether anyone is looking.
+What an agent is currently doing, classified from OSC/output signals (Terminal)
+or the ACP turn lifecycle (Chat): `"none"` (no agent activity observed) |
+`"working"` | `"idle"` (finished its last turn, waiting for input) | `"error"`
+| `"blocked"` (Chat only — stalled on `session/request_permission`; unlike
+`"dead"` this is never ambiguous chrome, so it is never suppressed) | `"dead"`
+(backend confirmed gone after an unclean shutdown; nothing self-resolves
+this). Purely a fact about the agent — independent of whether anyone is
+looking. Distinct from `AgentInfo.stale`, a separate, soft, self-clearing
+signal that a normally-chatty agent has gone quiet for a while — `"dead"` is
+a hard, confirmed fact and does not self-clear.
 _Avoid_: Status (too vague), waiting/done (an earlier design conflated viewer
 state into this field itself; see Needs Attention)
 

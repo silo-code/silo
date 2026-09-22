@@ -59,9 +59,14 @@ which tab a session is showing on — a terminal tab, or a `DockPanelKind` panel
 that declared `api.setAgentSession(id)`.
 
 `provide` runs synchronously for every visible tab during render, so keep it a
-lookup:
+lookup. Use `activityFromAgent` to map `AgentInfo.activity`
+(`AgentActivity`) onto the UI `Activity` a tab badge takes — it already knows
+`"blocked"` (a Chat session stalled on a permission question) should paint,
+unconditionally, the same as `"working"`:
 
 ```ts
+import { activityFromAgent } from "@silo-code/sdk";
+
 const agents = new Map<string, AgentInfo>();
 ctx.subscriptions.push(
   ctx.agents.subscribe(
@@ -81,16 +86,44 @@ ctx.subscriptions.push(
     id: "my-ext.agent-badge",
     provide(agentSessionId) {
       const info = agents.get(agentSessionId);
-      if (info?.activity !== "working") return null;
-      return { activity: "working", tooltip: "Agent working" };
+      const activity = info && activityFromAgent(info.activity);
+      if (!activity) return null;
+      return { activity, tooltip: "Agent working" };
     },
   }),
 );
 ```
 
-Return `null` for "no adornment". With `bindIcon`, be careful that a component
-which renders nothing produces `null` rather than a truthy element descriptor,
-or the host reserves tab space for an icon that never appears.
+Return `null` for "no adornment" — `activityFromAgent` already does, for
+`"none"` and `"dead"`. With `bindIcon`, be careful that a component which
+renders nothing produces `null` rather than a truthy element descriptor, or
+the host reserves tab space for an icon that never appears.
+
+### Look up one session directly
+
+`getState()` returns every tracked session in the active workspace as a plain
+snapshot — reach for it outside a render loop, where `subscribe` would be
+overkill. `getByTerminalId` only ever resolves a `kind: "terminal"` session;
+for a Chat session, match `AgentInfo.id` from `getState()` instead:
+
+```ts
+const allAgents = ctx.agents.getState({ allWorkspaces: true });
+const forThisTerminal = ctx.agents.getByTerminalId(terminalId);
+```
+
+### Reveal or resume a session from elsewhere in your UI
+
+`reveal(id)` activates the session's workspace and brings its surface to the
+front — the terminal tab, or (via `api.setAgentSession`) the Chat panel
+showing it — without branching on `kind`. `resume(id)` is a no-op unless
+`AgentInfo.canResume` is `true`; for a Chat session it reconnects in place
+(`session/resume`/`session/load`), for a Terminal session it currently just
+flags the intent (`resumeCommand` is still what the user runs themselves):
+
+```ts
+ctx.agents.reveal(info.id);
+if (info.canResume) ctx.agents.resume(info.id);
+```
 
 ### Read the agent catalog (icons + display names)
 
@@ -131,18 +164,22 @@ recipes, which can also carry an opening prompt.
 
 ## What you get
 
-| Field                         | Meaning                                                                                                                                                                                                                                                                       |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `id`                          | Stable Agent Session id — the key `reveal` / `resume` / `acknowledge` / `close` take. Equals `terminalId` for a Terminal session.                                                                                                                                             |
-| `title`                       | The session's display label, host-computed for either kind: the agent's own words (an OSC title, or a Chat `session_info_update`) with status markers stripped, else the user's name, else a fallback. Render this rather than deriving your own.                             |
-| `kind`                        | `terminal` \| `chat` — see [`AgentSessionKind`](/api/types/type-aliases/AgentSessionKind). Same fields for both.                                                                                                                                                              |
-| `terminalId`                  | The backing terminal record id — present for a Terminal session, absent for a Chat session.                                                                                                                                                                                   |
-| `activity`                    | `none` \| `working` \| `idle` \| `error` \| `dead`                                                                                                                                                                                                                            |
-| `needsAttention`              | Sticky "finished while you weren't looking" — cleared only by `acknowledge`                                                                                                                                                                                                   |
-| `sessionId` / `resumeCommand` | Exact resume when a Settings → Agents hook (or native session file) resolved an id; otherwise an honest session-id-less note. Silo **never** infers an id from cwd/recency.                                                                                                   |
-| `canResume`                   | Whether `resume(id)` will do something. A Terminal session's is `true` only with an exact `sessionId`, and `resume()` is still a no-op for it — run `resumeCommand`. A Chat session's is `true` when the agent advertises `session/resume` or `session/load`.                 |
-| `chatResumeState`             | `kind: "chat"` only — where the session stands in [Chat session resurrection](/api/agents/sessions#resume-chat-session-resurrection): `live` \| `resuming` \| `resumed` \| `journal-only` \| `unavailable`. See [`ChatResumeState`](/api/types/type-aliases/ChatResumeState). |
-| `agentId` / `agentName`       | Catalog key + display name once a known agent leader is detected                                                                                                                                                                                                              |
+| Field                               | Meaning                                                                                                                                                                                                                                                                                      |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                | Stable Agent Session id — the key `reveal` / `resume` / `acknowledge` / `close` take. Equals `terminalId` for a Terminal session.                                                                                                                                                            |
+| `title`                             | The session's display label, host-computed for either kind: the agent's own words (an OSC title, or a Chat `session_info_update`) with status markers stripped, else the user's name, else a fallback. Render this rather than deriving your own.                                            |
+| `kind`                              | `terminal` \| `chat` — see [`AgentSessionKind`](/api/types/type-aliases/AgentSessionKind). Same fields for both.                                                                                                                                                                             |
+| `workspaceId`                       | The workspace this session belongs to.                                                                                                                                                                                                                                                       |
+| `terminalId`                        | The backing terminal record id — present for a Terminal session, absent for a Chat session.                                                                                                                                                                                                  |
+| `isAgent`                           | Whether this terminal currently hosts an agent at all (vs. a plain shell). Always `true` for a Chat session.                                                                                                                                                                                 |
+| `activity`                          | `none` \| `working` \| `blocked` \| `idle` \| `error` \| `dead`. `blocked` is Chat-only — stalled on a permission question — and paints unconditionally, unlike `needsAttention`. See [`AgentActivity`](/api/types/type-aliases/AgentActivity).                                              |
+| `needsAttention` / `attentionSince` | Sticky "finished while you weren't looking" — cleared only by `acknowledge`. `attentionSince` is the ISO timestamp it was set, undefined when nothing is pending.                                                                                                                            |
+| `workingSince`                      | ISO timestamp the current `working` phase started; undefined otherwise.                                                                                                                                                                                                                      |
+| `stale`                             | A soft, self-clearing "this restored duration might not be trusted" signal — distinct from `activity === "dead"`, which is a hard, confirmed, non-self-resolving fact.                                                                                                                       |
+| `sessionId` / `resumeCommand`       | Exact resume when a Settings → Agents hook (or native session file) resolved an id; otherwise an honest session-id-less note. Silo **never** infers an id from cwd/recency.                                                                                                                  |
+| `canResume`                         | Whether `resume(id)` will do something. A Terminal session's is `true` only with an exact `sessionId`, and `resume()` is still a no-op for it — run `resumeCommand`. A Chat session's is `true` when the agent advertises `session/resume` or `session/load`.                                |
+| `chatResumeState`                   | `kind: "chat"` only — where the session stands in [Chat session resurrection](/api/agents/sessions#resume-—-chat-session-resurrection): `dormant` \| `live` \| `resuming` \| `resumed` \| `journal-only` \| `unavailable`. See [`ChatResumeState`](/api/types/type-aliases/ChatResumeState). |
+| `agentId` / `agentName`             | Catalog key + display name once a known agent leader is detected                                                                                                                                                                                                                             |
 
 ## See also
 
