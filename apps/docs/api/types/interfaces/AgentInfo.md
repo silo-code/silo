@@ -260,7 +260,7 @@ both live and at `activity === "dead"`.
 readonly canResume: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:204](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L204)
+Defined in: [packages/sdk/src/agents-service.ts:201](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L201)
 
 **`Beta`**
 
@@ -274,9 +274,6 @@ Whether this session can be resumed **through Silo** — i.e. whether
   release — the user runs `resumeCommand` themselves; the flag is the
   forward-looking capability signal RFC 0038 replaces the shell-string
   `resumeCommand` contract with.
-- Chat session: `true` when the agent advertises `session/load`, so a
-  fresh process can reload the transcript after the old one died.
-
 - Chat session: `true` when the agent advertises **either**
   `sessionCapabilities.resume` or `agentCapabilities.loadSession` (RFC
   0042) — the two are distinct capabilities (see [ChatResumeState](../type-aliases/ChatResumeState.md))
@@ -291,7 +288,7 @@ Whether this session can be resumed **through Silo** — i.e. whether
 readonly optional agentName?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:213](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L213)
+Defined in: [packages/sdk/src/agents-service.ts:210](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L210)
 
 **`Beta`**
 
@@ -310,7 +307,7 @@ known agent leader is detected at all (same moment
 readonly optional agentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:221](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L221)
+Defined in: [packages/sdk/src/agents-service.ts:218](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L218)
 
 **`Beta`**
 
@@ -328,7 +325,7 @@ the same moment and lifecycle as `agentName`.
 readonly optional chatResumeState?: ChatResumeState;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:227](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L227)
+Defined in: [packages/sdk/src/agents-service.ts:224](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L224)
 
 **`Beta`**
 

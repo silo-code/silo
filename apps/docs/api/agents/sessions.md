@@ -26,6 +26,21 @@ The same session appears in [`ctx.agents`](/api/agents/) as an `AgentInfo` with
 badges, and status all work for it with no extra wiring, exactly as for a
 Terminal session.
 
+**`session.id` and `session.sessionId` are not the same thing, and they can
+diverge.** `id` is the `ctx.agents`-namespaced key — pass it to `reveal`,
+`resume`, `acknowledge`; it is stable across an in-place `ctx.agents.resume()`.
+`sessionId` is the agent's own protocol id — pass it back as
+`AgentSessionRestore.sessionId` on a future `connect()`; it can change out
+from under you (`session/load` may adopt a fresh one on `claude`). Read
+`session.sessionId` back after every `connect()` and persist _that_, never the
+id you passed in — see [Resume](#resume-—-chat-session-resurrection) below.
+
+`session.agentId` / `session.agentName` are the handle's own copies of the
+catalog key and display name — `agentId` is the profile's asserted or
+auto-detected catalog agent (same value as `AgentProfileSummary.agentId`),
+`agentName` is what the agent declared at `initialize`, falling back to the
+profile's label when it declared nothing.
+
 ## Example
 
 ### Drive one turn and render the stream
@@ -84,6 +99,29 @@ It is called after an `await`, possibly more than once, so read the handle you
 need through a ref rather than closing over one render's props. Omit it and
 `reveal(id)` still activates the workspace — which is all Silo can honestly do
 for a surface it does not own.
+
+## Workspace and cancellation options
+
+`workspaceId` files the session under a specific workspace (for
+`AgentInfo.workspaceId` and `reveal`) — it defaults to the active one, but a
+background workspace works too: the session spawns eagerly since no panel is
+there to trigger it. `signal` cancels the handshake itself
+(`initialize` → `session/new`/`session/resume`) — pass your React effect's
+`AbortController.signal` so a re-run or unmount before `connect()` resolves
+doesn't leak the spawned agent process:
+
+```ts
+const controller = new AbortController();
+const connecting = ctx.agents.sessions.connect(profileId, {
+  workspaceId: someWorkspaceId,
+  signal: controller.signal,
+});
+return () => controller.abort(); // effect cleanup
+```
+
+An aborted `connect()` rejects with a DOM `AbortError` and disposes whatever
+it had already spawned — see [Reasons `connect()` rejects](#reasons-connect-rejects)
+below.
 
 ## Being the place a Chat profile opens
 
@@ -396,6 +434,24 @@ whatever they last were. Nothing is asked of an extension to get this — it
 follows from persisting `sessionId` in your panel's state, exactly as the
 restore flow above already requires.
 
+### Painting a transcript before you decide to reconnect
+
+`readJournal(sessionId, options?)` reads a session's **transcript journal**
+straight off disk — no agent process, no `connect()` handshake, no
+`session/resume`/`session/load` round trip. Useful for a dormant entry: paint
+what the conversation last looked like the instant the user reveals it,
+before the reconnect that `connect({ resume })` still has to do resolves:
+
+```ts
+const journal = await ctx.agents.sessions.readJournal(dormantSessionId);
+let transcript = journal.reduce(applyUpdate, emptyTranscript); // same reducer as `session.journal`
+```
+
+Same `"agents"` permission as `connect()`. Never rejects on a missing
+journal — an id with nothing on disk yet resolves to an empty array, exactly
+like a brand-new session's `session.journal`. Pass `{ workspaceId }` if the
+session isn't in the active workspace.
+
 ### Continuing a `"journal-only"` session
 
 There is no live agent to prompt, but the conversation is not lost: reconnect
@@ -457,6 +513,8 @@ behavior.
 - no profile has that id;
 - the profile is a **Terminal** profile, not a Chat one;
 - there is no target workspace;
+- the caller's `signal` was aborted before the handshake finished (a `DOMException`
+  `"AbortError"` — see [Workspace and cancellation options](#workspace-and-cancellation-options));
 - the agent needs authentication — its `session/new` failed (a non-empty
   `authMethods` list does **not** by itself mean auth is required);
 - the agent reported a startup or business error — the rejection carries its

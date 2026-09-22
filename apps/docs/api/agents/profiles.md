@@ -17,6 +17,9 @@ out of scope.
 
 There is deliberately no `pick()` — build one from `list()` and
 [`ctx.ui.showMenu`](/api/ui/) — and no `get()`, which is `list().find()`.
+`list()`'s return is **read-only and deeply frozen**, recomputed only when
+the profile list actually changes — safe to call on every render, same
+contract as [`ctx.agents.catalog()`](/api/agents/).
 
 ## Example
 
@@ -91,15 +94,35 @@ const connectable = all.filter((p) => p.interface === "chat");
 
 It is the same list and the same ids — only the verb differs.
 
+### Show a profile's brand mark before connecting
+
+`AgentProfileSummary.agentId` is the catalog agent this profile resolves to,
+if any — the same id [`ctx.agents.catalog()`](/api/agents/) keys on, and the
+same resolution `AgentSessionHandle.agentId` reports once a Chat session is
+actually live. Look it up against the catalog to show a picker row's brand
+mark before you've connected anything:
+
+```ts
+const icon = profile.agentId
+  ? ctx.agents.catalog().find((a) => a.id === profile.agentId)?.icon
+  : undefined;
+```
+
+`undefined` when the profile resolves to no known agent — render the picker
+row without one rather than guessing.
+
 ### Start an agent without stealing the user's place
 
 `activate` defaults to `true` (activate the workspace, focus the new terminal).
 Pass `false` to launch quietly — including into a background workspace, which
-spawns its session eagerly since no panel will mount to do it:
+spawns its session eagerly since no panel will mount to do it. `cwd` defaults
+to the workspace folder; pass it to start somewhere else in a multi-root
+workspace:
 
 ```ts
 ctx.agents.profiles.launch({
   workspaceId: someOtherWorkspaceId,
+  cwd: `${workspaceFolder}/packages/api`,
   prompt: "Run the migration and report what changed",
   activate: false,
 });

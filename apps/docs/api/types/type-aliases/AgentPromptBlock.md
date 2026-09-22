@@ -19,7 +19,7 @@ type AgentPromptBlock =
 };
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:547](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L547)
+Defined in: [packages/sdk/src/agents-service.ts:544](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L544)
 
 **`Beta`**
 
