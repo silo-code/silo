@@ -32,15 +32,21 @@ describe("composerInputEnabled", () => {
 describe("composerSubmitAction", () => {
   const live = {
     draft: "hello",
-    reserved: false,
+    reservedKind: undefined,
     canReset: true,
+    canList: true,
     hasHandle: true,
     busy: false,
     ready: true,
     lost: false,
     attachmentCount: 0,
-  };
-  const clear = { ...live, draft: "/clear", reserved: true };
+  } as const;
+  const clear = { ...live, draft: "/clear", reservedKind: "clear" } as const;
+  const resume = {
+    ...live,
+    draft: "/resume",
+    reservedKind: "resume",
+  } as const;
 
   it("sends an ordinary draft to a live, idle agent", () => {
     expect(composerSubmitAction(live)).toBe("send");
@@ -66,12 +72,13 @@ describe("composerSubmitAction", () => {
   });
 
   it("still sends `/clear` with an argument — it is not reserved", () => {
-    // `reserved` is `isReservedDraft`'s answer, and it says no here.
+    // `reservedKind` is `reservedCommandForDraft`'s answer, and it says
+    // `undefined` here.
     expect(
       composerSubmitAction({
         ...live,
         draft: "/clear the decks",
-        reserved: false,
+        reservedKind: undefined,
       }),
     ).toBe("send");
   });
@@ -88,6 +95,25 @@ describe("composerSubmitAction", () => {
     expect(
       composerSubmitAction({ ...live, draft: "", attachmentCount: 1 }),
     ).toBe("send");
+  });
+
+  // Session Discovery (RFC 0051) — `/resume` follows the same "reserved
+  // outranks the send guard" precedence `/clear` already established.
+  it("opens the resume picker on the reserved /resume draft, outranking busy/ready/lost", () => {
+    expect(composerSubmitAction(resume)).toBe("resume-picker");
+    expect(composerSubmitAction({ ...resume, busy: true })).toBe(
+      "resume-picker",
+    );
+    expect(composerSubmitAction({ ...resume, ready: false })).toBe(
+      "resume-picker",
+    );
+    expect(composerSubmitAction({ ...resume, lost: true })).toBe(
+      "resume-picker",
+    );
+  });
+
+  it("does nothing on `/resume` when the agent doesn't support session/list", () => {
+    expect(composerSubmitAction({ ...resume, canList: false })).toBe("none");
   });
 });
 

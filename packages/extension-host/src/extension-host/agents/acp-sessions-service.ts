@@ -32,6 +32,7 @@ import type {
   AgentSessionConfigOption,
   AgentSessionConnectOptions,
   AgentSessionHandle,
+  AgentSessionSummary,
   AgentSessionUpdate,
   AgentSessionsService,
   ChatResumeState,
@@ -798,6 +799,7 @@ export function createAgentSessionsService(
       );
       const canResumeCap = capabilityEnabled(init.sessionCapabilities?.resume);
       const canCloseCap = capabilityEnabled(init.sessionCapabilities?.close);
+      const canListCap = capabilityEnabled(init.sessionCapabilities?.list);
       const resumeCaps = { resume: canResumeCap, load: canLoadSession };
       // Read once, fixed for the session's life (RFC 0040) — unlike
       // `configOptions` / `commands`, nothing renegotiates this mid-session.
@@ -1141,6 +1143,7 @@ export function createAgentSessionsService(
         agentId: assumedAgentId,
         agentName,
         canResume,
+        canList: canListCap,
         resumeOutcome,
         journal,
 
@@ -1191,6 +1194,29 @@ export function createAgentSessionsService(
         cancel(): void {
           if (!liveConnection) return;
           client.cancel(acpSessionId);
+        },
+
+        async listSessions(): Promise<readonly AgentSessionSummary[]> {
+          if (!canListCap) {
+            throw new Error(`${label} does not support session/list.`);
+          }
+          if (!liveConnection) {
+            throw new Error(
+              `${label} is journal-only — there is no live connection to ask.`,
+            );
+          }
+          try {
+            const { sessions } = await client.listSessions();
+            return sessions.map((s) => ({
+              sessionId: s.sessionId,
+              ...(s.cwd !== undefined ? { cwd: s.cwd } : {}),
+              ...(s.title !== undefined ? { title: s.title } : {}),
+              ...(s.updatedAt !== undefined ? { updatedAt: s.updatedAt } : {}),
+              raw: s,
+            }));
+          } catch (err) {
+            throw asError(err, `${label} could not list its sessions`);
+          }
         },
 
         get configOptions(): readonly AgentSessionConfigOption[] {

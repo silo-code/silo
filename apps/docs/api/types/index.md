@@ -118,6 +118,7 @@ the published reference is exactly this surface — no more, no less.
 - [AgentCommand](interfaces/AgentCommand.md)
 - [AgentPromptCapabilities](interfaces/AgentPromptCapabilities.md)
 - [AgentSessionHandle](interfaces/AgentSessionHandle.md)
+- [AgentSessionSummary](interfaces/AgentSessionSummary.md)
 - [AgentSessionConnectOptions](interfaces/AgentSessionConnectOptions.md)
 - [AgentSessionRestore](interfaces/AgentSessionRestore.md)
 - [AgentSessionsService](interfaces/AgentSessionsService.md)

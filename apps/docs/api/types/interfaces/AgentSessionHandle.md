@@ -99,13 +99,27 @@ after the process dies. Mirrors [AgentInfo.canResume](AgentInfo.md#canresume).
 
 ***
 
+### canList
+
+```ts
+readonly canList: boolean;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1099](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1099)
+
+**`Beta`**
+
+Whether the agent advertises `session/list` — whether [listSessions](#listsessions) can be called at all (Session Discovery, RFC 0051).
+
+***
+
 ### resumeOutcome
 
 ```ts
 readonly resumeOutcome: "resumed" | "journal-only" | "new";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1109](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1109)
+Defined in: [packages/sdk/src/agents-service.ts:1114](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1114)
 
 **`Beta`**
 
@@ -129,7 +143,7 @@ How this handle came to be connected (RFC 0042) — see
 readonly journal: readonly AgentSessionUpdate[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1119](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1119)
+Defined in: [packages/sdk/src/agents-service.ts:1124](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1124)
 
 **`Beta`**
 
@@ -149,7 +163,7 @@ it, e.g. `journal.reduce(applyUpdate, emptyTranscript)`.
 readonly configOptions: readonly AgentSessionConfigOption[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1159](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1159)
+Defined in: [packages/sdk/src/agents-service.ts:1164](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1164)
 
 **`Beta`**
 
@@ -169,7 +183,7 @@ changes itself both update it in place. Subscribe with
 readonly commands: readonly AgentCommand[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1200](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1200)
+Defined in: [packages/sdk/src/agents-service.ts:1205](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1205)
 
 **`Beta`**
 
@@ -191,7 +205,7 @@ else: `prompt([{ type: "text", text: "/" + command.name }])`.
 readonly promptCapabilities: AgentPromptCapabilities;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1209](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1209)
+Defined in: [packages/sdk/src/agents-service.ts:1214](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1214)
 
 **`Beta`**
 
@@ -207,7 +221,7 @@ changes, so there is no change event for it.
 prompt(blocks): Promise<AgentPromptResult>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1127](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1127)
+Defined in: [packages/sdk/src/agents-service.ts:1132](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1132)
 
 **`Beta`**
 
@@ -235,7 +249,7 @@ readonly [`AgentPromptBlock`](../type-aliases/AgentPromptBlock.md)[]
 cancel(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1133](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1133)
+Defined in: [packages/sdk/src/agents-service.ts:1138](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1138)
 
 **`Beta`**
 
@@ -255,7 +269,7 @@ Ask the agent to stop the current turn (Agent Client Protocol
 onUpdate(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1143](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1143)
+Defined in: [packages/sdk/src/agents-service.ts:1148](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1148)
 
 **`Beta`**
 
@@ -285,7 +299,7 @@ arrive yet. Returns a [Disposable](Disposable.md).
 onPermission(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1149](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1149)
+Defined in: [packages/sdk/src/agents-service.ts:1154](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1154)
 
 **`Beta`**
 
@@ -311,7 +325,7 @@ with none, Silo answers `cancelled`.
 setConfigOption(id, value): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1181](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1181)
+Defined in: [packages/sdk/src/agents-service.ts:1186](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1186)
 
 **`Beta`**
 
@@ -357,7 +371,7 @@ resolves.
 onConfigOptionsChanged(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1188](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1188)
+Defined in: [packages/sdk/src/agents-service.ts:1193](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1193)
 
 **`Beta`**
 
@@ -384,7 +398,7 @@ Returns a [Disposable](Disposable.md).
 onCommandsChanged(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1203](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1203)
+Defined in: [packages/sdk/src/agents-service.ts:1208](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1208)
 
 **`Beta`**
 
@@ -403,13 +417,40 @@ Fires whenever [commands](#commands) is replaced. Returns a
 
 ***
 
+### listSessions()
+
+```ts
+listSessions(): Promise<readonly AgentSessionSummary[]>;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1228](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1228)
+
+**`Beta`**
+
+Ask the agent what other sessions it knows about (ACP `session/list`, v1
+stable) — **Session Discovery** (RFC 0051). Metadata only, not a live
+handle: pass a picked [AgentSessionSummary.sessionId](AgentSessionSummary.md#sessionid) back as
+[AgentSessionRestore.sessionId](AgentSessionRestore.md#sessionid) on a fresh [AgentSessionsService.connect](AgentSessionsService.md#connect) to open it — the same restore flow as any
+other resume.
+
+Rejects when [canList](#canlist) is `false` — check it before calling, the
+same way a caller checks [canResume](#canresume) before offering resume. Also
+rejects when [resumeOutcome](#resumeoutcome) is `"journal-only"` — there is no live
+connection to ask.
+
+#### Returns
+
+`Promise`\<readonly [`AgentSessionSummary`](AgentSessionSummary.md)[]\>
+
+***
+
 ### dispose()
 
 ```ts
 dispose(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1216](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1216)
+Defined in: [packages/sdk/src/agents-service.ts:1235](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1235)
 
 **`Beta`**
 

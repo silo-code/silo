@@ -812,6 +812,22 @@ _Avoid_: "reload the session" for `resume` (it explicitly does not); treating
 `canResume` on `AgentInfo` as either specific method — it means "one of them
 works"; concluding an agent lacks a capability from one build's wire shape.
 
+**Session Discovery** (RFC 0051) — asking a connected agent what other
+sessions it knows about, via ACP's `session/list` (v1 stable, gated on
+`sessionCapabilities.list`, exposed as `AgentSessionHandle.canList` /
+`listSessions()`). Metadata only — `AgentSessionSummary`, `{ sessionId, cwd?,
+title?, updatedAt? }` — never a live handle; picking one runs the ordinary
+**Chat session resurrection** restore flow against its `sessionId`, exactly
+as if the user had typed that id in themselves. The Chat panel's `/resume`
+reserved command surfaces it, scoped to sessions matching the panel's own
+`cwd`. Distinct from a **Dormant Chat session** (a session _Silo_ already has
+a **Dock Panel Record** for) and from **Chat session resurrection** itself
+(bringing back a session id Silo already knew) — Session Discovery is how a
+session id Silo has never seen enters that vocabulary.
+_Avoid_: "session history" (this is a live catalog query, not the
+**transcript journal**); "reconnect" for the picker action itself (the picker
+only _chooses_ an id — **resume** is what happens next).
+
 **Reattach** (extended by RFC 0042) — re-establishing a client's connection to
 a still-running session it lost hold of. Already the **Terminal session** word
 for reconnecting to a daemon-held PTY after a restart; RFC 0042 Phase 2 gives a

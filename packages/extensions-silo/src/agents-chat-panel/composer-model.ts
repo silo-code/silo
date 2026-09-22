@@ -6,6 +6,8 @@
  * independent of the `Textarea`.
  */
 
+import type { ReservedCommandKind } from "./command-palette";
+
 /** The user can type unless the session is gone or journal-only. Connecting
  *  does not lock the field — they can draft while the agent starts. */
 export function composerInputEnabled(
@@ -31,30 +33,37 @@ export function composerCanSend(opts: {
 
 /**
  * What pressing Send (or ⏎) does with the current composer state — the one
- * place the precedence between a **session reset** and an ordinary prompt is
- * decided (RFC 0048 R1: no second implementation of clear anywhere in the
- * panel).
+ * place the precedence between a **session reset**, Session Discovery's
+ * resume picker, and an ordinary prompt is decided (RFC 0048 R1: no second
+ * implementation of clear anywhere in the panel; RFC 0051 extends the same
+ * precedence to `/resume`).
  *
- * The reset wins over the send guard, it is not subject to it. `/clear` never
- * reaches the agent — it tears the connection down and reconnects fresh — so
- * none of what gates a prompt applies: not `busy` (R6 commits to a mid-turn
- * reset ending the in-flight turn, the way a profile switch already does),
- * not `ready`, not `lost`, not a live handle. The only thing a reset needs is
- * a session to reset, which is `canReset`. Checking the guard first is what
- * made a typed `/clear` inert mid-turn while ⌘⇧K and the tab menu — gated on
- * `canReset` alone — reset just fine.
+ * A reserved command wins over the send guard, it is not subject to it.
+ * Neither `/clear` nor `/resume` ever reaches the agent as a prompt — one
+ * tears the connection down and reconnects fresh, the other opens a picker —
+ * so none of what gates a prompt applies: not `busy` (R6 commits to a
+ * mid-turn reset ending the in-flight turn, the way a profile switch already
+ * does), not `ready`, not `lost`, not a live handle. The only thing a reset
+ * needs is a session to reset (`canReset`); the only thing the picker needs
+ * is the agent supporting `session/list` (`canList`). Checking the guard
+ * first is what made a typed `/clear` inert mid-turn while ⌘⇧K and the tab
+ * menu — gated on `canReset` alone — reset just fine.
  */
 export function composerSubmitAction(opts: {
   readonly draft: string;
-  readonly reserved: boolean;
+  readonly reservedKind: ReservedCommandKind | undefined;
   readonly canReset: boolean;
+  readonly canList: boolean;
   readonly hasHandle: boolean;
   readonly busy: boolean;
   readonly ready: boolean;
   readonly lost: boolean;
   readonly attachmentCount: number;
-}): "reset" | "send" | "none" {
-  if (opts.reserved) return opts.canReset ? "reset" : "none";
+}): "reset" | "resume-picker" | "send" | "none" {
+  if (opts.reservedKind === "clear") return opts.canReset ? "reset" : "none";
+  if (opts.reservedKind === "resume") {
+    return opts.canList ? "resume-picker" : "none";
+  }
   if (!opts.hasHandle || opts.busy) return "none";
   return composerCanSend(opts) ? "send" : "none";
 }

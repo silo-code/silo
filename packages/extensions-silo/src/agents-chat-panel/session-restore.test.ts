@@ -102,4 +102,13 @@ describe("restoreOptionFor", () => {
     expect(restoreOptionFor(undefined, "reset")).toBeUndefined();
     expect(restoreOptionFor(null, null)).toBeUndefined();
   });
+
+  // Session Discovery (RFC 0051): picking a different, already-existing
+  // session from the agent's own `session/list` is a plain resume, not a
+  // fresh start — no `startFresh`, no `transcript`.
+  it("resumes a picked session plainly, same as no intent", () => {
+    expect(restoreOptionFor("other-id", "resume-other")).toEqual({
+      sessionId: "other-id",
+    });
+  });
 });

@@ -4,6 +4,7 @@ import {
   capabilityEnabled,
   createAcpClient,
   parseConfigOptions,
+  parseSessionInfos,
   AcpRpcError,
   type AcpClientCallbacks,
 } from "./acp-jsonrpc";
@@ -364,6 +365,41 @@ describe("createAcpClient", () => {
     await expect(p).resolves.toBeUndefined();
   });
 
+  it("listSessions sends session/list and parses the agent's sessions array", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.listSessions();
+    await flush();
+    const req = t.sent.find((m) => m.method === "session/list");
+    expect(req).toMatchObject({ params: {} });
+    t.emit({
+      jsonrpc: "2.0",
+      id: req!.id as number,
+      result: {
+        sessions: [
+          { sessionId: "s1", cwd: "/ws", title: "Fix the bug" },
+          { sessionId: "s2" },
+        ],
+      },
+    });
+    expect(await p).toEqual({
+      sessions: [
+        { sessionId: "s1", cwd: "/ws", title: "Fix the bug" },
+        { sessionId: "s2" },
+      ],
+    });
+  });
+
+  it("listSessions resolves an empty list when the agent sends nothing", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(t.transport, noopCallbacks());
+    const p = client.listSessions();
+    await flush();
+    const req = t.sent.find((m) => m.method === "session/list");
+    t.emit({ jsonrpc: "2.0", id: req!.id as number, result: {} });
+    expect(await p).toEqual({ sessions: [] });
+  });
+
   // The parameter is `configId`, not `optionId` — an earlier probe passed the
   // wrong name, read the resulting -32602 as "the method is broken", and sent
   // the design down the typed-write path. Pinned so it cannot drift back.
@@ -489,6 +525,33 @@ describe("parseConfigOptions", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("parseSessionInfos", () => {
+  it("returns [] for a missing or non-array value", () => {
+    expect(parseSessionInfos(undefined)).toEqual([]);
+    expect(parseSessionInfos({})).toEqual([]);
+  });
+
+  it("drops an entry with no sessionId and keeps one with only sessionId", () => {
+    const parsed = parseSessionInfos([
+      { cwd: "/ws", title: "no id" },
+      { sessionId: "s1" },
+    ]);
+    expect(parsed).toEqual([{ sessionId: "s1" }]);
+  });
+
+  it("coerces non-string optional fields to absent rather than throwing", () => {
+    const parsed = parseSessionInfos([
+      { sessionId: "s1", cwd: 42, title: null, updatedAt: {} },
+    ]);
+    expect(parsed).toEqual([{ sessionId: "s1" }]);
+  });
+
+  it("preserves unknown vendor fields via the index signature", () => {
+    const parsed = parseSessionInfos([{ sessionId: "s1", vendorFlag: true }]);
+    expect(parsed).toEqual([{ sessionId: "s1", vendorFlag: true }]);
   });
 });
 

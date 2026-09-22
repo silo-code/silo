@@ -40,33 +40,76 @@ export const RESERVED_CLEAR: AgentCommand = {
 };
 
 /**
- * The agent's commands with this panel's `clear` in place of the agent's — and
- * appended when the agent advertises none, since a typed `/clear` works
- * regardless and a palette that omitted it would hide a command the composer
- * honors. Every other command keeps its place in the agent's own order.
+ * Session Discovery (RFC 0051) — the reserved `/resume` command that opens a
+ * picker of other sessions the connected agent reports via `session/list`.
+ * Unlike {@link RESERVED_CLEAR}, this one is conditional: it only shadows an
+ * agent's own `resume` (or gets appended) when the connected session actually
+ * advertises `session/list` (`AgentSessionHandle.canList`) — there is nothing
+ * useful to show otherwise, and a command that always errors is worse than no
+ * command at all.
+ */
+export const RESERVED_RESUME: AgentCommand = {
+  name: "resume",
+  description: "Resume a previous session with this agent",
+};
+
+/**
+ * The agent's commands with this panel's reserved ones in place of the
+ * agent's own — and appended when the agent advertises none, since a typed
+ * `/clear` (or `/resume`, when {@link opts.canList}) works regardless and a
+ * palette that omitted it would hide a command the composer honors. Every
+ * other command keeps its place in the agent's own order.
+ *
+ * `/clear` (RFC 0048, ADR 0054) is unconditional; `/resume` (RFC 0051) only
+ * appears when `canList` is true — the connected agent supports
+ * `session/list`, so there is something for it to show.
  */
 export function withReservedCommands(
   commands: readonly AgentCommand[],
+  opts: { readonly canList: boolean },
 ): readonly AgentCommand[] {
-  let substituted = false;
+  let sawClear = false;
+  let sawResume = false;
   const out = commands.map((c) => {
-    if (c.name.toLowerCase() !== RESERVED_CLEAR.name) return c;
-    substituted = true;
-    return RESERVED_CLEAR;
+    const name = c.name.toLowerCase();
+    if (name === RESERVED_CLEAR.name) {
+      sawClear = true;
+      return RESERVED_CLEAR;
+    }
+    if (opts.canList && name === RESERVED_RESUME.name) {
+      sawResume = true;
+      return RESERVED_RESUME;
+    }
+    return c;
   });
-  return substituted ? out : [...out, RESERVED_CLEAR];
+  const withClear = sawClear ? out : [...out, RESERVED_CLEAR];
+  if (!opts.canList) return withClear;
+  return sawResume ? withClear : [...withClear, RESERVED_RESUME];
 }
 
+/** Which reserved command a composer draft is, if any — see
+ *  {@link RESERVED_CLEAR} / {@link RESERVED_RESUME}. */
+export type ReservedCommandKind = "clear" | "resume";
+
 /**
- * Whether a composer draft is the reserved `/clear` — exactly that, with
- * surrounding whitespace ignored.
+ * Which reserved command a composer draft is, exactly, with surrounding
+ * whitespace ignored — `undefined` for anything else.
  *
- * An argument (`/clear the decks`) is deliberately **not** reserved: Silo's
- * reset takes none, and swallowing the rest of the line would discard text
- * the user typed. That goes to the agent as it always did.
+ * An argument (`/clear the decks`, `/resume foo`) is deliberately **not**
+ * reserved: neither Silo action takes one, and swallowing the rest of the
+ * line would discard text the user typed. That goes to the agent as it
+ * always did. `/resume` only reserves when `canList` is true, matching
+ * {@link withReservedCommands}'s palette gating — a typed `/resume` an agent
+ * doesn't support falls through to the agent like any other command.
  */
-export function isReservedDraft(draft: string): boolean {
-  return draft.trim() === `/${RESERVED_CLEAR.name}`;
+export function reservedCommandForDraft(
+  draft: string,
+  opts: { readonly canList: boolean },
+): ReservedCommandKind | undefined {
+  const trimmed = draft.trim();
+  if (trimmed === `/${RESERVED_CLEAR.name}`) return "clear";
+  if (opts.canList && trimmed === `/${RESERVED_RESUME.name}`) return "resume";
+  return undefined;
 }
 
 /**

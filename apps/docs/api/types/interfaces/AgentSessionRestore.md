@@ -1,6 +1,6 @@
 # Interface: AgentSessionRestore
 
-Defined in: [packages/sdk/src/agents-service.ts:1306](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1306)
+Defined in: [packages/sdk/src/agents-service.ts:1349](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1349)
 
 **`Beta`**
 
@@ -15,7 +15,7 @@ session resurrection (RFC 0042).
 sessionId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1311](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1311)
+Defined in: [packages/sdk/src/agents-service.ts:1354](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1354)
 
 **`Beta`**
 
@@ -29,7 +29,7 @@ The session id to reconnect — an earlier connection's [AgentSessionHandle.sess
 optional startFresh?: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1325](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1325)
+Defined in: [packages/sdk/src/agents-service.ts:1368](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1368)
 
 **`Beta`**
 
@@ -53,7 +53,7 @@ new conversation itself works fine turn after turn (found live,
 optional transcript?: "carry" | "discard";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1342](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1342)
+Defined in: [packages/sdk/src/agents-service.ts:1385](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1385)
 
 **`Beta`**
 
