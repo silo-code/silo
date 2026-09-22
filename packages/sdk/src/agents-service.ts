@@ -1093,6 +1093,11 @@ export interface AgentSessionHandle {
    */
   readonly canResume: boolean;
   /**
+   * Whether the agent advertises `session/list` — whether {@link
+   * listSessions} can be called at all (Session Discovery, RFC 0051).
+   */
+  readonly canList: boolean;
+  /**
    * How this handle came to be connected (RFC 0042) — see
    * {@link AgentSessionRestore}:
    *
@@ -1208,12 +1213,50 @@ export interface AgentSessionHandle {
    */
   readonly promptCapabilities: AgentPromptCapabilities;
   /**
+   * Ask the agent what other sessions it knows about (ACP `session/list`, v1
+   * stable) — **Session Discovery** (RFC 0051). Metadata only, not a live
+   * handle: pass a picked {@link AgentSessionSummary.sessionId} back as
+   * {@link AgentSessionRestore.sessionId} on a fresh {@link
+   * AgentSessionsService.connect} to open it — the same restore flow as any
+   * other resume.
+   *
+   * Rejects when {@link canList} is `false` — check it before calling, the
+   * same way a caller checks {@link canResume} before offering resume. Also
+   * rejects when {@link resumeOutcome} is `"journal-only"` — there is no live
+   * connection to ask.
+   */
+  listSessions(): Promise<readonly AgentSessionSummary[]>;
+  /**
    * Tear the session down: kill the agent process and drop it from
    * {@link AgentsService.getState}. Idempotent. The process is a piped child of
    * Silo — it does **not** survive this, and closing the workspace or quitting
    * the app reaps it the same way.
    */
   dispose(): void;
+}
+
+/**
+ * One session an agent reports via `session/list` (ACP v1 stable) —
+ * **Session Discovery** (RFC 0051). Metadata only, not a live handle.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentSessionSummary {
+  /** What to pass as {@link AgentSessionRestore.sessionId} to resume this
+   *  one. */
+  readonly sessionId: string;
+  /** The working directory this session ran in, when the agent reports one —
+   *  may differ from the current session's own cwd. */
+  readonly cwd?: string;
+  /** A display title, when the agent reports one. */
+  readonly title?: string;
+  /** Last-activity timestamp (ISO 8601), when the agent reports one. */
+  readonly updatedAt?: string;
+  /** The agent's own `SessionInfo` object, untouched — the escape hatch for
+   *  a vendor field this type does not model. */
+  readonly raw: Record<string, unknown>;
 }
 
 /**

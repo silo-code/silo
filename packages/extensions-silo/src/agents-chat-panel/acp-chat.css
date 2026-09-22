@@ -989,3 +989,21 @@
   margin: 0 0 12px;
   line-height: 1.5;
 }
+
+/* Session Discovery's /resume picker (RFC 0051) — content of the host modal.
+ * List, search, and empty/loading states come from the SDK kit — only the
+ * column shell and fixed-height scroll region stay here (same convention as
+ * git-explorer's `.git-branch-modal` / `.git-branch-list-scroll`). */
+.acp-chat-resume-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-family: var(--silo-font-ui);
+}
+
+.acp-chat-resume-picker-list {
+  height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--silo-color-border);
+  border-radius: var(--silo-radius-sm);
+}

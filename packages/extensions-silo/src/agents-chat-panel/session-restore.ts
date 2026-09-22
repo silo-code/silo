@@ -48,7 +48,7 @@ export function sessionResetOption(sessionId: string): AgentSessionRestore {
  * `nonce` — `null` for an ordinary connect, remount, or "Reconnect", which
  * take the normal resume → load → journal path.
  */
-export type RestartIntent = "continue-fresh" | "reset";
+export type RestartIntent = "continue-fresh" | "reset" | "resume-other";
 
 /**
  * The restore option for one reconnect: the panel's persisted session id read
@@ -62,6 +62,13 @@ export function restoreOptionFor(
   if (!sessionId) return undefined;
   if (intent === "reset") return sessionResetOption(sessionId);
   if (intent === "continue-fresh") return continueInNewSessionOption(sessionId);
+  // Session Discovery (RFC 0051): resuming a different, already-existing
+  // session picked from the agent's own `session/list` is a plain resume —
+  // `{ sessionId }`, same as `intent === null` — not a fresh start. Spelled
+  // out explicitly rather than left to the fallback below, so a future
+  // divergence (e.g. a different transcript strategy for a foreign session)
+  // has an obvious seam.
+  if (intent === "resume-other") return resumeOptionFor(sessionId);
   return resumeOptionFor(sessionId);
 }
 

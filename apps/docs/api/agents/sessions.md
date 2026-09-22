@@ -396,6 +396,53 @@ fresh `session/new`. Check `session.resumeOutcome`:
 read `session.sessionId` back after `connect()` resolves and persist _that_,
 not the id you passed in.
 
+### Session Discovery — finding a session to resume you didn't start
+
+Everything above assumes you already have a `sessionId` to pass back. Session
+Discovery (RFC 0051) is how you get one for a conversation your own panel
+never persisted. `AgentSessionHandle.canList` is `true` when the connected
+agent advertises `session/list` (ACP v1, stable). Where `canResume` answers
+"can _this_ conversation come back," `listSessions()` answers "what other
+conversations does this agent still know about" — metadata only, not a live
+handle:
+
+```ts
+if (session.canList) {
+  const others = await session.listSessions();
+  // others: readonly AgentSessionSummary[]
+  //   { sessionId, cwd?, title?, updatedAt?, raw }
+}
+```
+
+Pick one and pass its `sessionId` back as `resume` on a fresh `connect()` —
+the exact same restore flow above, with `resumeOutcome` and the
+`session/resume` → `session/load` → journal fallback all applying unchanged:
+
+```ts
+const target = others.find((s) => s.cwd === cwd); // scope to your own cwd
+if (target) {
+  const session = await ctx.agents.sessions.connect(profileId, {
+    cwd,
+    resume: { sessionId: target.sessionId },
+  });
+}
+```
+
+`listSessions()` rejects when `canList` is `false` (check it first, the same
+way you'd check `canResume`) or when `resumeOutcome` is `"journal-only"` —
+there is no live connection to ask. Silo's own Chat panel scopes its picker
+(the `/resume` reserved command) to sessions whose `cwd` matches the current
+panel's — see ADR 0055 for why: `session/resume`/`session/load` both take
+`cwd` as a wire parameter, and a mismatched folder risks the agent rejecting
+the reconnect or misresolving relative paths inside the very conversation
+being restored.
+
+**A picked session may have no transcript journal on this machine** — Silo
+only journals sessions it has already seen through some panel of its own. If
+the agent supports only `session/resume` (no replay) for that id, the
+resumed session opens live with an empty `journal`, even though the agent's
+own context is genuinely continuing.
+
 ### Showing the right title while reconnecting
 
 `initialize` alone can take several seconds (an adapter's own SDK bootstrap
@@ -526,6 +573,7 @@ behavior.
 - [`AgentSessionHandle`](/api/types/interfaces/AgentSessionHandle)
 - [`AgentSessionConnectOptions`](/api/types/interfaces/AgentSessionConnectOptions)
 - [`AgentSessionRestore`](/api/types/interfaces/AgentSessionRestore)
+- [`AgentSessionSummary`](/api/types/interfaces/AgentSessionSummary)
 - [`ChatResumeState`](/api/types/type-aliases/ChatResumeState)
 - [`AgentPromptBlock`](/api/types/type-aliases/AgentPromptBlock)
 - [`AgentPromptResult`](/api/types/interfaces/AgentPromptResult)
@@ -545,3 +593,4 @@ behavior.
 - [`ctx.agents`](/api/agents/) — the shared activity/status view both session kinds feed
 - [`ctx.agents.profiles`](/api/agents/profiles) — start a Terminal session instead
 - RFC 0038 — Agent Sessions (Terminal and Chat)
+- RFC 0051 / ADR 0055 — Session Discovery, the `/resume` picker

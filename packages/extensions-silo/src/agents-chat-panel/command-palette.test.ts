@@ -7,9 +7,10 @@ import {
   draftAfterCommandPick,
   filterCommands,
   RESERVED_CLEAR,
+  RESERVED_RESUME,
   clearShortcutLabel,
   isClearShortcut,
-  isReservedDraft,
+  reservedCommandForDraft,
   paletteNavAction,
   stepPaletteIndex,
   withReservedCommands,
@@ -115,45 +116,96 @@ describe("withReservedCommands", () => {
   });
 
   it("substitutes Silo's clear in place, keeping the agent's order", () => {
-    const out = withReservedCommands([
-      cmd("compact"),
-      cmd("clear"),
-      cmd("review"),
-    ]);
+    const out = withReservedCommands(
+      [cmd("compact"), cmd("clear"), cmd("review")],
+      { canList: false },
+    );
     expect(out.map((c) => c.name)).toEqual(["compact", "clear", "review"]);
     expect(out[1]).toBe(RESERVED_CLEAR);
     expect(out[0].description).toBe("the agent's compact");
   });
 
   it("matches the reserved name case-insensitively", () => {
-    const out = withReservedCommands([cmd("Clear")]);
+    const out = withReservedCommands([cmd("Clear")], { canList: false });
     expect(out).toEqual([RESERVED_CLEAR]);
   });
 
   it("appends it when the agent advertises no clear — typing it works either way", () => {
-    const out = withReservedCommands([cmd("compact")]);
+    const out = withReservedCommands([cmd("compact")], { canList: false });
     expect(out.map((c) => c.name)).toEqual(["compact", "clear"]);
   });
 
   it("offers it even when the agent advertises nothing at all", () => {
-    expect(withReservedCommands([])).toEqual([RESERVED_CLEAR]);
+    expect(withReservedCommands([], { canList: false })).toEqual([
+      RESERVED_CLEAR,
+    ]);
+  });
+
+  // Session Discovery (RFC 0051): `/resume` is conditional on `canList`,
+  // unlike `/clear` which is unconditional.
+  it("does not offer /resume when the agent doesn't support session/list", () => {
+    const out = withReservedCommands([cmd("resume")], { canList: false });
+    expect(out.map((c) => c.name)).toEqual(["resume", "clear"]);
+    expect(out[0]).not.toBe(RESERVED_RESUME);
+  });
+
+  it("substitutes Silo's resume in place when canList is true", () => {
+    const out = withReservedCommands(
+      [cmd("compact"), cmd("resume"), cmd("review")],
+      { canList: true },
+    );
+    expect(out.map((c) => c.name)).toEqual([
+      "compact",
+      "resume",
+      "review",
+      "clear",
+    ]);
+    expect(out[1]).toBe(RESERVED_RESUME);
+  });
+
+  it("appends /resume when canList is true and the agent has none", () => {
+    const out = withReservedCommands([cmd("compact")], { canList: true });
+    expect(out.map((c) => c.name)).toEqual(["compact", "clear", "resume"]);
+    expect(out[2]).toBe(RESERVED_RESUME);
   });
 });
 
-describe("isReservedDraft", () => {
-  it("recognises /clear, whitespace around it and all", () => {
-    expect(isReservedDraft("/clear")).toBe(true);
-    expect(isReservedDraft("  /clear  ")).toBe(true);
+describe("reservedCommandForDraft", () => {
+  it("recognises /clear, whitespace around it and all, whatever canList is", () => {
+    expect(reservedCommandForDraft("/clear", { canList: false })).toBe("clear");
+    expect(reservedCommandForDraft("  /clear  ", { canList: true })).toBe(
+      "clear",
+    );
   });
 
   it("leaves an argument to the agent rather than swallowing what was typed", () => {
-    expect(isReservedDraft("/clear the decks")).toBe(false);
+    expect(
+      reservedCommandForDraft("/clear the decks", { canList: false }),
+    ).toBeUndefined();
+    expect(
+      reservedCommandForDraft("/resume foo", { canList: true }),
+    ).toBeUndefined();
   });
 
   it("is not fooled by a longer name or a missing slash", () => {
-    expect(isReservedDraft("/clearing")).toBe(false);
-    expect(isReservedDraft("clear")).toBe(false);
-    expect(isReservedDraft("please /clear")).toBe(false);
+    expect(
+      reservedCommandForDraft("/clearing", { canList: false }),
+    ).toBeUndefined();
+    expect(
+      reservedCommandForDraft("clear", { canList: false }),
+    ).toBeUndefined();
+    expect(
+      reservedCommandForDraft("please /clear", { canList: false }),
+    ).toBeUndefined();
+  });
+
+  it("recognises /resume only when canList is true", () => {
+    expect(reservedCommandForDraft("/resume", { canList: true })).toBe(
+      "resume",
+    );
+    expect(
+      reservedCommandForDraft("/resume", { canList: false }),
+    ).toBeUndefined();
   });
 });
 

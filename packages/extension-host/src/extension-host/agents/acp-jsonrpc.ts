@@ -62,6 +62,16 @@ export interface AcpConfigOption {
   options: AcpConfigChoice[];
 }
 
+/** One entry of `session/list`'s `sessions` array — metadata only, not a
+ *  live handle (gated on `sessionCapabilities.list`; ACP v1 stable). */
+export interface AcpSessionInfo {
+  sessionId: string;
+  cwd?: string;
+  title?: string;
+  updatedAt?: string;
+  [k: string]: unknown;
+}
+
 export interface AcpPermissionRequest {
   toolCallId: string;
   title: string;
@@ -225,6 +235,13 @@ export interface AcpClient {
    * one.
    */
   closeSession(sessionId: string): Promise<void>;
+  /**
+   * ACP `session/list` — the agent's own catalog of sessions it knows about
+   * (gated on `sessionCapabilities.list`; ACP v1 stable). Metadata only, not
+   * a live handle — resume one via {@link resumeSession}/{@link loadSession}
+   * the same as any other id.
+   */
+  listSessions(): Promise<{ sessions: AcpSessionInfo[] }>;
   /** ACP `session/prompt`. Resolves with the turn's stop reason. */
   prompt(
     sessionId: string,
@@ -306,6 +323,35 @@ export function parseConfigOptions(raw: unknown): AcpConfigOption[] {
       type: asString(e.type) ?? "select",
       currentValue: asString(e.currentValue) ?? options[0].value,
       options,
+    });
+  }
+  return out;
+}
+
+/**
+ * Parse `session/list`'s `sessions` array defensively, same convention as
+ * {@link parseConfigOptions}: an entry with no `sessionId` is dropped, every
+ * other field is optional, and unknown vendor fields ride along via the
+ * index signature.
+ */
+export function parseSessionInfos(raw: unknown): AcpSessionInfo[] {
+  if (!Array.isArray(raw)) return [];
+  const out: AcpSessionInfo[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const e = entry as Record<string, unknown>;
+    const sessionId = asString(e.sessionId);
+    if (!sessionId) continue;
+    const { sessionId: _s, cwd, title, updatedAt, ...rest } = e;
+    const cwdStr = asString(cwd);
+    const titleStr = asString(title);
+    const updatedAtStr = asString(updatedAt);
+    out.push({
+      ...rest,
+      sessionId,
+      ...(cwdStr !== undefined ? { cwd: cwdStr } : {}),
+      ...(titleStr !== undefined ? { title: titleStr } : {}),
+      ...(updatedAtStr !== undefined ? { updatedAt: updatedAtStr } : {}),
     });
   }
   return out;
@@ -574,6 +620,13 @@ export function createAcpClient(
 
     async closeSession(sessionId) {
       await request("session/close", { sessionId });
+    },
+
+    async listSessions() {
+      const result = (await request("session/list", {})) as
+        | Record<string, unknown>
+        | undefined;
+      return { sessions: parseSessionInfos(result?.sessions) };
     },
 
     async prompt(sessionId, blocks) {

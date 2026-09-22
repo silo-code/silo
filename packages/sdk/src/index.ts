@@ -122,6 +122,7 @@ export type {
   AgentSessionHandle,
   AgentSessionConnectOptions,
   AgentSessionRestore,
+  AgentSessionSummary,
   ChatResumeState,
   AgentPromptBlock,
   AgentPromptResult,

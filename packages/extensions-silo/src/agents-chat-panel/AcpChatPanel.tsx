@@ -97,6 +97,7 @@ import type {
   AgentPromptBlock,
   AgentSessionConfigOption,
   AgentSessionHandle,
+  AgentSessionSummary,
   AgentSessionUsage,
   Disposable,
   DockPanelProps,
@@ -146,7 +147,7 @@ import {
   filterCommands,
   clearShortcutLabel,
   isClearShortcut,
-  isReservedDraft,
+  reservedCommandForDraft,
   paletteNavAction,
   stepPaletteIndex,
   withReservedCommands,
@@ -155,6 +156,7 @@ import {
   ClearSessionDialog,
   type ClearSessionChoice,
 } from "./ClearSessionDialog";
+import { ResumeSessionDialog } from "./ResumeSessionDialog";
 import { chatPanelSettingsService } from "./settings-store";
 import {
   caretOnFirstLine,
@@ -878,6 +880,10 @@ export function AcpChatPanel({
   // connect(); the panel doesn't need to react to it changing afterward.
   const [resumeOutcome, setResumeOutcome] =
     useState<AgentSessionHandle["resumeOutcome"]>("new");
+  // Whether the connected agent supports `session/list` (Session Discovery,
+  // RFC 0051) — gates the `/resume` reserved command's visibility. Snapshotted
+  // once per connect(), same as `resumeOutcome`.
+  const [canList, setCanList] = useState(false);
   // Why the next reconnect is happening — set by "Continue in a new session"
   // or by Clear (RFC 0048) just before bumping `nonce`, read and cleared at
   // the top of the connect attempt it triggers. A ref, not state: it must be
@@ -1020,6 +1026,7 @@ export function AcpChatPanel({
     setAgentId(undefined);
     setSessionId(undefined);
     setResumeOutcome("new");
+    setCanList(false);
     // A profile switch mid-turn abandons that turn's `prompt()` promise, whose
     // `finally` sees a different handle and leaves `busy` alone — so clear it
     // here or the composer keeps offering Stop for a session that is gone.
@@ -1112,6 +1119,7 @@ export function AcpChatPanel({
         setAgentId(handle.agentId);
         setSessionId(handle.id);
         setResumeOutcome(handle.resumeOutcome);
+        setCanList(handle.canList);
         setConfigOptions(handle.configOptions);
         subs.push(
           handle.onConfigOptionsChanged(() =>
@@ -1332,6 +1340,41 @@ export function AcpChatPanel({
     return true;
   }, [canReset, ctx, resetSession, resumeOutcome]);
 
+  /**
+   * Session Discovery (RFC 0051) — `/resume` opens a picker of the agent's
+   * other sessions (via `session/list`, scoped to this panel's own `cwd`) and
+   * reconnects this panel to the one picked. Same mechanism as "Continue in a
+   * new session": stash the target on `restartIntentRef` and bump `nonce`,
+   * letting the connect effect's existing resume path do the rest.
+   */
+  const requestResume = useCallback(async (): Promise<boolean> => {
+    const handle = handleRef.current;
+    if (!handle?.canList) return false;
+    const picked = await ctx.ui.showModal<AgentSessionSummary | undefined>(
+      (close) => (
+        <ResumeSessionDialog
+          listSessions={() => handle.listSessions()}
+          currentSessionId={handle.sessionId}
+          cwd={cwd}
+          close={close}
+        />
+      ),
+      {
+        title: "Resume a session",
+        size: "md",
+        dismissible: true,
+        ariaLabel: "Resume a session",
+      },
+    );
+    if (!picked) return false;
+    restartIntentRef.current = {
+      intent: "resume-other",
+      sessionId: picked.sessionId,
+    };
+    setNonce((n) => n + 1);
+    return true;
+  }, [ctx, cwd]);
+
   // --- sending -------------------------------------------------------------
   const send = useCallback(async () => {
     const handle = handleRef.current;
@@ -1347,8 +1390,9 @@ export function AcpChatPanel({
     // and the tab menu (R1: one implementation of clear).
     const action = composerSubmitAction({
       draft,
-      reserved: isReservedDraft(text),
+      reservedKind: reservedCommandForDraft(text, { canList }),
       canReset,
+      canList,
       hasHandle: Boolean(handle),
       busy,
       ready: phase.status === "ready",
@@ -1362,6 +1406,16 @@ export function AcpChatPanel({
       // than swallowing it on the user's behalf.
       const confirmed = await requestReset();
       if (!confirmed) return;
+      setDraft("");
+      setHistoryNav(NOT_NAVIGATING_HISTORY);
+      setAttachments([]);
+      return;
+    }
+    if (action === "resume-picker") {
+      // Same shape as reset above: the draft survives a cancelled picker so
+      // the typed `/resume` stays there to edit or re-send.
+      const picked = await requestResume();
+      if (!picked) return;
       setDraft("");
       setHistoryNav(NOT_NAVIGATING_HISTORY);
       setAttachments([]);
@@ -1431,7 +1485,9 @@ export function AcpChatPanel({
     phase.status,
     lost,
     canReset,
+    canList,
     requestReset,
+    requestResume,
   ]);
 
   const answer = useCallback((pending: PendingPermission, optionId: string) => {
@@ -1617,7 +1673,10 @@ export function AcpChatPanel({
   const commandQuery = commandQueryFromDraft(draft);
   const paletteCommands =
     commandQuery !== undefined
-      ? filterCommands(withReservedCommands(commands), commandQuery)
+      ? filterCommands(
+          withReservedCommands(commands, { canList }),
+          commandQuery,
+        )
       : [];
   const showPalette =
     paletteCommands.length > 0 &&

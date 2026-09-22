@@ -8,6 +8,7 @@ const fakeClient = {
   loadSession: vi.fn(),
   resumeSession: vi.fn(),
   closeSession: vi.fn(),
+  listSessions: vi.fn(),
   prompt: vi.fn(),
   cancel: vi.fn(),
   setConfigOption: vi.fn(),
@@ -201,6 +202,7 @@ beforeEach(() => {
     .mockResolvedValue({ sessionId: "s1", configOptions: [] });
   fakeClient.resumeSession.mockReset().mockResolvedValue({ configOptions: [] });
   fakeClient.closeSession.mockReset().mockResolvedValue(undefined);
+  fakeClient.listSessions.mockReset().mockResolvedValue({ sessions: [] });
   fakeClient.prompt.mockReset().mockResolvedValue({ stopReason: "end_turn" });
   fakeClient.cancel.mockReset();
   fakeClient.setConfigOption.mockReset().mockResolvedValue(null);
@@ -1555,6 +1557,149 @@ describe("connect({ resume }) — Chat session resurrection", () => {
     handle.dispose();
     expect(fakeClient.closeSession).not.toHaveBeenCalled();
     expect(fakeClient.dispose).toHaveBeenCalled();
+  });
+});
+
+// Session Discovery (RFC 0051) — `AgentSessionHandle.canList`/`listSessions()`,
+// backed by ACP `session/list` (v1 stable, gated on `sessionCapabilities.list`).
+describe("Session Discovery — canList / listSessions()", () => {
+  function seedJournal(sessionId: string, updates: Record<string, unknown>[]) {
+    journalFiles.set(
+      journalKey("active", sessionId),
+      updates.map((u) => JSON.stringify(u)),
+    );
+  }
+
+  it("canList is true when the agent advertises list as a details object", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: {},
+      sessionCapabilities: { list: {} },
+      authMethods: [],
+      raw: {},
+    });
+    const handle = await service.connect("claude-chat");
+    expect(handle.canList).toBe(true);
+  });
+
+  it("canList is true when the agent advertises list as a bare boolean", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: {},
+      sessionCapabilities: { list: true },
+      authMethods: [],
+      raw: {},
+    });
+    const handle = await service.connect("claude-chat");
+    expect(handle.canList).toBe(true);
+  });
+
+  it("canList is false when the agent does not advertise it", async () => {
+    const handle = await service.connect("claude-chat"); // default mock: no sessionCapabilities
+    expect(handle.canList).toBe(false);
+  });
+
+  it("listSessions() resolves the mapped summaries, carrying the raw entry", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: {},
+      sessionCapabilities: { list: {} },
+      authMethods: [],
+      raw: {},
+    });
+    fakeClient.listSessions.mockResolvedValue({
+      sessions: [
+        { sessionId: "other-1", cwd: "/ws/active", title: "Fix the bug" },
+        { sessionId: "other-2" },
+      ],
+    });
+    const handle = await service.connect("claude-chat");
+
+    const sessions = await handle.listSessions();
+
+    expect(sessions).toEqual([
+      {
+        sessionId: "other-1",
+        cwd: "/ws/active",
+        title: "Fix the bug",
+        raw: { sessionId: "other-1", cwd: "/ws/active", title: "Fix the bug" },
+      },
+      { sessionId: "other-2", raw: { sessionId: "other-2" } },
+    ]);
+  });
+
+  it("listSessions() rejects without calling the transport when the agent does not support it", async () => {
+    const handle = await service.connect("claude-chat"); // default mock: no sessionCapabilities
+    await expect(handle.listSessions()).rejects.toThrow(
+      /does not support session\/list/i,
+    );
+    expect(fakeClient.listSessions).not.toHaveBeenCalled();
+  });
+
+  it("listSessions() rejects on a journal-only handle", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: {},
+      sessionCapabilities: { list: {} },
+      authMethods: [],
+      raw: {},
+    });
+    seedJournal("old-id", [
+      { kind: "user_message_chunk", text: "are you there?" },
+    ]);
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id" },
+    });
+    expect(handle.resumeOutcome).toBe("journal-only");
+
+    await expect(handle.listSessions()).rejects.toThrow(
+      /journal-only.*no live connection/i,
+    );
+  });
+
+  it("listSessions() wraps an agent RPC error with its own message", async () => {
+    const { AcpRpcError } =
+      await vi.importActual<typeof import("./acp-jsonrpc")>("./acp-jsonrpc");
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: {},
+      sessionCapabilities: { list: {} },
+      authMethods: [],
+      raw: {},
+    });
+    fakeClient.listSessions.mockRejectedValue(
+      new AcpRpcError({ code: -32000, message: "boom" }),
+    );
+    const handle = await service.connect("claude-chat");
+
+    await expect(handle.listSessions()).rejects.toThrow(
+      /could not list its sessions.*boom/i,
+    );
+  });
+
+  it("listSessions() keeps working after an in-place resume() swaps the live client", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: true },
+      sessionCapabilities: { resume: true, list: {} },
+      authMethods: [],
+      raw: {},
+    });
+    const handle = await service.connect("claude-chat");
+    expect(handle.canList).toBe(true);
+
+    // Simulate the agent process dying and Silo's in-place `ctx.agents.resume`
+    // reconnecting it — `getChatAgentEntry(...).controls.resume` is exactly
+    // what that call invokes.
+    fakeClient.resumeSession.mockResolvedValue({ configOptions: [] });
+    await getChatAgentEntry("chat:s1")!.controls.resume!();
+
+    fakeClient.listSessions.mockResolvedValue({
+      sessions: [{ sessionId: "other-1" }],
+    });
+    await expect(handle.listSessions()).resolves.toEqual([
+      { sessionId: "other-1", raw: { sessionId: "other-1" } },
+    ]);
   });
 });
 
