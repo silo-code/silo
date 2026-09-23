@@ -119,10 +119,36 @@ compatibility promise — and one that buys nothing for other agents, since Curs
 (`~/.cursor/acp-sessions/<id>/meta.json`) and Codex both record only a start
 directory.
 
-**Accept ACP client terminals (`terminal: true`).** `terminal/create` takes an
-absolute `cwd`, so Silo would see the working directory of every command the
-agent runs. Deferred: it means Silo executing agent commands, with its own
-security surface, and deserves its own proposal.
+**Accept ACP terminals.** Not rejected — **not yet investigated**, and the most
+promising remaining lead. The shape of this changed between protocol versions
+and the distinction matters:
+
+- In **v1**, `terminal/*` were _client-side_ methods: the agent asked the client
+  to run a command, and `terminal/create` took a `cwd`. Accepting that would
+  mean Silo executing agent commands, with its own security surface.
+- In **v2** the direction is reversed. `Terminal` is "a display-only reference
+  to an agent-owned terminal", with state streamed to the client as
+  `terminal_update` (`{ terminalId, command, cwd, output, exitStatus }`, patch
+  semantics) and `terminal_output_chunk`. `ClientCapabilities` in v2 has no
+  `terminal` field at all. Accepting it means _receiving a render feed_, not
+  running anything.
+
+`TerminalUpdate.cwd` — "the absolute working directory of the command" — would
+therefore give Silo the working directory of every command an agent runs,
+agent-agnostic and without any vendor table. That is a better signal than
+anything graded above.
+
+Two things gate it. No agent is sending it: across the 327 recorded sessions
+there are **zero** `terminal_update` or `terminal_output_chunk` entries. And
+Silo could not say why, because it offered `protocolVersion: 2`, captured the
+agent's answer, and never read it — so the negotiated version was unknowable
+from logs. That answer is now logged on every connect, which makes this
+answerable rather than speculative.
+
+Note also that this is a _per-command_ working directory, which under the
+semantics this proposal adopts is explicitly not a session relocation. It would
+report where the last command ran, which may be what a location indicator wants
+or may flap; that is a design question to settle once the data exists.
 
 ## Decision
 

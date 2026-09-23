@@ -822,6 +822,18 @@ export function createAgentSessionsService(
       let init;
       try {
         init = await client.initialize();
+        // What did we actually negotiate? Silo offers `protocolVersion: 2` and
+        // the agent answers with whatever it really speaks. That answer decides
+        // which surfaces exist — v2's agent-owned terminals
+        // (`terminal_update`, carrying the working directory of each command)
+        // are not a thing a v1 agent will ever send. Nothing read this before,
+        // so "which version is this session on" was unanswerable from logs.
+        agentsChannel.info(
+          `${label} initialize: protocolVersion=${init.protocolVersion ?? "(unset)"}` +
+            ` agent=${init.agentInfo?.name ?? "?"}` +
+            ` sessionCapabilities=${JSON.stringify(init.sessionCapabilities ?? null)}` +
+            ` agentCapabilities=${JSON.stringify(init.agentCapabilities ?? null)}`,
+        );
       } catch (err) {
         client.dispose();
         if (placeholderId) removeChatAgent(placeholderId);
