@@ -65,6 +65,8 @@ import {
 } from "./chat-agent-registry";
 import { getActiveAgentSession } from "./agent-surface-registry";
 import { noteChatSessionConfigDir } from "./chat-session-restore";
+import { createWorkingCheckoutTracker } from "./working-checkout";
+import { fsPathExists } from "../../services/tauri-fs";
 import {
   parseCommands,
   parseContentBlock,
@@ -427,6 +429,48 @@ export function createAgentSessionsService(
         throw new Error("No workspace to connect the Chat session in.");
       }
       const cwd = options?.cwd ?? workspace.folder;
+      // Where the session is *working*, which is not always where it started:
+      // an agent can relocate into a git worktree mid-session and ACP has no
+      // way to say so. The tracker watches the update stream for a relocation
+      // the agent *states*; the host confirms the directory still exists
+      // before reporting it as `AgentInfo.cwd`. See `working-checkout.ts`.
+      const checkout = createWorkingCheckoutTracker(cwd);
+      let reportedCwd = cwd;
+      // One check at a time — the announcement is re-read each pass, so an
+      // update landing mid-check is picked up by the re-run rather than
+      // dropped. Dropping it would strand the session on a stale directory
+      // whenever the relocation was the last thing in a turn.
+      let checking = false;
+      let checkAgain = false;
+      const resolveCheckout = (): void => {
+        if (checking) {
+          checkAgain = true;
+          return;
+        }
+        checking = true;
+        void (async () => {
+          try {
+            do {
+              checkAgain = false;
+              const announced = checkout.announcedCheckout();
+              // A directory that has since been removed (a worktree the agent
+              // tore down, a stale journal replay) falls back to the root
+              // rather than naming somewhere that is not there.
+              const found =
+                announced && (await fsPathExists(announced)) ? announced : cwd;
+              if (found !== reportedCwd) {
+                reportedCwd = found;
+                patchChatAgent(infoId, { cwd: found });
+                agentsChannel.debug(
+                  `chat session ${infoId} working checkout: ${found}`,
+                );
+              }
+            } while (checkAgain);
+          } finally {
+            checking = false;
+          }
+        })();
+      };
       const assumedAgentId = profile.assumedAgentId;
       const resumeTarget = options?.resume;
 
@@ -485,6 +529,7 @@ export function createAgentSessionsService(
           sessionId: resumeTarget.sessionId,
           agentId: assumedAgentId,
           chatResumeState: "resuming",
+          cwd,
         });
       }
 
@@ -648,6 +693,8 @@ export function createAgentSessionsService(
             }
           }
           const sdk = toSdkUpdate(update);
+          checkout.observe(sdk);
+          resolveCheckout();
           // Journal every update that arrives — live turns and a `load`'s own
           // replay alike (RFC 0042). The writer is seeded to avoid duplicating
           // a `load` replay against what was already on disk; see the
@@ -1010,6 +1057,12 @@ export function createAgentSessionsService(
       const canResume = canLoadSession || canResumeCap;
       const agentName = init.agentInfo?.title ?? init.agentInfo?.name ?? label;
       const journal = parseJournalLines(journalWriter.snapshotLines());
+      // Replay the restored transcript through the tracker so a resumed
+      // session knows where it was working without waiting for the agent to
+      // act again. Live updates already seen during the handshake are replayed
+      // too: re-observing an announcement is idempotent, and a repeated edit
+      // path cannot move the common ancestor it contributes to.
+      for (const u of journal) checkout.observe(u);
 
       const chatResumeState: ChatResumeState =
         resumeOutcome === "resumed"
@@ -1036,6 +1089,10 @@ export function createAgentSessionsService(
         // back to "Claude Agent" the moment the handshake finished (caught
         // live, 2026-09-09).
         title: volunteeredTitle ?? restoredTitle ?? label,
+        // The session root until the stream shows the agent has moved; a
+        // restored session's journal is replayed through the tracker below, so
+        // it resolves without waiting for new activity.
+        cwd: reportedCwd,
         kind: "chat",
         isAgent: true,
         activity: resumeOutcome === "journal-only" ? "dead" : "idle",
@@ -1124,6 +1181,9 @@ export function createAgentSessionsService(
         reveal,
         resume: canResume ? resume : undefined,
       });
+      // Now that the session is registered under its real id, let the journal
+      // replay above settle onto `AgentInfo.cwd`.
+      resolveCheckout();
       // Stamp the store this session lives in onto its persisted status, now
       // that it has one — every later restore spawns against this value rather
       // than whatever Silo happens to have inherited that day.

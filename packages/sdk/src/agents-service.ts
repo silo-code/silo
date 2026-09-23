@@ -97,6 +97,25 @@ export interface AgentInfo {
   /** The workspace this session belongs to. */
   readonly workspaceId: string;
   /**
+   * Where this session is currently working — an absolute path, or `undefined`
+   * while it is not yet known.
+   *
+   * Host-computed for both kinds, which is the point: a Terminal session fills
+   * it from the working directory of its foreground process, and a Chat session
+   * from the **working checkout** the host derives for it. A consumer that
+   * wants to show "where is this agent" reads this one field and does not care
+   * which kind it got.
+   *
+   * For a Chat session this is *not* simply the `cwd` the session was started
+   * with. That value is fixed at `session/new` — the Agent Client Protocol has
+   * no working-directory-change notification — but agents relocate anyway, most
+   * commonly by creating a git worktree and moving into it. The host reports
+   * the session's start directory until it has evidence the agent has moved,
+   * and every moved-to directory is confirmed to be a real checkout before it
+   * is reported here.
+   */
+  readonly cwd?: string;
+  /**
    * The session's display label — host-computed, the same string for either
    * kind, and the one a consumer should render. A status row, a navigator row
    * and the session's own dock tab all showing this field is what keeps them
