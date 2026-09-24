@@ -2,6 +2,7 @@
 // extracted from index.tsx so the component stays thin glue (cf.
 // view-switcher-model.ts). No React, no `ctx`.
 
+import type { AgentInfo } from "@silo-code/sdk";
 import type { UpdatePhase } from "@silo-code/extension-host/internal";
 
 /**
@@ -44,6 +45,16 @@ export function isVersionSkipped(
 ): boolean {
   if (!version || !skippedVersion) return false;
   return compare(version, skippedVersion) <= 0;
+}
+
+/**
+ * How many chat agents are actively running (not just connected/idle) — these
+ * are the ones an install-and-relaunch would silently cancel, since the chat
+ * session's process is killed on relaunch with no resume-in-place.
+ */
+export function countRunningChatAgents(agents: readonly AgentInfo[]): number {
+  return agents.filter((a) => a.kind === "chat" && a.activity === "working")
+    .length;
 }
 
 /** What the unified "Check for Updates" command (menu + palette) should do for a given phase. */

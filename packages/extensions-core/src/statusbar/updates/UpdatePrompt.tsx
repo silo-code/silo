@@ -21,6 +21,7 @@ const FULL_CHANGELOG_URL = "https://getsilo.dev/changelog";
 export function UpdatePrompt({
   ctx,
   version,
+  runningAgentCount,
   loadChangelog,
   onLater,
   onSkipVersion,
@@ -28,6 +29,8 @@ export function UpdatePrompt({
 }: {
   ctx: Pick<ExtensionContext, "ui">;
   version: string | null;
+  /** Chat agents mid-turn right now — installing will cancel them (see model.ts). */
+  runningAgentCount: number;
   loadChangelog: () => Promise<ChangelogEntry[]>;
   onLater: () => void;
   onSkipVersion: () => void;
@@ -60,6 +63,13 @@ export function UpdatePrompt({
           Your workspaces, editors, and terminals are restored automatically
           after the restart.
         </Callout>
+        {runningAgentCount > 0 && (
+          <Callout>
+            {runningAgentCount === 1
+              ? "1 chat agent is currently running and will be cancelled by this update."
+              : `${runningAgentCount} chat agents are currently running and will be cancelled by this update.`}
+          </Callout>
+        )}
 
         <div className="update-changelog silo-scroll">
           {changelog === undefined ? (

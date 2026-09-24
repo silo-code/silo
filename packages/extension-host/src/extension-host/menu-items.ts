@@ -4,6 +4,7 @@ import {
   PredefinedMenuItem,
   Submenu,
 } from "@tauri-apps/api/menu";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Registry } from "./registry";
 import { commandRegistry, executeCommand } from "./commands";
 import { contextKeys, onContextChange } from "./context-keys";
@@ -156,7 +157,20 @@ async function buildAppSubmenu(): Promise<Submenu> {
     PredefinedMenuItem.new({ item: "HideOthers" }),
     PredefinedMenuItem.new({ item: "ShowAll" }),
     PredefinedMenuItem.new({ item: "Separator" }),
-    PredefinedMenuItem.new({ item: "Quit" }),
+    // Not `PredefinedMenuItem::Quit` — that terminates at the OS level and
+    // bypasses `WindowEvent::CloseRequested` entirely (confirmed: it's a
+    // distinct native code path, same as Cmd+Q). Routing through the window's
+    // own `close()` instead means Quit funnels through the same Rust-side
+    // close gate the window's close button uses (`lib.rs`), so a running chat
+    // agent gets the same confirm-before-quit warning either way.
+    MenuItem.new({
+      id: "app:quit",
+      text: "Quit Silo",
+      accelerator: "CmdOrCtrl+Q",
+      action: () => {
+        void getCurrentWindow().close();
+      },
+    }),
   ]);
   return Submenu.new({ text: "Silo", items });
 }

@@ -25,6 +25,7 @@ import {
   isUpdateActionable,
   isVersionSkipped,
   describeCheckOutcome,
+  countRunningChatAgents,
 } from "./model";
 import { UpdatePrompt } from "./UpdatePrompt";
 import "./updates.css";
@@ -46,11 +47,15 @@ export const extension: Extension = {
     // status-bar link, never a check the user explicitly asked for).
     async function promptAndInstall(): Promise<void> {
       const { version } = updates.getState();
+      const runningAgentCount = countRunningChatAgents(
+        ctx.agents.getState({ allWorkspaces: true }),
+      );
       const outcome = await ctx.ui.showModal<"install" | "skip" | "later">(
         (close) => (
           <UpdatePrompt
             ctx={ctx}
             version={version}
+            runningAgentCount={runningAgentCount}
             loadChangelog={() => updates.getChangelog()}
             onLater={() => close("later")}
             onSkipVersion={() => close("skip")}

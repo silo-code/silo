@@ -338,6 +338,27 @@ pub async fn acp_close(connection_id: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Whether at least one ACP child is currently alive. Backs the close/quit
+/// gate (`lib.rs`'s `CloseRequested` handler): a close with none alive
+/// proceeds immediately, with no round trip to the webview at all. This is
+/// intentionally coarser than "an agent is actually working" — that finer
+/// activity state lives only in the webview (`agent-close-guard.ts`), which
+/// decides whether a connected-but-idle agent should let the close through
+/// silently or actually warn the user.
+pub fn has_live_connections() -> bool {
+    !registry().lock().unwrap().is_empty()
+}
+
+/// Force-close every live agent and quit immediately. Invoked by the webview
+/// once it's decided the close should go through — either the user confirmed
+/// losing a working agent, or none were actually working — bypassing
+/// `CloseRequested` since that decision is already made.
+#[tauri::command]
+pub fn force_quit(app: tauri::AppHandle) {
+    close_all();
+    app.exit(0);
+}
+
 /// Kill every live ACP child. Wired into `RunEvent::Exit` in `lib.rs`.
 ///
 /// Unlike a PTY session — which is owned by a detached daemon and deliberately
@@ -510,6 +531,30 @@ mod tests {
         // The ring keeps the *tail* — the lines nearest the failure.
         assert!(exit.stderr.last().unwrap().contains(&format!("line{}", STDERR_RING * 3 - 1)));
         conn.close();
+    }
+
+    /// `has_live_connections` is what gates the close/quit confirmation: false
+    /// with nothing running (the fast, ungated path), true the moment a
+    /// connection is registered, false again once it's reaped.
+    #[test]
+    fn has_live_connections_tracks_registry_occupancy() {
+        // Other tests in this module share the same process-wide registry and
+        // may run concurrently, so this only asserts the transition it causes
+        // itself rather than an absolute empty/non-empty state.
+        let conn = AcpConnection::spawn("cat", &[], None, &env(), |_| {}, |_| {}, |_| {})
+            .expect("spawn cat");
+        let id = next_connection_id();
+        registry()
+            .lock()
+            .unwrap()
+            .insert(id.clone(), Arc::new(conn));
+
+        assert!(has_live_connections());
+
+        let removed = registry().lock().unwrap().remove(&id);
+        if let Some(conn) = removed {
+            conn.close();
+        }
     }
 
     /// `close_all` drains the registry and closes every live connection — the
