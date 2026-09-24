@@ -1,5 +1,20 @@
 # @silo-code/sdk
 
+## [0.53.0](https://github.com/silo-code/silo/compare/sdk-v0.52.0...sdk-v0.53.0) (2026-09-24)
+
+
+### Features
+
+* **agents-chat-panel:** show agent brand icon in the profile picker ([#553](https://github.com/silo-code/silo/issues/553)) ([057e564](https://github.com/silo-code/silo/commit/057e564b8cb8b75297cf11a99a3781c65651e3f7))
+* **agents-chat-panel:** show context-window usage as a Context option ([#556](https://github.com/silo-code/silo/issues/556)) ([5b6aa52](https://github.com/silo-code/silo/commit/5b6aa52e0fda16f9d8f9d6de10f6df37d3034feb))
+* **agents:** report where an agent session is working via AgentInfo.cwd (RFC 0052) ([#559](https://github.com/silo-code/silo/issues/559)) ([f743d84](https://github.com/silo-code/silo/commit/f743d8400c091115d236e4628bd88d38484b2494))
+* **agents:** resume a previous session via ACP session/list (RFC 0051) ([#558](https://github.com/silo-code/silo/issues/558)) ([4a44da3](https://github.com/silo-code/silo/commit/4a44da36915caa28cee8daff2176fbedfc40fd9b))
+
+
+### Bug Fixes
+
+* **git-explorer:** open files with non-ASCII or quote-triggering names ([#560](https://github.com/silo-code/silo/issues/560)) ([8f450fc](https://github.com/silo-code/silo/commit/8f450fc4f9d70489b4a93db36c53cbb4bbfc5112))
+
 ## [0.52.0](https://github.com/silo-code/silo/compare/sdk-v0.51.0...sdk-v0.52.0) (2026-09-17)
 
 
