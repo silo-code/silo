@@ -1,6 +1,6 @@
 # Interface: AgentSessionConfigOption
 
-Defined in: [packages/sdk/src/agents-service.ts:962](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L962)
+Defined in: [packages/sdk/src/agents-service.ts:981](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L981)
 
 **`Beta`**
 
@@ -32,7 +32,7 @@ adapter may list an id its own handler rejects, so treat a failed
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:964](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L964)
+Defined in: [packages/sdk/src/agents-service.ts:983](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L983)
 
 **`Beta`**
 
@@ -46,7 +46,7 @@ Stable id — pass it to [AgentSessionHandle.setConfigOption](AgentSessionHandle
 readonly name: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:966](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L966)
+Defined in: [packages/sdk/src/agents-service.ts:985](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L985)
 
 **`Beta`**
 
@@ -60,7 +60,7 @@ Label for the control, e.g. `"Mode"`, `"Model"`.
 readonly optional description?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:968](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L968)
+Defined in: [packages/sdk/src/agents-service.ts:987](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L987)
 
 **`Beta`**
 
@@ -74,7 +74,7 @@ A longer explanation, when the agent gave one.
 readonly category: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:974](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L974)
+Defined in: [packages/sdk/src/agents-service.ts:993](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L993)
 
 **`Beta`**
 
@@ -90,7 +90,7 @@ rejects a category with no verified writer.
 readonly type: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:979](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L979)
+Defined in: [packages/sdk/src/agents-service.ts:998](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L998)
 
 **`Beta`**
 
@@ -105,7 +105,7 @@ value as "do not render".
 readonly currentValue: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:986](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L986)
+Defined in: [packages/sdk/src/agents-service.ts:1005](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1005)
 
 **`Beta`**
 
@@ -122,7 +122,7 @@ a bound control always reflects reality — subscribe with
 readonly options: readonly AgentSessionConfigChoice[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:988](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L988)
+Defined in: [packages/sdk/src/agents-service.ts:1007](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1007)
 
 **`Beta`**
 

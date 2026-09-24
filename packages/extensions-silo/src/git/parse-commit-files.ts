@@ -42,19 +42,29 @@ function statusLetter(raw: string): CommitFileChange["status"] {
     : "M";
 }
 
-/** Parse `git diff-tree --no-commit-id -r -M --name-status <base> <commit>`. */
+/**
+ * Parse `git diff-tree --no-commit-id -r -M -z --name-status <base> <commit>`.
+ * `-z` (not just for `--numstat`'s sake, below) reports each field as a raw,
+ * unquoted, NUL-terminated record instead of C-quoting/escaping a path with a
+ * non-ASCII byte or backslash/doublequote — the same rationale as status's
+ * `-z` in parse-status.ts. A rename/copy's orig and new paths are the two
+ * records right after its status record (no embedded tab to split on).
+ */
 export function parseNameStatus(raw: string): NameStatusRow[] {
-  return raw
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.split(TAB);
-      const status = statusLetter(parts[0] ?? "M");
-      if (status === "R" || status === "C") {
-        return { path: parts[2] ?? "", origPath: parts[1], status };
-      }
-      return { path: parts[1] ?? "", status };
-    });
+  const records = raw.split("\0").filter((r) => r.length > 0);
+  const rows: NameStatusRow[] = [];
+  for (let i = 0; i < records.length; i++) {
+    const status = statusLetter(records[i] ?? "M");
+    if (status === "R" || status === "C") {
+      const origPath = records[++i];
+      const path = records[++i] ?? "";
+      rows.push({ path, origPath, status });
+    } else {
+      const path = records[++i] ?? "";
+      rows.push({ path, status });
+    }
+  }
+  return rows;
 }
 
 interface NumstatRow {
@@ -63,14 +73,16 @@ interface NumstatRow {
   deletions: number | null;
 }
 
-/** Parse `git diff-tree --no-commit-id -r --numstat <base> <commit>` (no
- * `-M`, so every row is a plain path — never `{old => new}`). */
+/** Parse `git diff-tree --no-commit-id -r -z --numstat <base> <commit>` (no
+ * `-M`, so every row is a plain path — never `{old => new}`). `-z` keeps the
+ * add/del counts tab-separated within a record but NUL-terminates the record
+ * itself, so a path stays raw and unquoted (see parseNameStatus above). */
 export function parseNumstat(raw: string): NumstatRow[] {
   return raw
-    .split("\n")
+    .split("\0")
     .filter(Boolean)
-    .map((line) => {
-      const [add, del, ...rest] = line.split(TAB);
+    .map((record) => {
+      const [add, del, ...rest] = record.split(TAB);
       const path = rest.join(TAB);
       const binary = add === "-" || del === "-";
       return {

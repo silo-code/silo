@@ -181,6 +181,16 @@ function terminalTitleFor(workspaceId: string, terminalId: string): string {
   return stripAgentStatusMarkers(rec.title) || rec.title;
 }
 
+/**
+ * Last working directory reported for each terminal's foreground process.
+ *
+ * Kept beside the tracked agents rather than on `AgentActivityState` because it
+ * is not activity — it is a live OS fact, refreshed on every foreground tick,
+ * and nothing about it is persisted. `toAgentInfo` reads it back so a rebuild
+ * of `entry.info` for an unrelated reason does not blank it.
+ */
+const foregroundCwd = new Map<string, string>();
+
 function toAgentInfo(
   terminalId: string,
   workspaceId: string,
@@ -210,6 +220,11 @@ function toAgentInfo(
     canResume: state.sessionId != null,
     agentName: state.agentName ?? undefined,
     agentId: state.agentId ?? undefined,
+    // The Terminal half of `AgentInfo.cwd`: where this session's foreground
+    // process is actually working. A Chat session fills the same field from
+    // its derived working checkout, so a consumer asking "where is this agent"
+    // reads one field for both kinds.
+    cwd: foregroundCwd.get(terminalId),
   };
 }
 
@@ -1081,6 +1096,11 @@ function noteForeground(
     // reaches its real argv (ADR 0051).
     void resolveInterpreterWrappedAgent(entry, terminalId, fg);
   }
+  if (fg.cwd && fg.cwd !== entry.info.cwd) {
+    foregroundCwd.set(terminalId, fg.cwd);
+    entry.info = { ...entry.info, cwd: fg.cwd };
+    notify();
+  }
   agentsChannel.debug(
     `terminal ${terminalId} foreground ${source}: pgid=${fg.pgid} agentPgid=${entry.agentPgid} leader="${fg.leader}" cwd=${fg.cwd}` +
       (source === "tick" ? ` atPrompt=${fg.atPrompt}` : ""),
@@ -1280,6 +1300,7 @@ function detachSession(terminalId: string) {
   entry.cleanupOutput();
   clearShellIdleTimer(terminalId);
   clearAgentIdleTimer(terminalId);
+  foregroundCwd.delete(terminalId);
   trackedAgents.delete(terminalId);
   notify();
 }

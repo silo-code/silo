@@ -1,6 +1,6 @@
 # Interface: AgentProfileSummary
 
-Defined in: [packages/sdk/src/agents-service.ts:324](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L324)
+Defined in: [packages/sdk/src/agents-service.ts:343](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L343)
 
 **`Beta`**
 
@@ -19,7 +19,7 @@ line, its config directory, and every other launch detail stay host-owned
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:326](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L326)
+Defined in: [packages/sdk/src/agents-service.ts:345](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L345)
 
 **`Beta`**
 
@@ -33,7 +33,7 @@ Stable id — pass it to [AgentProfilesService.launch](AgentProfilesService.md#l
 readonly label: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:329](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L329)
+Defined in: [packages/sdk/src/agents-service.ts:348](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L348)
 
 **`Beta`**
 
@@ -48,7 +48,7 @@ The user's own name for this profile, e.g. `"Claude (work)"`. Show this;
 readonly isDefault: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:333](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L333)
+Defined in: [packages/sdk/src/agents-service.ts:352](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L352)
 
 **`Beta`**
 
@@ -64,7 +64,7 @@ True for the single profile marked default, which is what `launch()`
 readonly acceptsPrompt: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:340](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L340)
+Defined in: [packages/sdk/src/agents-service.ts:359](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L359)
 
 **`Beta`**
 
@@ -81,7 +81,7 @@ grey out or annotate a profile up front instead of discovering
 readonly interface: AgentSessionKind;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:356](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L356)
+Defined in: [packages/sdk/src/agents-service.ts:375](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L375)
 
 **`Beta`**
 
@@ -107,7 +107,7 @@ be offered a profile that cannot work in the surface they are looking at.
 readonly optional agentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:366](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L366)
+Defined in: [packages/sdk/src/agents-service.ts:385](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L385)
 
 **`Beta`**
 

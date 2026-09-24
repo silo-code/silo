@@ -530,6 +530,28 @@ than it invents an OSC title for a CLI that writes none.
 _Avoid_: deriving a label a second time in a consumer (that is how the tab and
 the status row drifted); "tab title" (the tab is one renderer of it).
 
+**Session Root** / **Working Checkout** (RFC 0052) — two different directories
+an **Agent Session** has, easy to conflate. The **session root** is where the
+session was started: for a Chat session the `cwd` handed to `session/new`, fixed
+for its whole life and the thing permission scoping keys off. The **working
+checkout** is where the agent is _actually working_ — typically a git worktree
+it created for itself, which may sit inside the root or as a sibling outside it.
+
+`AgentInfo.cwd` reports where a session is working, host-computed for both
+kinds. A Terminal session reads it from its foreground process, live. A Chat
+session reports its session root unless the agent **states** that it relocated
+(Claude Code's `EnterWorktree` / `ExitWorktree` — the one vendor-coupled table
+in the host), because the Agent Client Protocol has no working-directory-change
+notification. Silo does not _infer_ a Chat session's location: measured over 327
+sessions, inference from tool-call `locations` produced no true positives, and
+half of real relocations emit no locations at all.
+
+Distinct from a **per-command working directory** — the cwd one shell command
+runs in, which ACP models separately and which does not move the session. An
+agent that `cd`s inside a single tool call has not relocated.
+_Avoid_: calling either one "the agent's cwd" (which one?); saying the session
+root "changed" — it never does, the work moved.
+
 **Witnessed** (RFC 0038 Session 3.2) — whether the user was looking at an
 Agent Session's **Agent Surface** at the instant a **Prompt Turn** finished.
 The input to the ordinary attention rule, `needsAttention = isAgent &&

@@ -840,6 +840,9 @@ export function AcpChatPanel({
 
   const [phase, setPhase] = useState<Phase>({ status: "connecting" });
   const [transcript, setTranscript] = useState<Transcript>(emptyTranscript);
+  /** Host-reported working directory for this session — see the breadcrumb
+   *  effect below. `undefined` until the session registers. */
+  const [liveCwd, setLiveCwd] = useState<string | undefined>(undefined);
   // Latest `usage_update` reading, not folded into `transcript` — it isn't a
   // transcript row, it's a live header stat. Sender-optional: stays
   // `undefined` for the whole session on any agent that never sends one.
@@ -1221,12 +1224,21 @@ export function AcpChatPanel({
   // The cwd line in the host-drawn strip (RFC 0039). Same fact the panel used
   // to hand a `<Breadcrumb>` it imported; now it states it and the dock frame
   // draws it.
+  //
+  // `AgentInfo.cwd` is the session's *current* location and the session root is
+  // the baseline it is relative to, so a worktree the agent moved into renders
+  // as a deeper path under the root rather than as a second, competing crumb.
+  // A checkout outside the root (`git worktree add ../name`) falls through to
+  // the absolute path, which is long but true.
+  const crumbPath = liveCwd ?? cwd;
   useEffect(() => {
     api.setBreadcrumb(
-      cwd ? { filePath: cwd, workspaceFolder: cwd, leafIcon: "folder" } : null,
+      cwd
+        ? { filePath: crumbPath, workspaceFolder: cwd, leafIcon: "folder" }
+        : null,
     );
     return () => api.setBreadcrumb(null);
-  }, [api, cwd]);
+  }, [api, cwd, crumbPath]);
 
   // The tab label is `AgentInfo.title` — host-computed, so the dock tab, the
   // workspace status row and the navigator row are the same string from the
@@ -1242,6 +1254,11 @@ export function AcpChatPanel({
     const read = (all: readonly AgentInfo[]) => {
       const info = sessionId ? all.find((a) => a.id === sessionId) : undefined;
       setLost(info?.activity === "error");
+      // Where the session is *working*, which is not always where it started:
+      // an agent can relocate into a git worktree mid-session. The host owns
+      // that derivation (it is the only side that can confirm a directory is a
+      // real checkout), so the panel states nothing and renders one field.
+      setLiveCwd(info?.cwd);
       api.setTitle(info?.title ?? params.title ?? profile?.label ?? "Agent");
       // Keep `DockPanelState` current with whatever this session's *live*
       // identity is, so the next restart's placeholder (RFC 0042 — painted
