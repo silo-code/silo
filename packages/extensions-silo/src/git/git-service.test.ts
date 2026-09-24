@@ -8,6 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { execFile } from "node:child_process";
 import {
   mkdtempSync,
+  mkdirSync,
   writeFileSync,
   renameSync,
   rmSync,
@@ -89,6 +90,19 @@ describe(
       await git.commit(repo, "add a");
       s = await git.status(repo);
       expect(s.files).toEqual([]); // clean after commit
+    });
+
+    it("reports a raw, unquoted path for a filename with a non-ASCII byte and spaces", async () => {
+      // Regression for the git explorer "open file" bug: git's default
+      // core.quotepath C-quotes/octal-escapes a path like this one into
+      // `"Surface 1 \342\200\224 PCS API/foo.md"` unless `status()` passes
+      // `-z`. Runs against real git, not a hand-typed fixture.
+      mkdirSync(join(repo, "Surface 1 — PCS API"), { recursive: true });
+      const relPath = "Surface 1 — PCS API/foo.md";
+      writeFileSync(join(repo, relPath), "hi\n");
+
+      const s = await git.status(repo);
+      expect(s.files.map((f) => f.path)).toContain(relPath);
     });
 
     it("unstages a staged file back to modified", async () => {
@@ -781,6 +795,21 @@ describe(
           deletions: 0,
         },
       ]);
+    });
+
+    it("commitDetail reports a raw, unquoted path for a filename with a non-ASCII byte and spaces", async () => {
+      // Same regression as status(), for the "open file"/"open diff" actions
+      // in CommitDetailView, which get their paths from commitDetail's
+      // name-status/numstat parse rather than status's.
+      mkdirSync(join(repo, "Surface 1 — PCS API"), { recursive: true });
+      const relPath = "Surface 1 — PCS API/foo.md";
+      writeFileSync(join(repo, relPath), "hi\n");
+      await git.stage(repo, [relPath]);
+      await git.commit(repo, "add file with special chars");
+
+      const log = await git.log(repo);
+      const detail = await git.commitDetail(repo, log[0].hash);
+      expect(detail!.files.map((f) => f.path)).toEqual([relPath]);
     });
 
     it("commitDetail reports a rename with its origin path", async () => {

@@ -20,7 +20,7 @@ describe("resolveDiffBase", () => {
 
 describe("parseNameStatus", () => {
   it("parses added/modified/deleted rows", () => {
-    const raw = "A\tnew.txt\nM\tchanged.txt\nD\tgone.txt\n";
+    const raw = "A\0new.txt\0M\0changed.txt\0D\0gone.txt\0";
     expect(parseNameStatus(raw)).toEqual([
       { path: "new.txt", status: "A" },
       { path: "changed.txt", status: "M" },
@@ -29,29 +29,52 @@ describe("parseNameStatus", () => {
   });
 
   it("parses a rename row with its similarity-scored status letter", () => {
-    const raw = "R100\told/path.ts\tnew/path.ts\n";
+    const raw = "R100\0old/path.ts\0new/path.ts\0";
     expect(parseNameStatus(raw)).toEqual([
       { path: "new/path.ts", origPath: "old/path.ts", status: "R" },
     ]);
   });
 
-  it("ignores blank lines", () => {
-    expect(parseNameStatus("\nA\tfoo\n\n")).toEqual([
+  it("ignores blank records", () => {
+    expect(parseNameStatus("\0A\0foo\0\0")).toEqual([
       { path: "foo", status: "A" },
+    ]);
+  });
+
+  // Regression: without `-z`, git C-quotes and octal-escapes a path with a
+  // non-ASCII byte (e.g. "\342\200\224 PCS API/foo.md"), which used to end up
+  // as the literal path passed to `ctx.editors.open`. `-z` reports it raw.
+  it("preserves a path with a non-ASCII byte and spaces", () => {
+    const raw = "A\0Surface 1 — PCS API/03 Agent to Queue Membership.md\0";
+    expect(parseNameStatus(raw)).toEqual([
+      {
+        path: "Surface 1 — PCS API/03 Agent to Queue Membership.md",
+        status: "A",
+      },
     ]);
   });
 });
 
 describe("parseNumstat", () => {
   it("parses addition/deletion counts", () => {
-    expect(parseNumstat("12\t3\tfoo.ts\n")).toEqual([
+    expect(parseNumstat("12\t3\tfoo.ts\0")).toEqual([
       { path: "foo.ts", additions: 12, deletions: 3 },
     ]);
   });
 
   it("reports binary files as null counts (git's `-\\t-` marker)", () => {
-    expect(parseNumstat("-\t-\timage.png\n")).toEqual([
+    expect(parseNumstat("-\t-\timage.png\0")).toEqual([
       { path: "image.png", additions: null, deletions: null },
+    ]);
+  });
+
+  it("preserves a path with a non-ASCII byte and spaces", () => {
+    expect(parseNumstat("1\t0\tSurface 1 — PCS API/foo.md\0")).toEqual([
+      {
+        path: "Surface 1 — PCS API/foo.md",
+        additions: 1,
+        deletions: 0,
+      },
     ]);
   });
 });

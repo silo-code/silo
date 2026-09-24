@@ -123,6 +123,9 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
         ({ stdout, stderr, code } = await git(cwd, [
           "status",
           "--porcelain=v2",
+          // Raw, unquoted paths NUL-terminated instead of C-quoted/escaped —
+          // see parse-status.ts's header comment for why this is required.
+          "-z",
           "-b",
           // Expand untracked directories into their files (don't collapse a
           // whole untracked subtree into one `directory/` row).
@@ -365,12 +368,15 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
       const parents = (parentsRaw ?? "").split(" ").filter(Boolean);
       const base = resolveDiffBase(parents);
 
+      // `-z`: same rationale as status's `-z` (see parse-status.ts) — raw,
+      // unquoted, NUL-terminated paths instead of C-quoted/escaped ones.
       const [nameStatusResult, numstatResult] = await Promise.all([
         git(cwd, [
           "diff-tree",
           "--no-commit-id",
           "-r",
           "-M",
+          "-z",
           "--name-status",
           base,
           hash,
@@ -379,6 +385,7 @@ export function createGitService(exec: ExecFn): Omit<GitAPI, "watchRepo"> {
           "diff-tree",
           "--no-commit-id",
           "-r",
+          "-z",
           "--numstat",
           base,
           hash,

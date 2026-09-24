@@ -1,13 +1,19 @@
 import type { GitFileStatus, GitStatus } from "./git-api";
 
-// Pure parser for `git status --porcelain=v2 -b --untracked-files=all` output.
-// Extracted verbatim from the old services/tauri-git.ts so the Rust→TS move of
+// Pure parser for `git status --porcelain=v2 -z -b --untracked-files=all`
+// output. Extracted from the old services/tauri-git.ts so the Rust→TS move of
 // the parsing is provably faithful — exercised against captured fixtures in
 // parse-status.test.ts. Keeping it a pure string→GitStatus function (no invoke,
 // no exec) is what makes that test possible and what lets the git provider be
 // built on the generic ctx.process.exec primitive.
+//
+// `-z` is load-bearing: without it, git C-quotes any path containing a
+// non-ASCII byte (or backslash/doublequote) — e.g. `"my \342\200\224 file.md"`
+// — and the quoted, octal-escaped form would end up as the literal path used
+// to open the file. `-z` reports every path as raw, unquoted bytes and
+// NUL-terminates every record (including the `# branch.*` headers and, for a
+// rename, the orig/new path pair) instead of using `\n`/`\t`.
 
-const TAB = "\t";
 const SPACE = " ";
 
 function decodeStatusFlag(c: string): boolean {
@@ -27,33 +33,35 @@ export function parseGitStatus(raw: string): GitStatus {
   let headSha: string | null = null;
   const files: GitFileStatus[] = [];
 
-  for (const line of raw.split("\n")) {
-    if (!line) continue;
-    if (line.startsWith("# branch.oid")) {
+  const records = raw.split("\0");
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i];
+    if (!record) continue;
+    if (record.startsWith("# branch.oid")) {
       // `(initial)` on a fresh repo with no commits — HEAD resolves to nothing.
-      const oid = line.replace("# branch.oid ", "").trim();
+      const oid = record.replace("# branch.oid ", "").trim();
       headSha = oid === "(initial)" ? null : oid;
-    } else if (line.startsWith("# branch.head")) {
-      branch = line.replace("# branch.head ", "").trim();
-    } else if (line.startsWith("# branch.upstream")) {
-      upstream = line.replace("# branch.upstream ", "").trim();
-    } else if (line.startsWith("# branch.ab")) {
-      const m = line.match(/\+(\d+)\s+-(\d+)/);
+    } else if (record.startsWith("# branch.head")) {
+      branch = record.replace("# branch.head ", "").trim();
+    } else if (record.startsWith("# branch.upstream")) {
+      upstream = record.replace("# branch.upstream ", "").trim();
+    } else if (record.startsWith("# branch.ab")) {
+      const m = record.match(/\+(\d+)\s+-(\d+)/);
       if (m) {
         ahead = parseInt(m[1], 10);
         behind = parseInt(m[2], 10);
       }
-    } else if (line.startsWith("1 ") || line.startsWith("2 ")) {
-      const parts = line.split(SPACE);
+    } else if (record.startsWith("1 ") || record.startsWith("2 ")) {
+      const parts = record.split(SPACE);
       const xy = parts[1] ?? "..";
       const staged = xy[0] ?? ".";
       const worktree = xy[1] ?? ".";
-      const isRenamed = line.startsWith("2 ");
+      const isRenamed = record.startsWith("2 ");
       if (isRenamed) {
-        const tail = parts.slice(9).join(SPACE);
-        const sep = tail.indexOf(TAB);
-        const path = sep === -1 ? tail : tail.slice(0, sep);
-        const orig = sep === -1 ? undefined : tail.slice(sep + 1);
+        // With `-z`, a rename's path is this record's tail, and its origPath
+        // is the *next* NUL-terminated record — no embedded tab to split on.
+        const path = parts.slice(9).join(SPACE);
+        const orig = records[++i];
         files.push({
           path,
           staged,
@@ -76,9 +84,9 @@ export function parseGitStatus(raw: string): GitStatus {
           isRenamed: false,
         });
       }
-    } else if (line.startsWith("? ")) {
+    } else if (record.startsWith("? ")) {
       files.push({
-        path: line.slice(2),
+        path: record.slice(2),
         staged: ".",
         worktree: "?",
         isStaged: false,
