@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/silo-code/silo/compare/git-api-v0.5.0...git-api-v0.6.0) (2026-09-24)
+
+
+### Features
+
+* **agents:** report where an agent session is working via AgentInfo.cwd (RFC 0052) ([#559](https://github.com/silo-code/silo/issues/559)) ([f743d84](https://github.com/silo-code/silo/commit/f743d8400c091115d236e4628bd88d38484b2494))
+
 ## [0.5.0](https://github.com/silo-code/silo/compare/git-api-v0.4.0...git-api-v0.5.0) (2026-08-26)
 
 
