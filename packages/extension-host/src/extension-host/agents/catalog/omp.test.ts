@@ -97,7 +97,11 @@ describe("OMP's generated extension", () => {
   it("passes TypeScript syntax validation", () => {
     const dir = mkdtempSync(join(tmpdir(), "silo-omp-ext-syntax-"));
     try {
-      const p = join(dir, "silo-track-session.ts");
+      // .mts, not .ts: on some Node versions `--check` mis-detects a bare
+      // .ts file's module type and fails to strip `import type` syntax,
+      // even though normal execution (and older Node `--check`) handles it
+      // fine. .mts sidesteps the detection entirely.
+      const p = join(dir, "silo-track-session.mts");
       writeFileSync(p, src);
       execFileSync("node", ["--experimental-strip-types", "--check", p], {
         stdio: "pipe",

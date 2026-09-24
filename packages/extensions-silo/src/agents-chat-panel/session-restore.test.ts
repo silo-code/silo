@@ -7,6 +7,7 @@ import {
   restoreOptionFor,
   resumeOptionFor,
   sessionResetOption,
+  shouldSkipInstantPaint,
 } from "./session-restore";
 
 describe("resumeOptionFor", () => {
@@ -110,5 +111,20 @@ describe("restoreOptionFor", () => {
     expect(restoreOptionFor("other-id", "resume-other")).toEqual({
       sessionId: "other-id",
     });
+  });
+});
+
+describe("shouldSkipInstantPaint", () => {
+  // Clear discards the old session's journal outright, so painting from it
+  // during the reconnect it triggers would repaint the transcript Clear just
+  // asked to empty until the new session's own connect() replaces it.
+  it("skips the instant paint only for a reset", () => {
+    expect(shouldSkipInstantPaint("reset")).toBe(true);
+  });
+
+  it("paints normally for every other reconnect reason", () => {
+    expect(shouldSkipInstantPaint(null)).toBe(false);
+    expect(shouldSkipInstantPaint("continue-fresh")).toBe(false);
+    expect(shouldSkipInstantPaint("resume-other")).toBe(false);
   });
 });
