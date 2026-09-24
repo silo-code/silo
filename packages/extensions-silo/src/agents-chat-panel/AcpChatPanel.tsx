@@ -231,6 +231,7 @@ import {
   panelStateAfterConnect,
   resolveChatCwd,
   restoreOptionFor,
+  shouldSkipInstantPaint,
   type RestartIntent,
 } from "./session-restore";
 import { LiveElapsed } from "./LiveElapsed";
@@ -981,8 +982,19 @@ export function AcpChatPanel({
   // paints its own (possibly more current — a `load`'s own replay lands
   // through it) copy of `handle.journal` once it resolves; this is only the
   // instant-paint half.
+  //
+  // Skipped for a pending Clear (`restartIntentRef.current.intent === "reset"`,
+  // read here because this effect runs before the connect effect below
+  // consumes it): `params.sessionId` still names the *old* session at this
+  // point, and Clear discards that session's journal outright, so painting
+  // it here would repaint the very transcript Clear just asked to empty —
+  // right until the new session's own connect() replaces it, which read as
+  // "clear doesn't happen until the new session initializes".
   useEffect(() => {
     if (!params.sessionId) return;
+    if (shouldSkipInstantPaint(restartIntentRef.current?.intent ?? null)) {
+      return;
+    }
     let cancelled = false;
     void ctx.agents.sessions.readJournal(params.sessionId).then((journal) => {
       if (!cancelled) setTranscript(seedFromJournal(journal));

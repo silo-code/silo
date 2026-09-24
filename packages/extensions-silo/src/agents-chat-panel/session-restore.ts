@@ -73,6 +73,22 @@ export function restoreOptionFor(
 }
 
 /**
+ * Whether the instant-paint effect (RFC 0042's "paint the journal before
+ * connecting" half) should skip repainting from `params.sessionId`'s journal
+ * this run.
+ *
+ * That effect re-runs on every reconnect, including Clear (RFC 0048) — and at
+ * that point `params.sessionId` still names the session Clear is discarding,
+ * since the connect effect hasn't persisted the new one yet. Painting from it
+ * would repaint the very transcript Clear just asked to empty, until the new
+ * session's own connect() replaces it — which reads as "Clear doesn't happen
+ * until the new session initializes" instead of an immediate clear.
+ */
+export function shouldSkipInstantPaint(intent: RestartIntent | null): boolean {
+  return intent === "reset";
+}
+
+/**
  * The folder this panel's session runs in: the one chosen when it was started
  * (RFC 0046), falling back to the workspace's primary folder.
  *
