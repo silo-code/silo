@@ -421,6 +421,38 @@ function ToolKindGlyph({
   return <Glyph className={className} size="1em" aria-hidden="true" />;
 }
 
+/** Stagger (ms) between one {@link WaveText} character's `animation-delay`
+ *  and the next. */
+const WAVE_CHAR_DELAY_MS = 40;
+
+/** `text`, one `<span>` per character, each running the same `infinite`
+ *  `acp-chat-tool-pulse` color animation but phase-shifted by {@link
+ *  WAVE_CHAR_DELAY_MS} — reads as a wave crossing the label instead of the
+ *  whole string pulsing in place. Every character loops forever off its own
+ *  clock, so there's no seam where the wave "resets". A plain `color`
+ *  crossfade per character, not a `background-clip: text` gradient sweep —
+ *  that approach broke when the label's own text changed mid-animation (a
+ *  `tool_call_update` patching the title while it streams): WebKit could
+ *  leave a stale glyph clip-mask for a frame and blank part of a word.
+ *  Spaces become ` ` so an inline `<span>` boundary can't collapse
+ *  them — safe here because `.acp-chat__tool-head` is already
+ *  `user-select: none`, so this never has to round-trip through copy/paste. */
+function WaveText({ text }: { text: string }) {
+  return (
+    <>
+      {[...text].map((ch, i) => (
+        <span
+          key={i}
+          className="acp-chat__tool-wave-char"
+          style={{ animationDelay: `${i * WAVE_CHAR_DELAY_MS}ms` }}
+        >
+          {ch === " " ? " " : ch}
+        </span>
+      ))}
+    </>
+  );
+}
+
 /**
  * One transcript row (RFC 0043 finding 1). A plain function, not a
  * component: every `RenderEntry` (plus, for a tool row, {@link
@@ -501,11 +533,22 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
     // the whole title to it instead of leaving it dead text.
     const titleFallbackPath =
       diffs[0]?.path ?? toolPathFromRawInput(entry.rawInput);
+    const titleHasMatches = matchChatLinks(entry.title).length > 0;
+    // The row's own label ripples while a call is still running (RFC 0043
+    // tweak, Dave's call) instead of a separate "in_progress" badge —
+    // `WaveText` is skipped for a title with its own embedded links (rare:
+    // freeform text that happens to mention a second path/URL) rather than
+    // untangling per-character spans around `matchChatLinks`' own spans; that
+    // case still gets the plain, whole-row pulse (the CSS fallback below).
+    const isRunning =
+      entry.status === "pending" || entry.status === "in_progress";
     const titleNode =
-      titleFallbackPath && matchChatLinks(entry.title).length === 0 ? (
+      titleFallbackPath && !titleHasMatches ? (
         <ChatLinkSpan kind="path" href={titleFallbackPath}>
-          {entry.title}
+          {isRunning ? <WaveText text={entry.title} /> : entry.title}
         </ChatLinkSpan>
+      ) : isRunning && !titleHasMatches ? (
+        <WaveText text={entry.title} />
       ) : (
         <LinkifiedText text={entry.title} />
       );
@@ -554,10 +597,12 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
             />
           )}
           {kindLabel ? (
-            <span className="acp-chat__tool-kind">{kindLabel}</span>
+            <span className="acp-chat__tool-kind">
+              {isRunning ? <WaveText text={kindLabel} /> : kindLabel}
+            </span>
           ) : null}
           <span className="acp-chat__tool-title">{titleNode}</span>
-          {entry.status === "in_progress" || entry.status === "failed" ? (
+          {entry.status === "failed" ? (
             <Badge tone={toolStatusTone(entry.status)} size="sm">
               {entry.status}
             </Badge>
