@@ -202,6 +202,32 @@ pub fn run() {
             // built-in and third-party extensions contribute menu items through the
             // same registry.
 
+            // Gate window close on live ACP agents. Cheap and synchronous (a
+            // registry lock, no webview round trip) so the overwhelmingly common
+            // case — no agent connected at all — closes exactly as fast as
+            // before this existed; see the note in `main.tsx` this refines
+            // rather than reverses. A live connection diverts into the webview:
+            // the close is prevented and `agent-close-warning` is emitted, and
+            // `agent-close-guard.ts` there makes the real call — only an agent
+            // actually mid-turn (`activity === "working"`) gets a confirm
+            // dialog; a connected-but-idle one is let through silently via
+            // `commands::acp::force_quit`, since this Rust-side check has no
+            // visibility into that finer-grained activity. The app menu's Quit
+            // item and Cmd+Q both route through this same window `close()` call
+            // (see `menu-items.ts`) instead of the OS-level terminate a
+            // `PredefinedMenuItem::Quit` would use, so no quit path bypasses it.
+            if let Some(window) = app.get_webview_window("main") {
+                let handle = app.handle().clone();
+                window.on_window_event(move |event| {
+                    if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                        if commands::acp::has_live_connections() {
+                            api.prevent_close();
+                            let _ = handle.emit("agent-close-warning", ());
+                        }
+                    }
+                });
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -230,6 +256,7 @@ pub fn run() {
             commands::acp::acp_send,
             commands::acp::acp_stderr_tail,
             commands::acp::acp_close,
+            commands::acp::force_quit,
             commands::process::process_exec,
             commands::process::process_exec_kill,
             commands::process::process_kill_group,

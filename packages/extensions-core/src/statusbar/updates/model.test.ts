@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import type { AgentInfo } from "@silo-code/sdk";
 import type { UpdatePhase } from "@silo-code/extension-host/internal";
 import {
   updateLinkLabel,
@@ -6,7 +7,25 @@ import {
   buildUpdateLead,
   isVersionSkipped,
   describeCheckOutcome,
+  countRunningChatAgents,
 } from "./model";
+
+/** Build an AgentInfo with sensible defaults; override just the fields a test
+ * cares about. Mirrors the host's shape at `ctx.agents`. */
+function agent(over: Partial<AgentInfo> = {}): AgentInfo {
+  return {
+    title: "claude",
+    id: over.terminalId ?? "t1",
+    workspaceId: "w1",
+    kind: "chat",
+    isAgent: true,
+    activity: "none",
+    needsAttention: false,
+    stale: false,
+    canResume: false,
+    ...over,
+  };
+}
 
 // `isVersionSkipped` takes its comparator as a parameter precisely so this
 // test doesn't need to pull in the real `compareVersions` (which lives on
@@ -73,6 +92,22 @@ describe("isVersionSkipped", () => {
 
   it("is false when there's no available version", () => {
     expect(isVersionSkipped(null, "1.2.0", compareVersions)).toBe(false);
+  });
+});
+
+describe("countRunningChatAgents", () => {
+  it("is 0 when there are no agents", () => {
+    expect(countRunningChatAgents([])).toBe(0);
+  });
+
+  it("counts only chat agents with activity 'working'", () => {
+    const agents = [
+      agent({ id: "a", kind: "chat", activity: "working" }),
+      agent({ id: "b", kind: "chat", activity: "idle" }),
+      agent({ id: "c", kind: "terminal", activity: "working" }),
+      agent({ id: "d", kind: "chat", activity: "working" }),
+    ];
+    expect(countRunningChatAgents(agents)).toBe(2);
   });
 });
 

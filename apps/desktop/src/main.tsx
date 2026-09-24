@@ -10,6 +10,7 @@ import {
   initUserKeybindings,
   setExtensionsReady,
   initGlobalErrorCapture,
+  initAgentCloseGuard,
   initLoginShell,
   beginStartupStatus,
   markStartupHydrated,
@@ -22,6 +23,11 @@ import { initControlHandler } from "./control";
 // Install global error/rejection capture before anything else runs so boot
 // errors and extension errors are routed to the silo:errors Output channel.
 initGlobalErrorCapture();
+
+// Confirm before a close/quit cancels a running chat agent (see the note near
+// `flushBackgroundState` below on why this is a narrow, agent-only exception
+// to "don't gate the OS close button").
+initAgentCloseGuard();
 
 // StatusBar startup sequence (RFC 0026) — before hydrate / extension races.
 beginStartupStatus();
@@ -90,12 +96,21 @@ userConfigDir()
 
 // Best-effort flush of unsaved-edit backups + workspace/layout state when the
 // window is being hidden or torn down. We deliberately do NOT intercept the close
-// (no `onCloseRequested`/`preventDefault`): gating the OS close button on async
-// work is fragile — programmatic `close()` needs a capability and a denied/slow
-// close wedges the window shut. Durability instead comes from the debounced
-// backup writes made *while editing* (which survive even a hard kill); this is
-// just a fire-and-forget catch for the last in-flight edit on a normal close.
-// `pagehide` covers teardown; `visibilitychange→hidden` covers minimize/hide.
+// (no `onCloseRequested`/`preventDefault`) *for this*: gating the OS close button
+// on async work is fragile — programmatic `close()` needs a capability and a
+// denied/slow close wedges the window shut. Durability instead comes from the
+// debounced backup writes made *while editing* (which survive even a hard
+// kill); this is just a fire-and-forget catch for the last in-flight edit on a
+// normal close. `pagehide` covers teardown; `visibilitychange→hidden` covers
+// minimize/hide.
+//
+// `initAgentCloseGuard` above is a narrow, deliberate exception to this: a
+// running chat agent has no backup equivalent (killing it mid-turn just loses
+// that turn), so the Rust side (`apps/desktop/src-tauri/src/lib.rs`) does gate
+// close/quit — but only when an agent is actually alive, checked synchronously
+// against the ACP connection registry before ever preventing the close. With
+// no agent running, close/quit is exactly as fast and ungated as the reasoning
+// above intends.
 function flushBackgroundState(): void {
   void flushEditorBackups();
   void persistImmediately();
