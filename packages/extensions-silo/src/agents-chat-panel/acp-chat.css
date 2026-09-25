@@ -203,6 +203,53 @@
   cursor: pointer;
 }
 
+/* A running call's badge (Dave's call): the row's own label text pulses
+   instead, so "still working" reads from the row itself rather than a
+   separate "in_progress" chip. Covers "pending" too — many agents never send
+   an explicit "in_progress" update, so "pending" is the only signal the call
+   is still running (see `closeDanglingTools`). A plain `color` crossfade
+   between two already-legible tones, not a `background-clip: text` gradient
+   sweep — the title text is live (`tool_call_update` can patch it mid-flight)
+   and WebKit was caught leaving a stale glyph clip-mask for a frame when the
+   text changed under an animated clip, blanking part of a word. Crossfading
+   `color` has no clip mask to go stale, so it can't ever drop a letter. The
+   swing is deliberately wide — full `-lo` to `-hi` — because a narrower one
+   (`-content-text` to `-hi`, Dave's first cut) read as barely-there; `-lo` is
+   still a real, legible, elsewhere-used tone (it's `.acp-chat__tool-title`'s
+   own resting color), never a fade to invisible.
+
+   `.acp-chat__tool-wave-char` (one per character, from `WaveText` in
+   AcpChatPanel.tsx) carries the same animation but with each character's own
+   `animation-delay`, so the pulse reads as a wave crossing the label instead
+   of the whole row throbbing together — every character loops the same
+   `infinite` animation off its own clock, so there's no seam where the wave
+   visibly "resets". The plain whole-element selectors below stay as the
+   fallback for the one case `WaveText` skips: a title with its own embedded
+   link (`.acp-chat__link`'s own `color: var(--silo-color-accent)` would
+   otherwise win and sit static while the rest of the title pulses). */
+.acp-chat__tool[data-status="pending"] .acp-chat__tool-kind,
+.acp-chat__tool[data-status="pending"] .acp-chat__tool-title,
+.acp-chat__tool[data-status="pending"] .acp-chat__tool-title .acp-chat__link,
+.acp-chat__tool[data-status="pending"] .acp-chat__tool-wave-char,
+.acp-chat__tool[data-status="in_progress"] .acp-chat__tool-kind,
+.acp-chat__tool[data-status="in_progress"] .acp-chat__tool-title,
+.acp-chat__tool[data-status="in_progress"]
+  .acp-chat__tool-title
+  .acp-chat__link,
+.acp-chat__tool[data-status="in_progress"] .acp-chat__tool-wave-char {
+  animation: acp-chat-tool-pulse 1.3s ease-in-out infinite;
+}
+
+@keyframes acp-chat-tool-pulse {
+  0%,
+  100% {
+    color: var(--silo-color-text-lo);
+  }
+  50% {
+    color: var(--silo-color-text-hi);
+  }
+}
+
 .acp-chat__tool-icon-stack {
   position: relative;
   flex: 0 0 auto;
@@ -635,6 +682,20 @@
 @media (prefers-reduced-motion: reduce) {
   .acp-chat__spin {
     animation: none;
+  }
+
+  .acp-chat__tool[data-status="pending"] .acp-chat__tool-kind,
+  .acp-chat__tool[data-status="pending"] .acp-chat__tool-title,
+  .acp-chat__tool[data-status="pending"] .acp-chat__tool-title .acp-chat__link,
+  .acp-chat__tool[data-status="pending"] .acp-chat__tool-wave-char,
+  .acp-chat__tool[data-status="in_progress"] .acp-chat__tool-kind,
+  .acp-chat__tool[data-status="in_progress"] .acp-chat__tool-title,
+  .acp-chat__tool[data-status="in_progress"]
+    .acp-chat__tool-title
+    .acp-chat__link,
+  .acp-chat__tool[data-status="in_progress"] .acp-chat__tool-wave-char {
+    animation: none;
+    color: unset;
   }
 }
 
