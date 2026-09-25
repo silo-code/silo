@@ -1,6 +1,6 @@
 # Interface: AgentCommand
 
-Defined in: [packages/sdk/src/agents-service.ts:1024](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1024)
+Defined in: [packages/sdk/src/agents-service.ts:1038](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1038)
 
 **`Beta`**
 
@@ -21,7 +21,7 @@ this surface deliberately does not try.
 readonly name: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1027](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1027)
+Defined in: [packages/sdk/src/agents-service.ts:1041](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1041)
 
 **`Beta`**
 
@@ -36,7 +36,7 @@ What to send after `/` to invoke it — `prompt([{ type: "text", text:
 readonly optional description?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1029](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1029)
+Defined in: [packages/sdk/src/agents-service.ts:1043](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1043)
 
 **`Beta`**
 
@@ -50,7 +50,7 @@ One-line summary for a palette row.
 readonly optional input?: object;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1036](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1036)
+Defined in: [packages/sdk/src/agents-service.ts:1050](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1050)
 
 **`Beta`**
 

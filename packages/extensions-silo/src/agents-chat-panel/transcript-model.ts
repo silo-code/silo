@@ -48,6 +48,15 @@ export interface MessageEntry {
   /** File names the user attached to this turn (`role === "user"` only) —
    *  rendered as chips under the message. */
   readonly attachments?: readonly string[];
+  /** When the user sent this turn (`role === "user"` only), as epoch ms —
+   *  shown on hover alongside the copy action. Set either by
+   *  {@link appendUserMessage} (a prompt this panel itself just sent) or by
+   *  {@link applyUpdate} reading {@link AgentSessionUpdate.timestamp} off the
+   *  synthesized `user_message_chunk` the host journals at send time — the
+   *  latter is what keeps this surviving a **transcript journal** replay
+   *  (`session/resume`, a `journal-only` restore, or simply reconnecting).
+   *  `undefined` only for a turn old enough to predate this field. */
+  readonly sentAt?: number;
 }
 
 /** One tool call, updated in place as `tool_call_update`s arrive. */
@@ -263,8 +272,24 @@ export function appendUserMessage(
     key,
     role: "user",
     text,
+    sentAt: Date.now(),
     ...(attachments.length > 0 ? { attachments } : {}),
   }));
+}
+
+/** Format a {@link MessageEntry.sentAt} for the hover-only timestamp next to
+ *  a user message's copy action, e.g. `"Sep 7 3:38 PM"`. */
+export function formatMessageSentAt(sentAt: number): string {
+  const date = new Date(sentAt);
+  const datePart = date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  const timePart = date.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${datePart} ${timePart}`;
 }
 
 /** Every non-empty prompt the user has sent in this session, oldest first —
@@ -328,12 +353,17 @@ export function applyUpdate(
         seq: t.seq,
       };
     }
+    const sentAt =
+      role === "user" && update.timestamp !== undefined
+        ? Date.parse(update.timestamp)
+        : undefined;
     return appendEntry(t, (key) => ({
       type: "message",
       key,
       role,
       ...(update.messageId ? { messageId: update.messageId } : {}),
       text,
+      ...(sentAt !== undefined && !Number.isNaN(sentAt) ? { sentAt } : {}),
     }));
   }
 

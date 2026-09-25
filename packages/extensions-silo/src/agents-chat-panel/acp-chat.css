@@ -133,9 +133,123 @@
 .acp-chat__message[data-role="user"] {
   align-self: flex-end;
   max-width: 85%;
+}
+
+.acp-chat__message-bubble {
   padding: 6px 10px;
   border-radius: var(--silo-radius-md);
   background: var(--silo-color-bg-active);
+}
+
+/* Hover-only time + copy row (Dave's reference screenshot) — sits below the
+   bubble's own background, right-aligned to match it. Revealed on hover or
+   keyboard focus of the copy button itself, so it's reachable without a
+   mouse. `:has(:focus-visible)`, not `:focus-within` — a *click* on the copy
+   button leaves it focused (but not focus-**visible**) afterward, and
+   `:focus-within` would then keep this row pinned open forever once clicked,
+   even after the pointer leaves the bubble. */
+.acp-chat__message-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text-lo);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+
+.acp-chat__message[data-role="user"]:hover .acp-chat__message-meta,
+.acp-chat__message-meta:has(:focus-visible) {
+  /* Deliberately short of full opacity (Dave's call) — this is metadata, not
+     content, so it should read as quieter than the message itself even while
+     revealed. */
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+/* `size="sm"` still carries the kit's own hit-target padding around the
+   glyph (a deliberately generous click target); a negative margin here pulls
+   the *visible* icon in against the timestamp and up against the bubble
+   without shrinking what's actually clickable. */
+.acp-chat__message-copy {
+  margin: -6px;
+}
+
+/* Outline → filled glyph swap on hover (Dave's call), not a color or
+   background change — the shared `.silo-icon-button` hover treatment paints
+   a background wash and recolors the glyph, both of which read as too heavy
+   for a quiet metadata row. The extra `.acp-chat__message-meta` ancestor in
+   the selector outweighs the shared rule's own specificity regardless of CSS
+   load order between the host and this extension. */
+.acp-chat__message-meta .acp-chat__message-copy:hover:not(:disabled) {
+  background: transparent;
+  color: var(--silo-color-text-lo);
+}
+
+/* The two `Copy` glyphs (outline + `weight="fill"`) sit stacked in the same
+   1em box; only one is ever visible, swapped by opacity rather than
+   mounting/unmounting so there's no icon-shaped gap mid-hover. */
+.acp-chat__message-copy-icon-stack {
+  position: relative;
+  display: inline-flex;
+  width: 1em;
+  height: 1em;
+}
+
+.acp-chat__message-copy-icon {
+  position: absolute;
+  inset: 0;
+}
+
+.acp-chat__message-copy-icon--fill {
+  opacity: 0;
+}
+
+.acp-chat__message-copy:hover:not(:disabled)
+  .acp-chat__message-copy-icon--outline {
+  opacity: 0;
+}
+
+.acp-chat__message-copy:hover:not(:disabled)
+  .acp-chat__message-copy-icon--fill {
+  opacity: 1;
+}
+
+/* Dark themes only (Dave's call) — `--silo-color-text-lo` is tuned dim enough
+   there that this row read as barely-there even at the 0.6 reveal opacity
+   above. Full `--silo-color-text-hi` read as too bright the other way, so
+   this splits the difference with a `color-mix` rather than landing back on
+   either token exactly. Same split for the icon (the kit's own
+   `.silo-icon-button` sets its *own* explicit `color`, so it needs its own
+   override, not just the row's) and the reveal opacity (halfway between 0.6
+   and 0.85). Light themes are untouched — this was tuned and confirmed there
+   already. */
+[data-theme="dark"] .acp-chat__message-meta {
+  color: color-mix(
+    in srgb,
+    var(--silo-color-text-lo),
+    var(--silo-color-text-hi)
+  );
+}
+
+[data-theme="dark"]
+  .acp-chat__message[data-role="user"]:hover
+  .acp-chat__message-meta,
+[data-theme="dark"] .acp-chat__message-meta:has(:focus-visible) {
+  opacity: 0.725;
+}
+
+[data-theme="dark"] .acp-chat__message-meta .acp-chat__message-copy,
+[data-theme="dark"]
+  .acp-chat__message-meta
+  .acp-chat__message-copy:hover:not(:disabled) {
+  color: color-mix(
+    in srgb,
+    var(--silo-color-text-lo),
+    var(--silo-color-text-hi)
+  );
 }
 
 .acp-chat__message[data-role="thought"] {

@@ -75,6 +75,7 @@ import {
   CaretDown,
   CaretRight,
   Command,
+  Copy,
   FileText,
   Globe,
   Lightbulb,
@@ -180,6 +181,7 @@ import {
   closeDanglingTools,
   emptyTranscript,
   foldToolRuns,
+  formatMessageSentAt,
   formatToolInput,
   groupTurns,
   sameTurn,
@@ -483,21 +485,58 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
           <div className="acp-chat__thought-label">Thinking</div>
         ) : null}
         {/* The agent writes markdown; the user wrote literal text and their
-            asterisks must stay their asterisks. */}
+            asterisks must stay their asterisks. A user turn's text and
+            attachments sit in their own bubble so the hover-only meta row
+            below (time + copy) can sit outside the bubble's background,
+            matching Dave's reference screenshot. */}
         {entry.role === "user" ? (
-          <div className="acp-chat__text">
-            <LinkifiedText text={entry.text} />
+          <div className="acp-chat__message-bubble">
+            <div className="acp-chat__text">
+              <LinkifiedText text={entry.text} />
+            </div>
+            {entry.attachments && entry.attachments.length > 0 ? (
+              <div className="acp-chat__attachments">
+                {entry.attachments.map((name, i) => (
+                  <span
+                    key={`${entry.key}-att-${i}`}
+                    className="acp-chat__chip"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : (
           <TranscriptMarkdown text={entry.text} />
         )}
-        {entry.attachments && entry.attachments.length > 0 ? (
-          <div className="acp-chat__attachments">
-            {entry.attachments.map((name, i) => (
-              <span key={`${entry.key}-att-${i}`} className="acp-chat__chip">
-                {name}
+        {entry.role === "user" ? (
+          <div className="acp-chat__message-meta">
+            {entry.sentAt !== undefined ? (
+              <span className="acp-chat__message-time">
+                {formatMessageSentAt(entry.sentAt)}
               </span>
-            ))}
+            ) : null}
+            <IconButton
+              size="sm"
+              className="acp-chat__message-copy"
+              aria-label="Copy message"
+              onClick={() => void navigator.clipboard.writeText(entry.text)}
+            >
+              <span className="acp-chat__message-copy-icon-stack">
+                <Copy
+                  size="1em"
+                  aria-hidden="true"
+                  className="acp-chat__message-copy-icon acp-chat__message-copy-icon--outline"
+                />
+                <Copy
+                  size="1em"
+                  weight="fill"
+                  aria-hidden="true"
+                  className="acp-chat__message-copy-icon acp-chat__message-copy-icon--fill"
+                />
+              </span>
+            </IconButton>
           </div>
         ) : null}
       </div>

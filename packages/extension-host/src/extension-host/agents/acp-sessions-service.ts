@@ -81,6 +81,7 @@ import {
   type TurnPhase,
 } from "./agent-turn-model";
 import {
+  backfillUserPromptTimestamps,
   createJournalWriter,
   deleteJournalFile,
   parseJournalLines,
@@ -277,6 +278,13 @@ function toSdkUpdate(u: AcpSessionUpdate): AgentSessionUpdate {
  * never fires here because the writer is seeded empty for a `load` restore).
  * `undefined` for a turn with no text block (attachment-only) — nothing
  * honest to show for it.
+ *
+ * Stamped with {@link AgentSessionUpdate.timestamp} at `session/prompt` time
+ * — the one place Silo itself originates this update rather than relaying
+ * the wire, so it's also the one place that timestamp can be honest. A live
+ * Chat UI never reads it back (it already knows "now" when it appends its
+ * own prompt locally); it exists so a **journal replay** — `session/resume`,
+ * or a `journal-only` restore — can still show when a past turn was sent.
  */
 function journalUserPromptUpdate(
   blocks: readonly AgentPromptBlock[],
@@ -295,6 +303,7 @@ function journalUserPromptUpdate(
     text,
     content: { type: "text", text },
     messageId,
+    timestamp: nowIso(),
     raw: { synthesized: true },
   };
 }
@@ -1005,9 +1014,21 @@ export function createAgentSessionsService(
             // `session/load` replays the whole transcript itself (recon
             // §5.2), captured live into the writer above, appended after the
             // seed — drop the seed so the restore doesn't show every turn
-            // twice. Re-key to an adopted id (observed on claude) so future
-            // writes — and the next restore attempt — target the live id.
-            writer.dropSeed(priorLines.length);
+            // twice. The replay's own `user_message_chunk`s come straight off
+            // the wire with no `timestamp` (ACP carries none), even for a
+            // turn whose *original* line had one — backfill from the seed
+            // before it's dropped for good, or every restore through `load`
+            // permanently forgets when a past turn was sent. Re-key to an
+            // adopted id (observed on claude) so future writes — and the next
+            // restore attempt — target the live id.
+            const replayedLines = writer
+              .snapshotLines()
+              .slice(priorLines.length);
+            const corrected = backfillUserPromptTimestamps(
+              priorLines,
+              replayedLines,
+            );
+            writer.replaceLines(corrected);
             if (attempt.sessionId !== resumeTarget.sessionId) {
               const captured = writer.snapshotLines();
               writer.dispose();
@@ -1123,7 +1144,10 @@ export function createAgentSessionsService(
         // `journalWriter` has been listening since this handle was created —
         // a replay lands on it live, appended after whatever it already
         // held, so a `load` outcome needs to drop exactly that much back off.
-        const linesBeforeResume = journalWriter?.snapshotLines().length ?? 0;
+        // Kept as full lines, not just a count: a correction (see
+        // `backfillUserPromptTimestamps` below) needs the seed's own content,
+        // not merely how much of it to discard.
+        const linesBeforeResume = journalWriter?.snapshotLines() ?? [];
         try {
           await next.initialize();
           const attempt = await tryResumeOrLoad(
@@ -1138,7 +1162,14 @@ export function createAgentSessionsService(
           }
           if (attempt.via === "load" && journalWriter) {
             const prior = journalWriter;
-            prior.dropSeed(linesBeforeResume);
+            const replayedLines = prior
+              .snapshotLines()
+              .slice(linesBeforeResume.length);
+            const corrected = backfillUserPromptTimestamps(
+              linesBeforeResume,
+              replayedLines,
+            );
+            prior.replaceLines(corrected);
             if (attempt.sessionId !== acpSessionId) {
               const captured = prior.snapshotLines();
               prior.dispose();
