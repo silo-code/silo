@@ -2532,7 +2532,7 @@ export function AcpChatPanel({
           ref={inputRef}
           className="acp-chat__input"
           value={draft}
-          rows={2}
+          rows={3}
           placeholder={composerPlaceholder(lost, readOnly)}
           disabled={!inputEnabled}
           autoCapitalize="off"

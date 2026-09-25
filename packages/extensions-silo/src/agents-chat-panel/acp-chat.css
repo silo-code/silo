@@ -60,7 +60,10 @@
   /* Turn-to-turn spacing (Dave's call) — the break after a reply and
      before the next user bubble. */
   gap: 40px;
-  padding: 12px 14px;
+  /* Bottom is bumped above the horizontal 14px (Dave's call) — more breathing
+     room between the last line of transcript and the composer's top
+     divider than the sides get. */
+  padding: 12px 14px 24px;
 }
 
 /* --- turns --------------------------------------------------------------- */
@@ -615,8 +618,24 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 10px;
+  /* Top is bumped above the rest (Dave's call) — more room between the
+     divider above and the placeholder than the other sides get. */
+  padding: 16px 10px 8px;
   background: var(--silo-color-content-bg);
+}
+
+/* Divider off the transcript above — the composer no longer reads as its own
+   message box, so this is what separates it from the scrollback. A pseudo
+   element rather than `border-top` so it insets from both edges (Dave's
+   call) instead of running the panel's full width. */
+.acp-chat__composer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 1px;
+  background: var(--silo-color-input-border);
 }
 
 .acp-chat__input {
@@ -630,6 +649,23 @@
   max-height: 200px;
   overflow-y: auto;
   resize: none;
+  /* Dave's call: no message-box chrome here — the composer's own background
+     (above) already reads as the input's surface, so the field itself
+     should show nothing but placeholder/cursor/text. Horizontal padding
+     matches `.silo-menu-button-sm`'s left inset (below) so the placeholder
+     lines up with the profile/mode/model labels under it. */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0 10px;
+}
+
+/* Same idiom as GitExplorerPanel's `.commit-area textarea::placeholder` /
+   ThemeEditorPanel's `.theme-editor-input::placeholder` — a translucent mix
+   over the field's own text color rather than a separate token, so it dims
+   correctly against every theme's input text. */
+.acp-chat__input::placeholder {
+  color: color-mix(in srgb, var(--silo-color-input-text) 40%, transparent);
 }
 
 /* Dave's call: this field skips the app-wide `:focus-visible` ring (theme.css)
