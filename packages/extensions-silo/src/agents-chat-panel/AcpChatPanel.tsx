@@ -517,7 +517,9 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
         : entry.lines.join("\n");
     const showInlineDiff = toolShowsInlineDiff(entry.toolKind, diffs.length);
     const hasExtras = inputText !== undefined || outputText.length > 0;
-    const hasBody = (!showInlineDiff && diffs.length > 0) || hasExtras;
+    // An edit's hunk is already on the row (below), always visible — it isn't
+    // a second, redundant disclosure the row can also expand into.
+    const hasBody = !showInlineDiff && (diffs.length > 0 || hasExtras);
     const expanded = hasBody && tools.expandedTools.has(entry.key);
     const toggle = () => tools.onToggleTool(entry.key);
     const onHeadClick = (e: MouseEvent) => {
