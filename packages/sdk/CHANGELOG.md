@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.54.0](https://github.com/silo-code/silo/compare/sdk-v0.53.0...sdk-v0.54.0) (2026-09-25)
+
+
+### Features
+
+* **agents-chat-panel:** show a hover timestamp and copy action on user messages ([#568](https://github.com/silo-code/silo/issues/568)) ([bf21a17](https://github.com/silo-code/silo/commit/bf21a17db2d38e6b4e7008503e366cc754d5c06a))
+
 ## [0.53.0](https://github.com/silo-code/silo/compare/sdk-v0.52.0...sdk-v0.53.0) (2026-09-24)
 
 
