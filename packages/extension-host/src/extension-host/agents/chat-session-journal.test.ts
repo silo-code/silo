@@ -30,6 +30,7 @@ vi.mock("../../services/user-config", () => ({
 }));
 
 import {
+  backfillUserPromptTimestamps,
   createJournalWriter,
   deleteJournalFile,
   parseJournalLines,
@@ -105,6 +106,90 @@ describe("parseJournalLines", () => {
     expect(
       parseJournalLines(['{"notAKind":1}', "42", '"just a string"']),
     ).toEqual([]);
+  });
+});
+
+describe("backfillUserPromptTimestamps", () => {
+  it("copies a prior user turn's timestamp onto the replay's timestamp-less line at the same position", () => {
+    const prior = [
+      JSON.stringify({
+        kind: "user_message_chunk",
+        text: "what model is this?",
+        timestamp: "2026-09-07T19:38:00.000Z",
+      }),
+      JSON.stringify({ kind: "agent_message_chunk", text: "Haiku 4.5" }),
+    ];
+    const replayed = [
+      JSON.stringify({
+        kind: "user_message_chunk",
+        text: "what model is this?",
+      }),
+      JSON.stringify({ kind: "agent_message_chunk", text: "Haiku 4.5" }),
+    ];
+    const result = backfillUserPromptTimestamps(prior, replayed);
+    expect(JSON.parse(result[0]).timestamp).toBe("2026-09-07T19:38:00.000Z");
+  });
+
+  it("never touches a line the replay already stamped", () => {
+    const prior = [
+      JSON.stringify({
+        kind: "user_message_chunk",
+        text: "a",
+        timestamp: "2026-01-01T00:00:00.000Z",
+      }),
+    ];
+    const replayed = [
+      JSON.stringify({
+        kind: "user_message_chunk",
+        text: "a",
+        timestamp: "2026-06-01T00:00:00.000Z",
+      }),
+    ];
+    expect(backfillUserPromptTimestamps(prior, replayed)).toEqual(replayed);
+  });
+
+  it("passes every non-user line through byte-for-byte, never round-tripped through JSON", () => {
+    const line = '{"kind":"agent_message_chunk","text":"hi","extra":  1}';
+    expect(backfillUserPromptTimestamps([], [line])[0]).toBe(line);
+  });
+
+  it("aligns by position across turns that predate this field, not just by whichever had a timestamp", () => {
+    // Turn 1 predates the fix (no timestamp); turn 2 postdates it. A naive
+    // "collect only the timestamped ones" match would shift turn 2's
+    // timestamp onto turn 1.
+    const prior = [
+      JSON.stringify({ kind: "user_message_chunk", text: "first" }),
+      JSON.stringify({
+        kind: "user_message_chunk",
+        text: "second",
+        timestamp: "2026-09-07T19:38:00.000Z",
+      }),
+    ];
+    const replayed = [
+      JSON.stringify({ kind: "user_message_chunk", text: "first" }),
+      JSON.stringify({ kind: "user_message_chunk", text: "second" }),
+    ];
+    const result = backfillUserPromptTimestamps(prior, replayed).map((l) =>
+      JSON.parse(l),
+    );
+    expect(result[0].timestamp).toBeUndefined();
+    expect(result[1].timestamp).toBe("2026-09-07T19:38:00.000Z");
+  });
+
+  it("is a no-op when nothing prior had a timestamp to give", () => {
+    const prior = [JSON.stringify({ kind: "user_message_chunk", text: "a" })];
+    const replayed = [
+      JSON.stringify({ kind: "user_message_chunk", text: "a" }),
+    ];
+    expect(backfillUserPromptTimestamps(prior, replayed)).toEqual(replayed);
+  });
+
+  it("tolerates a corrupt prior line without throwing", () => {
+    const prior = ["not json at all"];
+    const replayed = [
+      JSON.stringify({ kind: "user_message_chunk", text: "a" }),
+    ];
+    expect(() => backfillUserPromptTimestamps(prior, replayed)).not.toThrow();
   });
 });
 
@@ -221,6 +306,34 @@ describe("createJournalWriter", () => {
     const writer = createJournalWriter("ws1", "s1", ['{"kind":"seed"}']);
     writer.dropSeed(0);
     writer.dropSeed(-1);
+    expect(writer.snapshotLines()).toEqual(['{"kind":"seed"}']);
+  });
+
+  // A `dropSeed(n)` + fresh `createJournalWriter` swap (dispose the old
+  // writer, construct a new one seeded with the corrected lines) reads as
+  // equivalent, but a brand-new writer's own `dirty` flag starts false — its
+  // `flush()` is then a no-op until something else marks it dirty, silently
+  // dropping the correction from disk. `replaceLines` exists so a correction
+  // (e.g. `backfillUserPromptTimestamps`) actually schedules a real write.
+  it("replaceLines swaps the whole buffer and schedules a flush", async () => {
+    const writer = createJournalWriter("ws1", "s1", [
+      '{"kind":"seed1"}',
+      '{"kind":"seed2"}',
+    ]);
+    writer.replaceLines([JSON.stringify(update("corrected"))]);
+    expect(writer.snapshotLines()).toEqual([
+      JSON.stringify(update("corrected")),
+    ]);
+    await writer.flush();
+    expect(fsWriteText.mock.calls[0][1]).toBe(
+      JSON.stringify(update("corrected")) + "\n",
+    );
+  });
+
+  it("replaceLines does nothing on a disposed writer", () => {
+    const writer = createJournalWriter("ws1", "s1", ['{"kind":"seed"}']);
+    writer.dispose();
+    writer.replaceLines(['{"kind":"new"}']);
     expect(writer.snapshotLines()).toEqual(['{"kind":"seed"}']);
   });
 });

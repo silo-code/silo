@@ -838,6 +838,20 @@ export interface AgentSessionUpdate {
    */
   readonly messageId?: string;
   /**
+   * ISO 8601 timestamp for **when this update was recorded**, when Silo
+   * itself is the one recording it — currently just the synthesized
+   * `user_message_chunk` a prompt's own turn writes into the **transcript
+   * journal** (RFC 0042), stamped at `session/prompt` time since the Agent
+   * Client Protocol never echoes a user's own prompt back. `undefined` for
+   * every update read straight off the wire: ACP carries no timestamp field,
+   * so a live `onUpdate` notification never has one. A Chat UI wanting "when
+   * was this sent" for its own just-appended prompt already knows that
+   * locally; this field exists so the same information survives a **journal
+   * replay** (`session/resume`, or `journal-only` restore) after the
+   * in-memory value is gone.
+   */
+  readonly timestamp?: string;
+  /**
    * The tool call, for `kind` `"tool_call"` and `"tool_call_update"`;
    * `undefined` otherwise. Key rows by {@link AgentToolCall.toolCallId} and
    * patch in place — an update carries only what changed.

@@ -12,6 +12,7 @@ import {
   elapsedLabel,
   emptyTranscript,
   foldToolRuns,
+  formatMessageSentAt,
   formatToolInput,
   groupTurns,
   nextEntryKey,
@@ -177,6 +178,34 @@ describe("applyUpdate — streaming text", () => {
   it("ignores an empty chunk rather than opening a blank bubble", () => {
     const t = applyUpdate(emptyTranscript, chunk("agent_message_chunk", ""));
     expect(t).toBe(emptyTranscript);
+  });
+});
+
+describe("applyUpdate — journaled user message timestamp", () => {
+  it("reads a journal-replayed user_message_chunk's timestamp into sentAt", () => {
+    const iso = "2026-09-07T19:38:00.000Z";
+    const t = applyUpdate(emptyTranscript, {
+      kind: "user_message_chunk",
+      text: "what model is this?",
+      timestamp: iso,
+      raw: {},
+    });
+    expect((t.entries[0] as MessageEntry).sentAt).toBe(Date.parse(iso));
+  });
+
+  it("leaves sentAt unset for a user chunk with no timestamp (live-stream shape)", () => {
+    const t = applyUpdate(emptyTranscript, chunk("user_message_chunk", "hi"));
+    expect("sentAt" in (t.entries[0] as object)).toBe(false);
+  });
+
+  it("never reads timestamp for a non-user role, even if present", () => {
+    const t = applyUpdate(emptyTranscript, {
+      kind: "agent_message_chunk",
+      text: "hello",
+      timestamp: "2026-09-07T19:38:00.000Z",
+      raw: {},
+    });
+    expect("sentAt" in (t.entries[0] as object)).toBe(false);
   });
 });
 
@@ -378,6 +407,15 @@ describe("appendUserMessage / appendNotice", () => {
     ).toBe(false);
   });
 
+  it("records when the user sent the prompt, for the hover timestamp", () => {
+    const before = Date.now();
+    const sentAt = (
+      appendUserMessage(emptyTranscript, "hi").entries[0] as MessageEntry
+    ).sentAt;
+    expect(sentAt).toBeGreaterThanOrEqual(before);
+    expect(sentAt).toBeLessThanOrEqual(Date.now());
+  });
+
   it("keeps a user prompt separate from the agent's reply", () => {
     let t: Transcript = appendUserMessage(emptyTranscript, "hi");
     t = applyUpdate(t, chunk("agent_message_chunk", "hello", "m1"));
@@ -440,6 +478,16 @@ describe("formatToolInput", () => {
   it("pretty-prints an object", () => {
     expect(formatToolInput({ command: "ls -la" })).toBe(
       JSON.stringify({ command: "ls -la" }, null, 2),
+    );
+  });
+});
+
+describe("formatMessageSentAt", () => {
+  it("combines a short date and a short time", () => {
+    const sentAt = Date.parse("2026-09-07T15:38:00");
+    const date = new Date(sentAt);
+    expect(formatMessageSentAt(sentAt)).toBe(
+      `${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} ${date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`,
     );
   });
 });

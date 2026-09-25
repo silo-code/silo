@@ -88,13 +88,37 @@ group a streamed sentence into one bubble without minting ids itself.
 
 ***
 
+### timestamp?
+
+```ts
+readonly optional timestamp?: string;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:853](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L853)
+
+**`Beta`**
+
+ISO 8601 timestamp for **when this update was recorded**, when Silo
+itself is the one recording it — currently just the synthesized
+`user_message_chunk` a prompt's own turn writes into the **transcript
+journal** (RFC 0042), stamped at `session/prompt` time since the Agent
+Client Protocol never echoes a user's own prompt back. `undefined` for
+every update read straight off the wire: ACP carries no timestamp field,
+so a live `onUpdate` notification never has one. A Chat UI wanting "when
+was this sent" for its own just-appended prompt already knows that
+locally; this field exists so the same information survives a **journal
+replay** (`session/resume`, or `journal-only` restore) after the
+in-memory value is gone.
+
+***
+
 ### toolCall?
 
 ```ts
 readonly optional toolCall?: AgentToolCall;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:845](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L845)
+Defined in: [packages/sdk/src/agents-service.ts:859](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L859)
 
 **`Beta`**
 
@@ -110,7 +134,7 @@ patch in place — an update carries only what changed.
 readonly optional plan?: readonly AgentPlanEntry[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:851](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L851)
+Defined in: [packages/sdk/src/agents-service.ts:865](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L865)
 
 **`Beta`**
 
@@ -126,7 +150,7 @@ showing rather than appending to it. May be empty.
 readonly optional usage?: AgentSessionUsage;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:857](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L857)
+Defined in: [packages/sdk/src/agents-service.ts:871](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L871)
 
 **`Beta`**
 
@@ -142,7 +166,7 @@ notification at all — see [AgentSessionUsage](AgentSessionUsage.md).
 readonly raw: Readonly<Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:877](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L877)
+Defined in: [packages/sdk/src/agents-service.ts:891](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L891)
 
 **`Beta`**
 

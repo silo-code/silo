@@ -81,6 +81,66 @@ export function parseJournalLines(
   return out;
 }
 
+/**
+ * Restore a `session/load` replay's missing `user_message_chunk.timestamp`
+ * from what the journal already had on disk before the reconnect.
+ *
+ * `session/load` re-sends the whole transcript itself (RFC 0042 restore
+ * flow), including a fresh `user_message_chunk` for every past turn — but
+ * that one comes straight off the wire, and the Agent Client Protocol has no
+ * timestamp field, so it never carries one, even for a turn whose *original*
+ * journal line did (stamped by {@link AgentSessionUpdate.timestamp} at
+ * `session/prompt` time). The caller drops the old journal wholesale once the
+ * replay lands — this must run first, or every restore through `load`
+ * permanently forgets when a past turn was sent.
+ *
+ * Matched by **position**, not text: the `n`th `user_message_chunk` in
+ * `priorLines` is assumed to be the same turn as the `n`th one in
+ * `replayedLines`, since a replay is the same conversation in the same
+ * order — comparing text would fail for a turn ACP carries as content blocks
+ * rather than plain text. A turn that predates this field (no prior
+ * timestamp) still holds its position in the count, so a later turn's
+ * timestamp is never shifted onto the wrong one. Every other line — anything
+ * not a timestamp-less `user_message_chunk` — passes through as the exact
+ * original string, never round-tripped through JSON, so this never perturbs
+ * a line it had no reason to touch.
+ */
+export function backfillUserPromptTimestamps(
+  priorLines: readonly string[],
+  replayedLines: readonly string[],
+): string[] {
+  const priorTimestamps: (string | undefined)[] = [];
+  for (const line of priorLines) {
+    try {
+      const parsed = JSON.parse(line) as { kind?: string; timestamp?: string };
+      if (parsed.kind === "user_message_chunk") {
+        priorTimestamps.push(
+          typeof parsed.timestamp === "string" ? parsed.timestamp : undefined,
+        );
+      }
+    } catch {
+      // Skip — a torn line can't tell us anything about ordering.
+    }
+  }
+  if (priorTimestamps.length === 0) return [...replayedLines];
+  let cursor = 0;
+  return replayedLines.map((line) => {
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(line) as Record<string, unknown>;
+    } catch {
+      return line;
+    }
+    if (parsed.kind !== "user_message_chunk") return line;
+    const timestamp = priorTimestamps[cursor];
+    cursor++;
+    if (typeof parsed.timestamp === "string" || timestamp === undefined) {
+      return line;
+    }
+    return JSON.stringify({ ...parsed, timestamp });
+  });
+}
+
 /** Read and parse one session's journal in one call — the common case for a
  *  restore, where both the raw lines (to seed a continuing writer) and the
  *  parsed updates (to paint the transcript) are needed. */
@@ -106,6 +166,18 @@ export interface ChatSessionJournalWriter {
    * render twice. A no-op past the end of the buffer.
    */
   dropSeed(n: number): void;
+  /**
+   * Replace the entire in-memory buffer and schedule a flush — for {@link
+   * dropSeed}'s job (discard a `session/load` replay's pre-existing seed)
+   * combined with a correction to what's kept (see
+   * {@link backfillUserPromptTimestamps}), in one atomic write. Unlike
+   * disposing this writer and constructing a fresh one seeded with the
+   * corrected lines, this keeps {@link schedule}'s dirty flag: a fresh
+   * writer's `flush()` is a no-op until something marks it dirty, so
+   * swapping writers here would silently drop the correction from disk until
+   * the next unrelated turn happened to schedule a write.
+   */
+  replaceLines(lines: readonly string[]): void;
   /**
    * The lines written so far, in memory — for re-keying a writer to a
    * different session id after `session/load` adopts one (no data lost, just
@@ -208,6 +280,12 @@ export function createJournalWriter(
     dropSeed(n) {
       if (disposed || n <= 0) return;
       lines.splice(0, n);
+      schedule();
+    },
+    replaceLines(newLines) {
+      if (disposed) return;
+      lines.length = 0;
+      lines.push(...newLines);
       schedule();
     },
     snapshotLines() {

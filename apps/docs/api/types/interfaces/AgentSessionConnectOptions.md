@@ -1,6 +1,6 @@
 # Interface: AgentSessionConnectOptions
 
-Defined in: [packages/sdk/src/agents-service.ts:1288](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1288)
+Defined in: [packages/sdk/src/agents-service.ts:1302](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1302)
 
 **`Beta`**
 
@@ -14,7 +14,7 @@ Options for [AgentSessionsService.connect](AgentSessionsService.md#connect).
 optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1290](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1290)
+Defined in: [packages/sdk/src/agents-service.ts:1304](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1304)
 
 **`Beta`**
 
@@ -28,7 +28,7 @@ Working directory for the agent. Defaults to the workspace folder.
 optional workspaceId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1293](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1293)
+Defined in: [packages/sdk/src/agents-service.ts:1307](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1307)
 
 **`Beta`**
 
@@ -43,7 +43,7 @@ Which workspace the session belongs to (for
 optional title?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1311](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1311)
+Defined in: [packages/sdk/src/agents-service.ts:1325](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1325)
 
 **`Beta`**
 
@@ -71,7 +71,7 @@ title to show early.
 optional reveal?: () => void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1329](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1329)
+Defined in: [packages/sdk/src/agents-service.ts:1343](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1343)
 
 **`Beta`**
 
@@ -103,7 +103,7 @@ can honestly do for a session whose UI it does not own.
 optional resume?: AgentSessionRestore;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1342](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1342)
+Defined in: [packages/sdk/src/agents-service.ts:1356](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1356)
 
 **`Beta`**
 
@@ -124,7 +124,7 @@ works and there is no journal to fall back to. See [AgentSessionHandle.resumeOut
 optional signal?: AbortSignal;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1357](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1357)
+Defined in: [packages/sdk/src/agents-service.ts:1371](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1371)
 
 **`Beta`**
 

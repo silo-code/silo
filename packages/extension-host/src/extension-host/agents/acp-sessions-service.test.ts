@@ -109,6 +109,11 @@ vi.mock("./chat-session-journal", async (importOriginal) => {
             lines.splice(0, n);
             journalFiles.set(key, lines);
           }),
+          replaceLines: vi.fn((newLines: readonly string[]) => {
+            lines.length = 0;
+            lines.push(...newLines);
+            journalFiles.set(key, lines);
+          }),
           snapshotLines: vi.fn(() => [...lines]),
           dispose: vi.fn(),
           abandon: vi.fn(async () => {
@@ -1307,6 +1312,58 @@ describe("connect({ resume }) — Chat session resurrection", () => {
     ]);
   });
 
+  // Reported live (2026-09-25): a Chat panel's hover timestamp on a user
+  // message would show right after sending, then vanish on the very next
+  // reconnect. Root cause — `session/load` replays the whole transcript
+  // itself, straight off the wire, and ACP carries no timestamp field, so
+  // the replay's own `user_message_chunk` always lands with none; the old
+  // seed (which *did* have one, from `journalUserPromptUpdate` at send time)
+  // was then dropped outright in favor of it. This pins the fix: the seed's
+  // timestamp must survive onto the replayed line before the seed is gone.
+  it("keeps a user turn's timestamp across a session/load reconnect, even though the replay itself carries none", async () => {
+    fakeClient.initialize.mockResolvedValue({
+      agentInfo: { title: "Claude Code" },
+      agentCapabilities: { loadSession: true },
+      sessionCapabilities: {},
+      authMethods: [],
+      raw: {},
+    });
+    seedJournal("old-id", [
+      {
+        kind: "user_message_chunk",
+        text: "what model is this?",
+        timestamp: "2026-09-07T19:38:00.000Z",
+      },
+      { kind: "agent_message_chunk", text: "Haiku 4.5" },
+    ]);
+    fakeClient.loadSession.mockImplementation(async () => {
+      // The replay itself — no `timestamp`, since ACP has no such field.
+      captured.onUpdate({
+        sessionUpdate: "user_message_chunk",
+        content: { type: "text", text: "what model is this?" },
+      } as never);
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Haiku 4.5" },
+      } as never);
+      return { sessionId: "old-id", configOptions: [] };
+    });
+
+    const handle = await service.connect("claude-chat", {
+      resume: { sessionId: "old-id" },
+    });
+
+    const userUpdate = handle.journal.find(
+      (u) => u.kind === "user_message_chunk",
+    );
+    expect(userUpdate?.timestamp).toBe("2026-09-07T19:38:00.000Z");
+    const lines = journalFiles.get(journalKey("active", "old-id")) ?? [];
+    const persistedUser = lines
+      .map((l) => JSON.parse(l))
+      .find((u) => u.kind === "user_message_chunk");
+    expect(persistedUser?.timestamp).toBe("2026-09-07T19:38:00.000Z");
+  });
+
   it("resume failing falls through to load", async () => {
     fakeClient.initialize.mockResolvedValue({
       agentInfo: { title: "Claude Code" },
@@ -1534,6 +1591,22 @@ describe("connect({ resume }) — Chat session resurrection", () => {
         text: "hello there",
       }),
     );
+  });
+
+  it("stamps the journaled prompt with a timestamp — the one place a Chat UI can recover 'when' after a journal replay", async () => {
+    const before = Date.now();
+    const handle = await service.connect("claude-chat");
+    await handle.prompt([{ type: "text", text: "hello there" }]);
+    const lines = journalFiles.get(journalKey("active", "s1")) ?? [];
+    const parsed = lines.map((l) => JSON.parse(l)) as {
+      kind: string;
+      timestamp?: string;
+    }[];
+    const entry = parsed.find((u) => u.kind === "user_message_chunk");
+    expect(entry?.timestamp).toBeDefined();
+    const stamped = Date.parse(entry!.timestamp!);
+    expect(stamped).toBeGreaterThanOrEqual(before);
+    expect(stamped).toBeLessThanOrEqual(Date.now());
   });
 
   it("calls session/close on a clean dispose when advertised, before killing the process", async () => {
