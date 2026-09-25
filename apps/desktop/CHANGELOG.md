@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.71.0](https://github.com/silo-code/silo/compare/silo-v0.70.0...silo-v0.71.0) (2026-09-25)
+
+
+### Features
+
+* **agents-chat-panel:** chromeless composer with an inset divider ([#567](https://github.com/silo-code/silo/issues/567)) ([14cf99e](https://github.com/silo-code/silo/commit/14cf99e5b84184f0672cfefd1bfa16eddee30704))
+* **agents-chat-panel:** shimmer a running tool call's label instead of a badge ([#565](https://github.com/silo-code/silo/issues/565)) ([bcf4fda](https://github.com/silo-code/silo/commit/bcf4fdac2f28cffe9e462f5f9230a8137a9532a9))
+* **agents-chat-panel:** show a hover timestamp and copy action on user messages ([#568](https://github.com/silo-code/silo/issues/568)) ([bf21a17](https://github.com/silo-code/silo/commit/bf21a17db2d38e6b4e7008503e366cc754d5c06a))
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** stop edit tool rows from also being expandable ([#564](https://github.com/silo-code/silo/issues/564)) ([279aa73](https://github.com/silo-code/silo/commit/279aa73d4008f11eb5b383b67c778bda1de36733))
+
 ## [0.70.0](https://github.com/silo-code/silo/compare/silo-v0.69.1...silo-v0.70.0) (2026-09-24)
 
 
