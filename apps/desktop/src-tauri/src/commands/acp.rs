@@ -92,6 +92,17 @@ impl AcpConnection {
         if let Some(dir) = cwd {
             cmd.current_dir(dir);
         }
+        // On Windows a GUI (windows-subsystem) app spawning a console program
+        // allocates a fresh console window for it. An ACP agent's console would
+        // otherwise stay visible for the life of the chat; suppress it, matching
+        // every other Windows spawn site in this crate (process.rs, fs.rs,
+        // session_windows.rs). No effect on the piped stdio streams.
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
 
         let mut child = cmd
             .spawn()
