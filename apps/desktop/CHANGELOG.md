@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.71.1](https://github.com/silo-code/silo/compare/silo-v0.71.0...silo-v0.71.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **acp:** suppress console window when spawning agent on Windows ([#570](https://github.com/silo-code/silo/issues/570)) ([cf8044a](https://github.com/silo-code/silo/commit/cf8044a10f21590dd585f745fc903da3c37850b4))
+
 ## [0.71.0](https://github.com/silo-code/silo/compare/silo-v0.70.0...silo-v0.71.0) (2026-09-25)
 
 
