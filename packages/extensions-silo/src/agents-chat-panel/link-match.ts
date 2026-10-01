@@ -12,6 +12,14 @@
  * this). A shorter or longer extension doesn't count, which is also what
  * keeps this from lighting up every "Node.js" or "config.json" mentioned in
  * prose.
+ *
+ * Windows paths are rooted at a drive letter (`C:\Users\me\silo.exe`) and
+ * match whole. A bare `dir\file.ts` deliberately doesn't: a lone backslash is
+ * more often an escape than a separator, and nothing distinguishes the two
+ * without the drive. The backslash also joins the lookbehind, so an
+ * unrooted `$env:LOCALAPPDATA\silo.exe` links nothing rather than linking
+ * the trailing `silo.exe` on its own — a path fragment the editor can't open
+ * and the reader didn't mean.
  */
 
 export type ChatLinkKind = "url" | "path";
@@ -23,14 +31,19 @@ export interface ChatLinkSpan {
 }
 
 const PATH_CHARS = String.raw`[A-Za-z0-9_./\-@+]`;
+// Windows segments are separated by `\`, but `C:/Users/me` is equally valid,
+// so both separators are in play once a drive letter has rooted the path.
+const WIN_PATH_CHARS = String.raw`[A-Za-z0-9_.\\/\-@+]`;
+const WIN_DRIVE = String.raw`[A-Za-z]:[\\/]`;
 const BARE_FILENAME_3 = String.raw`[A-Za-z0-9_\-@+]+\.[A-Za-z0-9]{3}(?![A-Za-z0-9])`;
-function pathBody(chars: string): string {
-  return String.raw`(?:(?:~|\.{1,2})?\/${chars}+|\.?[A-Za-z0-9_\-@+]+\/${chars}*\.[A-Za-z0-9_\-@+]+|${BARE_FILENAME_3})`;
+function pathBody(chars: string, winChars: string): string {
+  return String.raw`(?:${WIN_DRIVE}${winChars}*|(?:~|\.{1,2})?\/${chars}+|\.?[A-Za-z0-9_\-@+]+\/${chars}*\.[A-Za-z0-9_\-@+]+|${BARE_FILENAME_3})`;
 }
 const LINE_COL_SUFFIX = String.raw`(?::\d+(?::\d+)?)?`;
-const BARE = String.raw`(?<![A-Za-z0-9_.:/\-@+])${pathBody(PATH_CHARS)}${LINE_COL_SUFFIX}`;
+const BARE = String.raw`(?<![A-Za-z0-9_.:/\\\-@+])${pathBody(PATH_CHARS, WIN_PATH_CHARS)}${LINE_COL_SUFFIX}`;
 
 const PATH_CHARS_SPACED = String.raw`[A-Za-z0-9_./\-@+ ]`;
+const WIN_PATH_CHARS_SPACED = String.raw`[A-Za-z0-9_.\\/\-@+ ]`;
 const DELIMITER_PAIRS: Array<[string, string]> = [
   ["(", ")"],
   ["[", "]"],
@@ -40,14 +53,14 @@ const DELIMITER_PAIRS: Array<[string, string]> = [
 function delimited(open: string, close: string): string {
   const o = `\\${open}`;
   const c = `\\${close}`;
-  return String.raw`(?<=${o})${pathBody(PATH_CHARS_SPACED)}${LINE_COL_SUFFIX}(?=${c})`;
+  return String.raw`(?<=${o})${pathBody(PATH_CHARS_SPACED, WIN_PATH_CHARS_SPACED)}${LINE_COL_SUFFIX}(?=${c})`;
 }
 
 const FILE_PATH_RE = new RegExp(
   [...DELIMITER_PAIRS.map(([o, c]) => delimited(o, c)), BARE].join("|"),
   "g",
 );
-const TRAILING_PUNCT_RE = /[.,;:)\]}>'"]+$/;
+const TRAILING_PUNCT_RE = /[.,;:)\]}>'"\\]+$/;
 
 const URL_RE = /\b(?:https?|file):\/\/[^\s<>"'`]+/gi;
 const TRAILING_URL_PUNCT_RE = /[).,;:!?]+$/;

@@ -38,6 +38,34 @@ describe("matchChatLinks", () => {
     expect(texts("see /etc/hosts.")).toEqual(["/etc/hosts"]);
   });
 
+  it("matches Windows drive-absolute paths whole", () => {
+    expect(
+      texts(String.raw`$src = "C:\Users\dweaver\AppData\Local\Silo\silo.exe"`),
+    ).toEqual([String.raw`C:\Users\dweaver\AppData\Local\Silo\silo.exe`]);
+    expect(texts(String.raw`see D:\logs\terminal.log for the trail`)).toEqual([
+      String.raw`D:\logs\terminal.log`,
+    ]);
+    expect(texts(String.raw`"C:\Program Files\Silo\silo.exe"`)).toEqual([
+      String.raw`C:\Program Files\Silo\silo.exe`,
+    ]);
+  });
+
+  it("links nothing in an env-rooted Windows path", () => {
+    // The reported bug: with no drive to root it, the matcher used to fall
+    // through to the bare-filename rule and underline `silo-host.exe` alone
+    // — a fragment ⌘-click would resolve to the wrong file.
+    expect(
+      texts(String.raw`Remove-Item "$env:LOCALAPPDATA\silo-host.exe"`),
+    ).toEqual([]);
+    expect(texts(String.raw`$env:APPDATA\com.silo.desktop\test.port`)).toEqual(
+      [],
+    );
+  });
+
+  it("leaves backslash escapes alone", () => {
+    expect(texts(String.raw`split on \n and match \d+ here`)).toEqual([]);
+  });
+
   it("skips extension-less noise", () => {
     expect(texts("1/2")).toEqual([]);
   });
