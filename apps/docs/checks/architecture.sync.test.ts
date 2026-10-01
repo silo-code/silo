@@ -78,7 +78,13 @@ interface Row {
 
 /** Parse the package table out of the document. */
 function tableRows(): Row[] {
-  const text = readFileSync(`${REPO_ROOT}/${DOC}`, "utf8");
+  // Normalize line endings: a Windows checkout of this LF-committed file
+  // reads back as CRLF, and the `\n`-anchored regex below would otherwise
+  // never match.
+  const text = readFileSync(`${REPO_ROOT}/${DOC}`, "utf8").replace(
+    /\r\n/g,
+    "\n",
+  );
   const section = /## Packages\n([\s\S]*?)\n### /.exec(text)?.[1];
   if (!section) throw new Error(`${DOC}: no "## Packages" table found`);
 
