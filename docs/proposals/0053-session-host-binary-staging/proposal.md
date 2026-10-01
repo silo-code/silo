@@ -79,7 +79,16 @@ resources relative to the binary. And the daemon is already the _same bytes_ as
 the app, so "stage a copy" and "give it a different image name" are the same
 operation.
 
-## Design
+## Proposed solution
+
+| Phase | Scope                                                                                                                                                               | Status      |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1     | **Windows.** Staged content-addressed daemon binary, own image name, `T_HELLO` handshake with a legacy-tolerant transition, NSIS pre-uninstall hook, startup sweep. | in progress |
+| 2     | **Linux.** Route the Unix `spawn_daemon` through the same resolver, gated to AppImage launches — RFC 0017's original case.                                          | not started |
+
+Phase 1 is planned in `requirements.md` / `design.md` / `tasks.md` alongside
+this file; Phase 2 gets its own planning pass when its turn comes. The sketch
+below is the durable shape — the implementation detail lives in `design.md`.
 
 ### 1. A staged, content-addressed daemon binary
 
