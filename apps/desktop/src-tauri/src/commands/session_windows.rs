@@ -37,6 +37,18 @@ const T_FG_REP: u8 = 4;
 /// would evict the live data client (the same regression RFC 0026 hit on Unix).
 const T_SUBSCRIBE_FG: u8 = 6;
 
+/// Daemon → client, first frame on every connection: the wire version this
+/// daemon speaks, as a u32 BE payload. Mirrors the Unix `pty_host::proto`
+/// handshake **without sharing its code** — that module is the live Unix
+/// contract and must not be touched from here (RFC 0053).
+///
+/// This matters now because session hosts outlive the app that spawned them
+/// (RFC 0053 R1): a Silo can meet a daemon built from a different binary, and
+/// needs to refuse rather than frame against a wire it does not understand.
+const T_HELLO: u8 = 5;
+const WIN_PROTO_VERSION: u32 = 1;
+const WIN_MIN_COMPATIBLE_PROTO: u32 = 1;
+
 /// How often to re-snapshot the process tree while a foreground subscriber is
 /// attached. `CreateToolhelp32Snapshot` enumerates *every* process on the
 /// machine, so this is not free — with a dozen terminals open a tight loop is
@@ -61,6 +73,42 @@ const MAX_DATA_CLIENTS: usize = 1;
 const CLIENT_CLASSIFY_TIMEOUT: Duration = Duration::from_millis(100);
 /// Soft cap on queued stdin chunks when ConPTY write blocks.
 const INPUT_QUEUE_CAP: usize = 64;
+
+/// What a client should do with the daemon's opening frame.
+#[derive(Debug, PartialEq, Eq)]
+enum HelloVerdict {
+    /// The daemon announced a version this build speaks.
+    Compatible,
+    /// No announcement: a daemon from a build before the handshake existed.
+    /// `pending` carries its first frame's payload when that frame was already
+    /// terminal data, which must not be dropped on the floor.
+    ///
+    /// **This arm is the transition.** The first release that expects a hello
+    /// will meet daemons spawned by the release before it — the very sessions
+    /// RFC 0053 exists to keep alive. Treating silence as fatal would make the
+    /// one update this feature was built for the update that kills everything.
+    Legacy { pending: Option<Vec<u8>> },
+    /// Announced a version outside this build's compatible range.
+    Incompatible { daemon: u32 },
+}
+
+fn classify_hello(first: Option<(u8, Vec<u8>)>) -> HelloVerdict {
+    match first {
+        Some((T_HELLO, payload)) => {
+            let version = match payload.get(..4) {
+                Some(b) => u32::from_be_bytes([b[0], b[1], b[2], b[3]]),
+                None => 0,
+            };
+            if (WIN_MIN_COMPATIBLE_PROTO..=WIN_PROTO_VERSION).contains(&version) {
+                HelloVerdict::Compatible
+            } else {
+                HelloVerdict::Incompatible { daemon: version }
+            }
+        }
+        Some((T_DATA, payload)) => HelloVerdict::Legacy { pending: Some(payload) },
+        Some(_) | None => HelloVerdict::Legacy { pending: None },
+    }
+}
 
 fn write_frame<W: Write>(w: &mut W, tag: u8, payload: &[u8]) -> io::Result<()> {
     w.write_all(&[tag])?;
@@ -435,6 +483,11 @@ pub fn run_daemon(
         let ppath = ppath.clone();
 
         thread::spawn(move || {
+            // Announce the wire version first, before anything else goes out
+            // (RFC 0053 R4). A liveness probe has usually gone by now, so this
+            // write failing is expected and says nothing about the session.
+            let _ = write_frame(&mut stream, T_HELLO, &WIN_PROTO_VERSION.to_be_bytes());
+
             let mut cmd_stream = match stream.try_clone() {
                 Ok(s) => s,
                 Err(_) => return,
@@ -644,7 +697,35 @@ impl SessionWindowsBackend {
         }
     }
 
+    /// Read the daemon's opening frame if one arrives inside the classify
+    /// window. Bounded, because a daemon from before the handshake sends
+    /// nothing until the shell produces output — which may be never.
+    fn read_opening_frame(stream: &TcpStream) -> Option<(u8, Vec<u8>)> {
+        let mut probe = stream.try_clone().ok()?;
+        probe.set_read_timeout(Some(CLIENT_CLASSIFY_TIMEOUT)).ok()?;
+        let frame = read_frame(&mut probe).ok();
+        // Clones share the socket, so blocking reads must be restored before
+        // the real reader takes over.
+        let _ = probe.set_read_timeout(None);
+        frame
+    }
+
     fn connection_from(&self, stream: TcpStream) -> Result<Connection, String> {
+        let pending = match classify_hello(Self::read_opening_frame(&stream)) {
+            HelloVerdict::Compatible => None,
+            HelloVerdict::Legacy { pending } => pending,
+            HelloVerdict::Incompatible { daemon } => {
+                log_event(
+                    "host_incompatible",
+                    &format!("daemon_proto={daemon} app_proto={WIN_PROTO_VERSION}"),
+                );
+                return Err(format!(
+                    "session host speaks protocol {daemon}, this build speaks \
+                     {WIN_MIN_COMPATIBLE_PROTO}..={WIN_PROTO_VERSION}"
+                ));
+            }
+        };
+
         let r = stream.try_clone().map_err(|e| e.to_string())?;
         let w = stream.try_clone().map_err(|e| e.to_string())?;
         let m = stream.try_clone().map_err(|e| e.to_string())?;
@@ -653,7 +734,7 @@ impl SessionWindowsBackend {
         w.set_write_timeout(Some(Duration::from_secs(1)))
             .map_err(|e| e.to_string())?;
         Ok(Connection {
-            reader: Box::new(TcpReader::new(r)),
+            reader: Box::new(TcpReader::new(r, pending)),
             writer: Box::new(TcpWriter(w)),
             master: Box::new(TcpMaster(m)),
             child: Box::new(TcpChild(stream)),
@@ -788,8 +869,11 @@ struct TcpReader {
 }
 
 impl TcpReader {
-    fn new(stream: TcpStream) -> Self {
-        TcpReader { stream, buf: Vec::new(), pos: 0 }
+    /// `pending` is terminal data already read off the wire while checking for
+    /// the daemon's hello. `read_chunk` drains `buf` before touching the
+    /// socket, so seeding it here is all that is needed to not lose it.
+    fn new(stream: TcpStream, pending: Option<Vec<u8>>) -> Self {
+        TcpReader { stream, buf: pending.unwrap_or_default(), pos: 0 }
     }
 }
 
@@ -872,6 +956,85 @@ struct TcpChild(TcpStream);
 impl SessionChild for TcpChild {
     fn kill(&mut self) -> Result<(), String> {
         self.0.shutdown(Shutdown::Both).map_err(|e| e.to_string())
+    }
+}
+
+// ── Handshake tests (RFC 0053 R4) ────────────────────────────────────────────
+
+#[cfg(test)]
+mod hello_tests {
+    use super::*;
+
+    fn hello(version: u32) -> Option<(u8, Vec<u8>)> {
+        Some((T_HELLO, version.to_be_bytes().to_vec()))
+    }
+
+    #[test]
+    fn the_version_this_build_speaks_is_compatible() {
+        assert_eq!(classify_hello(hello(WIN_PROTO_VERSION)), HelloVerdict::Compatible);
+    }
+
+    #[test]
+    fn a_future_version_is_refused_rather_than_framed_against() {
+        assert_eq!(
+            classify_hello(hello(WIN_PROTO_VERSION + 1)),
+            HelloVerdict::Incompatible { daemon: WIN_PROTO_VERSION + 1 },
+            "a daemon from a newer build must not be spoken to on guesswork"
+        );
+    }
+
+    #[test]
+    fn a_truncated_announcement_is_not_treated_as_compatible() {
+        assert_eq!(
+            classify_hello(Some((T_HELLO, vec![0, 1]))),
+            HelloVerdict::Incompatible { daemon: 0 }
+        );
+    }
+
+    #[test]
+    fn silence_means_a_daemon_from_before_the_handshake() {
+        // The transition arm. The first build expecting a hello meets daemons
+        // spawned by the build before it — exactly the sessions RFC 0053 keeps
+        // alive across the update. Refusing here would kill them all.
+        assert_eq!(classify_hello(None), HelloVerdict::Legacy { pending: None });
+    }
+
+    #[test]
+    fn a_legacy_daemon_streaming_data_does_not_lose_that_data() {
+        assert_eq!(
+            classify_hello(Some((T_DATA, b"hello from the shell".to_vec()))),
+            HelloVerdict::Legacy { pending: Some(b"hello from the shell".to_vec()) },
+            "the first frame was already terminal output — it must reach the reader"
+        );
+    }
+
+    #[test]
+    fn an_unrelated_opening_frame_is_legacy_with_nothing_pending() {
+        assert_eq!(
+            classify_hello(Some((T_FG_REP, b"1\t0\tpwsh".to_vec()))),
+            HelloVerdict::Legacy { pending: None }
+        );
+    }
+
+    #[test]
+    fn a_seeded_reader_yields_the_pending_bytes_before_reading_the_socket() {
+        // Seeding is the mechanism behind the `pending` arm above; this pins
+        // that `read_chunk` drains it first.
+        let (client, _server) = loopback_pair();
+        let mut reader = TcpReader::new(client, Some(b"carried over".to_vec()));
+        let mut out = [0u8; 64];
+        let chunk = reader.read_chunk(&mut out).expect("read");
+        assert_eq!(&out[..chunk.len], b"carried over");
+        assert!(!chunk.replay, "the Windows wire has no replay bracketing");
+    }
+
+    /// A connected loopback pair; the server end is returned so it stays open.
+    fn loopback_pair() -> (TcpStream, TcpStream) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let addr = listener.local_addr().expect("addr");
+        let client = TcpStream::connect(addr).expect("connect");
+        let (server, _) = listener.accept().expect("accept");
+        (client, server)
     }
 }
 

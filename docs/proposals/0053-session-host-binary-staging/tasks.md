@@ -23,14 +23,15 @@ build on it.
 
 ## Wire handshake (R4)
 
-- [ ] Add `T_HELLO`, `WIN_PROTO_VERSION`, `WIN_MIN_COMPATIBLE_PROTO` to
+- [x] Add `T_HELLO`, `WIN_PROTO_VERSION`, `WIN_MIN_COMPATIBLE_PROTO` to
       `session_windows.rs`. **Do not import or modify `pty_host::proto`.**
-- [ ] Daemon: write `T_HELLO` as the first frame to each classified data client;
-      tolerate a broken pipe from a departed probe.
-- [ ] Client: extract
+- [x] Daemon: write `T_HELLO` as the first frame on **accept**, ahead of client
+      classification — every client path already skips unknown tags, so this is
+      backward-compatible both ways. Tolerates a broken pipe from a departed probe.
+- [x] Client: extract
       `classify_hello(first: Option<(u8, Vec<u8>)>) -> HelloVerdict` returning
       `Proceed | Legacy | Incompatible { daemon, app }`.
-- [ ] Wire it into `connect`/`attach`; log `host_incompatible` on mismatch and
+- [x] Wire it into `connect`/`attach`; log `host_incompatible` on mismatch and
       fail the attach.
 - [ ] Confirm `exists()` still disconnects before the classify window and never
       joins `clients`.
@@ -76,7 +77,7 @@ build on it.
 
 - [x] `staged_exe_name` / `staged_dir` derivation.
 - [x] Create-if-absent: absent → copies; present → no copy; race → success.
-- [ ] `classify_hello`: compatible, incompatible, absent-frame (legacy), and a
+- [x] `classify_hello`: compatible, incompatible, absent-frame (legacy), and a
       non-`T_HELLO` first frame.
 - [ ] `sweep_plan`: keeps current, keeps live, deletes orphans, handles empty.
 - [ ] `pnpm test` green.
