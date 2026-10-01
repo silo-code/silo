@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import {
   AGENT_CATALOG,
   SILO_HOOK_MARKER,
@@ -179,7 +179,7 @@ describe("buildTrackSessionScript", () => {
           env: {
             ...process.env,
             HOME: home,
-            PATH: `${bin}:${process.env.PATH}`,
+            PATH: `${bin}${delimiter}${process.env.PATH}`,
             SILO: "1",
           },
           stdio: ["pipe", "pipe", "pipe"],
@@ -282,7 +282,7 @@ describe("buildTrackSessionScript", () => {
         env: {
           ...process.env,
           HOME: home,
-          PATH: `${bin}:${process.env.PATH}`,
+          PATH: `${bin}${delimiter}${process.env.PATH}`,
           SILO: "1",
         },
         stdio: ["pipe", "pipe", "pipe"],
@@ -319,7 +319,7 @@ describe("buildTrackSessionScript", () => {
         env: {
           ...process.env,
           HOME: home,
-          PATH: `${bin}:${process.env.PATH}`,
+          PATH: `${bin}${delimiter}${process.env.PATH}`,
           SILO: "1",
           SILO_AGENT_PID: String(agentPid),
         },
