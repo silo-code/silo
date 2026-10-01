@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.72.0](https://github.com/silo-code/silo/compare/silo-v0.71.1...silo-v0.72.0) (2026-10-01)
+
+
+### Features
+
+* **terminal:** reap Windows session hosts on uninstall, and guard it in CI ([#584](https://github.com/silo-code/silo/issues/584)) ([03b10ad](https://github.com/silo-code/silo/commit/03b10adbfa98df8d58e0f7ea6fe1d42ff15574eb))
+* **terminal:** run the Windows session host from a staged copy ([#583](https://github.com/silo-code/silo/issues/583)) ([7dca57f](https://github.com/silo-code/silo/commit/7dca57f1f1a15b2ee7cd0b3defa583a3d0c89f2f))
+* **terminal:** sweep stale Windows session state on startup ([#586](https://github.com/silo-code/silo/issues/586)) ([732cebd](https://github.com/silo-code/silo/commit/732cebdd0997210e5528eff7772748fc8fafdf25))
+* **terminal:** version the Windows session-host wire ([#585](https://github.com/silo-code/silo/issues/585)) ([460b754](https://github.com/silo-code/silo/commit/460b7543c6a23d8b74995b7bf2e2343423e66704))
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** hide blank agent/thought transcript rows ([#580](https://github.com/silo-code/silo/issues/580)) ([a3bb732](https://github.com/silo-code/silo/commit/a3bb732b9b9f6325f7c5f32b6fcb6bbe398e4614))
+* **agents-chat-panel:** stop linkified text from breaking copied lines ([#575](https://github.com/silo-code/silo/issues/575)) ([b2febff](https://github.com/silo-code/silo/commit/b2febffb42b90c2f516829fb617123648a136291))
+* **terminal,agents-chat-panel:** link Windows paths whole ([#576](https://github.com/silo-code/silo/issues/576)) ([e06db3f](https://github.com/silo-code/silo/commit/e06db3f3b949041c862d71a509e998ad8df11034))
+* **terminal,agents-chat-panel:** require a segment after a drive root ([#581](https://github.com/silo-code/silo/issues/581)) ([f0a34bb](https://github.com/silo-code/silo/commit/f0a34bbe4069cd26e46f0e8098871ed98c8da14c))
+
 ## [0.71.1](https://github.com/silo-code/silo/compare/silo-v0.71.0...silo-v0.71.1) (2026-09-30)
 
 
