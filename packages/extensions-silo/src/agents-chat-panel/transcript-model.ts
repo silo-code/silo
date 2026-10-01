@@ -159,6 +159,25 @@ function nonEmpty(v: string | undefined): string | undefined {
 }
 
 /**
+ * Whether an `"agent"` or `"thought"` message has nothing in it worth a row
+ * over — empty, or holding only whitespace.
+ *
+ * Some providers (observed on `omlx/Gemma 4 26B` via OpenCode) stream a
+ * throwaway chunk that is just `"\n"` — a `agent_thought_chunk` with no real
+ * reasoning, or even an `agent_message_chunk` under its own `messageId`
+ * alongside the turn's real reply — rather than omitting the chunk
+ * entirely. Rendered as-is that is still its own transcript entry: an empty
+ * (for `"thought"`, labeled) body, with the transcript's standard
+ * `.acp-chat__turn-body > * + *` 30px rhythm still applying above and below
+ * it, so it reads as dead space between the rows with real content. The
+ * panel checks this before rendering an agent/thought row at all — never a
+ * `"user"` turn, which may carry only attachments and no text.
+ */
+export function isBlankMessageText(text: string): boolean {
+  return text.trim().length === 0;
+}
+
+/**
  * Flatten a tool call's content blocks into display lines.
  *
  * The protocol wraps each in a `{ type }` envelope: `"content"` holds a

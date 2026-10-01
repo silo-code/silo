@@ -184,6 +184,7 @@ import {
   formatMessageSentAt,
   formatToolInput,
   groupTurns,
+  isBlankMessageText,
   sameTurn,
   toolOutputIsMarkdown,
   nextEntryKey,
@@ -479,6 +480,14 @@ function WaveText({ text }: { text: string }) {
  */
 function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
   if (entry.type === "message") {
+    // A provider can stream an agent/thought chunk that never carries real
+    // content (RFC 0038 phase 3 follow-up: `omlx/Gemma 4 26B` via OpenCode
+    // sends a lone "\n", sometimes as its own messageId alongside the
+    // turn's real reply). Rendering it anyway puts a row — a labeled one
+    // for "thought" — and the turn-body's standard 30px rhythm around it,
+    // over nothing. A `"user"` turn is never skipped: it may carry only
+    // attachments and no text.
+    if (entry.role !== "user" && isBlankMessageText(entry.text)) return null;
     return (
       <div key={entry.key} className="acp-chat__message" data-role={entry.role}>
         {entry.role === "thought" ? (
