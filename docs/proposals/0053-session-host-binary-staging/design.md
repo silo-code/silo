@@ -182,18 +182,66 @@ Logging goes to the existing `silo:terminals` channel and `terminal.log` via
 
 ## Testing strategy
 
-The Windows backend has **no automated behavioral coverage** — CI's
-`rust-windows` job is `cargo check` only, because a real ConPTY is required
-(`.github/workflows/ci.yml`). So split the work:
+**This section was rewritten.** An earlier draft said the Windows backend had no
+automated behavioral coverage and planned most of Phase 1 as a manual checklist,
+because CI's `rust-windows` job ran `cargo check` on the stated grounds that a
+real ConPTY cannot run on a hosted runner. That premise was wrong, and
+silo-code/silo#578 fixed it: `rust-windows` now runs `cargo test`, a ConPTY
+smoke test proves the capability on every run, and three `user_path` fixtures
+that had been asserting nothing on Windows were repaired. **Phase 1 ships with
+real automated coverage.**
 
-- **Unit-testable (pure, runs on any host via `#[cfg(test)]` with a temp dir):**
-  the staged-path derivation from a hash, the create-if-absent decision, the
-  sweep's keep/delete predicate given a set of filenames plus a live-session
-  list, and the `T_HELLO` classify decision as a function of
-  `(first_frame, elapsed)` → `Proceed | Legacy | Incompatible`. Extract each as a
-  free function taking its inputs, per `.agents/skills/silo-testing/SKILL.md`.
-- **Hand-verified on Windows:** everything involving a real process, a real
-  installer, or a real ConPTY. The R2/R3 acceptance criteria are the script.
+Three tiers, in descending order of what they buy:
+
+### 1. The regression guard — an installer test on a Windows runner
+
+The R2/R3 criteria are **process-lifecycle assertions, not terminal-rendering
+ones**, so they do not need a GUI or a ConPTY and should not be hand-verified.
+NSIS supports silent mode (`/S`), which makes the whole thing scriptable:
+
+1. Build the NSIS bundle on `windows-latest`.
+2. Start a detached process from a staged copy — it need not be a real session
+   host, only something executing the staged binary.
+3. Run the installer silently over the existing install.
+4. **Assert the install succeeded and that process is still alive** (R2).
+5. Run the uninstaller silently; assert the process is gone and the staged
+   directory is removed (R3).
+
+This is the single most valuable test in the change, because it guards the exact
+regression that motivated the RFC — and because it will catch the _next_ cause
+of it. When Tauri's bundler switches `CheckIfAppIsRunning` from `FindProcess` to
+the Restart Manager (already on their `dev` branch), the image-name half of
+today's behavior stops mattering and the path half becomes load-bearing. A CI
+job notices that; a human running through a checklist months later does not.
+
+Cost: a bundle build per run. If that is too slow for every PR, gate it to
+`main` or a label — but it must exist somewhere.
+
+### 2. Unit tests — pure helpers, now running on Windows too
+
+Extract each as a free function taking its inputs, per
+`.agents/skills/silo-testing/SKILL.md`:
+
+- staged-path derivation from a hash,
+- the create-if-absent decision,
+- the sweep's keep/delete predicate, given filenames plus a live-session list,
+- `classify_hello(first_frame) -> Proceed | Legacy | Incompatible`.
+
+These run on every platform, but they now _also_ run on Windows, which matters
+for anything touching path shapes — exactly the defect class #578 found. Follow
+that PR's lesson: **build fixtures from the platform's own separators rather
+than hard-coding POSIX ones**, so a test that passes on Windows has actually
+asserted something there.
+
+A ConPTY-backed test of `run_daemon` is also possible now (the smoke test proves
+the mechanism). Not required for Phase 1, but no longer out of reach.
+
+### 3. Hand-verified — what genuinely resists automation
+
+Only the GUI-shaped remainder: a real terminal reattaching with its scrollback
+and foreground process intact after an update, and the installer's interactive
+pages. Keep this list short and push items down into tier 1 as they become
+scriptable.
 
 ## Constraints and existing decisions
 

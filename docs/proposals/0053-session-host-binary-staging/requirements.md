@@ -87,8 +87,9 @@ Nothing accumulates without bound, on a platform that currently never reaps.
       `#[cfg(windows)]` code, `tauri.conf.json`'s `bundle.windows`, and the new
       `.nsh`.
 - [ ] `crates/pty-host/src/proto.rs` is unmodified.
-- [ ] `pnpm test`, `pnpm lint`, and `tsc --noEmit` pass; `cargo check` passes on
-      both a Unix host and the `rust-windows` CI job.
+- [ ] `pnpm test`, `pnpm lint`, and `tsc --noEmit` pass; `cargo test` passes on
+      both a Unix host and the `rust-windows` CI job (which runs the full suite
+      as of silo-code/silo#578, not just `cargo check`).
 
 ## Out of scope
 
