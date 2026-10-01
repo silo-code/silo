@@ -27,6 +27,16 @@
     ; data, so they go regardless of the "delete application data" choice —
     ; which otherwise leaves an app-sized copy behind after an uninstall.
     SetShellVarContext current
+
+    ; Windows releases a terminated process's image file asynchronously:
+    ; KillProcessCurrentUser returns while the .exe is still locked, so a delete
+    ; attempted immediately fails on a lock that is about to disappear. Observed
+    ; exactly that in CI — the process was gone, the directory was not. Two
+    ; spaced attempts; RMDir is idempotent, so the second is free when the first
+    ; already succeeded.
+    Sleep 1000
+    RMDir /r "$APPDATA\${BUNDLEID}\session-host"
+    Sleep 2000
     RMDir /r "$APPDATA\${BUNDLEID}\session-host"
   ${EndIf}
 !macroend
