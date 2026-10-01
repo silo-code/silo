@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import {
   AGENT_CATALOG,
   SILO_HOOK_MARKER,
@@ -165,182 +165,205 @@ describe("buildTrackSessionScript", () => {
     }
   });
 
-  it("emits a valid, cwd-free event line for both session-id spellings and never breaks on a hostile cwd", () => {
-    const dir = mkdtempSync(join(tmpdir(), "silo-hook-run-"));
-    try {
-      const scriptPath = join(dir, "track-session.sh");
-      writeFileSync(scriptPath, buildTrackSessionScript());
-      const home = join(dir, "home");
-      const bin = fastPsBin(dir);
+  // These three drive the real `track-session.sh` (or a hand-rolled stand-in)
+  // through `sh`, shadowing the real `ps` with a fake one prepended onto
+  // PATH — skipped on win32. Confirmed live (not assumed): on this runner,
+  // `command -v ps` resolves to the system `/usr/bin/ps` regardless of what
+  // precedes it on PATH, and that `ps` doesn't understand `-o` at all
+  // ("unknown option -- o") — the prepend-to-PATH shadow this fixture relies
+  // on to control `ps`'s output doesn't take effect on Windows `sh`, for
+  // reasons specific to that shell's own PATH handling, not to the walk logic
+  // under test here (which is exercised the same way on macOS/Linux CI).
+  it.skipIf(process.platform === "win32")(
+    "emits a valid, cwd-free event line for both session-id spellings and never breaks on a hostile cwd",
+    () => {
+      const dir = mkdtempSync(join(tmpdir(), "silo-hook-run-"));
+      try {
+        const scriptPath = join(dir, "track-session.sh");
+        writeFileSync(scriptPath, buildTrackSessionScript());
+        const home = join(dir, "home");
+        const bin = fastPsBin(dir);
 
-      const run = (payload: string): string | null => {
-        execFileSync("sh", [scriptPath, "claude"], {
-          input: payload,
+        const run = (payload: string): string | null => {
+          execFileSync("sh", [scriptPath, "claude"], {
+            input: payload,
+            env: {
+              ...process.env,
+              HOME: home,
+              PATH: `${bin}${delimiter}${process.env.PATH}`,
+              SILO: "1",
+            },
+            stdio: ["pipe", "pipe", "pipe"],
+          });
+          try {
+            return readFileSync(
+              join(home, ".silo/agent-hooks/events.jsonl"),
+              "utf8",
+            ).trim();
+          } catch {
+            return null;
+          }
+        };
+        const lastLine = (raw: string | null) =>
+          raw ? raw.split("\n").filter(Boolean).pop()! : null;
+
+        const snake = lastLine(
+          run(
+            '{"session_id":"019fa9d2-1234-7abc-8def-0123456789ab","cwd":"/x"}',
+          ),
+        );
+        expect(snake).not.toBeNull();
+        const snakeObj = JSON.parse(snake!);
+        expect(snakeObj.sessionId).toBe("019fa9d2-1234-7abc-8def-0123456789ab");
+        expect(snakeObj.agent).toBe("claude");
+        expect(Number.isInteger(snakeObj.pid) && snakeObj.pid > 0).toBe(true);
+        expect(Number.isNaN(Date.parse(snakeObj.timestamp))).toBe(false);
+        expect("cwd" in snakeObj).toBe(false); // decision B: cwd is dropped
+
+        const camel = lastLine(
+          run(
+            '{"cwd":"/y","sessionId":"aaaa1111-2222-3333-4444-555566667777"}',
+          ),
+        );
+        expect(JSON.parse(camel!).sessionId).toBe(
+          "aaaa1111-2222-3333-4444-555566667777",
+        );
+
+        // A quote inside cwd must NOT corrupt the line (the whole reason B drops
+        // cwd) — the session id still lands as valid JSON.
+        const hostile = lastLine(
+          run(
+            '{"session_id":"dddd0000-1111-2222-3333-444455556666","cwd":"/we\\"ird"}',
+          ),
+        );
+        expect(JSON.parse(hostile!).sessionId).toBe(
+          "dddd0000-1111-2222-3333-444455556666",
+        );
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+      // Three sequential script runs, each forking ~8 short-lived processes
+      // (sh, ps, and their command-substitution subshells) — past vitest's
+      // default 5s under the full-monorepo parallel test load the pre-commit
+      // hook runs under (confirmed flaky there, not on the logic).
+    },
+    20000,
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "resolves the real agent's pgid past a setpgrp worker that only references it (Cursor regression)",
+    () => {
+      // Confirmed live: a fresh Cursor session runs the hook from a worker that
+      // called setpgrp — so the worker's own pgid (99940) is NOT the terminal's
+      // foreground group (cursor-agent's 98143). The worker's argv references the
+      // cursor-agent path, so a substring-first walk stops there and writes the
+      // wrong pgid → the event never correlates. The walk must prefer an EXACT
+      // argv0-basename match and climb past the worker to cursor-agent.
+      const dir = mkdtempSync(join(tmpdir(), "silo-hook-walk-"));
+      try {
+        const bin = join(dir, "bin");
+        mkdirSync(bin);
+        const scriptPath = join(dir, "track-session.sh");
+        writeFileSync(scriptPath, buildTrackSessionScript());
+        const home = join(dir, "home");
+
+        // The hook's real PPID (whatever it is under this test runner) is
+        // modeled as Cursor's setpgrp WORKER: basename `node`, argv referencing
+        // the cursor-agent path (substring-matches but is NOT an exact agent),
+        // in its own process group (pgid == its own pid). Its parent is a fake
+        // cursor-agent (exact basename) leading the terminal's foreground group.
+        // The fake `ps` treats *any* pid other than the agent as that worker, so
+        // the test doesn't depend on the real PPID's numeric value (which varies
+        // by test-runner pool / pre-commit environment).
+        const agentPid = 990001; // fake cursor-agent: pid == pgid (group leader)
+        const fakePs = [
+          "#!/bin/sh",
+          "pid=$2; field=${4%=}",
+          `if [ "$pid" = "${agentPid}" ]; then`,
+          '  case "$field" in',
+          '    args) echo "/Users/x/.local/bin/cursor-agent --use-system-ca /opt/index.js -f" ;;',
+          '    ppid) echo "1" ;;',
+          `    pgid) echo "${agentPid}" ;;`,
+          "  esac",
+          "else",
+          '  case "$field" in',
+          '    args) echo "node --x /Users/x/.local/share/cursor-agent/versions/z/index.js" ;;',
+          `    ppid) echo "${agentPid}" ;;`,
+          '    pgid) echo "$pid" ;;',
+          "  esac",
+          "fi",
+        ].join("\n");
+        writeFileSync(join(bin, "ps"), fakePs);
+        chmodSync(join(bin, "ps"), 0o755);
+
+        execFileSync("sh", [scriptPath, "cursor"], {
+          input: '{"session_id":"CURSOR-WALK-TEST"}',
           env: {
             ...process.env,
             HOME: home,
-            PATH: `${bin}:${process.env.PATH}`,
+            PATH: `${bin}${delimiter}${process.env.PATH}`,
             SILO: "1",
           },
           stdio: ["pipe", "pipe", "pipe"],
         });
-        try {
-          return readFileSync(
-            join(home, ".silo/agent-hooks/events.jsonl"),
-            "utf8",
-          ).trim();
-        } catch {
-          return null;
-        }
-      };
-      const lastLine = (raw: string | null) =>
-        raw ? raw.split("\n").filter(Boolean).pop()! : null;
+        const line = readFileSync(
+          join(home, ".silo/agent-hooks/events.jsonl"),
+          "utf8",
+        ).trim();
+        const obj = JSON.parse(line);
+        // Must be the cursor-agent group (exact match wins), NOT the worker's
+        // own group (which would be the hook's real PPID).
+        expect(obj.pid).toBe(agentPid);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
 
-      const snake = lastLine(
-        run('{"session_id":"019fa9d2-1234-7abc-8def-0123456789ab","cwd":"/x"}'),
-      );
-      expect(snake).not.toBeNull();
-      const snakeObj = JSON.parse(snake!);
-      expect(snakeObj.sessionId).toBe("019fa9d2-1234-7abc-8def-0123456789ab");
-      expect(snakeObj.agent).toBe("claude");
-      expect(Number.isInteger(snakeObj.pid) && snakeObj.pid > 0).toBe(true);
-      expect(Number.isNaN(Date.parse(snakeObj.timestamp))).toBe(false);
-      expect("cwd" in snakeObj).toBe(false); // decision B: cwd is dropped
+  it.skipIf(process.platform === "win32")(
+    "skips the parent walk when SILO_AGENT_PID is set (pi's in-process hook)",
+    () => {
+      // Pi's hook runs INSIDE pi (a TypeScript extension), so it knows pi's pid
+      // and passes it directly. The walk would resolve the hook's own PPID
+      // instead — and pi's argv0 is `node`, so it could only ever match by the
+      // two-character substring `pi`, which is exactly the ambiguity this
+      // branch avoids.
+      const dir = mkdtempSync(join(tmpdir(), "silo-hook-pid-"));
+      try {
+        const scriptPath = join(dir, "track-session.sh");
+        writeFileSync(scriptPath, buildTrackSessionScript());
+        const home = join(dir, "home");
+        const bin = fastPsBin(dir); // args → "login-shell": no walk match at all
+        const agentPid = 777777;
 
-      const camel = lastLine(
-        run('{"cwd":"/y","sessionId":"aaaa1111-2222-3333-4444-555566667777"}'),
-      );
-      expect(JSON.parse(camel!).sessionId).toBe(
-        "aaaa1111-2222-3333-4444-555566667777",
-      );
+        execFileSync("sh", [scriptPath, "pi"], {
+          input: '{"session_id":"PI-PID-TEST","cwd":"/p"}',
+          env: {
+            ...process.env,
+            HOME: home,
+            PATH: `${bin}${delimiter}${process.env.PATH}`,
+            SILO: "1",
+            SILO_AGENT_PID: String(agentPid),
+          },
+          stdio: ["pipe", "pipe", "pipe"],
+        });
 
-      // A quote inside cwd must NOT corrupt the line (the whole reason B drops
-      // cwd) — the session id still lands as valid JSON.
-      const hostile = lastLine(
-        run(
-          '{"session_id":"dddd0000-1111-2222-3333-444455556666","cwd":"/we\\"ird"}',
-        ),
-      );
-      expect(JSON.parse(hostile!).sessionId).toBe(
-        "dddd0000-1111-2222-3333-444455556666",
-      );
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-    // Three sequential script runs, each forking ~8 short-lived processes
-    // (sh, ps, and their command-substitution subshells) — past vitest's
-    // default 5s under the full-monorepo parallel test load the pre-commit
-    // hook runs under (confirmed flaky there, not on the logic).
-  }, 20000);
-
-  it("resolves the real agent's pgid past a setpgrp worker that only references it (Cursor regression)", () => {
-    // Confirmed live: a fresh Cursor session runs the hook from a worker that
-    // called setpgrp — so the worker's own pgid (99940) is NOT the terminal's
-    // foreground group (cursor-agent's 98143). The worker's argv references the
-    // cursor-agent path, so a substring-first walk stops there and writes the
-    // wrong pgid → the event never correlates. The walk must prefer an EXACT
-    // argv0-basename match and climb past the worker to cursor-agent.
-    const dir = mkdtempSync(join(tmpdir(), "silo-hook-walk-"));
-    try {
-      const bin = join(dir, "bin");
-      mkdirSync(bin);
-      const scriptPath = join(dir, "track-session.sh");
-      writeFileSync(scriptPath, buildTrackSessionScript());
-      const home = join(dir, "home");
-
-      // The hook's real PPID (whatever it is under this test runner) is
-      // modeled as Cursor's setpgrp WORKER: basename `node`, argv referencing
-      // the cursor-agent path (substring-matches but is NOT an exact agent),
-      // in its own process group (pgid == its own pid). Its parent is a fake
-      // cursor-agent (exact basename) leading the terminal's foreground group.
-      // The fake `ps` treats *any* pid other than the agent as that worker, so
-      // the test doesn't depend on the real PPID's numeric value (which varies
-      // by test-runner pool / pre-commit environment).
-      const agentPid = 990001; // fake cursor-agent: pid == pgid (group leader)
-      const fakePs = [
-        "#!/bin/sh",
-        "pid=$2; field=${4%=}",
-        `if [ "$pid" = "${agentPid}" ]; then`,
-        '  case "$field" in',
-        '    args) echo "/Users/x/.local/bin/cursor-agent --use-system-ca /opt/index.js -f" ;;',
-        '    ppid) echo "1" ;;',
-        `    pgid) echo "${agentPid}" ;;`,
-        "  esac",
-        "else",
-        '  case "$field" in',
-        '    args) echo "node --x /Users/x/.local/share/cursor-agent/versions/z/index.js" ;;',
-        `    ppid) echo "${agentPid}" ;;`,
-        '    pgid) echo "$pid" ;;',
-        "  esac",
-        "fi",
-      ].join("\n");
-      writeFileSync(join(bin, "ps"), fakePs);
-      chmodSync(join(bin, "ps"), 0o755);
-
-      execFileSync("sh", [scriptPath, "cursor"], {
-        input: '{"session_id":"CURSOR-WALK-TEST"}',
-        env: {
-          ...process.env,
-          HOME: home,
-          PATH: `${bin}:${process.env.PATH}`,
-          SILO: "1",
-        },
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      const line = readFileSync(
-        join(home, ".silo/agent-hooks/events.jsonl"),
-        "utf8",
-      ).trim();
-      const obj = JSON.parse(line);
-      // Must be the cursor-agent group (exact match wins), NOT the worker's
-      // own group (which would be the hook's real PPID).
-      expect(obj.pid).toBe(agentPid);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("skips the parent walk when SILO_AGENT_PID is set (pi's in-process hook)", () => {
-    // Pi's hook runs INSIDE pi (a TypeScript extension), so it knows pi's pid
-    // and passes it directly. The walk would resolve the hook's own PPID
-    // instead — and pi's argv0 is `node`, so it could only ever match by the
-    // two-character substring `pi`, which is exactly the ambiguity this
-    // branch avoids.
-    const dir = mkdtempSync(join(tmpdir(), "silo-hook-pid-"));
-    try {
-      const scriptPath = join(dir, "track-session.sh");
-      writeFileSync(scriptPath, buildTrackSessionScript());
-      const home = join(dir, "home");
-      const bin = fastPsBin(dir); // args → "login-shell": no walk match at all
-      const agentPid = 777777;
-
-      execFileSync("sh", [scriptPath, "pi"], {
-        input: '{"session_id":"PI-PID-TEST","cwd":"/p"}',
-        env: {
-          ...process.env,
-          HOME: home,
-          PATH: `${bin}:${process.env.PATH}`,
-          SILO: "1",
-          SILO_AGENT_PID: String(agentPid),
-        },
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-
-      const obj = JSON.parse(
-        readFileSync(join(home, ".silo/agent-hooks/events.jsonl"), "utf8")
-          .trim()
-          .split("\n")
-          .pop()!,
-      );
-      // The fake `ps` reports pgid == the pid it is asked about, so this is
-      // provably the pid we passed and not the hook's own PPID.
-      expect(obj.pid).toBe(agentPid);
-      expect(obj.agent).toBe("pi");
-      expect(obj.sessionId).toBe("PI-PID-TEST");
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
+        const obj = JSON.parse(
+          readFileSync(join(home, ".silo/agent-hooks/events.jsonl"), "utf8")
+            .trim()
+            .split("\n")
+            .pop()!,
+        );
+        // The fake `ps` reports pgid == the pid it is asked about, so this is
+        // provably the pid we passed and not the hook's own PPID.
+        expect(obj.pid).toBe(agentPid);
+        expect(obj.agent).toBe("pi");
+        expect(obj.sessionId).toBe("PI-PID-TEST");
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    },
+  );
 
   it("writes nothing when the payload carries no session id", () => {
     const dir = mkdtempSync(join(tmpdir(), "silo-hook-empty-"));
