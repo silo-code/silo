@@ -8,17 +8,17 @@ build on it.
 
 ## Staging resolver (R1)
 
-- [ ] Extract `staged_exe_name(hash: &str) -> String` and
+- [x] Extract `staged_exe_name(hash: &str) -> String` and
       `staged_dir(data_dir: &Path) -> PathBuf` as free functions — pure, unit-testable.
-- [ ] Add `hash_exe(path: &Path) -> io::Result<String>` using the existing
+- [x] Add `hash_exe(path: &Path) -> io::Result<String>` using the existing
       `sha2` dep; first 16 hex chars of SHA-256.
-- [ ] Add `session_host_exe()` in `session_windows.rs` with a
+- [x] Add `session_host_exe()` in `session_windows.rs` with a
       `OnceLock<Result<PathBuf, String>>` memo.
-- [ ] Implement create-if-absent staging: copy to `…tmp-<pid>`, rename into
+- [x] Implement create-if-absent staging: copy to `…tmp-<pid>`, rename into
       place, treat "target exists" as success, clean up the temp on failure.
-- [ ] Point `spawn_daemon` at `session_host_exe()`, falling back to
+- [x] Point `spawn_daemon` at `session_host_exe()`, falling back to
       `current_exe()` on error.
-- [ ] Add `win_stage_hit` / `win_stage_copied` / `win_stage_failed` events via
+- [x] Add `win_stage_hit` / `win_stage_copied` / `win_stage_failed` events via
       `log_event`.
 
 ## Wire handshake (R4)
@@ -39,9 +39,10 @@ build on it.
 
 - [ ] Add `apps/desktop/src-tauri/nsis/hooks.nsh` with `NSIS_HOOK_PREUNINSTALL`.
 - [ ] Wire `bundle.windows.nsis.installerHooks` in `tauri.conf.json`.
-- [ ] Resolve how the kill targets the staged image: `KillProcessCurrentUser`
-      takes an exact image name, so if the hash must stay in the filename, move
-      it into the _directory_ and keep the exe name stable. Decide by testing.
+- [x] Resolve how the kill targets the staged image. **Decided:** the hash is
+      the _directory_ (`session-host/<hash>/silo-session-host.exe`) so the image
+      name stays stable and `KillProcessCurrentUser` can target it by name. A
+      test asserts the file name never varies per build.
 - [ ] Make sure the identifier in the hook matches the build (`.dev` for Silo Dev).
 
 ## Sweep (R5)
@@ -64,8 +65,8 @@ build on it.
 
 ## Tests
 
-- [ ] `staged_exe_name` / `staged_dir` derivation.
-- [ ] Create-if-absent: absent → copies; present → no copy; race → success.
+- [x] `staged_exe_name` / `staged_dir` derivation.
+- [x] Create-if-absent: absent → copies; present → no copy; race → success.
 - [ ] `classify_hello`: compatible, incompatible, absent-frame (legacy), and a
       non-`T_HELLO` first frame.
 - [ ] `sweep_plan`: keeps current, keeps live, deletes orphans, handles empty.
