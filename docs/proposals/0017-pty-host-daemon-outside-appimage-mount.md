@@ -1,9 +1,19 @@
 ---
-status: draft
+status: superseded-by 0053
 created: 2026-07-22
+superseded-by: 0053
 ---
 
 # 0017. Relocate the pty-host daemon binary outside the AppImage mount
+
+> **Superseded by [0053](./0053-session-host-binary-staging.md).** The problem
+> named here is real and still unfixed, but it is one instance of a general one:
+> a process meant to outlive the app must not be executing a file the app's
+> packaging owns. The same coupling breaks Windows updates outright (the
+> installer both wants and needs to kill every session host, since they run
+> `Silo.exe` out of the install directory). 0053 carries this RFC's
+> copy-then-exec design forward as one cross-platform mechanism, with the
+> AppImage case as its Linux phase.
 
 ## Summary
 
