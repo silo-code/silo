@@ -58,6 +58,11 @@
       "files": {
         "Resources/AppIcon.icns": "resources/AppIcon.icns"
       }
+    },
+    "windows": {
+      "nsis": {
+        "installerHooks": "nsis/hooks.nsh"
+      }
     }
   }
 }

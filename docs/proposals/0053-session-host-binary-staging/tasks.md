@@ -37,13 +37,22 @@ build on it.
 
 ## Uninstall hook (R3)
 
-- [ ] Add `apps/desktop/src-tauri/nsis/hooks.nsh` with `NSIS_HOOK_PREUNINSTALL`.
-- [ ] Wire `bundle.windows.nsis.installerHooks` in `tauri.conf.json`.
+> **The uninstaller also runs during an update.** The installer invokes the
+> previous version's uninstaller with `/UPDATE` when the user takes the
+> uninstall-first path on the "Already Installed" page, and
+> `NSIS_HOOK_PREUNINSTALL` fires on that path too. An ungated kill there would
+> destroy every terminal on exactly the flow this RFC exists to fix. The hook is
+> gated on `$UpdateMode <> 1`, which `un.onInit` has already set by then.
+
+- [x] Add `apps/desktop/src-tauri/nsis/hooks.nsh` with `NSIS_HOOK_PREUNINSTALL`.
+- [x] Wire `bundle.windows.nsis.installerHooks` in `tauri.conf.json`.
 - [x] Resolve how the kill targets the staged image. **Decided:** the hash is
       the _directory_ (`session-host/<hash>/silo-session-host.exe`) so the image
       name stays stable and `KillProcessCurrentUser` can target it by name. A
       test asserts the file name never varies per build.
-- [ ] Make sure the identifier in the hook matches the build (`.dev` for Silo Dev).
+- [x] Make sure the identifier in the hook matches the build. **Resolved:** the
+      hook uses the template's own `${BUNDLEID}`, so dev and prod are handled
+      without hard-coding either.
 
 ## Sweep (R5)
 
@@ -55,12 +64,12 @@ build on it.
 
 ## CI — the regression guard (do this with the staging resolver, not after)
 
-- [ ] Add a `windows-latest` job that builds the NSIS bundle, starts a detached
+- [x] Add a `windows-latest` job that builds the NSIS bundle, starts a detached
       process from a staged copy, runs the installer silently (`/S`), and asserts
       the install succeeded **and the process survived** (R2).
-- [ ] Extend it to run the uninstaller silently and assert the process is gone
+- [x] Extend it to run the uninstaller silently and assert the process is gone
       and the staged directory removed (R3).
-- [ ] Decide the trigger: every PR, or `main`/label-gated if the bundle build is
+- [x] Decide the trigger: every PR, or `main`/label-gated if the bundle build is
       too slow. It must run somewhere.
 
 ## Tests

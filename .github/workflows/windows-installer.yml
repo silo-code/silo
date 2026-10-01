@@ -1,0 +1,110 @@
+name: windows-installer
+
+# RFC 0053's regression guard. Terminal persistence on Windows depends on a
+# property of the *installer*, not of the app: a session host must survive an
+# update and die on an uninstall. Both are process-lifecycle facts, so they need
+# no GUI and no ConPTY — NSIS silent mode makes them assertable.
+#
+# This is deliberately not folded into `ci.yml`: it builds a full release bundle,
+# which is far slower than any other job. It runs when something that could
+# plausibly change installer or session-host behavior is touched, and on demand.
+on:
+  pull_request:
+    paths:
+      - "apps/desktop/src-tauri/tauri.conf.json"
+      - "apps/desktop/src-tauri/nsis/**"
+      - "apps/desktop/src-tauri/src/commands/session_windows.rs"
+      - "apps/desktop/src-tauri/src/main.rs"
+      - ".github/workflows/windows-installer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  survives-update:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./apps/desktop/src-tauri -> target
+
+      - run: pnpm install --frozen-lockfile
+      - name: build the NSIS bundle
+        shell: pwsh
+        run: |
+          # `createUpdaterArtifacts` wants TAURI_SIGNING_PRIVATE_KEY, which a
+          # test job has no business holding — and which fork PRs cannot see
+          # anyway. The installer is what is under test, not the update feed.
+          $cfg = Join-Path $PWD 'ci.nsis.conf.json'
+          '{"bundle":{"createUpdaterArtifacts":false}}' | Set-Content $cfg -NoNewline
+          pnpm --filter silo exec tauri build --bundles nsis --config $cfg
+
+      - name: locate the installer
+        id: setup
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Recurse -Filter '*-setup.exe' `
+            apps/desktop/src-tauri/target/release/bundle/nsis |
+            Select-Object -First 1
+          if (-not $exe) { throw 'no NSIS setup.exe was produced' }
+          "path=$($exe.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: install once
+        shell: pwsh
+        run: |
+          Start-Process '${{ steps.setup.outputs.path }}' -ArgumentList '/S' -Wait
+          $installed = "$env:LOCALAPPDATA\Silo\silo.exe"
+          if (-not (Test-Path $installed)) { throw "not installed at $installed" }
+
+      # Stand up a session host the way the app does: a copy of the installed
+      # binary, living under app-data rather than in the install directory,
+      # re-exec'd with the daemon flag. Nothing here needs the GUI.
+      - name: start a session host
+        shell: pwsh
+        run: |
+          $env:SILO_DATA_DIR = "$env:APPDATA\com.silo.desktop"
+          $stage = "$env:SILO_DATA_DIR\session-host\citest\silo-session-host.exe"
+          New-Item -ItemType Directory -Force -Path (Split-Path $stage) | Out-Null
+          Copy-Item "$env:LOCALAPPDATA\Silo\silo.exe" $stage -Force
+          $p = Start-Process $stage `
+            -ArgumentList '--win-session-host','ci-test','C:\','80','24' `
+            -PassThru -WindowStyle Hidden
+          "SESSION_HOST_PID=$($p.Id)" >> $env:GITHUB_ENV
+          Start-Sleep -Seconds 3
+          if ($p.HasExited) { throw "session host exited immediately (code $($p.ExitCode))" }
+
+      # R2 — the regression this RFC exists to fix. Before the staged-binary
+      # change this install would have terminated the process below, because it
+      # was another `silo.exe` running out of the install directory.
+      - name: installing again must not kill it
+        shell: pwsh
+        run: |
+          Start-Process '${{ steps.setup.outputs.path }}' -ArgumentList '/S' -Wait
+          if (-not (Test-Path "$env:LOCALAPPDATA\Silo\silo.exe")) {
+            throw 'the second install did not complete — file in use?'
+          }
+          $p = Get-Process -Id $env:SESSION_HOST_PID -ErrorAction SilentlyContinue
+          if (-not $p) { throw 'R2 FAILED: the install killed the session host' }
+          Write-Host "R2 ok: session host $env:SESSION_HOST_PID survived the update"
+
+      # R3 — the other half. Uninstall *should* reap sessions; that is what the
+      # NSIS_HOOK_PREUNINSTALL hook is for now that they no longer match the
+      # installer's own running-app check.
+      - name: uninstalling must kill it
+        shell: pwsh
+        run: |
+          Start-Process "$env:LOCALAPPDATA\Silo\uninstall.exe" -ArgumentList '/S' -Wait
+          Start-Sleep -Seconds 5
+          $p = Get-Process -Id $env:SESSION_HOST_PID -ErrorAction SilentlyContinue
+          if ($p) { throw 'R3 FAILED: the uninstall left the session host running' }
+          $staged = "$env:APPDATA\com.silo.desktop\session-host"
+          if (Test-Path $staged) { throw "R3 FAILED: staged binaries left at $staged" }
+          Write-Host 'R3 ok: uninstall reaped the session host and its staged copy'
