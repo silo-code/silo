@@ -142,4 +142,4 @@ don't get a proposal at all — see below.
 | [0050](./0050-chat-transcript-scale.md)                       | Chat transcript scale                                             | 2026-09-16 | draft       |
 | [0051](./0051-session-discovery.md)                           | Session Discovery — a `/resume` picker for the Chat panel         | 2026-09-21 | implemented |
 | [0052](./0052-chat-panel-working-checkout.md)                 | Working checkout — reporting where an agent session is working    | 2026-09-22 | implemented |
-| [0053](./0053-session-host-binary-staging/proposal.md)        | Staging the session-host binary outside the app install           | 2026-09-30 | accepted    |
+| [0053](./0053-session-host-binary-staging.md)                 | Staging the session-host binary outside the app install           | 2026-09-30 | accepted    |
