@@ -38,7 +38,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - name: build the NSIS bundle
-        run: pnpm --filter silo exec tauri build --bundles nsis
+        shell: pwsh
+        run: |
+          # `createUpdaterArtifacts` wants TAURI_SIGNING_PRIVATE_KEY, which a
+          # test job has no business holding — and which fork PRs cannot see
+          # anyway. The installer is what is under test, not the update feed.
+          $cfg = Join-Path $PWD 'ci.nsis.conf.json'
+          '{"bundle":{"createUpdaterArtifacts":false}}' | Set-Content $cfg -NoNewline
+          pnpm --filter silo exec tauri build --bundles nsis --config $cfg
 
       - name: locate the installer
         id: setup
