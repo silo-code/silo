@@ -15,6 +15,7 @@ import {
   formatMessageSentAt,
   formatToolInput,
   groupTurns,
+  isBlankMessageText,
   nextEntryKey,
   sameTurn,
   planRows,
@@ -178,6 +179,11 @@ describe("applyUpdate — streaming text", () => {
   it("ignores an empty chunk rather than opening a blank bubble", () => {
     const t = applyUpdate(emptyTranscript, chunk("agent_message_chunk", ""));
     expect(t).toBe(emptyTranscript);
+  });
+
+  it("streams a thought chunk that is just a newline (a provider with nothing real to say) as blank text", () => {
+    const t = fold([chunk("agent_thought_chunk", "\n", "m1")]);
+    expect((t.entries[0] as MessageEntry).text).toBe("\n");
   });
 });
 
@@ -523,6 +529,24 @@ describe("toolOutputIsMarkdown", () => {
     expect(toolOutputIsMarkdown('{\n  "project_path": "/tmp"\n}')).toBe(false);
     expect(toolOutputIsMarkdown("agent-monitor:  30")).toBe(false);
     expect(toolOutputIsMarkdown("")).toBe(false);
+  });
+});
+
+describe("isBlankMessageText", () => {
+  it("is blank for empty text", () => {
+    expect(isBlankMessageText("")).toBe(true);
+  });
+
+  it("is blank for a lone newline — the `omlx/Gemma 4 26B` throwaway-chunk case", () => {
+    expect(isBlankMessageText("\n")).toBe(true);
+  });
+
+  it("is blank for whitespace-only text", () => {
+    expect(isBlankMessageText("   \n\t\n  ")).toBe(true);
+  });
+
+  it("is not blank once there is real text", () => {
+    expect(isBlankMessageText("\nLet me check the README.\n")).toBe(false);
   });
 });
 
