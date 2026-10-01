@@ -79,7 +79,16 @@ resources relative to the binary. And the daemon is already the _same bytes_ as
 the app, so "stage a copy" and "give it a different image name" are the same
 operation.
 
-## Design
+## Proposed solution
+
+| Phase | Scope                                                                                                                                                               | Status      |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1     | **Windows.** Staged content-addressed daemon binary, own image name, `T_HELLO` handshake with a legacy-tolerant transition, NSIS pre-uninstall hook, startup sweep. | in progress |
+| 2     | **Linux.** Route the Unix `spawn_daemon` through the same resolver, gated to AppImage launches — RFC 0017's original case.                                          | not started |
+
+Phase 1 is planned in `requirements.md` / `design.md` / `tasks.md` alongside
+this file; Phase 2 gets its own planning pass when its turn comes. The sketch
+below is the durable shape — the implementation detail lives in `design.md`.
 
 ### 1. A staged, content-addressed daemon binary
 
@@ -213,6 +222,40 @@ invites Gatekeeper questions for no benefit.
    pre-uninstall hook, and the startup sweep.
 2. **Linux.** Route `session_host.rs:80` through the same resolver, gated to
    AppImage launches — RFC 0017's original case, now on shared machinery.
+
+### Keeping Phase 1 off macOS and Linux
+
+Phase 1 is Windows-only by construction, and the package graph already enforces
+it: `session_windows` is `#[cfg(windows)]` at the module level
+(`commands/mod.rs:38`), `session_host` / `session_maintenance` are
+`#[cfg(unix)]`, `pty-host` is a `cfg(unix)` dependency, `active_backend()` is a
+cfg split, and `spawn_daemon` is an _inherent_ method rather than a
+`SessionBackend` trait method — so staging needs no trait change, which is the
+one edit that would force every platform's impl to move. A Unix build never
+compiles any of this.
+
+Two implementation constraints keep it that way. Both are easy to violate while
+making the code "tidier":
+
+- **Keep the resolver inside `session_windows.rs` for Phase 1.** Writing
+  `session_host_exe()` as a shared helper in `app_paths.rs` or
+  `session_backend.rs` — both of which compile on every platform — puts a
+  Windows-only change into Unix-compiled files for no gain. Hoist it in Phase 2,
+  when Linux actually needs it.
+- **Do not touch `crates/pty-host/src/proto.rs`.** §4 says _mirror_
+  `pty_host::proto`, not share it. Moving `PROTO_VERSION` /
+  `MIN_COMPATIBLE_PROTO` into common code edits the live Unix wire contract,
+  where daemon and client must agree — a mismatch there breaks terminal reattach
+  on both macOS and Linux. Windows gets its own constants.
+
+Phase 2 is the genuinely cross-platform step, and its AppImage gate is what
+bounds it: `.deb` / `.rpm` / dev-run launches must keep today's direct
+`current_exe()` re-exec. macOS stays on that path permanently (see Scope).
+
+Note that CI's `rust-windows` job is `cargo check` only — the Windows backend
+needs a real ConPTY, so there is no automated behavioral coverage for it
+(`.github/workflows/ci.yml`). Phase 1 therefore carries more hand-verification
+than a typical change; the acceptance test below is the substitute.
 
 ## Verification
 

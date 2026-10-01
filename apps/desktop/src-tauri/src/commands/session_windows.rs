@@ -181,6 +181,104 @@ fn port_path(handle: &str) -> Option<std::path::PathBuf> {
     sessions_dir().map(|d| d.join(format!("{}.port", handle)))
 }
 
+// ── Staged session-host binary (RFC 0053) ─────────────────────────────────────
+//
+// A session host must outlive an app update, and on Windows that is decided by
+// *where its executable lives*. Re-exec'ing `current_exe()` means every live
+// terminal is another `silo.exe` running out of the install directory, which
+// the installer both matches by image name and cannot overwrite while it runs —
+// so updating kills every terminal. Running from a copy under app-data removes
+// both: the installer has nothing of its own executing.
+
+/// Image name of the staged binary. **Stable on purpose** — the NSIS
+/// pre-uninstall hook kills session hosts by exact image name, so the content
+/// hash goes in the directory rather than the file name.
+const STAGED_EXE_NAME: &str = "silo-session-host.exe";
+
+fn staged_root(data_dir: &std::path::Path) -> std::path::PathBuf {
+    data_dir.join("session-host")
+}
+
+/// Where the binary with content hash `hash` is staged. One directory per
+/// distinct app binary, so an update stages alongside rather than over —
+/// overwriting is impossible anyway while an old daemon is executing the file.
+fn staged_exe_path(data_dir: &std::path::Path, hash: &str) -> std::path::PathBuf {
+    staged_root(data_dir).join(hash).join(STAGED_EXE_NAME)
+}
+
+/// First 8 bytes of the file's SHA-256, hex. Short enough to read in a path,
+/// long enough that two Silo builds will not collide.
+fn hash_file(path: &std::path::Path) -> io::Result<String> {
+    use sha2::{Digest, Sha256};
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    io::copy(&mut file, &mut hasher)?;
+    Ok(hasher
+        .finalize()
+        .iter()
+        .take(8)
+        .map(|b| format!("{b:02x}"))
+        .collect())
+}
+
+/// Copy `src` to `dest` unless it is already there. Content-addressed, so an
+/// existing file at `dest` is by definition the right bytes and is left alone —
+/// which also means staging never has to overwrite a file a running daemon
+/// holds open.
+fn stage_exe(src: &std::path::Path, dest: &std::path::Path) -> io::Result<()> {
+    if dest.exists() {
+        return Ok(());
+    }
+    let dir = dest
+        .parent()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "staged path has no parent"))?;
+    std::fs::create_dir_all(dir)?;
+
+    // Copy to a private temp name first so a reader never sees a partial file.
+    let tmp = dir.join(format!("{STAGED_EXE_NAME}.tmp-{}", std::process::id()));
+    std::fs::copy(src, &tmp)?;
+    match std::fs::rename(&tmp, dest) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            let _ = std::fs::remove_file(&tmp);
+            // Another process staged the same hash first. Same bytes, so the
+            // lost race is a success.
+            if dest.exists() {
+                Ok(())
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
+/// The executable a *new* session host should run. Existing daemons keep
+/// running whatever they started from and are never touched.
+///
+/// Memoized: hashing a ~30 MB binary on every terminal spawn would be pure
+/// waste, and the running binary cannot change underneath us.
+fn session_host_exe() -> Result<std::path::PathBuf, String> {
+    static STAGED: std::sync::OnceLock<Result<std::path::PathBuf, String>> =
+        std::sync::OnceLock::new();
+    STAGED
+        .get_or_init(|| {
+            let src = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+            let data_dir = std::env::var("SILO_DATA_DIR")
+                .map(std::path::PathBuf::from)
+                .map_err(|_| "SILO_DATA_DIR not set".to_string())?;
+            let hash = hash_file(&src).map_err(|e| format!("hash {}: {e}", src.display()))?;
+            let dest = staged_exe_path(&data_dir, &hash);
+            let existed = dest.exists();
+            stage_exe(&src, &dest).map_err(|e| format!("stage {}: {e}", dest.display()))?;
+            log_event(
+                if existed { "win_stage_hit" } else { "win_stage_copied" },
+                &format!("hash={hash} path={}", dest.display()),
+            );
+            Ok(dest)
+        })
+        .clone()
+}
+
 // ── Daemon (run_daemon is called from main.rs via silo_lib::run_win_session_host) ──
 
 fn kill_child(pid: u32) {
@@ -481,7 +579,17 @@ impl SessionWindowsBackend {
         const DETACHED_PROCESS: u32 = 0x0000_0008;
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-        let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
+        // RFC 0053: run the daemon from a staged copy under app-data, never from
+        // the install directory. A staging failure is not fatal — fall back to
+        // the old behavior so a terminal still opens; it is merely as fragile
+        // across an update as it used to be.
+        let exe = match session_host_exe() {
+            Ok(staged) => staged,
+            Err(e) => {
+                log_event("win_stage_failed", &format!("{e} — falling back to current_exe"));
+                std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?
+            }
+        };
         if let Some(dir) = sessions_dir() {
             let _ = std::fs::create_dir_all(dir);
         }
@@ -764,6 +872,113 @@ struct TcpChild(TcpStream);
 impl SessionChild for TcpChild {
     fn kill(&mut self) -> Result<(), String> {
         self.0.shutdown(Shutdown::Both).map_err(|e| e.to_string())
+    }
+}
+
+// ── Staged-binary tests (RFC 0053) ───────────────────────────────────────────
+//
+// These run on the `rust-windows` CI job, which executes the suite as of #578.
+
+#[cfg(test)]
+mod staged_exe_tests {
+    use super::*;
+    use std::path::Path;
+
+    fn temp_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "silo-staged-{tag}-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        dir
+    }
+
+    #[test]
+    fn the_hash_is_the_directory_so_the_image_name_stays_stable() {
+        let path = staged_exe_path(Path::new("C:\\data"), "deadbeefdeadbeef");
+        assert_eq!(
+            path.file_name().and_then(|n| n.to_str()),
+            Some(STAGED_EXE_NAME),
+            "the uninstall hook kills by exact image name — it must not vary per build"
+        );
+        assert_eq!(
+            path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()),
+            Some("deadbeefdeadbeef"),
+            "distinct builds must not collide"
+        );
+        assert!(path.starts_with(staged_root(Path::new("C:\\data"))));
+    }
+
+    #[test]
+    fn distinct_contents_hash_differently_and_identical_contents_do_not() {
+        let dir = temp_dir("hash");
+        let a = dir.join("a.bin");
+        let b = dir.join("b.bin");
+        let same = dir.join("same.bin");
+        std::fs::write(&a, b"silo-one").unwrap();
+        std::fs::write(&b, b"silo-two").unwrap();
+        std::fs::write(&same, b"silo-one").unwrap();
+
+        let ha = hash_file(&a).unwrap();
+        assert_eq!(ha.len(), 16, "8 bytes of SHA-256 as hex");
+        assert_ne!(ha, hash_file(&b).unwrap());
+        assert_eq!(ha, hash_file(&same).unwrap());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn staging_copies_once_and_then_leaves_the_file_alone() {
+        let dir = temp_dir("stage");
+        let src = dir.join("app.bin");
+        std::fs::write(&src, b"payload").unwrap();
+        let dest = staged_exe_path(&dir, "abc123");
+
+        stage_exe(&src, &dest).expect("first stage");
+        assert_eq!(std::fs::read(&dest).unwrap(), b"payload");
+        let first = std::fs::metadata(&dest).unwrap().modified().unwrap();
+
+        // A second spawn must not re-copy: the destination is content-addressed,
+        // and on Windows it may be held open by a running daemon.
+        std::fs::write(&src, b"different-now").unwrap();
+        stage_exe(&src, &dest).expect("second stage");
+        assert_eq!(
+            std::fs::read(&dest).unwrap(),
+            b"payload",
+            "an existing staged file is never overwritten"
+        );
+        assert_eq!(std::fs::metadata(&dest).unwrap().modified().unwrap(), first);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn staging_leaves_no_temp_file_behind() {
+        let dir = temp_dir("tmp");
+        let src = dir.join("app.bin");
+        std::fs::write(&src, b"payload").unwrap();
+        let dest = staged_exe_path(&dir, "def456");
+        stage_exe(&src, &dest).expect("stage");
+
+        let leftovers: Vec<_> = std::fs::read_dir(dest.parent().unwrap())
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.contains(".tmp-"))
+            .collect();
+        assert!(leftovers.is_empty(), "temp files left behind: {leftovers:?}");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn staging_a_missing_source_is_an_error_not_a_panic() {
+        let dir = temp_dir("missing");
+        let dest = staged_exe_path(&dir, "nope");
+        assert!(stage_exe(&dir.join("not-there.bin"), &dest).is_err());
+        assert!(!dest.exists());
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
 
