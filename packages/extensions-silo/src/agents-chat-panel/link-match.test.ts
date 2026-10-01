@@ -62,6 +62,18 @@ describe("matchChatLinks", () => {
     );
   });
 
+  it("does not link a bare relative path with no drive letter", () => {
+    expect(texts(String.raw`relative\dir\file.ts`)).toEqual([]);
+  });
+
+  it("does not link a bare drive root with nothing after the separator", () => {
+    // Without a required char after the separator this used to match `C:\`
+    // and then, since a trailing backslash strips as punctuation, silently
+    // truncate to `C`.
+    expect(texts(String.raw`installed to C:\ already`)).toEqual([]);
+    expect(texts("installed to C:/ already")).toEqual([]);
+  });
+
   it("leaves backslash escapes alone", () => {
     expect(texts(String.raw`split on \n and match \d+ here`)).toEqual([]);
   });
