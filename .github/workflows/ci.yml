@@ -71,6 +71,10 @@ jobs:
         with:
           workspaces: ./apps/desktop/src-tauri -> target
       - run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets
+      # PROBE (throwaway): does a real ConPTY work on a GitHub-hosted runner?
+      # If this passes, the job should run `cargo test` permanently instead of
+      # `cargo check`, and the Windows backend can have real coverage.
+      - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 
   pr-title:
     if: github.event_name == 'pull_request'

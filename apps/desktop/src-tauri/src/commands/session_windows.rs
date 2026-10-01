@@ -766,3 +766,67 @@ impl SessionChild for TcpChild {
         self.0.shutdown(Shutdown::Both).map_err(|e| e.to_string())
     }
 }
+
+// ── CI probe: does a real ConPTY work on a GitHub-hosted Windows runner? ──────
+//
+// The `rust-windows` CI job runs `cargo check`, not `cargo test`, on the stated
+// grounds that "the Windows session backend needs a real ConPTY, so its
+// behavior is verified by hand, not on a runner". If that is wrong, this whole
+// backend can have real automated coverage. This test settles it: it opens a
+// genuine ConPTY via the same `portable-pty` path `run_daemon` uses and asserts
+// a child's output comes back through the master.
+#[cfg(all(test, windows))]
+mod conpty_ci_probe {
+    use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+    use std::io::Read;
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    #[test]
+    fn a_real_conpty_spawns_and_round_trips_output() {
+        const MARKER: &str = "silo-conpty-probe-ok";
+
+        let pty_system = native_pty_system();
+        let pair = pty_system
+            .openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 })
+            .expect("openpty on this host");
+
+        let mut builder = CommandBuilder::new("cmd.exe");
+        builder.arg("/c");
+        builder.arg(format!("echo {MARKER}"));
+
+        let mut child = pair.slave.spawn_command(builder).expect("spawn child");
+        drop(pair.slave);
+
+        let mut reader = pair.master.try_clone_reader().expect("clone reader");
+
+        // Read on a worker so a wedged ConPTY fails the test instead of hanging
+        // the whole `cargo test` run.
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let mut out = Vec::new();
+            let mut chunk = [0u8; 1024];
+            loop {
+                match reader.read(&mut chunk) {
+                    Ok(0) => break,
+                    Ok(n) => {
+                        out.extend_from_slice(&chunk[..n]);
+                        if String::from_utf8_lossy(&out).contains(MARKER) {
+                            break;
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+            let _ = tx.send(out);
+        });
+
+        let out = rx
+            .recv_timeout(Duration::from_secs(30))
+            .expect("ConPTY produced no output within 30s");
+        let _ = child.wait();
+
+        let text = String::from_utf8_lossy(&out);
+        assert!(text.contains(MARKER), "ConPTY output did not contain the marker; got: {text:?}");
+    }
+}
