@@ -26,6 +26,23 @@ jobs:
       - run: pnpm --filter silo exec tsc --noEmit
       - run: pnpm test
 
+  # `pnpm test` has never run on Windows, so Windows-specific breakage in the
+  # TypeScript suite — path-separator assumptions, `\` vs `/`, line-ending
+  # fixtures — is invisible until a Windows release. Mirrors `rust-windows`
+  # below: informational (not required) while Windows-only fixtures and
+  # genuine bugs are triaged, per issue #579.
+  frontend-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
   rust:
     runs-on: ubuntu-22.04
     steps:
