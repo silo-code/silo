@@ -532,14 +532,14 @@ describe(
     });
 
     // Git reports worktree paths realpath'd (on macOS, tmpdir() is a symlink into
-    // /private/...), so expectations resolve through realpathSync too — this pins
-    // the mismatch the panel's samePath() normalization exists for. Windows has
-    // no such symlink, and resolving there is actively wrong: the GitHub Actions
-    // runner's profile directory has an 8.3 short-name alias, so realpathSync
-    // answers `RUNNER~1` while git (and our code) report the long form — skip
-    // the resolve there and just normalize slashes.
-    const real = (p: string) =>
-      (process.platform === "win32" ? p : realpathSync(p)).replace(/\\/g, "/");
+    // /private/...; on Windows, tmpdir() itself can come back as an 8.3
+    // short-name alias like `RUNNER~1`, which git expands when it reports the
+    // path back), so expectations resolve through realpath too — this pins the
+    // mismatch the panel's samePath() normalization exists for. Must be the
+    // *native* realpath: the pure-JS fallback resolves `.`/`..`/symlinks but
+    // does not query the filesystem for a short name's real long form, so it
+    // would echo `RUNNER~1` right back unchanged.
+    const real = (p: string) => realpathSync.native(p).replace(/\\/g, "/");
 
     it("lists worktrees (main first) and creates one on a new branch", async () => {
       await seedCommit();
