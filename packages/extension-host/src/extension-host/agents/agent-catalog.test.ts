@@ -165,6 +165,39 @@ describe("buildTrackSessionScript", () => {
     }
   });
 
+  // TEMP DIAGNOSTIC (removed once Windows CI tells us why the fake `ps` below
+  // never gets picked up): probe whether a PATH-prepended, chmod'd shebang
+  // script actually resolves and runs as `ps` under this runner's `sh`.
+  it("DIAGNOSTIC: fake ps on PATH", () => {
+    const dir = mkdtempSync(join(tmpdir(), "silo-hook-diag-"));
+    try {
+      const bin = fastPsBin(dir);
+      try {
+        const out = execFileSync(
+          "sh",
+          ["-c", "command -v ps; ps -p 1 -o pgid="],
+          {
+            env: {
+              ...process.env,
+              PATH: `${bin}${delimiter}${process.env.PATH}`,
+            },
+            stdio: ["ignore", "pipe", "pipe"],
+            encoding: "utf8",
+          },
+        );
+        console.error("DIAGNOSTIC stdout:", JSON.stringify(out));
+      } catch (err) {
+        const e = err as { stdout?: string; stderr?: string; message: string };
+        console.error("DIAGNOSTIC threw:", e.message);
+        console.error("DIAGNOSTIC stdout:", JSON.stringify(e.stdout));
+        console.error("DIAGNOSTIC stderr:", JSON.stringify(e.stderr));
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+    expect(true).toBe(true);
+  });
+
   it("emits a valid, cwd-free event line for both session-id spellings and never breaks on a hostile cwd", () => {
     const dir = mkdtempSync(join(tmpdir(), "silo-hook-run-"));
     try {
