@@ -767,14 +767,19 @@ impl SessionChild for TcpChild {
     }
 }
 
-// ── CI probe: does a real ConPTY work on a GitHub-hosted Windows runner? ──────
+// ── ConPTY smoke test ────────────────────────────────────────────────────────
 //
-// The `rust-windows` CI job runs `cargo check`, not `cargo test`, on the stated
-// grounds that "the Windows session backend needs a real ConPTY, so its
-// behavior is verified by hand, not on a runner". If that is wrong, this whole
-// backend can have real automated coverage. This test settles it: it opens a
-// genuine ConPTY via the same `portable-pty` path `run_daemon` uses and asserts
-// a child's output comes back through the master.
+// This exists to keep one claim honest. The `rust-windows` CI job ran
+// `cargo check` rather than `cargo test` for a long time, on the grounds that
+// the Windows session backend "needs a real ConPTY, so its behavior is verified
+// by hand, not on a runner" — which left this file with no tests at all.
+// `CreatePseudoConsole` is pipe-based and needs no interactive desktop, so a
+// hosted runner opens one fine, and this test proves it on every run: it drives
+// a genuine ConPTY through the same `portable-pty` path `run_daemon` uses and
+// asserts a child's output comes back through the master.
+//
+// If this ever starts failing on CI, the honest response is to find out why —
+// not to put the job back on `cargo check` and lose the coverage again.
 #[cfg(all(test, windows))]
 mod conpty_ci_probe {
     use portable_pty::{native_pty_system, CommandBuilder, PtySize};
