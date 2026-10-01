@@ -106,7 +106,7 @@ don't get a proposal at all — see below.
 | [0014](./0014-extension-registry.md)                          | Extension registry — publishing, discovery, install               | 2026-07-12 | implemented |
 | [0015](./0015-workspace-extension-contributions.md)           | Workspace extension contributions — property pages + context menu | 2026-07-15 | implemented |
 | [0016](./0016-modal-design-system.md)                         | Modal design system: a public SDK component set                   | 2026-07-18 | implemented |
-| [0017](./0017-pty-host-daemon-outside-appimage-mount.md)      | Relocate the pty-host daemon binary outside the AppImage mount    | 2026-07-22 | draft       |
+| [0017](./0017-pty-host-daemon-outside-appimage-mount.md)      | Relocate the pty-host daemon binary outside the AppImage mount    | 2026-07-22 | superseded  |
 | [0018](./0018-ctx-agents-surface.md)                          | `ctx.agents` — host-computed agent activity + resume-hint surface | 2026-07-22 | implemented |
 | [0019](./0019-agent-hook-shell-runtime.md)                    | Agent session hook — POSIX-shell runtime (replaces base64/Python) | 2026-07-29 | implemented |
 | [0020](./0020-agent-hook-activity-channel.md)                 | Hooks as an authoritative agent-activity channel (over OSC)       | 2026-07-29 | draft       |
@@ -142,3 +142,4 @@ don't get a proposal at all — see below.
 | [0050](./0050-chat-transcript-scale.md)                       | Chat transcript scale                                             | 2026-09-16 | draft       |
 | [0051](./0051-session-discovery.md)                           | Session Discovery — a `/resume` picker for the Chat panel         | 2026-09-21 | implemented |
 | [0052](./0052-chat-panel-working-checkout.md)                 | Working checkout — reporting where an agent session is working    | 2026-09-22 | implemented |
+| [0053](./0053-session-host-binary-staging.md)                 | Staging the session-host binary outside the app install           | 2026-09-30 | accepted    |
