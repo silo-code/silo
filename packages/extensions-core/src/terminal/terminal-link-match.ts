@@ -34,7 +34,7 @@ const PATH_CHARS = String.raw`[A-Za-z0-9_./\-@+]`;
 const WIN_PATH_CHARS = String.raw`[A-Za-z0-9_.\\/\-@+]`;
 const WIN_DRIVE = String.raw`[A-Za-z]:[\\/]`;
 function pathBody(chars: string, winChars: string): string {
-  return String.raw`(?:${WIN_DRIVE}${winChars}*|(?:~|\.{1,2})?\/${chars}+|\.?[A-Za-z0-9_\-@+]+\/${chars}*\.[A-Za-z0-9_\-@+]+)`;
+  return String.raw`(?:${WIN_DRIVE}${winChars}+|(?:~|\.{1,2})?\/${chars}+|\.?[A-Za-z0-9_\-@+]+\/${chars}*\.[A-Za-z0-9_\-@+]+)`;
 }
 const LINE_COL_SUFFIX = String.raw`(?::\d+(?::\d+)?)?`;
 const BARE = String.raw`(?<![A-Za-z0-9_.:/\\\-@+])${pathBody(PATH_CHARS, WIN_PATH_CHARS)}${LINE_COL_SUFFIX}`;
