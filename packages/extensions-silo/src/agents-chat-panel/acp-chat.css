@@ -282,6 +282,16 @@
   text-decoration: underline;
 }
 
+/* The SDK `Tooltip` wrapper is `display: inline-flex`, which is right for an
+ * icon button in a flex row but wrong around a run of text: the browser emits
+ * a line break on both sides of any non-`inline` element when it serializes a
+ * selection, so a copied line containing a link pastes as three lines. These
+ * wrappers sit mid-sentence (and mid-command, inside fenced code) — keep them
+ * `inline` so a copied line stays one line. */
+.silo-tooltip-host:has(> .acp-chat__link) {
+  display: inline;
+}
+
 /* --- tool calls --------------------------------------------------------- */
 /* Collapsed: a single plain line (RFC 0043 finding 1). Expanded: a bordered
    card with sunken Input / Output wells — the Cursor-shaped disclosure. */
