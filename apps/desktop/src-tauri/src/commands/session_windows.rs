@@ -300,6 +300,92 @@ fn stage_exe(src: &std::path::Path, dest: &std::path::Path) -> io::Result<()> {
     }
 }
 
+/// Staged hashes eligible for removal: everything that is not the running
+/// build's.
+///
+/// Deliberately **not** a liveness predicate. Windows refuses to delete a
+/// running executable, so attempting the delete *is* the liveness check — and
+/// it is a check that cannot race, unlike anything built on a process
+/// snapshot taken a moment earlier.
+fn staged_sweep_candidates(entries: &[String], current: &str) -> Vec<String> {
+    entries
+        .iter()
+        .filter(|h| h.as_str() != current)
+        .cloned()
+        .collect()
+}
+
+/// Port number a `.port` file names, if it holds one.
+fn parse_port(contents: &str) -> Option<u16> {
+    contents.trim().parse().ok()
+}
+
+/// Reap what the Windows side has never reaped: `.port` files whose daemon is
+/// gone, and staged binaries no longer executed by anything.
+///
+/// Unix gets this from `discovery::reap_stale` driven by
+/// `session_maintenance::spawn_maintenance_sweep`, both `cfg(unix)`. Windows
+/// had no equivalent at all, which is why months-old `.port` files accumulate
+/// (silo-code/silo#573).
+pub fn sweep_stale_state() {
+    let Ok(data_dir) = std::env::var("SILO_DATA_DIR").map(std::path::PathBuf::from) else {
+        return;
+    };
+
+    // Stale port files. A port whose listener refuses is a daemon that died
+    // without cleaning up after itself.
+    if let Ok(entries) = std::fs::read_dir(data_dir.join("sessions")) {
+        let mut reaped = 0;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("port") {
+                continue;
+            }
+            let alive = std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|c| parse_port(&c))
+                .is_some_and(|port| TcpStream::connect(("127.0.0.1", port)).is_ok());
+            if !alive && std::fs::remove_file(&path).is_ok() {
+                reaped += 1;
+            }
+        }
+        if reaped > 0 {
+            log_event("win_sweep_ports", &format!("reaped={reaped}"));
+        }
+    }
+
+    // Staged binaries from builds no longer in use. The current build's copy is
+    // never a candidate; the rest are attempted, and the ones still being
+    // executed simply refuse to be deleted.
+    let root = staged_root(&data_dir);
+    let Ok(entries) = std::fs::read_dir(&root) else {
+        return;
+    };
+    let hashes: Vec<String> = entries
+        .flatten()
+        .filter(|e| e.path().is_dir())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    let current = session_host_exe()
+        .ok()
+        .and_then(|p| {
+            p.parent()
+                .and_then(|d| d.file_name())
+                .map(|n| n.to_string_lossy().into_owned())
+        })
+        .unwrap_or_default();
+
+    let mut removed = 0;
+    for hash in staged_sweep_candidates(&hashes, &current) {
+        if std::fs::remove_dir_all(root.join(&hash)).is_ok() {
+            removed += 1;
+        }
+    }
+    if removed > 0 {
+        log_event("win_sweep_staged", &format!("removed={removed}"));
+    }
+}
+
 /// The executable a *new* session host should run. Existing daemons keep
 /// running whatever they started from and are never touched.
 ///
@@ -809,6 +895,10 @@ impl SessionBackend for SessionWindowsBackend {
                 }
                 Some(p.file_stem()?.to_str()?.to_string())
             })
+            // Liveness-filtered, matching the Unix `discovery::list_sessions`.
+            // Without this, reconciliation treats every `.port` file ever
+            // written as a live session (silo-code/silo#573).
+            .filter(|handle| self.exists(handle))
             .collect()
     }
 
@@ -956,6 +1046,46 @@ struct TcpChild(TcpStream);
 impl SessionChild for TcpChild {
     fn kill(&mut self) -> Result<(), String> {
         self.0.shutdown(Shutdown::Both).map_err(|e| e.to_string())
+    }
+}
+
+// ── Sweep tests (RFC 0053 R5) ────────────────────────────────────────────────
+
+#[cfg(test)]
+mod sweep_tests {
+    use super::*;
+
+    #[test]
+    fn the_running_builds_staged_copy_is_never_a_candidate() {
+        let entries = vec!["aaa".to_string(), "bbb".to_string(), "ccc".to_string()];
+        let plan = staged_sweep_candidates(&entries, "bbb");
+        assert_eq!(plan, vec!["aaa".to_string(), "ccc".to_string()]);
+    }
+
+    #[test]
+    fn a_sweep_with_nothing_to_do_removes_nothing() {
+        assert!(staged_sweep_candidates(&[], "aaa").is_empty());
+        assert!(staged_sweep_candidates(&["aaa".to_string()], "aaa").is_empty());
+    }
+
+    #[test]
+    fn an_unknown_current_hash_still_does_not_sweep_blindly() {
+        // If the current hash cannot be resolved it is "", which matches no
+        // directory — so every entry becomes a candidate and the delete itself
+        // is what protects the ones in use. Pinned because the alternative
+        // reading (sweep nothing) would silently stop reclaiming space.
+        let entries = vec!["aaa".to_string()];
+        assert_eq!(staged_sweep_candidates(&entries, ""), vec!["aaa".to_string()]);
+    }
+
+    #[test]
+    fn a_port_file_is_only_as_good_as_the_number_in_it() {
+        assert_eq!(parse_port("58862"), Some(58862));
+        assert_eq!(parse_port("  58862\n"), Some(58862));
+        assert_eq!(parse_port(""), None);
+        assert_eq!(parse_port("   "), None);
+        assert_eq!(parse_port("not-a-port"), None);
+        assert_eq!(parse_port("99999"), None, "out of u16 range");
     }
 }
 

@@ -33,7 +33,7 @@ build on it.
       `Proceed | Legacy | Incompatible { daemon, app }`.
 - [x] Wire it into `connect`/`attach`; log `host_incompatible` on mismatch and
       fail the attach.
-- [ ] Confirm `exists()` still disconnects before the classify window and never
+- [x] Confirm `exists()` still disconnects before the classify window and never
       joins `clients`.
 
 ## Uninstall hook (R3)
@@ -57,11 +57,13 @@ build on it.
 
 ## Sweep (R5)
 
-- [ ] Extract `sweep_plan(staged: &[String], live_hashes: &[String], current: &str) -> Vec<String>`
-      — pure, unit-testable.
-- [ ] Add a `cfg(windows)` startup sweep thread: stale `.port` files, then
+- [x] Extract `staged_sweep_candidates(entries, current)` — pure. **No liveness
+      predicate:** Windows refuses to delete a running executable, so the delete
+      attempt _is_ the liveness check, and unlike a process snapshot it cannot
+      race.
+- [x] Add a `cfg(windows)` startup sweep thread: stale `.port` files, then
       unreferenced staged binaries. Ignore in-use delete failures.
-- [ ] Coordinate with silo-code/silo#573 so the `.port` reaping lands once, not twice.
+- [x] Coordinate with silo-code/silo#573 so the `.port` reaping lands once, not twice.
 
 ## CI — the regression guard (do this with the staging resolver, not after)
 
@@ -79,7 +81,7 @@ build on it.
 - [x] Create-if-absent: absent → copies; present → no copy; race → success.
 - [x] `classify_hello`: compatible, incompatible, absent-frame (legacy), and a
       non-`T_HELLO` first frame.
-- [ ] `sweep_plan`: keeps current, keeps live, deletes orphans, handles empty.
+- [x] `sweep_plan`: keeps current, keeps live, deletes orphans, handles empty.
 - [ ] `pnpm test` green.
 
 ## Verification

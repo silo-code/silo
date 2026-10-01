@@ -197,6 +197,13 @@ pub fn run() {
             #[cfg(unix)]
             commands::session_maintenance::spawn_maintenance_sweep();
 
+            // Windows has no equivalent reaper, so stale `.port` files and
+            // staged session-host binaries accumulate forever (RFC 0053 R5 /
+            // silo-code/silo#573). One pass at startup is enough: both kinds of
+            // leftover are only created by a daemon that has already exited.
+            #[cfg(windows)]
+            std::thread::spawn(commands::session_windows::sweep_stale_state);
+
             // The application menu is constructed in JS (src/extensions/menu-items.ts)
             // and installed via setAsAppMenu() after extensions activate. That lets
             // built-in and third-party extensions contribute menu items through the
