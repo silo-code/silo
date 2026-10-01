@@ -24,6 +24,21 @@ describe("resolveTerminalFilePath", () => {
     expect(resolveTerminalFilePath("/etc/hosts", worktree)).toBe("/etc/hosts");
   });
 
+  it("leaves Windows drive-absolute paths unchanged", () => {
+    expect(
+      resolveTerminalFilePath(String.raw`C:\Users\dweaver\silo.exe`, worktree),
+    ).toBe(String.raw`C:\Users\dweaver\silo.exe`);
+    expect(resolveTerminalFilePath("C:/Users/dweaver/silo.exe", worktree)).toBe(
+      "C:/Users/dweaver/silo.exe",
+    );
+  });
+
+  it("strips :line:col from a Windows path", () => {
+    expect(
+      resolveTerminalFilePath(String.raw`C:\src\main.ts:42:7`, worktree),
+    ).toBe(String.raw`C:\src\main.ts`);
+  });
+
   it("expands home-relative paths", () => {
     expect(resolveTerminalFilePath("~/notes.txt", mainRepo, "/Users/dev")).toBe(
       "/Users/dev/notes.txt",

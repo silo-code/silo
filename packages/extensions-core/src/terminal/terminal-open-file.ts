@@ -19,7 +19,10 @@ export function resolveTerminalFilePath(
     const home = homeDir?.replace(/\/$/, "") ?? "";
     return home ? `${home}/${path.slice(2)}` : path;
   }
-  if (path.startsWith("/")) return path;
+  // Already absolute: a POSIX root, or a Windows path rooted at a drive
+  // letter (`C:\Users\me`, `C:/Users/me`). Joining the latter onto a base
+  // dir would produce nonsense like `/repo/C:\Users\me`.
+  if (path.startsWith("/") || /^[A-Za-z]:[\\/]/.test(path)) return path;
 
   const rel = path.replace(/^\.\//, "");
   return joinPosixPath(baseDir.replace(/\/$/, ""), rel);
