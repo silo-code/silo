@@ -57,11 +57,18 @@ jobs:
   # Without this, a type error in that code reaches `main` and only surfaces
   # when someone cuts a Windows release.
   #
-  # `cargo check`, not `cargo test` — the Windows session backend needs a real
-  # ConPTY, so its behavior is verified by hand, not on a runner. No system
-  # dependencies: WebView2 ships on the image. `crates/pty-host` is deliberately
-  # absent — it is a `cfg(unix)` dependency built on `forkpty`, so it is not
-  # Windows code at all.
+  # This job ran `cargo check` for a long time on the belief that the Windows
+  # session backend "needs a real ConPTY, so its behavior is verified by hand,
+  # not on a runner". That is not true: `CreatePseudoConsole` is pipe-based and
+  # needs no interactive desktop, and a hosted runner opens one fine — see the
+  # `conpty_ci_probe` test in `session_windows.rs`, which exists to keep that
+  # answer honest. Running the tests here immediately found three `user_path`
+  # fixtures that had been asserting nothing on Windows for as long as they had
+  # existed. Don't go back to `check` without re-testing the claim.
+  #
+  # No system dependencies: WebView2 ships on the image. `crates/pty-host` is
+  # deliberately absent — it is a `cfg(unix)` dependency built on `forkpty`, so
+  # it is not Windows code at all.
   rust-windows:
     runs-on: windows-latest
     steps:
@@ -70,7 +77,9 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: ./apps/desktop/src-tauri -> target
+      # `--all-targets` still type-checks what `cargo test` does not build.
       - run: cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets
+      - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 
   pr-title:
     if: github.event_name == 'pull_request'

@@ -326,28 +326,38 @@ fn run_with_timeout(program: &str, args: &[&str]) -> Option<String> {
 mod tests {
     use super::*;
 
+    /// Join entries with the platform's `PATH` separator. Fixtures that
+    /// hard-code `:` parse as a single entry on Windows, where `SEP` is `;` —
+    /// which is how these tests silently asserted nothing there until the
+    /// `rust-windows` job started running them.
+    fn path_of(entries: &[&str]) -> String {
+        entries.join(SEP)
+    }
+
     #[test]
     fn merge_puts_login_entries_first_and_keeps_inherited_extras() {
         let merged = merge_paths(
-            Some("/opt/homebrew/bin:/usr/bin:/bin"),
-            "/usr/bin:/bin:/my/worktree/bin",
+            Some(&path_of(&["/opt/homebrew/bin", "/usr/bin", "/bin"])),
+            &path_of(&["/usr/bin", "/bin", "/my/worktree/bin"]),
         );
         assert_eq!(
-            merged, "/opt/homebrew/bin:/usr/bin:/bin:/my/worktree/bin",
+            merged,
+            path_of(&["/opt/homebrew/bin", "/usr/bin", "/bin", "/my/worktree/bin"]),
             "duplicates collapse, inherited-only entries survive"
         );
     }
 
     #[test]
     fn merge_without_a_login_shell_answer_is_the_inherited_path() {
-        assert_eq!(merge_paths(None, "/usr/bin:/bin"), "/usr/bin:/bin");
+        let inherited = path_of(&["/usr/bin", "/bin"]);
+        assert_eq!(merge_paths(None, &inherited), inherited);
     }
 
     #[test]
     fn merge_drops_empty_entries() {
         // An empty `PATH` entry means "the current directory" to execvp —
         // never something Silo should hand an agent.
-        assert_eq!(merge_paths(Some(":/usr/bin:"), ""), "/usr/bin");
+        assert_eq!(merge_paths(Some(&format!("{SEP}/usr/bin{SEP}")), ""), "/usr/bin");
     }
 
     #[test]
@@ -403,7 +413,7 @@ mod tests {
             std::fs::set_permissions(&real, std::fs::Permissions::from_mode(0o755)).expect("chmod");
         }
 
-        let path = format!("{}:{}", dir.display(), other.display());
+        let path = format!("{}{SEP}{}", dir.display(), other.display());
         #[cfg(unix)]
         assert_eq!(
             resolve_program("agent", &path),
@@ -433,17 +443,17 @@ mod tests {
         let previous = std::env::var("SILO_DATA_DIR").ok();
         std::env::set_var("SILO_DATA_DIR", &dir);
 
-        write_cache("/silo/gone/one:/silo/gone/two");
+        write_cache(&path_of(&["/silo/gone/one", "/silo/gone/two"]));
         assert_eq!(
             cached_login_path(),
             None,
             "an nvm directory a Node upgrade deleted must not be trusted"
         );
 
-        write_cache(&format!("/silo/gone/one:{}", dir.display()));
+        write_cache(&format!("/silo/gone/one{SEP}{}", dir.display()));
         assert_eq!(
             cached_login_path(),
-            Some(format!("/silo/gone/one:{}", dir.display())),
+            Some(format!("/silo/gone/one{SEP}{}", dir.display())),
             "one surviving directory is enough — the value is at most one launch stale"
         );
 
