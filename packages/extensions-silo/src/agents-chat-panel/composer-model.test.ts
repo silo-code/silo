@@ -14,6 +14,8 @@ import {
   historyNavDown,
   historyNavUp,
   isDoubleEscape,
+  lineEndIndex,
+  lineStartIndex,
   type HistoryNavState,
 } from "./composer-model";
 
@@ -205,6 +207,30 @@ describe("caretOnFirstLine / caretOnLastLine", () => {
     const draft = "line one\nline two\nline three";
     expect(caretOnFirstLine(draft, 4)).toBe(true);
     expect(caretOnLastLine(draft, draft.length - 3)).toBe(true);
+  });
+});
+
+describe("lineStartIndex / lineEndIndex", () => {
+  it("is the whole-draft boundary on a single-line draft", () => {
+    expect(lineStartIndex("hello", 3)).toBe(0);
+    expect(lineEndIndex("hello", 3)).toBe(5);
+  });
+
+  it("stays within the caret's own line in a multi-line draft", () => {
+    const draft = "line one\nline two\nline three";
+    const line2Start = draft.indexOf("line two");
+    const caret = line2Start + 4; // mid "line two"
+    expect(lineStartIndex(draft, caret)).toBe(line2Start);
+    expect(lineEndIndex(draft, caret)).toBe(draft.indexOf("\nline three"));
+  });
+
+  it("is a no-op at a line boundary already", () => {
+    const draft = "line one\nline two";
+    const line2Start = draft.indexOf("line two");
+    expect(lineStartIndex(draft, line2Start)).toBe(line2Start);
+    expect(lineEndIndex(draft, draft.indexOf("\nline two"))).toBe(
+      draft.indexOf("\nline two"),
+    );
   });
 });
 

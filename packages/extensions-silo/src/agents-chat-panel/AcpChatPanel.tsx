@@ -171,6 +171,8 @@ import {
   historyNavDown,
   historyNavUp,
   isDoubleEscape,
+  lineEndIndex,
+  lineStartIndex,
   NOT_NAVIGATING_HISTORY,
   type HistoryNavState,
 } from "./composer-model";
@@ -2620,6 +2622,33 @@ export function AcpChatPanel({
                 setPaletteDismissed(true);
                 return;
               }
+            }
+            // Smart Home/End: first press goes to the current line's
+            // boundary; a second press from that boundary goes to the whole
+            // draft's boundary — the convention a single-line input gives
+            // for free, which a multi-line textarea otherwise overrides
+            // per-line. Handled entirely ourselves (never falling through to
+            // the browser default): WebKit on macOS maps a bare Home/End key
+            // to viewport scrolling, not textarea caret movement, so relying
+            // on the native behavior silently does nothing in the Tauri
+            // webview.
+            if (e.key === "Home" && !e.shiftKey) {
+              e.preventDefault();
+              const el = e.currentTarget;
+              const caret = el.selectionStart ?? 0;
+              const lineStart = lineStartIndex(draft, caret);
+              const target = caret === lineStart ? 0 : lineStart;
+              el.setSelectionRange(target, target);
+              return;
+            }
+            if (e.key === "End" && !e.shiftKey) {
+              e.preventDefault();
+              const el = e.currentTarget;
+              const caret = el.selectionEnd ?? 0;
+              const lineEnd = lineEndIndex(draft, caret);
+              const target = caret === lineEnd ? draft.length : lineEnd;
+              el.setSelectionRange(target, target);
+              return;
             }
             // ↑/↓ recall past prompts (terminal-shell convention) — but only
             // once the caret is already on the draft's first/last line, so a

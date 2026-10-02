@@ -112,6 +112,24 @@ export function caretOnLastLine(value: string, caret: number): boolean {
   return !value.slice(caret).includes("\n");
 }
 
+/**
+ * Smart Home/End (the convention a single-line input gives for free, which a
+ * multi-line textarea otherwise overrides per-line): the first press goes to
+ * the current line's boundary; a second press *from that boundary* goes to
+ * the whole draft's boundary. `lineStartIndex`/`lineEndIndex` locate the
+ * line boundary a caret at `caret` sits in.
+ */
+
+export function lineStartIndex(value: string, caret: number): number {
+  return value.lastIndexOf("\n", caret - 1) + 1;
+}
+
+/** The End mirror of {@link lineStartIndex}. */
+export function lineEndIndex(value: string, caret: number): number {
+  const next = value.indexOf("\n", caret);
+  return next === -1 ? value.length : next;
+}
+
 /** `index` counts back from the newest entry (`history.length - 1`); `null`
  *  means the composer is showing the live draft, not a recalled one. */
 export interface HistoryNavState {
