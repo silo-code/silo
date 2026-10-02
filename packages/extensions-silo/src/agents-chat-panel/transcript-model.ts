@@ -126,9 +126,6 @@ export interface ToolGroupEntry {
   readonly type: "tool-group";
   readonly key: string;
   readonly tools: readonly ToolEntry[];
-  /** Whether any call in the run ended `"failed"` — the panel must never let
-   *  this fold hide a failure behind "N more, expand to see them all". */
-  readonly hasError: boolean;
 }
 
 /** What the transcript view renders, one turn's entries at a time — either an
@@ -573,10 +570,12 @@ export const TOOL_GROUP_INLINE_COUNT = 5;
  * as `applyUpdate` patches a call in place.
  *
  * A run of {@link TOOL_GROUP_THRESHOLD}+ consecutive tool calls, none of them
- * carrying a diff, folds into one {@link ToolGroupEntry}. A diff-producing
- * call (an Edit/Write) — and anything that isn't a tool call at all, e.g. the
- * agent's own prose between two calls — breaks the run and renders in full,
- * on its own; folding resumes only after another run this long follows it.
+ * carrying a diff or ending `"failed"`, folds into one {@link
+ * ToolGroupEntry}. A diff-producing call (an Edit/Write), a failed call, and
+ * anything that isn't a tool call at all, e.g. the agent's own prose between
+ * two calls — each breaks the run and renders in full, on its own, so a
+ * failure is never a fold away from view; folding resumes only after another
+ * run this long follows it.
  */
 export function foldToolRuns(
   entries: readonly TranscriptEntry[],
@@ -586,12 +585,7 @@ export function foldToolRuns(
 
   const flushRun = () => {
     if (run.length >= TOOL_GROUP_THRESHOLD) {
-      out.push({
-        type: "tool-group",
-        key: `g${run[0]!.key}`,
-        tools: run,
-        hasError: run.some((tool) => tool.status === "failed"),
-      });
+      out.push({ type: "tool-group", key: `g${run[0]!.key}`, tools: run });
     } else {
       out.push(...run);
     }
@@ -599,7 +593,11 @@ export function foldToolRuns(
   };
 
   for (const entry of entries) {
-    if (entry.type === "tool" && (entry.diffs?.length ?? 0) === 0) {
+    if (
+      entry.type === "tool" &&
+      (entry.diffs?.length ?? 0) === 0 &&
+      entry.status !== "failed"
+    ) {
       run.push(entry);
       continue;
     }

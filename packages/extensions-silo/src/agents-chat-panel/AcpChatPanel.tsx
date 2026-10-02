@@ -476,9 +476,9 @@ function WaveText({ text }: { text: string }) {
  *
  * A `"tool-group"` is the one case {@link foldToolRuns} produces rather than
  * the transcript reducer itself — a long run of routine calls, folded to a
- * header plus its {@link TOOL_GROUP_INLINE_COUNT} most recent members. A run
- * with a failed call inside always renders fully open (its `hasError` flag)
- * so a failure is never one click away from view, it is already in it.
+ * header plus its {@link TOOL_GROUP_INLINE_COUNT} most recent members. A
+ * failed call breaks the run before it ever reaches a group, so a group is
+ * never hiding one behind "N more, expand to see them all".
  */
 function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
   if (entry.type === "message") {
@@ -707,11 +707,7 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
     );
   }
   if (entry.type === "tool-group") {
-    // A run with a failed call inside can't be collapsed at all — see the
-    // doc comment above this function. Nothing to toggle, so the head isn't
-    // interactive, matching how a bodiless tool row already treats `hasBody`.
-    const canToggle = !entry.hasError;
-    const expanded = entry.hasError || tools.expandedTools.has(entry.key);
+    const expanded = tools.expandedTools.has(entry.key);
     const toggle = () => tools.onToggleTool(entry.key);
     // "Most recent" is the end of the run — entries stream in chronological
     // order, so the calls still worth a glance without expanding are the
@@ -728,21 +724,17 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
       >
         <div
           className="acp-chat__tool-group-head"
-          data-interactive={canToggle || undefined}
-          role={canToggle ? "button" : undefined}
-          tabIndex={canToggle ? 0 : undefined}
-          aria-expanded={canToggle ? expanded : undefined}
-          onClick={canToggle ? toggle : undefined}
-          onKeyDown={
-            canToggle
-              ? (e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    toggle();
-                  }
-                }
-              : undefined
-          }
+          data-interactive
+          role="button"
+          tabIndex={0}
+          aria-expanded={expanded}
+          onClick={toggle}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggle();
+            }
+          }}
         >
           <CaretRight
             className="acp-chat__tool-group-caret"
@@ -752,11 +744,6 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
           <span className="acp-chat__tool-group-label">
             {toolGroupLabel(entry)}
           </span>
-          {entry.hasError ? (
-            <Badge tone="err" size="sm">
-              error
-            </Badge>
-          ) : null}
         </div>
         <div className="acp-chat__tool-group-body">
           {visible.map((tool) => (
