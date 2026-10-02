@@ -756,7 +756,6 @@ describe("foldToolRuns", () => {
     const group = folded[0] as ToolGroupEntry;
     expect(group.type).toBe("tool-group");
     expect(group.tools).toHaveLength(TOOL_GROUP_THRESHOLD);
-    expect(group.hasError).toBe(false);
   });
 
   it("breaks the run on a diff-producing call and resumes after it", () => {
@@ -806,14 +805,37 @@ describe("foldToolRuns", () => {
     ]);
   });
 
-  it("marks a group hasError when any call inside it failed", () => {
+  it("breaks the run on a failed call and resumes after it", () => {
     const t = fold([
-      ...readCalls(TOOL_GROUP_THRESHOLD - 1),
+      ...readCalls(TOOL_GROUP_THRESHOLD),
       ...readCalls(1, { status: "failed" }),
+      ...readCalls(TOOL_GROUP_THRESHOLD),
     ]);
     const folded = foldToolRuns(t.entries);
-    const group = folded[0] as ToolGroupEntry;
-    expect(group.hasError).toBe(true);
+    expect(folded.map((e) => e.type)).toEqual([
+      "tool-group",
+      "tool",
+      "tool-group",
+    ]);
+    expect((folded[1] as ToolEntry).status).toBe("failed");
+  });
+
+  it("never folds a run the failed call keeps under the threshold", () => {
+    const t = fold([
+      ...readCalls(3),
+      ...readCalls(1, { status: "failed" }),
+      ...readCalls(3),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual([
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+      "tool",
+    ]);
   });
 });
 
