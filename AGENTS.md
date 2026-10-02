@@ -321,6 +321,15 @@ known agent in Silo: the recon to do against the running binary, the
 `AGENT_CATALOG` entry, activity detectors, resume strategies, and every surface
 that names agents in prose. See `docs/adding-a-coding-agent.md`.
 
+### ACP coverage
+
+Which Agent Client Protocol features Silo's hand-rolled client uses, which are
+available but unused, and the ranked shortlist of what to add next. Silo has no
+`@agentclientprotocol/sdk` dependency, so no version bump signals that the
+protocol moved — this doc is the record instead. Regenerate it with the
+`silo-acp-watch` skill (the `git diff` is the delta); the Top 5 and Analysis
+sections are hand-written and survive regeneration. See `docs/acp-coverage.md`.
+
 ### Modal & extension UI design
 
 Decision table for building modal content, settings pages, or workspace
