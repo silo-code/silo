@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.72.1](https://github.com/silo-code/silo/compare/silo-v0.72.0...silo-v0.72.1) (2026-10-03)
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** break a tool-call group on a failed call ([#590](https://github.com/silo-code/silo/issues/590)) ([6b10639](https://github.com/silo-code/silo/commit/6b106399729f96f0a5d8e5df60d9cb6a6e8b27c0))
+* **agents-chat-panel:** make Home/End move the composer caret ([#588](https://github.com/silo-code/silo/issues/588)) ([a2a8fbd](https://github.com/silo-code/silo/commit/a2a8fbd4675be0eb22d45128fde5575b1085e561))
+* **agents-chat-panel:** persist composer draft across restarts ([#592](https://github.com/silo-code/silo/issues/592)) ([1a06a7f](https://github.com/silo-code/silo/commit/1a06a7f0abd2db357e4ed42e75fb3822e95ee232))
+
 ## [0.72.0](https://github.com/silo-code/silo/compare/silo-v0.71.1...silo-v0.72.0) (2026-10-01)
 
 
