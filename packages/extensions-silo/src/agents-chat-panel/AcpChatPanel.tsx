@@ -305,7 +305,19 @@ export interface AcpChatPanelParams {
    * from the user's own pick or the agent moving one itself.
    */
   configOptionValues?: Readonly<Record<string, string>>;
+  /**
+   * The composer's in-progress text, persisted so a restart (or a
+   * close-and-reopen of this `DockPanelRecord`) doesn't lose an unsent draft.
+   * Written back on a debounce (`DRAFT_SAVE_DEBOUNCE_MS`), same shape as
+   * {@link scrollTop}, so a keystroke doesn't churn the panel record.
+   */
+  draft?: string;
 }
+
+/** Debounce before persisting the composer draft into the panel's
+ *  `DockPanelRecord` — short enough that a restart loses at most a beat of
+ *  typing, long enough that every keystroke doesn't rewrite the record. */
+const DRAFT_SAVE_DEBOUNCE_MS = 300;
 
 /** What the panel is doing. `"no-profile"` is a state to render, not an error:
  *  the user simply has no Chat profile yet. */
@@ -982,7 +994,30 @@ export function AcpChatPanel({
     intent: RestartIntent;
     sessionId: string;
   } | null>(null);
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(params.draft ?? "");
+  // Mirrors `draft` into `params.draft` on a debounce — see
+  // `DRAFT_SAVE_DEBOUNCE_MS`. `writtenDraftRef` starts at the value already in
+  // `params` so mounting with a restored draft doesn't immediately re-write
+  // the same value it just read.
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const writtenDraftRef = useRef(params.draft ?? "");
+  useEffect(() => {
+    if (writtenDraftRef.current === draft) return;
+    if (draftSaveTimerRef.current !== null) {
+      clearTimeout(draftSaveTimerRef.current);
+    }
+    draftSaveTimerRef.current = setTimeout(() => {
+      draftSaveTimerRef.current = null;
+      writtenDraftRef.current = draft;
+      api.updateParameters({ draft });
+    }, DRAFT_SAVE_DEBOUNCE_MS);
+    return () => {
+      if (draftSaveTimerRef.current !== null) {
+        clearTimeout(draftSaveTimerRef.current);
+        draftSaveTimerRef.current = null;
+      }
+    };
+  }, [api, draft]);
   // ↑/↓ prompt history state, and the last Escape's timestamp for the
   // double-tap-to-clear gesture — a ref, since a timestamp on its own
   // doesn't need to trigger a render the way `historyNav` does.
