@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.72.2](https://github.com/silo-code/silo/compare/silo-v0.72.1...silo-v0.72.2) (2026-10-05)
+
+
+### Bug Fixes
+
+* **macos:** entitle Silo for microphone, camera, and Apple Events ([#593](https://github.com/silo-code/silo/issues/593)) ([d880948](https://github.com/silo-code/silo/commit/d8809488321c6fe86416e2f9c76cef864f51a325))
+
 ## [0.72.1](https://github.com/silo-code/silo/compare/silo-v0.72.0...silo-v0.72.1) (2026-10-03)
 
 
