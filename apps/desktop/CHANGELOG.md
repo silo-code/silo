@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.72.3](https://github.com/silo-code/silo/compare/silo-v0.72.2...silo-v0.72.3) (2026-10-05)
+
+
+### Bug Fixes
+
+* **macos:** drop the comment from Entitlements.plist so codesign parses it ([#596](https://github.com/silo-code/silo/issues/596)) ([2854551](https://github.com/silo-code/silo/commit/2854551a54c0f75d99a1d1a7903402fbea980276))
+
 ## [0.72.2](https://github.com/silo-code/silo/compare/silo-v0.72.1...silo-v0.72.2) (2026-10-05)
 
 
