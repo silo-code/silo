@@ -18,6 +18,16 @@
       for every service a terminal, agent, or dev server might reach — the same
       set VS Code ships. Services that are not Info.plist-gated (Screen
       Recording, Accessibility) need no key; macOS supplies their text.
+
+      Each string here is only half of a grant: the matching hardened-runtime
+      entitlement in Entitlements.plist is what permits the access, while the
+      string is what lets macOS ask for it. Both are required; either one
+      alone still fails. That file deliberately carries no comments and no
+      non-ASCII characters - codesign parses entitlements with
+      AMFIUnserializeXML, a stripped-down parser that rejects input which
+      `plutil -lint` accepts, so a comment there breaks the signing step in
+      release CI and nowhere else. Rationale for the entitlement set belongs
+      in this comment instead.
     -->
     <key>NSLocalNetworkUsageDescription</key>
     <string>Silo needs local network access so terminals, agents, and dev servers you run inside it can reach services on your network.</string>
