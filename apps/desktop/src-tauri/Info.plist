@@ -5,12 +5,29 @@
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <!--
-      Required on macOS 15+ for Silo (and the terminals, agents, and dev servers
-      it spawns) to reach devices and services on the local network. Without this
-      key macOS cannot show the Local Network prompt and silently denies the
-      access, surfacing as EHOSTUNREACH rather than a permission request.
+      TCC usage descriptions. Each key below exists for the same reason: macOS
+      attributes a privacy request from a child process to its *responsible
+      process* — for everything Silo runs, that is Silo itself — and renders
+      the responsible app's usage string in the consent prompt. With no string
+      there is nothing to prompt with, so macOS silently denies instead of
+      asking. The failure surfaces as a tool that "just doesn't work" (a
+      capture producing 0 bytes, EHOSTUNREACH) with no permission dialog ever
+      shown and no entry in System Settings to toggle.
+
+      Silo is a host for arbitrary user processes, so it must carry a string
+      for every service a terminal, agent, or dev server might reach — the same
+      set VS Code ships. Services that are not Info.plist-gated (Screen
+      Recording, Accessibility) need no key; macOS supplies their text.
     -->
     <key>NSLocalNetworkUsageDescription</key>
     <string>Silo needs local network access so terminals, agents, and dev servers you run inside it can reach services on your network.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Silo needs microphone access so terminals, agents, and tools you run inside it can record audio.</string>
+    <key>NSAudioCaptureUsageDescription</key>
+    <string>Silo needs audio capture access so terminals, agents, and tools you run inside it can record system audio.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Silo needs camera access so terminals, agents, and tools you run inside it can capture video.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Silo needs to send Apple Events so terminals, agents, and tools you run inside it can automate other apps.</string>
   </dict>
 </plist>
