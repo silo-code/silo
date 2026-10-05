@@ -2,21 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
-    <!--
-      Hardened-runtime resource-access entitlements. Release builds are signed
-      with the hardened runtime (`codesign` flag 0x10000), which *refuses* these
-      resources unless the binary is entitled for them — independently of, and
-      ahead of, any TCC grant. Shipping no entitlements file at all therefore
-      denied them unconditionally.
-
-      These apply to the Silo binary, which is also the binary every persistent
-      terminal runs as (`silo --session-host`, RFC 0010) — so the session host
-      that owns every user shell is entitled by the same signature.
-
-      Paired with the matching NS*UsageDescription keys in Info.plist: the
-      entitlement permits the access, the usage string lets macOS ask for it.
-      Both are required; either one alone still fails.
-    -->
     <key>com.apple.security.device.audio-input</key>
     <true/>
     <key>com.apple.security.device.camera</key>
