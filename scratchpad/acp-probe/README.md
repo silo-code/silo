@@ -45,6 +45,17 @@ the subagent's own tool calls stream onto the parent session stamped
 the subagent is done (57.5s past the hand-off in the committed capture). Its
 prose is not forwarded — the adapter gates that on `clientSupportsSubagents`.
 
+**Both regimes occur — don't read the captures here as universal.** Two
+independent Silo sessions on the same adapter version, also capability-off, did
+the opposite: `session/prompt` resolved while the subagent was still working,
+and the remaining child calls landed in a later agent-initiated turn (journal
+`e88de454-…`, 2026-10-06 — child call at line 49, `origin: human` turn end at
+52, more child calls at 53 and 59, `origin: task-notification` end at 96).
+Whether the parent ends its turn after dispatching is a model decision, not a
+protocol guarantee; those sessions ran opus, this probe takes the CLI default.
+Anything built on this has to handle both. Pin the model and re-run to settle
+which factor drives it.
+
 `captures/` holds the run behind that paragraph, so the finding is re-readable
 without a rerun. Three guards earn their keep, each after a wrong answer:
 

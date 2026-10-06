@@ -43,9 +43,21 @@
 // the dispatching call's id. The subagent's prose is not forwarded (the adapter
 // gates that on `clientSupportsSubagents`), only its tool calls.
 //
-// So "the agent is idle while its delegate runs" — the premise of RFC 0055's
-// indicator design — is not true in the capability-off regime. `analyze()`
-// therefore attributes every tool call to the dispatch or to the parent, rather
+// NOT UNIVERSAL — both regimes occur. Every capture in this directory kept the
+// turn open, but two independent Silo sessions on the same adapter version, also
+// capability-off, did the opposite: the parent's `session/prompt` resolved while
+// the subagent was still working, and the remaining child calls arrived inside a
+// later agent-initiated turn. Journal `e88de454-…` (2026-10-06) shows a child
+// call at line 49, `origin: human` turn end at 52, two more child calls at 53
+// and 59, and an `origin: task-notification` turn end at 96.
+//
+// Whether the parent ends its turn after dispatching is a model decision, not a
+// protocol guarantee — the Silo sessions ran opus, this probe takes the CLI
+// default. So "the agent is idle while its delegate runs" is *sometimes* true,
+// and a design must handle both. Pin the model and re-run if you need to settle
+// which factor drives it.
+//
+// `analyze()` attributes every tool call to the dispatch or to the parent rather
 // than assuming a long turn means the agent refused to detach. An early version
 // of this script made exactly that mistake and reported a clean "no".
 
