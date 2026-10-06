@@ -144,3 +144,4 @@ don't get a proposal at all — see below.
 | [0052](./0052-chat-panel-working-checkout.md)                 | Working checkout — reporting where an agent session is working    | 2026-09-22 | implemented |
 | [0053](./0053-session-host-binary-staging.md)                 | Staging the session-host binary outside the app install           | 2026-09-30 | accepted    |
 | [0054](./0054-macos-permission-brokering.md)                  | macOS permission brokering for hosted processes                   | 2026-10-05 | draft       |
+| [0055](./0055-chat-async-tasks.md)                            | Delegated work in a Chat session                                  | 2026-10-06 | draft       |
