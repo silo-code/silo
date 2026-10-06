@@ -75,6 +75,12 @@ import {
   parseUsage,
 } from "./acp-update-model";
 import {
+  isWorkUpdate,
+  turnEndOrigin,
+  toolCallFlight,
+  TURN_QUIESCENCE_MS,
+} from "./chat-turn-signals";
+import {
   beginTurn,
   endTurn,
   type TurnOutcome,
@@ -563,6 +569,83 @@ export function createAgentSessionsService(
       // moves. Kept in step by `tracked` / `releaseJournalWriter`.
       let journalWriterId: string | null = null;
       let userMsgSeq = 0;
+      // --- agent-initiated turn tracking (see `chat-turn-signals.ts`) -------
+      // A turn the host asked for is owned by its `prompt()` call, start to
+      // end. Anything arriving while this is zero belongs to a turn the agent
+      // started on its own, which nothing else would ever end.
+      let promptsInFlight = 0;
+      /** Set while an agent-initiated turn is open, so only that kind of turn
+       *  is ever ended by the signals below — never a prompt's. */
+      let agentTurnOpen = false;
+      /** Tool calls the agent has started and not yet settled. A turn with one
+       *  of these outstanding is not over however long it goes quiet. */
+      const toolCallsInFlight = new Set<string>();
+      /** Set the first time this session reports a `turnEndOrigin` marker.
+       *  Once an agent is known to mark its turn ends, that marker is
+       *  authoritative and the quiescence fallback is retired for the session
+       *  — learned rather than configured, and learned in time, because the
+       *  marker lands at the end of the user's *first* prompt turn, before any
+       *  agent-initiated turn can happen. */
+      let marksTurnEnds = false;
+      let quiescenceTimer: ReturnType<typeof setTimeout> | null = null;
+      /** True until `connect()` hands back its handle. A `session/load` restore
+       *  replays the **whole prior transcript** as live `session/update`s
+       *  (RFC 0042 — the writer is deliberately created before the call for
+       *  exactly this reason), and those updates are indistinguishable from
+       *  fresh ones. Reading them as work would open an agent-initiated turn on
+       *  every restore and then badge the tab for a "finish" that is really
+       *  just history being painted. Past turns are not turns. */
+      let handshaking = true;
+
+      function clearQuiescence(): void {
+        if (quiescenceTimer === null) return;
+        clearTimeout(quiescenceTimer);
+        quiescenceTimer = null;
+      }
+
+      /** Re-arm the "it went quiet, call it over" fallback. Never armed for an
+       *  agent that marks its own turn ends, and never while a tool call is
+       *  outstanding — the fire path re-arms instead of ending in that case,
+       *  so a long-running call holds the turn open for as long as it runs. */
+      function armQuiescence(): void {
+        clearQuiescence();
+        if (disposed || marksTurnEnds) return;
+        quiescenceTimer = setTimeout(() => {
+          quiescenceTimer = null;
+          if (disposed || !agentTurnOpen) return;
+          if (toolCallsInFlight.size > 0) {
+            armQuiescence();
+            return;
+          }
+          endAgentTurn("quiesced");
+        }, TURN_QUIESCENCE_MS);
+      }
+
+      /** The agent is doing something the host never asked for: open a turn if
+       *  one isn't already open, and keep the fallback clock running. */
+      function noteAgentActivity(): void {
+        if (disposed || handshaking || promptsInFlight > 0) return;
+        if (!agentTurnOpen) {
+          agentTurnOpen = true;
+          applyPhase(beginTurn(currentPhase(), nowIso()));
+          agentsChannel.debug(
+            `[${label}] agent-initiated turn started for ${persistSessionId} (no session/prompt in flight).`,
+          );
+        }
+        armQuiescence();
+      }
+
+      function endAgentTurn(reason: string): void {
+        if (!agentTurnOpen) return;
+        agentTurnOpen = false;
+        clearQuiescence();
+        toolCallsInFlight.clear();
+        finishTurn("finished");
+        agentsChannel.debug(
+          `[${label}] agent-initiated turn ended for ${persistSessionId} (${reason}).`,
+        );
+      }
+
       // Live snapshot: the handle exposes it through a getter, and both
       // `setConfigOption` and a `current_mode_update` the agent sends itself
       // replace it (immutably) and fire `configListeners`.
@@ -672,6 +755,34 @@ export function createAgentSessionsService(
 
       const callbacks: AcpClientCallbacks = {
         onUpdate(update) {
+          // Turn boundaries first (`chat-turn-signals.ts`). ACP reports a
+          // `stopReason` only as the answer to `session/prompt`, so a turn the
+          // agent starts on its own has no start and no end of its own — the
+          // stream is the only evidence there is, and before this the host
+          // never learned such a turn was running at all.
+          const endOrigin = turnEndOrigin(update);
+          if (endOrigin) {
+            // Learned, not configured: an agent that marks its turn ends is
+            // trusted to, and its quiescence fallback retires for good.
+            if (!marksTurnEnds) {
+              marksTurnEnds = true;
+              clearQuiescence();
+              agentsChannel.debug(
+                `[${label}] agent marks its own turn ends; quiescence fallback disabled for ${persistSessionId}.`,
+              );
+            }
+            // A marker for a turn the host prompted is *information*, not a
+            // transition: `prompt()`'s own promise owns that turn's end and
+            // ending it here would resolve the phase before the stream has
+            // finished delivering it.
+            if (promptsInFlight === 0) endAgentTurn(`origin: ${endOrigin}`);
+          }
+          const flight = toolCallFlight(update);
+          if (flight) {
+            if (flight.inFlight) toolCallsInFlight.add(flight.toolCallId);
+            else toolCallsInFlight.delete(flight.toolCallId);
+          }
+          if (isWorkUpdate(update)) noteAgentActivity();
           // The agent's slash-command / skill list (RFC 0040) — a live
           // snapshot, replaced wholesale each time exactly like `configOptions`.
           if (update.sessionUpdate === "available_commands_update") {
@@ -738,6 +849,12 @@ export function createAgentSessionsService(
               attentionSince: undefined,
               activity: "working",
             });
+            // A permission answered outside any prompt belongs to a turn the
+            // agent started itself, and `"working"` above is a state only a
+            // turn end can clear. Adopt the turn here so there is something
+            // to end — otherwise the session reads "working" until its process
+            // dies, which is the inverse of the badge bug and worse.
+            noteAgentActivity();
           });
           for (const l of permissionListeners) {
             try {
@@ -773,6 +890,8 @@ export function createAgentSessionsService(
         },
         onClosed() {
           if (disposed) return;
+          agentTurnOpen = false;
+          clearQuiescence();
           // A dead process is `activity: "error"` — a state every consumer
           // renders loudly on its own, so the shared core deliberately leaves
           // attention alone rather than stacking a second signal on it. Same
@@ -1140,6 +1259,12 @@ export function createAgentSessionsService(
 
       async function resume(): Promise<void> {
         if (disposed || !liveConnection) return;
+        // Same replay, same reason as the `connect()` handshake: `session/load`
+        // re-sends the whole transcript as live updates. Unlike `connect()`,
+        // nothing re-registers an `AgentInfo` afterward to paper over a phase
+        // the replay moved — a turn opened here would arm the quiescence clock
+        // and badge the tab for a finish that never happened.
+        handshaking = true;
         const next = newClient();
         // `journalWriter` has been listening since this handle was created —
         // a replay lands on it live, appended after whatever it already
@@ -1189,12 +1314,17 @@ export function createAgentSessionsService(
           configOptions = toSdkConfigOptions(attempt.configOptions ?? []);
           fireConfigChanged();
         } catch (err) {
+          handshaking = false;
           next.dispose();
           agentsChannel.info(
             `Could not resume chat session ${infoId}: ${asError(err, "resume failed").message}`,
           );
           return;
         }
+        handshaking = false;
+        agentTurnOpen = false;
+        clearQuiescence();
+        toolCallsInFlight.clear();
         patchChatAgent(infoId, {
           activity: "idle",
           needsAttention: false,
@@ -1258,6 +1388,13 @@ export function createAgentSessionsService(
               `${label} is journal-only — reconnect with resume: { sessionId, startFresh: true } to continue.`,
             );
           }
+          // The host's own turn supersedes any agent-initiated one in progress:
+          // one session has one turn, and `prompt()` is the authority on this
+          // one's end. The fallback clock stops with it.
+          agentTurnOpen = false;
+          clearQuiescence();
+          toolCallsInFlight.clear();
+          promptsInFlight++;
           applyPhase(beginTurn(currentPhase(), nowIso()));
           // The stream never echoes the user's own prompt back (see
           // `journalUserPromptUpdate`'s doc comment) — journal it directly so
@@ -1283,9 +1420,11 @@ export function createAgentSessionsService(
             agentsChannel.debug(
               `[${label}] session/prompt for ${persistSessionId} finished (${stopReason}) in ${Date.now() - startedAt}ms.`,
             );
+            promptsInFlight--;
             finishTurn(stopReason === "cancelled" ? "cancelled" : "finished");
             return { stopReason };
           } catch (err) {
+            promptsInFlight--;
             if (!disposed) finishTurn("failed");
             agentsChannel.debug(
               `[${label}] session/prompt failed for ${persistSessionId} after ${Date.now() - startedAt}ms: ${asError(err, "").message}`,
@@ -1409,6 +1548,7 @@ export function createAgentSessionsService(
         dispose(): void {
           if (disposed) return;
           disposed = true;
+          clearQuiescence();
           const writer = journalWriter;
           const writerId = journalWriterId;
           // Deliberately *not* `releaseJournalWriter()` here. The invariant
@@ -1489,6 +1629,9 @@ export function createAgentSessionsService(
           }
         }
       }
+
+      // The replay (if any) is over and every update from here is live.
+      handshaking = false;
 
       return handle;
     },

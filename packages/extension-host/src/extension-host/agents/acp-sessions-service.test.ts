@@ -139,6 +139,7 @@ import {
   resetChatAgentRegistry,
 } from "./chat-agent-registry";
 import { createAgentSessionsService } from "./acp-sessions-service";
+import { TURN_QUIESCENCE_MS } from "./chat-turn-signals";
 import {
   _resetDormantChatSessionsForTests,
   startChatSessionStatusPersistence,
@@ -549,6 +550,323 @@ describe("turn lifecycle → ctx.agents status", () => {
     const handle = await service.connect("claude-chat");
     handle.cancel();
     expect(fakeClient.cancel).toHaveBeenCalledWith("s1");
+  });
+});
+
+// An **agent-initiated turn**: the agent starts working with no `session/prompt`
+// from Silo. Real and routine, not a corner case — Claude Code's harness
+// re-invokes the agent in-process when a background task notifies (a monitor
+// firing, an async subagent finishing), and the adapter streams that whole turn
+// at us as ordinary `session/update` notifications. Observed in prod on
+// 2026-10-06: a PR-monitor notification drove four turns and dispatched a
+// subagent while the tab kept the "Finished" badge from the last turn the user
+// had actually sent.
+describe("agent-initiated turns — activity the host never asked for", () => {
+  it("flips to working when an update arrives with no prompt in flight", async () => {
+    const handle = await service.connect("claude-chat");
+    // A turn the user really did send, so the session is idle-with-attention —
+    // exactly the state the prod tab was stuck in.
+    await handle.prompt([{ type: "text", text: "hi" }]);
+    expect(chatAgentInfos()[0]).toMatchObject({
+      activity: "idle",
+      needsAttention: true,
+    });
+
+    // The agent starts talking again on its own.
+    captured.onUpdate({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "A background task just notified me." },
+    } as never);
+
+    expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+  });
+
+  it("does not treat its own prompt turn's updates as a second turn", async () => {
+    const handle = await service.connect("claude-chat");
+    let resolvePrompt!: (v: { stopReason: string }) => void;
+    fakeClient.prompt.mockReturnValue(
+      new Promise((r) => {
+        resolvePrompt = r;
+      }),
+    );
+    const p = handle.prompt([{ type: "text", text: "hi" }]);
+    captured.onUpdate({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "working on it" },
+    } as never);
+    expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+    resolvePrompt({ stopReason: "end_turn" });
+    await p;
+    // The prompt owns this turn's end. An inbound update during it must not
+    // have opened a second, un-endable one.
+    expect(chatAgentInfos()[0]).toMatchObject({
+      activity: "idle",
+      needsAttention: true,
+    });
+  });
+
+  it("ends an agent-initiated turn once the updates stop", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "notified" },
+      } as never);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(chatAgentInfos()[0]).toMatchObject({
+        activity: "idle",
+        needsAttention: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // The frames an agent that marks its own turn ends actually sends, lifted
+  // from the dev app's journal for session c5d278e1 (2026-10-06). One
+  // `usage_update` per turn carries a `cost` and the provenance; the eight
+  // others in that session carry neither.
+  const endMarker = (kind: "human" | "task-notification") => ({
+    sessionUpdate: "usage_update",
+    used: 26523,
+    size: 200000,
+    cost: { amount: 0.0610429, currency: "USD" },
+    _meta: { "_claude/origin": { kind } },
+  });
+
+  it("ends an agent-initiated turn the moment the agent marks it, with no timer", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+      // The prompt turn's own marker. Information only — it also teaches the
+      // host that this agent marks its turns.
+      captured.onUpdate(endMarker("human") as never);
+
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "The background command completed." },
+      } as never);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      captured.onUpdate(endMarker("task-notification") as never);
+      // No clock advanced: the marker is the signal, not a hint.
+      expect(chatAgentInfos()[0]).toMatchObject({
+        activity: "idle",
+        needsAttention: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("never lets a marker end a turn the host prompted — that turn is prompt()'s", async () => {
+    const handle = await service.connect("claude-chat");
+    let resolvePrompt!: (v: { stopReason: string }) => void;
+    fakeClient.prompt.mockReturnValue(
+      new Promise((r) => {
+        resolvePrompt = r;
+      }),
+    );
+    const p = handle.prompt([{ type: "text", text: "hi" }]);
+
+    captured.onUpdate(endMarker("human") as never);
+    // Still the host's turn: the stream may not have finished delivering it,
+    // and `session/prompt` has not answered yet.
+    expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+    resolvePrompt({ stopReason: "end_turn" });
+    await p;
+    expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+  });
+
+  it("holds an agent-initiated turn open while a tool call is still running", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+
+      captured.onUpdate({
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        status: "pending",
+        title: "npm run test",
+      } as never);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      // The real case this guards: a test suite that ran for over a minute with
+      // nothing else on the wire. An intermediate update carries no status at
+      // all and must not be read as the call settling.
+      await vi.advanceTimersByTimeAsync(90_000);
+      captured.onUpdate({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        title: "npm run test",
+      } as never);
+      await vi.advanceTimersByTimeAsync(90_000);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      captured.onUpdate({
+        sessionUpdate: "tool_call_update",
+        toolCallId: "t1",
+        status: "completed",
+      } as never);
+      await vi.advanceTimersByTimeAsync(TURN_QUIESCENCE_MS + 1_000);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not reopen the turn it just ended when the agent regenerates the title", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+      captured.onUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "done" },
+      } as never);
+      captured.onUpdate(endMarker("task-notification") as never);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+
+      // `claude-agent-acp` regenerates the conversation title from its own
+      // turn-over hook, so this lands right after the marker. Treating it as
+      // work would re-promote the session with nothing left to demote it.
+      captured.onUpdate({
+        sessionUpdate: "session_info_update",
+        title: "Background task follow-up",
+      } as never);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // A `session/load` replays the entire prior transcript as live
+  // `session/update`s, indistinguishable from fresh ones. Reading them as work
+  // would open a turn and then badge the tab for a "finish" that is only
+  // history being painted. `connect()`'s own handshake is incidentally covered
+  // by the registration that follows it; an in-place `resume()` has no such
+  // backstop, so that is where this is observable.
+  it("does not read a session/load replay as a turn on an in-place resume", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      // The user is looking at this tab, so a finish raises no badge and the
+      // baseline going into the resume is clean.
+      setPanelAgentSession("acp-chat:p1", handle.id);
+      setActiveDockPanel("acp-chat:p1");
+      await handle.prompt([{ type: "text", text: "hi" }]);
+      expect(chatAgentInfos()[0]).toMatchObject({ needsAttention: false });
+
+      // Sampled *inside* the replay, which is the only place this is visible:
+      // the cleanup after `session/load` returns would otherwise hide it, and
+      // the shared core's idle-from-idle rule keeps the stray finish from
+      // badging anything. What is left is a tab that flashes "working" while a
+      // restore paints history — so assert on the flash itself.
+      const duringReplay: string[] = [];
+      fakeClient.loadSession.mockImplementation(async () => {
+        // Arrives while `session/load` is still in flight — the whole reason
+        // the journal writer is created before the call.
+        captured.onUpdate({
+          sessionUpdate: "user_message_chunk",
+          content: { type: "text", text: "a turn from last week" },
+        } as never);
+        duringReplay.push(chatAgentInfos()[0].activity);
+        captured.onUpdate({
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "and its answer" },
+        } as never);
+        duringReplay.push(chatAgentInfos()[0].activity);
+        return { sessionId: "s1", configOptions: [] };
+      });
+
+      await getChatAgentEntry(handle.id)!.controls.resume!();
+      expect(fakeClient.loadSession).toHaveBeenCalled();
+      expect(duringReplay).toEqual(["idle", "idle"]);
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+
+      // And no clock left running behind it.
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(chatAgentInfos()[0]).toMatchObject({
+        activity: "idle",
+        needsAttention: false,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  // Two notification turns can arrive as one burst — a subagent finishing and
+  // then reporting again lands both in the same tick. Verified against the
+  // frames a real session recorded (2026-10-06): the second turn's `tool_call`
+  // is the very next frame after the first turn's marker, so a turn that only
+  // ever opens once would leave the rest of the burst untracked.
+  it("tracks a second back-to-back agent-initiated turn", async () => {
+    const handle = await service.connect("claude-chat");
+    await handle.prompt([{ type: "text", text: "hi" }]);
+    captured.onUpdate(endMarker("human") as never);
+
+    // Turn A
+    captured.onUpdate({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "notification 1" },
+    } as never);
+    expect(chatAgentInfos()[0].activity, "turn A opens").toBe("working");
+    captured.onUpdate(endMarker("task-notification") as never);
+    expect(chatAgentInfos()[0].activity, "turn A ends").toBe("idle");
+
+    // Turn B — the very next frame, exactly as observed in the app
+    captured.onUpdate({
+      sessionUpdate: "tool_call",
+      toolCallId: "tc-b",
+      status: "pending",
+      title: "ToolSearch",
+    } as never);
+    expect(chatAgentInfos()[0].activity, "turn B opens").toBe("working");
+    captured.onUpdate(endMarker("task-notification") as never);
+    expect(chatAgentInfos()[0].activity, "turn B ends").toBe("idle");
+  });
+
+  it("leaves no session wedged in working after a permission answered mid-turn", async () => {
+    vi.useFakeTimers();
+    try {
+      const handle = await service.connect("claude-chat");
+      const seen = vi.fn();
+      handle.onPermission(seen);
+
+      // A permission request arriving outside any prompt — the subagent in the
+      // prod session asked to run a test command. Answering it patches
+      // `activity: "working"`, and before the fix nothing could ever clear it:
+      // `finishTurn` only ran from `prompt()`'s promise or `onClosed`.
+      const respondSpy = vi.fn();
+      captured.onPermission(
+        {
+          toolCallId: "tc1",
+          title: "Run the tests",
+          options: [{ optionId: "allow", name: "Allow", kind: "allow_once" }],
+          raw: {},
+        },
+        respondSpy,
+      );
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "blocked" });
+
+      seen.mock.calls[0][0].respond("allow");
+      expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(chatAgentInfos()[0].activity).not.toBe("working");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
