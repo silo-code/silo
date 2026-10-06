@@ -5,226 +5,214 @@ created: 2026-10-06
 
 # 0055. Delegated work in a Chat session
 
+> **Revised 2026-10-06**, after a review and a probe
+> (`scratchpad/acp-probe/subagent-finish-2026-10-06.mjs`) refuted most of the
+> first draft. The capability design is gone — advertising any subagent
+> capability today **deletes** the transcript row this proposal renders, and
+> Silo's update handler cannot route child sessions. What remains is the part
+> that survived: the dispatching row lies, and should stop.
+
 ## Summary
 
-Make the work a Chat agent **hands off** — subagents it dispatches, shells it
-backgrounds — visible in the Chat panel, matching what the Claude Code CLI shows
-for the same session. Today the transcript actively misreports it: a dispatched
-subagent's row flips to `completed` the instant the agent backgrounds it, so a
-session with twenty minutes of delegated work left looks finished. This proposes
-a **delegated-work** model — parsed from the tool-call stream, enriched by the
-agent's subagent/task lifecycle where available — rendered as honest transcript
-rows plus a tab indicator that distinguishes "the agent is thinking" from "the
-agent is done but its delegates are not".
+When a Chat agent hands work to a subagent, the transcript says the work is
+**done** while it is still running. The dispatching tool call settles
+`completed` about 0.4s after the hand-off, so a session with minutes of
+delegated work left reads as finished. This proposes making that row tell the
+truth, and showing how much delegated work is outstanding — using only frames
+Silo already receives, with no capability negotiation.
+
+Backgrounded **shells** are explicitly out of scope: the only source for them is
+a vendor capability that is blocked on work this proposal does not do. See
+"Out of scope".
 
 ## Motivation
 
-Dave, 2026-10-06, after watching a session badge itself "Finished" while a
-subagent ran: _"i'm not seeing any indication of a shell or sub-agent running
-and i would like to."_
+Dave, 2026-10-06: _"i'm not seeing any indication of a shell or sub-agent
+running and i would like to."_
 
-The turn model is the wrong instrument, deliberately. RFC 0038's turn measures
-**the agent thinking**; the **Agent-Initiated Turn** (see
-[the glossary](../domain-language.md)) extended it to turns the host never
-prompted. Neither covers work the agent dispatched and walked away from — and
-for that work the agent genuinely _is_ idle, so reporting `working` would be a
-lie that also breaks the attention rule.
-
-The transcript gap is sharper than "missing information". Recorded from a live
-session on 2026-10-06:
+Recorded from a live session the same day:
 
 ```jsonc
-// the dispatch
+// the dispatch — note the subagent marker
 {"toolCallId":"toolu_01NJY3G4…","sessionUpdate":"tool_call","title":"Task",
  "kind":"think","_meta":{"claudeCode":{"toolName":"Agent","subagent":true}}}
-// …the title streams in as the agent fills its arguments
+// …title streams in as the agent fills its arguments
 {"toolCallId":"toolu_01NJY3G4…","title":"Sleep then reply",
- "rawInput":{"description":"Sleep then reply","subagent_type":"general-purpose",
-             "run_in_background":true}}
-// the hand-off — note `isAsync`
+ "rawInput":{"description":"Sleep then reply","run_in_background":true}}
+// the hand-off
 {"_meta":{"claudeCode":{"toolResponse":{"isAsync":true,"status":"async_launched",
-  "agentId":"a23be9bfedaa92a67","outputFile":"/private/tmp/…/tasks/…output"}}}}
-// …and the row goes grey, 46 seconds before the subagent actually finishes
+  "agentId":"a23be9bfedaa92a67"}}}}
+// …and the row goes grey, with the subagent still working
 {"toolCallId":"toolu_01NJY3G4…","status":"completed"}
 ```
 
-The last two frames are the bug: `status: "completed"` sitting next to
-`status: "async_launched"` in the same call. Silo renders the first and never
-sees the second, because its tool-call parser drops `_meta` entirely.
+`status: "completed"` sits beside `status: "async_launched"` in the same call.
+Silo renders the first and never sees the second, because `parseToolCall`
+(`acp-update-model.ts:106`) drops `_meta`.
 
-The CLI renders that same session as:
+The Claude Code CLI renders the same session honestly:
 
 ```
 ● Agent(Sleep then report finished)
   └ Backgrounded agent (↓ to manage · ctrl+o to expand)
-● launched
 ✳ Waiting for 1 background agent to finish
-● Agent "Sleep then report finished" finished · 46s
 ```
 
-Every element is derivable from frames Silo already receives — except the last
-line. See below.
+## What the wire gives us
 
-## What the wire actually gives us (observed, not assumed)
+All verified against the pinned adapter (`claude-agent-acp@0.75.1`) and the
+committed probe capture, not against a write-up.
 
-Recorded by a throwaway spike on 2026-10-06 that advertised AIR `asyncTasks` and
-replayed two prompts: a backgrounded shell, and an async subagent.
+**Capability-free, on the ordinary tool-call stream:**
 
-**Available with no capability opt-in, on the ordinary tool-call stream:**
+- `_meta.claudeCode.subagent: true` on the dispatching call — explicit, no
+  inference.
+- `_meta.claudeCode.toolResponse` with `isAsync` / `status: "async_launched"` —
+  the hand-off.
+- `title`, streaming `"Task"` → the agent's own description.
+- **`_meta.claudeCode.parentToolUseId` on every tool call the subagent makes**,
+  pointing at the dispatch. This is the mechanism the first draft dismissed as
+  "indirect"; it is in fact live, per-call attribution for the whole delegated
+  lifecycle, and it is what makes this proposal work.
 
-- `_meta.claudeCode.subagent: true` — an explicit marker on the dispatching tool
-  call. No inference needed.
-- `_meta.claudeCode.toolResponse.isAsync` / `status: "async_launched"` — the
-  hand-off, carrying `agentId`, the subagent's `description`, `resolvedModel`,
-  and an `outputFile` with `canReadOutputFile: true`.
-- `title`, streaming `"Task"` → the agent's own description as `rawInput` fills
-  in. This is the CLI's `Agent(<description>)` label.
-- Child tool calls stamped with `parentToolUseId` pointing at the dispatch.
+**Not available at all:** nothing revisits the dispatching call. The probe
+confirms across four runs that no second `tool_call_update` arrives on that
+`toolCallId`, and the `agentId` appears nowhere else. There is no duration
+anywhere either — the adapter's own `subagent_state_update` carries exactly
+three fields (`sessionUpdate`, `subagentSessionId`, `state`), and canonical
+`subagent_update`'s `IdleStateUpdate` carries usage and a stop reason. The
+CLI's `finished · 46s` is the CLI timing itself.
 
-**Available only with AIR `asyncTasks`** (`_meta.jetbrains.air`, a vendor
-extension with _no_ ACP counterpart at any tier — searched the v1 and
-v2-unstable schemas and `docs/acp-coverage.md`):
+**Both turn regimes occur, and a design must handle both.** In the probe's
+captures the parent's `session/prompt` stayed open 57.5s past the hand-off. In
+two Silo sessions on the same adapter version, also capability-free, it resolved
+mid-flight and the remaining child calls arrived in a later agent-initiated turn
+(journal `e88de454-…`: child call at line 49, `origin: human` end at 52, more
+child calls at 53 and 59, `origin: task-notification` end at 96). Whether the
+parent stops after dispatching looks like a model decision, not a protocol
+guarantee — those sessions ran opus; the probe takes the CLI default.
 
-- `async_task_spawned` / `_progress` / `_state_update`, carrying a name, a
-  `taskType`, `canStop: true`, and a `toolCallId` correlating back to the
-  transcript row. This is the only source for **backgrounded shells**.
-
-**Not available from either, and this is load-bearing:** nothing reports that a
-**subagent finished**. After `async_launched` the dispatching call is never
-mentioned again; the parent simply takes an `origin: task-notification` turn and
-describes the outcome in prose. The CLI knows because it lives inside the
-harness. The protocol-level answer is `subagent_state_update`, gated on either
-the canonical ACP `clientCapabilities.subagents` (v1 **unstable** per
-`docs/acp-coverage.md`, generated against schema 1.24.1 — **not independently
-verified**, and absent from the SDK copy on this machine) or AIR's
-`nativeSubagentSessions`, which the adapter's README calls a shim that yields
-precedence to the canonical field once released.
-
-Two recorded quirks any implementation must handle: async-task terminal state
-arrives **twice** with different values (`stopped` then `completed` — the
-adapter keeps a tombstone because the Bash result proving backgrounding can land
-after the SDK's terminal edge), and `toolCallId` arrives on a _later_
-`async_task_progress`, not at spawn, so the correlation is late-bound.
+**Stability caveat, stated plainly.** `async_launched`, `isAsync` and `agentId`
+appear nowhere in the adapter's own source; it types `toolResponse?: unknown`
+and forwards the CLI's internal tool-result JSON verbatim. This is therefore a
+dependency on the `claude` binary's shape, versioned by nothing — less stable
+than an adapter contract, and the least stable surface in this design. The
+parser must degrade to today's behaviour on an unrecognised shape.
 
 ## Design
-
-### Capabilities
-
-Advertise, on the existing `clientCapabilities` object: AIR
-`nativeSubagentSessions` and `asyncTasks`, plus the canonical `subagents` field
-once verified. Agents that do not understand `_meta` ignore it — safe by spec,
-confirmed against a real agent. Precedence mirrors the adapter's own promise:
-canonical wins where present.
 
 ### Parsing — a pure module
 
 `chat-delegated-work.ts`, beside `chat-turn-signals.ts` and following the same
-shape: wire in, meaning out, no state, tested against the recorded frames. It
-owns the vendor quarantine (`_meta.claudeCode`, `_meta.jetbrains.air`) and the
-one piece of real logic — **terminal-state precedence**, so `completed`/`failed`
-outrank `stopped` and a settled item never regresses.
+shape: wire in, meaning out, no state, tested against the committed capture. It
+owns the vendor quarantine (`_meta.claudeCode`) and returns nothing at all for a
+shape it does not recognise.
 
-### Public surface
-
-Two parsed booleans on `AgentToolCall`, rather than exposing raw `_meta`:
+### Public surface — three parse-time facts on `AgentToolCall`
 
 ```ts
 /** This call dispatched a subagent. */
 readonly subagent?: boolean;
-/** The call reported `completed`, but only handed the work off — it is still
- *  running. Render it live, not settled. */
-readonly detached?: boolean;
+/** The call reported a status, but only handed its work off to run
+ *  elsewhere — the status describes the dispatch, not the work. */
+readonly handedOff?: boolean;
+/** The id of the dispatching call this one was made on behalf of. */
+readonly parentToolCallId?: string;
 ```
 
-Plus `readonly tasks: readonly AgentTask[]` on `AgentInfo` for backgrounded
-shells (id, title, `taskType`, state, `canStop`), so the panel, navigator and
-status row read one source instead of each deriving their own.
+Each is a **durable fact about one frame**, settled at parse time and never
+revised. The first draft's `detached` is dropped: it bundled "this status is a
+lie" with "there is live work behind this row", which come apart the moment the
+work finishes, leaving a public boolean whose meaning a third party could not
+determine.
 
-Deliberately **not** exposed: `outputFile` and `agentId`. A path into the
-agent's private temp directory is a capability decision, not a field — Silo
-declines the whole `fs/*` prefix today. Revisit when "open the subagent's
-output" is a designed feature.
+Liveness is deliberately **not** a field. It is derived state that changes over
+time, and a transcript row is history.
 
-New public surface, so it carries the full `silo-docs-sync` workflow.
+Deliberately not exposed: `outputFile` and `agentId`. A path into the agent's
+private temp directory is a capability decision, not a field.
+
+New public surface, so this carries the full `silo-docs-sync` workflow.
 
 ### Transcript
 
-Match the CLI, using rows the panel already renders:
+- A `subagent` call renders `Agent(<title>)`.
+- A `handedOff` call **does not render as settled** — it shows as handed off,
+  with the agent's description. This is the whole fix.
+- `parentToolCallId` attributes each child call to its dispatch, so the panel
+  can group them under it and show the delegated work as it happens.
+- An aggregate `Waiting for N background agents to finish` while any dispatch
+  has no terminal signal.
 
-- A `subagent` call renders `Agent(<title>)`, with a **Backgrounded agent**
-  sub-line once `detached`.
-- A `detached` call **does not render as settled**. This is the core fix, and it
-  needs no capability.
-- Completion renders `Agent "<title>" finished · <duration>` where
-  `subagent_state_update` is available. Where it is not, the row stays live and
-  resolves on the next `origin: task-notification` turn — exact with one
-  outstanding subagent, approximate with several. The degradation shows in the
-  wording ("still running") rather than hiding.
-- A `Waiting for N background agents to finish` line while any are outstanding.
+**Per-row completion is not rendered, and that is deliberate.** With several
+dispatches outstanding, nothing on the wire says which one finished. Resolving
+by dispatch order would attach a specific agent's name to the wrong finish
+whenever they complete out of order — the normal case. The aggregate decrements;
+no row claims a completion it cannot prove.
 
-Backgrounded shells keep `showInTranscript: false` — the agent's own hint — and
-appear only in the indicator and count, never as their own row.
+### Indicator, sound, attention — unchanged
 
-### Indicator
+The tab indicator reads `AgentInfo` (`deriveTab(a: AgentInfo, …)`), which
+carries thirteen scalars and no collections, so it cannot see tool-call data at
+all. A session-scoped signal for delegated work does not exist yet, and
+inventing one is out of scope here.
 
-Reuse the existing blue rather than add a fifth colour to a vocabulary of four
-(working / ready / warn / error):
+"Static blue for delegated work outstanding" from the first draft is dropped
+outright. ADR 0030 decided the host owns glyph, motion and colour, and
+explicitly rejected adding a settled look as an `Activity` kind; three of the
+five existing looks already animate, so motion is not a free channel either. If
+an indicator is wanted later, ADR 0030's own precedent points at a **count**,
+not a colour.
 
-- **pulsing blue** — the agent is thinking (unchanged)
-- **static blue** — the agent is idle, delegated work outstanding
-- **green** — everything is done; your turn
+Sound and attention are untouched. `needsAttention` has one writer and one rule;
+a turn starting clears it, so a second writer would wipe exactly the
+notification the user wanted.
 
-Animation becomes the signal for "someone is at the keyboard", stillness for
-"delegated and pending". No new token, no legend; the tooltip disambiguates.
+## Out of scope — and why it is blocked, not deferred
 
-### Sound and attention — unchanged, deliberately
+Backgrounded **shells** need AIR `asyncTasks`; richer subagent state needs either
+AIR `nativeSubagentSessions` or canonical `clientCapabilities.subagents` (v1
+**unstable**, added in schema 1.24.0 on 2026-09-30). All three are blocked on
+the same two facts:
 
-Delegated work writes **neither**. Verified behaviourally on 2026-10-06: a
-subagent reporting back wakes the agent for a new turn, and the chime already
-fires on turn end — so the last chime lands when the last delegate has reported
-and the agent has finished speaking. The wanted behaviour falls out of today's
-rule with no special case.
+1. **Advertising any of them deletes this proposal's row.** With the subagent
+   runtime enabled, `route()` returns `null` for control updates and the caller
+   drops them — "Native Agent/Task control calls are intentionally not transcript
+   tools" (`native-subagents.js`, `acp-agent.js:1888`). Every element designed
+   above decorates a row the capability removes.
+2. **Silo cannot route child sessions.** `acp-jsonrpc.ts:418` takes
+   `params.update` and discards `params.sessionId`; `makeChunkGrouper` keys runs
+   on update kind alone. Child traffic would merge into the parent transcript
+   unlabelled — worse than the lie this proposal fixes.
 
-This also resolves a collision that would otherwise sink the design.
-`needsAttention` has exactly one writer and one rule, and a turn _starting_
-deliberately clears it. If delegated work also wrote that flag, a task finishing
-would raise the badge and the agent waking to react to that very task would
-silently wipe it — the normal sequence, and the notification you most wanted.
-Keeping delegated work on the indicator only preserves the single writer.
+So `sessionId`-aware update routing is a **prerequisite RFC**, not a follow-on,
+and it is the nested-session design the first draft thought it was deferring.
 
-A rule like "suppress the chime until every delegate finishes" is explicitly
-rejected: a long-lived watcher (`crap-engine pr-monitor poll --interval 30`, in
-the very session that prompted this work) never terminates, so that session
-would never chime at all.
+Note also that the two protocols disagree about what a subagent is: the
+adapter's `SubagentState` is terminal (`completed | failed | cancelled |
+disconnected`), while canonical `StateUpdate` is `running | idle | …` and says
+outright that "Idle does not terminate the child". They are not a shim and its
+replacement; they are different models. The first draft's "canonical wins where
+present" is also unimplementable — `clientSupportsSubagents` accepts either
+signal and emits the draft shape regardless.
 
 ## Alternatives considered
 
-**Infer subagent liveness from `parentToolUseId`.** Workable for the start —
-child calls carry their dispatch's id — but indirect: a subagent thinking
-without calling tools looks identical to one that finished. Superseded by
-`_meta.claudeCode.subagent`, and it does not solve the finish either.
+**Ship nothing until a capability is usable.** Rejected: the row is actively
+wrong today, and the prerequisite RFC is a larger piece of work.
 
-**Ship with no capability opt-in at all.** Tempting, and it does fix the core
-bug (the lying row). Rejected as the whole design because it cannot close the
-loop — no finish signal, and no backgrounded-shell visibility. Retained as the
-documented fallback behaviour.
+**Resolve rows approximately on the next agent-initiated turn.** Rejected after
+review: "approximate but honestly worded" protects the unresolved rows and does
+nothing for the one resolved incorrectly, which will carry a specific name. The
+aggregate is defensible; a wrong attribution is not.
 
-**Native subagent sessions as addressable ACP sessions.** The richer form: each
-subagent its own session with cancel/close. Deferred — it introduces a
-nested-session concept (a second `AgentInfo`? a drill-in transcript?) bigger
-than this problem needs. This RFC consumes `subagent_state_update` only.
-
-**Render backgrounded shells as transcript rows.** Rejected: the agent says
-`showInTranscript: false`, and a long-running shell would pin a stale row.
-
-**Stop support (`canStop`).** Deferred to a follow-on. Every observed task
-carried `canStop: true`, but the path was never exercised and the adapter's
-`claimStop` / `taskStopped` surface implies an ack the client must model.
+**Expose raw `_meta` on `AgentToolCall`.** Rejected: `parseToolCall` already
+narrows vendor shapes, and raw `_meta` would make every consumer a vendor
+parser.
 
 ## Decision
 
-Open. Three claims here are **unverified** and should be settled before
-implementation: that canonical `clientCapabilities.subagents` exists in schema
-1.24.1 (read from a generated doc, contradicted by the locally installed SDK's
-bundled schema); that `subagent_state_update` carries what the CLI's
-"finished · 46s" line needs; and that stopping a task works at all.
+Open. One unknown is recorded rather than resolved: what drives the turn-regime
+split. Pin the model and re-run the probe to settle it. It does not block
+anything here — the transcript fix is correct in both regimes — but it will
+matter to any future indicator.
