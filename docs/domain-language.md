@@ -687,6 +687,34 @@ _Avoid_: "message" alone (ambiguous with a single `AgentSessionUpdate` chunk
 inside the turn's stream); "request" (an ACP `session/prompt` call is the
 wire mechanics; a Prompt Turn is the whole exchange it starts).
 
+**Agent-Initiated Turn** — a turn on a **Chat Session Connection** that the
+host never asked for: the agent starts working with no **Prompt Turn** in
+flight, and the inbound `session/update` stream is the only evidence it is
+happening. Routine rather than exotic — Claude Code's harness re-invokes the
+agent in-process whenever a background task notifies (a monitor firing, an
+async subagent finishing), and the adapter streams that whole turn at the
+client. The protocol gives it no boundaries of its own: ACP reports a stop
+reason only as the answer to `session/prompt`, so the host infers the start
+(a work-bearing update arriving with no prompt in flight) and takes the end
+from a **Turn End Marker** where the agent sends one, or from quiescence where
+it does not. `chat-turn-signals.ts` owns that reading; the shared turn core
+(`agent-turn-model.ts`) sees an ordinary turn either way. _Avoid_: "background
+turn" (the turn is in the foreground of its session; what is in the background
+is the task that triggered it); "subagent turn" (a subagent is one thing that
+can trigger one, not the category).
+
+**Turn End Marker** — the frame by which an agent declares one of its turns
+over, outside the ACP stop-reason path. `claude-agent-acp` stamps exactly one
+`usage_update` per turn with a `cost` and a `_meta["_claude/origin"]` naming
+the provenance (`"human"` for a **Prompt Turn**, `"task-notification"` for an
+**Agent-Initiated Turn**). Vendor-namespaced, so it is quarantined in
+`chat-turn-signals.ts` and never named by the turn core; an agent that sends
+none simply has none, and the host falls back to quiescence. Whether a given
+session's agent marks its turns is **learned**, not configured — the first
+marker arrives at the end of the user's first Prompt Turn, before any
+Agent-Initiated Turn can occur. _Avoid_: "stop reason" (that is the ACP
+response to `session/prompt` and exists only for a Prompt Turn).
+
 **Chat Session Connection** (`ctx.agents.sessions`, `AgentSessionHandle`,
 RFC 0038 phase 2) — the live handle an extension holds on a **Chat session**.
 `connect(profileId)` spawns the agent for a user-authored `chat` **Agent
