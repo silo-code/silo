@@ -1,0 +1,251 @@
+{
+  "agent": "@agentclientprotocol/claude-agent-acp@0.75.1",
+  "cwd": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-subagent-probe-b8KldP",
+  "logPath": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-subagent-probe-b8KldP/frames-2026-10-06T20-05-31-821Z.jsonl",
+  "advertised": {
+    "fs": {
+      "readTextFile": false,
+      "writeTextFile": false
+    },
+    "terminal": false
+  },
+  "prompt": "Use the Task tool with subagent_type \"general-purpose\" and run_in_background: true. Its prompt: \"Run `sleep 35`, then reply FINISHED.\" Do not wait for it or poll it. Reply with the single word \"launched\", then end your turn.",
+  "negotiated": 1,
+  "agentInfo": {
+    "name": "@agentclientprotocol/claude-agent-acp",
+    "title": "Claude Agent",
+    "version": "0.75.1"
+  },
+  "sessionId": "b47a5560-64db-4188-90c5-526dbccd8bc4",
+  "stopReason": "end_turn",
+  "promptEndedRel": "+75.287s",
+  "dispatchSettledRel": "+17.797s",
+  "result": {
+    "dispatchId": "toolu_017w2qK7W5kVxwtS8365ecQW",
+    "promptEndedRel": "+75.287s",
+    "frames": 58,
+    "updates": 47,
+    "deniedAfterDispatch": [],
+    "onDispatch": [
+      {
+        "rel": "+15.933s",
+        "sessionUpdate": "tool_call",
+        "status": "pending",
+        "title": "Task"
+      },
+      {
+        "rel": "+16.437s",
+        "sessionUpdate": "tool_call_update",
+        "title": "Sleep then reply"
+      },
+      {
+        "rel": "+16.757s",
+        "sessionUpdate": "tool_call_update",
+        "title": "Sleep then reply"
+      },
+      {
+        "rel": "+16.948s",
+        "sessionUpdate": "tool_call_update",
+        "title": "Sleep then reply"
+      },
+      {
+        "rel": "+17.168s",
+        "sessionUpdate": "tool_call_update",
+        "title": "Sleep then reply"
+      },
+      {
+        "rel": "+17.396s",
+        "sessionUpdate": "tool_call_update",
+        "toolResponse": {
+          "isAsync": true,
+          "status": "async_launched",
+          "agentId": "ad21d23b798a69b19",
+          "description": "Sleep then reply",
+          "resolvedModel": "claude-opus-5",
+          "prompt": "Run `sleep 35`, then reply FINISHED.",
+          "outputFile": "/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-subagent-probe-b8KldP/b47a5560-64db-4188-90c5-526dbccd8bc4/tasks/ad21d23b798a69b19.output",
+          "canReadOutputFile": true
+        }
+      },
+      {
+        "rel": "+17.796s",
+        "sessionUpdate": "tool_call_update",
+        "status": "completed"
+      }
+    ],
+    "afterPromptEnded": [],
+    "secondUpdateOnDispatch": [],
+    "sessionIds": ["b47a5560-64db-4188-90c5-526dbccd8bc4"],
+    "agentId": "ad21d23b798a69b19",
+    "launchedRel": "+17.396s",
+    "agentIdNamedAgainLater": false,
+    "outputFile": "/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-subagent-probe-b8KldP/b47a5560-64db-4188-90c5-526dbccd8bc4/tasks/ad21d23b798a69b19.output",
+    "outputFileMtime": "2026-10-06T20:06:40.684Z",
+    "subagentTranscript": [
+      {
+        "type": "user",
+        "role": "user",
+        "text": "Run `sleep 35`, then reply FINISHED."
+      },
+      {
+        "type": "attachment",
+        "text": ""
+      },
+      {
+        "type": "attachment",
+        "text": ""
+      },
+      {
+        "type": "attachment",
+        "text": ""
+      },
+      {
+        "type": "attachment",
+        "text": ""
+      },
+      {
+        "type": "attachment",
+        "text": ""
+      },
+      {
+        "type": "assistant",
+        "role": "assistant",
+        "text": ""
+      },
+      {
+        "type": "assistant",
+        "role": "assistant",
+        "text": "<Bash>"
+      },
+      {
+        "type": "assistant",
+        "role": "assistant",
+        "text": "<ToolSearch>"
+      },
+      {
+        "type": "user",
+        "role": "user",
+        "text": ""
+      },
+      {
+        "type": "user",
+        "role": "user",
+        "text": ""
+      },
+      {
+        "type": "assistant",
+        "role": "assistant",
+        "text": ""
+      },
+      {
+        "type": "assistant",
+        "role": "assistant",
+        "text": "<Bash>"
+      },
+      {
+        "type": "user",
+        "role": "user",
+        "text": ""
+      },
+      {
+        "type": "assistant",
+        "role": "assistant",
+        "text": "FINISHED\n\n`sleep 35` ran to completion (exit code 0). Note: foreground `sleep` is blocked in this environment, so it was run as a background Bash task and waited on with a polling loop."
+      }
+    ],
+    "subagentDidFinish": true,
+    "cancelKilledSubagent": false,
+    "childCalls": [
+      {
+        "rel": "+21.188s",
+        "toolCallId": "toolu_01VwTaeFYn8sVEYQPATUootm",
+        "tool": "Bash",
+        "title": "sleep 35"
+      },
+      {
+        "rel": "+21.721s",
+        "toolCallId": "toolu_017bmTHsxcnZV3W2zzzxSpUc",
+        "tool": "ToolSearch",
+        "title": "ToolSearch"
+      },
+      {
+        "rel": "+44.347s",
+        "toolCallId": "toolu_01DhpALyieBVnsBQir1mnADW",
+        "tool": "Bash",
+        "title": "until ! kill -0 $(pgrep -f \"^sleep 35\" | head -1) 2>/dev/null; do sleep 1; done; echo \"sleep finished\""
+      }
+    ],
+    "parentOwnCallsAfterDispatch": [],
+    "parentSpokeAfterHandoff": [
+      {
+        "rel": "+70.401s",
+        "text": "The"
+      },
+      {
+        "rel": "+70.708s",
+        "text": " background"
+      },
+      {
+        "rel": "+70.709s",
+        "text": " agent finished and"
+      },
+      {
+        "rel": "+70.709s",
+        "text": " repl"
+      },
+      {
+        "rel": "+70.709s",
+        "text": "ied F"
+      },
+      {
+        "rel": "+70.749s",
+        "text": "INISHED."
+      },
+      {
+        "rel": "+70.812s",
+        "text": " It "
+      },
+      {
+        "rel": "+70.890s",
+        "text": "ran `sleep 35`"
+      },
+      {
+        "rel": "+70.944s",
+        "text": " successfully (exit 0"
+      },
+      {
+        "rel": "+71.006s",
+        "text": "), though"
+      },
+      {
+        "rel": "+71.070s",
+        "text": " it"
+      },
+      {
+        "rel": "+71.129s",
+        "text": " had"
+      },
+      {
+        "rel": "+71.193s",
+        "text": " to run it as a background task since"
+      },
+      {
+        "rel": "+71.259s",
+        "text": " foreground `sleep`"
+      },
+      {
+        "rel": "+71.321s",
+        "text": " is blocked here"
+      },
+      {
+        "rel": "+71.412s",
+        "text": "."
+      }
+    ],
+    "subagentTextForwarded": false,
+    "handoffToTurnEndSeconds": 57.5,
+    "turnStayedOpenForSubagent": true,
+    "verdict": "NO SECOND UPDATE ON THE DISPATCHING CALL — it settles once and is never named again. But the completion IS observable with no capability: the subagent's 3 tool call(s) streamed onto the parent session stamped parentToolUseId=toolu_017w2qK7W5kVxwtS8365ecQW, session/prompt stayed open 57.5s past the hand-off, and the parent spoke again (16 chunk(s)) before the turn ended. The agent was never idle.",
+    "forcedIdleByCancel": false
+  }
+}
