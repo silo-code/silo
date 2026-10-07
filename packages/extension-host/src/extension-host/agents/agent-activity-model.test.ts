@@ -212,6 +212,7 @@ describe("dead / reset", () => {
     const working = reduce(initialState("claude"), detected("working"));
     const dead = reduce(working, {
       type: "dead",
+      now: "2026-01-02T00:00:00.000Z",
       sessionId: "abc123",
       resumeCommand: "claude --resume abc123",
       agentName: "Claude Code",
@@ -227,16 +228,72 @@ describe("dead / reset", () => {
   });
 
   it("dead is terminal — no detected signal reopens it", () => {
-    const dead = reduce(initialState("claude"), { type: "dead" });
+    const dead = reduce(initialState("claude"), {
+      type: "dead",
+      now: "2026-01-02T00:00:00.000Z",
+    });
     const attempted = reduce(dead, detected("working"));
     expect(attempted).toBe(dead);
   });
 
   it("reset clears a dead state back to fresh", () => {
-    const dead = reduce(initialState("claude"), { type: "dead" });
+    const dead = reduce(initialState("claude"), {
+      type: "dead",
+      now: "2026-01-02T00:00:00.000Z",
+    });
     const reset = reduce(dead, { type: "reset" });
     expect(reset.activity).toBe("none");
     expect(reset.sessionId).toBeNull();
+  });
+
+  // RFC 0056. `dead` / `exited` / `process-gone` are stops that bypass the
+  // turn core, so they apply its rule themselves: stamp only from "working".
+  it("dead stamps idleSince when it interrupted a running turn", () => {
+    const working = reduce(initialState("claude"), detected("working"));
+    const dead = reduce(working, { type: "dead", now: "t-death" });
+    expect(dead.idleSince).toBe("t-death");
+  });
+
+  // A terminal that finished days ago and is only *confirmed* dead at boot
+  // must keep its real age, not be re-dated to the moment of confirmation.
+  it("dead keeps an already-stopped session's original idleSince", () => {
+    const idle = reduce(
+      reduce(initialState("claude"), detected("working")),
+      detected("idle", { now: "t-finish" }),
+    );
+    const dead = reduce(idle, { type: "dead", now: "t-boot" });
+    expect(dead.idleSince).toBe("t-finish");
+  });
+
+  // Architecture review of #603, finding 1. `dead` / `exited` / `process-gone`
+  // used to carry their own copy of the idleSince rule, which agreed with the
+  // turn core until only the core grew its first-observation clause. The gap
+  // left exactly this case with no duration: a terminal confirmed dead having
+  // never run a turn in this process still lands in the panel's "done"
+  // section, so a blank age is a visible bug, not a harmless null.
+  it.each(["dead", "exited", "process-gone"] as const)(
+    "%s stamps a session that stopped without ever having run a turn here",
+    (type) => {
+      // A promoted shell, so `exited` / `process-gone` reach their demotion
+      // branch rather than bailing on `kind !== "shell"`.
+      const promoted = reduce(
+        initialState("shell"),
+        detected("working", { source: "agent" }),
+      );
+      const stopped = reduce(
+        { ...promoted, activity: "none", idleSince: null },
+        { type, now: "t-stop" },
+      );
+      expect(stopped.idleSince).toBe("t-stop");
+    },
+  );
+
+  it("reset clears idleSince along with the rest of the state", () => {
+    const dead = reduce(reduce(initialState("claude"), detected("working")), {
+      type: "dead",
+      now: "t-death",
+    });
+    expect(reduce(dead, { type: "reset" }).idleSince).toBeNull();
   });
 
   it("reset is a no-op when not currently dead", () => {
@@ -271,7 +328,10 @@ describe("resetOnDemotion", () => {
     // Catalog-identified agents (agentId set) no longer demote on shell OSC —
     // that path is reserved for unlabeled promotions. Real exit uses `exited`
     // (OS-level at-prompt reclaim).
-    const demoted = reduce(prev, { type: "exited" });
+    const demoted = reduce(prev, {
+      type: "exited",
+      now: "2026-01-02T00:00:00.000Z",
+    });
     expect(demoted.isAgent).toBe(false);
     expect(demoted.activity).toBe("idle");
 
@@ -320,7 +380,10 @@ describe("resetOnDemotion", () => {
     expect(unreadIdle.needsAttention).toBe(true);
     expect(unreadIdle.isAgent).toBe(true);
 
-    const exited = reduce(unreadIdle, { type: "exited" });
+    const exited = reduce(unreadIdle, {
+      type: "exited",
+      now: "2026-01-02T00:00:00.000Z",
+    });
     expect(exited.isAgent).toBe(false);
     expect(exited.needsAttention).toBe(false);
     expect(resetOnDemotion(unreadIdle, exited).activity).toBe("none");
@@ -355,7 +418,10 @@ describe("reduce — process-gone keeps the resume identity", () => {
   };
 
   it("demotes to a non-agent but preserves sessionId/resumeCommand/agentName/agentId", () => {
-    const gone = reduce(resolved, { type: "process-gone" });
+    const gone = reduce(resolved, {
+      type: "process-gone",
+      now: "2026-01-02T00:00:00.000Z",
+    });
     expect(gone.isAgent).toBe(false);
     expect(gone.activity).toBe("none");
     expect(gone.sessionId).toBe("sid-1");
@@ -365,7 +431,10 @@ describe("reduce — process-gone keeps the resume identity", () => {
   });
 
   it("contrasts with exited, which reduce()+resetOnDemotion clears", () => {
-    const exited = reduce(resolved, { type: "exited" });
+    const exited = reduce(resolved, {
+      type: "exited",
+      now: "2026-01-02T00:00:00.000Z",
+    });
     const cleared = resetOnDemotion(resolved, exited);
     expect(cleared.isAgent).toBe(false);
     expect(cleared.resumeCommand).toBeNull();
@@ -377,6 +446,65 @@ describe("reduce — process-gone keeps the resume identity", () => {
       ...initialState("agent"),
       resumeCommand: "x --resume 1",
     };
-    expect(reduce(bornAgent, { type: "process-gone" })).toBe(bornAgent);
+    expect(
+      reduce(bornAgent, {
+        type: "process-gone",
+        now: "2026-01-02T00:00:00.000Z",
+      }),
+    ).toBe(bornAgent);
+  });
+});
+
+describe('idleSince — the restart-durable "when did this stop" stamp', () => {
+  it("is null until a turn has actually ended", () => {
+    expect(initialState("claude").idleSince).toBeNull();
+    expect(reduce(initialState("claude"), detected("working")).idleSince).toBe(
+      null,
+    );
+  });
+
+  it("stamps when the agent goes idle, and survives acknowledgment", () => {
+    const idle = reduce(
+      reduce(initialState("claude"), detected("working")),
+      detected("idle", { now: "t-finish" }),
+    );
+    expect(idle.idleSince).toBe("t-finish");
+    // "activated" is ctx.agents.acknowledge — it clears attention, not age.
+    const seen = reduce(idle, { type: "activated" });
+    expect(seen.needsAttention).toBe(false);
+    expect(seen.idleSince).toBe("t-finish");
+  });
+
+  it("clears on the next turn and re-stamps when that one ends", () => {
+    const first = reduce(
+      reduce(initialState("claude"), detected("working")),
+      detected("idle", { now: "t-finish" }),
+    );
+    const rerun = reduce(first, detected("working", { now: "t-rerun" }));
+    expect(rerun.idleSince).toBeNull();
+    expect(reduce(rerun, detected("idle", { now: "t-second" })).idleSince).toBe(
+      "t-second",
+    );
+  });
+
+  // The regression itself: a restart must hand back the same timestamp, so a
+  // row's duration continues rather than restarting from zero (RFC 0056).
+  it("round-trips through restoreState unchanged", () => {
+    const persisted: Omit<AgentActivityState, "kind" | "stale"> = {
+      isAgent: true,
+      activity: "idle",
+      needsAttention: false,
+      attentionSince: null,
+      workingSince: null,
+      idleSince: "2026-10-01T16:15:17.012Z",
+      workingSource: null,
+      sessionId: null,
+      resumeCommand: null,
+      agentName: null,
+      agentId: null,
+    };
+    expect(
+      restoreState("claude", persisted, STALE_THRESHOLD_MS * 1000).idleSince,
+    ).toBe("2026-10-01T16:15:17.012Z");
   });
 });

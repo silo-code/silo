@@ -1152,6 +1152,70 @@ describe("AgentsService — demotion cancels pending agent-idle debounce", () =>
   });
 });
 
+// RFC 0056. Dave's report, fourth round: after an app reboot two reattached
+// terminal rows showed no duration, but a Ctrl-R webview reload brought it
+// straight back. Both paths run the same restore, so whatever differs has to
+// be in what `store.agentState` holds at the moment `attachSession` reads it.
+describe("AgentsService — idleSince survives a reattach", () => {
+  const persisted = {
+    workspaceId: "ws-idle-restore",
+    isAgent: true,
+    activity: "idle" as const,
+    needsAttention: false,
+    workingSource: null,
+    agentId: "claude",
+    agentName: "Claude Code",
+    lastLiveAt: "2026-10-06T18:57:53.000Z",
+  };
+
+  it("restores a precise idleSince verbatim", async () => {
+    const id = "t-idle-exact";
+    store.agentState[id] = {
+      ...persisted,
+      idleSince: "2026-10-06T18:00:00.000Z",
+    };
+    await attachTerminal(id, "sess-idle-exact");
+    expect(svc.getByTerminalId(id)?.idleSince).toBe("2026-10-06T18:00:00.000Z");
+  });
+
+  it("estimates from lastLiveAt for a record written before the field existed", async () => {
+    const id = "t-idle-estimate";
+    store.agentState[id] = { ...persisted };
+    await attachTerminal(id, "sess-idle-estimate");
+    expect(svc.getByTerminalId(id)?.idleSince).toBe(persisted.lastLiveAt);
+  });
+
+  // The actual reboot shape: the record is there, and then the session host's
+  // ring replays a finished turn at it. The replayed turn must not re-date the
+  // row to "now" — that is the original bug in a new costume.
+  it("keeps the restored timestamp through a replayed turn", async () => {
+    const id = "t-idle-replay";
+    store.agentState[id] = { ...persisted };
+    await attachTerminal(id, "sess-idle-replay");
+    getActive.mockReturnValue(null);
+
+    osc(id, 0, "\u2800", true);
+    osc(id, 0, "\u2733 done", true);
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+
+    expect(svc.getByTerminalId(id)?.idleSince).toBe(persisted.lastLiveAt);
+  });
+
+  it("persists the restored timestamp back, so the next boot has it", async () => {
+    const id = "t-idle-persist";
+    store.agentState[id] = { ...persisted };
+    await attachTerminal(id, "sess-idle-persist");
+    getActive.mockReturnValue(null);
+
+    // One real live turn, so a persist definitely happens.
+    osc(id, 0, "\u2800");
+    osc(id, 0, "\u2733 done");
+    vi.advanceTimersByTime(AGENT_IDLE_DEBOUNCE_MS);
+
+    expect(store.agentState[id].idleSince).toBeTruthy();
+  });
+});
+
 // RFC 0036 / issue #500. Re-attaching replays the session host's ring, so the
 // detectors see a burst of old OSC titles — a whole finished turn, complete
 // with its "done" marker. Before replay was tagged, that read as a turn

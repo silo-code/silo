@@ -50,6 +50,7 @@ import {
   type AgentActivityState,
   type AgentActivityEvent,
 } from "./agent-activity-model";
+import { restoredIdleSince } from "./agent-turn-model";
 import type { AgentInfo, AgentsService } from "@silo-code/sdk";
 import type { PersistedAgentInfo } from "../../state/types";
 import {
@@ -209,6 +210,7 @@ function toAgentInfo(
     needsAttention: state.needsAttention,
     attentionSince: state.attentionSince ?? undefined,
     workingSince: state.workingSince ?? undefined,
+    idleSince: state.idleSince ?? undefined,
     stale: state.stale,
     sessionId: state.sessionId ?? undefined,
     resumeCommand: state.resumeCommand ?? undefined,
@@ -240,6 +242,7 @@ function toPersisted(
     needsAttention: state.needsAttention,
     attentionSince: state.attentionSince ?? undefined,
     workingSince: state.workingSince ?? undefined,
+    idleSince: state.idleSince ?? undefined,
     workingSource: state.workingSource,
     sessionId: state.sessionId ?? undefined,
     resumeCommand: state.resumeCommand ?? undefined,
@@ -368,15 +371,24 @@ function applyEvent(
   // identity (`isAgent`, `sessionId`, `resumeCommand`, `agentName`,
   // `agentId`) still flows through `next`, which is the whole reason the
   // replay is subscribed to at all (RFC 0036).
+  //
+  // Expressed as an **allowlist of identity**, deliberately: keep the state we
+  // had and let only the identity fields through, rather than listing the turn
+  // fields to roll back. The two are equivalent today, and the inverse form is
+  // what let `idleSince` slip in unnoticed when it was added to `TurnPhase` —
+  // a replayed "working" marker runs `beginTurn`, which clears it, and the
+  // clear sailed past a denylist that had never heard of the field. Nothing
+  // made that a type error. This way round, a new turn field is quarantined by
+  // default and only an explicit addition here can expose it to replayed bytes
+  // (RFC 0056).
   if (fromReplay) {
     next = {
-      ...next,
-      activity: entry.state.activity,
-      needsAttention: entry.state.needsAttention,
-      attentionSince: entry.state.attentionSince,
-      workingSince: entry.state.workingSince,
-      workingSource: entry.state.workingSource,
-      stale: entry.state.stale,
+      ...entry.state,
+      isAgent: next.isAgent,
+      sessionId: next.sessionId,
+      resumeCommand: next.resumeCommand,
+      agentName: next.agentName,
+      agentId: next.agentId,
     };
   }
 
@@ -542,7 +554,7 @@ function demotePromotedShell(terminalId: string) {
   const entry = trackedAgents.get(terminalId);
   if (!entry) return;
   if (!entry.state.isAgent || entry.state.kind !== "shell") return;
-  applyEvent(terminalId, { type: "exited" });
+  applyEvent(terminalId, { type: "exited", now: new Date().toISOString() });
 }
 
 /**
@@ -556,7 +568,10 @@ function notePromotedShellProcessGone(terminalId: string) {
   const entry = trackedAgents.get(terminalId);
   if (!entry) return;
   if (!entry.state.isAgent || entry.state.kind !== "shell") return;
-  applyEvent(terminalId, { type: "process-gone" });
+  applyEvent(terminalId, {
+    type: "process-gone",
+    now: new Date().toISOString(),
+  });
 }
 
 /**
@@ -1180,6 +1195,14 @@ function attachSession(terminalId: string) {
           needsAttention: persisted.needsAttention,
           attentionSince: persisted.attentionSince ?? null,
           workingSince: persisted.workingSince ?? null,
+          // A Terminal session restores `working` as-is (its real finish still
+          // arrives through `endTurn`), so only a non-working record is
+          // "stopped" and eligible for the `lastLiveAt` estimate.
+          idleSince: restoredIdleSince({
+            stopped: persisted.activity !== "working",
+            idleSince: persisted.idleSince,
+            lastLiveAt: persisted.lastLiveAt,
+          }),
           workingSource: persisted.workingSource,
           sessionId: persisted.sessionId ?? null,
           resumeCommand: persisted.resumeCommand ?? null,
@@ -1380,9 +1403,11 @@ function markSessionDead(terminalId: string): void {
   const entry = trackedAgents.get(terminalId);
   if (!entry) return;
 
+  const now = new Date().toISOString();
   if (entry.state.resumeCommand || entry.state.sessionId) {
     applyEvent(terminalId, {
       type: "dead",
+      now,
       sessionId: entry.state.sessionId ?? undefined,
       resumeCommand: entry.state.resumeCommand ?? undefined,
       agentName: entry.state.agentName ?? undefined,
@@ -1391,7 +1416,7 @@ function markSessionDead(terminalId: string): void {
     return;
   }
 
-  applyEvent(terminalId, { type: "dead" });
+  applyEvent(terminalId, { type: "dead", now });
 }
 
 /** Called once a fresh session has been spawned for a terminal that was

@@ -225,13 +225,54 @@ ISO timestamp of when the current `"working"` phase started; undefined otherwise
 
 ***
 
+### idleSince?
+
+```ts
+readonly optional idleSince?: string;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:205](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L205)
+
+**`Beta`**
+
+ISO timestamp of when this session last **stopped** — undefined only
+while a turn is running ([AgentInfo.workingSince](#workingsince) is the live field
+then) and for a session never yet observed stopped at all.
+
+The counterpart to [AgentInfo.attentionSince](#attentionsince), and deliberately not
+the same thing. `attentionSince` answers "is there something unread
+here", so [AgentsService.acknowledge](AgentsService.md#acknowledge) clears it; this answers "how
+long ago did this stop", which looking at the session does not change. A
+settled, already-seen session has only this left to date it by — which is
+what makes a "finished 3h ago" row possible.
+
+Persisted and restored for both session kinds, so it survives a restart
+and an extension reload rather than restarting from whenever the reader
+first observed the session.
+
+**Treat it as a lower bound, not a precise turn boundary.** Silo stamps
+the exact moment where it observes one, but a session whose stop it never
+saw — restored from a record written before this field existed, or one
+that was mid-turn when the app exited — is dated from the last moment the
+host saw it alive. That is an estimate: the session stopped at or after
+it. Such a row is indistinguishable from an exact one, and
+[AgentInfo.stale](#stale) does **not** mark it — `stale` is scoped to a
+restored `working`/`needsAttention` duration, so a settled row carrying an
+estimate still reports `stale: false`. The estimate is replaced by an
+exact stamp the next time the session runs and stops.
+
+So: fine to render as an age or sort on; don't build on it as the precise
+instant a turn ended.
+
+***
+
 ### stale
 
 ```ts
 readonly stale: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:183](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L183)
+Defined in: [packages/sdk/src/agents-service.ts:214](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L214)
 
 **`Beta`**
 
@@ -250,7 +291,7 @@ fact — see [AgentActivity](../type-aliases/AgentActivity.md).
 readonly optional sessionId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:193](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L193)
+Defined in: [packages/sdk/src/agents-service.ts:224](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L224)
 
 **`Beta`**
 
@@ -270,7 +311,7 @@ deferred to death), then persisted, so a consumer reacting to
 readonly optional resumeCommand?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:202](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L202)
+Defined in: [packages/sdk/src/agents-service.ts:233](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L233)
 
 **`Beta`**
 
@@ -289,7 +330,7 @@ both live and at `activity === "dead"`.
 readonly canResume: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L220)
+Defined in: [packages/sdk/src/agents-service.ts:251](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L251)
 
 **`Beta`**
 
@@ -317,7 +358,7 @@ Whether this session can be resumed **through Silo** — i.e. whether
 readonly optional agentName?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:229](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L229)
+Defined in: [packages/sdk/src/agents-service.ts:260](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L260)
 
 **`Beta`**
 
@@ -336,7 +377,7 @@ known agent leader is detected at all (same moment
 readonly optional agentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:237](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L237)
+Defined in: [packages/sdk/src/agents-service.ts:268](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L268)
 
 **`Beta`**
 
@@ -354,7 +395,7 @@ the same moment and lifecycle as `agentName`.
 readonly optional chatResumeState?: ChatResumeState;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:243](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L243)
+Defined in: [packages/sdk/src/agents-service.ts:274](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L274)
 
 **`Beta`**
 

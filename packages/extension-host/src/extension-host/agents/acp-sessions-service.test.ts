@@ -1458,6 +1458,93 @@ describe("connect({ resume }) — Chat session resurrection", () => {
       expect(chatAgentInfos()[0].title).toBe("Was working on the CSS surface");
     });
 
+    // Dave's report (2026-10-06): after a restart the duration on a restored
+    // row appeared for a second and then vanished. The dormant entry carried
+    // `idleSince`; connecting replaced it with a freshly-built AgentInfo that
+    // did not. Reconnecting does not change when the last turn ended
+    // (RFC 0056).
+    it("carries idleSince across the reconnect instead of blanking the row's age", async () => {
+      store.chatSessionState = {
+        "chat:old-id": {
+          workspaceId: "active",
+          sessionId: "old-id",
+          title: "Refactor the dock registry",
+          canResume: true,
+          activity: "idle",
+          needsAttention: false,
+          idleSince: "2026-10-01T16:15:17.012Z",
+          lastLiveAt: "2026-10-01T16:20:00.000Z",
+        },
+      };
+      fakeClient.loadSession.mockResolvedValue({
+        sessionId: "old-id",
+        configOptions: [],
+      });
+
+      await service.connect("claude-chat", { resume: { sessionId: "old-id" } });
+
+      expect(chatAgentInfos()[0].idleSince).toBe("2026-10-01T16:15:17.012Z");
+    });
+
+    it("gives the pre-handshake placeholder the same age, so it never flashes", () => {
+      store.chatSessionState = {
+        "chat:old-id": {
+          workspaceId: "active",
+          sessionId: "old-id",
+          title: "Refactor the dock registry",
+          canResume: true,
+          activity: "idle",
+          needsAttention: false,
+          idleSince: "2026-10-01T16:15:17.012Z",
+          lastLiveAt: "2026-10-01T16:20:00.000Z",
+        },
+      };
+      let resolveInit!: (v: unknown) => void;
+      fakeClient.initialize.mockReturnValue(
+        new Promise((r) => {
+          resolveInit = r;
+        }),
+      );
+
+      void service.connect("claude-chat", { resume: { sessionId: "old-id" } });
+
+      expect(chatAgentInfos()[0].idleSince).toBe("2026-10-01T16:15:17.012Z");
+      resolveInit({
+        agentInfo: {},
+        agentCapabilities: {},
+        sessionCapabilities: {},
+        authMethods: [],
+        raw: {},
+      });
+    });
+
+    it("estimates from lastLiveAt for a record written before idleSince existed", async () => {
+      store.chatSessionState = {
+        "chat:old-id": {
+          workspaceId: "active",
+          sessionId: "old-id",
+          title: "Refactor the dock registry",
+          canResume: true,
+          activity: "idle",
+          needsAttention: false,
+          lastLiveAt: "2026-10-01T16:20:00.000Z",
+        },
+      };
+      fakeClient.loadSession.mockResolvedValue({
+        sessionId: "old-id",
+        configOptions: [],
+      });
+
+      await service.connect("claude-chat", { resume: { sessionId: "old-id" } });
+
+      expect(chatAgentInfos()[0].idleSince).toBe("2026-10-01T16:20:00.000Z");
+    });
+
+    it("leaves a fresh session with no age — there is no prior turn to date", async () => {
+      await service.connect("claude-chat");
+      expect(chatAgentInfos()[0].idleSince).toBeUndefined();
+    });
+
     it("a fresh session ignores options.title and falls back to the profile label", async () => {
       await service.connect("claude-chat", { title: "stale leftover" });
       expect(chatAgentInfos()[0].title).toBe("Claude (chat)");

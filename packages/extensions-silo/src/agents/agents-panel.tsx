@@ -25,7 +25,6 @@ import {
   type AgentRow,
   type AgentSection,
 } from "./agents-panel-view";
-import { getDoneSince } from "./done-since";
 import { manualOrderService } from "./manual-order";
 import { AgentIconGlyph, type AgentIcon } from "@silo-code/sdk";
 import { settingsService, type IconMode } from "./settings-store";
@@ -637,14 +636,7 @@ export function AgentsPanel({
   }
 
   const agentsSnapshot = ctx.agents.getState({ allWorkspaces: true });
-  // "Done since" is tracked at extension scope (see ./done-since) rather than
-  // here: both views read the same stamps, and tracking has to keep running
-  // whichever view — if any — the user has open.
-  const rows = buildAgentRows(
-    agentsSnapshot,
-    ctx.workspaces.getState().all,
-    getDoneSince(),
-  );
+  const rows = buildAgentRows(agentsSnapshot, ctx.workspaces.getState().all);
 
   const sections =
     groupBy === "workspace"

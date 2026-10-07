@@ -115,6 +115,7 @@ describe("dormantChatSessions — what persistence alone can show", () => {
           isAgent: true,
           activity: "idle",
           needsAttention: false,
+          idleSince: "2026-09-09T00:00:00.000Z",
           stale: false,
           canResume: true,
           sessionId: "sess-1",
@@ -203,6 +204,31 @@ describe("chatSessionStatus — what is worth persisting", () => {
       needsAttention: false,
       lastLiveAt: "now",
     });
+  });
+
+  it("persists idleSince so the next run dates the row from the real finish", () => {
+    const finished: AgentInfo = {
+      ...live,
+      activity: "idle",
+      idleSince: "2026-10-01T16:15:17.012Z",
+    };
+    expect(chatSessionStatus(finished, "now")?.idleSince).toBe(
+      "2026-10-01T16:15:17.012Z",
+    );
+  });
+
+  it("treats a changed idleSince as a real change worth rewriting", () => {
+    const prior = chatSessionStatus(
+      { ...live, activity: "idle", idleSince: "t0" },
+      "now",
+    );
+    const next = chatSessionStatus(
+      { ...live, activity: "idle", idleSince: "t1" },
+      "later",
+    );
+    expect(prior).not.toBeNull();
+    expect(next).not.toBeNull();
+    expect(chatSessionStatusChanged(prior!, next!)).toBe(true);
   });
 
   it("skips a Terminal session — that side persists off its terminal record", () => {
@@ -418,6 +444,7 @@ describe("restoredActivity — the status a restart must not invent", () => {
       activity: "idle",
       needsAttention: true,
       attentionSince: "2026-09-10T12:00:00.000Z",
+      idleSince: "2026-09-09T00:00:00.000Z",
       stale: false,
     });
   });
@@ -426,8 +453,58 @@ describe("restoredActivity — the status a restart must not invent", () => {
     expect(restoredActivity(status({ activity: "working" }))).toEqual({
       activity: "idle",
       needsAttention: false,
+      // No `idleSince` of its own — the turn was still running — so the last
+      // moment the host saw it alive stands in. See the `idleSince` block.
+      idleSince: "2026-09-09T00:00:00.000Z",
       stale: true,
     });
+  });
+
+  // Dave's report (2026-10-06): after a restart, the bottom rows of the Agents
+  // navigator all read "4s". Every *Chat* session's "done" duration reset;
+  // Terminal sessions kept theirs. The duration came from the extension's own
+  // first-sighting stamp, and a dormant Chat session is briefly absent from
+  // the snapshot while registration catches up — which dropped the stamp and
+  // re-dated it to the next snapshot (RFC 0056).
+  it("carries idleSince through verbatim — a restart must not re-date a finish", () => {
+    expect(
+      restoredActivity(
+        status({ activity: "idle", idleSince: "2026-10-01T16:15:17.012Z" }),
+      ).idleSince,
+    ).toBe("2026-10-01T16:15:17.012Z");
+  });
+
+  it("keeps idleSince for an acknowledged finish, unlike attentionSince", () => {
+    const restored = restoredActivity(
+      status({
+        activity: "idle",
+        needsAttention: false,
+        idleSince: "2026-10-01T16:15:17.012Z",
+      }),
+    );
+    expect(restored.attentionSince).toBeUndefined();
+    expect(restored.idleSince).toBe("2026-10-01T16:15:17.012Z");
+  });
+
+  it("prefers a real idleSince over lastLiveAt even for a mid-turn session", () => {
+    expect(
+      restoredActivity(
+        status({
+          activity: "working",
+          idleSince: "2026-09-08T00:00:00.000Z",
+          lastLiveAt: "2026-09-09T00:00:00.000Z",
+        }),
+      ).idleSince,
+    ).toBe("2026-09-08T00:00:00.000Z");
+  });
+
+  // The first cut of RFC 0056 had no fallback here, so every row written
+  // before the field existed came back with no duration at all — which is
+  // what Dave saw on the next restart: the Agents navigator went blank.
+  it("falls back to lastLiveAt for a record written before idleSince existed", () => {
+    expect(restoredActivity(status({ activity: "idle" })).idleSince).toBe(
+      "2026-09-09T00:00:00.000Z",
+    );
   });
 
   it("does not carry over a dead or errored process — there is no process yet", () => {

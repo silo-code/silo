@@ -1,6 +1,6 @@
 # Interface: AgentSessionSummary
 
-Defined in: [packages/sdk/src/agents-service.ts:1279](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1279)
+Defined in: [packages/sdk/src/agents-service.ts:1310](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1310)
 
 **`Beta`**
 
@@ -15,7 +15,7 @@ One session an agent reports via `session/list` (ACP v1 stable) —
 readonly sessionId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1282](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1282)
+Defined in: [packages/sdk/src/agents-service.ts:1313](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1313)
 
 **`Beta`**
 
@@ -30,7 +30,7 @@ What to pass as [AgentSessionRestore.sessionId](AgentSessionRestore.md#sessionid
 readonly optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1285](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1285)
+Defined in: [packages/sdk/src/agents-service.ts:1316](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1316)
 
 **`Beta`**
 
@@ -45,7 +45,7 @@ The working directory this session ran in, when the agent reports one —
 readonly optional title?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1287](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1287)
+Defined in: [packages/sdk/src/agents-service.ts:1318](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1318)
 
 **`Beta`**
 
@@ -59,7 +59,7 @@ A display title, when the agent reports one.
 readonly optional updatedAt?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1289](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1289)
+Defined in: [packages/sdk/src/agents-service.ts:1320](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1320)
 
 **`Beta`**
 
@@ -73,7 +73,7 @@ Last-activity timestamp (ISO 8601), when the agent reports one.
 readonly raw: Record<string, unknown>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1292](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1292)
+Defined in: [packages/sdk/src/agents-service.ts:1323](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1323)
 
 **`Beta`**
 

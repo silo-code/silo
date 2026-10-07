@@ -568,6 +568,33 @@ only to the finish-a-turn case.
 _Avoid_: "focused" (a surface can be visible without being active, and the
 rule is about the active one); re-deriving it in a consumer.
 
+**Turn Timestamps** (RFC 0056) — the three host-owned ISO stamps on
+`AgentInfo` that between them date an Agent Session's whole turn lifecycle,
+set in one place (`agent-turn-model.ts`) for both kinds:
+
+- `workingSince` — a turn is running, and started then.
+- `attentionSince` — an unread finish is pending, and was raised then.
+  Cleared by `acknowledge`, because it is about _unread_, not about _when_.
+- `idleSince` — the session last **stopped** then. Set at the working →
+  stopped edge for every turn outcome (`finished`, `cancelled`, `failed`), at
+  the three terminal-only stops (`dead`, `exited`, `process-gone`), and the
+  first time a session is seen stopped without a stamp at all — one rule,
+  `stoppedIdleSince`, which every stopping path calls. Survives being
+  **Witnessed**: looking at a finish does not change when it happened. A
+  **lower bound**, not a precise boundary: where the stop was never observed
+  (a record predating the field, a session mid-turn when the app exited) it is
+  the last moment the host saw the session alive, and `stale` does not mark
+  that case.
+
+The asymmetry is the point. A session that has finished and been seen has no
+`workingSince` and no `attentionSince` left, so before `idleSince` existed
+there was nothing to date a settled row from, and consumers guessed — the
+Agents navigator stamped the first snapshot in which it saw a session
+finished, which re-dated every Chat session's age on every restart.
+_Avoid_: "last active" / `lastActiveAt` as a synonym (that is a terminal
+record field updated by reconnects, not by the agent finishing); treating
+`attentionSince` as a general "when did this stop" stamp.
+
 **Agent Profile** (`AgentProfile`, RFC 0033; launch union RFC 0038) — a named,
 user-authored recipe for **starting** a coding agent: an `id`, a `label`, an
 optional `default` flag, an optional `assumedAgentId`, and a `launch`
