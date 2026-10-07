@@ -15,6 +15,7 @@ import { executeCommand } from "../extension-host/commands";
 import { WorkspaceDock } from "./WorkspaceDock";
 import {
   buildOpenWorkspaceItems,
+  resolveOpenWorkspaceMenuItems,
   useFolderExistence,
 } from "./open-workspace-menu";
 import { installDockFocusTracking } from "./dock-focus-tracking";
@@ -67,7 +68,14 @@ export function CenterDock() {
         executeCommand("workspace.newGroup");
       },
     });
-    void openMenu({ items, anchor: ctaRef.current });
+    // Re-resolve from the live store on refresh, so a delete keeps this CTA's
+    // dropdown open and drops the just-removed row.
+    void openMenu({
+      items,
+      anchor: ctaRef.current,
+      refresh: async () =>
+        resolveOpenWorkspaceMenuItems(wsService.getState().closed),
+    });
   }
 
   useEffect(() => {

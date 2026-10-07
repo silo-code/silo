@@ -24,7 +24,7 @@ import { getFileService } from "./file-service";
 import { confirmWithDontShowAgain } from "./confirm-with-dont-show-again";
 import { getGlobalExtensionStorage } from "./extension-storage";
 import { executeCommand } from "./commands";
-import { closeMenu } from "./menu-controller";
+import { closeMenu, refreshMenu } from "./menu-controller";
 import { reapWorkspaceTerminals } from "./terminal-service";
 import { reapWorkspaceChatSessions } from "./agents/chat-agent-registry";
 
@@ -64,9 +64,11 @@ async function confirmAndDeleteWorkspace(
   void reapWorkspaceTerminals(id);
   reapWorkspaceChatSessions(id);
   deleteWorkspace(id);
-  // The menu snapshot is taken at open time; dismiss it so the delete reads as
-  // having happened instead of leaving a stale row until click-away.
-  closeMenu();
+  // Re-run the open menu instead of dismissing it, so several workspaces can be
+  // deleted in a row. When the open menu can't refresh (it was opened without a
+  // refresh, or nested under another menu) fall back to closing it — a stale row
+  // would otherwise linger until click-away.
+  if (!(await refreshMenu())) closeMenu();
 }
 
 /** Confirm, then delete a group. Member workspaces are kept and reappear
@@ -81,7 +83,8 @@ async function confirmAndDeleteGroup(id: string, name: string): Promise<void> {
   });
   if (!ok) return;
   deleteGroup(id);
-  closeMenu();
+  // Keep the menu open for back-to-back group deletes; see confirmAndDeleteWorkspace.
+  if (!(await refreshMenu())) closeMenu();
 }
 
 /**
