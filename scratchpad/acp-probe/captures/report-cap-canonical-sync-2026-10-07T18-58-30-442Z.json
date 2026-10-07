@@ -1,0 +1,99 @@
+{
+  "agent": "@agentclientprotocol/claude-agent-acp@0.75.1",
+  "cwd": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-subagent-cap-mZWU2J",
+  "logPath": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-subagent-cap-mZWU2J/frames-cap-canonical-sync-2026-10-07T18-58-30-442Z.jsonl",
+  "optIn": "canonical",
+  "background": false,
+  "advertised": {
+    "fs": {
+      "readTextFile": false,
+      "writeTextFile": false
+    },
+    "terminal": false,
+    "subagents": {}
+  },
+  "prompt": "Use the Task tool with subagent_type \"general-purpose\" (do NOT set run_in_background). Its prompt: \"Run `sleep 5`, then reply FINISHED.\" Wait for it, then reply with the single word \"done\" and end your turn.",
+  "negotiated": 1,
+  "agentInfo": {
+    "name": "@agentclientprotocol/claude-agent-acp",
+    "title": "Claude Agent",
+    "version": "0.75.1"
+  },
+  "agentCapabilities": {
+    "_meta": {
+      "claudeCode": {
+        "promptQueueing": true
+      },
+      "authStatus": {}
+    },
+    "promptCapabilities": {
+      "image": true,
+      "embeddedContext": true
+    },
+    "mcpCapabilities": {
+      "http": true,
+      "sse": true
+    },
+    "auth": {
+      "logout": {}
+    },
+    "providers": {},
+    "loadSession": true,
+    "sessionCapabilities": {
+      "additionalDirectories": {},
+      "close": {},
+      "delete": {},
+      "fork": {},
+      "list": {},
+      "resume": {},
+      "subagents": {}
+    }
+  },
+  "agentMeta": {
+    "jetbrains": {
+      "air": {
+        "version": 1,
+        "capabilities": [
+          "sessionFailure",
+          "agentFileChangeReport",
+          "nativeSubagentSessions",
+          "asyncTasks"
+        ]
+      }
+    },
+    "steering": {
+      "supported": true
+    },
+    "goal": {
+      "version": 1,
+      "controlMethod": "_session/goal",
+      "actions": ["set", "clear"]
+    }
+  },
+  "sessionId": "b10082f5-ae96-4826-b031-f6bbaa4ee7e7",
+  "stopReason": "end_turn",
+  "promptEndedRel": "+23.292s",
+  "result": {
+    "rootSessionId": "b10082f5-ae96-4826-b031-f6bbaa4ee7e7",
+    "promptEndedRel": "+23.292s",
+    "frames": 44,
+    "updates": 35,
+    "dispatchCalls": [],
+    "dispatchRowSurvives": false,
+    "subagentLifecycle": [],
+    "spawned": [],
+    "stateUpdates": [],
+    "terminalStates": [],
+    "hasIdentifiedTerminalSignal": false,
+    "terminalAfterTurnEnd": [],
+    "sessionIds": ["b10082f5-ae96-4826-b031-f6bbaa4ee7e7"],
+    "childSessionIds": [],
+    "updatesBySession": {
+      "b10082f5-ae96-4826-b031-f6bbaa4ee7e7 (ROOT)": 35
+    },
+    "sessionRoutingRequired": false,
+    "parentToolUseIdStillPresent": false,
+    "subagentProseForwarded": false,
+    "verdict": "Q1 dispatch row IS DROPPED — RFC 0055's rendering loses its source\nQ2 NO identified terminal signal arrived\nQ3 everything stayed on the root session — no routing prerequisite observed"
+  }
+}

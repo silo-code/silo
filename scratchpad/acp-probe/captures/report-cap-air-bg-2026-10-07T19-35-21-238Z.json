@@ -1,0 +1,197 @@
+{
+  "agent": "@agentclientprotocol/claude-agent-acp@0.75.1",
+  "cwd": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-subagent-cap-dvc9pP",
+  "logPath": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-subagent-cap-dvc9pP/frames-cap-air-bg-2026-10-07T19-35-21-238Z.jsonl",
+  "optIn": "air",
+  "background": true,
+  "advertised": {
+    "fs": {
+      "readTextFile": false,
+      "writeTextFile": false
+    },
+    "terminal": false,
+    "_meta": {
+      "jetbrains": {
+        "air": {
+          "version": 1,
+          "capabilities": ["nativeSubagentSessions", "asyncTasks"]
+        }
+      }
+    }
+  },
+  "prompt": "Use the Task tool with subagent_type \"general-purpose\" and run_in_background: true. Its prompt: \"Run `sleep 30`, then reply FINISHED.\" Do not wait for it or poll it. Reply with the single word \"launched\", then end your turn.",
+  "negotiated": 1,
+  "agentInfo": {
+    "name": "@agentclientprotocol/claude-agent-acp",
+    "title": "Claude Agent",
+    "version": "0.75.1"
+  },
+  "agentCapabilities": {
+    "_meta": {
+      "claudeCode": {
+        "promptQueueing": true
+      },
+      "authStatus": {}
+    },
+    "promptCapabilities": {
+      "image": true,
+      "embeddedContext": true
+    },
+    "mcpCapabilities": {
+      "http": true,
+      "sse": true
+    },
+    "auth": {
+      "logout": {}
+    },
+    "providers": {},
+    "loadSession": true,
+    "sessionCapabilities": {
+      "additionalDirectories": {},
+      "close": {},
+      "delete": {},
+      "fork": {},
+      "list": {},
+      "resume": {},
+      "subagents": {}
+    }
+  },
+  "agentMeta": {
+    "jetbrains": {
+      "air": {
+        "version": 1,
+        "capabilities": [
+          "sessionFailure",
+          "agentFileChangeReport",
+          "nativeSubagentSessions",
+          "asyncTasks"
+        ]
+      }
+    },
+    "steering": {
+      "supported": true
+    },
+    "goal": {
+      "version": 1,
+      "controlMethod": "_session/goal",
+      "actions": ["set", "clear"]
+    }
+  },
+  "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+  "stopReason": "end_turn",
+  "promptEndedRel": "+31.634s",
+  "result": {
+    "rootSessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+    "promptEndedRel": "+31.634s",
+    "frames": 52,
+    "updates": 43,
+    "dispatchCalls": [
+      {
+        "rel": "+15.148s",
+        "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01UVpzoKuVLPGTXMKH7i2Puz",
+        "toolResponse": {
+          "isAsync": true,
+          "status": "async_launched",
+          "agentId": "a26fef4c40ae0ac1d",
+          "description": "Background sleep task",
+          "resolvedModel": "claude-haiku-4-5-20251001",
+          "prompt": "Run `sleep 30`, then reply FINISHED.",
+          "outputFile": "/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-subagent-cap-dvc9pP/34937d66-23c8-42be-aa1d-5f8ac48de28b/tasks/a26fef4c40ae0ac1d.output",
+          "canReadOutputFile": true
+        }
+      }
+    ],
+    "dispatchRowSurvives": true,
+    "subagentLifecycle": [
+      {
+        "rel": "+15.147s",
+        "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+        "sessionUpdate": "subagent_spawned",
+        "subagentSessionId": "a26fef4c40ae0ac1d",
+        "name": "Background sleep task",
+        "task": "Run `sleep 30`, then reply FINISHED.",
+        "capabilities": {}
+      },
+      {
+        "rel": "+25.142s",
+        "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+        "sessionUpdate": "subagent_state_update",
+        "subagentSessionId": "a26fef4c40ae0ac1d",
+        "state": "completed"
+      },
+      {
+        "rel": "+50.120s",
+        "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+        "sessionUpdate": "subagent_spawned",
+        "subagentSessionId": "a26fef4c40ae0ac1d:generation:2",
+        "name": "Background sleep task",
+        "task": "<task-notification>\n<task-id>bcylisuap</task-id>\n<tool-use-id>toolu_01YQynV6Bn3tPGc7EN6CCDo1</tool-use-id>\n<output-file>/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-subagent-cap-dvc9pP/34937d66-23c8-42be-aa1d-5f8ac48de28b/tasks/bcylisuap.output</output-file>\n<status>completed</status>\n<summary>Background command \"Sleep for 30 seconds\" completed (exit code 0)</summary>\n</task-notification>",
+        "capabilities": {}
+      },
+      {
+        "rel": "+51.502s",
+        "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+        "sessionUpdate": "subagent_state_update",
+        "subagentSessionId": "a26fef4c40ae0ac1d:generation:2",
+        "state": "completed"
+      }
+    ],
+    "spawned": [
+      {
+        "rel": "+15.147s",
+        "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+        "sessionUpdate": "subagent_spawned",
+        "subagentSessionId": "a26fef4c40ae0ac1d",
+        "name": "Background sleep task",
+        "task": "Run `sleep 30`, then reply FINISHED.",
+        "capabilities": {}
+      },
+      {
+        "rel": "+50.120s",
+        "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+        "sessionUpdate": "subagent_spawned",
+        "subagentSessionId": "a26fef4c40ae0ac1d:generation:2",
+        "name": "Background sleep task",
+        "task": "<task-notification>\n<task-id>bcylisuap</task-id>\n<tool-use-id>toolu_01YQynV6Bn3tPGc7EN6CCDo1</tool-use-id>\n<output-file>/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-subagent-cap-dvc9pP/34937d66-23c8-42be-aa1d-5f8ac48de28b/tasks/bcylisuap.output</output-file>\n<status>completed</status>\n<summary>Background command \"Sleep for 30 seconds\" completed (exit code 0)</summary>\n</task-notification>",
+        "capabilities": {}
+      }
+    ],
+    "stateUpdates": [
+      {
+        "rel": "+25.142s",
+        "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+        "sessionUpdate": "subagent_state_update",
+        "subagentSessionId": "a26fef4c40ae0ac1d",
+        "state": "completed"
+      },
+      {
+        "rel": "+51.502s",
+        "sessionId": "34937d66-23c8-42be-aa1d-5f8ac48de28b",
+        "sessionUpdate": "subagent_state_update",
+        "subagentSessionId": "a26fef4c40ae0ac1d:generation:2",
+        "state": "completed"
+      }
+    ],
+    "terminalStates": ["completed", "completed"],
+    "hasIdentifiedTerminalSignal": true,
+    "terminalAfterTurnEnd": [
+      {
+        "rel": "+51.502s",
+        "state": "completed",
+        "child": "a26fef4c40ae0ac1d:generation:2"
+      }
+    ],
+    "sessionIds": ["34937d66-23c8-42be-aa1d-5f8ac48de28b", "a26fef4c40ae0ac1d"],
+    "childSessionIds": ["a26fef4c40ae0ac1d"],
+    "updatesBySession": {
+      "34937d66-23c8-42be-aa1d-5f8ac48de28b (ROOT)": 37,
+      "a26fef4c40ae0ac1d (child)": 6
+    },
+    "sessionRoutingRequired": true,
+    "parentToolUseIdStillPresent": true,
+    "subagentProseForwarded": true,
+    "verdict": "Q1 dispatch row SURVIVES — RFC 0055's Agent(…) row still has a source\nQ2 identified terminal signal EXISTS (completed, completed)\nQ3 child sessions ARE used (1) — sessionId routing required first"
+  }
+}
