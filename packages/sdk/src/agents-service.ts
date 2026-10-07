@@ -777,6 +777,56 @@ export interface AgentToolCall {
   readonly rawInput?: unknown;
   /** The tool's own result, same caveat as {@link rawInput}. */
   readonly rawOutput?: unknown;
+  /**
+   * This call dispatched a **subagent** — the agent handed a piece of work to
+   * another agent rather than doing it itself.
+   *
+   * A **durable fact about one frame, never revised**: the agent that sent it
+   * said so, and nothing later unsays it. Carried only on the frames that
+   * announce the dispatch (`claude-agent-acp` 0.75.1 sends it on the opening
+   * `tool_call` and the first few updates, then stops), so a consumer that
+   * patches rows by {@link toolCallId} must **accumulate** it — treat absence
+   * as "unchanged", exactly as it does for {@link title}.
+   *
+   * Present only where the agent marks a dispatch explicitly; never inferred
+   * from a tool's name.
+   */
+  readonly subagent?: boolean;
+  /**
+   * The call reported a status, but only **handed its work off** to run
+   * elsewhere — so the status describes the dispatch, not the work. A UI must
+   * not render such a call as finished: its `"completed"` means "the hand-off
+   * succeeded", and the delegated work may still have minutes to run.
+   *
+   * A **durable fact about one frame, never revised**, and on a different
+   * frame from the status it qualifies — in the 2026-10-06 capture the
+   * hand-off arrived with no `status` and the `status: "completed"` arrived
+   * with no hand-off. Accumulate, as with {@link subagent}.
+   *
+   * **Liveness is deliberately not modelled here, and should not be added.**
+   * Whether the delegated work is *still running* is derived state that
+   * changes over time, while a tool call in a transcript is history; there is
+   * also nothing on the wire that revisits a dispatch to say it finished. A UI
+   * that wants to show outstanding work derives it from the session's own
+   * activity, and must not claim a *named* delegated agent completed.
+   */
+  readonly handedOff?: boolean;
+  /**
+   * The {@link toolCallId} of the dispatching call this one was made **on
+   * behalf of** — set on every tool call a subagent makes, pointing at the
+   * {@link subagent} dispatch that started it.
+   *
+   * A **durable fact about one frame, never revised**, and the one piece of
+   * per-call attribution the delegated lifecycle offers: a UI can show
+   * delegated work as it happens, attributed to the dispatch it belongs to.
+   * The calls may arrive in a *later* turn than the dispatch, so a consumer
+   * should resolve the parent by id rather than by position.
+   *
+   * Absent on a call the agent made itself. A pointer to a dispatch the
+   * consumer has never seen (a transcript replayed from mid-delegation) is a
+   * real shape — fall back to rendering the call on its own.
+   */
+  readonly parentToolCallId?: string;
 }
 
 /**

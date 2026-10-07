@@ -83,6 +83,7 @@ import {
   PencilSimple,
   Plug,
   Plus,
+  Robot,
   Shield,
   Stop as StopIcon,
   TerminalWindow,
@@ -91,6 +92,7 @@ import {
   type IconProps,
 } from "@phosphor-icons/react";
 import type {
+  AgentActivity,
   AgentCommand,
   AgentInfo,
   AgentPermissionRequest,
@@ -181,6 +183,10 @@ import {
   appendUserMessage,
   applyUpdate,
   closeDanglingTools,
+  delegationSignature,
+  delegationView,
+  dispatchLabel,
+  emptyDelegationView,
   emptyTranscript,
   foldToolRuns,
   formatMessageSentAt,
@@ -190,6 +196,7 @@ import {
   sameTurn,
   toolOutputIsMarkdown,
   nextEntryKey,
+  outstandingDelegatedLabel,
   seedFromJournal,
   stopReasonNotice,
   toolGroupLabel,
@@ -197,6 +204,7 @@ import {
   userPromptHistory,
   workedForLabel,
   TOOL_GROUP_INLINE_COUNT,
+  type DelegationView,
   type RenderEntry,
   type Transcript,
   type Turn,
@@ -363,6 +371,11 @@ interface ToolRowState {
   readonly expandedTools: ReadonlySet<string>;
   readonly onToggleTool: (key: string) => void;
   readonly isMac: boolean;
+  /** Delegation facts a row can't see in itself — which dispatch a delegated
+   *  call belongs to, and how many calls a dispatch has spawned (RFC 0055).
+   *  Lifted for the same reason the rest of this is: it's a property of the
+   *  transcript, not of one row. */
+  readonly delegation: DelegationView;
 }
 
 const TOOL_ICONS: Readonly<Record<ToolIconId, ComponentType<IconProps>>> = {
@@ -376,6 +389,10 @@ const TOOL_ICONS: Readonly<Record<ToolIconId, ComponentType<IconProps>>> = {
   fetch: Globe,
   switch: ArrowsLeftRight,
   mcp: Plug,
+  // Phosphor's Robot is already Silo's agent glyph — the Navigator's Agents
+  // row, the settings rail, and both agent extensions. A dispatch row is the
+  // same concept at a smaller scale, so it gets the same mark (RFC 0055).
+  subagent: Robot,
   other: Wrench,
 };
 
@@ -428,13 +445,15 @@ function ToolDiffBlock({ diff, inline }: { diff: ToolDiff; inline?: boolean }) {
 function ToolKindGlyph({
   kind,
   title,
+  subagent,
   className,
 }: {
   kind?: string;
   title: string;
+  subagent?: boolean;
   className?: string;
 }) {
-  const Glyph = TOOL_ICONS[toolIconId(kind, title)];
+  const Glyph = TOOL_ICONS[toolIconId(kind, title, subagent)];
   return <Glyph className={className} size="1em" aria-hidden="true" />;
 }
 
@@ -492,7 +511,25 @@ function WaveText({ text }: { text: string }) {
  * failed call breaks the run before it ever reaches a group, so a group is
  * never hiding one behind "N more, expand to see them all".
  */
-function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
+/** What a row needs to know about *where it is being drawn*, as opposed to
+ *  what it is — set only when a row is inside a `"delegated-group"` block,
+ *  where the block's own structure already says what a label would. */
+/** Module constants, not literals at the call site: `placement` is a prop of a
+ *  memoized row, and a fresh object each render would defeat the memo. */
+const EMPTY_PLACEMENT: RowPlacement = {};
+const IN_DELEGATED_GROUP: RowPlacement = { inDelegatedGroup: true };
+
+interface RowPlacement {
+  /** This row is a delegated call drawn under its dispatch, so the attribution
+   *  label is redundant — the nesting is the attribution. */
+  readonly inDelegatedGroup?: boolean;
+}
+
+function renderTranscriptEntry(
+  entry: RenderEntry,
+  tools: ToolRowState,
+  placement: RowPlacement = {},
+) {
   if (entry.type === "message") {
     // A provider can stream an agent/thought chunk that never carries real
     // content (RFC 0038 phase 3 follow-up: `omlx/Gemma 4 26B` via OpenCode
@@ -589,7 +626,11 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
       if (link && isLinkActivationClick(e, tools.isMac)) return;
       toggle();
     };
-    const kindLabel = formatToolKindLabel(entry.toolKind, entry.title);
+    const kindLabel = formatToolKindLabel(
+      entry.toolKind,
+      entry.title,
+      entry.subagent,
+    );
     // A title with no `/` (e.g. "Edit tool-demo.txt") doesn't match the
     // transcript's generic path regex, which requires one to avoid false
     // positives on things like version numbers. When the tool call names its
@@ -598,23 +639,43 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
     const titleFallbackPath =
       diffs[0]?.path ?? toolPathFromRawInput(entry.rawInput);
     const titleHasMatches = matchChatLinks(entry.title).length > 0;
+    // RFC 0055. A dispatch reads as `Agent(<what it was asked to do>)`, and a
+    // call a subagent made on its behalf names the dispatch it belongs to —
+    // resolved by id, since the children routinely land in a later turn than
+    // the dispatch and a replay may not carry the dispatch at all.
+    const rowTitle = entry.subagent ? dispatchLabel(entry.title) : entry.title;
+    // Suppressed inside a `"delegated-group"` block, where the nesting already
+    // says what the label would — it would just repeat the heading above it.
+    // It carries the attribution for the calls that *can't* be nested: a
+    // subagent's work arriving in a later turn than its dispatch, or a journal
+    // replayed from mid-delegation.
+    const delegatedFrom =
+      entry.parentToolCallId !== undefined && !placement.inDelegatedGroup
+        ? tools.delegation.dispatchTitles.get(entry.parentToolCallId)
+        : undefined;
     // The row's own label ripples while a call is still running (RFC 0043
     // tweak, Dave's call) instead of a separate "in_progress" badge —
     // `WaveText` is skipped for a title with its own embedded links (rare:
     // freeform text that happens to mention a second path/URL) rather than
     // untangling per-character spans around `matchChatLinks`' own spans; that
     // case still gets the plain, whole-row pulse (the CSS fallback below).
+    // A **handed-off** dispatch is neither of those: it is a third state, not
+    // a wider `isRunning` (RFC 0055). The ripple means "this call is running",
+    // and the dispatch is precisely what is *not* running — its `"completed"`
+    // describes the hand-off. Widening `isRunning` would also never settle,
+    // since nothing on the wire revisits a dispatch.
     const isRunning =
-      entry.status === "pending" || entry.status === "in_progress";
+      !entry.handedOff &&
+      (entry.status === "pending" || entry.status === "in_progress");
     const titleNode =
       titleFallbackPath && !titleHasMatches ? (
         <ChatLinkSpan kind="path" href={titleFallbackPath}>
-          {isRunning ? <WaveText text={entry.title} /> : entry.title}
+          {isRunning ? <WaveText text={rowTitle} /> : rowTitle}
         </ChatLinkSpan>
       ) : isRunning && !titleHasMatches ? (
-        <WaveText text={entry.title} />
+        <WaveText text={rowTitle} />
       ) : (
-        <LinkifiedText text={entry.title} />
+        <LinkifiedText text={rowTitle} />
       );
     return (
       <div
@@ -622,6 +683,8 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
         className="acp-chat__tool"
         data-status={entry.status}
         data-expanded={expanded || undefined}
+        data-handed-off={entry.handedOff || undefined}
+        data-delegated={entry.parentToolCallId !== undefined || undefined}
       >
         <div
           className="acp-chat__tool-head"
@@ -646,6 +709,7 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
               <ToolKindGlyph
                 kind={entry.toolKind}
                 title={entry.title}
+                subagent={entry.subagent}
                 className="acp-chat__tool-icon acp-chat__tool-icon--default"
               />
               <CaretRight
@@ -657,6 +721,7 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
             <ToolKindGlyph
               kind={entry.toolKind}
               title={entry.title}
+              subagent={entry.subagent}
               className="acp-chat__tool-icon"
             />
           )}
@@ -665,8 +730,35 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
               {isRunning ? <WaveText text={kindLabel} /> : kindLabel}
             </span>
           ) : null}
+          {delegatedFrom !== undefined ? (
+            <Tooltip content={`Run by the "${delegatedFrom}" agent`}>
+              <span className="acp-chat__tool-delegated-from">
+                {delegatedFrom}
+              </span>
+            </Tooltip>
+          ) : null}
           <span className="acp-chat__tool-title">{titleNode}</span>
-          {entry.status === "failed" ? (
+          {/* RFC 0055: the dispatch's own badge says *handed off*, never
+              "completed" — the vendor settles the call seconds after the
+              hand-off while the delegated work runs on. No duration and no
+              success affordance either: there is nothing on the wire that
+              would make either of them true.
+
+              `outline`, not `neutral`: neutral derives its fill from 22%
+              button ink mixed into the page background, which on a light
+              theme lands as mid-grey under near-black text — illegible
+              (Dave, 2026-10-07). Outline is body text on the panel's own
+              background with a border, so it reads in every theme by
+              construction. It is also the honest tone: this chip claims
+              neither success (`ok`), nor a problem (`warn`/`err`), nor
+              activity (`accent`) — a handed-off dispatch is none of those. */}
+          {entry.handedOff ? (
+            <Tooltip content="The agent handed this work to a background agent. Silo isn't told when it finishes.">
+              <Badge tone="outline" size="sm">
+                handed off
+              </Badge>
+            </Tooltip>
+          ) : entry.status === "failed" ? (
             <Badge tone={toolStatusTone(entry.status)} size="sm">
               {entry.status}
             </Badge>
@@ -712,6 +804,134 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
                   </pre>
                 )}
               </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+  // RFC 0055. A dispatch and the calls its subagent made, drawn as one block
+  // so several concurrent agents don't interleave into an unreadable (and
+  // mis-attributed) chronological list.
+  //
+  // Presented as a {@link ToolGroupEntry} is (Dave's call): the **dispatch row
+  // itself is the header** — caret, agent glyph, `Agent(…)` — and clicking it
+  // discloses the delegated calls, last {@link TOOL_GROUP_INLINE_COUNT}
+  // inline. So the dispatch row trades its own Input/Output disclosure for
+  // this one, which is the right trade: a dispatch's `rawInput` is the
+  // subagent's prompt and its `rawOutput` is the vendor's "Async agent
+  // launched" blurb — internal metadata the agent is explicitly told not to
+  // surface — while the delegated work is the thing the user asked to see.
+  if (entry.type === "delegated-group") {
+    const dispatch = entry.dispatch;
+    const expanded = tools.expandedTools.has(entry.key);
+    const toggle = () => tools.onToggleTool(entry.key);
+    const hasCalls = entry.calls.length > 0;
+    // The caret earns its place only when collapsing would actually hide
+    // something (Dave's call). Below the inline limit every call is on screen
+    // either way, so a disclosure control would promise a reveal it can't
+    // deliver — and reserving its box indents a dispatch that has no calls at
+    // all out of line with every other row.
+    const collapsible = entry.calls.length > TOOL_GROUP_INLINE_COUNT;
+    // Same rule as a folded tool run: the calls still worth a glance without
+    // expanding are the most recent, which is the end of the list.
+    const visible =
+      expanded || !collapsible
+        ? entry.calls
+        : entry.calls.slice(-TOOL_GROUP_INLINE_COUNT);
+    const hiddenCount = entry.calls.length - visible.length;
+    const elsewhereCount =
+      tools.delegation.delegatedCounts.get(dispatch.toolCallId) ?? 0;
+    // A dispatch is "running" only up to its hand-off; after that the row is
+    // deliberately neither running nor settled, so the label stops rippling.
+    const dispatchRunning =
+      !dispatch.handedOff &&
+      (dispatch.status === "pending" || dispatch.status === "in_progress");
+    const title = dispatchLabel(dispatch.title);
+    return (
+      <div
+        key={entry.key}
+        className="acp-chat__delegated-group"
+        data-expanded={expanded || undefined}
+        data-status={dispatch.status}
+      >
+        <div
+          className="acp-chat__delegated-group-head"
+          data-interactive={collapsible || undefined}
+          role={collapsible ? "button" : undefined}
+          tabIndex={collapsible ? 0 : undefined}
+          aria-expanded={collapsible ? expanded : undefined}
+          onClick={collapsible ? toggle : undefined}
+          onKeyDown={
+            collapsible
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggle();
+                  }
+                }
+              : undefined
+          }
+        >
+          {collapsible ? (
+            <CaretRight
+              className="acp-chat__delegated-group-caret"
+              size="1em"
+              aria-hidden="true"
+            />
+          ) : null}
+          <ToolKindGlyph
+            kind={dispatch.toolKind}
+            title={dispatch.title}
+            subagent
+            className="acp-chat__tool-icon"
+          />
+          <span className="acp-chat__tool-title">
+            {dispatchRunning ? <WaveText text={title} /> : title}
+          </span>
+          {dispatch.handedOff ? (
+            <Tooltip content="The agent handed this work to a background agent. Silo isn't told when it finishes.">
+              <Badge tone="outline" size="sm">
+                handed off
+              </Badge>
+            </Tooltip>
+          ) : dispatch.status === "failed" ? (
+            <Badge tone={toolStatusTone(dispatch.status)} size="sm">
+              {dispatch.status}
+            </Badge>
+          ) : null}
+          {/* Only when the calls are *not* under this header: a count beside
+              rows the reader can already see is noise, but a dispatch whose
+              subagent reported in a later turn would otherwise look like it
+              did nothing at all. */}
+          {!hasCalls && elsewhereCount > 0 ? (
+            <Tooltip
+              content={`${elsewhereCount} tool ${elsewhereCount === 1 ? "call" : "calls"} by this agent, shown later in the transcript`}
+            >
+              <span className="acp-chat__tool-delegated-count">
+                {elsewhereCount}
+              </span>
+            </Tooltip>
+          ) : null}
+        </div>
+        {hasCalls ? (
+          <div className="acp-chat__delegated-group-body">
+            {visible.map((call) => (
+              <TranscriptRow
+                key={call.key}
+                entry={call}
+                tools={tools}
+                placement={IN_DELEGATED_GROUP}
+              />
+            ))}
+            {!expanded && hiddenCount > 0 ? (
+              <button
+                type="button"
+                className="acp-chat__tool-group-more"
+                onClick={toggle}
+              >
+                {hiddenCount} more, expand to see them all
+              </button>
             ) : null}
           </div>
         ) : null}
@@ -823,11 +1043,15 @@ function renderTranscriptEntry(entry: RenderEntry, tools: ToolRowState) {
 const TranscriptRow = memo(function TranscriptRow({
   entry,
   tools,
+  placement = EMPTY_PLACEMENT,
 }: {
   entry: RenderEntry;
   tools: ToolRowState;
+  /** Only a `"delegated-group"` block passes this, and always as one of the
+   *  module constants above — so it stays identity-stable and the memo holds. */
+  placement?: RowPlacement;
 }) {
-  return renderTranscriptEntry(entry, tools);
+  return renderTranscriptEntry(entry, tools, placement);
 });
 
 /**
@@ -1046,6 +1270,11 @@ export function AcpChatPanel({
   // through a bespoke handle event is the observation-parity promise in
   // action, and it means the composer stops offering to send into a dead pipe.
   const [lost, setLost] = useState(false);
+  // The session's host-computed activity. Read for exactly one thing (RFC
+  // 0055): the outstanding-delegated-work line, which has no finish signal of
+  // its own and so borrows the host's "is this session still working"
+  // determination rather than inventing a second timer.
+  const [activity, setActivity] = useState<AgentActivity | undefined>();
   // Whatever session controls the agent advertised (Cursor: mode + model;
   // Claude: permission mode only). Kept in sync with the handle — a mode the
   // agent moves itself lands here too.
@@ -1166,6 +1395,7 @@ export function AcpChatPanel({
     // here or the composer keeps offering Stop for a session that is gone.
     setBusy(false);
     setLost(false);
+    setActivity(undefined);
     setConfigOptions([]);
     setDeadConfigIds(new Set());
     setAttachments([]);
@@ -1373,6 +1603,7 @@ export function AcpChatPanel({
     const read = (all: readonly AgentInfo[]) => {
       const info = sessionId ? all.find((a) => a.id === sessionId) : undefined;
       setLost(info?.activity === "error");
+      setActivity(info?.activity);
       // Where the session is *working*, which is not always where it started:
       // an agent can relocate into a git worktree mid-session. The host owns
       // that derivation (it is the only side that can confirm a directory is a
@@ -2329,12 +2560,36 @@ export function AcpChatPanel({
     inputRef.current?.focus();
   }, []);
 
+  // The delegation picture (RFC 0055), rebuilt only when it actually moved.
+  // It rides `toolRowState`, which is a prop of every memoized row, so keying
+  // it on `transcript.entries` directly would change that prop's identity on
+  // every streamed chunk and defeat the row memos for the whole transcript.
+  // The signature is cheap to recompute and changes only when a dispatch or a
+  // delegated call appears — `exhaustive-deps` is off repo-wide, and this is a
+  // case where the narrower dependency is the correct one.
+  const delegationSig = useMemo(
+    () => delegationSignature(transcript.entries),
+    [transcript.entries],
+  );
+  const delegation = useMemo(
+    () =>
+      delegationSig.length === 0
+        ? emptyDelegationView
+        : delegationView(transcript.entries),
+    [delegationSig],
+  );
+
   // Memoized because it is a prop of every memoized row: rebuilt each render,
   // it would defeat `TranscriptRow` entirely. `expandedTools` only changes
-  // identity on a toggle, and the other two never do.
+  // identity on a toggle, `delegation` only when a delegation appears, and the
+  // other two never do.
   const toolRowState: ToolRowState = useMemo(
-    () => ({ expandedTools, onToggleTool: toggleTool, isMac }),
-    [expandedTools, toggleTool, isMac],
+    () => ({ expandedTools, onToggleTool: toggleTool, isMac, delegation }),
+    [expandedTools, toggleTool, isMac, delegation],
+  );
+  const delegatedWaiting = useMemo(
+    () => outstandingDelegatedLabel(transcript.entries, activity),
+    [transcript.entries, activity],
   );
   // The turn projection is pure in `entries`, and `entries` only changes when
   // the transcript does — so a render triggered by anything else (a workspace
@@ -2547,6 +2802,31 @@ export function AcpChatPanel({
       </div>
 
       <div className="acp-chat__composer">
+        {/* RFC 0055. Panel chrome, not a transcript entry: this is live derived
+            state, and the entry stream is history. It counts dispatches and
+            never names one — nothing on the wire says *which* background agent
+            finished, so attributing a finish by name would be wrong exactly
+            when several are outstanding.
+
+            Floated above the composer's divider rather than stacked in the
+            flex column (Dave's call), by the same `bottom: 100%` trick as the
+            jump-to-bottom button beside it: as a flex item it reserved height
+            and left a dead gap the transcript couldn't scroll into. As an
+            overlay it costs no layout, so the transcript runs all the way to
+            the divider and this rides over it on its own background.
+
+            Deliberately not inside the scroller: it is standing state, and
+            anything in there scrolls out of view. */}
+        {delegatedWaiting !== undefined ? (
+          <div className="acp-chat__delegated-waiting" aria-live="polite">
+            <ArrowsClockwise
+              className="acp-chat__spin"
+              size="1em"
+              aria-hidden="true"
+            />
+            {delegatedWaiting}
+          </div>
+        ) : null}
         {pinnedToBottom ? null : (
           <Tooltip content="Jump to latest">
             <IconButton

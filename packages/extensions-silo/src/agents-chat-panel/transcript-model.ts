@@ -25,6 +25,7 @@
  */
 
 import type {
+  AgentActivity,
   AgentPlanEntry,
   AgentSessionUpdate,
   AgentToolCall,
@@ -85,6 +86,18 @@ export interface ToolEntry {
    *  reading a modelled `AgentToolCall` field, not the wire's `raw` escape
    *  hatch this file otherwise refuses. */
   readonly rawInput?: unknown;
+  /** This call dispatched a subagent (RFC 0055). Accumulated across frames —
+   *  the marker rides only the opening frames. */
+  readonly subagent?: boolean;
+  /** This call handed its work off to run elsewhere, so {@link status} is
+   *  about the hand-off and **not** about the work. The row must not render
+   *  as settled (RFC 0055). */
+  readonly handedOff?: boolean;
+  /** The `toolCallId` of the dispatch this call was made on behalf of — set
+   *  on every call a subagent makes. Resolved against the transcript's own
+   *  tool entries by id, because the children can land in a later turn than
+   *  the dispatch. */
+  readonly parentToolCallId?: string;
 }
 
 /** One row of the agent's plan. */
@@ -128,9 +141,28 @@ export interface ToolGroupEntry {
   readonly tools: readonly ToolEntry[];
 }
 
+/** A subagent dispatch plus the calls made on its behalf, drawn as one block
+ *  so a subagent's work reads as *its* work (RFC 0055). Like
+ *  {@link ToolGroupEntry} this is a render-time projection only — it never
+ *  enters `Transcript.entries`, and the entries it holds are not moved. */
+export interface DelegatedGroupEntry {
+  readonly type: "delegated-group";
+  readonly key: string;
+  /** The dispatching call — the `Agent(…)` row the block is headed by. */
+  readonly dispatch: ToolEntry;
+  /** The calls this dispatch's subagent made, in arrival order. May be empty:
+   *  a dispatch whose children land in a later turn still heads its own
+   *  block. */
+  readonly calls: readonly ToolEntry[];
+}
+
 /** What the transcript view renders, one turn's entries at a time — either an
- *  ordinary entry or a folded run of them. */
-export type RenderEntry = TranscriptEntry | ToolGroupEntry;
+ *  ordinary entry, a folded run of them, or a dispatch with its delegated
+ *  work. */
+export type RenderEntry =
+  | TranscriptEntry
+  | ToolGroupEntry
+  | DelegatedGroupEntry;
 
 /**
  * The reduced transcript. `seq` is the key counter — carried in the state so
@@ -410,6 +442,15 @@ export function applyUpdate(
         // Same tolerance: an update rarely repeats the original input, so
         // `undefined` here means "unchanged", not "now empty".
         rawInput: call.rawInput !== undefined ? call.rawInput : prev.rawInput,
+        // The delegated-work facts (RFC 0055) arrive on *different* frames of
+        // the same call: the subagent marker on the opening ones, the hand-off
+        // on a later one carrying no status, and `status: "completed"` on one
+        // carrying no hand-off. Accumulating them here — never clearing — is
+        // the whole reason the row ends up knowing it is a dispatch that was
+        // handed off rather than a call that finished.
+        subagent: call.subagent ?? prev.subagent,
+        handedOff: call.handedOff ?? prev.handedOff,
+        parentToolCallId: call.parentToolCallId ?? prev.parentToolCallId,
       };
       const entries = [...t.entries];
       entries[index] = next;
@@ -427,6 +468,11 @@ export function applyUpdate(
       lines,
       ...(diffs.length > 0 ? { diffs } : {}),
       ...(call.rawInput !== undefined ? { rawInput: call.rawInput } : {}),
+      ...(call.subagent !== undefined ? { subagent: call.subagent } : {}),
+      ...(call.handedOff !== undefined ? { handedOff: call.handedOff } : {}),
+      ...(call.parentToolCallId !== undefined
+        ? { parentToolCallId: call.parentToolCallId }
+        : {}),
     }));
   }
 
@@ -458,6 +504,13 @@ export function applyUpdate(
  * status. Call once a turn's `prompt()` has settled, success or not; only
  * one turn runs at a time, so anything still non-terminal at that point
  * belongs to the turn that just ended.
+ *
+ * A **handed-off** dispatch (RFC 0055) needs no special case here, and its
+ * absence is deliberate rather than an oversight: the vendor settles such a
+ * call to `"completed"` moments after the hand-off, so by the time this sweep
+ * runs the row is already terminal and the filter below never sees it. There
+ * is nothing to fail — the work it dispatched is elsewhere, and this function
+ * only reasons about calls *this* session left open.
  */
 export function closeDanglingTools(t: Transcript): Transcript {
   let changed = false;
@@ -576,6 +629,12 @@ export const TOOL_GROUP_INLINE_COUNT = 5;
  * two calls — each breaks the run and renders in full, on its own, so a
  * failure is never a fold away from view; folding resumes only after another
  * run this long follows it.
+ *
+ * A subagent dispatch and a delegated call (RFC 0055) break the run for the
+ * same reason: delegated work is the thing the user asked to be able to see,
+ * and folding it into `"14 Shell · 3 Read"` would hide exactly that. The
+ * delegated grouping below runs first, so what reaches the run-folding is
+ * already free of the calls that were gathered under a dispatch.
  */
 export function foldToolRuns(
   entries: readonly TranscriptEntry[],
@@ -592,11 +651,13 @@ export function foldToolRuns(
     run = [];
   };
 
-  for (const entry of entries) {
+  for (const entry of groupDelegatedCalls(entries)) {
     if (
       entry.type === "tool" &&
       (entry.diffs?.length ?? 0) === 0 &&
-      entry.status !== "failed"
+      entry.status !== "failed" &&
+      !entry.subagent &&
+      entry.parentToolCallId === undefined
     ) {
       run.push(entry);
       continue;
@@ -606,6 +667,77 @@ export function foldToolRuns(
   }
   flushRun();
   return out;
+}
+
+/**
+ * Gather each subagent dispatch's calls underneath it (RFC 0055) — the pass
+ * that turns seven interleaved agents' reads into seven readable blocks.
+ *
+ * **Scoped to one turn's entries, and that is the whole design.** The caller
+ * is {@link foldToolRuns}, which runs per turn, so this only ever reorders
+ * *within* a contiguous slice — never across a turn boundary. That matters:
+ * {@link groupTurns} models a turn as a contiguous slice of `entries`, so
+ * hoisting a call from one turn into another would corrupt the grouping for
+ * the whole transcript, not just these rows. Reordering inside a slice is
+ * exactly what the run-folding beside it already does, and is safe for the
+ * same reason — nothing is moved in `Transcript.entries`; this is a view.
+ *
+ * So a delegated call is gathered **only when its dispatch is in the same
+ * turn**. In the other observed regime — the parent's turn ends at the
+ * hand-off and the subagent's calls arrive in a later, agent-initiated turn —
+ * the calls render where they landed, carrying the attribution label instead.
+ * That is a real shape, not a failure, and so is a journal replayed from
+ * mid-delegation, where the dispatch is not in the transcript at all.
+ *
+ * Order is preserved: each block sits where its **dispatch** appeared, and the
+ * calls inside it stay in arrival order.
+ */
+export function groupDelegatedCalls(
+  entries: readonly TranscriptEntry[],
+): readonly (TranscriptEntry | DelegatedGroupEntry)[] {
+  const groups = new Map<string, DelegatedGroupEntry>();
+  for (const entry of entries) {
+    if (entry.type === "tool" && entry.subagent && entry.toolCallId) {
+      groups.set(entry.toolCallId, {
+        type: "delegated-group",
+        key: `d${entry.key}`,
+        dispatch: entry,
+        calls: [],
+      });
+    }
+  }
+  if (groups.size === 0) return entries;
+
+  const out: (TranscriptEntry | DelegatedGroupEntry)[] = [];
+  for (const entry of entries) {
+    if (entry.type !== "tool") {
+      out.push(entry);
+      continue;
+    }
+    const own = entry.subagent ? groups.get(entry.toolCallId) : undefined;
+    if (own) {
+      // The block takes the dispatch's place in document order.
+      out.push(own);
+      continue;
+    }
+    const parent =
+      entry.parentToolCallId !== undefined
+        ? groups.get(entry.parentToolCallId)
+        : undefined;
+    if (parent) {
+      groups.set(parent.dispatch.toolCallId, {
+        ...parent,
+        calls: [...parent.calls, entry],
+      });
+      continue;
+    }
+    out.push(entry);
+  }
+  // The map was rebuilt as calls accumulated, so re-read each block to pick up
+  // the children gathered after its placeholder went into `out`.
+  return out.map((e) =>
+    e.type === "delegated-group" ? (groups.get(e.dispatch.toolCallId) ?? e) : e,
+  );
 }
 
 /** The folded group's header label — e.g. `"14 Shell · 3 Read"` — so a
@@ -666,4 +798,129 @@ export function stopReasonNotice(
     default:
       return { tone: "info", text: `The turn ended: ${stopReason}.` };
   }
+}
+
+/** The dispatch row's label — `"Agent(Sleep then reply)"`. The reducer has
+ *  already relabelled the row from the vendor's opening `"Task"` to the
+ *  streamed description, so this just wraps whatever title the wire settled
+ *  on; a dispatch whose description never arrived still reads sensibly
+ *  (`"Agent(Task)"`) rather than rendering nothing. */
+export function dispatchLabel(title: string): string {
+  return `Agent(${title})`;
+}
+
+/**
+ * What a row needs to know about delegation that it cannot see in itself:
+ * every dispatch's title, and how many calls have been made on its behalf.
+ *
+ * Whole-transcript rather than per-row because the two sides of a delegation
+ * can be arbitrarily far apart — the children of a dispatch routinely arrive
+ * in a *later*, agent-initiated turn than the dispatch itself — so a
+ * delegated call resolves its dispatch **by id, never by position**.
+ */
+export interface DelegationView {
+  /** Each dispatch's title, keyed by its `toolCallId`. A delegated call whose
+   *  dispatch isn't here (a journal replay that starts mid-delegation) is a
+   *  real shape: render it as an ordinary call rather than claiming a dispatch
+   *  that cannot be found. */
+  readonly dispatchTitles: ReadonlyMap<string, string>;
+  /** How many delegated calls each dispatch has been seen to make. Shown on
+   *  the dispatch row, because its children render where they arrive — so
+   *  without a count the dispatch would say nothing about work that is
+   *  demonstrably happening under it. */
+  readonly delegatedCounts: ReadonlyMap<string, number>;
+}
+
+/** The empty view — shared, so the overwhelmingly common case (no delegation
+ *  anywhere in the transcript) keeps a stable identity for free. */
+export const emptyDelegationView: DelegationView = {
+  dispatchTitles: new Map(),
+  delegatedCounts: new Map(),
+};
+
+/** Project the delegation picture out of a whole transcript. */
+export function delegationView(
+  entries: readonly TranscriptEntry[],
+): DelegationView {
+  const dispatchTitles = new Map<string, string>();
+  const delegatedCounts = new Map<string, number>();
+  for (const entry of entries) {
+    if (entry.type !== "tool") continue;
+    if (entry.subagent && entry.toolCallId) {
+      dispatchTitles.set(entry.toolCallId, entry.title);
+    }
+    const parent = entry.parentToolCallId;
+    if (parent !== undefined) {
+      delegatedCounts.set(parent, (delegatedCounts.get(parent) ?? 0) + 1);
+    }
+  }
+  if (dispatchTitles.size === 0 && delegatedCounts.size === 0) {
+    return emptyDelegationView;
+  }
+  return { dispatchTitles, delegatedCounts };
+}
+
+/**
+ * A cheap string that changes exactly when {@link delegationView} would
+ * produce something different.
+ *
+ * The view is handed to every tool row, so rebuilding it on each streamed
+ * chunk would change that prop's identity and invalidate the memo on every
+ * turn in the transcript. Comparing this signature instead keeps the view's
+ * identity stable through the long stretches where text is streaming and the
+ * delegation picture is standing still.
+ */
+export function delegationSignature(
+  entries: readonly TranscriptEntry[],
+): string {
+  let sig = "";
+  for (const entry of entries) {
+    if (entry.type !== "tool") continue;
+    if (entry.subagent) sig += `d ${entry.toolCallId} ${entry.title}`;
+    if (entry.parentToolCallId !== undefined) {
+      sig += `c ${entry.parentToolCallId}`;
+    }
+  }
+  return sig;
+}
+
+/**
+ * The aggregate `"Waiting for 2 background agents to finish"` line, or
+ * `undefined` when there is nothing to say.
+ *
+ * **Why an aggregate and not a per-row completion.** Nothing on the wire
+ * revisits a dispatch to say the delegated work finished, and with several
+ * dispatches outstanding nothing says *which* one finished. Resolving by
+ * dispatch order would attach a specific agent's name to the wrong finish
+ * whenever they complete out of order — the normal case — so no row ever
+ * claims a completion it cannot prove, and this count is the only thing that
+ * speaks for them.
+ *
+ * **What makes it go away.** A dispatch counts as outstanding from its
+ * hand-off until the host says the session is no longer working. That reuses
+ * the one "nothing is running" determination that already exists (the turn-end
+ * marker and quiescence fallback behind `AgentInfo.activity`, which is what
+ * the tab badge trusts) rather than inventing a second timer that would have
+ * no better evidence.
+ *
+ * The known imprecision is deliberately on the quiet side: where the parent
+ * turn ends while a subagent is still running, this line hides during the gap
+ * until the notifying turn begins. That is an **undercount** — the panel says
+ * nothing about work that is still happening — and never a false claim that
+ * the work finished. Holding the line across idle would assert running work on
+ * no evidence, and would strand it forever in any session that ends with a
+ * dispatch outstanding.
+ */
+export function outstandingDelegatedLabel(
+  entries: readonly TranscriptEntry[],
+  activity: AgentActivity | undefined,
+): string | undefined {
+  if (activity !== "working") return undefined;
+  let count = 0;
+  for (const entry of entries) {
+    if (entry.type === "tool" && entry.handedOff) count += 1;
+  }
+  if (count === 0) return undefined;
+  const noun = count === 1 ? "background agent" : "background agents";
+  return `Waiting for ${count} ${noun} to finish`;
 }

@@ -8,7 +8,10 @@
  * (RFC 0040) its `available_commands_update` — is read **here**, once,
  * defensively, so no consumer has to reach into `AgentSessionUpdate.raw` for
  * it. `raw` stays on the update as the escape hatch for the kinds this file
- * deliberately leaves alone (vendor `_meta`, …).
+ * deliberately leaves alone (vendor `_meta`, …) — the one exception being the
+ * delegated-work markers, which `chat-delegated-work.ts` reads out of
+ * `_meta.claudeCode` on this file's behalf (RFC 0055). That quarantine exists
+ * precisely so the panel never has to.
  *
  * Every reader below tolerates a missing or wrongly-typed field, because the
  * wire genuinely varies: in the 2026-09-08 probe a `tool_call_update` was
@@ -26,6 +29,7 @@ import type {
   AgentToolCallContent,
   AgentToolCallLocation,
 } from "@silo-code/sdk";
+import { delegatedWorkFacts } from "./chat-delegated-work";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -119,6 +123,10 @@ export function parseToolCall(v: unknown): AgentToolCall | undefined {
       if (parsed) content.push(parsed);
     }
   }
+  // Delegated-work markers live in the vendor's `_meta`, which this file
+  // otherwise refuses to read; `chat-delegated-work.ts` is the one quarantine
+  // for them and returns nothing for a shape it doesn't recognise (RFC 0055).
+  const delegated = delegatedWorkFacts(v);
   return {
     toolCallId,
     ...(title !== undefined ? { title } : {}),
@@ -128,6 +136,15 @@ export function parseToolCall(v: unknown): AgentToolCall | undefined {
     ...(locations !== undefined ? { locations } : {}),
     ...("rawInput" in v ? { rawInput: v.rawInput } : {}),
     ...("rawOutput" in v ? { rawOutput: v.rawOutput } : {}),
+    ...(delegated.subagent !== undefined
+      ? { subagent: delegated.subagent }
+      : {}),
+    ...(delegated.handedOff !== undefined
+      ? { handedOff: delegated.handedOff }
+      : {}),
+    ...(delegated.parentToolCallId !== undefined
+      ? { parentToolCallId: delegated.parentToolCallId }
+      : {}),
   };
 }
 

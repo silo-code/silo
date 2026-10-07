@@ -79,3 +79,28 @@ describe("isMcpToolTitle", () => {
     expect(isMcpToolTitle("compile")).toBe(false);
   });
 });
+
+describe("a subagent dispatch overrides the kind the agent gave it (RFC 0055)", () => {
+  // Every agent probed sends a dispatch as kind `"think"`, which would
+  // otherwise put a lightbulb and the word "Think" on a row that started
+  // another agent.
+  it("drops the kind label entirely", () => {
+    expect(
+      formatToolKindLabel("think", "Summarize tasks", true),
+    ).toBeUndefined();
+    expect(formatToolKindLabel("execute", "anything", true)).toBeUndefined();
+  });
+
+  it("uses the agent glyph regardless of kind", () => {
+    expect(toolIconId("think", "Summarize tasks", true)).toBe("subagent");
+    expect(toolIconId(undefined, "", true)).toBe("subagent");
+    expect(toolIconId("other", "mcp__notes", true)).toBe("subagent");
+  });
+
+  it("leaves an ordinary call alone", () => {
+    expect(formatToolKindLabel("think", "Pondering")).toBe("Think");
+    expect(toolIconId("think", "Pondering")).toBe("think");
+    expect(formatToolKindLabel("think", "Pondering", false)).toBe("Think");
+    expect(toolIconId("think", "Pondering", false)).toBe("think");
+  });
+});

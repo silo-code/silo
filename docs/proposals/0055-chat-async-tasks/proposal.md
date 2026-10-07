@@ -1,5 +1,5 @@
 ---
-status: draft
+status: accepted
 created: 2026-10-06
 ---
 
@@ -24,6 +24,24 @@ Silo already receives, with no capability negotiation.
 Backgrounded **shells** are explicitly out of scope: the only source for them is
 a vendor capability that is blocked on work this proposal does not do. See
 "Out of scope".
+
+## Planning scope
+
+This proposal has **no phase table** — it is one implicit phase, and this
+planning package covers all of it. There is no prior phase and no
+implementation baseline to preserve: the dispatching row behaves today exactly
+as "Motivation" describes, and nothing in `chat-delegated-work.ts`,
+`AgentToolCall`, or the transcript's delegated-work rendering exists yet.
+
+In scope for this phase: the vendor-quarantined parser, the three parse-time
+facts on `AgentToolCall`, the transcript's handling of a dispatch and the calls
+made on its behalf, the aggregate outstanding-work line, and the `docs-sync`
+workflow for the new public surface.
+
+Out of this phase — and **blocked**, not deferred, for the reasons in "Out of
+scope — and why it is blocked, not deferred": backgrounded shells, richer
+subagent state behind any capability, and `sessionId`-aware update routing.
+Those need a prerequisite RFC, not a later phase of this one.
 
 ## Motivation
 
@@ -212,7 +230,18 @@ parser.
 
 ## Decision
 
-Open. One unknown is recorded rather than resolved: what drives the turn-regime
+**Accepted 2026-10-07**, and expanded into a planning package for
+implementation.
+
+One unknown is recorded rather than resolved: what drives the turn-regime
 split. Pin the model and re-run the probe to settle it. It does not block
 anything here — the transcript fix is correct in both regimes — but it will
 matter to any future indicator.
+
+Two points this proposal left under-specified are resolved in `design.md` under
+"Two decisions this proposal left open", because they change what gets built:
+how the aggregate count learns that delegated work has stopped (the wire offers
+no finish signal, so "the aggregate decrements" needed a rule), and whether a
+delegated call is physically relocated under its dispatch row or rendered in
+place and marked. Both resolutions are conservative and are called out for
+review before implementation begins.

@@ -129,6 +129,73 @@ describe("parseToolCall", () => {
       }),
     ).toEqual({ toolCallId: "c" });
   });
+
+  // RFC 0055. The facts themselves are `chat-delegated-work.test.ts`'s
+  // business; what matters here is that they reach the modelled surface at
+  // all, and that absence still means absence.
+  it("surfaces the delegated-work facts on the modelled call", () => {
+    expect(
+      parseToolCall({
+        _meta: { claudeCode: { toolName: "Agent", subagent: true } },
+        toolCallId: "toolu_017w2qK7W5kVxwtS8365ecQW",
+        sessionUpdate: "tool_call",
+        status: "pending",
+        title: "Task",
+        kind: "think",
+      }),
+    ).toEqual({
+      toolCallId: "toolu_017w2qK7W5kVxwtS8365ecQW",
+      status: "pending",
+      title: "Task",
+      kind: "think",
+      subagent: true,
+    });
+  });
+
+  it("surfaces a hand-off that arrived with no status of its own", () => {
+    expect(
+      parseToolCall({
+        _meta: {
+          claudeCode: {
+            toolResponse: { isAsync: true, status: "async_launched" },
+            toolName: "Agent",
+          },
+        },
+        toolCallId: "toolu_017w2qK7W5kVxwtS8365ecQW",
+        sessionUpdate: "tool_call_update",
+      }),
+    ).toEqual({
+      toolCallId: "toolu_017w2qK7W5kVxwtS8365ecQW",
+      handedOff: true,
+    });
+  });
+
+  it("surfaces a delegated call's pointer at its dispatch", () => {
+    expect(
+      parseToolCall({
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            parentToolUseId: "toolu_017w2qK7W5kVxwtS8365ecQW",
+          },
+        },
+        toolCallId: "toolu_01VwTaeFYn8sVEYQPATUootm",
+        title: "sleep 35",
+      })?.parentToolCallId,
+    ).toBe("toolu_017w2qK7W5kVxwtS8365ecQW");
+  });
+
+  it("omits each delegated-work field the wire did not carry", () => {
+    const call = parseToolCall({
+      toolCallId: "c",
+      status: "completed",
+      _meta: { claudeCode: { toolName: "Read" } },
+    })!;
+    expect(call).toEqual({ toolCallId: "c", status: "completed" });
+    expect("subagent" in call).toBe(false);
+    expect("handedOff" in call).toBe(false);
+    expect("parentToolCallId" in call).toBe(false);
+  });
 });
 
 describe("parsePlanEntries", () => {

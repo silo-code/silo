@@ -205,6 +205,51 @@ rather than dropping it. `rawInput` / `rawOutput` are the agent's own tool
 arguments and result: protocol-carried, but **vendor-shaped by definition**, so
 they are typed `unknown` and each agent's shape differs.
 
+### Delegated work
+
+Some agents hand a piece of work to another agent and keep going. Three fields
+model that, so a transcript can tell the truth about it:
+
+| Field              | What it means                                                 |
+| ------------------ | ------------------------------------------------------------- |
+| `subagent`         | This call dispatched a subagent.                              |
+| `handedOff`        | The call's `status` describes the **hand-off**, not the work. |
+| `parentToolCallId` | The dispatch this call was made on behalf of.                 |
+
+`handedOff` is the one that changes what you draw. A dispatching call settles
+to `status: "completed"` seconds after the hand-off while the delegated work
+runs on for minutes — so **a `handedOff` call must not render as finished.**
+Its `"completed"` means "the hand-off succeeded".
+
+Each of the three is a **durable fact about one frame, never revised**, and
+they arrive on _different_ frames of the same call: the subagent marker on the
+opening ones, the hand-off on a later frame that carries no `status` at all,
+and the `status: "completed"` on one that carries no hand-off. So accumulate
+them the same way you accumulate `title` — absent means _unchanged_:
+
+```ts
+upsertRow(call.toolCallId, (prev) => ({
+  ...prev,
+  subagent: call.subagent ?? prev.subagent,
+  handedOff: call.handedOff ?? prev.handedOff,
+  parentToolCallId: call.parentToolCallId ?? prev.parentToolCallId,
+}));
+```
+
+`parentToolCallId` is per-call attribution for the whole delegated lifecycle —
+every tool call a subagent makes carries it. Resolve the parent **by id, not by
+position**: the children routinely arrive in a _later_ turn than the dispatch,
+and a transcript replayed from mid-delegation may not contain the dispatch at
+all.
+
+**Liveness is deliberately not modelled**, and you should not derive a
+per-dispatch one. Nothing in the protocol revisits a dispatch to say the
+delegated work finished, and with several outstanding, nothing says _which_ one
+finished — so a UI can honestly show an aggregate ("waiting for 2 background
+agents"), gated on the session's own `AgentInfo.activity`, but must never claim
+a _named_ delegated agent completed. All three fields are absent for an agent
+that doesn't report delegation, which is most of them.
+
 ### The plan
 
 A `plan` update carries the agent's plan **in full** — the agent reissues the
