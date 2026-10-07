@@ -7,6 +7,7 @@ import { getFileService } from "../extension-host/file-service";
 // Re-exported here for the CenterDock empty state, which already holds the
 // saved-entry data to pass in and so doesn't need the async resolver.
 export { buildOpenWorkspaceItems } from "../extension-host/open-workspace-menu";
+export { resolveOpenWorkspaceMenuItems } from "../extension-host/open-workspace-menu";
 
 /**
  * Best-effort check of whether each closed workspace's folder still exists, so a

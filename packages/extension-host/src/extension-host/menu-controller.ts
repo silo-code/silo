@@ -41,6 +41,15 @@ export interface OpenMenuSpec extends MenuPlacement {
    * `ShowMenuOptions.toggle` in `@silo-code/sdk`.
    */
   toggle?: boolean;
+  /**
+   * When set, this menu can refresh its own rows in place instead of closing:
+   * {@link refreshMenu} re-runs it and swaps in the returned items without
+   * dismissing (the open menu keeps its anchor, placement, and focus). Used by
+   * menus whose rows stay valid after an in-place mutation — e.g. the "Open
+   * workspace" dropdown, so several workspaces can be deleted in a row. Host
+   * internal: not part of the public `ShowMenuOptions`.
+   */
+  refresh?: () => MenuEntry[] | Promise<MenuEntry[]>;
 }
 
 /** @internal — the live open-menu record, including its promise resolver. */
@@ -101,6 +110,31 @@ export function closeMenu(): void {
   current = null;
   emit();
   c.resolve();
+}
+
+/**
+ * Refresh the open menu's rows in place — re-run its `refresh` and swap in the
+ * new items without dismissing it (same `id`, so the `<Menu>` neither remounts
+ * nor restores focus). Resolves `false` when no menu is open, it registers no
+ * `refresh`, or it was closed/replaced mid-await, so callers can fall back to
+ * {@link closeMenu}.
+ *
+ * @internal
+ */
+export async function refreshMenu(): Promise<boolean> {
+  const c = current;
+  if (!c?.refresh) return false;
+  let items: MenuEntry[];
+  try {
+    items = await c.refresh();
+  } catch (err) {
+    console.error("menu refresh failed", err);
+    return false;
+  }
+  if (current !== c) return false; // closed or replaced by another openMenu meanwhile
+  current = { ...c, items };
+  emit();
+  return true;
 }
 
 // ── Global document handlers ───────────────────────────────────────────────

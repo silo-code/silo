@@ -13,23 +13,41 @@ import {
   type ToolbarControlEntry,
   type ToolbarEntry,
 } from "../extension-host/toolbar-items";
+import type { MenuEntry } from "@silo-code/sdk";
 import "./ContributedToolbar.css";
+
+// The host opens a toolbar menu and can refresh its rows in place (so a row that
+// mutates the model behind it — e.g. deleting a workspace from the "Open
+// workspace" menu — keeps the dropdown open). `refresh` is host-internal, so the
+// toolbar widens `ShowMenuOptions` locally; `ctx.ui.showMenu` (which ignores the
+// extra field) still satisfies the narrowed signature, and `openMenu` carries
+// the refresh through.
+type ShowMenuWithRefresh = ShowMenuOptions & {
+  refresh?: () => MenuEntry[] | Promise<MenuEntry[]>;
+};
 
 type Props<S extends ToolbarSurface> = {
   surface: S;
   target: ToolbarItemContext[S];
   /** Host menu opener — typically `ctx.ui.showMenu`. */
-  showMenu: (opts: ShowMenuOptions) => Promise<void>;
+  showMenu: (opts: ShowMenuWithRefresh) => Promise<void>;
 };
 
 async function activateEntry(
   entry: ToolbarControlEntry,
-  showMenu: Props<ToolbarSurface>["showMenu"],
+  showMenu: (opts: ShowMenuWithRefresh) => Promise<void>,
   anchor: HTMLElement,
 ): Promise<void> {
   if (entry.kind === "menu") {
     const items = await entry.loadMenu();
-    await showMenu({ items, anchor, align: "end" });
+    // Re-run the same loader on refresh so the just-opened menu can re-resolve
+    // its rows after an in-place delete instead of going stale.
+    await showMenu({
+      items,
+      anchor,
+      align: "end",
+      refresh: () => entry.loadMenu(),
+    });
     return;
   }
   entry.runCommand();
