@@ -159,8 +159,9 @@ New public surface, so this carries the full `silo-docs-sync` workflow.
   with the agent's description. This is the whole fix.
 - `parentToolCallId` attributes each child call to its dispatch, so the panel
   can group them under it and show the delegated work as it happens.
-- An aggregate `Waiting for N background agents to finish` while any dispatch
-  has no terminal signal.
+- An aggregate notice naming how many agents were **dispatched**. Not "waiting
+  for N to finish": see "Revised after the capability spike" below — no finish
+  signal exists, so a countdown is a promise the wire cannot keep.
 
 **Per-row completion is not rendered, and that is deliberate.** With several
 dispatches outstanding, nothing on the wire says which one finished. Resolving
@@ -186,7 +187,47 @@ Sound and attention are untouched. `needsAttention` has one writer and one rule;
 a turn starting clears it, so a second writer would wipe exactly the
 notification the user wanted.
 
-## Out of scope — and why it is blocked, not deferred
+## Revised after the capability spike (2026-10-07)
+
+The section below was written from reading `claude-agent-acp@0.75.1`'s `dist/`,
+not from a run. A spike
+(`scratchpad/acp-probe/subagent-capability-2026-10-07.mjs`, three captures)
+advertised `clientCapabilities.subagents = {}` against that adapter and
+`claude` CLI 2.1.291 and **contradicted its three load-bearing claims**:
+
+| Claim below                                                             | Observed with the capability advertised                                 |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| The dispatching row is deleted (`route()` returns `null`)               | It **survives** — every frame still arrives, `async_launched` included  |
+| `subagent_spawned` / `subagent_state_update` give a terminal signal     | **Zero** lifecycle frames, for backgrounded _and_ synchronous subagents |
+| Child work arrives on a child `sessionId`, so routing is a prerequisite | **No child sessions**; everything stayed on the root                    |
+
+The adapter accepted the opt-in (it echoed `sessionCapabilities.subagents: {}`
+back), so this is not a handshake mistake. The native path is driven by a CLI
+`system`/`task_started` stream message that never reached it; _why_ is not
+established — the probe sees JSON-RPC, not the CLI↔adapter stream beneath it.
+The AIR opt-in variant was not run.
+
+**Consequences.** This proposal is **not** superseded by a capability — there is
+nothing to be superseded by today, and the prerequisite RFC named below has
+nothing to build against. The capability-free design here is the only one that
+works, which also means its central limitation is permanent for now: **no finish
+signal, for any individual subagent.** Hence the aggregate states dispatches
+rather than claiming a countdown.
+
+Re-run the spike when the adapter or CLI moves; "does not work today" is well
+evidenced, "cannot work" is not.
+
+## Out of scope — and why it was thought blocked
+
+**Correction (2026-10-07):** the claim below that `asyncTasks` is blocked on
+the same two facts is **wrong**. For a backgrounded shell the adapter _keeps_
+the tool call and tags it `_meta.air.asyncTasks = { backgrounded: true }`, and
+`async_task_state_update` carries both a `toolCallId` and a terminal `state` —
+no row is deleted and no session routing is involved. Backgrounded shells are
+therefore unblocked today, and are a far smaller piece of work than the
+subagent path. (`asyncTasks` still cannot help _subagents_: `taskStarted` sets
+`ignored = true` for anything with a `subagent_type` or `taskType ===
+"local_agent"`.)
 
 Backgrounded **shells** need AIR `asyncTasks`; richer subagent state needs either
 AIR `nativeSubagentSessions` or canonical `clientCapabilities.subagents` (v1

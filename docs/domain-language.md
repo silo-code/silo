@@ -814,8 +814,10 @@ already reads `Agent(…)`.
 Each is a **durable fact about one frame, never revised**; the three arrive on
 _different_ frames of one call and the panel's reducer accumulates them.
 **Liveness is deliberately not one of them** — nothing on the wire revisits a
-dispatch to say its work finished, so the panel shows an aggregate count gated
-on `AgentInfo.activity`, and no row claims a completion it cannot prove.
+dispatch to say its work finished, and no capability available today supplies
+it (probed 2026-10-07). So the panel states only what it can prove: a
+**dispatch notice** counting the agents handed work in the current exchange,
+never a countdown and never a named completion.
 _Avoid_: "background task" / "async task" (a **Task** in this glossary is
 Silo's own; and backgrounded _shells_ are a different, currently unavailable
 thing); "running" for a handed-off dispatch (the dispatch is precisely what is

@@ -92,7 +92,6 @@ import {
   type IconProps,
 } from "@phosphor-icons/react";
 import type {
-  AgentActivity,
   AgentCommand,
   AgentInfo,
   AgentPermissionRequest,
@@ -183,6 +182,7 @@ import {
   appendUserMessage,
   applyUpdate,
   closeDanglingTools,
+  delegatedDispatchNotice,
   delegationSignature,
   delegationView,
   dispatchLabel,
@@ -196,7 +196,6 @@ import {
   sameTurn,
   toolOutputIsMarkdown,
   nextEntryKey,
-  outstandingDelegatedLabel,
   seedFromJournal,
   stopReasonNotice,
   toolGroupLabel,
@@ -1270,11 +1269,6 @@ export function AcpChatPanel({
   // through a bespoke handle event is the observation-parity promise in
   // action, and it means the composer stops offering to send into a dead pipe.
   const [lost, setLost] = useState(false);
-  // The session's host-computed activity. Read for exactly one thing (RFC
-  // 0055): the outstanding-delegated-work line, which has no finish signal of
-  // its own and so borrows the host's "is this session still working"
-  // determination rather than inventing a second timer.
-  const [activity, setActivity] = useState<AgentActivity | undefined>();
   // Whatever session controls the agent advertised (Cursor: mode + model;
   // Claude: permission mode only). Kept in sync with the handle — a mode the
   // agent moves itself lands here too.
@@ -1395,7 +1389,6 @@ export function AcpChatPanel({
     // here or the composer keeps offering Stop for a session that is gone.
     setBusy(false);
     setLost(false);
-    setActivity(undefined);
     setConfigOptions([]);
     setDeadConfigIds(new Set());
     setAttachments([]);
@@ -1603,7 +1596,6 @@ export function AcpChatPanel({
     const read = (all: readonly AgentInfo[]) => {
       const info = sessionId ? all.find((a) => a.id === sessionId) : undefined;
       setLost(info?.activity === "error");
-      setActivity(info?.activity);
       // Where the session is *working*, which is not always where it started:
       // an agent can relocate into a git worktree mid-session. The host owns
       // that derivation (it is the only side that can confirm a directory is a
@@ -2588,8 +2580,8 @@ export function AcpChatPanel({
     [expandedTools, toggleTool, isMac, delegation],
   );
   const delegatedWaiting = useMemo(
-    () => outstandingDelegatedLabel(transcript.entries, activity),
-    [transcript.entries, activity],
+    () => delegatedDispatchNotice(transcript.entries),
+    [transcript.entries],
   );
   // The turn projection is pure in `entries`, and `entries` only changes when
   // the transcript does — so a render triggered by anything else (a workspace
@@ -2802,11 +2794,16 @@ export function AcpChatPanel({
       </div>
 
       <div className="acp-chat__composer">
-        {/* RFC 0055. Panel chrome, not a transcript entry: this is live derived
-            state, and the entry stream is history. It counts dispatches and
-            never names one — nothing on the wire says *which* background agent
-            finished, so attributing a finish by name would be wrong exactly
-            when several are outstanding.
+        {/* RFC 0055. Panel chrome, not a transcript entry: the entry stream is
+            history, and this is a standing fact about the exchange. It counts
+            dispatches and never names one — nothing on the wire says *which*
+            background agent finished.
+
+            The glyph is the static agent mark, not the spinner this used to
+            carry: a spinner asserts work in progress, which is exactly the
+            claim the wire cannot support. The text says what was dispatched;
+            the tooltip carries the caveat that Silo is not told when they
+            finish.
 
             Floated above the composer's divider rather than stacked in the
             flex column (Dave's call), by the same `bottom: 100%` trick as the
@@ -2818,14 +2815,12 @@ export function AcpChatPanel({
             Deliberately not inside the scroller: it is standing state, and
             anything in there scrolls out of view. */}
         {delegatedWaiting !== undefined ? (
-          <div className="acp-chat__delegated-waiting" aria-live="polite">
-            <ArrowsClockwise
-              className="acp-chat__spin"
-              size="1em"
-              aria-hidden="true"
-            />
-            {delegatedWaiting}
-          </div>
+          <Tooltip content="Silo isn't told when a background agent finishes, so this counts what was dispatched — not what is still running.">
+            <div className="acp-chat__delegated-waiting" aria-live="polite">
+              <Robot size="1em" aria-hidden="true" />
+              {delegatedWaiting}
+            </div>
+          </Tooltip>
         ) : null}
         {pinnedToBottom ? null : (
           <Tooltip content="Jump to latest">

@@ -9,6 +9,7 @@ import {
   appendUserMessage,
   applyUpdate,
   closeDanglingTools,
+  delegatedDispatchNotice,
   delegationSignature,
   delegationView,
   dispatchLabel,
@@ -22,7 +23,7 @@ import {
   groupTurns,
   isBlankMessageText,
   nextEntryKey,
-  outstandingDelegatedLabel,
+  delegatedDispatchNotice,
   sameTurn,
   planRows,
   seedFromJournal,
@@ -1205,16 +1206,18 @@ describe("dispatchLabel", () => {
   });
 });
 
-describe("outstandingDelegatedLabel", () => {
-  const working = fold(FULL_DISPATCH).entries;
+describe("delegatedDispatchNotice", () => {
+  const dispatched = fold(FULL_DISPATCH).entries;
 
-  it("names the count while the session is working", () => {
-    expect(outstandingDelegatedLabel(working, "working")).toBe(
-      "Waiting for 1 background agent to finish",
+  it("states what was dispatched, not what is running", () => {
+    // The whole point of the rewording: nothing on the wire supports a claim
+    // that the work is still in flight, so the notice does not make one.
+    expect(delegatedDispatchNotice(dispatched)).toBe(
+      "1 background agent dispatched",
     );
   });
 
-  it("pluralises for several outstanding dispatches", () => {
+  it("pluralises", () => {
     const second = [
       tool("tool_call", {
         toolCallId: "d2",
@@ -1226,54 +1229,73 @@ describe("outstandingDelegatedLabel", () => {
       tool("tool_call_update", { toolCallId: "d2", handedOff: true }),
       tool("tool_call_update", { toolCallId: "d2", status: "completed" }),
     ];
-    const entries = fold([...FULL_DISPATCH, ...second]).entries;
-    expect(outstandingDelegatedLabel(entries, "working")).toBe(
-      "Waiting for 2 background agents to finish",
-    );
+    expect(
+      delegatedDispatchNotice(fold([...FULL_DISPATCH, ...second]).entries),
+    ).toBe("2 background agents dispatched");
   });
 
   it("is absent with no dispatch at all", () => {
-    expect(
-      outstandingDelegatedLabel(fold(readCalls(3)).entries, "working"),
-    ).toBeUndefined();
-    expect(outstandingDelegatedLabel([], "working")).toBeUndefined();
+    expect(delegatedDispatchNotice(fold(readCalls(3)).entries)).toBeUndefined();
+    expect(delegatedDispatchNotice([])).toBeUndefined();
   });
 
-  it("is absent before the hand-off — a dispatch being set up is not outstanding", () => {
+  it("is absent before the hand-off — a dispatch being set up is not yet away", () => {
     expect(
-      outstandingDelegatedLabel(fold([dispatchOpen]).entries, "working"),
+      delegatedDispatchNotice(fold([dispatchOpen]).entries),
     ).toBeUndefined();
   });
 
-  // The liveness rule, which is the one decision the wire forced: there is no
-  // finish signal for a dispatch, so the line borrows the host's "is this
-  // session working" determination rather than inventing a second timer.
-  it.each(["idle", "none", "blocked", "error", "dead"] as const)(
-    "is absent once the host reports activity %s",
-    (activity) => {
-      expect(outstandingDelegatedLabel(working, activity)).toBeUndefined();
-    },
-  );
-
-  it("is absent when the session's activity is not yet known", () => {
-    expect(outstandingDelegatedLabel(working, undefined)).toBeUndefined();
+  // The bug this replaced: the notice was gated on `AgentInfo.activity ===
+  // "working"`, so between the parent's turn ending and the next notification
+  // turn it vanished while subagents were demonstrably still working.
+  it("does not depend on session activity, so it cannot flicker", () => {
+    // Same entries, no activity argument to vary — the signature itself is the
+    // guarantee. Kept as a test so reintroducing a liveness gate fails here.
+    expect(delegatedDispatchNotice(dispatched)).toBe(
+      delegatedDispatchNotice(dispatched),
+    );
+    expect(delegatedDispatchNotice.length).toBe(1);
   });
 
-  // The known imprecision, pinned deliberately. In the regime where the
-  // parent's turn ends mid-flight, the line hides until the notifying turn
-  // starts — an undercount, never a false claim that the work finished.
-  it("reappears when the agent-initiated turn re-marks the session working", () => {
-    expect(outstandingDelegatedLabel(working, "idle")).toBeUndefined();
-    expect(outstandingDelegatedLabel(working, "working")).toBe(
-      "Waiting for 1 background agent to finish",
+  // Scoped to the exchange: a transcript-wide tally grows without bound over a
+  // long session and stops meaning anything.
+  it("counts only dispatches since the last user message", () => {
+    const t = fold([
+      chunk("user_message_chunk", "first ask", "m1"),
+      ...FULL_DISPATCH,
+      chunk("user_message_chunk", "second ask", "m2"),
+    ]);
+    expect(delegatedDispatchNotice(t.entries)).toBeUndefined();
+  });
+
+  it("counts a new exchange's dispatches on their own", () => {
+    const second = [
+      tool("tool_call", {
+        toolCallId: "d9",
+        title: "Later agent",
+        kind: "think",
+        subagent: true,
+        status: "pending",
+      }),
+      tool("tool_call_update", { toolCallId: "d9", handedOff: true }),
+    ];
+    const t = fold([
+      chunk("user_message_chunk", "first ask", "m1"),
+      ...FULL_DISPATCH,
+      chunk("user_message_chunk", "second ask", "m2"),
+      ...second,
+    ]);
+    expect(delegatedDispatchNotice(t.entries)).toBe(
+      "1 background agent dispatched",
     );
   });
 
   it("never names a delegated agent", () => {
     // Nothing on the wire says *which* dispatch finished, so the aggregate is
     // the only honest statement available.
-    const label = outstandingDelegatedLabel(working, "working")!;
-    expect(label).not.toContain("Sleep then reply");
+    expect(delegatedDispatchNotice(dispatched)).not.toContain(
+      "Sleep then reply",
+    );
   });
 });
 

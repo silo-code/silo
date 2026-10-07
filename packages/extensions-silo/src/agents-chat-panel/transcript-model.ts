@@ -25,7 +25,6 @@
  */
 
 import type {
-  AgentActivity,
   AgentPlanEntry,
   AgentSessionUpdate,
   AgentToolCall,
@@ -885,42 +884,46 @@ export function delegationSignature(
 }
 
 /**
- * The aggregate `"Waiting for 2 background agents to finish"` line, or
- * `undefined` when there is nothing to say.
+ * The `"2 background agents dispatched"` notice, or `undefined` when this
+ * exchange dispatched none.
  *
- * **Why an aggregate and not a per-row completion.** Nothing on the wire
- * revisits a dispatch to say the delegated work finished, and with several
- * dispatches outstanding nothing says *which* one finished. Resolving by
- * dispatch order would attach a specific agent's name to the wrong finish
- * whenever they complete out of order — the normal case — so no row ever
- * claims a completion it cannot prove, and this count is the only thing that
- * speaks for them.
+ * **It counts dispatches, and says so.** An earlier version read "Waiting for 2
+ * background agents to finish", which claimed two things the wire cannot
+ * support: that the work is still running, and that the number shrinks as
+ * agents finish. Neither is knowable. Nothing revisits a dispatch to report a
+ * finish, and with several outstanding nothing says *which* one finished — so
+ * the count could only ever go up, and a line promising a countdown that never
+ * came read as broken (Dave, 2026-10-07). A probe of the adapter's subagent
+ * capability (`scratchpad/acp-probe/subagent-capability-2026-10-07.mjs`)
+ * confirmed there is no better signal available to opt into today.
  *
- * **What makes it go away.** A dispatch counts as outstanding from its
- * hand-off until the host says the session is no longer working. That reuses
- * the one "nothing is running" determination that already exists (the turn-end
- * marker and quiescence fallback behind `AgentInfo.activity`, which is what
- * the tab badge trusts) rather than inventing a second timer that would have
- * no better evidence.
+ * So the notice states the one fact that *is* certain — this many agents were
+ * handed work — and the tooltip carries the caveat that Silo is not told when
+ * they finish. No row and no count ever names an individual agent as done.
  *
- * The known imprecision is deliberately on the quiet side: where the parent
- * turn ends while a subagent is still running, this line hides during the gap
- * until the notifying turn begins. That is an **undercount** — the panel says
- * nothing about work that is still happening — and never a false claim that
- * the work finished. Holding the line across idle would assert running work on
- * no evidence, and would strand it forever in any session that ends with a
- * dispatch outstanding.
+ * **Scoped to the current exchange**, i.e. dispatches since the last user
+ * message. Two reasons: over a long session a transcript-wide tally grows
+ * without bound and stops meaning anything, and "dispatched" is naturally read
+ * against what you just asked for. Sending the next prompt is therefore what
+ * clears it.
+ *
+ * Deliberately **not** gated on `AgentInfo.activity`. It was, and that is what
+ * made the line vanish and reappear while subagents were demonstrably still
+ * working: between the parent's turn ending and the next notification turn the
+ * session reads idle. A statement about what was dispatched does not stop being
+ * true while the session is quiet.
  */
-export function outstandingDelegatedLabel(
+export function delegatedDispatchNotice(
   entries: readonly TranscriptEntry[],
-  activity: AgentActivity | undefined,
 ): string | undefined {
-  if (activity !== "working") return undefined;
   let count = 0;
   for (const entry of entries) {
+    // A user message opens a new exchange, so anything before it belongs to a
+    // question already answered.
+    if (entry.type === "message" && entry.role === "user") count = 0;
     if (entry.type === "tool" && entry.handedOff) count += 1;
   }
   if (count === 0) return undefined;
   const noun = count === 1 ? "background agent" : "background agents";
-  return `Waiting for ${count} ${noun} to finish`;
+  return `${count} ${noun} dispatched`;
 }

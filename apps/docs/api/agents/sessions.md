@@ -242,13 +242,24 @@ position**: the children routinely arrive in a _later_ turn than the dispatch,
 and a transcript replayed from mid-delegation may not contain the dispatch at
 all.
 
-**Liveness is deliberately not modelled**, and you should not derive a
-per-dispatch one. Nothing in the protocol revisits a dispatch to say the
-delegated work finished, and with several outstanding, nothing says _which_ one
-finished — so a UI can honestly show an aggregate ("waiting for 2 background
-agents"), gated on the session's own `AgentInfo.activity`, but must never claim
-a _named_ delegated agent completed. All three fields are absent for an agent
-that doesn't report delegation, which is most of them.
+**Liveness is deliberately not modelled, and cannot be derived.** Nothing in the
+protocol revisits a dispatch to say the delegated work finished, and with
+several outstanding, nothing says _which_ one finished. So a count of dispatches
+can only ever go up — **say what was dispatched, not what is still running**:
+
+```ts
+// honest — a fact that stays true
+`${n} background agents dispatched`;
+// not supportable — implies liveness, and a countdown that never comes
+`Waiting for ${n} background agents to finish`;
+```
+
+Avoid a spinner beside it for the same reason, and never name an individual
+agent as finished. Silo's own panel scopes the count to the current exchange,
+since a transcript-wide tally grows without bound.
+
+All three fields are absent for an agent that doesn't report delegation, which
+is most of them.
 
 ### The plan
 

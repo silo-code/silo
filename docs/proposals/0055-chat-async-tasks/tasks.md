@@ -10,7 +10,7 @@ Working artifact — removed when the proposal collapses.
       left open" with Dave. They change what gets built.
       **Implemented to both as written, pending Dave's sign-off** (2026-10-07).
       Not blocked on the answer: each alternative is localized — the liveness
-      rule is one predicate in `outstandingDelegatedLabel`, and relocation is
+      rule is one predicate in `delegatedDispatchNotice`, and relocation is
       the option `design.md` already shows corrupts `groupTurns`' contiguous-
       slice invariant. Flagged in the implementation report.
 
@@ -68,8 +68,12 @@ Working artifact — removed when the proposal collapses.
 - [x] Show the delegated-call count on the dispatch row — **narrowed** to the
       case where the calls are _not_ gathered beneath it (a later turn, or a
       mid-delegation replay); beside visible rows it was just noise.
-- [x] Add the aggregate `Waiting for N background agent(s) to finish` line in
-      the panel chrome, gated on the design's liveness rule.
+- [x] Add the aggregate line in the panel chrome. **Reworded 2026-10-07** to
+      `N background agent(s) dispatched`, ungated: the liveness rule made it
+      flicker off while subagents were still working, and "waiting to finish"
+      promised a countdown that cannot happen. Scoped to the current exchange,
+      static agent glyph instead of a spinner, caveat in the tooltip. See the
+      proposal's "Revised after the capability spike".
 - [x] Style all of it with design tokens only; use the SDK `Tooltip` for any
       hover hint.
 
@@ -118,7 +122,13 @@ Working artifact — removed when the proposal collapses.
       "…2 background agents…" with both outstanding, and cleared when the host
       reported the session idle.
 - [ ] Decide whether the stability caveat warrants an ADR, or whether the
-      collapsed proposal is the right home for it.
+      collapsed proposal is the right home for it. The capability spike
+      (2026-10-07) strengthens the case: three documented claims about the
+      adapter turned out wrong when run, which is itself the argument for
+      treating this whole surface as unversioned.
+- [ ] Re-run `subagent-capability-2026-10-07.mjs` when the adapter or `claude`
+      CLI moves, and with `PROBE_OPT_IN=air` (not yet run). "No finish signal"
+      is the premise the aggregate's wording rests on.
 - [ ] Collapse to a single curated `docs/proposals/0055-chat-async-tasks.md`
       with `status: implemented`, delete `requirements.md` / `design.md` /
       `tasks.md`, and repoint the index row in `docs/proposals/README.md`.
