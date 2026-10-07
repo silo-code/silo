@@ -1,6 +1,6 @@
 # Interface: AgentSessionConfigChoice
 
-Defined in: [packages/sdk/src/agents-service.ts:961](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L961)
+Defined in: [packages/sdk/src/agents-service.ts:979](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L979)
 
 **`Beta`**
 
@@ -14,7 +14,7 @@ One selectable value inside an [AgentSessionConfigOption](AgentSessionConfigOpti
 readonly value: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:963](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L963)
+Defined in: [packages/sdk/src/agents-service.ts:981](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L981)
 
 **`Beta`**
 
@@ -28,7 +28,7 @@ The value to pass to [AgentSessionHandle.setConfigOption](AgentSessionHandle.md#
 readonly name: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:965](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L965)
+Defined in: [packages/sdk/src/agents-service.ts:983](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L983)
 
 **`Beta`**
 
@@ -42,7 +42,7 @@ Label to show, e.g. `"Claude Sonnet"`, `"Plan"`.
 readonly optional description?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:967](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L967)
+Defined in: [packages/sdk/src/agents-service.ts:985](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L985)
 
 **`Beta`**
 

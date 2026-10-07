@@ -41,6 +41,7 @@ import {
   setPanelAgentSession,
 } from "./agent-surface-registry";
 import { recordedPanelId } from "../dock-panel-kinds";
+import { restoredIdleSince } from "./agent-turn-model";
 import {
   chatAgentInfos,
   getChatAgentEntry,
@@ -152,20 +153,39 @@ export function dormantChatSessions(
  * - **`error` / `dead` do not.** Both describe a process, and this session has
  *   none until something reconnects; the panel decides what to show once it
  *   tries.
+ * - **`idleSince` survives.** When the last turn ended is a fact about the
+ *   past; a restart does not move it. This is the whole point of the field —
+ *   before it, a restored Chat session's age was recomputed from the moment
+ *   something first noticed it, so every restart relabelled a days-old finish
+ *   as seconds (RFC 0056). A record with no precise stamp — mid-turn when the
+ *   app exited, or written before the field existed — falls back to
+ *   `lastLiveAt` via {@link restoredIdleSince}, so the row still has an age.
  */
 export function restoredActivity(persisted: PersistedChatSession): {
   activity: AgentActivity;
   needsAttention: boolean;
   attentionSince?: string;
+  idleSince?: string;
   stale: boolean;
 } {
   const wasWorking = persisted.activity === "working";
+  // When it stopped also survives, and for the same reason attention does: it
+  // is a fact about the past, which a restart does not change. A Chat session
+  // always comes back stopped (`activity: "idle"` below), so `stopped` is
+  // unconditionally true — see {@link restoredIdleSince} for what stands in
+  // when the record carries no precise stamp.
+  const idleSince = restoredIdleSince({
+    stopped: true,
+    idleSince: persisted.idleSince,
+    lastLiveAt: persisted.lastLiveAt,
+  });
   return {
     activity: "idle",
     needsAttention: persisted.needsAttention,
     ...(persisted.attentionSince
       ? { attentionSince: persisted.attentionSince }
       : {}),
+    ...(idleSince ? { idleSince } : {}),
     stale: wasWorking,
   };
 }
@@ -199,6 +219,7 @@ export function chatSessionStatus(
     activity: info.activity,
     needsAttention: info.needsAttention,
     ...(info.attentionSince ? { attentionSince: info.attentionSince } : {}),
+    ...(info.idleSince ? { idleSince: info.idleSince } : {}),
     lastLiveAt,
   };
 }
@@ -245,7 +266,8 @@ export function chatSessionStatusChanged(
     prev.canResume !== next.canResume ||
     prev.activity !== next.activity ||
     prev.needsAttention !== next.needsAttention ||
-    prev.attentionSince !== next.attentionSince
+    prev.attentionSince !== next.attentionSince ||
+    prev.idleSince !== next.idleSince
   );
 }
 

@@ -9,7 +9,6 @@ import {
   moveItem,
   orderAgeRows,
   reconcileAgeManualOrder,
-  updateDoneSince,
   type AgentRow,
 } from "./agents-panel-view";
 
@@ -462,80 +461,10 @@ describe("isAtLeastHoursOld", () => {
   });
 });
 
-describe("updateDoneSince", () => {
-  it("stamps a newly-done terminal with the given now", () => {
-    const next = updateDoneSince(
-      new Map(),
-      [agent({ activity: "idle" })],
-      "t0",
-    );
-    expect(next.get("t1")).toBe("t0");
-  });
-
-  it("keeps the original timestamp while a terminal stays done across calls", () => {
-    const first = updateDoneSince(
-      new Map(),
-      [agent({ activity: "idle" })],
-      "t0",
-    );
-    const second = updateDoneSince(first, [agent({ activity: "idle" })], "t1");
-    expect(second.get("t1")).toBe("t0");
-  });
-
-  it("does not track terminals outside the done section", () => {
-    const next = updateDoneSince(
-      new Map(),
-      [agent({ activity: "working" })],
-      "t0",
-    );
-    expect(next.has("t1")).toBe(false);
-    expect(
-      updateDoneSince(
-        new Map(),
-        [
-          agent({
-            activity: "idle",
-            needsAttention: true,
-            attentionSince: "x",
-          }),
-        ],
-        "t0",
-      ).has("t1"),
-    ).toBe(false);
-  });
-
-  it("drops a terminal once it's no longer in the snapshot (closed)", () => {
-    const first = updateDoneSince(
-      new Map(),
-      [agent({ activity: "idle" })],
-      "t0",
-    );
-    const second = updateDoneSince(first, [], "t1");
-    expect(second.has("t1")).toBe(false);
-  });
-
-  it("re-stamps a terminal that leaves done and later returns to it", () => {
-    const done = updateDoneSince(
-      new Map(),
-      [agent({ activity: "idle" })],
-      "t0",
-    );
-    const working = updateDoneSince(
-      done,
-      [agent({ activity: "working" })],
-      "t1",
-    );
-    expect(working.has("t1")).toBe(false); // gone while working — not "done"
-    const doneAgain = updateDoneSince(
-      working,
-      [agent({ activity: "idle" })],
-      "t2",
-    );
-    expect(doneAgain.get("t1")).toBe("t2"); // fresh stamp, not the original t0
-  });
-});
-
-describe("buildAgentRows + groupAgentRows with a doneSince map", () => {
+// RFC 0056: "done" rows date themselves from the host's `idleSince`, the same
+// way "ready" and "working" rows already read `attentionSince`/`workingSince`.
+// This extension tracks no timestamps of its own.
+describe("buildAgentRows + groupAgentRows — done rows date from idleSince", () => {
   it("gives done rows a since, sorted shortest-duration-first like the other sections", () => {
     const ws = workspace({
       terminals: [
@@ -543,17 +472,22 @@ describe("buildAgentRows + groupAgentRows with a doneSince map", () => {
         { id: "t2", sessionId: "s2", kind: "claude", title: "b" },
       ],
     });
-    const doneSince = new Map([
-      ["t1", "2026-01-01T00:00:00Z"], // done longer ago
-      ["t2", "2026-01-01T00:05:00Z"], // done more recently — shorter duration
-    ]);
     const rows = buildAgentRows(
       [
-        agent({ terminalId: "t1", activity: "idle" }),
-        agent({ terminalId: "t2", activity: "idle" }),
+        // done longer ago
+        agent({
+          terminalId: "t1",
+          activity: "idle",
+          idleSince: "2026-01-01T00:00:00Z",
+        }),
+        // done more recently — shorter duration
+        agent({
+          terminalId: "t2",
+          activity: "idle",
+          idleSince: "2026-01-01T00:05:00Z",
+        }),
       ],
       [ws],
-      doneSince,
     );
     expect(rows.map((r) => r.since)).toEqual([
       "2026-01-01T00:00:00Z",
@@ -563,6 +497,30 @@ describe("buildAgentRows + groupAgentRows with a doneSince map", () => {
       "t2",
       "t1",
     ]);
+  });
+
+  it("leaves since undefined for a session that has never run a turn", () => {
+    const rows = buildAgentRows([agent({ activity: "idle" })], [workspace()]);
+    expect(rows[0]?.section).toBe("done");
+    expect(rows[0]?.since).toBeUndefined();
+  });
+
+  // A pending finish is still dated from attentionSince, even once the host
+  // has also stamped idleSince — the row is in "ready", not "done".
+  it("prefers attentionSince for a ready row that also carries idleSince", () => {
+    const rows = buildAgentRows(
+      [
+        agent({
+          activity: "idle",
+          needsAttention: true,
+          attentionSince: "2026-01-01T00:09:00Z",
+          idleSince: "2026-01-01T00:09:00Z",
+        }),
+      ],
+      [workspace()],
+    );
+    expect(rows[0]?.section).toBe("ready");
+    expect(rows[0]?.since).toBe("2026-01-01T00:09:00Z");
   });
 });
 

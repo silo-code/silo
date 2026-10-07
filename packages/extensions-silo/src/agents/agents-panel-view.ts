@@ -16,8 +16,8 @@ export type AgentSection = "ready" | "working" | "done";
 export interface AgentRow {
   /** The Agent Session id (`AgentInfo.id`) — the key everything the row does
    *  goes through: `ctx.agents.reveal`, `acknowledge`, the "Recent" drag
-   *  order, the done-since map. Equals {@link AgentRow.terminalId} for a
-   *  Terminal session; a Chat session has only this. */
+   *  order. Equals {@link AgentRow.terminalId} for a Terminal session; a Chat
+   *  session has only this. */
   id: string;
   /** The backing terminal record id — present for a Terminal session, absent
    *  for a Chat session (RFC 0038). */
@@ -35,18 +35,21 @@ export interface AgentRow {
    * undefined before the host has resolved which agent this is. */
   agentId?: string;
   /**
-   * When this row entered its current section — `attentionSince` for "ready",
-   * `workingSince` for "working" (both host-owned and restart-durable). For
-   * "done", the host doesn't track an equivalent (acknowledged idle, error,
-   * dead all clear their own timestamps) — worse, `TerminalRecord
-   * .lastActiveAt` looks like a stand-in (its doc says "last output") but
-   * isn't actually updated on PTY output; the only write site is
-   * `recreateTerminal` (a backend reconnect), so it resets to "now" for
-   * reasons unrelated to the agent finishing, which is why using it here
-   * briefly produced rows whose duration jumped around. So this comes from
-   * {@link updateDoneSince}'s own local tracking instead — see its
-   * persistence note for how the "resets on every extension reload" version
-   * of that problem is handled.
+   * When this row entered its current section, straight from the host:
+   * `attentionSince` for "ready", `workingSince` for "working",
+   * `idleSince` for "done". All three are host-owned and restart-durable, so
+   * this extension tracks no timestamps of its own.
+   *
+   * It did once, and the reason it stopped is worth remembering: there was no
+   * host field for "done", so the extension stamped the first snapshot in
+   * which it saw a session finished. A session missing from any single
+   * snapshot — which every Chat session is, briefly, while dormant
+   * registration catches up after a restart — lost its stamp and was re-dated
+   * to "just now" on the next one. `idleSince` (RFC 0056) replaced that guess
+   * with the moment the turn actually ended.
+   *
+   * Undefined for a session that has never run a turn; the row then shows no
+   * duration, which is the honest answer.
    */
   since?: string;
 }
@@ -74,9 +77,7 @@ function sectionFor(a: AgentInfo): AgentSection | null {
  * Build the flat row list for every tracked agent that should appear in the
  * panel. Rows whose workspace can no longer be found (closed since the agent
  * snapshot was taken) are silently dropped rather than shown with placeholder
- * text. `doneSince` supplies the locally-tracked timestamp for "done" rows
- * (see {@link updateDoneSince}); omit it only where a duration for "done" rows
- * isn't needed.
+ * text.
  *
  * Nothing here branches on {@link AgentInfo.kind}: a Chat session and a
  * Terminal session produce the same row from the same fields, which is the
@@ -85,7 +86,6 @@ function sectionFor(a: AgentInfo): AgentSection | null {
 export function buildAgentRows(
   agents: readonly AgentInfo[],
   workspaces: readonly Workspace[],
-  doneSince: ReadonlyMap<string, string> = new Map(),
 ): AgentRow[] {
   const workspaceById = new Map(workspaces.map((ws) => [ws.id, ws]));
   const rows: AgentRow[] = [];
@@ -108,43 +108,10 @@ export function buildAgentRows(
           ? a.attentionSince
           : section === "working"
             ? a.workingSince
-            : doneSince.get(a.id),
+            : a.idleSince,
     });
   }
   return rows;
-}
-
-/**
- * Track "how long has this row been done" locally, since the host doesn't
- * expose an equivalent to `attentionSince`/`workingSince` for "done", and
- * `TerminalRecord.lastActiveAt` isn't a safe substitute (see the caveat on
- * {@link AgentRow.since}). Call on every new {@link AgentInfo} snapshot,
- * threading the previous call's result back in as `prev`: a session keeps
- * its first-seen timestamp for as long as it stays "done" *continuously*,
- * and gets re-stamped at `nowIso` the moment it re-enters "done" from another
- * section (ready or working) — including the very first time this extension
- * observes it, since `prev` starts empty.
- *
- * That first-seen moment would be a real gap on its own — a session that
- * was already done before this extension started watching would show a
- * duration counted from then, not from whenever it actually finished, and
- * every reload would reset every row to that same freshly-observed instant.
- * `agents-panel.tsx` closes it by persisting this map to `ctx.storage.global`
- * and seeding `prev` from that on mount, so `updateDoneSince` only "starts
- * over" for a row the very first time it's ever seen done, not on every
- * reload.
- */
-export function updateDoneSince(
-  prev: ReadonlyMap<string, string>,
-  agents: readonly AgentInfo[],
-  nowIso: string,
-): Map<string, string> {
-  const next = new Map<string, string>();
-  for (const a of agents) {
-    if (sectionFor(a) !== "done") continue;
-    next.set(a.id, prev.get(a.id) ?? nowIso);
-  }
-  return next;
 }
 
 export const SECTION_ORDER: readonly AgentSection[] = [
@@ -184,9 +151,8 @@ export function isAtLeastHoursOld(isoDate: string, hours: number): boolean {
 /**
  * Order two rows within a single section: rows with a `since` timestamp sort
  * most-recent-first — i.e. shortest duration first, since a smaller elapsed
- * time means a more recent `since`. (Every row normally carries one once
- * `buildAgentRows` is given a `doneSince` map; the alphabetical-by-title
- * fallback only matters for a caller that omits it.)
+ * time means a more recent `since`. The alphabetical-by-title fallback covers
+ * a session that has never run a turn and so has no timestamp in any section.
  *
  * Ordering is driven purely by the fixed ISO `since` string, never by an
  * elapsed duration computed against `Date.now()` — so a row's position never

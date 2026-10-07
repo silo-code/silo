@@ -33,6 +33,7 @@
  */
 
 import type { AgentActivity, TerminalKind } from "@silo-code/sdk";
+import type { TurnPhase } from "./agent-turn-model";
 import { beginTurn, endTurn, witnessTurn } from "./agent-turn-model";
 
 export type EventSource = "agent" | "shell" | "timer";
@@ -44,6 +45,9 @@ export interface AgentActivityState {
   readonly needsAttention: boolean;
   readonly attentionSince: string | null;
   readonly workingSince: string | null;
+  /** When the last turn ended — see {@link TurnPhase.idleSince}. Survives
+   *  acknowledgment, so a settled row can still report its age. */
+  readonly idleSince: string | null;
   /** Which source last set activity to "working"; gates timer-source demotion. */
   readonly workingSource: "agent" | "shell" | null;
   readonly stale: boolean;
@@ -70,6 +74,10 @@ export type AgentActivityEvent =
       /** The terminal's backend was confirmed gone (unclean shutdown). Fired
        * once, at the moment `TerminalPanel` observes SESSION_GONE on reattach. */
       type: "dead";
+      /** When the death was observed — stamped onto `idleSince` only if the
+       *  session was still mid-turn, so a long-idle terminal confirmed dead
+       *  keeps its real age (see {@link stoppedAt}). */
+      now: string;
       sessionId?: string;
       resumeCommand?: string;
       agentName?: string;
@@ -91,6 +99,8 @@ export type AgentActivityEvent =
        * {@link resetOnDemotion}).
        */
       type: "exited";
+      /** When the reclaim was observed — see the `now` on `"dead"`. */
+      now: string;
     }
   | {
       /**
@@ -106,6 +116,8 @@ export type AgentActivityEvent =
        * none, so it survives to `markSessionDead`.
        */
       type: "process-gone";
+      /** When the drop was observed — see the `now` on `"dead"`. */
+      now: string;
     };
 
 export function isLiveSignal(
@@ -122,6 +134,7 @@ export function initialState(kind: TerminalKind): AgentActivityState {
     needsAttention: false,
     attentionSince: null,
     workingSince: null,
+    idleSince: null,
     workingSource: null,
     stale: false,
     sessionId: null,
@@ -158,6 +171,17 @@ export function restoreState(
 }
 
 /**
+ * `idleSince` for one of the three stops that do **not** go through
+ * {@link endTurn} — `dead`, `exited`, `process-gone`. Same rule the turn core
+ * applies: a session that was running stopped *now*; one that was already
+ * stopped keeps the timestamp it had. A terminal confirmed dead at boot after
+ * sitting idle for three days reports the three-day-old stamp, not boot.
+ */
+function stoppedAt(prev: AgentActivityState, now: string): string | null {
+  return prev.activity === "working" ? now : prev.idleSince;
+}
+
+/**
  * Apply one event. Returns `prev` by identity when nothing changed, so
  * callers can skip invalidations on a no-op tick.
  */
@@ -178,6 +202,7 @@ export function reduce(
       needsAttention: false,
       attentionSince: null,
       workingSince: null,
+      idleSince: stoppedAt(prev, ev.now),
       workingSource: null,
       stale: false,
       sessionId: ev.sessionId ?? prev.sessionId,
@@ -207,6 +232,7 @@ export function reduce(
       needsAttention: false,
       attentionSince: null,
       workingSince: null,
+      idleSince: stoppedAt(prev, ev.now),
       workingSource: null,
       stale: false,
     };
@@ -227,6 +253,7 @@ export function reduce(
       needsAttention: false,
       attentionSince: null,
       workingSince: null,
+      idleSince: stoppedAt(prev, ev.now),
       workingSource: null,
       stale: false,
     };
@@ -240,8 +267,14 @@ export function reduce(
   // `prev.activity`, but the shared turn core is typed over the full
   // `AgentActivity` and assigning its result back must stay legal.
   let activity: AgentActivity = prev.activity;
-  let { needsAttention, attentionSince, workingSince, workingSource, stale } =
-    prev;
+  let {
+    needsAttention,
+    attentionSince,
+    workingSince,
+    idleSince,
+    workingSource,
+    stale,
+  } = prev;
 
   if (isLiveSignal(ev)) stale = false;
 
@@ -259,11 +292,23 @@ export function reduce(
       const turn =
         ev.status === "working"
           ? beginTurn(
-              { activity, needsAttention, attentionSince, workingSince },
+              {
+                activity,
+                needsAttention,
+                attentionSince,
+                workingSince,
+                idleSince,
+              },
               ev.now,
             )
           : endTurn(
-              { activity, needsAttention, attentionSince, workingSince },
+              {
+                activity,
+                needsAttention,
+                attentionSince,
+                workingSince,
+                idleSince,
+              },
               {
                 now: ev.now,
                 isAgent,
@@ -271,7 +316,8 @@ export function reduce(
                 outcome: ev.status === "idle" ? "finished" : "failed",
               },
             );
-      ({ activity, needsAttention, attentionSince, workingSince } = turn);
+      ({ activity, needsAttention, attentionSince, workingSince, idleSince } =
+        turn);
       workingSource =
         ev.status === "working"
           ? ev.source === "agent"
@@ -301,6 +347,7 @@ export function reduce(
     needsAttention === prev.needsAttention &&
     attentionSince === prev.attentionSince &&
     workingSince === prev.workingSince &&
+    idleSince === prev.idleSince &&
     workingSource === prev.workingSource &&
     stale === prev.stale
   ) {
@@ -313,6 +360,7 @@ export function reduce(
     needsAttention,
     attentionSince,
     workingSince,
+    idleSince,
     workingSource,
     stale,
   };

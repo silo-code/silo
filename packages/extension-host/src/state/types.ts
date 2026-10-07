@@ -235,6 +235,10 @@ export interface PersistedAgentInfo {
   needsAttention: boolean;
   attentionSince?: string;
   workingSince?: string;
+  /** When the last turn ended — see `AgentInfo.idleSince`. Persisted so a
+   *  settled session reports its real age after a restart instead of dating
+   *  from whenever it was next observed (RFC 0056). */
+  idleSince?: string;
   /** Which source last set activity to "working"; gates timer-source
    *  demotion after restore the same way it does live — see
    *  `agent-activity-model.ts`'s `reduce()`. */
@@ -305,6 +309,14 @@ export interface PersistedChatSession {
   activity: AgentActivity;
   needsAttention: boolean;
   attentionSince?: string;
+  /**
+   * When the session's last turn ended — see `AgentInfo.idleSince`. Unlike
+   * `activity`, this *is* carried over verbatim: when a turn stopped is a
+   * fact about the past, not about a live connection. A session that was
+   * mid-turn has none, and `restoredActivity` falls back to `lastLiveAt`
+   * (RFC 0056).
+   */
+  idleSince?: string;
   /** ISO timestamp of the last live update to any of the fields above. */
   lastLiveAt: string;
 }

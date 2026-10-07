@@ -30,6 +30,15 @@ export interface TurnPhase {
   readonly needsAttention: boolean;
   readonly attentionSince: string | null;
   readonly workingSince: string | null;
+  /**
+   * When the last turn *ended* — the mirror of `workingSince`, and the only
+   * one of these four that outlives being seen. `attentionSince` answers "is
+   * there something unread here" and is cleared the moment someone looks;
+   * this answers "how long ago did this stop", which looking at it does not
+   * change. A settled session needs the second question answered and has
+   * nothing left to answer it with, which is why this exists (RFC 0056).
+   */
+  readonly idleSince: string | null;
 }
 
 /**
@@ -59,6 +68,9 @@ export function beginTurn(prev: TurnPhase, now: string): TurnPhase {
     needsAttention: false,
     attentionSince: null,
     workingSince: now,
+    // Running again, so "how long since it stopped" has no answer until it
+    // stops again. `workingSince` is the live field for the whole of a turn.
+    idleSince: null,
   };
 }
 
@@ -81,6 +93,29 @@ export function beginTurn(prev: TurnPhase, now: string): TurnPhase {
  * Attention is only recomputed for a turn that was actually running
  * (`prev.activity === "working"`). An idle-from-idle signal — a repeated OSC
  * tick, a stray detector — must not resurrect or wipe a pending finish.
+ *
+ * `idleSince` follows its own rule, in two parts (RFC 0056). It is stamped at
+ * the working → stopped edge, and also the **first** time a session is seen
+ * stopped at all without one — but never again after that. Both halves matter:
+ *
+ * - Re-stamping on an idle-from-idle tick (a repeated OSC signal, a stray
+ *   detector) would walk the timestamp forward for a session that has not run
+ *   in days, which is the exact failure this field was added to end.
+ * - Only stamping at the edge leaves a session that reaches `idle` *without*
+ *   passing through `working` in this process with no timestamp forever —
+ *   and that is the common case on restore, not an edge case. A reattached
+ *   terminal's OSC scrollback replays as an idle prompt against a state
+ *   machine that starts at `"none"`, so the one transition it makes is
+ *   `none → idle`, which is not an edge. Those rows rendered with no duration
+ *   at all until this clause existed.
+ *
+ * So the first observation wins and then holds, which is also why a better
+ * answer always beats it: a persisted stamp, or {@link restoredIdleSince}'s
+ * `lastLiveAt` estimate, is already in `prev` by the time anything gets here.
+ *
+ * Unlike attention it is stamped for **every** outcome, `cancelled` and
+ * `failed` included: all three mean the session stopped, which is all the
+ * field claims.
  */
 export function endTurn(
   prev: TurnPhase,
@@ -107,13 +142,50 @@ export function endTurn(
         : null
       : prev.attentionSince,
     workingSince: null,
+    idleSince: wasWorking ? ev.now : (prev.idleSince ?? ev.now),
   };
+}
+
+/**
+ * `idleSince` for a session being restored from persistence — the one place
+ * both kinds answer "when did this stop" for a turn whose end was never
+ * observed.
+ *
+ * A precise `idleSince` always wins. Without one there are two cases, and
+ * `stopped` is what separates them — whether the session comes back *not
+ * working*, which a Terminal session decides from its persisted activity and
+ * a Chat session is always (`restoredActivity` forces `idle`):
+ *
+ * - **Stopped** — either the app died mid-turn, or this record predates the
+ *   field. Both mean the turn ended at some unobserved moment, and
+ *   `lastLiveAt` — the last live detection signal, not a reconnect or a title
+ *   refresh — is the honest lower bound. Without it a settled session shows
+ *   no duration at all, which is how this landed the first time: every
+ *   pre-existing row in the Agents navigator went blank, because no record
+ *   written before the field existed carried one.
+ * - **Still working** — `workingSince` is the live field; there is no idle
+ *   duration to report until the turn actually ends.
+ *
+ * Self-healing: the first real turn end overwrites the estimate with the
+ * exact stamp, and persists it.
+ */
+export function restoredIdleSince(args: {
+  readonly stopped: boolean;
+  readonly idleSince?: string | null;
+  readonly lastLiveAt: string;
+}): string | null {
+  if (args.idleSince) return args.idleSince;
+  return args.stopped ? args.lastLiveAt : null;
 }
 
 /**
  * Someone looked: clear the pending-finish flag. `ctx.agents.acknowledge` and
  * the terminal reducer's `"activated"` event are the same act. Returns `prev`
  * unchanged when nothing was pending, so callers can skip a notify.
+ *
+ * `idleSince` deliberately rides through untouched. Seeing a finish changes
+ * whether it is unread, not when it happened — and a row that has just been
+ * acknowledged is precisely the one that still needs its age (RFC 0056).
  */
 export function witnessTurn(prev: TurnPhase): TurnPhase {
   if (!prev.needsAttention) return prev;

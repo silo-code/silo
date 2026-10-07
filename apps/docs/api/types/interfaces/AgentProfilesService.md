@@ -1,6 +1,6 @@
 # Interface: AgentProfilesService
 
-Defined in: [packages/sdk/src/agents-service.ts:521](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L521)
+Defined in: [packages/sdk/src/agents-service.ts:539](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L539)
 
 **`Beta`**
 
@@ -41,7 +41,7 @@ if (chosen) {
 list(): readonly AgentProfileSummary[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:527](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L527)
+Defined in: [packages/sdk/src/agents-service.ts:545](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L545)
 
 **`Beta`**
 
@@ -61,7 +61,7 @@ readonly [`AgentProfileSummary`](AgentProfileSummary.md)[]
 launch(options?): LaunchAgentProfileResult;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:535](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L535)
+Defined in: [packages/sdk/src/agents-service.ts:553](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L553)
 
 **`Beta`**
 

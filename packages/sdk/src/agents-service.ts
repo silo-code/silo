@@ -173,6 +173,24 @@ export interface AgentInfo {
   /** ISO timestamp of when the current `"working"` phase started; undefined otherwise. */
   readonly workingSince?: string;
   /**
+   * ISO timestamp of when this session's last turn **ended** — when it
+   * stopped working. Undefined for a session that has never run a turn, and
+   * while one is running ({@link AgentInfo.workingSince} is the live field
+   * then).
+   *
+   * The counterpart to {@link AgentInfo.attentionSince}, and deliberately not
+   * the same thing. `attentionSince` answers "is there something unread
+   * here", so {@link AgentsService.acknowledge} clears it; this answers "how
+   * long ago did this stop", which looking at the session does not change. A
+   * settled, already-seen session has only this left to date it by — which is
+   * what makes a "finished 3h ago" row possible.
+   *
+   * Persisted and restored for both session kinds, so it survives a restart
+   * and an extension reload rather than restarting from whenever the reader
+   * first observed the session.
+   */
+  readonly idleSince?: string;
+  /**
    * Soft, time-gap-based, **self-clearing** signal: this restored `working`/
    * `needsAttention` duration followed a gap long enough that it can't be
    * fully trusted — the agent may have finished without it being observed.

@@ -83,6 +83,7 @@ import {
 import {
   beginTurn,
   endTurn,
+  restoredIdleSince,
   type TurnOutcome,
   type TurnPhase,
 } from "./agent-turn-model";
@@ -518,9 +519,25 @@ export function createAgentSessionsService(
       // label is exactly the regression this whole path exists to prevent.
       // Both halves apply to a restore only — a fresh session has no prior
       // title, and `options.title` is documented as ignored without `resume`.
+      const priorStatus = resumeTarget
+        ? store.chatSessionState[`chat:${resumeTarget.sessionId}`]
+        : undefined;
       const restoredTitle = resumeTarget
-        ? (options?.title ??
-          store.chatSessionState[`chat:${resumeTarget.sessionId}`]?.title)
+        ? (options?.title ?? priorStatus?.title)
+        : undefined;
+      // When this conversation last stopped, carried across the reconnect.
+      // Reconnecting to a session does not change when its last turn ended,
+      // so both registrations below have to hand it back — dropping it is
+      // what made a restored row's duration appear from the dormant entry and
+      // then vanish the instant its panel mounted and connected (RFC 0056).
+      // `stopped` is unconditionally true: neither registration below is a
+      // running turn, and a live one re-stamps through `endTurn` anyway.
+      const priorIdleSince = priorStatus
+        ? (restoredIdleSince({
+            stopped: true,
+            idleSince: priorStatus.idleSince,
+            lastLiveAt: priorStatus.lastLiveAt,
+          }) ?? undefined)
         : undefined;
       let placeholderId: string | null = null;
       if (resumeTarget) {
@@ -539,6 +556,7 @@ export function createAgentSessionsService(
           isAgent: true,
           activity: "idle",
           needsAttention: false,
+          idleSince: priorIdleSince,
           stale: false,
           canResume: false,
           sessionId: resumeTarget.sessionId,
@@ -730,6 +748,7 @@ export function createAgentSessionsService(
           needsAttention: info?.needsAttention ?? false,
           attentionSince: info?.attentionSince ?? null,
           workingSince: info?.workingSince ?? null,
+          idleSince: info?.idleSince ?? null,
         };
       }
 
@@ -739,6 +758,7 @@ export function createAgentSessionsService(
           needsAttention: phase.needsAttention,
           attentionSince: phase.attentionSince ?? undefined,
           workingSince: phase.workingSince ?? undefined,
+          idleSince: phase.idleSince ?? undefined,
         });
       }
 
@@ -1249,6 +1269,7 @@ export function createAgentSessionsService(
         isAgent: true,
         activity: resumeOutcome === "journal-only" ? "dead" : "idle",
         needsAttention: false,
+        idleSince: priorIdleSince,
         stale: false,
         canResume,
         sessionId: persistSessionId,

@@ -23,14 +23,12 @@ import {
   settingsService,
 } from "./settings";
 import { AgentsPanel } from "./agents-panel";
-import { initDoneSince, recordDoneSince } from "./done-since";
 import { initManualOrder } from "./manual-order";
 import { AgentIconGlyph } from "@silo-code/sdk";
 import "./styles.css";
 
 function activate(ctx: ExtensionContext): AgentsExtensionAPI {
   ctx.subscriptions.push(initSettings(ctx.storage.global));
-  ctx.subscriptions.push(initDoneSince(ctx.storage.global));
   ctx.subscriptions.push(initManualOrder(ctx.storage.global));
 
   // Latest host-computed agent state, keyed by **Agent Session id**
@@ -94,9 +92,6 @@ function activate(ctx: ExtensionContext): AgentsExtensionAPI {
     }
     agents.clear();
     for (const [id, a] of next) agents.set(id, a);
-    // Stamp newly-done rows here rather than during a panel render, so the
-    // "done for 3h" durations keep accruing even with no agent view open.
-    recordDoneSince(state);
     if (ring) maybePlayTransitionSound();
     if (blocked) maybePlayBlockedSound();
     ctx.workspaces.invalidateStatus();
