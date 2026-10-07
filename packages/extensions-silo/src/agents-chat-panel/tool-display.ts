@@ -20,6 +20,7 @@ export type ToolIconId =
   | "fetch"
   | "switch"
   | "mcp"
+  | "subagent"
   | "other";
 
 const KIND_LABELS: Readonly<Record<string, string>> = {
@@ -50,11 +51,18 @@ export function isMcpToolTitle(title: string): boolean {
 }
 
 /** Visible kind label, or `undefined` when the row should show only the
- *  title (no kind, or an MCP title that already names itself). */
+ *  title (no kind, or an MCP title that already names itself).
+ *
+ * A **subagent dispatch** (RFC 0055) shows no kind either. The agents probed
+ * send it as kind `"think"`, which is both wrong and redundant beside a title
+ * that already reads `Agent(…)` — dispatching work is not the agent thinking
+ * out loud, and the row has its own glyph to say what it is. */
 export function formatToolKindLabel(
   kind: string | undefined,
   title = "",
+  subagent = false,
 ): string | undefined {
+  if (subagent) return undefined;
   const key = normalizeKind(kind);
   if (!key) return undefined;
   if (key === "other" && isMcpToolTitle(title)) return undefined;
@@ -63,7 +71,15 @@ export function formatToolKindLabel(
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
-export function toolIconId(kind: string | undefined, title = ""): ToolIconId {
+export function toolIconId(
+  kind: string | undefined,
+  title = "",
+  subagent = false,
+): ToolIconId {
+  // A dispatch is what it is regardless of the kind the agent labelled it
+  // with — `"think"` on every agent probed, which would otherwise put a
+  // lightbulb on a row that started another agent (RFC 0055).
+  if (subagent) return "subagent";
   const key = normalizeKind(kind);
   // Kind wins when the agent gave a real category — a Read of `mcp-notes.md`
   // is still a read. The plug is only for MCP-shaped titles with no better

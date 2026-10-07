@@ -1,0 +1,210 @@
+{
+  "agent": "@agentclientprotocol/claude-agent-acp@0.75.1",
+  "cwd": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-subagent-cap-loejfC",
+  "logPath": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-subagent-cap-loejfC/frames-cap-canonical-sync-2026-10-07T18-52-01-273Z.jsonl",
+  "optIn": "canonical",
+  "background": false,
+  "advertised": {
+    "fs": {
+      "readTextFile": false,
+      "writeTextFile": false
+    },
+    "terminal": false,
+    "subagents": {}
+  },
+  "prompt": "Use the Task tool with subagent_type \"general-purpose\" (do NOT set run_in_background). Its prompt: \"Run `sleep 20`, then reply FINISHED.\" Wait for it, then reply with the single word \"done\" and end your turn.",
+  "negotiated": 1,
+  "agentInfo": {
+    "name": "@agentclientprotocol/claude-agent-acp",
+    "title": "Claude Agent",
+    "version": "0.75.1"
+  },
+  "agentCapabilities": {
+    "_meta": {
+      "claudeCode": {
+        "promptQueueing": true
+      },
+      "authStatus": {}
+    },
+    "promptCapabilities": {
+      "image": true,
+      "embeddedContext": true
+    },
+    "mcpCapabilities": {
+      "http": true,
+      "sse": true
+    },
+    "auth": {
+      "logout": {}
+    },
+    "providers": {},
+    "loadSession": true,
+    "sessionCapabilities": {
+      "additionalDirectories": {},
+      "close": {},
+      "delete": {},
+      "fork": {},
+      "list": {},
+      "resume": {},
+      "subagents": {}
+    }
+  },
+  "agentMeta": {
+    "jetbrains": {
+      "air": {
+        "version": 1,
+        "capabilities": [
+          "sessionFailure",
+          "agentFileChangeReport",
+          "nativeSubagentSessions",
+          "asyncTasks"
+        ]
+      }
+    },
+    "steering": {
+      "supported": true
+    },
+    "goal": {
+      "version": 1,
+      "controlMethod": "_session/goal",
+      "actions": ["set", "clear"]
+    }
+  },
+  "sessionId": "4079967b-71bb-4699-9338-74c337c1f917",
+  "stopReason": "end_turn",
+  "promptEndedRel": "+44.002s",
+  "result": {
+    "rootSessionId": "4079967b-71bb-4699-9338-74c337c1f917",
+    "promptEndedRel": "+44.002s",
+    "frames": 30,
+    "updates": 21,
+    "dispatchCalls": [
+      {
+        "rel": "+11.074s",
+        "sessionId": "4079967b-71bb-4699-9338-74c337c1f917",
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_01JsmSphMe3Kwy7WWrFEDx4L",
+        "status": "pending",
+        "title": "Task"
+      },
+      {
+        "rel": "+11.251s",
+        "sessionId": "4079967b-71bb-4699-9338-74c337c1f917",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01JsmSphMe3Kwy7WWrFEDx4L",
+        "title": "Sleep then finish"
+      },
+      {
+        "rel": "+12.028s",
+        "sessionId": "4079967b-71bb-4699-9338-74c337c1f917",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01JsmSphMe3Kwy7WWrFEDx4L",
+        "title": "Sleep then finish"
+      },
+      {
+        "rel": "+12.029s",
+        "sessionId": "4079967b-71bb-4699-9338-74c337c1f917",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01JsmSphMe3Kwy7WWrFEDx4L",
+        "title": "Sleep then finish"
+      },
+      {
+        "rel": "+12.031s",
+        "sessionId": "4079967b-71bb-4699-9338-74c337c1f917",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01JsmSphMe3Kwy7WWrFEDx4L",
+        "title": "Sleep then finish"
+      },
+      {
+        "rel": "+38.400s",
+        "sessionId": "4079967b-71bb-4699-9338-74c337c1f917",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01JsmSphMe3Kwy7WWrFEDx4L",
+        "toolResponse": {
+          "status": "completed",
+          "prompt": "Run `sleep 20`, then reply FINISHED.",
+          "agentId": "a8aa668519516ae02",
+          "agentType": "general-purpose",
+          "harnessNoteCount": 0,
+          "harnessTailCount": 0,
+          "harnessSectionHash": "803cd058c43bbcee",
+          "content": [
+            {
+              "type": "text",
+              "text": "FINISHED"
+            }
+          ],
+          "resolvedModel": "claude-sonnet-5",
+          "totalDurationMs": 26126,
+          "totalTokens": 24005,
+          "totalToolUseCount": 1,
+          "usage": {
+            "input_tokens": 2,
+            "cache_creation_input_tokens": 1704,
+            "cache_read_input_tokens": 22292,
+            "output_tokens": 7,
+            "output_tokens_details": {
+              "thinking_tokens": 0
+            },
+            "server_tool_use": {
+              "web_search_requests": 0,
+              "web_fetch_requests": 0
+            },
+            "service_tier": "standard",
+            "cache_creation": {
+              "ephemeral_1h_input_tokens": 0,
+              "ephemeral_5m_input_tokens": 1704
+            },
+            "inference_geo": "not_available",
+            "iterations": [
+              {
+                "input_tokens": 2,
+                "output_tokens": 7,
+                "cache_read_input_tokens": 22292,
+                "cache_creation_input_tokens": 1704,
+                "cache_creation": {
+                  "ephemeral_5m_input_tokens": 1704,
+                  "ephemeral_1h_input_tokens": 0
+                },
+                "type": "message"
+              }
+            ],
+            "speed": "standard"
+          },
+          "toolStats": {
+            "readCount": 0,
+            "searchCount": 0,
+            "bashCount": 1,
+            "editFileCount": 0,
+            "linesAdded": 0,
+            "linesRemoved": 0,
+            "otherToolCount": 0
+          }
+        }
+      },
+      {
+        "rel": "+38.795s",
+        "sessionId": "4079967b-71bb-4699-9338-74c337c1f917",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_01JsmSphMe3Kwy7WWrFEDx4L",
+        "status": "completed"
+      }
+    ],
+    "dispatchRowSurvives": true,
+    "subagentLifecycle": [],
+    "spawned": [],
+    "stateUpdates": [],
+    "terminalStates": [],
+    "hasIdentifiedTerminalSignal": false,
+    "terminalAfterTurnEnd": [],
+    "sessionIds": ["4079967b-71bb-4699-9338-74c337c1f917"],
+    "childSessionIds": [],
+    "updatesBySession": {
+      "4079967b-71bb-4699-9338-74c337c1f917 (ROOT)": 21
+    },
+    "sessionRoutingRequired": false,
+    "parentToolUseIdStillPresent": true,
+    "subagentProseForwarded": false,
+    "verdict": "Q1 dispatch row SURVIVES — RFC 0055's Agent(…) row still has a source\nQ2 NO identified terminal signal arrived\nQ3 everything stayed on the root session — no routing prerequisite observed"
+  }
+}

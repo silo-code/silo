@@ -205,6 +205,72 @@ rather than dropping it. `rawInput` / `rawOutput` are the agent's own tool
 arguments and result: protocol-carried, but **vendor-shaped by definition**, so
 they are typed `unknown` and each agent's shape differs.
 
+### Delegated work
+
+Some agents hand a piece of work to another agent and keep going. Three fields
+model that, so a transcript can tell the truth about it:
+
+| Field              | What it means                                                 |
+| ------------------ | ------------------------------------------------------------- |
+| `subagent`         | This call dispatched a subagent.                              |
+| `handedOff`        | The call's `status` describes the **hand-off**, not the work. |
+| `parentToolCallId` | The dispatch this call was made on behalf of.                 |
+
+`handedOff` is the one that changes what you draw. A dispatching call settles
+to `status: "completed"` seconds after the hand-off while the delegated work
+runs on for minutes — so **a `handedOff` call must not render as finished.**
+Its `"completed"` means "the hand-off succeeded".
+
+Each of the three is a **durable fact about one frame, never revised**, and
+they arrive on _different_ frames of the same call: the subagent marker on the
+opening ones, the hand-off on a later frame that carries no `status` at all,
+and the `status: "completed"` on one that carries no hand-off. So accumulate
+them the same way you accumulate `title` — absent means _unchanged_:
+
+```ts
+upsertRow(call.toolCallId, (prev) => ({
+  ...prev,
+  subagent: call.subagent ?? prev.subagent,
+  handedOff: call.handedOff ?? prev.handedOff,
+  parentToolCallId: call.parentToolCallId ?? prev.parentToolCallId,
+}));
+```
+
+`parentToolCallId` is per-call attribution for the whole delegated lifecycle —
+every tool call a subagent makes carries it. Resolve the parent **by id, not by
+position**: the children routinely arrive in a _later_ turn than the dispatch,
+and a transcript replayed from mid-delegation may not contain the dispatch at
+all.
+
+**Liveness is not modelled on these fields, and cannot be derived from them.**
+Nothing on the ordinary tool-call stream revisits a dispatch to say the
+delegated work finished, and with several outstanding, nothing there says
+_which_ one finished. So a count built from `handedOff` can only ever go up —
+**say what was dispatched, not what is still running**:
+
+```ts
+// honest — a fact that stays true
+`${n} background agents dispatched`;
+// not supportable — implies liveness, and a countdown that never comes
+`Waiting for ${n} background agents to finish`;
+```
+
+Avoid a spinner beside it for the same reason, and never name an individual
+agent as finished. Silo's own panel scopes the count to the current exchange,
+since a transcript-wide tally grows without bound.
+
+**A per-subagent finish signal does exist, behind a capability.** With the
+adapter's AIR `nativeSubagentSessions` advertised, `claude-agent-acp` emits
+`subagent_spawned` / `subagent_state_update`, the latter carrying an identified
+terminal state per subagent — so a true countdown becomes possible. Silo does
+not advertise it yet: doing so moves a subagent's tool calls onto a **child
+session id**, which a client must route before it can render them. The guidance
+above is for the capability-free stream these three fields come from, not a
+claim that the protocol can never report a finish.
+
+All three fields are absent for an agent that doesn't report delegation, which
+is most of them.
+
 ### The plan
 
 A `plan` update carries the agent's plan **in full** — the agent reissues the

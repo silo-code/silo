@@ -101,6 +101,20 @@
   margin-top: 8px;
 }
 
+/* A delegated-work block (RFC 0055) stacks against neighbouring tool rows on
+   the same tight rhythm — it *is* tool rows, just gathered under the dispatch
+   that caused them, so the default 30px prose gap would read as a break that
+   isn't there. Its own siblings get a little more room than two bare rows do,
+   so two consecutive agents stay visually separate. */
+.acp-chat__turn-body > .acp-chat__tool + .acp-chat__delegated-group,
+.acp-chat__turn-body > .acp-chat__delegated-group + .acp-chat__tool {
+  margin-top: 8px;
+}
+
+.acp-chat__turn-body > .acp-chat__delegated-group + .acp-chat__delegated-group {
+  margin-top: 14px;
+}
+
 .acp-chat__turn-footer {
   font-size: var(--silo-font-size-base);
   color: var(--silo-color-text-lo);
@@ -448,6 +462,106 @@
   flex: 0 0 auto;
 }
 
+/* --- delegated work (RFC 0055) ------------------------------------------ */
+/* A dispatch that handed its work to a background agent is neither running
+   nor settled. The pulse above keys on the protocol status, which the vendor
+   moves to "completed" seconds after the hand-off — so suppress it here
+   rather than letting a dispatch ripple for the one frame where it is still
+   "pending" *and* already handed off. */
+.acp-chat__tool[data-handed-off] .acp-chat__tool-kind,
+.acp-chat__tool[data-handed-off] .acp-chat__tool-title,
+.acp-chat__tool[data-handed-off] .acp-chat__tool-title .acp-chat__link,
+.acp-chat__tool[data-handed-off] .acp-chat__tool-wave-char,
+.acp-chat__delegated-group[data-handed-off] .acp-chat__tool-title,
+.acp-chat__delegated-group[data-handed-off] .acp-chat__tool-wave-char {
+  animation: none;
+}
+
+/* A dispatch and the calls its subagent made, drawn as one block so several
+   concurrent agents don't interleave into an unreadable chronological list.
+   Deliberately the same shape as `.acp-chat__tool-group` (Dave's call) — a
+   caret header that discloses its members — with the dispatch row standing in
+   for the folded run's generated label. The gathering is per *turn* (see
+   `groupDelegatedCalls`), so a subagent whose calls land in a later turn than
+   its dispatch still renders them in place, indented and labelled by the
+   `[data-delegated]` rule below. */
+.acp-chat__delegated-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acp-chat__delegated-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--silo-radius-sm);
+}
+
+.acp-chat__delegated-group-head[data-interactive] {
+  cursor: pointer;
+}
+
+.acp-chat__delegated-group-head[data-interactive]:hover,
+.acp-chat__delegated-group-head[data-interactive]:focus-visible {
+  background: var(--silo-color-bg-hover);
+}
+
+.acp-chat__delegated-group-caret {
+  flex: 0 0 auto;
+  color: var(--silo-color-text-lo);
+  transition: transform 0.1s ease;
+}
+
+.acp-chat__delegated-group[data-expanded] .acp-chat__delegated-group-caret {
+  transform: rotate(90deg);
+}
+
+.acp-chat__delegated-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 0 20px;
+}
+
+.acp-chat__delegated-group-body > .acp-chat__tool + .acp-chat__tool {
+  margin-top: 8px;
+}
+
+/* The ungrouped fallback: a delegated call rendered where it arrived, because
+   its dispatch isn't in this turn. Indented the same amount so the two cases
+   read alike, and it keeps its attribution label since nothing above it says
+   whose work it is. */
+.acp-chat__turn-body > .acp-chat__tool[data-delegated] {
+  padding-left: 18px;
+}
+
+/* Which dispatch a delegated call belongs to. Low-contrast and ahead of the
+   title, so it reads as attribution rather than as part of the call. */
+.acp-chat__tool-delegated-from {
+  flex: 0 0 auto;
+  max-width: 10em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--silo-color-text-lo);
+  opacity: 0.75;
+}
+
+/* How many calls a dispatch has spawned — the only thing the dispatch row can
+   truthfully say about progress, since nothing on the wire revisits it. */
+.acp-chat__tool-delegated-count {
+  flex: 0 0 auto;
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  font-variant-numeric: tabular-nums;
+}
+
 .acp-chat__tool-title {
   flex: 1 1 auto;
   min-width: 0;
@@ -746,6 +860,43 @@
      divider above and the placeholder than the other sides get. */
   padding: 16px 10px 8px;
   background: var(--silo-color-content-bg);
+}
+
+/* Outstanding delegated work (RFC 0055) — a chip floated just above the
+   composer's divider, anchored to the composer the same way
+   `.acp-chat__jump-to-bottom` is (`bottom: 100%`, which puts it in the
+   scroller's area without being part of it).
+
+   An overlay rather than a flex item in the column (Dave's call): as a flex
+   item it reserved its own height, leaving a dead band the transcript could
+   never scroll into. Out of flow it costs no layout, so the transcript runs
+   right down to the divider — and since content now passes underneath, it
+   carries its own opaque background and border, matching the jump-to-bottom
+   button it sits beside. */
+.acp-chat__delegated-waiting {
+  position: absolute;
+  right: 10px;
+  bottom: 100%;
+  margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border: 1px solid var(--silo-color-input-border);
+  border-radius: 999px;
+  background: var(--silo-color-bg-hover);
+  font-size: var(--silo-font-size-sm);
+  color: var(--silo-color-text-lo);
+  user-select: none;
+  -webkit-user-select: none;
+  /* Above the transcript scrolling beneath it; the composer itself is the
+     containing block, so this never escapes the panel. */
+  z-index: 1;
+  /* Never clipped by a narrow panel — drop the text, keep the spinner. */
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* Divider off the transcript above — the composer no longer reads as its own
