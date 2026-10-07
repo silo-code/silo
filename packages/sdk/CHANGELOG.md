@@ -1,5 +1,13 @@
 # @silo-code/sdk
 
+## [0.55.0](https://github.com/silo-code/silo/compare/sdk-v0.54.0...sdk-v0.55.0) (2026-10-07)
+
+
+### Features
+
+* **agents-chat-panel:** show delegated subagent work in the transcript ([#608](https://github.com/silo-code/silo/issues/608)) ([5b42f3f](https://github.com/silo-code/silo/commit/5b42f3f71de4000237403991f009c437d9084535))
+* **agents:** add AgentInfo.idleSince, a durable "when did this stop" stamp ([#603](https://github.com/silo-code/silo/issues/603)) ([569bb6b](https://github.com/silo-code/silo/commit/569bb6b4fb3090212df575ce74b848539a10705c))
+
 ## [0.54.0](https://github.com/silo-code/silo/compare/sdk-v0.53.0...sdk-v0.54.0) (2026-09-25)
 
 
