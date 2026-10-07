@@ -10,7 +10,7 @@
  * is on the wire — it is just in `_meta`, which `parseToolCall` deliberately
  * drops.
  *
- * **This module is the vendor quarantine.** It is the one place
+ * **This module is the vendor quarantine** (ADR 0056). It is the one place
  * `_meta.claudeCode` is read for delegated work, and nothing outside it —
  * least of all the Chat panel — may reach into `_meta` for these facts.
  * `parseToolCall` (`acp-update-model.ts`) calls it and spreads the result onto

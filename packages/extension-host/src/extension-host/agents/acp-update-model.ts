@@ -11,7 +11,10 @@
  * deliberately leaves alone (vendor `_meta`, …) — the one exception being the
  * delegated-work markers, which `chat-delegated-work.ts` reads out of
  * `_meta.claudeCode` on this file's behalf (RFC 0055). That quarantine exists
- * precisely so the panel never has to.
+ * precisely so the panel never has to. **ADR 0056 is the general rule** — a
+ * vendor `_meta` fact may become a modelled field, but only through one module
+ * that owns reading it, and only when a Chat UI cannot draw a correct
+ * transcript without it. A second ad-hoc `_meta` read here is the violation.
  *
  * Every reader below tolerates a missing or wrongly-typed field, because the
  * wire genuinely varies: in the 2026-09-08 probe a `tool_call_update` was
