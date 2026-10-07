@@ -1,6 +1,6 @@
 # Interface: AgentPromptCapabilities
 
-Defined in: [packages/sdk/src/agents-service.ts:1086](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1086)
+Defined in: [packages/sdk/src/agents-service.ts:1099](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1099)
 
 **`Beta`**
 
@@ -22,7 +22,7 @@ repeat the same `?? false`.
 readonly image: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1089](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1089)
+Defined in: [packages/sdk/src/agents-service.ts:1102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1102)
 
 **`Beta`**
 
@@ -37,7 +37,7 @@ Image content blocks are accepted. Not yet a sendable
 readonly audio: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1091](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1091)
+Defined in: [packages/sdk/src/agents-service.ts:1104](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1104)
 
 **`Beta`**
 
@@ -51,7 +51,7 @@ Audio content blocks are accepted.
 readonly embeddedContext: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1097](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1097)
+Defined in: [packages/sdk/src/agents-service.ts:1110](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1110)
 
 **`Beta`**
 

@@ -173,10 +173,9 @@ export interface AgentInfo {
   /** ISO timestamp of when the current `"working"` phase started; undefined otherwise. */
   readonly workingSince?: string;
   /**
-   * ISO timestamp of when this session's last turn **ended** — when it
-   * stopped working. Undefined for a session that has never run a turn, and
-   * while one is running ({@link AgentInfo.workingSince} is the live field
-   * then).
+   * ISO timestamp of when this session last **stopped** — undefined only
+   * while a turn is running ({@link AgentInfo.workingSince} is the live field
+   * then) and for a session never yet observed stopped at all.
    *
    * The counterpart to {@link AgentInfo.attentionSince}, and deliberately not
    * the same thing. `attentionSince` answers "is there something unread
@@ -188,6 +187,20 @@ export interface AgentInfo {
    * Persisted and restored for both session kinds, so it survives a restart
    * and an extension reload rather than restarting from whenever the reader
    * first observed the session.
+   *
+   * **Treat it as a lower bound, not a precise turn boundary.** Silo stamps
+   * the exact moment where it observes one, but a session whose stop it never
+   * saw — restored from a record written before this field existed, or one
+   * that was mid-turn when the app exited — is dated from the last moment the
+   * host saw it alive. That is an estimate: the session stopped at or after
+   * it. Such a row is indistinguishable from an exact one, and
+   * {@link AgentInfo.stale} does **not** mark it — `stale` is scoped to a
+   * restored `working`/`needsAttention` duration, so a settled row carrying an
+   * estimate still reports `stale: false`. The estimate is replaced by an
+   * exact stamp the next time the session runs and stops.
+   *
+   * So: fine to render as an age or sort on; don't build on it as the precise
+   * instant a turn ended.
    */
   readonly idleSince?: string;
   /**

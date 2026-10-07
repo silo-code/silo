@@ -575,10 +575,16 @@ set in one place (`agent-turn-model.ts`) for both kinds:
 - `workingSince` — a turn is running, and started then.
 - `attentionSince` — an unread finish is pending, and was raised then.
   Cleared by `acknowledge`, because it is about _unread_, not about _when_.
-- `idleSince` — the last turn **ended** then. Set at the working → stopped
-  edge for every turn outcome (`finished`, `cancelled`, `failed`) and at
-  the three terminal-only stops (`dead`, `exited`, `process-gone`). Survives
-  being **Witnessed**: looking at a finish does not change when it happened.
+- `idleSince` — the session last **stopped** then. Set at the working →
+  stopped edge for every turn outcome (`finished`, `cancelled`, `failed`), at
+  the three terminal-only stops (`dead`, `exited`, `process-gone`), and the
+  first time a session is seen stopped without a stamp at all — one rule,
+  `stoppedIdleSince`, which every stopping path calls. Survives being
+  **Witnessed**: looking at a finish does not change when it happened. A
+  **lower bound**, not a precise boundary: where the stop was never observed
+  (a record predating the field, a session mid-turn when the app exited) it is
+  the last moment the host saw the session alive, and `stale` does not mark
+  that case.
 
 The asymmetry is the point. A session that has finished and been seen has no
 `workingSince` and no `attentionSince` left, so before `idleSince` existed

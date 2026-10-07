@@ -85,6 +85,17 @@ A session that has finished **and been seen** therefore has no `workingSince`
 and no `attentionSince` left — nothing to date a settled row from. `idleSince`
 is what a "finished 3h ago" row reads.
 
+It is documented as a **lower bound**, not a precise turn boundary. Where Silo
+observed the stop it is exact; where it did not — a record predating the field,
+or a session mid-turn when the app exited — it is the `lastLiveAt` estimate
+below, and the two are indistinguishable to a reader. `stale` does not
+disambiguate them: it is scoped to a restored `working`/`needsAttention`
+duration, so a settled row carrying an estimate reports `stale: false`. Rather
+than widen `stale` or add a second flag to the public surface, the TSDoc states
+the weaker guarantee the field can actually keep — the same honesty rule ADR
+0028 applies to resume hints, one field over. The estimate is self-correcting:
+the next real stop replaces it.
+
 ### Where it is set
 
 `idleSince` joined `TurnPhase`, so both session kinds get it from the same
@@ -108,10 +119,17 @@ core with no per-kind logic:
 - **`witnessTurn`** leaves it alone.
 
 The terminal reducer's three non-turn stops (`dead`, `exited`,
-`process-gone`) bypass `endTurn`, so they apply the same rule through a
-shared `stoppedAt` helper and each gained a `now` on its event. A terminal
-confirmed dead at boot after sitting idle for three days reports the
-three-day-old stamp, not boot time.
+`process-gone`) bypass `endTurn`, and each gained a `now` on its event. They
+call the **same function** `endTurn` does — `stoppedIdleSince`, the single
+implementation of the rule. That is not where this started: the reducer first
+carried its own copy, which agreed with the turn core right up until the core
+grew the first-observation clause and the copy did not. The architecture review
+of the implementing PR caught the divergence, with a real failure — a terminal
+confirmed dead having never run a turn in this process got no timestamp, and
+`sectionFor` still routes `dead` into the panel's "done" section, so the row
+rendered blank. Two implementations of one rule is the defect; one function is
+the fix. A terminal confirmed dead after sitting idle for three days reports
+the three-day-old stamp, not boot time.
 
 ### Persistence
 
@@ -140,8 +158,12 @@ restores `activity` / `needsAttention` / `attentionSince` / `workingSince` /
 through. Adding a sixth turn field without adding it to that list meant a
 replayed "working" marker ran `beginTurn`, which clears `idleSince`, and the
 clear survived the guard — so every reattached Terminal session lost its
-restored timestamp. `idleSince` is turn state and now rides in that list with
-the rest.
+restored timestamp. `idleSince` is turn state and now rides with the rest —
+and the guard was **inverted** while fixing it, so that it quarantines by
+default: it keeps the pre-event state and lets only the five identity fields
+through, rather than naming the turn fields to roll back. The two forms are
+equivalent today, but a denylist of turn fields fails open every time
+`TurnPhase` grows, with nothing to make it a type error. This one fails closed.
 
 A **live `connect()`** is the third place a session arrives without an
 observed turn end, and the easiest to miss: it builds a fresh `AgentInfo` and

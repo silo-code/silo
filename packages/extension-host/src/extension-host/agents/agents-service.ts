@@ -371,23 +371,24 @@ function applyEvent(
   // identity (`isAgent`, `sessionId`, `resumeCommand`, `agentName`,
   // `agentId`) still flows through `next`, which is the whole reason the
   // replay is subscribed to at all (RFC 0036).
+  //
+  // Expressed as an **allowlist of identity**, deliberately: keep the state we
+  // had and let only the identity fields through, rather than listing the turn
+  // fields to roll back. The two are equivalent today, and the inverse form is
+  // what let `idleSince` slip in unnoticed when it was added to `TurnPhase` —
+  // a replayed "working" marker runs `beginTurn`, which clears it, and the
+  // clear sailed past a denylist that had never heard of the field. Nothing
+  // made that a type error. This way round, a new turn field is quarantined by
+  // default and only an explicit addition here can expose it to replayed bytes
+  // (RFC 0056).
   if (fromReplay) {
     next = {
-      ...next,
-      activity: entry.state.activity,
-      needsAttention: entry.state.needsAttention,
-      attentionSince: entry.state.attentionSince,
-      workingSince: entry.state.workingSince,
-      // `idleSince` is turn state like the rest, and the ring is full of turn
-      // boundaries: a replayed "working" marker runs `beginTurn`, which clears
-      // it. Letting that through wiped the restored "when did this stop" on
-      // every reattach, which is why two reattached rows came up with no
-      // duration after a reboot and got it straight back on a webview reload
-      // — the reload re-restored from a record the replay had not yet reached
-      // (RFC 0056).
-      idleSince: entry.state.idleSince,
-      workingSource: entry.state.workingSource,
-      stale: entry.state.stale,
+      ...entry.state,
+      isAgent: next.isAgent,
+      sessionId: next.sessionId,
+      resumeCommand: next.resumeCommand,
+      agentName: next.agentName,
+      agentId: next.agentId,
     };
   }
 

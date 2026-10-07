@@ -75,6 +75,40 @@ export function beginTurn(prev: TurnPhase, now: string): TurnPhase {
 }
 
 /**
+ * `idleSince` for a session that has just stopped — **the one implementation
+ * of that rule**, for every path that stops a session (RFC 0056).
+ *
+ * {@link endTurn} calls it for a turn boundary; the terminal reducer calls it
+ * for the three stops that are not turn boundaries at all (`dead`, `exited`,
+ * `process-gone`). Those two used to spell the rule out separately, agreed at
+ * first, and then silently diverged when only one of them grew the
+ * first-observation clause below — leaving a terminal that was confirmed dead
+ * without ever running a turn in this process with no duration at all. One
+ * function now, so there is nothing left to drift.
+ *
+ * The rule, in two parts:
+ *
+ * - **It was running** → it stopped `now`.
+ * - **It was already stopped** → keep the timestamp it had, or take `now` if
+ *   it has none yet. Keeping it is what stops a repeated idle tick from
+ *   walking a days-old finish forward; taking `now` is what gives a row an
+ *   age at all when the session reached a stopped state without passing
+ *   through `working` in this process — the normal case for a reattached
+ *   terminal, whose scrollback replays as an idle prompt against a state
+ *   machine starting at `"none"`.
+ *
+ * Better information always wins, because it is already in `prev` by the time
+ * anything calls this: a persisted stamp, or {@link restoredIdleSince}'s
+ * `lastLiveAt` estimate.
+ */
+export function stoppedIdleSince(
+  prev: Pick<TurnPhase, "activity" | "idleSince">,
+  now: string,
+): string {
+  return prev.activity === "working" ? now : (prev.idleSince ?? now);
+}
+
+/**
  * A turn ended.
  *
  * **The one attention rule:** a finished turn wants attention when this is
@@ -94,28 +128,10 @@ export function beginTurn(prev: TurnPhase, now: string): TurnPhase {
  * (`prev.activity === "working"`). An idle-from-idle signal — a repeated OSC
  * tick, a stray detector — must not resurrect or wipe a pending finish.
  *
- * `idleSince` follows its own rule, in two parts (RFC 0056). It is stamped at
- * the working → stopped edge, and also the **first** time a session is seen
- * stopped at all without one — but never again after that. Both halves matter:
- *
- * - Re-stamping on an idle-from-idle tick (a repeated OSC signal, a stray
- *   detector) would walk the timestamp forward for a session that has not run
- *   in days, which is the exact failure this field was added to end.
- * - Only stamping at the edge leaves a session that reaches `idle` *without*
- *   passing through `working` in this process with no timestamp forever —
- *   and that is the common case on restore, not an edge case. A reattached
- *   terminal's OSC scrollback replays as an idle prompt against a state
- *   machine that starts at `"none"`, so the one transition it makes is
- *   `none → idle`, which is not an edge. Those rows rendered with no duration
- *   at all until this clause existed.
- *
- * So the first observation wins and then holds, which is also why a better
- * answer always beats it: a persisted stamp, or {@link restoredIdleSince}'s
- * `lastLiveAt` estimate, is already in `prev` by the time anything gets here.
- *
- * Unlike attention it is stamped for **every** outcome, `cancelled` and
- * `failed` included: all three mean the session stopped, which is all the
- * field claims.
+ * `idleSince` is not gated on `wasWorking` at all — it goes through
+ * {@link stoppedIdleSince}, the shared rule every stopping path uses, and is
+ * updated for **every** outcome: `cancelled` and `failed` mean the session
+ * stopped just as much as `finished` does, which is all that field claims.
  */
 export function endTurn(
   prev: TurnPhase,
@@ -142,7 +158,7 @@ export function endTurn(
         : null
       : prev.attentionSince,
     workingSince: null,
-    idleSince: wasWorking ? ev.now : (prev.idleSince ?? ev.now),
+    idleSince: stoppedIdleSince(prev, ev.now),
   };
 }
 

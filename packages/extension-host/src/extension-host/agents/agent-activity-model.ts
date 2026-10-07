@@ -34,7 +34,12 @@
 
 import type { AgentActivity, TerminalKind } from "@silo-code/sdk";
 import type { TurnPhase } from "./agent-turn-model";
-import { beginTurn, endTurn, witnessTurn } from "./agent-turn-model";
+import {
+  beginTurn,
+  endTurn,
+  stoppedIdleSince,
+  witnessTurn,
+} from "./agent-turn-model";
 
 export type EventSource = "agent" | "shell" | "timer";
 
@@ -76,7 +81,7 @@ export type AgentActivityEvent =
       type: "dead";
       /** When the death was observed — stamped onto `idleSince` only if the
        *  session was still mid-turn, so a long-idle terminal confirmed dead
-       *  keeps its real age (see {@link stoppedAt}). */
+       *  keeps its real age (see {@link stoppedIdleSince}). */
       now: string;
       sessionId?: string;
       resumeCommand?: string;
@@ -171,17 +176,6 @@ export function restoreState(
 }
 
 /**
- * `idleSince` for one of the three stops that do **not** go through
- * {@link endTurn} — `dead`, `exited`, `process-gone`. Same rule the turn core
- * applies: a session that was running stopped *now*; one that was already
- * stopped keeps the timestamp it had. A terminal confirmed dead at boot after
- * sitting idle for three days reports the three-day-old stamp, not boot.
- */
-function stoppedAt(prev: AgentActivityState, now: string): string | null {
-  return prev.activity === "working" ? now : prev.idleSince;
-}
-
-/**
  * Apply one event. Returns `prev` by identity when nothing changed, so
  * callers can skip invalidations on a no-op tick.
  */
@@ -202,7 +196,7 @@ export function reduce(
       needsAttention: false,
       attentionSince: null,
       workingSince: null,
-      idleSince: stoppedAt(prev, ev.now),
+      idleSince: stoppedIdleSince(prev, ev.now),
       workingSource: null,
       stale: false,
       sessionId: ev.sessionId ?? prev.sessionId,
@@ -232,7 +226,7 @@ export function reduce(
       needsAttention: false,
       attentionSince: null,
       workingSince: null,
-      idleSince: stoppedAt(prev, ev.now),
+      idleSince: stoppedIdleSince(prev, ev.now),
       workingSource: null,
       stale: false,
     };
@@ -253,7 +247,7 @@ export function reduce(
       needsAttention: false,
       attentionSince: null,
       workingSince: null,
-      idleSince: stoppedAt(prev, ev.now),
+      idleSince: stoppedIdleSince(prev, ev.now),
       workingSource: null,
       stale: false,
     };

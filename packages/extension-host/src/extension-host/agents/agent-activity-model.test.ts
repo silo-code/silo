@@ -265,6 +265,29 @@ describe("dead / reset", () => {
     expect(dead.idleSince).toBe("t-finish");
   });
 
+  // Architecture review of #603, finding 1. `dead` / `exited` / `process-gone`
+  // used to carry their own copy of the idleSince rule, which agreed with the
+  // turn core until only the core grew its first-observation clause. The gap
+  // left exactly this case with no duration: a terminal confirmed dead having
+  // never run a turn in this process still lands in the panel's "done"
+  // section, so a blank age is a visible bug, not a harmless null.
+  it.each(["dead", "exited", "process-gone"] as const)(
+    "%s stamps a session that stopped without ever having run a turn here",
+    (type) => {
+      // A promoted shell, so `exited` / `process-gone` reach their demotion
+      // branch rather than bailing on `kind !== "shell"`.
+      const promoted = reduce(
+        initialState("shell"),
+        detected("working", { source: "agent" }),
+      );
+      const stopped = reduce(
+        { ...promoted, activity: "none", idleSince: null },
+        { type, now: "t-stop" },
+      );
+      expect(stopped.idleSince).toBe("t-stop");
+    },
+  );
+
   it("reset clears idleSince along with the rest of the state", () => {
     const dead = reduce(reduce(initialState("claude"), detected("working")), {
       type: "dead",

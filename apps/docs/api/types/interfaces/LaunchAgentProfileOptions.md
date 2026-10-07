@@ -1,6 +1,6 @@
 # Interface: LaunchAgentProfileOptions
 
-Defined in: [packages/sdk/src/agents-service.ts:446](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L446)
+Defined in: [packages/sdk/src/agents-service.ts:459](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L459)
 
 **`Beta`**
 
@@ -15,7 +15,7 @@ a bare `launch()` starts the default profile in the active workspace.
 optional profileId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:449](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L449)
+Defined in: [packages/sdk/src/agents-service.ts:462](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L462)
 
 **`Beta`**
 
@@ -30,7 +30,7 @@ Which profile to start. Defaults to the one marked default, else the
 optional workspaceId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:453](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L453)
+Defined in: [packages/sdk/src/agents-service.ts:466](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L466)
 
 **`Beta`**
 
@@ -46,7 +46,7 @@ Which workspace to start it in. Defaults to the active one. A
 optional cwd?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:455](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L455)
+Defined in: [packages/sdk/src/agents-service.ts:468](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L468)
 
 **`Beta`**
 
@@ -60,7 +60,7 @@ Working directory for the new terminal. Defaults to the workspace folder.
 optional prompt?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:473](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L473)
+Defined in: [packages/sdk/src/agents-service.ts:486](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L486)
 
 **`Beta`**
 
@@ -88,7 +88,7 @@ it. Don't put a secret in one.
 optional activate?: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:478](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L478)
+Defined in: [packages/sdk/src/agents-service.ts:491](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L491)
 
 **`Beta`**
 
