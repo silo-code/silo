@@ -1706,6 +1706,12 @@ export function AcpChatPanel({
       // — drop it so the user is not left poking a control that only errors.
       setDeadConfigIds((prev) => new Set(prev).add(id));
     });
+    // Picking mode/model/effort from the menu should feel like a composer
+    // option, not a navigation away from it — the next keystroke should go
+    // straight back to typing, not land on the pill button the menu closed
+    // onto. `requestAnimationFrame`, same as `pickCommand` above, so this
+    // runs after the menu's own close-time focus return.
+    requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
 
   // `resumeOutcome === "journal-only"` (RFC 0042): the agent could resume
