@@ -799,6 +799,24 @@ export function stopReasonNotice(
   }
 }
 
+/**
+ * Whether a tool call is still running — the **one** place that decides it.
+ *
+ * A **handed-off** call (RFC 0055) is the case worth naming: its status says
+ * `"completed"` within a second of the hand-off while the delegated work runs
+ * on, so it is neither running nor settled but a third state. The SDK states
+ * this as a contract on `AgentToolCall.handedOff` ("A UI must not render such
+ * a call as finished"), and a contract with three independent encodings in the
+ * panel is one bug away from disagreeing with itself — so both row renderers
+ * and the CSS fallback key off this.
+ */
+export function isToolRunning(
+  entry: Pick<ToolEntry, "status" | "handedOff">,
+): boolean {
+  if (entry.handedOff) return false;
+  return entry.status === "pending" || entry.status === "in_progress";
+}
+
 /** The dispatch row's label — `"Agent(Sleep then reply)"`. The reducer has
  *  already relabelled the row from the vendor's opening `"Task"` to the
  *  streamed description, so this just wraps whatever title the wire settled
@@ -893,9 +911,11 @@ export function delegationSignature(
  * agents finish. Neither is knowable. Nothing revisits a dispatch to report a
  * finish, and with several outstanding nothing says *which* one finished — so
  * the count could only ever go up, and a line promising a countdown that never
- * came read as broken (Dave, 2026-10-07). A probe of the adapter's subagent
- * capability (`scratchpad/acp-probe/subagent-capability-2026-10-07.mjs`)
- * confirmed there is no better signal available to opt into today.
+ * came read as broken (Dave, 2026-10-07). A better signal does exist — the
+ * adapter's AIR `nativeSubagentSessions` capability reports a terminal state
+ * per subagent (`scratchpad/acp-probe/subagent-capability-2026-10-07.mjs`) —
+ * but advertising it moves delegated calls onto child session ids the host
+ * cannot route yet, so it is not reachable from here *today*.
  *
  * So the notice states the one fact that *is* certain — this many agents were
  * handed work — and the tooltip carries the caveat that Silo is not told when
@@ -921,7 +941,11 @@ export function delegatedDispatchNotice(
     // A user message opens a new exchange, so anything before it belongs to a
     // question already answered.
     if (entry.type === "message" && entry.role === "user") count = 0;
-    if (entry.type === "tool" && entry.handedOff) count += 1;
+    // `handedOff` alone is not enough: it is deliberately agent-agnostic on
+    // the public surface ("handed its work off to run elsewhere"), and a
+    // backgrounded *shell* is the next thing expected to set it. This line
+    // says "background agents", so it counts dispatches.
+    if (entry.type === "tool" && entry.handedOff && entry.subagent) count += 1;
   }
   if (count === 0) return undefined;
   const noun = count === 1 ? "background agent" : "background agents";

@@ -242,10 +242,11 @@ position**: the children routinely arrive in a _later_ turn than the dispatch,
 and a transcript replayed from mid-delegation may not contain the dispatch at
 all.
 
-**Liveness is deliberately not modelled, and cannot be derived.** Nothing in the
-protocol revisits a dispatch to say the delegated work finished, and with
-several outstanding, nothing says _which_ one finished. So a count of dispatches
-can only ever go up — **say what was dispatched, not what is still running**:
+**Liveness is not modelled on these fields, and cannot be derived from them.**
+Nothing on the ordinary tool-call stream revisits a dispatch to say the
+delegated work finished, and with several outstanding, nothing there says
+_which_ one finished. So a count built from `handedOff` can only ever go up —
+**say what was dispatched, not what is still running**:
 
 ```ts
 // honest — a fact that stays true
@@ -257,6 +258,15 @@ can only ever go up — **say what was dispatched, not what is still running**:
 Avoid a spinner beside it for the same reason, and never name an individual
 agent as finished. Silo's own panel scopes the count to the current exchange,
 since a transcript-wide tally grows without bound.
+
+**A per-subagent finish signal does exist, behind a capability.** With the
+adapter's AIR `nativeSubagentSessions` advertised, `claude-agent-acp` emits
+`subagent_spawned` / `subagent_state_update`, the latter carrying an identified
+terminal state per subagent — so a true countdown becomes possible. Silo does
+not advertise it yet: doing so moves a subagent's tool calls onto a **child
+session id**, which a client must route before it can render them. The guidance
+above is for the capability-free stream these three fields come from, not a
+claim that the protocol can never report a finish.
 
 All three fields are absent for an agent that doesn't report delegation, which
 is most of them.

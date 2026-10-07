@@ -193,6 +193,7 @@ import {
   formatToolInput,
   groupTurns,
   isBlankMessageText,
+  isToolRunning,
   sameTurn,
   toolOutputIsMarkdown,
   nextEntryKey,
@@ -658,14 +659,11 @@ function renderTranscriptEntry(
     // freeform text that happens to mention a second path/URL) rather than
     // untangling per-character spans around `matchChatLinks`' own spans; that
     // case still gets the plain, whole-row pulse (the CSS fallback below).
-    // A **handed-off** dispatch is neither of those: it is a third state, not
-    // a wider `isRunning` (RFC 0055). The ripple means "this call is running",
-    // and the dispatch is precisely what is *not* running — its `"completed"`
-    // describes the hand-off. Widening `isRunning` would also never settle,
-    // since nothing on the wire revisits a dispatch.
-    const isRunning =
-      !entry.handedOff &&
-      (entry.status === "pending" || entry.status === "in_progress");
+    // A **handed-off** dispatch is neither of those: it is a third state (RFC
+    // 0055). The ripple means "this call is running", and the dispatch is
+    // precisely what is *not* running — its `"completed"` describes the
+    // hand-off. `isToolRunning` owns that rule for every renderer here.
+    const isRunning = isToolRunning(entry);
     const titleNode =
       titleFallbackPath && !titleHasMatches ? (
         <ChatLinkSpan kind="path" href={titleFallbackPath}>
@@ -841,11 +839,9 @@ function renderTranscriptEntry(
     const hiddenCount = entry.calls.length - visible.length;
     const elsewhereCount =
       tools.delegation.delegatedCounts.get(dispatch.toolCallId) ?? 0;
-    // A dispatch is "running" only up to its hand-off; after that the row is
-    // deliberately neither running nor settled, so the label stops rippling.
-    const dispatchRunning =
-      !dispatch.handedOff &&
-      (dispatch.status === "pending" || dispatch.status === "in_progress");
+    // Same rule as an ordinary row, from the same owner: a dispatch is
+    // "running" only up to its hand-off.
+    const dispatchRunning = isToolRunning(dispatch);
     const title = dispatchLabel(dispatch.title);
     return (
       <div
@@ -853,6 +849,7 @@ function renderTranscriptEntry(
         className="acp-chat__delegated-group"
         data-expanded={expanded || undefined}
         data-status={dispatch.status}
+        data-handed-off={dispatch.handedOff || undefined}
       >
         <div
           className="acp-chat__delegated-group-head"

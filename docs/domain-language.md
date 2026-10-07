@@ -813,11 +813,14 @@ already reads `Agent(…)`.
 
 Each is a **durable fact about one frame, never revised**; the three arrive on
 _different_ frames of one call and the panel's reducer accumulates them.
-**Liveness is deliberately not one of them** — nothing on the wire revisits a
-dispatch to say its work finished, and no capability available today supplies
-it (probed 2026-10-07). So the panel states only what it can prove: a
-**dispatch notice** counting the agents handed work in the current exchange,
-never a countdown and never a named completion.
+**Liveness is deliberately not one of them** — nothing on the _capability-free_
+stream these facts come from revisits a dispatch to say its work finished. So
+the panel states only what it can prove: a **dispatch notice** counting the
+agents handed work in the current exchange, never a countdown and never a named
+completion. A per-subagent finish signal does exist behind the adapter's AIR
+`nativeSubagentSessions` capability (probed 2026-10-07), which Silo does not
+advertise because it moves delegated calls onto child session ids that the host
+cannot yet route.
 _Avoid_: "background task" / "async task" (a **Task** in this glossary is
 Silo's own; and backgrounded _shells_ are a different, currently unavailable
 thing); "running" for a handed-off dispatch (the dispatch is precisely what is

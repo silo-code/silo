@@ -176,7 +176,7 @@ from a tool's name.
 readonly optional handedOff?: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:813](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L813)
+Defined in: [packages/sdk/src/agents-service.ts:814](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L814)
 
 **`Beta`**
 
@@ -192,10 +192,11 @@ with no hand-off. Accumulate, as with [subagent](#subagent).
 
 **Liveness is deliberately not modelled here, and should not be added.**
 Whether the delegated work is *still running* is derived state that
-changes over time, while a tool call in a transcript is history; there is
-also nothing on the wire that revisits a dispatch to say it finished. A UI
-that wants to show outstanding work derives it from the session's own
-activity, and must not claim a *named* delegated agent completed.
+changes over time, while a tool call in a transcript is history; nothing
+on the tool-call stream revisits a dispatch to say it finished either. So
+a UI counting these can only count *dispatches*, and must not claim a
+*named* delegated agent completed. An agent that reports a per-subagent
+finish does so on its own lifecycle updates, not by revising this call.
 
 ***
 
@@ -205,7 +206,7 @@ activity, and must not claim a *named* delegated agent completed.
 readonly optional parentToolCallId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:829](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L829)
+Defined in: [packages/sdk/src/agents-service.ts:830](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L830)
 
 **`Beta`**
 

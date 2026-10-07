@@ -191,31 +191,71 @@ notification the user wanted.
 
 The section below was written from reading `claude-agent-acp@0.75.1`'s `dist/`,
 not from a run. A spike
-(`scratchpad/acp-probe/subagent-capability-2026-10-07.mjs`, three captures)
-advertised `clientCapabilities.subagents = {}` against that adapter and
-`claude` CLI 2.1.291 and **contradicted its three load-bearing claims**:
+(`scratchpad/acp-probe/subagent-capability-2026-10-07.mjs`, four captures,
+committed beside it) settled it. **Read the AIR capture, not the canonical
+ones** — they measure different things, and the difference is the whole
+finding.
 
-| Claim below                                                             | Observed with the capability advertised                                 |
-| ----------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| The dispatching row is deleted (`route()` returns `null`)               | It **survives** — every frame still arrives, `async_launched` included  |
-| `subagent_spawned` / `subagent_state_update` give a terminal signal     | **Zero** lifecycle frames, for backgrounded _and_ synchronous subagents |
-| Child work arrives on a child `sessionId`, so routing is a prerequisite | **No child sessions**; everything stayed on the root                    |
+### The canonical opt-in does not work, and fails silently
 
-The adapter accepted the opt-in (it echoed `sessionCapabilities.subagents: {}`
-back), so this is not a handshake mistake. The native path is driven by a CLI
-`system`/`task_started` stream message that never reached it; _why_ is not
-established — the probe sees JSON-RPC, not the CLI↔adapter stream beneath it.
-The AIR opt-in variant was not run.
+Three captures advertised `clientCapabilities.subagents = {}` and observed no
+change whatsoever: no lifecycle frames, no child sessions, dispatch row intact.
+That is **not** evidence about the capability. The field is stripped by the
+SDK's `zClientCapabilities` Zod schema before `clientSupportsSubagents` ever
+reads it ([claude-agent-acp#1195]), so those runs tested a request that never
+arrived.
 
-**Consequences.** This proposal is **not** superseded by a capability — there is
-nothing to be superseded by today, and the prerequisite RFC named below has
-nothing to build against. The capability-free design here is the only one that
-works, which also means its central limitation is permanent for now: **no finish
-signal, for any individual subagent.** Hence the aggregate states dispatches
-rather than claiming a countdown.
+Two traps worth recording, because this review nearly shipped on them:
 
-Re-run the spike when the adapter or CLI moves; "does not work today" is well
-evidenced, "cannot work" is not.
+- A capability-off capture and a silently-failed opt-in are **indistinguishable**.
+  Hence `assertOptIn` in the probe.
+- The adapter echoing `sessionCapabilities.subagents: {}` in its `initialize`
+  result is the **agent's own** advertisement. It confirms nothing about what
+  the client sent, and was misread here as confirmation.
+
+[claude-agent-acp#1195]: https://github.com/agentclientprotocol/claude-agent-acp/issues/1195
+
+### The AIR opt-in works, and supplies the missing signal
+
+`_meta.jetbrains.air = { version: 1, capabilities: ["nativeSubagentSessions"] }`
+on **both** `initialize` and `session/new`
+(`report-cap-air-bg-2026-10-07T19-35-21-238Z.json`):
+
+| Claim in "Out of scope" below                                           | Observed under AIR                                                                                                    |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| The dispatching row is deleted (`route()` returns `null`)               | **Wrong** — it survives, but reduced to one `tool_call_update` with no title                                          |
+| `subagent_spawned` / `subagent_state_update` give a terminal signal     | **Right** — `state: "completed"`, identified by `subagentSessionId`, one arriving 25s _after_ the parent's turn ended |
+| Child work arrives on a child `sessionId`, so routing is a prerequisite | **Right** — `childSessionIds: ["a26fef4c40ae0ac1d"]`                                                                  |
+
+So a per-subagent finish **is** knowable, and a true countdown is reachable.
+The prerequisite is real: `acp-jsonrpc.ts` discards `params.sessionId`, so
+without routing every subagent's calls merge into the parent transcript
+unlabelled.
+
+### What phase 2 costs, field by field
+
+Measured against the AIR capture, not assumed:
+
+| This proposal's field | Under AIR                                                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `handedOff`           | unchanged — `async_launched` still arrives on the root session                                                                 |
+| `parentToolCallId`    | unchanged — still arrives, but now points **across** sessions                                                                  |
+| `subagent`            | marker stops arriving; re-source from `toolResponse.agentId` (the child session id) on the frame that already sets `handedOff` |
+| `AgentToolCall.title` | **loses its source** — no opening `tool_call`; use `toolResponse.description` or `subagent_spawned.name`                       |
+
+All of it lands inside the existing quarantine (`chat-delegated-work.ts`). No
+SDK field changes shape, and the transcript/rendering layer is untouched. Two
+further facts the captures show and a designer will need: `subagent_spawned`
+and `subagent_state_update` each arrive **twice** per `subagentSessionId`, so
+the consumer must dedupe; and the dispatch the children name lives in the root
+session while the children do not.
+
+**Consequences.** This proposal is **not** superseded — nothing here is wrong,
+and it ships value with no capability negotiation. But its central limitation
+is now known to be _scoped, not permanent_: no finish signal exists **on the
+capability-free stream**. Hence the aggregate states dispatches rather than
+claiming a countdown, and the follow-on RFC (session routing + the AIR opt-in)
+is worth writing.
 
 ## Out of scope — and why it was thought blocked
 

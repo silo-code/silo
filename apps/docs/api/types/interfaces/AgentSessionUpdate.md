@@ -1,6 +1,6 @@
 # Interface: AgentSessionUpdate
 
-Defined in: [packages/sdk/src/agents-service.ts:893](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L893)
+Defined in: [packages/sdk/src/agents-service.ts:894](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L894)
 
 **`Beta`**
 
@@ -27,7 +27,7 @@ its own note.
 readonly kind: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:899](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L899)
+Defined in: [packages/sdk/src/agents-service.ts:900](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L900)
 
 **`Beta`**
 
@@ -43,7 +43,7 @@ The Agent Client Protocol `sessionUpdate` discriminator, e.g.
 readonly optional text?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:906](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L906)
+Defined in: [packages/sdk/src/agents-service.ts:907](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L907)
 
 **`Beta`**
 
@@ -60,7 +60,7 @@ read [content](#content).
 readonly optional content?: AgentContentBlock;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:913](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L913)
+Defined in: [packages/sdk/src/agents-service.ts:914](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L914)
 
 **`Beta`**
 
@@ -77,7 +77,7 @@ it. `undefined` for every non-message kind.
 readonly optional messageId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:920](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L920)
+Defined in: [packages/sdk/src/agents-service.ts:921](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L921)
 
 **`Beta`**
 
@@ -94,7 +94,7 @@ group a streamed sentence into one bubble without minting ids itself.
 readonly optional timestamp?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:934](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L934)
+Defined in: [packages/sdk/src/agents-service.ts:935](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L935)
 
 **`Beta`**
 
@@ -118,7 +118,7 @@ in-memory value is gone.
 readonly optional toolCall?: AgentToolCall;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:940](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L940)
+Defined in: [packages/sdk/src/agents-service.ts:941](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L941)
 
 **`Beta`**
 
@@ -134,7 +134,7 @@ patch in place — an update carries only what changed.
 readonly optional plan?: readonly AgentPlanEntry[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:946](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L946)
+Defined in: [packages/sdk/src/agents-service.ts:947](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L947)
 
 **`Beta`**
 
@@ -150,7 +150,7 @@ showing rather than appending to it. May be empty.
 readonly optional usage?: AgentSessionUsage;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:952](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L952)
+Defined in: [packages/sdk/src/agents-service.ts:953](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L953)
 
 **`Beta`**
 
@@ -166,7 +166,7 @@ notification at all — see [AgentSessionUsage](AgentSessionUsage.md).
 readonly raw: Readonly<Record<string, unknown>>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:972](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L972)
+Defined in: [packages/sdk/src/agents-service.ts:973](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L973)
 
 **`Beta`**
 

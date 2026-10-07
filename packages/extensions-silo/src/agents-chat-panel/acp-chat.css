@@ -471,7 +471,9 @@
 .acp-chat__tool[data-handed-off] .acp-chat__tool-kind,
 .acp-chat__tool[data-handed-off] .acp-chat__tool-title,
 .acp-chat__tool[data-handed-off] .acp-chat__tool-title .acp-chat__link,
-.acp-chat__tool[data-handed-off] .acp-chat__tool-wave-char {
+.acp-chat__tool[data-handed-off] .acp-chat__tool-wave-char,
+.acp-chat__delegated-group[data-handed-off] .acp-chat__tool-title,
+.acp-chat__delegated-group[data-handed-off] .acp-chat__tool-wave-char {
   animation: none;
 }
 

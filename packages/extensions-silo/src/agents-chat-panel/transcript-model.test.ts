@@ -22,6 +22,7 @@ import {
   formatToolInput,
   groupTurns,
   isBlankMessageText,
+  isToolRunning,
   nextEntryKey,
   delegatedDispatchNotice,
   sameTurn,
@@ -1206,6 +1207,38 @@ describe("dispatchLabel", () => {
   });
 });
 
+describe("isToolRunning", () => {
+  const row = (
+    o: Partial<ToolEntry>,
+  ): Pick<ToolEntry, "status" | "handedOff"> =>
+    ({ status: "pending", ...o }) as ToolEntry;
+
+  it("is running while pending or in_progress", () => {
+    expect(isToolRunning(row({ status: "pending" }))).toBe(true);
+    expect(isToolRunning(row({ status: "in_progress" }))).toBe(true);
+  });
+
+  it("is not running once settled", () => {
+    expect(isToolRunning(row({ status: "completed" }))).toBe(false);
+    expect(isToolRunning(row({ status: "failed" }))).toBe(false);
+  });
+
+  // The contract `AgentToolCall.handedOff` states: a UI must not render such a
+  // call as finished. It is equally not *running* — a third state. This is the
+  // one owner of that rule, so both row renderers and the CSS agree.
+  it("is not running once handed off, whatever the status says", () => {
+    expect(isToolRunning(row({ status: "pending", handedOff: true }))).toBe(
+      false,
+    );
+    expect(isToolRunning(row({ status: "in_progress", handedOff: true }))).toBe(
+      false,
+    );
+    expect(isToolRunning(row({ status: "completed", handedOff: true }))).toBe(
+      false,
+    );
+  });
+});
+
 describe("delegatedDispatchNotice", () => {
   const dispatched = fold(FULL_DISPATCH).entries;
 
@@ -1288,6 +1321,26 @@ describe("delegatedDispatchNotice", () => {
     expect(delegatedDispatchNotice(t.entries)).toBe(
       "1 background agent dispatched",
     );
+  });
+
+  // `handedOff` is agent-agnostic by design — a backgrounded shell is expected
+  // to set it without being a subagent. This line says "background agents".
+  it("counts only subagent dispatches, not every handed-off call", () => {
+    const shell = [
+      tool("tool_call", {
+        toolCallId: "sh1",
+        title: "npm run dev",
+        kind: "execute",
+        status: "pending",
+      }),
+      tool("tool_call_update", { toolCallId: "sh1", handedOff: true }),
+    ];
+    // A handed-off shell alone produces no notice at all.
+    expect(delegatedDispatchNotice(fold(shell).entries)).toBeUndefined();
+    // And it does not inflate the count beside a real dispatch.
+    expect(
+      delegatedDispatchNotice(fold([...FULL_DISPATCH, ...shell]).entries),
+    ).toBe("1 background agent dispatched");
   });
 
   it("never names a delegated agent", () => {

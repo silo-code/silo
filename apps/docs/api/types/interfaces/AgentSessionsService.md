@@ -1,6 +1,6 @@
 # Interface: AgentSessionsService
 
-Defined in: [packages/sdk/src/agents-service.ts:1532](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1532)
+Defined in: [packages/sdk/src/agents-service.ts:1533](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1533)
 
 **`Beta`**
 
@@ -38,7 +38,7 @@ ctx.subscriptions.push(off, { dispose: () => session.dispose() });
 connect(profileId, options?): Promise<AgentSessionHandle>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1552](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1552)
+Defined in: [packages/sdk/src/agents-service.ts:1553](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1553)
 
 **`Beta`**
 
@@ -81,7 +81,7 @@ through to a fresh `session/new` (RFC 0042); see [AgentSessionHandle.resumeOutco
 readJournal(sessionId, options?): Promise<readonly AgentSessionUpdate[]>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1570](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1570)
+Defined in: [packages/sdk/src/agents-service.ts:1571](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1571)
 
 **`Beta`**
 

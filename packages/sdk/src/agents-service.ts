@@ -805,10 +805,11 @@ export interface AgentToolCall {
    *
    * **Liveness is deliberately not modelled here, and should not be added.**
    * Whether the delegated work is *still running* is derived state that
-   * changes over time, while a tool call in a transcript is history; there is
-   * also nothing on the wire that revisits a dispatch to say it finished. A UI
-   * that wants to show outstanding work derives it from the session's own
-   * activity, and must not claim a *named* delegated agent completed.
+   * changes over time, while a tool call in a transcript is history; nothing
+   * on the tool-call stream revisits a dispatch to say it finished either. So
+   * a UI counting these can only count *dispatches*, and must not claim a
+   * *named* delegated agent completed. An agent that reports a per-subagent
+   * finish does so on its own lifecycle updates, not by revising this call.
    */
   readonly handedOff?: boolean;
   /**
