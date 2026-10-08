@@ -132,7 +132,13 @@ export function parseToolCall(v: unknown): AgentToolCall | undefined {
   const delegated = delegatedWorkFacts(v);
   return {
     toolCallId,
-    ...(title !== undefined ? { title } : {}),
+    // The frame's own `title` wins; the quarantine's is the fallback for the
+    // capability-on dispatch frame, which carries none (RFC 0057).
+    ...(title !== undefined
+      ? { title }
+      : delegated.title !== undefined
+        ? { title: delegated.title }
+        : {}),
     ...(kind !== undefined ? { kind } : {}),
     ...(status !== undefined ? { status } : {}),
     ...(content !== undefined ? { content } : {}),
@@ -147,6 +153,9 @@ export function parseToolCall(v: unknown): AgentToolCall | undefined {
       : {}),
     ...(delegated.parentToolCallId !== undefined
       ? { parentToolCallId: delegated.parentToolCallId }
+      : {}),
+    ...(delegated.subagentId !== undefined
+      ? { subagentId: delegated.subagentId }
       : {}),
   };
 }

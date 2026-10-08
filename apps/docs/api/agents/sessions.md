@@ -215,17 +215,18 @@ model that, so a transcript can tell the truth about it:
 | `subagent`         | This call dispatched a subagent.                              |
 | `handedOff`        | The call's `status` describes the **hand-off**, not the work. |
 | `parentToolCallId` | The dispatch this call was made on behalf of.                 |
+| `subagentId`       | The delegated worker **this call dispatched**.                |
 
 `handedOff` is the one that changes what you draw. A dispatching call settles
 to `status: "completed"` seconds after the hand-off while the delegated work
 runs on for minutes — so **a `handedOff` call must not render as finished.**
 Its `"completed"` means "the hand-off succeeded".
 
-Each of the three is a **durable fact about one frame, never revised**, and
-they arrive on _different_ frames of the same call: the subagent marker on the
-opening ones, the hand-off on a later frame that carries no `status` at all,
-and the `status: "completed"` on one that carries no hand-off. So accumulate
-them the same way you accumulate `title` — absent means _unchanged_:
+Each is a **durable fact about one frame, never revised**, and they arrive on
+_different_ frames of the same call: the subagent marker on the opening ones,
+the hand-off on a later frame that carries no `status` at all, and the
+`status: "completed"` on one that carries no hand-off. So accumulate them the
+same way you accumulate `title` — absent means _unchanged_:
 
 ```ts
 upsertRow(call.toolCallId, (prev) => ({
@@ -233,6 +234,7 @@ upsertRow(call.toolCallId, (prev) => ({
   subagent: call.subagent ?? prev.subagent,
   handedOff: call.handedOff ?? prev.handedOff,
   parentToolCallId: call.parentToolCallId ?? prev.parentToolCallId,
+  subagentId: call.subagentId ?? prev.subagentId,
 }));
 ```
 
@@ -242,34 +244,71 @@ position**: the children routinely arrive in a _later_ turn than the dispatch,
 and a transcript replayed from mid-delegation may not contain the dispatch at
 all.
 
-**Liveness is not modelled on these fields, and cannot be derived from them.**
-Nothing on the ordinary tool-call stream revisits a dispatch to say the
-delegated work finished, and with several outstanding, nothing there says
-_which_ one finished. So a count built from `handedOff` can only ever go up —
-**say what was dispatched, not what is still running**:
+**Liveness is still not one of these fields** — nothing on the tool-call stream
+revisits a dispatch to say the delegated work finished. It comes from a
+separate signal instead.
+
+#### Who finished, and when
+
+`u.delegation` reports one delegated worker's lifecycle: `state: "started"`
+when it appears, then one of `"completed"`, `"failed"`, `"cancelled"` or
+`"disconnected"`. `subagentId` is the join — the same id arrives on the
+dispatch's `AgentToolCall.subagentId`:
 
 ```ts
-// honest — a fact that stays true
-`${n} background agents dispatched`;
-// not supportable — implies liveness, and a countdown that never comes
-`Waiting for ${n} background agents to finish`;
+if (u.delegation) {
+  // Last word wins. A worker re-announced on resume carries the same id, so
+  // keying on it counts one worker once.
+  setWorkerState(u.delegation.subagentId, u.delegation.state);
+}
 ```
 
-Avoid a spinner beside it for the same reason, and never name an individual
-agent as finished. Silo's own panel scopes the count to the current exchange,
-since a transcript-wide tally grows without bound.
+These events arrive on the **parent's** session, not the worker's, so
+`u.subagentId` is `undefined` on a frame carrying one — it is the parent
+telling you about its delegate.
 
-**A per-subagent finish signal does exist, behind a capability.** With the
-adapter's AIR `nativeSubagentSessions` advertised, `claude-agent-acp` emits
-`subagent_spawned` / `subagent_state_update`, the latter carrying an identified
-terminal state per subagent — so a true countdown becomes possible. Silo does
-not advertise it yet: doing so moves a subagent's tool calls onto a **child
-session id**, which a client must route before it can render them. The guidance
-above is for the capability-free stream these three fields come from, not a
-claim that the protocol can never report a finish.
+Two rules worth stating, because getting either wrong is visible:
 
-All three fields are absent for an agent that doesn't report delegation, which
-is most of them.
+- **A terminal state is permanent.** A row that has seen one says so forever; a
+  transcript row is history, and the state must not revert when the session
+  goes idle or across a journal replay.
+- **Absence is not a finish.** `u.delegation` is simply never set for an agent
+  that doesn't report delegation — which is most of them. There, fall back to
+  counting dispatches, as you had to before this existed. Never read "nothing
+  said" as "it's done".
+
+Given that, a count of _outstanding_ work is supportable, and it comes down:
+
+```ts
+// honest, and reaches zero
+`${dispatched - finished} background agents working`;
+// still not supportable — names one of several as the one that finished
+`Waiting for ${name} to finish`;
+```
+
+Silo's own panel scopes the count to the current exchange (a transcript-wide
+tally grows without bound) and never names an agent in it — per-agent news
+belongs on the row that dispatched that agent.
+
+#### A subagent's own work
+
+`u.subagentId` is set on **every frame a delegated worker authored** — its tool
+calls and its own prose — and absent on the session's own frames. A subagent is
+a session of its own, and Silo routes its updates into the session that spawned
+it, so without reading this field you would render a worker's words as the
+agent's:
+
+```ts
+if (u.subagentId) appendToWorkersBlock(u.subagentId, u);
+else appendToTranscript(u);
+```
+
+Note the different subject from `AgentToolCall.subagentId`: there, the worker a
+call _delegated to_; here, the worker that _authored_ this frame. On a dispatch
+frame those are different agents.
+
+All of these fields are absent for an agent that doesn't report delegation, in
+which case the transcript renders exactly as it did before they existed.
 
 ### The plan
 

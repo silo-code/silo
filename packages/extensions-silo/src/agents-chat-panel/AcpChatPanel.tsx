@@ -93,6 +93,7 @@ import {
 } from "@phosphor-icons/react";
 import type {
   AgentCommand,
+  AgentDelegationState,
   AgentInfo,
   AgentPermissionRequest,
   AgentProfileSummary,
@@ -183,7 +184,10 @@ import {
   applyUpdate,
   closeDanglingTools,
   delegatedDispatchNotice,
+  delegatedSummaryLabel,
+  delegationOutcome,
   delegationSignature,
+  delegationStateTone,
   delegationView,
   dispatchLabel,
   emptyDelegationView,
@@ -200,6 +204,8 @@ import {
   seedFromJournal,
   stopReasonNotice,
   toolGroupLabel,
+  toolGroupCollapsed,
+  toolGroupSummaryLabel,
   toolStatusTone,
   userPromptHistory,
   workedForLabel,
@@ -519,6 +525,18 @@ function WaveText({ text }: { text: string }) {
 const EMPTY_PLACEMENT: RowPlacement = {};
 const IN_DELEGATED_GROUP: RowPlacement = { inDelegatedGroup: true };
 
+/** What each terminal subagent state means, for the badge's hover hint
+ *  (RFC 0057). The badge itself shows the bare state; a reader who wants to
+ *  know whether `"disconnected"` is bad news gets the sentence. */
+const DELEGATION_OUTCOME_HINTS: Record<AgentDelegationState, string> = {
+  started: "This background agent is still working.",
+  completed: "This background agent finished its work.",
+  failed: "This background agent stopped with an error.",
+  cancelled: "This background agent was cancelled before it finished.",
+  disconnected:
+    "Silo lost contact with this background agent, so how it ended is unknown.",
+};
+
 interface RowPlacement {
   /** This row is a delegated call drawn under its dispatch, so the attribution
    *  label is redundant — the nesting is the attribution. */
@@ -823,26 +841,54 @@ function renderTranscriptEntry(
     const dispatch = entry.dispatch;
     const expanded = tools.expandedTools.has(entry.key);
     const toggle = () => tools.onToggleTool(entry.key);
-    const hasCalls = entry.calls.length > 0;
+    const hasWork = entry.work.length > 0;
+    // RFC 0057: how the delegated worker ended, once it says so. `undefined`
+    // while it is still working *or* against an agent that never reports —
+    // which is why the `handed off` badge below stays as the fallback rather
+    // than being replaced.
+    const outcome = delegationOutcome(dispatch, tools.delegation.delegations);
+    // **A finished worker's block collapses completely** (Dave's call): while
+    // it runs, the tail of its calls is worth watching; once it has finished,
+    // all of it — calls and final answer — is reference material, and leaving
+    // it open buries the agent's own reply under a second agent's transcript.
+    //
+    // Keyed on the reported outcome, not on elapsed time or the dispatch's own
+    // status: that status settled at the hand-off and says nothing about the
+    // work. An agent that never reports a finish therefore never auto-collapses
+    // — absence is not a finish (ADR 0057), and the running layout is the safe
+    // one to be stuck in.
+    const finished = outcome !== undefined;
     // The caret earns its place only when collapsing would actually hide
     // something (Dave's call). Below the inline limit every call is on screen
     // either way, so a disclosure control would promise a reveal it can't
     // deliver — and reserving its box indents a dispatch that has no calls at
-    // all out of line with every other row.
-    const collapsible = entry.calls.length > TOOL_GROUP_INLINE_COUNT;
+    // all out of line with every other row. A finished block always hides
+    // something, so it is always collapsible.
+    const collapsible =
+      hasWork && (finished || entry.work.length > TOOL_GROUP_INLINE_COUNT);
     // Same rule as a folded tool run: the calls still worth a glance without
-    // expanding are the most recent, which is the end of the list.
-    const visible =
-      expanded || !collapsible
-        ? entry.calls
-        : entry.calls.slice(-TOOL_GROUP_INLINE_COUNT);
-    const hiddenCount = entry.calls.length - visible.length;
+    // expanding are the most recent, which is the end of the list. A finished
+    // block shows none of them.
+    const visible = expanded
+      ? entry.work
+      : finished
+        ? []
+        : collapsible
+          ? entry.work.slice(-TOOL_GROUP_INLINE_COUNT)
+          : entry.work;
+    const hiddenCount = entry.work.length - visible.length;
     const elsewhereCount =
       tools.delegation.delegatedCounts.get(dispatch.toolCallId) ?? 0;
+    // Shown only when the block has collapsed everything away — the running
+    // case keeps its "N more" button under the rows it is counting, where a
+    // count still reads against something visible.
+    const summary =
+      finished && !expanded && hasWork
+        ? delegatedSummaryLabel(entry.work)
+        : undefined;
     // Same rule as an ordinary row, from the same owner: a dispatch is
     // "running" only up to its hand-off.
     const dispatchRunning = isToolRunning(dispatch);
-    const title = dispatchLabel(dispatch.title);
     return (
       <div
         key={entry.key}
@@ -850,6 +896,7 @@ function renderTranscriptEntry(
         data-expanded={expanded || undefined}
         data-status={dispatch.status}
         data-handed-off={dispatch.handedOff || undefined}
+        data-delegation-state={outcome}
       >
         <div
           className="acp-chat__delegated-group-head"
@@ -869,61 +916,97 @@ function renderTranscriptEntry(
               : undefined
           }
         >
-          {collapsible ? (
-            <CaretRight
-              className="acp-chat__delegated-group-caret"
-              size="1em"
-              aria-hidden="true"
+          <div className="acp-chat__delegated-group-head-row">
+            {collapsible ? (
+              // The chip lives on this wrapper, not on the glyph: a `::before`
+              // on an inline `<svg>` does not render, which is why the first
+              // attempt at a caret highlight was invisible.
+              <span className="acp-chat__delegated-group-caret-slot">
+                <CaretRight
+                  className="acp-chat__delegated-group-caret"
+                  size="1em"
+                  aria-hidden="true"
+                />
+              </span>
+            ) : null}
+            <ToolKindGlyph
+              kind={dispatch.toolKind}
+              title={dispatch.title}
+              subagent
+              className="acp-chat__tool-icon"
             />
-          ) : null}
-          <ToolKindGlyph
-            kind={dispatch.toolKind}
-            title={dispatch.title}
-            subagent
-            className="acp-chat__tool-icon"
-          />
-          <span className="acp-chat__tool-title">
-            {dispatchRunning ? <WaveText text={title} /> : title}
-          </span>
-          {dispatch.handedOff ? (
-            <Tooltip content="The agent handed this work to a background agent. Silo isn't told when it finishes.">
-              <Badge tone="outline" size="sm">
-                handed off
+            {/* Structured rather than one string so the `Agent` kind can carry
+              its own weight — a dispatch is a different kind of row from a
+              Read or a Shell and should read that way at a glance (Dave's
+              call). `dispatchLabel` still owns the one-string spelling for the
+              streaming case and for anything that needs it flat. */}
+            <span className="acp-chat__tool-title acp-chat__dispatch-title">
+              {dispatchRunning ? (
+                <WaveText text={dispatchLabel(dispatch.title)} />
+              ) : (
+                <>
+                  <span className="acp-chat__dispatch-kind">Agent</span>
+                  <span className="acp-chat__dispatch-task">
+                    ({dispatch.title})
+                  </span>
+                </>
+              )}
+            </span>
+            {outcome ? (
+              <Tooltip content={DELEGATION_OUTCOME_HINTS[outcome]}>
+                <Badge tone={delegationStateTone(outcome)} size="sm">
+                  {outcome}
+                </Badge>
+              </Tooltip>
+            ) : dispatch.handedOff ? (
+              <Tooltip content="The agent handed this work to a background agent. Silo reports its result here when it finishes.">
+                <Badge tone="outline" size="sm">
+                  handed off
+                </Badge>
+              </Tooltip>
+            ) : dispatch.status === "failed" ? (
+              <Badge tone={toolStatusTone(dispatch.status)} size="sm">
+                {dispatch.status}
               </Badge>
-            </Tooltip>
-          ) : dispatch.status === "failed" ? (
-            <Badge tone={toolStatusTone(dispatch.status)} size="sm">
-              {dispatch.status}
-            </Badge>
-          ) : null}
-          {/* Only when the calls are *not* under this header: a count beside
+            ) : null}
+            {/* Only when the calls are *not* under this header: a count beside
               rows the reader can already see is noise, but a dispatch whose
               subagent reported in a later turn would otherwise look like it
               did nothing at all. */}
-          {!hasCalls && elsewhereCount > 0 ? (
-            <Tooltip
-              content={`${elsewhereCount} tool ${elsewhereCount === 1 ? "call" : "calls"} by this agent, shown later in the transcript`}
-            >
-              <span className="acp-chat__tool-delegated-count">
-                {elsewhereCount}
-              </span>
-            </Tooltip>
+            {!hasWork && elsewhereCount > 0 ? (
+              <Tooltip
+                content={`${elsewhereCount} tool ${elsewhereCount === 1 ? "call" : "calls"} by this agent, shown later in the transcript`}
+              >
+                <span className="acp-chat__tool-delegated-count">
+                  {elsewhereCount}
+                </span>
+              </Tooltip>
+            ) : null}
+          </div>
+          {/* The summary belongs to the header, not to the body (Dave's call):
+              a finished block's header and its status line are one unit, so
+              they share one hover region and one click target. As plain text
+              inside the already-clickable header it also stops being a second
+              control that highlights on its own — and avoids a button nested
+              in a `role="button"`. */}
+          {summary !== undefined ? (
+            <div className="acp-chat__delegated-group-summary">{summary}</div>
           ) : null}
         </div>
-        {hasCalls ? (
+        {hasWork ? (
           <div className="acp-chat__delegated-group-body">
-            {visible.map((call) => (
+            {visible.map((item) => (
               <TranscriptRow
-                key={call.key}
-                entry={call}
+                key={item.key}
+                entry={item}
                 tools={tools}
                 placement={IN_DELEGATED_GROUP}
               />
             ))}
-            {!expanded && hiddenCount > 0 ? (
+            {!expanded && !finished && hiddenCount > 0 ? (
               <button
                 type="button"
-                className="acp-chat__tool-group-more"
+                className="acp-chat__delegated-group-more"
                 onClick={toggle}
               >
                 {hiddenCount} more, expand to see them all
@@ -937,13 +1020,22 @@ function renderTranscriptEntry(
   if (entry.type === "tool-group") {
     const expanded = tools.expandedTools.has(entry.key);
     const toggle = () => tools.onToggleTool(entry.key);
+    // Collapse completely once the run is over, exactly as a finished dispatch
+    // block does (Dave's call). "Over" means closed *and* settled — see
+    // `toolGroupCollapsed`; collapsing on "settled" alone made the block
+    // flicker open and shut as the agent paused between calls.
+    const settled = toolGroupCollapsed(entry);
     // "Most recent" is the end of the run — entries stream in chronological
     // order, so the calls still worth a glance without expanding are the
     // last ones, not the first.
     const visible = expanded
       ? entry.tools
-      : entry.tools.slice(-TOOL_GROUP_INLINE_COUNT);
+      : settled
+        ? []
+        : entry.tools.slice(-TOOL_GROUP_INLINE_COUNT);
     const hiddenCount = entry.tools.length - visible.length;
+    const summary =
+      settled && !expanded ? toolGroupSummaryLabel(entry.tools) : undefined;
     return (
       <div
         key={entry.key}
@@ -964,29 +1056,40 @@ function renderTranscriptEntry(
             }
           }}
         >
-          <CaretRight
-            className="acp-chat__tool-group-caret"
-            size="1em"
-            aria-hidden="true"
-          />
-          <span className="acp-chat__tool-group-label">
-            {toolGroupLabel(entry)}
-          </span>
-        </div>
-        <div className="acp-chat__tool-group-body">
-          {visible.map((tool) => (
-            <TranscriptRow key={tool.key} entry={tool} tools={tools} />
-          ))}
-          {!expanded && hiddenCount > 0 ? (
-            <button
-              type="button"
-              className="acp-chat__tool-group-more"
-              onClick={toggle}
-            >
-              {hiddenCount} more, expand to see them all
-            </button>
+          <div className="acp-chat__tool-group-head-row">
+            <span className="acp-chat__tool-group-caret-slot">
+              <CaretRight
+                className="acp-chat__tool-group-caret"
+                size="1em"
+                aria-hidden="true"
+              />
+            </span>
+            <span className="acp-chat__tool-group-label">
+              {toolGroupLabel(entry)}
+            </span>
+          </div>
+          {/* Part of the header, not the body — header and status line are one
+              unit, sharing one hover region and one click target. */}
+          {summary !== undefined ? (
+            <div className="acp-chat__tool-group-summary">{summary}</div>
           ) : null}
         </div>
+        {visible.length > 0 || (!expanded && !settled && hiddenCount > 0) ? (
+          <div className="acp-chat__tool-group-body">
+            {visible.map((tool) => (
+              <TranscriptRow key={tool.key} entry={tool} tools={tools} />
+            ))}
+            {!expanded && !settled && hiddenCount > 0 ? (
+              <button
+                type="button"
+                className="acp-chat__tool-group-more"
+                onClick={toggle}
+              >
+                {hiddenCount} more, expand to see them all
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -2557,14 +2660,14 @@ export function AcpChatPanel({
   // delegated call appears — `exhaustive-deps` is off repo-wide, and this is a
   // case where the narrower dependency is the correct one.
   const delegationSig = useMemo(
-    () => delegationSignature(transcript.entries),
-    [transcript.entries],
+    () => delegationSignature(transcript),
+    [transcript],
   );
   const delegation = useMemo(
     () =>
       delegationSig.length === 0
         ? emptyDelegationView
-        : delegationView(transcript.entries),
+        : delegationView(transcript),
     [delegationSig],
   );
 
@@ -2576,9 +2679,12 @@ export function AcpChatPanel({
     () => ({ expandedTools, onToggleTool: toggleTool, isMac, delegation }),
     [expandedTools, toggleTool, isMac, delegation],
   );
+  // Keyed on the delegation signature, not the whole transcript: the count
+  // changes only when a dispatch appears or a worker reports in, and the
+  // signature already covers both.
   const delegatedWaiting = useMemo(
-    () => delegatedDispatchNotice(transcript.entries),
-    [transcript.entries],
+    () => delegatedDispatchNotice(transcript),
+    [delegationSig],
   );
   // The turn projection is pure in `entries`, and `entries` only changes when
   // the transcript does — so a render triggered by anything else (a workspace

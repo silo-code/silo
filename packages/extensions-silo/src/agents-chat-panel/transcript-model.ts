@@ -25,6 +25,7 @@
  */
 
 import type {
+  AgentDelegationState,
   AgentPlanEntry,
   AgentSessionUpdate,
   AgentToolCall,
@@ -57,6 +58,12 @@ export interface MessageEntry {
    *  (`session/resume`, a `journal-only` restore, or simply reconnecting).
    *  `undefined` only for a turn old enough to predate this field. */
   readonly sentAt?: number;
+  /** The **delegated worker that said this** (RFC 0057), when the run came
+   *  from a subagent rather than the agent itself. Such a run is drawn inside
+   *  its dispatch's block, never as the agent's own prose — a subagent's
+   *  "I will reply FINISHED once it completes" read as the parent speaking is
+   *  precisely the mis-attribution routing exists to prevent. */
+  readonly subagentId?: string;
 }
 
 /** One tool call, updated in place as `tool_call_update`s arrive. */
@@ -97,6 +104,11 @@ export interface ToolEntry {
    *  tool entries by id, because the children can land in a later turn than
    *  the dispatch. */
   readonly parentToolCallId?: string;
+  /** The delegated worker **this call dispatched** (RFC 0057) — the id that
+   *  joins this row to its worker's forwarded prose and to the terminal state
+   *  the worker eventually reports. Accumulated across frames, as
+   *  {@link subagent} is. */
+  readonly subagentId?: string;
 }
 
 /** One row of the agent's plan. */
@@ -138,6 +150,21 @@ export interface ToolGroupEntry {
   readonly type: "tool-group";
   readonly key: string;
   readonly tools: readonly ToolEntry[];
+  /**
+   * Nothing further can join this run — something already follows it, so
+   * {@link foldToolRuns} would start a new run for the agent's next call.
+   *
+   * The **one-way** signal a collapsed view needs. "Every call has settled" is
+   * not one: an agent pauses between calls, so a run goes settled, grows,
+   * settles again, and a view keyed on that opens and shuts as it works
+   * (Dave, 2026-10-08). Whether a run is closed only ever goes from false to
+   * true, because the entry that closed it never goes away.
+   *
+   * `false` for the run at the end of a turn, which is where a live agent is
+   * still working — and also for a past turn that simply ended on tool calls,
+   * where leaving it open is the honest reading: nothing ever concluded it.
+   */
+  readonly closed: boolean;
 }
 
 /** A subagent dispatch plus the calls made on its behalf, drawn as one block
@@ -149,10 +176,20 @@ export interface DelegatedGroupEntry {
   readonly key: string;
   /** The dispatching call — the `Agent(…)` row the block is headed by. */
   readonly dispatch: ToolEntry;
-  /** The calls this dispatch's subagent made, in arrival order. May be empty:
-   *  a dispatch whose children land in a later turn still heads its own
-   *  block. */
-  readonly calls: readonly ToolEntry[];
+  /**
+   * What this dispatch's subagent did, in arrival order — its tool calls and,
+   * once the agent forwards them (RFC 0057), its own messages.
+   *
+   * Heterogeneous on purpose: a subagent's prose is as much its work as its
+   * calls are, and the two interleave — the capture has the worker explaining
+   * itself *after* backgrounding a shell. Splitting them into two lists would
+   * lose that order, which is the order a reader needs to follow what the
+   * worker was doing.
+   *
+   * May be empty: a dispatch whose children land in a later turn still heads
+   * its own block.
+   */
+  readonly work: readonly (ToolEntry | MessageEntry)[];
 }
 
 /** What the transcript view renders, one turn's entries at a time — either an
@@ -171,9 +208,29 @@ export type RenderEntry =
 export interface Transcript {
   readonly entries: readonly TranscriptEntry[];
   readonly seq: number;
+  /**
+   * Where each delegated worker is in its life, keyed by subagent id —
+   * **last-write-wins** over the {@link AgentSessionUpdate.delegation} events
+   * (RFC 0057).
+   *
+   * Separate from `entries` because it is a *different kind of thing*: an
+   * entry is a row of history, while this is the current state of work that
+   * outlives the turn that started it. A worker's terminal state arrives long
+   * after its dispatch row was drawn — the capture has one landing 25s after
+   * the parent's turn ended — so the row cannot carry it, and the row must
+   * keep rendering what it found here even once the session has gone idle.
+   *
+   * Empty against an agent that doesn't report delegation, which is what
+   * makes every consumer of it degrade to RFC 0055's rendering.
+   */
+  readonly delegations: ReadonlyMap<string, AgentDelegationState>;
 }
 
-export const emptyTranscript: Transcript = { entries: [], seq: 0 };
+export const emptyTranscript: Transcript = {
+  entries: [],
+  seq: 0,
+  delegations: new Map(),
+};
 
 /** Chunk kinds that stream text, mapped to the speaker they belong to. */
 const CHUNK_ROLES: Record<string, TranscriptRole> = {
@@ -184,6 +241,26 @@ const CHUNK_ROLES: Record<string, TranscriptRole> = {
 
 function nonEmpty(v: string | undefined): string | undefined {
   return v !== undefined && v.length > 0 ? v : undefined;
+}
+
+/**
+ * Whether {@link groupDelegatedCalls} will lift this entry out of the
+ * top-level flow and into a dispatch's block — a delegated worker's own prose,
+ * or a tool call it made (RFC 0057).
+ *
+ * The dispatch row itself is deliberately **not** delegated work by this test:
+ * it heads the block and stays in the flow, so it still ends a run of the
+ * agent's text, exactly as any other tool call does.
+ *
+ * One imprecision, called out rather than hidden: with two workers running at
+ * once this cannot tell one worker's calls from another's, since a delegated
+ * call records the dispatch it serves and not the worker. The only consequence
+ * is which bubble a worker's *own* prose continues, inside its own block.
+ */
+function isDelegatedWork(e: TranscriptEntry): boolean {
+  if (e.type === "message") return e.subagentId !== undefined;
+  if (e.type === "tool") return e.parentToolCallId !== undefined;
+  return false;
 }
 
 /**
@@ -282,7 +359,7 @@ export function planRows(
 
 function appendEntry(t: Transcript, make: (key: string) => TranscriptEntry) {
   const seq = t.seq + 1;
-  return { entries: [...t.entries, make(`e${seq}`)], seq };
+  return { ...t, entries: [...t.entries, make(`e${seq}`)], seq };
 }
 
 /** The key {@link appendEntry} will give the *next* entry appended to `t` —
@@ -384,21 +461,64 @@ export function applyUpdate(
   t: Transcript,
   update: AgentSessionUpdate,
 ): Transcript {
+  // A delegated worker's lifecycle (RFC 0057). Not a row of its own — a
+  // worker appearing is not news, and its finishing is news *about the
+  // dispatch row that already exists*. Last-write-wins: the agent re-announces
+  // a worker that resumes, and Silo has already collapsed the generations onto
+  // one id, so the latest word is simply the current one.
+  const delegation = update.delegation;
+  if (delegation) {
+    const delegations = new Map(t.delegations);
+    delegations.set(delegation.subagentId, delegation.state);
+    return { ...t, delegations };
+  }
+
   const role = CHUNK_ROLES[update.kind];
   if (role) {
     const text = update.text;
     if (!text) return t;
-    const last = t.entries[t.entries.length - 1];
-    if (
-      last?.type === "message" &&
-      last.role === role &&
-      last.messageId === update.messageId
-    ) {
-      const merged: MessageEntry = { ...last, text: last.text + text };
-      return {
-        entries: [...t.entries.slice(0, -1), merged],
-        seq: t.seq,
-      };
+    // Find the run this chunk continues.
+    //
+    // **A run ends at the previous entry _in the same column_, not simply at
+    // the previous entry** (RFC 0057). A tool call or plan the agent made
+    // itself still ends the run — text, a call, then more text reads as two
+    // paragraphs around the call, which is the whole point of the rule. But a
+    // delegated worker's rows are *relocated* out of this flow at render time
+    // into their dispatch's block, so they sit between the agent's chunks in
+    // `entries` while appearing nowhere between them on screen. Treating those
+    // as a break split one of the agent's sentences into two bubbles with a
+    // blank gap between them — Dave's screenshot, 2026-10-08.
+    //
+    // So: walk back over the entries that will be relocated, and judge the run
+    // by the first one that stays put.
+    const sameFlow = (e: TranscriptEntry): boolean =>
+      isDelegatedWork(e) === (update.subagentId !== undefined);
+
+    const matches = (e: TranscriptEntry): e is MessageEntry =>
+      e.type === "message" &&
+      e.role === role &&
+      e.messageId === update.messageId &&
+      // Two speakers, never one bubble. A worker's run and the parent's can
+      // share a `messageId` only by accident, but merging across that would
+      // splice a subagent's words into the agent's own paragraph.
+      e.subagentId === update.subagentId;
+
+    let index = -1;
+    for (let i = t.entries.length - 1; i >= 0; i--) {
+      const entry = t.entries[i]!;
+      if (!sameFlow(entry)) continue;
+      if (matches(entry)) index = i;
+      // The first entry in this chunk's own column decides it: either it is the
+      // run being continued, or the run ended there.
+      break;
+    }
+
+    if (index >= 0) {
+      const prev = t.entries[index] as MessageEntry;
+      const merged: MessageEntry = { ...prev, text: prev.text + text };
+      const entries = [...t.entries];
+      entries[index] = merged;
+      return { ...t, entries, seq: t.seq };
     }
     const sentAt =
       role === "user" && update.timestamp !== undefined
@@ -411,6 +531,9 @@ export function applyUpdate(
       ...(update.messageId ? { messageId: update.messageId } : {}),
       text,
       ...(sentAt !== undefined && !Number.isNaN(sentAt) ? { sentAt } : {}),
+      ...(update.subagentId !== undefined
+        ? { subagentId: update.subagentId }
+        : {}),
     }));
   }
 
@@ -450,10 +573,11 @@ export function applyUpdate(
         subagent: call.subagent ?? prev.subagent,
         handedOff: call.handedOff ?? prev.handedOff,
         parentToolCallId: call.parentToolCallId ?? prev.parentToolCallId,
+        subagentId: call.subagentId ?? prev.subagentId,
       };
       const entries = [...t.entries];
       entries[index] = next;
-      return { entries, seq: t.seq };
+      return { ...t, entries, seq: t.seq };
     }
     // An update for a call whose `tool_call` never arrived still deserves a
     // row — dropping it would lose the only record of what the agent did.
@@ -472,6 +596,7 @@ export function applyUpdate(
       ...(call.parentToolCallId !== undefined
         ? { parentToolCallId: call.parentToolCallId }
         : {}),
+      ...(call.subagentId !== undefined ? { subagentId: call.subagentId } : {}),
     }));
   }
 
@@ -481,7 +606,7 @@ export function applyUpdate(
     if (index >= 0) {
       const entries = [...t.entries];
       entries[index] = { ...(t.entries[index] as PlanEntry), rows };
-      return { entries, seq: t.seq };
+      return { ...t, entries, seq: t.seq };
     }
     if (rows.length === 0) return t;
     return appendEntry(t, (key) => ({ type: "plan", key, rows }));
@@ -641,9 +766,17 @@ export function foldToolRuns(
   const out: RenderEntry[] = [];
   let run: ToolEntry[] = [];
 
-  const flushRun = () => {
+  /** `closed` — see {@link ToolGroupEntry.closed}. A run flushed because
+   *  something broke it can never grow again; the one flushed at the end of
+   *  the turn still can. */
+  const flushRun = (closed: boolean) => {
     if (run.length >= TOOL_GROUP_THRESHOLD) {
-      out.push({ type: "tool-group", key: `g${run[0]!.key}`, tools: run });
+      out.push({
+        type: "tool-group",
+        key: `g${run[0]!.key}`,
+        tools: run,
+        closed,
+      });
     } else {
       out.push(...run);
     }
@@ -661,10 +794,10 @@ export function foldToolRuns(
       run.push(entry);
       continue;
     }
-    flushRun();
+    flushRun(true);
     out.push(entry);
   }
-  flushRun();
+  flushRun(false);
   return out;
 }
 
@@ -695,20 +828,55 @@ export function groupDelegatedCalls(
   entries: readonly TranscriptEntry[],
 ): readonly (TranscriptEntry | DelegatedGroupEntry)[] {
   const groups = new Map<string, DelegatedGroupEntry>();
+  /** Dispatch call id by the worker it dispatched — the route a subagent's
+   *  *prose* takes to its block. A child's tool call carries
+   *  `parentToolCallId` and needs no lookup, but a message entry has no such
+   *  field (it is a property of a tool call), so its only join is the worker
+   *  id it was attributed with. */
+  const bySubagent = new Map<string, string>();
   for (const entry of entries) {
     if (entry.type === "tool" && entry.subagent && entry.toolCallId) {
       groups.set(entry.toolCallId, {
         type: "delegated-group",
         key: `d${entry.key}`,
         dispatch: entry,
-        calls: [],
+        work: [],
       });
+      if (entry.subagentId !== undefined)
+        bySubagent.set(entry.subagentId, entry.toolCallId);
     }
   }
   if (groups.size === 0) return entries;
 
+  /** Append `entry` to the block `parentId` heads, if there is one. */
+  const absorb = (
+    parentId: string | undefined,
+    entry: ToolEntry | MessageEntry,
+  ): boolean => {
+    const parent = parentId !== undefined ? groups.get(parentId) : undefined;
+    if (!parent) return false;
+    groups.set(parent.dispatch.toolCallId, {
+      ...parent,
+      work: [...parent.work, entry],
+    });
+    return true;
+  };
+
   const out: (TranscriptEntry | DelegatedGroupEntry)[] = [];
   for (const entry of entries) {
+    // A worker's forwarded prose belongs in its block, never in the flow of
+    // the parent's own messages (RFC 0057). A run attributed to a worker whose
+    // dispatch this transcript never saw — a replay starting mid-delegation —
+    // falls through and renders on its own rather than vanishing.
+    if (entry.type === "message") {
+      if (
+        entry.subagentId !== undefined &&
+        absorb(bySubagent.get(entry.subagentId), entry)
+      )
+        continue;
+      out.push(entry);
+      continue;
+    }
     if (entry.type !== "tool") {
       out.push(entry);
       continue;
@@ -719,17 +887,7 @@ export function groupDelegatedCalls(
       out.push(own);
       continue;
     }
-    const parent =
-      entry.parentToolCallId !== undefined
-        ? groups.get(entry.parentToolCallId)
-        : undefined;
-    if (parent) {
-      groups.set(parent.dispatch.toolCallId, {
-        ...parent,
-        calls: [...parent.calls, entry],
-      });
-      continue;
-    }
+    if (absorb(entry.parentToolCallId, entry)) continue;
     out.push(entry);
   }
   // The map was rebuilt as calls accumulated, so re-read each block to pick up
@@ -737,6 +895,62 @@ export function groupDelegatedCalls(
   return out.map((e) =>
     e.type === "delegated-group" ? (groups.get(e.dispatch.toolCallId) ?? e) : e,
   );
+}
+
+/**
+ * Whether every call in a folded run has settled, so the run can collapse
+ * completely (Dave's call — the same treatment a finished dispatch gets).
+ *
+ * "Settled" is {@link isToolRunning}'s answer, inverted, for every member —
+ * one source for the question across the whole panel. A run with anything
+ * still pending or in flight stays open, because the tail of it is exactly
+ * what a reader watches while work is happening.
+ *
+ * An empty run is vacuously settled; it never reaches the renderer, since a
+ * group only exists at {@link TOOL_GROUP_THRESHOLD}+ calls.
+ */
+export function toolGroupSettled(tools: readonly ToolEntry[]): boolean {
+  return !tools.some(isToolRunning);
+}
+
+/**
+ * Whether a folded run should collapse to its header.
+ *
+ * **Both conditions, and each rules out a different wrong look:**
+ *
+ * - {@link ToolGroupEntry.closed} — nothing more can join the run. Without it
+ *   the block collapses the moment the agent pauses, re-opens when its next
+ *   call lands in the same run, and collapses again, flickering its way
+ *   through a turn. In practice this is the agent's own reply arriving, which
+ *   is what ends a run.
+ * - {@link toolGroupSettled} — no call in it is still going. A closed run can
+ *   still hold a call in flight, since `applyUpdate` patches a row in place
+ *   wherever it sits, and collapsing over a live spinner hides the one thing
+ *   worth watching.
+ *
+ * The subagent block needs no equivalent because its worker reports a terminal
+ * state, which is already one-way.
+ */
+export function toolGroupCollapsed(group: ToolGroupEntry): boolean {
+  return group.closed && toolGroupSettled(group.tools);
+}
+
+/**
+ * The collapsed run's second line.
+ *
+ * The header already reads `"6 Edit · 2 Read · 1 Shell"`, so the one thing it
+ * does not say is the **total** — which a reader would otherwise have to add
+ * up to know what expanding is going to cost them.
+ *
+ * **Deliberately silent about failures, and that is not an oversight.**
+ * {@link foldToolRuns} breaks a run at any call ending `"failed"`, so a failed
+ * call is never inside a group to begin with. A failure count here would be a
+ * branch that can never be taken — and worse, it would imply the fold needs
+ * help it doesn't: the failed row is already in full view, outside the group,
+ * which is a stronger guarantee than a count behind a collapsed header.
+ */
+export function toolGroupSummaryLabel(tools: readonly ToolEntry[]): string {
+  return `expand to see all ${tools.length}`;
 }
 
 /** The folded group's header label — e.g. `"14 Shell · 3 Read"` — so a
@@ -817,6 +1031,79 @@ export function isToolRunning(
   return entry.status === "pending" || entry.status === "in_progress";
 }
 
+/**
+ * How a dispatch's delegated worker ended, or `undefined` while it is still
+ * working or never reported — the **one** place that decides it, for the same
+ * reason {@link isToolRunning} is.
+ *
+ * **Permanent once set.** A dispatch row that has seen a terminal state says
+ * so forever: a transcript row is history, and the state lives in
+ * {@link Transcript.delegations} rather than in liveness, so it survives the
+ * session going idle, the turn ending, and a journal replay alike. Nothing
+ * here consults `AgentInfo.activity`.
+ *
+ * `undefined` covers three different situations on purpose, because the row
+ * renders them identically — still running, never reported by this agent, and
+ * reported with a state Silo does not recognise. All three mean "no outcome to
+ * show", and none of them may be drawn as finished.
+ */
+export function delegationOutcome(
+  entry: Pick<ToolEntry, "subagentId">,
+  delegations: ReadonlyMap<string, AgentDelegationState>,
+): AgentDelegationState | undefined {
+  if (entry.subagentId === undefined) return undefined;
+  const state = delegations.get(entry.subagentId);
+  return state === undefined || state === "started" ? undefined : state;
+}
+
+/**
+ * The badge tone for a delegated worker's outcome, and the hint beside it.
+ *
+ * Alongside {@link toolStatusTone} because it is the same decision for a
+ * different vocabulary: the four terminal states are not equally good news, so
+ * they do not all get the same chip. `"completed"` reads as a result;
+ * everything else is a warning the reader may want to act on, and
+ * `"disconnected"` in particular means *nobody knows* how the work ended,
+ * which is worth not dressing up as a failure.
+ */
+export function delegationStateTone(
+  state: AgentDelegationState,
+): "ok" | "warn" | "err" {
+  switch (state) {
+    case "completed":
+      return "ok";
+    case "failed":
+      return "err";
+    default:
+      return "warn";
+  }
+}
+
+/**
+ * The collapsed block's one-line summary of what the worker did — e.g.
+ * `"14 tool calls · expand to see agent output"`.
+ *
+ * A finished dispatch collapses to its header plus this row (Dave's call): the
+ * worker's calls and its final answer are a lot of transcript, and once it has
+ * finished they are reference material rather than something to watch. The
+ * line still has to say *that there is something there*, or a collapsed block
+ * reads as an agent that did nothing — which is the failure the
+ * {@link DelegationView.delegatedCounts} badge exists to avoid elsewhere.
+ *
+ * Counts tool calls only. A worker's prose is not countable in any way worth
+ * showing ("3 messages" means nothing to a reader), so it is covered by
+ * "agent output" instead — which is also the honest label when the worker made
+ * no calls at all and the block holds nothing but its answer.
+ */
+export function delegatedSummaryLabel(
+  work: readonly (ToolEntry | MessageEntry)[],
+): string {
+  const calls = work.reduce((n, w) => (w.type === "tool" ? n + 1 : n), 0);
+  const tail = "expand to see agent output";
+  if (calls === 0) return tail;
+  return `${calls} tool ${calls === 1 ? "call" : "calls"} · ${tail}`;
+}
+
 /** The dispatch row's label — `"Agent(Sleep then reply)"`. The reducer has
  *  already relabelled the row from the vendor's opening `"Task"` to the
  *  streamed description, so this just wraps whatever title the wire settled
@@ -846,6 +1133,10 @@ export interface DelegationView {
    *  without a count the dispatch would say nothing about work that is
    *  demonstrably happening under it. */
   readonly delegatedCounts: ReadonlyMap<string, number>;
+  /** Each delegated worker's state, passed straight through from
+   *  {@link Transcript.delegations} so a dispatch row can read its own
+   *  outcome through {@link delegationOutcome} without a second prop. */
+  readonly delegations: ReadonlyMap<string, AgentDelegationState>;
 }
 
 /** The empty view — shared, so the overwhelmingly common case (no delegation
@@ -853,15 +1144,14 @@ export interface DelegationView {
 export const emptyDelegationView: DelegationView = {
   dispatchTitles: new Map(),
   delegatedCounts: new Map(),
+  delegations: new Map(),
 };
 
 /** Project the delegation picture out of a whole transcript. */
-export function delegationView(
-  entries: readonly TranscriptEntry[],
-): DelegationView {
+export function delegationView(t: Transcript): DelegationView {
   const dispatchTitles = new Map<string, string>();
   const delegatedCounts = new Map<string, number>();
-  for (const entry of entries) {
+  for (const entry of t.entries) {
     if (entry.type !== "tool") continue;
     if (entry.subagent && entry.toolCallId) {
       dispatchTitles.set(entry.toolCallId, entry.title);
@@ -871,10 +1161,14 @@ export function delegationView(
       delegatedCounts.set(parent, (delegatedCounts.get(parent) ?? 0) + 1);
     }
   }
-  if (dispatchTitles.size === 0 && delegatedCounts.size === 0) {
+  if (
+    dispatchTitles.size === 0 &&
+    delegatedCounts.size === 0 &&
+    t.delegations.size === 0
+  ) {
     return emptyDelegationView;
   }
-  return { dispatchTitles, delegatedCounts };
+  return { dispatchTitles, delegatedCounts, delegations: t.delegations };
 }
 
 /**
@@ -887,67 +1181,96 @@ export function delegationView(
  * identity stable through the long stretches where text is streaming and the
  * delegation picture is standing still.
  */
-export function delegationSignature(
-  entries: readonly TranscriptEntry[],
-): string {
+export function delegationSignature(t: Transcript): string {
   let sig = "";
-  for (const entry of entries) {
+  // A worker reporting in changes every dispatch row's badge and the notice's
+  // count, so the state map is part of what the signature covers.
+  for (const [id, state] of t.delegations) sig += `s\0${id}\0${state}`;
+  for (const entry of t.entries) {
+    if (entry.type === "message") {
+      // A worker's prose moves into its block, so a run appearing — or being
+      // attributed — changes what the view must draw.
+      if (entry.subagentId !== undefined) sig += `m\0${entry.subagentId}`;
+      continue;
+    }
     if (entry.type !== "tool") continue;
-    if (entry.subagent) sig += `d ${entry.toolCallId} ${entry.title}`;
+    if (entry.subagent)
+      sig += `d\0${entry.toolCallId}\0${entry.title}\0${entry.subagentId ?? ""}`;
     if (entry.parentToolCallId !== undefined) {
-      sig += `c ${entry.parentToolCallId}`;
+      sig += `c\0${entry.parentToolCallId}`;
     }
   }
   return sig;
 }
 
 /**
- * The `"2 background agents dispatched"` notice, or `undefined` when this
- * exchange dispatched none.
+ * The `"2 background agents working"` notice, or `undefined` when nothing this
+ * exchange dispatched is still outstanding.
  *
- * **It counts dispatches, and says so.** An earlier version read "Waiting for 2
- * background agents to finish", which claimed two things the wire cannot
- * support: that the work is still running, and that the number shrinks as
- * agents finish. Neither is knowable. Nothing revisits a dispatch to report a
- * finish, and with several outstanding nothing says *which* one finished — so
- * the count could only ever go up, and a line promising a countdown that never
- * came read as broken (Dave, 2026-10-07). A better signal does exist — the
- * adapter's AIR `nativeSubagentSessions` capability reports a terminal state
- * per subagent (`scratchpad/acp-probe/subagent-capability-2026-10-07.mjs`) —
- * but advertising it moves delegated calls onto child session ids the host
- * cannot route yet, so it is not reachable from here *today*.
+ * **It counts outstanding work, and the count comes down.** That is new
+ * (RFC 0057) and worth stating, because the previous version of this comment
+ * argued at length that a countdown was impossible: nothing revisited a
+ * dispatch to report a finish, and with several agents outstanding nothing
+ * said *which* one had finished, so the number could only go up. A line
+ * promising a countdown that never came read as broken (Dave, 2026-10-07), so
+ * the notice retreated to counting dispatches.
  *
- * So the notice states the one fact that *is* certain — this many agents were
- * handed work — and the tooltip carries the caveat that Silo is not told when
- * they finish. No row and no count ever names an individual agent as done.
+ * What changed is the evidence, not the taste: the adapter's AIR
+ * `nativeSubagentSessions` capability — which Silo now advertises — reports a
+ * **terminal state per named subagent**, and the host routes it onto
+ * {@link AgentSessionUpdate.delegation}. So "which one finished" is answered,
+ * and subtracting the finished from the dispatched is an honest count rather
+ * than an inference from timing.
+ *
+ * **The old behaviour survives as the degradation path**, which is the point
+ * of taking the count from {@link Transcript.delegations}: an agent that does
+ * not speak the capability reports no finishes, nothing is ever subtracted,
+ * and the line reads exactly as it did before — this many agents were handed
+ * work. Absence of a finish is never read as a finish.
  *
  * **Scoped to the current exchange**, i.e. dispatches since the last user
  * message. Two reasons: over a long session a transcript-wide tally grows
  * without bound and stops meaning anything, and "dispatched" is naturally read
  * against what you just asked for. Sending the next prompt is therefore what
- * clears it.
+ * clears it, as is every agent finishing.
  *
  * Deliberately **not** gated on `AgentInfo.activity`. It was, and that is what
  * made the line vanish and reappear while subagents were demonstrably still
  * working: between the parent's turn ending and the next notification turn the
- * session reads idle. A statement about what was dispatched does not stop being
- * true while the session is quiet.
+ * session reads idle. A statement about outstanding work does not stop being
+ * true while the session is quiet — and the capture has a subagent finishing
+ * 25s into exactly that quiet.
  */
-export function delegatedDispatchNotice(
-  entries: readonly TranscriptEntry[],
-): string | undefined {
-  let count = 0;
-  for (const entry of entries) {
+export function delegatedDispatchNotice(t: Transcript): string | undefined {
+  /** Dispatches in this exchange, by the worker each handed to. Keyed rather
+   *  than counted so a worker reported twice is still one agent. */
+  let outstanding = 0;
+  let unknownFinish = 0;
+  for (const entry of t.entries) {
     // A user message opens a new exchange, so anything before it belongs to a
     // question already answered.
-    if (entry.type === "message" && entry.role === "user") count = 0;
+    if (entry.type === "message" && entry.role === "user") {
+      outstanding = 0;
+      unknownFinish = 0;
+      continue;
+    }
     // `handedOff` alone is not enough: it is deliberately agent-agnostic on
     // the public surface ("handed its work off to run elsewhere"), and a
     // backgrounded *shell* is the next thing expected to set it. This line
     // says "background agents", so it counts dispatches.
-    if (entry.type === "tool" && entry.handedOff && entry.subagent) count += 1;
+    if (entry.type !== "tool" || !entry.handedOff || !entry.subagent) continue;
+    // A dispatch whose worker we can't name can't be told apart from one
+    // still running, so it counts as outstanding — the truthful side to err
+    // on, and the whole capability-off path.
+    if (entry.subagentId === undefined) {
+      unknownFinish += 1;
+      continue;
+    }
+    const state = t.delegations.get(entry.subagentId);
+    if (state === undefined || state === "started") outstanding += 1;
   }
+  const count = outstanding + unknownFinish;
   if (count === 0) return undefined;
   const noun = count === 1 ? "background agent" : "background agents";
-  return `${count} ${noun} dispatched`;
+  return `${count} ${noun} working`;
 }

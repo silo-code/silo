@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import type { AcpMessage, AcpTransportLike } from "./acp-transport";
 import {
+  AIR_CLIENT_META,
   capabilityEnabled,
   createAcpClient,
   parseConfigOptions,
@@ -197,7 +198,176 @@ describe("createAcpClient", () => {
     await flush();
     expect(onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ sessionUpdate: "agent_message_chunk" }),
+      "s1",
     );
+  });
+
+  // RFC 0057 R1. Until Silo advertised the subagent capability every
+  // notification belonged to the one session that had been prompted, so this
+  // layer dropped the id. A subagent's frames arrive on a child session id,
+  // and routing them is the sessions service's job — but it can only do it if
+  // the id survives the transport.
+  describe("session id delivery", () => {
+    const emitUpdate = async (params: Record<string, unknown>) => {
+      const onUpdate = vi.fn();
+      const t = fakeTransport();
+      const client = createAcpClient(t.transport, noopCallbacks({ onUpdate }));
+      void client.initialize();
+      await flush();
+      t.emit({ jsonrpc: "2.0", method: "session/update", params });
+      await flush();
+      return onUpdate;
+    };
+
+    const anUpdate = { sessionUpdate: "agent_message_chunk", content: {} };
+
+    it("delivers a child session's id alongside the update", async () => {
+      const onUpdate = await emitUpdate({
+        sessionId: "a26fef4c40ae0ac1d",
+        update: anUpdate,
+      });
+      expect(onUpdate.mock.calls[0]?.[1]).toBe("a26fef4c40ae0ac1d");
+    });
+
+    it("delivers no session id when the wire carried none", async () => {
+      // Every agent before this change, and most still: its frames must keep
+      // working, read as the connection's own.
+      const onUpdate = await emitUpdate({ update: anUpdate });
+      expect(onUpdate).toHaveBeenCalledTimes(1);
+      expect(onUpdate.mock.calls[0]?.[1]).toBeUndefined();
+    });
+
+    it("reads a non-string session id as absent rather than throwing", async () => {
+      for (const sessionId of [7, null, {}, ["s1"]]) {
+        const onUpdate = await emitUpdate({ sessionId, update: anUpdate });
+        expect(onUpdate).toHaveBeenCalledTimes(1);
+        expect(onUpdate.mock.calls[0]?.[1]).toBeUndefined();
+      }
+    });
+
+    it("still ignores a notification with no usable sessionUpdate", async () => {
+      const onUpdate = await emitUpdate({ sessionId: "s1", update: {} });
+      expect(onUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  // RFC 0057 R7. The one place Silo asks an agent to *change what it sends*,
+  // so the opt-in is asserted rather than trusted: a silently-failed opt-in is
+  // indistinguishable from capability-off.
+  //
+  // The first version of this suite asserted the *shape* of the AIR block and
+  // passed while the feature was completely dead, because the block was sent
+  // beside `clientCapabilities` instead of inside it. So the gate below takes
+  // what the adapter takes — the whole `clientCapabilities` object — and does
+  // its own `._meta` lookup, exactly as `air-extension.js` does. A test that
+  // cannot fail on placement is not testing the opt-in.
+  describe("AIR subagent capability opt-in", () => {
+    /**
+     * `clientSupportsAirCapability` from `claude-agent-acp`'s
+     * `air-extension.js`, re-implemented against the pinned 0.75.1 dist.
+     *
+     * Takes the **`clientCapabilities` object**, not the `_meta` inside it:
+     * that indirection is the whole point, since it is where the original bug
+     * lived. Accepts only an integer `version >= 1` and an array
+     * `capabilities` naming the extension.
+     */
+    const adapterAccepts = (
+      clientCapabilities: unknown,
+      name: string,
+    ): boolean => {
+      const asRecord = (v: unknown): Record<string, unknown> =>
+        v && typeof v === "object" && !Array.isArray(v)
+          ? (v as Record<string, unknown>)
+          : {};
+      const air = asRecord(
+        asRecord(asRecord(clientCapabilities)._meta).jetbrains,
+      ).air;
+      if (typeof air !== "object" || air === null || Array.isArray(air))
+        return false;
+      const { version, capabilities } = air as {
+        version?: unknown;
+        capabilities?: unknown;
+      };
+      if (typeof version !== "number" || !Number.isFinite(version))
+        return false;
+      if (!Number.isInteger(version) || version < 1) return false;
+      return Array.isArray(capabilities) && capabilities.includes(name);
+    };
+
+    /** The `clientCapabilities` Silo actually puts on the wire. */
+    const sentCapabilities = async (): Promise<unknown> => {
+      const t = fakeTransport();
+      const client = createAcpClient(t.transport, noopCallbacks());
+      void client.initialize();
+      await flush();
+      const init = t.sent.find((m) => m.method === "initialize");
+      return (init?.params as { clientCapabilities?: unknown })
+        ?.clientCapabilities;
+    };
+
+    it("sanity-checks the gate against a block in the wrong place", () => {
+      // Guards the guard: if `adapterAccepts` ignored placement it would
+      // accept this, and the suite would go back to proving nothing.
+      expect(
+        adapterAccepts({ _meta: AIR_CLIENT_META }, "nativeSubagentSessions"),
+      ).toBe(true);
+      expect(adapterAccepts(AIR_CLIENT_META, "nativeSubagentSessions")).toBe(
+        false,
+      );
+    });
+
+    it("advertises inside initialize's clientCapabilities", async () => {
+      // Where the adapter reads it from, and the only place it reads it from.
+      expect(
+        adapterAccepts(await sentCapabilities(), "nativeSubagentSessions"),
+      ).toBe(true);
+    });
+
+    it("survives the SDK's own clientCapabilities schema", async () => {
+      // `zClientCapabilities` is a plain `z.object`, so it strips unknown keys
+      // — which is why the canonical `subagents` opt-in never arrived. `_meta`
+      // is a declared passthrough field, so the block rides in under it. This
+      // models that stripping: everything the schema doesn't name is dropped.
+      const declared = new Set([
+        "fs",
+        "terminal",
+        "session",
+        "plan",
+        "auth",
+        "elicitation",
+        "nes",
+        "positionEncodings",
+        "_meta",
+      ]);
+      const sent = (await sentCapabilities()) as Record<string, unknown>;
+      const stripped = Object.fromEntries(
+        Object.entries(sent).filter(([k]) => declared.has(k)),
+      );
+      expect(adapterAccepts(stripped, "nativeSubagentSessions")).toBe(true);
+    });
+
+    it("does not advertise asyncTasks", async () => {
+      // The out-of-scope sibling (backgrounded shells): advertising it would
+      // put `async_task_*` frames on the stream for no reader.
+      expect(adapterAccepts(await sentCapabilities(), "asyncTasks")).toBe(
+        false,
+      );
+    });
+
+    it("does not put the block on session/new, where nothing reads it", async () => {
+      // The adapter gates subagents on `initialize`'s capabilities alone;
+      // `session/new`'s `_meta` is only ever read for
+      // `claudeCode.options.resume`. A block there was cargo-cult.
+      const t = fakeTransport();
+      const client = createAcpClient(t.transport, noopCallbacks());
+      void client.initialize();
+      await flush();
+      t.emit({ jsonrpc: "2.0", id: 1, result: {} });
+      void client.newSession("/tmp");
+      await flush();
+      const neu = t.sent.find((m) => m.method === "session/new");
+      expect((neu?.params as { _meta?: unknown })?._meta).toBeUndefined();
+    });
   });
 
   it("prompt resolves with the turn's stop reason", async () => {

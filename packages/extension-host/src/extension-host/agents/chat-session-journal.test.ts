@@ -425,3 +425,38 @@ describe("deleteJournalFile", () => {
     await expect(deleteJournalFile("ws1", "s1")).resolves.toBeUndefined();
   });
 });
+
+/**
+ * RFC 0057. The journal stores typed updates one per line and needed **no
+ * change at all** for subagent routing — which is the point worth pinning:
+ * the attribution rides on the update, so a replay reconstructs the nesting
+ * from the data rather than from arrival order, and an old journal with none
+ * of it still parses.
+ */
+describe("subagent attribution round-trips", () => {
+  it("keeps subagentId and delegation across a write and a read", () => {
+    const child = {
+      kind: "agent_message_chunk",
+      text: "Command running in the background.",
+      subagentId: "a26fef4c40ae0ac1d",
+      raw: {},
+    } as AgentSessionUpdate;
+    const finish = {
+      kind: "subagent_state_update",
+      delegation: { subagentId: "a26fef4c40ae0ac1d", state: "completed" },
+      raw: {},
+    } as AgentSessionUpdate;
+    const lines = [child, finish].map((u) => JSON.stringify(u));
+    expect(parseJournalLines(lines)).toEqual([child, finish]);
+  });
+
+  it("still parses a journal written before this change", () => {
+    // No `subagentId`, no `delegation` — which reads as the parent's own
+    // frame and renders exactly as it did.
+    const lines = [JSON.stringify(update("agent_message_chunk", "hello"))];
+    const parsed = parseJournalLines(lines);
+    expect(parsed).toHaveLength(1);
+    expect("subagentId" in parsed[0]!).toBe(false);
+    expect("delegation" in parsed[0]!).toBe(false);
+  });
+});

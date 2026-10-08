@@ -95,6 +95,7 @@ import {
   readJournalLines,
   type ChatSessionJournalWriter,
 } from "./chat-session-journal";
+import { delegationEvent } from "./chat-delegated-work";
 import { sessionConfigToApply } from "./profile-session-config";
 
 /** How long `dispose()` gives `session/close` to land before killing the
@@ -244,8 +245,15 @@ function titleFromSessionInfo(u: AcpSessionUpdate): string | undefined {
  * The rule this encodes: **everything a Chat UI must render is a modelled
  * field** (RFC 0038 phase 3.8). `raw` rides along for the kinds deliberately
  * left unmodelled, never as the way to read a tool call or the plan.
+ *
+ * @param subagentId Set when the frame arrived on a **child** session id —
+ * the worker that authored it (RFC 0057). The caller decides this, because
+ * knowing which session owns which child is the service's job, not a parser's.
  */
-function toSdkUpdate(u: AcpSessionUpdate): AgentSessionUpdate {
+function toSdkUpdate(
+  u: AcpSessionUpdate,
+  subagentId?: string,
+): AgentSessionUpdate {
   const kind = u.sessionUpdate;
   let text: string | undefined;
   let content: AgentContentBlock | undefined;
@@ -259,6 +267,10 @@ function toSdkUpdate(u: AcpSessionUpdate): AgentSessionUpdate {
       : undefined;
   const plan = kind === "plan" ? parsePlanEntries(u.entries) : undefined;
   const usage = kind === "usage_update" ? parseUsage(u) : undefined;
+  // Read for every kind, not gated on one: the lifecycle kinds are the
+  // vendor's spelling and `kind` must not become the thing consumers match on
+  // (RFC 0057). The quarantine answers `undefined` for everything else.
+  const delegation = delegationEvent(u);
   return {
     kind,
     text,
@@ -268,6 +280,8 @@ function toSdkUpdate(u: AcpSessionUpdate): AgentSessionUpdate {
     ...(toolCall ? { toolCall } : {}),
     ...(plan ? { plan } : {}),
     ...(usage ? { usage } : {}),
+    ...(subagentId !== undefined ? { subagentId } : {}),
+    ...(delegation ? { delegation } : {}),
     raw: u as Readonly<Record<string, unknown>>,
   };
 }
@@ -578,6 +592,29 @@ export function createAgentSessionsService(
       // `"journal-only"` (no live connection to send it to). See
       // `persistSessionId` for what a caller should actually persist.
       let acpSessionId = "";
+      /**
+       * Child session ids this session has been told it owns — every
+       * **subagent** the agent announced with `subagent_spawned` (RFC 0057),
+       * generation-normalised by the quarantine.
+       *
+       * This is why routing is a *membership test* rather than a router: one
+       * Chat session handle owns one `AcpClient` over one child process, so
+       * every frame on this connection belongs either to this session, to one
+       * of its subagents, or to nothing we know about. Attributing that third
+       * case to the live session is the exact failure this change exists to
+       * prevent — see the `unknown` branch in `onUpdate`.
+       *
+       * Never pruned on a terminal state: a finished subagent can still have
+       * late frames in flight, and a transcript row for its work is history
+       * either way.
+       */
+      const children = new Set<string>();
+      /** Unknown session ids already warned about, so a stream of frames for
+       *  one bad id logs once rather than per frame. */
+      const warnedSessionIds = new Set<string>();
+      /** Cleared once the first child frame has logged — the runtime signal
+       *  that the capability opt-in actually registered (RFC 0057 R7). */
+      let loggedFirstChildFrame = false;
       // Whether there is a live agent connection to prompt/cancel at all —
       // false only for a `"journal-only"` handle (RFC 0042).
       let liveConnection = true;
@@ -773,8 +810,86 @@ export function createAgentSessionsService(
         );
       }
 
+      /**
+       * Project one frame onto the SDK shape and send it everywhere a frame
+       * goes: the working-checkout tracker, the journal, and the extension's
+       * listeners. Shared by the own-frame and child-frame paths, which differ
+       * only in whether they drive the parent's turn — everything downstream
+       * of that treats a subagent's frame exactly like the parent's, tagged.
+       */
+      function publishUpdate(
+        update: AcpSessionUpdate,
+        subagentId?: string,
+      ): void {
+        const sdk = toSdkUpdate(update, subagentId);
+        checkout.observe(sdk);
+        resolveCheckout();
+        // Journal every update that arrives — live turns and a `load`'s own
+        // replay alike (RFC 0042). The writer is seeded to avoid duplicating
+        // a `load` replay against what was already on disk; see the
+        // handshake below. A child's frames go into the **parent's** file,
+        // tagged with `subagentId`, so a replay reconstructs the nesting from
+        // the data rather than from arrival order (RFC 0057 R9).
+        journalWriter?.append(sdk);
+        for (const l of updateListeners) {
+          try {
+            l(sdk);
+          } catch (err) {
+            agentsChannel.debug(`chat session onUpdate listener threw: ${err}`);
+          }
+        }
+      }
+
       const callbacks: AcpClientCallbacks = {
-        onUpdate(update) {
+        onUpdate(update, sessionId) {
+          // --- classify the frame (RFC 0057) ----------------------------
+          // A frame is this session's own, one of its subagents', or nothing
+          // this host knows about. The `undefined` case is an agent that
+          // doesn't send `sessionId` at all, which is every agent before this
+          // change and still most of them: its frames are its own.
+          const registration = delegationEvent(update);
+          if (
+            registration?.state === "started" &&
+            (sessionId === undefined || sessionId === acpSessionId)
+          ) {
+            // Register before dispatching, so the child's first frame — which
+            // the capture shows arriving ~1.8s later — always finds its parent.
+            children.add(registration.subagentId);
+          }
+
+          const own = sessionId === undefined || sessionId === acpSessionId;
+          const subagentId = own ? undefined : sessionId;
+          if (!own && !children.has(sessionId)) {
+            // Never fall back to the live session. Mis-attributing a stranger's
+            // frames is strictly worse than losing them: it would put another
+            // conversation's prose in this transcript as though this agent had
+            // said it.
+            if (!warnedSessionIds.has(sessionId)) {
+              warnedSessionIds.add(sessionId);
+              agentsChannel.warn(
+                `[${label}] dropping session/update for unrecognised session ${sessionId} (own: ${acpSessionId || "none"}; known subagents: ${children.size}).`,
+              );
+            }
+            return;
+          }
+
+          if (subagentId !== undefined) {
+            if (!loggedFirstChildFrame) {
+              loggedFirstChildFrame = true;
+              agentsChannel.debug(
+                `[${label}] routing subagent frames for ${persistSessionId} (first from ${subagentId}) — the capability opt-in registered.`,
+              );
+            }
+            // A subagent's frames are **journaled and rendered but drive
+            // nothing**: the turn-boundary, tool-flight and activity signals
+            // below are about the parent's own turn. A subagent working on
+            // after the parent's turn ended must not reopen it (the capture
+            // has one finishing 25s later), and a child's in-flight tool call
+            // is not the parent's work.
+            publishUpdate(update, subagentId);
+            return;
+          }
+
           // Turn boundaries first (`chat-turn-signals.ts`). ACP reports a
           // `stopReason` only as the answer to `session/prompt`, so a turn the
           // agent starts on its own has no start and no end of its own — the
@@ -832,23 +947,7 @@ export function createAgentSessionsService(
               patchChatAgent(infoId, { title });
             }
           }
-          const sdk = toSdkUpdate(update);
-          checkout.observe(sdk);
-          resolveCheckout();
-          // Journal every update that arrives — live turns and a `load`'s own
-          // replay alike (RFC 0042). The writer is seeded to avoid duplicating
-          // a `load` replay against what was already on disk; see the
-          // handshake below.
-          journalWriter?.append(sdk);
-          for (const l of updateListeners) {
-            try {
-              l(sdk);
-            } catch (err) {
-              agentsChannel.debug(
-                `chat session onUpdate listener threw: ${err}`,
-              );
-            }
-          }
+          publishUpdate(update);
         },
         onPermission(request, respond) {
           if (disposed) {

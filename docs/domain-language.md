@@ -783,13 +783,22 @@ than stored: `Transcript.entries` never contains one.
 _Avoid_: "tool call" for the group itself (a group holds several); letting an
 errored call stay inside the fold.
 
-**Delegated work** (RFC 0055) — work a **Chat session**'s agent handed to
-another agent instead of doing itself, and the umbrella term for the three
-things a **Transcript** can say about it. Three nouns, each a modelled
-`AgentToolCall` field:
+**Delegated work** (RFC 0055, extended by RFC 0057) — work a **Chat
+session**'s agent handed to another agent instead of doing itself, and the
+umbrella term for everything a **Transcript** can say about it. Each noun below
+is a modelled field, never a wire spelling:
 
 - **Dispatch** (`subagent`) — the tool call the agent used to _start_ a
   subagent. Rendered `Agent(<its own description>)`.
+- **Subagent** / **delegated worker** (`AgentToolCall.subagentId`,
+  `AgentSessionUpdate.subagentId`, `AgentDelegation.subagentId`) — the agent a
+  **Dispatch** handed work to. The two words are interchangeable: "subagent" is
+  the protocol's and the vendor's term and is what the code uses; "delegated
+  worker" is the clearer phrase for prose about _which_ agent did something. One
+  id names it everywhere, and the same noun has deliberately different
+  **subjects** depending on where it sits: on a dispatch it is the worker that
+  call _delegated to_; on an update it is the worker that _authored_ the frame.
+  That pair is the **join** the whole feature turns on.
 - **Handed off** (`handedOff`) — the property of a call whose reported status
   describes the **hand-off**, not the work: the vendor settles a dispatch to
   `"completed"` seconds after handing off, while the delegated work runs on.
@@ -811,20 +820,39 @@ probed all report a dispatch as kind `"think"`, which is both wrong (dispatching
 work is not the agent thinking out loud) and redundant beside a title that
 already reads `Agent(…)`.
 
-Each is a **durable fact about one frame, never revised**; the three arrive on
-_different_ frames of one call and the panel's reducer accumulates them.
-**Liveness is deliberately not one of them** — nothing on the _capability-free_
-stream these facts come from revisits a dispatch to say its work finished. So
-the panel states only what it can prove: a **dispatch notice** counting the
-agents handed work in the current exchange, never a countdown and never a named
-completion. A per-subagent finish signal does exist behind the adapter's AIR
-`nativeSubagentSessions` capability (probed 2026-10-07), which Silo does not
-advertise because it moves delegated calls onto child session ids that the host
-cannot yet route.
+Each of the above is a **durable fact about one frame, never revised**; they
+arrive on _different_ frames of one call and the panel's reducer accumulates
+them. **Liveness is still not one of them** — a row is history. What changed in
+RFC 0057 is that liveness is now _derivable_ from a separate signal:
+
+- **Delegation** (`AgentSessionUpdate.delegation`) — a **Subagent**'s lifecycle
+  as its own agent reports it: `started`, then one of `completed` / `failed` /
+  `cancelled` / `disconnected`. Arrives on the **parent's** session, not the
+  worker's — it is the parent telling you about its delegate. Not keyed to a
+  `kind`: consumers read this field, so the vendor spelling stays out of their
+  control flow.
+- **Parent / child session** (RFC 0057) — a **Subagent** runs as an ACP session
+  of its own, and its frames arrive on a **child session id**. The host maps
+  child to parent and routes them into the parent's **Transcript** and
+  **Journal**; a frame on an id it cannot place is **dropped**, never
+  attributed to the live session. One journal file per **parent**: a subagent's
+  transcript has no meaning apart from the turn that spawned it.
+- **Dispatch notice** — the one-line count of **outstanding** delegated work in
+  the current exchange (dispatched minus finished), gone at zero. It counted
+  dispatches and never came down before RFC 0057, because nothing said which
+  agent had finished. Against an agent that reports no **Delegation** it falls
+  back to exactly that older behaviour — absence of a finish is never read as a
+  finish.
+
+So a **Dispatch** row may now say _which_ worker finished and how, permanently;
+the **notice** stays an aggregate and still never names an agent.
+
 _Avoid_: "background task" / "async task" (a **Task** in this glossary is
-Silo's own; and backgrounded _shells_ are a different, currently unavailable
-thing); "running" for a handed-off dispatch (the dispatch is precisely what is
-not running); naming a specific delegated agent as finished.
+Silo's own; and backgrounded _shells_ are a different, still-unshipped thing);
+"running" for a handed-off dispatch (the dispatch is precisely what is not
+running); naming a specific delegated agent in the **dispatch notice**; calling
+a **child session** a session the user can open — it has no **Chat session
+handle**, no tab, and no journal of its own.
 
 **Update stream** (`AgentSessionUpdate`, RFC 0038 Session 3.8) — the normalized
 sequence of `session/update` notifications a **Chat Session Connection**

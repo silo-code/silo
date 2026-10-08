@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { delegatedWorkFacts } from "./chat-delegated-work";
+import {
+  delegatedWorkFacts,
+  delegationEvent,
+  normalizeSubagentId,
+} from "./chat-delegated-work";
 
 /**
  * The frames below are **copied verbatim** out of the committed probe capture
@@ -99,7 +103,16 @@ describe("delegatedWorkFacts — the shapes the capture actually carried", () =>
   });
 
   it("reads the hand-off off the frame that carries no status at all", () => {
-    expect(delegatedWorkFacts(HAND_OFF)).toEqual({ handedOff: true });
+    // RFC 0057 widened this: the same frame's `toolResponse` already named the
+    // worker it handed to (`agentId`) and described the dispatch, and both are
+    // now read — the capability-off capture was carrying them all along. The
+    // hand-off itself is unchanged, which is what RFC 0055 depended on.
+    expect(delegatedWorkFacts(HAND_OFF)).toEqual({
+      subagent: true,
+      handedOff: true,
+      subagentId: "ad21d23b798a69b19",
+      title: "Sleep then reply",
+    });
   });
 
   // The crux of RFC 0055: the frame that *says* "completed" carries neither
@@ -240,4 +253,259 @@ describe("delegatedWorkFacts — the facts are independent", () => {
       parentToolCallId: "parent-1",
     });
   });
+});
+
+/**
+ * RFC 0057's fixtures come from a **second** committed capture —
+ * `scratchpad/acp-probe/captures/frames-cap-air-bg-2026-10-07T19-35-21-238Z.jsonl`,
+ * taken with AIR `nativeSubagentSessions` advertised. Same discipline as
+ * above: copied verbatim from `params.update`, never invented from prose.
+ *
+ * The regime change the capability makes is the thing worth seeing in these
+ * literals: there is **no opening `tool_call`** for the dispatch and **no
+ * `_meta.claudeCode.subagent` marker** anywhere. The dispatch arrives as a
+ * lone `tool_call_update` whose `toolResponse` names the worker — which is why
+ * the parser reads `agentId` as a second source for "this is a dispatch".
+ */
+
+/** The dispatch, capability-on. No `title`, no `status`, no subagent marker. */
+const CAP_DISPATCH = {
+  _meta: {
+    claudeCode: {
+      toolResponse: {
+        isAsync: true,
+        status: "async_launched",
+        agentId: "a26fef4c40ae0ac1d",
+        description: "Background sleep task",
+        resolvedModel: "claude-haiku-4-5-20251001",
+        prompt: "Run `sleep 30`, then reply FINISHED.",
+        canReadOutputFile: true,
+      },
+      toolName: "Agent",
+    },
+  },
+  toolCallId: "toolu_01UVpzoKuVLPGTXMKH7i2Puz",
+  sessionUpdate: "tool_call_update",
+};
+
+/** The worker announcing itself, on the **parent's** session id. */
+const SPAWNED = {
+  sessionUpdate: "subagent_spawned",
+  subagentSessionId: "a26fef4c40ae0ac1d",
+  name: "Background sleep task",
+  task: "Run `sleep 30`, then reply FINISHED.",
+  capabilities: {},
+};
+
+/** The finish — observed 25s after the parent's turn had already ended. */
+const COMPLETED = {
+  sessionUpdate: "subagent_state_update",
+  subagentSessionId: "a26fef4c40ae0ac1d",
+  state: "completed",
+};
+
+/** The **second** announcement of the same worker, generation-suffixed. */
+const SPAWNED_GEN2 = {
+  sessionUpdate: "subagent_spawned",
+  subagentSessionId: "a26fef4c40ae0ac1d:generation:2",
+  name: "Background sleep task",
+  task: "<task-notification>…</task-notification>",
+};
+
+describe("normalizeSubagentId", () => {
+  // The capture shows the lifecycle pair arriving twice per worker, the second
+  // time generation-suffixed. Collapsing them at parse time is what lets every
+  // consumer get away with plain last-write-wins (RFC 0057 R5).
+  it("collapses a generation suffix onto the base id", () => {
+    expect(normalizeSubagentId("a26fef4c40ae0ac1d:generation:2")).toBe(
+      "a26fef4c40ae0ac1d",
+    );
+  });
+
+  it("leaves an un-suffixed id alone", () => {
+    // Which is also the child session id the worker's own frames arrive on, so
+    // normalising makes the join one string in both places.
+    expect(normalizeSubagentId("a26fef4c40ae0ac1d")).toBe("a26fef4c40ae0ac1d");
+  });
+
+  it("collapses any generation number, not just 2", () => {
+    expect(normalizeSubagentId("w:generation:17")).toBe("w");
+  });
+
+  it("leaves a lookalike that is not the suffix alone", () => {
+    expect(normalizeSubagentId("generation:2")).toBe("generation:2");
+    expect(normalizeSubagentId("w-generation-2")).toBe("w-generation-2");
+  });
+});
+
+describe("delegationEvent — the subagent lifecycle", () => {
+  it("reads the announcement, with the worker's name and task", () => {
+    expect(delegationEvent(SPAWNED)).toEqual({
+      subagentId: "a26fef4c40ae0ac1d",
+      name: "Background sleep task",
+      task: "Run `sleep 30`, then reply FINISHED.",
+      state: "started",
+    });
+  });
+
+  it("reads the terminal state", () => {
+    expect(delegationEvent(COMPLETED)).toEqual({
+      subagentId: "a26fef4c40ae0ac1d",
+      state: "completed",
+    });
+  });
+
+  it("gives the repeat announcement the same identity as the first", () => {
+    // One worker reported twice must count as one — the specific way a naive
+    // consumer would never reach zero outstanding.
+    expect(delegationEvent(SPAWNED_GEN2)?.subagentId).toBe(
+      delegationEvent(SPAWNED)?.subagentId,
+    );
+  });
+
+  it.each(["completed", "failed", "cancelled", "disconnected"])(
+    "accepts the terminal state %s",
+    (state) => {
+      expect(delegationEvent({ ...COMPLETED, state })?.state).toBe(state);
+    },
+  );
+
+  it.each(["running", "STARTED", "done", "", "started"])(
+    "yields nothing for the unrecognised state %o rather than guessing",
+    (state) => {
+      // A guess here is how a transcript starts lying: "I don't know" must not
+      // be rendered as a finish. (`"started"` is excluded on purpose — it is
+      // this module's reading of an *announcement*, never a reported state.)
+      expect(delegationEvent({ ...COMPLETED, state })).toBeUndefined();
+    },
+  );
+
+  it("yields nothing for a state that is not a string", () => {
+    for (const state of [1, null, true, {}, ["completed"]]) {
+      expect(delegationEvent({ ...COMPLETED, state })).toBeUndefined();
+    }
+  });
+
+  it.each([
+    ["an unrelated kind", { sessionUpdate: "agent_message_chunk" }],
+    ["a tool call", { sessionUpdate: "tool_call", toolCallId: "t1" }],
+    ["a missing id", { sessionUpdate: "subagent_spawned" }],
+    [
+      "an empty id",
+      { sessionUpdate: "subagent_spawned", subagentSessionId: "" },
+    ],
+    [
+      "a non-string id",
+      { sessionUpdate: "subagent_spawned", subagentSessionId: 7 },
+    ],
+    [
+      "an id that is only a generation suffix",
+      {
+        sessionUpdate: "subagent_spawned",
+        subagentSessionId: ":generation:2",
+      },
+    ],
+  ])("yields nothing for %s", (_label, frame) => {
+    expect(delegationEvent(frame)).toBeUndefined();
+  });
+
+  it.each([undefined, null, "subagent_spawned", 7, [SPAWNED]])(
+    "returns undefined rather than throwing for %o",
+    (input) => {
+      expect(delegationEvent(input)).toBeUndefined();
+    },
+  );
+
+  it("omits a name or task the wire did not carry", () => {
+    const event = delegationEvent({
+      sessionUpdate: "subagent_spawned",
+      subagentSessionId: "w1",
+      name: 7,
+    });
+    expect(event).toEqual({ subagentId: "w1", state: "started" });
+    expect(event && "name" in event).toBe(false);
+  });
+});
+
+describe("delegatedWorkFacts — the capability-on regime", () => {
+  // The regime RFC 0055 predicted and RFC 0057 confirmed: no opening
+  // `tool_call`, no `subagent` marker, the dispatch arriving as one
+  // `tool_call_update`. Without re-sourcing, this frame would produce a row
+  // that is not recognisably a dispatch and has no name.
+  it("reads a dispatch with no marker from the worker it handed to", () => {
+    expect(delegatedWorkFacts(CAP_DISPATCH)).toEqual({
+      subagent: true,
+      handedOff: true,
+      subagentId: "a26fef4c40ae0ac1d",
+      title: "Background sleep task",
+    });
+  });
+
+  it("normalises the agentId the same way the lifecycle id is normalised", () => {
+    // Both sides of the join go through one helper, so a generation suffix on
+    // either cannot break the match.
+    expect(
+      delegatedWorkFacts({
+        _meta: {
+          claudeCode: {
+            toolResponse: { agentId: "a26fef4c40ae0ac1d:generation:2" },
+          },
+        },
+      }).subagentId,
+    ).toBe("a26fef4c40ae0ac1d");
+  });
+
+  it("keeps parentToolCallId working under this regime too", () => {
+    // Every child frame in the capability-on capture carries it, pointing at
+    // the dispatch — RFC 0055's grouping is unchanged, which is the whole
+    // claim of ADR 0056 point 3.
+    expect(
+      delegatedWorkFacts({
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            parentToolUseId: "toolu_01UVpzoKuVLPGTXMKH7i2Puz",
+          },
+        },
+      }),
+    ).toEqual({ parentToolCallId: "toolu_01UVpzoKuVLPGTXMKH7i2Puz" });
+  });
+
+  it.each([
+    ["absent", {}],
+    ["empty", { agentId: "" }],
+    ["a number", { agentId: 7 }],
+    ["null", { agentId: null }],
+  ])(
+    "omits subagentId and infers no dispatch when agentId is %s",
+    (_l, resp) => {
+      const facts = delegatedWorkFacts({
+        _meta: { claudeCode: { toolResponse: resp } },
+      });
+      expect("subagentId" in facts).toBe(false);
+      expect("subagent" in facts).toBe(false);
+    },
+  );
+
+  it.each([
+    ["absent", {}],
+    ["empty", { description: "" }],
+    ["a number", { description: 7 }],
+  ])("omits the title when description is %s", (_l, resp) => {
+    const facts = delegatedWorkFacts({
+      _meta: { claudeCode: { toolResponse: resp } },
+    });
+    expect("title" in facts).toBe(false);
+  });
+
+  it.each([null, "async_launched", 7, ["agentId"]])(
+    "degrades to absence when toolResponse is %o",
+    (toolResponse) => {
+      // The degradation path *is* the error path: an unrecognised shape yields
+      // nothing and the row renders as it did before the capability existed.
+      expect(
+        delegatedWorkFacts({ _meta: { claudeCode: { toolResponse } } }),
+      ).toEqual({});
+    },
+  );
 });

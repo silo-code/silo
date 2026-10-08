@@ -398,28 +398,19 @@
   height: 1em;
 }
 
-/* The row itself no longer highlights on hover (Dave's call) — just this
-   small chip behind the glyph, so the disclosure affordance is the icon
-   swapping to a chevron, not the whole line lighting up. */
-.acp-chat__tool-icon-stack::before {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: var(--silo-radius-sm);
-  background: transparent;
-}
-
-.acp-chat__tool-head[data-interactive]:hover .acp-chat__tool-icon-stack::before,
-.acp-chat__tool-head[data-interactive]:focus-visible
-  .acp-chat__tool-icon-stack::before,
-.acp-chat__tool[data-expanded] .acp-chat__tool-icon-stack::before {
-  background: var(--silo-color-bg-hover);
-}
-
 .acp-chat__tool-icon {
   flex: 0 0 auto;
   color: var(--silo-color-text-lo);
 }
+
+/* A tool row's hover affordance is the **glyph swap** — the tool icon becomes
+   a chevron — and nothing else (Dave's call). Two earlier attempts to add a
+   colour signal here were dead ends worth not repeating: a chip behind the
+   glyph used `--silo-color-bg-hover`, which is `#ececec` on a `#ffffff` chat
+   panel and so invisible in the light theme; recolouring the glyph to the
+   accent is too small a change to notice on a caret that thin. Where a row has
+   an "expand…" line, that text carries the hover instead — see the `-summary`
+   rules below. */
 
 /* The two icons in the stack overlay each other; only one is ever visible.
    Hovering (or expanding) the row swaps the tool glyph for a chevron —
@@ -491,10 +482,12 @@
   gap: 2px;
 }
 
+/* The header is a **two-line unit**: the dispatch row, and — once the block
+   has collapsed everything away — its status line (Dave's call). One hover
+   region, one click target, so the two never highlight independently. */
 .acp-chat__delegated-group-head {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
   min-width: 0;
   user-select: none;
   -webkit-user-select: none;
@@ -503,16 +496,76 @@
   border-radius: var(--silo-radius-sm);
 }
 
+.acp-chat__delegated-group-head-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Indented to start under the title rather than under the caret — a secondary
+   line about the row above it, not a new row. The offset is the two 1em glyphs
+   and the two 6px gaps ahead of the title, so it tracks `uiFontSize`. */
+.acp-chat__delegated-group-summary {
+  /* Aligned under the agent glyph — one caret and one gap in, matching the
+     folded-run block's summary (Dave's call). Indenting past the glyph too
+     pushed it under the title, which read as a hanging second sentence rather
+     than a status line for the row. */
+  padding-left: calc(1em + 6px);
+  /* The dispatch row is taller than a folded run's header — it carries the
+     glyph and a badge — so with no gap the summary crowds it. 2px buys back
+     the breathing room the shorter header gets for free. */
+  margin-top: 2px;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+
+/* A dispatch is not a Read or a Shell — it is another agent's whole turn
+   standing in one row, and it heads a block the reader may want to open. So it
+   carries the transcript's full text contrast rather than the quieter tool-row
+   grey, and the `Agent` kind takes the weight (Dave's call). Tokens only, so
+   both halves still track the theme and `uiFontSize`. */
+.acp-chat__delegated-group-head .acp-chat__dispatch-title {
+  color: var(--silo-color-content-text);
+}
+
+.acp-chat__dispatch-kind {
+  font-weight: 600;
+}
+
+/* The task itself stays quieter than the kind: it is often a long sentence,
+   and bolding the whole row would make a wall of dispatches shout. */
+.acp-chat__dispatch-task {
+  color: var(--silo-color-text-lo);
+}
+
 .acp-chat__delegated-group-head[data-interactive] {
   cursor: pointer;
 }
 
-.acp-chat__delegated-group-head[data-interactive]:hover,
-.acp-chat__delegated-group-head[data-interactive]:focus-visible {
-  background: var(--silo-color-bg-hover);
+/* Hovering the head highlights **the toggle, not the line** (Dave's call) —
+   the same treatment an ordinary tool row's glyph gets. The whole head stays
+   clickable; it just doesn't light up to say so. A full-width wash on a row
+   this wide reads as a selection rather than an affordance, and the dispatch
+   header is the widest row in the transcript. */
+.acp-chat__delegated-group-caret-slot {
+  flex: 0 0 auto;
+  display: inline-flex;
+}
+
+/* Hovering the header accents its **status line**, not the caret. That line
+   already says what clicking does ("expand to see agent output"), so lighting
+   it is the clearest affordance available — and it is a run of text rather
+   than a 1em glyph, so the colour change is actually legible. */
+.acp-chat__delegated-group-head[data-interactive]:hover
+  .acp-chat__delegated-group-summary,
+.acp-chat__delegated-group-head[data-interactive]:focus-visible
+  .acp-chat__delegated-group-summary {
+  color: var(--silo-color-accent);
 }
 
 .acp-chat__delegated-group-caret {
+  position: relative;
   flex: 0 0 auto;
   color: var(--silo-color-text-lo);
   transition: transform 0.1s ease;
@@ -530,6 +583,24 @@
 }
 
 .acp-chat__delegated-group-body > .acp-chat__tool + .acp-chat__tool {
+  margin-top: 8px;
+}
+
+/* A subagent's own forwarded prose, drawn inside its dispatch's block
+   (RFC 0057). The nesting *is* the attribution — the block is already headed
+   by `Agent(…)` — so the run needs no label of its own, just the same
+   subordinate weight as the tool rows beside it. Without this it would inherit
+   the transcript's +2px prose size and read as the louder thing in a block of
+   11px rows, which inverts what the reader should notice first: the parent's
+   reply is the conclusion, a worker's running commentary is detail. */
+.acp-chat__delegated-group-body > .acp-chat__message {
+  font-size: inherit;
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__delegated-group-body > .acp-chat__message + .acp-chat__tool,
+.acp-chat__delegated-group-body > .acp-chat__tool + .acp-chat__message,
+.acp-chat__delegated-group-body > .acp-chat__message + .acp-chat__message {
   margin-top: 8px;
 }
 
@@ -703,10 +774,13 @@
   gap: 2px;
 }
 
+/* A two-line unit, like the delegated block's header: the run's breakdown, and
+   — once every call has settled — its status line. Alignment and gap live on
+   `-head-row`; a column that centred its lines would indent the summary into
+   the middle of the row above it. */
 .acp-chat__tool-group-head {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
   min-width: 0;
   user-select: none;
   -webkit-user-select: none;
@@ -715,16 +789,42 @@
   border-radius: var(--silo-radius-sm);
 }
 
+.acp-chat__tool-group-head-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Indented under the label rather than under the caret — a secondary line
+   about the row above it. One glyph and one gap here, against the dispatch
+   block's two, because a folded run has no kind icon. */
+.acp-chat__tool-group-summary {
+  padding-left: calc(1em + 6px);
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+}
+
 .acp-chat__tool-group-head[data-interactive] {
   cursor: pointer;
 }
 
-.acp-chat__tool-group-head[data-interactive]:hover,
-.acp-chat__tool-group-head[data-interactive]:focus-visible {
-  background: var(--silo-color-bg-hover);
+/* Same rule as the delegated block above and the tool rows below: the toggle
+   highlights, the line does not. */
+.acp-chat__tool-group-caret-slot {
+  flex: 0 0 auto;
+  display: inline-flex;
+}
+
+.acp-chat__tool-group-head[data-interactive]:hover
+  .acp-chat__tool-group-summary,
+.acp-chat__tool-group-head[data-interactive]:focus-visible
+  .acp-chat__tool-group-summary {
+  color: var(--silo-color-accent);
 }
 
 .acp-chat__tool-group-caret {
+  position: relative;
   flex: 0 0 auto;
   color: var(--silo-color-text-lo);
   transition: transform 0.1s ease;
@@ -767,6 +867,30 @@
 
 .acp-chat__tool-group-more:hover,
 .acp-chat__tool-group-more:focus-visible {
+  color: var(--silo-color-accent);
+}
+
+/* The collapsed delegated block's status row — "14 tool calls · expand to see
+   agent output". Same affordance as the folded-run button above, kept as its
+   own class because it is the *only* thing a finished block shows and so sits
+   on its own rhythm rather than under a list of rows. */
+.acp-chat__delegated-group-more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--silo-color-text-lo);
+  font-size: var(--silo-font-size-sm);
+  cursor: pointer;
+  /* Chrome, not content — the same rule the tool-row heads follow. Without it
+     a drag across the transcript selects this line, which reads as a stray
+     highlight rather than as text anyone meant to copy. */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.acp-chat__delegated-group-more:hover,
+.acp-chat__delegated-group-more:focus-visible {
   color: var(--silo-color-accent);
 }
 

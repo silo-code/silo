@@ -195,6 +195,55 @@ describe("parseToolCall", () => {
     expect("subagent" in call).toBe(false);
     expect("handedOff" in call).toBe(false);
     expect("parentToolCallId" in call).toBe(false);
+    expect("subagentId" in call).toBe(false);
+  });
+
+  // RFC 0057. `subagentId` is the join the whole feature turns on — it links
+  // this dispatch row to the child session whose frames render under it and to
+  // the lifecycle events that say when it finished — so it has to survive the
+  // projection, not just the quarantine.
+  it("surfaces the worker a dispatch handed to", () => {
+    expect(
+      parseToolCall({
+        _meta: {
+          claudeCode: {
+            toolResponse: {
+              isAsync: true,
+              status: "async_launched",
+              agentId: "a26fef4c40ae0ac1d",
+              description: "Background sleep task",
+            },
+            toolName: "Agent",
+          },
+        },
+        toolCallId: "toolu_01UVpzoKuVLPGTXMKH7i2Puz",
+        sessionUpdate: "tool_call_update",
+      }),
+    ).toEqual({
+      toolCallId: "toolu_01UVpzoKuVLPGTXMKH7i2Puz",
+      // Re-sourced, because the capability-on dispatch frame carries none of
+      // these of its own.
+      title: "Background sleep task",
+      subagent: true,
+      handedOff: true,
+      subagentId: "a26fef4c40ae0ac1d",
+    });
+  });
+
+  it("prefers the frame's own title over the vendor's description", () => {
+    // The fallback is for the frame that has no title at all; a frame that
+    // does must keep it, since the agent relabels a call as it progresses.
+    expect(
+      parseToolCall({
+        _meta: {
+          claudeCode: {
+            toolResponse: { agentId: "w1", description: "vendor blurb" },
+          },
+        },
+        toolCallId: "c",
+        title: "Agent's own label",
+      })?.title,
+    ).toBe("Agent's own label");
   });
 });
 
