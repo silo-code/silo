@@ -27,10 +27,15 @@ const workspacesStorage = getGlobalExtensionStorage("core.workspaces");
 const PROPERTIES_COMMAND = "workspace.properties";
 
 /**
- * Show the educational "closing keeps terminals alive" popup, then close.
- * The **one** close-confirm for a workspace — context menus, the × button,
- * the status-bar item, and the close command all go through here so the copy
- * and the `closeWorkspace.dontShowAgain` bag can't drift.
+ * Confirm, then close. The **one** close-confirm for a workspace — context
+ * menus, the × button, the status-bar item, and the close command all go
+ * through here so the copy and the `closeWorkspace.dontShowAgain` bag can't
+ * drift.
+ *
+ * Uses `"confirm"` mode (Cancel + dismissible) rather than `"info"`: closing
+ * is reversible (terminals keep running in the background), but the user
+ * still needs a way to back out of this dialog without actually closing the
+ * workspace (#571).
  */
 export async function confirmAndCloseWorkspace(
   id: string,
@@ -41,7 +46,7 @@ export async function confirmAndCloseWorkspace(
     title: "Close workspace",
     body: `Closing "${name}" keeps its terminals running in the background — reopen it anytime to pick up where you left off.`,
     confirmLabel: "Close",
-    mode: { kind: "info" },
+    mode: { kind: "confirm" },
   });
   if (!ok) return;
   closeWorkspace(id);
