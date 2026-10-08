@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.56.0](https://github.com/silo-code/silo/compare/sdk-v0.55.0...sdk-v0.56.0) (2026-10-08)
+
+
+### Features
+
+* **agents:** route delegated subagent updates by sessionId (RFC 0057) ([#610](https://github.com/silo-code/silo/issues/610)) ([980e0cd](https://github.com/silo-code/silo/commit/980e0cd1c417c5408411c386eea11f4c3e32af8b))
+
 ## [0.55.0](https://github.com/silo-code/silo/compare/sdk-v0.54.0...sdk-v0.55.0) (2026-10-07)
 
 
