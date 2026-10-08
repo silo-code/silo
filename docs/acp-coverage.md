@@ -98,13 +98,28 @@ generated from the ACP schema, so a capability an adapter carries in its own
 `_meta.jetbrains.air` — gating `asyncTasks` (background shells and subagents as
 a task lifecycle: `async_task_spawned` / `_progress` / `_state_update`),
 `nativeSubagentSessions` (each subagent as its own addressable session), and
-`sessionFailure`. Silo advertises none of them. It also sends one unnamespaced
-extra Silo _does_ now rely on: a per-turn `usage_update` stamped with
-`_meta["_claude/origin"]`, which is the only authoritative turn-end signal for a
-turn the host never prompted (see `chat-turn-signals.ts`). Recorded frames and
-the design built on them are in
-[RFC 0055](proposals/0055-chat-async-tasks.md). Check the adapter's `dist/` for
-drift — nothing here will tell you when a vendor extension moves.
+`sessionFailure`.
+
+**Silo advertises `nativeSubagentSessions`** (RFC 0057,
+[ADR 0057](decisions/0057-advertising-a-vendor-protocol-extension.md)) — the
+one vendor extension it opts into, sent as `_meta.jetbrains.air` on both
+`initialize` and `session/new`. It supplies the identified per-subagent
+terminal state the ACP schema has no equivalent for, which is what lets the
+Chat panel report _which_ delegated agent finished. The extension's own update
+kinds (`subagent_spawned` / `subagent_state_update`) are read only in
+`chat-delegated-work.ts`; the canonical replacement (ACP PR #1992's
+consolidated `subagent_update`, merged 2026-09-30, absent from the published
+SDK and the adapter's runtime) lands there when it arrives. `asyncTasks` and
+`sessionFailure` are **not** advertised — advertising a capability nothing
+consumes only puts unread frames on the stream.
+
+The adapter also sends one unnamespaced extra Silo relies on: a per-turn
+`usage_update` stamped with `_meta["_claude/origin"]`, the only authoritative
+turn-end signal for a turn the host never prompted (see
+`chat-turn-signals.ts`). Recorded frames and the designs built on them are in
+[RFC 0055](proposals/0055-chat-async-tasks.md) and
+[RFC 0057](proposals/0057-subagent-sessions.md). Check the adapter's `dist/`
+for drift — nothing here will tell you when a vendor extension moves.
 
 <!-- acp-coverage:generated:start -->
 

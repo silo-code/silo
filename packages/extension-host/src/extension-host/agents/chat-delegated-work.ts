@@ -1,7 +1,17 @@
 /**
  * Reading **delegated work** off the inbound `session/update` stream — the
- * three facts that let a Chat transcript stop claiming a subagent dispatch
- * finished when it only handed its work off (RFC 0055).
+ * facts that let a Chat transcript stop claiming a subagent dispatch finished
+ * when it only handed its work off (RFC 0055), and say when the delegated work
+ * actually did finish (RFC 0057).
+ *
+ * Two vendor surfaces, one quarantine. {@link delegatedWorkFacts} reads
+ * `_meta.claudeCode` off a tool-call frame; {@link delegationEvent} reads the
+ * **AIR subagent lifecycle** kinds (`subagent_spawned`,
+ * `subagent_state_update`) that Silo opts into by advertising
+ * `nativeSubagentSessions`. They live together because they are the same
+ * dependency wearing two hats — the `claude` binary's own shape, reachable
+ * only through this adapter — and because the canonical `subagent_update` that
+ * eventually replaces the AIR pair should land here and nowhere else.
  *
  * The problem this exists for: when a Claude Code agent dispatches a subagent,
  * the dispatching tool call reports `status: "completed"` about 0.4s after the
@@ -46,6 +56,12 @@ export interface DelegatedWorkFacts {
   readonly handedOff?: boolean;
   /** The id of the dispatching call this one was made on behalf of. */
   readonly parentToolCallId?: string;
+  /** The delegated worker this call dispatched — the id that joins this row to
+   *  the child session whose frames render under it. */
+  readonly subagentId?: string;
+  /** A title the vendor supplied for the dispatch, for the capability-on
+   *  regime where the frame carries no `title` of its own. */
+  readonly title?: string;
 }
 
 /** No facts at all — the result for every shape this module does not
@@ -54,6 +70,106 @@ const NONE: DelegatedWorkFacts = {};
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Strip the vendor's `:generation:N` suffix off a subagent id, so every
+ * arrival of the same subagent carries the same identity.
+ *
+ * **Why this exists.** The capture of 2026-10-07 shows the lifecycle pair
+ * arriving *twice* for one subagent: `subagent_spawned` /
+ * `subagent_state_update` on `a26fef4c40ae0ac1d`, then the same pair again on
+ * `a26fef4c40ae0ac1d:generation:2` when the backgrounded shell it was waiting
+ * on reported in. A consumer pairing spawn-to-terminal naively would count one
+ * subagent as two and never reach zero outstanding.
+ *
+ * Normalising **at parse time** is what makes "arrives twice" a non-issue
+ * everywhere else: the consumer then only needs last-write-wins on state, with
+ * no dedupe bookkeeping of its own. The un-normalised wire id stays readable in
+ * `AgentSessionUpdate.raw` for anyone who wants the generation back.
+ *
+ * Note the **child session id is the un-suffixed form** — the capture's child
+ * frames arrive on `a26fef4c40ae0ac1d`, never on a generation-suffixed id — so
+ * normalising also makes the id that joins a dispatch row to its child session
+ * the same string in both places.
+ */
+export function normalizeSubagentId(id: string): string {
+  const at = id.indexOf(":generation:");
+  return at === -1 ? id : id.slice(0, at);
+}
+
+/** The subagent lifecycle states the AIR extension reports, mapped from the
+ *  wire's own spelling. A value outside this set yields no event at all —
+ *  guessing what an unknown state means is how a transcript starts lying. */
+const TERMINAL_STATES = new Set([
+  "completed",
+  "failed",
+  "cancelled",
+  "disconnected",
+]);
+
+/**
+ * The subagent lifecycle, read off one frame. `state: "started"` is
+ * {@link DelegationEvent}'s reading of `subagent_spawned`; every other value
+ * came from a `subagent_state_update` and is terminal.
+ */
+export interface DelegationEvent {
+  readonly subagentId: string;
+  readonly name?: string;
+  readonly task?: string;
+  readonly state:
+    | "started"
+    | "completed"
+    | "failed"
+    | "cancelled"
+    | "disconnected";
+}
+
+/**
+ * Read the **subagent lifecycle** off one `session/update` frame — the AIR
+ * extension's `subagent_spawned` and `subagent_state_update`.
+ *
+ * This is the signal RFC 0055 could not have: an *identified* terminal state
+ * per delegated worker, arriving whenever the work actually ends — the capture
+ * has one landing 25s after the parent's turn was already over. It is what
+ * turns "N agents dispatched" into a count that comes down.
+ *
+ * Both kinds arrive on the **parent's** session id, not the child's, so this
+ * is read regardless of which session a frame came in on.
+ *
+ * Pure and total like everything else here: an unrecognised kind, a missing
+ * id, or a `state` outside the closed set above yields `undefined` rather than
+ * a guess or a throw. Absence degrades to RFC 0055's rendering — a dispatch
+ * row that says "handed off" and nothing more.
+ *
+ * @param update The whole `session/update` payload.
+ */
+export function delegationEvent(update: unknown): DelegationEvent | undefined {
+  if (!isRecord(update)) return undefined;
+  const kind = update.sessionUpdate;
+  if (kind !== "subagent_spawned" && kind !== "subagent_state_update")
+    return undefined;
+
+  const rawId = update.subagentSessionId;
+  if (typeof rawId !== "string" || rawId.length === 0) return undefined;
+  const subagentId = normalizeSubagentId(rawId);
+  if (subagentId.length === 0) return undefined;
+
+  if (kind === "subagent_spawned") {
+    const name = typeof update.name === "string" ? update.name : undefined;
+    const task = typeof update.task === "string" ? update.task : undefined;
+    return {
+      subagentId,
+      ...(name !== undefined ? { name } : {}),
+      ...(task !== undefined ? { task } : {}),
+      state: "started",
+    };
+  }
+
+  const state = update.state;
+  if (typeof state !== "string" || !TERMINAL_STATES.has(state))
+    return undefined;
+  return { subagentId, state: state as DelegationEvent["state"] };
 }
 
 /**
@@ -91,15 +207,29 @@ export function delegatedWorkFacts(update: unknown): DelegatedWorkFacts {
   const claudeCode = meta.claudeCode;
   if (!isRecord(claudeCode)) return NONE;
 
+  const response = claudeCode.toolResponse;
+
+  // The capability-on regime drops the explicit marker. With AIR
+  // `nativeSubagentSessions` advertised the capture shows no opening
+  // `tool_call` for the dispatch at all and no `_meta.claudeCode.subagent` —
+  // the dispatch arrives as a lone `tool_call_update` whose `toolResponse`
+  // names the worker it handed to. So the id is the second source for the
+  // same fact: *a call that names the worker it delegated to is a dispatch.*
+  const agentId = isRecord(response) ? response.agentId : undefined;
+  const subagentId =
+    typeof agentId === "string" && agentId.length > 0
+      ? normalizeSubagentId(agentId)
+      : undefined;
+
   // `=== true` and nothing weaker: a marker present but not `true` is treated
   // as absent rather than falsy-coerced into a claim either way.
-  const subagent = claudeCode.subagent === true ? true : undefined;
+  const subagent =
+    claudeCode.subagent === true || subagentId !== undefined ? true : undefined;
 
   // Either signal alone is enough. The capture carries both, but requiring
   // both would let one adapter tweak silently disable the whole fix — and the
   // cost of reading one is a row that says "handed off" for a call that was,
   // which is the truthful side to err on.
-  const response = claudeCode.toolResponse;
   const handedOff =
     isRecord(response) &&
     (response.isAsync === true || response.status === "async_launched")
@@ -110,10 +240,21 @@ export function delegatedWorkFacts(update: unknown): DelegatedWorkFacts {
   const parentToolCallId =
     typeof parent === "string" && parent.length > 0 ? parent : undefined;
 
+  // The dispatch's own label, for the same reason: the capability-on frame
+  // carries no `title`, so a row sourced from it alone would be nameless.
+  // `parseToolCall` prefers the frame's real `title` over this one.
+  const description = isRecord(response) ? response.description : undefined;
+  const title =
+    typeof description === "string" && description.length > 0
+      ? description
+      : undefined;
+
   if (
     subagent === undefined &&
     handedOff === undefined &&
-    parentToolCallId === undefined
+    parentToolCallId === undefined &&
+    subagentId === undefined &&
+    title === undefined
   ) {
     return NONE;
   }
@@ -121,5 +262,7 @@ export function delegatedWorkFacts(update: unknown): DelegatedWorkFacts {
     ...(subagent !== undefined ? { subagent } : {}),
     ...(handedOff !== undefined ? { handedOff } : {}),
     ...(parentToolCallId !== undefined ? { parentToolCallId } : {}),
+    ...(subagentId !== undefined ? { subagentId } : {}),
+    ...(title !== undefined ? { title } : {}),
   };
 }

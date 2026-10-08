@@ -146,4 +146,4 @@ don't get a proposal at all — see below.
 | [0054](./0054-macos-permission-brokering.md)                  | macOS permission brokering for hosted processes                   | 2026-10-05 | draft       |
 | [0055](./0055-chat-async-tasks.md)                            | Delegated work in a Chat session                                  | 2026-10-06 | implemented |
 | [0056](./0056-agent-idle-since.md)                            | A durable idle timestamp on `AgentInfo`                           | 2026-10-06 | implemented |
-| [0057](./0057-subagent-sessions.md)                           | Subagent sessions: routing updates by `sessionId`                 | 2026-10-08 | draft       |
+| [0057](./0057-subagent-sessions.md)                           | Subagent sessions: routing updates by `sessionId`                 | 2026-10-08 | implemented |

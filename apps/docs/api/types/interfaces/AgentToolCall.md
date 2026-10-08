@@ -223,3 +223,33 @@ should resolve the parent by id rather than by position.
 Absent on a call the agent made itself. A pointer to a dispatch the
 consumer has never seen (a transcript replayed from mid-delegation) is a
 real shape — fall back to rendering the call on its own.
+
+***
+
+### subagentId?
+
+```ts
+readonly optional subagentId?: string;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:850](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L850)
+
+**`Beta`**
+
+The delegated worker **this call dispatched** — set on a [subagent](#subagent)
+dispatch, and the id that joins this row to the work done on its behalf.
+
+This is the one field that makes per-subagent completion renderable: the
+same id arrives on [AgentSessionUpdate.subagentId](AgentSessionUpdate.md#subagentid) for every frame
+the worker produces, and on [AgentDelegation.subagentId](AgentDelegation.md#subagentid) when it
+finishes. So a UI can take a dispatch row and answer both "what did this
+agent do" and "is it done" without inferring anything from timing.
+
+Note the different subject from [AgentSessionUpdate.subagentId](AgentSessionUpdate.md#subagentid):
+there, the worker that *authored* the frame; here, the worker this call
+*delegated to*. On the dispatching call those are different agents — the
+parent dispatches, the child works.
+
+Absent on a call that delegated nothing, and absent on an agent that does
+not report delegation at all. **A durable fact about one frame** —
+accumulate it by [toolCallId](#toolcallid) as with [subagent](#subagent).

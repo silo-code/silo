@@ -96,3 +96,4 @@ A small, obvious choice needs neither.
 | [0054](./0054-reserved-slash-commands.md)                     | A slash command is the agent's, unless Silo's Chat panel answers a superset        | 2026-09-16 | accepted |
 | [0055](./0055-session-discovery.md)                           | Session Discovery: `/resume` lists only same-cwd sessions from the live connection | 2026-09-21 | accepted |
 | [0056](./0056-vendor-meta-through-one-quarantine.md)          | A vendor `_meta` fact reaches the SDK through one quarantine module                | 2026-10-07 | accepted |
+| [0057](./0057-advertising-a-vendor-protocol-extension.md)     | Silo may advertise a vendor protocol extension, parsed through the same quarantine | 2026-10-08 | accepted |

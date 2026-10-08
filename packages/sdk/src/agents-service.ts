@@ -828,6 +828,94 @@ export interface AgentToolCall {
    * real shape — fall back to rendering the call on its own.
    */
   readonly parentToolCallId?: string;
+  /**
+   * The delegated worker **this call dispatched** — set on a {@link subagent}
+   * dispatch, and the id that joins this row to the work done on its behalf.
+   *
+   * This is the one field that makes per-subagent completion renderable: the
+   * same id arrives on {@link AgentSessionUpdate.subagentId} for every frame
+   * the worker produces, and on {@link AgentDelegation.subagentId} when it
+   * finishes. So a UI can take a dispatch row and answer both "what did this
+   * agent do" and "is it done" without inferring anything from timing.
+   *
+   * Note the different subject from {@link AgentSessionUpdate.subagentId}:
+   * there, the worker that *authored* the frame; here, the worker this call
+   * *delegated to*. On the dispatching call those are different agents — the
+   * parent dispatches, the child works.
+   *
+   * Absent on a call that delegated nothing, and absent on an agent that does
+   * not report delegation at all. **A durable fact about one frame** —
+   * accumulate it by {@link toolCallId} as with {@link subagent}.
+   */
+  readonly subagentId?: string;
+}
+
+/**
+ * The lifecycle state of one delegated worker, as its own agent reports it.
+ *
+ * `"started"` means the worker exists and is working. The other four are
+ * **terminal**: nothing further arrives for that subagent, and a UI may say
+ * so permanently. They are distinguished because they are not the same news —
+ * `"completed"` is a result, `"failed"` is an error worth surfacing, and
+ * `"disconnected"` means nobody knows how it ended.
+ *
+ * Tolerate the set growing: an agent reporting a state this union does not
+ * name produces no {@link AgentDelegation} at all rather than a guess, so a
+ * consumer never sees a value outside it.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export type AgentDelegationState =
+  | "started"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "disconnected";
+
+/**
+ * One **delegated worker's lifecycle** — a named subagent appearing, and later
+ * reporting how it ended.
+ *
+ * This is the signal that lets a transcript stop guessing about delegated
+ * work. {@link AgentToolCall.handedOff} says a dispatch's `"completed"` was
+ * only a hand-off; this says when the handed-off work actually finished, and
+ * *which* worker's it was. A UI can therefore show a per-agent result and a
+ * count of outstanding work that comes down — neither of which is derivable
+ * from the tool-call stream, which never revisits a dispatch.
+ *
+ * **Not every agent reports this.** Where the connected agent doesn't,
+ * {@link AgentSessionUpdate.delegation} is simply never set and a UI falls
+ * back to counting dispatches. Treat its absence as "this agent doesn't say",
+ * never as "nothing is running".
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentDelegation {
+  /**
+   * The worker this event is about — the same id that appears on
+   * {@link AgentToolCall.subagentId} for the dispatch that started it and on
+   * {@link AgentSessionUpdate.subagentId} for every frame it produces.
+   *
+   * **Stable across every event for one worker**, including the repeat
+   * announcements some agents send when a worker resumes: Silo normalises the
+   * vendor's generation suffix away, so a consumer keyed on this id counts one
+   * worker once. The un-normalised form stays in
+   * {@link AgentSessionUpdate.raw} for anyone who wants it.
+   */
+  readonly subagentId: string;
+  /** The worker's human-readable name, e.g. `"Background sleep task"` —
+   *  carried on the announcement, not on later state changes, so accumulate it
+   *  rather than expecting it on the terminal event. */
+  readonly name?: string;
+  /** The prompt the worker was given. Same accumulation caveat as
+   *  {@link name}, and it can be long — agents put structured payloads here. */
+  readonly task?: string;
+  /** Where the worker is in its life. See {@link AgentDelegationState}. */
+  readonly state: AgentDelegationState;
 }
 
 /**
@@ -951,6 +1039,44 @@ export interface AgentSessionUpdate {
    * notification at all — see {@link AgentSessionUsage}.
    */
   readonly usage?: AgentSessionUsage;
+  /**
+   * The **delegated worker that produced this frame** — set on every update a
+   * subagent authored, absent on the session's own.
+   *
+   * Delegated work arrives on the same stream as the parent's, because a
+   * subagent is a session of its own that Silo routes into the session that
+   * spawned it. Without this field a subagent's prose and tool calls would be
+   * indistinguishable from the parent's and would read as the parent speaking.
+   * So: **render a frame carrying this attributed to its worker**, inside the
+   * dispatch it belongs to, never as the agent's own output.
+   *
+   * The id matches {@link AgentToolCall.subagentId} on the dispatch that
+   * started the worker — note the different subject there (that call's
+   * *delegate*; here, this frame's *author*). Where the frame also carries
+   * {@link AgentToolCall.parentToolCallId}, that is the more direct route to
+   * the dispatch row.
+   *
+   * Absent for every frame on a session with no delegation, and for every
+   * agent that doesn't report it — in which case the transcript renders as it
+   * always has.
+   */
+  readonly subagentId?: string;
+  /**
+   * A **delegated worker's lifecycle event** — a subagent appearing, or
+   * reporting how it ended. `undefined` on every other frame.
+   *
+   * These events arrive on the **parent's** session, not the worker's, so
+   * {@link subagentId} is `undefined` on a frame carrying one: it is the
+   * parent telling you about its delegate. Read {@link AgentDelegation}
+   * for which worker and what happened.
+   *
+   * Unlike most of this interface, this does **not** correspond to one
+   * protocol `kind`. {@link kind} stays the wire's own discriminator and will
+   * read a vendor spelling for these frames; don't match on it. Reading this
+   * field instead is what keeps a consumer working when the canonical
+   * protocol replaces the vendor extension underneath.
+   */
+  readonly delegation?: AgentDelegation;
   /**
    * The raw Agent Client Protocol `update` object — the **escape hatch**, for
    * the kinds and fields this surface does not model.

@@ -12,6 +12,9 @@ import {
   delegatedDispatchNotice,
   delegationSignature,
   delegationView,
+  delegatedSummaryLabel,
+  delegationOutcome,
+  delegationStateTone,
   dispatchLabel,
   elapsedLabel,
   emptyDelegationView,
@@ -31,6 +34,9 @@ import {
   stopReasonNotice,
   toolContentLines,
   toolGroupLabel,
+  toolGroupCollapsed,
+  toolGroupSettled,
+  toolGroupSummaryLabel,
   toolOutputIsMarkdown,
   toolStatusTone,
   userPromptHistory,
@@ -1110,15 +1116,11 @@ describe("foldToolRuns — delegated work never folds out of sight", () => {
 
 describe("delegationView", () => {
   it("is the shared empty view when nothing is delegated", () => {
-    expect(delegationView(fold(readCalls(3)).entries)).toBe(
-      emptyDelegationView,
-    );
+    expect(delegationView(fold(readCalls(3)))).toBe(emptyDelegationView);
   });
 
   it("names each dispatch by the title the wire settled on", () => {
-    const view = delegationView(
-      fold([...FULL_DISPATCH, delegatedCall]).entries,
-    );
+    const view = delegationView(fold([...FULL_DISPATCH, delegatedCall]));
     expect(view.dispatchTitles.get(DISPATCH_ID)).toBe("Sleep then reply");
   });
 
@@ -1131,7 +1133,7 @@ describe("delegationView", () => {
       parentToolCallId: DISPATCH_ID,
     });
     const view = delegationView(
-      fold([...FULL_DISPATCH, delegatedCall, second]).entries,
+      fold([...FULL_DISPATCH, delegatedCall, second]),
     );
     expect(view.delegatedCounts.get(DISPATCH_ID)).toBe(2);
   });
@@ -1147,7 +1149,7 @@ describe("delegationView", () => {
       delegatedCall,
     ]);
     expect(groupTurns(t.entries)).toHaveLength(2);
-    expect(delegationView(t.entries).dispatchTitles.get(DISPATCH_ID)).toBe(
+    expect(delegationView(t).dispatchTitles.get(DISPATCH_ID)).toBe(
       "Sleep then reply",
     );
   });
@@ -1156,7 +1158,7 @@ describe("delegationView", () => {
     // A journal replay that starts mid-delegation. The caller falls back to
     // rendering the call on its own rather than naming a dispatch it can't
     // find.
-    const view = delegationView(fold([delegatedCall]).entries);
+    const view = delegationView(fold([delegatedCall]));
     expect(view.dispatchTitles.has(DISPATCH_ID)).toBe(false);
     expect(view.delegatedCounts.get(DISPATCH_ID)).toBe(1);
   });
@@ -1164,7 +1166,7 @@ describe("delegationView", () => {
 
 describe("delegationSignature", () => {
   it("is empty for a transcript with no delegation", () => {
-    expect(delegationSignature(fold(readCalls(4)).entries)).toBe("");
+    expect(delegationSignature(fold(readCalls(4)))).toBe("");
   });
 
   it("is unchanged by text streaming in around the delegation", () => {
@@ -1178,20 +1180,16 @@ describe("delegationSignature", () => {
       ],
       base,
     );
-    expect(delegationSignature(after.entries)).toBe(
-      delegationSignature(base.entries),
-    );
+    expect(delegationSignature(after)).toBe(delegationSignature(base));
   });
 
   it("changes when a dispatch is relabelled or a delegated call arrives", () => {
     const opened = fold([dispatchOpen]);
     const titled = fold([dispatchTitled], opened);
-    expect(delegationSignature(titled.entries)).not.toBe(
-      delegationSignature(opened.entries),
-    );
+    expect(delegationSignature(titled)).not.toBe(delegationSignature(opened));
     const withChild = fold([delegatedCall], titled);
-    expect(delegationSignature(withChild.entries)).not.toBe(
-      delegationSignature(titled.entries),
+    expect(delegationSignature(withChild)).not.toBe(
+      delegationSignature(titled),
     );
   });
 });
@@ -1240,13 +1238,14 @@ describe("isToolRunning", () => {
 });
 
 describe("delegatedDispatchNotice", () => {
-  const dispatched = fold(FULL_DISPATCH).entries;
+  const dispatched = fold(FULL_DISPATCH);
 
-  it("states what was dispatched, not what is running", () => {
-    // The whole point of the rewording: nothing on the wire supports a claim
-    // that the work is still in flight, so the notice does not make one.
+  it("counts a dispatch whose worker has not reported in", () => {
+    // RFC 0057 turned this from a dispatch tally into an outstanding count.
+    // With no lifecycle event for the worker, nothing is subtracted — "I
+    // don't know" must never render as a finish.
     expect(delegatedDispatchNotice(dispatched)).toBe(
-      "1 background agent dispatched",
+      "1 background agent working",
     );
   });
 
@@ -1262,20 +1261,18 @@ describe("delegatedDispatchNotice", () => {
       tool("tool_call_update", { toolCallId: "d2", handedOff: true }),
       tool("tool_call_update", { toolCallId: "d2", status: "completed" }),
     ];
-    expect(
-      delegatedDispatchNotice(fold([...FULL_DISPATCH, ...second]).entries),
-    ).toBe("2 background agents dispatched");
+    expect(delegatedDispatchNotice(fold([...FULL_DISPATCH, ...second]))).toBe(
+      "2 background agents working",
+    );
   });
 
   it("is absent with no dispatch at all", () => {
-    expect(delegatedDispatchNotice(fold(readCalls(3)).entries)).toBeUndefined();
-    expect(delegatedDispatchNotice([])).toBeUndefined();
+    expect(delegatedDispatchNotice(fold(readCalls(3)))).toBeUndefined();
+    expect(delegatedDispatchNotice(emptyTranscript)).toBeUndefined();
   });
 
   it("is absent before the hand-off — a dispatch being set up is not yet away", () => {
-    expect(
-      delegatedDispatchNotice(fold([dispatchOpen]).entries),
-    ).toBeUndefined();
+    expect(delegatedDispatchNotice(fold([dispatchOpen]))).toBeUndefined();
   });
 
   // The bug this replaced: the notice was gated on `AgentInfo.activity ===
@@ -1298,7 +1295,7 @@ describe("delegatedDispatchNotice", () => {
       ...FULL_DISPATCH,
       chunk("user_message_chunk", "second ask", "m2"),
     ]);
-    expect(delegatedDispatchNotice(t.entries)).toBeUndefined();
+    expect(delegatedDispatchNotice(t)).toBeUndefined();
   });
 
   it("counts a new exchange's dispatches on their own", () => {
@@ -1318,9 +1315,7 @@ describe("delegatedDispatchNotice", () => {
       chunk("user_message_chunk", "second ask", "m2"),
       ...second,
     ]);
-    expect(delegatedDispatchNotice(t.entries)).toBe(
-      "1 background agent dispatched",
-    );
+    expect(delegatedDispatchNotice(t)).toBe("1 background agent working");
   });
 
   // `handedOff` is agent-agnostic by design — a backgrounded shell is expected
@@ -1336,19 +1331,118 @@ describe("delegatedDispatchNotice", () => {
       tool("tool_call_update", { toolCallId: "sh1", handedOff: true }),
     ];
     // A handed-off shell alone produces no notice at all.
-    expect(delegatedDispatchNotice(fold(shell).entries)).toBeUndefined();
+    expect(delegatedDispatchNotice(fold(shell))).toBeUndefined();
     // And it does not inflate the count beside a real dispatch.
-    expect(
-      delegatedDispatchNotice(fold([...FULL_DISPATCH, ...shell]).entries),
-    ).toBe("1 background agent dispatched");
+    expect(delegatedDispatchNotice(fold([...FULL_DISPATCH, ...shell]))).toBe(
+      "1 background agent working",
+    );
   });
 
   it("never names a delegated agent", () => {
-    // Nothing on the wire says *which* dispatch finished, so the aggregate is
-    // the only honest statement available.
+    // Per-agent news belongs on the row that dispatched it; the notice is an
+    // aggregate, and naming one of several outstanding agents in it would only
+    // raise the question of what the others are doing.
     expect(delegatedDispatchNotice(dispatched)).not.toContain(
       "Sleep then reply",
     );
+  });
+
+  // The countdown (RFC 0057). The old comment here argued at length that this
+  // was impossible: nothing revisited a dispatch to report a finish, and with
+  // several outstanding nothing said *which* one had finished. The AIR
+  // `nativeSubagentSessions` capability answers both, so the count comes down.
+  describe("counting down as workers report in", () => {
+    /** A dispatch naming the worker it handed to — the capability-on shape. */
+    const dispatchTo = (id: string, worker: string, title: string) => [
+      tool("tool_call_update", {
+        toolCallId: id,
+        title,
+        subagent: true,
+        handedOff: true,
+        subagentId: worker,
+      }),
+    ];
+    const lifecycle = (
+      worker: string,
+      state: "started" | "completed" | "failed",
+    ) =>
+      ({
+        kind:
+          state === "started" ? "subagent_spawned" : "subagent_state_update",
+        delegation: { subagentId: worker, state },
+        raw: {},
+      }) as AgentSessionUpdate;
+
+    it("subtracts a worker that reported a terminal state", () => {
+      const t = fold([
+        ...dispatchTo("d1", "w1", "Sleep then reply"),
+        ...dispatchTo("d2", "w2", "Review the diff"),
+        lifecycle("w1", "started"),
+        lifecycle("w2", "started"),
+      ]);
+      expect(delegatedDispatchNotice(t)).toBe("2 background agents working");
+      const after = applyUpdate(t, lifecycle("w1", "completed"));
+      expect(delegatedDispatchNotice(after)).toBe("1 background agent working");
+    });
+
+    it("disappears once every worker this exchange dispatched has finished", () => {
+      const t = fold([
+        ...dispatchTo("d1", "w1", "Sleep then reply"),
+        lifecycle("w1", "started"),
+        lifecycle("w1", "completed"),
+      ]);
+      expect(delegatedDispatchNotice(t)).toBeUndefined();
+    });
+
+    it("counts a failed worker as finished too — it is no longer working", () => {
+      const t = fold([
+        ...dispatchTo("d1", "w1", "Sleep then reply"),
+        lifecycle("w1", "failed"),
+      ]);
+      expect(delegatedDispatchNotice(t)).toBeUndefined();
+    });
+
+    it("counts one worker reported twice as one", () => {
+      // The generation repeat. Silo normalises the ids upstream, so both
+      // arrivals land on one key and last-write-wins settles it.
+      const t = fold([
+        ...dispatchTo("d1", "w1", "Sleep then reply"),
+        lifecycle("w1", "started"),
+        lifecycle("w1", "completed"),
+        lifecycle("w1", "started"),
+        lifecycle("w1", "completed"),
+      ]);
+      expect(delegatedDispatchNotice(t)).toBeUndefined();
+    });
+
+    it("keeps counting a worker whose state Silo does not recognise", () => {
+      // The host yields no `delegation` for an unknown state, so nothing is
+      // subtracted — absence of a finish is never read as a finish.
+      const t = fold([
+        ...dispatchTo("d1", "w1", "Sleep then reply"),
+        lifecycle("w1", "started"),
+      ]);
+      expect(delegatedDispatchNotice(t)).toBe("1 background agent working");
+    });
+
+    it("falls back to counting dispatches for an agent that names no worker", () => {
+      // The capability-off path, byte-for-byte the pre-RFC-0057 behaviour: a
+      // dispatch with no `subagentId` can never be told apart from one still
+      // running, so it stays counted forever.
+      expect(delegatedDispatchNotice(fold(FULL_DISPATCH))).toBe(
+        "1 background agent working",
+      );
+    });
+
+    it("ignores a lifecycle event for a worker this exchange did not dispatch", () => {
+      // A worker from the previous exchange reporting in must not make this
+      // exchange's notice go negative or vanish.
+      const t = fold([
+        ...dispatchTo("d1", "w1", "Sleep then reply"),
+        lifecycle("w9", "completed"),
+      ]);
+      expect(delegatedDispatchNotice(t)).toBe("1 background agent working");
+    });
   });
 });
 
@@ -1393,7 +1487,7 @@ describe("groupDelegatedCalls", () => {
     const group = out[0] as DelegatedGroupEntry;
     expect(group.type).toBe("delegated-group");
     expect(group.dispatch.title).toBe("Summarize tasks extension");
-    expect(group.calls.map((c) => c.title)).toEqual([
+    expect(group.work.map((c) => c.title)).toEqual([
       "Read tasks/README.md",
       "Read tasks/package.json",
     ]);
@@ -1416,11 +1510,11 @@ describe("groupDelegatedCalls", () => {
       "Summarize tasks extension",
       "Summarize local-web-viewer extension",
     ]);
-    expect(out[0]!.calls.map((c) => c.title)).toEqual([
+    expect(out[0]!.work.map((c) => c.title)).toEqual([
       "Read tasks/README.md",
       "Read tasks/package.json",
     ]);
-    expect(out[1]!.calls.map((c) => c.title)).toEqual([
+    expect(out[1]!.work.map((c) => c.title)).toEqual([
       "Read local-web-viewer/README.md",
       "Read local-web-viewer/package.json",
     ]);
@@ -1446,7 +1540,7 @@ describe("groupDelegatedCalls", () => {
     const out = groupDelegatedCalls(
       fold(dispatchOf("d1", "Agent one")).entries,
     );
-    expect((out[0] as DelegatedGroupEntry).calls).toEqual([]);
+    expect((out[0] as DelegatedGroupEntry).work).toEqual([]);
   });
 
   // The other observed regime, and the one thing this pass deliberately will
@@ -1470,7 +1564,7 @@ describe("groupDelegatedCalls", () => {
     expect(turns).toHaveLength(2);
     // The dispatch's turn gets a block with no calls in it...
     const first = foldToolRuns(turns[0]!.rest);
-    expect((first[0] as DelegatedGroupEntry).calls).toEqual([]);
+    expect((first[0] as DelegatedGroupEntry).work).toEqual([]);
     // ...and the later turn renders the child on its own, not relocated.
     const second = foldToolRuns(turns[1]!.rest);
     expect(second.map((e) => e.type)).toEqual(["tool"]);
@@ -1505,5 +1599,637 @@ describe("foldToolRuns — delegated blocks and run folding compose", () => {
       "delegated-group",
       "tool-group",
     ]);
+  });
+});
+
+/**
+ * RFC 0057. A worker's identity and fate reach the panel as modelled fields,
+ * so the panel can say *which* agent finished and keep saying it — the two
+ * things RFC 0055 could not do.
+ */
+describe("per-worker state and attribution", () => {
+  const WORKER = "a26fef4c40ae0ac1d";
+  const DISPATCH = "toolu_01UVpzoKuVLPGTXMKH7i2Puz";
+
+  /** The dispatch as the capability-on stream sends it: one `tool_call_update`
+   *  with no opening call, no status, and the worker named in its place. */
+  const capDispatch = tool("tool_call_update", {
+    toolCallId: DISPATCH,
+    title: "Background sleep task",
+    subagent: true,
+    handedOff: true,
+    subagentId: WORKER,
+  });
+
+  const lifecycle = (
+    state: "started" | "completed" | "failed" | "cancelled" | "disconnected",
+    worker = WORKER,
+  ) =>
+    ({
+      kind: state === "started" ? "subagent_spawned" : "subagent_state_update",
+      delegation: { subagentId: worker, state },
+      raw: {},
+    }) as AgentSessionUpdate;
+
+  /** A message the worker itself streamed, attributed by the host. */
+  const childChunk = (text: string, messageId = "child-msg") =>
+    ({
+      kind: "agent_message_chunk",
+      text,
+      messageId,
+      subagentId: WORKER,
+      raw: {},
+    }) as AgentSessionUpdate;
+
+  describe("applyUpdate — the lifecycle", () => {
+    it("records a worker's state without adding a transcript row", () => {
+      // A worker appearing is not news; its finishing is news about the row
+      // that already exists.
+      const t = fold([lifecycle("started")]);
+      expect(t.entries).toHaveLength(0);
+      expect(t.delegations.get(WORKER)).toBe("started");
+    });
+
+    it("takes the latest word on a worker", () => {
+      const t = fold([lifecycle("started"), lifecycle("completed")]);
+      expect(t.delegations.get(WORKER)).toBe("completed");
+    });
+
+    it("keeps workers apart", () => {
+      const t = fold([lifecycle("completed", "w1"), lifecycle("failed", "w2")]);
+      expect(t.delegations.get("w1")).toBe("completed");
+      expect(t.delegations.get("w2")).toBe("failed");
+    });
+
+    it("carries the state through every other kind of update", () => {
+      // The reducer rebuilds the transcript on each frame; dropping the map
+      // there would lose a finish to the next streamed chunk.
+      const t = fold([
+        lifecycle("completed"),
+        chunk("agent_message_chunk", "and now", "m1"),
+        tool("tool_call", { toolCallId: "t1", title: "Read x", status: "ok" }),
+        tool("tool_call_update", { toolCallId: "t1", status: "completed" }),
+      ]);
+      expect(t.delegations.get(WORKER)).toBe("completed");
+    });
+  });
+
+  describe("the dispatch row carries its worker's id", () => {
+    it("accumulates subagentId across frames", () => {
+      // The id arrives on the hand-off frame, not the opening one, so the row
+      // must accumulate it exactly as it accumulates `subagent`.
+      const t = fold([
+        tool("tool_call", {
+          toolCallId: DISPATCH,
+          title: "Task",
+          subagent: true,
+          status: "pending",
+        }),
+        tool("tool_call_update", {
+          toolCallId: DISPATCH,
+          handedOff: true,
+          subagentId: WORKER,
+        }),
+        tool("tool_call_update", { toolCallId: DISPATCH, status: "completed" }),
+      ]);
+      expect((t.entries[0] as ToolEntry).subagentId).toBe(WORKER);
+    });
+  });
+
+  describe("delegationOutcome", () => {
+    it("reports the worker's terminal state", () => {
+      const t = fold([capDispatch, lifecycle("completed")]);
+      expect(delegationOutcome(t.entries[0] as ToolEntry, t.delegations)).toBe(
+        "completed",
+      );
+    });
+
+    it("reports nothing while the worker is still working", () => {
+      const t = fold([capDispatch, lifecycle("started")]);
+      expect(
+        delegationOutcome(t.entries[0] as ToolEntry, t.delegations),
+      ).toBeUndefined();
+    });
+
+    it("reports nothing for an agent that never says", () => {
+      // The capability-off path: the row renders as it did before, with the
+      // `handed off` badge and no claim about the work.
+      const t = fold(FULL_DISPATCH);
+      const row = t.entries.find((e) => e.type === "tool") as ToolEntry;
+      expect(delegationOutcome(row, t.delegations)).toBeUndefined();
+    });
+
+    it("keeps the terminal state after the turn moves on", () => {
+      // A row is history. This is where a liveness-derived badge would break:
+      // the session goes idle and the finish would disappear with it.
+      const t = fold([
+        capDispatch,
+        lifecycle("completed"),
+        chunk("agent_message_chunk", "Task finished.", "m9"),
+        chunk("user_message_chunk", "thanks", "m10"),
+        chunk("agent_message_chunk", "you're welcome", "m11"),
+      ]);
+      expect(delegationOutcome(t.entries[0] as ToolEntry, t.delegations)).toBe(
+        "completed",
+      );
+    });
+
+    it("survives a journal replay", () => {
+      // The attribution is in the data, not in arrival order, so replaying the
+      // same updates reconstructs the same outcome (RFC 0057 R9).
+      const journal = [capDispatch, lifecycle("started"), lifecycle("failed")];
+      const t = seedFromJournal(journal);
+      expect(delegationOutcome(t.entries[0] as ToolEntry, t.delegations)).toBe(
+        "failed",
+      );
+    });
+
+    it("replays a journal written before this change", () => {
+      // No `subagentId`, no `delegation` — it must still render, as the
+      // parent's own frames, exactly as it always did.
+      const t = seedFromJournal(FULL_DISPATCH);
+      const row = t.entries.find((e) => e.type === "tool") as ToolEntry;
+      expect(row.handedOff).toBe(true);
+      expect(delegationOutcome(row, t.delegations)).toBeUndefined();
+    });
+  });
+
+  describe("delegationStateTone", () => {
+    it("distinguishes a result from a problem", () => {
+      expect(delegationStateTone("completed")).toBe("ok");
+      expect(delegationStateTone("failed")).toBe("err");
+    });
+
+    it("warns rather than failing for an end nobody chose", () => {
+      // `"disconnected"` means *we don't know* how it ended, which should not
+      // be dressed up as the agent having failed.
+      expect(delegationStateTone("cancelled")).toBe("warn");
+      expect(delegationStateTone("disconnected")).toBe("warn");
+    });
+  });
+
+  describe("a worker's prose is attributed to it", () => {
+    it("never merges a worker's run into the parent's", () => {
+      // The mis-attribution this exists to prevent: the capture's worker says
+      // "Command running in the background. I will reply FINISHED once it
+      // completes." — which reads as the parent speaking if merged.
+      const t = fold([
+        chunk("agent_message_chunk", "launched", "shared"),
+        childChunk(" I will reply FINISHED.", "shared"),
+      ]);
+      expect(t.entries).toHaveLength(2);
+      expect((t.entries[0] as MessageEntry).text).toBe("launched");
+      expect((t.entries[1] as MessageEntry).subagentId).toBe(WORKER);
+    });
+
+    it("still groups a worker's own consecutive chunks", () => {
+      const t = fold([childChunk("Command "), childChunk("running.")]);
+      expect(t.entries).toHaveLength(1);
+      expect((t.entries[0] as MessageEntry).text).toBe("Command running.");
+    });
+
+    it("renders a worker's prose inside its dispatch's block", () => {
+      const entries = fold([
+        capDispatch,
+        childChunk("Command running."),
+      ]).entries;
+      const out = groupDelegatedCalls(entries);
+      expect(out).toHaveLength(1);
+      const group = out[0] as DelegatedGroupEntry;
+      expect(group.type).toBe("delegated-group");
+      expect(group.work).toHaveLength(1);
+      expect((group.work[0] as MessageEntry).text).toBe("Command running.");
+    });
+
+    it("keeps a worker's calls and prose in arrival order", () => {
+      // The capture's order: the worker backgrounds a shell, then explains
+      // itself. Splitting the two into separate lists would lose that.
+      const entries = fold([
+        capDispatch,
+        tool("tool_call", {
+          toolCallId: "c1",
+          title: "sleep 30",
+          status: "completed",
+          parentToolCallId: DISPATCH,
+        }),
+        childChunk("Command running."),
+      ]).entries;
+      const group = groupDelegatedCalls(entries)[0] as DelegatedGroupEntry;
+      expect(group.work.map((w) => w.type)).toEqual(["tool", "message"]);
+    });
+
+    it("leaves a worker's prose on its own when its dispatch is unknown", () => {
+      // A replay starting mid-delegation. Dropping it would lose the only
+      // record of what the worker said.
+      const entries = fold([childChunk("Command running.")]).entries;
+      expect(groupDelegatedCalls(entries)).toBe(entries);
+    });
+
+    it("leaves the parent's own prose in the flow of the transcript", () => {
+      const entries = fold([
+        capDispatch,
+        chunk("agent_message_chunk", "Task finished.", "m1"),
+      ]).entries;
+      const out = groupDelegatedCalls(entries);
+      expect(out).toHaveLength(2);
+      expect((out[1] as MessageEntry).text).toBe("Task finished.");
+    });
+  });
+
+  describe("delegationSignature", () => {
+    it("changes when a worker reports in", () => {
+      // The view and the notice are both memoized on this, so a finish that
+      // did not move it would never reach the screen.
+      const before = fold([capDispatch, lifecycle("started")]);
+      const after = applyUpdate(before, lifecycle("completed"));
+      expect(delegationSignature(after)).not.toBe(delegationSignature(before));
+    });
+
+    it("changes when a worker's prose is attributed", () => {
+      const before = fold([capDispatch]);
+      const after = applyUpdate(before, childChunk("Command running."));
+      expect(delegationSignature(after)).not.toBe(delegationSignature(before));
+    });
+
+    it("is still unmoved by the parent's own text streaming", () => {
+      const base = fold([capDispatch, lifecycle("started")]);
+      const after = applyUpdate(
+        base,
+        chunk("agent_message_chunk", "still going", "m1"),
+      );
+      expect(delegationSignature(after)).toBe(delegationSignature(base));
+    });
+  });
+
+  describe("delegationView", () => {
+    it("passes the worker states through to the rows", () => {
+      const t = fold([capDispatch, lifecycle("completed")]);
+      expect(delegationView(t).delegations.get(WORKER)).toBe("completed");
+    });
+
+    it("is the shared empty view when there is no delegation at all", () => {
+      expect(delegationView(fold(readCalls(3)))).toBe(emptyDelegationView);
+    });
+  });
+});
+
+/**
+ * A delegated worker's rows are relocated into its dispatch's block at render
+ * time, so they sit between the agent's own chunks in `entries` while
+ * appearing nowhere between them on screen. The agent's sentence must survive
+ * that (RFC 0057; Dave's screenshot, 2026-10-08 — one sentence split into two
+ * bubbles with a blank gap where the worker's rows had been).
+ */
+describe("a worker's rows do not split the agent's sentence", () => {
+  const WORKER = "a26fef4c40ae0ac1d";
+  const DISPATCH = "toolu_dispatch";
+
+  const capDispatch = tool("tool_call_update", {
+    toolCallId: DISPATCH,
+    title: "Get one-sentence summaries",
+    subagent: true,
+    handedOff: true,
+    subagentId: WORKER,
+  });
+
+  const childCall = (id: string, title: string) =>
+    tool("tool_call", {
+      toolCallId: id,
+      title,
+      status: "completed",
+      parentToolCallId: DISPATCH,
+    });
+
+  const childChunk = (text: string) =>
+    ({
+      kind: "agent_message_chunk",
+      text,
+      messageId: "child-msg",
+      subagentId: WORKER,
+      raw: {},
+    }) as AgentSessionUpdate;
+
+  it("keeps one sentence in one bubble across a worker's tool calls", () => {
+    const t = fold([
+      capDispatch,
+      chunk("agent_message_chunk", "Agent is running. I'll get you the", "m1"),
+      childCall("c1", "Read skills-manager/README.md"),
+      childCall("c2", "Read tasks/README.md"),
+      chunk("agent_message_chunk", " summaries when it completes.", "m1"),
+    ]);
+    const messages = t.entries.filter((e) => e.type === "message");
+    expect(messages).toHaveLength(1);
+    expect((messages[0] as MessageEntry).text).toBe(
+      "Agent is running. I'll get you the summaries when it completes.",
+    );
+  });
+
+  it("keeps one sentence in one bubble across a worker's own prose", () => {
+    const t = fold([
+      capDispatch,
+      chunk("agent_message_chunk", "Dispatched. ", "m1"),
+      childChunk("Working on it."),
+      chunk("agent_message_chunk", "Results shortly.", "m1"),
+    ]);
+    const own = t.entries.filter(
+      (e) => e.type === "message" && e.subagentId === undefined,
+    );
+    expect(own).toHaveLength(1);
+    expect((own[0] as MessageEntry).text).toBe("Dispatched. Results shortly.");
+  });
+
+  it("still ends the run at a tool call the agent made itself", () => {
+    // The distinction that matters: the agent's own call stays in the flow and
+    // genuinely sits between the two paragraphs on screen.
+    const t = fold([
+      chunk("agent_message_chunk", "before", "m1"),
+      tool("tool_call", { toolCallId: "own", title: "Read notes.md" }),
+      chunk("agent_message_chunk", "after", "m1"),
+    ]);
+    expect(t.entries.map((e) => e.type)).toEqual([
+      "message",
+      "tool",
+      "message",
+    ]);
+  });
+
+  it("still ends the run at a dispatch row, which stays in the flow", () => {
+    // The dispatch heads its block rather than being relocated into one, so it
+    // breaks a run exactly as any other tool call does.
+    const t = fold([
+      chunk("agent_message_chunk", "I'll delegate this.", "m1"),
+      capDispatch,
+      chunk("agent_message_chunk", "Dispatched.", "m1"),
+    ]);
+    expect(t.entries.filter((e) => e.type === "message")).toHaveLength(2);
+  });
+
+  it("does not merge into a run the agent already closed", () => {
+    // A reused id after a real break must start a new bubble, not reach back
+    // past the tool call and reopen a paragraph the reader has scrolled by.
+    const t = fold([
+      chunk("agent_message_chunk", "before", "m1"),
+      tool("tool_call", { toolCallId: "own", title: "Read notes.md" }),
+      chunk("agent_message_chunk", "after", "m1"),
+      chunk("agent_message_chunk", " and more", "m1"),
+    ]);
+    const messages = t.entries.filter(
+      (e) => e.type === "message",
+    ) as MessageEntry[];
+    expect(messages.map((m) => m.text)).toEqual(["before", "after and more"]);
+  });
+
+  it("applies the same column rule inside the worker's own block", () => {
+    // A worker's call *does* sit between its two prose chunks — inside the
+    // block, on screen. So it breaks the run, exactly as the agent's own call
+    // breaks the agent's. The rule is about the column, not about who is
+    // speaking.
+    const t = fold([
+      capDispatch,
+      childChunk("Command "),
+      childCall("c1", "sleep 30"),
+      childChunk("running."),
+    ]);
+    const childMessages = t.entries.filter(
+      (e) => e.type === "message" && e.subagentId === WORKER,
+    ) as MessageEntry[];
+    expect(childMessages.map((m) => m.text)).toEqual(["Command ", "running."]);
+  });
+
+  it("keeps a worker's consecutive prose in one bubble", () => {
+    const t = fold([
+      capDispatch,
+      childChunk("Command "),
+      childChunk("running."),
+    ]);
+    const childMessages = t.entries.filter(
+      (e) => e.type === "message" && e.subagentId === WORKER,
+    ) as MessageEntry[];
+    expect(childMessages.map((m) => m.text)).toEqual(["Command running."]);
+  });
+
+  it("renders the agent's sentence as one bubble outside the block", () => {
+    // End to end through the render projection, which is where the gap showed.
+    const entries = fold([
+      capDispatch,
+      chunk("agent_message_chunk", "Agent is running. I'll get you the", "m1"),
+      childCall("c1", "Read tasks/README.md"),
+      chunk("agent_message_chunk", " summaries when it completes.", "m1"),
+    ]).entries;
+    const out = groupDelegatedCalls(entries);
+    expect(out).toHaveLength(2);
+    expect(out[0]!.type).toBe("delegated-group");
+    expect((out[1] as MessageEntry).text).toBe(
+      "Agent is running. I'll get you the summaries when it completes.",
+    );
+  });
+});
+
+describe("delegatedSummaryLabel", () => {
+  const call = (id: string): ToolEntry =>
+    ({
+      type: "tool",
+      key: id,
+      toolCallId: id,
+      title: "Read x",
+      status: "completed",
+      lines: [],
+    }) as ToolEntry;
+  const prose = (key: string): MessageEntry =>
+    ({ type: "message", key, role: "agent", text: "done" }) as MessageEntry;
+
+  it("counts the worker's tool calls", () => {
+    expect(delegatedSummaryLabel([call("a"), call("b"), call("c")])).toBe(
+      "3 tool calls · expand to see agent output",
+    );
+  });
+
+  it("pluralises", () => {
+    expect(delegatedSummaryLabel([call("a")])).toBe(
+      "1 tool call · expand to see agent output",
+    );
+  });
+
+  it("does not count the worker's prose as a call", () => {
+    // "3 messages" would mean nothing to a reader; the prose is what "agent
+    // output" already refers to.
+    expect(delegatedSummaryLabel([call("a"), prose("m1"), prose("m2")])).toBe(
+      "1 tool call · expand to see agent output",
+    );
+  });
+
+  it("still offers the output when the worker made no calls at all", () => {
+    // A worker that only answered. A bare "0 tool calls" would read as though
+    // it did nothing, when its whole answer is in there.
+    expect(delegatedSummaryLabel([prose("m1")])).toBe(
+      "expand to see agent output",
+    );
+    expect(delegatedSummaryLabel([])).toBe("expand to see agent output");
+  });
+});
+
+/**
+ * A folded run collapses completely once its calls have settled — the same
+ * treatment a finished dispatch block gets (Dave, 2026-10-08).
+ */
+describe("toolGroupSettled", () => {
+  const at = (status: string): ToolEntry =>
+    ({
+      type: "tool",
+      key: `k${status}`,
+      toolCallId: `c${status}`,
+      title: "Read x",
+      status,
+      lines: [],
+    }) as ToolEntry;
+
+  it("is settled when every call has finished", () => {
+    expect(toolGroupSettled([at("completed"), at("failed")])).toBe(true);
+  });
+
+  it.each(["pending", "in_progress"])(
+    "is not settled while one call is %s",
+    (status) => {
+      // The tail of a live run is exactly what a reader watches, so it stays
+      // open even though the rest of the run is done.
+      expect(toolGroupSettled([at("completed"), at(status)])).toBe(false);
+    },
+  );
+
+  it("treats a vendor's own status as settled", () => {
+    // Same tolerance `isToolRunning` applies: only the two running statuses
+    // are running, and an unknown one is not a reason to stay open forever.
+    expect(toolGroupSettled([at("cancelled")])).toBe(true);
+  });
+
+  it("agrees with isToolRunning, which is the single owner of the question", () => {
+    const live = at("in_progress");
+    expect(toolGroupSettled([live])).toBe(!isToolRunning(live));
+  });
+});
+
+describe("toolGroupSummaryLabel", () => {
+  const at = (key: string, status: string): ToolEntry =>
+    ({
+      type: "tool",
+      key,
+      toolCallId: key,
+      title: "Read x",
+      status,
+      lines: [],
+    }) as ToolEntry;
+
+  it("gives the total the header's breakdown makes you add up", () => {
+    const tools = Array.from({ length: 9 }, (_, i) => at(`c${i}`, "completed"));
+    expect(toolGroupSummaryLabel(tools)).toBe("expand to see all 9");
+  });
+
+  it("says nothing about failures, because a group cannot contain one", () => {
+    // Not a gap in the summary: `foldToolRuns` breaks the run at a failed
+    // call, so the failed row renders in full outside the group. The test
+    // below pins that, which is what makes this silence correct rather than
+    // an omission.
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+      tool("tool_call", {
+        toolCallId: "boom",
+        title: "Shell",
+        status: "pending",
+      }),
+      tool("tool_call_update", { toolCallId: "boom", status: "failed" }),
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    const groups = folded.filter((e) => e.type === "tool-group");
+    // Two groups either side, and the failure standing on its own between them.
+    expect(groups).toHaveLength(2);
+    for (const g of groups as ToolGroupEntry[]) {
+      expect(g.tools.some((c) => c.status === "failed")).toBe(false);
+      expect(toolGroupSummaryLabel(g.tools)).not.toContain("failed");
+    }
+    const loose = folded.filter(
+      (e) => e.type === "tool" && e.status === "failed",
+    );
+    expect(loose).toHaveLength(1);
+  });
+});
+
+/**
+ * A folded run must not collapse until nothing more can join it (Dave,
+ * 2026-10-08). Keyed on "every call settled" alone, the block collapsed the
+ * moment the agent paused, re-opened when its next call landed in the same
+ * run, and collapsed again — flickering its way through a turn.
+ */
+describe("toolGroupCollapsed — the one-way signal", () => {
+  const groupsOf = (t: Transcript) =>
+    foldToolRuns(t.entries).filter(
+      (e) => e.type === "tool-group",
+    ) as ToolGroupEntry[];
+
+  it("stays open while the run is still the last thing in the turn", () => {
+    // Every call has settled, but the agent has not spoken — its next call
+    // joins this very run, so collapsing now is what flickers.
+    const t = fold(readCalls(TOOL_GROUP_THRESHOLD));
+    const [group] = groupsOf(t);
+    expect(group).toBeDefined();
+    expect(toolGroupSettled(group!.tools)).toBe(true);
+    expect(group!.closed).toBe(false);
+    expect(toolGroupCollapsed(group!)).toBe(false);
+  });
+
+  it("does not reopen when the agent's next call extends the run", () => {
+    // The flicker, reproduced as a sequence: settled, grown, settled again.
+    // The group is open throughout rather than collapsing in between.
+    const first = fold(readCalls(TOOL_GROUP_THRESHOLD));
+    expect(toolGroupCollapsed(groupsOf(first)[0]!)).toBe(false);
+    const grown = fold(readCalls(2), first);
+    const [group] = groupsOf(grown);
+    expect(group!.tools).toHaveLength(TOOL_GROUP_THRESHOLD + 2);
+    expect(toolGroupCollapsed(group!)).toBe(false);
+  });
+
+  it("collapses once the agent responds, which ends the run", () => {
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+      chunk("agent_message_chunk", "Done — here is what I found.", "m1"),
+    ]);
+    const [group] = groupsOf(t);
+    expect(group!.closed).toBe(true);
+    expect(toolGroupCollapsed(group!)).toBe(true);
+  });
+
+  it("stays closed as the turn goes on", () => {
+    // One-way: the entry that closed the run never goes away, so later calls
+    // start a *new* run rather than reopening this one.
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+      chunk("agent_message_chunk", "Checking a few more things.", "m1"),
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+    ]);
+    const groups = groupsOf(t);
+    expect(groups).toHaveLength(2);
+    expect(toolGroupCollapsed(groups[0]!)).toBe(true);
+    // ...and the new trailing run is open, for the same reason the first was.
+    expect(toolGroupCollapsed(groups[1]!)).toBe(false);
+  });
+
+  it("does not collapse a closed run that still has a call in flight", () => {
+    // `applyUpdate` patches a row in place wherever it sits, so a closed run
+    // can still hold a live call. Collapsing over a spinner hides the one
+    // thing worth watching.
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD - 1),
+      tool("tool_call", {
+        toolCallId: "slow",
+        title: "Read big.txt",
+        kind: "read",
+        status: "in_progress",
+      }),
+      chunk("agent_message_chunk", "Meanwhile…", "m1"),
+    ]);
+    const [group] = groupsOf(t);
+    expect(group!.closed).toBe(true);
+    expect(toolGroupSettled(group!.tools)).toBe(false);
+    expect(toolGroupCollapsed(group!)).toBe(false);
   });
 });

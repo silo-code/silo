@@ -48,7 +48,10 @@ describe("makeChunkGrouper", () => {
     g({
       jsonrpc: "2.0",
       method: "session/update",
-      params: { update: { sessionUpdate: "tool_call", toolCallId: "t1" } },
+      params: {
+        sessionId: "s1",
+        update: { sessionUpdate: "tool_call", toolCallId: "t1" },
+      },
     });
     const after = g(chunk("agent_message_chunk", "Done."));
     expect(idOf(after)).not.toBe(idOf(before));
@@ -60,7 +63,10 @@ describe("makeChunkGrouper", () => {
     g({
       jsonrpc: "2.0",
       method: "session/update",
-      params: { update: { sessionUpdate: "usage_update", tokens: 1 } },
+      params: {
+        sessionId: "s1",
+        update: { sessionUpdate: "usage_update", tokens: 1 },
+      },
     });
     const after = g(chunk("agent_message_chunk", " two"));
     expect(idOf(after)).toBe(idOf(before));
@@ -87,5 +93,111 @@ describe("makeChunkGrouper", () => {
     expect(update.content).toEqual({ type: "text", text: "hello" });
     expect((out.params as { sessionId: string }).sessionId).toBe("s1");
     expect(out.method).toBe("session/update");
+  });
+
+  // RFC 0057. A run belongs to a session, not to the connection: once Silo
+  // advertises the subagent capability a parent and its subagent stream text
+  // down the same pipe, and connection-wide run state would fold the two into
+  // one bubble — the parent appearing to say what the subagent said.
+  describe("per-session runs", () => {
+    const on = (sessionId: string, kind: string, text: string) => ({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId,
+        update: { sessionUpdate: kind, content: { type: "text", text } },
+      },
+    });
+
+    it("gives two sessions streaming at once two distinct ids", () => {
+      const g = makeChunkGrouper();
+      const parent = g(on("parent", "agent_message_chunk", "I'll delegate"));
+      const child = g(on("child", "agent_message_chunk", "working on it"));
+      expect(idOf(parent)).toBeDefined();
+      expect(idOf(child)).toBeDefined();
+      expect(idOf(child)).not.toBe(idOf(parent));
+    });
+
+    it("still groups consecutive chunks within one session", () => {
+      const g = makeChunkGrouper();
+      const a = g(on("parent", "agent_message_chunk", "one"));
+      g(on("child", "agent_message_chunk", "interleaved"));
+      const b = g(on("parent", "agent_message_chunk", " two"));
+      expect(idOf(b)).toBe(idOf(a));
+    });
+
+    it("breaks only the session whose run was interrupted", () => {
+      const g = makeChunkGrouper();
+      const parentBefore = g(on("parent", "agent_message_chunk", "before"));
+      const childBefore = g(on("child", "agent_message_chunk", "child one"));
+      // A tool call the *child* makes says nothing about whether the parent is
+      // mid-sentence.
+      g({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: {
+          sessionId: "child",
+          update: { sessionUpdate: "tool_call", toolCallId: "t1" },
+        },
+      });
+      const childAfter = g(on("child", "agent_message_chunk", "child two"));
+      const parentAfter = g(on("parent", "agent_message_chunk", " after"));
+      expect(idOf(childAfter)).not.toBe(idOf(childBefore));
+      expect(idOf(parentAfter)).toBe(idOf(parentBefore));
+    });
+
+    it("never mints the same id for two sessions", () => {
+      // `seq` stays connection-wide precisely for this: two sessions keying
+      // their own runs must not both reach for `silo-msg-1`.
+      const g = makeChunkGrouper();
+      const seen = new Map<string, string>();
+      for (let i = 0; i < 20; i++) {
+        // Alternating kinds, so each session keeps opening fresh runs.
+        const kind =
+          i % 2 === 0 ? "agent_message_chunk" : "agent_thought_chunk";
+        for (const session of ["a", "b", "c"]) {
+          const id = idOf(g(on(session, kind, "x")));
+          expect(id).toBeDefined();
+          const owner = seen.get(id!);
+          // Either this id is new, or it belongs to the session that minted it.
+          expect(owner ?? session).toBe(session);
+          seen.set(id!, session);
+        }
+      }
+      // 20 run-opening frames per session across three sessions.
+      expect(seen.size).toBe(60);
+    });
+
+    it("shares one bucket for frames carrying no session id", () => {
+      // Every agent before RFC 0057 omits `sessionId`, and most still do:
+      // their frames must group exactly as they always did.
+      const g = makeChunkGrouper();
+      const bare = (kind: string, text: string) => ({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: { update: { sessionUpdate: kind, content: { text } } },
+      });
+      const a = g(bare("agent_message_chunk", "one"));
+      const b = g(bare("agent_message_chunk", " two"));
+      expect(idOf(b)).toBe(idOf(a));
+      const c = g(bare("agent_thought_chunk", "hmm"));
+      expect(idOf(c)).not.toBe(idOf(a));
+    });
+
+    it("reads a non-string session id as no session id", () => {
+      const g = makeChunkGrouper();
+      const weird = (sessionId: unknown) => ({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: {
+          sessionId,
+          update: { sessionUpdate: "agent_message_chunk", content: {} },
+        },
+      });
+      const a = g(weird(7));
+      const b = g(weird(null));
+      expect(idOf(a)).toBeDefined();
+      expect(idOf(b)).toBe(idOf(a));
+    });
   });
 });

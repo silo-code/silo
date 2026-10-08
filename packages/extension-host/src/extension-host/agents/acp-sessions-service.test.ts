@@ -2309,3 +2309,308 @@ describe("which workspace a session is filed under", () => {
     ).rejects.toThrow(/no workspace/i);
   });
 });
+
+/**
+ * RFC 0057. Once Silo advertises the subagent capability, a subagent's own
+ * tool calls and prose arrive on a **child** session id down the same pipe.
+ * Deciding what a child frame means is this service's job — the transport only
+ * reports the id — and the failure this routing exists to prevent is the one
+ * where a frame nobody can place is attributed to whichever session happens to
+ * be live.
+ *
+ * The session id the fakes use is `"s1"`; `"a26fef4c40ae0ac1d"` is the child
+ * id from the committed capability-on capture.
+ */
+describe("subagent session routing", () => {
+  const CHILD = "a26fef4c40ae0ac1d";
+
+  /** `subagent_spawned` as the capture sends it — on the **parent's** id. */
+  const spawn = (id = CHILD) => ({
+    sessionUpdate: "subagent_spawned",
+    subagentSessionId: id,
+    name: "Background sleep task",
+    task: "Run `sleep 30`, then reply FINISHED.",
+  });
+
+  const agentsEntries = () => outputStore.channels["silo:agents"]!.entries;
+
+  /** `claude-agent-acp`'s own turn-end marker, as the sibling suite spells it. */
+  const turnEnd = () => ({
+    sessionUpdate: "usage_update",
+    used: 26523,
+    size: 200000,
+    _meta: { "_claude/origin": { kind: "human" } },
+  });
+
+  const updates = async (handle: { onUpdate: Function }) => {
+    const seen: Record<string, unknown>[] = [];
+    handle.onUpdate((u: Record<string, unknown>) => seen.push(u));
+    return seen;
+  };
+
+  it("delivers a child's frames to the parent, tagged with the worker", async () => {
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    captured.onUpdate(spawn() as never, "s1");
+    captured.onUpdate(
+      {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Command running in the background." },
+      } as never,
+      CHILD,
+    );
+    // Attributed, not dropped and not mistaken for the parent's own prose.
+    expect(seen).toContainEqual(
+      expect.objectContaining({
+        kind: "agent_message_chunk",
+        text: "Command running in the background.",
+        subagentId: CHILD,
+      }),
+    );
+  });
+
+  it("leaves the parent's own frames untagged", async () => {
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    captured.onUpdate(
+      {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "Task finished." },
+      } as never,
+      "s1",
+    );
+    const own = seen.find((u) => u.text === "Task finished.");
+    expect(own).toBeDefined();
+    expect("subagentId" in own!).toBe(false);
+  });
+
+  it("treats a frame carrying no session id as the session's own", async () => {
+    // Every agent before this change, and most still. Their frames must be
+    // handled exactly as they always were.
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    captured.onUpdate({
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: "no id here" },
+    } as never);
+    expect(seen).toContainEqual(
+      expect.objectContaining({ kind: "agent_message_chunk" }),
+    );
+    expect("subagentId" in seen[seen.length - 1]!).toBe(false);
+  });
+
+  it("drops a frame on an unrecognised session, warning once", async () => {
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    agentsEntries().length = 0;
+    for (let i = 0; i < 3; i++) {
+      captured.onUpdate(
+        {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "not ours" },
+        } as never,
+        "someone-elses-session",
+      );
+    }
+    // Never attributed to the live session — that is strictly worse than
+    // losing it, since it would put another conversation in this transcript.
+    expect(seen).toEqual([]);
+    const warnings = agentsEntries().filter(
+      (e) => e.level === "warn" && e.message.includes("someone-elses-session"),
+    );
+    expect(warnings).toHaveLength(1);
+  });
+
+  it("registers the child before its first frame can arrive", async () => {
+    // The capture's ordering: `subagent_spawned` at +15.1s, the child's first
+    // `tool_call` at +16.9s. Registering while dispatching the spawn frame is
+    // what makes that always safe.
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    captured.onUpdate(spawn() as never, "s1");
+    captured.onUpdate(
+      {
+        sessionUpdate: "tool_call",
+        toolCallId: "t1",
+        title: "sleep 30",
+      } as never,
+      CHILD,
+    );
+    expect(seen).toContainEqual(
+      expect.objectContaining({ kind: "tool_call", subagentId: CHILD }),
+    );
+  });
+
+  it("drops a child frame that arrives before its spawn", async () => {
+    // Inventing a parent would be exactly the guess this change removes. The
+    // capture shows spawn first, so this is the shape that should not happen.
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    captured.onUpdate(
+      { sessionUpdate: "tool_call", toolCallId: "t1" } as never,
+      CHILD,
+    );
+    expect(seen).toEqual([]);
+  });
+
+  it("recognises a child announced with a generation suffix", async () => {
+    // The worker's frames arrive on the un-suffixed id, so the registration
+    // has to be normalised or the second announcement registers a ghost.
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    captured.onUpdate(spawn(`${CHILD}:generation:2`) as never, "s1");
+    captured.onUpdate(
+      { sessionUpdate: "tool_call", toolCallId: "t1" } as never,
+      CHILD,
+    );
+    expect(seen).toContainEqual(
+      expect.objectContaining({ kind: "tool_call", subagentId: CHILD }),
+    );
+  });
+
+  it("surfaces the lifecycle as a modelled delegation on the parent's frame", async () => {
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    captured.onUpdate(spawn() as never, "s1");
+    captured.onUpdate(
+      {
+        sessionUpdate: "subagent_state_update",
+        subagentSessionId: CHILD,
+        state: "completed",
+      } as never,
+      "s1",
+    );
+    expect(seen).toContainEqual(
+      expect.objectContaining({
+        delegation: {
+          subagentId: CHILD,
+          name: "Background sleep task",
+          task: "Run `sleep 30`, then reply FINISHED.",
+          state: "started",
+        },
+      }),
+    );
+    expect(seen).toContainEqual(
+      expect.objectContaining({
+        delegation: { subagentId: CHILD, state: "completed" },
+      }),
+    );
+  });
+
+  it("journals a child's frames into the parent's file", async () => {
+    // One file per parent session (RFC 0057 R9): a subagent's transcript has
+    // no meaning apart from the turn that spawned it, and a file per child
+    // would orphan on delete.
+    await service.connect("claude-chat");
+    captured.onUpdate(spawn() as never, "s1");
+    captured.onUpdate(
+      {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "child says" },
+      } as never,
+      CHILD,
+    );
+    const parsed = (journalFiles.get(journalKey("active", "s1")) ?? []).map(
+      (l) => JSON.parse(l),
+    );
+    expect(parsed).toContainEqual(
+      expect.objectContaining({ text: "child says", subagentId: CHILD }),
+    );
+    expect(journalFiles.has(journalKey("active", CHILD))).toBe(false);
+  });
+
+  describe("a child's frames do not drive the parent's turn", () => {
+    it("does not open an agent-initiated turn", async () => {
+      vi.useFakeTimers();
+      try {
+        await service.connect("claude-chat");
+        captured.onUpdate(spawn() as never, "s1");
+        // A subagent working on after the parent's turn ended must not reopen
+        // it — the capture has one finishing 25s into that quiet.
+        captured.onUpdate(
+          {
+            sessionUpdate: "tool_call",
+            toolCallId: "t1",
+            status: "pending",
+          } as never,
+          CHILD,
+        );
+        expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not hold the parent's turn open with its own tool call", async () => {
+      vi.useFakeTimers();
+      try {
+        const handle = await service.connect("claude-chat");
+        await handle.prompt([{ type: "text", text: "delegate this" }]);
+        captured.onUpdate(spawn() as never, "s1");
+        // The parent opens a turn of its own, then the child starts a call and
+        // never settles it. A child's in-flight call is not the parent's work,
+        // so quiescence must still land.
+        captured.onUpdate(
+          {
+            sessionUpdate: "agent_message_chunk",
+            content: { text: "x" },
+          } as never,
+          "s1",
+        );
+        captured.onUpdate(
+          {
+            sessionUpdate: "tool_call",
+            toolCallId: "child-1",
+            status: "pending",
+          } as never,
+          CHILD,
+        );
+        await vi.advanceTimersByTimeAsync(TURN_QUIESCENCE_MS + 1_000);
+        expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not end the parent's turn with a turn-end marker of its own", async () => {
+      vi.useFakeTimers();
+      try {
+        const handle = await service.connect("claude-chat");
+        await handle.prompt([{ type: "text", text: "hi" }]);
+        captured.onUpdate(spawn() as never, "s1");
+        captured.onUpdate(
+          {
+            sessionUpdate: "agent_message_chunk",
+            content: { text: "working" },
+          } as never,
+          "s1",
+        );
+        expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+        // The child finishing its own turn says nothing about the parent's.
+        captured.onUpdate(turnEnd() as never, CHILD);
+        expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  it("logs once when routing first engages, as the runtime opt-in signal", async () => {
+    // A silently-failed opt-in is indistinguishable from capability-off, so
+    // the first routed frame is the one observable confirmation (R7).
+    const handle = await service.connect("claude-chat");
+    await updates(handle);
+    agentsEntries().length = 0;
+    captured.onUpdate(spawn() as never, "s1");
+    for (let i = 0; i < 3; i++) {
+      captured.onUpdate(
+        { sessionUpdate: "tool_call", toolCallId: `t${i}` } as never,
+        CHILD,
+      );
+    }
+    const logs = agentsEntries().filter((e) =>
+      e.message.includes("routing subagent frames"),
+    );
+    expect(logs).toHaveLength(1);
+  });
+});

@@ -19,6 +19,49 @@
 
 import type { AcpMessage, AcpTransportLike } from "./acp-transport";
 
+/**
+ * The vendor `_meta` block that opts Silo into **AIR
+ * `nativeSubagentSessions`** — the adapter extension that makes a subagent's
+ * work visible, and its finish reportable (RFC 0057, ADR 0057).
+ *
+ * This is the one place Silo asks an agent to *change what it sends*, rather
+ * than merely tolerating what it sends — so it is deliberately a named
+ * constant rather than two inline literals, and it is asserted by a unit test
+ * against the adapter's own gate (an integer `version >= 1` and an array
+ * `capabilities` naming the extension). Without that test a refactor could
+ * silently disable the opt-in and the result would be indistinguishable from
+ * capability-off: the stream would simply stay quiet about subagents.
+ *
+ * **Where it goes is load-bearing: inside `initialize`'s
+ * `clientCapabilities`, not beside it.** The adapter's gate reads
+ * `clientCapabilities._meta.jetbrains.air` (`air-extension.js`
+ * `clientSupportsAirCapability`, called with the whole `clientCapabilities`
+ * object), and reads it **only from `initialize`** — `session/new`'s own
+ * `_meta` is never consulted for AIR. A correctly-shaped block in the wrong
+ * place is silently ignored, which is the capability-off path: no child
+ * sessions, no lifecycle events, a dispatch row stuck on `handed off`
+ * forever. That is exactly what shipped first and what the runtime test
+ * caught; the unit test now asserts the location by running the adapter's own
+ * gate over `clientCapabilities`, not over the block alone.
+ *
+ * It rides in `_meta` rather than the canonical `clientCapabilities.subagents`
+ * because the ACP SDK's `zClientCapabilities` is a plain `z.object` — unknown
+ * keys are stripped before the adapter ever sees them, while `_meta` is a
+ * declared passthrough field and survives. Note too that
+ * `sessionCapabilities.subagents` in the `initialize` *result* is the
+ * adapter's own advertisement, never an acknowledgement of ours — reading it
+ * as confirmation already cost this project one wrong conclusion.
+ *
+ * `"asyncTasks"` is **not** advertised. It is the out-of-scope sibling
+ * (backgrounded shells), and advertising a capability whose frames nothing
+ * consumes would put `async_task_*` updates on the stream for no reader.
+ */
+export const AIR_CLIENT_META = {
+  jetbrains: {
+    air: { version: 1, capabilities: ["nativeSubagentSessions"] },
+  },
+} as const;
+
 /** An Agent Client Protocol content block (prompt input or update payload). */
 export interface AcpContentBlock {
   type: string;
@@ -176,8 +219,24 @@ export class AcpRpcError extends Error {
 }
 
 export interface AcpClientCallbacks {
-  /** One `session/update` notification (the inner `update` object). */
-  onUpdate(update: AcpSessionUpdate): void;
+  /**
+   * One `session/update` notification: the inner `update` object, plus the
+   * `sessionId` the wire carried it on.
+   *
+   * **Why the id is a parameter and not a field.** Until Silo advertised the
+   * subagent capability (RFC 0057) every notification belonged to the one
+   * session that had been prompted, so the id was redundant and this layer
+   * dropped it. A subagent's own tool calls and prose arrive on a **child**
+   * session id, and deciding what a child means is the sessions service's job
+   * — this layer only has to stop discarding the fact. The id is second
+   * because every existing caller reads the update and only the routing one
+   * cares which session sent it.
+   *
+   * `undefined` when the notification carried no usable `sessionId`. An agent
+   * that omits it (or sends a non-string) keeps working: its frames read as
+   * the connection's own, which is exactly the pre-RFC-0057 behaviour.
+   */
+  onUpdate(update: AcpSessionUpdate, sessionId: string | undefined): void;
   /**
    * The agent wants permission. Call `respond` exactly once. If this callback
    * does not respond, the caller is responsible for eventually doing so —
@@ -416,9 +475,19 @@ export function createAcpClient(
 
     // A notification (`method`, no `id`).
     if (msg.method === "session/update") {
-      const update = (msg.params as { update?: AcpSessionUpdate } | undefined)
-        ?.update;
-      if (update?.sessionUpdate) cb.onUpdate(update);
+      const params = msg.params as
+        | { update?: AcpSessionUpdate; sessionId?: unknown }
+        | undefined;
+      const update = params?.update;
+      // A non-string `sessionId` is read as absent rather than thrown on or
+      // stringified: "the wire didn't say" and "the wire said something we
+      // can't use" lead to the same safe place — the frame is treated as the
+      // connection's own (RFC 0057 R1).
+      if (update?.sessionUpdate)
+        cb.onUpdate(
+          update,
+          typeof params?.sessionId === "string" ? params.sessionId : undefined,
+        );
     }
     // Every other notification is ignored — safe by spec.
   }
@@ -552,6 +621,7 @@ export function createAcpClient(
         clientCapabilities: {
           fs: { readTextFile: false, writeTextFile: false },
           terminal: false,
+          _meta: AIR_CLIENT_META,
         },
         clientInfo: { name: "silo", version: "0.0.0" },
       })) as Record<string, unknown>;

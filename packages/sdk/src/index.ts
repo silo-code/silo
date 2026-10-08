@@ -133,6 +133,8 @@ export type {
   AgentToolCall,
   AgentToolCallContent,
   AgentToolCallLocation,
+  AgentDelegation,
+  AgentDelegationState,
   AgentPlanEntry,
   AgentSessionConfigOption,
   AgentSessionConfigChoice,

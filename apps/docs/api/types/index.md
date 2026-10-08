@@ -108,6 +108,8 @@ the published reference is exactly this surface — no more, no less.
 - [AgentToolCallContent](interfaces/AgentToolCallContent.md)
 - [AgentToolCallLocation](interfaces/AgentToolCallLocation.md)
 - [AgentToolCall](interfaces/AgentToolCall.md)
+- [AgentDelegationState](type-aliases/AgentDelegationState.md)
+- [AgentDelegation](interfaces/AgentDelegation.md)
 - [AgentPlanEntry](interfaces/AgentPlanEntry.md)
 - [AgentSessionUsage](interfaces/AgentSessionUsage.md)
 - [AgentSessionUpdate](interfaces/AgentSessionUpdate.md)
