@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.73.0](https://github.com/silo-code/silo/compare/silo-v0.72.3...silo-v0.73.0) (2026-10-09)
+
+
+### Features
+
+* **agents-chat-panel:** show delegated subagent work in the transcript ([#608](https://github.com/silo-code/silo/issues/608)) ([5b42f3f](https://github.com/silo-code/silo/commit/5b42f3f71de4000237403991f009c437d9084535))
+* **agents:** add AgentInfo.idleSince, a durable "when did this stop" stamp ([#603](https://github.com/silo-code/silo/issues/603)) ([569bb6b](https://github.com/silo-code/silo/commit/569bb6b4fb3090212df575ce74b848539a10705c))
+* **agents:** route delegated subagent updates by sessionId (RFC 0057) ([#610](https://github.com/silo-code/silo/issues/610)) ([980e0cd](https://github.com/silo-code/silo/commit/980e0cd1c417c5408411c386eea11f4c3e32af8b))
+* **agents:** show backgrounded shells in the transcript (RFC 0058) ([#613](https://github.com/silo-code/silo/issues/613)) ([6b22c56](https://github.com/silo-code/silo/commit/6b22c5690f08463d58aa66bef4c685051159c699))
+* **workspaces:** keep the open-workspace menu open after deleting a workspace ([#606](https://github.com/silo-code/silo/issues/606)) ([a2106c5](https://github.com/silo-code/silo/commit/a2106c52d998f91d21c2d3d7775e8160795843a8))
+
+
+### Bug Fixes
+
+* **agents-chat-panel:** return focus to composer after a config pick ([#607](https://github.com/silo-code/silo/issues/607)) ([79a274d](https://github.com/silo-code/silo/commit/79a274d7b312e657336c28b9e00095833159d922))
+* **agents:** track turns the agent starts on its own ([#598](https://github.com/silo-code/silo/issues/598)) ([f0a98a0](https://github.com/silo-code/silo/commit/f0a98a0ed2560517574ba9971032169cfcbd0a6b))
+* **extension-host:** make the close-workspace dialog dismissible ([#612](https://github.com/silo-code/silo/issues/612)) ([8521059](https://github.com/silo-code/silo/commit/852105929a280ece43c6edc83624a272e5ddea74))
+* **test:** survive Node 26's built-in localStorage global ([#604](https://github.com/silo-code/silo/issues/604)) ([08a6fd2](https://github.com/silo-code/silo/commit/08a6fd240eec6f5ee0621409bb94f37a5ebcffa9))
+
 ## [0.72.3](https://github.com/silo-code/silo/compare/silo-v0.72.2...silo-v0.72.3) (2026-10-05)
 
 
