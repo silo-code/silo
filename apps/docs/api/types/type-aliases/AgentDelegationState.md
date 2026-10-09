@@ -4,7 +4,7 @@
 type AgentDelegationState = "started" | "completed" | "failed" | "cancelled" | "disconnected";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:870](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L870)
+Defined in: [packages/sdk/src/agents-service.ts:892](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L892)
 
 **`Beta`**
 

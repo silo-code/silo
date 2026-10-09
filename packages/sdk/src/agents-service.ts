@@ -813,6 +813,28 @@ export interface AgentToolCall {
    */
   readonly handedOff?: boolean;
   /**
+   * This call's command **detached into the background** — so its status
+   * describes the hand-off, and the command itself may have minutes left to
+   * run. A UI must not render such a call as finished.
+   *
+   * A **durable fact about one frame, never revised** — accumulate it, exactly
+   * as with {@link subagent} and {@link handedOff}. It rides the frame the tool
+   * result emits, which in the 2026-10-08 capture is the very frame carrying
+   * the misleading `status: "completed"`.
+   *
+   * **Distinct from {@link handedOff}, and the difference is the point.**
+   * `handedOff` means nobody will ever report how the work ended; this means a
+   * terminal state *is* coming, as
+   * {@link AgentSessionUpdate.backgroundTask}. So a backgrounded row can
+   * legitimately animate as running and then settle, where a handed-off
+   * dispatch can do neither. The two are not synonyms and a consumer that
+   * collapses them cannot render either honestly.
+   *
+   * Set only where the agent marks the detachment explicitly; never inferred
+   * from a tool's name or from a suspiciously fast `"completed"`.
+   */
+  readonly backgrounded?: boolean;
+  /**
    * The {@link toolCallId} of the dispatching call this one was made **on
    * behalf of** — set on every tool call a subagent makes, pointing at the
    * {@link subagent} dispatch that started it.
@@ -916,6 +938,106 @@ export interface AgentDelegation {
   readonly task?: string;
   /** Where the worker is in its life. See {@link AgentDelegationState}. */
   readonly state: AgentDelegationState;
+}
+
+/**
+ * Where a **backgrounded command** is in its life.
+ *
+ * `"running"` and `"paused"` are live; `"completed"`, `"failed"` and
+ * `"stopped"` are terminal. `"stopped"` means something ended it early rather
+ * than it finishing on its own.
+ *
+ * **A terminal state can be revised, once.** An agent may publish a
+ * best-effort terminal state and then correct it when the authoritative one
+ * arrives — in the 2026-10-08 capture `"stopped"` and `"completed"` landed in
+ * the same millisecond, in that order, for a command that succeeded. So a
+ * consumer must take the **latest** terminal state, not the first; latching the
+ * first renders a successful command as though something killed it.
+ *
+ * Tolerate the set growing: an agent reporting a state this union does not name
+ * produces no {@link AgentBackgroundTask} at all rather than a guess, so a
+ * consumer never sees a value outside it.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export type AgentBackgroundTaskState =
+  | "running"
+  | "paused"
+  | "completed"
+  | "failed"
+  | "stopped";
+
+/**
+ * One **backgrounded command's lifecycle** — a shell command that detached from
+ * the agent's turn, and later reported how it ended.
+ *
+ * The shell counterpart to {@link AgentDelegation}, and the resolution for
+ * {@link AgentToolCall.backgrounded}: that flag says a tool call's
+ * `"completed"` described only the hand-off, and this says what became of the
+ * command itself.
+ *
+ * **Unlike delegated work, this resolves.** A subagent dispatch gets no finish
+ * signal on the tool-call stream at all, which is why a UI can only count
+ * dispatches. A backgrounded command reports an identified terminal state, so a
+ * row can settle and a count of outstanding work can come *down*.
+ *
+ * **It outlives its turn, and that is the normal case, not an edge.** In the
+ * 2026-10-08 capture the turn ended 24 seconds before the command did, with the
+ * session reading idle throughout. So never gate the rendering of this on
+ * whether the agent is currently working — the quiet window is exactly when it
+ * matters.
+ *
+ * **Not every agent reports this.** Where the connected agent doesn't,
+ * {@link AgentSessionUpdate.backgroundTask} is simply never set. Treat its
+ * absence as "this agent doesn't say", never as "nothing is running".
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentBackgroundTask {
+  /**
+   * The command this event is about — **the primary key**, stable for the
+   * task's whole life, and the only field always present.
+   *
+   * Key on this rather than on {@link toolCallId}: the announcing frame carries
+   * no tool call at all (see {@link toolCallId}), so a consumer keyed on the
+   * call would drop the announcement and with it {@link name},
+   * {@link taskType} and {@link canStop}.
+   */
+  readonly asyncTaskId: string;
+  /**
+   * Where the command is in its life, **when this frame reported it**.
+   *
+   * Absent on a frame that carried only metadata — which is a distinction worth
+   * preserving rather than collapsing to `"running"`: a metadata frame can
+   * arrive *after* a terminal one, and reading it as "running" would resurrect
+   * a finished command.
+   */
+  readonly state?: AgentBackgroundTaskState;
+  /**
+   * The tool call this command belongs to — the join that puts the lifecycle on
+   * the right row.
+   *
+   * **Learned, not given.** The announcing frame does not carry it; it first
+   * arrives on a later frame, once the agent correlates the two. Accumulate it,
+   * and expect a window in which a task is known but its row is not.
+   */
+  readonly toolCallId?: string;
+  /** Human-readable label, e.g. `"Sleep for 30 seconds"`. Carried on the
+   *  announcement, not on later state changes, so accumulate it rather than
+   *  expecting it on the terminal event. */
+  readonly name?: string;
+  /** The agent's coarse category for the work, e.g. `"shell"`. Same
+   *  accumulation caveat as {@link name}. */
+  readonly taskType?: string;
+  /** Whether the agent would honour a request to stop this command. Same
+   *  accumulation caveat as {@link name}. */
+  readonly canStop?: boolean;
+  /** The agent's own closing summary, when it sent one. */
+  readonly summary?: string;
 }
 
 /**
@@ -1077,6 +1199,23 @@ export interface AgentSessionUpdate {
    * protocol replaces the vendor extension underneath.
    */
   readonly delegation?: AgentDelegation;
+  /**
+   * A **backgrounded command's lifecycle event** — a detached shell command
+   * appearing, being correlated to its tool call, or reporting how it ended.
+   * `undefined` on every other frame.
+   *
+   * The resolution for {@link AgentToolCall.backgrounded}. Read
+   * {@link AgentBackgroundTask} for which command and what happened — and note
+   * that these events keep arriving long after the turn that started them has
+   * ended, which is the whole reason they are worth reading.
+   *
+   * Like {@link delegation}, this does **not** correspond to one protocol
+   * `kind`. {@link kind} stays the wire's own discriminator and will read a
+   * vendor spelling for these frames; don't match on it. Reading this field
+   * instead is what keeps a consumer working when the canonical protocol
+   * replaces the vendor extension underneath.
+   */
+  readonly backgroundTask?: AgentBackgroundTask;
   /**
    * The raw Agent Client Protocol `update` object — the **escape hatch**, for
    * the kinds and fields this surface does not model.

@@ -1,6 +1,6 @@
 # Interface: AgentDelegation
 
-Defined in: [packages/sdk/src/agents-service.ts:897](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L897)
+Defined in: [packages/sdk/src/agents-service.ts:919](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L919)
 
 **`Beta`**
 
@@ -27,7 +27,7 @@ never as "nothing is running".
 readonly subagentId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:909](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L909)
+Defined in: [packages/sdk/src/agents-service.ts:931](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L931)
 
 **`Beta`**
 
@@ -49,7 +49,7 @@ worker once. The un-normalised form stays in
 readonly optional name?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:913](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L913)
+Defined in: [packages/sdk/src/agents-service.ts:935](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L935)
 
 **`Beta`**
 
@@ -65,7 +65,7 @@ The worker's human-readable name, e.g. `"Background sleep task"` —
 readonly optional task?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:916](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L916)
+Defined in: [packages/sdk/src/agents-service.ts:938](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L938)
 
 **`Beta`**
 
@@ -80,7 +80,7 @@ The prompt the worker was given. Same accumulation caveat as
 readonly state: AgentDelegationState;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:918](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L918)
+Defined in: [packages/sdk/src/agents-service.ts:940](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L940)
 
 **`Beta`**
 

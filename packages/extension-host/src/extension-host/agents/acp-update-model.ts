@@ -32,6 +32,7 @@ import type {
   AgentToolCallContent,
   AgentToolCallLocation,
 } from "@silo-code/sdk";
+import { backgroundedToolCallFact } from "./chat-background-tasks";
 import { delegatedWorkFacts } from "./chat-delegated-work";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -130,6 +131,11 @@ export function parseToolCall(v: unknown): AgentToolCall | undefined {
   // otherwise refuses to read; `chat-delegated-work.ts` is the one quarantine
   // for them and returns nothing for a shape it doesn't recognise (RFC 0055).
   const delegated = delegatedWorkFacts(v);
+  // The same arrangement for backgrounded shells, through its own quarantine —
+  // a separate module because ADR 0056 settles one per feature, and because the
+  // marker is in the `jetbrains.air` namespace rather than `claudeCode`
+  // (RFC 0058).
+  const backgrounded = backgroundedToolCallFact(v);
   return {
     toolCallId,
     // The frame's own `title` wins; the quarantine's is the fallback for the
@@ -145,6 +151,7 @@ export function parseToolCall(v: unknown): AgentToolCall | undefined {
     ...(locations !== undefined ? { locations } : {}),
     ...("rawInput" in v ? { rawInput: v.rawInput } : {}),
     ...("rawOutput" in v ? { rawOutput: v.rawOutput } : {}),
+    ...(backgrounded !== undefined ? { backgrounded } : {}),
     ...(delegated.subagent !== undefined
       ? { subagent: delegated.subagent }
       : {}),

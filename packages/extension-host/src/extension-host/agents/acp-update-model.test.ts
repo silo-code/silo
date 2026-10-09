@@ -196,6 +196,43 @@ describe("parseToolCall", () => {
     expect("handedOff" in call).toBe(false);
     expect("parentToolCallId" in call).toBe(false);
     expect("subagentId" in call).toBe(false);
+    expect("backgrounded" in call).toBe(false);
+  });
+
+  // RFC 0058. Verbatim from `frames-bgshell-2026-10-08T21-00-50-385Z.jsonl`
+  // line 22 — the frame where the marker and the misleading `completed` ride
+  // together. This is the projection's half of the contract; the parse of
+  // `_meta` itself is covered in `chat-background-tasks.test.ts`.
+  it("surfaces the backgrounded marker alongside the status it corrects", () => {
+    const call = parseToolCall({
+      _meta: {
+        claudeCode: { toolName: "Bash" },
+        jetbrains: { air: { version: 1, asyncTasks: { backgrounded: true } } },
+      },
+      toolCallId: "toolu_012TVzXJk9LrTopLfEkZhmhx",
+      sessionUpdate: "tool_call_update",
+      status: "completed",
+    })!;
+    expect(call.backgrounded).toBe(true);
+    // Both, on one call: the UI needs the status to know what the agent
+    // claimed and the marker to know not to believe it.
+    expect(call.status).toBe("completed");
+  });
+
+  it("does not mark a backgrounded call as handed off", () => {
+    // The two are distinct facts (RFC 0058): `handedOff` promises no finish
+    // signal, `backgrounded` promises one. A backgrounded Bash trips neither
+    // of `handedOff`'s gates on the wire, and must not acquire it here.
+    const call = parseToolCall({
+      _meta: {
+        claudeCode: { toolName: "Bash" },
+        jetbrains: { air: { version: 1, asyncTasks: { backgrounded: true } } },
+      },
+      toolCallId: "toolu_012TVzXJk9LrTopLfEkZhmhx",
+      status: "completed",
+    })!;
+    expect("handedOff" in call).toBe(false);
+    expect("subagent" in call).toBe(false);
   });
 
   // RFC 0057. `subagentId` is the join the whole feature turns on — it links

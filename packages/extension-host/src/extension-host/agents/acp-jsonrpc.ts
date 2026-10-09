@@ -52,13 +52,25 @@ import type { AcpMessage, AcpTransportLike } from "./acp-transport";
  * adapter's own advertisement, never an acknowledgement of ours — reading it
  * as confirmation already cost this project one wrong conclusion.
  *
- * `"asyncTasks"` is **not** advertised. It is the out-of-scope sibling
- * (backgrounded shells), and advertising a capability whose frames nothing
- * consumes would put `async_task_*` updates on the stream for no reader.
+ * **`"asyncTasks"`** is the second extension, added for backgrounded shells
+ * (RFC 0058). The condition the earlier version of this comment set — "don't
+ * advertise a capability whose frames nothing consumes" — is met by
+ * `chat-background-tasks.ts`, which is its reader.
+ *
+ * It is **one capability covering two surfaces**, and that is the adapter's
+ * design rather than Silo's: advertising it is what makes the adapter stamp
+ * `_meta.jetbrains.air.asyncTasks.backgrounded` on a detached `Bash` call *and*
+ * publish the `async_task_*` lifecycle that resolves it. The adapter withholds
+ * the marker from a client that did not advertise, on the grounds that a marker
+ * without the lifecycle would promise a card state the client could never
+ * resolve. So these are not separable; do not try to take the marker alone.
  */
 export const AIR_CLIENT_META = {
   jetbrains: {
-    air: { version: 1, capabilities: ["nativeSubagentSessions"] },
+    air: {
+      version: 1,
+      capabilities: ["nativeSubagentSessions", "asyncTasks"],
+    },
   },
 } as const;
 

@@ -200,13 +200,45 @@ finish does so on its own lifecycle updates, not by revising this call.
 
 ***
 
+### backgrounded?
+
+```ts
+readonly optional backgrounded?: boolean;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:836](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L836)
+
+**`Beta`**
+
+This call's command **detached into the background** — so its status
+describes the hand-off, and the command itself may have minutes left to
+run. A UI must not render such a call as finished.
+
+A **durable fact about one frame, never revised** — accumulate it, exactly
+as with [subagent](#subagent) and [handedOff](#handedoff). It rides the frame the tool
+result emits, which in the 2026-10-08 capture is the very frame carrying
+the misleading `status: "completed"`.
+
+**Distinct from [handedOff](#handedoff), and the difference is the point.**
+`handedOff` means nobody will ever report how the work ended; this means a
+terminal state *is* coming, as
+[AgentSessionUpdate.backgroundTask](AgentSessionUpdate.md#backgroundtask). So a backgrounded row can
+legitimately animate as running and then settle, where a handed-off
+dispatch can do neither. The two are not synonyms and a consumer that
+collapses them cannot render either honestly.
+
+Set only where the agent marks the detachment explicitly; never inferred
+from a tool's name or from a suspiciously fast `"completed"`.
+
+***
+
 ### parentToolCallId?
 
 ```ts
 readonly optional parentToolCallId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:830](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L830)
+Defined in: [packages/sdk/src/agents-service.ts:852](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L852)
 
 **`Beta`**
 
@@ -232,7 +264,7 @@ real shape — fall back to rendering the call on its own.
 readonly optional subagentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:850](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L850)
+Defined in: [packages/sdk/src/agents-service.ts:872](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L872)
 
 **`Beta`**
 
