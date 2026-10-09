@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.57.0](https://github.com/silo-code/silo/compare/sdk-v0.56.0...sdk-v0.57.0) (2026-10-09)
+
+
+### Features
+
+* **agents:** show backgrounded shells in the transcript (RFC 0058) ([#613](https://github.com/silo-code/silo/issues/613)) ([6b22c56](https://github.com/silo-code/silo/commit/6b22c5690f08463d58aa66bef4c685051159c699))
+
 ## [0.56.0](https://github.com/silo-code/silo/compare/sdk-v0.55.0...sdk-v0.56.0) (2026-10-08)
 
 
