@@ -95,6 +95,7 @@ import {
   readJournalLines,
   type ChatSessionJournalWriter,
 } from "./chat-session-journal";
+import { backgroundTaskEvent } from "./chat-background-tasks";
 import { delegationEvent } from "./chat-delegated-work";
 import { sessionConfigToApply } from "./profile-session-config";
 
@@ -271,6 +272,11 @@ function toSdkUpdate(
   // vendor's spelling and `kind` must not become the thing consumers match on
   // (RFC 0057). The quarantine answers `undefined` for everything else.
   const delegation = delegationEvent(u);
+  // Likewise for backgrounded shells (RFC 0058), and read for every kind for
+  // the same reason: `async_task_spawned` / `_progress` / `_state_update` are
+  // the vendor's spelling, and `kind` must not become the thing consumers
+  // match on.
+  const backgroundTask = backgroundTaskEvent(u);
   return {
     kind,
     text,
@@ -282,6 +288,7 @@ function toSdkUpdate(
     ...(usage ? { usage } : {}),
     ...(subagentId !== undefined ? { subagentId } : {}),
     ...(delegation ? { delegation } : {}),
+    ...(backgroundTask ? { backgroundTask } : {}),
     raw: u as Readonly<Record<string, unknown>>,
   };
 }

@@ -310,6 +310,59 @@ frame those are different agents.
 All of these fields are absent for an agent that doesn't report delegation, in
 which case the transcript renders exactly as it did before they existed.
 
+### Backgrounded commands
+
+An agent can detach a shell command and keep going. The tool call reports
+`status: "completed"` the moment it detaches — while the command runs on for
+minutes — so `AgentToolCall.backgrounded` marks the calls whose status is about
+the detaching rather than about the work:
+
+```ts
+if (call.backgrounded) {
+  // `call.status` is "completed" and the command may still be running.
+  // Don't draw this as finished.
+}
+```
+
+**This is not the same thing as `handedOff`**, and the difference decides what
+you can draw. `handedOff` means nobody will ever report how the work ended;
+`backgrounded` means a terminal state is coming. So a backgrounded row may
+legitimately animate as running and later settle, where a handed-off dispatch
+can do neither.
+
+The resolution arrives as `u.backgroundTask` — an `AgentBackgroundTask`:
+
+| Field         | What it means                                                       |
+| ------------- | ------------------------------------------------------------------- |
+| `asyncTaskId` | The command. **The primary key**, and the only field always present |
+| `state`       | `"running"`, `"paused"`, `"completed"`, `"failed"`, `"stopped"`     |
+| `toolCallId`  | The call it belongs to — **learned later**, see below               |
+| `name`        | A label, e.g. `"Sleep for 30 seconds"` — announcement only          |
+| `taskType`    | The agent's category, e.g. `"shell"` — announcement only            |
+| `canStop`     | Whether the agent would honour a stop request — announcement only   |
+
+Three rules, each of which will bite a consumer that ignores it:
+
+1. **Key on `asyncTaskId`, not `toolCallId`.** The announcing frame carries no
+   tool call at all; the correlation arrives on a later frame. Keying on the
+   call drops the announcement — and with it `name`, `taskType` and `canStop`,
+   which no other frame repeats.
+2. **Accumulate, and take the _latest_ terminal state.** An agent may publish a
+   best-effort terminal state and then correct it: `"stopped"` followed by
+   `"completed"`, in the same millisecond, for a command that succeeded.
+   Latching the first renders success as though something killed the command.
+3. **A frame with no `state` changes no state.** A metadata frame can arrive
+   _after_ a terminal one, so reading its absence as `"running"` resurrects a
+   finished command.
+
+**Never gate this on whether the agent is working.** A backgrounded command
+routinely outlives the turn that started it — by 24 seconds in the capture this
+surface was built from, with the session reading idle the whole time. That quiet
+window is exactly when a reader wants to know the command is still going.
+
+`u.backgroundTask` is absent for an agent that doesn't report background work.
+Treat that as "this agent doesn't say", never as "nothing is running".
+
 ### The plan
 
 A `plan` update carries the agent's plan **in full** — the agent reissues the

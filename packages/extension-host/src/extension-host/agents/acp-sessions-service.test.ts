@@ -2497,6 +2497,72 @@ describe("subagent session routing", () => {
     );
   });
 
+  // RFC 0058. The seam, not the parse: that `async_task_*` reaches a consumer
+  // as a modelled `backgroundTask` rather than only in `raw`.
+  it("surfaces a backgrounded command's lifecycle as a modelled field", async () => {
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    captured.onUpdate(
+      {
+        sessionUpdate: "async_task_spawned",
+        asyncTaskId: "bp9m0jkzd",
+        name: "Background probe shell command",
+        taskType: "shell",
+        showInTranscript: false,
+        canStop: true,
+      } as never,
+      "s1",
+    );
+    captured.onUpdate(
+      {
+        sessionUpdate: "async_task_state_update",
+        asyncTaskId: "bp9m0jkzd",
+        state: "completed",
+        toolCallId: "toolu_bg1",
+      } as never,
+      "s1",
+    );
+    expect(seen).toContainEqual(
+      expect.objectContaining({
+        backgroundTask: {
+          asyncTaskId: "bp9m0jkzd",
+          state: "running",
+          name: "Background probe shell command",
+          taskType: "shell",
+          canStop: true,
+        },
+      }),
+    );
+    expect(seen).toContainEqual(
+      expect.objectContaining({
+        backgroundTask: {
+          asyncTaskId: "bp9m0jkzd",
+          state: "completed",
+          toolCallId: "toolu_bg1",
+        },
+      }),
+    );
+  });
+
+  it("does not treat a background task as a subagent's frame", async () => {
+    // The lifecycle is published on the root session even for a shell
+    // backgrounded inside a subagent, so it must never be routed as delegated
+    // work — `subagentId` would mis-attribute it to a worker.
+    const handle = await service.connect("claude-chat");
+    const seen = await updates(handle);
+    captured.onUpdate(
+      {
+        sessionUpdate: "async_task_state_update",
+        asyncTaskId: "bp9m0jkzd",
+        state: "completed",
+      } as never,
+      "s1",
+    );
+    const frame = seen.find((u) => u.backgroundTask !== undefined);
+    expect(frame?.subagentId).toBeUndefined();
+    expect(frame?.delegation).toBeUndefined();
+  });
+
   it("journals a child's frames into the parent's file", async () => {
     // One file per parent session (RFC 0057 R9): a subagent's transcript has
     // no meaning apart from the turn that spawned it, and a file per child

@@ -135,6 +135,8 @@ export type {
   AgentToolCallLocation,
   AgentDelegation,
   AgentDelegationState,
+  AgentBackgroundTask,
+  AgentBackgroundTaskState,
   AgentPlanEntry,
   AgentSessionConfigOption,
   AgentSessionConfigChoice,

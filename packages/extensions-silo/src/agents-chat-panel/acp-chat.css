@@ -997,11 +997,29 @@
    right down to the divider — and since content now passes underneath, it
    carries its own opaque background and border, matching the jump-to-bottom
    button it sits beside. */
-.acp-chat__delegated-waiting {
+/* The outstanding-work pills (delegated agents, backgrounded shells), stacked.
+   The absolute positioning lives on this container rather than on each pill:
+   two pills both anchored `bottom: 100%; right: 10px` would sit on top of each
+   other, and a session can easily have an agent and a shell outstanding at
+   once (RFC 0058). */
+.acp-chat__activity-notices {
   position: absolute;
   right: 10px;
   bottom: 100%;
   margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  /* Above the transcript scrolling beneath it; the composer itself is the
+     containing block, so this never escapes the panel. */
+  z-index: 1;
+  /* Never clipped by a narrow panel. */
+  max-width: calc(100% - 20px);
+}
+
+.acp-chat__delegated-waiting,
+.acp-chat__background-waiting {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1010,14 +1028,16 @@
   border-radius: 999px;
   background: var(--silo-color-bg-hover);
   font-size: var(--silo-font-size-sm);
-  color: var(--silo-color-text-lo);
+  /* The button ink, not `--silo-color-text-lo`. These pills sit on a
+     `bg-hover` fill, and the lowest-emphasis text token lands at roughly 1.4:1
+     against it on a dark theme — effectively unreadable (Dave, 2026-10-09).
+     `.silo-badge-neutral` reached for this same token for the same stated
+     reason: a chip on a button-like fill needs the button ink, because body
+     text is too low-contrast against it in BOTH themes. */
+  color: var(--silo-color-button-text);
   user-select: none;
   -webkit-user-select: none;
-  /* Above the transcript scrolling beneath it; the composer itself is the
-     containing block, so this never escapes the panel. */
-  z-index: 1;
-  /* Never clipped by a narrow panel — drop the text, keep the spinner. */
-  max-width: calc(100% - 20px);
+  max-width: 100%;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;

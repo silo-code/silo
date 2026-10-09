@@ -182,6 +182,9 @@ import {
   appendNotice,
   appendUserMessage,
   applyUpdate,
+  backgroundShellNotice,
+  backgroundTaskSignature,
+  backgroundTaskView,
   closeDanglingTools,
   delegatedDispatchNotice,
   delegatedSummaryLabel,
@@ -190,6 +193,7 @@ import {
   delegationStateTone,
   delegationView,
   dispatchLabel,
+  emptyBackgroundTaskView,
   emptyDelegationView,
   emptyTranscript,
   foldToolRuns,
@@ -210,6 +214,7 @@ import {
   userPromptHistory,
   workedForLabel,
   TOOL_GROUP_INLINE_COUNT,
+  type BackgroundTaskView,
   type DelegationView,
   type RenderEntry,
   type Transcript,
@@ -382,6 +387,10 @@ interface ToolRowState {
    *  Lifted for the same reason the rest of this is: it's a property of the
    *  transcript, not of one row. */
   readonly delegation: DelegationView;
+  /** Backgrounded commands a row can't see in itself — whether the command its
+   *  `backgrounded` marker refers to is still running (RFC 0058). Lifted for
+   *  the same reason {@link delegation} is. */
+  readonly backgroundTasks: BackgroundTaskView;
 }
 
 const TOOL_ICONS: Readonly<Record<ToolIconId, ComponentType<IconProps>>> = {
@@ -681,7 +690,15 @@ function renderTranscriptEntry(
     // 0055). The ripple means "this call is running", and the dispatch is
     // precisely what is *not* running — its `"completed"` describes the
     // hand-off. `isToolRunning` owns that rule for every renderer here.
-    const isRunning = isToolRunning(entry);
+    //
+    // A **backgrounded** command (RFC 0058) does ripple, and that is the
+    // deliberate opposite of the hand-off rule: the command really is running,
+    // and a terminal state will come along to stop the animation. Its liveness
+    // is not in the row, so the task has to be looked up by call id.
+    const backgroundTask = entry.backgrounded
+      ? tools.backgroundTasks.byToolCallId.get(entry.toolCallId)
+      : undefined;
+    const isRunning = isToolRunning(entry, backgroundTask);
     const titleNode =
       titleFallbackPath && !titleHasMatches ? (
         <ChatLinkSpan kind="path" href={titleFallbackPath}>
@@ -699,6 +716,7 @@ function renderTranscriptEntry(
         data-status={entry.status}
         data-expanded={expanded || undefined}
         data-handed-off={entry.handedOff || undefined}
+        data-backgrounded={entry.backgrounded || undefined}
         data-delegated={entry.parentToolCallId !== undefined || undefined}
       >
         <div
@@ -773,6 +791,40 @@ function renderTranscriptEntry(
                 handed off
               </Badge>
             </Tooltip>
+          ) : /* RFC 0058: a backgrounded command's own badge, which unlike the
+                hand-off above **resolves**. The agent reports a terminal state
+                per command (24s after turn end in the 2026-10-08 capture), so
+                this chip is a live readout rather than a permanent disclaimer:
+                it says the command is running, then what became of it.
+
+                A plain `completed` gets no chip at all — that is an ordinary
+                settled row, and a "finished in the background" badge on every
+                past shell would be noise. Only the states a reader would want
+                flagged keep one. */
+          entry.backgrounded ? (
+            backgroundTask?.state === "failed" ||
+            backgroundTask?.state === "stopped" ? (
+              <Tooltip
+                content={
+                  backgroundTask.state === "failed"
+                    ? "This background command failed."
+                    : "This background command was stopped before it finished."
+                }
+              >
+                <Badge
+                  tone={backgroundTask.state === "failed" ? "err" : "warn"}
+                  size="sm"
+                >
+                  {backgroundTask.state}
+                </Badge>
+              </Tooltip>
+            ) : isRunning ? (
+              <Tooltip content="The agent put this command in the background. It's still running — Silo updates this row when it finishes.">
+                <Badge tone="outline" size="sm">
+                  running in background
+                </Badge>
+              </Tooltip>
+            ) : null
           ) : entry.status === "failed" ? (
             <Badge tone={toolStatusTone(entry.status)} size="sm">
               {entry.status}
@@ -2671,13 +2723,34 @@ export function AcpChatPanel({
     [delegationSig],
   );
 
+  // The backgrounded-command picture (RFC 0058), on the same terms and for the
+  // same memo reason as `delegation` above.
+  const backgroundSig = useMemo(
+    () => backgroundTaskSignature(transcript),
+    [transcript],
+  );
+  const backgroundTasks = useMemo(
+    () =>
+      backgroundSig.length === 0
+        ? emptyBackgroundTaskView
+        : backgroundTaskView(transcript),
+    [backgroundSig],
+  );
+
   // Memoized because it is a prop of every memoized row: rebuilt each render,
   // it would defeat `TranscriptRow` entirely. `expandedTools` only changes
-  // identity on a toggle, `delegation` only when a delegation appears, and the
-  // other two never do.
+  // identity on a toggle, `delegation` only when a delegation appears,
+  // `backgroundTasks` only when a command starts or finishes, and the other
+  // two never do.
   const toolRowState: ToolRowState = useMemo(
-    () => ({ expandedTools, onToggleTool: toggleTool, isMac, delegation }),
-    [expandedTools, toggleTool, isMac, delegation],
+    () => ({
+      expandedTools,
+      onToggleTool: toggleTool,
+      isMac,
+      delegation,
+      backgroundTasks,
+    }),
+    [expandedTools, toggleTool, isMac, delegation, backgroundTasks],
   );
   // Keyed on the delegation signature, not the whole transcript: the count
   // changes only when a dispatch appears or a worker reports in, and the
@@ -2685,6 +2758,14 @@ export function AcpChatPanel({
   const delegatedWaiting = useMemo(
     () => delegatedDispatchNotice(transcript),
     [delegationSig],
+  );
+  // Same arrangement for backgrounded shells (RFC 0058). One signature is
+  // enough here because it deliberately covers the marked rows too — see
+  // `backgroundTaskSignature`, where the frame that marks a row is shown to
+  // move nothing else.
+  const backgroundWaiting = useMemo(
+    () => backgroundShellNotice(transcript),
+    [backgroundSig],
   );
   // The turn projection is pure in `entries`, and `entries` only changes when
   // the transcript does — so a render triggered by anything else (a workspace
@@ -2917,13 +2998,33 @@ export function AcpChatPanel({
 
             Deliberately not inside the scroller: it is standing state, and
             anything in there scrolls out of view. */}
-        {delegatedWaiting !== undefined ? (
-          <Tooltip content="Silo isn't told when a background agent finishes, so this counts what was dispatched — not what is still running.">
-            <div className="acp-chat__delegated-waiting" aria-live="polite">
-              <Robot size="1em" aria-hidden="true" />
-              {delegatedWaiting}
-            </div>
-          </Tooltip>
+        {delegatedWaiting !== undefined || backgroundWaiting !== undefined ? (
+          <div className="acp-chat__activity-notices">
+            {delegatedWaiting !== undefined ? (
+              <Tooltip content="Silo isn't told when a background agent finishes, so this counts what was dispatched — not what is still running.">
+                <div className="acp-chat__delegated-waiting" aria-live="polite">
+                  <Robot size="1em" aria-hidden="true" />
+                  {delegatedWaiting}
+                </div>
+              </Tooltip>
+            ) : null}
+            {/* RFC 0058. Its own pill rather than a combined count, because the
+                two say different things: a dispatched agent may already be
+                finished without Silo being told, while a running shell is
+                known to be running. Merging them into one number would drag
+                the shell count down to the weaker of the two guarantees. */}
+            {backgroundWaiting !== undefined ? (
+              <Tooltip content="Commands the agent put in the background. Silo is told when each one finishes, so this count comes down on its own.">
+                <div
+                  className="acp-chat__background-waiting"
+                  aria-live="polite"
+                >
+                  <TerminalWindow size="1em" aria-hidden="true" />
+                  {backgroundWaiting}
+                </div>
+              </Tooltip>
+            ) : null}
+          </div>
         ) : null}
         {pinnedToBottom ? null : (
           <Tooltip content="Jump to latest">

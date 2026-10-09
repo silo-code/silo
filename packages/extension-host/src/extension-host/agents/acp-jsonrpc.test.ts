@@ -261,7 +261,7 @@ describe("createAcpClient", () => {
   // what the adapter takes — the whole `clientCapabilities` object — and does
   // its own `._meta` lookup, exactly as `air-extension.js` does. A test that
   // cannot fail on placement is not testing the opt-in.
-  describe("AIR subagent capability opt-in", () => {
+  describe("AIR capability opt-in", () => {
     /**
      * `clientSupportsAirCapability` from `claude-agent-acp`'s
      * `air-extension.js`, re-implemented against the pinned 0.75.1 dist.
@@ -346,12 +346,39 @@ describe("createAcpClient", () => {
       expect(adapterAccepts(stripped, "nativeSubagentSessions")).toBe(true);
     });
 
-    it("does not advertise asyncTasks", async () => {
-      // The out-of-scope sibling (backgrounded shells): advertising it would
-      // put `async_task_*` frames on the stream for no reader.
-      expect(adapterAccepts(await sentCapabilities(), "asyncTasks")).toBe(
-        false,
+    it("advertises asyncTasks too, and in the same place", async () => {
+      // RFC 0058. The second extension, and it has to clear the *same* two
+      // hurdles as the first independently — `capabilities.includes(name)` is
+      // per name, so a list that reads as advertised for one entry proves
+      // nothing about the other.
+      const sent = await sentCapabilities();
+      expect(adapterAccepts(sent, "asyncTasks")).toBe(true);
+      expect(adapterAccepts(sent, "nativeSubagentSessions")).toBe(true);
+    });
+
+    it("survives the SDK's schema with asyncTasks as well", async () => {
+      // Same stripping model as above. Asserted for this capability too rather
+      // than assumed from the other: both ride the one `_meta`, so if that
+      // passthrough ever stopped working the symptom would be *both* going
+      // quiet, and a suite that only checks one would misreport which.
+      const declared = new Set(["fs", "terminal", "_meta"]);
+      const sent = (await sentCapabilities()) as Record<string, unknown>;
+      const stripped = Object.fromEntries(
+        Object.entries(sent).filter(([k]) => declared.has(k)),
       );
+      expect(adapterAccepts(stripped, "asyncTasks")).toBe(true);
+    });
+
+    it("advertises no capability the repo has no reader for", async () => {
+      // The standing rule from ADR 0057, as a test rather than a comment:
+      // advertising asks the agent to change what it sends, so an entry with
+      // nothing consuming its frames is pure stream noise. Update this list
+      // when a new reader lands — it is the gate that makes that deliberate.
+      const sent = (await sentCapabilities()) as { _meta?: unknown };
+      const air = (
+        sent._meta as { jetbrains?: { air?: { capabilities?: unknown } } }
+      )?.jetbrains?.air?.capabilities;
+      expect(air).toEqual(["nativeSubagentSessions", "asyncTasks"]);
     });
 
     it("does not put the block on session/new, where nothing reads it", async () => {

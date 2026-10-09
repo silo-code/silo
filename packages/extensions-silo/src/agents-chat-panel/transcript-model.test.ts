@@ -8,7 +8,11 @@ import {
   appendNotice,
   appendUserMessage,
   applyUpdate,
+  backgroundShellNotice,
+  backgroundTaskSignature,
+  backgroundTaskView,
   closeDanglingTools,
+  emptyBackgroundTaskView,
   delegatedDispatchNotice,
   delegationSignature,
   delegationView,
@@ -2231,5 +2235,351 @@ describe("toolGroupCollapsed — the one-way signal", () => {
     expect(group!.closed).toBe(true);
     expect(toolGroupSettled(group!.tools)).toBe(false);
     expect(toolGroupCollapsed(group!)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Backgrounded shells (RFC 0058)
+// ---------------------------------------------------------------------------
+
+/** An `async_task_*` lifecycle update, as the SDK delivers it — the modelled
+ *  `backgroundTask`, never the wire object. The frame shapes behind these are
+ *  asserted verbatim in the host's `chat-background-tasks.test.ts`; here the
+ *  interest is what the reducer does with a sequence of them. */
+function bgTask(
+  task: AgentSessionUpdate["backgroundTask"],
+): AgentSessionUpdate {
+  return {
+    kind: "async_task_state_update",
+    backgroundTask: task,
+    raw: { sessionUpdate: "async_task_state_update" },
+  };
+}
+
+const BG_TASK = "bp9m0jkzd";
+const BG_CALL = "toolu_bg1";
+
+/** The `Bash` call as it settles: `completed` and marked backgrounded on the
+ *  same frame, which is the lie this feature renders past. */
+const bgCallSettled = tool("tool_call_update", {
+  toolCallId: BG_CALL,
+  title: "sleep 30 && echo done",
+  kind: "execute",
+  status: "completed",
+  backgrounded: true,
+});
+
+/** The capture's real order: announcement (no call id), correlation, then the
+ *  two contradictory terminal frames. */
+const BG_ANNOUNCE = bgTask({
+  asyncTaskId: BG_TASK,
+  state: "running",
+  name: "Background probe shell command",
+  taskType: "shell",
+  canStop: true,
+});
+const BG_CORRELATE = bgTask({ asyncTaskId: BG_TASK, toolCallId: BG_CALL });
+const BG_STOPPED = bgTask({
+  asyncTaskId: BG_TASK,
+  state: "stopped",
+  toolCallId: BG_CALL,
+});
+const BG_COMPLETED = bgTask({
+  asyncTaskId: BG_TASK,
+  state: "completed",
+  toolCallId: BG_CALL,
+});
+
+describe("applyUpdate — backgrounded commands", () => {
+  it("accumulates the task across frames instead of replacing it", () => {
+    // The announcement carries the name and no call id; the correlation
+    // carries the call id and no name. Only accumulation yields a task that
+    // knows both — the same rule the delegated-work facts need.
+    const t = fold([BG_ANNOUNCE, BG_CORRELATE]);
+    expect(t.backgroundTasks.get(BG_TASK)).toEqual({
+      asyncTaskId: BG_TASK,
+      state: "running",
+      toolCallId: BG_CALL,
+      name: "Background probe shell command",
+      taskType: "shell",
+      canStop: true,
+      summary: undefined,
+    });
+  });
+
+  it("does not let the correlation frame reset the state to running", () => {
+    // The ordering that makes this matter: a metadata frame arriving after a
+    // terminal edge. The agent publishes from terminal tombstones, so this is
+    // reachable — and reading it as "running" would resurrect the command.
+    const t = fold([BG_ANNOUNCE, BG_COMPLETED, BG_CORRELATE]);
+    expect(t.backgroundTasks.get(BG_TASK)?.state).toBe("completed");
+  });
+
+  it("takes the LAST terminal state when the agent corrects itself", () => {
+    // The capture's exact sequence: `stopped` then `completed`, same
+    // millisecond, for a command that succeeded. Latching the first renders a
+    // successful command as though something had killed it.
+    const t = fold([BG_ANNOUNCE, BG_CORRELATE, BG_STOPPED, BG_COMPLETED]);
+    expect(t.backgroundTasks.get(BG_TASK)?.state).toBe("completed");
+  });
+
+  it("still reports a genuine stop that arrives alone", () => {
+    // The guard above must not become "always prefer completed" — a command
+    // that really was stopped has to say so.
+    const t = fold([BG_ANNOUNCE, BG_CORRELATE, BG_STOPPED]);
+    expect(t.backgroundTasks.get(BG_TASK)?.state).toBe("stopped");
+  });
+
+  it("never lets a live state displace a terminal one", () => {
+    const t = fold([
+      BG_ANNOUNCE,
+      BG_COMPLETED,
+      bgTask({ asyncTaskId: BG_TASK, state: "running" }),
+      bgTask({ asyncTaskId: BG_TASK, state: "paused" }),
+    ]);
+    expect(t.backgroundTasks.get(BG_TASK)?.state).toBe("completed");
+  });
+
+  it("adds no transcript row for the lifecycle", () => {
+    // The `Bash` card is already the row, and the agent says so itself with
+    // `showInTranscript: false`.
+    const t = fold([BG_ANNOUNCE, BG_CORRELATE, BG_COMPLETED]);
+    expect(t.entries).toEqual([]);
+  });
+
+  it("accumulates the backgrounded marker onto the call's row", () => {
+    const t = fold([
+      tool("tool_call", {
+        toolCallId: BG_CALL,
+        title: "Terminal",
+        kind: "execute",
+        status: "pending",
+      }),
+      bgCallSettled,
+      // A later frame for the same call does not repeat the marker.
+      tool("tool_call_update", { toolCallId: BG_CALL, status: "completed" }),
+    ]);
+    const row = t.entries[0] as ToolEntry;
+    expect(row.backgrounded).toBe(true);
+  });
+
+  it("keeps the two kinds of outstanding work in separate maps", () => {
+    const t = fold([BG_ANNOUNCE]);
+    expect(t.delegations.size).toBe(0);
+    expect(t.backgroundTasks.size).toBe(1);
+  });
+});
+
+describe("isToolRunning — backgrounded commands", () => {
+  const row = { status: "completed", backgrounded: true } as const;
+
+  it("reads a backgrounded row as running despite status completed", () => {
+    expect(isToolRunning(row, { state: "running" })).toBe(true);
+  });
+
+  it("reads it as running while its task is still unknown", () => {
+    // The window between the marker landing and the first lifecycle frame.
+    // Treating the gap as settled would flash the row to finished and back.
+    expect(isToolRunning(row, undefined)).toBe(true);
+    expect(isToolRunning(row)).toBe(true);
+  });
+
+  it("settles it once a terminal state arrives", () => {
+    for (const state of ["completed", "failed", "stopped"] as const) {
+      expect(isToolRunning(row, { state })).toBe(false);
+    }
+  });
+
+  it("treats paused as still running", () => {
+    expect(isToolRunning(row, { state: "paused" })).toBe(true);
+  });
+
+  it("answers the OPPOSITE way for a handed-off dispatch", () => {
+    // The deliberate asymmetry (RFC 0058): a dispatch never learns it
+    // finished, so an animation on it would run forever and mean nothing. A
+    // backgrounded command does, so the ripple is both true and finite.
+    expect(isToolRunning({ status: "completed", handedOff: true })).toBe(false);
+  });
+
+  it("ignores a task for a row that isn't backgrounded", () => {
+    expect(isToolRunning({ status: "completed" }, { state: "running" })).toBe(
+      false,
+    );
+  });
+});
+
+describe("backgroundTaskView", () => {
+  it("indexes tasks by the call they belong to", () => {
+    const view = backgroundTaskView(fold([BG_ANNOUNCE, BG_CORRELATE]));
+    expect(view.byToolCallId.get(BG_CALL)?.asyncTaskId).toBe(BG_TASK);
+  });
+
+  it("omits a task whose correlation has not arrived", () => {
+    const view = backgroundTaskView(fold([BG_ANNOUNCE]));
+    expect(view.byToolCallId.size).toBe(0);
+  });
+
+  it("shares one identity for the empty case", () => {
+    expect(backgroundTaskView(emptyTranscript)).toBe(emptyBackgroundTaskView);
+    expect(backgroundTaskView(fold([BG_ANNOUNCE]))).toBe(
+      emptyBackgroundTaskView,
+    );
+  });
+});
+
+describe("backgroundTaskSignature", () => {
+  it("moves when a command's state changes", () => {
+    const before = backgroundTaskSignature(fold([BG_ANNOUNCE, BG_CORRELATE]));
+    const after = backgroundTaskSignature(
+      fold([BG_ANNOUNCE, BG_CORRELATE, BG_COMPLETED]),
+    );
+    expect(after).not.toBe(before);
+  });
+
+  it("moves when a row acquires the marker — the frame nothing else sees", () => {
+    // The bug this covers: in the capture the marker lands on a `tool_call_update`
+    // that touches neither the task map nor the delegation picture, so a
+    // signature over the map alone would sit still across the one frame that
+    // makes the shell countable.
+    const opened = fold([
+      tool("tool_call", {
+        toolCallId: BG_CALL,
+        title: "Terminal",
+        kind: "execute",
+        status: "pending",
+      }),
+    ]);
+    const before = backgroundTaskSignature(opened);
+    const after = backgroundTaskSignature(fold([bgCallSettled], opened));
+    expect(after).not.toBe(before);
+  });
+
+  it("stands still while prose streams", () => {
+    const t = fold([BG_ANNOUNCE, BG_CORRELATE]);
+    const before = backgroundTaskSignature(t);
+    const after = backgroundTaskSignature(
+      fold([chunk("agent_message_chunk", "still going", "m9")], t),
+    );
+    expect(after).toBe(before);
+  });
+
+  it("is empty for a transcript with no background work", () => {
+    expect(backgroundTaskSignature(emptyTranscript)).toBe("");
+    expect(backgroundTaskSignature(fold(readCalls(3)))).toBe("");
+  });
+});
+
+describe("backgroundShellNotice", () => {
+  /** A marked row plus its full lifecycle up to (but not including) a
+   *  terminal state. */
+  const running = () =>
+    fold([appendUserMessageUpdate(), bgCallSettled, BG_ANNOUNCE, BG_CORRELATE]);
+
+  function appendUserMessageUpdate(): AgentSessionUpdate {
+    return chunk("user_message_chunk", "background it", "u1");
+  }
+
+  it("counts a running shell", () => {
+    expect(backgroundShellNotice(running())).toBe("1 background shell running");
+  });
+
+  it("comes DOWN when the command finishes", () => {
+    // The whole reason the capability is worth advertising, and the difference
+    // from the delegated line: this count is started-minus-finished, with
+    // nothing inferred from timing.
+    expect(
+      backgroundShellNotice(fold([BG_COMPLETED], running())),
+    ).toBeUndefined();
+  });
+
+  it("clears a failed or stopped command too", () => {
+    for (const frame of [
+      BG_STOPPED,
+      bgTask({ asyncTaskId: BG_TASK, state: "failed", toolCallId: BG_CALL }),
+    ]) {
+      expect(backgroundShellNotice(fold([frame], running()))).toBeUndefined();
+    }
+  });
+
+  it("pluralises", () => {
+    const second = tool("tool_call_update", {
+      toolCallId: "toolu_bg2",
+      title: "sleep 60",
+      kind: "execute",
+      status: "completed",
+      backgrounded: true,
+    });
+    const t = fold(
+      [second, bgTask({ asyncTaskId: "t2", toolCallId: "toolu_bg2" })],
+      running(),
+    );
+    expect(backgroundShellNotice(t)).toBe("2 background shells running");
+  });
+
+  it("counts a marked row whose task is unknown as outstanding", () => {
+    // Absence of a finish is never read as a finish.
+    expect(backgroundShellNotice(fold([bgCallSettled]))).toBe(
+      "1 background shell running",
+    );
+  });
+
+  it("is scoped to the current exchange", () => {
+    // A new user message opens a new exchange, so a shell from the previous
+    // question stops being counted against this one.
+    const t = fold([appendUserMessageUpdate()], running());
+    expect(backgroundShellNotice(t)).toBeUndefined();
+  });
+
+  it("ignores an unmarked tool call, however it ended", () => {
+    expect(backgroundShellNotice(fold(readCalls(3)))).toBeUndefined();
+    expect(backgroundShellNotice(emptyTranscript)).toBeUndefined();
+  });
+
+  it("does not count a handed-off dispatch", () => {
+    // The two lines count different things and must not overlap — this one
+    // says "shells".
+    const t = fold([
+      tool("tool_call", {
+        toolCallId: "d1",
+        title: "Task",
+        kind: "think",
+        status: "completed",
+        subagent: true,
+        handedOff: true,
+      }),
+    ]);
+    expect(backgroundShellNotice(t)).toBeUndefined();
+  });
+});
+
+describe("foldToolRuns — backgrounded commands", () => {
+  it("breaks a run rather than folding a live shell out of view", () => {
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+      bgCallSettled,
+      ...readCalls(TOOL_GROUP_THRESHOLD),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual([
+      "tool-group",
+      "tool",
+      "tool-group",
+    ]);
+    expect((folded[1] as ToolEntry).backgrounded).toBe(true);
+  });
+});
+
+describe("closeDanglingTools — backgrounded commands", () => {
+  it("leaves a running backgrounded command alone at turn end", () => {
+    // The sweep runs at turn end and the command routinely outlives it by far
+    // (24s in the capture). Marking it `failed` here would be a lie seconds
+    // before the agent reported success.
+    const t = closeDanglingTools(
+      fold([bgCallSettled, BG_ANNOUNCE, BG_CORRELATE]),
+    );
+    const row = t.entries[0] as ToolEntry;
+    expect(row.status).toBe("completed");
+    expect(row.backgrounded).toBe(true);
+    expect(t.backgroundTasks.get(BG_TASK)?.state).toBe("running");
   });
 });

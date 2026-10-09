@@ -25,6 +25,7 @@
  */
 
 import type {
+  AgentBackgroundTaskState,
   AgentDelegationState,
   AgentPlanEntry,
   AgentSessionUpdate,
@@ -99,6 +100,12 @@ export interface ToolEntry {
    *  about the hand-off and **not** about the work. The row must not render
    *  as settled (RFC 0055). */
   readonly handedOff?: boolean;
+  /** This call's command **detached into the background** (RFC 0058), so
+   *  {@link status} is about the detaching and not about the command.
+   *  Accumulated across frames — the marker rides only the frame the tool
+   *  result emits. Unlike {@link handedOff} this one resolves: the matching
+   *  {@link Transcript.backgroundTasks} entry carries its live state. */
+  readonly backgrounded?: boolean;
   /** The `toolCallId` of the dispatch this call was made on behalf of — set
    *  on every call a subagent makes. Resolved against the transcript's own
    *  tool entries by id, because the children can land in a later turn than
@@ -224,12 +231,58 @@ export interface Transcript {
    * makes every consumer of it degrade to RFC 0055's rendering.
    */
   readonly delegations: ReadonlyMap<string, AgentDelegationState>;
+  /**
+   * Every **backgrounded command** this session has been told about, keyed by
+   * `asyncTaskId` (RFC 0058).
+   *
+   * Separate from `entries` for the same reason {@link delegations} is, and
+   * more sharply: in the 2026-10-08 capture the turn ended 24s before the
+   * command did, so this is live state that outlives the turn whose row
+   * started it.
+   *
+   * Keyed by `asyncTaskId` rather than by tool call because that is the wire's
+   * own primary key and the announcing frame carries no tool call at all — a
+   * map keyed the other way would have nowhere to put the announcement, which
+   * is the only frame bearing the command's name. {@link backgroundTaskView}
+   * builds the reverse index a row needs.
+   *
+   * Empty against an agent that doesn't report background tasks, which is what
+   * makes every consumer of it degrade to the pre-RFC-0058 rendering.
+   */
+  readonly backgroundTasks: ReadonlyMap<string, BackgroundTaskEntry>;
+}
+
+/**
+ * What the transcript knows about one backgrounded command — the accumulation
+ * of every frame naming its `asyncTaskId`.
+ *
+ * Accumulated rather than replaced because the facts arrive spread across
+ * frames: the announcement carries {@link name} and no {@link toolCallId},
+ * and the correlation arrives on a later frame.
+ */
+export interface BackgroundTaskEntry {
+  readonly asyncTaskId: string;
+  /** The command's live state. `undefined` only in the window before any frame
+   *  reported one. */
+  readonly state?: AgentBackgroundTaskState;
+  /** The row this command belongs to, once the agent has said. */
+  readonly toolCallId?: string;
+  /** The command's label, e.g. `"Sleep for 30 seconds"`. */
+  readonly name?: string;
+  /** The agent's category for it, e.g. `"shell"`. */
+  readonly taskType?: string;
+  /** Whether the agent would honour a stop request. Carried for a future stop
+   *  control; nothing renders it yet. */
+  readonly canStop?: boolean;
+  /** The agent's closing summary, when it sent one. */
+  readonly summary?: string;
 }
 
 export const emptyTranscript: Transcript = {
   entries: [],
   seq: 0,
   delegations: new Map(),
+  backgroundTasks: new Map(),
 };
 
 /** Chunk kinds that stream text, mapped to the speaker they belong to. */
@@ -445,6 +498,50 @@ export function appendNotice(
   return appendEntry(t, (key) => ({ type: "notice", key, tone, text }));
 }
 
+const TERMINAL_BACKGROUND_STATES = new Set<AgentBackgroundTaskState>([
+  "completed",
+  "failed",
+  "stopped",
+]);
+
+/** Whether a backgrounded command's state means it is over. */
+export function isTerminalBackgroundState(
+  state: AgentBackgroundTaskState | undefined,
+): boolean {
+  return state !== undefined && TERMINAL_BACKGROUND_STATES.has(state);
+}
+
+/**
+ * The state a backgrounded command should now be shown in, given what it was
+ * and what this frame said.
+ *
+ * Two rules, each earned from a real capture rather than from caution:
+ *
+ * 1. **A frame that reported no state changes nothing.** The correlation frame
+ *    carries only a `toolCallId`, and reading that as "running" would
+ *    **resurrect a finished command** — the agent publishes from terminal
+ *    tombstones, so a metadata frame after a terminal edge is reachable.
+ *
+ * 2. **Among terminal states the latest wins; a non-terminal state never
+ *    displaces a terminal one.** The 2026-10-08 capture ends `state:
+ *    "stopped"` then `state: "completed"` in the same millisecond, for a
+ *    command that succeeded: the agent publishes a best-effort terminal state
+ *    and corrects it when the authoritative edge arrives. Latching the first
+ *    would render every successful backgrounded command as though something
+ *    had killed it — which is the exact failure this rule exists to prevent,
+ *    and the reason the correction is permitted at all.
+ */
+function nextBackgroundState(
+  prev: AgentBackgroundTaskState | undefined,
+  incoming: AgentBackgroundTaskState | undefined,
+): AgentBackgroundTaskState | undefined {
+  if (incoming === undefined) return prev;
+  if (isTerminalBackgroundState(prev) && !isTerminalBackgroundState(incoming)) {
+    return prev;
+  }
+  return incoming;
+}
+
 /**
  * Fold one `session/update` into the transcript.
  *
@@ -471,6 +568,28 @@ export function applyUpdate(
     const delegations = new Map(t.delegations);
     delegations.set(delegation.subagentId, delegation.state);
     return { ...t, delegations };
+  }
+
+  // A backgrounded command's lifecycle (RFC 0058). Not a row of its own — the
+  // `Bash` card already is the row, and the agent says so itself by sending
+  // `showInTranscript: false`. This is news *about* that card.
+  const task = update.backgroundTask;
+  if (task) {
+    const backgroundTasks = new Map(t.backgroundTasks);
+    const prev = backgroundTasks.get(task.asyncTaskId);
+    backgroundTasks.set(task.asyncTaskId, {
+      asyncTaskId: task.asyncTaskId,
+      // Accumulate, never clear: the announcement is the only frame carrying
+      // `name` / `taskType` / `canStop`, and `toolCallId` arrives on a frame
+      // of its own afterwards.
+      state: nextBackgroundState(prev?.state, task.state),
+      toolCallId: task.toolCallId ?? prev?.toolCallId,
+      name: task.name ?? prev?.name,
+      taskType: task.taskType ?? prev?.taskType,
+      canStop: task.canStop ?? prev?.canStop,
+      summary: task.summary ?? prev?.summary,
+    });
+    return { ...t, backgroundTasks };
   }
 
   const role = CHUNK_ROLES[update.kind];
@@ -572,6 +691,11 @@ export function applyUpdate(
         // handed off rather than a call that finished.
         subagent: call.subagent ?? prev.subagent,
         handedOff: call.handedOff ?? prev.handedOff,
+        // Same accumulation, same reason (RFC 0058): the backgrounded marker
+        // rides exactly one frame — the one carrying the misleading
+        // `status: "completed"` — and later frames for the same call do not
+        // repeat it.
+        backgrounded: call.backgrounded ?? prev.backgrounded,
         parentToolCallId: call.parentToolCallId ?? prev.parentToolCallId,
         subagentId: call.subagentId ?? prev.subagentId,
       };
@@ -593,6 +717,9 @@ export function applyUpdate(
       ...(call.rawInput !== undefined ? { rawInput: call.rawInput } : {}),
       ...(call.subagent !== undefined ? { subagent: call.subagent } : {}),
       ...(call.handedOff !== undefined ? { handedOff: call.handedOff } : {}),
+      ...(call.backgrounded !== undefined
+        ? { backgrounded: call.backgrounded }
+        : {}),
       ...(call.parentToolCallId !== undefined
         ? { parentToolCallId: call.parentToolCallId }
         : {}),
@@ -635,6 +762,16 @@ export function applyUpdate(
  * runs the row is already terminal and the filter below never sees it. There
  * is nothing to fail — the work it dispatched is elsewhere, and this function
  * only reasons about calls *this* session left open.
+ *
+ * A **backgrounded** command (RFC 0058) is safe here for the same reason — the
+ * agent settles the call to `"completed"` the moment it detaches — but it is
+ * the more fragile of the two, so say it explicitly: this sweep runs at turn
+ * end, and a backgrounded command routinely outlives its turn by far (24s in
+ * the 2026-10-08 capture). Were the filter ever widened to catch rows by
+ * anything other than a non-terminal protocol status, it would mark a perfectly
+ * healthy running command `"failed"` seconds before the agent reported it
+ * finished. The row's liveness lives in {@link Transcript.backgroundTasks},
+ * which this function must not touch.
  */
 export function closeDanglingTools(t: Transcript): Transcript {
   let changed = false;
@@ -759,6 +896,13 @@ export const TOOL_GROUP_INLINE_COUNT = 5;
  * and folding it into `"14 Shell · 3 Read"` would hide exactly that. The
  * delegated grouping below runs first, so what reaches the run-folding is
  * already free of the calls that were gathered under a dispatch.
+ *
+ * A **backgrounded** command (RFC 0058) breaks it for exactly that reason too
+ * — a running shell folded into a settled-looking `"14 Shell"` header is the
+ * original complaint restated — and for a second, mechanical one: a group's
+ * collapse is driven by {@link toolGroupSettled}, which has no access to the
+ * task state a backgrounded row's liveness depends on. Keeping such a row out
+ * of groups means that limitation never has to be worked around.
  */
 export function foldToolRuns(
   entries: readonly TranscriptEntry[],
@@ -789,6 +933,7 @@ export function foldToolRuns(
       (entry.diffs?.length ?? 0) === 0 &&
       entry.status !== "failed" &&
       !entry.subagent &&
+      !entry.backgrounded &&
       entry.parentToolCallId === undefined
     ) {
       run.push(entry);
@@ -910,7 +1055,13 @@ export function groupDelegatedCalls(
  * group only exists at {@link TOOL_GROUP_THRESHOLD}+ calls.
  */
 export function toolGroupSettled(tools: readonly ToolEntry[]): boolean {
-  return !tools.some(isToolRunning);
+  // Called per entry, not point-free: `isToolRunning`'s second parameter is a
+  // backgrounded command's state, and `Array.some` would hand it the index.
+  // No task is passed because a group can never hold a backgrounded row —
+  // `foldToolRuns` breaks the run on one. Should that ever change, the
+  // no-task answer here is "running", which keeps the group open rather than
+  // collapsing over a live command.
+  return !tools.some((tool) => isToolRunning(tool));
 }
 
 /**
@@ -1023,10 +1174,29 @@ export function stopReasonNotice(
  * a call as finished"), and a contract with three independent encodings in the
  * panel is one bug away from disagreeing with itself — so both row renderers
  * and the CSS fallback key off this.
+ *
+ * A **backgrounded** call (RFC 0058) tells its status the same lie, and this
+ * function answers the **opposite way** for it — such a row *is* running, and
+ * should ripple. The difference is the terminal signal: a handed-off dispatch
+ * will never be told it finished, so an animation on it would run forever and
+ * mean nothing, while a backgrounded command reports a terminal state (24s
+ * after turn end, in the 2026-10-08 capture) and the ripple is both true and
+ * finite. Hence the `task` argument: the row alone cannot answer this, because
+ * the answer lives in {@link Transcript.backgroundTasks}.
+ *
+ * A backgrounded row whose task is unknown reads as **running**, deliberately:
+ * the marker means the command detached, and the window before its first
+ * lifecycle frame is a window in which it is genuinely still going. Treating
+ * the gap as settled would flash the row to finished and back.
+ *
+ * @param task This row's backgrounded command, from
+ * {@link backgroundTaskView}. Omit for a row that isn't backgrounded.
  */
 export function isToolRunning(
-  entry: Pick<ToolEntry, "status" | "handedOff">,
+  entry: Pick<ToolEntry, "status" | "handedOff" | "backgrounded">,
+  task?: Pick<BackgroundTaskEntry, "state">,
 ): boolean {
+  if (entry.backgrounded) return !isTerminalBackgroundState(task?.state);
   if (entry.handedOff) return false;
   return entry.status === "pending" || entry.status === "in_progress";
 }
@@ -1273,4 +1443,121 @@ export function delegatedDispatchNotice(t: Transcript): string | undefined {
   if (count === 0) return undefined;
   const noun = count === 1 ? "background agent" : "background agents";
   return `${count} ${noun} working`;
+}
+
+/**
+ * What a tool row needs to know about backgrounded commands that it cannot see
+ * in itself: the command belonging to it, if any.
+ *
+ * The reverse of {@link Transcript.backgroundTasks}' own keying. That map is
+ * keyed by `asyncTaskId` because that is the wire's primary key and the
+ * announcing frame carries no tool call; a row, naturally, knows only its
+ * `toolCallId`. One of the two has to be inverted, and inverting here —
+ * whole-transcript, memoized — keeps the reducer honest to the wire and costs
+ * one pass over a handful of tasks.
+ */
+export interface BackgroundTaskView {
+  /** Each backgrounded command, keyed by the `toolCallId` it belongs to. A
+   *  task whose correlation has not arrived yet is absent — which is why a
+   *  backgrounded row with no task still reads as running (see
+   *  {@link isToolRunning}). */
+  readonly byToolCallId: ReadonlyMap<string, BackgroundTaskEntry>;
+}
+
+/** The empty view — shared, so the common case (no backgrounded command
+ *  anywhere in the transcript) keeps a stable identity for free. */
+export const emptyBackgroundTaskView: BackgroundTaskView = {
+  byToolCallId: new Map(),
+};
+
+/** Project the backgrounded-command picture out of a whole transcript. */
+export function backgroundTaskView(t: Transcript): BackgroundTaskView {
+  if (t.backgroundTasks.size === 0) return emptyBackgroundTaskView;
+  const byToolCallId = new Map<string, BackgroundTaskEntry>();
+  for (const task of t.backgroundTasks.values()) {
+    if (task.toolCallId === undefined) continue;
+    byToolCallId.set(task.toolCallId, task);
+  }
+  if (byToolCallId.size === 0) return emptyBackgroundTaskView;
+  return { byToolCallId };
+}
+
+/**
+ * A cheap string that changes exactly when {@link backgroundTaskView} would
+ * produce something different — the counterpart to
+ * {@link delegationSignature}, and for the same reason: the view is handed to
+ * every tool row, so rebuilding it on each streamed chunk would invalidate
+ * every turn's memo while the background picture stood still.
+ *
+ * **It covers the marked rows as well as the task map**, which the view itself
+ * does not read — and that asymmetry is deliberate, not an oversight. The
+ * `backgrounded` marker arrives on a tool-call frame that moves *neither* this
+ * map nor the delegation picture: in the 2026-10-08 capture the lifecycle
+ * announcement lands at `+16.790s` and the marker only at `+17.536s`. A
+ * signature over the map alone would therefore sit still across the one frame
+ * that makes a row countable, and {@link backgroundShellNotice} would miss the
+ * shell entirely until the command finished.
+ *
+ * The cost is that the view is rebuilt on that frame too, returning identical
+ * content under a fresh identity. That is one extra rebuild per backgrounded
+ * command, against a stale count — an easy trade, and the alternative (a second
+ * signature for the notice alone) buys a concept to pay for a rebuild nobody
+ * would notice.
+ */
+export function backgroundTaskSignature(t: Transcript): string {
+  let sig = "";
+  for (const [id, task] of t.backgroundTasks) {
+    sig += `b\0${id}\0${task.state ?? ""}\0${task.toolCallId ?? ""}`;
+  }
+  for (const entry of t.entries) {
+    if (entry.type === "tool" && entry.backgrounded) {
+      sig += `r\0${entry.toolCallId}`;
+    }
+  }
+  return sig;
+}
+
+/**
+ * The `"2 background shells running"` notice, or `undefined` when nothing this
+ * exchange backgrounded is still outstanding.
+ *
+ * The shell counterpart to {@link delegatedDispatchNotice}, and the easier of
+ * the two: **this count comes down on first principles.** Every backgrounded
+ * command reports an identified terminal state, so outstanding is simply
+ * started-minus-finished with nothing inferred from timing — where the
+ * delegated line had to argue its way to a countdown and retreat from one
+ * once already.
+ *
+ * **Deliberately not gated on `AgentInfo.activity`**, and here the capture
+ * makes the case rather than a past mistake: the turn ended 24 seconds before
+ * the command did, with the session reading idle the whole time. Gating on
+ * liveness would blank this line for the entire window it exists for. (RFC
+ * 0057 shipped that bug on the delegated line and had to undo it; there is no
+ * excuse for repeating it here.)
+ *
+ * **Scoped to the current exchange** — commands backgrounded since the last
+ * user message — for the same two reasons as the delegated line: a
+ * transcript-wide tally grows without bound, and "backgrounded" is naturally
+ * read against what you just asked for. The next prompt clears it.
+ *
+ * A backgrounded row whose task is unknown counts as outstanding. Absence of a
+ * finish is never read as a finish.
+ */
+export function backgroundShellNotice(t: Transcript): string | undefined {
+  const view = backgroundTaskView(t);
+  let outstanding = 0;
+  for (const entry of t.entries) {
+    if (entry.type === "message" && entry.role === "user") {
+      outstanding = 0;
+      continue;
+    }
+    if (entry.type !== "tool" || !entry.backgrounded) continue;
+    const task = entry.toolCallId
+      ? view.byToolCallId.get(entry.toolCallId)
+      : undefined;
+    if (!isTerminalBackgroundState(task?.state)) outstanding += 1;
+  }
+  if (outstanding === 0) return undefined;
+  const noun = outstanding === 1 ? "background shell" : "background shells";
+  return `${outstanding} ${noun} running`;
 }

@@ -1,0 +1,221 @@
+{
+  "agent": "@agentclientprotocol/claude-agent-acp@0.75.1",
+  "cwd": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-bg-shell-55R1h3",
+  "logPath": "/var/folders/bz/wnsmxdxj32vc7_b986wx1k500000gq/T/acp-bg-shell-55R1h3/frames-bgshell-2026-10-08T21-00-50-385Z.jsonl",
+  "advertised": {
+    "fs": {
+      "readTextFile": false,
+      "writeTextFile": false
+    },
+    "terminal": false,
+    "_meta": {
+      "jetbrains": {
+        "air": {
+          "version": 1,
+          "capabilities": ["nativeSubagentSessions", "asyncTasks"]
+        }
+      }
+    }
+  },
+  "PROMPT": "Run this shell command with the Bash tool and run_in_background set to true: `sleep 30 && echo PROBE_SHELL_FINISHED`. Do NOT wait for it, do NOT poll it with BashOutput, and do NOT check on it. As soon as it is launched, reply with the single word \"launched\" and end your turn.",
+  "negotiated": 1,
+  "agentInfo": {
+    "name": "@agentclientprotocol/claude-agent-acp",
+    "title": "Claude Agent",
+    "version": "0.75.1"
+  },
+  "agentMeta": {
+    "jetbrains": {
+      "air": {
+        "version": 1,
+        "capabilities": [
+          "sessionFailure",
+          "agentFileChangeReport",
+          "nativeSubagentSessions",
+          "asyncTasks"
+        ]
+      }
+    },
+    "steering": {
+      "supported": true
+    },
+    "goal": {
+      "version": 1,
+      "controlMethod": "_session/goal",
+      "actions": ["set", "clear"]
+    }
+  },
+  "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+  "stopReason": "end_turn",
+  "promptEndedRel": "+23.009s",
+  "analysis": {
+    "rootSessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+    "promptEndedRel": "+23.009s",
+    "frames": 38,
+    "updates": 29,
+    "bashCalls": [
+      {
+        "rel": "+15.129s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "tool_call",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "status": "pending",
+        "title": "Terminal"
+      },
+      {
+        "rel": "+15.305s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "title": "sleep 30 && echo PROBE_SHELL_FINISHED"
+      },
+      {
+        "rel": "+15.429s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "title": "sleep 30 && echo PROBE_SHELL_FINISHED"
+      },
+      {
+        "rel": "+15.577s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "title": "sleep 30 && echo PROBE_SHELL_FINISHED"
+      },
+      {
+        "rel": "+16.792s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "backgroundTaskId": "bp9m0jkzd"
+      },
+      {
+        "rel": "+17.535s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "status": "completed",
+        "airAsyncTasks": {
+          "backgrounded": true
+        }
+      }
+    ],
+    "markerPresent": true,
+    "markerFrames": [
+      {
+        "rel": "+17.535s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "tool_call_update",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "status": "completed",
+        "airAsyncTasks": {
+          "backgrounded": true
+        }
+      }
+    ],
+    "markedRowStatuses": ["completed"],
+    "lifecycle": [
+      {
+        "rel": "+16.789s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "async_task_spawned",
+        "asyncTaskId": "bp9m0jkzd",
+        "taskType": "shell",
+        "name": "Background probe shell command",
+        "description": "Background probe shell command",
+        "showInTranscript": false,
+        "canStop": true
+      },
+      {
+        "rel": "+16.790s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "async_task_progress",
+        "asyncTaskId": "bp9m0jkzd",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx"
+      },
+      {
+        "rel": "+17.535s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "async_task_progress",
+        "asyncTaskId": "bp9m0jkzd",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "outputFilePath": "/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-bg-shell-55R1h3/f2e3b8ae-4e13-4f02-87e8-57aea63b31ee/tasks/bp9m0jkzd.output"
+      },
+      {
+        "rel": "+46.943s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "async_task_state_update",
+        "asyncTaskId": "bp9m0jkzd",
+        "state": "stopped",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "outputFilePath": "/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-bg-shell-55R1h3/f2e3b8ae-4e13-4f02-87e8-57aea63b31ee/tasks/bp9m0jkzd.output"
+      },
+      {
+        "rel": "+46.943s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "async_task_state_update",
+        "asyncTaskId": "bp9m0jkzd",
+        "state": "completed",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "outputFilePath": "/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-bg-shell-55R1h3/f2e3b8ae-4e13-4f02-87e8-57aea63b31ee/tasks/bp9m0jkzd.output"
+      }
+    ],
+    "spawned": [
+      {
+        "rel": "+16.789s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "async_task_spawned",
+        "asyncTaskId": "bp9m0jkzd",
+        "taskType": "shell",
+        "name": "Background probe shell command",
+        "description": "Background probe shell command",
+        "showInTranscript": false,
+        "canStop": true
+      }
+    ],
+    "states": [
+      {
+        "rel": "+46.943s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "async_task_state_update",
+        "asyncTaskId": "bp9m0jkzd",
+        "state": "stopped",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "outputFilePath": "/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-bg-shell-55R1h3/f2e3b8ae-4e13-4f02-87e8-57aea63b31ee/tasks/bp9m0jkzd.output"
+      },
+      {
+        "rel": "+46.943s",
+        "sessionId": "f2e3b8ae-4e13-4f02-87e8-57aea63b31ee",
+        "sessionUpdate": "async_task_state_update",
+        "asyncTaskId": "bp9m0jkzd",
+        "state": "completed",
+        "toolCallId": "toolu_012TVzXJk9LrTopLfEkZhmhx",
+        "outputFilePath": "/private/tmp/claude-503/-private-var-folders-bz-wnsmxdxj32vc7-b986wx1k500000gq-T-acp-bg-shell-55R1h3/f2e3b8ae-4e13-4f02-87e8-57aea63b31ee/tasks/bp9m0jkzd.output"
+      }
+    ],
+    "spawnCarriesToolCallId": false,
+    "firstToolCallIdAt": "+16.790s",
+    "lifecycleSessionIds": ["f2e3b8ae-4e13-4f02-87e8-57aea63b31ee"],
+    "bashSessionIds": ["f2e3b8ae-4e13-4f02-87e8-57aea63b31ee"],
+    "sameSession": true,
+    "correlationResolves": true,
+    "terminalStates": [
+      {
+        "rel": "+46.943s",
+        "state": "stopped"
+      },
+      {
+        "rel": "+46.943s",
+        "state": "completed"
+      }
+    ],
+    "turnEndedBeforeShellFinished": true,
+    "terminalCount": 2,
+    "doubleTerminal": true,
+    "lastTerminalState": "completed",
+    "firstTerminalState": "stopped",
+    "latchingFirstWouldBeWrong": true,
+    "verdict": "Q1 marker PRESENT on 1 frame(s) (row status: completed) — a row can know it is backgrounded\nQ2 tool call and lifecycle share one session (f2e3b8ae-4e13-4f02-87e8-57aea63b31ee) — no routing prerequisite\nQ3 the turn ENDED while the shell ran on — an indicator must survive turn end\nQ4 DOUBLE terminal reproduced: stopped -> completed — latching the first WOULD BE WRONG\nQ5 spawn carries NO toolCallId — correlation first seen at +16.790s"
+  }
+}

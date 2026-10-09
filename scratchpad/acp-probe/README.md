@@ -68,3 +68,42 @@ without a rerun. Three guards earn their keep, each after a wrong answer:
   first `user` record, which reported success on a killed run.
 - **A long turn is not a stalled agent.** Attribute tool calls by
   `parentToolUseId` before concluding the agent refused to detach.
+
+---
+
+`background-shell-2026-10-08.mjs` — settles the last open item in
+[RFC 0055](../../docs/proposals/0055-chat-async-tasks.md) and underwrites
+[RFC 0058](../../docs/proposals/0058-backgrounded-shells.md): what arrives for a
+backgrounded **shell** in the main session? Runs a `Bash` with
+`run_in_background: true` (not a `Task`), told explicitly not to poll it, and
+dwells past the command's finish.
+
+```
+node background-shell-2026-10-08.mjs
+PROBE_SLEEP_SECONDS=45 node background-shell-2026-10-08.mjs
+PROBE_DWELL_MS=180000 node background-shell-2026-10-08.mjs
+```
+
+Advertises AIR `asyncTasks` alongside `nativeSubagentSessions`, and re-implements
+the adapter's own gate to refuse a run that would silently be capability-off —
+the same trap as the subagent probe, where a failed opt-in is indistinguishable
+from an adapter that doesn't do this.
+
+**Answers** (capture `captures/frames-bgshell-2026-10-08T21-00-50-385Z.jsonl`):
+
+- The `backgrounded` marker **does** land on the main-session `Bash` call, on a
+  frame carrying `status: "completed"` — the lie, and the thing to render past.
+- Tool call and `async_task_*` lifecycle arrive on **one sessionId**, so RFC
+  0057's routing is not a prerequisite. (The committed subagent capture is the
+  cross-session case: the shell's call sat on the child while its lifecycle was
+  published on the root, because `AsyncTaskRuntime` is per `session/new`.)
+- **The turn ends 24s before the command does** — turn end `+23.0s`, terminal
+  state `+46.9s`. Anything gated on session activity would hide the indicator
+  for the whole window it exists for.
+- The **double terminal reproduces**: `state: "stopped"` then `state:
+"completed"`, same millisecond. The adapter's `finish()` documents it as a
+  best-effort "level" state corrected by the authoritative "event" edge — so a
+  reducer that latches the first renders a successful command as stopped.
+- `async_task_spawned` carries **no `toolCallId`**; correlation first arrives on
+  the following `async_task_progress`. The spawn is also the only frame carrying
+  `name`, `taskType` and `canStop`, so it cannot be skipped.

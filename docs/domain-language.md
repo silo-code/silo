@@ -777,7 +777,9 @@ call (an Edit/Write) always breaks the run and renders in full on its own;
 folding resumes only after another qualifying run follows it. A call that
 ended `"failed"` forces its group open — never foldable behind "N more,
 expand to see them all" — so a failure is never hidden. A **Dispatch** and a
-**Delegated call** (RFC 0055) break the run on the same principle. Purely a
+**Delegated call** (RFC 0055), and a **Backgrounded call** (RFC 0058), break
+the run on the same principle: a running shell folded into a settled-looking
+`"14 Shell"` header is exactly what the reader was looking for. Purely a
 render-time projection, recomputed by `foldToolRuns` on every render rather
 than stored: `Transcript.entries` never contains one.
 _Avoid_: "tool call" for the group itself (a group holds several); letting an
@@ -847,12 +849,42 @@ RFC 0057 is that liveness is now _derivable_ from a separate signal:
 So a **Dispatch** row may now say _which_ worker finished and how, permanently;
 the **notice** stays an aggregate and still never names an agent.
 
-_Avoid_: "background task" / "async task" (a **Task** in this glossary is
-Silo's own; and backgrounded _shells_ are a different, still-unshipped thing);
-"running" for a handed-off dispatch (the dispatch is precisely what is not
-running); naming a specific delegated agent in the **dispatch notice**; calling
-a **child session** a session the user can open — it has no **Chat session
-handle**, no tab, and no journal of its own.
+_Avoid_: "background task" / "async task" for delegated _agent_ work (a **Task**
+in this glossary is Silo's own, and a **Background command** below is the shell
+case); "running" for a handed-off dispatch (the dispatch is precisely what is
+not running); naming a specific delegated agent in the **dispatch notice**;
+calling a **child session** a session the user can open — it has no **Chat
+session handle**, no tab, and no journal of its own.
+
+**Backgrounded shell** (RFC 0058) — the shell half of the same problem
+**Delegated work** solves for agents: the agent detached a command and kept
+going, so its tool call reports `completed` while the command runs on.
+
+- **Backgrounded call** (`AgentToolCall.backgrounded`) — the tool call whose
+  command detached. Its `status` describes the _detaching_, not the work. The
+  sibling of **Hand-off**, and **not a synonym for it**: a hand-off promises
+  that nothing will ever report how the work ended, while a backgrounded call
+  promises that something will. That is why a backgrounded row may ripple as
+  running and then settle, and a **Dispatch** may do neither.
+- **Background command** (`AgentBackgroundTask`, keyed by `asyncTaskId`) — the
+  detached command's own lifecycle: `running` / `paused`, then one of
+  `completed` / `failed` / `stopped`. Arrives on the session that started it
+  even when the command was backgrounded inside a **Subagent**. `asyncTaskId`
+  is the identity; the **tool call it belongs to is learned later**, on a frame
+  after the announcement.
+- **Shell notice** — the one-line count of **running** background commands in
+  the current exchange, gone at zero. Distinct from the **Dispatch notice** and
+  deliberately not merged with it: this count is known to be accurate, where
+  that one counts what was dispatched.
+
+A **Background command** routinely **outlives its turn** — 24 seconds, in the
+capture the feature was built from — so nothing about it is gated on whether
+the agent is working.
+
+_Avoid_: "handed off" for a backgrounded call (it resolves; a hand-off does
+not); treating a terminal state as final on first sight (an agent may correct
+`stopped` with `completed`); keying a background command by its tool call (the
+announcement carries none).
 
 **Update stream** (`AgentSessionUpdate`, RFC 0038 Session 3.8) — the normalized
 sequence of `session/update` notifications a **Chat Session Connection**
