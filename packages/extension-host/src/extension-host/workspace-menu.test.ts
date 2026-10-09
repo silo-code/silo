@@ -149,4 +149,18 @@ describe("confirmAndCloseWorkspace", () => {
 
     expect(store.workspaces.ws_1?.closedAt).toBeFalsy();
   });
+
+  it("shows a dismissible dialog with a way to back out (#571)", async () => {
+    addWorkspace("ws_1");
+    const showModal = vi
+      .spyOn(getUiService(), "showModal")
+      .mockResolvedValue(false);
+
+    await confirmAndCloseWorkspace("ws_1", "ws_1");
+
+    expect(showModal).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ dismissible: true }),
+    );
+  });
 });
