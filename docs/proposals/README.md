@@ -151,4 +151,4 @@ don't get a proposal at all — see below.
 | [0059](./0059-chat-plan-panel.md)                             | The agent's plan as a pinned panel region                         | 2026-10-09 | draft       |
 | [0060](./0060-session-transfer.md)                            | Transferring a Chat session to another agent                      | 2026-10-09 | draft       |
 | [0061](./0061-session-summary.md)                             | Session summary — knowing what a Chat tab is about                | 2026-10-13 | draft       |
-| [0062](./0062-agent-questions.md)                             | Agent questions (ACP elicitation)                                 | 2026-10-14 | accepted    |
+| [0062](./0062-agent-questions/proposal.md)                    | Agent questions (ACP elicitation)                                 | 2026-10-14 | accepted    |

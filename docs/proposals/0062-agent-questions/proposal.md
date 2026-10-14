@@ -5,6 +5,10 @@ created: 2026-10-14
 
 # 0062. Agent questions (ACP elicitation)
 
+> **This package covers phase 3 only** — the schema parser. Phases 1 and 2
+> have shipped; `requirements.md`, `design.md` and `tasks.md` are scoped to
+> phase 3 and say nothing about phases 4–5. See Sequencing for the full table.
+
 ## Summary
 
 Let a Chat agent ask a **real structured question** instead of a row of
@@ -173,10 +177,14 @@ degrades its _control_, never its visibility. The ladder, by declared `type`:
 | `"string"`, absent, or unrecognized | free text                               |
 
 And the backstop: if `requestedSchema` isn't an object, or carries no usable
-`properties` at all, Silo renders the elicitation's `message` with a single
-free-text field. The `message` always carries the human question — both bridges
-populate it — so the user sees the ask even when the schema tells us nothing
-about its shape.
+`properties` at all, Silo renders the elicitation's `message` with accept /
+decline / cancel and **no input field**. The `message` always carries the human
+question — both bridges populate it — so the user still sees the ask and still
+answers deliberately. There is no text box here for a concrete reason: with no
+property key, there is nowhere in `content` to put typed text, and an empty
+`content` is the correct and complete answer to a form that names no fields.
+A box whose contents the agent could never read would be a worse lie than its
+absence.
 
 Free text is not a degraded guess in this protocol: it is the same answer shape
 the AskUserQuestion bridge's own "Other" box produces, and
@@ -264,13 +272,13 @@ permission request (which works today) and starts arriving as an
 only switch, so everything behind it can land **dark and inert**: no agent sends
 an elicitation until we advertise. That makes one risky change five safe ones.
 
-| Phase                               | Scope                                                                                                                                    | Inert?                                 |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| **1 — Tooltip**                     | `deriveTab`'s `"Waiting for permission"` → `"Waiting for you"` (`agent-view.ts:99`), plus a test pinning it.                             | n/a — correct for permissions today    |
-| **2 — Shared blocked bookkeeping**  | Extract the six rules in `onPermission` (`acp-sessions-service.ts:959`–`1015`) into one helper both callbacks will drive.                | **no** — refactors shipped behavior    |
-| **3 — Schema parser**               | Pure host-side functions: recognized shapes, custom-answer pairing, the fallback ladder, the no-`properties` backstop. Wired to nothing. | yes                                    |
-| **4 — Host plumbing + SDK surface** | `elicitation/create` in `handleServerRequest`, the request/outcome types, `onElicitation` on the handle, `pnpm docs:api`.                | yes — reachable but unreached          |
-| **5 — Renderer, then the flip**     | The form card on the SDK kit; then `elicitation: { form: true }` and the doc obligations below.                                          | the flip is the only user-visible step |
+| Phase                                         | Scope                                                                                                                                    | Inert?                                 |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **1 — Tooltip** ✅ shipped                    | `deriveTab`'s `"Waiting for permission"` → `"Waiting for you"`, plus a test pinning it.                                                  | n/a — correct for permissions today    |
+| **2 — Shared blocked bookkeeping** ✅ shipped | `raiseBlockedOnUser` / `clearBlockedOnUser` extracted from `onPermission`; coverage added for turn adoption and post-dispose arrival.    | **no** — refactored shipped behavior   |
+| **3 — Schema parser**                         | Pure host-side functions: recognized shapes, custom-answer pairing, the fallback ladder, the no-`properties` backstop. Wired to nothing. | yes                                    |
+| **4 — Host plumbing + SDK surface**           | `elicitation/create` in `handleServerRequest`, the request/outcome types, `onElicitation` on the handle, `pnpm docs:api`.                | yes — reachable but unreached          |
+| **5 — Renderer, then the flip**               | The form card on the SDK kit; then `elicitation: { form: true }` and the doc obligations below.                                          | the flip is the only user-visible step |
 
 Phase 2 is the one to watch. It is a pure refactor of shipped, subtle logic, so
 it lands **alone** with permission behavior provably unchanged — when something
