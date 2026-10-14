@@ -1,5 +1,5 @@
 ---
-status: draft
+status: implemented
 created: 2026-09-14
 ---
 
@@ -76,54 +76,32 @@ that report.
 Two phases, so a real (if partial) signal ships without committing to the
 full bypass undertaking up front.
 
-### Phase 1 — what ACP already gives us, modeled properly
+### Phase 1 — what ACP already gives us, modeled properly (shipped)
 
-1. Add a typed, optional field to `AgentSessionUpdate`
-   (`packages/sdk/src/agents-service.ts`), e.g.:
+What actually shipped, differing from the sketch above in naming:
 
-   ```ts
-   /**
-    * Token usage as of this update, when the agent reports it — `undefined`
-    * for updates that don't carry usage and for every agent that never
-    * reports it at all (confirmed absent from Cursor; unconfirmed for the
-    * rest of the catalog). No agent has been observed reporting a
-    * context-window ceiling over ACP — that half of {@link AgentContextUsage}
-    * is Silo's own, not the protocol's.
-    */
-   readonly usage?: AgentContextUsage;
-   ```
+1. `AgentSessionUpdate.usage` (`packages/sdk/src/agents-service.ts`) is typed
+   as `AgentSessionUsage`, using the protocol's own `used`/`size` field names
+   rather than inventing `usedTokens`/`maxTokens`. Both fields are required
+   together — a `usage_update` missing either is treated as not reported at
+   all, matching every agent observed in practice (see "Verified live",
+   below): none has been seen sending a used count with no ceiling. A
+   used-only fallback was prototyped and rolled back as unneeded speculative
+   handling for a case no agent actually produces; revisit if one ever does.
 
-   ```ts
-   export interface AgentContextUsage {
-     readonly usedTokens: number;
-     /** From Silo's own maintained per-model table, not the protocol. */
-     readonly maxTokens?: number;
-   }
-   ```
+2. The host's ACP update pipeline (`acp-update-model.ts`'s `parseUsage`)
+   normalizes `usage_update.used`/`.size`/`.cost` straight off the wire.
+   **No hand-maintained per-model context-window table was built** — Silo
+   trusts whatever `size` the agent itself reports instead of maintaining a
+   second source of truth for it.
 
-   This replaces one more `raw` reach-through with a real field — the thing
-   the RFC 0038 doc comment asked for — instead of leaving every Chat UI
-   (bundled or third-party) to parse `usage_update` itself.
-
-2. In the host's ACP update pipeline (`acp-update-model.ts`,
-   `acp-sessions-service.ts`), normalize `usage_update.tokens` (and whatever
-   else is present — Claude's payload has more than a bare count per the
-   recon transcript's "usage: 41,244 tokens, model claude-opus-5") into
-   `usage.usedTokens`. Agents that never send it leave `usage` undefined;
-   the panel treats that as "nothing to show," not an error or a zero.
-
-3. A small, hand-maintained context-window table, scoped to models Silo
-   already names (`packages/extension-host/src/extension-host/agents/catalog/claude.ts`
-   already enumerates Claude's model ids) — fills `maxTokens` only where
-   confidently known. No max means no percentage; show the raw token count
-   alone rather than inventing a denominator.
-
-4. UI: a small ring/meter in `.acp-chat__controls`
-   (`AcpChatPanel.tsx`), next to the existing config-option pills — modeled
-   on Paseo's `ContextWindowMeter` (muted below 70%, amber 70–90%, red past
-   90%; a tooltip with the exact counts). Rendered only when `usage` is
-   present on the latest update — absent entirely for agents that never
-   report it, not a permanent placeholder.
+3. UI: not a ring/meter. A text pill (`"13.5k/200k (7%)"`, or `"7%"` at
+   `condensed` density) in `.acp-chat__controls` (`AcpChatPanel.tsx`), next
+   to the config-option pills, with the warn/err tone thresholds Paseo uses
+   (70%/90%). **Always rendered** (reads `—`) rather than hidden for an
+   agent that never reports usage — deliberately showing "not reported" as
+   the same kind of unset value as any other config pill, rather than
+   making the row's presence itself a signal.
 
 ### Phase 2 — native per-agent parity (deferred, not committed here)
 
@@ -150,6 +128,33 @@ that gap actually matters in practice. Not designed further here.
   Rejected — a wrong percentage is worse than no percentage; Phase 1 shows
   a raw count with no bar when the max isn't known.
 
+## Verified live (2026-10-14)
+
+Driven through the real app (`verifier-gui`) against Claude, Codex, Copilot,
+Cursor, pi, and OpenCode, with source/spec research to back up what wasn't
+directly observable:
+
+- **Claude, Codex, Copilot**: send `usage_update` every turn; Context shows.
+- **Cursor**: confirmed live (real completed turn, `—` throughout) and by the
+  Cursor team — an open, acknowledged feature request with no committed date.
+- **pi**: confirmed live and by source — a known bug in the `pi-acp` adapter
+  (tracked upstream, not in pi itself, which does collect the numbers
+  internally).
+- **OpenCode**: confirmed by source
+  (`packages/cli/src/acp/turn.ts`'s `sendUsageUpdate`) — it sends
+  `usage_update` only when its own model catalog has a known context-window
+  size for the model in use; a local/custom model without one gets nothing,
+  by design, not by bug.
+
+None of this is a Silo gap — every case above is the connected agent's own
+ACP implementation choosing not to send the (spec-optional) notification, for
+a reason specific to that agent. Documented for users in the "Chat panel
+functionality" compatibility matrix at `/guide/agent-sessions` (apps/docs)
+rather than fixed in code, since there is nothing on Silo's side to fix.
+
 ## Decision
 
-Not yet — draft.
+Accepted and shipped as Phase 1. Phase 2 (bypassing ACP per agent for native
+parity, as Paseo does) remains undesigned and not committed to — revisit only
+if an agent's own ACP implementation stays stalled long enough that users
+keep asking.
