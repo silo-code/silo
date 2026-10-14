@@ -89,6 +89,31 @@ export function shouldSkipInstantPaint(intent: RestartIntent | null): boolean {
 }
 
 /**
+ * Whether this reconnect keeps the Context reading
+ * ({@link AcpChatPanelParams.usage}) it had before, or starts from no reading
+ * at all.
+ *
+ * `usage_update` is a **per-turn** frame — no agent sends one at connect or
+ * resume time — so a reading cleared on reconnect stays blank until the user
+ * sends a message *and* that turn finishes. For a reconnect that resumes the
+ * same conversation that blank is a hole, not information: the context is
+ * still loaded, and the last reading is the best answer available until the
+ * agent reports again.
+ *
+ * A fresh start is the opposite. `reset` (Clear, RFC 0048) and
+ * `continue-fresh` ("Continue in a new session", RFC 0042) both begin an empty
+ * context, so carrying the old figure forward would overstate it until the
+ * first turn corrected it.
+ *
+ * Note this is about *remembering* a reading the agent really sent, never
+ * about inventing one — {@link AgentSessionUsage} is explicit that a reading
+ * must not be synthesized when the agent hasn't sent it.
+ */
+export function carriesUsageForward(intent: RestartIntent | null): boolean {
+  return intent !== "reset" && intent !== "continue-fresh";
+}
+
+/**
  * The folder this panel's session runs in: the one chosen when it was started
  * (RFC 0046), falling back to the workspace's primary folder.
  *

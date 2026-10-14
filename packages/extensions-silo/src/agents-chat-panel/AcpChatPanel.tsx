@@ -66,6 +66,8 @@ import {
   type ClipboardEvent,
   type ComponentType,
   type MouseEvent,
+  type ReactNode,
+  type RefObject,
 } from "react";
 import {
   ArrowRight,
@@ -105,6 +107,7 @@ import type {
   Disposable,
   DockPanelProps,
   ExtensionContext,
+  MenuEntry,
 } from "@silo-code/sdk";
 import {
   AgentIconGlyph,
@@ -251,6 +254,7 @@ import {
 } from "./tool-diff";
 import { matchChatLinks } from "./link-match";
 import {
+  carriesUsageForward,
   isReadOnly,
   panelStateAfterConnect,
   resolveChatCwd,
@@ -260,6 +264,15 @@ import {
 } from "./session-restore";
 import { LiveElapsed } from "./LiveElapsed";
 import { usagePercent, usageTone, usageValueText } from "./usage-model";
+import {
+  CONTROL_DENSITIES,
+  TIGHTEST_DENSITY,
+  chooseControlDensity,
+  showsFullContext,
+  showsPills,
+  type ControlDensity,
+  type DensityWidths,
+} from "./control-density";
 import {
   HEAD_MEASURE_DEBOUNCE_MS,
   HEAD_REVEAL_SETTLE_MS,
@@ -324,6 +337,19 @@ export interface AcpChatPanelParams {
    * from the user's own pick or the agent moving one itself.
    */
   configOptionValues?: Readonly<Record<string, string>>;
+  /**
+   * The last Context reading the agent reported, persisted so a reconnect —
+   * or a whole app restart, where the journal repaints the conversation — can
+   * show it instead of a blank until the next turn ends.
+   *
+   * `usage_update` is per-turn, so nothing refills this at connect or resume
+   * time; without persisting it, Context reads `—` next to a fully repainted
+   * transcript. Carried forward only for a reconnect that resumes the same
+   * conversation, and `null` once the context is genuinely empty (Clear,
+   * "Continue in a new session", a profile switch) — see
+   * {@link carriesUsageForward}.
+   */
+  usage?: AgentSessionUsage | null;
   /**
    * The composer's in-progress text, persisted so a restart (or a
    * close-and-reopen of this `DockPanelRecord`) doesn't lose an unsent draft.
@@ -1270,6 +1296,75 @@ const TranscriptTurn = memo(
     sameTurn(a.turn, b.turn),
 );
 
+/** The densities whose width has to be measured — every one but the fallback,
+ *  which always fits (see {@link TIGHTEST_DENSITY}). */
+const MEASURED_DENSITIES = CONTROL_DENSITIES.filter(
+  (d) => d !== TIGHTEST_DENSITY,
+);
+
+/**
+ * Picks the control row's {@link ControlDensity} from the width it actually
+ * has, and hands back the refs that do the measuring.
+ *
+ * The measurement can't come from the live row: its controls carry
+ * `min-width: 0`, so flexbox shrinks them to fit instead of overflowing, and
+ * `scrollWidth === clientWidth` no matter how cramped it gets. Instead the
+ * panel renders one **probe** per measured density — the same markup, from the
+ * same render function, inside a hidden `width: max-content` container — and
+ * reads each probe's natural width. That keeps one source of truth for the
+ * markup while still answering "what would this density need?".
+ *
+ * @returns `density` to render, plus `rowRef` (the live row, which supplies the
+ * available width) and `probeRef` (the hidden container holding the probes, in
+ * {@link MEASURED_DENSITIES} order).
+ */
+function useControlDensity(): {
+  density: ControlDensity;
+  rowRef: RefObject<HTMLDivElement | null>;
+  probeRef: RefObject<HTMLDivElement | null>;
+} {
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  const probeRef = useRef<HTMLDivElement | null>(null);
+  const [density, setDensity] = useState<ControlDensity>("full");
+
+  // A ref as well as state: the resize callback below is wired once, but the
+  // hysteresis in `chooseControlDensity` needs whatever is on screen *now*.
+  const densityRef = useRef(density);
+  densityRef.current = density;
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    const probeHost = probeRef.current;
+    if (!row || !probeHost) return;
+
+    const remeasure = () => {
+      const required: DensityWidths = {};
+      MEASURED_DENSITIES.forEach((d, i) => {
+        const probe = probeHost.children[i];
+        if (probe) required[d] = Math.ceil(probe.getBoundingClientRect().width);
+      });
+
+      const next = chooseControlDensity({
+        available: Math.floor(row.getBoundingClientRect().width),
+        required,
+        current: densityRef.current,
+      });
+      if (next !== densityRef.current) setDensity(next);
+    };
+
+    remeasure();
+    // Both sides of the comparison move: the row when the dock is resized, the
+    // probes when the agent advertises a different set of controls or a label
+    // changes length (a profile switch, a longer model name).
+    const observer = new ResizeObserver(remeasure);
+    observer.observe(row);
+    observer.observe(probeHost);
+    return () => observer.disconnect();
+  }, []);
+
+  return { density, rowRef, probeRef };
+}
+
 export function AcpChatPanel({
   api,
   params,
@@ -1317,7 +1412,19 @@ export function AcpChatPanel({
   // Latest `usage_update` reading, not folded into `transcript` — it isn't a
   // transcript row, it's a live header stat. Sender-optional: stays
   // `undefined` for the whole session on any agent that never sends one.
-  const [usage, setUsage] = useState<AgentSessionUsage | undefined>();
+  //
+  // Seeded from `params.usage` so a panel coming back from a restart shows the
+  // reading its repainted transcript earned, rather than a blank until the
+  // next turn ends (`usage_update` is per-turn — nothing re-sends it on
+  // resume).
+  const [usage, setUsage] = useState<AgentSessionUsage | undefined>(
+    params.usage ?? undefined,
+  );
+  // Read by the connect effect, which must not take `usage` as a dependency:
+  // that effect *is* the session's lifecycle, and re-running it on every
+  // reading would tear the live session down mid-conversation.
+  const usageRef = useRef(usage);
+  usageRef.current = usage;
   // A local seq, not `toolCallId`: nothing stops an agent asking twice about
   // the same tool call, and two rows must never share a React key.
   const [permissions, setPermissions] = useState<PendingPermission[]>([]);
@@ -1438,6 +1545,16 @@ export function AcpChatPanel({
     for (const opt of configOptions) values[opt.id] = opt.currentValue;
     api.updateParameters({ configOptionValues: values });
   }, [api, configOptions]);
+  // Persist each Context reading as it arrives (see `AcpChatPanelParams.usage`).
+  // Cheap to write on every change: `usage_update` is a per-turn frame, not a
+  // stream, so this is one param write per turn — no debounce needed the way
+  // `draft` needs one per keystroke. Skipped while unset so a reconnect's
+  // clearing pass never overwrites a good reading with nothing; the paths that
+  // genuinely empty the context write `null` themselves.
+  useEffect(() => {
+    if (!usage) return;
+    api.updateParameters({ usage });
+  }, [api, usage]);
   // The agent's slash commands (and, unmarked, its skills — RFC 0040): a live
   // snapshot backing the composer's `/` palette. Empty until the agent's
   // first `available_commands_update`, which is not guaranteed to ever come.
@@ -1529,7 +1646,21 @@ export function AcpChatPanel({
     restartIntentRef.current = null;
     setPhase({ status: "connecting" });
     setTranscript(emptyTranscript);
-    setUsage(undefined);
+    // Unlike the transcript, the Context reading survives a reconnect that
+    // resumes the same conversation — the context is still loaded, and nothing
+    // will re-report it until the next turn ends. A genuinely fresh start
+    // (Clear / "Continue in a new session") drops it.
+    if (carriesUsageForward(restart?.intent ?? null)) {
+      setUsage(usageRef.current);
+    } else {
+      setUsage(undefined);
+      // Clear the persisted copy too, not just the live one. The write-back
+      // effect skips an unset reading (so a reconnect can't blank a good
+      // value), which means the emptying paths are the ones that have to say
+      // so — otherwise closing and reopening the tab before the next turn
+      // would seed Context from the context Clear just discarded.
+      api.updateParameters({ usage: null });
+    }
     setPermissions([]);
     setAgentName(undefined);
     setAgentId(undefined);
@@ -2069,6 +2200,10 @@ export function AcpChatPanel({
         // rather than inherit an offset measured against the old one.
         scrollTop: 0,
         scrollPinned: true,
+        // A Context reading belongs to the session that reported it, and the
+        // window it was measured against is the old model's. Cleared with
+        // `sessionId` for the same reason.
+        usage: null,
       });
     },
     [ctx, api, profileId, transcript, busy, agentName, profile?.label],
@@ -2815,6 +2950,341 @@ export function AcpChatPanel({
     return () => clearTimeout(id);
   }, [onScreen, window_.kind, turns]);
 
+  const { density, rowRef, probeRef } = useControlDensity();
+
+  /** The config pills the agent actually advertised, in row order. An entry
+   *  whose `type` we don't recognise is skipped — the same tolerance rule the
+   *  update stream follows. */
+  const liveConfigOptions = configOptions.filter(
+    (opt) => opt.type === "select" && !deadConfigIds.has(opt.id),
+  );
+
+  /**
+   * Everything the pills offer, as menu rows — what the status line opens once
+   * the pills themselves are off screen at `compact`. Each picker becomes a
+   * submenu rather than a flattened list so "Model" still reads as one choice
+   * with several options, the way its pill did.
+   */
+  const sessionMenuEntries = (): MenuEntry[] => [
+    { type: "header", label: "Agent" },
+    {
+      label: profile?.label ?? "Profile",
+      icon: (
+        <AgentIconGlyph
+          icon={profileIcon}
+          mode="color"
+          colorScheme={colorScheme}
+          className="acp-chat__profile-icon"
+        />
+      ),
+      submenu: available.map((p) => ({
+        label: p.label,
+        checked: p.id === profileId,
+        icon: (
+          <AgentIconGlyph
+            icon={catalog.find((a) => a.id === p.agentId)?.icon}
+            mode="color"
+            colorScheme={colorScheme}
+            className="acp-chat__profile-icon"
+          />
+        ),
+        run: () => void switchProfile(p.id),
+      })),
+    },
+    ...(liveConfigOptions.length > 0
+      ? ([{ type: "separator" }] satisfies MenuEntry[])
+      : []),
+    ...liveConfigOptions.map(
+      (opt): MenuEntry => ({
+        label: opt.name,
+        disabled: phase.status !== "ready" || lost || readOnly,
+        submenu: opt.options.map((choice) => ({
+          label: choice.name,
+          checked: choice.value === opt.currentValue,
+          run: () => setConfigOption(opt.id, choice.value),
+        })),
+      }),
+    ),
+    ...(showAutoAccept
+      ? ([
+          { type: "separator" },
+          {
+            label: "Auto Accept",
+            checked: autoAccept,
+            disabled: phase.status !== "ready" || lost || readOnly,
+            run: () => setAutoAccept((v) => !v),
+          },
+        ] satisfies MenuEntry[])
+      : []),
+    ...(usage
+      ? ([
+          { type: "separator" },
+          {
+            label: `Context — ${usageValueText(usage)}`,
+            disabled: true,
+            run: () => {},
+          },
+        ] satisfies MenuEntry[])
+      : []),
+  ];
+
+  /**
+   * The composer's control row at one {@link ControlDensity}. The live row and
+   * every hidden probe render from this one function, so a control added here
+   * is measured automatically rather than silently breaking the fit.
+   *
+   * `at` is the density being drawn — deliberately a parameter rather than the
+   * `density` in scope, because the probes draw densities that aren't current.
+   */
+  const renderControls = (at: ControlDensity): ReactNode => (
+    <>
+      {showsPills(at) ? (
+        /* Pill + chevron, opening the host's own floating dropdown — Paseo's
+           model/effort/permission-mode pickers are exactly this shape (RFC
+           0043 finding 2), and it's the kit's own documented answer for "pick
+           one of these". A native `<select>` can't float over the transcript
+           the way this does — its popup is OS chrome, not the host's. */
+        <MenuButton
+          className="acp-chat__profile"
+          size="sm"
+          label={profile?.label ?? "Profile"}
+          aria-label="Chat agent profile"
+          onClick={(e) =>
+            void ctx.ui.showMenu({
+              anchor: e.currentTarget,
+              items: available.map((p) => ({
+                label: p.label,
+                checked: p.id === profileId,
+                icon: (
+                  <AgentIconGlyph
+                    icon={catalog.find((a) => a.id === p.agentId)?.icon}
+                    mode="color"
+                    colorScheme={colorScheme}
+                    className="acp-chat__profile-icon"
+                  />
+                ),
+                run: () => void switchProfile(p.id),
+              })),
+            })
+          }
+        >
+          <AgentIconGlyph
+            icon={profileIcon}
+            mode="color"
+            colorScheme={colorScheme}
+            className="acp-chat__profile-icon"
+          />
+        </MenuButton>
+      ) : (
+        /* `compact`: every picker above collapses into one line of text that
+           opens the same choices as a menu. The agent's name never shrinks —
+           it's what identifies the session — so the value summary beside it is
+           what ellipsizes, then drops out entirely on the narrowest docks. */
+        <Tooltip content="Session options">
+          <button
+            type="button"
+            className="acp-chat__status-line"
+            aria-label="Session options"
+            onClick={(e) =>
+              void ctx.ui.showMenu({
+                anchor: e.currentTarget,
+                items: sessionMenuEntries(),
+              })
+            }
+          >
+            <AgentIconGlyph
+              icon={profileIcon}
+              mode="color"
+              colorScheme={colorScheme}
+              className="acp-chat__profile-icon"
+            />
+            <span className="acp-chat__status-name">
+              {profile?.label ?? "Profile"}
+            </span>
+            {liveConfigOptions.length > 0 ? (
+              /* Its leading separator is a CSS `::before`, so it clips away
+                 with the summary rather than stranding a dot. */
+              <span className="acp-chat__status-summary">
+                {liveConfigOptions
+                  .map(
+                    (opt) =>
+                      opt.options.find((c) => c.value === opt.currentValue)
+                        ?.name ?? opt.currentValue,
+                  )
+                  .join(" · ")}
+              </span>
+            ) : null}
+            {usage ? (
+              <span
+                className={`acp-chat__status-usage acp-chat__usage-value--${usageTone(usagePercent(usage))}`}
+              >
+                {usagePercent(usage)}%
+              </span>
+            ) : null}
+            <CaretDown
+              className="acp-chat__status-chevron"
+              size="1em"
+              aria-hidden="true"
+            />
+          </button>
+        </Tooltip>
+      )}
+      {connecting ? (
+        <div className="acp-chat__connecting" aria-live="polite">
+          <ArrowsClockwise
+            className="acp-chat__spin"
+            size="1em"
+            aria-hidden="true"
+          />
+          Connecting to agent…
+        </div>
+      ) : (
+        <>
+          {/* A plus icon, not the paperclip — keeps `size="normal"`'s larger
+              glyph so it reads as its own affordance next to the pill buttons
+              rather than a stray toolbar glyph, with the box trimmed to the
+              row's height by `.acp-chat__attach`. Survives every density: it's
+              an action, not a readout. */}
+          <Tooltip content="Attach a file">
+            <IconButton
+              className="acp-chat__attach"
+              aria-label="Attach a file"
+              disabled={phase.status !== "ready" || lost || readOnly}
+              onClick={() => void attachFile()}
+            >
+              <Plus size="1em" aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+          {showsPills(at) ? (
+            <>
+              {/* One control per advertised session control — no per-agent
+                  code. Cursor gets mode + model; Claude gets its permission
+                  mode. */}
+              {liveConfigOptions.map((opt) => (
+                <div key={opt.id} className="acp-chat__option acp-chat__config">
+                  <span className="acp-chat__option-label">{opt.name}</span>
+                  <MenuButton
+                    size="sm"
+                    label={
+                      opt.options.find((c) => c.value === opt.currentValue)
+                        ?.name ?? opt.currentValue
+                    }
+                    aria-label={opt.name}
+                    disabled={phase.status !== "ready" || lost || readOnly}
+                    onClick={(e) =>
+                      void ctx.ui.showMenu({
+                        anchor: e.currentTarget,
+                        items: opt.options.map((choice) => ({
+                          label: choice.name,
+                          checked: choice.value === opt.currentValue,
+                          run: () => setConfigOption(opt.id, choice.value),
+                        })),
+                      })
+                    }
+                  />
+                </div>
+              ))}
+              {/* Client-side stand-in for agents with no "stop asking me" mode
+                  of their own (ported from Paseo) — hidden whenever the agent
+                  already offers one (`showAutoAccept`), so this never sits
+                  next to Claude's own Bypass mode as a second, confusing way
+                  to do the same thing. */}
+              {showAutoAccept ? (
+                <Tooltip
+                  content={
+                    autoAccept
+                      ? "Auto Accept: on — answering every permission request itself"
+                      : "Auto Accept: off — click to answer every permission request itself, without asking"
+                  }
+                >
+                  <Button
+                    size="sm"
+                    variant={autoAccept ? "primary" : "normal"}
+                    className="acp-chat__auto-accept"
+                    aria-label="Auto Accept permission requests"
+                    aria-pressed={autoAccept}
+                    disabled={phase.status !== "ready" || lost || readOnly}
+                    onClick={() => setAutoAccept((v) => !v)}
+                  >
+                    <Shield size="1em" weight="bold" aria-hidden="true" />
+                    Auto Accept
+                  </Button>
+                </Tooltip>
+              ) : null}
+              {/* `usage_update` is sender-optional — Claude, Codex, and Copilot
+                  send it; Cursor and Gemini don't (2026-09 survey). Shown
+                  alongside the config pills either way, so "this agent doesn't
+                  report it" reads the same as any other unset value rather
+                  than the row disappearing.
+
+                  This is the first thing to give way as the row tightens: at
+                  `condensed` it drops to the bare percentage, which is all the
+                  reading anyone glances at, and keeps the exact figure in its
+                  tooltip. */}
+              <Tooltip
+                content={
+                  usage
+                    ? `Context — ${usageValueText(usage)}`
+                    : "Context — not reported by this agent"
+                }
+              >
+                <div className="acp-chat__option acp-chat__usage">
+                  <span className="acp-chat__option-label">Context</span>
+                  <span
+                    className={
+                      usage
+                        ? `acp-chat__usage-value acp-chat__usage-value--${usageTone(usagePercent(usage))}`
+                        : "acp-chat__usage-value"
+                    }
+                  >
+                    {usage
+                      ? showsFullContext(at)
+                        ? usageValueText(usage)
+                        : `${usagePercent(usage)}%`
+                      : "—"}
+                  </span>
+                </div>
+              </Tooltip>
+            </>
+          ) : null}
+        </>
+      )}
+      {/* Pinned to the far right regardless of how many config pills the agent
+          advertised, and present at every density. */}
+      <div className="acp-chat__send-slot">
+        {readOnly ? (
+          <Button size="sm" variant="primary" onClick={continueInNewSession}>
+            Continue in a new session
+          </Button>
+        ) : lost ? (
+          <Button size="sm" onClick={() => setNonce((n) => n + 1)}>
+            Reconnect
+          </Button>
+        ) : busy ? (
+          <Tooltip content="Stop">
+            <IconButton
+              className="acp-chat__stop"
+              aria-label="Stop"
+              onClick={() => handleRef.current?.cancel()}
+            >
+              <StopIcon size="1em" weight="fill" aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <Tooltip content="Send">
+            <IconButton
+              className="acp-chat__send"
+              aria-label="Send"
+              disabled={!canSend}
+              onClick={() => void send()}
+            >
+              <ArrowUp size="1em" weight="bold" aria-hidden="true" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </div>
+    </>
+  );
   if (phase.status === "no-profile") {
     return (
       <div className="acp-chat" ref={rootRef}>
@@ -3241,190 +3711,26 @@ export function AcpChatPanel({
             }
           }}
         />
+        {/* Hidden width probes — one per measured density, rendered from the
+            same `renderControls` as the live row below so they can never drift
+            from it. `width: max-content` makes each one report what that
+            density actually needs; `useControlDensity` compares those against
+            the live row's width. `inert` keeps the duplicate buttons out of
+            the tab order and off the accessibility tree. */}
+        <div className="acp-chat__controls-probe" ref={probeRef} inert>
+          {MEASURED_DENSITIES.map((probed) => (
+            <div key={probed} className="acp-chat__controls">
+              {renderControls(probed)}
+            </div>
+          ))}
+        </div>
         <div
           className="acp-chat__controls"
+          ref={rowRef}
+          data-density={density}
           data-connecting={connecting ? "true" : undefined}
         >
-          {/* Pill + chevron, opening the host's own floating dropdown —
-              Paseo's model/effort/permission-mode pickers are exactly this
-              shape (RFC 0043 finding 2), and it's the kit's own documented
-              answer for "pick one of these" (`AgentProfilesService`'s own
-              doc example: build it from `list()` and `ctx.ui.showMenu`). A
-              native `<select>` can't float over the transcript the way this
-              does — its popup is OS chrome, not the host's. */}
-          <MenuButton
-            className="acp-chat__profile"
-            size="sm"
-            label={profile?.label ?? "Profile"}
-            aria-label="Chat agent profile"
-            onClick={(e) =>
-              void ctx.ui.showMenu({
-                anchor: e.currentTarget,
-                items: available.map((p) => ({
-                  label: p.label,
-                  checked: p.id === profileId,
-                  icon: (
-                    <AgentIconGlyph
-                      icon={catalog.find((a) => a.id === p.agentId)?.icon}
-                      mode="color"
-                      colorScheme={colorScheme}
-                      className="acp-chat__profile-icon"
-                    />
-                  ),
-                  run: () => void switchProfile(p.id),
-                })),
-              })
-            }
-          >
-            <AgentIconGlyph
-              icon={profileIcon}
-              mode="color"
-              colorScheme={colorScheme}
-              className="acp-chat__profile-icon"
-            />
-          </MenuButton>
-          {connecting ? (
-            <div className="acp-chat__connecting" aria-live="polite">
-              <ArrowsClockwise
-                className="acp-chat__spin"
-                size="1em"
-                aria-hidden="true"
-              />
-              Connecting to agent…
-            </div>
-          ) : (
-            <>
-              {/* A plus icon, not the paperclip — sized up (`size="normal"`, not
-                  `"sm"`) to read as its own affordance next to the pill buttons
-                  rather than a stray toolbar glyph. */}
-              <Tooltip content="Attach a file">
-                <IconButton
-                  aria-label="Attach a file"
-                  disabled={phase.status !== "ready" || lost || readOnly}
-                  onClick={() => void attachFile()}
-                >
-                  <Plus size="1em" aria-hidden="true" />
-                </IconButton>
-              </Tooltip>
-              {/* One control per advertised session control — no per-agent code.
-                  Cursor gets mode + model; Claude gets its permission mode. An
-                  entry whose `type` we do not recognise is skipped, the same
-                  tolerance rule the update stream follows. */}
-              {configOptions
-                .filter(
-                  (opt) => opt.type === "select" && !deadConfigIds.has(opt.id),
-                )
-                .map((opt) => (
-                  <div
-                    key={opt.id}
-                    className="acp-chat__option acp-chat__config"
-                  >
-                    <span className="acp-chat__option-label">{opt.name}</span>
-                    <MenuButton
-                      size="sm"
-                      label={
-                        opt.options.find((c) => c.value === opt.currentValue)
-                          ?.name ?? opt.currentValue
-                      }
-                      aria-label={opt.name}
-                      disabled={phase.status !== "ready" || lost || readOnly}
-                      onClick={(e) =>
-                        void ctx.ui.showMenu({
-                          anchor: e.currentTarget,
-                          items: opt.options.map((choice) => ({
-                            label: choice.name,
-                            checked: choice.value === opt.currentValue,
-                            run: () => setConfigOption(opt.id, choice.value),
-                          })),
-                        })
-                      }
-                    />
-                  </div>
-                ))}
-              {/* Client-side stand-in for agents with no "stop asking me"
-                  mode of their own (ported from Paseo) — hidden whenever
-                  the agent already offers one (`showAutoAccept`), so this
-                  never sits next to Claude's own Bypass mode as a second,
-                  confusing way to do the same thing. */}
-              {showAutoAccept ? (
-                <Tooltip
-                  content={
-                    autoAccept
-                      ? "Auto Accept: on — answering every permission request itself"
-                      : "Auto Accept: off — click to answer every permission request itself, without asking"
-                  }
-                >
-                  <Button
-                    size="sm"
-                    variant={autoAccept ? "primary" : "normal"}
-                    className="acp-chat__auto-accept"
-                    aria-label="Auto Accept permission requests"
-                    aria-pressed={autoAccept}
-                    disabled={phase.status !== "ready" || lost || readOnly}
-                    onClick={() => setAutoAccept((v) => !v)}
-                  >
-                    <Shield size="1em" weight="bold" aria-hidden="true" />
-                    Auto Accept
-                  </Button>
-                </Tooltip>
-              ) : null}
-              {/* `usage_update` is sender-optional — Claude, Codex, and
-                  Copilot send it; Cursor and Gemini don't (2026-09
-                  survey). Shown alongside the config pills either way, so
-                  "this agent doesn't report it" reads the same as any other
-                  unset value rather than the row disappearing. */}
-              <div className="acp-chat__option acp-chat__usage">
-                <span className="acp-chat__option-label">Context</span>
-                <span
-                  className={
-                    usage
-                      ? `acp-chat__usage-value acp-chat__usage-value--${usageTone(usagePercent(usage))}`
-                      : "acp-chat__usage-value"
-                  }
-                >
-                  {usage ? usageValueText(usage) : "—"}
-                </span>
-              </div>
-            </>
-          )}
-          {/* Pinned to the far right regardless of how many config pills the
-              agent advertised. */}
-          <div className="acp-chat__send-slot">
-            {readOnly ? (
-              <Button
-                size="sm"
-                variant="primary"
-                onClick={continueInNewSession}
-              >
-                Continue in a new session
-              </Button>
-            ) : lost ? (
-              <Button size="sm" onClick={() => setNonce((n) => n + 1)}>
-                Reconnect
-              </Button>
-            ) : busy ? (
-              <Tooltip content="Stop">
-                <IconButton
-                  className="acp-chat__stop"
-                  aria-label="Stop"
-                  onClick={() => handleRef.current?.cancel()}
-                >
-                  <StopIcon size="1em" weight="fill" aria-hidden="true" />
-                </IconButton>
-              </Tooltip>
-            ) : (
-              <Tooltip content="Send">
-                <IconButton
-                  className="acp-chat__send"
-                  aria-label="Send"
-                  disabled={!canSend}
-                  onClick={() => void send()}
-                >
-                  <ArrowUp size="1em" weight="bold" aria-hidden="true" />
-                </IconButton>
-              </Tooltip>
-            )}
-          </div>
+          {renderControls(density)}
         </div>
       </div>
     </div>
