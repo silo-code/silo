@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.74.0](https://github.com/silo-code/silo/compare/silo-v0.73.0...silo-v0.74.0) (2026-10-14)
+
+
+### Features
+
+* **agents-chat-panel:** make the composer control row responsive ([#616](https://github.com/silo-code/silo/issues/616)) ([809346b](https://github.com/silo-code/silo/commit/809346b5849e0d535cdb89a698382b934e695839))
+
+
+### Bug Fixes
+
+* **acp:** kill an agent's whole process group, not just its own pid ([#620](https://github.com/silo-code/silo/issues/620)) ([6b98d69](https://github.com/silo-code/silo/commit/6b98d69600d18b4d6434082f68f3b8645b59208d))
+
 ## [0.73.0](https://github.com/silo-code/silo/compare/silo-v0.72.3...silo-v0.73.0) (2026-10-09)
 
 
