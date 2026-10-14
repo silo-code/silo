@@ -148,3 +148,6 @@ don't get a proposal at all — see below.
 | [0056](./0056-agent-idle-since.md)                            | A durable idle timestamp on `AgentInfo`                           | 2026-10-06 | implemented |
 | [0057](./0057-subagent-sessions.md)                           | Subagent sessions: routing updates by `sessionId`                 | 2026-10-08 | implemented |
 | [0058](./0058-backgrounded-shells.md)                         | Backgrounded shells in a Chat session                             | 2026-10-08 | implemented |
+| [0059](./0059-chat-plan-panel.md)                             | The agent's plan as a pinned panel region                         | 2026-10-09 | draft       |
+| [0060](./0060-session-transfer.md)                            | Transferring a Chat session to another agent                      | 2026-10-09 | draft       |
+| [0061](./0061-session-summary.md)                             | Session summary — knowing what a Chat tab is about                | 2026-10-13 | draft       |
