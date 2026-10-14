@@ -527,6 +527,26 @@ describe("turn lifecycle → ctx.agents status", () => {
     expect(respondSpy).toHaveBeenCalledWith({ outcome: "cancelled" });
   });
 
+  it("answers a permission request cancelled after dispose, and never calls the stale listener", async () => {
+    // Two mechanisms enforce this — `dispose()` clears the listener set *and*
+    // `onPermission` checks `disposed` — so neither assertion below isolates
+    // one of them. What it pins is the contract they exist to guarantee: a
+    // request arriving after teardown is answered, not dropped, and a
+    // listener whose panel is gone is never handed one.
+    const handle = await service.connect("claude-chat");
+    const seen = vi.fn();
+    handle.onPermission(seen);
+    handle.dispose();
+
+    const respondSpy = vi.fn();
+    captured.onPermission(
+      { toolCallId: "tc1", title: "x", options: [], raw: {} },
+      respondSpy,
+    );
+    expect(respondSpy).toHaveBeenCalledWith({ outcome: "cancelled" });
+    expect(seen).not.toHaveBeenCalled();
+  });
+
   it("an abnormal connection close moves the session to error, without stacking an attention flag on it", async () => {
     // Terminal parity: `activity: "error"` is a loud state every consumer
     // renders on its own, so the shared turn core leaves attention alone.
@@ -664,6 +684,32 @@ describe("agent-initiated turns — activity the host never asked for", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("adopts the turn when an answered permission is the only sign one is running", async () => {
+    // No `prompt()` in flight, so this permission belongs to a turn the agent
+    // started itself and nothing else has told the host a turn is open.
+    // Answering sets `"working"` — a state only a turn end can clear — so if
+    // the answer did not also adopt the turn, there would be no turn to end
+    // and the session would read "working" until its process died.
+    const handle = await service.connect("claude-chat");
+    const seen = vi.fn();
+    handle.onPermission(seen);
+
+    captured.onPermission(
+      {
+        toolCallId: "tc1",
+        title: "Write a file",
+        options: [{ optionId: "allow", name: "Allow", kind: "allow_once" }],
+        raw: {},
+      },
+      vi.fn(),
+    );
+    seen.mock.calls[0][0].respond("allow");
+    expect(chatAgentInfos()[0]).toMatchObject({ activity: "working" });
+
+    captured.onUpdate(endMarker("task-notification") as never);
+    expect(chatAgentInfos()[0]).toMatchObject({ activity: "idle" });
   });
 
   it("never lets a marker end a turn the host prompted — that turn is prompt()'s", async () => {
