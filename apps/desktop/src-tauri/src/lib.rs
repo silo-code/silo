@@ -21,6 +21,13 @@ use tauri::{Emitter, Manager};
 pub fn run() {
     let context = tauri::generate_context!();
 
+    // Reap ACP agent children if Silo is signalled rather than quit through
+    // the UI (Ctrl-C in `pnpm dev`, `kill <pid>`). `RunEvent::Exit` below
+    // covers the normal quit; neither covers a signal, and ACP children now
+    // live in their own process groups so a terminal Ctrl-C no longer reaches
+    // them on its own — see `commands::acp::install_signal_reaper`.
+    commands::acp::install_signal_reaper();
+
     // Namespace PTY-host sockets by *app identity* (the bundle identifier), so
     // independent Silo instances never share session sockets regardless of build
     // profile: "Silo Dev" (com.silo.desktop.dev) → "dev", production "Silo"
