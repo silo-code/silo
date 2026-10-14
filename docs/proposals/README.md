@@ -134,7 +134,7 @@ don't get a proposal at all — see below.
 | [0042](./0042-chat-session-resurrection.md)                   | Chat session resurrection — across app restart and machine reboot | 2026-09-09 | accepted    |
 | [0043](./0043-chat-panel-visual-polish.md)                    | Chat panel visual polish — to the Paseo bar                       | 2026-09-10 | implemented |
 | [0044](./0044-terminal-agent-permission-block-detection.md)   | Terminal-agent permission-block detection                         | 2026-09-14 | draft       |
-| [0045](./0045-chat-context-usage.md)                          | Context usage in the Chat panel                                   | 2026-09-14 | draft       |
+| [0045](./0045-chat-context-usage.md)                          | Context usage in the Chat panel                                   | 2026-09-14 | implemented |
 | [0046](./0046-generic-dock-panel-tabs.md)                     | Generic dock-panel tabs — rename, tab menu, working folder        | 2026-09-14 | implemented |
 | [0047](./0047-yolo-mode.md)                                   | YOLO mode — permission bypass as an Agent Profile property        | 2026-09-15 | draft       |
 | [0048](./0048-clear-as-session-reset.md)                      | Clear is a session reset                                          | 2026-09-15 | implemented |

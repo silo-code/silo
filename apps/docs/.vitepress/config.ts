@@ -247,9 +247,9 @@ export default withMermaid(
             text: "Using Silo",
             items: [
               { text: "Workspaces", link: "/guide/workspaces" },
+              { text: "Using agents", link: "/guide/agent-sessions" },
               { text: "Side panels", link: "/guide/panels" },
               { text: "Extensions", link: "/guide/extensions" },
-              { text: "Using agents", link: "/guide/agent-sessions" },
               { text: "Process model", link: "/guide/process-model" },
               { text: "The `silo` command", link: "/guide/cli" },
               { text: "Release channels", link: "/guide/release-channels" },
