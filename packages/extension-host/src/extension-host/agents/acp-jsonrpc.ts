@@ -749,7 +749,11 @@ export function createAcpClient(
       if (!closed) closed = "clean";
       failAllPending(new Error("ACP client disposed"));
       try {
-        transport.disconnect();
+        // Fire-and-forget by necessity: `dispose()` is called from React
+        // effect cleanups, which cannot await. The transport closes the
+        // close→respawn race on the `connect()` side instead — see
+        // `pendingCloses` in `acp-transport.ts`.
+        void Promise.resolve(transport.disconnect()).catch(() => {});
       } catch {
         /* already gone */
       }

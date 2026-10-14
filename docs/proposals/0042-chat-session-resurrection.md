@@ -438,47 +438,68 @@ from a panel unmounting.
   lived in exactly that window. `pending-launch.ts` was not the cause: a Chat
   profile never enters that queue.
 
-### Phase 2 — process-group kill and the orphan leak
+### Phase 2 — process-group kill, shipped
 
-**Reshaped 2026-10-14**, down to the one item with real production impact.
-Two pieces of the original Phase 2 are dropped:
+**Reshaped and then shipped, 2026-10-14.** The frame-buffer/`acp_attach`
+reattach-on-webview-reload work and `renderer: "always"` (originally named in
+this phase) are dropped, not deferred: the former solves a problem with no
+production trigger (a webview reload has no path in a packaged build —
+confirmed by reading the code, not assumed), and the latter's
+dormant-until-clicked behavior turned out to be the intended design, not a
+gap. Neither is revisited below.
 
-- **Dormant-until-clicked stays the intended design.** The original plan
-  mounted every restored Chat tab with `renderer: "always"` so a background
-  tab reconnects without a click. Decided against: cold-reconnect-on-reveal is
-  the behavior wanted, not a gap to close.
-- **The in-process frame buffer / `acp_attach` reattach-on-webview-reload
-  work is dropped, not merely deferred.** It solves a dev-mode problem, not a
-  production one: a webview reload has no production trigger in a packaged
-  build (`webview_bridge.js`'s only `reload` message targets a sandboxed
-  iframe panel, never the main window; devtools — the one path that could
-  trigger a main-window reload — are compiled out in release builds). The
-  ~5s-respawn / 45→47-leak measurements this was built to fix only occur
-  under `pnpm dev`.
+**What shipped — `apps/desktop/src-tauri/src/commands/acp.rs`:**
 
-What remains, and the only thing Phase 2 now scopes to:
+- `spawn()` puts the child in its own process group on Unix
+  (`cmd.process_group(0)`), verified rather than assumed at kill time
+  (`own_process_group`, via `getpgid`) — a `killpg` aimed at a pid that
+  _isn't_ its own group leader would signal some unrelated process's group,
+  so the verification is load-bearing, not defensive dressing.
+- `close()` (one Chat tab closing, app stays up) signals the whole group —
+  `SIGTERM` now, `SIGKILL` after a 2s grace period if the agent ignores it —
+  reaching the grandchild an `npx`-launched (`codex`, `pi`) or bundled-runtime
+  (`cursor-agent`) agent forked, which a bare `Child::kill()` never did.
+  `close_now()` (app exit, via `close_all`) skips the grace period —
+  immediate `SIGKILL`, since quitting must not stall on a timer that might
+  not survive the exit.
+- Windows uses `taskkill /F /T /PID` for both (tree-kill is native there; no
+  spawn-time flag needed, unlike Unix).
 
-- **Process-group kill, for a real and consistently reproducible leak.**
-  `acp.rs`'s `spawn()` never puts the child in its own process group, and
-  `AcpConnection::close()` (`acp.rs:199-202`) kills only the top-level pid —
-  so an agent launched via `npx` (`codex`, `pi`) or one that bundles its own
-  node runtime (`cursor-agent`) leaves that grandchild running, orphaned,
-  every time a session closes or the app quits. Not intermittent: given the
-  current code, this is guaranteed for any multi-process agent. Session 6's
-  recon already found it live for every non-`claude` agent tested.
+**Two correctness gaps surfaced in review, both closed before this shipped —
+worth recording because each is a way "signal the whole group" alone
+reintroduces the same class of leak this phase exists to close:**
 
-  The fix has a direct precedent already shipped in this crate:
-  `process.rs`'s `process_exec` calls `cmd.process_group(0)` at spawn time on
-  Unix, and `process_exec_kill` / `process_kill_group` already do
-  `libc::killpg(pgid, SIGTERM)` then a delayed `SIGKILL` on Unix, `taskkill
-/F /T /PID` on Windows (no spawn-time flag needed there — Windows tracks
-  the tree natively). `acp.rs` needs the same `process_group(0)` call next to
-  its existing Windows `creation_flags` branch, and `close()` needs the same
-  kill pattern instead of a bare `child.kill()`. No new dependency; no new
-  design.
+1. **Close-then-quit race.** Moving from an instant `SIGKILL` to a graceful
+   `SIGTERM`-then-delayed-`SIGKILL` created a window: if the signalled
+   connection were evicted from the registry immediately (as it was before),
+   `close_all()` couldn't find it again to force-kill it on a fast quit, and
+   the delayed-`SIGKILL` task lives on the Tokio runtime, which dies with the
+   process on `app.exit(0)` before it fires. Fixed by keeping a closing
+   connection registered until its process is _actually reaped_ (a new
+   `exited` flag, flipped by the stdout-reaper thread's `wait()`, not by the
+   signal being sent) — so `close_all` can always find and immediately
+   force-kill anything still mid-grace-period.
+2. **Reconnect-before-exit race.** `close()` resolving as soon as the signal
+   was _sent_, not once the process had _exited_, meant a caller that awaits
+   a close and immediately respawns (RFC 0042's own reconnect flow) could
+   race the old process for the agent CLI's config directory and session
+   store. Fixed on both sides of the boundary: `acp_close` now blocks
+   (bounded, ~1s) until the process is confirmed reaped before resolving;
+   and because the actual close call in the reconnect path is a React effect
+   cleanup — synchronous, so it structurally cannot await that — `connect()`
+   in `acp-transport.ts` is what now waits for any still-in-flight close of
+   the _same agent CLI_ before spawning a replacement.
+3. **A regression the fix itself introduced, caught before shipping.** Moving
+   ACP children into their own process group also moves them _out_ of
+   Silo's — which was quietly what let a terminal Ctrl-C (`pnpm dev`) reap
+   them for free. `install_signal_reaper` (`lib.rs`) restores that: a
+   self-pipe-based `SIGINT`/`SIGTERM` handler that runs `close_all()` before
+   the process actually exits, covering the one quit path (`RunEvent::Exit`)
+   never reaches.
 
-- **Record-keyed orphan sweep** on `close_all()` / boot, as a backstop for
-  whatever slips through anyway (e.g. a hard crash).
+**Record-keyed orphan sweep on boot** (the other half of this phase's
+original scope) is not yet shipped — tracked as the remaining piece if a
+sweep backstop still earns its keep once the above has run for a while.
 
 ### Phase 3 — `session/list` discovery
 
@@ -527,12 +548,14 @@ frame buffer rather than a daemon, per `acp-process-ownership.md`. Phasing:
   `resume → load → journal` flow with `protocolVersion` negotiation,
   `session/close` on clean teardown, the journal writer/reader, the degraded
   state, the ADR.
-- **Phase 2:** process-group kill + orphan sweep (see Design, reshaped
-  2026-10-14 — the frame buffer/`acp_attach` reattach and `renderer: "always"`
-  pieces originally named here are dropped).
-- **Phase 3:** `session/list` discovery. **Shipped, via [RFC 0051](./0051-session-discovery.md)** —
-  the Chat panel's `/resume` opens the Session Discovery picker over the same
-  universal `session/list` capability named here.
+- **Phase 2:** process-group kill. **Shipped 2026-10-14** (see Design,
+  reshaped the same day — the frame buffer/`acp_attach` reattach and
+  `renderer: "always"` originally named here are dropped; boot-time orphan
+  sweep remains unshipped).
+- **Phase 3:** `session/list` discovery. **Shipped, via
+  [RFC 0051](./0051-session-discovery.md)** — the Chat panel's `/resume`
+  opens the Session Discovery picker over the same universal `session/list`
+  capability named here.
 - **Phase 4 (deferred):** the daemon — only on a written trigger below.
 
 ### The four open questions, resolved
