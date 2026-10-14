@@ -99,6 +99,26 @@ identical to a pass. What to do, with the dev app running:
 
 ## Notes from implementation
 
+- **The flip shipped wrong the first time, and only the real agent caught it.**
+  `ElicitationFormCapabilities` is a marker _object_ — the schema's own words
+  are "supplying `{}` means the client supports it" — and the ACP SDK parses it
+  with `defaultOnError(..., () => undefined)`. So `form: true` was not
+  rejected; it was **silently dropped in transit**. The agent saw no form
+  support, put `AskUserQuestion` into `disallowedTools`
+  (`acp-agent.js:5878`), and Claude correctly reported having no such tool.
+  Fixed to `form: {}`.
+
+  The original unit test ran both adapters' gates over the object we _meant_ to
+  send and passed — it could not see the value being discarded between us and
+  them. It is replaced by one that models the SDK's parse and asserts against
+  what survives it, plus a guard-the-guard case pinning that `form: true`
+  reduces to `undefined`. Reverting the fix now fails that test.
+
+  This is the precise failure the proposal predicted for phase 5 ("a fixture
+  written from reading the source cannot catch a wrong assumption about the
+  real wire shape") — worth keeping as the argument for why the real-agent run
+  is a requirement rather than a formality.
+
 - **One vacuity gap, now closed.** `isAnswered`'s blank-custom guard looked
   double-guarded by the state-pruning in `patch`, but it is reachable: a text
   question holding whitespace _plus_ a blank custom box keeps its key and must
