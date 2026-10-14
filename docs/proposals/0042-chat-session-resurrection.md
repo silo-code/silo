@@ -438,42 +438,47 @@ from a panel unmounting.
   lived in exactly that window. `pending-launch.ts` was not the cause: a Chat
   profile never enters that queue.
 
-### Phase 2 — in-process frame buffer + reattach, and the leaks
+### Phase 2 — process-group kill and the orphan leak
 
-Not Session 4. Named here because it is the natural next step and shares code
-with a possible future daemon.
+**Reshaped 2026-10-14**, down to the one item with real production impact.
+Two pieces of the original Phase 2 are dropped:
 
-The ACP child is already a Rust-owned process in `acp.rs` that outlives a
-webview reload — the measured 45→47 leak is the proof (the children live; only
-the client is gone). What is missing is a **bounded in-memory frame log** per
-connection (with a pinned head — the `initialize` and `session/new` responses —
-and a visible truncation marker) plus `acp_attach(connectionId)` that replays
-the log and then streams live, bracketed the way RFC 0036 brackets PTY replay.
-`connectionId` is persisted in `ChatPanelState` alongside `sessionId`.
+- **Dormant-until-clicked stays the intended design.** The original plan
+  mounted every restored Chat tab with `renderer: "always"` so a background
+  tab reconnects without a click. Decided against: cold-reconnect-on-reveal is
+  the behavior wanted, not a gap to close.
+- **The in-process frame buffer / `acp_attach` reattach-on-webview-reload
+  work is dropped, not merely deferred.** It solves a dev-mode problem, not a
+  production one: a webview reload has no production trigger in a packaged
+  build (`webview_bridge.js`'s only `reload` message targets a sandboxed
+  iframe panel, never the main window; devtools — the one path that could
+  trigger a main-window reload — are compiled out in release builds). The
+  ~5s-respawn / 45→47-leak measurements this was built to fix only occur
+  under `pnpm dev`.
 
-With it:
+What remains, and the only thing Phase 2 now scopes to:
 
-- **A webview reload survives** — reattach + replay, no respawn, no ~5s.
-- The reload leak becomes a **reap-on-unclaimed** (a connection nobody attaches
-  to N seconds after a page load is killed).
+- **Process-group kill, for a real and consistently reproducible leak.**
+  `acp.rs`'s `spawn()` never puts the child in its own process group, and
+  `AcpConnection::close()` (`acp.rs:199-202`) kills only the top-level pid —
+  so an agent launched via `npx` (`codex`, `pi`) or one that bundles its own
+  node runtime (`cursor-agent`) leaves that grandchild running, orphaned,
+  every time a session closes or the app quits. Not intermittent: given the
+  current code, this is guaranteed for any multi-process agent. Session 6's
+  recon already found it live for every non-`claude` agent tested.
 
-Everything hard about a _daemon_ frame buffer is absent in-process: no version
-skew (same binary), no crash-before-record orphan (an app crash kills the
-child), no two-attachers (one webview), no disk rotation, no second platform
-impl. What remains is `nextId` seeding from the replayed ids and the pinned
-head — both cheap, and both a strict stepping stone if the daemon is ever built.
+  The fix has a direct precedent already shipped in this crate:
+  `process.rs`'s `process_exec` calls `cmd.process_group(0)` at spawn time on
+  Unix, and `process_exec_kill` / `process_kill_group` already do
+  `libc::killpg(pgid, SIGTERM)` then a delayed `SIGKILL` on Unix, `taskkill
+/F /T /PID` on Windows (no spawn-time flag needed there — Windows tracks
+  the tree natively). `acp.rs` needs the same `process_group(0)` call next to
+  its existing Windows `creation_flags` branch, and `close()` needs the same
+  kill pattern instead of a bare `child.kill()`. No new dependency; no new
+  design.
 
-Also in Phase 2, unrelated to the buffer:
-
-- **The recorded Chat panel declares `renderer: "always"`.** Dockview's default
-  (`onlyWhenVisible`) does not mount a panel added inactive until first
-  activated, so on restart every restored Chat tab except the visible one never
-  runs its connect effect — dead until clicked, then a cold reconnect. `always`
-  mounts them on restore so they reconnect without a click. (A small
-  `DockPanelKind.renderer` addition.)
-- **Process-group kill** for the grandchild leak — `npx`→node,
-  `cursor-agent`→its bundled node runtime survive a pid-only `kill`.
-- **Record-keyed orphan sweep** on `close_all()` / boot.
+- **Record-keyed orphan sweep** on `close_all()` / boot, as a backstop for
+  whatever slips through anyway (e.g. a hard crash).
 
 ### Phase 3 — `session/list` discovery
 
@@ -522,10 +527,12 @@ frame buffer rather than a daemon, per `acp-process-ownership.md`. Phasing:
   `resume → load → journal` flow with `protocolVersion` negotiation,
   `session/close` on clean teardown, the journal writer/reader, the degraded
   state, the ADR.
-- **Phase 2:** in-process frame buffer + `acp_attach` + reap-on-unclaimed;
-  `renderer: "always"` for the recorded Chat panel; process-group kill;
-  orphan sweep.
-- **Phase 3:** `session/list` discovery.
+- **Phase 2:** process-group kill + orphan sweep (see Design, reshaped
+  2026-10-14 — the frame buffer/`acp_attach` reattach and `renderer: "always"`
+  pieces originally named here are dropped).
+- **Phase 3:** `session/list` discovery. **Shipped, via [RFC 0051](./0051-session-discovery.md)** —
+  the Chat panel's `/resume` opens the Session Discovery picker over the same
+  universal `session/list` capability named here.
 - **Phase 4 (deferred):** the daemon — only on a written trigger below.
 
 ### The four open questions, resolved
@@ -606,3 +613,5 @@ untested end to end; needs a machine with a real `codex login` session.
 - ADR 0026 / RFC 0026 / RFC 0036 — the terminal session-host daemon, its
   backpressure, and its replay tagging (the pattern Phase 2's frame buffer
   borrows).
+- RFC 0051 — Session Discovery; shipped Phase 3 (`session/list`) as the
+  Chat panel's `/resume` picker.
