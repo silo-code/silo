@@ -97,7 +97,7 @@ export function deriveTab(
     case "working":
       return { activity: "working", tooltip: withStale(a, "Agent working") };
     case "blocked":
-      return { activity: "warn", tooltip: "Waiting for permission" };
+      return { activity: "warn", tooltip: "Waiting for you" };
     case "error":
       return { activity: "error", tooltip: withStale(a, "Agent error") };
     case "dead":
