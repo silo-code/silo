@@ -8,6 +8,8 @@
  * - request/response correlation by `id`;
  * - `session/update` notifications fanned out to a listener;
  * - `session/request_permission` surfaced with a one-shot responder;
+ * - `elicitation/create` surfaced the same way, parsed into questions
+ *   (RFC 0062);
  * - **every other agent→client request answered `-32601`** — `fs/*`,
  *   `terminal/*` (declined in phase 1), and unknown vendor methods like
  *   `_auth/status_update`, which must be non-fatal (recon Finding 2).
@@ -18,6 +20,8 @@
  */
 
 import type { AcpMessage, AcpTransportLike } from "./acp-transport";
+import { parseElicitation } from "./elicitation-schema";
+import type { ElicitationQuestion } from "./elicitation-schema";
 
 /**
  * The vendor `_meta` block that opts Silo into **AIR
@@ -133,6 +137,39 @@ export interface AcpPermissionRequest {
   options: AcpPermissionOption[];
   raw: Record<string, unknown>;
 }
+
+/**
+ * An inbound `elicitation/create` — the agent asking the user a **structured
+ * question** rather than for permission (RFC 0062). The `requestedSchema` is
+ * already run through {@link parseElicitation}, so consumers get questions
+ * rather than JSON Schema; `raw` carries everything the model does not name.
+ *
+ * Form mode only. A `url`-mode request is answered `cancel` before it ever
+ * reaches here — Silo advertises `elicitation.form` alone.
+ */
+export interface AcpElicitationRequest {
+  /** The human-readable ask. For a single-question form this *is* the question. */
+  message: string;
+  /** One question per schema property, in schema order. */
+  questions: ElicitationQuestion[];
+  /** True when the schema named no fields: show the message with
+   *  accept/decline/cancel and no input. */
+  acknowledgeOnly: boolean;
+  /** The tool call this question belongs to, when the agent sent one. */
+  toolCallId?: string;
+  raw: Record<string, unknown>;
+}
+
+/**
+ * The three answers `elicitation/create` takes. The distinction between the
+ * last two is load-bearing and both adapters act on it: **`decline`** is the
+ * user's deliberate *skip* — `claude-agent-acp` hands the model empty answers
+ * and the turn continues — while **`cancel`** aborts the tool call outright.
+ */
+export type AcpElicitationOutcome =
+  | { action: "accept"; content: Record<string, unknown> }
+  | { action: "decline" }
+  | { action: "cancel" };
 
 export type AcpPermissionOutcome =
   | { outcome: "selected"; optionId: string }
@@ -258,6 +295,19 @@ export interface AcpClientCallbacks {
   onPermission(
     request: AcpPermissionRequest,
     respond: (outcome: AcpPermissionOutcome) => void,
+  ): void;
+  /**
+   * The agent is asking the user a question (RFC 0062). Same contract as
+   * {@link AcpClientCallbacks.onPermission} — call `respond` exactly once.
+   *
+   * Optional so this layer owns the "nobody is listening" rule in one place:
+   * with no callback registered the request is answered `cancel` rather than
+   * `-32601`, because the method *is* handled — there is just no surface to
+   * show it on.
+   */
+  onElicitation?(
+    request: AcpElicitationRequest,
+    respond: (outcome: AcpElicitationOutcome) => void,
   ): void;
   /** The connection closed — cleanly (stdin dropped) or because the agent
    *  died. `err` is set only for an abnormal exit. */
@@ -545,6 +595,49 @@ export function createAcpClient(
         respondResult(id, { outcome });
       };
       cb.onPermission(req, respond);
+      return;
+    }
+
+    if (method === "elicitation/create") {
+      const p = (params ?? {}) as Record<string, unknown>;
+      // Unlike permission's `{ outcome: { ... } }`, the elicitation response
+      // *is* the result — `{ action, content? }` at the top level (verified
+      // against the ACP SDK's `zCreateElicitationResponse`). Nesting it the way
+      // the permission path does would read to the agent's validating guard as
+      // a malformed accept, i.e. empty content: every answer silently lost.
+      let answered = false;
+      const respond = (outcome: AcpElicitationOutcome) => {
+        if (answered) return;
+        answered = true;
+        respondResult(id, outcome);
+      };
+
+      // `url` mode is the MCP OAuth handoff, not a question, and needs an
+      // external-browser flow plus `elicitation/complete`. Silo advertises
+      // `elicitation.form` only, so an agent sending one has exceeded what we
+      // declared: cancel honestly rather than render something misleading.
+      if (asString(p.mode) === "url") {
+        cb.onLog?.("cancelled a url-mode elicitation/create (form mode only)");
+        respond({ action: "cancel" });
+        return;
+      }
+      if (!cb.onElicitation) {
+        respond({ action: "cancel" });
+        return;
+      }
+
+      const parsed = parseElicitation(p);
+      const toolCallId = asString(p.toolCallId);
+      cb.onElicitation(
+        {
+          message: parsed.message,
+          questions: parsed.questions,
+          acknowledgeOnly: parsed.acknowledgeOnly,
+          ...(toolCallId !== undefined ? { toolCallId } : {}),
+          raw: p,
+        },
+        respond,
+      );
       return;
     }
 

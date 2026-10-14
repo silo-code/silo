@@ -142,6 +142,12 @@ export type {
   AgentSessionConfigChoice,
   AgentPermissionRequest,
   AgentPermissionOption,
+  AgentElicitationRequest,
+  AgentElicitationQuestion,
+  AgentElicitationQuestionKind,
+  AgentElicitationOption,
+  AgentElicitationCustomAnswer,
+  AgentElicitationAnswer,
   AgentCommand,
   AgentPromptCapabilities,
 } from "./agents-service";

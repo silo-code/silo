@@ -4,7 +4,7 @@
 type AgentActivity = "none" | "working" | "blocked" | "idle" | "error" | "dead";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:39](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L39)
+Defined in: [packages/sdk/src/agents-service.ts:43](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L43)
 
 **`Beta`**
 
@@ -23,9 +23,13 @@ out to carry no information `needsAttention` didn't already have).
 gone (no daemon to reattach to) after an unclean shutdown; nothing will
 arrive to resolve this on its own.
 
-`"blocked"` (chat-kind only) is a turn suspended on
-[AgentSessionHandle.onPermission](../interfaces/AgentSessionHandle.md#onpermission) — a concrete, protocol-reported
-question, not the inferred "no output for a while" guess `"idle"` is. It
+`"blocked"` (chat-kind only) is a turn suspended **awaiting a user
+answer** — either [AgentSessionHandle.onPermission](../interfaces/AgentSessionHandle.md#onpermission) (the agent wants
+permission to run a tool) or [AgentSessionHandle.onElicitation](../interfaces/AgentSessionHandle.md#onelicitation) (the
+agent is asking a structured question). Both are concrete and
+protocol-reported, not the inferred "no output for a while" guess `"idle"`
+is, and they deliberately share one value: nothing a consumer renders would
+differ between them, and the user learns which it is on opening the tab. It
 does not repeat the earlier `"waiting"` mistake: unlike a merely-idle
 agent, it stays `"blocked"` even while its own session is the one on
 screen, since "the agent needs you to answer something" is worth showing

@@ -1,6 +1,6 @@
 # Interface: AgentBackgroundTask
 
-Defined in: [packages/sdk/src/agents-service.ts:1000](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1000)
+Defined in: [packages/sdk/src/agents-service.ts:1004](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1004)
 
 **`Beta`**
 
@@ -35,7 +35,7 @@ absence as "this agent doesn't say", never as "nothing is running".
 readonly asyncTaskId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1010](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1010)
+Defined in: [packages/sdk/src/agents-service.ts:1014](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1014)
 
 **`Beta`**
 
@@ -55,7 +55,7 @@ call would drop the announcement and with it [name](#name),
 readonly optional state?: AgentBackgroundTaskState;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1019](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1019)
+Defined in: [packages/sdk/src/agents-service.ts:1023](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1023)
 
 **`Beta`**
 
@@ -74,7 +74,7 @@ a finished command.
 readonly optional toolCallId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1028](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1028)
+Defined in: [packages/sdk/src/agents-service.ts:1032](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1032)
 
 **`Beta`**
 
@@ -93,7 +93,7 @@ and expect a window in which a task is known but its row is not.
 readonly optional name?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1032](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1032)
+Defined in: [packages/sdk/src/agents-service.ts:1036](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1036)
 
 **`Beta`**
 
@@ -109,7 +109,7 @@ Human-readable label, e.g. `"Sleep for 30 seconds"`. Carried on the
 readonly optional taskType?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1035](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1035)
+Defined in: [packages/sdk/src/agents-service.ts:1039](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1039)
 
 **`Beta`**
 
@@ -124,7 +124,7 @@ The agent's coarse category for the work, e.g. `"shell"`. Same
 readonly optional canStop?: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1038](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1038)
+Defined in: [packages/sdk/src/agents-service.ts:1042](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1042)
 
 **`Beta`**
 
@@ -139,7 +139,7 @@ Whether the agent would honour a request to stop this command. Same
 readonly optional summary?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1040](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1040)
+Defined in: [packages/sdk/src/agents-service.ts:1044](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1044)
 
 **`Beta`**
 

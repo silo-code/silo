@@ -1,6 +1,6 @@
 # Interface: AgentSessionUsage
 
-Defined in: [packages/sdk/src/agents-service.ts:1071](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1071)
+Defined in: [packages/sdk/src/agents-service.ts:1075](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1075)
 
 **`Beta`**
 
@@ -18,7 +18,7 @@ an error — never synthesize a reading when the agent hasn't sent one.
 readonly used: number;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1073](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1073)
+Defined in: [packages/sdk/src/agents-service.ts:1077](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1077)
 
 **`Beta`**
 
@@ -32,7 +32,7 @@ Tokens currently consumed in the session context.
 readonly size: number;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1075](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1075)
+Defined in: [packages/sdk/src/agents-service.ts:1079](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1079)
 
 **`Beta`**
 
@@ -46,7 +46,7 @@ Total token capacity for the session.
 readonly optional cost?: object;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1077](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1077)
+Defined in: [packages/sdk/src/agents-service.ts:1081](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1081)
 
 **`Beta`**
 

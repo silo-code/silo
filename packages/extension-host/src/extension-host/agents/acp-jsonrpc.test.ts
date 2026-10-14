@@ -177,6 +177,194 @@ describe("createAcpClient", () => {
     );
   });
 
+  /** A two-question `elicitation/create`, shaped like Claude's bridge sends. */
+  function elicitationFrame(id: number, over: Record<string, unknown> = {}) {
+    return {
+      jsonrpc: "2.0" as const,
+      id,
+      method: "elicitation/create",
+      params: {
+        mode: "form",
+        sessionId: "s1",
+        toolCallId: "tc9",
+        message: "Please answer the following questions.",
+        requestedSchema: {
+          type: "object",
+          properties: {
+            question_0: {
+              type: "string",
+              title: "Database",
+              description: "Which database?",
+              oneOf: [
+                { const: "PostgreSQL", title: "PostgreSQL" },
+                { const: "SQLite", title: "SQLite" },
+              ],
+            },
+            question_0_custom: {
+              type: "string",
+              title: "Other",
+              _meta: {
+                _askUserQuestionCustomAnswer: { questionId: "question_0" },
+              },
+            },
+          },
+        },
+        ...over,
+      },
+    };
+  }
+
+  it("surfaces elicitation/create as parsed questions and answers unwrapped", async () => {
+    const onElicitation = vi.fn(
+      (_req: unknown, respond: (o: unknown) => void) =>
+        respond({ action: "accept", content: { question_0: "SQLite" } }),
+    );
+    const t = fakeTransport();
+    const client = createAcpClient(
+      t.transport,
+      noopCallbacks({
+        onElicitation:
+          onElicitation as unknown as AcpClientCallbacks["onElicitation"],
+      }),
+    );
+    void client.initialize();
+    await flush();
+
+    t.emit(elicitationFrame(11));
+    await flush();
+
+    // Parsed, not raw JSON Schema: one question with its "Other" box folded in.
+    expect(onElicitation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "Please answer the following questions.",
+        toolCallId: "tc9",
+        acknowledgeOnly: false,
+        questions: [
+          expect.objectContaining({
+            id: "question_0",
+            kind: "select",
+            prompt: "Which database?",
+            custom: expect.objectContaining({ field: "question_0_custom" }),
+          }),
+        ],
+      }),
+      expect.any(Function),
+    );
+    // The response *is* the result — `{ action, content }` at the top level,
+    // not nested the way `session/request_permission` nests `outcome`. An
+    // agent's validating guard reads the nested shape as a malformed accept
+    // and yields empty content, losing every answer.
+    expect(t.sent).toContainEqual(
+      expect.objectContaining({
+        id: 11,
+        result: { action: "accept", content: { question_0: "SQLite" } },
+      }),
+    );
+  });
+
+  it("answers an elicitation only once, first call winning", async () => {
+    const t = fakeTransport();
+    const client = createAcpClient(
+      t.transport,
+      noopCallbacks({
+        onElicitation: ((_req: unknown, respond: (o: unknown) => void) => {
+          respond({ action: "decline" });
+          respond({ action: "accept", content: { question_0: "late" } });
+          respond({ action: "cancel" });
+        }) as unknown as AcpClientCallbacks["onElicitation"],
+      }),
+    );
+    void client.initialize();
+    await flush();
+
+    t.emit(elicitationFrame(12));
+    await flush();
+    const replies = t.sent.filter((m) => m.id === 12);
+    expect(replies).toEqual([
+      expect.objectContaining({ id: 12, result: { action: "decline" } }),
+    ]);
+  });
+
+  it("cancels a url-mode elicitation — Silo advertises form mode only", async () => {
+    const onElicitation = vi.fn();
+    const onLog = vi.fn();
+    const t = fakeTransport();
+    const client = createAcpClient(
+      t.transport,
+      noopCallbacks({
+        onLog,
+        onElicitation:
+          onElicitation as unknown as AcpClientCallbacks["onElicitation"],
+      }),
+    );
+    void client.initialize();
+    await flush();
+
+    t.emit(
+      elicitationFrame(13, {
+        mode: "url",
+        url: "https://example.test/oauth",
+        elicitationId: "mcp-oauth-1",
+      }),
+    );
+    await flush();
+    expect(onElicitation).not.toHaveBeenCalled();
+    expect(t.sent).toContainEqual(
+      expect.objectContaining({ id: 13, result: { action: "cancel" } }),
+    );
+    expect(onLog).toHaveBeenCalledWith(expect.stringContaining("url-mode"));
+  });
+
+  it("cancels an elicitation when no callback is registered, rather than -32601", async () => {
+    const t = fakeTransport();
+    // `noopCallbacks` deliberately omits `onElicitation`: the method is still
+    // handled, there is just no surface to show it on.
+    const client = createAcpClient(t.transport, noopCallbacks());
+    void client.initialize();
+    await flush();
+
+    t.emit(elicitationFrame(14));
+    await flush();
+    expect(t.sent).toContainEqual(
+      expect.objectContaining({ id: 14, result: { action: "cancel" } }),
+    );
+    expect(t.sent.find((m) => m.id === 14)).not.toHaveProperty("error");
+  });
+
+  it("still asks about a schema it cannot read, as the acknowledge form", async () => {
+    const onElicitation = vi.fn(
+      (_req: unknown, respond: (o: unknown) => void) =>
+        respond({ action: "accept", content: {} }),
+    );
+    const t = fakeTransport();
+    const client = createAcpClient(
+      t.transport,
+      noopCallbacks({
+        onElicitation:
+          onElicitation as unknown as AcpClientCallbacks["onElicitation"],
+      }),
+    );
+    void client.initialize();
+    await flush();
+
+    t.emit({
+      jsonrpc: "2.0",
+      id: 15,
+      method: "elicitation/create",
+      params: { mode: "form", message: "May I proceed?", requestedSchema: 7 },
+    });
+    await flush();
+    expect(onElicitation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "May I proceed?",
+        questions: [],
+        acknowledgeOnly: true,
+      }),
+      expect.any(Function),
+    );
+    expect(t.sent.find((m) => m.id === 15)).not.toHaveProperty("error");
+  });
+
   it("fans session/update notifications out to onUpdate", async () => {
     const onUpdate = vi.fn();
     const t = fakeTransport();

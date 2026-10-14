@@ -547,6 +547,178 @@ describe("turn lifecycle → ctx.agents status", () => {
     expect(seen).not.toHaveBeenCalled();
   });
 
+  /**
+   * A parsed two-question elicitation, as `acp-jsonrpc.ts` hands one over: one
+   * single-select with its own custom-answer companion, one multi-select.
+   */
+  function elicitationRequest() {
+    return {
+      message: "Please answer the following questions.",
+      acknowledgeOnly: false,
+      toolCallId: "tc9",
+      raw: { toolCallId: "tc9" },
+      questions: [
+        {
+          id: "question_0",
+          kind: "select" as const,
+          prompt: "Which database?",
+          options: [
+            { value: "PostgreSQL", label: "PostgreSQL" },
+            { value: "SQLite", label: "SQLite" },
+          ],
+          custom: { field: "question_0_custom", label: "Other" },
+        },
+        {
+          id: "question_1",
+          kind: "multi-select" as const,
+          prompt: "Which features?",
+          options: [
+            { value: "Auth", label: "Auth" },
+            { value: "Billing", label: "Billing" },
+          ],
+        },
+      ],
+    };
+  }
+
+  it("a question raises attention; answering serializes the content and clears it", async () => {
+    const handle = await service.connect("claude-chat");
+    const seen = vi.fn();
+    handle.onElicitation(seen);
+
+    const respondSpy = vi.fn();
+    captured.onElicitation!(elicitationRequest(), respondSpy);
+    // A question blocks the turn exactly as a permission request does — the
+    // same shared helpers, no second copy of the rules.
+    expect(chatAgentInfos()[0]).toMatchObject({
+      needsAttention: true,
+      activity: "blocked",
+    });
+    expect(seen).toHaveBeenCalledOnce();
+
+    seen.mock.calls[0][0].respond({
+      question_0: { value: "PostgreSQL" },
+      question_1: { value: ["Auth", "Billing"] },
+    });
+    expect(respondSpy).toHaveBeenCalledWith({
+      action: "accept",
+      content: {
+        question_0: "PostgreSQL",
+        question_1: ["Auth", "Billing"],
+      },
+    });
+    expect(chatAgentInfos()[0]).toMatchObject({
+      needsAttention: false,
+      activity: "working",
+    });
+  });
+
+  it("routes a typed custom answer to its companion field, not the question's", async () => {
+    // The agent reads the two keys separately and prefers the typed one, so an
+    // extension must not have to know that rule — `respond` applies it.
+    const handle = await service.connect("claude-chat");
+    const seen = vi.fn();
+    handle.onElicitation(seen);
+    const respondSpy = vi.fn();
+    captured.onElicitation!(elicitationRequest(), respondSpy);
+
+    seen.mock.calls[0][0].respond({
+      question_0: { value: "PostgreSQL", custom: "Cloudflare D1" },
+    });
+    expect(respondSpy).toHaveBeenCalledWith({
+      action: "accept",
+      content: { question_0_custom: "Cloudflare D1" },
+    });
+  });
+
+  it("declines and cancels without content, and answers only once", async () => {
+    const handle = await service.connect("claude-chat");
+    const seen = vi.fn();
+    handle.onElicitation(seen);
+    const respondSpy = vi.fn();
+    captured.onElicitation!(elicitationRequest(), respondSpy);
+
+    const request = seen.mock.calls[0][0];
+    request.decline();
+    // Mutually exclusive and idempotent: the skip the user chose stands.
+    request.cancel();
+    request.respond({ question_0: { value: "SQLite" } });
+    expect(respondSpy).toHaveBeenCalledTimes(1);
+    expect(respondSpy).toHaveBeenCalledWith({ action: "decline" });
+  });
+
+  it("a question answered synchronously never raises attention or activity: blocked", async () => {
+    const handle = await service.connect("claude-chat");
+    handle.onElicitation((request) => request.decline());
+
+    const respondSpy = vi.fn();
+    captured.onElicitation!(elicitationRequest(), respondSpy);
+    expect(respondSpy).toHaveBeenCalledWith({ action: "decline" });
+    expect(chatAgentInfos()[0]).toMatchObject({
+      needsAttention: false,
+      activity: "working",
+    });
+  });
+
+  it("a question sets activity: blocked even on the active session", async () => {
+    const handle = await service.connect("claude-chat");
+    handle.onElicitation(vi.fn());
+    setPanelAgentSession("acp-chat:p1", handle.id);
+    setActiveDockPanel("acp-chat:p1");
+
+    captured.onElicitation!(elicitationRequest(), vi.fn());
+    expect(chatAgentInfos()[0]).toMatchObject({
+      needsAttention: false,
+      activity: "blocked",
+    });
+  });
+
+  it("answers a question cancelled when no listener is registered", async () => {
+    await service.connect("claude-chat");
+    const respondSpy = vi.fn();
+    captured.onElicitation!(elicitationRequest(), respondSpy);
+    expect(respondSpy).toHaveBeenCalledWith({ action: "cancel" });
+  });
+
+  it("answers a question cancelled after dispose, and never calls the stale listener", async () => {
+    const handle = await service.connect("claude-chat");
+    const seen = vi.fn();
+    handle.onElicitation(seen);
+    handle.dispose();
+
+    const respondSpy = vi.fn();
+    captured.onElicitation!(elicitationRequest(), respondSpy);
+    expect(respondSpy).toHaveBeenCalledWith({ action: "cancel" });
+    expect(seen).not.toHaveBeenCalled();
+  });
+
+  it("keeps showing a question to the other listeners when one throws", async () => {
+    const handle = await service.connect("claude-chat");
+    const good = vi.fn();
+    handle.onElicitation(() => {
+      throw new Error("bad extension");
+    });
+    handle.onElicitation(good);
+
+    const respondSpy = vi.fn();
+    captured.onElicitation!(elicitationRequest(), respondSpy);
+    expect(good).toHaveBeenCalledOnce();
+    // Nobody answered, so the turn is genuinely waiting on a human.
+    expect(chatAgentInfos()[0]).toMatchObject({ activity: "blocked" });
+  });
+
+  it("disposing an onElicitation subscription stops delivery", async () => {
+    const handle = await service.connect("claude-chat");
+    const seen = vi.fn();
+    const sub = handle.onElicitation(seen);
+    sub.dispose();
+
+    const respondSpy = vi.fn();
+    captured.onElicitation!(elicitationRequest(), respondSpy);
+    expect(seen).not.toHaveBeenCalled();
+    expect(respondSpy).toHaveBeenCalledWith({ action: "cancel" });
+  });
+
   it("an abnormal connection close moves the session to error, without stacking an attention flag on it", async () => {
     // Terminal parity: `activity: "error"` is a loud state every consumer
     // renders on its own, so the shared turn core leaves attention alone.

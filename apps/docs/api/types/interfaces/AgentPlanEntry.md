@@ -1,6 +1,6 @@
 # Interface: AgentPlanEntry
 
-Defined in: [packages/sdk/src/agents-service.ts:1050](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1050)
+Defined in: [packages/sdk/src/agents-service.ts:1054](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1054)
 
 **`Beta`**
 
@@ -14,7 +14,7 @@ One row of the agent's plan — the protocol's `plan` update entry.
 readonly content: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1052](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1052)
+Defined in: [packages/sdk/src/agents-service.ts:1056](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1056)
 
 **`Beta`**
 
@@ -28,7 +28,7 @@ What the step is, in the agent's words.
 readonly optional status?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1054](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1054)
+Defined in: [packages/sdk/src/agents-service.ts:1058](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1058)
 
 **`Beta`**
 
@@ -42,7 +42,7 @@ Defined in: [packages/sdk/src/agents-service.ts:1054](https://github.com/silo-co
 readonly optional priority?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1057](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1057)
+Defined in: [packages/sdk/src/agents-service.ts:1061](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1061)
 
 **`Beta`**
 

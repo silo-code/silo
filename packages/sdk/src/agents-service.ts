@@ -23,9 +23,13 @@ import type { TabActivityBinder, TabIconBinder } from "./tab-adornment";
  * gone (no daemon to reattach to) after an unclean shutdown; nothing will
  * arrive to resolve this on its own.
  *
- * `"blocked"` (chat-kind only) is a turn suspended on
- * {@link AgentSessionHandle.onPermission} — a concrete, protocol-reported
- * question, not the inferred "no output for a while" guess `"idle"` is. It
+ * `"blocked"` (chat-kind only) is a turn suspended **awaiting a user
+ * answer** — either {@link AgentSessionHandle.onPermission} (the agent wants
+ * permission to run a tool) or {@link AgentSessionHandle.onElicitation} (the
+ * agent is asking a structured question). Both are concrete and
+ * protocol-reported, not the inferred "no output for a while" guess `"idle"`
+ * is, and they deliberately share one value: nothing a consumer renders would
+ * differ between them, and the user learns which it is on opening the tab. It
  * does not repeat the earlier `"waiting"` mistake: unlike a merely-idle
  * agent, it stays `"blocked"` even while its own session is the one on
  * screen, since "the agent needs you to answer something" is worth showing
@@ -1299,6 +1303,184 @@ export interface AgentPermissionRequest {
 }
 
 /**
+ * One choice in an {@link AgentElicitationQuestion} of kind `"select"` or
+ * `"multi-select"`.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentElicitationOption {
+  /** The value to send back as the answer. */
+  readonly value: string;
+  /** What to show the user. Falls back to {@link value} when the agent gave
+   *  no separate label. */
+  readonly label: string;
+  /** Secondary text, when the agent supplied one. */
+  readonly description?: string;
+}
+
+/**
+ * Which control an {@link AgentElicitationQuestion} asks for.
+ *
+ * Silo renders a deliberate subset of JSON Schema — the shape the agents
+ * actually send. Anything outside it degrades to `"text"` rather than being
+ * dropped, so **every question always reaches the user**: free text is a
+ * first-class answer in this protocol, not a fallback that loses information.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export type AgentElicitationQuestionKind =
+  | "select"
+  | "multi-select"
+  | "text"
+  | "boolean"
+  | "number";
+
+/**
+ * The free-text "Other" box belonging to one question — present when the agent
+ * paired one with it, as Claude's `AskUserQuestion` bridge does for every
+ * question it asks.
+ *
+ * A typed custom answer **overrides** the selection: that is the agent's own
+ * precedence rule, applied for you by
+ * {@link AgentElicitationRequest.respond}.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentElicitationCustomAnswer {
+  /** The field the typed answer is sent under. Rarely needed — pass custom
+   *  text as {@link AgentElicitationAnswer.custom} and Silo routes it. */
+  readonly field: string;
+  /** The box's label, e.g. `"Other"`. */
+  readonly label?: string;
+  /** Longer helper text, when the agent gave one. */
+  readonly description?: string;
+}
+
+/**
+ * One question in an {@link AgentElicitationRequest}.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentElicitationQuestion {
+  /** Identifies the question when answering — the key in the map passed to
+   *  {@link AgentElicitationRequest.respond}. */
+  readonly id: string;
+  /** Which control to render. */
+  readonly kind: AgentElicitationQuestionKind;
+  /** The question to show. Never empty; for a single-question form this is
+   *  the request's own {@link AgentElicitationRequest.message}. */
+  readonly prompt: string;
+  /** A short header to show above {@link prompt}, when the agent gave one. */
+  readonly title?: string;
+  /** The choices, for `"select"` / `"multi-select"`. Never empty when
+   *  present — a question with no usable options arrives as `"text"`. */
+  readonly options?: readonly AgentElicitationOption[];
+  /** The question's own free-text box, when it has one. */
+  readonly custom?: AgentElicitationCustomAnswer;
+}
+
+/**
+ * One question's answer, as passed to
+ * {@link AgentElicitationRequest.respond}.
+ *
+ * Omit both fields — or omit the question from the map entirely — to leave it
+ * unanswered; Silo sends no value for it rather than inventing one.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentElicitationAnswer {
+  /**
+   * The selection or typed value, matched to the question's
+   * {@link AgentElicitationQuestion.kind}: an option `value` for `"select"`,
+   * an array of them for `"multi-select"`, the text for `"text"`, a boolean,
+   * or a number. A number may be passed as the string an input produced — it
+   * is coerced, and **omitted** if it does not parse, since a malformed value
+   * would make some agents discard the whole payload.
+   */
+  readonly value?: string | readonly string[] | boolean | number;
+  /**
+   * Free text the user typed into this question's
+   * {@link AgentElicitationQuestion.custom} box. When non-empty it overrides
+   * {@link value}, per the agent's own precedence rule.
+   */
+  readonly custom?: string;
+}
+
+/**
+ * The agent is **blocked on the user**: it is asking a structured question and
+ * the turn will not proceed until one of {@link respond}, {@link decline} or
+ * {@link cancel} is called. Delivered to
+ * {@link AgentSessionHandle.onElicitation} (RFC 0062).
+ *
+ * This is the richer sibling of {@link AgentPermissionRequest} — several
+ * questions in one ask, multi-select answers, per-question free text — and it
+ * is what Claude's `AskUserQuestion` tool becomes. The surface is the
+ * **parsed questions**, not the raw JSON Schema, so a chat UI never has to
+ * reimplement the schema subset; `raw` is there for one that wants more.
+ *
+ * Auto-accept behavior is deliberately **not** extended to questions (RFC
+ * 0047 is permission-only): there is no safe answer to invent, and guessing
+ * would put words in the user's mouth and record them as the tool's answer.
+ *
+ * If no `onElicitation` listener is registered, Silo answers `cancel` on the
+ * extension's behalf so the agent is never left hanging.
+ *
+ * @category Consumer Services
+ * @public
+ * @beta
+ */
+export interface AgentElicitationRequest {
+  /** The human-readable ask. For a single-question form this *is* the
+   *  question, and the question's `prompt` repeats it. */
+  readonly message: string;
+  /** The questions to put to the user, in the agent's order. */
+  readonly questions: readonly AgentElicitationQuestion[];
+  /**
+   * True when the agent's schema named no fields: show {@link message} with
+   * accept / decline / cancel and **no input**. Not a parse failure — with no
+   * field to answer, an empty answer is the complete and correct reply.
+   */
+  readonly acknowledgeOnly: boolean;
+  /** The tool call this question belongs to, when the agent sent one — the
+   *  same id as the matching {@link AgentToolCall.toolCallId}. */
+  readonly toolCallId?: string;
+  /** The raw Agent Client Protocol `elicitation/create` params, including
+   *  anything the parsed model above does not name. */
+  readonly raw: Readonly<Record<string, unknown>>;
+  /**
+   * Accept with the collected answers, keyed by
+   * {@link AgentElicitationQuestion.id}. Silo coerces each answer to the type
+   * the agent declared and routes custom answers to their own field.
+   *
+   * Idempotent, and mutually exclusive with {@link decline} / {@link cancel} —
+   * the first call wins and later ones are ignored.
+   */
+  respond(answers: Readonly<Record<string, AgentElicitationAnswer>>): void;
+  /**
+   * The user chose to **skip**. The agent is told so and the turn continues —
+   * `claude-agent-acp` hands the model empty answers. This is the user's
+   * decision, never Silo's.
+   */
+  decline(): void;
+  /**
+   * Abort the tool call the question belongs to. Stronger than
+   * {@link decline}: the agent gives up on the call rather than continuing
+   * without an answer.
+   */
+  cancel(): void;
+}
+
+/**
  * One selectable value inside an {@link AgentSessionConfigOption}.
  *
  * @category Consumer Services
@@ -1532,6 +1714,17 @@ export interface AgentSessionHandle {
    * with none, Silo answers `cancelled`.
    */
   onPermission(listener: (request: AgentPermissionRequest) => void): Disposable;
+  /**
+   * Subscribe to {@link AgentElicitationRequest}s — the agent asking the user
+   * a structured question (RFC 0062). Returns a {@link Disposable}.
+   *
+   * Same contract as {@link onPermission}: with at least one listener
+   * registered, answering is your responsibility; with none, Silo answers
+   * `cancel`.
+   */
+  onElicitation(
+    listener: (request: AgentElicitationRequest) => void,
+  ): Disposable;
   /**
    * The session-level controls the agent advertised at connect — mode, model,
    * and whatever else it offers, each a self-describing

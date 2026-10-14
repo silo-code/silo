@@ -1,111 +1,141 @@
 # Design — 0062. Agent questions (ACP elicitation)
 
-**Phase 3 only: the schema parser.** See `requirements.md` for the behavioral
-spec and `proposal.md` for why this phase lands inert.
+**Phase 4 only: host plumbing + the public SDK surface.** See
+`requirements.md` for the behavioral spec and `proposal.md` for why this phase
+also lands inert.
 
 ## Architecture
 
-One new leaf module in the host's agents directory, with its co-located test:
+Three layers, each already holding the permission equivalent — this phase adds
+the elicitation sibling beside it rather than inventing a path:
 
 ```
+packages/sdk/src/agents-service.ts          ← AgentElicitationRequest, onElicitation
+  ↑ (host → SDK, the normal leaf direction)
 packages/extension-host/src/extension-host/agents/
-├── elicitation-schema.ts        ← new, pure, no imports from state/services
-└── elicitation-schema.test.ts   ← new
+├── acp-jsonrpc.ts            ← elicitation/create in handleServerRequest
+├── acp-sessions-service.ts   ← blocked bookkeeping + toSdkElicitation
+└── elicitation-schema.ts     ← phase 3, now actually called
 ```
 
-It imports nothing from the host runtime — no store, no services, no channel.
-That is what makes it exhaustively testable and what keeps phase 3 inert: the
-module is reachable from nothing until phase 4 calls it.
+Nothing new is created structurally. `elicitation-schema.ts` stops being inert.
 
 ## Components
 
-| Export                      | Responsibility                                                        |
-| --------------------------- | --------------------------------------------------------------------- |
-| `parseElicitation(params)`  | `elicitation/create` params → `ParsedElicitation`                     |
-| `toElicitationContent(...)` | questions + collected answers → the protocol's `content` object       |
-| `ParsedElicitation`         | `{ message, questions, acknowledgeOnly, raw }`                        |
-| `ElicitationQuestion`       | one question: `id`, `kind`, `prompt`, `title?`, `options?`, `custom?` |
-| `ElicitationOption`         | `{ value, label, description? }`                                      |
+| Change                                      | Where                     |
+| ------------------------------------------- | ------------------------- |
+| `AcpElicitationRequest` / `...Outcome`      | `acp-jsonrpc.ts`          |
+| `onElicitation` on `AcpClientCallbacks`     | `acp-jsonrpc.ts`          |
+| `elicitation/create` branch                 | `handleServerRequest`     |
+| `elicitationListeners` + the callback       | `acp-sessions-service.ts` |
+| `toSdkElicitation`                          | `acp-sessions-service.ts` |
+| `AgentElicitation*` types + `onElicitation` | `packages/sdk`            |
 
-`acknowledgeOnly` is the R3 backstop made explicit rather than left implicit in
-an empty `questions` array: the renderer needs to know it is showing a message
-with accept/decline/cancel _on purpose_, not failing to find fields.
+`onElicitation` on `AcpClientCallbacks` is **optional**. Every real caller
+implements it; the optionality exists so the protocol layer owns the
+"nobody is listening → `cancel`" rule in one place, and so existing test
+fixtures that build a callback set stay valid.
 
 ## Data flow
 
 ```
-elicitation/create params
-  └─ parseElicitation
-       ├─ requestedSchema not an object, or no usable properties
-       │    └─ { questions: [], acknowledgeOnly: true }
-       └─ for each property, in schema order
-            ├─ carries _askUserQuestionCustomAnswer → attach to its target
-            └─ otherwise → classify by declared type → ElicitationQuestion
+agent → elicitation/create { mode, sessionId, toolCallId?, message, requestedSchema }
+  └─ handleServerRequest
+       ├─ mode === "url" → cancel + log (we advertise `form` only)
+       ├─ no cb.onElicitation → cancel
+       └─ parseElicitation(params) → AcpElicitationRequest
+            └─ acp-sessions-service.onElicitation
+                 ├─ disposed | no listener → cancel
+                 ├─ toSdkElicitation → every listener
+                 └─ still unanswered → raiseBlockedOnUser()
 
-                 … renderer collects answers (phase 5) …
-
-answers + questions
-  └─ toElicitationContent  →  { [fieldKey]: string | string[] | boolean | number }
+extension answers
+  └─ respond(answers) → toElicitationContent → { action: "accept", content }
+     decline()        → { action: "decline" }
+     cancel()         → { action: "cancel" }
+       └─ one-shot respondResult(id, outcome)   ← the response object itself
+            └─ clearBlockedOnUser()
 ```
 
-Two passes over `properties`, not one: the custom-answer companion can appear
-before the question it belongs to, so questions are built first and companions
-attached second. A single pass would drop a companion that leads its target.
+**The JSON-RPC result is the response object, unwrapped.** This is the one place
+the elicitation path is _not_ shaped like the permission path:
+`session/request_permission` answers `{ outcome: { outcome, optionId } }`, while
+`elicitation/create` answers `{ action, content? }` at the top level. Verified
+against `zCreateElicitationResponse` in `@agentclientprotocol/sdk`, not inferred
+from the permission precedent — copying that nesting would produce a payload the
+agent's validating guard reads as a malformed accept, i.e. **empty content**,
+silently discarding every answer.
 
 ## APIs / interfaces
 
-**No public SDK surface in this phase** — these types are host-internal, so the
-`docs-sync` workflow does not apply yet. Phase 4 maps `ElicitationQuestion`
-onto the `@silo-code/sdk` `AgentElicitationQuestion` it exposes, and that is
-where TSDoc, `@public`, the barrel re-export and `pnpm docs:api` land.
+The public surface mirrors `AgentPermissionRequest` — parsed fields plus `raw`:
 
-The model is nonetheless designed as the shape phase 4 will expose, so the
-mapping is a rename rather than a redesign. `kind` is a closed union
-(`"select" | "multi-select" | "text" | "boolean" | "number"`) because it drives
-an exhaustive `switch` in both the serializer and the renderer.
+```ts
+interface AgentElicitationRequest {
+  readonly message: string;
+  readonly questions: readonly AgentElicitationQuestion[];
+  readonly acknowledgeOnly: boolean;
+  readonly toolCallId?: string;
+  readonly raw: Readonly<Record<string, unknown>>;
+  respond(answers: Readonly<Record<string, AgentElicitationAnswer>>): void;
+  decline(): void;
+  cancel(): void;
+}
+```
+
+`AgentElicitationQuestion` is the phase-3 `ElicitationQuestion` re-declared as a
+`readonly` public type — the rename the phase-3 design planned for, not a
+redesign.
+
+**`respond`'s shape diverges from the proposal's sketch** (`Record<string,
+string | readonly string[]>`), which cannot express a boolean, a number, or a
+custom-answer override. See `requirements.md`'s divergence note; `proposal.md`
+is corrected in the same change rather than left contradicting the code.
+
+This phase owes the full `silo-docs-sync` workflow: TSDoc with
+`@public`/`@beta`/`@category`, the barrel re-export, the hand-authored `ctx`
+member page where relevant, `pnpm docs:api`, and a `planned` roadmap entry.
 
 ## Persistence
 
-None. An elicitation is live-only: it is answered within the turn or it is not
-answered at all. Nothing about it is journaled in this phase.
+None, unchanged from phase 3. An elicitation is live-only — answered within the
+turn or not at all. Nothing is journaled, so a question open across a reload is
+simply gone, which is also what the agent's own timeout assumes.
 
 ## Error handling
 
-The parser is **total** — it throws on no input. Every defensive branch
-degrades toward a question the user can still answer (R3), never toward a
-dropped question or an exception. This mirrors `parseConfigOptions` in
-`acp-jsonrpc.ts`, which treats every field of a protocol payload as possibly
-missing or mistyped; the same assumption applies here and for the same reason.
-
-The one place the serializer deliberately drops data is an unparseable `number`
-(R4): the agent's `acceptedElicitationContent` runs a validating guard that
-yields **empty content** on a malformed accept, so sending `NaN` would discard
-the user's other answers too. Omitting the one bad key is strictly better than
-risking all of them.
+- Every inbound path answers exactly once; the responder guards re-entry with
+  the same `answered` flag the permission responder uses.
+- A listener that throws is caught per-listener (the `agentsChannel.debug` line
+  the permission path already uses) so one bad extension cannot strand the
+  agent or starve the other listeners.
+- `parseElicitation` is total, so the protocol layer has no parse-failure branch
+  to write — phase 3's design decision paying out here.
+- The `silo:agents` channel owns the diagnostic line for a url-mode request,
+  per phase 3's note that the _caller_ logs.
 
 ## Testing strategy
 
-Pure-logic Vitest, co-located, no `@testing-library/react` — the
-`silo-testing` conventions. Contract and edges:
+Pure-logic Vitest, co-located, per `silo-testing`:
 
-- one test per recognized shape (R1) and per fallback rung (R3);
-- the companion-attachment cases including a companion that _precedes_ its
-  target and one naming an unknown id (R2);
-- the serializer's coercions and its omission rules (R4);
-- **one fixture built from Claude's real adapter output** — a two-question
-  `askUserQuestionsToCreateRequest` payload copied from
-  `claude-agent-acp`'s `elicitation.js`, round-tripped through both functions
-  and asserted against the `answers` shape `applyAskElicitationResponse`
-  reads. This is the test that catches a wrong assumption about the wire
-  shape, which is phase 3's main risk; the hand-written unit tests cannot.
+- `acp-jsonrpc.test.ts` — the request/response round trip over a fake
+  transport: the unwrapped result shape, one-shot answering, url-mode cancel,
+  the missing-callback cancel, and that the method no longer answers `-32601`.
+- `acp-sessions-service.test.ts` — the blocked bookkeeping via the `store`
+  proxy: unconditional `blocked`, active-session attention suppression, the
+  synchronous-answer case raising nothing, turn adoption on answer, and
+  post-dispose arrival.
+- The answer→`content` path asserted through the SDK handle, so the
+  `toElicitationContent` wiring is covered where an extension actually sits.
 
 ## Constraints and existing decisions
 
-- **ADR 0028 (sealed detection)** — untouched: this adds no agent-identity path.
-- **Host leaf layering** (`eslint.config.js`) — `state` / `services` do not
-  import outward, and this module imports neither, so it sits cleanly as a leaf.
-- **RFC 0038** — the elicitation model must stay consistent with
-  `AcpPermissionRequest`'s precedent: parsed fields for consumers, plus `raw`
-  for anything the model does not name (option `preview`, vendor `_meta`).
-- **No `console.*`** — this module logs nothing at all; phase 4's caller owns
-  the `silo:agents` channel line for an unparseable schema.
+- **No new `AgentActivity` value** — `blocked` widens, per the proposal's
+  Alternatives. Its SDK TSDoc and `docs/domain-language.md`'s **Activity**
+  entry widen from permission-specific wording in this change.
+- **RFC 0047 (Auto Accept) stays permission-only.** Stated in the TSDoc so a
+  later reader does not "fix" the asymmetry: there is no safe answer to invent
+  for a question.
+- **Host → SDK is the normal leaf direction**; nothing lints against the host
+  importing SDK types, and no extension gains access to host internals here.
+- **ADR 0028**, sealed detection — untouched, no agent-identity path added.

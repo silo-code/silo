@@ -1,6 +1,6 @@
 # Interface: AgentSessionHandle
 
-Defined in: [packages/sdk/src/agents-service.ts:1446](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1446)
+Defined in: [packages/sdk/src/agents-service.ts:1628](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1628)
 
 **`Beta`**
 
@@ -24,7 +24,7 @@ Drive one turn at a time: call [prompt](#prompt), await its
 readonly id: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1452](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1452)
+Defined in: [packages/sdk/src/agents-service.ts:1634](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1634)
 
 **`Beta`**
 
@@ -40,7 +40,7 @@ Stable across a [AgentsService.resume](AgentsService.md#resume).
 readonly sessionId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1462](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1462)
+Defined in: [packages/sdk/src/agents-service.ts:1644](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1644)
 
 **`Beta`**
 
@@ -59,7 +59,7 @@ Distinct from [AgentSessionHandle.id](#id), which is namespaced for
 readonly optional agentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1465](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1465)
+Defined in: [packages/sdk/src/agents-service.ts:1647](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1647)
 
 **`Beta`**
 
@@ -74,7 +74,7 @@ The user's asserted catalog agent id for the profile, if any — the same
 readonly agentName: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1468](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1468)
+Defined in: [packages/sdk/src/agents-service.ts:1650](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1650)
 
 **`Beta`**
 
@@ -89,7 +89,7 @@ Display name for the agent: what it declared at connect (`initialize`),
 readonly canResume: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1474](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1474)
+Defined in: [packages/sdk/src/agents-service.ts:1656](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1656)
 
 **`Beta`**
 
@@ -105,7 +105,7 @@ after the process dies. Mirrors [AgentInfo.canResume](AgentInfo.md#canresume).
 readonly canList: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1479](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1479)
+Defined in: [packages/sdk/src/agents-service.ts:1661](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1661)
 
 **`Beta`**
 
@@ -119,7 +119,7 @@ Whether the agent advertises `session/list` — whether [listSessions](#listsess
 readonly resumeOutcome: "resumed" | "journal-only" | "new";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1494](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1494)
+Defined in: [packages/sdk/src/agents-service.ts:1676](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1676)
 
 **`Beta`**
 
@@ -143,7 +143,7 @@ How this handle came to be connected (RFC 0042) — see
 readonly journal: readonly AgentSessionUpdate[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1504](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1504)
+Defined in: [packages/sdk/src/agents-service.ts:1686](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1686)
 
 **`Beta`**
 
@@ -163,7 +163,7 @@ it, e.g. `journal.reduce(applyUpdate, emptyTranscript)`.
 readonly configOptions: readonly AgentSessionConfigOption[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1544](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1544)
+Defined in: [packages/sdk/src/agents-service.ts:1737](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1737)
 
 **`Beta`**
 
@@ -183,7 +183,7 @@ changes itself both update it in place. Subscribe with
 readonly commands: readonly AgentCommand[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1585](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1585)
+Defined in: [packages/sdk/src/agents-service.ts:1778](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1778)
 
 **`Beta`**
 
@@ -205,7 +205,7 @@ else: `prompt([{ type: "text", text: "/" + command.name }])`.
 readonly promptCapabilities: AgentPromptCapabilities;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1594](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1594)
+Defined in: [packages/sdk/src/agents-service.ts:1787](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1787)
 
 **`Beta`**
 
@@ -221,7 +221,7 @@ changes, so there is no change event for it.
 prompt(blocks): Promise<AgentPromptResult>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1512](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1512)
+Defined in: [packages/sdk/src/agents-service.ts:1694](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1694)
 
 **`Beta`**
 
@@ -249,7 +249,7 @@ readonly [`AgentPromptBlock`](../type-aliases/AgentPromptBlock.md)[]
 cancel(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1518](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1518)
+Defined in: [packages/sdk/src/agents-service.ts:1700](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1700)
 
 **`Beta`**
 
@@ -269,7 +269,7 @@ Ask the agent to stop the current turn (Agent Client Protocol
 onUpdate(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1528](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1528)
+Defined in: [packages/sdk/src/agents-service.ts:1710](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1710)
 
 **`Beta`**
 
@@ -299,7 +299,7 @@ arrive yet. Returns a [Disposable](Disposable.md).
 onPermission(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1534](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1534)
+Defined in: [packages/sdk/src/agents-service.ts:1716](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1716)
 
 **`Beta`**
 
@@ -319,13 +319,42 @@ with none, Silo answers `cancelled`.
 
 ***
 
+### onElicitation()
+
+```ts
+onElicitation(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/agents-service.ts:1725](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1725)
+
+**`Beta`**
+
+Subscribe to [AgentElicitationRequest](AgentElicitationRequest.md)s — the agent asking the user
+a structured question (RFC 0062). Returns a [Disposable](Disposable.md).
+
+Same contract as [onPermission](#onpermission): with at least one listener
+registered, answering is your responsibility; with none, Silo answers
+`cancel`.
+
+#### Parameters
+
+##### listener
+
+(`request`) => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+***
+
 ### setConfigOption()
 
 ```ts
 setConfigOption(id, value): Promise<void>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1566](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1566)
+Defined in: [packages/sdk/src/agents-service.ts:1759](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1759)
 
 **`Beta`**
 
@@ -371,7 +400,7 @@ resolves.
 onConfigOptionsChanged(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1573](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1573)
+Defined in: [packages/sdk/src/agents-service.ts:1766](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1766)
 
 **`Beta`**
 
@@ -398,7 +427,7 @@ Returns a [Disposable](Disposable.md).
 onCommandsChanged(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1588](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1588)
+Defined in: [packages/sdk/src/agents-service.ts:1781](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1781)
 
 **`Beta`**
 
@@ -423,7 +452,7 @@ Fires whenever [commands](#commands) is replaced. Returns a
 listSessions(): Promise<readonly AgentSessionSummary[]>;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1608](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1608)
+Defined in: [packages/sdk/src/agents-service.ts:1801](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1801)
 
 **`Beta`**
 
@@ -450,7 +479,7 @@ connection to ask.
 dispose(): void;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:1615](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1615)
+Defined in: [packages/sdk/src/agents-service.ts:1808](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L1808)
 
 **`Beta`**
 

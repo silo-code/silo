@@ -4,7 +4,7 @@
 type AgentSessionKind = "terminal" | "chat";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:66](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L66)
+Defined in: [packages/sdk/src/agents-service.ts:70](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L70)
 
 **`Beta`**
 
