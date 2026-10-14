@@ -140,7 +140,7 @@ describe("deriveTab", () => {
       deriveTab(agent({ activity: "blocked", needsAttention: false })),
     ).toEqual({
       activity: "warn",
-      tooltip: "Waiting for permission",
+      tooltip: "Waiting for you",
     });
   });
 
