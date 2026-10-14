@@ -151,9 +151,11 @@ resume command.
 | Context meter         |     ✅      |    ✅     |              |     ✅      |          |     |
 | Questions             |     ✅      |    ⚠️     |              |             |          |     |
 
-⚠️ for Codex CLI under **Questions**: it can show you a question, but only one
-coming from an MCP server you've connected — it has no question tool of its own,
-so in practice you'll rarely see one. Claude Code asks directly.
+**Questions** reach you from one of two places, which is why the column differs
+so much. Claude Code has a built-in tool for asking, so it asks you directly and
+often. Codex CLI has no such tool — it can only pass along a question raised by
+an **MCP server** you've connected, which in practice is rare (hence ⚠️). The
+rest don't send questions at all today; Silo would show them if they did.
 
 An unchecked cell means that agent doesn't support that piece today — not a
 Silo limitation. Silo picks each one up automatically as the agent adds
