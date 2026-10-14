@@ -1103,6 +1103,33 @@
      on one visual baseline regardless of which ones carry a caption. */
   align-items: flex-end;
   gap: 6px;
+  /* The row never wraps and never scrolls — when its controls stop fitting it
+     changes density instead (`control-density.ts`). Pinned here so a future
+     control that forgets `flex: 0 0 auto` fails loudly rather than silently
+     stretching the composer to two lines. */
+  flex-wrap: nowrap;
+}
+
+/* Hidden width probes — one `.acp-chat__controls` per measured density, laid
+   out at `max-content` so each reports what that density would actually need.
+   `useControlDensity` compares those against the live row's width.
+
+   Out of flow and zero-height so they cost the composer no layout, and
+   `visibility: hidden` rather than `display: none` because a `display: none`
+   subtree has no box to measure. The markup is `inert` in the DOM, which keeps
+   the duplicated buttons off the accessibility tree and out of the tab order. */
+.acp-chat__controls-probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.acp-chat__controls-probe .acp-chat__controls {
+  width: max-content;
 }
 
 /* Centered under the textarea, out of the flex flow so the profile stays
@@ -1186,10 +1213,29 @@
   font-size: var(--silo-font-size-sm);
 }
 
+/* The profile pill is the one control allowed to ellipsize. Everything else in
+   the row shows its value in full or the row changes density (see
+   `control-density.ts`), but a profile label is user-chosen and can be any
+   length — without a cap, one long name would make even `condensed` "not fit"
+   and collapse a perfectly wide panel to the status line. The cap bounds what
+   the width probes measure, so it's load-bearing, not cosmetic. */
 .acp-chat__profile {
   flex: 0 1 auto;
   min-width: 0;
+  max-width: 180px;
   margin-right: auto;
+}
+
+/* The kit's bare `MenuButton` only ellipsizes its label under `variant="field"`
+   (`.silo-menu-button-field .silo-menu-button-label` in the host's
+   components.css) — the default variant lets a long label wrap to two or three
+   lines instead. Scoped here rather than fixed in the kit because that base
+   rule is shared by every toolbar in the app; widening it is its own change. */
+.acp-chat__controls .silo-menu-button-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* The profile pill's (and its dropdown rows') leading brand mark, sized to
@@ -1203,11 +1249,16 @@
 }
 
 /* One per advertised session control (mode, model, …). Sits between the
-   Attach icon and the Send slot. */
+   Attach icon and the Send slot.
+
+   Deliberately rigid: a pill that shrinks is a pill whose value has stopped
+   being readable, and the density ladder already guarantees the row only draws
+   these when there's room for all of them at full width. Letting them shrink
+   here would re-introduce the `MOD…` / `EFF…` truncation the ladder exists to
+   prevent. */
 .acp-chat__config {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
-  max-width: 40%;
 }
 
 /* The Auto Accept toggle — fixed, short text, so unlike `.acp-chat__config`
@@ -1264,10 +1315,122 @@
   color: var(--silo-color-err);
 }
 
+/* --- the status line (density: compact) ---------------------------------- */
+
+/* Everything the pills offered, as one line of text that opens the same
+   choices in a menu. Reached only when the pills themselves no longer fit; it
+   wears no pill chrome of its own until hovered, so a narrow composer reads as
+   quieter than the wide one rather than as a crowded one. */
+/* `Tooltip` renders a `.silo-tooltip-host` span around its trigger, so *that*
+   span — not the button — is the row's flex item, and it ships neither a
+   `flex` nor a `min-width: 0` of its own (`flex: 0 1 auto` + `min-width: auto`
+   refuses to shrink below its content). Without this the status line's full
+   width becomes the row's floor and pushes Attach and Send out of the panel
+   entirely. Matched via `:has()` the same way `.acp-chat__link`'s host is
+   above, since `Tooltip` forwards no className. */
+.acp-chat__controls > .silo-tooltip-host:has(> .acp-chat__status-line) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.acp-chat__status-line {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--silo-radius-sm);
+  color: var(--silo-color-text-lo);
+  font: inherit;
+  font-size: var(--silo-font-size-sm);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.acp-chat__status-line:hover:not(:disabled) {
+  background: var(--silo-color-bg-hover);
+  border-color: var(--silo-color-input-border);
+}
+
+.acp-chat__status-line .acp-chat__profile-icon {
+  margin-right: 6px;
+}
+
+/* Shrink *order* inside the line, expressed as flex-shrink ratios rather than
+   `flex-shrink: 0`: the summary is 1000× more willing to give than the name, so
+   it collapses to nothing first and the name only begins to ellipsize once
+   there is genuinely nothing else left. `flex-shrink: 0` on the name was wrong
+   — it made the full label the line's hard floor, which at the narrowest widths
+   forced the overflow out onto Attach and Send instead. */
+.acp-chat__status-name {
+  flex: 0 1 auto;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--silo-color-text-hi);
+}
+
+/* The first thing to go. Its separator is a `::before` rather than a sibling
+   span so the dot is inside the clipped box and disappears *with* the summary
+   — a lone "Claude Work · 25%" with a dangling dot is worse than neither. */
+.acp-chat__status-summary {
+  flex: 0 1 auto;
+  flex-shrink: 1000;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acp-chat__status-summary::before {
+  content: "·";
+  padding: 0 0.45em;
+  opacity: 0.45;
+}
+
+/* Right-aligned, and never shrinks: it's the one number worth glancing at
+   while a turn is running. Tone comes from the shared
+   `.acp-chat__usage-value--*` modifiers. */
+.acp-chat__status-usage {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 0.7em;
+  font-variant-numeric: tabular-nums;
+}
+
+.acp-chat__status-chevron {
+  flex: 0 0 auto;
+  margin-left: 4px;
+  color: var(--silo-color-text-lo);
+}
+
 /* Pins Send/Stop (or the Continue/Reconnect text buttons) to the far right,
    regardless of how many pills come before it. */
 .acp-chat__send-slot {
   margin-left: auto;
+}
+
+/* Attach — trimmed from `.silo-icon-button`'s 2.5em box down to the height of
+   the pills beside it, so its glyph sits on their line instead of ~3px above
+   it. The row bottom-aligns (see `.acp-chat__controls`), and a bottom-aligned
+   box that's taller than its neighbours centres its glyph higher than theirs,
+   which is what read as "not inline".
+
+   1.7em ≈ 22px at the base font size, which is exactly what a
+   `.silo-menu-button-sm` computes to (1px border + 3px padding + a 14px line
+   box, twice over). Kept in `em` rather than hard-coded px so it tracks Zoom
+   In/Out with the controls it's matching. The 1.25em glyph `size="normal"`
+   brings is untouched — the point of the larger size was the icon, not the hit
+   target. */
+.acp-chat__attach {
+  width: 2em;
+  height: 1.7em;
 }
 
 /* Send and Stop (Dave's call): filled circles, not text buttons — the

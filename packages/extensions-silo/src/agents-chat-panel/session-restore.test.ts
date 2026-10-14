@@ -8,6 +8,7 @@ import {
   resumeOptionFor,
   sessionResetOption,
   shouldSkipInstantPaint,
+  carriesUsageForward,
 } from "./session-restore";
 
 describe("resumeOptionFor", () => {
@@ -126,5 +127,23 @@ describe("shouldSkipInstantPaint", () => {
     expect(shouldSkipInstantPaint(null)).toBe(false);
     expect(shouldSkipInstantPaint("continue-fresh")).toBe(false);
     expect(shouldSkipInstantPaint("resume-other")).toBe(false);
+  });
+});
+
+describe("carriesUsageForward", () => {
+  // `usage_update` is a per-turn frame, so a reading cleared on reconnect
+  // stays blank until the next turn ends. For a reconnect that resumes the
+  // same conversation the context is still loaded — the last reading is the
+  // best answer available, and a blank is a hole rather than information.
+  it("keeps the reading for a reconnect that resumes the same conversation", () => {
+    expect(carriesUsageForward(null)).toBe(true);
+    expect(carriesUsageForward("resume-other")).toBe(true);
+  });
+
+  // Clear and "Continue in a new session" both begin an empty context, so the
+  // old figure would overstate it until the first turn corrected it.
+  it("drops the reading when the context genuinely starts empty", () => {
+    expect(carriesUsageForward("reset")).toBe(false);
+    expect(carriesUsageForward("continue-fresh")).toBe(false);
   });
 });

@@ -1034,6 +1034,27 @@ _Avoid_: "ACP panel" (Silo says _Chat_); "agent panel" (that is the
 `silo.agents` Navigator view, which lists every Agent Session); calling it the
 Chat session — the panel is the UI, the session is the running agent.
 
+**Control density** (`ControlDensity`, `control-density.ts`) — how much of the
+Chat composer's **control row** (the profile pill, Attach, one pill per
+advertised session control, Auto Accept, Context, Send) is drawn at the width
+the dock actually gives it. Three steps, roomiest first: `full` (everything,
+Context reading `222.5k/1000k (22%)`), `condensed` (the same controls, Context
+down to `22%`), `compact` (the pills collapse into the **status line**). The
+density is **measured, not a breakpoint** — the row's floor depends on how many
+controls the agent advertised, which is a runtime fact, so hidden width probes
+report what each density needs and the roomiest fitting one wins, with
+hysteresis so a drag across a threshold doesn't oscillate.
+_Avoid_: "responsive mode" / "breakpoint" (the point is that it isn't one);
+"collapsed" for `compact` (a collapsed Panel is a layout state — see Panels &
+Docking).
+
+**Status line** — the Chat composer's control row at `compact` density: one
+line of text (agent name · the current values as a summary · context
+percentage) that opens the same choices in a menu. Nothing is lost at this
+density, everything is one click further away.
+_Avoid_: "status bar" (that is the host chrome along the window's bottom edge);
+"breadcrumb" (the dock frame's cwd strip above the panel).
+
 **Agent Profile is the launch vocabulary; Catalog Agent is the identity
 vocabulary; Terminal Kind is neither.**
 
