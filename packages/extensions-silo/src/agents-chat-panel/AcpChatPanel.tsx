@@ -96,6 +96,8 @@ import {
 import type {
   AgentCommand,
   AgentDelegationState,
+  AgentElicitationQuestion,
+  AgentElicitationRequest,
   AgentInfo,
   AgentPermissionRequest,
   AgentProfileSummary,
@@ -113,12 +115,17 @@ import {
   AgentIconGlyph,
   Badge,
   Button,
+  CheckboxRow,
   DND_MIME,
   EmptyState,
   IconButton,
+  Input,
   List,
   ListRow,
   MenuButton,
+  RadioCard,
+  RadioGroup,
+  Section,
   Textarea,
   Tooltip,
   usePanelEntryFocus,
@@ -228,6 +235,18 @@ import {
   autoAcceptOptionId,
   permissionButtonVariant,
 } from "./permission-options";
+import {
+  answeredCount,
+  canSubmit,
+  controlValue,
+  customValue,
+  initialFormState,
+  isOptionSelected,
+  setAnswerValue,
+  setCustomAnswer,
+  toggleMultiSelect,
+  type QuestionFormState,
+} from "./question-form";
 import { TranscriptMarkdown } from "./TranscriptMarkdown";
 import {
   ChatLinkSpan,
@@ -377,6 +396,148 @@ type Phase =
 interface PendingPermission {
   readonly key: string;
   readonly request: AgentPermissionRequest;
+}
+
+/**
+ * An open agent **question** (RFC 0062) and the answers typed into it so far.
+ *
+ * The in-progress answers live with the request rather than in one shared map,
+ * because two questions can be open at once and each owns its own form.
+ */
+interface PendingQuestion {
+  readonly key: string;
+  readonly request: AgentElicitationRequest;
+  readonly form: QuestionFormState;
+}
+
+/**
+ * One question's control, by kind (RFC 0062 phase 5).
+ *
+ * Thin glue over `question-form.ts` — every rule about what counts as an
+ * answer lives there, so this file only picks a control and renders it.
+ *
+ * `boolean` is a two-option chooser rather than a `Switch` on purpose: a
+ * toggle has no "not yet answered" position, so an untouched one would submit
+ * an answer the user never gave. Everything else about this feature exists to
+ * avoid exactly that.
+ */
+function QuestionField({
+  question,
+  form,
+  single,
+  onEdit,
+}: {
+  question: AgentElicitationQuestion;
+  form: QuestionFormState;
+  /** A single-question form already shows its prompt as the card's message. */
+  single: boolean;
+  onEdit: (edit: (form: QuestionFormState) => QuestionFormState) => void;
+}) {
+  const { id, kind, options = [], custom } = question;
+  // The card's own title repeats a lone question's prompt, so label the field
+  // with its header if it has one and nothing otherwise.
+  const label = single
+    ? (question.title ?? "")
+    : (question.title ?? question.prompt);
+
+  let control: ReactNode;
+  switch (kind) {
+    case "select":
+      control = (
+        <RadioGroup
+          value={controlValue(form, id)}
+          onChange={(value) => onEdit((f) => setAnswerValue(f, id, value))}
+        >
+          {options.map((option) => (
+            <RadioCard
+              key={option.value}
+              value={option.value}
+              title={option.label}
+              {...(option.description !== undefined
+                ? { description: option.description }
+                : {})}
+            />
+          ))}
+        </RadioGroup>
+      );
+      break;
+    case "multi-select":
+      control = (
+        <div className="acp-chat__question-checks">
+          {options.map((option) => (
+            <CheckboxRow
+              key={option.value}
+              label={option.label}
+              checked={isOptionSelected(form, id, option.value)}
+              onChange={() =>
+                onEdit((f) => toggleMultiSelect(f, id, option.value))
+              }
+            />
+          ))}
+        </div>
+      );
+      break;
+    case "boolean":
+      control = (
+        <RadioGroup
+          value={controlValue(form, id)}
+          onChange={(value) =>
+            onEdit((f) => setAnswerValue(f, id, value === "true"))
+          }
+        >
+          <RadioCard value="true" title="Yes" />
+          <RadioCard value="false" title="No" />
+        </RadioGroup>
+      );
+      break;
+    case "number":
+      control = (
+        <Input
+          type="number"
+          value={controlValue(form, id)}
+          onChange={(e) => onEdit((f) => setAnswerValue(f, id, e.target.value))}
+          placeholder="Type a number"
+        />
+      );
+      break;
+    case "text":
+      control = (
+        <Input
+          value={controlValue(form, id)}
+          onChange={(e) => onEdit((f) => setAnswerValue(f, id, e.target.value))}
+          placeholder="Type your answer"
+        />
+      );
+      break;
+  }
+
+  return (
+    <div className="acp-chat__question-field">
+      {/* A question whose prompt is longer than a header reads better above
+          the control than squeezed into the uppercase `Section` label. */}
+      {!single && question.title !== undefined ? (
+        <div className="acp-chat__question-prompt">{question.prompt}</div>
+      ) : null}
+      {label ? <Section label={label}>{control}</Section> : control}
+      {/* The companion free-text box, inline under its own question — it is
+          structurally a sibling field, but it belongs to this question and the
+          agent reads a non-empty one *instead of* the selection. */}
+      {custom ? (
+        <div className="acp-chat__question-custom">
+          <Input
+            value={customValue(form, id)}
+            onChange={(e) =>
+              onEdit((f) => setCustomAnswer(f, id, e.target.value))
+            }
+            placeholder={custom.label ?? "Other"}
+          />
+          {custom.description ? (
+            <div className="acp-chat__question-hint">{custom.description}</div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function errorMessage(err: unknown): string {
@@ -1428,6 +1589,8 @@ export function AcpChatPanel({
   // A local seq, not `toolCallId`: nothing stops an agent asking twice about
   // the same tool call, and two rows must never share a React key.
   const [permissions, setPermissions] = useState<PendingPermission[]>([]);
+  const [questions, setQuestions] = useState<PendingQuestion[]>([]);
+  const questionSeq = useRef(0);
   const permissionSeq = useRef(0);
   // Auto Accept (Dave's call, ported from Paseo): answers every permission
   // request itself instead of showing it. Off by default, and per-session —
@@ -1752,6 +1915,22 @@ export function AcpChatPanel({
             setPermissions((prev) => [
               ...prev,
               { key: `p${++permissionSeq.current}`, request },
+            ]);
+          }),
+        );
+        subs.push(
+          // Auto Accept deliberately does **not** apply here (RFC 0047 is
+          // permission-only): there is no safe answer to invent for a
+          // question, and guessing would record words the user never said as
+          // the tool's answer.
+          handle.onElicitation((request) => {
+            setQuestions((prev) => [
+              ...prev,
+              {
+                key: `q${++questionSeq.current}`,
+                request,
+                form: initialFormState(),
+              },
             ]);
           }),
         );
@@ -2119,11 +2298,13 @@ export function AcpChatPanel({
       // Whatever ended the turn — success, an error like the upstream
       // connection dropping while a permission request sat unanswered, or a
       // cancel — any tool call still mid-flight gets no final update from a
-      // dead stream, and any permission request from it can no longer be
-      // answered into anything. Only one turn runs at a time, so both are
-      // unconditionally this turn's own leftovers, not a later one's.
+      // dead stream, and any permission request or question from it can no
+      // longer be answered into anything. Only one turn runs at a time, so
+      // all three are unconditionally this turn's own leftovers, not a later
+      // one's.
       setTranscript((t) => closeDanglingTools(t));
       setPermissions([]);
+      setQuestions([]);
       const started = turnStartRef.current;
       if (started) {
         const durationMs = Date.now() - started.startedAt;
@@ -2148,6 +2329,34 @@ export function AcpChatPanel({
     pending.request.respond(optionId);
     setPermissions((prev) => prev.filter((p) => p !== pending));
   }, []);
+
+  /** Edit one open question's form without touching any other. */
+  const editQuestion = useCallback(
+    (
+      pending: PendingQuestion,
+      edit: (form: QuestionFormState) => QuestionFormState,
+    ) => {
+      setQuestions((prev) =>
+        prev.map((q) => (q === pending ? { ...q, form: edit(q.form) } : q)),
+      );
+    },
+    [],
+  );
+
+  /**
+   * Answer a question and retire its card. `respond` / `decline` / `cancel`
+   * are idempotent on the request itself, so a double click cannot send twice;
+   * dropping the card here is what stops it being *shown* twice.
+   */
+  const answerQuestion = useCallback(
+    (pending: PendingQuestion, action: "send" | "skip" | "cancel") => {
+      if (action === "send") pending.request.respond(pending.form);
+      else if (action === "skip") pending.request.decline();
+      else pending.request.cancel();
+      setQuestions((prev) => prev.filter((q) => q !== pending));
+    },
+    [],
+  );
 
   const stageAttachments = useCallback((incoming: readonly Attachment[]) => {
     setAttachments((prev) => addAttachments(prev, incoming));
@@ -2629,7 +2838,7 @@ export function AcpChatPanel({
   // enough to hold a saved offset, so it also extends the retry window below.
   useEffect(() => {
     lastTranscriptChangeRef.current = Date.now();
-  }, [transcript, permissions, phase.status]);
+  }, [transcript, permissions, questions, phase.status]);
 
   // The restore driver — rule 1. Re-runs on every transition on screen and on
   // every change of conversation, then retries the target once per frame until
@@ -3428,6 +3637,68 @@ export function AcpChatPanel({
             </div>
           </div>
         ))}
+
+        {/* RFC 0062 — the agent asked a structured question. Inline for the
+            same reason as the permission card above: a modal would hide the
+            conversation that explains what is being asked. */}
+        {questions.map((pending) => {
+          const { request, form } = pending;
+          const sendable = canSubmit(form, request.questions);
+          const answered = answeredCount(form, request.questions);
+          return (
+            <div key={pending.key} className="acp-chat__question">
+              <div className="acp-chat__question-title">{request.message}</div>
+              {request.questions.map((q) => (
+                <QuestionField
+                  key={q.id}
+                  question={q}
+                  form={form}
+                  single={request.questions.length === 1}
+                  onEdit={(edit) => editQuestion(pending, edit)}
+                />
+              ))}
+              <div className="acp-chat__question-actions">
+                <Tooltip
+                  content={
+                    sendable
+                      ? "Send these answers to the agent"
+                      : "Answer at least one question, or Skip"
+                  }
+                >
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    disabled={!sendable}
+                    onClick={() => answerQuestion(pending, "send")}
+                  >
+                    Send
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Don't answer. The agent carries on without this.">
+                  <Button
+                    size="sm"
+                    onClick={() => answerQuestion(pending, "skip")}
+                  >
+                    Skip
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Stop what the agent was doing when it asked.">
+                  <Button
+                    size="sm"
+                    onClick={() => answerQuestion(pending, "cancel")}
+                  >
+                    Cancel
+                  </Button>
+                </Tooltip>
+                {request.questions.length > 1 ? (
+                  <span className="acp-chat__question-progress">
+                    {answered} of {request.questions.length} answered
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
 
         {/* RFC 0042: neither `session/resume` nor `session/load` worked for
             this persisted session. The transcript above is the journal alone

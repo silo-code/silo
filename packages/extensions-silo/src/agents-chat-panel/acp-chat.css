@@ -969,6 +969,57 @@
   gap: 6px;
 }
 
+/* --- agent question (RFC 0062) ------------------------------------------- */
+
+.acp-chat__question {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--silo-radius-md);
+  background: var(--silo-color-bg);
+}
+
+.acp-chat__question-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.acp-chat__question-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.acp-chat__question-prompt {
+  overflow-wrap: anywhere;
+}
+
+.acp-chat__question-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acp-chat__question-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.acp-chat__question-hint,
+.acp-chat__question-progress {
+  font-size: var(--silo-font-size-chrome);
+  color: var(--silo-color-text-lo);
+}
+
+.acp-chat__question-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
 /* --- composer ----------------------------------------------------------- */
 
 .acp-chat__composer {
