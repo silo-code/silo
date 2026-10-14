@@ -847,6 +847,48 @@ export function createAgentSessionsService(
         }
       }
 
+      /**
+       * Raise the chrome for a turn **suspended on the user** — a permission
+       * request (RFC 0038) or a question (RFC 0062). Both block the turn
+       * identically, so both report the same `activity`.
+       *
+       * `needsAttention` is conditional but `activity` is not, and the
+       * asymmetry is deliberate: the user staring at this session does not
+       * need to be told to come look, but the session should still read
+       * "waiting on you" on the surface they are already watching. A turn that
+       * ends before the request resolves (error, cancel, dropped connection)
+       * is corrected by `finishTurn`, which patches `activity` again as part
+       * of ending the turn and supersedes whatever this left behind.
+       */
+      function raiseBlockedOnUser(): void {
+        if (getActiveAgentSession() !== infoId) {
+          patchChatAgent(infoId, {
+            needsAttention: true,
+            attentionSince: nowIso(),
+          });
+        }
+        patchChatAgent(infoId, { activity: "blocked" });
+      }
+
+      /**
+       * Clear that chrome once the user has answered.
+       *
+       * `noteAgentActivity()` is not bookkeeping — it **adopts the turn**. A
+       * request answered outside any `prompt()` belongs to a turn the agent
+       * started itself, and `"working"` above is a state only a turn end can
+       * clear; without something to end, the session would read "working"
+       * until its process dies, which is the inverse of the badge bug and
+       * worse.
+       */
+      function clearBlockedOnUser(): void {
+        patchChatAgent(infoId, {
+          needsAttention: false,
+          attentionSince: undefined,
+          activity: "working",
+        });
+        noteAgentActivity();
+      }
+
       const callbacks: AcpClientCallbacks = {
         onUpdate(update, sessionId) {
           // --- classify the frame (RFC 0057) ----------------------------
@@ -957,12 +999,9 @@ export function createAgentSessionsService(
           publishUpdate(update);
         },
         onPermission(request, respond) {
-          if (disposed) {
-            respond({ outcome: "cancelled" });
-            return;
-          }
-          // No extension listener → answer cancelled so the agent isn't hung.
-          if (permissionListeners.size === 0) {
+          // Disposed, or no extension listener to answer → cancel, so the
+          // agent is never left hanging on a request nobody can see.
+          if (disposed || permissionListeners.size === 0) {
             respond({ outcome: "cancelled" });
             return;
           }
@@ -970,17 +1009,7 @@ export function createAgentSessionsService(
           const sdkReq = toSdkPermission(request, (outcome) => {
             answered = true;
             respond(outcome);
-            patchChatAgent(infoId, {
-              needsAttention: false,
-              attentionSince: undefined,
-              activity: "working",
-            });
-            // A permission answered outside any prompt belongs to a turn the
-            // agent started itself, and `"working"` above is a state only a
-            // turn end can clear. Adopt the turn here so there is something
-            // to end — otherwise the session reads "working" until its process
-            // dies, which is the inverse of the badge bug and worse.
-            noteAgentActivity();
+            clearBlockedOnUser();
           });
           for (const l of permissionListeners) {
             try {
@@ -993,26 +1022,11 @@ export function createAgentSessionsService(
           }
           // A listener (e.g. a chat panel's Auto Accept) may have answered
           // synchronously above — that isn't a turn blocked on the user, so
-          // it must not raise the attention/sound chrome below at all. Only
-          // a request still pending once every listener has run is genuinely
+          // it must not raise the attention/sound chrome at all. Only a
+          // request still pending once every listener has run is genuinely
           // waiting on a human.
           if (answered) return;
-          // A blocked turn wants attention on the same terms a finished one
-          // does: only if nobody is looking at this session's surface. The
-          // user staring at the permission row does not need to be told.
-          if (getActiveAgentSession() !== infoId) {
-            patchChatAgent(infoId, {
-              needsAttention: true,
-              attentionSince: nowIso(),
-            });
-          }
-          // Unlike `needsAttention` above, `activity: "blocked"` is
-          // unconditional — it should read "waiting on you" even on the
-          // session you're already looking at. A turn that ends before this
-          // resolves (error, cancel, dropped connection) still gets
-          // corrected: `finishTurn` below patches `activity` again as part
-          // of ending the turn, superseding whatever this left behind.
-          patchChatAgent(infoId, { activity: "blocked" });
+          raiseBlockedOnUser();
         },
         onClosed() {
           if (disposed) return;
