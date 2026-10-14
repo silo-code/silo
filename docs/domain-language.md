@@ -560,11 +560,11 @@ kinds. Watching a finish live _is_ seeing it, so no acknowledgment is owed.
 Not the same as the session's _workspace_ being active — keying it there once
 left a Chat turn finishing in a background tab of the foreground workspace
 with no badge at all. A second, unconditional path also raises
-`needsAttention`: a Chat session blocked on `session/request_permission` sets
-it directly (`acp-sessions-service.ts`, alongside `activity: "blocked"`) —
-watching a permission block live does not clear it the way watching a turn
-finish does, so `witnessed` is not the only input to `needsAttention` overall,
-only to the finish-a-turn case.
+`needsAttention`: a Chat session blocked on a **Permission Request** or a
+**Question** sets it directly (`acp-sessions-service.ts`, alongside
+`activity: "blocked"`) — watching a block live does not clear it the way
+watching a turn finish does, so `witnessed` is not the only input to
+`needsAttention` overall, only to the finish-a-turn case.
 _Avoid_: "focused" (a surface can be visible without being active, and the
 rule is about the active one); re-deriving it in a consumer.
 
@@ -754,10 +754,29 @@ the `"agents"` permission (RFC 0039 retired the earlier `chatAgents` setting;
 a trusted built-in is exempt from declaring it); `connect()` rejects without
 it. The same session is registered into `ctx.agents` as an `AgentInfo`
 (`kind: "chat"`), its `activity` / `needsAttention` derived from the turn
-lifecycle — a `session/request_permission` sets `activity: "blocked"` and
-`needsAttention` directly, unconditionally (see **Witnessed** above).
+lifecycle — a `session/request_permission` or an `elicitation/create` sets
+`activity: "blocked"` and `needsAttention` directly, unconditionally (see
+**Witnessed** above).
 _Avoid_: "ACP client" / "ACP session" in user-facing text (Silo says _Chat_);
 calling `connect()` a "launch" (a launch is the Terminal-profile verb).
+
+**Question** (`AgentElicitationRequest`, RFC 0062) — the agent asking the user
+something **structured**, rather than asking permission: one or more prompts,
+each a single-select, multi-select, free-text, boolean or number, and each with
+its own optional free-text "Other" box whose answer overrides the selection. On
+the wire it is the Agent Client Protocol's `elicitation/create` (form mode), and
+Claude's `AskUserQuestion` tool becomes one; in user-facing text Silo says
+_question_, never "elicitation" (the same rule RFC 0038 set when it rejected
+naming anything "ACP"). A Question sets `activity: "blocked"` exactly as a
+**Permission Request** does — the value is deliberately shared, since nothing a
+consumer renders differs between them. Distinct from a **Permission Request**,
+which is one flat choice about running a tool: a Question cannot be flattened to
+buttons without producing a wrong answer for anything but the single-select
+case. Auto Accept (RFC 0047) deliberately never answers one — there is no safe
+answer to invent.
+_Avoid_: "elicitation" in the UI; "prompt" (that is the user's message to the
+agent); treating the free-text fallback as a degraded answer (it is
+first-class — the agent prefers it over a selection)
 
 **Transcript** (RFC 0038 phase 3) — the rendered conversation of a **Chat
 session**: the agent's streamed text, its thinking, its tool-call rows, its
@@ -1123,7 +1142,8 @@ with resume or install metadata
 What an agent is currently doing, classified from OSC/output signals (Terminal)
 or the ACP turn lifecycle (Chat): `"none"` (no agent activity observed) |
 `"working"` | `"idle"` (finished its last turn, waiting for input) | `"error"`
-| `"blocked"` (Chat only — stalled on `session/request_permission`; unlike
+| `"blocked"` (Chat only — stalled awaiting a user answer: a
+**Permission Request** or a **Question**; unlike
 `"dead"` this is never ambiguous chrome, so it is never suppressed) | `"dead"`
 (backend confirmed gone after an unclean shutdown; nothing self-resolves
 this). Purely a fact about the agent — independent of whether anyone is

@@ -308,7 +308,7 @@ export interface ElicitationAnswer {
    * The selection or typed value. A `number` question's value may arrive as the
    * string an input element produced; it is coerced on the way out.
    */
-  value?: string | string[] | boolean | number;
+  value?: string | readonly string[] | boolean | number;
   /** Free text from the question's "Other" box, when it has one. */
   custom?: string;
 }
@@ -322,7 +322,9 @@ export type ElicitationContent = Record<
   string | string[] | boolean | number
 >;
 
-function coerceList(value: string | string[] | boolean | number): string[] {
+function coerceList(
+  value: string | readonly string[] | boolean | number,
+): string[] {
   const entries = Array.isArray(value) ? value : [value];
   return entries.map((entry) => String(entry)).filter((entry) => entry !== "");
 }

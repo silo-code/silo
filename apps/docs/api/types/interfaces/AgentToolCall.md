@@ -1,6 +1,6 @@
 # Interface: AgentToolCall
 
-Defined in: [packages/sdk/src/agents-service.ts:750](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L750)
+Defined in: [packages/sdk/src/agents-service.ts:754](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L754)
 
 **`Beta`**
 
@@ -26,7 +26,7 @@ real shape; render it rather than dropping it.
 readonly toolCallId: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:754](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L754)
+Defined in: [packages/sdk/src/agents-service.ts:758](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L758)
 
 **`Beta`**
 
@@ -42,7 +42,7 @@ The call's id — stable across its `tool_call` and every
 readonly optional title?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:758](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L758)
+Defined in: [packages/sdk/src/agents-service.ts:762](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L762)
 
 **`Beta`**
 
@@ -58,7 +58,7 @@ Human-readable label, e.g. `"Read notes.md"`. Present on the opening
 readonly optional kind?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:763](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L763)
+Defined in: [packages/sdk/src/agents-service.ts:767](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L767)
 
 **`Beta`**
 
@@ -75,7 +75,7 @@ The protocol's coarse category: `"read"`, `"edit"`, `"delete"`,
 readonly optional status?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:767](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L767)
+Defined in: [packages/sdk/src/agents-service.ts:771](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L771)
 
 **`Beta`**
 
@@ -91,7 +91,7 @@ Defined in: [packages/sdk/src/agents-service.ts:767](https://github.com/silo-cod
 readonly optional content?: readonly AgentToolCallContent[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:770](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L770)
+Defined in: [packages/sdk/src/agents-service.ts:774](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L774)
 
 **`Beta`**
 
@@ -106,7 +106,7 @@ What to show inside the row. Absent on an update that changed something
 readonly optional locations?: readonly AgentToolCallLocation[];
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:772](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L772)
+Defined in: [packages/sdk/src/agents-service.ts:776](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L776)
 
 **`Beta`**
 
@@ -120,7 +120,7 @@ The files this call touches.
 readonly optional rawInput?: unknown;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:777](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L777)
+Defined in: [packages/sdk/src/agents-service.ts:781](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L781)
 
 **`Beta`**
 
@@ -137,7 +137,7 @@ The arguments the agent passed to its own tool, exactly as it sent them.
 readonly optional rawOutput?: unknown;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:779](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L779)
+Defined in: [packages/sdk/src/agents-service.ts:783](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L783)
 
 **`Beta`**
 
@@ -151,7 +151,7 @@ The tool's own result, same caveat as [rawInput](#rawinput).
 readonly optional subagent?: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:794](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L794)
+Defined in: [packages/sdk/src/agents-service.ts:798](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L798)
 
 **`Beta`**
 
@@ -176,7 +176,7 @@ from a tool's name.
 readonly optional handedOff?: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:814](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L814)
+Defined in: [packages/sdk/src/agents-service.ts:818](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L818)
 
 **`Beta`**
 
@@ -206,7 +206,7 @@ finish does so on its own lifecycle updates, not by revising this call.
 readonly optional backgrounded?: boolean;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:836](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L836)
+Defined in: [packages/sdk/src/agents-service.ts:840](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L840)
 
 **`Beta`**
 
@@ -238,7 +238,7 @@ from a tool's name or from a suspiciously fast `"completed"`.
 readonly optional parentToolCallId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:852](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L852)
+Defined in: [packages/sdk/src/agents-service.ts:856](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L856)
 
 **`Beta`**
 
@@ -264,7 +264,7 @@ real shape — fall back to rendering the call on its own.
 readonly optional subagentId?: string;
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:872](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L872)
+Defined in: [packages/sdk/src/agents-service.ts:876](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L876)
 
 **`Beta`**
 

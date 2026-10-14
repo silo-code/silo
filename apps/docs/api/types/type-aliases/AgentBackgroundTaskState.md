@@ -4,7 +4,7 @@
 type AgentBackgroundTaskState = "running" | "paused" | "completed" | "failed" | "stopped";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:965](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L965)
+Defined in: [packages/sdk/src/agents-service.ts:969](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L969)
 
 **`Beta`**
 

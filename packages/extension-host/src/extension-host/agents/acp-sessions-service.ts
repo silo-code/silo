@@ -24,6 +24,7 @@
 import type {
   AgentCommand,
   AgentContentBlock,
+  AgentElicitationRequest,
   AgentInfo,
   AgentPermissionRequest,
   AgentPromptBlock,
@@ -52,10 +53,13 @@ import {
   type AcpClientCallbacks,
   type AcpConfigOption,
   type AcpContentBlock,
+  type AcpElicitationOutcome,
+  type AcpElicitationRequest,
   type AcpPermissionOutcome,
   type AcpPermissionRequest,
   type AcpSessionUpdate,
 } from "./acp-jsonrpc";
+import { toElicitationContent } from "./elicitation-schema";
 import {
   getChatAgentEntry,
   patchChatAgent,
@@ -592,6 +596,9 @@ export function createAgentSessionsService(
       const permissionListeners = new Set<
         (r: AgentPermissionRequest) => void
       >();
+      const elicitationListeners = new Set<
+        (r: AgentElicitationRequest) => void
+      >();
       const configListeners = new Set<() => void>();
       const commandListeners = new Set<() => void>();
       let disposed = false;
@@ -1025,6 +1032,35 @@ export function createAgentSessionsService(
           // it must not raise the attention/sound chrome at all. Only a
           // request still pending once every listener has run is genuinely
           // waiting on a human.
+          if (answered) return;
+          raiseBlockedOnUser();
+        },
+        onElicitation(request, respond) {
+          // Same six rules as `onPermission` above, driving the same shared
+          // helpers — a question and a permission request are the same kind of
+          // "blocked on the user", and RFC 0062 widens `blocked` rather than
+          // forking it precisely so this path adds no new chrome logic.
+          if (disposed || elicitationListeners.size === 0) {
+            respond({ action: "cancel" });
+            return;
+          }
+          let answered = false;
+          const sdkReq = toSdkElicitation(request, (outcome) => {
+            answered = true;
+            respond(outcome);
+            clearBlockedOnUser();
+          });
+          for (const l of elicitationListeners) {
+            try {
+              l(sdkReq);
+            } catch (err) {
+              agentsChannel.debug(
+                `chat session onElicitation listener threw: ${err}`,
+              );
+            }
+          }
+          // Answered synchronously by a listener → never a turn blocked on a
+          // human, so raise no attention and sound nothing.
           if (answered) return;
           raiseBlockedOnUser();
         },
@@ -1685,6 +1721,12 @@ export function createAgentSessionsService(
           permissionListeners.add(listener);
           return { dispose: () => permissionListeners.delete(listener) };
         },
+        onElicitation(
+          listener: (request: AgentElicitationRequest) => void,
+        ): Disposable {
+          elicitationListeners.add(listener);
+          return { dispose: () => elicitationListeners.delete(listener) };
+        },
 
         dispose(): void {
           if (disposed) return;
@@ -1731,6 +1773,7 @@ export function createAgentSessionsService(
           removeChatAgent(infoId);
           updateListeners.clear();
           permissionListeners.clear();
+          elicitationListeners.clear();
           configListeners.clear();
           commandListeners.clear();
           agentsChannel.info(`Chat session ${infoId} disposed.`);
@@ -1818,6 +1861,52 @@ function toSdkPermission(
       respond(
         match ? { outcome: "selected", optionId } : { outcome: "cancelled" },
       );
+    },
+  };
+}
+
+/**
+ * Map a protocol elicitation onto the public {@link AgentElicitationRequest}.
+ *
+ * The questions are already parsed (`elicitation-schema.ts`), so this is a
+ * rename plus the three responders. `respond` runs the answers back through
+ * {@link toElicitationContent} rather than letting a caller build `content`:
+ * the coercion rules — a custom answer going to its companion's field, an
+ * unparseable number being dropped rather than sent as `NaN` — are the
+ * difference between an answer the agent reads and a payload its validating
+ * guard discards wholesale.
+ */
+function toSdkElicitation(
+  req: AcpElicitationRequest,
+  respond: (outcome: AcpElicitationOutcome) => void,
+): AgentElicitationRequest {
+  // First call wins, across all three methods. The protocol layer dedupes the
+  // JSON-RPC reply on its own, but the guard belongs here too: this is the
+  // surface that documents the three as idempotent and mutually exclusive, and
+  // without it a second call would re-run the turn-adoption bookkeeping.
+  let answered = false;
+  const once = (outcome: AcpElicitationOutcome) => {
+    if (answered) return;
+    answered = true;
+    respond(outcome);
+  };
+  return {
+    message: req.message,
+    questions: req.questions,
+    acknowledgeOnly: req.acknowledgeOnly,
+    ...(req.toolCallId !== undefined ? { toolCallId: req.toolCallId } : {}),
+    raw: req.raw as Readonly<Record<string, unknown>>,
+    respond(answers) {
+      once({
+        action: "accept",
+        content: toElicitationContent(req.questions, { ...answers }),
+      });
+    },
+    decline() {
+      once({ action: "decline" });
+    },
+    cancel() {
+      once({ action: "cancel" });
     },
   };
 }

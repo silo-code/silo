@@ -10,7 +10,7 @@ type ChatResumeState =
   | "unavailable";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:303](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L303)
+Defined in: [packages/sdk/src/agents-service.ts:307](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L307)
 
 **`Beta`**
 

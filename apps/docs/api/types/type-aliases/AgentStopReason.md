@@ -9,7 +9,7 @@ type AgentStopReason =
   | "cancelled";
 ```
 
-Defined in: [packages/sdk/src/agents-service.ts:622](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L622)
+Defined in: [packages/sdk/src/agents-service.ts:626](https://github.com/silo-code/silo/blob/main/packages/sdk/src/agents-service.ts#L626)
 
 **`Beta`**
 
