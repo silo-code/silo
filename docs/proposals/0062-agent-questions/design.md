@@ -1,8 +1,8 @@
 # Design — 0062. Agent questions (ACP elicitation)
 
-**Phase 4 only: host plumbing + the public SDK surface.** See
-`requirements.md` for the behavioral spec and `proposal.md` for why this phase
-also lands inert.
+**Phase 5: the form card, then the flip.** See `requirements.md` for the
+behavioral spec. Unlike phases 3 and 4 this one is **not inert** — the
+capability flip at the end is the switch that makes every earlier phase live.
 
 ## Architecture
 

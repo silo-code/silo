@@ -5,10 +5,10 @@ created: 2026-10-14
 
 # 0062. Agent questions (ACP elicitation)
 
-> **This package covers phase 4 only** — host plumbing + the public SDK
-> surface. Phases 1–3 have shipped; `requirements.md`, `design.md` and
-> `tasks.md` are scoped to phase 4 and say nothing about phase 5. See
-> Sequencing for the full table.
+> **This package covers phase 5** — the form card and the capability flip.
+> Phases 1–4 have shipped. The package stays expanded (and this file stays
+> `accepted`, not `implemented`) until phase 5's real-agent verification is
+> done; see `tasks.md` → "Outstanding".
 
 ## Summary
 

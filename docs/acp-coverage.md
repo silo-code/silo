@@ -18,22 +18,33 @@ each regeneration — see the detail under [Analysis](#analysis)._
 
 | #   | Feature                    | Why it's worth it                                                             | Size | Gate                             |
 | --- | -------------------------- | ----------------------------------------------------------------------------- | ---- | -------------------------------- |
-| 1   | **Elicitation**            | Agent asks a real structured question instead of a yes/no permission prompt   | M    | None — build it                  |
-| 2   | **Agent file read/write**  | Agent sees unsaved editor buffers, not just disk; one audited path for access | L    | RFC (host-mediated fs is new)    |
-| 3   | **Sign-in**                | Unblocks any agent needing auth; RFC 0038 phase 5 already committed to it     | M    | None — design exists             |
-| 4   | **`config_option_update`** | Fixes a real staleness bug: non-mode options changed agent-side never refresh | S    | None — smallest win here         |
-| 5   | **Agent terminals**        | Agent-run commands become inspectable Silo terminals instead of opaque output | L    | RFC (panel vs. inline undecided) |
+| 1   | **Agent file read/write**  | Agent sees unsaved editor buffers, not just disk; one audited path for access | L    | RFC (host-mediated fs is new)    |
+| 2   | **Sign-in**                | Unblocks any agent needing auth; RFC 0038 phase 5 already committed to it     | M    | None — design exists             |
+| 3   | **`config_option_update`** | Fixes a real staleness bug: non-mode options changed agent-side never refresh | S    | None — smallest win here         |
+| 4   | **Agent terminals**        | Agent-run commands become inspectable Silo terminals instead of opaque output | L    | RFC (panel vs. inline undecided) |
+| 5   | **`session/delete`**       | A user clearing out old chats has no protocol-level way to do it              | S    | None — small                     |
 
-Ranking logic: elicitation and sign-in are self-contained and need no new
-architecture, so they come first despite not being the biggest. Agent file
-access is the highest-value item on the list but needs a decision recorded
-before any code. `config_option_update` is out of order on value alone — it's
-here because it's a genuine bug and an afternoon's work. Agent terminals are
-last of the five only because the design question is the hard part.
+**Elicitation shipped** (RFC 0062) and has left this list — it was #1 for three
+regenerations. Form-mode `elicitation/create` is handled, rendered as a question
+card in the Chat transcript, and exposed as `AgentSessionHandle.onElicitation`;
+`clientCapabilities.elicitation.form` is advertised. Still open from that
+cluster, and deliberately not promoted into the five: **`url`-mode elicitation**
+plus `elicitation/complete`, which is the MCP OAuth handoff rather than a
+question — an external-browser flow with its own design questions, worth its own
+change.
 
-Deliberately **not** on the list: `session/delete` (real but minor),
-`mcpCapabilities` and `additionalDirectories` (unused on purpose), and
-everything in the `v2 draft` tier (unreachable — see the end of Analysis).
+Ranking logic: sign-in is self-contained and needs no new architecture, so it
+stays near the top despite not being the biggest. Agent file access is the
+highest-value item on the list but needs a decision recorded before any code.
+`config_option_update` is out of order on value alone — it's here because it's a
+genuine bug and an afternoon's work. Agent terminals are fourth only because the
+design question is the hard part; `session/delete` takes the freed fifth slot on
+size, having been the first of the "not on the list" leftovers.
+
+Deliberately **not** on the list: `url`-mode elicitation (a different feature
+wearing the same method name — see above), `mcpCapabilities` and
+`additionalDirectories` (unused on purpose), and everything in the `v2 draft`
+tier (unreachable — see the end of Analysis).
 
 ## Analysis
 
@@ -65,11 +76,18 @@ plumbing — worth an RFC before any code.
 connection card and "Sign in" and has not shipped. The protocol side is small;
 the UI is the work.
 
-**Elicitation** (`elicitation/create`, `elicitation/complete`,
-`ClientCapabilities.elicitation`) — the agent asking a structured question
-rather than a permission yes/no. Stable since schema v1 1.21.0. Silo has a
-permission-request path to model it on, and the SDK sheet/modal kit to render
-it. Mid-sized, self-contained, no architectural decision needed.
+**Elicitation** (`elicitation/create`, `ClientCapabilities.elicitation`) —
+**done** (RFC 0062). Form mode is parsed into questions, rendered inline in the
+transcript on the SDK kit, and offered to extensions as `onElicitation`. What it
+cost matched the estimate (M); what the estimate missed is that the response
+shape is _not_ the permission response shape — `{ action, content }` unwrapped,
+where nesting it reads to the agent as an empty accept.
+
+`elicitation/complete` and `ClientCapabilities.elicitation.url` remain
+unimplemented **by decision**: url mode is Claude's MCP OAuth handoff
+(`acp-agent.js:594`), needing an external-browser launch and a stable
+`elicitationId`. Silo advertises `form` only and answers a url-mode request
+`cancel`. Orthogonal to asking the user a question.
 
 **Session deletion** (`session/delete`, `SessionCapabilities.delete`). Silo
 lists and resumes sessions but never deletes one, so a user clearing out old
@@ -135,7 +153,7 @@ features the protocol commits to and Silo is not using.
 | AgentCapabilities   | `auth`                   |
 | AgentCapabilities   | `mcpCapabilities`        |
 | ClientCapabilities  | `auth`                   |
-| ClientCapabilities  | `elicitation`            |
+| ClientCapabilities  | `elicitation.url`        |
 | ClientCapabilities  | `session`                |
 | SessionCapabilities | `additionalDirectories`  |
 | SessionCapabilities | `delete`                 |
@@ -143,7 +161,6 @@ features the protocol commits to and Silo is not using.
 | agentMethods        | `logout`                 |
 | agentMethods        | `session/delete`         |
 | clientMethods       | `elicitation/complete`   |
-| clientMethods       | `elicitation/create`     |
 | clientMethods       | `fs/read_text_file`      |
 | clientMethods       | `fs/write_text_file`     |
 | clientMethods       | `terminal/create`        |
@@ -188,7 +205,7 @@ features the protocol commits to and Silo is not using.
 | Name                         | Tier      | Silo   |
 | ---------------------------- | --------- | ------ |
 | `elicitation/complete`       | v1 stable | **no** |
-| `elicitation/create`         | v1 stable | **no** |
+| `elicitation/create`         | v1 stable | yes    |
 | `fs/read_text_file`          | v1 stable | **no** |
 | `fs/write_text_file`         | v1 stable | **no** |
 | `session/request_permission` | v1 stable | yes    |
@@ -267,16 +284,16 @@ features the protocol commits to and Silo is not using.
 
 ### `clientCapabilities` — what Silo advertises
 
-| Name                | Tier        | Silo   |
-| ------------------- | ----------- | ------ |
-| `auth`              | v1 stable   | **no** |
-| `elicitation`       | v1 stable   | **no** |
-| `fs`                | v1 stable   | yes    |
-| `session`           | v1 stable   | **no** |
-| `terminal`          | v1 stable   | yes    |
-| `nes`               | v1 unstable | **no** |
-| `plan`              | v1 unstable | **no** |
-| `positionEncodings` | v1 unstable | **no** |
-| `subagents`         | v1 unstable | **no** |
+| Name                | Tier        | Silo         |
+| ------------------- | ----------- | ------------ |
+| `auth`              | v1 stable   | **no**       |
+| `elicitation`       | v1 stable   | yes (`form`) |
+| `fs`                | v1 stable   | yes          |
+| `session`           | v1 stable   | **no**       |
+| `terminal`          | v1 stable   | yes          |
+| `nes`               | v1 unstable | **no**       |
+| `plan`              | v1 unstable | **no**       |
+| `positionEncodings` | v1 unstable | **no**       |
+| `subagents`         | v1 unstable | **no**       |
 
 <!-- acp-coverage:generated:end -->

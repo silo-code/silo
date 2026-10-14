@@ -726,6 +726,18 @@ export function createAcpClient(
         clientCapabilities: {
           fs: { readTextFile: false, writeTextFile: false },
           terminal: false,
+          // RFC 0062 — the switch. Declaring `form` **moves** Claude's
+          // `AskUserQuestion` off the permission path and onto
+          // `elicitation/create`, so this must never be sent without a
+          // renderer behind it: the working permission-button flow would
+          // become a `-32601` and the question would be abandoned.
+          //
+          // `url` is deliberately absent. It is the MCP OAuth handoff, not a
+          // question — it needs an external-browser launch, a stable
+          // `elicitationId` and the inbound `elicitation/complete`
+          // notification, none of which exist here. A url-mode request is
+          // answered `cancel` (see `handleServerRequest`).
+          elicitation: { form: true },
           _meta: AIR_CLIENT_META,
         },
         clientInfo: { name: "silo", version: "0.0.0" },

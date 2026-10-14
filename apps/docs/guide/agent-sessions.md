@@ -61,6 +61,13 @@ agent.
   for the agents that report it, so you know when it's time to start fresh.
 - **MCP servers and background delegation** — for agents that support them,
   Silo shows MCP tool calls and background work inline in the transcript.
+- **It can ask you a real question** — when an agent needs you to choose
+  between options rather than just approve something, Silo shows a form in the
+  conversation: pick one, pick several, or type your own answer. Each question
+  has an "Other" box, and typing in it is used instead of whatever you picked.
+  **Send** answers, **Skip** lets the agent carry on without an answer, and
+  **Cancel** stops what it was doing when it asked. Nothing is required — you
+  can answer some questions and skip the rest.
 
 Exactly which of these a given agent supports varies — see
 [Compatibility](#compatibility) below.
@@ -142,6 +149,11 @@ resume command.
 | MCP servers           |     ✅      |    ✅     |      ✅      |     ✅      |    ✅    |     |
 | Background delegation |     ✅      |    ✅     |              |             |          |     |
 | Context meter         |     ✅      |    ✅     |              |     ✅      |          |     |
+| Questions             |     ✅      |    ⚠️     |              |             |          |     |
+
+⚠️ for Codex CLI under **Questions**: it can show you a question, but only one
+coming from an MCP server you've connected — it has no question tool of its own,
+so in practice you'll rarely see one. Claude Code asks directly.
 
 An unchecked cell means that agent doesn't support that piece today — not a
 Silo limitation. Silo picks each one up automatically as the agent adds

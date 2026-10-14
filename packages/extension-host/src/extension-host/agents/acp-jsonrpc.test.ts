@@ -557,6 +557,30 @@ describe("createAcpClient", () => {
       expect(adapterAccepts(stripped, "asyncTasks")).toBe(true);
     });
 
+    it("advertises elicitation.form, the gate both adapters read (RFC 0062)", async () => {
+      const sent = (await sentCapabilities()) as {
+        elicitation?: { form?: boolean; url?: boolean };
+      };
+      // Both adapters' gates, verbatim: `clientCapabilities?.elicitation?.form`
+      // (claude-agent-acp `acp-agent.js`) and the `!= null` variant (codex-acp).
+      expect(sent.elicitation?.form).toBe(true);
+      expect(sent.elicitation?.form != null).toBe(true);
+      // `url` stays off: it is the MCP OAuth handoff, and declaring it would
+      // invite a request needing an external browser and `elicitation/complete`
+      // — neither of which exists. `handleServerRequest` cancels one anyway,
+      // but not advertising it is what stops it being sent.
+      expect(sent.elicitation?.url).toBeUndefined();
+    });
+
+    it("keeps elicitation where the SDK schema will not strip it", async () => {
+      // Unlike the `_meta` extensions above, `elicitation` is a *canonical*
+      // `zClientCapabilities` field, so it survives the plain `z.object` that
+      // drops unknown keys. This pins that it is declared at the top level
+      // rather than hidden under `_meta` like the vendor blocks.
+      const sent = (await sentCapabilities()) as Record<string, unknown>;
+      expect(Object.keys(sent)).toContain("elicitation");
+    });
+
     it("advertises no capability the repo has no reader for", async () => {
       // The standing rule from ADR 0057, as a test rather than a comment:
       // advertising asks the agent to change what it sends, so an entry with

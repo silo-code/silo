@@ -1,95 +1,113 @@
 # Tasks — 0062. Agent questions (ACP elicitation)
 
-**Phase 4 only: host plumbing + the public SDK surface.** Phase 3 shipped
-(PR #625); phase 5 remains.
+**Phase 5: the form card, then the flip.** Phases 1–4 shipped
+(#623, #622, #625, #626). This is the user-visible phase.
 
-## Protocol layer (`acp-jsonrpc.ts`)
+> **Not collapsed, and `proposal.md` is still `accepted` rather than
+> `implemented`, for one reason:** R4 requires verification against a **real
+> agent**, and that has not happened. Everything below is unit-verified and
+> the capability is flipped, but no live `elicitation/create` has been seen.
+> See "Outstanding" at the bottom — that step needs the app run by hand.
 
-- [x] `AcpElicitationRequest` / `AcpElicitationOutcome`.
-- [x] `onElicitation?` on `AcpClientCallbacks` — optional, so this layer owns
-      the "nobody is listening → `cancel`" rule.
-- [x] `elicitation/create` branch, parsing via phase 3's `parseElicitation`.
-- [x] Reply with the response object **unwrapped** (`{ action, content? }`),
-      not nested the way `session/request_permission` nests `outcome`.
-- [x] One-shot responder.
-- [x] `mode: "url"` → `cancel` + a log line.
-- [x] No longer falls through to the `-32601` branch.
+## Form model (`question-form.ts`)
 
-## Session service (`acp-sessions-service.ts`)
+- [x] `QuestionFormState` + `initialFormState`, with **one** representation of
+      "unanswered" (no key) so `isAnswered` has a single thing to read.
+- [x] `setAnswerValue`, `toggleMultiSelect`, `setCustomAnswer`.
+- [x] `isOptionSelected` / `controlValue` / `customValue` for the controls.
+- [x] `isAnswered`: blank text, blank custom, empty selection and an
+      unparseable number all read as unanswered; `false` reads as answered.
+- [x] `canSubmit`: at least one answer, or an acknowledge-only request.
+- [x] `answeredCount` for the "n of m answered" hint.
 
-- [x] `elicitationListeners`, cleared on dispose.
-- [x] `onElicitation` callback driving the **same** `raiseBlockedOnUser` /
-      `clearBlockedOnUser` helpers phase 2 extracted — no second copy.
-- [x] Disposed / no listener → `cancel` immediately.
-- [x] Synchronous answer raises no attention and no sound.
-- [x] Per-listener `try`/`catch`, so one bad extension cannot strand the agent.
-- [x] `toSdkElicitation`, serializing answers through phase 3's
-      `toElicitationContent`.
-- [x] `onElicitation(listener)` on the handle, returning a `Disposable`.
+## The card (`AcpChatPanel.tsx`)
 
-## Public surface (`packages/sdk`)
+- [x] `handle.onElicitation` → a `PendingQuestion` per request, each owning its
+      own form (two can be open at once).
+- [x] `QuestionField` renders by kind: `RadioGroup`/`RadioCard` for select,
+      `CheckboxRow` for multi-select, `Input` for text/number.
+- [x] `boolean` is a **Yes/No chooser**, not a `Switch` — a toggle has no
+      "untouched" position, so it would submit an answer never given.
+- [x] The `custom` box renders inline under its own question, with the
+      companion's label and description.
+- [x] `acknowledgeOnly` → message plus actions, no inputs.
+- [x] Send / Skip / Cancel, each with an SDK `Tooltip` explaining what the
+      agent does with it. Send disabled until something is answered.
+- [x] Answering retires the card; `respond`/`decline`/`cancel` are idempotent
+      underneath, so a double click cannot answer twice.
+- [x] Auto Accept deliberately not applied (RFC 0047 is permission-only).
+- [x] Stale questions cleared when a turn ends, like permissions.
+- [x] Transcript stays pinned to the bottom when a card appears.
+- [x] CSS: design tokens only (stylelint clean), no hand-rolled focus styles,
+      no native `title` attributes.
 
-- [x] `AgentElicitationRequest`, `AgentElicitationQuestion`,
-      `AgentElicitationQuestionKind`, `AgentElicitationOption`,
-      `AgentElicitationCustomAnswer`, `AgentElicitationAnswer`.
-- [x] `onElicitation` on `AgentSessionHandle`.
-- [x] TSDoc with `@public` / `@beta` / `@category`, including the
-      Auto-Accept-is-permission-only note and the `decline` vs `cancel`
-      distinction.
-- [x] Barrel re-export (`packages/sdk/src/index.ts`).
-- [x] `pnpm docs:api` — six new reference pages generated.
-- [x] `AgentActivity`'s `"blocked"` TSDoc widened from permission-specific
-      wording to "awaiting a user answer".
+## The flip
+
+- [x] `initialize` sends `elicitation: { form: true }` — form only, `url`
+      deliberately absent.
+- [x] Landed in the **same change** as the renderer.
 
 ## Docs
 
-- [x] `docs/domain-language.md` — new **Question** entry; **Activity**,
-      **Witnessed** and **Chat Session** widened off
-      `session/request_permission`.
-- [x] `apps/docs/roadmap.md` — `planned` rows for `onElicitation` and for
-      option `preview`.
+- [x] `apps/docs/roadmap.md` — `onElicitation` folded into the shipped Chat
+      sessions row; option `preview` stays `planned`.
+- [x] `docs/acp-coverage.md` — elicitation out of the Top 5, `session/delete`
+      promoted into the freed slot, per-method tables updated, and the
+      remaining url-mode gap recorded as deferred by decision.
+- [x] `apps/docs/guide/agent-sessions.md` — the feature in the Chat panel list
+      plus a compatibility row.
 
 ## Tests
 
-- [x] `acp-jsonrpc.test.ts` — parsed delivery, the unwrapped result shape,
-      one-shot answering, url-mode cancel, missing-callback cancel, and the
-      unreadable-schema acknowledge form.
-- [x] `acp-sessions-service.test.ts` — attention raised and cleared, custom
-      answer routing, decline/cancel idempotence, synchronous answer, active
-      session, no listener, post-dispose, a throwing listener, and
-      subscription disposal.
-- [x] Vacuity check: 10 single-branch mutations across both layers, each
-      producing a matching failure. No gaps this round.
+- [x] 24 cases over the form model: every kind, both omission rules, the
+      custom-answer interactions, and `canSubmit`'s gate.
+- [x] The capability flip pinned against **both adapters' real gates**
+      (`clientCapabilities?.elicitation?.form` and the `!= null` variant), plus
+      that `url` is absent and that `elicitation` sits where the ACP SDK's
+      schema will not strip it.
+- [x] Vacuity check: 9 single-branch mutations, each producing a matching
+      failure. One gap found and closed — see Notes.
 
 ## Verification
 
-- [x] Every requirement in `requirements.md` is met.
-- [x] `pnpm test` (11/11 tasks), `pnpm --filter silo exec tsc --noEmit`, and
-      `pnpm lint` pass.
-- [x] Still **inert**: `clientCapabilities` is untouched, so no agent sends an
-      `elicitation/create`. The path is reachable but unreached.
-- [x] **No ADR needed.** The shape follows `AgentPermissionRequest`'s
-      precedent (parsed fields plus `raw`) and the `blocked`-widening decision
-      already recorded in `proposal.md`'s Alternatives.
-- [ ] **Do not collapse the package** — phase 5 remains.
+- [x] `pnpm test` (11/11 tasks), `pnpm --filter silo exec tsc --noEmit`,
+      `pnpm lint` (incl. stylelint) all pass.
+- [x] No ADR needed: the kit choices follow `docs/modal-design.md` and the
+      inline-not-modal decision is the permission card's, already recorded.
+- [ ] **R4: verified against a real agent.** Outstanding — see below.
+- [ ] Collapse the package and set `status: implemented`. Blocked on the above.
+
+## Outstanding — the real-agent run
+
+Unit tests cannot close this. The fixtures were written by reading
+`claude-agent-acp`'s `elicitation.js`, so they can only confirm Silo agrees
+with that reading; a wrong assumption about what the agent actually sends looks
+identical to a pass. What to do, with the dev app running:
+
+1. Prompt Claude so it reaches for `AskUserQuestion` — something with a genuine
+   choice in it ("ask me which database and which features to scaffold").
+2. Confirm: the card renders, the agent shows `blocked` / amber, the tab says
+   "Waiting for you", and the chime fires when the panel is not focused.
+3. Answer one question and skip the other; confirm the agent proceeds with the
+   partial answers rather than discarding them.
+4. Type into an "Other" box with an option also selected; confirm the typed
+   text is what the agent acts on.
+5. Separately exercise **Skip** (the turn should continue) and **Cancel** (the
+   tool call should abort) — they are different protocol answers and only a
+   real agent shows the difference.
+6. Watch Output → **Agents** for a `url-mode` line; none should appear.
 
 ## Notes from implementation
 
-- **The response is not shaped like the permission response.** Permission
-  answers `{ outcome: { outcome, optionId } }`; `elicitation/create` answers
-  `{ action, content? }` at the top level. Confirmed against the ACP SDK's
-  `zCreateElicitationResponse` rather than inferred from the neighbouring code
-  — copying the nesting would read to the agent's validating guard as a
-  malformed accept, i.e. **empty content**, silently discarding every answer.
-  This is the single most dangerous mistake available in this phase, and the
-  mutation test for it is the one that matters most.
-- **Idempotence now sits in two places on purpose.** The protocol layer already
-  deduped the JSON-RPC reply, but `respond`/`decline`/`cancel` are documented
-  as idempotent on the _public_ surface, so `toSdkElicitation` guards too.
-  Without it a second call re-ran the turn-adoption bookkeeping. A test caught
-  this — the first draft only had the lower guard.
-- **`respond`'s shape diverges from `proposal.md`'s sketch** (`Record<string,
-string | readonly string[]>`), which cannot express a boolean, a number, or a
-  custom-answer override. `proposal.md` is corrected in the same change.
-- **Phase 3's `ElicitationAnswer.value` widened to `readonly string[]`** so the
-  public type flows into the host serializer without a cast.
+- **One vacuity gap, now closed.** `isAnswered`'s blank-custom guard looked
+  double-guarded by the state-pruning in `patch`, but it is reachable: a text
+  question holding whitespace _plus_ a blank custom box keeps its key and must
+  still read as unanswered. Test added.
+- **`boolean` renders as Yes/No, not a toggle.** The only design decision in
+  this phase that isn't copied from the permission card, and it follows from
+  the RFC's core rule rather than from the kit: a `Switch` or checkbox always
+  looks answered, so an untouched one would tell the agent something the user
+  never said.
+- **Send is gated on one answer** because with nothing answered, accepting
+  sends byte-identical content to Skip — and Skip names that honestly. Partial
+  answers stay legitimate; the bridge marks nothing required.
