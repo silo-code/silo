@@ -1,5 +1,5 @@
 ---
-status: accepted # draft | accepted | implemented | rejected | superseded-by NNNN
+status: implemented # draft | accepted | implemented | rejected | superseded-by NNNN
 created: 2026-09-09
 ---
 
@@ -280,6 +280,15 @@ Roadmap: a `Recorded dock panels` row is added as **experimental** (the type +
 `Workspace.panels` ship now; `ctx.panels` is later). The glossary gains **Dock
 Panel Record**.
 
+**Implemented 2026-09-14, via RFC 0046.** Phase 2 (`ctx.panels`) shipped, but
+grown past what this proposal sketched: RFC 0046 added `DockPanelRecord.panelId`
+(the enumerate-via-`Workspace.panels` → act-via-`ctx.panels` bridge this
+proposal didn't have) and `DockPanelRecord.customTitle`, and shipped `ctx.panels`
+itself alongside a new `"panel/tab"` context-menu surface. `Workspace.panels`
+enumeration is unchanged from what's specified above. Phase 3 (folding
+`editors`/`terminals`/`panels` into one list) remains deferred, not taken —
+RFC 0046 reconfirms it, and nothing since has reopened it.
+
 ## Related
 
 - RFC 0039 — the `"panel"` toolbar surface this extends.
@@ -287,3 +296,5 @@ Panel Record**.
 - RFC 0042 — Chat session resurrection; persists into the record this defines.
 - RFC 0022 — side-panel tab adornments; the side-dock analogue of the
   center-dock gap here.
+- RFC 0046 — shipped Phase 2 (`ctx.panels`) and extended the record with
+  `panelId` and `customTitle`.

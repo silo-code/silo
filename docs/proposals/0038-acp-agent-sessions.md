@@ -6,8 +6,10 @@ created: 2026-09-07
 # 0038. Agent Sessions — Terminal and Chat
 
 **Phases 1–4 and 6 have shipped; phase 5 is partially delivered.** The `status`
-is `accepted` rather than `implemented` because phase 5 still owes the
-connection card and "Sign in"; see the phase table for what each one landed.
+is `accepted` rather than `implemented` because phase 5 still owes its auth
+story — see the phase table for what each one landed, and Auth (revised
+2026-10-14) for the no-terminal design that replaced the original
+embedded-terminal "Sign in" plan.
 Phase 4 was delivered by [RFC 0042](./0042-chat-session-resurrection.md), which
 took persistence further than this proposal sketched it.
 
@@ -233,13 +235,32 @@ required`, while the ambient logged-in `~/.codex` succeeds — so that adapter
 - **Auth style is not declared in the ACP Registry** (`agent.schema.json` has no
   auth fields). It is discoverable only at runtime. A client must spawn first.
 
-**Terminal auth is an advantage here, not a wart.** ACP hands over literal argv,
-and Silo already has a first-class PTY host — so "Sign in" runs the agent's own
-login command in a real Silo terminal. Conductor built a mini-terminal inside a
-settings page to do this; Silo has one already. Their connection card
-(Connected · Provider · Plan · Account) is the piece worth matching, and none of
-it comes from ACP — it requires per-agent knowledge, which is one more argument
-for the curated catalog.
+**Revised 2026-10-14 — no terminal launches automatically.** The design above
+("Sign in" opens a Silo terminal running the agent's own login command,
+matching Conductor's embedded mini-terminal) is rejected: launching terminal
+chrome inside the Chat panel breaks the immersive, agent-drawn-nothing promise
+Chat exists to make. The split by auth mechanism now reads:
+
+- **Browser-only agents** (16 of 32 probed) need no UI change at all — call
+  `authenticate` (v1) / `auth/login` (v2) with the browser method id and the
+  agent opens its own browser and stores its own credentials. Zero Silo chrome,
+  today and going forward.
+- **Terminal-only and mixed agents** (Claude, OpenCode, pi, 15 of 32) get a
+  message, not a launched terminal. When `session/new` fails — or, once
+  [`auth/status`](https://agentclientprotocol.com/rfds/get-auth-state) ships
+  past draft, proactively — the Chat panel names the fix: the literal command
+  the user needs to run (e.g. `claude login`), resolved from the catalog's auth
+  descriptor rather than written as generic prose. The user runs it themselves,
+  in any terminal, and retries. More friction than one click; no terminal
+  chrome Chat didn't ask for.
+
+The [Terminal Authentication RFD](https://agentclientprotocol.com/rfds/auth-methods)
+shipped (completed 2026-08-20) exactly the descriptor this resolves — args/env
+to append to the already-known launch command — so the literal command is a
+catalog lookup, not a guess. A fuller connection card (Connected · Provider ·
+Plan · Account) stays out of scope: none of that comes from ACP either way —
+Conductor gets it by running each CLI's own status command, which is per-agent
+work this phase does not commit to.
 
 ### Session config defaults (phase 6)
 
@@ -343,14 +364,14 @@ way a conscious decision.
 
 ### Phases
 
-| Phase                                | Scope                                                                                                                                                                                                                                                     | Status                                                                                                                  |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **1 — Model + transport**            | `Agent Session` as the `ctx.agents` identity; `reveal()` / `resume()` verbs; the `AgentProfile` launch union; the `acpLaunch` catalog field; the piped-stdio Rust command family with stderr capture. Domain-language change + ADR 0028 amendment. No UI. | shipped                                                                                                                 |
-| **2 — `ctx.agents.sessions`**        | `@beta` SDK surface: connect, prompt, cancel, the typed update stream, permission plumbing. Sourced from user-authored profiles only.                                                                                                                     | shipped                                                                                                                 |
-| **3 — The Chat panel**               | One bundled transcript: streaming text, tool-call rows, inline permission, cancel. Deliberately not plan / modes / slash-commands / history.                                                                                                              | shipped, and since grown well past its "deliberately not" list — plan, modes, slash commands and attachments all landed |
-| **4 — Persistence**                  | Persist the session id; `session/load` on mount; the "cannot be restored" state.                                                                                                                                                                          | shipped, via RFC 0042                                                                                                   |
-| **5 — Discovery, onboarding & auth** | The unified **Found on this machine** list; the Settings → Agents connection card; "Sign in" running the agent's own login in a Silo terminal; adapter fetch-on-first-use.                                                                                | **partial** — **Found on this machine** shipped; the connection card and "Sign in" have not                             |
-| **6 — Session config defaults**      | `sessionConfig` on the profile's Chat arm: per-profile starting values for the agent's own `configOptions`, applied on a fresh `session/new`, discovered by a bounded probe. See above.                                                                   | shipped                                                                                                                 |
+| Phase                                | Scope                                                                                                                                                                                                                                                                           | Status                                                                                                                  |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **1 — Model + transport**            | `Agent Session` as the `ctx.agents` identity; `reveal()` / `resume()` verbs; the `AgentProfile` launch union; the `acpLaunch` catalog field; the piped-stdio Rust command family with stderr capture. Domain-language change + ADR 0028 amendment. No UI.                       | shipped                                                                                                                 |
+| **2 — `ctx.agents.sessions`**        | `@beta` SDK surface: connect, prompt, cancel, the typed update stream, permission plumbing. Sourced from user-authored profiles only.                                                                                                                                           | shipped                                                                                                                 |
+| **3 — The Chat panel**               | One bundled transcript: streaming text, tool-call rows, inline permission, cancel. Deliberately not plan / modes / slash-commands / history.                                                                                                                                    | shipped, and since grown well past its "deliberately not" list — plan, modes, slash commands and attachments all landed |
+| **4 — Persistence**                  | Persist the session id; `session/load` on mount; the "cannot be restored" state.                                                                                                                                                                                                | shipped, via RFC 0042                                                                                                   |
+| **5 — Discovery, onboarding & auth** | The unified **Found on this machine** list; adapter fetch-on-first-use; a no-terminal auth story — `authenticate`/`auth/login` with the browser method for browser-only agents, and an in-panel message naming the fix for terminal-only agents (see Auth, revised 2026-10-14). | **partial** — **Found on this machine** shipped; the auth story has not                                                 |
+| **6 — Session config defaults**      | `sessionConfig` on the profile's Chat arm: per-profile starting values for the agent's own `configOptions`, applied on a fresh `session/new`, discovered by a bounded probe. See above.                                                                                         | shipped                                                                                                                 |
 
 ### Things any ACP client must handle (learned the hard way)
 
