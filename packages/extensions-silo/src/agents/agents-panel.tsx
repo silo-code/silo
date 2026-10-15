@@ -231,14 +231,17 @@ export function buildAgeSections(
   ];
 }
 
-/** The glyph for a row's section — "done" still distinguishes error/dead from
- * a plain acknowledged-idle finish (which gets the neutral gray dot);
- * "working" distinguishes a `"blocked"` turn (amber — waiting on a
- * permission answer) from one actually running (blue). */
-function glyphFor(row: AgentRow): Activity | undefined {
+/** The glyph for a row's section — "ready" still distinguishes a `"blocked"`
+ * turn parked there by an unfocused `needsAttention` (amber — waiting on a
+ * permission/elicitation answer, see `sectionFor`'s doc) from an actual
+ * finish (green check); "done" distinguishes error/dead from a plain
+ * acknowledged-idle finish (which gets the neutral gray dot); "working"
+ * distinguishes a `"blocked"` turn whose own tab is on screen (amber) from
+ * one actually running (blue). */
+export function glyphFor(row: AgentRow): Activity | undefined {
   switch (row.section) {
     case "ready":
-      return "ready";
+      return row.activity === "blocked" ? "warn" : "ready";
     case "working":
       return row.activity === "blocked" ? "warn" : "working";
     case "done":
