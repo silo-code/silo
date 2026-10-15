@@ -824,6 +824,19 @@ describe("foldToolRuns", () => {
     ]);
   });
 
+  it("does not break the run on a blank thought chunk, which renders as nothing", () => {
+    const t = fold([
+      ...readCalls(TOOL_GROUP_THRESHOLD - 1),
+      chunk("agent_thought_chunk", "\n", "a1"),
+      ...readCalls(1),
+    ]);
+    const folded = foldToolRuns(t.entries);
+    expect(folded.map((e) => e.type)).toEqual(["tool-group"]);
+    expect((folded[0] as ToolGroupEntry).tools).toHaveLength(
+      TOOL_GROUP_THRESHOLD,
+    );
+  });
+
   it("breaks the run on a failed call and resumes after it", () => {
     const t = fold([
       ...readCalls(TOOL_GROUP_THRESHOLD),
