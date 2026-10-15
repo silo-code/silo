@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.75.0](https://github.com/silo-code/silo/compare/silo-v0.74.0...silo-v0.75.0) (2026-10-14)
+
+
+### Features
+
+* **agents:** parse an elicitation schema into questions and answers ([#625](https://github.com/silo-code/silo/issues/625)) ([3ffd36d](https://github.com/silo-code/silo/commit/3ffd36dc1bf4f7ff076efd5dea6d1af81dc76529))
+* **agents:** surface an agent's questions on ctx.agents.sessions ([#626](https://github.com/silo-code/silo/issues/626)) ([cd33a44](https://github.com/silo-code/silo/commit/cd33a4410187c28a9625ef77a5c28cc122bbea49))
+
+
+### Bug Fixes
+
+* **agents:** generalize the blocked tab tooltip to any user answer ([#621](https://github.com/silo-code/silo/issues/621)) ([1d004c1](https://github.com/silo-code/silo/commit/1d004c16ffde9f6188cef20502070721581ff3f7))
+
 ## [0.74.0](https://github.com/silo-code/silo/compare/silo-v0.73.0...silo-v0.74.0) (2026-10-14)
 
 
