@@ -4,6 +4,7 @@ import {
   buildAgeSections,
   buildStatusSections,
   buildWorkspaceSections,
+  glyphFor,
   staleSectionStartsExpanded,
 } from "./agents-panel";
 
@@ -574,5 +575,40 @@ describe("subtitle axis", () => {
       expect(staleSection?.subtitleIsWorkspace).toBe(true);
       expect(staleSection?.subtitle(stale)).toBe("ws");
     }
+  });
+});
+
+describe("glyphFor", () => {
+  it("shows the amber warn glyph for a blocked row parked in 'ready' by an unfocused needsAttention", () => {
+    // sectionFor puts a blocked-but-unfocused agent in "ready" (see
+    // agents-panel-view's doc) — the row must still read as waiting-on-you,
+    // not as a finished run, or it looks done when it isn't.
+    expect(glyphFor(row({ section: "ready", activity: "blocked" }))).toBe(
+      "warn",
+    );
+  });
+
+  it("shows the green ready glyph for an actual finish in 'ready'", () => {
+    expect(glyphFor(row({ section: "ready", activity: "idle" }))).toBe("ready");
+  });
+
+  it("shows the amber warn glyph for a blocked row in 'working'", () => {
+    expect(glyphFor(row({ section: "working", activity: "blocked" }))).toBe(
+      "warn",
+    );
+  });
+
+  it("shows the blue working glyph for an actually-running row in 'working'", () => {
+    expect(glyphFor(row({ section: "working", activity: "working" }))).toBe(
+      "working",
+    );
+  });
+
+  it("distinguishes error/dead/plain-idle within 'done'", () => {
+    expect(glyphFor(row({ section: "done", activity: "error" }))).toBe("error");
+    expect(glyphFor(row({ section: "done", activity: "dead" }))).toBe("warn");
+    expect(
+      glyphFor(row({ section: "done", activity: "idle" })),
+    ).toBeUndefined();
   });
 });
