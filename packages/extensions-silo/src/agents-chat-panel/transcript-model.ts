@@ -891,6 +891,13 @@ export const TOOL_GROUP_INLINE_COUNT = 5;
  * failure is never a fold away from view; folding resumes only after another
  * run this long follows it.
  *
+ * A blank agent/thought message — {@link isBlankMessageText}, the same check
+ * {@link renderTranscriptEntry} uses to render it as nothing — does not break
+ * the run. It is invisible on screen either way, so letting it reset the run
+ * produced Dave's exact complaint: a provider that streams an empty chunk
+ * between every call renders a visually contiguous list of tool rows that
+ * never folds, because each invisible message flushed the run as a lone call.
+ *
  * A subagent dispatch and a delegated call (RFC 0055) break the run for the
  * same reason: delegated work is the thing the user asked to be able to see,
  * and folding it into `"14 Shell · 3 Read"` would hide exactly that. The
@@ -928,6 +935,13 @@ export function foldToolRuns(
   };
 
   for (const entry of groupDelegatedCalls(entries)) {
+    if (
+      entry.type === "message" &&
+      entry.role !== "user" &&
+      isBlankMessageText(entry.text)
+    ) {
+      continue;
+    }
     if (
       entry.type === "tool" &&
       (entry.diffs?.length ?? 0) === 0 &&
