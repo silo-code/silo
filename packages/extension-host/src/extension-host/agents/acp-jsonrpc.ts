@@ -726,6 +726,29 @@ export function createAcpClient(
         clientCapabilities: {
           fs: { readTextFile: false, writeTextFile: false },
           terminal: false,
+          // RFC 0062 — the switch. Declaring `form` **moves** Claude's
+          // `AskUserQuestion` off the permission path and onto
+          // `elicitation/create`, so this must never be sent without a
+          // renderer behind it: the working permission-button flow would
+          // become a `-32601` and the question would be abandoned.
+          //
+          // **`{}`, not `true`.** `ElicitationFormCapabilities` is a marker
+          // *object* — "supplying `{}` means the client supports it" — and the
+          // SDK parses it with `defaultOnError(..., () => undefined)`. A
+          // boolean therefore does not fail loudly: it is silently discarded
+          // in transit, the agent sees no form support, and it puts
+          // `AskUserQuestion` in `disallowedTools` (`acp-agent.js`), so the
+          // tool vanishes from Claude's tool list entirely. That is exactly
+          // what shipped first here, and only a real agent caught it — the
+          // unit test ran the adapter's gate over the object we *meant* to
+          // send, never over what the schema leaves of it.
+          //
+          // `url` is deliberately absent. It is the MCP OAuth handoff, not a
+          // question — it needs an external-browser launch, a stable
+          // `elicitationId` and the inbound `elicitation/complete`
+          // notification, none of which exist here. A url-mode request is
+          // answered `cancel` (see `handleServerRequest`).
+          elicitation: { form: {} },
           _meta: AIR_CLIENT_META,
         },
         clientInfo: { name: "silo", version: "0.0.0" },

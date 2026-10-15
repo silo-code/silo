@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.58.0](https://github.com/silo-code/silo/compare/sdk-v0.57.0...sdk-v0.58.0) (2026-10-14)
+
+
+### Features
+
+* **agents:** surface an agent's questions on ctx.agents.sessions ([#626](https://github.com/silo-code/silo/issues/626)) ([cd33a44](https://github.com/silo-code/silo/commit/cd33a4410187c28a9625ef77a5c28cc122bbea49))
+
 ## [0.57.0](https://github.com/silo-code/silo/compare/sdk-v0.56.0...sdk-v0.57.0) (2026-10-09)
 
 

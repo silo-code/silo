@@ -557,6 +557,70 @@ describe("createAcpClient", () => {
       expect(adapterAccepts(stripped, "asyncTasks")).toBe(true);
     });
 
+    /**
+     * `ElicitationCapabilities`, modelled on the ACP SDK's `zod.gen.js`.
+     *
+     * `form` / `url` are marker **objects** — "supplying `{}` means the client
+     * supports it" — each parsed with `defaultOnError(..., () => undefined)`.
+     * That is the trap this models: a wrong-typed value is not rejected, it is
+     * silently replaced with `undefined` in transit. Shipping `form: true`
+     * looked correct at every layer we control and arrived as no support at
+     * all, which made the agent drop `AskUserQuestion` from its tool list.
+     */
+    const afterSchema = (capabilities: unknown): unknown => {
+      const elicitation = (capabilities as { elicitation?: unknown })
+        ?.elicitation;
+      if (typeof elicitation !== "object" || elicitation === null) return {};
+      const marker = (v: unknown) =>
+        typeof v === "object" && v !== null && !Array.isArray(v)
+          ? v
+          : undefined;
+      const { form, url } = elicitation as { form?: unknown; url?: unknown };
+      return { form: marker(form), url: marker(url) };
+    };
+
+    it("advertises elicitation.form as the marker object the schema keeps", async () => {
+      // The regression test for the real bug: assert against what *survives*
+      // the SDK's parse, not against the object we meant to send.
+      const survived = afterSchema(await sentCapabilities()) as {
+        form?: unknown;
+        url?: unknown;
+      };
+      expect(survived.form).toEqual({});
+      // Both adapters' gates, verbatim, run over the surviving value:
+      // `clientCapabilities?.elicitation?.form` (claude-agent-acp
+      // `acp-agent.js:5267`) and the `!= null` variant (codex-acp).
+      expect(!!survived.form).toBe(true);
+      expect(survived.form != null).toBe(true);
+      // `url` stays off: it is the MCP OAuth handoff, and declaring it would
+      // invite a request needing an external browser and `elicitation/complete`
+      // — neither of which exists. `handleServerRequest` cancels one anyway,
+      // but not advertising it is what stops it being sent.
+      expect(survived.url).toBeUndefined();
+    });
+
+    it("sanity-checks the schema model against the value that actually broke", async () => {
+      // Guards the guard: if `afterSchema` were permissive, the assertion
+      // above would pass for `form: true` again and prove nothing.
+      expect(afterSchema({ elicitation: { form: true } })).toEqual({
+        form: undefined,
+        url: undefined,
+      });
+      expect(afterSchema({ elicitation: { form: {} } })).toEqual({
+        form: {},
+        url: undefined,
+      });
+    });
+
+    it("keeps elicitation where the SDK schema will not strip it", async () => {
+      // Unlike the `_meta` extensions above, `elicitation` is a *canonical*
+      // `zClientCapabilities` field, so it survives the plain `z.object` that
+      // drops unknown keys. This pins that it is declared at the top level
+      // rather than hidden under `_meta` like the vendor blocks.
+      const sent = (await sentCapabilities()) as Record<string, unknown>;
+      expect(Object.keys(sent)).toContain("elicitation");
+    });
+
     it("advertises no capability the repo has no reader for", async () => {
       // The standing rule from ADR 0057, as a test rather than a comment:
       // advertising asks the agent to change what it sends, so an entry with
