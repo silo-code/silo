@@ -298,3 +298,10 @@ RFC 0046 reconfirms it, and nothing since has reopened it.
   center-dock gap here.
 - RFC 0046 — shipped Phase 2 (`ctx.panels`) and extended the record with
   `panelId` and `customTitle`.
+- RFC 0063 — the Phase 3 question (fold `editors`/`terminals`/`panels` into one
+  list) is still open as of that RFC, which deliberately doesn't take it: it adds
+  `PanelService.focus` / `EditorService.focus` as point verbs on the three
+  existing services instead of a unified `focus(tabId)`.
+- RFC 0064 — same deliberate non-answer to Phase 3, one layer further:
+  `ctx.panels`/`ctx.editors`/`ctx.terminals` each gained (or already had) their own
+  active-tab signal rather than one unified cross-kind one. Still open.

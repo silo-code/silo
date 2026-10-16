@@ -17,53 +17,20 @@ vi.mock("./process-service", () => ({
   spawnTerminalSession,
 }));
 
-// Mock dockview's own registry so `focus()`'s call sequence/timing is
-// observable without a real dockview instance.
-const {
-  setActive,
-  getPanel,
-  getActiveDockApi,
-  getActiveDockWorkspaceId,
-  focusPanelContent,
-} = vi.hoisted(() => ({
-  setActive: vi.fn(),
-  getPanel: vi.fn(),
-  getActiveDockApi: vi.fn(),
-  getActiveDockWorkspaceId: vi.fn(),
-  focusPanelContent: vi.fn(),
-}));
-vi.mock("../docked/dock-api-registry", () => ({
-  getActiveDockApi,
-  getActiveDockWorkspaceId,
-  focusPanelContent,
-}));
-
-// A marker object standing in for a panel's real `view.content.element` —
-// opaque here since focusPanelContent is mocked out; its identity is what
-// lets a test confirm focus() passed *this specific panel's* element through,
-// not some other panel's or a generic group-wide host.
-const PANEL_CONTENT_ELEMENT = {} as HTMLElement;
+// `focus()`'s own race/timing behavior (cross-workspace request vs. same-dock
+// focus grab) is covered once, at the shared helper, in
+// `focus-dock-panel.test.ts`. Here it's enough to confirm `focus()` resolves
+// the right (workspaceId, panelId) pair and hands off to it.
+const { focusDockPanel } = vi.hoisted(() => ({ focusDockPanel: vi.fn() }));
+vi.mock("./focus-dock-panel", () => ({ focusDockPanel }));
 
 import { store } from "../state/store";
 import type { WorkspaceInternal } from "../state/types";
-import {
-  peekPanelActivation,
-  clearPanelActivation,
-} from "../docked/panel-activation-requests";
+import { setActiveTerminal } from "./active-terminal-registry";
 import { getTerminalService } from "./terminal-service";
 
 const svc = getTerminalService();
 const flush = () => new Promise((r) => setTimeout(r, 0));
-
-// Controllable requestAnimationFrame — `focus()`'s fix defers the focus grab
-// by one frame, so tests need to control exactly when that frame "fires"
-// rather than trust jsdom's real (uncontrollable-in-tests) rAF timing.
-let rafCallbacks: FrameRequestCallback[] = [];
-function flushRaf() {
-  const pending = rafCallbacks;
-  rafCallbacks = [];
-  for (const cb of pending) cb(0);
-}
 
 function makeWorkspace(id: string): WorkspaceInternal {
   return {
@@ -85,23 +52,7 @@ beforeEach(() => {
   spawn.mockReset();
   spawnTerminalSession.mockReset();
   onOutput.mockReset().mockReturnValue(() => {});
-  setActive.mockReset();
-  getPanel.mockReset().mockReturnValue({
-    api: { setActive },
-    view: { content: { element: PANEL_CONTENT_ELEMENT } },
-  });
-  getActiveDockApi.mockReset().mockReturnValue({ getPanel });
-  // Default: the live dock is workspace "w" — matches store.activeWorkspaceId
-  // below for the common "same workspace, dock already up" case. Tests that
-  // exercise the cross-workspace path don't need to touch this — "w" simply
-  // isn't the target workspace id they focus into.
-  getActiveDockWorkspaceId.mockReset().mockReturnValue("w");
-  focusPanelContent.mockReset();
-  rafCallbacks = [];
-  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback): number => {
-    rafCallbacks.push(cb);
-    return rafCallbacks.length;
-  });
+  focusDockPanel.mockReset();
   const ws = makeWorkspace("w");
   ws.terminals = [
     { id: "t1", sessionId: "sess-1", kind: "shell", title: "Terminal" },
@@ -119,11 +70,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   vi.useRealTimers();
-  // Cross-workspace focus() leaves a pending request behind for the
-  // destination dock to consume — don't leak it into the next test.
-  clearPanelActivation("other");
 });
 
 describe("TerminalService.sendText (B7)", () => {
@@ -226,91 +173,47 @@ describe("TerminalService.rename (B7)", () => {
 });
 
 describe("TerminalService.focus", () => {
-  it("activates the panel synchronously but defers the actual focus grab a frame", () => {
-    // Regression test: the deferred focus grab bails out immediately (before
-    // ever reaching its own retry loop) if the target tab's content isn't in
-    // the DOM yet, and dockview's re-render mounting the newly-active tab
-    // happens asynchronously, not synchronously with setActive(). Calling
-    // it in the same tick as setActive() reliably switched the visible tab
-    // but never actually focused it — confirmed live (no blinking cursor,
-    // keystrokes did nothing) when driven from a side panel's click handler.
+  it("resolves the owning workspace and delegates to focusDockPanel", () => {
     svc.focus("t1");
+    expect(focusDockPanel).toHaveBeenCalledWith("w", "terminal:t1");
+  });
 
-    // setActive() happens right away — the tab switch itself isn't delayed.
-    expect(setActive).toHaveBeenCalledTimes(1);
-    // The focus grab must NOT have run yet in this same tick.
-    expect(focusPanelContent).not.toHaveBeenCalled();
+  it("finds the owning workspace even when it isn't the active one", () => {
+    const other = makeWorkspace("other");
+    other.terminals = [
+      { id: "t3", sessionId: "sess-3", kind: "shell", title: "Terminal" },
+    ];
+    store.workspaces.other = other;
+    store.workspaceOrder.push("other");
+    store.activeWorkspaceId = "w";
 
-    flushRaf();
-    // Regression test: scoped to *this panel's own* content element, not
-    // focusCenterDock()'s "whatever's visible in the active group" — with
-    // two-plus terminal tabs in the same group, that generic search could
-    // win the race against dockview's own visibility toggle and land on the
-    // previous tab's still-visible content instead (confirmed live: clicking
-    // between two terminal rows in agent-inspector sometimes focused the
-    // wrong one).
-    expect(focusPanelContent).toHaveBeenCalledTimes(1);
-    expect(focusPanelContent).toHaveBeenCalledWith(PANEL_CONTENT_ELEMENT);
+    svc.focus("t3");
+    expect(focusDockPanel).toHaveBeenCalledWith("other", "terminal:t3");
   });
 
   it("is a no-op for an unknown terminal id", () => {
     svc.focus("nope");
-    expect(setActive).not.toHaveBeenCalled();
-    flushRaf();
-    expect(focusPanelContent).not.toHaveBeenCalled();
+    expect(focusDockPanel).not.toHaveBeenCalled();
+  });
+});
+
+describe("TerminalService.getState / subscribe (RFC 0064)", () => {
+  afterEach(() => {
+    setActiveTerminal(null);
   });
 
-  it("does not defer a focus grab when the panel lookup itself comes back empty", () => {
-    getPanel.mockReturnValue(undefined);
-    svc.focus("t1");
-    flushRaf();
-    expect(focusPanelContent).not.toHaveBeenCalled();
+  it("getState mirrors getActive", () => {
+    expect(svc.getState()).toBe(svc.getActive());
+    setActiveTerminal("t1");
+    expect(svc.getState()).toBe(svc.getActive());
+    expect(svc.getState()).toBe("t1");
   });
 
-  it("hands a cross-workspace focus to the destination dock as a request, touching no dock itself", () => {
-    // Regression test for the flip-flop (issue #320): this path used to call
-    // setActive() itself behind a flat setTimeout(80) — a guess at how long the
-    // destination dock takes to mount — while that dock's own mount effect was
-    // independently restoring the panel the workspace was last on. Whichever
-    // setActive() landed last won, so the requested tab flashed active and then
-    // switched away. Now focus() only records the intent and switches the
-    // workspace; WorkspaceDock (the single authority over its active panel)
-    // applies it deterministically once its dock is up.
-    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    const other = makeWorkspace("other");
-    other.terminals = [
-      { id: "t3", sessionId: "sess-3", kind: "shell", title: "Terminal" },
-    ];
-    store.workspaces.other = other;
-    store.workspaceOrder.push("other");
-
-    svc.focus("t3");
-    expect(store.activeWorkspaceId).toBe("other");
-    expect(peekPanelActivation("other")).toBe("terminal:t3");
-
-    // No dock work from here — not now, not on any timer, not on any frame.
-    expect(getActiveDockApi).not.toHaveBeenCalled();
-    expect(setActive).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1000);
-    flushRaf();
-    expect(setActive).not.toHaveBeenCalled();
-    expect(focusPanelContent).not.toHaveBeenCalled();
-  });
-
-  it("keeps only the newest cross-workspace request when clicked twice in a row", () => {
-    const other = makeWorkspace("other");
-    other.terminals = [
-      { id: "t3", sessionId: "sess-3", kind: "shell", title: "Terminal" },
-      { id: "t4", sessionId: "sess-4", kind: "shell", title: "Terminal" },
-    ];
-    store.workspaces.other = other;
-    store.workspaceOrder.push("other");
-
-    svc.focus("t3");
-    // Second click lands before the destination dock has applied the first —
-    // the last intent is the live one, and only one tab switch happens.
-    store.activeWorkspaceId = "w"; // still elsewhere as far as this call knows
-    svc.focus("t4");
-    expect(peekPanelActivation("other")).toBe("terminal:t4");
+  it("subscribe fires the same event as subscribeActive", () => {
+    const listener = vi.fn();
+    const sub = svc.subscribe(listener);
+    setActiveTerminal("t1");
+    expect(listener).toHaveBeenCalledWith("t1");
+    sub.dispose();
   });
 });

@@ -50,7 +50,7 @@ import {
 import { getDndService, resolveDndMode } from "../extension-host/dnd-service";
 import { DND_MIME } from "@silo-code/sdk";
 import { setActiveTerminal } from "../extension-host/active-terminal-registry";
-import { setActiveDockPanel } from "../extension-host/agents/agent-surface-registry";
+import { setActiveDockPanel } from "../extension-host/active-dock-panel-registry";
 import { setContextKey } from "../extension-host/context-keys";
 import { resolveEditorForRecord } from "../extension-host/editor-registry";
 import { blurTextareaWithin } from "../extension-host/text-focus";
@@ -433,8 +433,9 @@ export function WorkspaceDock({
       );
       // The other half of "which Agent Session is the user looking at": a
       // dock panel that declared one through `DockPanelApi.setAgentSession`
-      // (RFC 0038 Session 3.2). The registry resolves panel → session.
-      setActiveDockPanel(panel?.id ?? null);
+      // (RFC 0038 Session 3.2). The registry resolves panel → session. Also
+      // the source `ctx.panels`'s active-panel state (RFC 0064) filters.
+      setActiveDockPanel(panel?.id ?? null, workspaceId);
       // Stamp a recorded panel's `lastActiveAt` when it becomes the active tab
       // (RFC 0041) — the same signal `TerminalRecord.lastActiveAt` carries.
       if (panel) {

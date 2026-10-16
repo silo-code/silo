@@ -43,6 +43,22 @@ function assertContributionShape(item: ToolbarItemContribution): void {
       `ToolbarItemContribution "${item.id}" must set exactly one of command or menu`,
     );
   }
+  // A dropdown is the *second* half of a split control, so it needs a first
+  // half to weld onto — a menu-only item is already all dropdown. The SDK types
+  // say so (`dropdown?: undefined` on the menu member); this catches the
+  // untyped caller.
+  if (item.dropdown != null) {
+    if (!hasCommand) {
+      throw new Error(
+        `ToolbarItemContribution "${item.id}" sets dropdown without a command — use menu for a menu-only control`,
+      );
+    }
+    if (typeof item.dropdown.menu !== "function") {
+      throw new Error(
+        `ToolbarItemContribution "${item.id}" has a dropdown without a menu builder`,
+      );
+    }
+  }
 }
 
 /** Register a contribution; backs `ctx.registerToolbarItem`. */
@@ -86,6 +102,17 @@ export function _resetToolbarItemsForTests(): void {
   listeners.clear();
 }
 
+/**
+ * The caret half of a resolved split control — a command entry that also
+ * carries a dropdown. Its own name and tooltip, because it answers a different
+ * question than the action half (what it *offers*, not what it *does*).
+ */
+export interface ToolbarDropdownEntry {
+  label: string;
+  tooltip: string;
+  loadMenu: () => MenuEntry[] | Promise<MenuEntry[]>;
+}
+
 /** Resolved interactive control. */
 export interface ToolbarControlEntry {
   id: string;
@@ -97,6 +124,8 @@ export interface ToolbarControlEntry {
   checked?: boolean;
   runCommand: () => void;
   loadMenu: () => MenuEntry[] | Promise<MenuEntry[]>;
+  /** Present only on a `"command"` entry whose contribution set `dropdown`. */
+  dropdown?: ToolbarDropdownEntry;
 }
 
 /** Resolved non-interactive chrome. */
@@ -174,6 +203,11 @@ export function toolbarEntriesFor<S extends ToolbarSurface>(
     const label = item.label ?? item.title ?? commandLabel ?? item.id;
     const title = item.title;
     const kind = item.menu ? ("menu" as const) : ("command" as const);
+    const dropdown = item.dropdown;
+    // The caret inherits the control's name with "options" appended rather than
+    // repeating the action's name — "Follow-up options" next to "Follow-up",
+    // so a screen reader announces two distinct targets.
+    const dropdownLabel = dropdown?.label ?? `${label} options`;
     return {
       id: item.id,
       label,
@@ -185,6 +219,13 @@ export function toolbarEntriesFor<S extends ToolbarSurface>(
           ? item.checked(keys, target)
           : undefined,
       kind,
+      dropdown: dropdown
+        ? {
+            label: dropdownLabel,
+            tooltip: dropdown.tooltip ?? dropdownLabel,
+            loadMenu: () => dropdown.menu(target),
+          }
+        : undefined,
       runCommand: () => {
         if (item.command) executeCommand(item.command, target);
       },

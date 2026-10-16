@@ -91,6 +91,110 @@
   min-width: 0;
 }
 
+/* ── Split control (`ToolbarCommandItemContribution.dropdown`) ──────────────
+ * A command half welded to a caret half: no gap, shared outer radius, one
+ * hover state across both, and a hairline marking the seam. */
+.contributed-toolbar__combo {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: var(--silo-radius-sm);
+}
+
+/* The halves are the flex items, not the Tooltip wrappers around them —
+ * otherwise the wrapper's box, not the button's, takes the weld geometry. */
+.contributed-toolbar__combo > .silo-tooltip-host {
+  display: contents;
+}
+
+.contributed-toolbar__combo-main,
+.contributed-toolbar__combo-drop {
+  border-radius: 0;
+}
+
+.contributed-toolbar__combo-main {
+  border-top-left-radius: var(--silo-radius-sm);
+  border-bottom-left-radius: var(--silo-radius-sm);
+}
+
+/* Tight against the rule, roomier on the outside edge — a caret flush to the
+ * control's right edge reads as clipped. */
+.contributed-toolbar__combo-drop {
+  width: auto;
+  min-width: 0;
+  padding: 0 4px 0 2px;
+  border-top-right-radius: var(--silo-radius-sm);
+  border-bottom-right-radius: var(--silo-radius-sm);
+}
+
+/* Hover lights the whole control, not the half under the pointer: it is one
+ * control, and half-lighting it made the two registrations it replaced look
+ * like they were still there. The halves therefore never paint their own
+ * hover — these selectors outrank the `__btn` hover rules above (the
+ * `aria-pressed` pair included) so the wrapper's background is what shows. */
+.contributed-toolbar__combo:hover {
+  background: var(--silo-color-bg-hover);
+}
+
+.contributed-toolbar__combo .contributed-toolbar__btn:hover:not(:disabled),
+.contributed-toolbar__combo
+  .contributed-toolbar__btn[aria-pressed="true"]:hover:not(:disabled) {
+  background: transparent;
+}
+
+/* Lighter than `.contributed-toolbar__separator` (1em @ 22%): that rule splits
+ * *groups*, this one only splits one control, and at or above the separator's
+ * weight the two read as the same boundary. The length carries the visibility
+ * instead — 1.1em is long enough to survive the dark toolbar at this opacity,
+ * where the original 0.75em was not. */
+.contributed-toolbar__combo-rule {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 1px;
+  height: 1.1em;
+  background: color-mix(
+    in srgb,
+    var(--silo-color-toolbar-text) 18%,
+    transparent
+  );
+}
+
+/* `checked` describes the command, but the tint covers the whole control —
+ * one pressed thing, not a pressed button beside an unpressed caret. The
+ * halves go transparent so the wrapper's tint is what shows through. */
+.contributed-toolbar__combo[data-checked="true"] {
+  background: color-mix(
+    in srgb,
+    var(--silo-color-accent, #4f8ef7) 15%,
+    transparent
+  );
+}
+
+.contributed-toolbar__combo[data-checked="true"]
+  .contributed-toolbar__combo-main,
+.contributed-toolbar__combo[data-checked="true"]
+  .contributed-toolbar__combo-drop {
+  background: transparent;
+  color: var(--silo-color-accent, #4f8ef7);
+}
+
+.contributed-toolbar__combo[data-checked="true"]
+  .contributed-toolbar__combo-rule {
+  background: color-mix(
+    in srgb,
+    var(--silo-color-accent, #4f8ef7) 35%,
+    transparent
+  );
+}
+
+.contributed-toolbar__combo[data-checked="true"]:hover {
+  background: color-mix(
+    in srgb,
+    var(--silo-color-accent, #4f8ef7) 22%,
+    transparent
+  );
+}
+
 .contributed-toolbar__caret {
   flex-shrink: 0;
   opacity: 0.75;

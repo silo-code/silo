@@ -61,7 +61,7 @@ doesn't repeat the reasoning, just the list.
       Settings → Keyboard Shortcuts. A command that reads its target only from
       its arguments runs and silently does nothing, which is indistinguishable
       from the shortcut never firing. Fall back to the active tab
-      (`ctx.editors.getState().active`, `ctx.terminals.getActive()`). See
+      (`ctx.editors.getState().active`, `ctx.terminals.getState()`). See
       [what `run` receives](/api/registration/register-command#what-run-receives).
 
 ## Lifecycle

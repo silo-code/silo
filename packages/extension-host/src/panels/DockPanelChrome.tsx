@@ -15,6 +15,8 @@ interface Props {
   workspaceId: string;
   params: Readonly<Record<string, unknown>>;
   toolbar: NonNullable<DockPanelKind["toolbar"]>;
+  /** This panel's `DockPanelRecord.id`, or `undefined` for a transient kind. */
+  recordId: string | undefined;
 }
 
 /**
@@ -31,6 +33,7 @@ export function DockPanelChrome({
   workspaceId,
   params,
   toolbar,
+  recordId,
 }: Props) {
   const crumb = useSyncExternalStore(
     useCallback(
@@ -57,7 +60,7 @@ export function DockPanelChrome({
       ) : null}
       <ContributedToolbar
         surface="panel"
-        target={{ panelId, kindId, workspaceId, params }}
+        target={{ panelId, kindId, workspaceId, params, recordId }}
         showMenu={(opts) => openMenu(opts)}
       />
     </div>

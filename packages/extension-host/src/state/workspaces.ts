@@ -1021,6 +1021,15 @@ export function findEditor(
   );
 }
 
+/** Which workspace owns an editor id, or null if none does. Mirrors
+ *  {@link workspaceIdForPanelRecord}. */
+export function workspaceIdForEditor(editorId: string): string | null {
+  for (const [wsId, ws] of Object.entries(store.workspaces)) {
+    if (ws?.editors.some((e) => e.id === editorId)) return wsId;
+  }
+  return null;
+}
+
 /**
  * What to open in a diff — mirrors the SDK's `OpenDiffSpec` (state is a leaf, so
  * the shape is inlined rather than imported). Content is the named provider's

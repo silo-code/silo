@@ -50,6 +50,12 @@ export interface ToolbarItemContext {
     kindId: string;
     workspaceId: string;
     params: Readonly<Record<string, unknown>>;
+    /**
+     * This panel's {@link DockPanelRecord.id} — the same id {@link
+     * Workspace.panels} enumerates. `undefined` for a panel kind that isn't
+     * `persistence: "recorded"` (no record exists to name).
+     */
+    recordId?: string;
   };
 }
 
@@ -108,7 +114,47 @@ export interface ToolbarItemFields<S extends ToolbarSurface = ToolbarSurface> {
 }
 
 /**
+ * The dropdown half of a {@link ToolbarCommandItemContribution} that sets
+ * {@link ToolbarCommandItemContribution.dropdown | dropdown} — the caret the
+ * host welds onto the right edge of the command control.
+ *
+ * It carries its own {@link ToolbarItemDropdown.label | label} and
+ * {@link ToolbarItemDropdown.tooltip | tooltip} because the two halves answer
+ * different questions: the action half names what clicking *does* ("Mark as
+ * follow-up: Bug"), the caret names what opening it *offers* ("Follow-up
+ * options"). Visibility is not its own concern — the whole control appears or
+ * hides together via {@link ToolbarItemFields.when | when}.
+ *
+ * @category Registration
+ * @public
+ */
+export interface ToolbarItemDropdown<
+  S extends ToolbarSurface = ToolbarSurface,
+> {
+  /**
+   * Build the dropdown for this target. May be sync or async. The host
+   * anchors the menu on the caret half (`align: "end"`, toggle on) — the same
+   * chrome a {@link ToolbarMenuItemContribution} gets.
+   */
+  menu: (target: ToolbarItemContext[S]) => MenuEntry[] | Promise<MenuEntry[]>;
+  /**
+   * Accessible name for the caret half. Falls back to the item's
+   * {@link ToolbarItemFields.label | label} suffixed with "options".
+   */
+  label?: string;
+  /** Hover tooltip for the caret half. Falls back to `label`. */
+  tooltip?: string;
+}
+
+/**
  * Command-backed toolbar control — click runs {@link ToolbarCommandItemContribution.command}.
+ *
+ * Adding {@link ToolbarCommandItemContribution.dropdown | dropdown} turns it
+ * into a **split control**: one welded unit whose left half runs the command
+ * and whose right half opens a menu. Reach for that when a toolbar has a
+ * single obvious default action plus variations on it — "mark with the default
+ * label" next to "mark with…" — rather than registering two adjacent items,
+ * which the host is free to separate, reorder, or collapse chrome between.
  *
  * @category Registration
  * @public
@@ -118,6 +164,16 @@ export interface ToolbarCommandItemContribution<
 > extends ToolbarItemFields<S> {
   /** The command to run; receives {@link ToolbarItemContext}[S] as its first arg. */
   command: string;
+  /**
+   * Optional dropdown half, welded to the command half as one split control.
+   * Omit for a plain command button.
+   *
+   * {@link ToolbarItemFields.checked | checked} still describes the *command* —
+   * but the host tints the whole control, caret included, so a marked split
+   * control reads as one pressed thing rather than a pressed button beside an
+   * unpressed caret.
+   */
+  dropdown?: ToolbarItemDropdown<S>;
   menu?: undefined;
   type?: undefined;
 }
@@ -139,6 +195,12 @@ export interface ToolbarMenuItemContribution<
    */
   menu: (target: ToolbarItemContext[S]) => MenuEntry[] | Promise<MenuEntry[]>;
   command?: undefined;
+  /**
+   * A menu-only control is already all dropdown — there is no action half to
+   * weld one onto. Use {@link ToolbarCommandItemContribution.dropdown} for a
+   * split control.
+   */
+  dropdown?: undefined;
   type?: undefined;
 }
 
@@ -204,8 +266,9 @@ export interface ToolbarSpacerContribution<
  *
  * Interactive items set exactly one of
  * {@link ToolbarCommandItemContribution.command | command} or
- * {@link ToolbarMenuItemContribution.menu | menu}. Separators and spacers use
- * `type: "separator" | "spacer"`.
+ * {@link ToolbarMenuItemContribution.menu | menu}; a command item may also set
+ * {@link ToolbarCommandItemContribution.dropdown | dropdown} to become a split
+ * control. Separators and spacers use `type: "separator" | "spacer"`.
  *
  * Contributions are independent of context-menu items — an extension may
  * register either, both, or neither. Hosts only render items while that

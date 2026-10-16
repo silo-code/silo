@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Editor } from "@silo-code/sdk";
 import type { WorkspaceInternal } from "../state/types";
+
+const { focusDockPanel } = vi.hoisted(() => ({ focusDockPanel: vi.fn() }));
+vi.mock("./focus-dock-panel", () => ({ focusDockPanel }));
+
 import { store } from "../state/store";
 import { editorRegistry } from "./editor-registry";
 import { setContextKey } from "./context-keys";
@@ -32,6 +36,7 @@ function makeWorkspace(id: string): WorkspaceInternal {
 }
 
 beforeEach(() => {
+  focusDockPanel.mockReset();
   store.workspaces = { w: makeWorkspace("w") };
   store.workspaceOrder = ["w"];
   store.activeWorkspaceId = "w";
@@ -244,5 +249,47 @@ describe("EditorService.getState / subscribe", () => {
 
     expect(listener).not.toHaveBeenCalled();
     sub.dispose();
+  });
+});
+
+describe("EditorService.focus", () => {
+  it("resolves the owning workspace from the open tab and delegates to focusDockPanel", () => {
+    svc.open("/ws/w/readme.md");
+    const id = editors()[0].id;
+    svc.focus(id);
+    expect(focusDockPanel).toHaveBeenCalledWith("w", `editor:${id}`);
+  });
+
+  it("finds the owning workspace even when it isn't the active one", () => {
+    store.workspaces.other = makeWorkspace("other");
+    store.workspaceOrder.push("other");
+    svc.open("/ws/other/notes.md", { workspaceId: "other" });
+    const id = store.workspaces.other.editors[0].id;
+    store.activeWorkspaceId = "w";
+
+    svc.focus(id);
+    expect(focusDockPanel).toHaveBeenCalledWith("other", `editor:${id}`);
+  });
+
+  it("trusts an explicit workspaceId hint without searching", () => {
+    svc.open("/ws/w/readme.md");
+    const id = editors()[0].id;
+    svc.focus(id, { workspaceId: "w" });
+    expect(focusDockPanel).toHaveBeenCalledWith("w", `editor:${id}`);
+  });
+
+  it("is a no-op when the workspaceId hint doesn't actually contain the editor", () => {
+    store.workspaces.other = makeWorkspace("other");
+    store.workspaceOrder.push("other");
+    svc.open("/ws/w/readme.md");
+    const id = editors()[0].id;
+
+    svc.focus(id, { workspaceId: "other" });
+    expect(focusDockPanel).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op for an unknown editor id", () => {
+    svc.focus("nope");
+    expect(focusDockPanel).not.toHaveBeenCalled();
   });
 });

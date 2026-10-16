@@ -151,7 +151,27 @@ describe("contributions", () => {
       kindId: "silo.chat",
       workspaceId: "ws_2",
       params: { profileId: "cursor" },
+      recordId: "p2",
     });
+  });
+
+  it("omits recordId for a transient kind — there is no record to name", () => {
+    registerKind("core.picker");
+    let seen: Record<string, unknown> | null = null;
+    disposables.push(
+      registerContextMenuItem({
+        id: "ext.probe",
+        surface: "panel/tab",
+        label: "Probe",
+        run: () => {},
+        when: (_keys, target) => {
+          seen = target as unknown as Record<string, unknown>;
+          return true;
+        },
+      }),
+    );
+    buildPanelTabMenuItems("core.picker:p1");
+    expect(seen?.recordId).toBeUndefined();
   });
 
   it("hands over a copy of params, not the live dockview object", () => {

@@ -1,6 +1,6 @@
 # Interface: DockPanelKind\<T\>
 
-Defined in: [packages/sdk/src/types.ts:720](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L720)
+Defined in: [packages/sdk/src/types.ts:729](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L729)
 
 Registers a kind of dock panel (a tab that can live in the center dock area,
 e.g. the terminal). Workspaces open panels of registered kinds by id. The
@@ -22,7 +22,7 @@ opened with — annotate your component with `DockPanelProps<T>` and
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:729](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L729)
+Defined in: [packages/sdk/src/types.ts:738](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L738)
 
 Unique id for this panel kind. Must not contain `:` — the host composes a
 recorded panel's dockview id from the kind id and the record id separated
@@ -39,7 +39,7 @@ building or parsing it yourself.
 component: ComponentType<DockPanelProps<T>>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:731](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L731)
+Defined in: [packages/sdk/src/types.ts:740](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L740)
 
 The React component that renders this panel; receives [DockPanelProps](DockPanelProps.md).
 
@@ -51,7 +51,7 @@ The React component that renders this panel; receives [DockPanelProps](DockPanel
 optional toolbar?: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:748](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L748)
+Defined in: [packages/sdk/src/types.ts:757](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L757)
 
 Host-drawn chrome above this panel's component (RFC 0039). Omit for a bare
 frame — the default, and correct for a panel that fills its own space.
@@ -86,7 +86,7 @@ contributed items.
 optional chatProfileHost?: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:777](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L777)
+Defined in: [packages/sdk/src/types.ts:786](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L786)
 
 Declares that this panel kind renders a **Chat session** for an Agent
 Profile (RFC 0038), so Silo can open it on the user's behalf.
@@ -116,7 +116,7 @@ handed profiles it does not render.
 optional persistence?: "recorded";
 ```
 
-Defined in: [packages/sdk/src/types.ts:797](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L797)
+Defined in: [packages/sdk/src/types.ts:806](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L806)
 
 Opt this kind's panels into being **recorded** (RFC 0041). With
 `persistence: "recorded"`, every open panel of this kind gets a
@@ -144,7 +144,7 @@ recreated after a restart.
 optional renamable?: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:814](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L814)
+Defined in: [packages/sdk/src/types.ts:823](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L823)
 
 Whether the user may **rename this kind's tabs** from the tab's right-click
 menu. Defaults to `persistence === "recorded"`, so a recorded panel is
@@ -169,7 +169,7 @@ no record to persist it in.
 optional addMenuItem?: object;
 ```
 
-Defined in: [packages/sdk/src/types.ts:819](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L819)
+Defined in: [packages/sdk/src/types.ts:828](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L828)
 
 When set, this kind appears as an entry in the center dock's **+** add
 menu (the per-group header button). Omit to keep the kind internal.

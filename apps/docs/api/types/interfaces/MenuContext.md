@@ -171,6 +171,18 @@ workspaceId: string;
 params: Readonly<Record<string, unknown>>;
 ```
 
+#### recordId?
+
+```ts
+optional recordId?: string;
+```
+
+This tab's [DockPanelRecord.id](DockPanelRecord.md#id) — the same id [Workspace.panels](Workspace.md#panels) enumerates, so a handler that persists something
+per-panel can key off it directly instead of rebuilding a
+`panelId → DockPanelRecord.id` index from `Workspace.panels` itself.
+`undefined` for a panel kind that isn't `persistence: "recorded"` (no
+record exists to name).
+
 ***
 
 ### workspace
@@ -179,4 +191,4 @@ params: Readonly<Record<string, unknown>>;
 workspace: Workspace;
 ```
 
-Defined in: [packages/sdk/src/types.ts:509](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L509)
+Defined in: [packages/sdk/src/types.ts:518](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L518)

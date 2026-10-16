@@ -29,6 +29,10 @@ import {
   getActiveTerminal,
   subscribeActiveTerminal,
 } from "../active-terminal-registry";
+import {
+  getActiveDockPanel,
+  subscribeActiveDockPanel,
+} from "../active-dock-panel-registry";
 
 /** What the host can do to a panel that declared an Agent Session, supplied by
  *  the panel's own dockview api (see `makeDockPanelApi`). */
@@ -48,7 +52,6 @@ const byPanel = new Map<string, PanelBinding>();
 /** Agent Session id → panelId. Kept in step with {@link byPanel}. */
 const panelBySession = new Map<string, string>();
 
-let activePanelId: string | null = null;
 let lastActiveSession: string | null = null;
 const activeListeners = new Set<(id: string | null) => void>();
 
@@ -57,8 +60,9 @@ function resolveActiveSession(): string | null {
   // terminal tracker already answers this for one of the two kinds.
   const terminalId = getActiveTerminal();
   if (terminalId) return terminalId;
-  if (!activePanelId) return null;
-  return byPanel.get(activePanelId)?.sessionId ?? null;
+  const panelId = getActiveDockPanel()?.panelId;
+  if (!panelId) return null;
+  return byPanel.get(panelId)?.sessionId ?? null;
 }
 
 function emitActiveIfChanged(): void {
@@ -69,20 +73,10 @@ function emitActiveIfChanged(): void {
 }
 
 // The active *terminal* tab and the active *panel* are published by different
-// host seams (WorkspaceDock calls both). Either can change which Agent Session
-// the user is looking at.
+// host seams (WorkspaceDock calls both, via two separate registries). Either
+// can change which Agent Session the user is looking at.
 subscribeActiveTerminal(() => emitActiveIfChanged());
-
-/**
- * Publish the active center-dock panel id (or null when no dock is active).
- *
- * @internal — written only by WorkspaceDock, alongside `setActiveTerminal`.
- */
-export function setActiveDockPanel(panelId: string | null): void {
-  if (panelId === activePanelId) return;
-  activePanelId = panelId;
-  emitActiveIfChanged();
-}
+subscribeActiveDockPanel(() => emitActiveIfChanged());
 
 /**
  * Bind (or, with `null`, unbind) the Agent Session a dock panel is showing.
@@ -145,11 +139,12 @@ export function subscribeActiveAgentSession(
   return { dispose: () => activeListeners.delete(listener) };
 }
 
-/** @internal — test helper. */
+/** @internal — test helper. Does not reset `active-dock-panel-registry` —
+ *  call `setActiveDockPanel(null)` separately for that, same as
+ *  `setActiveTerminal(null)`. */
 export function _resetAgentSurfaceRegistryForTests(): void {
   byPanel.clear();
   panelBySession.clear();
-  activePanelId = null;
   lastActiveSession = null;
   activeListeners.clear();
 }

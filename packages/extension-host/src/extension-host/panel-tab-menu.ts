@@ -88,6 +88,7 @@ export function buildPanelTabMenuItems(
     kindId: parsed.kindId,
     workspaceId: wsId,
     params: { ...(opts.params ?? {}) },
+    recordId: recorded ? parsed.recordId : undefined,
   });
   if (contributed.length > 0) {
     if (items.length > 0) items.push({ type: "separator" });

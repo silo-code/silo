@@ -708,7 +708,7 @@ No-op for an unknown `terminalId`.
 getTabMenuItems(terminalId): MenuEntry[];
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:224](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L224)
+Defined in: [packages/sdk/src/terminal-service.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L220)
 
 The rows of this terminal's tab context menu — **Rename…**, then whatever
 extensions contributed on the `"terminal/tab"`
@@ -751,6 +751,9 @@ focus(terminalId): void;
 ```
 
 Defined in: [packages/sdk/src/terminal-service.ts:226](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L226)
+
+Switch to the workspace containing this terminal and activate its tab in
+the center dock. No-ops if the terminal id is unknown.
 
 #### Parameters
 
@@ -1015,19 +1018,23 @@ ctx.subscriptions.push(sub);
 
 ***
 
-### getActive()
+### getState()
 
 ```ts
-getActive(): string | null;
+getState(): string | null;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:363](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L363)
+Defined in: [packages/sdk/src/terminal-service.ts:367](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L367)
 
-The record id of the terminal tab that is currently active in the active
-workspace's center dock, or `null` when an editor tab (or nothing) is
-active. "Active" is the dock's single active panel — the tab the user is
-looking at and typing into — so a terminal merely visible in a non-active
-split does not count.
+Current frozen snapshot of which terminal is active — the record id of
+the terminal tab that is currently active in the active workspace's
+center dock, or `null` when an editor tab (or nothing) is active.
+"Active" is the dock's single active panel — the tab the user is looking
+at and typing into — so a terminal merely visible in a non-active split
+does not count. Identical value to the deprecated
+[TerminalService.getActive](#getactive); this is the [ReactiveService](ReactiveService.md)-shaped
+replacement, so `useServiceState(ctx.terminals)` works like it does for
+[ctx.editors](ExtensionContext.md#editors).
 
 #### Returns
 
@@ -1035,13 +1042,13 @@ split does not count.
 
 ***
 
-### subscribeActive()
+### subscribe()
 
 ```ts
-subscribeActive(listener): Disposable;
+subscribe(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/terminal-service.ts:385](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L385)
+Defined in: [packages/sdk/src/terminal-service.ts:391](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L391)
 
 Subscribe to active-terminal changes. The listener receives the terminal
 record id whenever a terminal tab becomes the active center-dock panel,
@@ -1050,7 +1057,9 @@ including transiently during a workspace switch, before the incoming
 workspace's active tab is published).
 
 Fires on tab activation, group activation, and workspace switches.
-Returns a [Disposable](Disposable.md) that cancels the subscription.
+Returns a [Disposable](Disposable.md) that cancels the subscription. Identical
+event to the deprecated [TerminalService.subscribeActive](#subscribeactive); see
+[TerminalService.getState](#getstate).
 
 #### Parameters
 
@@ -1067,8 +1076,51 @@ Returns a [Disposable](Disposable.md) that cancels the subscription.
 ```ts
 // Clear a "needs attention" marker once the user views the terminal.
 ctx.subscriptions.push(
-  ctx.terminals.subscribeActive((terminalId) => {
+  ctx.terminals.subscribe((terminalId) => {
     if (terminalId) attention.delete(terminalId);
   }),
 );
 ```
+
+***
+
+### ~~getActive()~~
+
+```ts
+getActive(): string | null;
+```
+
+Defined in: [packages/sdk/src/terminal-service.ts:397](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L397)
+
+#### Returns
+
+`string` \| `null`
+
+#### Deprecated
+
+Prefer [TerminalService.getState](#getstate) — identical value,
+`ReactiveService`-shaped (so it satisfies `useServiceState` directly).
+
+***
+
+### ~~subscribeActive()~~
+
+```ts
+subscribeActive(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/terminal-service.ts:402](https://github.com/silo-code/silo/blob/main/packages/sdk/src/terminal-service.ts#L402)
+
+#### Parameters
+
+##### listener
+
+(`terminalId`) => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+#### Deprecated
+
+Prefer [TerminalService.subscribe](#subscribe) — identical event.

@@ -1,6 +1,6 @@
 # Interface: ToolbarSpacerContribution\<S\>
 
-Defined in: [packages/sdk/src/toolbar-items.ts:191](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L191)
+Defined in: [packages/sdk/src/toolbar-items.ts:253](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L253)
 
 An empty gap between toolbar controls (no rule). Use to group without a
 hard split; prefer [ToolbarSeparatorContribution](ToolbarSeparatorContribution.md) when a hairline helps.
@@ -23,7 +23,7 @@ hard split; prefer [ToolbarSeparatorContribution](ToolbarSeparatorContribution.m
 id: string;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:155](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L155)
+Defined in: [packages/sdk/src/toolbar-items.ts:217](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L217)
 
 #### Inherited from
 
@@ -37,7 +37,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:155](https://github.com/silo-code
 surface: S;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:156](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L156)
+Defined in: [packages/sdk/src/toolbar-items.ts:218](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L218)
 
 #### Inherited from
 
@@ -51,7 +51,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:156](https://github.com/silo-code
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:157](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L157)
+Defined in: [packages/sdk/src/toolbar-items.ts:219](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L219)
 
 #### Inherited from
 
@@ -65,7 +65,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:157](https://github.com/silo-code
 optional when?: (ctx, target) => boolean;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:158](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L158)
+Defined in: [packages/sdk/src/toolbar-items.ts:220](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L220)
 
 #### Parameters
 
@@ -93,7 +93,7 @@ Defined in: [packages/sdk/src/toolbar-items.ts:158](https://github.com/silo-code
 type: "spacer";
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:194](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L194)
+Defined in: [packages/sdk/src/toolbar-items.ts:256](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L256)
 
 ***
 
@@ -103,6 +103,6 @@ Defined in: [packages/sdk/src/toolbar-items.ts:194](https://github.com/silo-code
 optional size?: ToolbarSpacerSize;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:196](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L196)
+Defined in: [packages/sdk/src/toolbar-items.ts:258](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L258)
 
 Default `"md"`.

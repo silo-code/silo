@@ -55,6 +55,31 @@ export function parseRecordedPanelId(
 export { recordedPanelId } from "../state/recorded-panel-id";
 
 /**
+ * Classify any live dockview panel id as editor, terminal, or some other
+ * `DockPanelKind` ("panel"). Returns `null` for an editor or terminal id —
+ * `ctx.panels`'s active-panel state (RFC 0064) deliberately does not report
+ * those as its own active panel, the same kind isolation the adornment
+ * methods already enforce.
+ *
+ * For a "panel" id: a recorded kind resolves through
+ * {@link parseRecordedPanelId}; a transient kind's id is either
+ * `kindId:instanceId` (a non-singleton transient panel — no record, so no
+ * `recordId`) or the bare `kindId` (a singleton panel, per
+ * `LayoutService.openPanel`'s doc that a singleton's id equals its kind id).
+ */
+export function classifyPanelKind(
+  panelId: string,
+): { kindId: string; recordId?: string } | null {
+  if (panelId.startsWith("editor:") || panelId.startsWith("terminal:")) {
+    return null;
+  }
+  const recorded = parseRecordedPanelId(panelId);
+  if (recorded) return recorded;
+  const i = panelId.indexOf(":");
+  return i > 0 ? { kindId: panelId.slice(0, i) } : { kindId: panelId };
+}
+
+/**
  * Adapt a dockview panel api into the SDK's {@link DockPanelApi}. Most members
  * are a straight delegation — the two surfaces were deliberately kept
  * structurally compatible — but `setAgentSession` is Silo's own: it records
@@ -223,6 +248,7 @@ function toHostComponent(
         workspaceId,
         params,
         toolbar,
+        recordId: recorded?.recordId,
       }),
       createElement(
         "div",

@@ -8,7 +8,7 @@ type ToolbarItemContribution<S> =
 | ToolbarSpacerContribution<S>;
 ```
 
-Defined in: [packages/sdk/src/toolbar-items.ts:217](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L217)
+Defined in: [packages/sdk/src/toolbar-items.ts:280](https://github.com/silo-code/silo/blob/main/packages/sdk/src/toolbar-items.ts#L280)
 
 Adds a control or chrome element to the trailing cluster of a host-drawn
 toolbar — the editor breadcrumb, the Navigator header, or a dock panel's
@@ -17,8 +17,9 @@ strip (the terminal included; see [ToolbarSurface](ToolbarSurface.md)). Register
 
 Interactive items set exactly one of
 [command](../interfaces/ToolbarCommandItemContribution.md#command) or
-[menu](../interfaces/ToolbarMenuItemContribution.md#menu). Separators and spacers use
-`type: "separator" | "spacer"`.
+[menu](../interfaces/ToolbarMenuItemContribution.md#menu); a command item may also set
+[dropdown](../interfaces/ToolbarCommandItemContribution.md#dropdown) to become a split
+control. Separators and spacers use `type: "separator" | "spacer"`.
 
 Contributions are independent of context-menu items — an extension may
 register either, both, or neither. Hosts only render items while that

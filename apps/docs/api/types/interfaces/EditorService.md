@@ -22,7 +22,7 @@ as the target — see [TabAdornmentMethods](TabAdornmentMethods.md).
 onDidSave: Event<EditorSaveEvent>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:331](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L331)
+Defined in: [packages/sdk/src/editor-service.ts:339](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L339)
 
 Fires after an editor tab's contents are saved to disk — a formatter,
 linter, or build-on-save extension's entry point. See [Event](../type-aliases/Event.md).
@@ -163,13 +163,45 @@ Close the active dock panel. Returns false if there's nothing to close.
 
 ***
 
+### focus()
+
+```ts
+focus(editorId, opts?): void;
+```
+
+Defined in: [packages/sdk/src/editor-service.ts:261](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L261)
+
+Switch to the editor's owning workspace and bring its tab to the front —
+including an untitled buffer or a diff view, neither reachable by
+re-calling [EditorService.open](#open). No-op if `editorId` names no open
+editor. `opts.workspaceId` disambiguates when known; omit it to search
+every open workspace.
+
+#### Parameters
+
+##### editorId
+
+`string`
+
+##### opts?
+
+###### workspaceId?
+
+`string`
+
+#### Returns
+
+`void`
+
+***
+
 ### editorsFor()
 
 ```ts
 editorsFor(path): EditorViewInfo[];
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:262](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L262)
+Defined in: [packages/sdk/src/editor-service.ts:270](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L270)
 
 List the editor views that match `path` (or `null` for an untitled buffer),
 highest-priority first, each flagged whether it's the one the host resolves
@@ -199,7 +231,7 @@ setViewType(
    opts?): void;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:271](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L271)
+Defined in: [packages/sdk/src/editor-service.ts:279](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L279)
 
 Switch an already-open editor tab to a different view in place — without
 closing and reopening it — and persist the choice on the tab. No-op if the
@@ -236,7 +268,7 @@ presenter.
 registerSaveHandler(editorId, handlers): Disposable;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:281](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L281)
+Defined in: [packages/sdk/src/editor-service.ts:289](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L289)
 
 Register save handlers for an editor instance (by its `editorId`), so the
 active-editor `save` / `saveAs` dispatch to it while it's focused. Dispose
@@ -264,7 +296,7 @@ to unregister (do this when the editor unmounts).
 registerDiffContentProvider(providerId, provider): Disposable;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:290](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L290)
+Defined in: [packages/sdk/src/editor-service.ts:298](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L298)
 
 Register a [DiffContentProvider](../type-aliases/DiffContentProvider.md) under `providerId`. A diff opened
 with that `providerId` (see [OpenDiffSpec](OpenDiffSpec.md)) resolves its two sides
@@ -292,7 +324,7 @@ through this provider, on every mount. Dispose to unregister.
 getText(editorId): Promise<string | undefined>;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:311](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L311)
+Defined in: [packages/sdk/src/editor-service.ts:319](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L319)
 
 The current buffer text of an open editor tab, including unsaved edits.
 
@@ -329,7 +361,7 @@ if (text !== undefined) ctx.log.info(`${text.length} chars`);
 isDirty(editorId): boolean;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:317](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L317)
+Defined in: [packages/sdk/src/editor-service.ts:325](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L325)
 
 Whether an open editor tab has unsaved changes. Returns `false` for an
 unknown id or a tab that isn't text-backed and has no retained dirty
@@ -353,7 +385,7 @@ buffer. Stays `true` across a dirty Text → Preview view switch.
 getState(): EditorsState;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:344](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L344)
+Defined in: [packages/sdk/src/editor-service.ts:352](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L352)
 
 Current frozen snapshot of editor state. The returned object is
 referentially stable between renders — `getState() === getState()` when
@@ -379,7 +411,7 @@ if (active) ctx.log.info(`Active file: ${active.filePath ?? "(untitled)"}`);
 subscribe(listener): Disposable;
 ```
 
-Defined in: [packages/sdk/src/editor-service.ts:363](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L363)
+Defined in: [packages/sdk/src/editor-service.ts:371](https://github.com/silo-code/silo/blob/main/packages/sdk/src/editor-service.ts#L371)
 
 Subscribe to changes in the active editor. The listener is called whenever
 `active` changes (tab focus moves, workspace switches, editor opens or

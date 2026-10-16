@@ -193,19 +193,27 @@ nothing) is active, and transiently during workspace switches before the
 incoming workspace's active tab is published. A terminal that is merely visible
 in a non-active split does not count.
 
+`ctx.terminals` satisfies [`ReactiveService<string | null>`](/api/types/interfaces/ReactiveService),
+so `useServiceState(ctx.terminals)` works the same way it does for
+[`ctx.editors`](/api/editors/) and [`ctx.panels`](/api/state/panels).
+
 ```ts
 // clear a "needs attention" marker once the user views the terminal
 ctx.subscriptions.push(
-  ctx.terminals.subscribeActive((terminalId) => {
+  ctx.terminals.subscribe((terminalId) => {
     if (terminalId) attention.delete(terminalId);
   }),
 );
 ```
 
-| Method                                                                               | What it does                                                                                                                                           |
-| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`getActive()`](/api/types/interfaces/TerminalService#getactive)                     | The record id of the active center-dock terminal tab, or `null`.                                                                                       |
-| [`subscribeActive(listener)`](/api/types/interfaces/TerminalService#subscribeactive) | Subscribe to active-terminal changes (tab activation, group activation, workspace switch). Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+| Method                                                                   | What it does                                                                                                                                           |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`getState()`](/api/types/interfaces/TerminalService#getstate)           | The record id of the active center-dock terminal tab, or `null`.                                                                                       |
+| [`subscribe(listener)`](/api/types/interfaces/TerminalService#subscribe) | Subscribe to active-terminal changes (tab activation, group activation, workspace switch). Returns a [`Disposable`](/api/types/interfaces/Disposable). |
+
+`getActive()` / `subscribeActive(listener)` remain as **deprecated aliases** —
+identical values, kept working, not `ReactiveService`-shaped. Prefer
+`getState()` / `subscribe()` in new code.
 
 ## Types
 
