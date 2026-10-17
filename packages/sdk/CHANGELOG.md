@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.61.0](https://github.com/silo-code/silo/compare/sdk-v0.60.0...sdk-v0.61.0) (2026-10-17)
+
+
+### Features
+
+* **dock:** make the tab highlight an inset chip, lighter on the active tab ([#637](https://github.com/silo-code/silo/issues/637)) ([ca9df2f](https://github.com/silo-code/silo/commit/ca9df2f8f4b1eccef93d53bd4de63a917c3fb8f6))
+
 ## [0.60.0](https://github.com/silo-code/silo/compare/sdk-v0.59.0...sdk-v0.60.0) (2026-10-17)
 
 
