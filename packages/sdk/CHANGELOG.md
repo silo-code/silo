@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.60.0](https://github.com/silo-code/silo/compare/sdk-v0.59.0...sdk-v0.60.0) (2026-10-17)
+
+
+### Features
+
+* **dock:** tab-highlight veil, an "info" color, and a reliable panel workspace id ([#635](https://github.com/silo-code/silo/issues/635)) ([e4c09d3](https://github.com/silo-code/silo/commit/e4c09d33a86fc5a7e010a42495bef1e4463f1d96))
+
 ## [0.59.0](https://github.com/silo-code/silo/compare/sdk-v0.58.0...sdk-v0.59.0) (2026-10-17)
 
 
