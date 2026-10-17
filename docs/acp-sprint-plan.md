@@ -831,10 +831,13 @@ params-in-`dockLayout` round-trip that never worked. Full design:
   Load-time normalization (`normalizeLoadedWorkspace`) fills `panels` on a
   pre-0041 workspace file.
 - **`workspaceId` on the RFC 0039 `"panel"` toolbar target**
-  (`ToolbarItemContext["panel"]`). Threaded host-side: `WorkspaceDock.onReady`
-  registers its dock api → workspace id (`registerDockApiWorkspace`, covers
-  background docks too), `dock-panel-kinds.ts` reads it back and passes it to
-  `DockPanelChrome`, which puts it in the target. Additive.
+  (`ToolbarItemContext["panel"]`). Threaded host-side: `WorkspaceDock` names
+  its workspace for everything dockview renders inside it (covers background
+  docks too), `dock-panel-kinds.ts` reads it and passes it to
+  `DockPanelChrome`, which puts it in the target. Additive. (Originally a
+  `WeakMap` keyed on the dock's `DockviewApi`, registered in `onReady`; that
+  key missed for every panel restored from a saved layout, so it is React
+  context from the dock now — see `panels/DockWorkspaceContext.tsx`.)
 - **`acp-chat` example declares `persistence: "recorded"`** — the Phase 1 test
   consumer. `sessionId` restore is **not** wired here; that is Session 4.
 

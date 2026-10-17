@@ -17,7 +17,7 @@ import { buildTerminalTabMenuItems } from "../extension-host/terminal-tab-menu";
 import { buildPanelTabMenuItems } from "../extension-host/panel-tab-menu";
 import { openMenu } from "../extension-host/menu-controller";
 import { requestPanelFocus } from "../extension-host/panel-focus-registry";
-import { dockApiWorkspaceId } from "../docked/dock-api-registry";
+import { useDockWorkspaceId } from "./DockWorkspaceContext";
 import { Tooltip } from "../components/Tooltip";
 import { TabIndicatorGlyph } from "./TabIndicatorGlyph";
 import { customTitleForPanelId } from "./dock-helpers";
@@ -150,8 +150,11 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
     return () => sub.dispose();
   }, [api]);
 
-  // Derive preview state reactively from valtio.
-  const wsId = snap.activeWorkspaceId;
+  // Derive preview state reactively from valtio. The workspace is this tab's
+  // *dock's* — not `activeWorkspaceId`: every warmed workspace keeps its dock
+  // mounted, so a backgrounded dock's tab reading the active workspace would
+  // style itself (and build its menu) from another workspace's state.
+  const wsId = useDockWorkspaceId();
   const ws = wsId ? snap.workspaces[wsId] : null;
   const isPreview = !!(editorId && ws?.previewEditorId === editorId);
 
@@ -197,7 +200,7 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
   // Double-click on a preview tab promotes it to permanent.
   const onTabDoubleClick = useCallback(() => {
     if (editorId && isPreview) {
-      promotePreviewEditor(store.activeWorkspaceId!, editorId);
+      promotePreviewEditor(wsId!, editorId);
     }
   }, [editorId, isPreview]);
 
@@ -232,8 +235,8 @@ export function DockTab(props: IDockviewPanelHeaderProps) {
   // `onClick` doesn't listen for. (`onTabMouseDown`'s `stopPropagation` stops
   // only the mousedown; it has no effect on a later click event.)
   const onTabClick = useCallback(() => {
-    requestPanelFocus(dockApiWorkspaceId(props.containerApi) ?? "", panelId);
-  }, [props.containerApi, panelId]);
+    requestPanelFocus(wsId ?? "", panelId);
+  }, [wsId, panelId]);
 
   // Right-click → real menu: Rename (terminals, renamable panels) + extension
   // contributions on editor/tab, terminal/tab or panel/tab (RFC 0021 / 0013 / 0046).
