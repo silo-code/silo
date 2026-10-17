@@ -48,6 +48,7 @@ Semantic, never literal (there is no `--silo-color-blue`). Every one is also a
 | `--silo-color-ok`                    | Success                                                       |
 | `--silo-color-warn`                  | Warning                                                       |
 | `--silo-color-err`                   | Error / destructive                                           |
+| `--silo-color-info`                  | Informational / in progress                                   |
 | `--silo-color-input-bg`              | Form-field background                                         |
 | `--silo-color-input-text`            | Form-field text                                               |
 | `--silo-color-input-border`          | Form-field border (a real edge, unlike `--silo-color-border`) |

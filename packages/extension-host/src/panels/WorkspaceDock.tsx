@@ -38,10 +38,10 @@ import {
   recordedPanelId,
 } from "../extension-host/dock-panel-kinds";
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { DockWorkspaceProvider } from "./DockWorkspaceContext";
 import {
   setActiveDockApi,
   focusPanelContent,
-  registerDockApiWorkspace,
 } from "../docked/dock-api-registry";
 import {
   peekPanelActivation,
@@ -101,10 +101,6 @@ export function WorkspaceDock({
   function onReady(event: DockviewReadyEvent) {
     setApi(event.api);
     apiRef.current = event.api;
-    // Name this dock's workspace so a panel's host-drawn chrome (and its
-    // `surface: "panel"` toolbar target) can resolve `workspaceId` even for a
-    // background workspace (RFC 0041).
-    registerDockApiWorkspace(event.api, workspaceId);
   }
 
   useEffect(() => {
@@ -778,16 +774,22 @@ export function WorkspaceDock({
       : "dockview-theme-dark";
   return (
     <ErrorBoundary name={`workspace-dock:${workspaceId}`}>
-      <DockviewReact
-        className={`${themeClass} editor-dock`}
-        components={dockComponents}
-        onReady={onReady}
-        onDidDrop={onDidDrop}
-        onWillDrop={onWillDrop}
-        defaultTabComponent={DockTab}
-        leftHeaderActionsComponent={GroupAddMenu}
-        watermarkComponent={EmptyWatermark}
-      />
+      {/* Every panel, tab and header component dockview renders is a React
+          child of <DockviewReact> (it renders them as portals in its own
+          JSX), so this is how a panel — restored or live — learns which
+          workspace it belongs to. See DockWorkspaceContext. */}
+      <DockWorkspaceProvider workspaceId={workspaceId}>
+        <DockviewReact
+          className={`${themeClass} editor-dock`}
+          components={dockComponents}
+          onReady={onReady}
+          onDidDrop={onDidDrop}
+          onWillDrop={onWillDrop}
+          defaultTabComponent={DockTab}
+          leftHeaderActionsComponent={GroupAddMenu}
+          watermarkComponent={EmptyWatermark}
+        />
+      </DockWorkspaceProvider>
     </ErrorBoundary>
   );
 }

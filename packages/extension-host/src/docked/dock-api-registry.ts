@@ -6,25 +6,14 @@ import { TABBABLE, focusFirstOrContainer } from "../extension-host/focus-dom";
 let activeApi: DockviewApi | null = null;
 let activeApiWorkspaceId: string | null = null;
 
-// Every workspace has its own dockview instance. This maps each one to its
-// workspace id — unlike `activeApiWorkspaceId`, it covers background docks too,
-// so a panel component (or its host-drawn chrome) can name its owning workspace
-// without assuming it is the active one. Keyed weakly so a disposed dock's
-// entry is collected with it.
-const apiWorkspaceIds = new WeakMap<DockviewApi, string>();
-
-/** Record which workspace a dockview instance belongs to (called on ready). */
-export function registerDockApiWorkspace(
-  api: DockviewApi,
-  workspaceId: string,
-): void {
-  apiWorkspaceIds.set(api, workspaceId);
-}
-
-/** The workspace id for a dockview instance, or null if it is not registered. */
-export function dockApiWorkspaceId(api: DockviewApi): string | null {
-  return apiWorkspaceIds.get(api) ?? null;
-}
+// A panel's owning workspace is NOT resolved here. There used to be a
+// `WeakMap<DockviewApi, string>` for it, registered on ready — but a panel's
+// `containerApi` is not that object on the restore path: `api.addPanel` hands
+// over the component's shared api instance while dockview's deserializer
+// builds each restored panel with `new DockviewApi(accessor)`, so the lookup
+// missed for every panel that came back from a saved layout and resolved to
+// `""`. It comes down the React tree instead — see
+// `panels/DockWorkspaceContext.tsx`.
 
 // Monotonic "focus intent" counter. Every region/group/tab focus bumps it; the
 // center dock's async retry (focusContentIn) captures the current value and

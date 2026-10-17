@@ -5,12 +5,23 @@ import type { Disposable } from "./types";
 
 /**
  * Semantic color for a CenterDock tab trailing {@link TabIndicatorAdornment}
- * (and optional chip background).
+ * (and optional chip background) or {@link TabHighlightAdornment}.
+ *
+ * `"info"` is the themeable blue — for "informational / in progress" flags.
+ * It is not the pinned {@link Activity} `working` blue: activity colors stay
+ * outside the theme-preset system on purpose (ADR 0030), so the two look
+ * alike but never share a token.
  *
  * @category Consumer Services
  * @public
  */
-export type TabAdornmentColor = "accent" | "warn" | "ok" | "error" | "muted";
+export type TabAdornmentColor =
+  | "accent"
+  | "info"
+  | "warn"
+  | "ok"
+  | "error"
+  | "muted";
 
 /**
  * Leading identity adornment on a CenterDock tab — arbitrary React artwork
@@ -28,11 +39,16 @@ export interface TabIconAdornment {
 }
 
 /**
- * Soft tinted highlight across the entire CenterDock tab (icon, title, and
- * every other adornment) — not just the label. Contributing one (via `set`
- * or a `bind` that returns non-`null`) is itself the on/off signal; there's
- * no separate boolean. At most one applies per tab — if multiple extensions
- * contribute one for the same target, the first found wins.
+ * Soft tinted highlight on a CenterDock tab: the semantic color falls from
+ * the tab's top edge and fades out before the bottom, and the title takes
+ * the same color. The leading {@link TabIconAdornment | icon} and the
+ * trailing {@link TabIndicatorAdornment | indicator} keep their own colors,
+ * so an indicator stays free to disagree with the highlight.
+ *
+ * Contributing one (via `set` or a `bind` that returns non-`null`) is itself
+ * the on/off signal; there's no separate boolean. At most one applies per
+ * tab — if multiple extensions contribute one for the same target, the first
+ * found wins.
  *
  * Set via {@link EditorService.setHighlight} / {@link TerminalService.setHighlight}.
  *
@@ -42,7 +58,7 @@ export interface TabIconAdornment {
 export interface TabHighlightAdornment {
   /** Extension-owned key; clear target. */
   id: string;
-  /** Semantic color for the highlight fill. Defaults to `"accent"`. */
+  /** Semantic color for the highlight. Defaults to `"accent"`. */
   color?: TabAdornmentColor;
 }
 

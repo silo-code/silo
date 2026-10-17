@@ -1,6 +1,6 @@
 # Interface: TabHighlightBinder
 
-Defined in: [packages/sdk/src/tab-adornment.ts:182](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L182)
+Defined in: [packages/sdk/src/tab-adornment.ts:198](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L198)
 
 Keep a whole-tab highlight projection in sync for every editor/terminal
 tab.
@@ -13,7 +13,7 @@ tab.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:184](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L184)
+Defined in: [packages/sdk/src/tab-adornment.ts:200](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L200)
 
 Extension-owned key — conventionally `"<extension-id>.tab-highlight"`.
 
@@ -27,7 +27,7 @@ provide(targetId):
   | null;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:189](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L189)
+Defined in: [packages/sdk/src/tab-adornment.ts:205](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L205)
 
 Called synchronously per tab during render. Return `null` to contribute
 no highlight for this target id.

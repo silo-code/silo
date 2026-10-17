@@ -4,7 +4,7 @@
 function Badge(__namedParameters): Element;
 ```
 
-Defined in: [packages/sdk/src/Badge.tsx:34](https://github.com/silo-code/silo/blob/main/packages/sdk/src/Badge.tsx#L34)
+Defined in: [packages/sdk/src/Badge.tsx:35](https://github.com/silo-code/silo/blob/main/packages/sdk/src/Badge.tsx#L35)
 
 A small pill for status or identity — on a [ListRow](ListRow.md)'s trailing
 slot, in a [SettingRow](SettingRow.md)'s control slot, next to a title. An
@@ -34,6 +34,7 @@ cascade — so a badge looks the same in every pane.
 ```tsx
 <Badge tone="ok">Installed</Badge>
 <Badge tone="warn">Update available</Badge>
+<Badge tone="info">In review</Badge>
 <Badge tone="accent">current</Badge>
 <Badge>primary</Badge>
 <Badge tone="outline">Silo</Badge>

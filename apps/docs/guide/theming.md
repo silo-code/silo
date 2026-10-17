@@ -107,11 +107,12 @@ is the same set extensions are allowed to consume.
 
 ### Status
 
-| Token               | Role                |
-| ------------------- | ------------------- |
-| `--silo-color-ok`   | Success             |
-| `--silo-color-warn` | Warning             |
-| `--silo-color-err`  | Error / destructive |
+| Token               | Role                        |
+| ------------------- | --------------------------- |
+| `--silo-color-ok`   | Success                     |
+| `--silo-color-warn` | Warning                     |
+| `--silo-color-err`  | Error / destructive         |
+| `--silo-color-info` | Informational / in progress |
 
 ### Status Bar
 

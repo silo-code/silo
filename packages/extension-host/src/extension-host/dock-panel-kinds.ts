@@ -9,8 +9,6 @@ import { subscribe } from "valtio";
 import type { IDockviewPanelProps } from "dockview";
 import { store } from "../state/store";
 import { Registry } from "./registry";
-import { dockApiWorkspaceId } from "../docked/dock-api-registry";
-import { workspaceIdForPanelRecord } from "../state/workspaces";
 import { setPanelAgentSession } from "./agents/agent-surface-registry";
 import {
   setPanelBreadcrumb,
@@ -18,6 +16,7 @@ import {
 } from "./panel-chrome-registry";
 import { onPanelFocusRequested } from "./panel-focus-registry";
 import { DockPanelChrome } from "../panels/DockPanelChrome";
+import { useDockWorkspaceId } from "../panels/DockWorkspaceContext";
 import type {
   DockPanelApi,
   DockPanelKind,
@@ -147,8 +146,8 @@ export function makeDockPanelApi(
  * this prop exists to stop, and the reason the answer is resolved here rather
  * than in each panel (ADR 0032 / ADR 0034: one authority per question).
  *
- * A panel with no resolved workspace (`""` — a transient panel in a dock whose
- * registration has not landed yet) is not on screen: better a restore that
+ * A panel with no resolved workspace (`""` — a panel rendered outside any
+ * `WorkspaceDock`, which nothing does) is not on screen: better a restore that
  * arrives a render late than one aimed at a panel nobody is looking at.
  */
 export function dockPanelIsOnScreen(
@@ -209,19 +208,19 @@ function toHostComponent(
       [panelId],
     );
     const params = props.params as Record<string, unknown>;
+    const recorded = parseRecordedPanelId(panelId);
     // Each workspace has its own dock; this panel's chrome names the workspace
     // it lives in so a `surface: "panel"` toolbar item can act on it (RFC 0041)
     // — and the panel itself is told, so what it reports about itself is filed
     // where it lives rather than wherever the user is standing.
     //
-    // A **recorded** panel answers this from its own record, which is true from
-    // the first render; the dock's registration is the fallback, and is all a
-    // transient panel (no record) has.
-    const recorded = parseRecordedPanelId(panelId);
-    const workspaceId =
-      (recorded ? workspaceIdForPanelRecord(recorded.recordId) : null) ??
-      dockApiWorkspaceId(props.containerApi) ??
-      "";
+    // The dock it is rendered inside is the one authority for that (ADR 0032 /
+    // ADR 0034), and it reaches every kind — recorded, transient, editor,
+    // terminal — through React context, correct on the first render. `""` only
+    // if a panel somehow renders outside a `WorkspaceDock`, which nothing does.
+    // See DockWorkspaceContext for why this is not keyed on the dockview api
+    // object: that key misses for every panel restored from a saved layout.
+    const workspaceId = useDockWorkspaceId() ?? "";
     // Computed after workspaceId: `onDidRequestFocus` (see panel-focus-registry.ts)
     // is keyed on the (workspaceId, panelId) pair, not panelId alone, since a
     // singleton panel's dockview id is the bare kind id and collides across
