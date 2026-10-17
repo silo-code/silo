@@ -9,6 +9,17 @@ import type { Extension, ThemePreset } from "@silo-code/sdk";
 // Order: White first (sits under Light in the picker — CORE_PRESETS are Dark,
 // Light, then this list); Gruvbox Dark last (under Tokyo Night). Everything
 // between is alphabetical by name.
+//
+// Semantic colors: a preset sets --silo-color-ok / -warn / -err when its
+// palette has its own green/yellow/red. `--silo-color-info` is deliberately
+// left unset in every preset here — it inherits the base blue from theme.css
+// through `base: "dark" | "light"`. Tokyo Night and Gruvbox have no saturated
+// blue that isn't already their accent (#7aa2f7 / #83a598), so mapping info
+// onto the palette blue would collapse info and accent into one hue and
+// reintroduce exactly the two-tints-look-alike collision the token was added
+// to fix; Solarized would gain a third blue nobody asked for. The token is in
+// ThemeVars, so a preset (bundled or third-party) with a distinct blue can
+// still set it.
 const PRESETS: ThemePreset[] = [
   {
     id: "white",

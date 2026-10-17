@@ -5,12 +5,23 @@ import type { Disposable } from "./types";
 
 /**
  * Semantic color for a CenterDock tab trailing {@link TabIndicatorAdornment}
- * (and optional chip background).
+ * (and optional chip background) or {@link TabHighlightAdornment}.
+ *
+ * `"info"` is the themeable blue — for "informational / in progress" flags.
+ * It is not the pinned {@link Activity} `working` blue: activity colors stay
+ * outside the theme-preset system on purpose (ADR 0030), so the two look
+ * alike but never share a token.
  *
  * @category Consumer Services
  * @public
  */
-export type TabAdornmentColor = "accent" | "warn" | "ok" | "error" | "muted";
+export type TabAdornmentColor =
+  | "accent"
+  | "info"
+  | "warn"
+  | "ok"
+  | "error"
+  | "muted";
 
 /**
  * Leading identity adornment on a CenterDock tab — arbitrary React artwork

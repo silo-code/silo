@@ -49,6 +49,7 @@ export const DESIGN_TOKENS = new Set([
   "--silo-color-ok",
   "--silo-color-warn",
   "--silo-color-err",
+  "--silo-color-info",
   "--silo-color-input-bg",
   "--silo-color-input-text",
   "--silo-color-input-border",

@@ -4,7 +4,7 @@
 type ThemeExport = Omit<CustomTheme, "id">;
 ```
 
-Defined in: [packages/sdk/src/domain-types.ts:397](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L397)
+Defined in: [packages/sdk/src/domain-types.ts:398](https://github.com/silo-code/silo/blob/main/packages/sdk/src/domain-types.ts#L398)
 
 A [CustomTheme](../interfaces/CustomTheme.md) without its `id` — the shape exported/imported as a
 shareable theme file.

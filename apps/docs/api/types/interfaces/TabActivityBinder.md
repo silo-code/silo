@@ -1,6 +1,6 @@
 # Interface: TabActivityBinder
 
-Defined in: [packages/sdk/src/tab-adornment.ts:219](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L219)
+Defined in: [packages/sdk/src/tab-adornment.ts:230](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L230)
 
 Keep a trailing-activity projection in sync for every editor/terminal tab.
 
@@ -12,7 +12,7 @@ Keep a trailing-activity projection in sync for every editor/terminal tab.
 id: string;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:221](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L221)
+Defined in: [packages/sdk/src/tab-adornment.ts:232](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L232)
 
 Extension-owned key — conventionally `"<extension-id>.tab-activity"`.
 
@@ -26,7 +26,7 @@ provide(targetId):
   | null;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:222](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L222)
+Defined in: [packages/sdk/src/tab-adornment.ts:233](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L233)
 
 #### Parameters
 

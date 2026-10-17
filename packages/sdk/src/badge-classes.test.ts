@@ -11,6 +11,7 @@ describe("badgeClass", () => {
     expect(badgeClass("ok")).toBe("silo-badge silo-badge-ok");
     expect(badgeClass("warn")).toBe("silo-badge silo-badge-warn");
     expect(badgeClass("err")).toBe("silo-badge silo-badge-err");
+    expect(badgeClass("info")).toBe("silo-badge silo-badge-info");
     expect(badgeClass("outline")).toBe("silo-badge silo-badge-outline");
   });
 

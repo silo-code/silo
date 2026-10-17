@@ -541,6 +541,11 @@
   color: var(--silo-color-err);
 }
 
+.silo-badge-info {
+  background: color-mix(in srgb, var(--silo-color-info) 18%, transparent);
+  color: var(--silo-color-info);
+}
+
 .silo-badge-outline {
   background: transparent;
   border: 1px solid var(--silo-color-border-strong);

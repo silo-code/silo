@@ -80,6 +80,12 @@ highlight renders per tab; if multiple extensions contribute one for the
 same target, the first found (`set`, then `bind`, in registration order)
 wins.
 
+The color is a
+[`TabAdornmentColor`](/api/types/type-aliases/TabAdornmentColor) — `"accent"`
+(the default) | `"info"` | `"warn"` | `"ok"` | `"error"` | `"muted"`. Every one
+resolves to a themeable `--silo-color-*` token, so a theme preset repaints
+them; `"info"` is the blue, for an "in progress" flag.
+
 ```ts
 ctx.editors.setHighlight(editorId, { id: "acme.title", color: "warn" });
 ctx.editors.clearHighlight(editorId, "acme.title");

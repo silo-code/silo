@@ -4,7 +4,7 @@
 type TabActivityFlash = TabActivityContribution & object;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:126](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L126)
+Defined in: [packages/sdk/src/tab-adornment.ts:137](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L137)
 
 Payload for [EditorService.flashActivity](../interfaces/EditorService.md#flashactivity) /
 [TerminalService.flashActivity](../interfaces/TerminalService.md#flashactivity).

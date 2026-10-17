@@ -10,6 +10,7 @@ export type BadgeTone =
   | "ok"
   | "warn"
   | "err"
+  | "info"
   | "outline";
 
 /**

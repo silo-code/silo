@@ -21,6 +21,7 @@ export type { BadgeSize, BadgeTone };
  * ```tsx
  * <Badge tone="ok">Installed</Badge>
  * <Badge tone="warn">Update available</Badge>
+ * <Badge tone="info">In review</Badge>
  * <Badge tone="accent">current</Badge>
  * <Badge>primary</Badge>
  * <Badge tone="outline">Silo</Badge>

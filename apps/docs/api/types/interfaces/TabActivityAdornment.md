@@ -1,6 +1,6 @@
 # Interface: TabActivityAdornment
 
-Defined in: [packages/sdk/src/tab-adornment.ts:99](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L99)
+Defined in: [packages/sdk/src/tab-adornment.ts:110](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L110)
 
 Host-owned [Activity](../type-aliases/Activity.md) on a CenterDock tab. Extensions pick the kind
 (+ optional tooltip); never an icon or color (ADR 0030).
@@ -13,7 +13,7 @@ Host-owned [Activity](../type-aliases/Activity.md) on a CenterDock tab. Extensio
 id: string;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:101](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L101)
+Defined in: [packages/sdk/src/tab-adornment.ts:112](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L112)
 
 Extension-owned key; stacking + clear target.
 
@@ -25,7 +25,7 @@ Extension-owned key; stacking + clear target.
 activity: Activity;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:102](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L102)
+Defined in: [packages/sdk/src/tab-adornment.ts:113](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L113)
 
 ***
 
@@ -35,4 +35,4 @@ Defined in: [packages/sdk/src/tab-adornment.ts:102](https://github.com/silo-code
 optional tooltip?: string;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:103](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L103)
+Defined in: [packages/sdk/src/tab-adornment.ts:114](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L114)

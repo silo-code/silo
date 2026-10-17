@@ -39,6 +39,7 @@
   --silo-color-ok: #9ece6a;
   --silo-color-warn: #e0af68;
   --silo-color-err: #f7768e;
+  --silo-color-info: #60a5fa;
   /* Toolbar surface — the shared chrome tier for panel header bars (editor
    * breadcrumb / view-switcher, web viewer address bar, and any extension
    * toolbar). Extension-consumable so silo.* extensions can build their own
@@ -292,6 +293,7 @@
   --silo-color-ok: #2da44e;
   --silo-color-warn: #b08800;
   --silo-color-err: #cf222e;
+  --silo-color-info: #2563eb;
   --silo-color-toolbar-bg: #ffffff;
   --silo-color-toolbar-text: #4a4a4a;
   --silo-color-toolbar-text-disabled: #6b6b6b;

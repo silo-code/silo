@@ -1,6 +1,6 @@
 # Interface: TabHighlightAdornment
 
-Defined in: [packages/sdk/src/tab-adornment.ts:47](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L47)
+Defined in: [packages/sdk/src/tab-adornment.ts:58](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L58)
 
 Soft tinted highlight on a CenterDock tab: the semantic color falls from
 the tab's top edge and fades out before the bottom, and the title takes
@@ -23,7 +23,7 @@ Set via [EditorService.setHighlight](EditorService.md#sethighlight) / [TerminalS
 id: string;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:49](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L49)
+Defined in: [packages/sdk/src/tab-adornment.ts:60](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L60)
 
 Extension-owned key; clear target.
 
@@ -35,6 +35,6 @@ Extension-owned key; clear target.
 optional color?: TabAdornmentColor;
 ```
 
-Defined in: [packages/sdk/src/tab-adornment.ts:51](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L51)
+Defined in: [packages/sdk/src/tab-adornment.ts:62](https://github.com/silo-code/silo/blob/main/packages/sdk/src/tab-adornment.ts#L62)
 
 Semantic color for the highlight. Defaults to `"accent"`.

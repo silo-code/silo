@@ -43,6 +43,16 @@ describe("theme-presets extension", () => {
     );
   });
 
+  // --silo-color-info is deliberately inherited from the dark/light base in
+  // theme.css rather than mapped onto each palette: Tokyo Night and Gruvbox
+  // have no saturated blue that isn't already their accent, so a palette blue
+  // would collapse info into accent.
+  it("leaves --silo-color-info to the dark/light base in every preset", () => {
+    for (const preset of activateAndCollect()) {
+      expect(preset.vars["--silo-color-info"]).toBeUndefined();
+    }
+  });
+
   it("keeps High Contrast Dark on the dark base with brighter text and selection fills", () => {
     const highContrastDark = activateAndCollect().find(
       (p) => p.id === "high-contrast-dark",

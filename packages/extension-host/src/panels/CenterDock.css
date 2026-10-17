@@ -336,6 +336,14 @@
   .dv-groupview
   .dv-tabs-container
   .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
+    .dv-default-tab.dvi-tab-highlight[data-color="info"]
+  ) {
+  --silo-internal-tab-highlight: var(--silo-color-info);
+}
+.editor-dock
+  .dv-groupview
+  .dv-tabs-container
+  .dv-tab:is(.dv-active-tab, .dv-inactive-tab):has(
     .dv-default-tab.dvi-tab-highlight[data-color="warn"]
   ) {
   --silo-internal-tab-highlight: var(--silo-color-warn);
@@ -699,6 +707,9 @@
 }
 .dvi-tab-decoration[data-color="accent"] {
   color: var(--silo-color-accent);
+}
+.dvi-tab-decoration[data-color="info"] {
+  color: var(--silo-color-info);
 }
 .dvi-tab-decoration[data-color="warn"] {
   color: var(--silo-color-warn);

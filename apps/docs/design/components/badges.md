@@ -11,6 +11,7 @@ their own palette.
 <div class="silo-demo">
   <span class="silo-badge silo-badge-ok">Installed</span>
   <span class="silo-badge silo-badge-warn">Update available</span>
+  <span class="silo-badge silo-badge-info">In review</span>
   <span class="silo-badge silo-badge-accent">current</span>
   <span class="silo-badge silo-badge-neutral">primary</span>
   <span class="silo-badge silo-badge-outline">Silo</span>
@@ -22,17 +23,18 @@ import { Badge } from "@silo-code/sdk";
 
 <Badge tone="ok">Installed</Badge>
 <Badge tone="warn">Update available</Badge>
+<Badge tone="info">In review</Badge>
 <Badge tone="accent">current</Badge>
 <Badge>primary</Badge>                      {/* neutral */}
 <Badge tone="outline">Silo</Badge>
 <Badge color="#e06c75">Frontend</Badge>     {/* arbitrary identity color */}
 ```
 
-| Prop    | Type                                                            | Default                                      |
-| ------- | --------------------------------------------------------------- | -------------------------------------------- |
-| `tone`  | `"neutral" \| "accent" \| "ok" \| "warn" \| "err" \| "outline"` | `"neutral"`                                  |
-| `size`  | `"sm" \| "md"`                                                  | `"md"`                                       |
-| `color` | `string?`                                                       | overrides `tone` with an arbitrary CSS color |
+| Prop    | Type                                                                      | Default                                      |
+| ------- | ------------------------------------------------------------------------- | -------------------------------------------- |
+| `tone`  | `"neutral" \| "accent" \| "ok" \| "warn" \| "err" \| "info" \| "outline"` | `"neutral"`                                  |
+| `size`  | `"sm" \| "md"`                                                            | `"md"`                                       |
+| `color` | `string?`                                                                 | overrides `tone` with an arbitrary CSS color |
 
 ## Sizes
 
@@ -81,9 +83,10 @@ stands alone as a status word.
 | `ok`      | good state                     | `Installed`, `Authenticated`       |
 | `warn`    | needs attention, not broken    | `Update available`, `idle`         |
 | `err`     | broken                         | `error`, `failed`                  |
+| `info`    | in progress, informational     | `in review`, `syncing`             |
 | `outline` | quiet provenance label         | publisher tag                      |
 
-These six are the whole vocabulary — **never invent a new status tint**. If no
+These seven are the whole vocabulary — **never invent a new status tint**. If no
 tone fits a _status_, that's a design-system conversation. The escape hatch is
 for _identity_, not status. For busy/ready process dots, use
 [Activity](/design/components/activity) instead of a Badge.
@@ -95,9 +98,9 @@ color, a language color. The text takes the given color and the background is
 derived from it (a ~20% tint), same as the preset tones, so any color you pass
 stays coherent with the system.
 
-| Color           | Source                                                                                                        |
-| --------------- | ------------------------------------------------------------------------------------------------------------- |
-| Tone text       | the matching design token (`--silo-color-ok`, `--silo-color-warn`, `--silo-color-err`, `--silo-color-accent`) |
-| Tone background | derived — `color-mix(tone 18–20%, transparent)`                                                               |
-| Neutral         | `--silo-color-button-bg` / `--silo-color-text`                                                                |
-| Outline         | `--silo-color-border-strong` border, `--silo-color-text`                                                      |
+| Color           | Source                                                                                                                             |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Tone text       | the matching design token (`--silo-color-ok`, `--silo-color-warn`, `--silo-color-err`, `--silo-color-info`, `--silo-color-accent`) |
+| Tone background | derived — `color-mix(tone 18–20%, transparent)`                                                                                    |
+| Neutral         | `--silo-color-button-bg` / `--silo-color-text`                                                                                     |
+| Outline         | `--silo-color-border-strong` border, `--silo-color-text`                                                                           |

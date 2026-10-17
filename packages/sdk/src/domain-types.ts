@@ -296,6 +296,7 @@ export interface ThemeVars {
   "--silo-color-ok": string;
   "--silo-color-warn": string;
   "--silo-color-err": string;
+  "--silo-color-info": string;
   "--silo-color-input-bg": string;
   "--silo-color-input-text": string;
   "--silo-color-input-border": string;
