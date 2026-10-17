@@ -1,5 +1,12 @@
 # @silo-code/sdk
 
+## [0.59.0](https://github.com/silo-code/silo/compare/sdk-v0.58.0...sdk-v0.59.0) (2026-10-17)
+
+
+### Features
+
+* **sdk:** panel/editor focus, active-panel state, and the split toolbar control ([#633](https://github.com/silo-code/silo/issues/633)) ([74f5219](https://github.com/silo-code/silo/commit/74f52198bbf2d7b7daf26c1728e8e24ffe04e0cc))
+
 ## [0.58.0](https://github.com/silo-code/silo/compare/sdk-v0.57.0...sdk-v0.58.0) (2026-10-14)
 
 
