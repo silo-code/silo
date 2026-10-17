@@ -196,10 +196,6 @@ export interface TerminalService extends TabAdornmentMethods {
   rename(terminalId: string, name: string): void;
 
   /**
-   * Switch to the workspace containing this terminal and activate its tab in
-   * the center dock. No-ops if the terminal id is unknown.
-   */
-  /**
    * The rows of this terminal's tab context menu — **Rename…**, then whatever
    * extensions contributed on the `"terminal/tab"`
    * {@link MenuSurface | surface}.
@@ -223,6 +219,10 @@ export interface TerminalService extends TabAdornmentMethods {
    */
   getTabMenuItems(terminalId: string): MenuEntry[];
 
+  /**
+   * Switch to the workspace containing this terminal and activate its tab in
+   * the center dock. No-ops if the terminal id is unknown.
+   */
   focus(terminalId: string): void;
 
   /**
@@ -354,13 +354,17 @@ export interface TerminalService extends TabAdornmentMethods {
   ): Disposable;
 
   /**
-   * The record id of the terminal tab that is currently active in the active
-   * workspace's center dock, or `null` when an editor tab (or nothing) is
-   * active. "Active" is the dock's single active panel — the tab the user is
-   * looking at and typing into — so a terminal merely visible in a non-active
-   * split does not count.
+   * Current frozen snapshot of which terminal is active — the record id of
+   * the terminal tab that is currently active in the active workspace's
+   * center dock, or `null` when an editor tab (or nothing) is active.
+   * "Active" is the dock's single active panel — the tab the user is looking
+   * at and typing into — so a terminal merely visible in a non-active split
+   * does not count. Identical value to the deprecated
+   * {@link TerminalService.getActive}; this is the {@link ReactiveService}-shaped
+   * replacement, so `useServiceState(ctx.terminals)` works like it does for
+   * {@link ExtensionContext.editors | ctx.editors}.
    */
-  getActive(): string | null;
+  getState(): string | null;
 
   /**
    * Subscribe to active-terminal changes. The listener receives the terminal
@@ -370,17 +374,30 @@ export interface TerminalService extends TabAdornmentMethods {
    * workspace's active tab is published).
    *
    * Fires on tab activation, group activation, and workspace switches.
-   * Returns a {@link Disposable} that cancels the subscription.
+   * Returns a {@link Disposable} that cancels the subscription. Identical
+   * event to the deprecated {@link TerminalService.subscribeActive}; see
+   * {@link TerminalService.getState}.
    *
    * @example
    * ```ts
    * // Clear a "needs attention" marker once the user views the terminal.
    * ctx.subscriptions.push(
-   *   ctx.terminals.subscribeActive((terminalId) => {
+   *   ctx.terminals.subscribe((terminalId) => {
    *     if (terminalId) attention.delete(terminalId);
    *   }),
    * );
    * ```
+   */
+  subscribe(listener: (terminalId: string | null) => void): Disposable;
+
+  /**
+   * @deprecated Prefer {@link TerminalService.getState} — identical value,
+   * `ReactiveService`-shaped (so it satisfies `useServiceState` directly).
+   */
+  getActive(): string | null;
+
+  /**
+   * @deprecated Prefer {@link TerminalService.subscribe} — identical event.
    */
   subscribeActive(listener: (terminalId: string | null) => void): Disposable;
 }

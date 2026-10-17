@@ -146,9 +146,9 @@ import {
 } from "./chat-session-restore";
 import {
   _resetAgentSurfaceRegistryForTests,
-  setActiveDockPanel,
   setPanelAgentSession,
 } from "./agent-surface-registry";
+import { setActiveDockPanel } from "../active-dock-panel-registry";
 
 function ws(id: string): WorkspaceInternal {
   return {

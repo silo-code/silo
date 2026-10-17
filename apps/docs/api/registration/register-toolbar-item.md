@@ -20,9 +20,10 @@ ctx.invalidateToolbarItems(): void
 ```
 
 One `surface` (`"editor"` | `"navigator"` | `"panel"`) per registration.
-Interactive items set exactly one of `command` or `menu`. Non-interactive chrome
-uses `type: "separator"` (light hairline) or `type: "spacer"` (`sm` / `md` /
-`lg`).
+Interactive items set exactly one of `command` or `menu`; a command item may
+also set `dropdown` to become a [split control](#split-control-action--dropdown).
+Non-interactive chrome uses `type: "separator"` (light hairline) or
+`type: "spacer"` (`sm` / `md` / `lg`).
 
 A `"panel"` item's target is `{ panelId, kindId, params }` — scope it to one
 kind of dock panel with `when: (_keys, t) => t.kindId === "acme.chat"` (or it
@@ -104,6 +105,55 @@ ctx.subscriptions.push(
 The host opens the menu with `ctx.ui.showMenu` (`align: "end"`, toggle on) and
 draws a caret on menu-backed controls.
 
+## Split control: action + dropdown
+
+When a toolbar has one obvious default action plus variations on it — "mark
+with the default label" alongside "mark with…" — add `dropdown` to a **command**
+item. The host welds the two into a single control: clicking the left half runs
+`command`, clicking the caret on the right opens `dropdown.menu`.
+
+```ts
+ctx.subscriptions.push(
+  ctx.registerToolbarItem({
+    id: "acme.flag.panel",
+    surface: "panel",
+    command: "acme.toggleFlag", // the action half
+    icon: "Flag",
+    tooltip: "Flag: Bug",
+    checked: (_k, t) => acmeStore.isFlagged(t.panelId),
+    dropdown: {
+      // the caret half
+      menu: (target) => [
+        { label: "Bug", run: () => acmeStore.flag(target.panelId, "bug") },
+        {
+          label: "Review",
+          run: () => acmeStore.flag(target.panelId, "review"),
+        },
+        { type: "separator" },
+        { label: "Clear", run: () => acmeStore.clear(target.panelId) },
+      ],
+      label: "Flag options",
+      tooltip: "Flag options",
+    },
+  }),
+);
+```
+
+The dropdown carries its own `label` / `tooltip` because the halves answer
+different questions — what clicking _does_ versus what opening _offers_. Omit
+`label` and the caret is named after the control with `options` appended
+("Flag options").
+
+Prefer this over registering two adjacent items. Two items are two
+contributions: the host is free to order other extensions' chrome between them,
+and they carry two independent hover and checked states. A split control is one
+contribution that appears, hides (`when`), and highlights as a unit —
+`checked` describes the command, but the host tints the whole control, caret
+included.
+
+Reach for it only when the dropdown genuinely _refines_ the default action. If
+the caret would open unrelated commands, that's a separate menu item.
+
 ## Separator / spacer
 
 ```tsx
@@ -131,6 +181,7 @@ strips leading/trailing chrome.
 
 [`ToolbarItemContribution`](/api/types/type-aliases/ToolbarItemContribution) ·
 [`ToolbarCommandItemContribution`](/api/types/interfaces/ToolbarCommandItemContribution) ·
+[`ToolbarItemDropdown`](/api/types/interfaces/ToolbarItemDropdown) ·
 [`ToolbarMenuItemContribution`](/api/types/interfaces/ToolbarMenuItemContribution) ·
 [`ToolbarSeparatorContribution`](/api/types/interfaces/ToolbarSeparatorContribution) ·
 [`ToolbarSpacerContribution`](/api/types/interfaces/ToolbarSpacerContribution) ·

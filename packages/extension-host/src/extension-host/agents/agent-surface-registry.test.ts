@@ -5,14 +5,15 @@ import {
   getActiveAgentSession,
   panelControlsForAgentSession,
   panelForAgentSession,
-  setActiveDockPanel,
   setPanelAgentSession,
   subscribeActiveAgentSession,
 } from "./agent-surface-registry";
 import { setActiveTerminal } from "../active-terminal-registry";
+import { setActiveDockPanel } from "../active-dock-panel-registry";
 
 beforeEach(() => {
   _resetAgentSurfaceRegistryForTests();
+  setActiveDockPanel(null);
   setActiveTerminal(null);
 });
 

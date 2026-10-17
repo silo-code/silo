@@ -88,67 +88,69 @@ don't get a proposal at all — see below.
 
 ## Index
 
-| RFC                                                           | Title                                                             | Created    | Status      |
-| ------------------------------------------------------------- | ----------------------------------------------------------------- | ---------- | ----------- |
-| [0001](./0001-ctx-ui-slice-2.md)                              | `ctx.ui` slice 2 — quickPick / inputBox / progress                | 2026-06-04 | draft       |
-| [0002](./0002-ctx-events.md)                                  | Typed `ctx` events (`Event<T>`)                                   | 2026-06-04 | implemented |
-| [0003](./0003-ctx-settings.md)                                | `ctx.settings` — per-extension configuration                      | 2026-06-04 | superseded  |
-| [0004](./0004-ctx-storage.md)                                 | `ctx.storage` — global / workspace / secret                       | 2026-06-04 | implemented |
-| [0005](./0005-declarative-contributes-activation.md)          | Declarative `contributes` + activation events                     | 2026-06-04 | draft       |
-| [0006](./0006-extension-permissions-sandbox.md)               | Extension permissions + sandbox model                             | 2026-06-04 | accepted    |
-| [0007](./0007-extension-authoring-toolchain.md)               | Extension authoring toolchain (CSS auto-injection, `createStore`) | 2026-06-04 | draft       |
-| [0008](./0008-extension-package-format-remote-install.md)     | Extension package format + remote install (GitHub / npm)          | 2026-06-04 | implemented |
-| [0009](./0009-language-intelligence-lsp.md)                   | Language intelligence — TS/JS via `tsserver`                      | 2026-05-29 | draft       |
-| [0010](./0010-pty-host-daemon.md)                             | Self-owned PTY host daemon (replace abduco)                       | 2026-06-04 | implemented |
-| [0011](./0011-iframe-navigation-events.md)                    | Iframe navigation events via webview init script                  | 2026-06-21 | implemented |
-| [0012](./0012-keyboard-navigation-architecture.md)            | Keyboard navigation architecture                                  | 2026-06-06 | implemented |
-| [0013](./0013-context-menu-contributions.md)                  | Context-menu contributions for built-in surfaces                  | 2026-07-02 | implemented |
-| [0014](./0014-extension-registry.md)                          | Extension registry — publishing, discovery, install               | 2026-07-12 | implemented |
-| [0015](./0015-workspace-extension-contributions.md)           | Workspace extension contributions — property pages + context menu | 2026-07-15 | implemented |
-| [0016](./0016-modal-design-system.md)                         | Modal design system: a public SDK component set                   | 2026-07-18 | implemented |
-| [0017](./0017-pty-host-daemon-outside-appimage-mount.md)      | Relocate the pty-host daemon binary outside the AppImage mount    | 2026-07-22 | superseded  |
-| [0018](./0018-ctx-agents-surface.md)                          | `ctx.agents` — host-computed agent activity + resume-hint surface | 2026-07-22 | implemented |
-| [0019](./0019-agent-hook-shell-runtime.md)                    | Agent session hook — POSIX-shell runtime (replaces base64/Python) | 2026-07-29 | implemented |
-| [0020](./0020-agent-hook-activity-channel.md)                 | Hooks as an authoritative agent-activity channel (over OSC)       | 2026-07-29 | draft       |
-| [0021](./0021-follow-ups-extension-sdk.md)                    | Follow-ups extension — generic toolbar + tab-decoration SDK       | 2026-07-30 | implemented |
-| [0022](./0022-side-panel-tab-adornments.md)                   | Side-panel tab adornments — owner handle from registerSidePanel   | 2026-07-31 | draft       |
-| [0023](./0023-workspace-panel-views.md)                       | The Navigator — a side panel of contributed views                 | 2026-08-06 | implemented |
-| [0024](./0024-git-detection-handler-claim-protocol.md)        | Git detection handler claim protocol                              | 2026-08-13 | draft       |
-| [0025](./0025-extension-to-extension-version-dependencies.md) | Declaring a version floor on another extension's API              | 2026-08-13 | draft       |
-| [0026](./0026-terminal-session-host-backpressure.md)          | Terminal session-host backpressure — no UI freeze, startup status | 2026-08-16 | implemented |
-| [0027](./0027-side-dock-layout-tree.md)                       | SideDock layout tree — free-form splits inside a side dock        | 2026-08-21 | implemented |
-| [0028](./0028-terminal-identity-environment.md)               | Terminal identity in the environment                              | 2026-08-23 | implemented |
-| [0029](./0029-sdk-sheet-homedir-confirm-dont-show.md)         | Public SDK: `showSheet`, `homeDir`, `confirmWithDontShowAgain`    | 2026-08-25 | implemented |
-| [0030](./0030-navigator-view-arrangement.md)                  | Navigator view arrangement — reorder, disable, and a stacked mode | 2026-08-27 | implemented |
-| [0031](./0031-tasks-extension.md)                             | Tasks extension — Silo tasks, third-party trackers as sources     | 2026-08-30 | accepted    |
-| [0032](./0032-ctx-extension-storage-directory.md)             | A per-extension storage directory on `ctx`                        | 2026-08-30 | implemented |
-| [0033](./0033-agent-profiles.md)                              | Agent Profiles — naming how you start an agent                    | 2026-08-31 | accepted    |
-| [0034](./0034-control-api.md)                                 | Control API — a return channel for the `silo` command             | 2026-09-01 | implemented |
-| [0035](./0035-agent-prompt-composer.md)                       | Choosing an agent and reviewing a prompt before it runs           | 2026-09-03 | draft       |
-| [0036](./0036-replay-tagged-reattach.md)                      | Tagging reattach replay on the wire                               | 2026-09-03 | implemented |
-| [0038](./0038-acp-agent-sessions.md)                          | Agent Sessions — running an agent over a protocol (ACP)           | 2026-09-07 | accepted    |
-| [0037](./0037-omp-agent-catalog.md)                           | OMP as a standalone catalog agent                                 | 2026-09-04 | implemented |
-| [0039](./0039-panel-toolbar-sdk.md)                           | Host-drawn chrome for a dock panel                                | 2026-09-09 | implemented |
-| [0040](./0040-agent-commands-and-context.md)                  | Commands, skills, and context in the Agent Session surface        | 2026-09-09 | implemented |
-| [0041](./0041-dock-panel-record.md)                           | `DockPanelRecord` — one persisted model for every dock panel      | 2026-09-09 | implemented |
-| [0042](./0042-chat-session-resurrection.md)                   | Chat session resurrection — across app restart and machine reboot | 2026-09-09 | accepted    |
-| [0043](./0043-chat-panel-visual-polish.md)                    | Chat panel visual polish — to the Paseo bar                       | 2026-09-10 | implemented |
-| [0044](./0044-terminal-agent-permission-block-detection.md)   | Terminal-agent permission-block detection                         | 2026-09-14 | draft       |
-| [0045](./0045-chat-context-usage.md)                          | Context usage in the Chat panel                                   | 2026-09-14 | implemented |
-| [0046](./0046-generic-dock-panel-tabs.md)                     | Generic dock-panel tabs — rename, tab menu, working folder        | 2026-09-14 | implemented |
-| [0047](./0047-yolo-mode.md)                                   | YOLO mode — permission bypass as an Agent Profile property        | 2026-09-15 | draft       |
-| [0048](./0048-clear-as-session-reset.md)                      | Clear is a session reset                                          | 2026-09-15 | implemented |
-| [0049](./0049-panel-entry-focus-hook.md)                      | `usePanelEntryFocus` — entry focus as one published call          | 2026-09-16 | implemented |
-| [0050](./0050-chat-transcript-scale.md)                       | Chat transcript scale                                             | 2026-09-16 | draft       |
-| [0051](./0051-session-discovery.md)                           | Session Discovery — a `/resume` picker for the Chat panel         | 2026-09-21 | implemented |
-| [0052](./0052-chat-panel-working-checkout.md)                 | Working checkout — reporting where an agent session is working    | 2026-09-22 | implemented |
-| [0053](./0053-session-host-binary-staging.md)                 | Staging the session-host binary outside the app install           | 2026-09-30 | accepted    |
-| [0054](./0054-macos-permission-brokering.md)                  | macOS permission brokering for hosted processes                   | 2026-10-05 | draft       |
-| [0055](./0055-chat-async-tasks.md)                            | Delegated work in a Chat session                                  | 2026-10-06 | implemented |
-| [0056](./0056-agent-idle-since.md)                            | A durable idle timestamp on `AgentInfo`                           | 2026-10-06 | implemented |
-| [0057](./0057-subagent-sessions.md)                           | Subagent sessions: routing updates by `sessionId`                 | 2026-10-08 | implemented |
-| [0058](./0058-backgrounded-shells.md)                         | Backgrounded shells in a Chat session                             | 2026-10-08 | implemented |
-| [0059](./0059-chat-plan-panel.md)                             | The agent's plan as a pinned panel region                         | 2026-10-09 | draft       |
-| [0060](./0060-session-transfer.md)                            | Transferring a Chat session to another agent                      | 2026-10-09 | draft       |
-| [0061](./0061-session-summary.md)                             | Session summary — knowing what a Chat tab is about                | 2026-10-13 | draft       |
-| [0062](./0062-agent-questions.md)                             | Agent questions (ACP elicitation)                                 | 2026-10-14 | implemented |
+| RFC                                                           | Title                                                              | Created    | Status      |
+| ------------------------------------------------------------- | ------------------------------------------------------------------ | ---------- | ----------- |
+| [0001](./0001-ctx-ui-slice-2.md)                              | `ctx.ui` slice 2 — quickPick / inputBox / progress                 | 2026-06-04 | draft       |
+| [0002](./0002-ctx-events.md)                                  | Typed `ctx` events (`Event<T>`)                                    | 2026-06-04 | implemented |
+| [0003](./0003-ctx-settings.md)                                | `ctx.settings` — per-extension configuration                       | 2026-06-04 | superseded  |
+| [0004](./0004-ctx-storage.md)                                 | `ctx.storage` — global / workspace / secret                        | 2026-06-04 | implemented |
+| [0005](./0005-declarative-contributes-activation.md)          | Declarative `contributes` + activation events                      | 2026-06-04 | draft       |
+| [0006](./0006-extension-permissions-sandbox.md)               | Extension permissions + sandbox model                              | 2026-06-04 | accepted    |
+| [0007](./0007-extension-authoring-toolchain.md)               | Extension authoring toolchain (CSS auto-injection, `createStore`)  | 2026-06-04 | draft       |
+| [0008](./0008-extension-package-format-remote-install.md)     | Extension package format + remote install (GitHub / npm)           | 2026-06-04 | implemented |
+| [0009](./0009-language-intelligence-lsp.md)                   | Language intelligence — TS/JS via `tsserver`                       | 2026-05-29 | draft       |
+| [0010](./0010-pty-host-daemon.md)                             | Self-owned PTY host daemon (replace abduco)                        | 2026-06-04 | implemented |
+| [0011](./0011-iframe-navigation-events.md)                    | Iframe navigation events via webview init script                   | 2026-06-21 | implemented |
+| [0012](./0012-keyboard-navigation-architecture.md)            | Keyboard navigation architecture                                   | 2026-06-06 | implemented |
+| [0013](./0013-context-menu-contributions.md)                  | Context-menu contributions for built-in surfaces                   | 2026-07-02 | implemented |
+| [0014](./0014-extension-registry.md)                          | Extension registry — publishing, discovery, install                | 2026-07-12 | implemented |
+| [0015](./0015-workspace-extension-contributions.md)           | Workspace extension contributions — property pages + context menu  | 2026-07-15 | implemented |
+| [0016](./0016-modal-design-system.md)                         | Modal design system: a public SDK component set                    | 2026-07-18 | implemented |
+| [0017](./0017-pty-host-daemon-outside-appimage-mount.md)      | Relocate the pty-host daemon binary outside the AppImage mount     | 2026-07-22 | superseded  |
+| [0018](./0018-ctx-agents-surface.md)                          | `ctx.agents` — host-computed agent activity + resume-hint surface  | 2026-07-22 | implemented |
+| [0019](./0019-agent-hook-shell-runtime.md)                    | Agent session hook — POSIX-shell runtime (replaces base64/Python)  | 2026-07-29 | implemented |
+| [0020](./0020-agent-hook-activity-channel.md)                 | Hooks as an authoritative agent-activity channel (over OSC)        | 2026-07-29 | draft       |
+| [0021](./0021-follow-ups-extension-sdk.md)                    | Follow-ups extension — generic toolbar + tab-decoration SDK        | 2026-07-30 | implemented |
+| [0022](./0022-side-panel-tab-adornments.md)                   | Side-panel tab adornments — owner handle from registerSidePanel    | 2026-07-31 | draft       |
+| [0023](./0023-workspace-panel-views.md)                       | The Navigator — a side panel of contributed views                  | 2026-08-06 | implemented |
+| [0024](./0024-git-detection-handler-claim-protocol.md)        | Git detection handler claim protocol                               | 2026-08-13 | draft       |
+| [0025](./0025-extension-to-extension-version-dependencies.md) | Declaring a version floor on another extension's API               | 2026-08-13 | draft       |
+| [0026](./0026-terminal-session-host-backpressure.md)          | Terminal session-host backpressure — no UI freeze, startup status  | 2026-08-16 | implemented |
+| [0027](./0027-side-dock-layout-tree.md)                       | SideDock layout tree — free-form splits inside a side dock         | 2026-08-21 | implemented |
+| [0028](./0028-terminal-identity-environment.md)               | Terminal identity in the environment                               | 2026-08-23 | implemented |
+| [0029](./0029-sdk-sheet-homedir-confirm-dont-show.md)         | Public SDK: `showSheet`, `homeDir`, `confirmWithDontShowAgain`     | 2026-08-25 | implemented |
+| [0030](./0030-navigator-view-arrangement.md)                  | Navigator view arrangement — reorder, disable, and a stacked mode  | 2026-08-27 | implemented |
+| [0031](./0031-tasks-extension.md)                             | Tasks extension — Silo tasks, third-party trackers as sources      | 2026-08-30 | accepted    |
+| [0032](./0032-ctx-extension-storage-directory.md)             | A per-extension storage directory on `ctx`                         | 2026-08-30 | implemented |
+| [0033](./0033-agent-profiles.md)                              | Agent Profiles — naming how you start an agent                     | 2026-08-31 | accepted    |
+| [0034](./0034-control-api.md)                                 | Control API — a return channel for the `silo` command              | 2026-09-01 | implemented |
+| [0035](./0035-agent-prompt-composer.md)                       | Choosing an agent and reviewing a prompt before it runs            | 2026-09-03 | draft       |
+| [0036](./0036-replay-tagged-reattach.md)                      | Tagging reattach replay on the wire                                | 2026-09-03 | implemented |
+| [0038](./0038-acp-agent-sessions.md)                          | Agent Sessions — running an agent over a protocol (ACP)            | 2026-09-07 | accepted    |
+| [0037](./0037-omp-agent-catalog.md)                           | OMP as a standalone catalog agent                                  | 2026-09-04 | implemented |
+| [0039](./0039-panel-toolbar-sdk.md)                           | Host-drawn chrome for a dock panel                                 | 2026-09-09 | implemented |
+| [0040](./0040-agent-commands-and-context.md)                  | Commands, skills, and context in the Agent Session surface         | 2026-09-09 | implemented |
+| [0041](./0041-dock-panel-record.md)                           | `DockPanelRecord` — one persisted model for every dock panel       | 2026-09-09 | implemented |
+| [0042](./0042-chat-session-resurrection.md)                   | Chat session resurrection — across app restart and machine reboot  | 2026-09-09 | accepted    |
+| [0043](./0043-chat-panel-visual-polish.md)                    | Chat panel visual polish — to the Paseo bar                        | 2026-09-10 | implemented |
+| [0044](./0044-terminal-agent-permission-block-detection.md)   | Terminal-agent permission-block detection                          | 2026-09-14 | draft       |
+| [0045](./0045-chat-context-usage.md)                          | Context usage in the Chat panel                                    | 2026-09-14 | implemented |
+| [0046](./0046-generic-dock-panel-tabs.md)                     | Generic dock-panel tabs — rename, tab menu, working folder         | 2026-09-14 | implemented |
+| [0047](./0047-yolo-mode.md)                                   | YOLO mode — permission bypass as an Agent Profile property         | 2026-09-15 | draft       |
+| [0048](./0048-clear-as-session-reset.md)                      | Clear is a session reset                                           | 2026-09-15 | implemented |
+| [0049](./0049-panel-entry-focus-hook.md)                      | `usePanelEntryFocus` — entry focus as one published call           | 2026-09-16 | implemented |
+| [0050](./0050-chat-transcript-scale.md)                       | Chat transcript scale                                              | 2026-09-16 | draft       |
+| [0051](./0051-session-discovery.md)                           | Session Discovery — a `/resume` picker for the Chat panel          | 2026-09-21 | implemented |
+| [0052](./0052-chat-panel-working-checkout.md)                 | Working checkout — reporting where an agent session is working     | 2026-09-22 | implemented |
+| [0053](./0053-session-host-binary-staging.md)                 | Staging the session-host binary outside the app install            | 2026-09-30 | accepted    |
+| [0054](./0054-macos-permission-brokering.md)                  | macOS permission brokering for hosted processes                    | 2026-10-05 | draft       |
+| [0055](./0055-chat-async-tasks.md)                            | Delegated work in a Chat session                                   | 2026-10-06 | implemented |
+| [0056](./0056-agent-idle-since.md)                            | A durable idle timestamp on `AgentInfo`                            | 2026-10-06 | implemented |
+| [0057](./0057-subagent-sessions.md)                           | Subagent sessions: routing updates by `sessionId`                  | 2026-10-08 | implemented |
+| [0058](./0058-backgrounded-shells.md)                         | Backgrounded shells in a Chat session                              | 2026-10-08 | implemented |
+| [0059](./0059-chat-plan-panel.md)                             | The agent's plan as a pinned panel region                          | 2026-10-09 | draft       |
+| [0060](./0060-session-transfer.md)                            | Transferring a Chat session to another agent                       | 2026-10-09 | draft       |
+| [0061](./0061-session-summary.md)                             | Session summary — knowing what a Chat tab is about                 | 2026-10-13 | draft       |
+| [0062](./0062-agent-questions.md)                             | Agent questions (ACP elicitation)                                  | 2026-10-14 | implemented |
+| [0063](./0063-panel-and-editor-focus.md)                      | `PanelService.focus` / `EditorService.focus`                       | 2026-10-15 | implemented |
+| [0064](./0064-active-panel-state.md)                          | Active dock-panel state — `ctx.panels`, consistent `ctx.terminals` | 2026-10-15 | implemented |

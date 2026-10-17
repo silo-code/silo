@@ -260,6 +260,21 @@ Editor-owned composition — it carries the view switcher.)
 _Avoid_: Panel toolbar (the contribution cluster is one part of the chrome, not
 the whole), header (too generic — the Editor's is a different composition)
 
+**Split Control**:
+One toolbar contribution the host draws as two welded halves — the left runs
+the item's `command`, the right opens its `dropdown` menu. A **command** item
+becomes one by setting `ToolbarCommandItemContribution.dropdown`; it is still a
+single contribution, so it appears, hides (`when`) and highlights (`checked`,
+which tints the caret too) as one thing. The alternative — two adjacent items —
+is two contributions the host may order other extensions' chrome between.
+Hovering either half lights the whole control, so the seam between them is the
+only thing announcing two click targets. It stays lighter than the chrome
+**separator** that splits toolbar _groups_ — it divides less, so it should
+weigh less — and earns its visibility from length rather than contrast.
+_Avoid_: combo button, split button (the control is not a Button — it is toolbar
+chrome the host draws from a contribution, not a kit component an extension
+renders), dropdown button (names only half of it)
+
 **Dock Panel Record** (RFC 0041):
 The persisted identity and restore state of one Dock Panel — `DockPanelRecord`
 (`id`, `panelId`, `kindId`, `workspaceId`, `state`, timestamps), listed on

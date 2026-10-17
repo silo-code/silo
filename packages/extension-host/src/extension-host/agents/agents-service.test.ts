@@ -100,10 +100,10 @@ import {
 import { AGENT_IDLE_DEBOUNCE_MS } from "./agent-detection-dispatch";
 import {
   _resetAgentSurfaceRegistryForTests,
-  setActiveDockPanel,
   setPanelAgentSession,
 } from "./agent-surface-registry";
 import { setActiveTerminal } from "../active-terminal-registry";
+import { setActiveDockPanel } from "../active-dock-panel-registry";
 import { tabAdornmentRegistry } from "../tab-adornment-registry";
 import { readNewHookEvents } from "./agent-hook-events";
 

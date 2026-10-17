@@ -84,7 +84,7 @@ export type {
   EditorsState,
   EditorSaveEvent,
 } from "./editor-service";
-export type { PanelService } from "./panel-service";
+export type { ActivePanelInfo, PanelService } from "./panel-service";
 export type {
   LayoutService,
   LayoutState,
@@ -189,6 +189,7 @@ export type {
   ToolbarItemContext,
   ToolbarItemFields,
   ToolbarCommandItemContribution,
+  ToolbarItemDropdown,
   ToolbarMenuItemContribution,
   ToolbarChromeFields,
   ToolbarSeparatorContribution,

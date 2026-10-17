@@ -7,6 +7,7 @@ import {
   openDiff as openDiffEditor,
   openPreviewDiff,
   findEditor,
+  workspaceIdForEditor,
 } from "../state/workspaces";
 import { contextKeys, onContextChange } from "./context-keys";
 import { closeActivePanel } from "../docked/dock-api-registry";
@@ -14,6 +15,7 @@ import { registerDiffContentProvider as registerDiffContentProviderImpl } from "
 import { editorRegistry, resolveEditor } from "./editor-registry";
 import { requestReveal } from "./editor-reveal";
 import { EventEmitter } from "./event-emitter";
+import { focusDockPanel } from "./focus-dock-panel";
 import { tabAdornmentMethodsFor } from "./tab-adornment-registry";
 import type {
   Disposable,
@@ -204,6 +206,11 @@ export function getEditorService(): EditorService {
     },
     closeActive() {
       return closeActivePanel();
+    },
+    focus(editorId, opts) {
+      const wsId = opts?.workspaceId ?? workspaceIdForEditor(editorId);
+      if (!wsId || !findEditor(wsId, editorId)) return;
+      focusDockPanel(wsId, `editor:${editorId}`);
     },
     editorsFor(path) {
       const untitled = path === null;

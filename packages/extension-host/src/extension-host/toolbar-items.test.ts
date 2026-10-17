@@ -180,6 +180,125 @@ describe("toolbar items", () => {
     ).toThrow(/exactly one of command or menu/);
   });
 
+  it("resolves a split control: command half plus its own dropdown", () => {
+    const run = vi.fn();
+    commandRegistry.register({ id: "demo.split.mark", label: "Mark", run });
+    const d = registerToolbarItem({
+      id: "split",
+      surface: "panel",
+      command: "demo.split.mark",
+      icon: "Flag",
+      label: "Follow-up",
+      tooltip: "Mark as follow-up: Bug",
+      checked: (_k, t) => t.panelId === "p1",
+      dropdown: {
+        menu: (t) => [{ label: `Label for ${t.panelId}`, run: () => {} }],
+        label: "Follow-up options",
+        tooltip: "Pick a label",
+      },
+    });
+
+    const entry = control(
+      toolbarEntriesFor("panel", {
+        panelId: "p1",
+        kindId: "terminal",
+        workspaceId: "ws-1",
+        params: {},
+      })[0],
+    );
+
+    // The control stays a command — the dropdown rides alongside it, so the
+    // action half keeps its command chrome (and its checked state).
+    expect(entry.kind).toBe("command");
+    expect(entry.checked).toBe(true);
+    expect(entry.tooltip).toBe("Mark as follow-up: Bug");
+    expect(entry.dropdown?.label).toBe("Follow-up options");
+    expect(entry.dropdown?.tooltip).toBe("Pick a label");
+    expect(entry.dropdown?.loadMenu()).toEqual([
+      expect.objectContaining({ label: "Label for p1" }),
+    ]);
+
+    entry.runCommand();
+    expect(run).toHaveBeenCalledWith({
+      panelId: "p1",
+      kindId: "terminal",
+      workspaceId: "ws-1",
+      params: {},
+    });
+
+    d.dispose();
+  });
+
+  it("names an unlabelled dropdown half after the control + 'options'", () => {
+    commandRegistry.register({
+      id: "demo.bare",
+      label: "Bare cmd",
+      run: () => {},
+    });
+    const d = registerToolbarItem({
+      id: "bare-split",
+      surface: "editor",
+      command: "demo.bare",
+      dropdown: { menu: () => [] },
+    });
+
+    const entry = control(toolbarEntriesFor("editor", { editorId: "e1" })[0]);
+    // label falls back to the command's label, and the caret borrows it
+    expect(entry.label).toBe("Bare cmd");
+    expect(entry.dropdown?.label).toBe("Bare cmd options");
+    expect(entry.dropdown?.tooltip).toBe("Bare cmd options");
+
+    d.dispose();
+  });
+
+  it("leaves dropdown undefined on a plain command or menu item", () => {
+    commandRegistry.register({
+      id: "demo.plain",
+      label: "Plain",
+      run: () => {},
+    });
+    const ds = [
+      registerToolbarItem({
+        id: "plain-cmd",
+        surface: "editor",
+        command: "demo.plain",
+      }),
+      registerToolbarItem({
+        id: "plain-menu",
+        surface: "editor",
+        title: "Menu",
+        order: 1,
+        menu: () => [],
+      }),
+    ];
+
+    for (const e of toolbarEntriesFor("editor", { editorId: "e1" })) {
+      expect(control(e).dropdown).toBeUndefined();
+    }
+
+    for (const d of ds) d.dispose();
+  });
+
+  it("rejects a dropdown with no command half and one with no menu builder", () => {
+    expect(() =>
+      registerToolbarItem({
+        id: "menu-plus-dropdown",
+        surface: "editor",
+        menu: () => [],
+        dropdown: { menu: () => [] },
+      } as never),
+    ).toThrow(/dropdown without a command/);
+
+    expect(() =>
+      registerToolbarItem({
+        id: "empty-dropdown",
+        surface: "editor",
+        command: "demo.plain",
+        dropdown: {},
+      } as never),
+    ).toThrow(/dropdown without a menu builder/);
+  });
+
   it("runCommand invokes the registered command with the target", () => {
     const run = vi.fn();
     commandRegistry.register({ id: "demo.run", label: "Run", run });

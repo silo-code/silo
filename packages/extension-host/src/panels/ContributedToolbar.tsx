@@ -33,21 +33,24 @@ type Props<S extends ToolbarSurface> = {
   showMenu: (opts: ShowMenuWithRefresh) => Promise<void>;
 };
 
+async function openEntryMenu(
+  loadMenu: () => MenuEntry[] | Promise<MenuEntry[]>,
+  showMenu: (opts: ShowMenuWithRefresh) => Promise<void>,
+  anchor: HTMLElement,
+): Promise<void> {
+  const items = await loadMenu();
+  // Re-run the same loader on refresh so the just-opened menu can re-resolve
+  // its rows after an in-place delete instead of going stale.
+  await showMenu({ items, anchor, align: "end", refresh: loadMenu });
+}
+
 async function activateEntry(
   entry: ToolbarControlEntry,
   showMenu: (opts: ShowMenuWithRefresh) => Promise<void>,
   anchor: HTMLElement,
 ): Promise<void> {
   if (entry.kind === "menu") {
-    const items = await entry.loadMenu();
-    // Re-run the same loader on refresh so the just-opened menu can re-resolve
-    // its rows after an in-place delete instead of going stale.
-    await showMenu({
-      items,
-      anchor,
-      align: "end",
-      refresh: () => entry.loadMenu(),
-    });
+    await openEntryMenu(entry.loadMenu, showMenu, anchor);
     return;
   }
   entry.runCommand();
@@ -153,6 +156,55 @@ function ToolbarControl({
       )}
     </>
   );
+
+  // A split control: the command half welded to a caret half that opens the
+  // dropdown. Both halves are `__btn` even when the action is icon-only —
+  // an IconButton's own square geometry and radius fight the weld, and `__btn`
+  // already carries the identical toolbar hover/checked chrome. `data-checked`
+  // rides the wrapper so the accent tint covers the caret too: it is one
+  // control, and a pressed button beside an unpressed caret reads as two.
+  if (entry.dropdown) {
+    const dropdown = entry.dropdown;
+    return (
+      <span
+        className="contributed-toolbar__combo"
+        role="group"
+        aria-label={entry.label}
+        data-checked={entry.checked ? "true" : undefined}
+      >
+        <Tooltip content={entry.tooltip}>
+          <button
+            type="button"
+            className="contributed-toolbar__btn contributed-toolbar__combo-main"
+            aria-label={entry.label}
+            aria-pressed={entry.checked}
+            onClick={onClick}
+          >
+            {body}
+          </button>
+        </Tooltip>
+        <span className="contributed-toolbar__combo-rule" aria-hidden />
+        <Tooltip content={dropdown.tooltip}>
+          <button
+            type="button"
+            className="contributed-toolbar__btn contributed-toolbar__combo-drop"
+            aria-label={dropdown.label}
+            aria-haspopup="menu"
+            onClick={(e) =>
+              void openEntryMenu(dropdown.loadMenu, showMenu, e.currentTarget)
+            }
+          >
+            <CaretDown
+              className="contributed-toolbar__caret"
+              weight="bold"
+              size="0.85em"
+              aria-hidden
+            />
+          </button>
+        </Tooltip>
+      </span>
+    );
+  }
 
   // Icon-only controls are IconButtons whether they run a command or open a
   // menu. A caret next to a lone glyph is noise — the icon is the affordance,

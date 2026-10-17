@@ -77,3 +77,12 @@ workspaceId: string;
 ```ts
 params: Readonly<Record<string, unknown>>;
 ```
+
+#### recordId?
+
+```ts
+optional recordId?: string;
+```
+
+This panel's [DockPanelRecord.id](DockPanelRecord.md#id) — the same id [Workspace.panels](Workspace.md#panels) enumerates. `undefined` for a panel kind that isn't
+`persistence: "recorded"` (no record exists to name).

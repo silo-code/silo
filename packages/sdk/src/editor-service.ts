@@ -252,6 +252,14 @@ export interface EditorService extends TabAdornmentMethods {
   /** Close the active dock panel. Returns false if there's nothing to close. */
   closeActive(): boolean;
   /**
+   * Switch to the editor's owning workspace and bring its tab to the front —
+   * including an untitled buffer or a diff view, neither reachable by
+   * re-calling {@link EditorService.open}. No-op if `editorId` names no open
+   * editor. `opts.workspaceId` disambiguates when known; omit it to search
+   * every open workspace.
+   */
+  focus(editorId: string, opts?: { workspaceId?: string }): void;
+  /**
    * List the editor views that match `path` (or `null` for an untitled buffer),
    * highest-priority first, each flagged whether it's the one the host resolves
    * by default. Read-only enumeration for building "Open With" menus and the

@@ -1,6 +1,6 @@
 # Interface: SidePanel
 
-Defined in: [packages/sdk/src/types.ts:616](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L616)
+Defined in: [packages/sdk/src/types.ts:625](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L625)
 
 A panel mounted in the left or right side column (e.g. file explorer, git).
 
@@ -12,7 +12,7 @@ A panel mounted in the left or right side column (e.g. file explorer, git).
 id: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:618](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L618)
+Defined in: [packages/sdk/src/types.ts:627](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L627)
 
 Unique id, conventionally namespaced.
 
@@ -24,7 +24,7 @@ Unique id, conventionally namespaced.
 location: "left" | "right";
 ```
 
-Defined in: [packages/sdk/src/types.ts:620](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L620)
+Defined in: [packages/sdk/src/types.ts:629](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L629)
 
 Which side column to mount in.
 
@@ -36,7 +36,7 @@ Which side column to mount in.
 title: string;
 ```
 
-Defined in: [packages/sdk/src/types.ts:622](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L622)
+Defined in: [packages/sdk/src/types.ts:631](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L631)
 
 Title shown in the column's panel switcher.
 
@@ -48,7 +48,7 @@ Title shown in the column's panel switcher.
 component: ComponentType<SidePanelProps>;
 ```
 
-Defined in: [packages/sdk/src/types.ts:624](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L624)
+Defined in: [packages/sdk/src/types.ts:633](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L633)
 
 The React component; receives [SidePanelProps](SidePanelProps.md).
 
@@ -60,7 +60,7 @@ The React component; receives [SidePanelProps](SidePanelProps.md).
 optional order?: number;
 ```
 
-Defined in: [packages/sdk/src/types.ts:626](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L626)
+Defined in: [packages/sdk/src/types.ts:635](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L635)
 
 Sort order within the side column. Defaults to 0.
 
@@ -72,7 +72,7 @@ Sort order within the side column. Defaults to 0.
 optional lazyMount?: boolean;
 ```
 
-Defined in: [packages/sdk/src/types.ts:632](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L632)
+Defined in: [packages/sdk/src/types.ts:641](https://github.com/silo-code/silo/blob/main/packages/sdk/src/types.ts#L641)
 
 If true, defer mounting the component until the first time this panel
 becomes active. Once mounted, stays mounted (panel can use `active`

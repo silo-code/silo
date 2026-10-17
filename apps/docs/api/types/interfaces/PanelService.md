@@ -1,6 +1,6 @@
 # Interface: PanelService
 
-Defined in: [packages/sdk/src/panel-service.ts:26](https://github.com/silo-code/silo/blob/main/packages/sdk/src/panel-service.ts#L26)
+Defined in: [packages/sdk/src/panel-service.ts:52](https://github.com/silo-code/silo/blob/main/packages/sdk/src/panel-service.ts#L52)
 
 Tab-chrome verbs for a dock panel tab of any [DockPanelKind](DockPanelKind.md) — the
 bundled Chat transcript, a web viewer, a third-party panel. Target id is
@@ -23,6 +23,97 @@ Don't compose it from [DockPanelRecord.id](DockPanelRecord.md#id) and
 - [`TabAdornmentMethods`](TabAdornmentMethods.md)
 
 ## Methods
+
+### focus()
+
+```ts
+focus(panelId): void;
+```
+
+Defined in: [packages/sdk/src/panel-service.ts:64](https://github.com/silo-code/silo/blob/main/packages/sdk/src/panel-service.ts#L64)
+
+Switch to the panel's owning workspace and bring its dock tab to the
+front. No-op if `panelId` names no open panel.
+
+#### Parameters
+
+##### panelId
+
+`string`
+
+#### Returns
+
+`void`
+
+#### Example
+
+```ts
+for (const p of workspace.panels) {
+  if (p.id === flaggedRecordId) ctx.panels.focus(p.panelId);
+}
+```
+
+***
+
+### getState()
+
+```ts
+getState(): ActivePanelInfo | null;
+```
+
+Defined in: [packages/sdk/src/panel-service.ts:84](https://github.com/silo-code/silo/blob/main/packages/sdk/src/panel-service.ts#L84)
+
+Current frozen snapshot of the active panel — `null` whenever the active
+center-dock tab is the built-in editor or terminal, or nothing. Mirrors
+[EditorService.getState](EditorService.md#getstate): referentially stable between renders, so
+`useServiceState(ctx.panels)` works without extra memoization.
+
+A consumer that needs "is *this* flagged panel the one on screen"
+compares `recordId` (or `panelId`) against its own records — e.g. each
+entry's [DockPanelRecord.id](DockPanelRecord.md#id) from [Workspace.panels](Workspace.md#panels).
+
+#### Returns
+
+[`ActivePanelInfo`](ActivePanelInfo.md) \| `null`
+
+#### Example
+
+```ts
+const active = ctx.panels.getState();
+if (active?.kindId === "silo.agents-chat-panel") {
+  ctx.log.info(`Looking at panel ${active.panelId}`);
+}
+```
+
+***
+
+### subscribe()
+
+```ts
+subscribe(listener): Disposable;
+```
+
+Defined in: [packages/sdk/src/panel-service.ts:95](https://github.com/silo-code/silo/blob/main/packages/sdk/src/panel-service.ts#L95)
+
+Subscribe to changes in the active panel. The listener is called whenever
+[PanelService.getState](#getstate)'s value changes (tab focus moves, workspace
+switches, or the active tab becomes/stops being a non-editor/terminal
+panel). Returns a [Disposable](Disposable.md) that cancels the subscription.
+
+Use `useServiceState(ctx.panels)` in React components instead of calling
+`subscribe` directly.
+
+#### Parameters
+
+##### listener
+
+(`state`) => `void`
+
+#### Returns
+
+[`Disposable`](Disposable.md)
+
+***
 
 ### setIcon()
 

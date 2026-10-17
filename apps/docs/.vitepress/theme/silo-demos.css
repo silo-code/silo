@@ -1352,3 +1352,154 @@ html.dark .silo-demo {
   top: 10px;
   right: 10px;
 }
+
+/* ── Navigator row preview (design/surfaces.md#navigator) ──────────────────
+   `sd-nav-row*`, like every other demo-only scaffolding class on this page
+   (`sd-frame`, `sd-rail`, …) — NOT a public class. It mirrors the Agents
+   panel's private `.ap-row-*` values so the Navigator surface page can show
+   the row shape live, not just describe it in a table. Promoting these
+   values to a real public class is tracked as silo-code/silo#632; when that
+   ships, point this preview at the real classes and drop this block. */
+.silo-demo .sd-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 12px;
+  margin: 0 4px 2px;
+  border-radius: var(--silo-radius-sm);
+  cursor: pointer;
+}
+.silo-demo .sd-nav-row:hover {
+  background: var(--silo-color-bg-hover);
+}
+.silo-demo .sd-nav-row[data-active="true"] {
+  background: var(--silo-color-bg-active);
+}
+/* The leading icon is NOT a sibling of the text block — it's the first
+   child of the title line, which is itself the first row of the same
+   flex-column the subtitle sits in. That's what puts the icon and the
+   subtitle's workspace mark on the same left edge (flush), rather than the
+   subtitle reading as indented under the title text. */
+.silo-demo .sd-nav-row-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.silo-demo .sd-nav-row-title-line {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.silo-demo .sd-nav-row-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--silo-color-text);
+}
+.silo-demo .sd-nav-row-title {
+  min-width: 0;
+  color: var(--silo-color-text-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.silo-demo .sd-nav-row-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--silo-color-text-lo);
+  font-size: calc(1em - 1px);
+}
+.silo-demo .sd-nav-row-ws-icon {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  opacity: 0.75;
+}
+/* Optional third line (design/surfaces.md's "An optional third line") — not
+   a host-canonical pattern, sourced from a real third-party view that built
+   one (follow-ups' `.fu-row-note`). */
+.silo-demo .sd-nav-row-note {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  color: var(--silo-color-text-lo);
+  font-size: calc(1em - 2px);
+  line-height: 1.4;
+}
+.silo-demo .sd-nav-row-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: auto;
+}
+.silo-demo .sd-nav-row-dot[data-tone="active"] {
+  background: #f2994a;
+}
+.silo-demo .sd-nav-row-dot[data-tone="idle"] {
+  background: var(--silo-color-text-lo);
+  opacity: 0.5;
+}
+
+/* Wrapper so the rows/section header stack vertically like a real Navigator
+   panel — `.silo-demo` itself is a row-flex wrapper for inline swatches, so
+   every stacked "panel" demo (this one, `.sd-frame`) needs its own column
+   wrapper rather than relying on the base class.
+
+   Font-size and line-height are set here, not inherited from `.silo-demo`'s
+   base: every demo on this page before this one shows *modal* content, so
+   `.silo-demo`'s tokens (base 14px, chrome 12px, line-height 1.5) are
+   specifically the MODAL scale — see this file's header comment. A Navigator
+   is never inside a modal. The real app's actual (non-modal) scale is
+   base 13px, chrome `base - 2` = 11px — `--silo-font-size-chrome` is
+   redeclared below for this subtree so it resolves to the real 11px instead
+   of silently inheriting the ambient 12px modal value, which is what made an
+   earlier version of this demo's section heading read oversized (the
+   font-size was wrong, not just the line-height — line-height alone was a
+   red herring caught the first time this got "fixed"). Row text uses the
+   real side-panel formula directly (base 13 + 2 = 15px). */
+.silo-demo .sd-nav-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 260px;
+  --silo-font-size-chrome: 11px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+/* Section heading above a group of rows — the canonical group-heading
+   pattern (shared, not interim: the real source calls this out as the same
+   treatment git-explorer, skills-manager, and silo.tasks already use). */
+.silo-demo .sd-nav-section-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: var(--silo-font-size-chrome);
+  line-height: 1.3;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--silo-color-text-lo);
+  cursor: pointer;
+}
+.silo-demo .sd-nav-section-caret {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  transition: transform 0.1s ease-out;
+}
+.silo-demo .sd-nav-section-caret[data-expanded="true"] {
+  transform: rotate(90deg);
+}
+.silo-demo .sd-nav-section-count {
+  margin-left: auto;
+  line-height: 1.3;
+}

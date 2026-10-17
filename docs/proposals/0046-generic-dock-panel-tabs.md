@@ -157,4 +157,5 @@ consuming `params.cwd`; the public SDK additions needed to express them.
 - Related: RFC 0041 (`DockPanelRecord`), RFC 0042 (Chat session resurrection), RFC 0039
   (panel toolbar SDK), RFC 0013 (context-menu contributions), RFC 0038
   (`chatProfileHost` declaration), ADR 0029 (adornments vs registration), ADR 0030
-  (Activity chrome).
+  (Activity chrome), RFC 0063 (`PanelService.focus` / `EditorService.focus`, plus
+  `recordId` on `panelId`-keyed menu/toolbar contexts this RFC introduced).

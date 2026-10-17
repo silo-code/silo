@@ -505,6 +505,15 @@ export interface MenuContext {
     kindId: string;
     workspaceId: string;
     params: Readonly<Record<string, unknown>>;
+    /**
+     * This tab's {@link DockPanelRecord.id} — the same id {@link
+     * Workspace.panels} enumerates, so a handler that persists something
+     * per-panel can key off it directly instead of rebuilding a
+     * `panelId → DockPanelRecord.id` index from `Workspace.panels` itself.
+     * `undefined` for a panel kind that isn't `persistence: "recorded"` (no
+     * record exists to name).
+     */
+    recordId?: string;
   };
   workspace: Workspace;
 }
