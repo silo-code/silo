@@ -39,9 +39,9 @@ export interface TabIconAdornment {
 }
 
 /**
- * Soft tinted highlight on a CenterDock tab: the semantic color falls from
- * the tab's top edge and fades out before the bottom, and the title takes
- * the same color. The leading {@link TabIconAdornment | icon} and the
+ * Soft tinted highlight on a CenterDock tab: a rounded chip in the semantic
+ * color, inset from every tab edge so the tab's own shape still reads, and
+ * the title takes the same color. The leading {@link TabIconAdornment | icon} and the
  * trailing {@link TabIndicatorAdornment | indicator} keep their own colors,
  * so an indicator stays free to disagree with the highlight.
  *

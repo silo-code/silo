@@ -70,9 +70,9 @@ ctx.subscriptions.push(
 
 ## Tab highlight
 
-Paint a soft tinted highlight on the tab via optional semantic `color`: the
-color falls from the tab's **top edge** and fades out before the bottom, and
-the **title** takes the same color. The leading icon and the trailing
+Paint a soft tinted highlight on the tab via optional semantic `color`: a
+rounded chip in that color, **inset from every tab edge** so the tab's own
+shape still reads, and the **title** takes the same color. The leading icon and the trailing
 indicator keep their own colors, so an indicator stays free to disagree with
 the highlight. Contributing one (via `set`, or a `bind` whose `provide` returns non-`null`)
 is itself the on/off signal — there's no separate boolean. At most one
